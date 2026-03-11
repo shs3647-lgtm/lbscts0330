@@ -122,6 +122,24 @@ export const ColorIcons = {
 // LocalStorage 키
 const USER_PHOTO_STORAGE_KEY = 'fmea_user_photo';
 
+// ─── 2줄 한글/영문 분리 렌더러 ───
+// "나의 업무현황(My Tasks)" → 1줄: 나의 업무현황, 2줄: (My Tasks)
+const BILINGUAL_RE = /^([\p{Emoji_Presentation}\p{Emoji}\u200d\ufe0f]*\s*)?(.+?)\(([^)]+)\)$/u;
+
+function BilingualLabel({ text, className }: { text: string; className?: string }) {
+  const m = text.match(BILINGUAL_RE);
+  if (!m) return <span className={className}>{text}</span>;
+  const emoji = (m[1] || '').trim();
+  const main = m[2].trim();
+  const sub = m[3].trim();
+  return (
+    <span className={cn(className, 'flex flex-col leading-tight')}>
+      <span className="truncate">{emoji ? `${emoji} ${main}` : main}</span>
+      <span className="text-[8px] opacity-60 truncate">({sub})</span>
+    </span>
+  );
+}
+
 // ─── SidebarShell 컴포넌트 ───
 
 interface SidebarShellProps {
@@ -270,10 +288,10 @@ export const SidebarShell = React.memo(function SidebarShell({
               <span className="text-[7px] font-bold text-cyan-300 leading-none">{item.shortLabel}</span>
             )}
             <span className={cn(
-              'whitespace-nowrap text-[10px] font-semibold text-white/90 transition-all duration-200',
-              showLabels ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+              'text-[10px] font-semibold text-white/90 transition-all duration-200 overflow-hidden',
+              showLabels ? 'opacity-100' : 'opacity-0 w-0'
             )}>
-              {t(item.label)}
+              <BilingualLabel text={t(item.label)} />
             </span>
             {!showLabels && (
               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-[10000]">
@@ -291,29 +309,29 @@ export const SidebarShell = React.memo(function SidebarShell({
           {hasSubItems && showLabels && isMenuExpanded && (
             <div className="ml-7 mt-0.5 space-y-0">
               {item.subItems?.map((subItem) => {
+                const translated = t(subItem.label);
                 const needsFullReload = subItem.href.includes('/worksheet')
                   || subItem.href.includes('/lld')
                   || subItem.href.includes('/ap-improvement')
                   || subItem.href.includes('/dashboard');
 
+                const cls = cn(
+                  'flex items-start px-2 py-0.5 rounded text-[10px] w-full text-left transition-colors duration-200',
+                  isActive(subItem.href) ? 'text-cyan-300 bg-cyan-500/20 font-semibold' : 'text-white/60 hover:text-white hover:bg-white/5'
+                );
+
                 if (needsFullReload) {
                   return (
                     <button key={subItem.href} onClick={() => window.location.href = subItem.href}
-                      className={cn(
-                        'flex items-center px-2 h-6 rounded text-[10px] truncate w-full text-left transition-colors duration-200',
-                        isActive(subItem.href) ? 'text-cyan-300 bg-cyan-500/20 font-semibold' : 'text-white/60 hover:text-white hover:bg-white/5'
-                      )} title={t(subItem.label)}>
-                      {t(subItem.label)}
+                      className={cls} title={translated}>
+                      <BilingualLabel text={translated} />
                     </button>
                   );
                 }
                 return (
                   <Link key={subItem.href} href={subItem.href}
-                    className={cn(
-                      'flex items-center px-2 h-6 rounded text-[10px] truncate transition-colors duration-200',
-                      isActive(subItem.href) ? 'text-cyan-300 bg-cyan-500/20 font-semibold' : 'text-white/60 hover:text-white hover:bg-white/5'
-                    )} title={t(subItem.label)}>
-                    {t(subItem.label)}
+                    className={cls} title={translated}>
+                    <BilingualLabel text={translated} />
                   </Link>
                 );
               })}

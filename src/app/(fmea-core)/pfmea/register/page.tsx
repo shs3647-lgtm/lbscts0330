@@ -40,7 +40,7 @@ const UserSelectModal = dynamic(
   { ssr: false }
 );
 import { FmeaSelectModal } from '@/components/modals/FmeaSelectModal';
-import { ApqpSelectModal } from '@/components/modals/ApqpSelectModal';
+// ApqpSelectModal 삭제됨 (APQP 모듈 제거)
 import { DatePickerModal } from '@/components/DatePickerModal';
 import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
 import { CFTRegistrationTable, createInitialCFTMembers } from '@/components/tables/CFTRegistrationTable';
@@ -454,7 +454,7 @@ function PFMEARegisterPageContent() {
                 <col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[9%]" /><col className="w-[16%]" />
               </colgroup>
               <tbody>
-                {/* 1행: FMEA유형, FMEA명, FMEA ID, 상위APQP */}
+                {/* 1행: FMEA유형, FMEA명, FMEA ID, 연동 CP/PFD */}
                 <tr className="h-8">
                   <td className={headerCell} title="FMEA Type">FMEA 유형(Type)</td>
                   <td className={inputCell}>
@@ -487,9 +487,27 @@ function PFMEARegisterPageContent() {
                       {revParam && <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded">{revParam}</span>}
                     </div>
                   </td>
-                  <td className={`${headerCell} opacity-40`} title="Parent APQP Project">상위 APQP(Parent)</td>
-                  <td className={`${inputCell} opacity-40`}>
-                    <span className="text-[10px] text-gray-400">준비중(Preparing)</span>
+                  <td className={`${headerCell} bg-teal-700`} title="Linked CP / PFD">연동 CP/PFD</td>
+                  <td className={inputCell}>
+                    <div className="flex items-center gap-1.5 px-1 min-h-[28px] flex-wrap">
+                      {fmeaInfo.linkedCpNo ? (
+                        <span className="inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => router.push(`/control-plan/register?id=${fmeaInfo.linkedCpNo}`)} title="CP 등록화면으로 이동">
+                          <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-teal-500">CP</span>
+                          <span className="text-[10px] font-semibold text-teal-700 hover:underline">{fmeaInfo.linkedCpNo}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-gray-400">CP 미연동</span>
+                      )}
+                      <span className="text-gray-300">|</span>
+                      {fmeaInfo.linkedPfdNo ? (
+                        <span className="inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => router.push(`/pfd/register?id=${fmeaInfo.linkedPfdNo}`)} title="PFD 등록화면으로 이동">
+                          <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-indigo-500">PFD</span>
+                          <span className="text-[10px] font-semibold text-indigo-700 hover:underline">{fmeaInfo.linkedPfdNo}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-gray-400">PFD 미연동</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
                 {/* 2행: 공정책임, FMEA담당자, 시작일자, 상위FMEA */}
@@ -790,7 +808,6 @@ function PFMEARegisterPageContent() {
           }} />
         <UserSelectModal isOpen={userModalOpen} onClose={() => { setUserModalOpen(false); setSelectedMemberIndex(null); setRoleSearchTerm(''); }} onSelect={handleUserSelect} initialSearchTerm={roleSearchTerm} />
         <FmeaSelectModal isOpen={fmeaSelectModalOpen} onClose={() => setFmeaSelectModalOpen(false)} onSelect={handleFmeaSelect} fmeas={availableFmeas} selectType={fmeaSelectType} currentFmeaId={fmeaId} onExcelImport={() => window.location.href = `/pfmea/import?id=${fmeaId}&mode=excel&type=${fmeaSelectType}`} />
-        <ApqpSelectModal isOpen={apqpModalOpen} onClose={() => setApqpModalOpen(false)} onSelect={handleApqpSelect} apqps={apqpList} />
 
         {/* BD 선택 모달: Master/Family가 2개 이상일 때 */}
         {bdSelectModal.open && (

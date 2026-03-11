@@ -38,9 +38,9 @@ interface CreateDocumentModalProps {
 }
 
 // =====================================================
-// 앱 체크박스 설정 (계층 구조: APQP → PFD → DFMEA → PFMEA → CP)
+// 앱 체크박스 설정 (PFD → PFMEA → CP)
 // =====================================================
-const LINKABLE_APPS: AppType[] = ['apqp', 'pfd', 'dfmea', 'pfmea', 'cp'];
+const LINKABLE_APPS: AppType[] = ['pfd', 'pfmea', 'cp'];
 
 // =====================================================
 // 컴포넌트
@@ -83,10 +83,8 @@ export default function CreateDocumentModal({
         if (isOpen) {
             setSelectedApps({
                 [sourceApp]: true,
-                ...(sourceApp === 'apqp' && { pfd: true, dfmea: true, pfmea: true, cp: true }),
-                ...(sourceApp === 'pfd' && { dfmea: true, pfmea: true }),
-                ...(sourceApp === 'dfmea' && { pfd: true, cp: true }),
-                ...(sourceApp === 'pfmea' && { pfd: true, dfmea: true, cp: true }),
+                ...(sourceApp === 'pfd' && { pfmea: true }),
+                ...(sourceApp === 'pfmea' && { pfd: true, cp: true }),
                 ...(sourceApp === 'cp' && { pfmea: true }),
             });
             setLinkMode('linked');
@@ -116,7 +114,7 @@ export default function CreateDocumentModal({
 
     // 앱 체크박스 토글
     const toggleApp = (app: AppType) => {
-        if (app === sourceApp || app === 'apqp') return; // APQP 미개발
+        if (app === sourceApp) return;
         setSelectedApps(prev => ({
             ...prev,
             [app]: !prev[app],
@@ -175,8 +173,8 @@ export default function CreateDocumentModal({
 
     const sourceConfig = APP_CONFIGS[sourceApp];
     const selectedCount = Object.values(selectedApps).filter(Boolean).length;
-    const showFmeaTypeSelector = sourceApp === 'pfmea' || sourceApp === 'dfmea' ||
-        (linkMode === 'linked' && (selectedApps.pfmea || selectedApps.dfmea));
+    const showFmeaTypeSelector = sourceApp === 'pfmea' ||
+        (linkMode === 'linked' && selectedApps.pfmea);
 
     return createPortal(
         <div
@@ -268,7 +266,7 @@ export default function CreateDocumentModal({
                             </td>
                         </tr>
 
-                        {/* FMEA 종류 (PFMEA/DFMEA 선택 시) */}
+                        {/* FMEA 종류 (PFMEA 선택 시) */}
                         {showFmeaTypeSelector && (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">FMEA 종류</td>
@@ -314,7 +312,7 @@ export default function CreateDocumentModal({
                                                 const config = APP_CONFIGS[app];
                                                 const isSource = app === sourceApp;
                                                 const isSelected = selectedApps[app];
-                                                const isDisabled = isSource || app === 'apqp';
+                                                const isDisabled = isSource;
                                                 return (
                                                     <tr key={app} className="border-b border-gray-100 last:border-b-0">
                                                         <td className="py-0.5 pr-2 w-20">
@@ -333,7 +331,6 @@ export default function CreateDocumentModal({
                                                                         className="w-3.5 h-3.5 rounded"
                                                                     />
                                                                     {isSource && <span className="text-gray-400">(현재)</span>}
-                                                                    {app === 'apqp' && !isSource && <span className="text-gray-400">(준비중)</span>}
                                                                 </label>
                                                                 {app === 'cp' && isSelected && (
                                                                     <select

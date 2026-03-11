@@ -25,7 +25,6 @@ export interface CpBasicInfoTableProps {
   isEditMode: boolean;
   selectedBaseCp: string | null;
   selectedParentFmea: string | null;
-  selectedParentApqp: string | null;
   fmeaLocked: boolean;
   linkedPfdList: LinkedDocItem[];
   cftNames: string;
@@ -39,8 +38,6 @@ export interface CpBasicInfoTableProps {
   // Modal openers
   openCpSelectModal: (type: CPSelectType) => void;
   openFmeaSelectModal: () => void;
-  loadApqpList: () => Promise<void>;
-  setApqpModalOpen: (open: boolean) => void;
   setBizInfoModalOpen: (open: boolean) => void;
   setUserModalTarget: (target: string) => void;
   setUserModalOpen: (open: boolean) => void;
@@ -64,7 +61,6 @@ export default function CpBasicInfoTable({
   isEditMode,
   selectedBaseCp,
   selectedParentFmea,
-  selectedParentApqp,
   fmeaLocked,
   linkedPfdList,
   cftNames,
@@ -74,8 +70,6 @@ export default function CpBasicInfoTable({
   setSelectedBaseCp,
   openCpSelectModal,
   openFmeaSelectModal,
-  loadApqpList,
-  setApqpModalOpen,
   setBizInfoModalOpen,
   setUserModalTarget,
   setUserModalOpen,
@@ -129,36 +123,12 @@ export default function CpBasicInfoTable({
               />
             </td>
             <td className={headerCell}>CP ID</td>
-            <td className={inputCell}>
+            <td colSpan={3} className={inputCell}>
               <span
                 className="px-2 text-xs font-semibold text-blue-600 cursor-pointer hover:underline hover:text-blue-700"
                 onClick={() => router.push('/control-plan/list')}
                 title="클릭하여 CP 리스트로 이동"
               >{cpId}</span>
-            </td>
-            <td className={headerCell} title="Parent APQP">상위 APQP(Parent)</td>
-            <td className={inputCell}>
-              <div className="flex items-center gap-1 px-2">
-                {selectedParentApqp ? (
-                  <>
-                    <span className="text-xs font-semibold text-teal-600">{selectedParentApqp}</span>
-                    <button
-                      onClick={() => setApqpModalOpen(false)}
-                      className="text-gray-400 hover:text-red-500 text-xs ml-1"
-                      title="APQP 연동 해제"
-                    >
-                      &#x2715;
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={async () => { await loadApqpList(); setApqpModalOpen(true); }}
-                    className="text-xs text-teal-600 hover:text-teal-800 font-semibold"
-                  >
-                    + APQP 선택
-                  </button>
-                )}
-              </div>
             </td>
           </tr>
 
@@ -372,47 +342,11 @@ export default function CpBasicInfoTable({
               </select>
             </td>
             <td className={headerCell} title="Cross Functional Team">상호기능팀(CFT)</td>
-            <td className={inputCell}>
+            <td colSpan={3} className={inputCell}>
               <span className="text-xs text-gray-700 px-2">{cftNames || '-'}</span>
-            </td>
-            <td className={`${headerCell} bg-indigo-600`} title="Parent DFMEA">상위 DFMEA(Parent)</td>
-            <td className={inputCell}>
-              <div className="flex items-center gap-1 px-2">
-                {cpInfo.linkedDfmeaNo ? (
-                  <>
-                    <span
-                      className="px-1 py-0 rounded text-[9px] font-bold text-white bg-indigo-500 cursor-pointer hover:bg-indigo-600"
-                      onClick={() => router.push(`/dfmea/register?id=${cpInfo.linkedDfmeaNo?.toLowerCase()}`)}
-                      title="DFMEA 등록화면으로 이동"
-                    >DFMEA</span>
-                    <span
-                      className="text-xs font-bold text-indigo-700 cursor-pointer hover:underline"
-                      onClick={() => router.push(`/dfmea/register?id=${cpInfo.linkedDfmeaNo?.toLowerCase()}`)}
-                    >{cpInfo.linkedDfmeaNo}</span>
-                  </>
-                ) : (
-                  <span className="text-xs text-gray-400">-</span>
-                )}
-              </div>
             </td>
           </tr>
 
-          {/* 6행: 워크시트 옵션 */}
-          <tr className="h-8">
-            <td className={headerCell} title="Worksheet Options">워크시트 옵션(WS Options)</td>
-            <td className={inputCell} colSpan={7}>
-              <label className="flex items-center gap-1.5 cursor-pointer px-2">
-                <input
-                  type="checkbox"
-                  checked={cpInfo.partNameMode === 'B'}
-                  onChange={e => updateField('partNameMode', e.target.checked ? 'B' : 'A')}
-                  className="w-3.5 h-3.5 accent-indigo-600"
-                />
-                <span className="text-xs text-gray-700">부품명(Part Name) E열 컬럼 표시(Show Column)</span>
-                <span className="text-[9px] text-gray-400 ml-1">(DFMEA 연동 시 활성화)</span>
-              </label>
-            </td>
-          </tr>
         </tbody>
       </table>
     </div>

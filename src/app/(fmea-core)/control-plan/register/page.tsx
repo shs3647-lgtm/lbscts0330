@@ -117,11 +117,10 @@ function CPRegisterPageContent() {
         <CpBasicInfoTable
           cpInfo={cpInfo} cpId={cpId} isEditMode={isEditMode}
           selectedBaseCp={selectedBaseCp} selectedParentFmea={selectedParentFmea}
-          selectedParentApqp={selectedParentApqp} fmeaLocked={fmeaLocked}
+          fmeaLocked={fmeaLocked}
           linkedPfdList={linkedPfdList} cftNames={cftNames}
           updateField={updateField} setCpId={setCpId} setCpInfo={setCpInfo} setSelectedBaseCp={setSelectedBaseCp}
           openCpSelectModal={openCpSelectModal} openFmeaSelectModal={openFmeaSelectModal}
-          loadApqpList={loadApqpList} setApqpModalOpen={setApqpModalOpen}
           setBizInfoModalOpen={setBizInfoModalOpen}
           setUserModalTarget={(t) => setUserModalTarget(t as 'responsible' | 'design' | 'cft')}
           setUserModalOpen={setUserModalOpen}
