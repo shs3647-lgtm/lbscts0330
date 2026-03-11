@@ -20,9 +20,6 @@ interface RegisterInfoSectionProps {
   showMissingFields: boolean;
   selectedBaseFmea: string | null;
   selectedParentApqp: string | null;
-  // ★ 연동 PFD/CP
-  linkedPfd: string | null;
-  linkedCp: string | null;
   onFieldChange: (field: keyof FMEAInfo, value: string) => void;
   onFmeaTypeChange: (type: FMEAType) => void;
   onOpenBizInfoModal: () => void;
@@ -48,8 +45,6 @@ export function RegisterInfoSection({
   showMissingFields,
   selectedBaseFmea,
   selectedParentApqp,
-  linkedPfd,
-  linkedCp,
   onFieldChange,
   onFmeaTypeChange,
   onOpenBizInfoModal,
@@ -252,7 +247,7 @@ export function RegisterInfoSection({
             {/* 4행 - FMEA 유형 + 연동 PFD/CP */}
             <tr className="bg-white h-8">
               <td className={`${headerCell} whitespace-nowrap`} title="FMEA Type">FMEA 유형(Type)</td>
-              <td colSpan={3} className={`${inputCell} px-3`}>
+              <td colSpan={7} className={`${inputCell} px-3`}>
                 <div className="flex items-center gap-4 h-7">
                   {(['M', 'F', 'P'] as FMEAType[]).map((type) => (
                     <label key={type} className="flex items-center gap-1 cursor-pointer">
@@ -270,42 +265,6 @@ export function RegisterInfoSection({
                     </label>
                   ))}
                 </div>
-              </td>
-              {/* 연동 PFD */}
-              <td className={`${headerCell} whitespace-nowrap bg-violet-600`} title="Linked PFD">연동 PFD(Linked)</td>
-              <td className={`${inputCell}`}>
-                {linkedPfd ? (
-                  <div className="flex items-center gap-1 px-2">
-                    <span
-                      className="px-1 py-0 rounded text-[9px] font-bold text-white bg-violet-500 cursor-pointer hover:bg-violet-600"
-                      onClick={() => router.push(`/pfd/register?id=${linkedPfd.toLowerCase()}`)}
-                      title="PFD 등록화면으로 이동"
-                    >PFDL</span>
-                    <span
-                      className="text-xs font-semibold text-violet-600 cursor-pointer hover:underline"
-                      onClick={() => router.push(`/pfd/register?id=${linkedPfd.toLowerCase()}`)}
-                      title="PFD 등록화면으로 이동"
-                    >{linkedPfd}</span>
-                  </div>
-                ) : <span className="px-2 text-xs text-gray-400">-</span>}
-              </td>
-              {/* 연동 CP */}
-              <td className={`${headerCell} whitespace-nowrap bg-teal-600`} title="Linked CP">연동 CP(Linked)</td>
-              <td className={`${inputCell}`}>
-                {linkedCp ? (
-                  <div className="flex items-center gap-1 px-2">
-                    <span
-                      className="px-1 py-0 rounded text-[9px] font-bold text-white bg-teal-500 cursor-pointer hover:bg-teal-600"
-                      onClick={() => router.push(`/control-plan/register?id=${linkedCp.toLowerCase()}`)}
-                      title="CP 등록화면으로 이동"
-                    >CP</span>
-                    <span
-                      className="text-xs font-semibold text-teal-600 cursor-pointer hover:underline"
-                      onClick={() => router.push(`/control-plan/register?id=${linkedCp.toLowerCase()}`)}
-                      title="CP 등록화면으로 이동"
-                    >{linkedCp}</span>
-                  </div>
-                ) : <span className="px-2 text-xs text-gray-400">-</span>}
               </td>
             </tr>
           </tbody>

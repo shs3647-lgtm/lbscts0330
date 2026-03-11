@@ -66,10 +66,6 @@ interface PfmeaBasicInfoTableProps {
     router: ReturnType<typeof useRouter>;
     // ★ 연동 모달 열기
     onOpenLinkageModal: () => void;
-    // ★ 연동 ID
-    linkedPfdId: string | null;
-    linkedCpId: string | null;
-    linkedDfmeaId: string | null;  // ★ 연동 DFMEA 추가
     // ★ Family CP 개수
     familyCpCount?: number;
     onFamilyCpCountChange?: (count: number) => void;
@@ -108,9 +104,6 @@ export default function PfmeaBasicInfoTable({
     generateFMEAId,
     router,
     onOpenLinkageModal,
-    linkedPfdId,
-    linkedCpId,
-    linkedDfmeaId,
     familyCpCount,
     onFamilyCpCountChange,
 }: PfmeaBasicInfoTableProps) {
@@ -271,37 +264,15 @@ export default function PfmeaBasicInfoTable({
                         <td className={headerCell} title="Engineering Location">엔지니어링 위치(Location)</td>
                         <td className={inputCell}><input type="text" value={fmeaInfo.engineeringLocation} onChange={e => updateField('engineeringLocation', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="엔지니어링 위치(Location)" /></td>
                         <td className={headerCell} title="Target Completion Date">목표완료일(Target)</td>
-                        <td className={inputCell}>
+                        <td colSpan={3} className={inputCell}>
                             <div className="flex items-center gap-1">
                                 <input type="text" readOnly value={fmeaInfo.fmeaRevisionDate} onClick={() => setRevisionDateModalOpen(true)} className="flex-1 h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택(Click to Select)" />
                                 <button onClick={() => setRevisionDateModalOpen(true)} className="text-blue-500 hover:text-blue-700 px-1">📅</button>
                             </div>
                         </td>
-                        {/* 연동 CP */}
-                        <td className={`${headerCell} bg-teal-600`} title="Linked Control Plan">연동 CP(Linked)</td>
-                        <td className={inputCell}>
-                            <div className="flex items-center gap-2 px-2">
-                                {linkedCpId ? (
-                                    <>
-                                        <span
-                                            className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-teal-500 cursor-pointer hover:bg-teal-600"
-                                            onClick={() => router.push(`/control-plan/register?id=${linkedCpId.toLowerCase()}`)}
-                                            title="CP 등록화면으로 이동"
-                                        >CP</span>
-                                        <span
-                                            className="text-xs font-semibold text-teal-600 cursor-pointer hover:underline"
-                                            onClick={onOpenLinkageModal}
-                                            title="연동 관리"
-                                        >{linkedCpId}</span>
-                                    </>
-                                ) : (
-                                    <span className="text-xs text-gray-400">-</span>
-                                )}
-                            </div>
-                        </td>
                     </tr>
 
-                    {/* 4행: 회사명, 모델연식, 품명, 연동 PFD */}
+                    {/* 4행: 회사명, 모델연식, 품명 */}
                     <tr className="h-8">
                         <td className={headerCell} title="Company Name">회사명(Company)</td>
                         <td className={inputCell}>
@@ -316,32 +287,10 @@ export default function PfmeaBasicInfoTable({
                         <td className={headerCell} title="Model Year">모델 연식(MY)</td>
                         <td className={inputCell}><input type="text" value={fmeaInfo.modelYear} onChange={e => updateField('modelYear', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="모델 연식(Model Year)" /></td>
                         <td className={headerCell} title="Part Name">부품명(Part)</td>
-                        <td className={inputCell}><input type="text" value={fmeaInfo.partName} onChange={e => updateField('partName', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="부품명(Part Name)" /></td>
-                        {/* 연동 PFD */}
-                        <td className={`${headerCell} bg-violet-600`} title="Linked Process Flow Diagram">연동 PFD(Linked)</td>
-                        <td className={inputCell}>
-                            <div className="flex items-center gap-2 px-2">
-                                {linkedPfdId ? (
-                                    <>
-                                        <span
-                                            className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-violet-500 cursor-pointer hover:bg-violet-600"
-                                            onClick={() => router.push(`/pfd/register?id=${linkedPfdId.toLowerCase()}`)}
-                                            title="PFD 등록화면으로 이동"
-                                        >PFD</span>
-                                        <span
-                                            className="text-xs font-semibold text-violet-600 cursor-pointer hover:underline"
-                                            onClick={onOpenLinkageModal}
-                                            title="연동 관리"
-                                        >{linkedPfdId}</span>
-                                    </>
-                                ) : (
-                                    <span className="text-xs text-gray-400">-</span>
-                                )}
-                            </div>
-                        </td>
+                        <td colSpan={3} className={inputCell}><input type="text" value={fmeaInfo.partName} onChange={e => updateField('partName', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="부품명(Part Name)" /></td>
                     </tr>
 
-                    {/* 5행: 품번, 기밀수준, 상호기능팀, 연동 DFMEA */}
+                    {/* 5행: 품번, 기밀수준, 상호기능팀 */}
                     <tr className="h-8">
                         <td className={headerCell} title="Part Number">품번(Part No.)</td>
                         <td className={inputCell}><input type="text" value={fmeaInfo.partNo} onChange={e => updateField('partNo', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품번(Part No.)" /></td>
@@ -355,29 +304,7 @@ export default function PfmeaBasicInfoTable({
                             </select>
                         </td>
                         <td className={headerCell} title="Cross-Functional Team">상호기능팀(CFT)</td>
-                        <td className={inputCell}><span className="text-xs text-gray-700 px-2">{cftNames || '-'}</span></td>
-                        {/* 연동 DFMEA */}
-                        <td className={`${headerCell} bg-orange-600`} title="Linked Design FMEA">연동 DFMEA(Linked)</td>
-                        <td className={inputCell}>
-                            <div className="flex items-center gap-2 px-2">
-                                {linkedDfmeaId ? (
-                                    <>
-                                        <span
-                                            className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-orange-500 cursor-pointer hover:bg-orange-600"
-                                            onClick={() => router.push(`/dfmea/register?id=${linkedDfmeaId.toLowerCase()}`)}
-                                            title="DFMEA 등록화면으로 이동"
-                                        >DFMEA</span>
-                                        <span
-                                            className="text-xs font-semibold text-orange-600 cursor-pointer hover:underline"
-                                            onClick={onOpenLinkageModal}
-                                            title="연동 관리"
-                                        >{linkedDfmeaId}</span>
-                                    </>
-                                ) : (
-                                    <span className="text-xs text-gray-400">-</span>
-                                )}
-                            </div>
-                        </td>
+                        <td colSpan={3} className={inputCell}><span className="text-xs text-gray-700 px-2">{cftNames || '-'}</span></td>
                     </tr>
                 </tbody>
             </table>

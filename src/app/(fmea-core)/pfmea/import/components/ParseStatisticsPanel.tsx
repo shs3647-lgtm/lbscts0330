@@ -173,18 +173,18 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
   const hasDuplicates = itemStats.some(s => s.dupSkipped > 0);
 
   return (
-    <div className="border border-blue-200 rounded bg-white text-[10px]">
+    <div className="border border-blue-200 rounded bg-white text-[11px]">
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-2 py-1 bg-blue-600 text-white rounded-t">
-        <span className="font-bold text-[11px]">변환결과 통계</span>
-        <div className="flex items-center gap-1">
-          <span className="text-[9px] opacity-80">원본 {totalRows}행 | 사슬 {chainCount}건</span>
+      <div className="flex items-center justify-between px-2 py-1.5 bg-blue-600 text-white rounded-t">
+        <span className="font-bold text-[12px]">변환결과 통계</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] opacity-80">원본 {totalRows}행 | 사슬 {chainCount}건</span>
           {/* 뷰 전환 버튼 */}
           {(['summary', 'process', 'verify'] as const).map(v => (
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`px-1.5 py-0.5 rounded text-[9px] cursor-pointer ${
+              className={`px-2 py-0.5 rounded text-[11px] cursor-pointer ${
                 view === v ? 'bg-white text-blue-600 font-bold' : 'bg-blue-500 hover:bg-blue-400'
               }`}
             >
@@ -195,11 +195,11 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
       </div>
 
       {/* 고장사슬 핵심 지표 + 검증 상태 */}
-      <div className="flex items-center justify-between px-2 py-1 bg-blue-50 border-b border-blue-200">
+      <div className="flex items-center justify-between px-2 py-1.5 bg-blue-50 border-b border-blue-200">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
-            <span className="font-bold text-red-700">A5 고장형태:</span>
-            <span className="font-bold text-red-600 text-[12px]">{a5Stat?.uniqueCount ?? 0}</span>
+            <span className="font-bold text-red-700 text-[11px]">A5 고장형태:</span>
+            <span className="font-bold text-red-600 text-[13px]">{a5Stat?.uniqueCount ?? 0}</span>
             <span className="text-gray-500">건</span>
             {a5Stat && a5Stat.dupSkipped > 0 && (
               <span className="text-orange-600 ml-1">중복제거 {a5Stat.dupSkipped}</span>
@@ -233,7 +233,7 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
           })()}
           {/* 검증 결과 배지 */}
           {verification && (
-            <div className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+            <div className={`px-2 py-0.5 rounded text-[10px] font-bold ${
               verification.pass
                 ? 'bg-green-100 text-green-700 border border-green-300'
                 : 'bg-red-100 text-red-700 border border-red-300'
@@ -251,7 +251,7 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
       {view === 'summary' && (<>
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray-100 text-[9px]">
+            <tr className="bg-gray-100 text-[10px]">
               <th className="border border-gray-300 px-1 py-0.5 text-center w-16">코드</th>
               <th className="border border-gray-300 px-1 py-0.5 text-left">항목명</th>
               {hasFlatData && (
@@ -390,7 +390,7 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
       {view === 'process' && processStats.length > 0 && (
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray-100 text-[9px]">
+            <tr className="bg-gray-100 text-[10px]">
               <th className="border border-gray-300 px-1 py-0.5 text-center w-12">공정</th>
               <th className="border border-gray-300 px-1 py-0.5 text-left">공정명</th>
               <th className="border border-gray-300 px-1 py-0.5 text-center w-10 bg-red-50 text-red-700">A5</th>
@@ -441,7 +441,7 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
             <div className="px-2 py-1.5 bg-emerald-50 border-b border-emerald-200">
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-bold text-emerald-700 text-[11px]">📊 엑셀 수식 검증 (VERIFY 시트)</span>
-                <span className="text-[9px] text-emerald-600 bg-emerald-100 px-1 rounded">진정한 독립 기준</span>
+                <span className="text-[10px] text-emerald-600 bg-emerald-100 px-1 rounded">진정한 독립 기준</span>
               </div>
               <table className="w-full border-collapse text-[10px]">
                 <thead>
@@ -536,7 +536,7 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
               {/* 공정별 FM 대조표 */}
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-gray-100 text-[9px]">
+                  <tr className="bg-gray-100 text-[10px]">
                     <th className="border border-gray-300 px-1 py-0.5 text-center w-12">공정</th>
                     <th className="border border-gray-300 px-1 py-0.5 text-left">공정명</th>
                     <th className="border border-gray-300 px-1 py-0.5 text-center w-12 bg-blue-50">원본FM</th>
@@ -660,7 +660,7 @@ export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failu
                   </div>
                   <div className="max-h-[100px] overflow-y-auto">
                     {verification.mismatches.map((m, i) => (
-                      <div key={i} className="text-[9px] text-red-600 py-0.5 border-b border-red-100 last:border-b-0">
+                      <div key={i} className="text-[10px] text-red-600 py-0.5 border-b border-red-100 last:border-b-0">
                         <span className="font-mono font-bold">[{m.processNo}]</span>
                         {' '}{MISMATCH_LABELS[m.type] || m.type}
                         {m.fmText && <span className="text-gray-600"> &quot;{m.fmText.substring(0, 20)}&quot;</span>}
