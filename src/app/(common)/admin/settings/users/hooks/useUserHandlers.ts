@@ -374,7 +374,7 @@ export function useUserHandlers() {
             permDfmea: permLabelToValue[cols[dfmeaIdx]] || 'none',
             permCp: permLabelToValue[cols[cpIdx]] || 'none',
             permPfd: permLabelToValue[cols[pfdIdx]] || 'none',
-            password: '1234',
+            password: crypto.randomUUID().slice(0, 8),
           };
           if (!userData.name || !userData.factory || !userData.department) {
             failCount++;
@@ -388,11 +388,12 @@ export function useUserHandlers() {
             });
             const data = await res.json();
             if (data.success) { successCount++; } else { failCount++; }
-          } catch {
+          } catch (e) {
+            console.error('[사용자 Import] 개별 저장 오류:', e);
             failCount++;
           }
         }
-        alert(`Import 완료!\n성공: ${successCount}건\n실패: ${failCount}건\n\n초기 비밀번호: 1234`);
+        alert(`Import 완료!\n성공: ${successCount}건\n실패: ${failCount}건\n\n⚠️ Import된 사용자의 초기 비밀번호는 랜덤 생성되었습니다.\n관리자가 각 사용자의 비밀번호를 설정해주세요.`);
         fetchUsers();
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';

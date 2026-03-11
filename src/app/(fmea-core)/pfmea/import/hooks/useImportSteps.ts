@@ -454,7 +454,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         const projRes = await fetch(`/api/fmea/projects?id=${encodeURIComponent(normalizedId)}`);
         const projData = await projRes.json();
         const projectExists = projData.success && projData.projects?.length > 0
-          && projData.projects.some((p: any) => p.id?.toLowerCase() === normalizedId);
+          && projData.projects.some((p: { id?: string }) => p.id?.toLowerCase() === normalizedId);
 
         if (!projectExists) {
           const createPayload = {
@@ -521,6 +521,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
             }
           }
         } catch (e) {
+          console.error('[FA 확정] DB 조회 실패:', e);
         }
       }
 

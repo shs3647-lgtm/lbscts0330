@@ -388,7 +388,7 @@ export default function LegacyImportPage() {
         flatData={flatData}
         onDownloadSample={() => {
           if (flatData.length > 0) downloadDataTemplate(flatData, undefined, masterChains);
-          else downloadSampleTemplate(undefined, true);
+          else downloadSampleTemplate(undefined, templateGen.templateMode === 'manual');
         }}
         onDownloadEmpty={downloadEmptyTemplate}
         onImportFile={() => fileInputRef.current?.click()}

@@ -13,14 +13,19 @@
  * - A1(공정번호)과 A2(공정명)은 'L2-1(A1) 공정번호' 시트에 함께 있음 (1열, 2열)
  */
 // v3.0: A6(검출관리), B5(예방관리) IMPORT 제외 → 리스크 탭에서 입력
+// v5.4: A4(제품특성), A5(고장형태), B3(공정특성), B4(고장원인/FC) 추가
 export const PREVIEW_OPTIONS = [
-  // L2 레벨 (공정) - 시트명: L2-1 ~ L2-3 (수동모드: 구조+기능까지)
+  // L2 레벨 (공정) - 시트명: L2-1 ~ L2-5
   { value: 'A1', label: 'L2-1(A1) 공정번호', sheetName: 'L2-1(A1) 공정번호', colIndex: 1 },
   { value: 'A2', label: 'L2-2(A2) 공정명', sheetName: 'L2-1(A1) 공정번호', colIndex: 2 },  // A1 시트 2열에 포함
   { value: 'A3', label: 'L2-3(A3) 공정기능', sheetName: 'L2-3(A3) 공정기능', colIndex: 2 },
-  // L3 레벨 (작업요소) - 시트명: L3-1 ~ L3-2 (수동모드: 구조+기능까지)
+  { value: 'A4', label: 'L2-4(A4) 제품특성', sheetName: 'L2-4(A4) 제품특성', colIndex: 2 },
+  { value: 'A5', label: 'L2-5(A5) 고장형태', sheetName: 'L2-5(A5) 고장형태', colIndex: 2 },
+  // L3 레벨 (작업요소) - 시트명: L3-1 ~ L3-4
   { value: 'B1', label: 'L3-1(B1) 작업요소', sheetName: 'L3-1(B1) 작업요소', colIndex: 2 },
   { value: 'B2', label: 'L3-2(B2) 요소기능', sheetName: 'L3-2(B2) 요소기능', colIndex: 2 },
+  { value: 'B3', label: 'L3-3(B3) 공정특성', sheetName: 'L3-3(B3) 공정특성', colIndex: 4 },
+  { value: 'B4', label: 'L3-4(B4) 고장원인', sheetName: 'L3-4(B4) 고장원인', colIndex: 3 },
   // L1 레벨 (완제품) - 시트명: L1-1 ~ L1-4 (고장영향까지)
   { value: 'C1', label: 'L1-1(C1) 구분', sheetName: 'L1-1(C1) 구분', colIndex: 1 },  // YOUR PLANT, SHIP TO PLANT, USER
   { value: 'C2', label: 'L1-2(C2) 제품기능', sheetName: 'L1-2(C2) 제품기능', colIndex: 2 },

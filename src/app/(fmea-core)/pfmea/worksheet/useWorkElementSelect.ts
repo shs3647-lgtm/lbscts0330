@@ -41,8 +41,7 @@ export const M4_OPTIONS = [
 ];
 
 // ★★★ 2026-02-02: 하드코딩 데이터 삭제 - DB 기반 데이터만 사용 ★★★
-export const WORK_ELEMENTS_BY_PROCESS: Record<string, WorkElement[]> = {};
-
+// getMissingWorkElements: StructureTab.tsx(CODEFREEZE)에서 import 중이므로 export 유지
 export function getMissingWorkElements(processNo: string, selectedNames: string[]): WorkElement[] {
   return [];
 }
@@ -204,16 +203,6 @@ export function useWorkElementSelect({
     });
     return { commonMNElements: common, processElements: process };
   }, [filteredElements]);
-
-  const missingProcessElements = useMemo(() => {
-    const pe = WORK_ELEMENTS_BY_PROCESS[currentProcessNo] || [];
-    return pe.filter(elem => elem.m4 !== 'MN' && !selectedIds.has(elem.id));
-  }, [currentProcessNo, selectedIds]);
-
-  const processRequiredIds = useMemo(() => {
-    const pe = WORK_ELEMENTS_BY_PROCESS[currentProcessNo] || [];
-    return new Set(pe.filter(e => e.m4 !== 'MN').map(e => e.id));
-  }, [currentProcessNo]);
 
   const exactMatch = useMemo(() => {
     if (!inputValue.trim()) return null;
@@ -427,7 +416,7 @@ export function useWorkElementSelect({
     inputValue, setInputValue, selectedM4, setSelectedM4,
     filterM4, setFilterM4, inputRef,
     filteredElements, commonMNElements, processElements,
-    missingProcessElements, processRequiredIds, exactMatch,
+    exactMatch,
     toggleSelect, handleEditDoubleClick, handleEditSave,
     selectProcessElements, deselectProcessElements,
     selectCommonElements, deselectCommonElements,

@@ -15,7 +15,7 @@ interface PfdBasicInfoTableProps {
     pfdInfo: PFDInfo;
     pfdId: string;
     isEditMode: boolean;
-    linkedCpList: { id: string;[key: string]: any }[];
+    linkedCpList: { id: string; module?: string; docType?: string; subject?: string; linkGroupNo?: number }[];
     selectedBasePfd: string | null;
     selectedParentFmea: string | null;
     fmeaLocked: boolean;

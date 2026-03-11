@@ -299,6 +299,7 @@ export default function PFMEAListPage() {
           });
         }
       } catch (linkErr) {
+        console.error('[PFMEA List] 프로젝트 연동 로드 실패:', linkErr);
       }
 
       setProjects(projectList);

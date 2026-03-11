@@ -38,7 +38,7 @@ import {
 
 // re-exports for consumers
 export type { WorkElement, WorkElementSelectModalProps };
-export { WORK_ELEMENTS_BY_PROCESS, getMissingWorkElements } from './useWorkElementSelect';
+export { getMissingWorkElements } from './useWorkElementSelect';
 
 export default function WorkElementSelectModal({
   isOpen,
@@ -56,7 +56,7 @@ export default function WorkElementSelectModal({
     inputValue, setInputValue, selectedM4, setSelectedM4,
     filterM4, setFilterM4, inputRef,
     filteredElements, commonMNElements, processElements,
-    missingProcessElements, processRequiredIds, exactMatch,
+    exactMatch,
     toggleSelect, handleEditDoubleClick, handleEditSave,
     selectProcessElements, deselectProcessElements,
     selectCommonElements, deselectCommonElements,
@@ -137,14 +137,6 @@ export default function WorkElementSelectModal({
 
         {/* ===== 리스트 ===== */}
         <div className="overflow-auto p-2 min-h-[250px] max-h-[350px]">
-          {/* 누락 경고 */}
-          {missingProcessElements.length > 0 && (
-            <div className="mb-2 px-2 py-1.5 bg-red-50 border border-red-300 rounded text-[10px] text-red-700">
-              ⚠️ <strong>{currentProcessNo}번 공정</strong> 필수 작업요소 {missingProcessElements.length}개 누락!
-              <span className="ml-1 text-red-500">({missingProcessElements.map(e => e.m4).join(', ')})</span>
-            </div>
-          )}
-
           {/* 4M 빈값 경고 */}
           {(() => {
             const emptyM4 = elements.filter(e => !e.m4);
@@ -197,7 +189,7 @@ export default function WorkElementSelectModal({
           <div className="grid grid-cols-2 gap-1">
             {processElements.map(elem => {
               const isHighlighted = exactMatch?.id === elem.id || (filteredElements.length === 1);
-              const isMissing = processRequiredIds.has(elem.id) && !selectedIds.has(elem.id);
+              const isMissing = false;
               return (
                 <ElementItem key={elem.id} elem={elem} isSelected={selectedIds.has(elem.id)} isEditing={editingId === elem.id}
                   editValue={editValue} setEditValue={setEditValue} handleEditSave={handleEditSave} setEditingId={setEditingId}

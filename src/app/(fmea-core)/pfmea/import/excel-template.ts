@@ -70,7 +70,7 @@ async function downloadExcelBuffer(buffer: ExcelJS.Buffer, fileName: string) {
 /** 템플릿 버전 — 변환규칙 문서와 동일하게 관리 */
 const TEMPLATE_VERSION = 'v4.0.0';
 
-// 수동모드에서 제외할 시트 (고장형태/고장원인/FC/FA는 워크시트에서 직접 입력)
+// 수동모드에서 제외할 시트 (수동=구조+기능까지, FC/고장분석은 자동/기존에서만)
 const MANUAL_MODE_EXCLUDE = new Set([
   'L2-4(A4) 제품특성',
   'L2-5(A5) 고장형태',

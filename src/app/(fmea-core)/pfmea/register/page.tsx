@@ -218,7 +218,7 @@ function PFMEARegisterPageContent() {
           setBdLoadedFmeaId(fmeaId);
         }
       })
-    ).catch(() => {});
+    ).catch(e => { console.error('[기초정보 로드] 오류:', e); });
   }, [fmeaId]);
 
   // bdLoadedFmeaId가 현재 fmeaId와 같을 때 fmeaInfo.subject로 이름 갱신
@@ -249,7 +249,7 @@ function PFMEARegisterPageContent() {
           templateGen.setTemplateMode('download');
           setBdExpandTrigger(prev => prev + 1);
         }
-      } catch { /* ignore */ }
+      } catch (e) { console.error('[BD 로드] 오류:', e); }
       return;
     }
 
@@ -297,7 +297,7 @@ function PFMEARegisterPageContent() {
       const { saveMasterDataset } = await getMasterApi();
       const res = await saveMasterDataset({ fmeaId, fmeaType: 'P', datasetId: bdDatasetId, name: 'MASTER', replace: true, flatData });
       if (res.ok) { if (res.datasetId) setBdDatasetId(res.datasetId); setBdIsSaved(true); setBdDirty(false); }
-    } catch { /* ignore */ } finally { setBdIsSaving(false); }
+    } catch (e) { console.error('[BD 저장] 오류:', e); } finally { setBdIsSaving(false); }
   };
 
   // ★ BD 현황 테이블에서 선택 삭제 (soft delete)
@@ -752,7 +752,7 @@ function PFMEARegisterPageContent() {
                 loadDatasetByFmeaId(id).then(res => {
                   if (res.datasetId) setBdDatasetId(res.datasetId);
                 })
-              ).catch(() => {});
+              ).catch(e => { console.error('[BD 데이터셋 로드] 오류:', e); });
             }
             templateGen.setTemplateMode('download');
           }}

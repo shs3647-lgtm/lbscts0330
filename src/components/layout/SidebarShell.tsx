@@ -190,7 +190,7 @@ export const SidebarShell = React.memo(function SidebarShell({
                   localStorage.setItem('user_session', JSON.stringify({ ...user, photoUrl: photo }));
                 }
               }
-            } catch { /* ignored */ }
+            } catch (e) { console.error('[사용자 세션 로드] 오류:', e); }
           }
           if (photo) {
             setUserPhoto(photo);
