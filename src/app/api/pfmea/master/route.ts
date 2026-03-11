@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
   if (!prisma) return jsonOk({ dataset: null, datasets: [] });
 
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
-  const fmeaId = sp.fmeaId;
+  const fmeaId = sp.fmeaId?.toLowerCase();
   const includeItems = sp.includeItems === 'true';
 
   // ★ fmeaId 지정: 해당 FMEA의 dataset만 반환
