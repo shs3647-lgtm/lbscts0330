@@ -24,7 +24,6 @@ import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from '../hooks/useTemplateGenerator';
 import { FailureChainPreview } from './FailureChainPreview';
 // FullAnalysisPreview 삭제됨 (사용자 요청)
-import ParseStatisticsPanel from './ParseStatisticsPanel';
 import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
 
@@ -620,12 +619,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         </div>
       </div>
 
-      {/* ─── 변환결과 통계표 — 4개 모드 공통, 모든 단계에서 표시 ─── */}
-      {effectiveStatistics && (
-        <div className="mb-1.5">
-          <ParseStatisticsPanel statistics={effectiveStatistics} dbVerifyCounts={stepState.dbVerifyCounts ?? undefined} failureChains={failureChains} flatData={flatData} fmeaId={fmeaId} />
-        </div>
-      )}
 
       {/* ─── FC검증 통계 — 토글 시 항상 표시 ─── */}
       {showVerification && failureChains.length > 0 && (
@@ -855,7 +848,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH}>A4 제품특성</th>
                   <th className={TH} style={{width:38}}>특별특성</th>
                   <th className={TH}>A5 고장형태</th>
-                  {/* v3.0: A6 검출관리 컬럼 제거 — 리스크 탭에서 입력 */}
+                  <th className={TH} style={{background:'#ff6600',color:'#fff'}}>A6 검출관리</th>
                 </tr></thead><tbody>
                   {crossTab.aRows.map((r, i) => {
                     const aMissing = r.A1 && !r.A2;
@@ -877,7 +870,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.A4SC ? 'text-red-700' : 'text-gray-300'}`}>{r.A4SC || '-'}</span></td>
                       <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.A5} itemId={r._ids.A5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A5 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A5', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      {/* v3.0: A6 검출관리 셀 제거 */}
+                      <td className={isEditing ? TD_EDIT : TD} style={{background:'#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
+                        onCreateNew={!r._ids.A6 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A6', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
                   })}
@@ -901,7 +895,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH}>B3 공정특성</th>
                   <th className={TH} style={{width:38}}>특별특성</th>
                   <th className={TH}>B4 고장원인</th>
-                  {/* v3.0: B5 예방관리 컬럼 제거 — 리스크 탭에서 입력 */}
+                  <th className={TH} style={{background:'#ff6600',color:'#fff'}}>B5 예방관리</th>
                 </tr></thead><tbody>
                   {crossTab.bRows.slice(0, 100).map((r, i) => {
                     const bMissing = false;
@@ -930,11 +924,12 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.B3SC ? 'text-red-700' : 'text-gray-300'}`}>{r.B3SC || '-'}</span></td>
                       <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.B4} itemId={r._ids.B4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B4 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B4', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      {/* v3.0: B5 예방관리 셀 제거 */}
+                      <td className={isEditing ? TD_EDIT : TD} style={{background:'#fff9c4'}}><EditCell value={r.B5} itemId={r._ids.B5} onSave={onUpdateItem} editing={isEditing}
+                        onCreateNew={!r._ids.B5 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B5', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
                   })}
-                  {crossTab.bRows.length > 100 && <tr><td colSpan={isEditing ? 11 : 10} className="text-center text-gray-400 text-[9px] py-0.5">... 외 {crossTab.bRows.length - 100}행</td></tr>}
+                  {crossTab.bRows.length > 100 && <tr><td colSpan={isEditing ? 12 : 11} className="text-center text-gray-400 text-[9px] py-0.5">... 외 {crossTab.bRows.length - 100}행</td></tr>}
                 </tbody></table>
               </div>
             )}

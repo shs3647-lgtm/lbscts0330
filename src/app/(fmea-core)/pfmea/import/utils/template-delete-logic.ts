@@ -26,16 +26,14 @@ export interface CrossTabIds { [itemCode: string]: string }
 
 export interface ARow {
   processNo: string;
-  A1: string; A2: string; A3: string; A4: string; A5: string;
-  // v3.0: A6(검출관리) 제거 — 리스크 탭에서 입력
+  A1: string; A2: string; A3: string; A4: string; A5: string; A6: string;
   A4SC?: string;  // A4 특별특성
   _ids: CrossTabIds;
 }
 
 export interface BRow {
   processNo: string; m4: string;
-  B1: string; B2: string; B3: string; B4: string;
-  // v3.0: B5(예방관리) 제거 — 리스크 탭에서 입력
+  B1: string; B2: string; B3: string; B4: string; B5: string;
   B3SC?: string;  // B3 특별특성
   _ids: CrossTabIds;
 }
@@ -57,8 +55,8 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
   const processNos = [...new Set(aItems.map(d => d.processNo))].filter(pNo => pNo !== '00' && pNo !== '공통');
   const aRows: ARow[] = processNos.map(pNo => {
     const ids: CrossTabIds = {};
-    const row: ARow = { processNo: pNo, A1: '', A2: '', A3: '', A4: '', A5: '', _ids: ids };
-    (['A1','A2','A3','A4','A5'] as const).forEach(code => {
+    const row: ARow = { processNo: pNo, A1: '', A2: '', A3: '', A4: '', A5: '', A6: '', _ids: ids };
+    (['A1','A2','A3','A4','A5','A6'] as const).forEach(code => {
       const item = aItems.find(d => d.processNo === pNo && d.itemCode === code);
       row[code] = item?.value || '';
       if (item?.id) ids[code] = item.id;
@@ -75,8 +73,8 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
   b1List.forEach(b1 => {
     const group = { pNo: b1.processNo, m4: b1.m4 || '', items: new Map<string, ImportedFlatData>() };
     group.items.set('B1', b1);
-    // 같은 processNo+m4의 B2~B4 찾기 (v3.0: B5 제거)
-    for (const code of ['B2','B3','B4']) {
+    // 같은 processNo+m4의 B2~B5 찾기
+    for (const code of ['B2','B3','B4','B5']) {
       const usedIds = new Set(bGroups.flatMap(g => {
         const item = g.items.get(code);
         return item?.id ? [item.id] : [];
@@ -104,14 +102,14 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
     B2: g.items.get('B2')?.value || '',
     B3: g.items.get('B3')?.value || '',
     B4: g.items.get('B4')?.value || '',
-    // v3.0: B5 제거
+    B5: g.items.get('B5')?.value || '',
     B3SC: g.items.get('B3')?.specialChar || '',  // ★ B3 특별특성
     _ids: {
       B1: g.items.get('B1')?.id || '',
       B2: g.items.get('B2')?.id || '',
       B3: g.items.get('B3')?.id || '',
       B4: g.items.get('B4')?.id || '',
-      // v3.0: B5 제거
+      B5: g.items.get('B5')?.id || '',
     },
   }));
 
