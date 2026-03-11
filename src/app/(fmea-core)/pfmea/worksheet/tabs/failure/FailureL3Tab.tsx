@@ -1049,31 +1049,41 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
                             itemCode: 'FC1'
                           });
                         }}
-                        onDoubleClickEdit={row.cause?.id ? (newValue: string) => {
-                          // ★ 더블클릭 인라인 편집: 해당 고장원인 이름 직접 수정 - setStateSynced 패턴 적용
-                          const updateFn = (prev: any) => {
-                            const newL2 = prev.l2.map((proc: any) => {
-                              if (proc.id !== row.proc.id) return proc;
-                              const newCauses = (proc.failureCauses || []).map((c: any) => {
-                                if (c.id !== row.cause?.id) return c;
-                                return { ...c, name: newValue };
+                        onDoubleClickEdit={(newValue: string) => {
+                          if (!newValue.trim()) return;
+                          if (row.cause?.id) {
+                            // ★ 기존 고장원인 이름 직접 수정
+                            const updateFn = (prev: any) => {
+                              const newL2 = prev.l2.map((proc: any) => {
+                                if (proc.id !== row.proc.id) return proc;
+                                const newCauses = (proc.failureCauses || []).map((c: any) => {
+                                  if (c.id !== row.cause?.id) return c;
+                                  return { ...c, name: newValue };
+                                });
+                                return { ...proc, failureCauses: newCauses, failureL3Confirmed: false };
                               });
-                              return { ...proc, failureCauses: newCauses, failureL3Confirmed: false };
-                            });
-                            return { ...prev, l2: newL2, failureL3Confirmed: false };
-                          };
-                          if (setStateSynced) {
-                            setStateSynced(updateFn);
-                          } else {
-                            setState(updateFn);
+                              return { ...prev, l2: newL2, failureL3Confirmed: false };
+                            };
+                            if (setStateSynced) { setStateSynced(updateFn); } else { setState(updateFn); }
+                          } else if (row.processChar?.id) {
+                            // ★ 새 고장원인(FC) 인라인 생성
+                            const newCauseId = `fc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                            const updateFn = (prev: any) => {
+                              const newL2 = prev.l2.map((proc: any) => {
+                                if (proc.id !== row.proc.id) return proc;
+                                const existingCauses = proc.failureCauses || [];
+                                return { ...proc, failureCauses: [...existingCauses, { id: newCauseId, name: newValue.trim(), processCharId: row.processChar.id }] };
+                              });
+                              return { ...prev, l2: newL2, failureL3Confirmed: false };
+                            };
+                            if (setStateSynced) { setStateSynced(updateFn); } else { setState(updateFn); }
                           }
                           setDirty(true);
-                          // ✅ 인라인 편집 후 저장
                           setTimeout(() => {
                             saveToLocalStorage?.();
                             saveAtomicDB?.(true);
                           }, 100);
-                        } : undefined}
+                        }}
                       />
                     ) : (
                       <span className="text-[#e65100] text-xs font-semibold p-2 block">-</span>

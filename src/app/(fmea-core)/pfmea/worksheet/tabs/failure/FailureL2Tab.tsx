@@ -1165,22 +1165,37 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
                           processNo: row.procNo  // ★ 공정번호 추가
                         });
                       }}
-                      onDoubleClickEdit={row.modeId ? (newValue: string) => {
-                        // ★ 더블클릭 인라인 편집: 해당 고장형태 이름 직접 수정 - setStateSynced 패턴 적용
-                        const updateFn = (prev: any) => {
-                          const newL2 = prev.l2.map((proc: any) => {
-                            if (proc.id !== row.procId) return proc;
-                            const newModes = (proc.failureModes || []).map((m: any) => {
-                              if (m.id !== row.modeId) return m;
-                              return { ...m, name: newValue };
+                      onDoubleClickEdit={(newValue: string) => {
+                        if (!newValue.trim()) return;
+                        if (row.modeId) {
+                          // ★ 기존 고장형태 이름 직접 수정
+                          const updateFn = (prev: any) => {
+                            const newL2 = prev.l2.map((proc: any) => {
+                              if (proc.id !== row.procId) return proc;
+                              const newModes = (proc.failureModes || []).map((m: any) => {
+                                if (m.id !== row.modeId) return m;
+                                return { ...m, name: newValue };
+                              });
+                              return { ...proc, failureModes: newModes };
                             });
-                            return { ...proc, failureModes: newModes };
-                          });
-                          return { ...prev, l2: newL2 };
-                        };
-                        if (setStateSynced) { setStateSynced(updateFn); } else { setState(updateFn); }
+                            return { ...prev, l2: newL2 };
+                          };
+                          if (setStateSynced) { setStateSynced(updateFn); } else { setState(updateFn); }
+                        } else if (row.charId) {
+                          // ★ 새 고장형태 인라인 생성 (modeId 없는 행)
+                          const newModeId = `fm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                          const updateFn = (prev: any) => {
+                            const newL2 = prev.l2.map((proc: any) => {
+                              if (proc.id !== row.procId) return proc;
+                              const existingModes = proc.failureModes || [];
+                              return { ...proc, failureModes: [...existingModes, { id: newModeId, name: newValue, productCharId: row.charId }] };
+                            });
+                            return { ...prev, l2: newL2 };
+                          };
+                          if (setStateSynced) { setStateSynced(updateFn); } else { setState(updateFn); }
+                        }
                         setDirty(true);
-                      } : undefined}
+                      }}
                     />
                   </td>
                 </tr>

@@ -319,34 +319,34 @@ export function UserSelectModal({
       className="fixed z-[9999] bg-white rounded-lg shadow-2xl flex flex-col select-none border border-gray-400"
       style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
     >
-        {/* 헤더 (드래그 영역) — 컴팩트 2줄 반응형 */}
-        <div className="flex items-center justify-between px-2 py-0.5 border-b border-gray-300 bg-[#00587a] rounded-t-lg cursor-move shrink-0" onMouseDown={onDragStart}>
-          <h2 className="text-[10px] font-bold text-white flex items-center gap-1 select-none whitespace-nowrap" title="Select User">
+        {/* 헤더 (드래그 영역) — 한줄 한글(영어) */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-300 bg-[#00587a] rounded-t-lg cursor-move shrink-0" onMouseDown={onDragStart}>
+          <h2 className="text-[11px] font-bold text-white flex items-center gap-1 select-none whitespace-nowrap" title="Select User">
             👤 사용자 선택(Select User)
           </h2>
-          <div className="flex items-center gap-0.5" onMouseDown={e => e.stopPropagation()}>
-            <button onClick={handleImport} title="Import" className="px-1 py-0.5 text-[8px] leading-tight font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100 text-center"><div>📥</div><div className="text-[6px] opacity-70">Import</div></button>
-            <button onClick={handleExport} title="Export" className="px-1 py-0.5 text-[8px] leading-tight font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100 text-center"><div>📤</div><div className="text-[6px] opacity-70">Export</div></button>
-            <button onClick={handleAdd} title="Add" className="px-1 py-0.5 text-[8px] leading-tight font-semibold bg-green-500 text-white rounded hover:bg-green-600 text-center"><div>추가</div><div className="text-[6px] opacity-70">(Add)</div></button>
+          <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
+            <button onClick={handleImport} title="가져오기(Import)" className="px-2 py-1 text-[10px] font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">가져오기(Import)</button>
+            <button onClick={handleExport} title="내보내기(Export)" className="px-2 py-1 text-[10px] font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">내보내기(Export)</button>
+            <button onClick={handleAdd} title="추가(Add)" className="px-2 py-1 text-[10px] font-semibold bg-green-500 text-white rounded hover:bg-green-600">추가(Add)</button>
             <button
               onClick={() => {
                 if (!selectedUserId) { alert('수정할 사용자를 선택해주세요(Please select a user to edit).'); return; }
                 const user = users.find(u => u.id === selectedUserId);
                 if (user) setEditingUser({ ...user });
               }}
-              title="Edit"
-              className="px-1 py-0.5 text-[8px] leading-tight font-semibold rounded bg-amber-500 text-white hover:bg-amber-600 text-center"
-            ><div>수정</div><div className="text-[6px] opacity-70">(Edit)</div></button>
+              title="수정(Edit)"
+              className="px-2 py-1 text-[10px] font-semibold rounded bg-amber-500 text-white hover:bg-amber-600"
+            >수정(Edit)</button>
             <button
               onClick={handleSave}
               disabled={!editingUser}
-              title="Save"
-              className={`px-1 py-0.5 text-[8px] leading-tight font-semibold rounded text-center ${editingUser ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`}
-            ><div>저장</div><div className="text-[6px] opacity-70">(Save)</div></button>
-            <button onClick={handleDelete} title="Delete" className="px-1 py-0.5 text-[8px] leading-tight font-semibold bg-red-500 text-white rounded hover:bg-red-600 text-center"><div>삭제</div><div className="text-[6px] opacity-70">(Del)</div></button>
-            <div className="w-px h-4 bg-white/40 mx-0.5" />
-            <button onClick={() => setShowHelp(v => !v)} title="Help" className={`px-1 py-0.5 text-[8px] leading-tight font-semibold rounded text-center ${showHelp ? 'bg-yellow-400 text-gray-800' : 'bg-white text-[#00587a]'} hover:bg-yellow-300`}>❓</button>
-            <button onClick={onClose} title="Close" className="px-1 py-0.5 text-[8px] leading-tight font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-center">✕</button>
+              title="저장(Save)"
+              className={`px-2 py-1 text-[10px] font-semibold rounded ${editingUser ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`}
+            >저장(Save)</button>
+            <button onClick={handleDelete} title="삭제(Del)" className="px-2 py-1 text-[10px] font-semibold bg-red-500 text-white rounded hover:bg-red-600">삭제(Del)</button>
+            <div className="w-px h-5 bg-white/40 mx-0.5" />
+            <button onClick={() => setShowHelp(v => !v)} title="도움말(Help)" className={`px-1.5 py-1 text-[10px] font-semibold rounded ${showHelp ? 'bg-yellow-400 text-gray-800' : 'bg-white text-[#00587a]'} hover:bg-yellow-300`}>?</button>
+            <button onClick={onClose} title="닫기(Close)" className="px-1.5 py-1 text-[10px] font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">✕</button>
           </div>
         </div>
 

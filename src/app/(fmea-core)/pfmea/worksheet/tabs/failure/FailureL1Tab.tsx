@@ -958,7 +958,24 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                             processNo: normCat,
                           });
                         }}
-                        onDoubleClickEdit={row.effectId ? (newValue: string) => handleDoubleClickEdit(row.effectId, newValue) : undefined}
+                        onDoubleClickEdit={(newValue: string) => {
+                          if (!newValue.trim()) return;
+                          if (row.effectId) {
+                            handleDoubleClickEdit(row.effectId, newValue);
+                          } else if (row.reqId) {
+                            // ★ 새 고장영향(FE) 인라인 생성
+                            const newEffectId = `fe-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+                            const updateFn = (prev: any) => {
+                              const newState = JSON.parse(JSON.stringify(prev));
+                              if (!newState.l1.failureScopes) newState.l1.failureScopes = [];
+                              newState.l1.failureScopes.push({ id: newEffectId, effect: newValue.trim(), requirementId: row.reqId, severity: null });
+                              if (newState.failureL1Confirmed) newState.failureL1Confirmed = false;
+                              return newState;
+                            };
+                            if (setStateSynced) { setStateSynced(updateFn); } else { setState(updateFn); }
+                            setDirty(true);
+                          }
+                        }}
                       />
                     </td>
 

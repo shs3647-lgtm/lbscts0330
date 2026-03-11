@@ -374,9 +374,9 @@ export function useFunctionL2Handlers({
           }
 
           const updatedFuncs = [...currentFuncs];
-          const existingNames = new Set(currentFuncs.filter((f: any) => f.name && !f.name.includes('클릭')).map((f: any) => f.name));
+          const existingNames = new Set(currentFuncs.filter((f: any) => f.name && !f.name.includes('클릭') && !f.name.includes('미입력')).map((f: any) => f.name));
 
-          const emptyFuncIdx = updatedFuncs.findIndex((f: any) => !f.name || f.name === '' || f.name.includes('클릭'));
+          const emptyFuncIdx = updatedFuncs.findIndex((f: any) => !f.name || f.name === '' || f.name.includes('클릭') || f.name.includes('미입력'));
           let startIdx = 0;
 
           if (emptyFuncIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {
@@ -408,7 +408,7 @@ export function useFunctionL2Handlers({
           }
 
           // ★ FIX: 의미 있는 함수가 있으면 빈 placeholder 함수 제거 (🔍 아이콘 잔존 버그 해결)
-          const meaningfulFuncs = updatedFuncs.filter((f: any) => f.name && f.name.trim() && !f.name.includes('클릭'));
+          const meaningfulFuncs = updatedFuncs.filter((f: any) => f.name && f.name.trim() && !f.name.includes('클릭') && !f.name.includes('미입력'));
           return { ...proc, functions: meaningfulFuncs.length > 0 ? meaningfulFuncs : updatedFuncs };
         });
       } else if (type === 'l2ProductChar') {
@@ -441,9 +441,9 @@ export function useFunctionL2Handlers({
               }
 
               const updatedChars = [...currentChars];
-              const existingNames = new Set(currentChars.filter((c: any) => c.name && !c.name.includes('클릭')).map((c: any) => c.name));
+              const existingNames = new Set(currentChars.filter((c: any) => c.name && !c.name.includes('클릭') && !c.name.includes('미입력')).map((c: any) => c.name));
 
-              const emptyCharIdx = updatedChars.findIndex((c: any) => !c.name || c.name === '' || c.name.includes('클릭'));
+              const emptyCharIdx = updatedChars.findIndex((c: any) => !c.name || c.name === '' || c.name.includes('클릭') || c.name.includes('미입력'));
               let startIdx = 0;
 
               if (emptyCharIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {
@@ -461,7 +461,7 @@ export function useFunctionL2Handlers({
               }
 
               // ★ FIX: 의미 있는 제품특성이 있으면 빈 placeholder 제거
-              const meaningfulChars = updatedChars.filter((c: any) => c.name && c.name.trim() && !c.name.includes('클릭'));
+              const meaningfulChars = updatedChars.filter((c: any) => c.name && c.name.trim() && !c.name.includes('클릭') && !c.name.includes('미입력'));
               return { ...f, productChars: meaningfulChars.length > 0 ? meaningfulChars : updatedChars };
             })
           };

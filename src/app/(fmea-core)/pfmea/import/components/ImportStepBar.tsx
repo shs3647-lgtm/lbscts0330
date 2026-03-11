@@ -15,7 +15,6 @@ import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { useImportSteps } from '../hooks/useImportSteps';
 import { buildCrossTab } from '../utils/template-delete-logic';
-import ParseStatisticsPanel from './ParseStatisticsPanel';
 
 const BTN_DISABLED = 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed';
 const BTN_CONFIRMED = 'bg-green-50 text-green-700 border-green-300 cursor-default';
@@ -183,16 +182,6 @@ export default function ImportStepBar({
         )}
       </div>
 
-      {/* 변환결과 통계 */}
-      {statistics && (
-        <ParseStatisticsPanel
-          statistics={statistics}
-          dbVerifyCounts={stepState.dbVerifyCounts ?? undefined}
-          failureChains={failureChains}
-          flatData={flatData}
-          fmeaId={fmeaId}
-        />
-      )}
     </div>
   );
 }

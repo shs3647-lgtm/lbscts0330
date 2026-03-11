@@ -368,7 +368,7 @@ export function useFunctionL3Handlers({
                 }
               });
               // ★ FIX: 의미 있는 함수가 있으면 빈 placeholder 함수 제거 (🔍 아이콘 잔존 버그 해결)
-              const meaningful = newFuncs.filter((f: any) => f.name && f.name.trim());
+              const meaningful = newFuncs.filter((f: any) => f.name && f.name.trim() && !f.name.includes('미입력'));
               return { ...we, functions: meaningful.length > 0 ? meaningful : newFuncs };
             })
           };
@@ -392,7 +392,7 @@ export function useFunctionL3Handlers({
                     }
                   });
                   // ★ FIX: 의미 있는 공정특성이 있으면 빈 placeholder 제거
-                  const meaningfulChars = newChars.filter((c: any) => c.name && c.name.trim());
+                  const meaningfulChars = newChars.filter((c: any) => c.name && c.name.trim() && !c.name.includes('미입력'));
                   return { ...f, processChars: meaningfulChars.length > 0 ? meaningfulChars : newChars };
                 })
               };

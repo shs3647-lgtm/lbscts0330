@@ -92,6 +92,10 @@ export default function LegacyImportPage() {
 
   const { getBackupList, restoreBackup, deleteBackup } = useAutoSave({ flatData, isLoaded });
 
+  // ── 수동입력 후 자동저장 (dirty 변경 감지 → 1초 디바운스) ──
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const doSaveRef = useRef<(() => Promise<void>) | null>(null);
+
   const previewData = useMemo(() => flatData.filter(d => d.itemCode === previewColumn), [flatData, previewColumn]);
 
   const { handleAllDelete, handleDeleteSelected, handleRowSelect } = usePreviewHandlers({
@@ -224,7 +228,8 @@ export default function LegacyImportPage() {
     doSave();
   };
 
-  const doSave = async () => {
+  const doSave = useCallback(async () => {
+    if (!selectedFmeaId || isSaving) return;
     setIsSaving(true);
     try {
       const res = await saveMasterDataset({
@@ -254,7 +259,18 @@ export default function LegacyImportPage() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [selectedFmeaId, selectedFmea, masterDatasetId, masterDatasetName, flatData, masterChains, isSaving, setBdStatusList]);
+
+  // ── 수동입력 후 자동저장 (dirty → 1초 디바운스) ──
+  doSaveRef.current = doSave;
+  useEffect(() => {
+    if (!dirty || !selectedFmeaId || isSaving || flatData.length === 0) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      doSaveRef.current?.();
+    }, 1000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [dirty, flatData, selectedFmeaId, isSaving]);
 
   // ── 고장사슬 팝업 ──
   const getProcessName = (processNo: string) => {

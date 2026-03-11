@@ -599,14 +599,15 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
           processList={(state.l2 || []).map(p => ({ id: p.id, no: p.no, name: p.name }))}
           onProcessChange={(procId) => setModal(prev => prev ? { ...prev, procId } : null)}
           currentValues={(() => {
+            const isPlaceholderName = (n: string) => !n || !n.trim() || n.includes('클릭') || n.includes('미입력');
             const proc = (state.l2 || []).find(p => p.id === modal.procId);
             if (!proc) return [];
             const we = (proc.l3 || []).find(w => w.id === modal.l3Id);
             if (!we) return [];
-            if (modal.type === 'l3Function') return (we.functions || []).map(f => f.name);
+            if (modal.type === 'l3Function') return (we.functions || []).map(f => f.name).filter(n => !isPlaceholderName(n));
             if (modal.type === 'l3ProcessChar') {
               const func = (we.functions || []).find(f => f.id === modal.funcId);
-              return func ? (func.processChars || []).map(c => String(c.name || '')) : [];
+              return func ? (func.processChars || []).map(c => String(c.name || '')).filter(n => !isPlaceholderName(n)) : [];
             }
             return [];
           })()}

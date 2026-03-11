@@ -64,6 +64,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
   const isConfirmed = state.l2Confirmed || false;
 
   // ✅ 누락건수 계산 (화면 표시 필터와 일치)
+  // ★★★ 2026-03-12 FIX: (기능 미입력)/(제품특성 미입력) placeholder도 누락으로 카운트 ★★★
   const missingCount = useMemo(() => {
     let count = 0;
     const meaningfulProcs = (state.l2 || []).filter((p: any) => {
@@ -72,10 +73,16 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     });
     meaningfulProcs.forEach((proc: any) => {
       const funcs = filterMeaningfulFunctionsL2(proc.functions || []);
+      // ★ FIX: 의미 있는 기능이 0개면 공정 자체가 누락
+      if (funcs.length === 0) {
+        count += 1;
+        return;
+      }
       // ★★★ 2026-02-16: 상위레벨(기능) 입력 시 하위레벨(제품특성) 최소 1개 필수 ★★★
       funcs.forEach((f: any) => {
         if (f.name && f.name.trim()) {
-          const chars = (f.productChars || []).filter((c: any) => c.name && c.name.trim());
+          // ★ FIX: filterMeaningfulProductChars 사용하여 (제품특성 미입력) placeholder 제외
+          const chars = filterMeaningfulProductChars(f.productChars || []);
           if (chars.length === 0) count += 1;
         }
       });
@@ -638,12 +645,13 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
           processList={(state.l2 || []).map(p => ({ id: p.id, no: p.no, name: p.name }))}
           onProcessChange={(procId) => setModal(prev => prev ? { ...prev, procId } : null)}
           currentValues={(() => {
+            const isPlaceholderName = (n: string) => !n || !n.trim() || n.includes('클릭') || n.includes('미입력');
             const proc = (state.l2 || []).find(p => p.id === modal.procId);
             if (!proc) return [];
-            if (modal.type === 'l2Function') return (proc.functions || []).map(f => f.name);
+            if (modal.type === 'l2Function') return (proc.functions || []).map(f => f.name).filter(n => !isPlaceholderName(n));
             if (modal.type === 'l2ProductChar') {
               const func = (proc.functions || []).find(f => f.id === modal.funcId);
-              return func ? (func.productChars || []).map(c => c.name) : [];
+              return func ? (func.productChars || []).map(c => c.name).filter(n => !isPlaceholderName(n)) : [];
             }
             return [];
           })()}
