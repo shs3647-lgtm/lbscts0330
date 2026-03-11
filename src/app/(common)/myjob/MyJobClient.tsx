@@ -95,11 +95,16 @@ export default function MyJobClient() {
             }
         }
 
-        // 실데이터 API 호출
+        // ★ 실데이터 API 호출 (타임아웃 8초)
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const opts = { signal: ctrl.signal };
+
         Promise.all([
-            fetch('/api/myjob/stats').then(r => r.json()).catch(() => ({ total: 0, inprogress: 0, done: 0, delayed: 0 })),
-            fetch('/api/myjob/jobs').then(r => r.json()).catch(() => ({ jobs: [] })),
+            fetch('/api/myjob/stats', opts).then(r => r.json()).catch(() => ({ total: 0, inprogress: 0, done: 0, delayed: 0 })),
+            fetch('/api/myjob/jobs', opts).then(r => r.json()).catch(() => ({ jobs: [] })),
         ]).then(([statsData, jobsData]) => {
+            clearTimeout(timer);
             setStats(statsData);
             if (jobsData.jobs && jobsData.jobs.length > 0) {
                 // DFMEA 제외 (비활성화 모듈)

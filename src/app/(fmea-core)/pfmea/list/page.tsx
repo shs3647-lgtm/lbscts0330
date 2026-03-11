@@ -559,9 +559,9 @@ export default function PFMEAListPage() {
       showSidebar={true}
       contentPadding="p-0"
     >
-      <div className="font-[Malgun_Gothic]" style={{ padding: '16px 16px 16px 5px' }}>
+      <div className="font-[Malgun_Gothic]" style={{ padding: '4px 16px 4px 5px' }}>
         {/* 헤더 */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-1 mb-1">
           <span className="text-lg">📋</span>
           <h1 className="text-base font-bold text-gray-800">{CONFIG.moduleName} 리스트(List)</h1>
           {isLoading ? (
@@ -602,7 +602,7 @@ export default function PFMEAListPage() {
           .pfmea-list-table tbody td { border-bottom: 1px solid #9ca3af; border-right: 1px solid #d1d5db; }
           .pfmea-list-table tbody td:last-child { border-right: none; }
         `}} />
-        <div ref={scrollRef} className="rounded-lg overflow-y-auto border border-gray-400 bg-white" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+        <div ref={scrollRef} className="rounded-lg overflow-y-auto border border-gray-400 bg-white mt-1" style={{ maxHeight: 'calc(100vh - 145px)' }}>
           <table className="pfmea-list-table w-full text-[8px]">
             <thead className="sticky top-0 z-10">
               <tr className="bg-[#00587a] text-white" style={{ height: '28px' }}>

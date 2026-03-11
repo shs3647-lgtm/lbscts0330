@@ -77,6 +77,8 @@ interface UseCpSyncReturn {
   closeWizard: () => void;
   /** ★★★ CP 연동 가능 여부 ★★★ */
   canSyncToCp: boolean;
+  /** ★★★ 일반사용자용: 위저드 없이 전체 연동 + CP 이동 ★★★ */
+  quickSyncAndNavigate: (state: any) => Promise<void>;
 }
 
 
@@ -834,6 +836,76 @@ export function useCpSync(selectedFmeaId: string | null): UseCpSyncReturn {
     setAtomicData([]);
   }, []);
 
+  // ★★★ 일반사용자용: 위저드 없이 전체 연동 + CP 이동 ★★★
+  const quickSyncAndNavigate = useCallback(async (state: any) => {
+    if (!selectedFmeaId) {
+      alert('FMEA를 먼저 선택해주세요.');
+      return;
+    }
+
+    if (!state.l2 || state.l2.length === 0) {
+      alert('CP를 생성할 공정 데이터가 없습니다.');
+      return;
+    }
+
+    setSyncStatus('syncing');
+
+    try {
+      // Case 1: linkedCpNo 없음 → CP 신규 생성 + 이동
+      if (!linkedCpNo) {
+        const res = await fetch('/api/pfmea/create-cp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fmeaId: selectedFmeaId,
+            cpNo: null,
+            l2Data: state.l2,
+            subject: state.l1?.completedProductName || '',
+            customer: '',
+            riskData: state.riskData,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          const cpNo = data.data?.cpNo;
+          if (cpNo) setLinkedCpNo(cpNo);
+          setSyncStatus('success');
+          router.push(`/control-plan/worksheet?cpNo=${encodeURIComponent(cpNo)}`);
+        } else {
+          throw new Error(data.error || 'CP 생성 실패');
+        }
+        return;
+      }
+
+      // Case 2: linkedCpNo 있음 → 전체 연동 API 호출 + CP 이동
+      const res = await fetch('/api/pfmea/sync-to-cp/all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmeaId: selectedFmeaId,
+          cpNo: linkedCpNo,
+          l2Data: state.l2,
+          riskData: state.riskData,
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        const cpNo = result.data?.cpNo || linkedCpNo;
+        if (result.data?.cpNo) setLinkedCpNo(result.data.cpNo);
+        setSyncStatus('success');
+        router.push(`/control-plan/worksheet?cpNo=${encodeURIComponent(cpNo)}`);
+      } else {
+        throw new Error(result.error || '연동 실패');
+      }
+    } catch (error: any) {
+      console.error('[Quick CP Sync] 오류:', error);
+      setSyncStatus('error');
+      alert(`CP 연동 오류: ${error.message}`);
+    } finally {
+      setTimeout(() => setSyncStatus('idle'), 2000);
+    }
+  }, [selectedFmeaId, linkedCpNo, router]);
+
   return {
     linkedCpNo,
     linkedPfdNo,
@@ -854,6 +926,7 @@ export function useCpSync(selectedFmeaId: string | null): UseCpSyncReturn {
     executeAllSteps,  // ★ 전체 단계 한번에 실행
     closeWizard,
     canSyncToCp,
+    quickSyncAndNavigate,  // ★ 일반사용자용 원클릭 연동+이동
   };
 }
 

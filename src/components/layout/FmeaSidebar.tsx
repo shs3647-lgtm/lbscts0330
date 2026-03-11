@@ -48,34 +48,8 @@ const pfmeaSubItems = [
   { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement' },
 ];
 
-const dfmeaSubItems = [
-  { label: '📊 대시보드', href: '/dfmea/dashboard' },
-  { label: '등록', href: '/dfmea/register' },
-  { label: '리스트', href: '/dfmea/list' },
-  { label: '작성화면', href: '/dfmea/worksheet' },
-  { label: '개정관리', href: '/dfmea/revision' },
-  { label: '📋 LLD(필터코드)', href: '/dfmea/lld' },
-  { label: '🚀 AP 개선관리', href: '/dfmea/ap-improvement' },
-];
-
-const apqpSubItems = [
-  { label: '📊 대시보드', href: '/apqp/dashboard' },
-  { label: '등록', href: '/apqp/register' },
-  { label: '리스트', href: '/apqp/list' },
-  { label: '작성화면', href: '/apqp/worksheet' },
-  { label: '개정관리', href: '/apqp/revision' },
-];
-
 const mainMenuItems: MenuItem[] = [
   myJobItem,
-  {
-    id: 'apqp', label: 'APQP', shortLabel: 'A',
-    Icon: ColorIcons.Worksheet, href: '/apqp', subItems: apqpSubItems,
-  },
-  {
-    id: 'dfmea', label: 'DFMEA', shortLabel: 'D',
-    Icon: ColorIcons.Register, href: '/dfmea', subItems: dfmeaSubItems,
-  },
   {
     id: 'pfmea', label: 'PFMEA', shortLabel: 'P',
     Icon: ColorIcons.List, href: '/pfmea', subItems: pfmeaSubItems,
@@ -98,7 +72,6 @@ const bottomMenuItems: MenuItem[] = [
       { label: '고객사정보', href: '/master/customer' },
       { label: '사용자정보', href: '/master/user' },
       { label: 'PFMEA 임포트', href: '/pfmea/import' },
-      { label: 'DFMEA 임포트', href: '/dfmea/import' },
       { label: 'CP 기초정보', href: '/control-plan/import' },
       { label: 'PFD 기초정보', href: '/pfd/import' },
       { label: '데이타 복구 관리', href: '/master/trash' },

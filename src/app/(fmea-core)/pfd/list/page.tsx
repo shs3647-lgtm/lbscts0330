@@ -247,6 +247,7 @@ export default function PFDListPage() {
           });
         }
       } catch (linkErr) {
+        console.error('[PFD List] ProjectLinkage 조회 실패:', linkErr);
       }
 
       setProjects(projectList);
@@ -304,26 +305,42 @@ export default function PFDListPage() {
 
     let successCount = 0;
     let failCount = 0;
-    const deletePromises = Array.from(selectedRows).map(async (selectedId) => {
-      try {
-        const project = projects.find(p => p.id === selectedId);
-        const pfdNo = project?.pfdNo || selectedId;
-        const res1 = await fetch(`${CONFIG.apiEndpoint}?pfdNo=${pfdNo}`, { method: 'DELETE' });
-        if (!res1.ok) {
-          const res1Retry = await fetch(`${CONFIG.apiEndpoint}?pfdNo=${pfdNo.toLowerCase()}`, { method: 'DELETE' });
-          if (!res1Retry.ok) throw new Error('삭제 실패');
-        }
-        if (project?.id) { await fetch(`${CONFIG.apiEndpoint}/${project.id}/items`, { method: 'DELETE' }).catch(() => { }); }
-        successCount++;
-        return { id: pfdNo, success: true };
-      } catch (e) { console.error(`[삭제] ${selectedId} 오류:`, e); failCount++; return { id: selectedId, success: false }; }
-    });
+    const ids = Array.from(selectedRows);
 
-    await Promise.all(deletePromises);
+    // ★ 5개씩 배치 삭제 (DB 과부하 방지)
+    const BATCH = 5;
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const batch = ids.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(async (selectedId) => {
+        try {
+          const project = projects.find(p => p.id === selectedId);
+          const pfdNo = project?.pfdNo || selectedId;
+          const res = await fetch(`${CONFIG.apiEndpoint}?pfdNo=${encodeURIComponent(pfdNo)}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            console.error(`[PFD 삭제] ${pfdNo} 실패 (${res.status}):`, body);
+            // 소문자로 재시도
+            const res2 = await fetch(`${CONFIG.apiEndpoint}?pfdNo=${encodeURIComponent(pfdNo.toLowerCase())}`, { method: 'DELETE' });
+            if (!res2.ok) {
+              const body2 = await res2.json().catch(() => ({}));
+              console.error(`[PFD 삭제] ${pfdNo} 재시도 실패 (${res2.status}):`, body2);
+              throw new Error(body2.error || '삭제 실패');
+            }
+          }
+          return { id: pfdNo, success: true };
+        } catch (e) {
+          console.error(`[PFD 삭제] ${selectedId} 오류:`, e);
+          return { id: selectedId, success: false };
+        }
+      }));
+      successCount += results.filter(r => r.success).length;
+      failCount += results.filter(r => !r.success).length;
+    }
+
     await loadData();
     clearSelection();
-    if (failCount > 0) { toast.error(`삭제 완료: ${successCount}개 성공, ${failCount}개 실패`); }
-    else { toast.success(`${successCount}개 항목 삭제 완료`); }
+    if (failCount > 0) { toast.error(`삭제: ${successCount}개 성공, ${failCount}개 실패 — 콘솔에서 오류 확인`); }
+    else { toast.success(`${deleteCount}개 항목 삭제 완료`); }
   };
 
   const handleEdit = () => {

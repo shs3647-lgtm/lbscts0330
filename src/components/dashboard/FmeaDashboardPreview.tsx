@@ -21,13 +21,32 @@ const EMPTY: FmeaStats = { total: 0, pfmea: { master: 0, family: 0, part: 0 }, d
 export function FmeaDashboardPreview() {
   const [stats, setStats] = useState<FmeaStats>(EMPTY);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch('/api/fmea/dashboard-stats')
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+
+    fetch('/api/fmea/dashboard-stats', { signal: ctrl.signal })
       .then(r => r.json())
       .then(d => { if (d.success) setStats(d.stats); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          console.error('[Dashboard] API 타임아웃 (5초)');
+        } else {
+          console.error('[Dashboard] 통계 로드 실패:', err);
+        }
+        setError(true);
+      })
+      .finally(() => {
+        clearTimeout(timer);
+        setLoading(false);
+      });
+
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
   }, []);
 
   const pfmeaTotal = stats.pfmea.master + stats.pfmea.family + stats.pfmea.part;
@@ -59,13 +78,15 @@ export function FmeaDashboardPreview() {
         display: 'flex', flexDirection: 'column', padding: '20px',
         opacity: loading ? 0.6 : 1, transition: 'opacity 0.3s ease',
       }}>
-        {loading && (
+        {(loading || error) && (
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             zIndex: 10, pointerEvents: 'none',
           }}>
-            <span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 600 }}>데이터 로딩 중...</span>
+            <span style={{ color: error ? '#f87171' : '#94a3b8', fontSize: '13px', fontWeight: 600 }}>
+              {error ? '데이터 로드 실패' : '데이터 로딩 중...'}
+            </span>
           </div>
         )}
         {/* 배경 글로우 */}

@@ -496,14 +496,14 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // ★ 트랜잭션으로 3개 삭제 원자성 보장
+    // ★ 트랜잭션으로 관련 테이블 전체 삭제 — 원자성 보장
     await prisma.$transaction(async (tx: any) => {
-      // 연관된 PFD 아이템 먼저 삭제
+      // 1. 연관된 PFD 아이템 삭제
       await tx.pfdItem.deleteMany({
         where: { pfdId: existing.id },
       });
 
-      // 연관된 DocumentLink 삭제
+      // 2. 연관된 DocumentLink 삭제
       await tx.documentLink.deleteMany({
         where: {
           OR: [
@@ -513,7 +513,29 @@ export async function DELETE(req: NextRequest) {
         },
       });
 
-      // ★ DB에서 가져온 원본 pfdNo로 삭제
+      // 3. PfdMasterDataset + FlatItems 삭제 (연쇄 Cascade)
+      try {
+        await tx.pfdMasterDataset.deleteMany({
+          where: { pfdNo: { equals: existing.pfdNo, mode: 'insensitive' } },
+        });
+      } catch { /* 테이블 미존재 시 무시 */ }
+
+      // 4. PfmeaPfdMapping 삭제
+      try {
+        await tx.pfmeaPfdMapping.deleteMany({
+          where: { pfdNo: { equals: existing.pfdNo, mode: 'insensitive' } },
+        });
+      } catch { /* 테이블 미존재 시 무시 */ }
+
+      // 5. ProjectLinkage 정리 (pfdNo만 null 처리)
+      try {
+        await tx.projectLinkage.updateMany({
+          where: { pfdNo: { equals: existing.pfdNo, mode: 'insensitive' } },
+          data: { pfdNo: null },
+        });
+      } catch { /* 테이블 미존재 시 무시 */ }
+
+      // 6. PFD 등록 삭제
       await tx.pfdRegistration.delete({
         where: { pfdNo: existing.pfdNo },
       });

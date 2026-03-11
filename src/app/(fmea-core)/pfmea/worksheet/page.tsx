@@ -24,6 +24,7 @@ import { SidebarRouter } from '@/components/layout';
 import { COLORS, uid, getTabLabel, WorksheetState, WorkElement, Process } from './constants';
 import { btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '@/styles/worksheet';
 import { useWorksheetState, useCpSync, useExcelHandlers, useProcessHandlers } from './hooks';
+import { useAuth } from '@/hooks/useAuth';
 import { useSpecialCharVerify } from './hooks/useSpecialCharVerify';
 import { useImportVerify } from './hooks/useImportVerify';
 import { useFailureLinkVerify, type RepairableLink } from './hooks/useFailureLinkVerify';
@@ -82,6 +83,7 @@ const FCChainVerifyBar = dynamic(() => import('./components/FCChainVerifyBar'), 
  */
 function FMEAWorksheetPageContent() {
   const router = useRouter();
+  const { isAdmin } = useAuth();
 
   // ✅ FMEA 워크시트 기본 배율 110% 설정
   // ⚠️ 2026-01-11: zoom은 클릭 이벤트에 영향을 줄 수 있어 비활성화
@@ -227,6 +229,7 @@ function FMEAWorksheetPageContent() {
     executeAllSteps,  // ★ 전체 단계 한번에 실행
     closeWizard,
     canSyncToCp,
+    quickSyncAndNavigate,  // ★ 일반사용자용 원클릭 연동+이동
   } = useCpSync(selectedFmeaId);
 
   // ★ 특별특성 불일치 검증 (경고만, 데이터 수정 없음 — Single Source of Truth: legacyData)
@@ -268,7 +271,7 @@ function FMEAWorksheetPageContent() {
   } = useProcessHandlers({ state, setState, setDirty });
 
   // 우측 패널 활성화 상태
-  const [activePanelId, setActivePanelId] = useState<string>('tree');
+  const [activePanelId, setActivePanelId] = useState<string>('');
   // ★ 패널 전체화면 모드 (ALL 탭 전용)
   const [panelFullscreen, setPanelFullscreen] = useState(false);
   // ESC 키로 전체화면 해제
@@ -384,24 +387,16 @@ function FMEAWorksheetPageContent() {
     }
   }, [state.tab]);
 
-  // ★★★ 탭별 기본 패널 설정 ★★★
-  // - 구조분석~3L원인분석: 트리뷰 기본 표시
-  // - ALL, 고장연결: 전체화면 (패널 없음) - 단, 버튼 클릭 시 해당 패널 유지
+  // ★★★ 탭 변경 시 패널 초기화 ★★★
+  // - 모든 탭: 워크시트 전체 너비 사용 (패널 없음)
+  // - 5AP/6AP/RPN 클릭 시에만 풀스크린 모달로 표시
   React.useEffect(() => {
-    // 버튼 클릭으로 탭 변경 시, 자동 리셋 스킵
     if (panelButtonClickedRef.current) {
       panelButtonClickedRef.current = false;
       return;
     }
-
-    const treeViewTabs = ['structure', 'function-l1', 'function-l2', 'function-l3', 'failure-l1', 'failure-l2', 'failure-l3'];
-
-    if (treeViewTabs.includes(state.tab)) {
-      setActivePanelId('tree');
-    } else if (state.tab === 'all' || state.tab === 'failure-link') {
-      setActivePanelId('');
-      setPanelFullscreen(false);
-    }
+    setActivePanelId('');
+    setPanelFullscreen(false);
   }, [state.tab]);
 
   // ★★★ RPN 컬럼 표시 여부 (독립 토글 — 패널과 무관) ★★★
@@ -785,18 +780,23 @@ function FMEAWorksheetPageContent() {
           showRPN={showRPN}
           onOpenPDF={() => {
             panelButtonClickedRef.current = true;
-            setPanelFullscreen(false);
-            setActivePanelId(prev => prev === 'pdf' ? '' : 'pdf');
+            if (activePanelId === 'pdf' && panelFullscreen) {
+              setActivePanelId(''); setPanelFullscreen(false);
+            } else {
+              setActivePanelId('pdf'); setPanelFullscreen(true);
+            }
           }}
           onOpenTree={() => {
-            panelButtonClickedRef.current = true;
-            setActivePanelId(prev => prev === 'tree' ? '' : 'tree');
+            // Tree 패널 삭제됨 — no-op
           }}
           activePanelId={activePanelId}
           onCpStructureSync={handleCpStructureSync}
           onCpDataSync={handleCpDataSync}
           onCreateCp={() => linkedCpNo ? startSyncWizard(state) : handleCreateCp(state)}
           onCreatePfd={() => handleCreatePfd(state)}
+          isAdmin={isAdmin}
+          onQuickCpSync={() => quickSyncAndNavigate(state)}
+          linkedPfdNo={linkedPfdNo}
           onConfirm={async () => {
             if (!confirm('FMEA를 확정하시겠습니까?\n\n확정 시 개정관리 현황 화면으로 이동합니다.')) return;
             if (saveAtomicDB) await saveAtomicDB(true);
@@ -982,13 +982,19 @@ function FMEAWorksheetPageContent() {
                   // ★★★ 2026-01-19: ALL 탭 내 패널 전환 핸들러 ★★★
                   onOpen5AP={() => {
                     panelButtonClickedRef.current = true;
-                    setPanelFullscreen(false);
-                    setActivePanelId(prev => prev === '5ap' ? '' : '5ap');
+                    if (activePanelId === '5ap' && panelFullscreen) {
+                      setActivePanelId(''); setPanelFullscreen(false);
+                    } else {
+                      setActivePanelId('5ap'); setPanelFullscreen(true);
+                    }
                   }}
                   onOpen6AP={() => {
                     panelButtonClickedRef.current = true;
-                    setPanelFullscreen(false);
-                    setActivePanelId(prev => prev === '6ap' ? '' : '6ap');
+                    if (activePanelId === '6ap' && panelFullscreen) {
+                      setActivePanelId(''); setPanelFullscreen(false);
+                    } else {
+                      setActivePanelId('6ap'); setPanelFullscreen(true);
+                    }
                   }}
                   onOpenRPN={() => {
                     setShowRPN(prev => !prev);
@@ -1047,69 +1053,20 @@ function FMEAWorksheetPageContent() {
                     saveToLocalStorage={saveToLocalStorage}
                     saveAtomicDB={saveAtomicDB}
                   />
-                ) : (
+                ) : state.tab === 'structure' ? (
+                  <StructureTabFull {...tabProps} />
+                ) : state.tab === 'doc' ? (
                   <table className="w-full border-collapse table-fixed">
-                    {state.tab === 'structure' && <StructureTabFull {...tabProps} />}
-                    {state.tab === 'doc' && <DocTabFull {...tabProps} />}
+                    <DocTabFull {...tabProps} />
                   </table>
-                )}
+                ) : null}
               </div>
             )}
           </div>
           {/* 워크시트 영역 닫힘 */}
 
-          {/* ===== 워크시트-트리뷰 구분선 (2px 네이비) ===== */}
-          {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
-          {/* ★★★ [중요] 고장연결(failure-link) 화면 - 코드 프리즈 ★★★ */}
-          {/* ★★★ 고장연결 화면에는 트리뷰 영역이 필요 없음 ★★★ */}
-          {/* ★★★ UI/UX 수정 절대 금지 - 2026-01-12 ★★★ */}
-          {/* ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ */}
-          {/* ★★★ ALL 탭: 기본은 전체화면(트리뷰 없음), 5AP/6AP/RPN 클릭 시에만 우측 패널 표시 ★★★ */}
-          {/* ★★★ ALL 탭 클릭 시 → activePanelId가 null이 되어 전체화면으로 복귀 ★★★ */}
-          {(state.tab !== 'failure-link' && state.tab !== 'all') ||
-            (state.tab === 'all' && !!activePanelId && !panelFullscreen) ? (
-            <>
-              <div className="w-[2px] bg-[#1a237e] shrink-0" />
-
-              {/* ===== 우측: 플러그인 패널 영역 (300px) ===== */}
-              <div className="w-[300px] shrink-0 flex flex-col bg-[#f0f4f8] overflow-hidden h-full">
-                <Suspense fallback={
-                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', fontSize: '14px', color: '#666' }}>
-                    ⏳ 로딩 중...
-                  </div>
-                }>
-                  {(() => {
-                    const panel = getPanelById(activePanelId);
-                    if (!panel) return null;
-                    const PanelComponent = panel.component;
-                    return (
-                      <div className="relative h-full flex flex-col">
-                        {/* ★ 패널 닫기 버튼 (우상단 고정) */}
-                        <button
-                          onClick={() => { setActivePanelId(''); setPanelFullscreen(false); }}
-                          className="absolute top-1 right-1 z-20 w-5 h-5 flex items-center justify-center rounded-full bg-gray-700/70 hover:bg-gray-900/80 text-white text-[11px] font-bold leading-none cursor-pointer shadow"
-                          title="패널 닫기"
-                        >
-                          ✕
-                        </button>
-                        <PanelComponent state={state} setState={setState} inputMode={inputMode} setInputMode={setInputMode} />
-                        {/* ★ ALL 탭: 하단 전체화면 버튼 — 잘 보이는 위치 */}
-                        {state.tab === 'all' && (
-                          <button
-                            onClick={() => setPanelFullscreen(true)}
-                            className="shrink-0 w-full py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-[11px] font-bold cursor-pointer transition-colors flex items-center justify-center gap-1"
-                            title="전체화면으로 보기 (ESC로 복귀)"
-                          >
-                            <span className="text-[13px]">⛶</span> 전체화면 보기
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </Suspense>
-              </div>
-            </>
-          ) : null}
+          {/* ★★★ 우측 패널 영역 삭제 — 워크시트가 전체 너비 사용 ★★★ */}
+          {/* 5AP/6AP/RPN은 풀스크린 모달(아래 overlay)로 표시 */}
         </div>
 
         {/* ★★★ 전체화면 오버레이 — 사이드바·네비게이션 유지, 탭+워크시트 영역만 대체 ★★★ */}
@@ -1188,8 +1145,8 @@ function FMEAWorksheetPageContent() {
          */}
       </div>
 
-      {/* ★★★ CP 순차 연동 위저드 모달 (컴팩트 테이블 버전) ★★★ */}
-      <CpSyncWizard
+      {/* ★★★ CP 순차 연동 위저드 모달 (관리자만 표시) ★★★ */}
+      {isAdmin && <CpSyncWizard
         wizardState={wizardState}
         cpNo={linkedCpNo}
         l2Data={state.l2}
@@ -1217,7 +1174,7 @@ function FMEAWorksheetPageContent() {
           closeWizard();
           router.push(`/pfmea/revision?id=${fmeaId}`);
         }}
-      />
+      />}
     </>
   );
 }

@@ -5,7 +5,15 @@ const nextConfig: NextConfig = {
 
   // ★ 대용량 패키지 로딩 최적화 (성능 향상)
   experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-tabs', 'date-fns'],
+    optimizePackageImports: [
+      'lucide-react', 'recharts', 'date-fns',
+      '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select', '@radix-ui/react-tabs',
+      'chart.js', 'react-chartjs-2', 'chartjs-plugin-datalabels',
+      'exceljs', 'xlsx', 'xlsx-js-style',
+      'jspdf', 'html2canvas-pro', 'react-pdf',
+      '@tanstack/react-query', '@tanstack/react-virtual',
+    ],
   },
 
   // ★ Next.js 개발 인디케이터 (N 로고) 비활성화

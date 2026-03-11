@@ -1192,6 +1192,7 @@ export default function StructureTab(props: StructureTabProps) {
 
   return (
     <>
+      <table className="w-full border-collapse table-fixed">
       <StructureColgroup />
       {/* 헤더 - 하단 2px 검은색 구분선 */}
       <thead className="sticky top-0 z-20 bg-white border-b-2 border-black">
@@ -1305,6 +1306,7 @@ export default function StructureTab(props: StructureTabProps) {
           })
         )}
       </tbody>
+      </table>
 
       {/* ★★★ 모달: 탭 자체에서 렌더링 (기능분석/고장분석 패턴 통일) ★★★ */}
       <ProcessSelectModal

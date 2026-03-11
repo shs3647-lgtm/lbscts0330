@@ -1,10 +1,30 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FmeaDashboardPreview } from '@/components/dashboard/FmeaDashboardPreview';
+
+// ★ 대시보드 프리뷰 lazy 로드 — 초기 번들에서 분리
+const FmeaDashboardPreview = dynamic(
+  () => import('@/components/dashboard/FmeaDashboardPreview').then(m => ({ default: m.FmeaDashboardPreview })),
+  {
+    loading: () => (
+      <div className="card hero-right" style={{
+        minHeight: '280px',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: '14px',
+      }}>
+        <span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 600 }}>Dashboard 로딩...</span>
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
 export default function WelcomePage() {
+  const router = useRouter();
   // API에서 가져온 MY JOB 통계
   const [stats, setStats] = useState({ total: 0, inprogress: 0, done: 0, delayed: 0 });
   const [loading, setLoading] = useState(true);
@@ -95,10 +115,14 @@ export default function WelcomePage() {
   }, [showPhotoMenu]);
 
   useEffect(() => {
-    // 로그인 상태 확인 및 사진 로드
+    // ★ 미로그인 시 로그인 화면으로 리다이렉트
     const checkLogin = async () => {
       try {
         const userSession = localStorage.getItem('user_session');
+        if (!userSession) {
+          router.replace('/login');
+          return;
+        }
         if (userSession) {
           const user = JSON.parse(userSession);
           setIsLoggedIn(true);
@@ -134,17 +158,22 @@ export default function WelcomePage() {
     checkLogin();
 
     const fetchStats = async () => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);
       try {
-        const res = await fetch('/api/myjob/stats');
+        const res = await fetch('/api/myjob/stats', { signal: ctrl.signal });
+        clearTimeout(timer);
         if (res.ok) {
           const data = await res.json();
           setStats(data);
-        } else {
-          // 유지: 0값 또는 이전 상태
         }
       } catch (error) {
-        console.error('MY JOB 통계 로드 실패:', error);
-        setStats({ total: 4, inprogress: 1, done: 1, delayed: 1 });
+        clearTimeout(timer);
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          console.error('MY JOB 통계 로드 타임아웃 (5초)');
+        } else {
+          console.error('MY JOB 통계 로드 실패:', error);
+        }
       } finally {
         setLoading(false);
       }
@@ -223,8 +252,8 @@ export default function WelcomePage() {
         .chip { padding: 4px 10px; border-radius: 999px; font-size: 12px; color: #fff; font-weight: 800; }
         .chip.ok { background: var(--ok); } .chip.done { background: var(--done); } .chip.delay { background: var(--delay); }
         
-        /* Quick links - 5열 균형 */
-        .quick-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+        /* Quick links - 3열 균형 */
+        .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
         @media (max-width: 980px) { .quick-grid { grid-template-columns: repeat(2, 1fr); } }
         
         .mini {
@@ -367,7 +396,7 @@ export default function WelcomePage() {
               Smart System으로<br />프리미엄 자동차 시장에 진출하세요 !
             </div>
             <div className="hero-desc">
-              IATF 최신 표준에 근거한 APQP 3<sup>rd</sup>, FMEA 4<sup>th</sup>, CP 1<sup>st</sup>, PFD, WS, PM 자동연동 시스템 !
+              IATF 최신 표준에 근거한 APQP 3<sup>rd</sup>, FMEA 4<sup>th</sup>, CP 1<sup>st</sup>, PFD 자동연동 시스템 !
               <br />
               <span style={{ color: 'var(--brand)', fontWeight: '800', marginTop: '8px', display: 'block' }}>
                 ⚡ 모듈 사용을 원하시면 우측 상단 Sign In 버튼을 클릭하세요
@@ -420,7 +449,7 @@ export default function WelcomePage() {
           바로가기 — {isLoggedIn ? `${userName}님 환영합니다` : '로그인 후 이용 가능'}
         </h2>
         <div className="quick-grid">
-          {/* 1열 (5개): 대시보드, Top RPN, PFMEA리스트, AP개선관리, 습득교훈 */}
+          {/* 1열: 대시보드, PFMEA리스트, AP개선관리, LLD */}
           <Link href={isLoggedIn ? "/pfmea/dashboard" : "/login"} className="card mini">
             <span className="lock-badge">📊</span>
             <h4>대시보드<span className="badge">NEW</span></h4>
@@ -441,13 +470,7 @@ export default function WelcomePage() {
             <h4>LLD(필터코드)</h4>
             <p>Lessons Learned</p>
           </Link>
-          {/* 2열 (5개): DFMEA리스트, CP, PFD, WS, PM */}
-          {/* ★ APQP 개발 완료 시 /apqp/dashboard 링크로 복원 */}
-          <Link href={isLoggedIn ? "/dfmea/list" : "/login"} className="card mini">
-            <span className="lock-badge">📈</span>
-            <h4>DFMEA<span className="badge">NEW</span></h4>
-            <p>DFMEA 리스트</p>
-          </Link>
+          {/* 2열: CP, PFD */}
           <Link href={isLoggedIn ? "/control-plan/list" : "/login"} className="card mini">
             <span className="lock-badge">✅</span>
             <h4>CP</h4>
@@ -457,16 +480,6 @@ export default function WelcomePage() {
             <span className="lock-badge">🔀</span>
             <h4>PFD</h4>
             <p>공정흐름도</p>
-          </Link>
-          <Link href={isLoggedIn ? "/ws" : "/login"} className="card mini">
-            <span className="lock-badge">📄</span>
-            <h4>WS</h4>
-            <p>작업표준</p>
-          </Link>
-          <Link href={isLoggedIn ? "/pm" : "/login"} className="card mini">
-            <span className="lock-badge">🔧</span>
-            <h4>PM</h4>
-            <p>설비보전</p>
           </Link>
         </div>
 

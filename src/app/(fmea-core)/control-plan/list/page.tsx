@@ -316,15 +316,15 @@ export default function CPListPage() {
   );
 
   return (
-    <FixedLayout topNav={<CPTopNav selectedCpId="" />} topNavHeight={48} showSidebar={true} contentPadding="px-3 py-3">
-      <div className="font-[Malgun_Gothic]">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-lg">📋</span>
-          <h1 className="text-base font-bold text-gray-800">Control Plan 리스트</h1>
-          <span className="text-xs text-gray-500 ml-2">{isLoading ? '로딩 중...(Loading)' : `총 ${filteredProjects.length}건`}</span>
+    <FixedLayout topNav={<CPTopNav selectedCpId="" />} topNavHeight={48} showSidebar={true} contentPadding="p-0">
+      <div className="font-[Malgun_Gothic] px-2 pt-1">
+        <div className="flex items-center gap-1 mb-1">
+          <span className="text-sm">📋</span>
+          <h1 className="text-xs font-bold text-gray-800">Control Plan 리스트</h1>
+          <span className="text-[10px] text-gray-500 ml-1">{isLoading ? '로딩 중...(Loading)' : `총 ${filteredProjects.length}건`}</span>
         </div>
 
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-1 mb-1">
           <div className="flex-1">
             <ListActionBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="🔍 CP명, 고객사로 검색..." onRefresh={loadData} onSave={handleSave} saveStatus={saveStatus} onEdit={handleEdit} editDisabled={selectedRows.size !== 1} onDelete={handleDelete} deleteDisabled={selectedRows.size === 0} deleteCount={selectedRows.size} registerUrl={CONFIG.registerUrl} themeColor={CONFIG.themeColor} />
           </div>
@@ -474,6 +474,7 @@ export default function CPListPage() {
 
         <ListStatusBar filteredCount={filteredProjects.length} totalCount={projects.length} moduleName={CONFIG.moduleName} version="v3.1" />
       </div>
+      <div className="pb-1" />
 
       {/* 단계 확정 모달 */}
       <StepConfirmModal

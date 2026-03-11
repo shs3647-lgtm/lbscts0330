@@ -29,9 +29,9 @@ export default function PFDTopNav({ pfdNo, linkedFmeaId, linkedCpNo, rowCount = 
   // ★ 연동된 FMEA가 있으면 PFMEA 바로가기 추가
   if (linkedFmeaId) {
     menuItems.push({
-      label: 'PFMEA등록',
+      label: 'PFMEA작성',
       shortLabel: 'PFMEA',
-      path: `/pfmea/register?id=${linkedFmeaId}`,
+      path: `/pfmea/worksheet?id=${linkedFmeaId}`,
       icon: '📊',
     });
   }

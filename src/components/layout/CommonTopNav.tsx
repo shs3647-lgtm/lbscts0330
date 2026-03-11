@@ -245,28 +245,34 @@ export default function CommonTopNav({
       <div className="h-9 flex items-center border-l border-white/30 shrink-0 px-1.5">
         {user ? (
           <div className="flex items-center gap-1">
-            {/* 프로필 사진 또는 기본 아이콘 */}
-            {user.photoUrl ? (
-              <img
-                src={user.photoUrl}
-                alt={user.name}
-                className="w-5 h-5 rounded-full object-cover border border-white/50"
-              />
-            ) : (
-              <span className="text-[10px]">👤</span>
-            )}
-            <span className="text-white/90 text-[9px]">
-              <span className="font-semibold">{user.name}</span>
-              {user.role === 'admin' && (
-                <span className="ml-0.5 px-0.5 py-0.5 bg-yellow-500 text-black text-[7px] rounded font-bold">AMP</span>
+            {/* ★ 프로필 사진+이름 클릭 → 로그인 화면 이동 */}
+            <a
+              href="/login"
+              className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+              title={t('로그인 화면으로 이동')}
+            >
+              {user.photoUrl ? (
+                <img
+                  src={user.photoUrl}
+                  alt={user.name}
+                  className="w-5 h-5 rounded-full object-cover border border-white/50"
+                />
+              ) : (
+                <span className="text-[10px]">👤</span>
               )}
-            </span>
+              <span className="text-white/90 text-[9px]">
+                <span className="font-semibold">{user.name}</span>
+                {user.role === 'admin' && (
+                  <span className="ml-0.5 px-0.5 py-0.5 bg-yellow-500 text-black text-[7px] rounded font-bold">AMP</span>
+                )}
+              </span>
+            </a>
             <button
               onClick={handleLogout}
               className="text-white/70 hover:text-white text-[8px] px-1 py-0.5 rounded bg-white/10 hover:bg-white/20"
-              title={t('로그아웃')}
+              title={t('Logout(로그아웃)')}
             >
-              {t('로그아웃')}
+              {t('Logout(로그아웃)')}
             </button>
           </div>
         ) : (

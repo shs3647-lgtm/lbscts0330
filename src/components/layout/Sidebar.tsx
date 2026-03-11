@@ -139,16 +139,6 @@ const createSubItems = (basePath: string) => [
   { label: '개정관리', href: `${basePath}/revision` },
 ];
 
-// APQP 전용 하위 메뉴
-const apqpSubItems = [
-  { label: '📊 대시보드', href: '/apqp/dashboard' },
-  { label: '등록', href: '/apqp/register' },
-  { label: '리스트', href: '/apqp/list' },
-  { label: '📅 간트차트', href: '/gantt' },
-  { label: '작성화면', href: '/apqp/worksheet' },
-  { label: '개정관리', href: '/apqp/revision' },
-];
-
 // PFMEA 전용 하위 메뉴 (통일 순서: 대시보드 → 기본메뉴 → 습득교훈 → AP개선)
 const pfmeaSubItems = [
   { label: '📊 대시보드', href: '/pfmea/dashboard' },
@@ -159,17 +149,6 @@ const pfmeaSubItems = [
   { label: '개정관리', href: '/pfmea/revision' },
   { label: '📋 LLD(필터코드)', href: '/pfmea/lld' },
   { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement' },
-];
-
-// DFMEA 전용 하위 메뉴 (PFMEA와 동일 구조)
-const dfmeaSubItems = [
-  { label: '📊 대시보드', href: '/dfmea/dashboard' },
-  { label: '등록', href: '/dfmea/register' },
-  { label: '리스트', href: '/dfmea/list' },
-  { label: '작성화면', href: '/dfmea/worksheet' },
-  { label: '개정관리', href: '/dfmea/revision' },
-  { label: '📋 LLD(필터코드)', href: '/dfmea/lld' },
-  { label: '🚀 AP 개선관리', href: '/dfmea/ap-improvement' },
 ];
 
 // Admin 관리자 하위 메뉴
@@ -200,22 +179,6 @@ const myJobMenuItem = {
 const menuItems = [
   myJobMenuItem,
   {
-    id: 'apqp',
-    label: 'APQP',
-    shortLabel: 'A',
-    Icon: ColorIcons.Worksheet,
-    href: '/apqp',
-    subItems: apqpSubItems,
-  },
-  {
-    id: 'dfmea',
-    label: 'DFMEA',
-    shortLabel: 'D',
-    Icon: ColorIcons.Register,
-    href: '/dfmea',
-    subItems: dfmeaSubItems,
-  },
-  {
     id: 'pfmea',
     label: 'PFMEA',
     shortLabel: 'P',
@@ -240,38 +203,6 @@ const menuItems = [
     subItems: createSubItems('/pfd'),
   },
   {
-    id: 'ws',
-    label: 'WS',
-    shortLabel: 'W',
-    Icon: ColorIcons.Settings,
-    href: '/ws',
-    subItems: createSubItems('/ws'),
-  },
-  {
-    id: 'pm',
-    label: 'PM',
-    shortLabel: 'Mt',
-    Icon: ColorIcons.Maintenance,
-    href: '/pm',
-    subItems: createSubItems('/pm'),
-  },
-  {
-    id: 'spc',
-    label: 'SPC',
-    shortLabel: 'S',
-    Icon: ColorIcons.Dashboard,
-    href: '/spc',
-    subItems: createSubItems('/spc'),
-  },
-  {
-    id: 'msa',
-    label: 'MSA',
-    shortLabel: 'M',
-    Icon: ColorIcons.Worksheet,
-    href: '/msa',
-    subItems: createSubItems('/msa'),
-  },
-  {
     id: 'admin',
     label: 'Admin',
     shortLabel: 'Ad',
@@ -293,7 +224,6 @@ const bottomMenuItems = [
       { label: '고객사정보', href: '/master/customer' },
       { label: '사용자정보', href: '/master/user' },
       { label: 'PFMEA 임포트', href: '/pfmea/import' },
-      { label: 'DFMEA 임포트', href: '/dfmea/import' },
       { label: 'CP 기초정보', href: '/control-plan/import' },
       { label: 'PFD 기초정보', href: '/pfd/import' },
       { label: '데이타 복구 관리', href: '/master/trash' },

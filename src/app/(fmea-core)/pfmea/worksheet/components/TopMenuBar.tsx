@@ -54,11 +54,14 @@ interface TopMenuBarProps {
   onCpDataSync?: () => void;
   onCreateCp?: () => void;    // ★ FMEA → CP 생성
   onCreatePfd?: () => void;   // ★ FMEA → PFD 생성
+  linkedPfdNo?: string | null; // ★ 연동된 PFD 번호
   onConfirm?: () => void;     // ★ 확정 → 개정관리 현황
   onOpenBackup?: () => void;  // ★ 백업 관리 패널
   inputMode?: 'auto' | 'manual';
   onInputModeChange?: React.Dispatch<React.SetStateAction<'auto' | 'manual'>>;
   // ★★★ 2026-02-05: 수동/자동 토글 삭제 - StructureHeader에서 관리 ★★★
+  isAdmin?: boolean;                  // ★ 관리자 여부 (위저드 표시 제어)
+  onQuickCpSync?: () => void;         // ★ 일반사용자: 원클릭 CP 연동+이동
 }
 
 /** 공통 버튼 스타일 - 100% 줌 컴팩트 최적화 (2026-03-08) */
@@ -73,7 +76,8 @@ export default function TopMenuBar({
   fmeaList, selectedFmeaId, cpNo, dirty, isSaving, syncStatus = 'idle', importMessage, fileInputRef, state,
   onFmeaChange, onSave, onNavigateToList, onExport, onImportFile, onDownloadTemplate, onOpenSpecialChar, onOpenSOD, onOpen5AP, onOpen6AP, onOpenRPN, showRPN, onOpenPDF, onOpenTree,
   activePanelId,
-  onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, onConfirm, onOpenBackup
+  onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, linkedPfdNo, onConfirm, onOpenBackup,
+  isAdmin, onQuickCpSync,
 }: TopMenuBarProps) {
   const router = useRouter();
   const { t } = useLocale();
@@ -216,26 +220,42 @@ export default function TopMenuBar({
         <button onClick={onOpen6AP} className={menuBtn}>6AP</button>
         <button onClick={onOpenRPN} className={`${menuBtn} ${showRPN ? 'bg-yellow-500/80 text-black font-bold' : 'bg-blue-600/50'}`}>RPN</button>
         <button onClick={onOpenPDF} className={`${menuBtn} ${activePanelId === 'pdf' ? 'bg-yellow-500/80 text-black font-bold' : 'bg-blue-600/50'}`}>PDF</button>
-        <button onClick={onOpenTree} className={`${menuBtn} ${activePanelId === 'tree' ? 'bg-yellow-500/80 text-black font-bold' : 'bg-blue-600/50'}`}>TREE</button>
       </div>
 
       <div className="hidden md:block w-px h-5 bg-white/30 shrink-0" />
 
       {/* CP연동/PFD연동/CP이동/PFD이동/확정 */}
       <div className="flex items-center gap-0.5 shrink-0">
-        <button
-          ref={cpSyncBtnRef}
-          onClick={handleCpSyncClick}
-          disabled={isSyncing}
-          className={`px-1 py-0.5 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
-            showSyncMenu
-              ? 'bg-blue-600 border border-blue-300 text-white'
-              : 'bg-transparent border border-white/30 text-white/70 hover:bg-white/15 hover:text-white'
-          }`}
-          data-testid="cp-sync-button"
-        >
-          CP▾
-        </button>
+        {/* ★ 관리자: CP 드롭다운 (위저드 표시), 일반사용자: 원클릭 연동+이동 */}
+        {isAdmin ? (
+          <button
+            ref={cpSyncBtnRef}
+            onClick={handleCpSyncClick}
+            disabled={isSyncing}
+            className={`px-1 py-0.5 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
+              showSyncMenu
+                ? 'bg-blue-600 border border-blue-300 text-white'
+                : 'bg-transparent border border-white/30 text-white/70 hover:bg-white/15 hover:text-white'
+            }`}
+            data-testid="cp-sync-button"
+          >
+            CP▾
+          </button>
+        ) : (
+          <button
+            onClick={() => onQuickCpSync?.()}
+            disabled={isSyncing}
+            className={`px-1 py-0.5 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
+              isSyncing
+                ? 'bg-orange-500 border border-orange-300 text-white'
+                : 'bg-transparent border border-white/30 text-white/70 hover:bg-white/15 hover:text-white'
+            }`}
+            data-testid="cp-quick-sync-button"
+            title="FMEA→CP 전체 연동 후 CP로 이동"
+          >
+            {isSyncing ? 'CP⏳' : 'FMEA→CP'}
+          </button>
+        )}
         <button
           onClick={onCreatePfd}
           disabled={isSyncing}
@@ -245,8 +265,8 @@ export default function TopMenuBar({
           PFD
         </button>
 
-      {/* CP 연동 드롭다운 - Portal로 body에 렌더링 (stacking context 탈출) */}
-      {showSyncMenu && ReactDOM.createPortal(
+      {/* CP 연동 드롭다운 - Portal로 body에 렌더링 (관리자만 표시) */}
+      {isAdmin && showSyncMenu && ReactDOM.createPortal(
         <div
           ref={syncMenuRef}
           className="fixed bg-white rounded shadow-xl border border-teal-400 min-w-[160px]"
@@ -310,9 +330,9 @@ export default function TopMenuBar({
           →CP
         </button>
         <button
-          onClick={() => router.push('/pfd/worksheet')}
+          onClick={() => router.push(linkedPfdNo ? `/pfd/worksheet?pfdNo=${encodeURIComponent(linkedPfdNo)}` : '/pfd/worksheet')}
           className="px-1 py-0.5 rounded bg-transparent border border-white/30 text-white/70 text-[9px] font-medium hover:bg-white/15 hover:text-white transition-all whitespace-nowrap"
-          title="PFD 워크시트로 이동"
+          title={linkedPfdNo ? `PFD 워크시트로 이동 (${linkedPfdNo})` : 'PFD 워크시트로 이동'}
         >
           →PFD
         </button>
