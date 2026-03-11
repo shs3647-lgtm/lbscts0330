@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { ParseStatistics, ItemCodeStat } from '../../import/excel-parser';
 import type { DbVerifyCounts } from '../utils/stepConfirmation';
 import type { MasterFailureChain } from '../types/masterFailureChain';
@@ -18,7 +18,7 @@ interface Props {
   dbVerifyCounts?: DbVerifyCounts;  // ★ FA 확정 후 실제 DB 테이블 건수 (verify-counts API)
   failureChains?: MasterFailureChain[];  // ★ A6/B5 카운트용 고장사슬
   flatData?: ImportedFlatData[];  // ★ UUID/DB저장 검증용 flatData
-  fmeaId?: string;  // ★ 2026-03-05: verify-counts 자체 호출용
+  fmeaId?: string;  // ★ 미사용 (자체 호출 제거됨, 호출 측 호환성 유지)
 }
 
 /** 아이템코드별 배경색 */
@@ -39,29 +39,10 @@ const MISMATCH_LABELS: Record<string, string> = {
 export default function ParseStatisticsPanel({ statistics, dbVerifyCounts, failureChains, flatData, fmeaId }: Props) {
   const [view, setView] = useState<'summary' | 'process' | 'verify'>('summary');
 
-  // ★★★ 2026-03-05: dbVerifyCounts 없을 때 자체적으로 verify-counts API 호출 ★★★
-  const [selfDbCounts, setSelfDbCounts] = useState<DbVerifyCounts | null>(null);
-  useEffect(() => {
-    if (dbVerifyCounts || !fmeaId) return;  // 이미 외부에서 받았거나 fmeaId 없으면 스킵
-    let cancelled = false;
-    const fetchCounts = async () => {
-      try {
-        const res = await fetch(`/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId)}`);
-        if (!res.ok || cancelled) return;
-        const json = await res.json();
-        if (json.success && !cancelled) {
-          setSelfDbCounts({ import: json.import, db: json.db });
-        }
-      } catch (err) {
-        console.error('[ParseStatisticsPanel] verify-counts fetch error:', err);
-      }
-    };
-    fetchCounts();
-    return () => { cancelled = true; };
-  }, [fmeaId, dbVerifyCounts, flatData]);  // flatData 변경 시에도 재조회
-
-  // 외부 dbVerifyCounts 우선, 없으면 selfDbCounts 사용
-  const effectiveDbCounts = dbVerifyCounts ?? selfDbCounts;
+  // ★★★ 2026-03-12: 자체 API 호출 제거 — dbVerifyCounts prop이 전달될 때만 DB저장/I→D 표시
+  // SA 확정 시 verify-counts 조회 → stepState.dbVerifyCounts에 저장 → prop으로 전달
+  // Import 직후에는 DB저장='-', I→D='-' (공란) → 단계 진행하면서 통계 업데이트
+  const effectiveDbCounts = dbVerifyCounts ?? null;
 
   const { itemStats: rawItemStats, processStats, totalRows, chainCount, verification, rawFingerprint, excelFormulas, chainProcessStats } = statistics;
 
