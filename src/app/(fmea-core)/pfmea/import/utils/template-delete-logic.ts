@@ -67,31 +67,42 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
   });
 
   const bItems = data.filter(d => d.category === 'B');
-  // ★ processNo+m4 기반 그룹핑 (인덱스 기반 → 정확한 매칭)
+
+  // O(n) 인덱스: processNo+itemCode+m4 → 후보 배열
+  const bIdx = new Map<string, ImportedFlatData[]>();
+  const bIdxNoM4 = new Map<string, ImportedFlatData[]>();
+  for (const d of bItems) {
+    if (d.itemCode === 'B1') continue;
+    const key = `${d.processNo}|${d.itemCode}|${d.m4 || ''}`;
+    if (!bIdx.has(key)) bIdx.set(key, []);
+    bIdx.get(key)!.push(d);
+    if (!d.m4 || d.m4 === '') {
+      const k2 = `${d.processNo}|${d.itemCode}`;
+      if (!bIdxNoM4.has(k2)) bIdxNoM4.set(k2, []);
+      bIdxNoM4.get(k2)!.push(d);
+    }
+  }
+
+  // 코드별 사용된 ID 누적 Set (O(n²) → O(n))
+  const usedByCode: Record<string, Set<string>> = { B2: new Set(), B3: new Set(), B4: new Set(), B5: new Set() };
+
   const bGroups: { pNo: string; m4: string; items: Map<string, ImportedFlatData> }[] = [];
   const b1List = bItems.filter(d => d.itemCode === 'B1');
   b1List.forEach(b1 => {
     const group = { pNo: b1.processNo, m4: b1.m4 || '', items: new Map<string, ImportedFlatData>() };
     group.items.set('B1', b1);
-    // 같은 processNo+m4의 B2~B5 찾기
-    for (const code of ['B2','B3','B4','B5']) {
-      const usedIds = new Set(bGroups.flatMap(g => {
-        const item = g.items.get(code);
-        return item?.id ? [item.id] : [];
-      }));
-      // 1차: processNo+m4 정확 매칭
-      let match = bItems.find(d =>
-        d.itemCode === code && d.processNo === b1.processNo && d.m4 === b1.m4
-        && !usedIds.has(d.id!)
-      );
-      // 2차: m4가 null/빈값인 고아 데이터 폴백 매칭 (DB 레거시 데이터 호환)
+    for (const code of ['B2','B3','B4','B5'] as const) {
+      const used = usedByCode[code];
+      const candidates = bIdx.get(`${b1.processNo}|${code}|${b1.m4 || ''}`) || [];
+      let match = candidates.find(d => !used.has(d.id!));
       if (!match) {
-        match = bItems.find(d =>
-          d.itemCode === code && d.processNo === b1.processNo && (!d.m4 || d.m4 === '')
-          && !usedIds.has(d.id!)
-        );
+        const fallbacks = bIdxNoM4.get(`${b1.processNo}|${code}`) || [];
+        match = fallbacks.find(d => !used.has(d.id!));
       }
-      if (match) group.items.set(code, match);
+      if (match) {
+        group.items.set(code, match);
+        if (match.id) used.add(match.id);
+      }
     }
     bGroups.push(group);
   });

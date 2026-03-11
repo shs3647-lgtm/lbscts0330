@@ -298,6 +298,7 @@ export default function LegacyImportPage() {
           })) as FMEAProject[];
           setFmeaList(loadedProjects);
           if (!selectedFmeaId && loadedProjects.length > 0) {
+            fmeaChangeRef.current = loadedProjects[0].id;
             setSelectedFmeaId(loadedProjects[0].id);
           }
         }
