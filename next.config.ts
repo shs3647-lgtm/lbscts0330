@@ -41,7 +41,7 @@ const nextConfig: NextConfig = {
   },
   // 환경 변수
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4000',
     // ★★★ 2026-02-04: DATABASE_URL을 서버 런타임에서 사용 가능하도록 명시적 설정
     DATABASE_URL: process.env.DATABASE_URL || '',
   },

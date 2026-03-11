@@ -372,15 +372,15 @@ export default function PFDListPage() {
   const paddingBottom = virtualRows.length > 0 ? totalSize - virtualRows[virtualRows.length - 1].end : 0;
 
   return (
-    <FixedLayout topNav={<PFDTopNav />} topNavHeight={48} showSidebar={true} contentPadding="px-3 py-3">
-      <div className="font-[Malgun_Gothic]">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-lg">📋</span>
-          <h1 className="text-base font-bold text-gray-800">{CONFIG.moduleName} 리스트</h1>
-          {isLoading ? <span className="text-xs text-blue-500 ml-2">⏳ 로딩 중...(Loading)</span> : <span className="text-xs text-gray-500 ml-2">총(Total) {filteredProjects.length}건</span>}
+    <FixedLayout topNav={<PFDTopNav />} topNavHeight={48} showSidebar={true} contentPadding="p-0">
+      <div className="font-[Malgun_Gothic] px-2 pt-1">
+        <div className="flex items-center gap-1 mb-1">
+          <span className="text-sm">📋</span>
+          <h1 className="text-xs font-bold text-gray-800">{CONFIG.moduleName} 리스트</h1>
+          {isLoading ? <span className="text-[10px] text-blue-500 ml-1">로딩 중...(Loading)</span> : <span className="text-[10px] text-gray-500 ml-1">총(Total) {filteredProjects.length}건</span>}
         </div>
 
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-1 mb-1">
           <div className="flex-1">
             <ListActionBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="🔍 PFD명, 고객사로 검색..." onRefresh={loadData} onSave={handleSave} saveStatus={saveStatus} onEdit={handleEdit} editDisabled={selectedRows.size !== 1} onDelete={handleDelete} deleteDisabled={selectedRows.size === 0} deleteCount={selectedRows.size} registerUrl={CONFIG.registerUrl} themeColor={CONFIG.themeColor} />
           </div>

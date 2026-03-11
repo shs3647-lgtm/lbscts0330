@@ -675,6 +675,13 @@ export default function StructureTab(props: StructureTabProps) {
       }
 
       // L1/L2(공정) 열 우클릭 → 새 공정(L2) 추가
+      // ★★★ 2026-03-11 FIX: placeholder 공정 이름 초기화 (필터링으로 인한 행 소실 방지)
+      newState.l2.forEach((p: any) => {
+        const nm = (p.name || '').trim();
+        if (nm.includes('클릭') || nm.includes('선택')) {
+          p.name = '';
+        }
+      });
       const insertIdx = procIdx >= 0 ? procIdx : 0;
       const newProc = {
         id: uid(),
@@ -703,7 +710,6 @@ export default function StructureTab(props: StructureTabProps) {
   // ★★★ 2026-03-06: 열 단위 분기 — 아래로 새 행 추가 (L2 열→새 공정, L3 열→새 작업요소) ★★★
   const handleInsertBelow = useCallback(() => {
     const { procIdx, l2Id, l3Idx, clickedColumn } = contextMenuExtra;
-
     const updateFn = (prev: WorksheetState) => {
       const newState = JSON.parse(JSON.stringify(prev));
       if (!newState.l2) return prev;
@@ -724,6 +730,13 @@ export default function StructureTab(props: StructureTabProps) {
       }
 
       // L1/L2(공정) 열 우클릭 → 새 공정(L2) 추가
+      // ★★★ 2026-03-11 FIX: placeholder 공정 이름 초기화 (필터링으로 인한 행 소실 방지)
+      newState.l2.forEach((p: any) => {
+        const nm = (p.name || '').trim();
+        if (nm.includes('클릭') || nm.includes('선택')) {
+          p.name = '';
+        }
+      });
       const insertIdx = procIdx >= 0 ? procIdx + 1 : newState.l2.length;
       const newProc = {
         id: uid(),
@@ -739,6 +752,7 @@ export default function StructureTab(props: StructureTabProps) {
       newState.l2.splice(insertIdx, 0, newProc);
       newState.l2.forEach((p: any, i: number) => { p.order = i; });
       newState.structureConfirmed = false;
+      console.log('[DEBUG-STRUCT] L2 branch: new l2.length=', newState.l2.length);
       return newState;
     };
 

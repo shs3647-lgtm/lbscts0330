@@ -103,6 +103,20 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // ★ CP 과다 생성 방지 — 동일 FMEA에 연결된 CP가 10개 이상이면 경고
+        const MAX_CP_PER_FMEA = 10;
+        const existingCpCount = await prisma.controlPlan.count({
+            where: { fmeaId: fmeaId },
+        });
+        if (existingCpCount >= MAX_CP_PER_FMEA) {
+            return NextResponse.json({
+                success: false,
+                error: `이 FMEA에 이미 ${existingCpCount}개의 CP가 연결되어 있습니다. (최대 ${MAX_CP_PER_FMEA}개)\n기존 CP를 삭제하거나 정리한 후 다시 시도해주세요.`,
+                existingCpCount,
+                maxAllowed: MAX_CP_PER_FMEA,
+            }, { status: 409 });
+        }
+
         // 대상 CP 번호 결정
         const targetCpNo = cpNo || `cp-${fmeaId.replace(/^pfm-?/i, '')}`.toLowerCase();
 

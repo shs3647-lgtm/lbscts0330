@@ -126,9 +126,10 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
 
   // ★★★ 2026-02-09: placeholder 공정 필터링 (빈 행 재발 방지) ★★★
   // 실제 공정이 있으면 "클릭하여 공정 선택" 같은 placeholder 공정은 제외
+  // ★★★ 2026-03-11 FIX: 빈 이름('')은 수동모드에서 추가된 행이므로 제거하지 않음 (컨텍스트 메뉴 행추가 버그 수정)
   const isPlaceholder = (p: any) => {
     const name = (p.name || '').trim();
-    return !name || name.includes('클릭') || name.includes('선택');
+    return name.includes('클릭') || name.includes('선택');
   };
   const meaningfulProcs = l2Data.filter(p => !isPlaceholder(p));
   const effectiveL2 = meaningfulProcs.length > 0 ? meaningfulProcs : l2Data;

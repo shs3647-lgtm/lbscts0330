@@ -28,14 +28,14 @@ import {
 
 const EXCEL_HEADERS = ['LLD_No','구분','적용','공정번호','공정명','제품명','고장형태','고장원인','O값','D값','개선대책','차종','대상','4M','발생장소','완료일자','상태','적용FMEA','적용일자'];
 const EXCEL_COL_WIDTHS = [12,10,8,10,15,15,25,25,6,6,30,10,8,6,12,12,6,15,12];
-const ROW_HEIGHT = 28;
+const ROW_HEIGHT = 30;
 const COL_COUNT = 16;
 const COLUMNS = [
-  { ko: 'LLD No', w: '5%', key: 'lldNo' }, { ko: '구분', w: '3.8%', key: 'classification' },
-  { ko: '적용', w: '3.5%', key: 'applyTo' }, { ko: '공정번호', w: '4.2%', key: 'processNo' },
-  { ko: '공정명', w: '5.5%', key: 'processName' }, { ko: '제품명', w: '3.5%', key: 'productName' },
+  { ko: 'LLD No', w: '5.5%', key: 'lldNo' }, { ko: '구분', w: '4.5%', key: 'classification' },
+  { ko: '적용', w: '4%', key: 'applyTo' }, { ko: '공정번호', w: '4%', key: 'processNo' },
+  { ko: '공정명', w: '6%', key: 'processName' }, { ko: '제품명', w: '3.5%', key: 'productName' },
   { ko: '고장형태', w: '10%', key: 'failureMode' }, { ko: '고장원인', w: '10%', key: 'cause' },
-  { ko: 'O', w: '2%', key: 'occurrence' }, { ko: 'D', w: '2%', key: 'detection' },
+  { ko: 'O', w: '2.2%', key: 'occurrence' }, { ko: 'D', w: '2.2%', key: 'detection' },
   { ko: '개선대책', w: '', key: 'improvement' }, { ko: '차종', w: '3%', key: 'vehicle' },
   { ko: '대상', w: '3%', key: 'target' }, { ko: '상태', w: '2.5%', key: 'status' },
   { ko: 'FMEA', w: '5%', key: 'fmeaId' }, { ko: '', w: '1.5%', key: '' },
@@ -55,65 +55,65 @@ const LLDTableRow = React.memo(function LLDTableRow({
   onDeleteRow: (id: string) => void;
 }) {
   return (
-    <tr className={index % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-slate-50 hover:bg-blue-50'} style={{ height: ROW_HEIGHT }}>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center font-bold bg-slate-50 text-[8px] truncate">{row.lldNo}</td>
+    <tr className={index % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-slate-50/60 hover:bg-blue-50'} style={{ height: ROW_HEIGHT }}>
+      <td className="px-1 py-0 border-b border-r border-slate-200 text-center font-bold bg-slate-50 text-[10px] truncate">{row.lldNo}</td>
       <td className="p-0 border-b border-r border-slate-200 text-center">
         <Select value={row.classification} onValueChange={v => onCellChange(row.id, 'classification', v)}>
-          <SelectTrigger className="h-4 text-[7px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden">
-            <span className="px-0.5 rounded text-white text-[7px] font-bold" style={{ backgroundColor: CLASSIFICATION_COLORS[row.classification] }}>{CLASSIFICATION_LABELS[row.classification]}</span>
+          <SelectTrigger className="h-5 text-[10px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden">
+            <span className="px-1 py-0.5 rounded text-white text-[9px] font-bold" style={{ backgroundColor: CLASSIFICATION_COLORS[row.classification] }}>{CLASSIFICATION_LABELS[row.classification]}</span>
           </SelectTrigger>
-          <SelectContent>{CLASSIFICATION_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[9px]">{CLASSIFICATION_LABELS[o]}</SelectItem>)}</SelectContent>
+          <SelectContent>{CLASSIFICATION_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[11px]">{CLASSIFICATION_LABELS[o]}</SelectItem>)}</SelectContent>
         </Select>
       </td>
       <td className="p-0 border-b border-r border-slate-200 text-center">
         <Select value={row.applyTo} onValueChange={v => onCellChange(row.id, 'applyTo', v)}>
-          <SelectTrigger className="h-4 text-[7px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden"><SelectValue /></SelectTrigger>
-          <SelectContent>{APPLY_TO_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[9px]">{APPLY_TO_LABELS[o]}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="h-5 text-[10px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden"><SelectValue /></SelectTrigger>
+          <SelectContent>{APPLY_TO_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[11px]">{APPLY_TO_LABELS[o]}</SelectItem>)}</SelectContent>
         </Select>
       </td>
       <td className="p-0 border-b border-r border-slate-200">
         <Input value={row.processNo} onChange={e => onCellChange(row.id, 'processNo', e.target.value)}
-          className={`h-4 text-[8px] border-0 bg-transparent focus:bg-white p-0 text-center ${!row.processNo ? 'bg-red-50' : ''}`} placeholder="*" />
+          className={`h-5 text-[10px] border-0 bg-transparent focus:bg-white p-0 text-center ${!row.processNo ? 'bg-red-50' : ''}`} placeholder="*" />
       </td>
       <td className="p-0 border-b border-r border-slate-200">
         <Input value={row.processName} onChange={e => onCellChange(row.id, 'processName', e.target.value)}
-          className={`h-4 text-[8px] border-0 bg-transparent focus:bg-white p-0 text-center ${!row.processName ? 'bg-red-50' : ''}`} placeholder="*" />
+          className={`h-5 text-[10px] border-0 bg-transparent focus:bg-white p-0 text-center ${!row.processName ? 'bg-red-50' : ''}`} placeholder="*" />
       </td>
       <td className="p-0 border-b border-r border-slate-200">
         <Input value={row.productName} onChange={e => onCellChange(row.id, 'productName', e.target.value)}
-          className={`h-4 text-[8px] border-0 bg-transparent focus:bg-white p-0 text-center ${!row.productName ? 'bg-red-50' : ''}`} placeholder="*" />
+          className={`h-5 text-[10px] border-0 bg-transparent focus:bg-white p-0 text-center ${!row.productName ? 'bg-red-50' : ''}`} placeholder="*" />
       </td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-[8px] truncate">{row.failureMode || '\u00A0'}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-[8px] truncate">{row.cause || '\u00A0'}</td>
+      <td className="px-1 py-0 border-b border-r border-slate-200 text-[10px] truncate">{row.failureMode || '\u00A0'}</td>
+      <td className="px-1 py-0 border-b border-r border-slate-200 text-[10px] truncate">{row.cause || '\u00A0'}</td>
       <td className="p-0 border-b border-r border-slate-200 text-center align-middle" style={{ backgroundColor: '#eef6fb' }}>
         <input type="number" min={1} max={10} value={row.occurrence ?? ''} onChange={e => onCellChange(row.id, 'occurrence', e.target.value ? parseInt(e.target.value, 10) : null)}
-          className="w-full border-0 text-center font-bold outline-none" style={{ fontSize: 12, height: 22, appearance: 'textfield', MozAppearance: 'textfield', background: 'transparent', color: '#1a365d' }} />
+          className="w-full border-0 text-center font-bold outline-none" style={{ fontSize: 13, height: 24, appearance: 'textfield', MozAppearance: 'textfield', background: 'transparent', color: '#1a365d' }} />
       </td>
       <td className="p-0 border-b border-r border-slate-200 text-center align-middle" style={{ backgroundColor: '#fef9ee' }}>
         <input type="number" min={1} max={10} value={row.detection ?? ''} onChange={e => onCellChange(row.id, 'detection', e.target.value ? parseInt(e.target.value, 10) : null)}
-          className="w-full border-0 text-center font-bold outline-none" style={{ fontSize: 12, height: 22, appearance: 'textfield', MozAppearance: 'textfield', background: 'transparent', color: '#7c2d12' }} />
+          className="w-full border-0 text-center font-bold outline-none" style={{ fontSize: 13, height: 24, appearance: 'textfield', MozAppearance: 'textfield', background: 'transparent', color: '#7c2d12' }} />
       </td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-[8px] truncate">{row.improvement || '\u00A0'}</td>
+      <td className="px-1 py-0 border-b border-r border-slate-200 text-[10px] truncate">{row.improvement || '\u00A0'}</td>
       <td className="p-0 border-b border-r border-slate-200">
-        <Input value={row.vehicle} onChange={e => onCellChange(row.id, 'vehicle', e.target.value)} className="h-4 text-[7px] border-0 bg-transparent focus:bg-white p-0 text-center" />
+        <Input value={row.vehicle} onChange={e => onCellChange(row.id, 'vehicle', e.target.value)} className="h-5 text-[10px] border-0 bg-transparent focus:bg-white p-0 text-center" />
       </td>
       <td className="p-0 border-b border-r border-slate-200 text-center">
         <Select value={row.target} onValueChange={v => onCellChange(row.id, 'target', v)}>
-          <SelectTrigger className="h-4 text-[7px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden"><SelectValue /></SelectTrigger>
-          <SelectContent>{TARGET_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[9px]">{o}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="h-5 text-[10px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden"><SelectValue /></SelectTrigger>
+          <SelectContent>{TARGET_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[11px]">{o}</SelectItem>)}</SelectContent>
         </Select>
       </td>
       <td className="p-0 border-b border-r border-slate-200 text-center">
         <Select value={row.status} onValueChange={v => onCellChange(row.id, 'status', v)}>
-          <SelectTrigger className="h-4 text-[7px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden">
-            <Badge style={getStatusBadgeStyle(row.status as 'G' | 'Y' | 'R')} className="h-3 text-[6px] px-0.5">{row.status}</Badge>
+          <SelectTrigger className="h-5 text-[10px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden">
+            <Badge style={getStatusBadgeStyle(row.status as 'G' | 'Y' | 'R')} className="h-4 text-[9px] px-1">{row.status}</Badge>
           </SelectTrigger>
-          <SelectContent>{STATUS_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[9px]">{STATUS_COLORS[o].label}</SelectItem>)}</SelectContent>
+          <SelectContent>{STATUS_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[11px]">{STATUS_COLORS[o].label}</SelectItem>)}</SelectContent>
         </Select>
       </td>
-      <td className="p-0 border-b border-r border-slate-200 text-center text-[6px] font-mono truncate">{row.fmeaId || '-'}</td>
+      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center text-[9px] font-mono truncate">{row.fmeaId || '-'}</td>
       <td className="p-0 border-b border-slate-200 text-center">
-        <Button variant="ghost" size="sm" className="h-3 w-3 p-0 text-red-600" onClick={() => onDeleteRow(row.id)}><Trash2 className="w-2.5 h-2.5" /></Button>
+        <Button variant="ghost" size="sm" className="h-4 w-4 p-0 text-red-600" onClick={() => onDeleteRow(row.id)}><Trash2 className="w-3 h-3" /></Button>
       </td>
     </tr>
   );
@@ -263,42 +263,42 @@ export default function LLDPage() {
       <div className="flex flex-col h-full font-['Malgun_Gothic',sans-serif]">
         {/* 메뉴바 */}
         <div className="flex-shrink-0 sticky top-0 z-30 bg-white border-b border-slate-300 shadow-sm px-1 py-0.5">
-          <div className="flex items-center gap-0.5 flex-wrap">
-            <button className={`px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${filterClassification === 'all' ? 'bg-[#00587a] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`} onClick={() => setFilterClassification('all')}>{t('전체')}({stats.total})</button>
+          <div className="flex items-center gap-1 flex-wrap">
+            <button className={`px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap ${filterClassification === 'all' ? 'bg-[#00587a] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`} onClick={() => setFilterClassification('all')}>{t('전체')}({stats.total})</button>
             {CLASSIFICATION_OPTIONS.map(c => (
-              <button key={c} className={`px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${filterClassification === c ? 'text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              <button key={c} className={`px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap ${filterClassification === c ? 'text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                 style={filterClassification === c ? { backgroundColor: CLASSIFICATION_COLORS[c] } : {}} onClick={() => setFilterClassification(c)}>{CLASSIFICATION_LABELS[c]}({stats.byClassification[c] || 0})</button>
             ))}
-            <span className="text-slate-300 text-[8px]">|</span>
-            <span className="text-[9px] text-green-600 font-bold">✓{stats.completed}</span>
-            <span className="text-[9px] text-orange-600 font-bold">◎{stats.inProgress}</span>
-            <span className="text-[9px] text-red-600 font-bold">✕{stats.pending}</span>
-            <span className="text-slate-300 text-[8px]">|</span>
+            <span className="text-slate-300 text-[10px]">|</span>
+            <span className="text-[11px] text-green-600 font-bold">✓{stats.completed}</span>
+            <span className="text-[11px] text-orange-600 font-bold">◎{stats.inProgress}</span>
+            <span className="text-[11px] text-red-600 font-bold">✕{stats.pending}</span>
+            <span className="text-slate-300 text-[10px]">|</span>
             <div className="relative">
-              <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-slate-400" />
-              <Input placeholder={`${t('검색')}...`} className="pl-5 w-24 h-5 text-[9px] border-slate-300 rounded" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+              <Input placeholder={`${t('검색')}...`} className="pl-5 w-28 h-6 text-[11px] border-slate-300 rounded" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
-            <span className="text-slate-300 text-[8px]">|</span>
-            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#22c55e] text-white hover:bg-[#16a34a]" onClick={handleImport}>↑Import</button>
-            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#f97316] text-white hover:bg-[#ea580c]" onClick={handleExport}>↓Export</button>
-            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#a855f7] text-white hover:bg-[#9333ea]" onClick={handleDeploy}>⇄H.P.</button>
-            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#3b82f6] text-white hover:bg-[#2563eb]" onClick={handleAddRow}>+Add Row</button>
-            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#0d47a1] text-white hover:bg-[#1565c0]" onClick={handleSave}>⊞Save</button>
-            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-400 text-white hover:bg-slate-500" onClick={() => { try { window.close(); } catch { /* fallback */ } setTimeout(() => history.back(), 100); }}>✕Close</button>
+            <span className="text-slate-300 text-[10px]">|</span>
+            <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#22c55e] text-white hover:bg-[#16a34a]" onClick={handleImport}>↑Import</button>
+            <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#f97316] text-white hover:bg-[#ea580c]" onClick={handleExport}>↓Export</button>
+            <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#a855f7] text-white hover:bg-[#9333ea]" onClick={handleDeploy}>⇄H.P.</button>
+            <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#3b82f6] text-white hover:bg-[#2563eb]" onClick={handleAddRow}>+Add Row</button>
+            <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#0d47a1] text-white hover:bg-[#1565c0]" onClick={handleSave}>⊞Save</button>
+            <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-400 text-white hover:bg-slate-500" onClick={() => { try { window.close(); } catch { /* fallback */ } setTimeout(() => history.back(), 100); }}>✕Close</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
           </div>
         </div>
 
         {/* 가상화 테이블 */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white border border-slate-300 shadow-sm">
-          <table className="w-full text-[9px] border-collapse" style={{ tableLayout: 'fixed' }}>
+          <table className="w-full text-[10px] border-collapse" style={{ tableLayout: 'fixed' }}>
             <thead className="sticky top-0 z-20 bg-[#00587a] text-white">
               <tr>
                 {COLUMNS.map((col, i) => (
-                  <th key={i} className={`px-0.5 py-0.5 border-b border-r border-white/20 font-bold text-center leading-tight ${col.key ? 'cursor-pointer hover:bg-[#004060] select-none' : ''}`}
+                  <th key={i} className={`px-0.5 py-1 border-b border-r border-white/20 font-bold text-center leading-tight ${col.key ? 'cursor-pointer hover:bg-[#004060] select-none' : ''}`}
                     style={col.w ? { width: col.w } : {}} onClick={() => col.key && handleSort(col.key)}>
-                    <div className="text-[8px] leading-none">{col.ko}</div>
-                    {col.key && <span className="text-[6px]">{sortArrow(col.key)}</span>}
+                    <div className="text-[10px] leading-none">{col.ko}</div>
+                    {col.key && <span className="text-[7px]">{sortArrow(col.key)}</span>}
                   </th>
                 ))}
               </tr>

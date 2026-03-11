@@ -86,30 +86,6 @@ const getMasterDataHandlers = () => import('@/app/(fmea-core)/pfmea/import/hooks
 /** 회사명 목록 (드롭다운 + 직접입력) */
 const COMPANY_LIST = ['AMP', 'T&F', 'LBS', '금호타이어', '넥센타이어', '한국타이어', '일진글로벌'];
 
-/**
- * 연동 ID 목록을 축약 표시 (예: ['cp26-f001-I68-01','cp26-f001-I68-02','cp26-f001-I68-03'] → 'cp26-f001-I68-01, 02, 03')
- * 1개면 그대로, 2개 이상이면 공통접두사 + 첫 번째 suffix, 나머지 마지막 구분자 이후만 표시
- */
-function formatLinkedIds(ids: string[]): string {
-  if (ids.length === 0) return '';
-  if (ids.length === 1) return ids[0];
-  // 공통 접두사 길이 계산 → 마지막 '-' 경계에서 끊기
-  const first = ids[0];
-  let prefixLen = first.length;
-  for (let i = 1; i < ids.length; i++) {
-    const s = ids[i];
-    prefixLen = Math.min(prefixLen, s.length);
-    for (let j = 0; j < prefixLen; j++) {
-      if (first[j] !== s[j]) { prefixLen = j; break; }
-    }
-  }
-  // 마지막 '-' 직후까지만 접두사로 사용 (01, 02 형태 유지)
-  const lastDash = first.lastIndexOf('-', prefixLen - 1);
-  const cutAt = lastDash >= 0 ? lastDash + 1 : prefixLen;
-  const prefix = first.slice(0, cutAt);
-  const suffixes = ids.map(id => id.slice(cutAt));
-  return prefix + suffixes.join(', ');
-}
 
 // =====================================================
 // 메인 컴포넌트
@@ -548,7 +524,7 @@ function PFMEARegisterPageContent() {
                     </div>
                   </td>
                 </tr>
-                {/* 3행: 고객명, 엔지니어링위치, 목표완료일, 연동CP */}
+                {/* 3행: 고객명, 엔지니어링위치, 목표완료일 */}
                 <tr className="h-8">
                   <td className={headerCell} title="Customer Name">고객 명(Customer)</td>
                   <td className={inputCell}>
@@ -560,23 +536,9 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell} title="Engineering Location">엔지니어링 위치(Location)</td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.engineeringLocation} onChange={e => updateField('engineeringLocation', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="위치(Location)" /></td>
                   <td className={headerCell} title="Target Completion Date">목표완료일(Target)</td>
-                  <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaRevisionDate} onClick={() => setRevisionDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택(Click to Select)" /></td>
-                  <td className={`${headerCell} bg-teal-600`} title="Linked Control Plan">연동 CP(Linked){linkedCpList.length > 0 && ` (${linkedCpList.length})`}</td>
-                  <td className={inputCell}>
-                    <div className="flex items-center gap-0.5 px-1 min-w-0 flex-wrap">
-                      {linkedCpList.length > 0 ? (() => {
-                        const ids = linkedCpList.map(c => c.id);
-                        return (
-                          <span className="inline-flex items-center gap-0.5 cursor-pointer flex-wrap" onClick={() => router.push(`/control-plan/list`)} title={ids.join('\n')}>
-                            <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-teal-500 hover:bg-teal-600 shrink-0">CP</span>
-                            <span className="text-[10px] font-semibold text-teal-600 hover:underline">{formatLinkedIds(ids)}</span>
-                          </span>
-                        );
-                      })() : <span className="text-[10px] text-gray-400">-</span>}
-                    </div>
-                  </td>
+                  <td className={inputCell} colSpan={3}><input type="text" readOnly value={fmeaInfo.fmeaRevisionDate} onClick={() => setRevisionDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택(Click to Select)" /></td>
                 </tr>
-                {/* 4행: 회사명, 모델연식, 품명, 연동PFD */}
+                {/* 4행: 회사명, 모델연식, 품명 */}
                 <tr className="h-8">
                   <td className={headerCell} title="Company Name">회사 명(Company)</td>
                   <td className={inputCell}>
@@ -591,46 +553,23 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell} title="Model Year">모델 연식(MY)</td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.modelYear} onChange={e => updateField('modelYear', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="어플리케이션" /></td>
                   <td className={headerCell} title="Part / Product Name">품명(Part)</td>
-                  <td className={inputCell}>
+                  <td className={inputCell} colSpan={3}>
                     <div className="flex items-center h-full">
                       <input type="text" value={fmeaInfo.partName} onChange={e => handlePartNameChange(e.target.value)} className="flex-1 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="고객사 품명" />
                     </div>
                   </td>
-                  <td className={`${headerCell} bg-violet-600`} title="Linked Process Flow Diagram">연동 PFD(Linked){linkedPfdList.length > 0 && ` (${linkedPfdList.length})`}</td>
-                  <td className={inputCell}>
-                    <div className="flex items-center gap-0.5 px-1 min-w-0 flex-wrap">
-                      {linkedPfdList.length > 0 ? (() => {
-                        const ids = linkedPfdList.map(p => p.id);
-                        return (
-                          <span className="inline-flex items-center gap-0.5 cursor-pointer flex-wrap" onClick={() => router.push(`/pfd/list`)} title={ids.join('\n')}>
-                            <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-violet-500 hover:bg-violet-600 shrink-0">PFD</span>
-                            <span className="text-[10px] font-semibold text-violet-600 hover:underline">{formatLinkedIds(ids)}</span>
-                          </span>
-                        );
-                      })() : <span className="text-[10px] text-gray-400">-</span>}
-                    </div>
-                  </td>
                 </tr>
-                {/* 5행: 품번, 상호기능팀, 기밀수준, 연동DFMEA */}
+                {/* 5행: 품번, 상호기능팀, 기밀수준 */}
                 <tr className="h-8">
                   <td className={headerCell} title="Part Number">품번(Part No.)</td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.partNo} onChange={e => updateField('partNo', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품번" /></td>
                   <td className={headerCell} title="Cross-Functional Team">상호기능팀(CFT)</td>
                   <td className={inputCell}><span className="text-xs text-gray-700 px-2">{cftMembers.filter(m => m.name?.trim()).map(m => m.name).join(', ') || '-'}</span></td>
                   <td className={headerCell} title="Confidentiality Level">기밀수준(Conf.)</td>
-                  <td className={inputCell}>
+                  <td className={inputCell} colSpan={3}>
                     <select value={fmeaInfo.confidentialityLevel} onChange={e => updateField('confidentialityLevel', e.target.value)} className="w-full h-7 px-1 text-xs border-0 bg-transparent focus:outline-none">
                       <option value="">선택(Select)</option><option value="사업용도">사업용도(Business)</option><option value="독점">독점(Proprietary)</option><option value="기밀">기밀(Confidential)</option>
                     </select>
-                  </td>
-                  <td className={`${headerCell} bg-cyan-600`} title="Linked Design FMEA">연동 DFMEA(Linked)</td>
-                  <td className={inputCell}>
-                    {fmeaInfo.linkedDfmeaNo ? (
-                      <div className="flex items-center gap-2 px-2 cursor-pointer hover:bg-cyan-50 min-h-[28px]" onClick={() => router.push(`/dfmea/register?id=${fmeaInfo.linkedDfmeaNo?.toLowerCase()}`)} title="클릭하여 DFMEA 등록화면으로 이동">
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-cyan-500">DFMEA</span>
-                        <span className="text-xs font-semibold text-cyan-600 hover:underline">{fmeaInfo.linkedDfmeaNo}</span>
-                      </div>
-                    ) : <span className="text-xs text-gray-400 px-2">-</span>}
                   </td>
                 </tr>
               </tbody>
