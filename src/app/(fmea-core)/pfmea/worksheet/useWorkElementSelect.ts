@@ -248,8 +248,7 @@ export function useWorkElementSelect({
           const { m4: extractedM4, name: actualName } = extractM4FromValue(editValue.trim());
           if (!actualName) { setEditingId(null); return; }
 
-          const pNo = elem.processNo || '';
-          const newDisplayName = pNo ? `${pNo} ${actualName}` : actualName;
+          const newDisplayName = actualName;
           setElements(prev => prev.map(e =>
             e.id === editingId ? { ...e, name: newDisplayName, ...(extractedM4 ? { m4: extractedM4 } : {}) } : e
           ));
@@ -371,7 +370,7 @@ export function useWorkElementSelect({
     const newElem: WorkElement = {
       id: `new_${Date.now()}`,
       m4: finalM4,
-      name: currentProcessNo ? `${currentProcessNo} ${cleanName}` : cleanName,
+      name: cleanName,
       processNo: currentProcessNo,
     };
 

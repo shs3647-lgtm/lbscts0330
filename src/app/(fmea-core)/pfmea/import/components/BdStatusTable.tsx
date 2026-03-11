@@ -81,14 +81,14 @@ function formatDate(iso?: string | null): string {
 
 const TYPE_ORDER: Record<string, number> = { M: 0, F: 1, P: 2 };
 
-const TH = 'bg-[#00587a] text-white border border-gray-400 px-1 py-0.5 font-bold text-center h-auto text-[10px] cursor-pointer hover:bg-[#006d99] select-none leading-tight';
+const TH = 'bg-[#00587a] text-white border border-gray-400 px-2 py-1 font-bold text-center h-auto text-[11px] cursor-pointer hover:bg-[#006d99] select-none leading-tight';
 
 /** 한글 줄바꿈(영어) 헤더 렌더 — 한글 위, (영어) 아래 */
 function BiTh({ ko, en, children }: { ko: string; en?: string; children?: React.ReactNode }) {
   return (
     <>
       <span className="whitespace-nowrap">{ko}{children}</span>
-      {en && <><br/><span className="text-[7px] font-normal opacity-60 whitespace-nowrap">({en})</span></>}
+      {en && <><br/><span className="text-[8px] font-normal opacity-70 whitespace-nowrap">({en})</span></>}
     </>
   );
 }
@@ -342,22 +342,21 @@ export function BdStatusTable({
       <div className="max-h-[280px] overflow-y-auto">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
-            <col style={{ width: 26 }} />{/* 체크 */}
-            <col style={{ width: 48 }} />{/* 유형 */}
-            <col style={{ width: 90 }} />{/* 회사명 */}
-            <col style={{ width: 60 }} />{/* 고객 */}
-            <col style={{ width: 84 }} />{/* BD ID */}
-            <col style={{ width: 72 }} />{/* BD생성일 */}
-            <col style={{ width: 48 }} />{/* BD Rev */}
-            <col style={{ width: 116 }} />{/* FMEA ID */}
+            <col style={{ width: 28 }} />{/* 체크 */}
+            <col style={{ width: 60 }} />{/* 유형 */}
+            <col style={{ width: 100 }} />{/* 회사명 */}
+            <col style={{ width: 80 }} />{/* 고객 */}
+            <col style={{ width: 90 }} />{/* BD ID */}
+            <col style={{ width: 80 }} />{/* BD생성일 */}
+            <col style={{ width: 50 }} />{/* BD Rev */}
+            <col style={{ width: 130 }} />{/* FMEA ID */}
             <col />{/* FMEA명 (flex) */}
-            <col style={{ width: 72 }} />{/* 작성일 */}
-            <col style={{ width: 52 }} />{/* Rev */}
-            <col style={{ width: 42 }} />{/* 공정 */}
-            <col style={{ width: 36 }} />{/* FM */}
-            <col style={{ width: 36 }} />{/* FC */}
-            <col style={{ width: 42 }} />{/* 데이터 */}
-            <col style={{ width: 46 }} />{/* 판정 */}
+            <col style={{ width: 48 }} />{/* Rev */}
+            <col style={{ width: 48 }} />{/* 공정 */}
+            <col style={{ width: 42 }} />{/* FM */}
+            <col style={{ width: 42 }} />{/* FC */}
+            <col style={{ width: 48 }} />{/* 데이터 */}
+            <col style={{ width: 50 }} />{/* 판정 */}
           </colgroup>
           <thead className="sticky top-0 z-10">
             <tr>
@@ -373,7 +372,6 @@ export function BdStatusTable({
               <th className={TH} onClick={() => handleSort('bdVersion')} title="Basic Data Version (Increments on save)">BD Rev{sortArrow('bdVersion')}</th>
               <th className={TH} onClick={() => handleSort('fmeaId')} title="FMEA Project Unique ID">FMEA ID{sortArrow('fmeaId')}</th>
               <th className={TH} onClick={() => handleSort('fmeaName')} title="FMEA Project Name (Subject)"><BiTh ko="FMEA명" en="Name">{sortArrow('fmeaName')}</BiTh></th>
-              <th className={TH} onClick={() => handleSort('startDate')} title="FMEA Project Start Date"><BiTh ko="작성일" en="Date">{sortArrow('startDate')}</BiTh></th>
               <th className={TH} onClick={() => handleSort('revisionNo')} title="Revision Number">Rev{sortArrow('revisionNo')}</th>
               <th className={TH} onClick={() => handleSort('processCount')} title="Process Count (FA verification criteria)"><BiTh ko="공정" en="Proc.">{sortArrow('processCount')}</BiTh></th>
               <th className={TH} onClick={() => handleSort('fmCount' as SortKey)} title="Failure Mode unique count">FM</th>
@@ -384,7 +382,7 @@ export function BdStatusTable({
             {/* 삭제됨 선택 버튼 (관리자 모드) */}
             {adminMode && deletedCount > 0 && (
               <tr>
-                <td colSpan={16} className="bg-orange-50 border border-gray-300 px-2 py-0.5">
+                <td colSpan={15} className="bg-orange-50 border border-gray-300 px-2 py-0.5">
                   <button onClick={selectDeleted}
                     className="text-[10px] text-orange-600 font-bold hover:underline cursor-pointer">
                     삭제됨 {deletedCount}건 선택
@@ -396,7 +394,7 @@ export function BdStatusTable({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={16} className="text-center py-3 text-[10px] text-gray-400 border border-gray-200">
+                <td colSpan={15} className="text-center py-3 text-[10px] text-gray-400 border border-gray-200">
                   {search ? '검색 결과가 없습니다' : 'Basic Data가 없습니다'}
                 </td>
               </tr>
@@ -467,10 +465,6 @@ export function BdStatusTable({
                           ← 가져오기
                         </button>
                       )}
-                    </td>
-                    {/* 작성일 */}
-                    <td className={TD}>
-                      <span className="text-[10px] text-gray-500">{bd.startDate || '-'}</span>
                     </td>
                     {/* Rev — "Rev.00" → "00"만 표시 */}
                     <td className={TD}>
