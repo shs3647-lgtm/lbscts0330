@@ -9,15 +9,13 @@
 import Link from 'next/link';
 
 interface ImportModeMenuBarProps {
-  activeMode: 'manual' | 'auto' | 'legacy' | 'preprocess';
+  activeMode: 'manual' | 'legacy';
   fmeaId?: string;
 }
 
 const MODES = [
-  { key: 'preprocess', label: '전처리', path: '/pfmea/import/preprocess' },
-  { key: 'manual', label: '수동', path: '/pfmea/import/manual' },
-  { key: 'auto', label: '자동', path: '/pfmea/import/auto' },
-  { key: 'legacy', label: '기존데이터', path: '/pfmea/import/legacy' },
+  { key: 'manual', label: '수동/자동 Import', path: '/pfmea/import/manual' },
+  { key: 'legacy', label: '기존데이터 Import', path: '/pfmea/import/legacy' },
 ] as const;
 
 export default function ImportModeMenuBar({ activeMode, fmeaId }: ImportModeMenuBarProps) {

@@ -462,7 +462,7 @@ export default function IndustryImproveModal({
           ) : filteredItems.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
               {preventionItems.length === 0 && detectionItems.length === 0
-                ? '산업DB 데이터 없음 — /api/admin/seed/kr-industry POST로 시딩 필요'
+                ? '산업DB 데이터 없음 — 마스터 데이터 관리에서 산업DB를 등록하세요'
                 : '검색 결과 없음'}
             </div>
           ) : (

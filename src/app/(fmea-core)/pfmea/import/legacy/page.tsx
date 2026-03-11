@@ -33,7 +33,6 @@ import {
 import { BdStatusTable } from '../components/BdStatusTable';
 import { useTemplateGenerator } from '../hooks/useTemplateGenerator';
 import FailureChainPopup from '../FailureChainPopup';
-import { INITIAL_SAMPLE_DATA } from './sampleData';
 
 export default function LegacyImportPage() {
   const { isAdmin } = useAuth();
@@ -46,7 +45,7 @@ export default function LegacyImportPage() {
   const [masterDatasetName, setMasterDatasetName] = useState<string>('MASTER');
 
   const [fileName, setFileName] = useState<string>('');
-  const [flatData, setFlatData] = useState<ImportedFlatData[]>(INITIAL_SAMPLE_DATA);
+  const [flatData, setFlatData] = useState<ImportedFlatData[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
@@ -288,9 +287,9 @@ export default function LegacyImportPage() {
         }
       } catch (e) { console.error('FMEA 목록 로드 오류:', e); }
 
-      const uniqueItemCodes = new Set(INITIAL_SAMPLE_DATA.map(d => d.itemCode));
-      setMasterItemCount(uniqueItemCodes.size);
-      setMasterDataCount(INITIAL_SAMPLE_DATA.filter(d => d.value && d.value.trim() !== '').length);
+      // Rule 13: 샘플데이터 제거 — 초기값 0
+      setMasterItemCount(0);
+      setMasterDataCount(0);
 
       try {
         const { summaries, deletedFmeaIds } = await loadAllDatasetSummaries();
