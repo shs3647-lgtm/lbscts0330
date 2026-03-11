@@ -1,0 +1,138 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+/test-results
+/playwright-report
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# local snapshots (commit 시 자동 생성)
+/snapshots
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/src/generated/prisma
+
+# AI local settings
+.claude/
+
+# Windows artifacts
+nul
+
+# test artifacts
+tests/screenshots/
+tests/test-results/
+debug-*.png
+
+# temp files
+*.tmp
+*.temp
+temp_*.json
+temp_*.sql
+
+# debug/analysis output
+*-분석.txt
+check-sheet-result*.txt
+parse-simulation-result.txt
+excel-analysis.txt
+excel-y-search.txt
+final-test-result.txt
+tsc-errors.txt
+build-log*.txt
+git_log.txt
+old_failurelink.txt
+fmea-debug.json
+db_data.json
+cp-items.json
+
+# temp plan/doc files
+plan.md
+horizontal-deploy-tdd-plan_1.md
+
+# corrupted filename artifacts
+c\357\200\272fmea-onpremise*
+C\357\200\272Users*
+C*UsersAdministrator*
+*id_ed25519*
+
+# DB backup dumps
+*.backup
+
+# debug scripts
+scripts/check-master.js
+scripts/check-data-sources.js
+scripts/debug-*.js
+scripts/read-analysis.js
+scripts/migrations/
+
+# temp/backup files with underscore prefix
+_*
+__*
+# exceptions: tracked directories with underscore prefix
+!_docs/
+!src/__tests__/
+
+# commit message temp file
+.commitmsg
+
+# root-level analysis scripts
+read-analysis.js
+
+# untracked diagnostic test specs
+tests/auto-fill-missing-fm.spec.ts
+tests/check-missing-state.spec.ts
+tests/console-debug-check.spec.ts
+tests/console-detailed-debug.spec.ts
+tests/dc-recommendation-barcode-test*.spec.ts
+tests/failure-missing-badge-verify.spec.ts
+tests/failure-missing-indicators-check.spec.ts
+tests/failure-tabs-verify.spec.ts
+tests/function-l2-toggle-mode.spec.ts
+tests/missing-badge-*.spec.ts
+tests/navigate-to-pfmea-all-tab.spec.ts
+tests/pfmea-import-button-click.spec.ts
+tests/pfmea-import-page-check.spec.ts
+tests/pfmea-import-with-id-check.spec.ts
+tests/pfmea-register-bd-interaction.spec.ts
+tests/pfmea-register-bd-ui-check.spec.ts
+tests/special-char-registration-check.spec.ts
+tests/verify-missing-status.spec.ts
+tests/reports/
+
+# DFMEA backup
+src/app/(fmea-core)/dfmea.bak/

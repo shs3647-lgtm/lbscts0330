@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>P-FMEA 기능분석 3L</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5f5f5; width: 1440px; }
+  .sidebar { position: fixed; left: 0; top: 0; width: 48px; height: 100vh; background: linear-gradient(180deg, #1a237e 0%, #283593 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 8px; }
+  .sidebar-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #90caf9; font-size: 14px; cursor: pointer; }
+  .sidebar-icon.active { background: rgba(255,255,255,0.15); color: #fff; }
+  .tab-item { padding: 6px 12px; font-size: 12px; color: #b0bec5; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .tab-item.active { color: #00e5ff; border-bottom-color: #00e5ff; font-weight: 600; }
+  .sc-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-icon" title="Home">🏠</div>
+  <div class="sidebar-icon active" title="FMEA">📋</div>
+  <div class="sidebar-icon" title="CP">📑</div>
+  <div class="sidebar-icon" title="PFD">🔀</div>
+  <div class="sidebar-icon" title="Settings">⚙️</div>
+</div>
+
+<div style="margin-left: 48px;">
+  <div style="height: 48px; background: #1a1f36; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+    <div style="color: #e0e0e0; font-size: 15px; font-weight: 600;">Smart System</div>
+    <div style="color: #00e5ff; font-size: 16px; font-weight: 700;">P-FMEA</div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="color: #aaa; font-size: 13px;">관리자</span>
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: #3949ab; color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center;">A</div>
+    </div>
+  </div>
+
+  <div style="height: 36px; background: #263238; display: flex; align-items: center; padding: 0 16px; gap: 2px;">
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">대시보드</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">등록</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">리스트</a>
+    <a style="color: #fff; font-size: 13px; padding: 6px 14px; background: rgba(0,229,255,0.15); border-bottom: 2px solid #00e5ff;">워크시트</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">개정관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">AP개선관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">LLD</a>
+  </div>
+
+  <div style="height: 40px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; padding: 0 16px; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="font-size: 12px; color: #666;">FMEA선택:</span>
+      <select style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"><option>pfm26-f001-l68-r00</option></select>
+    </div>
+    <div style="width: 1px; height: 20px; background: #e0e0e0;"></div>
+    <button style="padding: 4px 14px; background: #1976d2; color: #fff; border: none; border-radius: 4px; font-size: 12px;">💾 저장</button>
+    <div style="display: flex; align-items: center; gap: 4px;">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></span>
+      <span style="font-size: 11px; color: #4caf50;">동기화 완료</span>
+    </div>
+    <div style="flex: 1;"></div>
+    <button style="padding: 4px 10px; background: #263238; color: #fff; border: none; border-radius: 4px; font-size: 11px;">RPN</button>
+  </div>
+
+  <div style="height: 34px; background: #1e272e; display: flex; align-items: center; padding: 0 8px;">
+    <div class="tab-item">기초정보</div>
+    <div class="tab-item">구조분석</div>
+    <div class="tab-item">1L기능</div>
+    <div class="tab-item">2L기능</div>
+    <div class="tab-item active">3L기능</div>
+    <div class="tab-item">1L고장</div>
+    <div class="tab-item">2L고장</div>
+    <div class="tab-item">3L고장</div>
+    <div class="tab-item">고장연결</div>
+    <div class="tab-item">전체보기</div>
+    <div class="tab-item">리스크</div>
+    <div class="tab-item">최적화</div>
+  </div>
+
+  <div style="padding: 0;">
+    <div style="background: #f57c00; color: #fff; padding: 10px 20px; font-size: 14px; font-weight: 600;">
+      기능분석 3L(Function L3) — 작업요소 기능 및 공정특성
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+      <thead>
+        <tr style="background: #fff3e0;">
+          <th style="padding: 10px 12px; border: 1px solid #ffe0b2; text-align: center; width: 50px;">No</th>
+          <th style="padding: 10px 12px; border: 1px solid #ffe0b2; text-align: center; width: 140px;">L3 작업요소<br><span style="font-weight: 400; font-size: 10px; color: #666;">(Work Element)</span></th>
+          <th style="padding: 10px 12px; border: 1px solid #ffe0b2; text-align: center;">기능(Function)</th>
+          <th style="padding: 10px 12px; border: 1px solid #ffe0b2; text-align: center; width: 220px;">공정특성(Process Char)</th>
+          <th style="padding: 10px 12px; border: 1px solid #ffe0b2; text-align: center; width: 120px;">특별특성<br><span style="font-weight: 400; font-size: 10px;">(Special Char)</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #e8e8e8;">
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center; color: #999;">1</td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0; background: #fffaf5;">
+            <div style="color: #e65100; font-weight: 500;">온도설정</div>
+            <div style="font-size: 11px; color: #90a4ae;">Temp. Setting</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-weight: 500;">압출 온도를 110±5°C로 설정한다</div>
+            <div style="font-size: 11px; color: #90a4ae;">Set extrusion temp to 110±5°C</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-size: 12px;">압출 온도: 110 ± 5°C</div>
+          </td>
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center;">
+            <span class="sc-badge" style="background: #fff3e0; color: #e65100;">⬥ CC</span>
+          </td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e8e8e8;">
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center; color: #999;">2</td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0; background: #fffaf5;">
+            <div style="color: #e65100; font-weight: 500;">압력조절</div>
+            <div style="font-size: 11px; color: #90a4ae;">Pressure Ctrl</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-weight: 500;">성형 압력을 150±10bar로 조절한다</div>
+            <div style="font-size: 11px; color: #90a4ae;">Control forming pressure to 150±10bar</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-size: 12px;">성형 압력: 150 ± 10bar</div>
+          </td>
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center;">
+            <span class="sc-badge" style="background: #fce4ec; color: #c62828;">◆ SC</span>
+          </td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e8e8e8;">
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center; color: #999;">3</td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0; background: #fffaf5;">
+            <div style="color: #e65100; font-weight: 500;">속도조절</div>
+            <div style="font-size: 11px; color: #90a4ae;">Speed Ctrl</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-weight: 500;">압출 속도를 2.0±0.2m/min으로 설정한다</div>
+            <div style="font-size: 11px; color: #90a4ae;">Set extrusion speed to 2.0±0.2m/min</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-size: 12px;">압출 속도: 2.0 ± 0.2m/min</div>
+          </td>
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center;">
+            <span style="color: #999; font-size: 11px;">-</span>
+          </td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e8e8e8;">
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center; color: #999;">4</td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0; background: #fffaf5;">
+            <div style="color: #e65100; font-weight: 500;">시간관리</div>
+            <div style="font-size: 11px; color: #90a4ae;">Time Mgmt</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-weight: 500;">가류 시간을 15±1min으로 관리한다</div>
+            <div style="font-size: 11px; color: #90a4ae;">Manage vulcanization time to 15±1min</div>
+          </td>
+          <td style="padding: 8px 16px; border: 1px solid #f0f0f0;">
+            <div style="font-size: 12px;">가류 시간: 15 ± 1min</div>
+          </td>
+          <td style="padding: 8px 12px; border: 1px solid #f0f0f0; text-align: center;">
+            <span class="sc-badge" style="background: #fff3e0; color: #e65100;">⬥ CC</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="padding: 12px 20px; background: #fafafa; border-top: 1px solid #e8e8e8; display: flex; align-items: center; gap: 20px;">
+      <span style="font-size: 12px; color: #666;">특별특성:</span>
+      <span class="sc-badge" style="background: #fce4ec; color: #c62828;">◆ SC</span><span style="font-size: 11px; color: #888;">안전특성</span>
+      <span class="sc-badge" style="background: #fff3e0; color: #e65100;">⬥ CC</span><span style="font-size: 11px; color: #888;">중요특성</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

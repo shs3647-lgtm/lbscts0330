@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - PFD 등록</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; }
+</style>
+</head>
+<body class="bg-[#f1f5f9] flex">
+
+<!-- Sidebar -->
+<aside class="w-12 min-h-screen bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] flex flex-col items-center py-3 gap-4 flex-shrink-0">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-violet-500/20 text-violet-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-h-screen">
+  <!-- Header -->
+  <header class="h-11 bg-[#1a1f36] flex items-center px-4 justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-violet-400 font-bold text-sm">PFD</span>
+      <span class="text-slate-500 text-xs">공정흐름도(Process Flow Diagram)</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">○○타이어</span>
+      <div class="w-7 h-7 bg-violet-500/20 rounded-full flex items-center justify-center">
+        <span class="text-violet-400 text-xs font-bold">김</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top Navigation -->
+  <nav class="h-9 bg-[#1e2540] flex items-center px-4 gap-1 flex-shrink-0">
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">대시보드(Dashboard)</a>
+    <a class="px-3 py-1.5 text-xs text-white bg-violet-500/20 rounded font-medium cursor-pointer">등록(Register)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">리스트(List)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">워크시트(Worksheet)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">개정관리(Revision)</a>
+  </nav>
+
+  <!-- Page Content -->
+  <div class="flex-1 p-5">
+    <!-- Page Title -->
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h1 class="text-lg font-bold text-slate-800">PFD 등록 <span class="text-slate-400 font-normal text-sm">(PFD Registration)</span></h1>
+        <p class="text-xs text-slate-500 mt-0.5">공정흐름도 기본 정보를 등록합니다.</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 bg-white border border-slate-300 text-slate-600 text-xs rounded hover:bg-slate-50">임시저장(Draft)</button>
+        <button class="px-3 py-1.5 bg-violet-500 text-white text-xs rounded hover:bg-violet-600 font-medium">저장(Save)</button>
+      </div>
+    </div>
+
+    <!-- Basic Info Table -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden mb-5">
+      <div class="px-4 py-2.5 bg-violet-50 border-b border-violet-100">
+        <h2 class="text-sm font-semibold text-violet-800">기본정보 <span class="text-violet-500 font-normal">(Basic Information)</span></h2>
+      </div>
+      <table class="w-full text-sm">
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="w-40 px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">PFD ID</td>
+            <td class="px-4 py-2 text-xs font-mono text-violet-700 font-semibold">pfd26-f001-l68-r00</td>
+            <td class="w-40 px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">작성일(Created)</td>
+            <td class="px-4 py-2 text-xs text-slate-600">2026-03-08</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">PFD명(Name)</td>
+            <td class="px-4 py-2 text-xs text-slate-800" colspan="3">타이어 제조 공정흐름도</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">고객사(Customer)</td>
+            <td class="px-4 py-2 text-xs text-slate-800">현대자동차</td>
+            <td class="px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">회사명(Company)</td>
+            <td class="px-4 py-2 text-xs text-slate-800">○○타이어</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">연동 FMEA(Linked)</td>
+            <td class="px-4 py-2">
+              <a class="text-xs text-blue-600 hover:underline cursor-pointer font-mono">pfm26-f001-l68-r00</a>
+              <span class="ml-1.5 px-1.5 py-0.5 bg-blue-50 text-blue-500 text-[10px] rounded">PFMEA</span>
+            </td>
+            <td class="px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">연동 CP(Linked)</td>
+            <td class="px-4 py-2">
+              <a class="text-xs text-teal-600 hover:underline cursor-pointer font-mono">cp26-f001-l68-r00</a>
+              <span class="ml-1.5 px-1.5 py-0.5 bg-teal-50 text-teal-500 text-[10px] rounded">CP</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">개정번호(Rev)</td>
+            <td class="px-4 py-2 text-xs text-slate-600">r00 (최초작성)</td>
+            <td class="px-4 py-2 bg-slate-50 font-medium text-slate-600 text-xs">상태(Status)</td>
+            <td class="px-4 py-2">
+              <span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">작성중</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Linked Documents Summary -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-4 py-2.5 bg-violet-50 border-b border-violet-100">
+        <h2 class="text-sm font-semibold text-violet-800">연동 현황 <span class="text-violet-500 font-normal">(Linkage Status)</span></h2>
+      </div>
+      <div class="p-4 flex gap-4">
+        <div class="flex-1 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <div class="text-[10px] text-blue-500 font-medium mb-1">PFMEA</div>
+          <div class="text-sm font-bold text-blue-800">pfm26-f001-l68-r00</div>
+          <div class="text-[10px] text-blue-400 mt-1">타이어 제조 PFMEA | 공정 6개</div>
+        </div>
+        <div class="flex-1 p-3 bg-teal-50 rounded-lg border border-teal-100">
+          <div class="text-[10px] text-teal-500 font-medium mb-1">Control Plan</div>
+          <div class="text-sm font-bold text-teal-800">cp26-f001-l68-r00</div>
+          <div class="text-[10px] text-teal-400 mt-1">타이어 제조 관리계획서 | 공정 5개</div>
+        </div>
+        <div class="flex-1 p-3 bg-slate-50 rounded-lg border border-slate-200">
+          <div class="text-[10px] text-slate-400 font-medium mb-1">APQP</div>
+          <div class="text-sm font-bold text-slate-600">apqp26-f001</div>
+          <div class="text-[10px] text-slate-400 mt-1">타이어 양산 프로젝트 | Phase 3</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

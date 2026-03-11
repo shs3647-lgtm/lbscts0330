@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>FMEA ID 수정</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 40px; background: #1a237e; color: white; }
+    .container { max-width: 600px; margin: 0 auto; background: #283593; padding: 30px; border-radius: 12px; }
+    h1 { margin-bottom: 20px; }
+    button { padding: 12px 24px; font-size: 16px; cursor: pointer; margin: 10px 5px 10px 0; border: none; border-radius: 6px; }
+    .primary { background: #4caf50; color: white; }
+    .danger { background: #f44336; color: white; }
+    .info { background: #2196f3; color: white; }
+    pre { background: #1a237e; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+    .result { margin-top: 20px; padding: 15px; border-radius: 6px; }
+    .success { background: #4caf50; }
+    .error { background: #f44336; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 FMEA ID 수정 도구</h1>
+    
+    <h3>현재 프로젝트 목록</h3>
+    <pre id="projectList">로딩 중...</pre>
+    
+    <h3>작업 선택</h3>
+    <button class="primary" onclick="fixSddId()">SDD FMEA → PFM26-001로 변경</button>
+    <button class="info" onclick="reorderAllIds()">모든 ID 순차 재정렬 (001부터)</button>
+    <button class="danger" onclick="clearDraft()">임시 저장 데이터 삭제</button>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function loadProjects() {
+      const projects = JSON.parse(localStorage.getItem('pfmea-projects') || '[]');
+      const list = projects.map((p, i) => `${i+1}. ${p.id} - ${p.fmeaInfo?.subject || p.project?.productName || '(제목없음)'}`).join('\n');
+      document.getElementById('projectList').textContent = list || '등록된 프로젝트가 없습니다.';
+      return projects;
+    }
+    
+    function showResult(success, message) {
+      const result = document.getElementById('result');
+      result.className = 'result ' + (success ? 'success' : 'error');
+      result.innerHTML = message;
+    }
+    
+    function fixSddId() {
+      const projects = JSON.parse(localStorage.getItem('pfmea-projects') || '[]');
+      
+      // SDD FMEA 또는 PFM26-516 찾기
+      const sddProject = projects.find(p => 
+        p.fmeaInfo?.subject === 'SDD' || 
+        p.id === 'PFM26-516' ||
+        p.id?.includes('516')
+      );
+      
+      if (sddProject) {
+        const oldId = sddProject.id;
+        sddProject.id = 'PFM26-001';
+        
+        // 워크시트 데이터도 ID 변경
+        const wsData = localStorage.getItem(`pfmea-worksheet-${oldId}`);
+        if (wsData) {
+          localStorage.setItem('pfmea-worksheet-PFM26-001', wsData);
+          localStorage.removeItem(`pfmea-worksheet-${oldId}`);
+        }
+        
+        localStorage.setItem('pfmea-projects', JSON.stringify(projects));
+        localStorage.removeItem('pfmea-register-draft');
+        
+        showResult(true, `✅ ID 변경 완료!<br>이전: ${oldId}<br>현재: PFM26-001<br><br>3초 후 리스트로 이동합니다...`);
+        
+        setTimeout(() => {
+          window.location.href = '/pfmea/list';
+        }, 3000);
+      } else {
+        showResult(false, '❌ SDD FMEA를 찾을 수 없습니다.');
+      }
+      
+      loadProjects();
+    }
+    
+    function reorderAllIds() {
+      const projects = JSON.parse(localStorage.getItem('pfmea-projects') || '[]');
+      const year = new Date().getFullYear().toString().slice(-2);
+      
+      // 생성일자 순으로 정렬 후 순차 ID 부여
+      projects.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+      
+      const changes = [];
+      projects.forEach((p, i) => {
+        const oldId = p.id;
+        const newId = `PFM${year}-${(i + 1).toString().padStart(3, '0')}`;
+        
+        if (oldId !== newId) {
+          // 워크시트 데이터도 ID 변경
+          const wsData = localStorage.getItem(`pfmea-worksheet-${oldId}`);
+          if (wsData) {
+            localStorage.setItem(`pfmea-worksheet-${newId}`, wsData);
+            localStorage.removeItem(`pfmea-worksheet-${oldId}`);
+          }
+          
+          changes.push(`${oldId} → ${newId}`);
+          p.id = newId;
+        }
+      });
+      
+      localStorage.setItem('pfmea-projects', JSON.stringify(projects));
+      localStorage.removeItem('pfmea-register-draft');
+      
+      if (changes.length > 0) {
+        showResult(true, `✅ ${changes.length}개 ID 변경 완료!<br><br>${changes.join('<br>')}<br><br>3초 후 리스트로 이동합니다...`);
+        setTimeout(() => {
+          window.location.href = '/pfmea/list';
+        }, 3000);
+      } else {
+        showResult(true, '✅ 변경할 ID가 없습니다. 이미 순차적입니다.');
+      }
+      
+      loadProjects();
+    }
+    
+    function clearDraft() {
+      localStorage.removeItem('pfmea-register-draft');
+      localStorage.removeItem('dfmea-register-draft');
+      showResult(true, '✅ 임시 저장 데이터가 삭제되었습니다.');
+    }
+    
+    // 초기 로드
+    loadProjects();
+  </script>
+</body>
+</html>
+
+
+
+
+

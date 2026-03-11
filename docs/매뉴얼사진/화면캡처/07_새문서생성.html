@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA System - 새 문서 생성</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; overflow-x: hidden; }
+</style>
+</head>
+<body class="bg-[#0d1b2a] text-white">
+
+<!-- Sidebar -->
+<div class="fixed left-0 top-0 w-12 h-full bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] z-40 flex flex-col items-center py-2 border-r border-slate-700/30">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center mb-4">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 border-t border-slate-600/30 mb-3"></div>
+  <div class="flex flex-col gap-1">
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div>
+    <div class="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-blue-400">P</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-purple-400">D</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-teal-400">CP</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-violet-400">PF</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-amber-400">W</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-green-400">PM</span></div>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="fixed top-0 left-12 right-0 h-12 bg-[#1a1f36] border-b border-slate-700/30 z-40 flex items-center px-4">
+  <span class="text-sm font-semibold text-slate-200">Smart System</span>
+  <span class="mx-3 text-slate-600">|</span>
+  <span class="text-sm text-cyan-400 font-medium">P-FMEA</span>
+  <div class="flex-1"></div>
+  <div class="flex items-center gap-2">
+    <div class="w-7 h-7 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center"><span class="text-xs font-bold text-white">김</span></div>
+    <span class="text-sm text-slate-200">김철수</span>
+    <span class="text-xs text-slate-500">품질팀</span>
+  </div>
+</div>
+
+<!-- Dimmed background overlay -->
+<div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+
+  <!-- Modal -->
+  <div class="bg-[#1a1f36] rounded-2xl border border-slate-600/30 shadow-2xl shadow-black/50 w-[540px]" style="animation: fadeIn 0.3s ease-out;">
+
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/30">
+      <div>
+        <h2 class="text-lg font-semibold text-white">새 문서 생성 <span class="text-slate-400 text-sm font-normal">(New Document)</span></h2>
+        <p class="text-xs text-slate-500 mt-0.5">PFMEA 프로젝트를 새로 생성합니다.</p>
+      </div>
+      <button class="w-8 h-8 rounded-lg hover:bg-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="px-6 py-5 space-y-4">
+
+      <!-- 완제품명 -->
+      <div>
+        <label class="block text-xs text-slate-400 mb-1.5">완제품명 <span class="text-slate-500">(Product Name)</span></label>
+        <input type="text" value="타이어 (235/55R18)" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all">
+      </div>
+
+      <!-- 고객사 / 회사명 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">고객사 <span class="text-slate-500">(Customer)</span></label>
+          <input type="text" value="현대자동차" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">회사명 <span class="text-slate-500">(Company)</span></label>
+          <input type="text" value="○○타이어" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all">
+        </div>
+      </div>
+
+      <!-- 담당자 / 품번 -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">담당자 <span class="text-slate-500">(Owner)</span></label>
+          <input type="text" value="김철수" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1.5">품번 <span class="text-slate-500">(Part No.)</span></label>
+          <input type="text" value="TRE-2026-001" class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all">
+        </div>
+      </div>
+
+      <!-- 연동 모드 -->
+      <div>
+        <label class="block text-xs text-slate-400 mb-2">연동 모드 <span class="text-slate-500">(Integration Mode)</span></label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="mode" checked class="w-4 h-4 text-cyan-500 bg-slate-700 border-slate-600 focus:ring-cyan-500/30">
+            <span class="text-sm text-slate-300">연동모드 <span class="text-slate-500 text-xs">(Integrated)</span></span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="mode" class="w-4 h-4 text-cyan-500 bg-slate-700 border-slate-600 focus:ring-cyan-500/30">
+            <span class="text-sm text-slate-300">단독모드 <span class="text-slate-500 text-xs">(Standalone)</span></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- FMEA 유형 -->
+      <div>
+        <label class="block text-xs text-slate-400 mb-1.5">FMEA 유형 <span class="text-slate-500">(FMEA Type)</span></label>
+        <select class="w-full bg-slate-800/60 border border-slate-600/50 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-all appearance-none cursor-pointer">
+          <option selected>Master (마스터)</option>
+          <option>Family (패밀리)</option>
+          <option>Part (파트)</option>
+        </select>
+      </div>
+
+      <!-- 연동 문서 체크박스 -->
+      <div>
+        <label class="block text-xs text-slate-400 mb-2">연동 문서 생성 <span class="text-slate-500">(Create Linked Documents)</span></label>
+        <div class="flex gap-6">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked class="w-4 h-4 bg-slate-700 border-slate-600 rounded text-cyan-500 focus:ring-cyan-500/30">
+            <span class="text-sm text-slate-300">CP <span class="text-slate-500 text-xs">(관리계획서)</span></span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked class="w-4 h-4 bg-slate-700 border-slate-600 rounded text-cyan-500 focus:ring-cyan-500/30">
+            <span class="text-sm text-slate-300">PFD <span class="text-slate-500 text-xs">(공정흐름도)</span></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-700/30">
+      <button class="px-5 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-sm rounded-lg transition-all">
+        취소 (Cancel)
+      </button>
+      <button class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white text-sm font-medium rounded-lg shadow-lg shadow-cyan-500/20 transition-all">
+        생성 (Create)
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+</style>
+
+</body>
+</html>

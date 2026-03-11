@@ -1,0 +1,301 @@
+import type { CSSProperties } from 'react';
+// import { LAYOUT_HEIGHTS } from '@/packages/constants/layout-standard';
+// 🚧 임시: packages 폴더가 없어서 하드코드 값 사용
+const LAYOUT_HEIGHTS = { MENUBAR: 38, ACTIONBAR: 32, INFOBAR: 28 };
+
+const CARD_BASE_STYLE: CSSProperties = {
+  backgroundColor: '#FFFFFF',
+  borderRadius: '12px',
+  padding: '24px',
+  minHeight: '100%',
+  boxShadow: '0 10px 25px rgba(15, 23, 42, 0.08)',
+};
+
+export const styles: Record<string, CSSProperties> = {
+  shell: {
+    display: 'flex',
+    width: '100vw',
+    height: '100vh',
+    overflow: 'hidden',
+    backgroundColor: '#E5EAF1',
+  },
+  main: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '100vh',
+    transition: 'margin-left 100ms ease-out',
+    backgroundColor: '#F4F6FB',
+  },
+  worksheet: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '18px',
+  },
+  menuBar: {
+    height: `${LAYOUT_HEIGHTS.MENUBAR}px`,
+    background: 'linear-gradient(to bottom, #2F568B 0%, #275179 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    borderBottom: '2px solid #1f3b5c',
+    gap: '12px',
+  },
+  menuBarLeft: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+  },
+  menuBarDivider: {
+    width: '1px',
+    height: '18px',
+    background: 'rgba(255, 255, 255, 0.35)',
+  },
+  menuBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    marginLeft: 'auto',
+  },
+  menuButton: {
+    padding: '4px 12px',
+    borderRadius: '4px',
+    border: '1px solid rgba(255, 255, 255, 0.35)',
+    fontSize: '13px',
+    cursor: 'pointer',
+    background: 'rgba(255, 255, 255, 0.15)',
+    color: '#FFFFFF',
+    fontWeight: 600,
+  },
+  menuBadge: {
+    padding: '4px 10px',
+    borderRadius: '999px',
+    background: 'rgba(255, 255, 255, 0.15)',
+    color: '#FFFFFF',
+    fontSize: '12px',
+    fontWeight: 600,
+  },
+  actionBar: {
+    height: `${LAYOUT_HEIGHTS.ACTIONBAR}px`,
+    background: 'linear-gradient(90deg, #1C2F4F 0%, #23406A 50%, #1C2F4F 100%)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    gap: '12px',
+    boxShadow: 'inset 0 -1px 0 rgba(0, 0, 0, 0.25)',
+  },
+  actionGroup: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+    minWidth: '320px',
+    flex: '1 1 auto',
+  },
+  actionGroupRight: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    minWidth: '220px',
+    flex: '1 1 auto',
+  },
+  actionCenter: {
+    flex: '0 1 420px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '0 12px',
+    minWidth: '280px',
+  },
+  actionButton: {
+    padding: '4px 10px',
+    borderRadius: '4px',
+    border: '1px solid rgba(255, 255, 255, 0.25)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    color: '#F8FAFC',
+    fontSize: '12px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    minWidth: '80px',
+    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.25)',
+  },
+  searchInput: {
+    flex: 1,
+    padding: '6px 12px',
+    borderRadius: '4px',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    background: 'rgba(255, 255, 255, 0.9)',
+    color: '#1f2937',
+    fontSize: '13px',
+  },
+  infoBar: {
+    height: `${LAYOUT_HEIGHTS.INFOBAR}px`,
+    background: '#F3F4F6',
+    borderBottom: '1px solid #E5E7EB',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    gap: '12px',
+  },
+  infoItems: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    flex: 1,
+    overflowX: 'auto',
+  },
+  infoItem: {
+    display: 'flex',
+    alignItems: 'center',
+    background: '#FFFFFF',
+    border: '1px solid #E5E7EB',
+    borderRadius: '6px',
+    padding: '2px 8px',
+    gap: '4px',
+    whiteSpace: 'nowrap',
+  },
+  infoLabel: {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#1F2937',
+  },
+  infoValue: {
+    fontSize: '11px',
+    color: '#475467',
+    fontWeight: 600,
+  },
+  infoMeta: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+  },
+  infoBadge: {
+    padding: '4px 10px',
+    borderRadius: '999px',
+    background: '#E0E7FF',
+    color: '#1E3A8A',
+    fontSize: '11px',
+    fontWeight: 700,
+  },
+  card: CARD_BASE_STYLE,
+  listCard: {
+    ...CARD_BASE_STYLE,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    minHeight: 0,
+    gap: '8px',
+  },
+  // 🔥 컴팩트 리스트 카드 (액션바 하단 10px)
+  listCardCompact: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: '8px',
+    padding: '10px',
+    height: '100%',
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    boxShadow: '0 4px 12px rgba(15, 23, 42, 0.06)',
+  },
+  dashboardCard: {
+    ...CARD_BASE_STYLE,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    minHeight: 0,
+    gap: '10px',
+  },
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: 700,
+    marginBottom: '16px',
+    color: '#111827',
+  },
+  // 🔥 컴팩트 카드 제목 (마진 최소화)
+  cardTitleCompact: {
+    fontSize: '14px',
+    fontWeight: 700,
+    margin: 0,
+    color: '#111827',
+  },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    marginBottom: '4px',
+  },
+  // 🔥 컴팩트 섹션 헤더 (제목과 테이블 거리 10px)
+  sectionHeaderCompact: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    marginBottom: '0px',
+    paddingBottom: '0px',
+  },
+  sectionBadge: {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#0f172a',
+    background: '#E0E7FF',
+    padding: '2px 10px',
+    borderRadius: '999px',
+  },
+  listHotWrapper: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    border: '1px solid #E5E7EB',
+    borderRadius: '10px',
+    overflow: 'hidden',
+  },
+  dashboardBody: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    border: '1px solid #E5E7EB',
+    borderRadius: '10px',
+    overflow: 'hidden',
+    background: '#FFFFFF',
+  },
+  hotLoading: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px dashed #9CA3AF',
+    borderRadius: '10px',
+    color: '#6B7280',
+    fontSize: '13px',
+    background: 'linear-gradient(135deg, rgba(226, 232, 240, 0.5), rgba(203, 213, 225, 0.5))',
+  },
+  placeholderText: {
+    fontSize: '14px',
+    color: '#6B7280',
+  },
+};
+
+type ActionButtonVariant = 'default' | 'save' | 'load' | 'export' | 'import' | 'filter' | 'link';
+
+const ACTION_BUTTON_COLORS: Record<ActionButtonVariant, { background: string; border: string }> = {
+  default: { background: 'rgba(255, 255, 255, 0.12)', border: 'rgba(255, 255, 255, 0.25)' },
+  save: { background: 'linear-gradient(180deg, #16A34A 0%, #15803D 100%)', border: 'rgba(16, 185, 129, 0.6)' },
+  load: { background: 'linear-gradient(180deg, #2563EB 0%, #1E40AF 100%)', border: 'rgba(59, 130, 246, 0.6)' },
+  export: { background: 'linear-gradient(180deg, #8B5CF6 0%, #6D28D9 100%)', border: 'rgba(139, 92, 246, 0.6)' },
+  import: { background: 'linear-gradient(180deg, #F97316 0%, #EA580C 100%)', border: 'rgba(249, 115, 22, 0.6)' },
+  filter: { background: 'linear-gradient(180deg, #0EA5E9 0%, #0369A1 100%)', border: 'rgba(14, 165, 233, 0.6)' },
+  link: { background: 'rgba(255, 255, 255, 0.18)', border: 'rgba(255, 255, 255, 0.35)' },
+};
+
+export const getActionButtonStyle = (variant: ActionButtonVariant = 'default'): CSSProperties => {
+  const palette = ACTION_BUTTON_COLORS[variant] ?? ACTION_BUTTON_COLORS.default;
+  return {
+    ...styles.actionButton,
+    background: palette.background,
+    borderColor: palette.border,
+  };
+};
+

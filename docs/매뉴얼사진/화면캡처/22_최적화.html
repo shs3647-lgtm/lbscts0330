@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - 최적화</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; font-family: 'Segoe UI', sans-serif; }
+  .ap-h { background: #ef4444; color: white; }
+  .ap-m { background: #f59e0b; color: white; }
+  .ap-l { background: #22c55e; color: white; }
+  .status-done { background: #dcfce7; color: #166534; }
+  .status-progress { background: #dbeafe; color: #1e40af; }
+  .status-plan { background: #f3f4f6; color: #4b5563; }
+</style>
+</head>
+<body class="bg-gray-100">
+
+<!-- Sidebar -->
+<div class="fixed left-0 top-0 bottom-0 w-12 flex flex-col items-center py-3 gap-4 z-50" style="background:#1a237e;">
+  <div class="w-8 h-8 bg-cyan-400 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="fixed top-0 left-12 right-0 z-40" style="background:#1a1f36;">
+  <div class="flex items-center justify-between px-4 h-10">
+    <div class="flex items-center gap-3">
+      <span class="text-white font-semibold text-sm">SMART FMEA</span>
+      <span class="text-slate-500 text-xs">|</span>
+      <span class="text-slate-400 text-xs">APQP 품질관리 시스템</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">admin</span>
+      <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs">A</div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Nav -->
+<div class="fixed top-10 left-12 right-0 z-30 bg-slate-800 border-b border-slate-700">
+  <div class="flex items-center px-4 h-8 gap-1">
+    <span class="px-3 py-1 text-xs text-slate-400">APQP</span>
+    <span class="px-3 py-1 text-xs text-white bg-indigo-600 rounded">PFMEA</span>
+    <span class="px-3 py-1 text-xs text-slate-400">DFMEA</span>
+    <span class="px-3 py-1 text-xs text-slate-400">CP</span>
+    <span class="px-3 py-1 text-xs text-slate-400">PFD</span>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="ml-12 mt-[72px]">
+  <div class="bg-white border-b border-gray-200 px-4 h-8 flex items-center gap-4">
+    <span class="text-xs text-slate-500">등록(Register)</span>
+    <span class="text-xs text-slate-500">Import</span>
+    <span class="text-xs font-semibold text-blue-600 border-b-2 border-blue-600 pb-1">워크시트(Worksheet)</span>
+    <span class="text-xs text-slate-500">리스트(List)</span>
+  </div>
+
+  <!-- Menu bar -->
+  <div class="bg-gray-50 border-b border-gray-200 px-3 h-9 flex items-center justify-between">
+    <div class="flex items-center gap-1">
+      <span class="text-xs text-slate-500 mr-2">pfm26-f001-l68-r00</span>
+      <span class="text-[10px] text-slate-400 mr-3">|</span>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">2단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">3단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">4단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">5단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-purple-600 text-white rounded font-semibold">6단계</button>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">저장(Save)</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">Export</button>
+    </div>
+  </div>
+
+  <!-- Tab menu -->
+  <div class="bg-white border-b border-gray-200 px-3 h-7 flex items-center gap-0">
+    <span class="px-3 py-1 text-[11px] text-slate-500">ALL</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500">리스크(Risk)</span>
+    <span class="px-3 py-1 text-[11px] text-purple-600 font-semibold border-b-2 border-purple-500">최적화(Optimization)</span>
+  </div>
+
+  <!-- Optimization Table -->
+  <div class="p-4 overflow-x-auto">
+    <table class="w-full border-collapse text-xs" style="min-width:1300px;">
+      <thead>
+        <!-- Group headers -->
+        <tr>
+          <th class="border border-gray-300 px-2 py-1 bg-gray-100 text-center" rowspan="2" style="width:36px;">No</th>
+          <th class="border border-gray-300 px-2 py-1 bg-gray-100 text-left" rowspan="2" style="min-width:80px;">공정<br>(Process)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-gray-100 text-left" rowspan="2" style="min-width:100px;">고장형태(FM)<br>(Failure Mode)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-gray-100 text-left" rowspan="2" style="min-width:100px;">고장원인(FC)<br>(Failure Cause)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-red-50 text-center text-red-700" colspan="4">현재(Current)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-purple-50 text-center text-purple-700" colspan="2">개선 조치(Improvement)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-gray-100 text-center" rowspan="2" style="width:60px;">담당자<br>(Owner)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-gray-100 text-center" rowspan="2" style="width:70px;">목표일<br>(Target)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-green-50 text-center text-green-700" colspan="4">개선후(After)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-gray-100 text-center" rowspan="2" style="width:60px;">상태<br>(Status)</th>
+        </tr>
+        <tr>
+          <th class="border border-gray-300 px-1 py-1 bg-red-50 text-center text-red-600 w-8">S</th>
+          <th class="border border-gray-300 px-1 py-1 bg-red-50 text-center text-red-600 w-8">O</th>
+          <th class="border border-gray-300 px-1 py-1 bg-red-50 text-center text-red-600 w-8">D</th>
+          <th class="border border-gray-300 px-1 py-1 bg-red-50 text-center text-red-600 w-10">AP</th>
+          <th class="border border-gray-300 px-2 py-1 bg-purple-50 text-center text-purple-600" style="min-width:120px;">예방관리 개선(PC)</th>
+          <th class="border border-gray-300 px-2 py-1 bg-purple-50 text-center text-purple-600" style="min-width:120px;">검출관리 개선(DC)</th>
+          <th class="border border-gray-300 px-1 py-1 bg-green-50 text-center text-green-600 w-8">S'</th>
+          <th class="border border-gray-300 px-1 py-1 bg-green-50 text-center text-green-600 w-8">O'</th>
+          <th class="border border-gray-300 px-1 py-1 bg-green-50 text-center text-green-600 w-8">D'</th>
+          <th class="border border-gray-300 px-1 py-1 bg-green-50 text-center text-green-600 w-10">AP'</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Row 1 - Completed -->
+        <tr class="hover:bg-gray-50">
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-500">1</td>
+          <td class="border border-gray-300 px-2 py-2">10-압출</td>
+          <td class="border border-gray-300 px-2 py-2 font-medium text-red-700">두께 불균일</td>
+          <td class="border border-gray-300 px-2 py-2">온도 편차 ±5°C</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-red-600">8</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">5</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">7</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="ap-h px-1.5 py-0.5 rounded text-[10px] font-bold">H</span></td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">자동 온도 보정 시스템 도입</td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">인라인 두께 스캐너 설치</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">김철수</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">2026-04-15</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">8</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-green-600">3</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-green-600">3</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="ap-l px-1.5 py-0.5 rounded text-[10px] font-bold">L</span></td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-done px-2 py-0.5 rounded text-[10px] font-medium">완료</span></td>
+        </tr>
+        <!-- Row 2 - In Progress -->
+        <tr class="hover:bg-gray-50">
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-500">2</td>
+          <td class="border border-gray-300 px-2 py-2">20-성형</td>
+          <td class="border border-gray-300 px-2 py-2 font-medium text-orange-700">층간 분리</td>
+          <td class="border border-gray-300 px-2 py-2">속도 불일치</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-red-600">9</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">4</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">5</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="ap-h px-1.5 py-0.5 rounded text-[10px] font-bold">H</span></td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">서보 모터 동기화 제어</td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">실시간 접착력 센서</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">이영희</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">2026-05-01</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">9</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-green-600">2</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-green-600">3</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="ap-l px-1.5 py-0.5 rounded text-[10px] font-bold">L</span></td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-progress px-2 py-0.5 rounded text-[10px] font-medium">진행중</span></td>
+        </tr>
+        <!-- Row 3 - In Progress -->
+        <tr class="hover:bg-gray-50">
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-500">3</td>
+          <td class="border border-gray-300 px-2 py-2">10-압출</td>
+          <td class="border border-gray-300 px-2 py-2 font-medium text-orange-700">기포 발생</td>
+          <td class="border border-gray-300 px-2 py-2">압력 변동</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">6</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">4</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">5</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="ap-m px-1.5 py-0.5 rounded text-[10px] font-bold">M</span></td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">자동 압력 조절 밸브</td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">X-ray 인라인 검사</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">박민수</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">2026-05-15</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">6</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-green-600">2</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold text-green-600">3</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="ap-l px-1.5 py-0.5 rounded text-[10px] font-bold">L</span></td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-progress px-2 py-0.5 rounded text-[10px] font-medium">진행중</span></td>
+        </tr>
+        <!-- Row 4 - Planned -->
+        <tr class="hover:bg-gray-50">
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-500">4</td>
+          <td class="border border-gray-300 px-2 py-2">30-가류</td>
+          <td class="border border-gray-300 px-2 py-2 font-medium text-orange-700">과가류/미가류</td>
+          <td class="border border-gray-300 px-2 py-2">타이머 오류</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">5</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">3</td>
+          <td class="border border-gray-300 px-2 py-2 text-center font-bold">4</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="ap-m px-1.5 py-0.5 rounded text-[10px] font-bold">M</span></td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">PLC 타이머 이중화</td>
+          <td class="border border-gray-300 px-2 py-2 text-purple-700">경도 자동측정 시스템</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">정수빈</td>
+          <td class="border border-gray-300 px-2 py-2 text-center">2026-06-01</td>
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-400">-</td>
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-400">-</td>
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-400">-</td>
+          <td class="border border-gray-300 px-2 py-2 text-center text-gray-400">-</td>
+          <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-plan px-2 py-0.5 rounded text-[10px] font-medium">계획</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>

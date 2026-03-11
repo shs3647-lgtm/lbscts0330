@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FMEA 템플릿 생성기 UI 시안 v7</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: '맑은 고딕', 'Malgun Gothic', sans-serif; background: #f3f4f6; padding: 16px; font-size: 12px; }
+  .section-label { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; margin-bottom: 8px; font-size: 14px; color: white; background: #2563eb; }
+  .panel { background: white; border: 2px solid #2563eb; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+  .header-bar { background: #0e7490; color: white; padding: 7px 14px; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-radius: 4px 4px 0 0; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #0e7490; color: white; padding: 5px 6px; font-size: 10px; text-align: center; border: 1px solid #0891b2; font-weight: bold; }
+  td { padding: 4px 6px; text-align: center; border: 1px solid #d1d5db; font-size: 10px; }
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; }
+  .badge-part { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+  .badge-master { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+  .badge-family { background: #dbeafe; color: #1e40af; border: 1px solid #3b82f6; }
+  .btn { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer; border: none; }
+  .btn-blue { background: #3b82f6; color: white; }
+  .btn-gray { background: #e5e7eb; color: #374151; }
+  .btn-green { background: #10b981; color: white; }
+  .btn-red { background: #ef4444; color: white; }
+  .btn-teal { background: #0d9488; color: white; }
+  .btn-lg { padding: 7px 20px; font-size: 12px; border-radius: 6px; }
+  .status-badge { padding: 2px 6px; border-radius: 3px; font-size: 9px; font-weight: bold; background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+  .bd-id { color: #2563eb; font-family: monospace; font-weight: bold; font-size: 10px; }
+  .gen-panel { border: 2px solid #0e7490; border-radius: 6px; margin-top: 12px; overflow: hidden; }
+  .gen-header { background: #0e7490; color: white; padding: 7px 14px; font-weight: bold; font-size: 12px; cursor: pointer; }
+  .main-tabs { display: flex; border-bottom: 2px solid #e5e7eb; background: #f9fafb; }
+  .main-tab { padding: 7px 16px; font-size: 11px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; color: #6b7280; }
+  .main-tab:hover { background: #f0f9ff; color: #0e7490; }
+  .main-tab.active { color: #0e7490; border-bottom-color: #0e7490; background: white; }
+  .main-tab .num { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; text-align: center; font-size: 9px; margin-right: 3px; }
+  .main-tab.active .num { background: #0e7490; color: white; }
+  .main-tab:not(.active) .num { background: #d1d5db; color: #6b7280; }
+  .mc { padding: 14px; display: none; }
+  .mc.active { display: block; }
+  .desc { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 4px; padding: 7px 10px; margin-bottom: 10px; color: #0c4a6e; font-size: 10px; line-height: 1.5; }
+  .config-table { width: auto; border-collapse: collapse; }
+  .config-table th { background: #1e3a5f; padding: 5px 8px; font-size: 10px; min-width: 55px; }
+  .config-table th.grp { background: #0e7490; font-size: 11px; padding: 3px 8px; }
+  .config-table td { padding: 3px 5px; border: 1px solid #d1d5db; font-size: 10px; }
+  .config-table td.lbl { background: #f1f5f9; font-weight: bold; color: #334155; text-align: left; padding-left: 8px; }
+  .config-table select { padding: 2px 4px; border: 1px solid #94a3b8; border-radius: 3px; font-size: 10px; background: #fffef0; cursor: pointer; font-weight: bold; min-width: 50px; text-align: center; }
+  .stbar { display: flex; flex-wrap: wrap; gap: 1px; background: #f1f5f9; padding: 3px; border-radius: 4px 4px 0 0; border: 1px solid #e2e8f0; border-bottom: none; }
+  .st { padding: 3px 7px; font-size: 8px; font-weight: bold; cursor: pointer; border-radius: 3px 3px 0 0; border: 1px solid transparent; color: #64748b; }
+  .st:hover { background: #e0f2fe; color: #0369a1; }
+  .st.active { background: white; border-color: #e2e8f0; border-bottom-color: white; }
+  .st.active.l2 { color: #1e40af; } .st.active.l3 { color: #065f46; } .st.active.l1 { color: #92400e; }
+  .sp { border: 1px solid #e2e8f0; border-radius: 0 0 4px 4px; overflow: hidden; }
+  .sp-hdr { background: #f8fafc; padding: 4px 10px; font-size: 10px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0; }
+  .dt th { background: #1e3a5f; font-size: 9px; padding: 3px 5px; }
+  .dt td { font-size: 9px; padding: 2px 5px; }
+  .dt .f { background: #ecfdf5; color: #065f46; }
+  .dt .e { background: #fffef0; color: #92400e; font-style: italic; }
+  .dt .rn { background: #f1f5f9; color: #94a3b8; font-size: 8px; width: 20px; }
+  .dt .cm { background: #f0fdf4; }
+  .dt .sp-col { background: #fef2f2; color: #991b1b; font-weight: bold; }
+  .input-table th { background: #0e7490; font-size: 10px; padding: 4px 5px; }
+  .input-table td { padding: 2px 3px; }
+  .input-table input[type="text"] { width: 100%; padding: 2px 5px; border: 1px solid #d1d5db; border-radius: 3px; font-size: 10px; background: #fffef0; text-align: center; }
+  .input-table select { padding: 2px 3px; border: 1px solid #d1d5db; border-radius: 3px; font-size: 10px; background: #fffef0; }
+  .rno { background: #f3f4f6; color: #6b7280; font-weight: bold; width: 25px; font-size: 9px; }
+  .sep { border: none; border-top: 1px solid #e5e7eb; margin: 10px 0; }
+  .note { font-size: 9px; color: #6b7280; margin: 3px 0; }
+  .summary-bar { display: flex; gap: 10px; margin: 10px 0; }
+  .summary-item { flex: 1; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 4px; padding: 6px; text-align: center; }
+  .summary-item .val { font-size: 16px; font-weight: bold; color: #059669; }
+  .summary-item .lbl { font-size: 9px; color: #6b7280; }
+  .al { text-align: left !important; padding-left: 8px !important; }
+</style>
+</head>
+<body>
+
+<span class="section-label">시안 v9 — DB 코드 체계 일치 (A1,2합침 + A3~A6 / B1~B5 / C1~C4 = 14시트)</span>
+<div class="panel">
+
+  <div class="header-bar">FMEA Basic Data 템플릿 다운로드</div>
+  <table>
+    <thead><tr><th style="width:60px">구분</th><th style="width:100px">BD ID</th><th style="width:200px">등록 FMEA</th><th style="width:160px">연동 FMEA</th><th style="width:50px">상태</th><th style="width:100px">샘플/템플릿</th><th style="width:110px">데이터 현황</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-part">Part</span></td><td><span class="bd-id">PBD-26-001</span></td><td class="al">pfm26-p001-102 (111)</td><td class="al">직접입력</td><td><span class="status-badge">변경</span></td><td><span class="btn btn-blue">샘플</span> <span class="btn btn-gray">빈양식</span></td><td>항목 <b>14</b> / 데이터 <b>87</b></td></tr>
+      <tr><td><span class="badge badge-master">Master</span></td><td>-</td><td class="al">M FMEA 미등록</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+      <tr><td><span class="badge badge-family">Family</span></td><td>-</td><td class="al">F FMEA 미등록</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+    </tbody>
+  </table>
+
+  <div class="gen-panel">
+    <div class="gen-header">📋 구조 기반 템플릿 생성기 ▼</div>
+    <div class="main-tabs">
+      <div class="main-tab active" onclick="sw(0)"><span class="num">①</span> 기존 데이터</div>
+      <div class="main-tab" onclick="sw(1)"><span class="num">②</span> 수동 템플릿</div>
+      <div class="main-tab" onclick="sw(2)"><span class="num">③</span> 자동 템플릿</div>
+    </div>
+
+    <!-- ===================== ① 기존 데이터 ===================== -->
+    <div class="mc active" id="mc0">
+      <div class="desc">💾 Import된 기초정보 데이터를 Excel로 다운로드. 시트탭 클릭 → 데이터 미리보기</div>
+      <div class="summary-bar">
+        <div class="summary-item"><div class="val">14</div><div class="lbl">시트</div></div>
+        <div class="summary-item"><div class="val">87</div><div class="lbl">데이터</div></div>
+        <div class="summary-item"><div class="val">3</div><div class="lbl">공정</div></div>
+      </div>
+      <div class="stbar" id="stb0">
+        <div class="st l2 active" onclick="ss(0,'a12',this)">A1,2 공정번호</div>
+        <div class="st l2" onclick="ss(0,'a3',this)">A3 공정기능</div>
+        <div class="st l2" onclick="ss(0,'a4',this)">A4 제품특성</div>
+        <div class="st l2" onclick="ss(0,'a5',this)">A5 고장형태</div>
+        <div class="st l2" onclick="ss(0,'a6',this)">A6 검출관리</div>
+        <div class="st l3" onclick="ss(0,'b1',this)">B1 작업요소</div>
+        <div class="st l3" onclick="ss(0,'b2',this)">B2 요소기능</div>
+        <div class="st l3" onclick="ss(0,'b3',this)">B3 공정특성</div>
+        <div class="st l3" onclick="ss(0,'b4',this)">B4 고장원인</div>
+        <div class="st l3" onclick="ss(0,'b5',this)">B5 예방관리</div>
+        <div class="st l1" onclick="ss(0,'c1',this)">C1 구분</div>
+        <div class="st l1" onclick="ss(0,'c2',this)">C2 제품기능</div>
+        <div class="st l1" onclick="ss(0,'c3',this)">C3 요구사항</div>
+        <div class="st l1" onclick="ss(0,'c4',this)">C4 고장영향</div>
+      </div>
+      <div class="sp"><div class="sp-hdr" id="sh0">L2-1(A1) 공정번호</div>
+        <!-- A1,2: 공정번호+공정명 (합침) -->
+        <div id="s0-a12" class="sd"><table class="dt"><thead><tr><th>NO</th><th style="width:60px">공정번호</th><th>공정명</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f al">컷팅</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f al">프레스</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f al">용접</td></tr>
+        </tbody></table></div>
+        <!-- A3: 공정번호+공정명+공정기능 -->
+        <div id="s0-a3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:35px">공정번호</th><th style="width:45px">공정명</th><th>공정기능</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="f al">Steel Pipe를 도면에서 지정된 길이로 절단한다</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f">프레스</td><td class="f al">절단된 Steel Pipe를 도면에 따라 홈을 절단한다</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f">용접</td><td class="f al">Steel Pipe를 용접하여 프레임을 제작한다</td></tr>
+        </tbody></table></div>
+        <!-- A4: 공정번호+공정명+메인공정기능+제품특성+특별특성 -->
+        <div id="s0-a4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:30px">공정번호</th><th style="width:40px">공정명</th><th style="width:100px">메인공정기능</th><th style="width:65px">제품특성</th><th style="width:35px">특별특성</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="f al">Steel Pipe를 지정 길이로 절단</td><td class="f al">파이프 외경</td><td class="sp-col">CC</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f al">Steel Pipe를 지정 길이로 절단</td><td class="f al">파이프 길이</td><td class="sp-col">SC</td></tr>
+          <tr><td class="rn">3</td><td class="f">20</td><td class="f">프레스</td><td class="f al">도면에 따라 홈을 절단</td><td class="f al">BURR</td><td class="f">-</td></tr>
+          <tr><td class="rn">4</td><td class="f">20</td><td class="f">프레스</td><td class="f al">도면에 따라 홈을 절단</td><td class="f al">홈 깊이</td><td class="sp-col">CC</td></tr>
+          <tr><td class="rn">5</td><td class="f">30</td><td class="f">용접</td><td class="f al">프레임 용접 제작</td><td class="f al">외관</td><td class="f">-</td></tr>
+          <tr><td class="rn">6</td><td class="f">30</td><td class="f">용접</td><td class="f al">프레임 용접 제작</td><td class="f al">용접강도</td><td class="sp-col">SC</td></tr>
+        </tbody></table></div>
+        <!-- A5: 공정번호+공정명+메인공정기능+제품특성+특별특성+고장형태 -->
+        <div id="s0-a5" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:85px">메인공정기능</th><th style="width:55px">제품특성</th><th style="width:30px">특별특성</th><th>고장형태</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="f al">Steel Pipe를 지정 길이로 절단</td><td class="f">파이프 외경</td><td class="sp-col">CC</td><td class="f al">파이프 외경 부적합</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f al">Steel Pipe를 지정 길이로 절단</td><td class="f">파이프 길이</td><td class="sp-col">SC</td><td class="f al">파이프 길이 부적합</td></tr>
+          <tr><td class="rn">3</td><td class="f">20</td><td class="f">프레스</td><td class="f al">도면에 따라 홈을 절단</td><td class="f">홈 깊이</td><td class="sp-col">CC</td><td class="f al">홈 깊이 부적합</td></tr>
+          <tr><td class="rn">4</td><td class="f">30</td><td class="f">용접</td><td class="f al">프레임 용접 제작</td><td class="f">용접강도</td><td class="sp-col">SC</td><td class="f al">용접강도 미달</td></tr>
+        </tbody></table></div>
+        <!-- A6: 공정번호+공정명+제품특성+고장형태+검출관리 -->
+        <div id="s0-a6" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:60px">제품특성</th><th style="width:80px">고장형태</th><th>검출관리</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="f">파이프 외경</td><td class="f">파이프 외경 부적합</td><td class="f al">버니어캘리퍼스</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f">파이프 길이</td><td class="f">파이프 길이 부적합</td><td class="f al">줄자</td></tr>
+          <tr><td class="rn">3</td><td class="f">20</td><td class="f">프레스</td><td class="f">BURR</td><td class="f">BURR 과다</td><td class="f al">육안검사</td></tr>
+          <tr><td class="rn">4</td><td class="f">20</td><td class="f">프레스</td><td class="f">홈 깊이</td><td class="f">홈 깊이 부적합</td><td class="f al">GO-NO게이지</td></tr>
+          <tr><td class="rn">5</td><td class="f">30</td><td class="f">용접</td><td class="f">외관</td><td class="f">외관 부적합</td><td class="f al">육안검사</td></tr>
+          <tr><td class="rn">6</td><td class="f">30</td><td class="f">용접</td><td class="f">용접강도</td><td class="f">용접강도 미달</td><td class="f al">인장시험기</td></tr>
+        </tbody></table></div>
+        <!-- B1: 공정번호+공정명+4M+작업요소 -->
+        <div id="s0-b1" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:35px">공정번호</th><th style="width:45px">공정명</th><th style="width:25px">4M</th><th>작업요소</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="f al">작업자</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f al">Cutting MC</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f al">톱날(DISC)</td></tr>
+          <tr><td class="rn">4</td><td class="f">20</td><td class="f">프레스</td><td class="f">MC</td><td class="f al">프레스</td></tr>
+          <tr><td class="rn">5</td><td class="f">20</td><td class="f">프레스</td><td class="f">MC</td><td class="f al">지그</td></tr>
+          <tr><td class="rn">6</td><td class="f">30</td><td class="f">용접</td><td class="f">MC</td><td class="f al">용접기</td></tr>
+          <tr><td class="rn">7</td><td class="f">30</td><td class="f">용접</td><td class="f">IM</td><td class="f al">용접봉</td></tr>
+        </tbody></table></div>
+        <!-- B2: 공정번호+공정명+4M+작업요소+요소기능 -->
+        <div id="s0-b2" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:22px">4M</th><th style="width:60px">작업요소</th><th>요소기능</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="f">작업자</td><td class="f al">컷팅 길이를 셋팅한다</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">Cutting MC</td><td class="f al">파이프를 고정하고 절단한다</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">톱날(DISC)</td><td class="f al">고속 회전하며 소재를 절단한다</td></tr>
+          <tr><td class="rn">4</td><td class="f">20</td><td class="f">프레스</td><td class="f">MC</td><td class="f">프레스</td><td class="f al">소재에 압력을 가해 홈을 성형한다</td></tr>
+          <tr><td class="rn">5</td><td class="f">30</td><td class="f">용접</td><td class="f">MC</td><td class="f">용접기</td><td class="f al">아크열로 모재를 접합한다</td></tr>
+        </tbody></table></div>
+        <!-- B3: 공정번호+공정명+4M+작업요소+작업요소기능+공정특성+특별특성 -->
+        <div id="s0-b3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:25px">공정번호</th><th style="width:35px">공정명</th><th style="width:20px">4M</th><th style="width:55px">작업요소</th><th style="width:80px">작업요소기능</th><th style="width:60px">공정특성</th><th style="width:30px">특별특성</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="f">작업자</td><td class="f al">컷팅 길이를 셋팅한다</td><td class="f al">조건설정 정확성</td><td class="f">-</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">Cutting MC</td><td class="f al">파이프를 절단한다</td><td class="f al">RPM</td><td class="sp-col">CC</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">톱날(DISC)</td><td class="f al">소재를 절단한다</td><td class="f al">톱날흔들림</td><td class="sp-col">SC</td></tr>
+          <tr><td class="rn">4</td><td class="f">20</td><td class="f">프레스</td><td class="f">MC</td><td class="f">프레스</td><td class="f al">홈을 성형한다</td><td class="f al">프레스 압력</td><td class="sp-col">CC</td></tr>
+          <tr><td class="rn">5</td><td class="f">30</td><td class="f">용접</td><td class="f">MC</td><td class="f">용접기</td><td class="f al">모재를 접합한다</td><td class="f al">용접 전류</td><td class="sp-col">SC</td></tr>
+        </tbody></table></div>
+        <!-- B4: 공정번호+공정명+작업요소+공정특성+특별특성+고장원인 -->
+        <div id="s0-b4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:55px">작업요소</th><th style="width:60px">공정특성</th><th style="width:30px">특별특성</th><th>고장원인</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">작업자</td><td class="f">조건설정 정확성</td><td class="f">-</td><td class="f al">조건설정 실수</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f">Cutting MC</td><td class="f">RPM</td><td class="sp-col">CC</td><td class="f al">RPM 불균일</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">Cutting MC</td><td class="f">교환주기</td><td class="f">-</td><td class="f al">교환주기 초과</td></tr>
+          <tr><td class="rn">4</td><td class="f">10</td><td class="f">컷팅</td><td class="f">톱날(DISC)</td><td class="f">톱날흔들림</td><td class="sp-col">SC</td><td class="f al">톱날 마모</td></tr>
+          <tr><td class="rn">5</td><td class="f">20</td><td class="f">프레스</td><td class="f">프레스</td><td class="f">프레스 압력</td><td class="sp-col">CC</td><td class="f al">압력 과다</td></tr>
+        </tbody></table></div>
+        <!-- B5: 공정번호+공정명+공정특성+고장원인+예방관리 -->
+        <div id="s0-b5" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:70px">공정특성</th><th style="width:70px">고장원인</th><th>예방관리</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="f">RPM</td><td class="f">RPM 불균일</td><td class="f al">RPM 자동 제어, 실시간 모니터링</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f">교환주기</td><td class="f">교환주기 초과</td><td class="f al">툴 수명 관리(카운터), 예방 보전</td></tr>
+          <tr><td class="rn">3</td><td class="f">20</td><td class="f">프레스</td><td class="f">프레스 압력</td><td class="f">압력 과다</td><td class="f al">압력 자동 제어, 정기 점검</td></tr>
+          <tr><td class="rn">4</td><td class="f">30</td><td class="f">용접</td><td class="f">용접 전류</td><td class="f">전류 불안정</td><td class="f al">전류 센서 모니터링, 자동 알람</td></tr>
+        </tbody></table></div>
+        <!-- C1: 구분 -->
+        <div id="s0-c1" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th>구분</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td></tr>
+          <tr><td class="rn">2</td><td class="f">SP</td></tr>
+          <tr><td class="rn">3</td><td class="f">USER</td></tr>
+        </tbody></table></div>
+        <!-- C2: 구분+제품기능 -->
+        <div id="s0-c2" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:50px">구분</th><th>완제품기능</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td><td class="f al">치수 정밀도를 유지한다</td></tr>
+          <tr><td class="rn">2</td><td class="f">YP</td><td class="f al">구조적 무결성 확보한다</td></tr>
+          <tr><td class="rn">3</td><td class="f">SP</td><td class="f al">표면 보호 및 심미성을 유지한다</td></tr>
+          <tr><td class="rn">4</td><td class="f">USER</td><td class="f al">주행 안정성을 요구한다</td></tr>
+        </tbody></table></div>
+        <!-- C3: 완제품공정명+구분+완제품기능+요구사항 -->
+        <div id="s0-c3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:65px">완제품 공정명</th><th style="width:35px">구분</th><th style="width:90px">완제품기능</th><th>요구사항</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">자전거 프레임</td><td class="f">YP</td><td class="f al">치수 정밀도를 유지한다</td><td class="f al">치수 공차</td></tr>
+          <tr><td class="rn">2</td><td class="f">자전거 프레임</td><td class="f">YP</td><td class="f al">구조적 무결성 확보한다</td><td class="f al">용접부 강도</td></tr>
+          <tr><td class="rn">3</td><td class="f">자전거 프레임</td><td class="f">SP</td><td class="f al">표면 보호 및 심미성 유지</td><td class="f al">도막 두께</td></tr>
+          <tr><td class="rn">4</td><td class="f">자전거 프레임</td><td class="f">USER</td><td class="f al">주행 안정성을 요구한다</td><td class="f al">내구성</td></tr>
+        </tbody></table></div>
+        <!-- C4: 구분+완제품기능+요구사항+고장영향+심각도(S) -->
+        <div id="s0-c4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:30px">구분</th><th style="width:80px">완제품기능</th><th style="width:55px">요구사항</th><th style="width:90px">고장영향</th><th style="width:30px">S</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td><td class="f al">치수 정밀도 유지</td><td class="f">치수 공차</td><td class="f al">프레임 조립 불능, 재작업/폐기</td><td class="sp-col">9</td></tr>
+          <tr><td class="rn">2</td><td class="f">YP</td><td class="f al">구조적 무결성 확보</td><td class="f">용접부 강도</td><td class="f al">사용자 안전 사고 위험</td><td class="sp-col">10</td></tr>
+          <tr><td class="rn">3</td><td class="f">SP</td><td class="f al">표면 보호/심미성</td><td class="f">도막 두께</td><td class="f al">내구성 저하 및 외관 손상</td><td class="sp-col">6</td></tr>
+          <tr><td class="rn">4</td><td class="f">USER</td><td class="f al">주행 안정성</td><td class="f">내구성</td><td class="f al">제품 수명 단축 및 중도 파손</td><td class="sp-col">7</td></tr>
+        </tbody></table></div>
+      </div>
+      <div style="text-align:center;margin-top:10px;"><span class="btn btn-teal btn-lg">📥 기존 데이터 다운로드</span></div>
+    </div>
+
+    <!-- ===================== ② 수동 템플릿 ===================== -->
+    <div class="mc" id="mc1">
+      <div class="desc">✏️ <b>수동 템플릿</b> — 드랍다운만 선택 → 14개 시트 빈 양식 자동 생성. Excel에서 자유롭게 추가 입력.</div>
+      <table class="config-table">
+        <thead>
+          <tr><th class="grp" rowspan="2" style="width:50px">구분</th><th class="grp" rowspan="2" style="width:110px">공정명</th><th class="grp" colspan="2" style="background:#0d9488">공통</th><th class="grp" colspan="4">공정별</th></tr>
+          <tr><th>MN<br><span style="font-size:7px;opacity:.7">사람</span></th><th>EN<br><span style="font-size:7px;opacity:.7">환경</span></th><th>MN<br><span style="font-size:7px;opacity:.7">사람</span></th><th>MC<br><span style="font-size:7px;opacity:.7">설비</span></th><th>IM<br><span style="font-size:7px;opacity:.7">부자재</span></th><th>EN<br><span style="font-size:7px;opacity:.7">환경</span></th></tr>
+        </thead><tbody>
+          <tr><td class="lbl">개수</td><td><select><option>1</option><option>2</option><option selected>3</option><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option></select></td>
+            <td><select><option selected>1</option><option>2</option><option>3</option></select></td><td><select><option selected>1</option><option>2</option><option>3</option></select></td>
+            <td><select><option>0</option><option selected>1</option><option>2</option><option>3</option></select></td><td><select><option>0</option><option>1</option><option selected>2</option><option>3</option></select></td>
+            <td><select><option selected>0</option><option>1</option><option>2</option></select></td><td><select><option selected>0</option><option>1</option><option>2</option></select></td></tr>
+          <tr><td class="lbl">표기</td><td><select><option selected>숫자 (10,20...)</option><option>알파벳 (A,B...)</option></select></td><td colspan="6" style="text-align:left;padding-left:8px;color:#6b7280;font-size:9px;">← 공정당 4M별 빈 행 수 (0=미사용)</td></tr>
+          <tr style="background:#fefce8"><td class="lbl">예시</td><td colspan="7" style="text-align:left;padding-left:8px;font-size:9px;color:#713f12;"><b>숫자:</b> 00공통,10,20,30 &nbsp;<b>알파벳:</b> 00공통,A,B,C</td></tr>
+        </tbody>
+      </table>
+      <div style="text-align:right;margin:10px 0;"><span class="btn btn-teal btn-lg">📥 수동 템플릿 다운로드</span></div>
+      <div class="stbar" id="stb1">
+        <div class="st l2 active" onclick="ss(1,'a12',this)">A1,2 공정번호</div>
+        <div class="st l2" onclick="ss(1,'a3',this)">A3 공정기능</div>
+        <div class="st l2" onclick="ss(1,'a4',this)">A4 제품특성</div>
+        <div class="st l2" onclick="ss(1,'a5',this)">A5 고장형태</div>
+        <div class="st l2" onclick="ss(1,'a6',this)">A6 검출관리</div>
+        <div class="st l3" onclick="ss(1,'b1',this)">B1 작업요소</div>
+        <div class="st l3" onclick="ss(1,'b2',this)">B2 요소기능</div>
+        <div class="st l3" onclick="ss(1,'b3',this)">B3 공정특성</div>
+        <div class="st l3" onclick="ss(1,'b4',this)">B4 고장원인</div>
+        <div class="st l3" onclick="ss(1,'b5',this)">B5 예방관리</div>
+        <div class="st l1" onclick="ss(1,'c1',this)">C1 구분</div>
+        <div class="st l1" onclick="ss(1,'c2',this)">C2 제품기능</div>
+        <div class="st l1" onclick="ss(1,'c3',this)">C3 요구사항</div>
+        <div class="st l1" onclick="ss(1,'c4',this)">C4 고장영향</div>
+      </div>
+      <div class="sp"><div class="sp-hdr" id="sh1">L2-1(A1) 공정번호</div>
+        <div id="s1-a12" class="sd"><table class="dt"><thead><tr><th>NO</th><th style="width:60px">공정번호</th><th>공정명</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s1-a3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:35px">공정번호</th><th style="width:45px">공정명</th><th>공정기능</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s1-a4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:30px">공정번호</th><th style="width:40px">공정명</th><th style="width:100px">메인공정기능</th><th style="width:60px">제품특성</th><th style="width:35px">특별특성</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+        </tbody></table></div>
+        <div id="s1-a5" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:85px">메인공정기능</th><th style="width:50px">제품특성</th><th style="width:30px">특별특성</th><th>고장형태</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s1-a6" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:60px">제품특성</th><th style="width:70px">고장형태</th><th>검출관리</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s1-b1" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:35px">공정번호</th><th style="width:45px">공정명</th><th style="width:25px">4M</th><th>작업요소</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="e">(입력)</td></tr>
+          <tr class="cm"><td class="rn">2</td><td class="f">00</td><td class="f">공통</td><td class="f">EN</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="e">(입력)</td><td class="f">MN</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">4</td><td class="f">10</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">5</td><td class="f">10</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">6</td><td class="f">20</td><td class="e">(입력)</td><td class="f">MN</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">7</td><td class="f">20</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">8</td><td class="f">20</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">9</td><td class="f">30</td><td class="e">(입력)</td><td class="f">MN</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">10</td><td class="f">30</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">11</td><td class="f">30</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td></tr>
+        </tbody></table><div class="note" style="padding:3px 10px;background:#f8fafc">공통 MN×1,EN×1 / 공정별 MN×1,MC×2</div></div>
+        <div id="s1-b2" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:22px">4M</th><th style="width:55px">작업요소</th><th>요소기능</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="e">(입력)</td><td class="f">MN</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td colspan="6" style="text-align:center;color:#94a3b8;font-style:italic;font-size:8px">... (B1과 동일 구조)</td></tr>
+        </tbody></table></div>
+        <div id="s1-b3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:25px">공정번호</th><th style="width:35px">공정명</th><th style="width:20px">4M</th><th style="width:50px">작업요소</th><th style="width:65px">작업요소기능</th><th style="width:50px">공정특성</th><th style="width:30px">특별특성</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">3</td><td class="f">20</td><td class="e">(입력)</td><td class="f">MC</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td colspan="8" style="text-align:center;color:#94a3b8;font-style:italic;font-size:8px">... (B1과 동일 구조)</td></tr>
+        </tbody></table></div>
+        <div id="s1-b4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:55px">작업요소</th><th style="width:55px">공정특성</th><th style="width:30px">특별특성</th><th>고장원인</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">20</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td colspan="7" style="text-align:center;color:#94a3b8;font-style:italic;font-size:8px">... (B1과 동일 구조)</td></tr>
+        </tbody></table></div>
+        <div id="s1-b5" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:60px">공정특성</th><th style="width:60px">고장원인</th><th>예방관리</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s1-c1" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th>구분</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td></tr><tr><td class="rn">2</td><td class="f">SP</td></tr><tr><td class="rn">3</td><td class="f">USER</td></tr>
+        </tbody></table></div>
+        <div id="s1-c2" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:50px">구분</th><th>완제품기능</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">SP</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">USER</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s1-c3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:65px">완제품 공정명</th><th style="width:35px">구분</th><th style="width:90px">완제품기능</th><th>요구사항</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="e">(입력)</td><td class="f">YP</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="e">(입력)</td><td class="f">SP</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="e">(입력)</td><td class="f">USER</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s1-c4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:30px">구분</th><th style="width:75px">완제품기능</th><th style="width:50px">요구사항</th><th style="width:80px">고장영향</th><th style="width:25px">S</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">2</td><td class="f">SP</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">3</td><td class="f">USER</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+        </tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ===================== ③ 자동 템플릿 ===================== -->
+    <div class="mc" id="mc2">
+      <div class="desc">🤖 <b>자동 템플릿</b> — 수동 설정 + 작업요소 입력. B1 완성 + B2~B5 작업요소 자동복사 + 데이터 행 갯수 선택.</div>
+      <table class="config-table">
+        <thead>
+          <tr><th class="grp" rowspan="2" style="width:50px">구분</th><th class="grp" rowspan="2" style="width:110px">공정명</th><th class="grp" colspan="2" style="background:#0d9488">공통</th><th class="grp" colspan="4">공정별</th></tr>
+          <tr><th>MN</th><th>EN</th><th>MN</th><th>MC</th><th>IM</th><th>EN</th></tr>
+        </thead><tbody>
+          <tr><td class="lbl">개수</td><td><select><option selected>3</option></select></td>
+            <td><select><option selected>1</option></select></td><td><select><option selected>1</option></select></td>
+            <td><select><option selected>1</option></select></td><td><select><option selected>2</option></select></td>
+            <td><select><option>0</option><option selected>1</option></select></td><td><select><option selected>0</option></select></td></tr>
+          <tr><td class="lbl">표기</td><td><select><option selected>숫자</option></select></td><td colspan="6" style="text-align:left;padding-left:8px;color:#6b7280;font-size:9px;">← 공정당 4M별 행 수</td></tr>
+        </tbody>
+      </table>
+      <hr class="sep">
+      <div style="font-weight:bold;color:#0e7490;font-size:11px;margin-bottom:5px;">+ 작업요소 입력</div>
+      <table class="input-table">
+        <thead><tr><th style="width:25px">No</th><th style="width:60px">공정번호</th><th style="width:80px">공정명</th><th style="width:40px">4M</th><th>작업요소명</th><th style="width:25px">×</th></tr></thead>
+        <tbody>
+          <tr><td class="rno">1</td><td><input type="text" value="10"></td><td><input type="text" value="컷팅"></td><td><select><option>MC</option></select></td><td><input type="text" value="Cutting MC" style="text-align:left;padding-left:6px"></td><td><input type="checkbox" style="accent-color:#ef4444;width:14px;height:14px"></td></tr>
+          <tr style="background:#f0f9ff"><td class="rno">2</td><td><input type="text" value="10"></td><td><input type="text" value="컷팅"></td><td><select><option>MC</option></select></td><td><input type="text" value="톱날(DISC)" style="text-align:left;padding-left:6px"></td><td><input type="checkbox" style="accent-color:#ef4444;width:14px;height:14px"></td></tr>
+          <tr><td class="rno">3</td><td><input type="text" value="20"></td><td><input type="text" value="프레스"></td><td><select><option>MC</option></select></td><td><input type="text" value="프레스" style="text-align:left;padding-left:6px"></td><td><input type="checkbox" style="accent-color:#ef4444;width:14px;height:14px"></td></tr>
+          <tr style="background:#f0f9ff"><td class="rno">4</td><td><input type="text" value="20"></td><td><input type="text" value="프레스"></td><td><select><option>MC</option></select></td><td><input type="text" value="지그" style="text-align:left;padding-left:6px"></td><td><input type="checkbox" style="accent-color:#ef4444;width:14px;height:14px"></td></tr>
+          <tr><td class="rno">5</td><td><input type="text" value="30"></td><td><input type="text" value="용접"></td><td><select><option>MC</option></select></td><td><input type="text" value="용접기" style="text-align:left;padding-left:6px"></td><td><input type="checkbox" style="accent-color:#ef4444;width:14px;height:14px"></td></tr>
+          <tr style="background:#f0f9ff"><td class="rno">6</td><td><input type="text" value="30"></td><td><input type="text" value="용접"></td><td><select><option selected>IM</option></select></td><td><input type="text" value="용접봉" style="text-align:left;padding-left:6px"></td><td><input type="checkbox" style="accent-color:#ef4444;width:14px;height:14px"></td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:3px;"><span class="btn btn-blue">+ 행 추가</span> <span class="btn btn-red">선택 삭제</span></div>
+      <hr class="sep">
+      <div style="font-weight:bold;color:#0e7490;font-size:11px;margin-bottom:5px;">B2~B5 작업요소당 데이터 행 수</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:10px">B2(요소기능): <select style="font-size:10px;padding:1px 3px;border:1px solid #94a3b8;border-radius:2px;background:#fffef0"><option selected>1</option><option>2</option><option>3</option></select></span>
+        <span style="font-size:10px">B3(공정특성): <select style="font-size:10px;padding:1px 3px;border:1px solid #94a3b8;border-radius:2px;background:#fffef0"><option>1</option><option selected>2</option><option>3</option></select></span>
+        <span style="font-size:10px">B4(고장원인): <select style="font-size:10px;padding:1px 3px;border:1px solid #94a3b8;border-radius:2px;background:#fffef0"><option>1</option><option selected>2</option><option>3</option></select></span>
+        <span style="font-size:10px">B5(예방관리): <select style="font-size:10px;padding:1px 3px;border:1px solid #94a3b8;border-radius:2px;background:#fffef0"><option selected>1</option><option>2</option><option>3</option></select></span>
+      </div>
+      <div style="text-align:right;margin:10px 0;"><span class="btn btn-green btn-lg">📥 자동 템플릿 다운로드</span></div>
+      <div class="stbar" id="stb2">
+        <div class="st l2 active" onclick="ss(2,'a12',this)">A1,2 공정번호</div>
+        <div class="st l2" onclick="ss(2,'a3',this)">A3 공정기능</div>
+        <div class="st l2" onclick="ss(2,'a4',this)">A4 제품특성</div>
+        <div class="st l2" onclick="ss(2,'a5',this)">A5 고장형태</div>
+        <div class="st l2" onclick="ss(2,'a6',this)">A6 검출관리</div>
+        <div class="st l3" onclick="ss(2,'b1',this)">B1 작업요소</div>
+        <div class="st l3" onclick="ss(2,'b2',this)">B2 요소기능</div>
+        <div class="st l3" onclick="ss(2,'b3',this)">B3 공정특성</div>
+        <div class="st l3" onclick="ss(2,'b4',this)">B4 고장원인</div>
+        <div class="st l3" onclick="ss(2,'b5',this)">B5 예방관리</div>
+        <div class="st l1" onclick="ss(2,'c1',this)">C1 구분</div>
+        <div class="st l1" onclick="ss(2,'c2',this)">C2 제품기능</div>
+        <div class="st l1" onclick="ss(2,'c3',this)">C3 요구사항</div>
+        <div class="st l1" onclick="ss(2,'c4',this)">C4 고장영향</div>
+      </div>
+      <div class="sp"><div class="sp-hdr" id="sh2">L2-1(A1) 공정번호</div>
+        <div id="s2-a12" class="sd"><table class="dt"><thead><tr><th>NO</th><th style="width:60px">공정번호</th><th>공정명</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f al">컷팅</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f al">프레스</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f al">용접</td></tr>
+        </tbody></table></div>
+        <div id="s2-a3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:35px">공정번호</th><th style="width:45px">공정명</th><th>공정기능</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f">프레스</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f">용접</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s2-a4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:30px">공정번호</th><th style="width:40px">공정명</th><th style="width:100px">메인공정기능</th><th style="width:60px">제품특성</th><th style="width:35px">특별특성</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f">프레스</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f">용접</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+        </tbody></table></div>
+        <div id="s2-a5" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:85px">메인공정기능</th><th style="width:50px">제품특성</th><th style="width:30px">특별특성</th><th>고장형태</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f">프레스</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f">용접</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s2-a6" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:60px">제품특성</th><th style="width:70px">고장형태</th><th>검출관리</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f">프레스</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f">용접</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s2-b1" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:35px">공정번호</th><th style="width:45px">공정명</th><th style="width:25px">4M</th><th>작업요소</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="e">(입력)</td></tr>
+          <tr class="cm"><td class="rn">2</td><td class="f">00</td><td class="f">공통</td><td class="f">EN</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f al">Cutting MC</td></tr>
+          <tr><td class="rn">4</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f al">톱날(DISC)</td></tr>
+          <tr><td class="rn">5</td><td class="f">20</td><td class="f">프레스</td><td class="f">MC</td><td class="f al">프레스</td></tr>
+          <tr><td class="rn">6</td><td class="f">20</td><td class="f">프레스</td><td class="f">MC</td><td class="f al">지그</td></tr>
+          <tr><td class="rn">7</td><td class="f">30</td><td class="f">용접</td><td class="f">MC</td><td class="f al">용접기</td></tr>
+          <tr><td class="rn">8</td><td class="f">30</td><td class="f">용접</td><td class="f">IM</td><td class="f al">용접봉</td></tr>
+        </tbody></table></div>
+        <div id="s2-b2" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:22px">4M</th><th style="width:55px">작업요소</th><th>요소기능</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">Cutting MC</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">톱날(DISC)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">4</td><td class="f">20</td><td class="f">프레스</td><td class="f">MC</td><td class="f">프레스</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">5</td><td class="f">30</td><td class="f">용접</td><td class="f">MC</td><td class="f">용접기</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">6</td><td class="f">30</td><td class="f">용접</td><td class="f">IM</td><td class="f">용접봉</td><td class="e">(입력)</td></tr>
+        </tbody></table><div class="note" style="padding:3px 10px;background:#f8fafc">작업요소당 1행</div></div>
+        <div id="s2-b3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:25px">공정번호</th><th style="width:35px">공정명</th><th style="width:20px">4M</th><th style="width:50px">작업요소</th><th style="width:65px">작업요소기능</th><th style="width:45px">공정특성</th><th style="width:30px">특별특성</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr class="cm"><td class="rn">2</td><td class="f">00</td><td class="f">공통</td><td class="f">MN</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">Cutting MC</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">4</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">Cutting MC</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">5</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">톱날(DISC)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">6</td><td class="f">10</td><td class="f">컷팅</td><td class="f">MC</td><td class="f">톱날(DISC)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td colspan="8" style="text-align:center;color:#94a3b8;font-style:italic;font-size:8px">... (작업요소당 2행씩)</td></tr>
+        </tbody></table></div>
+        <div id="s2-b4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:55px">작업요소</th><th style="width:50px">공정특성</th><th style="width:30px">특별특성</th><th>고장원인</th></tr></thead><tbody>
+          <tr class="cm"><td class="rn">1</td><td class="f">00</td><td class="f">공통</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr class="cm"><td class="rn">2</td><td class="f">00</td><td class="f">공통</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">10</td><td class="f">컷팅</td><td class="f">Cutting MC</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">4</td><td class="f">10</td><td class="f">컷팅</td><td class="f">Cutting MC</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">5</td><td class="f">10</td><td class="f">컷팅</td><td class="f">톱날(DISC)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">6</td><td class="f">10</td><td class="f">컷팅</td><td class="f">톱날(DISC)</td><td class="e">(입력)</td><td class="e">-</td><td class="e">(입력)</td></tr>
+          <tr><td colspan="7" style="text-align:center;color:#94a3b8;font-style:italic;font-size:8px">... (작업요소당 2행씩)</td></tr>
+        </tbody></table></div>
+        <div id="s2-b5" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:28px">공정번호</th><th style="width:38px">공정명</th><th style="width:60px">공정특성</th><th style="width:60px">고장원인</th><th>예방관리</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">10</td><td class="f">컷팅</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">20</td><td class="f">프레스</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">30</td><td class="f">용접</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s2-c1" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th>구분</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td></tr><tr><td class="rn">2</td><td class="f">SP</td></tr><tr><td class="rn">3</td><td class="f">USER</td></tr>
+        </tbody></table></div>
+        <div id="s2-c2" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:50px">구분</th><th>완제품기능</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="f">SP</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="f">USER</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s2-c3" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:65px">완제품 공정명</th><th style="width:35px">구분</th><th style="width:90px">완제품기능</th><th>요구사항</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="e">(입력)</td><td class="f">YP</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">2</td><td class="e">(입력)</td><td class="f">SP</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+          <tr><td class="rn">3</td><td class="e">(입력)</td><td class="f">USER</td><td class="e">(입력)</td><td class="e">(입력)</td></tr>
+        </tbody></table></div>
+        <div id="s2-c4" class="sd" style="display:none"><table class="dt"><thead><tr><th>NO</th><th style="width:30px">구분</th><th style="width:75px">완제품기능</th><th style="width:50px">요구사항</th><th style="width:80px">고장영향</th><th style="width:25px">S</th></tr></thead><tbody>
+          <tr><td class="rn">1</td><td class="f">YP</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">2</td><td class="f">SP</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+          <tr><td class="rn">3</td><td class="f">USER</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">(입력)</td><td class="e">-</td></tr>
+        </tbody></table></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function sw(i){document.querySelectorAll('.main-tab').forEach((t,j)=>t.classList.toggle('active',j===i));document.querySelectorAll('.mc').forEach((c,j)=>c.classList.toggle('active',j===i));}
+const T={a12:'L2-1,2(A1,2) 공정번호·공정명',a3:'L2-3(A3) 공정기능',a4:'L2-4(A4) 제품특성',a5:'L2-5(A5) 고장형태',a6:'L2-6(A6) 검출관리',b1:'L3-1(B1) 작업요소',b2:'L3-2(B2) 요소기능',b3:'L3-3(B3) 공정특성',b4:'L3-4(B4) 고장원인',b5:'L3-5(B5) 예방관리',c1:'L1-1(C1) 구분',c2:'L1-2(C2) 제품기능',c3:'L1-3(C3) 요구사항',c4:'L1-4(C4) 고장영향'};
+function ss(mi,sk,el){document.getElementById('stb'+mi).querySelectorAll('.st').forEach(t=>t.classList.remove('active'));el.classList.add('active');const mc=document.getElementById('mc'+mi);mc.querySelectorAll('.sd').forEach(d=>d.style.display='none');const t=document.getElementById('s'+mi+'-'+sk);if(t)t.style.display='';const h=document.getElementById('sh'+mi);if(h)h.textContent=T[sk]||sk;}
+</script>
+</body>
+</html>

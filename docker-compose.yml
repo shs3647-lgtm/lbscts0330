@@ -1,0 +1,231 @@
+# ===========================================
+# FMEA On-Premise Docker Compose Configuration
+# PostgreSQL + Redis + Next.js App
+# ===========================================
+
+version: '3.8'
+
+services:
+  # --------------------------------------------
+  # PostgreSQL 데이터베이스
+  # --------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: fmea-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-fmea_db}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+    # ports:
+    #   - "${DB_PORT:-5433}:5432"
+    networks:
+      - fmea-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-fmea_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --------------------------------------------
+  # Redis 캐시 서버
+  # --------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: fmea-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - fmea-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --------------------------------------------
+  # 데이터베이스 마이그레이션 (수동 실행)
+  # --------------------------------------------
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    image: fmea-migrate:latest
+    container_name: fmea-migrate
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-fmea_db}?schema=public&connect_timeout=10
+      NODE_ENV: production
+    networks:
+      - fmea-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --------------------------------------------
+  # Next.js 애플리케이션
+  # --------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    image: fmea-app:latest
+    container_name: fmea-app
+    restart: unless-stopped
+    environment:
+      # 데이터베이스
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-fmea_db}?schema=public&connect_timeout=10
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      # 애플리케이션
+      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:3001}
+      NODE_ENV: production
+      PORT: 3000
+      # SMTP (옵션)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      # JWT & Session
+      JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_in_production}
+      SESSION_SECRET: ${SESSION_SECRET:-change_this_session_secret_in_production}
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    ports:
+      - "${APP_PORT:-3001}:3000"
+    networks:
+      - fmea-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # --------------------------------------------
+  # Nginx 리버스 프록시 (옵션)
+  # --------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: fmea-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+    networks:
+      - fmea-network
+    depends_on:
+      - app
+    profiles:
+      - with-nginx
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # --------------------------------------------
+  # 백업 서비스 (옵션)
+  # --------------------------------------------
+  backup:
+    image: postgres:15-alpine
+    container_name: fmea-backup
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-fmea_db}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
+    volumes:
+      - ./backups:/backups
+      - ./docker/scripts:/scripts:ro
+      - postgres_data:/var/lib/postgresql/data:ro
+    networks:
+      - fmea-network
+    command: /bin/sh -c "chmod +x /scripts/backup.sh && crond -f -l 2"
+    depends_on:
+      - postgres
+    profiles:
+      - with-backup
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# --------------------------------------------
+# 네트워크 설정
+# --------------------------------------------
+networks:
+  fmea-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+# --------------------------------------------
+# 볼륨 설정 (데이터 영속성)
+# --------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+    name: fmea_postgres_data
+  redis_data:
+    driver: local
+    name: fmea_redis_data
+  uploads:
+    driver: local
+    name: fmea_uploads
+  logs:
+    driver: local
+    name: fmea_logs
+  nginx_cache:
+    driver: local
+    name: fmea_nginx_cache

@@ -1,0 +1,288 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============ 프로젝트 (최상위) ============
+
+model APQPProject {
+  id           String   @id @default(uuid())
+  name         String
+  productName  String
+  customerName String
+  status       String // 'planning' | 'development' | 'production' | 'closed'
+  startDate    String?
+  targetDate   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Note: FMEA 데이터는 fmeaId (String)로 연결되며, 직접 FK 관계가 아닙니다
+  // fmeaId는 APQPProject.id와 매칭되지만, Prisma relation으로는 정의하지 않습니다
+
+  @@map("apqp_projects")
+}
+
+// ============ 구조분석 (2단계) - Structure Tables ============
+
+model L1Structure {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID (APQPProject.id 또는 별도 FMEA ID)
+  name      String // 완제품 공정명
+  confirmed Boolean? @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  l2Structures L2Structure[]
+  l1Functions  L1Function[]
+
+  @@index([fmeaId])
+  @@map("l1_structures")
+}
+
+model L2Structure {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  l1Id      String // FK: L1Structure.id
+  no        String // 공정 번호
+  name      String // 공정명
+  order     Int // 순서
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  l1Structure  L1Structure   @relation(fields: [l1Id], references: [id], onDelete: Cascade)
+  l3Structures L3Structure[]
+  l2Functions  L2Function[]
+  failureModes FailureMode[]
+
+  @@index([fmeaId])
+  @@index([l1Id])
+  @@map("l2_structures")
+}
+
+model L3Structure {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  l1Id      String // FK: L1Structure.id (연결용)
+  l2Id      String // FK: L2Structure.id
+  m4        String? // 4M 분류: 'MN' | 'MC' | 'IM' | 'EN' | ''
+  name      String // 작업요소명
+  order     Int // 순서
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  l2Structure   L2Structure    @relation(fields: [l2Id], references: [id], onDelete: Cascade)
+  l3Functions   L3Function[]
+  failureCauses FailureCause[]
+
+  @@index([fmeaId])
+  @@index([l1Id])
+  @@index([l2Id])
+  @@map("l3_structures")
+}
+
+// ============ 기능분석 (3단계) - Function Tables ============
+
+model L1Function {
+  id           String   @id @default(uuid())
+  fmeaId       String // FK: FMEA 프로젝트 ID
+  l1StructId   String // FK: L1Structure.id
+  category     String // 'Your Plant' | 'Ship to Plant' | 'User'
+  functionName String // 기능명
+  requirement  String // 요구사항
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  l1Structure    L1Structure     @relation(fields: [l1StructId], references: [id], onDelete: Cascade)
+  failureEffects FailureEffect[]
+
+  @@index([fmeaId])
+  @@index([l1StructId])
+  @@map("l1_functions")
+}
+
+model L2Function {
+  id           String   @id @default(uuid())
+  fmeaId       String // FK: FMEA 프로젝트 ID
+  l2StructId   String // FK: L2Structure.id
+  functionName String // 기능명
+  productChar  String // 제품특성
+  specialChar  String? // 특별특성
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  l2Structure  L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+  failureModes FailureMode[]
+
+  @@index([fmeaId])
+  @@index([l2StructId])
+  @@map("l2_functions")
+}
+
+model L3Function {
+  id           String   @id @default(uuid())
+  fmeaId       String // FK: FMEA 프로젝트 ID
+  l3StructId   String // FK: L3Structure.id
+  l2StructId   String // FK: L2Structure.id (연결용)
+  functionName String // 기능명
+  processChar  String // 공정특성
+  specialChar  String? // 특별특성
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  l3Structure   L3Structure    @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
+  failureCauses FailureCause[]
+
+  @@index([fmeaId])
+  @@index([l3StructId])
+  @@index([l2StructId])
+  @@map("l3_functions")
+}
+
+// ============ 고장분석 (4단계) - Failure Tables ============
+
+model FailureEffect {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  l1FuncId  String // FK: L1Function.id
+  category  String // 'Your Plant' | 'Ship to Plant' | 'User'
+  effect    String // 고장영향 내용
+  severity  Int // 심각도 (1-10)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  l1Function   L1Function    @relation(fields: [l1FuncId], references: [id], onDelete: Cascade)
+  failureLinks FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l1FuncId])
+  @@map("failure_effects")
+}
+
+model FailureMode {
+  id            String   @id @default(uuid())
+  fmeaId        String // FK: FMEA 프로젝트 ID
+  l2FuncId      String // FK: L2Function.id
+  l2StructId    String // FK: L2Structure.id (역전개용)
+  productCharId String? // FK: 제품특성 연결용
+  mode          String // 고장형태 내용
+  specialChar   Boolean? @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  l2Function   L2Function    @relation(fields: [l2FuncId], references: [id], onDelete: Cascade)
+  l2Structure  L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+  failureLinks FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l2FuncId])
+  @@index([l2StructId])
+  @@map("failure_modes")
+}
+
+model FailureCause {
+  id         String   @id @default(uuid())
+  fmeaId     String // FK: FMEA 프로젝트 ID
+  l3FuncId   String // FK: L3Function.id
+  l3StructId String // FK: L3Structure.id (역전개용)
+  l2StructId String // FK: L2Structure.id (연결용)
+  cause      String // 고장원인 내용
+  occurrence Int? // 발생도 (1-10)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  l3Function   L3Function    @relation(fields: [l3FuncId], references: [id], onDelete: Cascade)
+  l3Structure  L3Structure   @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
+  failureLinks FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l3FuncId])
+  @@index([l3StructId])
+  @@index([l2StructId])
+  @@map("failure_causes")
+}
+
+model FailureLink {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  fmId      String // FK: FailureMode.id (중심축)
+  feId      String // FK: FailureEffect.id
+  fcId      String // FK: FailureCause.id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  failureMode   FailureMode    @relation(fields: [fmId], references: [id], onDelete: Cascade)
+  failureEffect FailureEffect  @relation(fields: [feId], references: [id], onDelete: Cascade)
+  failureCause  FailureCause   @relation(fields: [fcId], references: [id], onDelete: Cascade)
+  riskAnalyses  RiskAnalysis[]
+
+  @@index([fmeaId])
+  @@index([fmId])
+  @@index([feId])
+  @@index([fcId])
+  @@map("failure_links")
+}
+
+// ============ 리스크분석/최적화 (5-6단계) ============
+
+model RiskAnalysis {
+  id                String   @id @default(uuid())
+  fmeaId            String // FK: FMEA 프로젝트 ID
+  linkId            String // FK: FailureLink.id
+  severity          Int // 심각도 (1-10)
+  occurrence        Int // 발생도 (1-10)
+  detection         Int // 검출도 (1-10)
+  ap                String // 'H' | 'M' | 'L'
+  preventionControl String? // 예방관리
+  detectionControl  String? // 검출관리
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  failureLink   FailureLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  optimizations Optimization[]
+
+  @@index([fmeaId])
+  @@index([linkId])
+  @@map("risk_analyses")
+}
+
+model Optimization {
+  id                String   @id @default(uuid())
+  fmeaId            String // FK: FMEA 프로젝트 ID
+  riskId            String // FK: RiskAnalysis.id
+  recommendedAction String // 권고 조치
+  responsible       String // 담당자
+  targetDate        String // YYYY-MM-DD
+  newSeverity       Int? // 개선 후 S
+  newOccurrence     Int? // 개선 후 O
+  newDetection      Int? // 개선 후 D
+  newAP             String? // 개선 후 AP
+  status            String // 'planned' | 'in_progress' | 'completed'
+  completedDate     String? // YYYY-MM-DD
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  riskAnalysis RiskAnalysis @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([riskId])
+  @@map("optimizations")
+}

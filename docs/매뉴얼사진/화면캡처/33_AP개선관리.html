@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - AP 개선관리</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; }
+</style>
+</head>
+<body class="bg-[#f1f5f9] flex">
+
+<!-- Sidebar -->
+<aside class="w-12 min-h-screen bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] flex flex-col items-center py-3 gap-4 flex-shrink-0">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-h-screen">
+  <!-- Header -->
+  <header class="h-11 bg-[#1a1f36] flex items-center px-4 justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-blue-400 font-bold text-sm">PFMEA</span>
+      <span class="text-slate-500 text-xs">AP 개선관리(Action Priority Improvement)</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">○○타이어</span>
+      <div class="w-7 h-7 bg-blue-500/20 rounded-full flex items-center justify-center">
+        <span class="text-blue-400 text-xs font-bold">김</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page Content -->
+  <div class="flex-1 p-5">
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-4 gap-4 mb-5">
+      <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <div class="text-xs text-slate-500 mb-1">총 개선항목(Total)</div>
+        <div class="text-2xl font-bold text-slate-800">15</div>
+        <div class="text-[10px] text-slate-400 mt-1">전체 AP 개선 항목</div>
+      </div>
+      <div class="bg-white rounded-lg border border-green-200 shadow-sm p-4">
+        <div class="text-xs text-green-600 mb-1">완료(Completed)</div>
+        <div class="text-2xl font-bold text-green-700">8</div>
+        <div class="text-[10px] text-green-400 mt-1">53.3% 달성</div>
+      </div>
+      <div class="bg-white rounded-lg border border-blue-200 shadow-sm p-4">
+        <div class="text-xs text-blue-600 mb-1">진행중(In Progress)</div>
+        <div class="text-2xl font-bold text-blue-700">5</div>
+        <div class="text-[10px] text-blue-400 mt-1">33.3% 진행</div>
+      </div>
+      <div class="bg-white rounded-lg border border-red-200 shadow-sm p-4">
+        <div class="text-xs text-red-600 mb-1">지연(Delayed)</div>
+        <div class="text-2xl font-bold text-red-700">2</div>
+        <div class="text-[10px] text-red-400 mt-1">13.3% 주의</div>
+      </div>
+    </div>
+
+    <!-- CSS-only Bar Chart -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-5">
+      <h2 class="text-sm font-semibold text-slate-700 mb-3">상태 분포 <span class="text-slate-400 font-normal">(Status Distribution)</span></h2>
+      <div class="flex items-end gap-6 h-28 px-8">
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <div class="w-full bg-green-500 rounded-t" style="height: 100px;"></div>
+          <span class="text-[10px] text-slate-500">완료(8)</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <div class="w-full bg-blue-500 rounded-t" style="height: 63px;"></div>
+          <span class="text-[10px] text-slate-500">진행중(5)</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <div class="w-full bg-red-500 rounded-t" style="height: 25px;"></div>
+          <span class="text-[10px] text-slate-500">지연(2)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Improvement Table -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-700 text-white text-[10px]">
+            <th class="px-2 py-2 text-center font-medium w-8 border-r border-slate-600">No</th>
+            <th class="px-2 py-2 text-center font-medium w-28 border-r border-slate-600">FMEA ID</th>
+            <th class="px-2 py-2 text-center font-medium w-24 border-r border-slate-600">공정<br>Process</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-slate-600">고장형태<br>Failure Mode</th>
+            <th class="px-2 py-2 text-center font-medium w-14 border-r border-slate-600">AP등급<br>AP Level</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-slate-600">개선내용<br>Improvement</th>
+            <th class="px-2 py-2 text-center font-medium w-16 border-r border-slate-600">담당자<br>Owner</th>
+            <th class="px-2 py-2 text-center font-medium w-20 border-r border-slate-600">목표일<br>Due Date</th>
+            <th class="px-2 py-2 text-center font-medium w-16">상태<br>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">1</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">pfm26-f001</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">혼합/배합</td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">배합 온도 이탈</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-red-100 text-red-700 font-bold rounded text-[9px]">H</span></td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">온도 제어 PLC 업그레이드</td>
+            <td class="px-2 py-1.5 text-slate-600 text-center border-r border-slate-50">이영희</td>
+            <td class="px-2 py-1.5 text-slate-500 text-center border-r border-slate-50">2026-03-15</td>
+            <td class="px-2 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-medium">완료</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">2</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">pfm26-f001</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">압출 성형</td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">트레드 폭 편차</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-red-100 text-red-700 font-bold rounded text-[9px]">H</span></td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">다이 마모 감지 센서 설치</td>
+            <td class="px-2 py-1.5 text-slate-600 text-center border-r border-slate-50">박대리</td>
+            <td class="px-2 py-1.5 text-slate-500 text-center border-r border-slate-50">2026-03-20</td>
+            <td class="px-2 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-medium">진행중</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">3</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">pfm26-f001</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">가류</td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">가류 부족</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-red-100 text-red-700 font-bold rounded text-[9px]">H</span></td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">금형 온도 분포 균일화</td>
+            <td class="px-2 py-1.5 text-slate-600 text-center border-r border-slate-50">김철수</td>
+            <td class="px-2 py-1.5 text-slate-500 text-center border-r border-slate-50">2026-02-28</td>
+            <td class="px-2 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-medium">지연</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">4</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">pfm26-f002</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">성형</td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">부재 이음부 불량</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 font-bold rounded text-[9px]">M</span></td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">이음부 자동 검출 시스템 도입</td>
+            <td class="px-2 py-1.5 text-slate-600 text-center border-r border-slate-50">정민수</td>
+            <td class="px-2 py-1.5 text-slate-500 text-center border-r border-slate-50">2026-04-10</td>
+            <td class="px-2 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-medium">진행중</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">5</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">pfm26-f002</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">최종 검사</td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">외관 불량 유출</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 font-bold rounded text-[9px]">M</span></td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">AI 비전 검사 정확도 향상</td>
+            <td class="px-2 py-1.5 text-slate-600 text-center border-r border-slate-50">최수진</td>
+            <td class="px-2 py-1.5 text-slate-500 text-center border-r border-slate-50">2026-03-30</td>
+            <td class="px-2 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-medium">완료</span></td>
+          </tr>
+          <tr class="hover:bg-slate-50">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">6</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">pfm26-f003</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">원재료 입고</td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">코드지 불량 혼입</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-bold rounded text-[9px]">L</span></td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">IQC 검사 기준서 개정</td>
+            <td class="px-2 py-1.5 text-slate-600 text-center border-r border-slate-50">이영희</td>
+            <td class="px-2 py-1.5 text-slate-500 text-center border-r border-slate-50">2026-04-30</td>
+            <td class="px-2 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-medium">계획</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

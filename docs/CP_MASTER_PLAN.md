@@ -1,0 +1,1057 @@
+# 🏭 Control Plan (관리계획서) 개발 마스터 플랜
+
+> **버전**: 3.0.0  
+> **작성일**: 2026-01-13  
+> **상태**: ✅ 코드프리즈  
+> **코드프리즈 태그**: `codefreeze-20260113-cp-register-import`  
+> **참조 문서**: 관리계획서_PRD.md, CP_PFMEA_데이터연계성.md
+
+---
+
+## 🔒 구현 완료 기능 (Code Freeze: 2026-01-13)
+
+### 코드프리즈 태그
+- `codefreeze-20260113-apqp-string-unified`: CP/FMEA 등록 페이지 selectedParentApqp 문자열 통일 (수평전개 완료)
+
+### 13.1 CP 등록 화면 (`/control-plan/register`)
+
+| 기능 | 상태 | 설명 |
+|------|------|------|
+| FMEA 양식 벤치마킹 | ✅ | FMEA 등록과 100% 동일한 레이아웃 |
+| CP 유형 드롭다운 | ✅ | M-Master CP, F-Family CP, P-Part CP |
+| CP ID 자동 생성 | ✅ | CP26-M001, CP26-F001, CP26-P001 형식 |
+| 연결 FMEA 선택 | ✅ | FMEA 선택 모달 (M/F/P 필터) |
+| CP 종류 | ✅ | Prototype / Pre-Launch / Production / Safe Launch |
+| 상위 프로젝트 | ✅ | APQP 리스트 연동 |
+| CFT 리스트 | ✅ | CFT 팀원 관리 테이블 |
+| CFT 접속 로그 | ✅ | 접속 이력 표시 |
+
+### 13.2 CP Import 화면 (`/control-plan/import`)
+
+| 기능 | 상태 | 설명 |
+|------|------|------|
+| 엑셀 스타일 미리보기 | ✅ | 여백 1px, 줄무늬 배경 |
+| 5개 시트 템플릿 | ✅ | 공정현황/관리항목/관리방법/대응계획/검출장치 |
+| 컬럼 클릭 선택 | ✅ | 노란색 강조 + ✓ 표시 |
+| 전체 삭제 | ✅ | 모든 데이터 삭제 |
+| 행 삭제 | ✅ | 선택된 행 삭제 |
+| 컬럼 전체삭제 | ✅ | 선택된 컬럼의 모든 데이터 삭제 |
+| 컬럼 선택삭제 | ✅ | 선택된 행의 해당 컬럼만 삭제 |
+| 전체 템플릿 다운로드 | ✅ | CP_기초정보_템플릿.xlsx (다중 시트) |
+| 개별 템플릿 다운로드 | ✅ | CP_[시트명]_템플릿.xlsx |
+| 전체/개별 Import | ✅ | Excel 파일 Import |
+
+---
+
+## 📋 CP 기초정보 템플릿 구조 (2026-01-13)
+
+> **핵심 원칙**: 공정번호+공정명이 모든 항목의 부모(키)가 됨
+
+### 시트 1: 공정현황
+
+| 컬럼 | 필수 | 설명 |
+|------|------|------|
+| 공정번호 | ✅ | 공정 고유 번호 (10, 20, 30...) |
+| 공정명 | ✅ | 공정 이름 |
+| 레벨 | | Main / Sub |
+| 공정설명 | | 공정에 대한 상세 설명 |
+| 설비/금형/지그 | | 사용 설비, 금형, 지그 정보 |
+
+### 시트 2: 검출장치 (공정현황 바로 뒤 배치)
+
+| 컬럼 | 필수 | 설명 |
+|------|------|------|
+| 공정번호 | ✅ | 부모 키 |
+| 공정명 | ✅ | 부모 키 |
+| EP | | Error Proofing 장치 |
+| 자동검사장치 | | 자동 검사 설비 |
+
+### 시트 3: 관리항목
+
+| 컬럼 | 필수 | 설명 |
+|------|------|------|
+| 공정번호 | ✅ | 부모 키 |
+| 공정명 | ✅ | 부모 키 |
+| 제품특성 | | 제품의 품질 특성 |
+| 공정특성 | | 공정의 관리 특성 |
+| 특별특성 | | CC/SC 구분 |
+| 스펙/공차 | | 규격 및 허용 공차 |
+
+### 시트 4: 관리방법
+
+| 컬럼 | 필수 | 설명 |
+|------|------|------|
+| 공정번호 | ✅ | 부모 키 |
+| 공정명 | ✅ | 부모 키 |
+| 평가방법 | | 측정/검사 방법 |
+| 샘플크기 | | 샘플 수량 (n=5 등) |
+| 주기 | | 검사 주기 (매시, 매Lot 등) |
+| 책임1 | | 1차 책임자 |
+| 책임2 | | 2차 책임자 |
+
+### 시트 5: 대응계획
+
+| 컬럼 | 필수 | 설명 |
+|------|------|------|
+| 공정번호 | ✅ | 부모 키 |
+| 공정명 | ✅ | 부모 키 |
+| 제품특성 | | 대상 제품특성 |
+| 공정특성 | | 대상 공정특성 |
+| 대응계획 | | 이상 발생 시 조치 방법 |
+
+---
+
+## 📋 개별 항목 시트 (단일 항목 Import용)
+
+> **용도**: 특정 항목만 대량 입력 시 사용  
+> **핵심 원칙**: 모든 시트에서 공정번호가 부모 키(FK)
+
+| 시트명 | 컬럼 구성 | 설명 |
+|--------|----------|------|
+| 공정명 | 공정번호, 공정명 | 공정 이름 |
+| 공정설명 | 공정번호, 공정설명 | 공정 상세 설명 |
+| 설비/금형/지그 | 공정번호, 설비/금형/지그 | 설비 정보 |
+| 제품특성 | 공정번호, 제품특성 | 제품 품질 특성 |
+| 공정특성 | 공정번호, 공정특성 | 공정 관리 특성 |
+| 스펙/공차 | 공정번호, 스펙/공차 | 규격 및 허용 공차 |
+| 평가방법 | 공정번호, 평가방법 | 측정/검사 방법 |
+| 샘플크기 | 공정번호, 샘플크기 | 샘플 수량 (n=5 등) |
+| 주기 | 공정번호, 주기 | 검사 주기 |
+| 대응계획 | 공정번호, 대응계획 | 이상 발생 시 조치 |
+| EP | 공정번호, EP | Error Proofing 장치 |
+| 자동검사장치 | 공정번호, 자동검사장치 | 자동 검사 설비 |
+
+### 13.3 수정된 파일 목록
+
+```
+src/app/control-plan/
+├── register/page.tsx      # CP 등록 화면 (FMEA 양식 100% 적용)
+├── import/page.tsx        # CP Import 화면 (신규)
+└── worksheet/
+    └── page.tsx           # CP 워크시트 (이전 코드프리즈)
+```
+
+---
+
+### 현재 컬럼 폭 (19컬럼, 반응형) ✅ minWidth 기준, 자동 확장
+
+| 그룹 | 컬럼명 | 폭(px) | 정렬 | FMEA연동 | 타입 |
+|------|--------|--------|------|----------|------|
+| **공정현황** (350px) | | | | | |
+| | 공정번호 | 45 | center | ✅ | text |
+| | 공정명 | 65 | center | ✅ | text |
+| | 레벨 | 30 | center | | select |
+| | 공정설명 | 150 | **left** | ✅ | text |
+| | 작업요소 | 60 | center | ✅ | text |
+| **검출장치** (50px) | | | | | |
+| | NO | 14 | center | | boolean |
+| | EP | 18 | center | | boolean |
+| | 자동 | 18 | center | | boolean |
+| **관리항목** (270px) | | | | | |
+| | 제품특성 | 80 | center | ✅ | text |
+| | 공정특성 | 80 | center | ✅ | text |
+| | 특별특성 | 35 | center | ✅ | select |
+| | 스펙/공차 | 75 | center | | text |
+| **관리방법** (290px) | | | | | |
+| | 평가방법 | 70 | center | | text |
+| | 샘플 | 35 | center | | text |
+| | 주기 | 45 | center | | select |
+| | 관리방법 | 80 | center | ✅ | text |
+| | 책임1 | 30 | center | | select |
+| | 책임2 | 30 | center | | select |
+| **대응계획** (240px) | | | | | |
+| | 대응계획 | 240 | center | | text |
+
+---
+
+## 1. 개요
+
+### 1.1 목적
+PFMEA와 양방향 연동되는 Control Plan(관리계획서) 시스템 구축
+
+### 1.2 핵심 원칙
+
+| 원칙 | 설명 |
+|------|------|
+| **SSOT (Single Source of Truth)** | 공정 정의의 단일 기준은 PFMEA |
+| **양방향 연동** | PFMEA ↔ CP 실시간 동기화 |
+| **자동 생성** | PFMEA/CP 확정 시 상대방 자동 생성/업데이트 |
+| **DB 분리** | CP와 FMEA는 별도 테이블에 저장 |
+| **트랜잭션 동시 저장** | 원자성 보장 (둘 다 성공 또는 둘 다 롤백) |
+| **ID 체계 통일** | FMEA와 동일한 번호 체계 사용 |
+
+---
+
+## 2. ID 체계
+
+### 2.1 CP 번호 규칙
+
+```
+CP26-{타입}{시퀀스}
+```
+
+| 타입 | 코드 | 예시 | 설명 |
+|------|------|------|------|
+| Master | M | CP26-M001 | 마스터 CP |
+| Family | F | CP26-F001 | 패밀리 CP |
+| Part | P | CP26-P001 | 부품 CP |
+
+### 2.2 FMEA-CP ID 매핑
+
+```
+PFMEA: pfm26-M001 ←→ CP: cp26-M001
+PFMEA: pfm26-F001 ←→ CP: cp26-F001
+PFMEA: pfm26-P001 ←→ CP: cp26-P001
+```
+
+### 2.3 행 단위 Key 설계 (추적성 보장)
+
+```
+PFMEA_ROW_UID = project_id + rev + process_no + work_element_id
+CP_ROW_UID    = cp_id + cp_rev + PFMEA_ROW_UID (FK)
+
+→ PFMEA–CP 행 1:1 매핑 보장
+→ 감사 추적성 100% 확보
+```
+
+---
+
+## 3. 화면 정의서
+
+### 3.1 화면 구성 영역
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ [상단 메타정보 영역]                                                          │
+│  프로젝트명 | 제품/품번 | 공정범위(From~To) | CP버전 | 승인상태                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ [상단 버튼 영역]                                                              │
+│  임시저장 | 승인요청 | 승인 | 개정 | Excel Export | PFMEA연동                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │                     Control Plan 워크시트 (24개 컬럼)                     ││
+│  │                                                                          ││
+│  │  [공정현황 9열]     [관리항목 4열]    [관리방법 7열]   [상태 4열]           ││
+│  │   파랑 #1565c0      녹색 #2e7d32      주황 #f57c00     빨강 #c62828       ││
+│  │                                                                          ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│                                                                              │
+│ [하단 상태바]                                                                 │
+│  동기화 상태: ✅ PFMEA 연동됨 (pfm26-M001) | 24개 항목 | 변경 알림: 2건       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 3.2 컬럼 상세 정의 (24개 컬럼)
+
+#### [공정현황 영역 - 9열] (배경: #1565c0 파랑)
+
+| No | 컬럼명 | 폭 | PFMEA 연계 | 편집 | 설명 |
+|----|--------|-----|-----------|------|------|
+| 1 | 공정번호 | 60px | ✅ L2.no | Read-only | PFMEA 공정번호 자동 매핑 |
+| 2 | 공정명 | 100px | ✅ L2.name | Read-only | PFMEA 연계 |
+| 3 | 공정레벨 | 60px | ✅ L2.level | Read-only | Main / Sub |
+| 4 | 공정설명 | 150px | ✅ L2.functions | Read-only | PFMEA 기능 연계 |
+| 5 | 작업요소 | 100px | ✅ L3.name | Read-only | PFMEA 작업요소 |
+| 6 | 설비/금형/Jig | 120px | ❌ | Editable | CP 전용 입력 |
+| 7 | 검출장치_NO | 40px | ❌ | Editable | Boolean (●/○) |
+| 8 | 검출장치_EP | 40px | ❌ | Editable | Boolean (●/○) |
+| 9 | 검출장치_자동 | 50px | ❌ | Editable | Boolean (●/○) |
+
+#### [관리항목 영역 - 4열] (배경: #2e7d32 녹색)
+
+| No | 컬럼명 | 폭 | PFMEA 연계 | 편집 | 설명 |
+|----|--------|-----|-----------|------|------|
+| 10 | 제품특성 | 100px | ✅ productChar | Read-only | PFMEA 제품특성 |
+| 11 | 공정특성 | 100px | ✅ processChar | Read-only | PFMEA 공정특성 |
+| 12 | 특별특성 | 60px | ✅ specialChar | Read-only | CC/SC/IC 배지 |
+| 13 | 스펙/공차 | 100px | ❌ | Editable | 규격 입력 |
+
+#### [관리방법 영역 - 7열] (배경: #f57c00 주황)
+
+| No | 컬럼명 | 폭 | PFMEA 연계 | 편집 | 설명 |
+|----|--------|-----|-----------|------|------|
+| 14 | 평가/측정방법 | 100px | ❌ | Editable | 드롭다운 + 직접입력 |
+| 15 | 샘플링크기 | 60px | ❌ | Editable | 숫자 / 100% / ALL |
+| 16 | 샘플링주기 | 80px | ❌ | Editable | LOT/SHIFT/DAY 드롭다운 |
+| 17 | 관리방법 | 150px | ✅ prevention/detection | Editable | PFMEA 예방/검출관리 참조 |
+| 18 | 책임1 | 80px | ❌ | Editable | 부서/직무 선택 |
+| 19 | 책임2 | 80px | ❌ | Editable | 선택 사항 |
+| 20 | 대응계획 | 150px | ❌ | Editable | 이상 시 조치방법 |
+
+#### [상태/리스크 참조 영역 - 4열] (배경: #c62828 빨강)
+
+| No | 컬럼명 | 폭 | PFMEA 연계 | 편집 | 설명 |
+|----|--------|-----|-----------|------|------|
+| 21 | 연계상태 | 60px | - | Read-only | 정상/변경감지/미연계 |
+| 22 | S (심각도) | 40px | ✅ severity | Read-only | 참조용 |
+| 23 | AP | 40px | ✅ ap | Read-only | H/M/L 배지 |
+| 24 | 변경알림 | 40px | - | Read-only | ⚠️ 아이콘 |
+
+---
+
+## 4. PFMEA ↔ CP 데이터 연계도
+
+### 4.1 전체 연계 아키텍처
+
+```
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                           PFMEA ↔ CP 데이터 연계 아키텍처                       │
+├────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   ┌─────────────────────────┐              ┌─────────────────────────┐         │
+│   │        PFMEA            │              │      Control Plan       │         │
+│   │    (Single Source)      │              │   (관리 실행 문서)       │         │
+│   └────────────┬────────────┘              └────────────┬────────────┘         │
+│                │                                        │                      │
+│                ▼                                        ▼                      │
+│   ┌─────────────────────────────────────────────────────────────────────┐      │
+│   │                        연계 대상 데이터                               │      │
+│   ├─────────────────────────────────────────────────────────────────────┤      │
+│   │                                                                      │      │
+│   │  [2단계 구조분석]          [3단계 기능분석]         [4단계 고장분석]   │      │
+│   │  ┌──────────────┐         ┌──────────────┐        ┌──────────────┐   │      │
+│   │  │ 완제품공정명  │────────►│ 공정기능      │───────►│ 고장형태(FM) │   │      │
+│   │  │ 메인공정명    │────────►│ 작업요소기능  │───────►│ 고장원인(FC) │   │      │
+│   │  │ 작업요소     │         │              │        │              │   │      │
+│   │  └──────┬───────┘         └──────┬───────┘        └──────┬───────┘   │      │
+│   │         │                        │                       │           │      │
+│   │         │ CP 매핑                │ CP 매핑               │ CP 참조   │      │
+│   │         ▼                        ▼                       ▼           │      │
+│   │  ┌──────────────┐         ┌──────────────┐        ┌──────────────┐   │      │
+│   │  │ 공정번호      │         │ 공정설명      │        │ 관리대상 선정 │   │      │
+│   │  │ 공정명       │         │ 제품특성      │        │ 근거 Tooltip  │   │      │
+│   │  │ 공정레벨     │         │ 공정특성      │        │ Drill-down   │   │      │
+│   │  │ 작업요소     │         │ 특별특성      │        │              │   │      │
+│   │  └──────────────┘         └──────────────┘        └──────────────┘   │      │
+│   │                                                                      │      │
+│   │  [5단계 리스크분석]        [6단계 최적화]                             │      │
+│   │  ┌──────────────┐         ┌──────────────┐                           │      │
+│   │  │ 심각도(S)    │────────►│ 예방관리     │──► CP 관리방법 참조       │      │
+│   │  │ 발생도(O)    │         │ 검출관리     │                           │      │
+│   │  │ 검출도(D)    │         │              │                           │      │
+│   │  │ AP (H/M/L)   │         │              │                           │      │
+│   │  └──────────────┘         └──────────────┘                           │      │
+│   │                                                                      │      │
+│   └─────────────────────────────────────────────────────────────────────┘      │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 컬럼 단위 매핑 테이블
+
+| PFMEA 컬럼 | PFMEA Key | CP 컬럼 | CP Key | 연계 방향 | 비고 |
+|------------|-----------|---------|--------|-----------|------|
+| 완제품 공정명 | l1.name | 공정그룹 | process_group | PFMEA → CP | Read-only |
+| 메인 공정번호 | l2.no | 공정번호 | process_no | PFMEA → CP | Read-only |
+| 메인 공정명 | l2.name | 공정명 | process_name | PFMEA → CP | Read-only |
+| 공정 기능 | l2.functions | 공정설명 | process_desc | PFMEA → CP | Read-only |
+| 작업요소 | l3.name | 작업요소 | work_element | PFMEA → CP | Read-only |
+| 제품특성 | productChars[].name | 제품특성 | product_char | PFMEA → CP | Read-only |
+| 공정특성 | processChars[].name | 공정특성 | process_char | PFMEA → CP | Read-only |
+| 특별특성 | specialChar | 특별특성 | special_char | PFMEA → CP | Read-only |
+| 심각도 | riskData.severity | 심각도(S) | ref_severity | PFMEA → CP | 참조용 |
+| 발생도 | riskData.occurrence | 발생도(O) | ref_occurrence | PFMEA → CP | 참조용 |
+| 검출도 | riskData.detection | 검출도(D) | ref_detection | PFMEA → CP | 참조용 |
+| AP | calculated | AP | ref_ap | PFMEA → CP | 참조용 |
+| 예방관리 | riskData.prevention | 관리방법 | control_method | PFMEA ↔ CP | 양방향 |
+| 검출관리 | riskData.detection | 관리방법 | control_method | PFMEA ↔ CP | 양방향 |
+
+### 4.3 PFMEA 단계별 CP 생성 로직
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      PFMEA 단계별 CP 생성 트리거                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  [Step 3: 기능분석 확정]                                                  │
+│  ├─ 기능 단위 공정 정의 확정                                               │
+│  └─ CP 기본 행 자동 생성 (공정번호, 공정명, 작업요소)                        │
+│                                                                          │
+│  [Step 4: 고장분석 확정]                                                  │
+│  ├─ FM/FC 존재 시 관리 필요 Flag 부여                                     │
+│  └─ CP 관리항목 자동 후보 등록 (제품특성, 공정특성)                          │
+│                                                                          │
+│  [Step 5: 리스크분석 확정]                                                │
+│  ├─ AP=High 또는 특별특성 존재 시 CP 생성 필수                              │
+│  ├─ RPN 값 CP에 표시 (참조용)                                             │
+│  └─ 심각도/발생도/검출도 CP에 반영                                         │
+│                                                                          │
+│  [Step 6: 최적화 확정]                                                    │
+│  ├─ 예방/검출관리 개선 내용 CP에 반영 알림                                  │
+│  └─ CP 개정 필요 상태 표시                                                │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.4 동기화 트리거 및 규칙
+
+| 트리거 | PFMEA 동작 | CP 동작 |
+|--------|-----------|---------|
+| PFMEA 저장 (Draft) | 신규 행 추가 | CP Draft 행 자동 생성 |
+| PFMEA 구조 수정 | 공정/작업요소 변경 | CP 구조 자동 반영 |
+| PFMEA 승인 | Approved 상태 | CP 구조 잠금 (관리방법만 편집) |
+| PFMEA 개정 | Rev +1 | 기존 CP Obsolete, 신규 CP Draft 생성 |
+| PFMEA 공정 추가 | L2 행 추가 | CP 행 자동 추가 |
+| PFMEA 공정 삭제 | L2 행 삭제 | CP 행 비활성 처리 |
+| PFMEA 특별특성 변경 | specialChar 수정 | CP 변경 알림 Flag + Highlight |
+
+### 4.5 상태 머신 (State Machine)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           상태 전이 다이어그램                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  PFMEA:  Draft ──────► Approved ──────► Revised (Rev+1)                 │
+│            │              │                │                             │
+│            │              │                │                             │
+│            ▼              ▼                ▼                             │
+│  CP:     Draft ──────► Approved ──────► Obsolete                        │
+│            │              │                                              │
+│            │              └─ 관리방법만 편집 가능                           │
+│            │                                                             │
+│            └─ 전체 편집 가능 (PFMEA 연계 컬럼 제외)                          │
+│                                                                          │
+│  ※ PFMEA 상태가 CP 상위 상태                                              │
+│  ※ PFMEA Approved → CP 구조 잠금                                         │
+│  ※ PFMEA Rev 증가 → 기존 CP Obsolete, 신규 CP Draft 생성                  │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. DB 스키마 설계
+
+### 5.1 테이블 관계도
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        PostgreSQL DB                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────────┐         ┌─────────────────┐                    │
+│  │   fmea_projects │ ◄─────► │  control_plans  │                    │
+│  │   (PFMEA 헤더)   │   1:1   │   (CP 헤더)      │                    │
+│  └────────┬────────┘         └────────┬────────┘                    │
+│           │ 1:N                       │ 1:N                         │
+│           ▼                           ▼                             │
+│  ┌─────────────────┐         ┌─────────────────┐                    │
+│  │ fmea_worksheets │ ◄─────► │control_plan_items│                   │
+│  │ (PFMEA 상세)     │   1:1   │ (CP 행 데이터)    │                   │
+│  └─────────────────┘  (FK)   └─────────────────┘                    │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    sync_logs (동기화 이력)                    │    │
+│  │  - source_type: 'pfmea' | 'cp'                               │    │
+│  │  - source_id: 원본 ID                                        │    │
+│  │  - target_id: 대상 ID                                        │    │
+│  │  - sync_status: 'pending' | 'synced' | 'failed'              │    │
+│  │  - synced_at: 동기화 시간                                     │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 control_plans 테이블
+
+```prisma
+model ControlPlan {
+  id            String   @id @default(uuid())
+  cpNo          String   @unique  // CP26-M001 형식
+  
+  // PFMEA 연결
+  fmeaId        String?  // FK: fmea_projects.id
+  fmeaNo        String?  // pfm26-M001 (표시용)
+  fmeaRev       Int      @default(1)  // 연결된 PFMEA Rev
+  
+  // 기본 정보
+  projectName   String?  // 프로젝트명 (PFMEA 연동)
+  partName      String   // 품명
+  partNo        String   // 품번
+  revNo         String   @default("A")  // Rev No
+  revDate       String?  // Rev 일자
+  customer      String?  // 고객
+  processFrom   String?  // 공정 범위 From
+  processTo     String?  // 공정 범위 To
+  preparedBy    String?  // 작성자
+  approvedBy    String?  // 승인자
+  
+  // 상태
+  status        String   @default("draft")  // draft | approved | obsolete
+  
+  // 동기화 메타
+  syncStatus    String   @default("new")    // new | synced | modified
+  lastSyncAt    DateTime?
+  changeCount   Int      @default(0)        // 변경 알림 카운트
+  
+  // 타임스탬프
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // 관계
+  items         ControlPlanItem[]
+  
+  @@index([fmeaId])
+  @@index([cpNo])
+  @@index([status])
+  @@map("control_plans")
+}
+```
+
+### 5.3 control_plan_items 테이블
+
+```prisma
+model ControlPlanItem {
+  id              String   @id @default(uuid())
+  cpId            String   // FK: control_plans.id
+  
+  // ===== PFMEA 행 연결 (추적성) =====
+  pfmeaRowUid     String?  // PFMEA_ROW_UID (project_id + rev + process_no + work_element_id)
+  pfmeaProcessId  String?  // PFMEA L2 공정 ID
+  pfmeaWorkElemId String?  // PFMEA L3 작업요소 ID
+  
+  // ===== 공정현황 (PFMEA 연동, Read-only) =====
+  processNo       String   // 공정번호
+  processName     String   // 공정명
+  processLevel    String?  // 공정레벨 (Main/Sub)
+  processDesc     String?  // 공정설명
+  workElement     String?  // 작업요소
+  
+  // ===== 공정현황 (CP 전용, Editable) =====
+  equipment       String?  // 설비/금형/Jig/Tools
+  detectorNo      Boolean  @default(false)  // 검출장치_NO
+  detectorEp      Boolean  @default(false)  // 검출장치_EP
+  detectorAuto    Boolean  @default(false)  // 검출장치_자동검사
+  
+  // ===== 관리항목 (PFMEA 연동) =====
+  productChar     String?  // 제품특성
+  processChar     String?  // 공정특성
+  specialChar     String?  // 특별특성 (CC/SC/IC)
+  
+  // ===== 관리항목 (CP 전용) =====
+  specTolerance   String?  // 스펙/공차
+  
+  // ===== 관리방법 (CP 전용, Editable) =====
+  evalMethod      String?  // 평가/측정방법
+  sampleSize      String?  // 샘플링 크기
+  sampleFreq      String?  // 샘플링 주기
+  controlMethod   String?  // 관리방법
+  owner1          String?  // 책임1
+  owner2          String?  // 책임2
+  reactionPlan    String?  // 대응계획
+  
+  // ===== 리스크 참조 (PFMEA Read-only) =====
+  refSeverity     Int?     // 심각도 참조
+  refOccurrence   Int?     // 발생도 참조
+  refDetection    Int?     // 검출도 참조
+  refAp           String?  // AP 참조 (H/M/L)
+  refRpn          Int?     // RPN 참조
+  
+  // ===== 상태 =====
+  linkStatus      String   @default("linked")  // linked | changed | unlinked
+  changeFlag      Boolean  @default(false)     // 변경 알림 Flag
+  
+  // 정렬
+  sortOrder       Int      @default(0)
+  
+  // 타임스탬프
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // 관계
+  controlPlan     ControlPlan @relation(fields: [cpId], references: [id], onDelete: Cascade)
+  
+  @@index([cpId])
+  @@index([pfmeaRowUid])
+  @@index([pfmeaProcessId])
+  @@map("control_plan_items")
+}
+```
+
+### 5.4 sync_logs 테이블
+
+```prisma
+model SyncLog {
+  id          String   @id @default(uuid())
+  
+  sourceType  String   // 'pfmea' | 'cp'
+  sourceId    String   // 원본 ID
+  targetType  String   // 'pfmea' | 'cp'
+  targetId    String   // 대상 ID
+  
+  action      String   // 'create' | 'update' | 'delete' | 'lock' | 'obsolete'
+  status      String   @default("pending")  // pending | synced | failed
+  errorMsg    String?  // 실패 시 오류 메시지
+  
+  fieldChanges Json?   // 변경된 필드 목록 { field: { old, new } }
+  
+  syncedAt    DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("sync_logs")
+}
+```
+
+---
+
+## 6. API 설계
+
+### 6.1 CP CRUD API
+
+```
+POST   /api/control-plan                    # CP 생성
+GET    /api/control-plan                    # CP 목록 조회
+GET    /api/control-plan/[id]               # CP 상세 조회
+PUT    /api/control-plan/[id]               # CP 수정
+DELETE /api/control-plan/[id]               # CP 삭제
+```
+
+### 6.2 동기화 API
+
+```
+POST   /api/control-plan/sync/from-pfmea    # PFMEA → CP 동기화
+POST   /api/control-plan/sync/to-pfmea      # CP → PFMEA 역동기화
+GET    /api/control-plan/sync/status/[id]   # 동기화 상태 조회
+POST   /api/control-plan/sync/resolve       # 충돌 해결
+```
+
+### 6.3 상태 변경 API
+
+```
+POST   /api/control-plan/[id]/approve       # CP 승인
+POST   /api/control-plan/[id]/revise        # CP 개정 (Rev+1)
+POST   /api/control-plan/[id]/obsolete      # CP 폐기
+```
+
+### 6.4 트랜잭션 동기화 예시
+
+```typescript
+// POST /api/control-plan/sync/from-pfmea
+export async function POST(req: Request) {
+  const { fmeaId } = await req.json();
+  
+  return await prisma.$transaction(async (tx) => {
+    // 1. PFMEA 데이터 조회
+    const fmea = await tx.fmeaProject.findUnique({ 
+      where: { id: fmeaId }, 
+      include: { l2: true, l3: true, riskData: true } 
+    });
+    
+    // 2. CP 번호 생성 (pfm26-M001 → cp26-M001)
+    const cpNo = fmea.fmeaNo.replace('pfm', 'cp');
+    
+    // 3. CP 생성 또는 업데이트
+    const cp = await tx.controlPlan.upsert({
+      where: { cpNo },
+      create: { 
+        cpNo, 
+        fmeaId, 
+        fmeaNo: fmea.fmeaNo,
+        fmeaRev: fmea.revNo,
+        projectName: fmea.projectName,
+        partName: fmea.partName,
+        partNo: fmea.partNo,
+        customer: fmea.customer,
+      },
+      update: { 
+        syncStatus: 'synced',
+        lastSyncAt: new Date(),
+      }
+    });
+    
+    // 4. CP 항목 생성 (PFMEA L2/L3 기반)
+    await syncItemsFromPfmea(tx, fmea, cp.id);
+    
+    // 5. 동기화 로그 기록
+    await tx.syncLog.create({
+      data: {
+        sourceType: 'pfmea',
+        sourceId: fmeaId,
+        targetType: 'cp',
+        targetId: cp.id,
+        action: 'sync',
+        status: 'synced',
+        syncedAt: new Date(),
+      }
+    });
+    
+    return { success: true, cp };
+  }, {
+    timeout: 30000,
+    isolationLevel: 'Serializable'
+  });
+}
+```
+
+---
+
+## 7. 입력/제어 규칙
+
+### 7.1 편집 권한 매트릭스
+
+| 상태 | PFMEA 연계 컬럼 | CP 전용 컬럼 | 관리방법 컬럼 |
+|------|----------------|-------------|--------------|
+| PFMEA Draft + CP Draft | Read-only | Editable | Editable |
+| PFMEA Approved + CP Draft | Read-only (잠금) | Editable | Editable |
+| PFMEA Approved + CP Approved | Read-only | Read-only | Read-only |
+| PFMEA Revised | Read-only (신규) | Editable (신규) | Editable (신규) |
+
+### 7.2 잠금 규칙
+
+```
+① PFMEA 연계 컬럼은 항상 직접 수정 불가 (Read-only)
+② PFMEA 승인 후 CP는 구조 잠금 (관리방법만 편집)
+③ CP 승인 후 전체 잠금 (조회 전용)
+④ PFMEA 개정 발생 시 CP 신규 Draft 자동 생성
+⑤ 행 추가/삭제는 PFMEA 공정 기준에 의해 자동 제어
+```
+
+---
+
+## 8. UI 요구사항
+
+### 8.1 그리드 구현 (Handsontable)
+
+```typescript
+// 헤더 2단 고정
+nestedHeaders: [
+  ['공정현황', '', '', '', '', '', '', '', '', '관리항목', '', '', '', '관리방법', '', '', '', '', '', '', '상태', '', '', ''],
+  ['공정번호', '공정명', '공정레벨', '공정설명', '작업요소', '설비/금형', 'NO', 'EP', '자동', '제품특성', '공정특성', '특별특성', '스펙/공차', '측정방법', '샘플크기', '샘플주기', '관리방법', '책임1', '책임2', '대응계획', '연계상태', 'S', 'AP', '변경']
+]
+
+// 컬럼 강조 색상
+cells(row, col) {
+  if (col <= 4 || (col >= 9 && col <= 11)) {
+    return { readOnly: true, className: 'pfmea-linked-cell' }
+  }
+}
+```
+
+### 8.2 색상 가이드
+
+| 영역 | 배경색 | 용도 |
+|------|--------|------|
+| 공정현황 헤더 | `#1565c0` | PFMEA 연동 구조 |
+| 관리항목 헤더 | `#2e7d32` | 품질 특성 |
+| 관리방법 헤더 | `#f57c00` | CP 전용 관리 |
+| 상태 헤더 | `#c62828` | 리스크/상태 |
+| PFMEA 연계 셀 | `#e3f2fd` | Read-only 표시 |
+| 변경 감지 행 | `#fff3e0` | 변경 알림 Highlight |
+| 특별특성 CC | `#dc2626` | Critical |
+| 특별특성 SC | `#ea580c` | Significant |
+
+---
+
+## 9. 개발 로드맵
+
+### Phase 1: DB 스키마 및 API (1일)
+
+| 태스크 | 예상 시간 | 상태 |
+|--------|----------|------|
+| Prisma 스키마 추가 (3개 테이블) | 30분 | ⬜ |
+| DB 마이그레이션 | 15분 | ⬜ |
+| CP CRUD API | 2시간 | ⬜ |
+| 동기화 API | 2시간 | ⬜ |
+
+### Phase 2: 워크시트 DB 연동 (1일)
+
+| 태스크 | 예상 시간 | 상태 |
+|--------|----------|------|
+| 워크시트 페이지 DB 연동 | 3시간 | ⬜ |
+| 24개 컬럼 그리드 구현 | 2시간 | ⬜ |
+| Read-only 제어 | 1시간 | ⬜ |
+
+### Phase 3: PFMEA 연동 (1일)
+
+| 태스크 | 예상 시간 | 상태 |
+|--------|----------|------|
+| PFMEA→CP 동기화 트리거 | 2시간 | ⬜ |
+| CP→PFMEA 역연동 | 2시간 | ⬜ |
+| 변경 알림 시스템 | 1시간 | ⬜ |
+| 상태 머신 구현 | 1시간 | ⬜ |
+
+### Phase 4: 테스트 및 코드프리즈 (0.5일)
+
+| 태스크 | 예상 시간 | 상태 |
+|--------|----------|------|
+| TDD 검증 (10개 시나리오) | 2시간 | ⬜ |
+| DB 저장 검증 | 1시간 | ⬜ |
+| 코드프리즈 | 30분 | ⬜ |
+
+---
+
+## 10. 테스트 시나리오 (필수)
+
+| No | 시나리오 | 예상 결과 |
+|----|----------|----------|
+| 1 | PFMEA 행 추가 | CP 행 자동 생성 |
+| 2 | PFMEA 행 삭제 | CP 행 비활성 처리 |
+| 3 | PFMEA 특별특성 변경 | CP Highlight + 알림 |
+| 4 | PFMEA 승인 | CP 구조 잠금 |
+| 5 | PFMEA Rev 증가 | 기존 CP Obsolete, 신규 CP Draft |
+| 6 | CP 관리방법 저장 | 트랜잭션 동시 저장 |
+| 7 | CP 승인 | 전체 잠금 |
+| 8 | 500+행 로딩 | 3초 이내 렌더링 |
+| 9 | Excel Export | 승인된 CP만 출력 |
+| 10 | 감사 Trace View | PFMEA-CP 연결 표시 |
+
+---
+
+## 11. 파일 구조
+
+```
+src/
+├── app/
+│   ├── control-plan/                    # CP 페이지
+│   │   ├── page.tsx                     # CP 메인 (리다이렉트)
+│   │   ├── register/page.tsx            # CP 등록
+│   │   ├── list/page.tsx                # CP 목록
+│   │   ├── worksheet/page.tsx           # CP 워크시트 (수정 필요)
+│   │   ├── revision/page.tsx            # 개정관리
+│   │   └── components/
+│   │       ├── CPTabMenu.tsx
+│   │       ├── CPTopMenuBar.tsx
+│   │       └── CPSyncStatus.tsx         # 동기화 상태 (신규)
+│   │
+│   └── api/
+│       └── control-plan/                # CP API (신규)
+│           ├── route.ts                 # CRUD
+│           ├── [id]/route.ts            # 단건 조회/수정/삭제
+│           ├── [id]/approve/route.ts    # 승인
+│           ├── [id]/revise/route.ts     # 개정
+│           └── sync/
+│               ├── from-pfmea/route.ts  # PFMEA→CP
+│               ├── to-pfmea/route.ts    # CP→PFMEA
+│               └── status/route.ts      # 상태 조회
+│
+├── prisma/
+│   └── schema.prisma                    # DB 스키마 (수정 필요)
+│
+└── lib/
+    ├── cp-sync.ts                       # 동기화 유틸리티 (신규)
+    └── cp-state-machine.ts              # 상태 머신 (신규)
+```
+
+---
+
+## 12. 구현 완료 기능 (Code Freeze: 2026-01-12)
+
+### 12.1 CP 워크시트 UI
+
+#### 12.1.1 레이아웃 구조
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ [CPTopNav] 글로벌 네비게이션                                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│ [CPTopMenuBar] CP명 | 저장 | Import | Export | 행 추가 | FMEA 동기화      │
+├─────────────────────────────────────────────────────────────────────────┤
+│ [CPTabMenu] ALL | 공정현황 | 관리항목 | 관리방법 | 대응계획                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ [테이블 헤더]                                                             │
+│  1행: 그룹 헤더 (공정현황, 검출장치, 관리항목, 관리방법, 대응계획)              │
+│  2행: 컬럼 헤더 (공정번호, 공정명, 레벨, 공정설명, ...)                       │
+│  3행: 열 번호 (A, B, C, D, E, F, ...)                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│ [데이터 영역] - 19컬럼 반응형 테이블                                        │
+│  - 셀 높이: 25px                                                         │
+│  - 반응형 컬럼폭 (minWidth 기준, 자동 확장)                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 12.1.2 컬럼 구조 (19컬럼)
+
+| 열번호 | 그룹 | 컬럼명 | Key | 폭(px) | 타입 | 병합 | 컨텍스트메뉴 |
+|--------|------|--------|-----|--------|------|------|--------------|
+| A | 공정현황 | 공정번호 | processNo | 45 | text | Level1 | - |
+| B | 공정현황 | 공정명 | processName | 65 | text | Level1 | - |
+| C | 공정현황 | 레벨 | processLevel | 45 | select | Level2 | - |
+| D | 공정현황 | 공정설명 | processDesc | 150 | text | Level2 | ✅ |
+| E | 공정현황 | 설비/금형/JIG | workElement | 80 | text | Level3 | ✅ |
+| F | 검출장치 | EP | detectorEp | 40 | boolean | - | - |
+| G | 검출장치 | 자동 | detectorAuto | 40 | boolean | - | - |
+| H | 관리항목 | NO | charNo | 25 | auto | - | - |
+| I | 관리항목 | 제품특성 | productChar | 80 | text | - | ✅ |
+| J | 관리항목 | 공정특성 | processChar | 80 | text | - | - |
+| K | 관리항목 | 특별특성 | specialChar | 35 | select | - | - |
+| L | 관리항목 | 스펙/공차 | specTolerance | 75 | text | - | - |
+| M | 관리방법 | 평가방법 | evalMethod | 70 | text | - | - |
+| N | 관리방법 | 샘플 | sampleSize | 35 | text | - | - |
+| O | 관리방법 | 주기 | sampleFreq | 45 | select | - | - |
+| P | 관리방법 | 관리방법 | controlMethod | 80 | text | - | - |
+| Q | 관리방법 | 책임1 | owner1 | 50 | select | - | - |
+| R | 관리방법 | 책임2 | owner2 | 50 | select | - | - |
+| S | 대응계획 | 대응계획 | reactionPlan | 200 | text | - | - |
+
+### 12.2 계층적 셀 병합 (RowSpan)
+
+```
+Level 1: A(공정번호) + B(공정명)
+    │    └─ 같은 공정번호+공정명 → rowSpan 자동 병합
+    ↓
+Level 2: C(레벨) + D(공정설명)  
+    │    └─ 같은 Level1 + 레벨+공정설명 → rowSpan 자동 병합
+    ↓
+Level 3: E(설비/금형/JIG)
+    │    └─ 같은 Level2 + 설비 → rowSpan 자동 병합
+    ↓
+Level 4: F~S (개별 행)
+         └─ 각 특성별 독립 데이터
+```
+
+### 12.3 컨텍스트 메뉴 (우클릭)
+
+| 대상 셀 | 메뉴 아이콘 | 행 추가 시 복사되는 부모 필드 |
+|---------|-------------|------------------------------|
+| D (공정설명) | 📋 공정설명 기준 | A(공정번호), B(공정명) |
+| E (설비/금형/JIG) | 🔧 설비/금형/JIG 기준 | A, B, C(레벨), D(공정설명) |
+| I (제품특성) | 📊 제품특성 기준 | A, B, C, D, E(설비/금형/JIG) |
+
+#### 메뉴 항목:
+- ⬆️ **위로 행 추가** - 현재 행 위에 새 행 삽입
+- ⬇️ **아래로 행 추가** - 현재 행 아래에 새 행 삽입
+- 🗑️ **행 삭제** - 현재 행 삭제 (최소 1행 유지)
+
+### 12.4 드롭다운 옵션
+
+| 컬럼 | 옵션 |
+|------|------|
+| 레벨 (C) | Main, Sub, 외주 |
+| 특별특성 (K) | -, CC, SC, ◇, 없음 |
+| 주기 (O) | 연속, 1/Lot, 1/일, 1/주, 1/월, 초중종, 기타 |
+| 책임1, 책임2 (Q, R) | 생산, 품질, 연구, 기술, 물류, 설비 |
+
+### 12.5 자동 계산 필드
+
+| 컬럼 | 계산 로직 |
+|------|-----------|
+| NO (H) | 공정별 특성 순번 (같은 공정번호+공정명 내에서 1, 2, 3...) |
+
+### 12.6 상단 메뉴바 기능
+
+| 버튼 | 기능 | 상태 |
+|------|------|------|
+| CP명 | CP 선택 드롭다운 | ✅ UI |
+| 저장 | 현재 데이터 저장 | ✅ UI |
+| Import | 데이터 가져오기 | 🔲 예정 |
+| Export | 데이터 내보내기 | 🔲 예정 |
+| 행 추가 | 맨 아래 새 행 추가 | ✅ 구현 |
+| FMEA 동기화 | PFMEA 데이터 가져오기 | ✅ UI |
+
+### 12.7 파일 구조
+
+```
+src/app/control-plan/worksheet/
+├── page.tsx                    # 메인 워크시트 컴포넌트
+├── cpConstants.ts              # 컬럼/색상/옵션 상수
+└── components/
+    ├── CPTopNav.tsx            # 글로벌 네비게이션
+    ├── CPTopMenuBar.tsx        # 상단 메뉴바
+    └── CPTabMenu.tsx           # 탭 메뉴
+```
+
+### 12.8 주요 기술 스택
+
+- **프레임워크**: Next.js 14 (App Router)
+- **스타일링**: Tailwind CSS
+- **상태관리**: React useState, useMemo, useCallback
+- **테이블**: Native HTML Table (반응형, tableLayout: auto)
+
+### 12.9 수동/자동 입력 모드 토글
+
+#### 위치
+```
+[✋수동] | ALL | 공정현황 | 관리항목 | 관리방법 | 대응계획 | ...
+```
+- 탭 메뉴 좌측에 토글 버튼 배치
+- 클릭으로 모드 전환
+
+#### 모드별 동작
+
+| 모드 | 아이콘 | 색상 | 작성 방식 | 대상 셀 |
+|------|--------|------|-----------|---------|
+| **수동** | ✋ | 🔵 파랑 (`bg-blue-600`) | 우클릭 → 컨텍스트 메뉴 | D, E, I열 |
+| **자동** | 🤖 | 🟣 보라 (`bg-purple-600`) | 클릭 → 입력 모달 | D, E, I열 |
+
+#### 자동 모드 시각적 표시
+
+| 셀 | 강조 색상 | 아이콘 |
+|----|-----------|--------|
+| D (공정설명) | `#e3f2fd` (연한 파랑) | ➕ 파랑 |
+| E (설비/금형/JIG) | `#e8f5e9` (연한 녹색) | ➕ 녹색 |
+| I (제품특성) | `#fff3e0` (연한 주황) | ➕ 주황 |
+
+#### 자동 모드 입력 모달
+
+```
+┌────────────────────────────────┐
+│ 🤖 자동 행 추가                   │
+├────────────────────────────────┤
+│ 📋 [기준 타입] 기준                │
+│ 복사될 부모: [부모 필드 목록]        │
+├────────────────────────────────┤
+│ 추가 위치                        │
+│ [⬆️ 위로] [⬇️ 아래로]             │
+├────────────────────────────────┤
+│ [취소] [✅ 행 추가]               │
+└────────────────────────────────┘
+```
+
+#### 기준별 복사 필드
+
+| 기준 | 모달 아이콘 | 복사되는 부모 필드 |
+|------|-------------|-------------------|
+| 공정설명 | 📋 | 공정번호, 공정명 |
+| 설비/금형/JIG | 🔧 | 공정번호, 공정명, 레벨, 공정설명 |
+| 제품특성 | 📊 | 공정번호, 공정명, 레벨, 공정설명, 설비/금형/JIG |
+
+#### 상태 타입 정의
+
+```typescript
+// CPTabMenu.tsx
+export type CPInputMode = 'manual' | 'auto';
+
+// page.tsx
+const [inputMode, setInputMode] = useState<CPInputMode>('manual');
+
+const [autoModal, setAutoModal] = useState<{
+  visible: boolean;
+  rowIdx: number;
+  type: 'process' | 'work' | 'char';
+  position: 'above' | 'below';
+}>({ visible: false, rowIdx: -1, type: 'process', position: 'below' });
+```
+
+---
+
+## 13. 참고 문서
+
+- `docs/관리계획서_PRD.md` - 화면 정의서
+- `docs/CP_PFMEA_데이터연계성.md` - 데이터 연계 상세
+- `docs/DB_SCHEMA.md` - 전체 DB 스키마
+- `src/app/pfmea/worksheet/types/controlPlan.ts` - CP 타입 정의
+- `src/lib/shared-schema.ts` - 공유 스키마
+
+---
+
+## 14. 코드프리즈 태그
+
+### 14.1 완료된 태그
+- ✅ `codefreeze-20260112-cp-worksheet-ui` - CP 워크시트 UI 완료
+  - 19컬럼 반응형 테이블
+  - 계층적 셀 병합 (4단계)
+  - 컨텍스트 메뉴 (행 추가/삭제)
+  - 상단 메뉴바 및 탭 메뉴
+
+### 14.2 예정된 태그
+- 🔲 `codefreeze-20260112-cp-db-schema` - DB 스키마
+- 🔲 `codefreeze-20260112-cp-crud-api` - CRUD API
+- 🔲 `codefreeze-20260112-cp-pfmea-sync` - PFMEA 동기화
+- 🔲 `codefreeze-20260112-cp-complete` - 전체 완료
+
+---
+
+**문서 끝**

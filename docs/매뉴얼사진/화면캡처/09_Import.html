@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>P-FMEA Import</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5f5f5; width: 1440px; }
+  .sidebar { position: fixed; left: 0; top: 0; width: 48px; height: 100vh; background: linear-gradient(180deg, #1a237e 0%, #283593 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 8px; }
+  .sidebar-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #90caf9; font-size: 14px; cursor: pointer; }
+  .sidebar-icon:hover { background: rgba(255,255,255,0.1); }
+  .sidebar-icon.active { background: rgba(255,255,255,0.15); color: #fff; }
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-icon" title="Home">🏠</div>
+  <div class="sidebar-icon active" title="FMEA">📋</div>
+  <div class="sidebar-icon" title="CP">📑</div>
+  <div class="sidebar-icon" title="PFD">🔀</div>
+  <div class="sidebar-icon" title="Settings">⚙️</div>
+</div>
+
+<!-- Main Content -->
+<div style="margin-left: 48px;">
+  <!-- Header -->
+  <div style="height: 48px; background: #1a1f36; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+    <div style="color: #e0e0e0; font-size: 15px; font-weight: 600;">Smart System</div>
+    <div style="color: #00e5ff; font-size: 16px; font-weight: 700; letter-spacing: 1px;">P-FMEA</div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="color: #aaa; font-size: 13px;">관리자</span>
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: #3949ab; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px;">A</div>
+    </div>
+  </div>
+
+  <!-- Top Nav -->
+  <div style="height: 36px; background: #263238; display: flex; align-items: center; padding: 0 16px; gap: 2px;">
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">대시보드</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">등록</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">리스트</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">New FMEA</a>
+    <a style="color: #fff; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer; background: rgba(0,229,255,0.15); border-bottom: 2px solid #00e5ff;">Import</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">개정관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">AP개선관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">LLD</a>
+  </div>
+
+  <!-- Import Page Content -->
+  <div style="padding: 24px 32px;">
+    <!-- Page Title -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+      <h2 style="font-size: 20px; font-weight: 700; color: #1a237e; margin: 0;">📥 FMEA Import</h2>
+      <div style="display: flex; gap: 10px;">
+        <button style="padding: 8px 18px; background: #fff; border: 1px solid #1976d2; color: #1976d2; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500;">📄 템플릿 다운로드</button>
+        <button style="padding: 8px 18px; background: #1976d2; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500;">📂 파일 선택</button>
+      </div>
+    </div>
+
+    <!-- File Upload Area -->
+    <div style="border: 2px dashed #90caf9; border-radius: 12px; padding: 48px; text-align: center; background: #f8fbff; margin-bottom: 24px;">
+      <div style="font-size: 48px; margin-bottom: 12px;">📁</div>
+      <div style="font-size: 16px; color: #1976d2; font-weight: 600; margin-bottom: 8px;">엑셀 파일을 드래그하여 놓으세요</div>
+      <div style="font-size: 13px; color: #90a4ae;">또는 "파일 선택" 버튼을 클릭하세요 (.xlsx, .xls 지원)</div>
+      <div style="margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <span style="font-size: 13px; color: #4caf50;">✅ pfm26-f001-l68-r00_template.xlsx</span>
+        <span style="font-size: 12px; color: #aaa;">(245 KB)</span>
+      </div>
+    </div>
+
+    <!-- Preview Section Title -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+      <h3 style="font-size: 15px; font-weight: 600; color: #333; margin: 0;">미리보기 (Preview)</h3>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <span style="font-size: 13px; color: #4caf50;">✅ 유효: 4건</span>
+        <span style="font-size: 13px; color: #f44336;">❌ 오류: 1건</span>
+        <span style="font-size: 13px; color: #aaa;">총 5건</span>
+      </div>
+    </div>
+
+    <!-- Preview Table -->
+    <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="background: #1976d2; color: #fff;">
+            <th style="padding: 10px 12px; text-align: center; width: 50px;">상태</th>
+            <th style="padding: 10px 12px; text-align: left; width: 60px;">No</th>
+            <th style="padding: 10px 12px; text-align: left;">L1 완제품공정</th>
+            <th style="padding: 10px 12px; text-align: left;">L2 공정</th>
+            <th style="padding: 10px 12px; text-align: left;">L3 작업요소</th>
+            <th style="padding: 10px 12px; text-align: left;">기능(Function)</th>
+            <th style="padding: 10px 12px; text-align: left;">고장형태(FM)</th>
+            <th style="padding: 10px 12px; text-align: center; width: 100px;">4M</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background: #fff; border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 8px 12px; text-align: center;"><span style="color: #4caf50; font-size: 16px;">✅</span></td>
+            <td style="padding: 8px 12px; color: #666;">1</td>
+            <td style="padding: 8px 12px; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 8px 12px; background: #f1f9f2;">10-압출</td>
+            <td style="padding: 8px 12px; background: #fffaf5;">온도설정</td>
+            <td style="padding: 8px 12px;">고무 압출 온도 관리</td>
+            <td style="padding: 8px 12px;">두께 불균일</td>
+            <td style="padding: 8px 12px; text-align: center;"><span style="background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 11px;">MC</span></td>
+          </tr>
+          <tr style="background: #fafafa; border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 8px 12px; text-align: center;"><span style="color: #4caf50; font-size: 16px;">✅</span></td>
+            <td style="padding: 8px 12px; color: #666;">2</td>
+            <td style="padding: 8px 12px; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 8px 12px; background: #f1f9f2;">20-성형</td>
+            <td style="padding: 8px 12px; background: #fffaf5;">압력조절</td>
+            <td style="padding: 8px 12px;">트레드 성형 가공</td>
+            <td style="padding: 8px 12px;">기포 발생</td>
+            <td style="padding: 8px 12px; text-align: center;"><span style="background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 11px;">MC</span></td>
+          </tr>
+          <tr style="background: #fff; border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 8px 12px; text-align: center;"><span style="color: #4caf50; font-size: 16px;">✅</span></td>
+            <td style="padding: 8px 12px; color: #666;">3</td>
+            <td style="padding: 8px 12px; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 8px 12px; background: #f1f9f2;">30-가류</td>
+            <td style="padding: 8px 12px; background: #fffaf5;">시간관리</td>
+            <td style="padding: 8px 12px;">가류 경화 처리</td>
+            <td style="padding: 8px 12px;">접착 불량</td>
+            <td style="padding: 8px 12px; text-align: center;"><span style="background: #fff3e0; color: #e65100; padding: 2px 8px; border-radius: 4px; font-size: 11px;">IM</span></td>
+          </tr>
+          <tr style="background: #fafafa; border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 8px 12px; text-align: center;"><span style="color: #4caf50; font-size: 16px;">✅</span></td>
+            <td style="padding: 8px 12px; color: #666;">4</td>
+            <td style="padding: 8px 12px; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 8px 12px; background: #f1f9f2;">40-검사</td>
+            <td style="padding: 8px 12px; background: #fffaf5;">속도조절</td>
+            <td style="padding: 8px 12px;">외관 검사 수행</td>
+            <td style="padding: 8px 12px;">치수 편차</td>
+            <td style="padding: 8px 12px; text-align: center;"><span style="background: #fce4ec; color: #c62828; padding: 2px 8px; border-radius: 4px; font-size: 11px;">MN</span></td>
+          </tr>
+          <tr style="background: #fff4f4; border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 8px 12px; text-align: center;"><span style="color: #f44336; font-size: 16px;">❌</span></td>
+            <td style="padding: 8px 12px; color: #666;">5</td>
+            <td style="padding: 8px 12px; background: #fef0f0;">타이어 제조</td>
+            <td style="padding: 8px 12px; background: #fef5f0; color: #f44336;">⚠ 공정명 누락</td>
+            <td style="padding: 8px 12px; background: #fef8f5;">금형교환</td>
+            <td style="padding: 8px 12px; color: #999;">-</td>
+            <td style="padding: 8px 12px; color: #999;">-</td>
+            <td style="padding: 8px 12px; text-align: center;"><span style="background: #ffebee; color: #c62828; padding: 2px 8px; border-radius: 4px; font-size: 11px;">-</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Error Detail -->
+    <div style="margin-top: 12px; padding: 12px 16px; background: #fff4f4; border: 1px solid #ffcdd2; border-radius: 6px; font-size: 13px; color: #c62828;">
+      <strong>⚠ 행 5:</strong> L2 공정명이 비어있습니다. 공정번호와 공정명을 입력해주세요. (예: 50-후처리)
+    </div>
+
+    <!-- Bottom Actions -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 24px;">
+      <div style="font-size: 13px; color: #666;">
+        ℹ️ 유효한 데이터만 Import됩니다. 오류 행은 건너뜁니다.
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button style="padding: 10px 24px; background: #fff; border: 1px solid #ccc; color: #666; border-radius: 6px; font-size: 14px; cursor: pointer;">취소</button>
+        <button style="padding: 10px 32px; background: #4caf50; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(76,175,80,0.3);">📥 Import (4건)</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

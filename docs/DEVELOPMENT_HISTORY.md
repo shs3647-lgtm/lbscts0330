@@ -1,0 +1,335 @@
+# 📋 FMEA On-Premise 개발 히스토리
+
+> **최종 업데이트**: 2026-01-15  
+> **현재 버전**: 2.8.0
+
+---
+
+## 📅 2026-01-15
+
+### v2.8.0 - CP Import 데이터 저장 성공 및 DB 뷰어 통합
+
+**핵심 변경사항**:
+
+1. ✅ **CP Import 저장 로직 근본 해결**
+   - 서버측 데이터 변환 로직 유연화 (공정번호/공정명 인식 강화)
+   - 공정명이 비어있어도 공정번호가 있으면 자동 생성하여 저장 처리
+   - 트랜잭션 외부에서 실제 DB 조회를 통한 최종 저장 검증 프로세스 추가
+
+2. ✅ **DB 스키마 동기화**
+   - CP 마스터 데이터셋 관련 테이블(`cp_master_datasets`, `cp_master_flat_items`) 생성 완료
+   - `prisma db push`를 통한 실제 DB 물리적 동기화 완료
+
+3. ✅ **DB 뷰어 CP 프로젝트 필터링 개선**
+   - CP 관련 테이블(공정, 검출장치, 관리항목 등)에 대해 프로젝트별 필터링 기능 통합
+   - `cpNo` 대소문자 구분 없는 비교 로직 적용으로 사용자 편의성 증대
+
+4. ✅ **UI/UX 개선 및 로깅 강화**
+   - 저장 단계별 `alert` 알림 및 건수 표시 추가
+   - 브라우저 콘솔 및 서버 로그에 상세 디버그 정보(A1, A2 개수 등) 출력
+
+**수정된 파일**:
+- `src/app/control-plan/import/page.tsx` - 저장 핸들러 보정
+- `src/app/api/control-plan/master-to-worksheet/route.ts` - 변환 API 고도화
+- `src/app/admin/db-viewer/page.tsx` - 필터링 및 로딩 최적화
+- `prisma/schema.prisma` - CP 마스터 테이블 정의
+
+---
+
+## 📅 2026-01-11
+
+### v2.7.0 - CFT 데이터 지속성 확보 및 FMEA ID 정규화
+
+**핵심 변경사항**:
+
+1. ✅ **CFT 데이터 지속성 근본 해결**
+   - 신규 등록 모드에서 DB의 최근 프로젝트 로드 간섭 제거 (입력 데이터 보호)
+   - CFT 테이블 내 '저장' 버튼 클릭 시 즉시 DB 저장 API 호출 연동
+   - 저장 후 자동 초기화 로직 제거 및 데이터 유지 정책 확립 (수동 초기화만 허용)
+
+2. ✅ **FMEA ID 및 데이터 정규화**
+   - 모든 FMEA ID 및 상위 FMEA ID 대문자(`.toUpperCase()`) 정규화 강제
+   - `parentFmeaType`이 Master인 경우 'M'으로 정확히 저장되도록 수정
+   - 기존 DB 데이터 일괄 보정 스크립트 실행 (`scripts/fix-master-parent-fmea.ts`)
+
+3. ✅ **API 모듈화 및 룰 준수**
+   - `/api/fmea/projects`의 DB 로직을 `fmea-project-service.ts`로 분리
+   - API 라우트 파일 500라인 제한 룰 준수 및 가독성 향상
+
+4. ✅ **DB 정합성 검증 시스템**
+   - `scripts/check-cft-members.ts`를 통한 DB 직접 검증 도구 확보
+   - 저장 시 DB 데이터 실시간 재조회(Verify) 및 화면 동기화 로직 추가
+
+**수정된 파일**:
+- `src/lib/services/fmea-project-service.ts` - DB 서비스 레이어 분리
+- `src/app/api/fmea/projects/route.ts` - API 라우트 경량화
+- `src/app/pfmea/register/page.tsx` - 등록 화면 저장/유지 로직 개선
+- `src/app/api/users/route.ts` - 사용자 API 에러 핸들링 강화
+
+---
+
+## 📅 2026-01-10
+
+### v2.6.0 - 마스터/패밀리/파트 FMEA 상속 기능
+
+**핵심 변경사항**:
+
+1. ✅ **상속 API 생성** (`/api/fmea/inherit`)
+   - GET: 원본 FMEA 데이터 조회 (구조분석/기능분석/고장분석 전체)
+   - POST: 상속 데이터를 대상 FMEA에 저장
+   - parentFmeaId, parentFmeaType 메타데이터 저장
+
+2. ✅ **리스트 화면 '상위 FMEA' 컬럼 추가**
+   - 상속받은 FMEA의 원본 ID 표시
+   - 유형 배지(M/F/P) + ID로 시각화
+   - 클릭 시 원본 FMEA 워크시트로 이동
+
+3. ✅ **워크시트 상속 모드 처리**
+   - URL 파라미터: `?id={newId}&baseId={sourceId}&mode=inherit`
+   - 상속 API 호출 → 데이터 복사 → state 업데이트
+   - 상속 완료 후 URL 파라미터 자동 제거 (중복 방지)
+
+4. ✅ **워크시트 상속 배너**
+   - 상속된 FMEA인 경우 파란색 배너 표시
+   - "기반 FMEA: pfm26-M001" 정보 표시
+   - [원본 보기] / [상속 해제] 버튼
+
+5. ✅ **등록 화면 상속 정보 표시**
+   - FMEA ID 옆 "← M001 기반" 표시
+   - 선택한 기반 FMEA 정보 유지
+
+**생성된 파일**:
+- `src/app/api/fmea/inherit/route.ts` - 상속 API
+- `docs/MASTER_FAMILY_PART_FMEA_INHERITANCE.md` - 상속 관계 설계 문서
+
+**수정된 파일**:
+- `src/app/pfmea/list/page.tsx` - 상위 FMEA 컬럼 추가
+- `src/app/pfmea/register/page.tsx` - 상속 정보 표시
+- `src/app/pfmea/worksheet/page.tsx` - 상속 배너 UI
+- `src/app/pfmea/worksheet/hooks/useWorksheetState.ts` - 상속 모드 처리
+- `src/app/api/fmea/projects/route.ts` - parentFmeaId 반환
+
+**상속 흐름**:
+```
+등록 화면 → "Master Data 사용" 클릭
+    ↓
+Master FMEA 선택 모달
+    ↓
+선택 완료 → 워크시트 이동 (?mode=inherit&baseId=pfm26-M001)
+    ↓
+상속 API 호출 → 데이터 복사
+    ↓
+워크시트 표시 (상속 배너 + 복사된 데이터)
+```
+
+---
+
+## 📅 2026-01-06
+
+### v2.5.1 - 등록 화면 UI 개선 + FMEA 선택 모달
+
+**핵심 변경사항**:
+
+1. ✅ **등록 테이블 레이아웃 개선**
+   - "회사에 의해 결정됨" → "자동생성" 문구 변경
+   - FMEA 유형 드롭다운을 4행(상호기능팀 위치)으로 이동
+   - 공정 책임 셀에 부서 + 책임자 통합 표시
+   - 7열 균형 맞춤 레이아웃
+
+2. ✅ **FMEA 기초정보 선택 기능**
+   - 🟣 Master Data 사용 → Master FMEA 선택 모달
+   - 🔵 Family Data 사용 → Family FMEA 선택 모달
+   - 🟢 Part FMEA 사용 → Part FMEA 선택 모달
+   - 선택 시 해당 FMEA 기반으로 워크시트 연동
+
+3. ✅ **FMEA 선택 모달**
+   - 유형별 FMEA 리스트 표시
+   - FMEA ID, FMEA명 컬럼
+   - 선택 버튼으로 기반 FMEA 지정
+
+**수정된 파일**:
+- `src/app/pfmea/register/page.tsx` - 테이블 레이아웃, FMEA 선택 모달
+
+---
+
+### v2.5.0 - FMEA ID 유형 구분자 + 리스트 정렬 개선
+
+**핵심 변경사항**:
+
+1. ✅ **FMEA ID 유형 구분자 추가**
+   - 새 형식: `pfm{YY}-{T}{NNN}`
+   - 유형 구분자: **M** (Master), **F** (Family), **P** (Part)
+   - 예시: `pfm26-M001`, `pfm26-F001`, `pfm26-P001`
+
+2. ✅ **등록 화면 FMEA 유형 선택**
+   - "회사에 의해 결정됨" → FMEA 유형 드롭다운으로 변경
+   - 유형 변경 시 ID 자동 재생성
+
+3. ✅ **리스트 TYPE 컬럼 추가**
+   - FMEA ID 옆에 TYPE 배지 표시
+   - 색상: 🟣 M(보라), 🔵 F(파랑), 🟢 P(초록)
+
+4. ✅ **리스트 정렬 순서 변경**
+   - 1행: Master FMEA (항상 최상단)
+   - 2행: Family FMEA (항상 2번째)
+   - 3행~: Part FMEA (최신순)
+
+5. ✅ **5ST/6ST 확정 버튼 항상 표시**
+   - 조건부 숨김 → 항상 표시로 변경
+   - 비활성 상태: 회색 + 클릭 시 경고
+
+**수정된 파일**:
+- `src/app/pfmea/list/page.tsx` - TYPE 컬럼, 정렬 로직
+- `src/app/pfmea/register/page.tsx` - FMEA 유형 선택 UI
+- `src/app/pfmea/worksheet/components/TabMenu.tsx` - 확정 버튼 상시 표시
+
+---
+
+### v2.4.0 - 리스크평가/최적화 확정 기능 + DB 저장 완성
+
+**핵심 변경사항**:
+
+1. ✅ **FMEA ID 소문자 규칙 적용**
+   - 생성 규칙: `pfm26-001` (소문자 + 연도2자리 + 시퀀스3자리)
+   - 모든 샘플 데이터 ID 소문자로 변경
+   - `formatFmeaId()` 함수 수정
+
+2. ✅ **모든 분석 단계 확정 시 DB 저장 구현**
+   - **구조분석 (2단계)**: `StructureTab.tsx` → `saveAtomicDB()` 호출
+   - **기능분석 (3단계)**: `FunctionL1/L2/L3Tab.tsx` → `saveAtomicDB()` 호출
+   - **고장분석 (4단계)**: `FailureL1/L2/L3Tab.tsx`, `FailureLinkTab.tsx` 기존 구현 확인
+   - **리스크평가 (5단계)**: `RiskTabConfirmable.tsx` 신규 생성
+   - **최적화 (6단계)**: `OptTabConfirmable.tsx` 신규 생성
+
+3. ✅ **TabMenu 확정 버튼 추가**
+   - 5단계확정 버튼 (고장연결 확정 후 표시)
+   - 6단계확정 버튼 (리스크평가 확정 후 표시)
+   - 확정 상태 색상 표시 (미확정: 노란색, 확정됨: 초록색 ✓)
+
+4. ✅ **메인 저장 버튼 전체 저장**
+   - TopMenuBar 저장 버튼 → `saveToLocalStorage()` + `saveAtomicDB()` 동시 호출
+   - 저장 상태 표시: ⏳저장중 / 💾저장 / ✅저장됨
+
+5. ✅ **Prisma 스키마 업데이트**
+   - `Optimization` 모델에 `remarks` (비고) 필드 추가
+   - `@types/pg` 패키지 추가
+
+6. ✅ **빌드 에러 수정**
+   - 임시 테스트 파일 삭제 (`check-db.ts`, `check-db-list.ts`)
+   - Prisma 7.x `PrismaPg` 어댑터 적용
+   - 타입 에러 수정
+
+**생성된 파일**:
+- `src/app/pfmea/worksheet/tabs/RiskTabConfirmable.tsx` - 리스크평가 확정 탭
+- `src/app/pfmea/worksheet/tabs/OptTabConfirmable.tsx` - 최적화 확정 탭
+
+**수정된 파일**:
+- `src/app/pfmea/worksheet/tabs/index.ts` - export 추가
+- `src/app/pfmea/worksheet/components/TabMenu.tsx` - 확정 버튼 추가
+- `src/app/pfmea/worksheet/components/TabFullComponents.tsx` - 새 탭 연동
+- `src/app/pfmea/worksheet/page.tsx` - 메인 저장 함수 수정
+- `src/app/pfmea/worksheet/tabs/StructureTab.tsx` - DB 저장 추가
+- `src/app/pfmea/worksheet/tabs/function/FunctionL1/L2/L3Tab.tsx` - DB 저장 추가
+- `src/app/pfmea/worksheet/tabs/function/types.ts` - saveAtomicDB prop 추가
+- `prisma/schema.prisma` - Optimization.remarks 추가
+- `scripts/check-failure-links.ts` - Prisma 7.x 호환
+
+**데이터 저장 흐름**:
+```
+사용자 입력 → localStorage (임시)
+     ↓
+각 단계 확정 버튼 클릭
+     ↓
+saveToLocalStorage() + saveAtomicDB()
+     ↓
+PostgreSQL DB (영구 저장)
+  ├─ FmeaLegacyData (전체 JSON)
+  ├─ FmeaConfirmedState (확정 상태)
+  └─ 원자성 테이블들:
+     ├─ l1/l2/l3_structures
+     ├─ l1/l2/l3_functions
+     ├─ failure_effects/modes/causes/links
+     ├─ risk_analyses
+     └─ optimizations
+```
+
+**FMEA 저장 규칙** (메모리 ID: 12967844):
+- 파일명: FMEA ID로 저장 (예: `pfm26-001`)
+- 저장 시점: 신규 프로젝트 생성 시 + 각 단계 확정 시
+- ID 생성: `pfm` + 연도2자리 + `-` + 시퀀스3자리
+
+---
+
+## 📅 2026-01-05
+
+### v2.3.0 - 원자성 DB 기반 전체화면 CASCADE 역전개 (AI 분석 기반)
+
+**작업 내용**:
+1. ✅ **프로젝트별 원자성 관계형 DB 구축**
+   - L1Structure, L2Structure, L3Structure (구조분석)
+   - L1Function, L2Function, L3Function (기능분석)
+   - FailureEffect, FailureMode, FailureCause (고장분석)
+   - FailureLink, RiskAnalysis, Optimization (연결/분석)
+
+2. ✅ **전체화면 API** (`/api/fmea/all-view`)
+   - JOIN으로 CASCADE 역전개
+   - 고장연결 결과 → 기능분석 → 구조분석 역추적
+
+3. ✅ **AllTabAtomic 컴포넌트**
+   - 원자성 DB에서 직접 데이터 로드
+   - 28열 FMEA 워크시트 렌더링
+
+4. ✅ **AllTabRenderer 통합**
+   - `fmeaId` + `useAtomicDB` prop 추가
+   - 원자성 모드 / 레거시 모드 자동 전환
+
+**아키텍처**:
+```
+AllTabRenderer
+├─ fmeaId + useAtomicDB=true → AllTabAtomic (원자성 DB)
+├─ failureLinks.length > 0   → AllTabWithLinks (state)
+└─ 기타                      → AllTabBasic
+
+/api/fmea/all-view
+└─ FailureLink + JOIN (FM→L2Func→L2Struct, FE→L1Func,
+                       FC→L3Func→L3Struct, Risk, Opt)
+```
+
+**AI 분석 가능성**:
+- 공정별 고장 빈도 분석 (SQL GROUP BY)
+- 유사 공정 고장 패턴 예측
+- RPN 기반 위험도 학습
+- 프로젝트간 Lessons Learned
+
+**생성된 파일**:
+- `src/app/api/fmea/all-view/route.ts` - 전체화면 API
+- `src/app/pfmea/worksheet/tabs/all/AllTabAtomic.tsx` - 원자성 렌더러
+
+---
+
+## 📅 2026-01-04
+
+### v2.2.0 - 줄무늬(Zebra) 표준화 완료
+
+- `getZebraColors(idx)` 함수 표준화
+- 모든 워크시트 탭에 일관된 색상 적용
+- 문서화: `docs/ZEBRA_STRIPE_RULES.md`
+
+---
+
+## 🔒 코드프리즈 태그
+
+- `codefreeze-20260106-risk-opt-confirm` - 리스크/최적화 확정 기능
+- `codefreeze-20260105-all-tab-atomic` - 전체화면 원자성 DB
+- `codefreeze-20260103-zebra-refactoring` - 줄무늬 표준화
+- `codefreeze-20260103-multiselect` - 다중선택 저장 로직
+
+---
+
+## 📦 빌드 정보
+
+- **빌드 성공**: 2026-01-06
+- **빌드 시간**: ~12초
+- **Next.js**: 15.x
+- **Prisma**: 7.2.0
+- **PostgreSQL 어댑터**: `@prisma/adapter-pg`

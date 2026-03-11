@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - LLD 선택 모달</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; font-family: 'Segoe UI', sans-serif; }
+  .star { color: #f59e0b; }
+  .star-empty { color: #d1d5db; }
+  .status-g { background: #dcfce7; color: #166534; }
+  .status-y { background: #fef3c7; color: #92400e; }
+  .status-r { background: #fecaca; color: #991b1b; }
+</style>
+</head>
+<body class="bg-gray-100">
+
+<!-- Sidebar -->
+<div class="fixed left-0 top-0 bottom-0 w-12 flex flex-col items-center py-3 gap-4 z-50" style="background:#1a237e;">
+  <div class="w-8 h-8 bg-cyan-400 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="fixed top-0 left-12 right-0 z-40" style="background:#1a1f36;">
+  <div class="flex items-center justify-between px-4 h-10">
+    <span class="text-white font-semibold text-sm">SMART FMEA</span>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">admin</span>
+      <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs">A</div>
+    </div>
+  </div>
+</div>
+
+<!-- Dimmed background -->
+<div class="ml-12 mt-10 opacity-20 pointer-events-none">
+  <div class="bg-slate-800 h-8"></div>
+  <div class="bg-white h-[600px]"></div>
+</div>
+
+<!-- Modal Overlay -->
+<div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-xl shadow-2xl border border-gray-200 w-[1050px] max-h-[620px] overflow-hidden">
+    <!-- Modal Header -->
+    <div class="bg-gradient-to-r from-teal-700 to-teal-600 px-5 py-3 flex items-center justify-between">
+      <div>
+        <h2 class="text-white font-semibold text-sm">LLD 선택 <span class="text-teal-300 text-xs">(Lessons Learned Selection)</span></h2>
+        <p class="text-teal-300 text-[10px] mt-0.5">과거 사례에서 예방/검출관리 개선안을 검색하고 적용합니다.</p>
+      </div>
+      <button class="text-teal-300 hover:text-white text-lg">&times;</button>
+    </div>
+
+    <!-- Search & Filter bar -->
+    <div class="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center gap-3">
+      <!-- Search -->
+      <div class="relative flex-1 max-w-xs">
+        <svg class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" value="온도" placeholder="검색어 입력..." class="w-full pl-8 pr-2 py-1 text-[11px] border border-gray-300 rounded bg-white focus:outline-none focus:border-teal-400">
+      </div>
+      <!-- Filter toggles -->
+      <div class="flex items-center gap-1">
+        <button class="px-2 py-0.5 text-[10px] bg-teal-600 text-white rounded">전체</button>
+        <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">예방관리</button>
+        <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">검출관리</button>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <label class="flex items-center gap-1 text-[10px] text-gray-600 cursor-pointer">
+          <input type="checkbox" checked class="w-3 h-3 rounded text-teal-600">
+          <span>추천만 보기</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-auto" style="max-height:410px;">
+      <table class="w-full border-collapse text-xs">
+        <thead class="sticky top-0 z-10">
+          <tr class="bg-gray-100">
+            <th class="border border-gray-300 px-2 py-2 text-center w-16">LLD No</th>
+            <th class="border border-gray-300 px-2 py-2 text-center w-16">추천</th>
+            <th class="border border-gray-300 px-2 py-2 text-left w-16">차종<br>(Vehicle)</th>
+            <th class="border border-gray-300 px-2 py-2 text-left w-16">대상<br>(Target)</th>
+            <th class="border border-gray-300 px-2 py-2 text-left" style="min-width:100px;">고장형태(FM)</th>
+            <th class="border border-gray-300 px-2 py-2 text-left" style="min-width:100px;">고장원인(FC)</th>
+            <th class="border border-gray-300 px-2 py-2 text-center w-14">구분</th>
+            <th class="border border-gray-300 px-2 py-2 text-left" style="min-width:160px;">개선내용(Improvement)</th>
+            <th class="border border-gray-300 px-2 py-2 text-center w-14">상태</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Row 1 -->
+          <tr class="bg-teal-50/30 hover:bg-teal-50 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-2 text-center text-gray-500 font-mono text-[10px]">LLD-001</td>
+            <td class="border border-gray-300 px-2 py-2 text-center">
+              <span class="star">&#9733;&#9733;&#9733;</span><span class="star-empty">&#9733;&#9733;</span>
+            </td>
+            <td class="border border-gray-300 px-2 py-2">GV80</td>
+            <td class="border border-gray-300 px-2 py-2">타이어</td>
+            <td class="border border-gray-300 px-2 py-2 font-medium">두께 불균일</td>
+            <td class="border border-gray-300 px-2 py-2">온도 제어 불량</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">PC</span></td>
+            <td class="border border-gray-300 px-2 py-2 text-teal-700">PID 자동 온도 보정 시스템 도입으로 ±2°C 이내 관리</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-g px-1.5 py-0.5 rounded text-[10px] font-medium">G</span></td>
+          </tr>
+          <!-- Row 2 -->
+          <tr class="bg-teal-50/30 hover:bg-teal-50 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-2 text-center text-gray-500 font-mono text-[10px]">LLD-002</td>
+            <td class="border border-gray-300 px-2 py-2 text-center">
+              <span class="star">&#9733;&#9733;&#9733;&#9733;</span><span class="star-empty">&#9733;</span>
+            </td>
+            <td class="border border-gray-300 px-2 py-2">G90</td>
+            <td class="border border-gray-300 px-2 py-2">타이어</td>
+            <td class="border border-gray-300 px-2 py-2 font-medium">두께 편차</td>
+            <td class="border border-gray-300 px-2 py-2">온도 편차</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px]">DC</span></td>
+            <td class="border border-gray-300 px-2 py-2 text-teal-700">레이저 인라인 두께 스캐너 설치 (연속 측정, 0.01mm 정밀도)</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-g px-1.5 py-0.5 rounded text-[10px] font-medium">G</span></td>
+          </tr>
+          <!-- Row 3 -->
+          <tr class="hover:bg-gray-50 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-2 text-center text-gray-500 font-mono text-[10px]">LLD-003</td>
+            <td class="border border-gray-300 px-2 py-2 text-center">
+              <span class="star">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </td>
+            <td class="border border-gray-300 px-2 py-2">EV9</td>
+            <td class="border border-gray-300 px-2 py-2">배터리</td>
+            <td class="border border-gray-300 px-2 py-2 font-medium">온도 과열</td>
+            <td class="border border-gray-300 px-2 py-2">냉각 시스템 고장</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">PC</span></td>
+            <td class="border border-gray-300 px-2 py-2">이중 냉각 루프 + 온도 센서 다중화</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-y px-1.5 py-0.5 rounded text-[10px] font-medium">Y</span></td>
+          </tr>
+          <!-- Row 4 -->
+          <tr class="hover:bg-gray-50 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-2 text-center text-gray-500 font-mono text-[10px]">LLD-004</td>
+            <td class="border border-gray-300 px-2 py-2 text-center">
+              <span class="star">&#9733;&#9733;</span><span class="star-empty">&#9733;&#9733;&#9733;</span>
+            </td>
+            <td class="border border-gray-300 px-2 py-2">GV70</td>
+            <td class="border border-gray-300 px-2 py-2">현가장치</td>
+            <td class="border border-gray-300 px-2 py-2 font-medium">이음 발생</td>
+            <td class="border border-gray-300 px-2 py-2">토크 부족</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px]">DC</span></td>
+            <td class="border border-gray-300 px-2 py-2">토크 렌치 자동 기록 + SPC 관리</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-g px-1.5 py-0.5 rounded text-[10px] font-medium">G</span></td>
+          </tr>
+          <!-- Row 5 -->
+          <tr class="hover:bg-gray-50 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-2 text-center text-gray-500 font-mono text-[10px]">LLD-005</td>
+            <td class="border border-gray-300 px-2 py-2 text-center">
+              <span class="star">&#9733;</span><span class="star-empty">&#9733;&#9733;&#9733;&#9733;</span>
+            </td>
+            <td class="border border-gray-300 px-2 py-2">G80</td>
+            <td class="border border-gray-300 px-2 py-2">도어트림</td>
+            <td class="border border-gray-300 px-2 py-2 font-medium">접착 불량</td>
+            <td class="border border-gray-300 px-2 py-2">온도/습도 미관리</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">PC</span></td>
+            <td class="border border-gray-300 px-2 py-2">항온항습 챔버 내 접착 공정 이전</td>
+            <td class="border border-gray-300 px-2 py-2 text-center"><span class="status-r px-1.5 py-0.5 rounded text-[10px] font-medium">R</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="border-t border-gray-200 bg-gray-50 px-5 py-3 flex items-center justify-between">
+      <div class="text-[10px] text-gray-500">
+        검색 결과: <span class="font-bold text-teal-600">5</span>건 (전체 128건 중)
+        &nbsp;|&nbsp;
+        <span class="star">&#9733;</span> 추천도가 높을수록 유사 사례
+      </div>
+      <div class="flex gap-2">
+        <button class="px-4 py-1.5 text-xs border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100">취소(Cancel)</button>
+        <button class="px-4 py-1.5 text-xs bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">적용(Apply)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

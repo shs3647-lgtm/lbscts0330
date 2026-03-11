@@ -1,0 +1,777 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* =====================================================
+ * Smart System 디자인 표준 (Design Standard)
+ * @version 1.0.0
+ * @created 2025-12-26
+ * @ref DESIGN_STANDARD.md, DESIGN_GUIDE.md
+ * ===================================================== */
+
+/* CSS 변수 - 디자인 토큰 */
+:root {
+  /* 색상 팔레트 */
+  --ss-header-bg: #00587a;
+  --ss-header-text: #ffffff;
+  --ss-label-bg: #b8e0e9;
+  --ss-label-text: #333333;
+  --ss-schedule-label-bg: #c8e6c9;
+  --ss-cell-bg: #ffffff;
+  --ss-cell-bg-alt: #e0f2fb;
+  --ss-cell-border: #999999;
+  --ss-page-bg: #f5f5f5;
+  --ss-card-bg: #ffffff;
+  
+  /* 일정 라벨 색상 */
+  --ss-schedule-proto: #a5d6a7;
+  --ss-schedule-p1: #81d4fa;
+  --ss-schedule-p2: #80deea;
+  --ss-schedule-ppap: #4db6ac;
+  --ss-schedule-sop: #66bb6a;
+  --ss-schedule-end: #ffb74d;
+  
+  /* 버튼 색상 */
+  --ss-btn-primary: #1976d2;
+  --ss-btn-save: #10b981;
+  --ss-btn-load: #f59e0b;
+  --ss-btn-delete: #ef4444;
+  --ss-btn-cancel: #6b7280;
+  --ss-btn-add: #22c55e;
+  
+  /* 상태 배지 */
+  --ss-badge-high: #ef4444;
+  --ss-badge-medium: #f59e0b;
+  --ss-badge-low: #22c55e;
+  
+  /* 역할 셀 */
+  --ss-role-bg: #bbdefb;
+  --ss-email-bg: #e8f5e9;
+  
+  /* 크기 */
+  --ss-row-height: 28px;
+  --ss-row-height-sm: 24px;
+  --ss-font-xs: 10px;
+  --ss-font-sm: 11px;
+  --ss-font-base: 12px;
+  --ss-font-md: 13px;
+  --ss-font-lg: 14px;
+  --ss-font-xl: 16px;
+  --ss-cell-padding: 4px 8px;
+  --ss-border-radius: 8px;
+  --ss-border-radius-sm: 4px;
+}
+
+/* 폰트 기본 설정 - 선명한 글씨체 */
+body {
+  font-family: "Malgun Gothic", "맑은 고딕", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--ss-font-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 작은 텍스트 선명도 강화 */
+.text-\[8px\], .text-\[9px\], .text-\[10px\], .text-\[11px\] {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+/* ===== 테이블 표준 스타일 ===== */
+
+/* 테이블 래퍼 */
+.ss-table-wrapper {
+  border-radius: var(--ss-border-radius);
+  overflow: hidden;
+  border: 1px solid var(--ss-cell-border);
+}
+
+/* 테이블 기본 */
+.ss-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--ss-font-sm);
+}
+
+/* 헤더 셀 */
+.ss-table th,
+.ss-th {
+  background: var(--ss-header-bg);
+  color: var(--ss-header-text);
+  border: 1px solid var(--ss-cell-border);
+  padding: var(--ss-cell-padding);
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  height: var(--ss-row-height);
+  font-size: var(--ss-font-sm);
+}
+
+/* 라벨 셀 (항목명) */
+.ss-label,
+.ss-table .ss-label {
+  background: var(--ss-label-bg);
+  color: var(--ss-label-text);
+  border: 1px solid var(--ss-cell-border);
+  padding: var(--ss-cell-padding);
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  height: var(--ss-row-height);
+  font-size: var(--ss-font-sm);
+}
+
+/* 일정 라벨 */
+.ss-schedule-label {
+  background: var(--ss-schedule-label-bg);
+  color: var(--ss-label-text);
+  border: 1px solid var(--ss-cell-border);
+  padding: var(--ss-cell-padding);
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  height: var(--ss-row-height);
+  font-size: var(--ss-font-sm);
+}
+
+/* 일정별 색상 */
+.ss-schedule-proto { background: var(--ss-schedule-proto); }
+.ss-schedule-p1 { background: var(--ss-schedule-p1); }
+.ss-schedule-p2 { background: var(--ss-schedule-p2); }
+.ss-schedule-ppap { background: var(--ss-schedule-ppap); }
+.ss-schedule-sop { background: var(--ss-schedule-sop); }
+.ss-schedule-end { background: var(--ss-schedule-end); }
+
+/* 데이터 셀 */
+.ss-table td,
+.ss-td {
+  background: var(--ss-cell-bg);
+  border: 1px solid var(--ss-cell-border);
+  padding: 2px 4px;
+  height: var(--ss-row-height);
+  font-size: var(--ss-font-sm);
+}
+
+/* 짝수 행 배경 */
+.ss-table tbody tr:nth-child(even) td:not(.ss-label):not(.ss-th) {
+  background: var(--ss-cell-bg-alt);
+}
+
+/* 역할 셀 */
+.ss-role {
+  background: var(--ss-role-bg);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ===== 버튼 표준 스타일 ===== */
+
+.ss-btn {
+  padding: 6px 16px;
+  border-radius: var(--ss-border-radius-sm);
+  font-size: var(--ss-font-base);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ss-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.ss-btn-sm {
+  padding: 4px 12px;
+  font-size: var(--ss-font-sm);
+}
+
+/* 버튼 변형 */
+.ss-btn-primary {
+  background: var(--ss-btn-save);
+  color: #ffffff;
+}
+
+.ss-btn-secondary {
+  background: var(--ss-btn-load);
+  color: #ffffff;
+}
+
+.ss-btn-danger {
+  background: var(--ss-btn-delete);
+  color: #ffffff;
+}
+
+.ss-btn-ghost {
+  background: #ffffff;
+  color: #666666;
+  border: 1px solid #cccccc;
+}
+
+.ss-btn-add {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+/* ===== 입력 필드 표준 ===== */
+
+.ss-input {
+  width: 100%;
+  height: 24px;
+  border: none;
+  background: transparent;
+  font-size: var(--ss-font-sm);
+  outline: none;
+  padding: 0 4px;
+}
+
+.ss-input:focus {
+  background: rgba(0, 88, 122, 0.05);
+}
+
+.ss-input::placeholder {
+  color: #999999;
+}
+
+/* ===== 섹션 헤더 ===== */
+
+.ss-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ss-section-title {
+  font-size: var(--ss-font-md);
+  font-weight: 600;
+  color: #333333;
+}
+
+.ss-section-icon {
+  font-size: var(--ss-font-lg);
+}
+
+/* ===== 레이아웃 ===== */
+
+.ss-page {
+  background: var(--ss-page-bg);
+  min-height: 100%;
+  padding: 8px 12px;
+}
+
+.ss-card {
+  background: var(--ss-card-bg);
+  border-radius: var(--ss-border-radius);
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.ss-status-bar {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #ffffff;
+  border-radius: var(--ss-border-radius-sm);
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--ss-font-sm);
+  color: #666666;
+  border: 1px solid #e0e0e0;
+}
+
+/* ===== 배지 ===== */
+
+.ss-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: var(--ss-font-xs);
+  font-weight: 600;
+}
+
+.ss-badge-high {
+  background: var(--ss-badge-high);
+  color: #ffffff;
+}
+
+.ss-badge-medium {
+  background: var(--ss-badge-medium);
+  color: #ffffff;
+}
+
+.ss-badge-low {
+  background: var(--ss-badge-low);
+  color: #ffffff;
+}
+
+/* ===== 유틸리티 ===== */
+
+.ss-text-center { text-align: center; }
+.ss-text-left { text-align: left; }
+.ss-text-right { text-align: right; }
+.ss-font-bold { font-weight: 600; }
+.ss-nowrap { white-space: nowrap; }
+
+/* 간격 */
+.ss-gap-1 { gap: 4px; }
+.ss-gap-2 { gap: 8px; }
+.ss-gap-3 { gap: 12px; }
+.ss-gap-4 { gap: 16px; }
+
+/* Flex */
+.ss-flex { display: flex; }
+.ss-flex-col { flex-direction: column; }
+.ss-items-center { align-items: center; }
+.ss-justify-between { justify-content: space-between; }
+.ss-justify-end { justify-content: flex-end; }
+
+/* ===== 스크롤바 커스텀 ===== */
+
+.ss-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.ss-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.ss-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.ss-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* 스크롤바 숨김 유틸리티 */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* CP 워크시트 스크롤바 숨김 */
+#cp-worksheet-scroll-container {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+#cp-worksheet-scroll-container::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* CP Import 테이블 내부 스크롤바 완전 제거 - 근본적 해결 */
+/* 테이블 자체는 스크롤바가 없어야 함 */
+#cp-import-scroll-container table {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+  display: table !important;
+  table-layout: fixed !important;
+}
+
+/* 테이블의 모든 자식 요소 */
+#cp-import-scroll-container table *,
+#cp-import-scroll-container table thead,
+#cp-import-scroll-container table tbody,
+#cp-import-scroll-container table tr,
+#cp-import-scroll-container table td,
+#cp-import-scroll-container table th {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+/* 테이블 내부 스크롤바 완전 제거 (Webkit) - 모든 브라우저 */
+#cp-import-scroll-container table::-webkit-scrollbar,
+#cp-import-scroll-container table *::-webkit-scrollbar,
+#cp-import-scroll-container table thead::-webkit-scrollbar,
+#cp-import-scroll-container table tbody::-webkit-scrollbar,
+#cp-import-scroll-container table tr::-webkit-scrollbar,
+#cp-import-scroll-container table td::-webkit-scrollbar,
+#cp-import-scroll-container table th::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+/* CP Import 스크롤바 숨김 */
+#cp-import-scroll-container {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+#cp-import-scroll-container::-webkit-scrollbar {
+  display: none !important;  /* Chrome, Safari and Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+#cp-import-scroll-container::-webkit-scrollbar:vertical {
+  display: none !important;
+  width: 0 !important;
+}
+
+#cp-import-scroll-container::-webkit-scrollbar:horizontal {
+  display: none !important;
+  height: 0 !important;
+}
+
+/* CP 워크시트 드롭다운 화살표 숨김 (C, K, O, Q, R열) */
+#cp-worksheet-scroll-container select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: none;
+  background-repeat: no-repeat;
+  background-position: right center;
+  padding-right: 4px;
+}
+
+#cp-worksheet-scroll-container select::-ms-expand {
+  display: none; /* IE/Edge */
+}
+
+/* ===== All 탭 스크롤바: 브라우저 하단 고정 ===== */
+/* 
+ * 핵심 원리:
+ * 1. 스크롤 래퍼가 남은 공간 전체를 채움 (flex: 1)
+ * 2. 내부 콘텐츠가 넓어서 가로 스크롤 발생
+ * 3. 스크롤바는 래퍼 하단에 위치 = 브라우저 하단
+ */
+
+/* 스크롤 래퍼: 좌우 스크롤 활성화 */
+#all-tab-scroll-wrapper {
+  /* ★ 2026-01-12: 좌우 스크롤 복원 */
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  background: #fff;
+}
+
+/* 내부 콘텐츠: 최소 너비로 스크롤 유발 */
+#all-tab-scroll-wrapper > * {
+  min-width: 2600px;
+}
+
+/* Chrome/Edge 가로 스크롤바 */
+#all-tab-scroll-wrapper::-webkit-scrollbar {
+  height: 18px !important;
+  width: 12px !important;
+  display: block !important;
+  background: #e8e8e8;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar:horizontal {
+  height: 18px !important;
+  display: block !important;
+  background: linear-gradient(to bottom, #d8d8d8, #e8e8e8);
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-track:horizontal {
+  background: linear-gradient(to bottom, #e8e8e8, #d8d8d8) !important;
+  border-top: 1px solid #ccc;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(to bottom, #1a237e, #3f51b5) !important;
+  border-radius: 9px;
+  border: 3px solid #e8e8e8;
+  min-width: 100px;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-thumb:horizontal:hover {
+  background: linear-gradient(to bottom, #0d1757, #303f9f) !important;
+}
+
+/* 스크롤바 버튼 (좌/우 화살표) */
+#all-tab-scroll-wrapper::-webkit-scrollbar-button:single-button:horizontal:decrement {
+  width: 18px;
+  height: 18px;
+  background: #d8d8d8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23333' d='M6 1L2 5l4 4V1z'/%3E%3C/svg%3E") center center no-repeat;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-button:single-button:horizontal:increment {
+  width: 18px;
+  height: 18px;
+  background: #d8d8d8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23333' d='M4 1v8l4-4-4-4z'/%3E%3C/svg%3E") center center no-repeat;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-button:single-button:hover {
+  background-color: #c8c8c8;
+}
+
+/* ★ 세로 스크롤바 스타일 추가 */
+#all-tab-scroll-wrapper::-webkit-scrollbar:vertical {
+  width: 14px !important;
+  display: block !important;
+  background: linear-gradient(to right, #d8d8d8, #e8e8e8);
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-track:vertical {
+  background: linear-gradient(to right, #e8e8e8, #d8d8d8) !important;
+  border-left: 1px solid #ccc;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-thumb:vertical {
+  background: linear-gradient(to right, #1a237e, #3f51b5) !important;
+  border-radius: 7px;
+  border: 2px solid #e8e8e8;
+  min-height: 50px;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-thumb:vertical:hover {
+  background: linear-gradient(to right, #0d1757, #303f9f) !important;
+}
+
+/* 세로 스크롤바 버튼 (상/하 화살표) */
+#all-tab-scroll-wrapper::-webkit-scrollbar-button:single-button:vertical:decrement {
+  width: 14px;
+  height: 14px;
+  background: #d8d8d8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23333' d='M1 6l4-4 4 4H1z'/%3E%3C/svg%3E") center center no-repeat;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+}
+
+#all-tab-scroll-wrapper::-webkit-scrollbar-button:single-button:vertical:increment {
+  width: 14px;
+  height: 14px;
+  background: #d8d8d8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23333' d='M1 4l4 4 4-4H1z'/%3E%3C/svg%3E") center center no-repeat;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+}
+
+/* 기존 클래스 (호환성 유지) */
+.all-tab-scroll-container {
+  overflow-x: scroll !important;
+  overflow-y: auto !important;
+}
+
+/* ===== 워크시트 스크롤바: 브라우저 하단 고정 ===== */
+.worksheet-scroll-container {
+  overflow-x: scroll !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #1a237e #e0e0e0;
+}
+
+.worksheet-scroll-container::-webkit-scrollbar {
+  height: 16px !important;
+  width: 12px !important;
+  display: block !important;
+  background: #e8e8e8;
+}
+
+.worksheet-scroll-container::-webkit-scrollbar:horizontal {
+  height: 16px !important;
+  display: block !important;
+  background: linear-gradient(to bottom, #d8d8d8, #e8e8e8);
+}
+
+.worksheet-scroll-container::-webkit-scrollbar-track:horizontal {
+  background: linear-gradient(to bottom, #e8e8e8, #d8d8d8) !important;
+  border-top: 1px solid #ccc;
+}
+
+.worksheet-scroll-container::-webkit-scrollbar-thumb:horizontal {
+  background: linear-gradient(to bottom, #1a237e, #3f51b5) !important;
+  border-radius: 8px;
+  border: 2px solid #e8e8e8;
+  min-width: 80px;
+}
+
+.worksheet-scroll-container::-webkit-scrollbar-thumb:horizontal:hover {
+  background: linear-gradient(to bottom, #0d1757, #303f9f) !important;
+}
+
+/* ===== 완료 애니메이션 ===== */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 16px 4px rgba(76, 175, 80, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+}
+
+/* ★ Next.js 개발 인디케이터 (N 로고) 숨김 */
+[data-nextjs-dialog-overlay],
+[data-nextjs-toast],
+nextjs-portal,
+#__next-build-indicator,
+#__next-route-announcer__ {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* ★ 사이드바 고정: 워크시트 스크롤 시에도 항상 고정 */
+aside[class*="fixed"][class*="left-0"] {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  height: 100vh !important;
+  z-index: 9999 !important;
+  transform: none !important;
+}
+
+/* ★ 날짜 입력 달력 아이콘 숨김 (개정관리 테이블용) */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 0;
+  padding: 0;
+  margin: 0;
+}

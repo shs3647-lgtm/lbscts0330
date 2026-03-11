@@ -1,0 +1,252 @@
+/* import/styles.module.css */
+/* FMEA 기초정보 Import 페이지 전용 스타일 */
+
+/* ===== 테이블 기본 스타일 ===== */
+.tableWrapper {
+  @apply rounded-lg overflow-hidden border border-[#999];
+}
+
+.table {
+  @apply w-full border-collapse;
+  table-layout: fixed;
+}
+
+/* ===== 헤더 스타일 ===== */
+.headerCell {
+  @apply bg-[#00587a] text-white border border-[#999] px-1.5 py-1 font-bold text-center whitespace-nowrap;
+  height: 28px;
+  font-size: 11px;
+}
+
+.headerCellSmall {
+  @apply bg-[#00587a] text-white border border-[#999] px-1.5 py-1 font-bold text-center whitespace-nowrap;
+  height: 28px;
+  font-size: 10px;
+}
+
+.rowHeader {
+  @apply bg-[#00587a] text-white border border-[#999] px-1.5 py-1 font-bold text-center whitespace-nowrap;
+  height: 28px;
+  font-size: 11px;
+}
+
+.rowHeaderSmall {
+  @apply bg-[#00587a] text-white border border-[#999] px-1.5 py-1 font-bold text-center whitespace-nowrap;
+  height: 28px;
+  font-size: 10px;
+}
+
+/* ===== 셀 스타일 ===== */
+.cell {
+  @apply bg-white border border-[#999] px-1.5 py-1 whitespace-nowrap;
+  height: 28px;
+  font-size: 11px;
+}
+
+.cellCenter {
+  @apply bg-white border border-[#999] px-1.5 py-1 whitespace-nowrap text-center;
+  height: 28px;
+  font-size: 11px;
+}
+
+.cellPadding {
+  @apply bg-white border border-[#999] p-0.5 whitespace-nowrap text-center;
+  height: 28px;
+  font-size: 11px;
+}
+
+.cellBlue {
+  @apply bg-[#e0f2fb] border border-[#999] px-1.5 py-1 whitespace-nowrap;
+  height: 28px;
+  font-size: 11px;
+}
+
+/* ===== 버튼 스타일 ===== */
+.btnPrimary {
+  @apply px-2 py-1 bg-[#00587a] text-white border-none rounded cursor-pointer whitespace-nowrap;
+  font-size: 10px;
+}
+
+.btnSuccess {
+  @apply px-3 py-1 bg-[#4caf50] text-white border-none rounded cursor-pointer font-bold;
+  font-size: 11px;
+}
+
+.btnSuccessDisabled {
+  @apply px-3 py-1 bg-[#ccc] text-white border-none rounded cursor-not-allowed font-bold;
+  font-size: 11px;
+}
+
+.btnDanger {
+  @apply px-2 py-1 bg-[#EF4444] text-white border-none rounded cursor-pointer whitespace-nowrap;
+  font-size: 10px;
+}
+
+.btnBlue {
+  @apply px-2 py-1 bg-[#3B82F6] text-white border-none rounded cursor-pointer whitespace-nowrap;
+  font-size: 10px;
+}
+
+.btnGreen {
+  @apply px-2 py-1 bg-[#22C55E] text-white border-none rounded cursor-pointer whitespace-nowrap;
+  font-size: 10px;
+}
+
+.btnBrowse {
+  @apply block px-2 py-1.5 bg-[#f5f5f5] border border-[#bbb] rounded text-center;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ===== 입력 스타일 ===== */
+.select {
+  @apply p-1 border border-[#ccc] rounded w-full;
+  font-size: 10px;
+}
+
+.selectBold {
+  @apply flex-1 px-2.5 py-1.5 border border-[#999] rounded bg-white font-bold;
+  font-size: 12px;
+}
+
+.selectTab {
+  @apply flex-1 px-2 py-2 border-none font-bold bg-[#e0f2fb] text-[#00587a];
+  font-size: 12px;
+}
+
+.inputCell {
+  @apply w-full border border-[#e0e0e0] rounded-sm px-1 py-0.5 bg-[#fffef0];
+  font-size: 11px;
+}
+
+.inputCellCenter {
+  @apply w-full border border-[#e0e0e0] rounded-sm px-1 py-0.5 bg-[#fffef0] text-center;
+  font-size: 11px;
+}
+
+/* ===== 레이아웃 스타일 ===== */
+.pageContainer {
+  @apply px-3 py-9 bg-[#f5f5f5] min-h-screen;
+  font-family: "Malgun Gothic", sans-serif;
+}
+
+.pageTitle {
+  @apply text-base font-bold text-[#00587a] mb-3;
+}
+
+.sectionTitle {
+  @apply text-[13px] font-bold mb-1.5 text-[#00587a];
+}
+
+.flexRow {
+  @apply flex gap-5 items-start mb-5;
+}
+
+.flexRowStretch {
+  @apply flex gap-5 items-stretch;
+}
+
+.panel {
+  @apply flex-1 flex flex-col border-2 border-[#00587a] rounded-lg overflow-hidden bg-white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.panelFixed {
+  @apply flex flex-col border-2 border-[#00587a] rounded-lg overflow-hidden bg-white;
+  width: 400px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.panelHeader {
+  @apply text-white px-4 py-2.5 text-sm font-bold flex items-center gap-2;
+  background: linear-gradient(135deg, #00587a 0%, #007a9e 100%);
+}
+
+.panelToolbar {
+  @apply flex w-full border-b border-[#999];
+  flex-shrink: 0;
+}
+
+.panelContent {
+  @apply flex-1 overflow-y-auto border-t border-[#ddd] bg-[#fafafa];
+  max-height: 350px;
+}
+
+.panelFooter {
+  @apply px-4 py-2 border-t-2 border-[#333] text-center font-bold;
+  background: linear-gradient(135deg, #e0f2fb 0%, #f5f5f5 100%);
+  font-size: 11px;
+  color: #333;
+  flex-shrink: 0;
+}
+
+/* ===== 툴바 버튼 스타일 ===== */
+.toolbarBtn {
+  @apply px-2.5 py-2 border-none border-l border-[#999] cursor-pointer font-bold;
+  font-size: 11px;
+}
+
+.toolbarBtnDownload {
+  @apply px-2.5 py-2 bg-[#e3f2fd] text-[#1565c0] border-none border-l border-[#999] cursor-pointer font-bold;
+  font-size: 11px;
+}
+
+.toolbarBtnDelete {
+  @apply px-2.5 py-2 bg-[#ffebee] text-[#c62828] border-none border-l border-[#999] cursor-pointer font-bold;
+  font-size: 11px;
+}
+
+.toolbarBtnDelSelected {
+  @apply px-2.5 py-2 bg-[#fff9c4] text-[#f57f17] border-none border-l border-[#999] cursor-pointer font-bold;
+  font-size: 11px;
+}
+
+.toolbarBtnSave {
+  @apply px-3 py-2 bg-[#e1bee7] text-[#6a1b9a] border-none border-l border-[#999] cursor-pointer font-bold;
+  font-size: 11px;
+  transition: background 0.3s, color 0.3s;
+}
+
+.toolbarBtnSaved {
+  @apply px-3 py-2 bg-[#4caf50] text-white border-none border-l border-[#999] cursor-pointer font-bold;
+  font-size: 11px;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ===== 경고 박스 ===== */
+.warningBox {
+  @apply flex items-center gap-4 mb-4 px-4 py-2.5 bg-[#fff3cd] border border-[#ffc107] rounded;
+}
+
+.warningText {
+  @apply font-bold text-[#dc3545] whitespace-nowrap;
+  font-size: 12px;
+}
+
+/* ===== 드래그 상태 ===== */
+.rowDragging {
+  @apply bg-[#e3f2fd];
+}
+
+.rowSelected {
+  @apply bg-[#fff3e0];
+}
+
+/* ===== 순서 아이콘 ===== */
+.orderIcons {
+  @apply flex flex-col items-center justify-center gap-0;
+}
+
+.orderIcon {
+  @apply w-2.5 h-2.5 text-[#666];
+}
+
+.orderIconDisabled {
+  @apply w-2.5 h-2.5 text-[#ccc];
+}
+
+
+
+
+

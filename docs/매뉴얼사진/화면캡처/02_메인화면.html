@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA System - 메인화면</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; overflow-x: hidden; }
+</style>
+</head>
+<body class="bg-[#0d1b2a] text-white">
+
+<!-- Sidebar (48px collapsed) -->
+<div class="fixed left-0 top-0 w-12 h-full bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] z-50 flex flex-col items-center py-2 border-r border-slate-700/30">
+  <!-- Logo -->
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center mb-4">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 border-t border-slate-600/30 mb-3"></div>
+  <!-- Nav icons -->
+  <div class="flex flex-col gap-1">
+    <div class="w-9 h-9 rounded-lg bg-cyan-500/20 flex items-center justify-center cursor-pointer" title="홈">
+      <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+    </div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer" title="P-FMEA">
+      <span class="text-xs font-bold text-blue-400">P</span>
+    </div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer" title="D-FMEA">
+      <span class="text-xs font-bold text-purple-400">D</span>
+    </div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer" title="CP">
+      <span class="text-xs font-bold text-teal-400">CP</span>
+    </div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer" title="PFD">
+      <span class="text-xs font-bold text-violet-400">PF</span>
+    </div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer" title="WS">
+      <span class="text-xs font-bold text-amber-400">W</span>
+    </div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer" title="PM">
+      <span class="text-xs font-bold text-green-400">PM</span>
+    </div>
+  </div>
+  <!-- Bottom icons -->
+  <div class="mt-auto flex flex-col gap-1 mb-3">
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer" title="설정">
+      <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- Header (48px) -->
+<div class="fixed top-0 left-12 right-0 h-12 bg-[#1a1f36] border-b border-slate-700/30 z-40 flex items-center px-4">
+  <span class="text-sm font-semibold text-slate-200">Smart System</span>
+  <span class="mx-3 text-slate-600">|</span>
+  <span class="text-sm text-cyan-400 font-medium">메인 (Home)</span>
+  <div class="flex-1"></div>
+  <!-- Notifications -->
+  <div class="relative mr-4 cursor-pointer">
+    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+    <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center"><span class="text-[9px] text-white font-bold">3</span></div>
+  </div>
+  <!-- User info -->
+  <div class="flex items-center gap-2">
+    <div class="w-7 h-7 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center">
+      <span class="text-xs font-bold text-white">김</span>
+    </div>
+    <div>
+      <span class="text-sm text-slate-200">김철수</span>
+      <span class="text-xs text-slate-500 ml-1">품질팀</span>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="ml-12 mt-12 p-6 min-h-[850px] bg-gradient-to-br from-[#0d1b2a] to-[#1b263b]">
+
+  <!-- Welcome Banner -->
+  <div class="mb-6 bg-gradient-to-r from-[#1a237e]/40 to-[#0d47a1]/20 rounded-xl border border-slate-700/30 p-6">
+    <h2 class="text-xl font-bold text-white mb-1">안녕하세요, 김철수님 👋</h2>
+    <p class="text-slate-400 text-sm">오늘의 FMEA 품질 관리 현황을 확인하세요. <span class="text-slate-500">| 2026-03-08 (일)</span></p>
+  </div>
+
+  <!-- MY JOB Cards -->
+  <div class="mb-6">
+    <h3 class="text-sm font-semibold text-slate-300 mb-3">MY JOB <span class="text-slate-500 font-normal">(나의 업무)</span></h3>
+    <div class="grid grid-cols-4 gap-4">
+      <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-slate-400">총 업무(Total)</span>
+          <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+        </div>
+        <div class="text-3xl font-bold text-white">12</div>
+        <div class="text-xs text-slate-500 mt-1">건</div>
+      </div>
+      <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-slate-400">진행중(In Progress)</span>
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+        </div>
+        <div class="text-3xl font-bold text-cyan-400">5</div>
+        <div class="text-xs text-slate-500 mt-1">건</div>
+      </div>
+      <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-slate-400">완료(Completed)</span>
+          <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+            <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          </div>
+        </div>
+        <div class="text-3xl font-bold text-green-400">6</div>
+        <div class="text-xs text-slate-500 mt-1">건</div>
+      </div>
+      <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-slate-400">지연(Delayed)</span>
+          <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+            <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+        </div>
+        <div class="text-3xl font-bold text-red-400">1</div>
+        <div class="text-xs text-slate-500 mt-1">건</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Links + Recent Activity -->
+  <div class="grid grid-cols-5 gap-6">
+    <!-- Quick Links -->
+    <div class="col-span-3">
+      <h3 class="text-sm font-semibold text-slate-300 mb-3">빠른 접근 <span class="text-slate-500 font-normal">(Quick Links)</span></h3>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5 hover:border-blue-500/30 cursor-pointer transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-3 group-hover:bg-blue-500/20 transition-all">
+            <span class="text-sm font-bold text-blue-400">P</span>
+          </div>
+          <div class="text-sm font-medium text-white">P-FMEA</div>
+          <div class="text-xs text-slate-500 mt-1">Process FMEA</div>
+          <div class="text-xs text-blue-400 mt-2">14 프로젝트</div>
+        </div>
+        <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5 hover:border-purple-500/30 cursor-pointer transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-3 group-hover:bg-purple-500/20 transition-all">
+            <span class="text-sm font-bold text-purple-400">D</span>
+          </div>
+          <div class="text-sm font-medium text-white">D-FMEA</div>
+          <div class="text-xs text-slate-500 mt-1">Design FMEA</div>
+          <div class="text-xs text-purple-400 mt-2">10 프로젝트</div>
+        </div>
+        <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5 hover:border-teal-500/30 cursor-pointer transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center mb-3 group-hover:bg-teal-500/20 transition-all">
+            <span class="text-sm font-bold text-teal-400">CP</span>
+          </div>
+          <div class="text-sm font-medium text-white">Control Plan</div>
+          <div class="text-xs text-slate-500 mt-1">관리계획서</div>
+          <div class="text-xs text-teal-400 mt-2">18 문서</div>
+        </div>
+        <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5 hover:border-violet-500/30 cursor-pointer transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center mb-3 group-hover:bg-violet-500/20 transition-all">
+            <span class="text-sm font-bold text-violet-400">PF</span>
+          </div>
+          <div class="text-sm font-medium text-white">PFD</div>
+          <div class="text-xs text-slate-500 mt-1">공정흐름도</div>
+          <div class="text-xs text-violet-400 mt-2">15 문서</div>
+        </div>
+        <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5 hover:border-amber-500/30 cursor-pointer transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center mb-3 group-hover:bg-amber-500/20 transition-all">
+            <span class="text-sm font-bold text-amber-400">W</span>
+          </div>
+          <div class="text-sm font-medium text-white">WS</div>
+          <div class="text-xs text-slate-500 mt-1">Work Standard</div>
+          <div class="text-xs text-amber-400 mt-2">32 문서</div>
+        </div>
+        <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-5 hover:border-green-500/30 cursor-pointer transition-all group">
+          <div class="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-3 group-hover:bg-green-500/20 transition-all">
+            <span class="text-sm font-bold text-green-400">PM</span>
+          </div>
+          <div class="text-sm font-medium text-white">PM</div>
+          <div class="text-xs text-slate-500 mt-1">Process Mgmt</div>
+          <div class="text-xs text-green-400 mt-2">8 프로젝트</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-span-2">
+      <h3 class="text-sm font-semibold text-slate-300 mb-3">최근 활동 <span class="text-slate-500 font-normal">(Recent Activity)</span></h3>
+      <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 p-4">
+        <div class="space-y-3">
+          <div class="flex items-start gap-3 pb-3 border-b border-slate-700/20">
+            <div class="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0"></div>
+            <div>
+              <p class="text-sm text-slate-200">타이어 제조 PFMEA 워크시트 수정</p>
+              <p class="text-xs text-slate-500 mt-0.5">pfm26-f001-l68-r00 &middot; 5분 전</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 pb-3 border-b border-slate-700/20">
+            <div class="w-2 h-2 rounded-full bg-teal-400 mt-1.5 shrink-0"></div>
+            <div>
+              <p class="text-sm text-slate-200">CP 관리계획서 확정 완료</p>
+              <p class="text-xs text-slate-500 mt-0.5">cp26-c003-l22-r00 &middot; 32분 전</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 pb-3 border-b border-slate-700/20">
+            <div class="w-2 h-2 rounded-full bg-green-400 mt-1.5 shrink-0"></div>
+            <div>
+              <p class="text-sm text-slate-200">결재 승인: 브레이크 DFMEA</p>
+              <p class="text-xs text-slate-500 mt-0.5">dfm26-d002-l45-r00 &middot; 1시간 전</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 pb-3 border-b border-slate-700/20">
+            <div class="w-2 h-2 rounded-full bg-violet-400 mt-1.5 shrink-0"></div>
+            <div>
+              <p class="text-sm text-slate-200">PFD 공정흐름도 Import 완료</p>
+              <p class="text-xs text-slate-500 mt-0.5">pfd26-p001-l15-r00 &middot; 2시간 전</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 pb-3 border-b border-slate-700/20">
+            <div class="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
+            <div>
+              <p class="text-sm text-slate-200">LLD 수평전개 3건 추가</p>
+              <p class="text-xs text-slate-500 mt-0.5">pfm26-f001-l68-r00 &middot; 3시간 전</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0"></div>
+            <div>
+              <p class="text-sm text-slate-200">AP 개선 기한 초과 알림</p>
+              <p class="text-xs text-slate-500 mt-0.5">pfm26-f005-l30-r00 &middot; 어제</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

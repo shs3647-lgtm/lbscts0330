@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8"><title>Storage Clear</title></head>
+<body style="font-family:sans-serif;padding:40px;background:#f5f7fa">
+<h2>localStorage 초기화</h2>
+<pre id="log"></pre>
+<script>
+const log = document.getElementById('log');
+const keys = [];
+for (let i = 0; i < localStorage.length; i++) {
+  keys.push(localStorage.key(i));
+}
+log.textContent = '삭제 대상: ' + keys.length + '개 키\n';
+keys.forEach(k => { log.textContent += '  - ' + k + '\n'; });
+localStorage.clear();
+log.textContent += '\n✅ localStorage 전체 삭제 완료!\n';
+log.textContent += '\n3초 후 메인 페이지로 이동합니다...';
+setTimeout(() => { window.location.href = '/'; }, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,2553 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model APQPProject {
+  id           String   @id @default(uuid())
+  name         String
+  productName  String
+  customerName String
+  status       String
+  startDate    String?
+  targetDate   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("apqp_projects")
+}
+
+model ProjectLinkage {
+  id                    String   @id @default(uuid())
+  apqpNo                String?
+  pfmeaId               String?
+  dfmeaId               String?
+  pfdNo                 String?
+  cpNo                  String?
+  companyName           String?
+  engineeringLocation   String?
+  customerName          String?
+  modelYear             String?
+  subject               String?
+  partNo                String?
+  projectName           String?
+  startDate             String?
+  revisionDate          String?
+  processResponsibility String?
+  confidentialityLevel  String?
+  responsibleName       String?
+  linkType              String   @default("auto")
+  status                String   @default("active")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdBy             String?
+
+  @@index([apqpNo])
+  @@index([pfmeaId])
+  @@index([dfmeaId])
+  @@index([pfdNo])
+  @@index([cpNo])
+  @@index([status])
+  @@map("project_linkages")
+}
+
+model UnifiedProcessItem {
+  id               String            @id @default(uuid())
+  projectLinkageId String?
+  apqpNo           String?
+  processNo        String
+  processName      String
+  processLevel     String?
+  processDesc      String?
+  partName         String?
+  equipment        String?
+  equipmentM4      String?            // ★ 4M 원본 코드 보존 (MC/MD/JG/IM/EN)
+  workElement      String?
+  productChar      String?
+  processChar      String?
+  specialChar      String?
+  fmeaL2Id         String?            // ★ FMEA L2Structure ID 직접 참조
+  fmeaL3Id         String?            // ★ FMEA L3Structure ID 직접 참조
+  parentId         String?
+  mergeGroupId     String?
+  rowSpan          Int?              @default(1)
+  sortOrder        Int               @default(0)
+  isDeleted        Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  controlPlanItems ControlPlanItem[]
+  pfdItems         PfdItem[]
+
+  @@index([projectLinkageId])
+  @@index([apqpNo])
+  @@index([processNo])
+  @@index([fmeaL2Id])
+  @@index([fmeaL3Id])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("unified_process_items")
+}
+
+model L1Structure {
+  id           String        @id @default(uuid())
+  fmeaId       String
+  name         String
+  confirmed    Boolean?      @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  rowIndex     Int           @default(0)
+  colIndex     Int           @default(0)
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?          @default(1)
+  colSpan      Int?          @default(1)
+  l1Functions  L1Function[]
+  l2Structures L2Structure[]
+
+  @@index([fmeaId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@index([rowIndex])
+  @@map("l1_structures")
+}
+
+model L2Structure {
+  id           String        @id @default(uuid())
+  fmeaId       String
+  l1Id         String
+  no           String
+  name         String
+  order        Int
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  rowIndex     Int           @default(0)
+  colIndex     Int           @default(1)
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?          @default(1)
+  colSpan      Int?          @default(1)
+  failureModes FailureMode[]
+  l2Functions  L2Function[]
+  l1Structure  L1Structure   @relation(fields: [l1Id], references: [id], onDelete: Cascade)
+  l3Structures L3Structure[]
+
+  @@index([fmeaId])
+  @@index([l1Id])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@index([rowIndex])
+  @@map("l2_structures")
+}
+
+model L3Structure {
+  id            String         @id @default(uuid())
+  fmeaId        String
+  l1Id          String
+  l2Id          String
+  m4            String?
+  name          String
+  order         Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  rowIndex      Int            @default(0)
+  colIndex      Int            @default(3)
+  parentId      String?
+  mergeGroupId  String?
+  rowSpan       Int?           @default(1)
+  colSpan       Int?           @default(1)
+  failureCauses FailureCause[]
+  l3Functions   L3Function[]
+  l2Structure   L2Structure    @relation(fields: [l2Id], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([l1Id])
+  @@index([l2Id])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@index([rowIndex])
+  @@map("l3_structures")
+}
+
+model L1Function {
+  id             String          @id @default(uuid())
+  fmeaId         String
+  l1StructId     String
+  category       String
+  functionName   String
+  requirement    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  parentId       String?
+  mergeGroupId   String?
+  rowSpan        Int?            @default(1)
+  colSpan        Int?            @default(1)
+  failureEffects FailureEffect[]
+  l1Structure    L1Structure     @relation(fields: [l1StructId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([l1StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l1_functions")
+}
+
+model L2Function {
+  id           String        @id @default(uuid())
+  fmeaId       String
+  l2StructId   String
+  functionName String
+  productChar  String
+  specialChar  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?          @default(1)
+  colSpan      Int?          @default(1)
+  failureModes FailureMode[]
+  l2Structure  L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l2_functions")
+}
+
+model L3Function {
+  id            String         @id @default(uuid())
+  fmeaId        String
+  l3StructId    String
+  l2StructId    String
+  functionName  String
+  processChar   String
+  specialChar   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  parentId      String?
+  mergeGroupId  String?
+  rowSpan       Int?           @default(1)
+  colSpan       Int?           @default(1)
+  failureCauses FailureCause[]
+  l3Structure   L3Structure    @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([l3StructId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l3_functions")
+}
+
+model FailureEffect {
+  id           String        @id @default(uuid())
+  fmeaId       String
+  l1FuncId     String
+  category     String
+  effect       String
+  severity     Int
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?          @default(1)
+  colSpan      Int?          @default(1)
+  l1Function   L1Function    @relation(fields: [l1FuncId], references: [id], onDelete: Cascade)
+  failureLinks FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l1FuncId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("failure_effects")
+}
+
+model FailureMode {
+  id            String        @id @default(uuid())
+  fmeaId        String
+  l2FuncId      String
+  l2StructId    String
+  productCharId String?
+  mode          String
+  specialChar   Boolean?      @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  parentId      String?
+  mergeGroupId  String?
+  rowSpan       Int?          @default(1)
+  colSpan       Int?          @default(1)
+  failureLinks  FailureLink[]
+  l2Function    L2Function    @relation(fields: [l2FuncId], references: [id], onDelete: Cascade)
+  l2Structure   L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([l2FuncId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("failure_modes")
+}
+
+model FailureCause {
+  id            String        @id @default(uuid())
+  fmeaId        String
+  l3FuncId      String
+  l3StructId    String
+  l2StructId    String
+  processCharId String?
+  cause         String
+  occurrence    Int?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  parentId      String?
+  mergeGroupId  String?
+  rowSpan       Int?          @default(1)
+  colSpan       Int?          @default(1)
+  l3Function    L3Function    @relation(fields: [l3FuncId], references: [id], onDelete: Cascade)
+  l3Structure   L3Structure   @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
+  failureLinks  FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l3FuncId])
+  @@index([l3StructId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("failure_causes")
+}
+
+// ★★★ 2026-02-16: 1 FMEA = 1 Dataset 독립 아키텍처 ★★★
+model PfmeaMasterDataset {
+  id             String                @id @default(uuid())
+  name           String
+  fmeaId         String                @unique  // ★ 1 FMEA = 1 Dataset
+  fmeaType       String                         // M | F | P
+  parentFmeaId   String?                        // 상위 FMEA 연결
+  sourceFmeaId   String?                        // ★ 연동 원본 FMEA ID (어디서 가져왔는지)
+  isActive       Boolean               @default(true)
+  version        Int                    @default(1)
+  relationData   Json?
+  failureChains  Json?                          // ★ 고장사슬 데이터 [{processNo, m4, fe, fm, fc, sod, ap, ...}]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  flatItems      PfmeaMasterFlatItem[]
+
+  @@index([fmeaId])
+  @@index([fmeaType])
+  @@index([isActive])
+  @@map("pfmea_master_datasets")
+}
+
+model PfmeaMasterFlatItem {
+  id             String             @id @default(uuid())
+  datasetId      String
+  processNo      String
+  category       String
+  itemCode       String
+  value          String
+  m4             String?            // 4M 분류: MN(사람), MC(설비), IM(부자재), EN(환경)
+  specialChar    String?            // 특별특성 기호: ◇, ◆, △, ○ 등
+  inherited      Boolean            @default(false)  // ★ 상위에서 가져온 데이터
+  sourceId       String?                              // ★ 원본 dataset ID
+  createdAt      DateTime           @default(now())
+  // ★★★ 2026-02-25: 위치/모자관계/병합 정보 ★★★
+  excelRow       Int?               // 엑셀 원본 행 번호 (1-based)
+  excelCol       Int?               // 엑셀 원본 열 번호 (1-based)
+  orderIndex     Int?               // 같은 processNo+itemCode 내 순서 (0-based)
+  parentItemId   String?            // 부모 아이템 ID (모자관계)
+  mergeGroupId   String?            // 병합 그룹 ID
+  rowSpan        Int?               // 병합 행 수 (1=단일, 2+=병합)
+  belongsTo      String?            // 소속 작업요소 이름 (B2/B3)
+  dataset        PfmeaMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, processNo, itemCode, value])
+  @@index([datasetId])
+  @@index([parentItemId])
+  @@index([mergeGroupId])
+  @@map("pfmea_master_flat_items")
+}
+
+// ★★★ 2026-02-16: DFMEA도 동일한 1 FMEA = 1 Dataset 구조 ★★★
+model DfmeaMasterDataset {
+  id             String                @id @default(uuid())
+  name           String
+  fmeaId         String                @unique  // ★ 1 FMEA = 1 Dataset
+  fmeaType       String                         // M | F | P
+  parentFmeaId   String?                        // 상위 FMEA 연결
+  isActive       Boolean               @default(true)
+  version        Int                    @default(1)
+  relationData   Json?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  flatItems      DfmeaMasterFlatItem[]
+
+  @@index([fmeaId])
+  @@index([fmeaType])
+  @@index([isActive])
+  @@map("dfmea_master_datasets")
+}
+
+model DfmeaMasterFlatItem {
+  id           String             @id @default(uuid())
+  datasetId    String
+  processNo    String
+  category     String
+  itemCode     String
+  value        String
+  inherited    Boolean            @default(false)  // ★ 상위에서 가져온 데이터
+  sourceId     String?                              // ★ 원본 dataset ID
+  createdAt    DateTime           @default(now())
+  dataset      DfmeaMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, processNo, itemCode, value])
+  @@index([datasetId])
+  @@map("dfmea_master_flat_items")
+}
+
+model FailureLink {
+  id              String           @id @default(uuid())
+  fmeaId          String
+  fmId            String
+  feId            String
+  fcId            String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  fmText          String?
+  fmProcess       String?
+  feText          String?
+  feScope         String?
+  fcText          String?
+  fcWorkElem      String?
+  fcM4            String?
+  severity        Int?
+  fmSeq           Int?
+  feSeq           Int?
+  fcSeq           Int?
+  fmPath          String?
+  fePath          String?
+  fcPath          String?
+  parentId        String?
+  mergeGroupId    String?
+  rowSpan         Int?             @default(1)
+  colSpan         Int?             @default(1)
+  failureAnalyses FailureAnalysis?
+  failureCause    FailureCause     @relation(fields: [fcId], references: [id], onDelete: Cascade)
+  failureEffect   FailureEffect    @relation(fields: [feId], references: [id], onDelete: Cascade)
+  failureMode     FailureMode      @relation(fields: [fmId], references: [id], onDelete: Cascade)
+  riskAnalyses    RiskAnalysis[]
+  deletedAt       DateTime?          // ★ soft delete 지원 (30일 후 자동 정리)
+
+  @@index([fmeaId])
+  @@index([fmId])
+  @@index([feId])
+  @@index([fcId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@unique([fmeaId, fmId, feId, fcId])
+  @@index([fmeaId, fmId, feId, fcId])
+  @@map("failure_links")
+}
+
+model FailureAnalysis {
+  id                String      @id @default(uuid())
+  fmeaId            String
+  linkId            String      @unique
+  fmId              String
+  fmText            String
+  fmProcessName     String
+  feId              String
+  feText            String
+  feCategory        String
+  feSeverity        Int
+  fcId              String
+  fcText            String
+  fcOccurrence      Int?
+  fcWorkElementName String
+  fcM4              String?
+  l1FuncId          String
+  l1Category        String
+  l1FuncName        String
+  l1Requirement     String
+  l2FuncId          String
+  l2FuncName        String
+  l2ProductChar     String
+  l2SpecialChar     String?
+  l3FuncId          String
+  l3FuncName        String
+  l3ProcessChar     String
+  l3SpecialChar     String?
+  l1StructId        String
+  l1StructName      String
+  l2StructId        String
+  l2StructNo        String
+  l2StructName      String
+  l3StructId        String
+  l3StructM4        String?
+  l3StructName      String
+  order             Int         @default(0)
+  confirmed         Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  failureLink       FailureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([linkId])
+  @@index([fmId])
+  @@index([feId])
+  @@index([fcId])
+  @@map("failure_analyses")
+}
+
+model RiskAnalysis {
+  id                String         @id @default(uuid())
+  fmeaId            String
+  linkId            String
+  severity          Int
+  occurrence        Int
+  detection         Int
+  ap                String
+  preventionControl String?
+  detectionControl  String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  optimizations     Optimization[]
+  failureLink       FailureLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([linkId])
+  @@index([fmeaId, linkId])
+  @@map("risk_analyses")
+}
+
+model Optimization {
+  id                String       @id @default(uuid())
+  fmeaId            String
+  riskId            String
+  recommendedAction String
+  responsible       String
+  targetDate        String
+  newSeverity       Int?
+  newOccurrence     Int?
+  newDetection      Int?
+  newAP             String?
+  status            String
+  completedDate     String?
+  remarks           String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  riskAnalysis      RiskAnalysis @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([riskId])
+  @@map("optimizations")
+}
+
+model FmeaProject {
+  id             String             @id @default(uuid())
+  fmeaId         String             @unique
+  fmeaType       String             @default("P")
+  parentApqpNo   String?
+  parentFmeaId   String?
+  parentFmeaType String?
+  status         String             @default("active")
+  step           Int                @default(1)
+  revisionNo     String             @default("Rev.00")
+  revMajor       Int                @default(0)
+  revMinor       Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+  cftMembers     FmeaCftMember[]
+  registration   FmeaRegistration?
+  worksheetData  FmeaWorksheetData?
+
+  @@index([fmeaType])
+  @@index([parentFmeaId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("fmea_projects")
+}
+
+model FmeaRegistration {
+  id                   String      @id @default(uuid())
+  fmeaId               String      @unique
+  companyName          String?
+  engineeringLocation  String?
+  customerName         String?
+  modelYear            String?
+  subject              String?
+  fmeaStartDate        String?
+  fmeaRevisionDate     String?
+  fmeaProjectName      String?
+  designResponsibility String?
+  confidentialityLevel String?
+  fmeaResponsibleName  String?
+  partName             String?
+  partNo               String?
+  parentApqpNo         String?
+  linkedCpNo           String?
+  linkedCpNos          String?     // Family CP: JSON 배열 (모든 하위 CP IDs)
+  linkedPfdNo          String?
+  linkedDfmeaNo        String?
+  linkedPfmeaNo        String?
+  remark               String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  project              FmeaProject @relation(fields: [fmeaId], references: [fmeaId], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@map("fmea_registrations")
+}
+
+model FmeaCftMember {
+  id             String      @id @default(uuid())
+  fmeaId         String
+  role           String?
+  name           String?
+  department     String?
+  position       String?
+  responsibility String?
+  email          String?
+  phone          String?
+  remarks        String?
+  order          Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  project        FmeaProject @relation(fields: [fmeaId], references: [fmeaId], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([role])
+  @@map("fmea_cft_members")
+}
+
+model FmeaWorksheetData {
+  id           String      @id @default(uuid())
+  fmeaId       String      @unique
+  l1Data       Json?
+  l2Data       Json?
+  riskData     Json?
+  failureLinks Json?
+  tab          String?
+  version      String      @default("1.0.0")
+  savedAt      DateTime    @default(now())
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  project      FmeaProject @relation(fields: [fmeaId], references: [fmeaId], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@map("fmea_worksheet_data")
+}
+
+model FmeaLegacyData {
+  id        String   @id @default(uuid())
+  fmeaId    String   @unique
+  data      Json
+  version   String   @default("1.0.0")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@map("fmea_legacy_data")
+}
+
+model FmeaConfirmedState {
+  id                    String   @id @default(uuid())
+  fmeaId                String   @unique
+  structureConfirmed    Boolean  @default(false)
+  l1FunctionConfirmed   Boolean  @default(false)
+  l2FunctionConfirmed   Boolean  @default(false)
+  l3FunctionConfirmed   Boolean  @default(false)
+  failureL1Confirmed    Boolean  @default(false)
+  failureL2Confirmed    Boolean  @default(false)
+  failureL3Confirmed    Boolean  @default(false)
+  failureLinkConfirmed  Boolean  @default(false)
+  riskConfirmed         Boolean  @default(false)
+  optimizationConfirmed Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("fmea_confirmed_states")
+}
+
+model FmeaRevisionHistory {
+  id              String   @id @default(uuid())
+  fmeaId          String
+  revisionNumber  String
+  revisionDate    String?
+  revisionHistory String?
+  createPosition  String?
+  createName      String?
+  createDate      String?
+  createStatus    String?
+  reviewPosition  String?
+  reviewName      String?
+  reviewDate      String?
+  reviewStatus    String?
+  approvePosition String?
+  approveName     String?
+  approveDate     String?
+  approveStatus   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@index([revisionNumber])
+  @@map("fmea_revision_history")
+}
+
+model FmeaMeetingMinute {
+  id             String   @id @default(uuid())
+  fmeaId         String
+  no             Int
+  date           String?
+  projectName    String?
+  content        String?
+  author         String?
+  authorPosition String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@index([no])
+  @@map("fmea_meeting_minutes")
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  factory             String
+  department          String
+  engineeringLocation String?   @default("천안공장")
+  name                String
+  position            String
+  phone               String?
+  email               String?   @unique
+  remark              String?
+  password            String?
+  isActive            Boolean   @default(true)
+  lastLoginAt         DateTime?
+  role                String    @default("viewer")
+  permPfmea           String    @default("none")
+  permDfmea           String    @default("none")
+  permCp              String    @default("none")
+  permPfd             String    @default("none")
+  photoUrl            String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([name])
+  @@index([department])
+  @@index([factory])
+  @@index([isActive])
+  @@index([role])
+  @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model AccessLog {
+  id          String    @id @default(uuid())
+  userId      String?
+  userName    String
+  projectId   String?
+  module      String
+  action      String
+  itemType    String?
+  cellAddress String?
+  description String?
+  ipAddress   String?
+  userAgent   String?
+  loginTime   DateTime  @default(now())
+  logoutTime  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([module])
+  @@index([action])
+  @@index([loginTime])
+  @@map("access_logs")
+}
+
+model Customer {
+  id          String   @id @default(uuid())
+  name        String
+  code        String?  @unique
+  factory     String?
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([sortOrder])
+  @@map("customers")
+}
+
+model BizInfoProject {
+  id           String   @id @default(uuid())
+  customerName String
+  customerCode String?
+  factory      String?
+  modelYear    String?
+  program      String?
+  productName  String?
+  partNo       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([customerName])
+  @@index([customerCode])
+  @@index([productName])
+  @@map("bizinfo_projects")
+}
+
+model LessonsLearned {
+  id            String   @id @default(uuid())
+  lldNo         String   @unique
+  vehicle       String
+  target        String
+  failureMode   String
+  location      String?
+  cause         String
+  category      String
+  improvement   String
+  completedDate String?
+  fmeaId        String?
+  status        String   @default("R")
+  appliedDate   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([lldNo])
+  @@index([vehicle])
+  @@index([target])
+  @@index([status])
+  @@index([fmeaId])
+  @@map("lessons_learned")
+}
+
+// CIP (Continuous Improvement Plan) - AP 개선 관리
+model ContinuousImprovementPlan {
+  id            String   @id @default(uuid())
+  cipNo         String   @unique
+  fmeaId        String?
+  uniqueKey     String?
+  apLevel       String?
+  category      String
+  failureMode   String
+  cause         String
+  improvement   String
+  responsible   String?
+  targetDate    String?
+  completedDate String?
+  status        String   @default("R")
+  s             Int?
+  o             Int?
+  d             Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([cipNo])
+  @@index([fmeaId])
+  @@index([category])
+  @@index([status])
+  @@map("continuous_improvement_plan")
+}
+
+// ============================================================
+// LLD(필터코드) 통합 모델
+// 기존 LessonsLearned + KrIndustry + Import 마스터 통합
+// 정확 매칭: processNo + processName + productName
+// 수평전개: 유사제품 LLD를 다른 FMEA에 전개
+// ============================================================
+
+model LLDFilterCode {
+  id              String   @id @default(uuid())
+  lldNo           String   @unique              // LLD26-001 형식
+
+  // -- 분류 --
+  classification  String                         // RMA | ABN | CIP | ECN | FieldIssue | DevIssue
+  applyTo         String                         // prevention | detection
+
+  // -- 정확 매칭용 필수 필드 --
+  processNo       String                         // 공정번호
+  processName     String                         // 공정명
+  productName     String                         // 제품명 (수평전개 기준)
+
+  // -- 고장 정보 --
+  failureMode     String                         // 고장형태
+  cause           String                         // 발생원인
+
+  // -- 관리 기준값 --
+  occurrence      Int?                           // 발생도 O값 (예방관리 시 필수)
+  detection       Int?                           // 검출도 D값 (검출관리 시 필수)
+  improvement     String                         // 개선대책
+
+  // -- 메타 --
+  vehicle         String   @default("")          // 차종
+  target          String   @default("제조")      // 설계 | 부품 | 제조
+  m4Category      String?                        // MN | MC | IM | EN
+  location        String?                        // 발생장소
+  completedDate   String?                        // 완료일자
+  status          String   @default("R")         // G=완료 | Y=진행 | R=미완료
+  sourceType      String   @default("manual")    // manual | import | industry
+  priority        Int      @default(0)           // 추천 우선순위 (높을수록 우선)
+
+  // -- FMEA 적용 추적 --
+  fmeaId          String?                        // 적용된 FMEA ID
+  appliedDate     String?                        // 적용 날짜
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([processNo, processName])
+  @@index([productName])
+  @@index([classification])
+  @@index([applyTo])
+  @@index([status])
+  @@index([fmeaId])
+  @@map("lld_filter_code")
+}
+
+model ControlPlan {
+  id            String            @id @default(uuid())
+  cpNo          String            @unique
+  fmeaId        String
+  fmeaNo        String?
+  fmeaRev       Int               @default(1)
+  projectName   String?
+  partName      String?
+  partNo        String?
+  revNo         String            @default("A")
+  revDate       String?
+  customer      String?
+  processFrom   String?
+  processTo     String?
+  preparedBy    String?
+  approvedBy    String?
+  linkedPfmeaNo String?
+  linkedPfdNo   String?
+  status        String            @default("draft")
+  step          Int               @default(1)
+  syncStatus    String            @default("new")
+  lastSyncAt    DateTime?
+  changeCount   Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  items         ControlPlanItem[]
+
+  @@index([fmeaId])
+  @@index([cpNo])
+  @@index([status])
+  @@map("control_plans")
+}
+
+model ControlPlanItem {
+  id              String              @id @default(uuid())
+  cpId            String
+  pfmeaRowUid     String?
+  pfmeaProcessId  String?
+  pfmeaWorkElemId String?
+  processNo       String
+  processName     String
+  processLevel    String?
+  processDesc     String?
+  partName        String?
+  workElement     String?
+  equipment       String?
+  equipmentM4     String?             // ★ 4M 원본 코드 보존 (MC/MD/JG/IM/EN)
+  detectorNo      Boolean             @default(false)
+  detectorEp      Boolean             @default(false)
+  detectorAuto    Boolean             @default(false)
+  epDeviceIds     String?             // EP 선택 장치 ID 목록 (comma-separated UUIDs)
+  autoDeviceIds   String?             // 자동검사 선택 장치 ID 목록 (comma-separated UUIDs)
+  productChar     String?
+  processChar     String?
+  specialChar     String?
+  charIndex       Int                 @default(0)
+  specTolerance   String?
+  evalMethod      String?
+  sampleSize      String?
+  sampleFreq      String?
+  controlMethod   String?
+  owner1          String?
+  owner2          String?
+  reactionPlan    String?
+  rowType         String?            // product | process | structure
+  refSeverity     Int?
+  refOccurrence   Int?
+  refDetection    Int?
+  refAp           String?
+  linkStatus      String              @default("linked")
+  changeFlag      Boolean             @default(false)
+  sortOrder       Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  unifiedItemId   String?
+  controlPlan     ControlPlan         @relation(fields: [cpId], references: [id], onDelete: Cascade)
+  unifiedItem     UnifiedProcessItem? @relation(fields: [unifiedItemId], references: [id])
+
+  @@index([cpId])
+  @@index([pfmeaRowUid])
+  @@index([pfmeaProcessId])
+  @@index([unifiedItemId])
+  @@map("control_plan_items")
+}
+
+model SyncLog {
+  id           String    @id @default(uuid())
+  sourceType   String
+  sourceId     String
+  targetType   String
+  targetId     String
+  action       String
+  status       String    @default("pending")
+  errorMsg     String?
+  fieldChanges String?
+  syncedAt     DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("sync_logs")
+}
+
+model PfdRegistration {
+  id                    String    @id @default(uuid())
+  pfdNo                 String    @unique
+  fmeaId                String?
+  cpNo                  String?
+  apqpProjectId         String?
+  parentApqpNo          String?
+  linkedDfmeaNo         String?
+  linkedPfmeaNo         String?
+  linkedCpNos           String?
+  partName              String?
+  partNo                String?
+  subject               String?
+  customerName          String?
+  modelYear             String?
+  companyName           String?
+  processOwner          String?
+  createdBy             String?
+  processResponsibility String?
+  pfdResponsibleName    String?
+  pfdStartDate          String?
+  pfdRevisionDate       String?
+  engineeringLocation   String?
+  confidentialityLevel  String?
+  securityLevel         String?
+  cftMembers            String?
+  status                String    @default("draft")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+  items                 PfdItem[]
+
+  @@index([fmeaId])
+  @@index([cpNo])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("pfd_registrations")
+}
+
+model PfdItem {
+  id            String              @id @default(uuid())
+  pfdId         String
+  processNo     String?
+  processName   String?
+  processLevel  String?
+  processDesc   String?
+  partName      String?
+  workElement   String?
+  equipment     String?
+  equipmentM4   String?              // ★ 4M 원본 코드 보존 (MC/MD/JG/IM/EN)
+  productSC     String?
+  productChar   String?
+  processSC     String?
+  processChar   String?
+  specialChar   String?
+  fmeaL2Id      String?
+  fmeaL3Id      String?
+  cpItemId      String?
+  sortOrder     Int                 @default(0)
+  isDeleted     Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  unifiedItemId String?
+  pfd           PfdRegistration     @relation(fields: [pfdId], references: [id], onDelete: Cascade)
+  unifiedItem   UnifiedProcessItem? @relation(fields: [unifiedItemId], references: [id])
+
+  @@index([pfdId])
+  @@index([processNo])
+  @@index([fmeaL2Id])
+  @@index([cpItemId])
+  @@index([unifiedItemId])
+  @@map("pfd_items")
+}
+
+model DocumentLink {
+  id         String    @id @default(uuid())
+  sourceType String
+  sourceId   String
+  targetType String
+  targetId   String
+  linkType   String    @default("synced_with")
+  syncPolicy String    @default("manual")
+  lastSyncAt DateTime?
+  syncHash   String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([sourceType, sourceId, targetType, targetId])
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+  @@map("document_links")
+}
+
+model PfmeaSeverityCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  scope       String
+  effect      String
+  description String
+  example     String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@index([scope])
+  @@map("pfmea_severity_criteria")
+}
+
+model PfmeaOccurrenceCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  probability String
+  ppm         String?
+  description String
+  prevention  String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("pfmea_occurrence_criteria")
+}
+
+model PfmeaDetectionCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  maturity    String
+  description String
+  detection   String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("pfmea_detection_criteria")
+}
+
+model DfmeaSeverityCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  scope       String
+  effect      String
+  description String
+  example     String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@index([scope])
+  @@map("dfmea_severity_criteria")
+}
+
+model DfmeaOccurrenceCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  probability String
+  ppm         String?
+  description String
+  prevention  String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("dfmea_occurrence_criteria")
+}
+
+model DfmeaDetectionCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  maturity    String
+  description String
+  detection   String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("dfmea_detection_criteria")
+}
+
+model SpecialCharacteristicCriteria {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  symbol      String?
+  description String
+  customer    String?
+  color       String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@index([customer])
+  @@map("special_characteristic_criteria")
+}
+
+// ============================================================
+// 한국 제조업 산업 공통 DB — 검출관리 / 예방관리
+// 프로젝트 독립 (공통 참조 데이터)
+// ============================================================
+
+model KrIndustryDetection {
+  id          String   @id @default(uuid())
+  category    String   // 산업 카테고리: automotive, electronics, press, coating, welding, etc.
+  fmKeyword   String   // 매칭 키워드 (고장형태)
+  method      String   // 검출방법
+  methodType  String   @default("primary") // primary | secondary
+  description String?  // 설명
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([fmKeyword])
+  @@map("kr_industry_detection")
+}
+
+model KrIndustryPrevention {
+  id          String   @id @default(uuid())
+  category    String   // 산업 카테고리: jig, mold, tool, dispenser, pressure, sensor, etc.
+  fcKeyword   String   // 매칭 키워드 (고장원인)
+  method      String   // 예방관리 방법
+  m4Category  String?  // 4M 카테고리: MN, MC, IM, EN (선택)
+  description String?  // 설명
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([fcKeyword])
+  @@index([m4Category])
+  @@map("kr_industry_prevention")
+}
+
+model DashboardStatsCache {
+  id               String   @id @default(uuid())
+  fmeaId           String   @unique
+  fmeaType         String
+  totalItems       Int      @default(0)
+  totalProcesses   Int      @default(0)
+  totalFailures    Int      @default(0)
+  avgRPN           Float    @default(0)
+  maxRPN           Int      @default(0)
+  minRPN           Int      @default(0)
+  apHigh           Int      @default(0)
+  apMedium         Int      @default(0)
+  apLow            Int      @default(0)
+  highRiskCount    Int      @default(0)
+  improvCompleted  Int      @default(0)
+  improvInProgress Int      @default(0)
+  improvPlanned    Int      @default(0)
+  improvDelayed    Int      @default(0)
+  calculatedAt     DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([fmeaType])
+  @@index([calculatedAt])
+  @@map("dashboard_stats_cache")
+}
+
+model KpiSnapshot {
+  id         String   @id @default(uuid())
+  date       String
+  period     String
+  module     String
+  projectId  String?
+  metricCode String
+  metricName String
+  value      Float
+  unit       String?
+  target     Float?
+  status     String?
+  createdAt  DateTime @default(now())
+
+  @@unique([date, period, module, metricCode, projectId])
+  @@index([date])
+  @@index([period])
+  @@index([module])
+  @@index([metricCode])
+  @@map("kpi_snapshots")
+}
+
+model QualityTrend {
+  id              String   @id @default(uuid())
+  periodStart     String
+  periodEnd       String
+  periodType      String
+  module          String
+  rpnAvgStart     Float?
+  rpnAvgEnd       Float?
+  rpnTrend        Float?
+  apHighStart     Int?
+  apHighEnd       Int?
+  apTrend         Float?
+  improvRateStart Float?
+  improvRateEnd   Float?
+  improvTrend     Float?
+  createdAt       DateTime @default(now())
+
+  @@unique([periodStart, periodEnd, periodType, module])
+  @@index([periodType])
+  @@index([module])
+  @@map("quality_trends")
+}
+
+model EvalMethodLibrary {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  category    String
+  description String?
+  equipment   String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@map("eval_method_library")
+}
+
+model ControlMethodLibrary {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  category    String
+  description String?
+  frequency   String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@map("control_method_library")
+}
+
+model ReactionPlanTemplate {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  defectType  String
+  severity    String
+  actionSteps String?
+  responsible String?
+  escalation  String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([defectType])
+  @@index([severity])
+  @@map("reaction_plan_templates")
+}
+
+model Part {
+  id        String   @id @default(uuid())
+  partNo    String   @unique
+  partName  String
+  customer  String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partNo])
+  @@index([partName])
+  @@map("parts")
+}
+
+model MasterProcess {
+  id          String   @id @default(uuid())
+  processNo   String
+  processName String
+  processDesc String?
+  level       String?
+  equipment   String?
+  sourceType  String   @default("manual")
+  sourceId    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([processNo, processName])
+  @@index([processNo])
+  @@index([processName])
+  @@index([sourceType])
+  @@map("master_processes")
+}
+
+model CpMasterProcess {
+  id          String   @id @default(uuid())
+  processNo   String
+  processName String
+  level       String?
+  processDesc String?
+  equipment   String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([processNo, processName])
+  @@index([processNo])
+  @@map("cp_master_processes")
+}
+
+model CpMasterDetector {
+  id           String   @id @default(uuid())
+  processNo    String
+  processName  String
+  ep           String?
+  autoDetector String?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_detectors")
+}
+
+model CpMasterControlItem {
+  id            String   @id @default(uuid())
+  processNo     String
+  processName   String
+  productChar   String?
+  processChar   String?
+  specialChar   String?
+  specTolerance String?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_control_items")
+}
+
+model CpMasterControlMethod {
+  id          String   @id @default(uuid())
+  processNo   String
+  processName String
+  evalMethod  String?
+  sampleSize  String?
+  frequency   String?
+  owner1      String?
+  owner2      String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_control_methods")
+}
+
+model CpMasterReactionPlan {
+  id           String   @id @default(uuid())
+  processNo    String
+  processName  String
+  productChar  String?
+  processChar  String?
+  reactionPlan String?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_reaction_plans")
+}
+
+model CpRegistration {
+  id                    String            @id @default(uuid())
+  cpNo                  String            @unique
+  parentApqpNo          String?
+  fmeaId                String?
+  fmeaNo                String?
+  parentCpId            String?
+  linkedPfdNo           String?
+  linkedDfmeaNo         String?
+  linkedPfmeaNo         String?
+  companyName           String?
+  engineeringLocation   String?
+  customerName          String?
+  modelYear             String?
+  subject               String?
+  cpType                String            @default("P")
+  confidentialityLevel  String?
+  securityLevel         String?
+  cpStartDate           String?
+  cpRevisionDate        String?
+  processResponsibility String?
+  cpResponsibleName     String?
+  partName              String?
+  partNo                String?
+  partNameMode          String?           @default("A")   // A=부품명 숨김(기본), B=부품명 표시(DFMEA연동)
+  // Family CP 필드
+  familyGroupId         String?           // Family 그룹 ID (= fmeaId 정규화)
+  variantNo             Int?              // Family 내 순번 (1, 2, 3...)
+  variantLabel          String?           // 사용자 라벨 ("공장A", "야간조" 등)
+  isBaseVariant         Boolean           @default(false) // Base(템플릿) CP 여부
+  status                String            @default("draft")
+  confirmedAt           DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  deletedAt             DateTime?
+  cpConfirmedStateId    String?
+  atomicProcesses       CpAtomicProcess[]
+  cftMembers            CpCftMember[]
+  processes             CpProcess[]
+  confirmedState        CpConfirmedState? @relation(fields: [cpConfirmedStateId], references: [id])
+  revisions             CpRevision[]
+
+  @@index([fmeaId])
+  @@index([parentCpId])
+  @@index([customerName])
+  @@index([deletedAt])
+  @@index([familyGroupId])
+  @@map("cp_registrations")
+}
+
+model CpCftMember {
+  id           String         @id @default(uuid())
+  cpNo         String
+  seq          Int            @default(0)
+  role         String?
+  factory      String?
+  department   String?
+  name         String?
+  position     String?
+  phone        String?
+  email        String?
+  remark       String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  registration CpRegistration @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+
+  @@index([cpNo])
+  @@map("cp_cft_members")
+}
+
+model CpRevision {
+  id           String         @id @default(uuid())
+  cpNo         String
+  revNo        String
+  revDate      String?
+  revReason    String?
+  revContent   String?
+  revisedBy    String?
+  approvedBy   String?
+  approvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  registration CpRegistration @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+
+  @@index([cpNo])
+  @@map("cp_revisions")
+}
+
+model CpProcess {
+  id             String            @id @default(uuid())
+  cpNo           String
+  processNo      String
+  processName    String
+  level          String?
+  processDesc    String?
+  equipment      String?
+  sortOrder      Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  controlItems   CpControlItem[]
+  controlMethods CpControlMethod[]
+  detectors      CpDetector[]
+  registration   CpRegistration    @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+  reactionPlans  CpReactionPlan[]
+
+  @@unique([cpNo, processNo])
+  @@index([cpNo])
+  @@map("cp_processes")
+}
+
+model CpDetector {
+  id           String    @id @default(uuid())
+  cpNo         String
+  processNo    String
+  ep           String?
+  autoDetector String?
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  process      CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_detectors")
+}
+
+model CpControlItem {
+  id          String    @id @default(uuid())
+  cpNo        String
+  processNo   String
+  productChar String?
+  processChar String?
+  specialChar String?
+  spec        String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  process     CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_control_items")
+}
+
+model CpControlMethod {
+  id            String    @id @default(uuid())
+  cpNo          String
+  processNo     String
+  evalMethod    String?
+  sampleSize    String?
+  frequency     String?
+  controlMethod String?
+  owner1        String?
+  owner2        String?
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  process       CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_control_methods")
+}
+
+model CpReactionPlan {
+  id           String    @id @default(uuid())
+  cpNo         String
+  processNo    String
+  productChar  String?
+  processChar  String?
+  reactionPlan String?
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  process      CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_reaction_plans")
+}
+
+model CpAtomicProcess {
+  id             String                  @id
+  cpNo           String
+  processNo      String
+  processName    String
+  level          String?
+  processDesc    String?
+  equipment      String?
+  equipmentM4    String?                // ★ 4M 원본 코드 보존 (MC/MD/JG/IM/EN)
+  workElement    String?
+  sortOrder      Int                     @default(0)
+  rowIndex       Int?
+  mergeGroupId   String?
+  parentId       String?
+  rowSpan        Int                     @default(1)
+  colSpan        Int                     @default(1)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  controlItems   CpAtomicControlItem[]
+  controlMethods CpAtomicControlMethod[]
+  detectors      CpAtomicDetector[]
+  registration   CpRegistration          @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+  reactionPlans  CpAtomicReactionPlan[]
+
+  @@index([cpNo, processNo])
+  @@index([cpNo, rowIndex])
+  @@index([cpNo])
+  @@index([mergeGroupId])
+  @@map("cp_atomic_processes")
+}
+
+model CpAtomicDetector {
+  id           String          @id
+  cpNo         String
+  processNo    String
+  processId    String
+  ep           String?
+  autoDetector String?
+  sortOrder    Int             @default(0)
+  rowIndex     Int?
+  colIndex     Int?
+  mergeGroupId String?
+  parentId     String?
+  rowSpan      Int             @default(1)
+  colSpan      Int             @default(1)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  process      CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_detectors")
+}
+
+model CpAtomicControlItem {
+  id           String          @id
+  cpNo         String
+  processNo    String
+  processId    String
+  productChar  String?
+  processChar  String?
+  specialChar  String?
+  spec         String?
+  sortOrder    Int             @default(0)
+  rowIndex     Int?
+  colIndex     Int?
+  mergeGroupId String?
+  parentId     String?
+  rowSpan      Int             @default(1)
+  colSpan      Int             @default(1)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  process      CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_control_items")
+}
+
+model CpAtomicControlMethod {
+  id            String          @id
+  cpNo          String
+  processNo     String
+  processId     String
+  evalMethod    String?
+  sampleSize    String?
+  frequency     String?
+  controlMethod String?
+  owner1        String?
+  owner2        String?
+  sortOrder     Int             @default(0)
+  rowIndex      Int?
+  colIndex      Int?
+  mergeGroupId  String?
+  parentId      String?
+  rowSpan       Int             @default(1)
+  colSpan       Int             @default(1)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  process       CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_control_methods")
+}
+
+model CpAtomicReactionPlan {
+  id           String          @id
+  cpNo         String
+  processNo    String
+  processId    String
+  productChar  String?
+  processChar  String?
+  reactionPlan String?
+  sortOrder    Int             @default(0)
+  rowIndex     Int?
+  colIndex     Int?
+  mergeGroupId String?
+  parentId     String?
+  rowSpan      Int             @default(1)
+  colSpan      Int             @default(1)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  process      CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_reaction_plans")
+}
+
+model CpConfirmedState {
+  id                     String           @id @default(uuid())
+  cpNo                   String           @unique
+  processConfirmed       Boolean          @default(false)
+  detectorConfirmed      Boolean          @default(false)
+  controlItemConfirmed   Boolean          @default(false)
+  controlMethodConfirmed Boolean          @default(false)
+  reactionPlanConfirmed  Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  cpRegistrations        CpRegistration[]
+
+  @@index([cpNo])
+  @@map("cp_confirmed_states")
+}
+
+model CpMasterDataset {
+  id        String             @id @default(uuid())
+  cpNo      String             @unique // CP 프로젝트 번호 (1 CP = 1 Dataset, PFMEA 패턴)
+  name      String
+  isActive  Boolean            @default(true)
+  version   Int                @default(1) // 버전 추적
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  flatItems CpMasterFlatItem[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("cp_master_datasets")
+}
+
+model CpMasterFlatItem {
+  id         String          @id @default(uuid())
+  datasetId  String
+  processNo  String
+  category   String
+  itemCode   String
+  value      String
+  m4         String?         // 4M 분류 (MN/MC/IM/EN)
+  sourceId   String?         // 원본 CP ID (동기화 출처 추적)
+  createdAt  DateTime        @default(now())
+  dataset    CpMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, processNo, itemCode, value]) // 중복 방지 (PFMEA 패턴)
+  @@index([datasetId])
+  @@index([processNo])
+  @@index([category])
+  @@index([itemCode])
+  @@map("cp_master_flat_items")
+}
+
+// ── PFD Master Dataset (CP 패턴 복제) ──────────────────────────
+model PfdMasterDataset {
+  id        String              @id @default(uuid())
+  pfdNo     String              @unique
+  name      String
+  isActive  Boolean             @default(true)
+  version   Int                 @default(1)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  flatItems PfdMasterFlatItem[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("pfd_master_datasets")
+}
+
+model PfdMasterFlatItem {
+  id        String           @id @default(uuid())
+  datasetId String
+  processNo String
+  category  String
+  itemCode  String
+  value     String
+  createdAt DateTime         @default(now())
+  dataset   PfdMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, processNo, itemCode, value])
+  @@index([datasetId])
+  @@index([processNo])
+  @@index([category])
+  @@index([itemCode])
+  @@map("pfd_master_flat_items")
+}
+
+model ApqpRegistration {
+  id                    String          @id @default(uuid())
+  apqpNo                String          @unique
+  parentApqpNo          String?
+  parentFmeaId          String?
+  baseCpId              String?
+  linkedFmea            String?
+  linkedDfmea           String?
+  linkedCp              String?
+  linkedPfd             String?
+  companyName           String?
+  engineeringLocation   String?
+  customerName          String?
+  modelYear             String?
+  subject               String?
+  apqpStartDate         String?
+  apqpRevisionDate      String?
+  processResponsibility String?
+  confidentialityLevel  String?
+  developmentLevel      String?
+  apqpResponsibleName   String?
+  productName           String?
+  partNo                String?
+  targetDate            String?
+  status                String?         @default("planning")
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  deletedAt             DateTime?
+  cftMembers            ApqpCftMember[]
+  phases                ApqpPhase[]
+  revisions             ApqpRevision[]
+  schedules             ApqpSchedule[]
+
+  @@index([apqpNo])
+  @@index([customerName])
+  @@index([deletedAt])
+  @@map("apqp_registrations")
+}
+
+model ApqpCftMember {
+  id           String           @id @default(uuid())
+  apqpNo       String
+  seq          Int              @default(0)
+  role         String?
+  factory      String?
+  department   String?
+  name         String?
+  position     String?
+  phone        String?
+  email        String?
+  remark       String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  registration ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@map("apqp_cft_members")
+}
+
+model ApqpRevision {
+  id           String           @id @default(uuid())
+  apqpNo       String
+  revNo        String
+  revDate      String?
+  description  String?
+  author       String?
+  approver     String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  registration ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@map("apqp_revisions")
+}
+
+model ApqpPhase {
+  id           String           @id @default(uuid())
+  apqpNo       String
+  phaseNo      Int
+  phaseName    String
+  status       String?          @default("pending")
+  startDate    String?
+  endDate      String?
+  progress     Int?             @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  activities   ApqpActivity[]
+  registration ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+
+  @@unique([apqpNo, phaseNo])
+  @@index([apqpNo])
+  @@map("apqp_phases")
+}
+
+model ApqpActivity {
+  id              String            @id @default(uuid())
+  apqpNo          String
+  phaseNo         Int
+  activityNo      Int
+  activityName    String
+  description     String?
+  responsible     String?
+  status          String?           @default("pending")
+  planStartDate   String?
+  planEndDate     String?
+  actualStartDate String?
+  actualEndDate   String?
+  progress        Int?              @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  phase           ApqpPhase         @relation(fields: [apqpNo, phaseNo], references: [apqpNo, phaseNo], onDelete: Cascade)
+  deliverables    ApqpDeliverable[]
+
+  @@index([apqpNo, phaseNo])
+  @@map("apqp_activities")
+}
+
+model ApqpDeliverable {
+  id              String       @id @default(uuid())
+  apqpNo          String
+  activityId      String
+  deliverableName String
+  description     String?
+  status          String?      @default("pending")
+  dueDate         String?
+  completedDate   String?
+  filePath        String?
+  reviewer        String?
+  approver        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  activity        ApqpActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@index([activityId])
+  @@map("apqp_deliverables")
+}
+
+model ApqpSchedule {
+  id            String           @id @default(uuid())
+  apqpNo        String
+  milestoneName String
+  description   String?
+  planDate      String?
+  actualDate    String?
+  status        String?          @default("pending")
+  responsible   String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  registration  ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@map("apqp_schedules")
+}
+
+model SharedProcessMaster {
+  id              String                        @id @default(uuid())
+  projectId       String
+  fmeaId          String
+  processNo       String
+  processName     String
+  processDesc     String?
+  partName        String?
+  m4              String?
+  workElement     String?
+  pfmeaL2Id       String?
+  pfmeaL3Id       String?
+  version         Int                           @default(1)
+  syncHash        String?
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+  cpMappings      PfmeaCpMapping[]
+  pfdMappings     PfmeaPfdMapping[]
+  characteristics SharedCharacteristicsMaster[]
+
+  @@unique([projectId, processNo, workElement])
+  @@index([projectId])
+  @@index([fmeaId])
+  @@index([processNo])
+  @@index([updatedAt])
+  @@map("shared_process_master")
+}
+
+model SharedCharacteristicsMaster {
+  id                    String                @id @default(uuid())
+  processId             String
+  productCharacteristic String?
+  processCharacteristic String?
+  specialCharacteristic String?
+  pfmeaL2FuncId         String?
+  pfmeaL3FuncId         String?
+  version               Int                   @default(1)
+  syncHash              String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  process               SharedProcessMaster   @relation(fields: [processId], references: [id], onDelete: Cascade)
+  riskReferences        SharedRiskReference[]
+
+  @@index([processId])
+  @@index([updatedAt])
+  @@map("shared_characteristics_master")
+}
+
+model SharedRiskReference {
+  id               String                      @id @default(uuid())
+  characteristicId String
+  failureEffect    String?
+  failureMode      String?
+  failureCause     String?
+  severity         Int?
+  occurrence       Int?
+  detection        Int?
+  ap               String?
+  rpn              Int?
+  pfmeaLinkId      String?
+  pfmeaRiskId      String?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  characteristic   SharedCharacteristicsMaster @relation(fields: [characteristicId], references: [id], onDelete: Cascade)
+
+  @@index([characteristicId])
+  @@index([updatedAt])
+  @@map("shared_risk_references")
+}
+
+model PfmeaCpMapping {
+  id              String              @id @default(uuid())
+  fmeaId          String
+  fmeaRev         Int                 @default(1)
+  pfmeaRowUid     String
+  sharedProcessId String
+  cpNo            String
+  cpRev           Int                 @default(1)
+  cpItemId        String?
+  linkStatus      String              @default("active")
+  changeFlag      Boolean             @default(false)
+  changeType      String?
+  lastSyncAt      DateTime?
+  syncStatus      String              @default("pending")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  sharedProcess   SharedProcessMaster @relation(fields: [sharedProcessId], references: [id], onDelete: Cascade)
+
+  @@unique([pfmeaRowUid, cpNo])
+  @@index([fmeaId])
+  @@index([cpNo])
+  @@index([sharedProcessId])
+  @@index([linkStatus])
+  @@index([syncStatus])
+  @@index([updatedAt])
+  @@map("pfmea_cp_mappings")
+}
+
+model PfmeaPfdMapping {
+  id              String              @id @default(uuid())
+  fmeaId          String
+  pfmeaRowUid     String
+  sharedProcessId String
+  pfdNo           String
+  pfdItemId       String?
+  linkStatus      String              @default("active")
+  changeFlag      Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  sharedProcess   SharedProcessMaster @relation(fields: [sharedProcessId], references: [id], onDelete: Cascade)
+
+  @@unique([pfmeaRowUid, pfdNo])
+  @@index([fmeaId])
+  @@index([pfdNo])
+  @@index([sharedProcessId])
+  @@index([updatedAt])
+  @@map("pfmea_pfd_mappings")
+}
+
+model SyncTracker {
+  id            String    @id @default(uuid())
+  sourceType    String
+  sourceId      String
+  sourceTable   String
+  sourceRowId   String
+  changeType    String
+  changedFields String?
+  oldValues     String?
+  newValues     String?
+  targetTypes   String
+  status        String    @default("pending")
+  processedAt   DateTime?
+  errorMessage  String?
+  retryCount    Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceTable])
+  @@map("sync_tracker")
+}
+
+model EpDevice {
+  id          String   @id @default(uuid())
+  cpNo        String?
+  fmeaId      String?
+  processNo   String
+  processName String
+  category    String
+  deviceName  String
+  purpose     String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([cpNo])
+  @@index([fmeaId])
+  @@index([processNo])
+  @@index([category])
+  @@map("ep_devices")
+}
+
+model PollingSyncState {
+  id           String   @id @default(uuid())
+  clientId     String   @unique
+  appType      String
+  documentId   String
+  lastPolledAt DateTime @default(now())
+  lastSyncedId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([appType])
+  @@index([documentId])
+  @@index([lastPolledAt])
+  @@map("polling_sync_states")
+}
+
+model PfmeaStateHistory {
+  id           String   @id @default(uuid())
+  fmeaId       String
+  fromState    String
+  toState      String
+  cpAction     String?
+  cpNos        String?
+  changedBy    String?
+  changeReason String?
+  createdAt    DateTime @default(now())
+
+  @@index([fmeaId])
+  @@index([toState])
+  @@index([createdAt])
+  @@map("pfmea_state_history")
+}
+
+model FmeaSodHistory {
+  id         String   @id @default(uuid())
+  fmeaId     String
+  revMajor   Int      @default(1)
+  revMinor   Int      @default(0)
+  fmId       String
+  fmNo       String?
+  fmText     String?
+  fcId       String?
+  fcNo       String?
+  fcText     String?
+  changeType String
+  oldValue   Int
+  newValue   Int
+  changeNote String?
+  changedBy  String?
+  changedAt  DateTime @default(now())
+
+  @@index([fmeaId])
+  @@index([revMajor, revMinor])
+  @@index([fmId])
+  @@index([changeType])
+  @@index([changedAt])
+  @@map("fmea_sod_history")
+}
+
+model FmeaOfficialRevision {
+  id             String   @id @default(uuid())
+  fmeaId         String
+  revMajor       Int
+  revisionNote   String?
+  revisedBy      String?
+  revisedByRole  String?
+  revisedAt      DateTime @default(now())
+  sodChangeCount Int      @default(0)
+
+  @@unique([fmeaId, revMajor])
+  @@index([fmeaId])
+  @@index([revMajor])
+  @@index([revisedAt])
+  @@map("fmea_official_revisions")
+}
+
+model FmeaVersionBackup {
+  id          String   @id @default(uuid())
+  fmeaId      String
+  version     String
+  revMajor    Int
+  revMinor    Int
+  versionType String
+  backupData  String
+  dataSize    Int?
+  compressed  Boolean  @default(false)
+  changeNote  String?
+  triggerType String
+  createdBy   String   @default("admin")
+  createdAt   DateTime @default(now())
+
+  @@unique([fmeaId, version])
+  @@index([fmeaId])
+  @@index([fmeaId, revMajor])
+  @@index([fmeaId, createdAt])
+  @@index([versionType])
+  @@map("fmea_version_backups")
+}
+
+model FmeaApproval {
+  id             String    @id @default(uuid())
+  fmeaId         String
+  revisionId     String
+  revisionNumber String
+  approvalType   String
+  approverEmail  String
+  approverName   String?
+  requesterName  String?
+  token          String    @unique
+  status         String    @default("PENDING")
+  rejectReason   String?
+  requestedAt    DateTime  @default(now())
+  processedAt    DateTime?
+
+  @@index([fmeaId])
+  @@index([status])
+  @@index([approverEmail])
+  @@map("fmea_approvals")
+}
+
+// ★ P3-1: WS(작업표준서) 등록 모델 (PFD 등록 수준으로 확장)
+model WsRegistration {
+  id                    String   @id @default(uuid())
+  wsNo                  String   @unique
+  subject               String?
+  processName           String?
+  revision              String?
+  manager               String?
+  status                String   @default("active")
+  cpNo                  String?
+  processNo             String?
+  // ★ PFD 등록 동등 필드 추가
+  companyName           String?
+  customerName          String?
+  modelYear             String?
+  engineeringLocation   String?
+  processResponsibility String?
+  wsResponsibleName     String?
+  wsStartDate           String?
+  wsRevisionDate        String?
+  confidentialityLevel  String?
+  securityLevel         String?
+  partName              String?
+  partNo                String?
+  parentApqpNo          String?
+  parentFmeaId          String?
+  linkedCpNo            String?
+  linkedCpNos           String?
+  cftMembers            String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  deletedAt             DateTime?
+
+  @@index([cpNo])
+  @@index([status])
+  @@index([parentFmeaId])
+  @@index([deletedAt])
+  @@map("ws_registrations")
+}
+
+// ★ P3-1: PM(예방보전) 등록 모델 (PFD 등록 수준으로 확장)
+model PmRegistration {
+  id                    String   @id @default(uuid())
+  pmNo                  String   @unique
+  subject               String?
+  machineName           String?
+  maintenanceType       String?
+  manager               String?
+  startDate             String?
+  endDate               String?
+  status                String   @default("planned")
+  cpNo                  String?
+  processNo             String?
+  // ★ PFD 등록 동등 필드 추가
+  companyName           String?
+  customerName          String?
+  modelYear             String?
+  engineeringLocation   String?
+  processResponsibility String?
+  pmResponsibleName     String?
+  pmStartDate           String?
+  pmRevisionDate        String?
+  confidentialityLevel  String?
+  securityLevel         String?
+  partName              String?
+  partNo                String?
+  parentApqpNo          String?
+  parentFmeaId          String?
+  linkedCpNo            String?
+  linkedCpNos           String?
+  cftMembers            String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  deletedAt             DateTime?
+
+  @@index([cpNo])
+  @@index([status])
+  @@index([parentFmeaId])
+  @@index([deletedAt])
+  @@map("pm_registrations")
+}
+
+// ★ ChangeHistoryTable localStorage → DB 마이그레이션 모델
+model FmeaConfirmHistory {
+  id         String   @id @default(uuid())
+  fmeaId     String
+  changeType String   // 'FAILURE_LINK_CONFIRM' | 'STEP6_CONFIRM' | 'ORPHAN_CLEAN'
+  summary    String
+  details    String?  // JSON string for structured detail data
+  changedBy  String   @default("admin")
+  changedAt  DateTime @default(now())
+
+  @@index([fmeaId])
+  @@index([changeType])
+  @@map("fmea_confirm_histories")
+}
+
+model FmeaRegisterChangeHistory {
+  id          String   @id @default(uuid())
+  fmeaId      String
+  fmeaName    String?
+  description String?
+  changes     String?  // JSON string array of change details
+  changedBy   String   @default("admin")
+  changedAt   DateTime @default(now())
+
+  @@index([fmeaId])
+  @@map("fmea_register_change_histories")
+}
+
+model FmeaAtomicData {
+  id              String   @id @default(uuid())
+  rowUid          String
+  fmeaId          String
+  rowType         String   // product | process
+  l2Id            String
+  l3Id            String?
+  funcId          String?
+  productCharId   String?
+  l3FuncId        String?
+  processCharId   String?
+  fmId            String?
+  feId            String?
+  fcId            String?
+  processNo       String
+  processName     String
+  processLevel    String?
+  processDesc     String?
+  specialChar     String?
+  evalMethod      String?
+  reactionPlan    String?
+  partName        String?
+  productChar     String?
+  equipment       String?
+  processChar     String?
+  processGroupKey String
+  partGroupKey    String?
+  equipGroupKey   String?
+  processRowSpan  Int      @default(1)
+  partRowSpan     Int      @default(1)
+  equipRowSpan    Int      @default(1)
+  sortOrder       Int      @default(0)
+  syncStatus      String   @default("pending")
+  cpItemId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@index([rowType])
+  @@map("fmea_atomic_data")
+}
+
+// ★★★ Import 원자성 추적 테이블 (2026-03-05) ★★★
+// Import 후 모든 데이터 요소에 UUID를 부여하고 상하관계/Excel 출처를 기록
+model ImportAtomMap {
+  id              String   @id @default(uuid())
+  fmeaId          String
+  elementId       String   // 워크시트 데이터의 실제 ID (ex: id_1f29a3c15ea108_19)
+  elementType     String   // l1 | l2 | l3 | l1func | l2func | l3func | fe | fm | fc | processChar | specialChar
+  name            String   @default("")   // 요소명/값
+  parentElementId String?  // 부모 요소 ID (ex: L3의 부모 = L2 ID)
+  grandParentId   String?  // 조부모 요소 ID (ex: L3의 조부모 = L1 ID)
+  excelRow        Int?     // Excel 원본 행번호
+  excelCol        Int?     // Excel 원본 열번호
+  excelSheet      String?  // Excel 시트명
+  rowSpan         Int      @default(1)
+  colSpan         Int      @default(1)
+  mergeGroupId    String?  // 셀 병합 그룹 ID
+  sortOrder       Int      @default(0)
+  variableName    String?  // 프로그래밍 변수명 (ex: "l2[0].l3[1].functions[0]")
+  metadata        Json?    // 추가 메타데이터 (specialChar, confirmed 등)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@index([elementId])
+  @@index([elementType])
+  @@index([parentElementId])
+  @@map("import_atom_maps")
+}
+
+// ── Enum definitions (for future use — do not change existing String fields) ──
+
+enum M4Category {
+  MC
+  MT
+  MN
+  MP
+  EN
+}
+
+enum APLevel {
+  H
+  M
+  L
+}
+
+enum WorkStatus {
+  DRAFT
+  IN_PROGRESS
+  CONFIRMED
+  APPROVED
+  REJECTED
+}

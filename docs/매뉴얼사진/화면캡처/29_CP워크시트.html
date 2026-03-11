@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - CP 워크시트</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; }
+</style>
+</head>
+<body class="bg-[#f1f5f9] flex">
+
+<!-- Sidebar -->
+<aside class="w-12 min-h-screen bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] flex flex-col items-center py-3 gap-4 flex-shrink-0">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-500/20 text-teal-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-h-screen">
+  <!-- Header -->
+  <header class="h-11 bg-[#1a1f36] flex items-center px-4 justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-teal-400 font-bold text-sm">Control Plan</span>
+      <span class="text-slate-500 text-xs">워크시트(Worksheet)</span>
+      <span class="text-slate-600 text-[10px] font-mono ml-2">cp26-f001-l68-r00</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="px-2 py-1 text-[10px] text-slate-300 bg-slate-700/50 rounded hover:bg-slate-600/50">엑셀 내보내기</button>
+      <button class="px-2 py-1 text-[10px] text-white bg-teal-600 rounded hover:bg-teal-700 font-medium">저장(Save)</button>
+    </div>
+  </header>
+
+  <!-- Top Nav -->
+  <nav class="h-9 bg-[#1e2540] flex items-center px-4 gap-1 flex-shrink-0">
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">대시보드(Dashboard)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">등록(Register)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">리스트(List)</a>
+    <a class="px-3 py-1.5 text-xs text-white bg-teal-500/20 rounded font-medium cursor-pointer">워크시트(Worksheet)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">개정관리(Revision)</a>
+  </nav>
+
+  <!-- Worksheet Table -->
+  <div class="flex-1 p-3 overflow-auto">
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <!-- Main Header -->
+          <tr class="bg-teal-700 text-white">
+            <th colspan="2" class="px-2 py-2 text-center font-semibold border-r border-teal-600 text-[11px]">공정(Process)</th>
+            <th colspan="3" class="px-2 py-2 text-center font-semibold border-r border-teal-600 text-[11px]">특성(Characteristic)</th>
+            <th colspan="4" class="px-2 py-2 text-center font-semibold border-r border-teal-600 text-[11px]">관리방법(Control Method)</th>
+            <th class="px-2 py-2 text-center font-semibold text-[11px]">대응방안(Reaction)</th>
+          </tr>
+          <!-- Sub Header -->
+          <tr class="bg-teal-600 text-white text-[10px]">
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500 w-16">공정번호<br>Process No</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500 w-28">공정명<br>Process Name</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500">제품특성<br>Product Char</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500">공정특성<br>Process Char</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500 w-12">특별특성<br>SC</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500">관리항목<br>Control Item</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500 w-24">검사기/장비<br>Equipment</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500 w-16">샘플링<br>크기/주기</th>
+            <th class="px-2 py-1.5 text-center font-medium border-r border-teal-500 w-16">주기<br>Freq</th>
+            <th class="px-2 py-1.5 text-center font-medium">대응방안<br>Reaction Plan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/20">
+            <td class="px-2 py-2 text-center text-slate-500 font-mono border-r border-slate-100">010</td>
+            <td class="px-2 py-2 text-slate-800 font-medium border-r border-slate-100">원재료 입고</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">고무 경도 (Shore A)</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">입고 검사 온도</td>
+            <td class="px-2 py-2 text-center border-r border-slate-100"><span class="text-red-500 font-bold">CC</span></td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">경도 55~65 Shore A</td>
+            <td class="px-2 py-2 text-slate-500 border-r border-slate-100">경도계 (ASTM D2240)</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">3개</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">1/Lot</td>
+            <td class="px-2 py-2 text-slate-600">반품 처리 + 공급업체 통보</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/20">
+            <td class="px-2 py-2 text-center text-slate-500 font-mono border-r border-slate-100">020</td>
+            <td class="px-2 py-2 text-slate-800 font-medium border-r border-slate-100">혼합/배합</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">배합비율 (PHR)</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">혼합 온도/시간</td>
+            <td class="px-2 py-2 text-center border-r border-slate-100"><span class="text-amber-500 font-bold">SC</span></td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">온도 120&#177;5&#176;C / 시간 8&#177;1min</td>
+            <td class="px-2 py-2 text-slate-500 border-r border-slate-100">온도센서 / 타이머</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">연속</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">연속</td>
+            <td class="px-2 py-2 text-slate-600">재배합 / 설비 점검</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/20">
+            <td class="px-2 py-2 text-center text-slate-500 font-mono border-r border-slate-100">030</td>
+            <td class="px-2 py-2 text-slate-800 font-medium border-r border-slate-100">압출 성형</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">트레드 폭 (mm)</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">압출 속도 (m/min)</td>
+            <td class="px-2 py-2 text-center border-r border-slate-100"><span class="text-red-500 font-bold">CC</span></td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">폭 205&#177;2mm</td>
+            <td class="px-2 py-2 text-slate-500 border-r border-slate-100">레이저 측정기</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">5개</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">1/hr</td>
+            <td class="px-2 py-2 text-slate-600">다이 조정 / 속도 변경</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/20">
+            <td class="px-2 py-2 text-center text-slate-500 font-mono border-r border-slate-100">040</td>
+            <td class="px-2 py-2 text-slate-800 font-medium border-r border-slate-100">가류(가황)</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">가류도 (MH-ML)</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">금형 온도/시간/압력</td>
+            <td class="px-2 py-2 text-center border-r border-slate-100"><span class="text-red-500 font-bold">CC</span></td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">온도 170&#177;3&#176;C / 15&#177;0.5min</td>
+            <td class="px-2 py-2 text-slate-500 border-r border-slate-100">열전대 / 가류 타이머</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">연속</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">연속</td>
+            <td class="px-2 py-2 text-slate-600">금형 교체 / 유지보수</td>
+          </tr>
+          <tr class="hover:bg-teal-50/20">
+            <td class="px-2 py-2 text-center text-slate-500 font-mono border-r border-slate-100">050</td>
+            <td class="px-2 py-2 text-slate-800 font-medium border-r border-slate-100">최종 검사</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">외관 / 유니포미티</td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">검사 라인 속도</td>
+            <td class="px-2 py-2 text-center border-r border-slate-100"><span class="text-amber-500 font-bold">SC</span></td>
+            <td class="px-2 py-2 text-slate-600 border-r border-slate-100">UF &#8804;15N / RFV &#8804;8N</td>
+            <td class="px-2 py-2 text-slate-500 border-r border-slate-100">UF 시험기 / 비전검사</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">전수</td>
+            <td class="px-2 py-2 text-center text-slate-500 border-r border-slate-100">전수</td>
+            <td class="px-2 py-2 text-slate-600">재검사 / 등급 분류 / 폐기</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

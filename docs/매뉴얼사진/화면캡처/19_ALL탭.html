@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - ALL탭 (전체보기)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; font-family: 'Segoe UI', sans-serif; }
+  .ap-h { background: #ef4444; color: white; }
+  .ap-m { background: #f59e0b; color: white; }
+  .ap-l { background: #22c55e; color: white; }
+  .step-header { font-size: 11px; font-weight: 600; text-align: center; white-space: nowrap; }
+  .col-header { font-size: 10px; font-weight: 500; text-align: center; white-space: nowrap; padding: 2px 4px; }
+  .data-cell { font-size: 11px; padding: 2px 4px; white-space: nowrap; border: 1px solid #e2e8f0; }
+  .scroll-container { overflow-x: auto; overflow-y: auto; }
+  table.all-tab { border-collapse: collapse; min-width: 2400px; }
+  table.all-tab th, table.all-tab td { border: 1px solid #cbd5e1; }
+</style>
+</head>
+<body class="bg-gray-100">
+
+<!-- Sidebar -->
+<div class="fixed left-0 top-0 bottom-0 w-12 flex flex-col items-center py-3 gap-4 z-50" style="background:#1a237e;">
+  <div class="w-8 h-8 bg-cyan-400 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-300 hover:bg-indigo-800 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-300 hover:bg-indigo-800 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-800 text-white cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-indigo-300 hover:bg-indigo-800 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+</div>
+
+<!-- Header -->
+<div class="fixed top-0 left-12 right-0 z-40" style="background:#1a1f36;">
+  <div class="flex items-center justify-between px-4 h-10">
+    <div class="flex items-center gap-3">
+      <span class="text-white font-semibold text-sm">SMART FMEA</span>
+      <span class="text-slate-500 text-xs">|</span>
+      <span class="text-slate-400 text-xs">APQP 품질관리 시스템</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">admin</span>
+      <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs">A</div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Nav -->
+<div class="fixed top-10 left-12 right-0 z-30 bg-slate-800 border-b border-slate-700">
+  <div class="flex items-center px-4 h-8 gap-1">
+    <span class="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer">APQP</span>
+    <span class="px-3 py-1 text-xs text-white bg-indigo-600 rounded cursor-pointer">PFMEA</span>
+    <span class="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer">DFMEA</span>
+    <span class="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer">CP</span>
+    <span class="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer">PFD</span>
+    <span class="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer">LLD</span>
+    <span class="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer">PM</span>
+  </div>
+</div>
+
+<!-- Main content area -->
+<div class="ml-12 mt-[72px]">
+  <!-- Sub nav -->
+  <div class="bg-white border-b border-gray-200 px-4 h-8 flex items-center gap-4">
+    <span class="text-xs text-slate-500 cursor-pointer hover:text-blue-600">등록(Register)</span>
+    <span class="text-xs text-slate-500 cursor-pointer hover:text-blue-600">Import</span>
+    <span class="text-xs font-semibold text-blue-600 border-b-2 border-blue-600 pb-1">워크시트(Worksheet)</span>
+    <span class="text-xs text-slate-500 cursor-pointer hover:text-blue-600">리스트(List)</span>
+    <span class="text-xs text-slate-500 cursor-pointer hover:text-blue-600">개정(Revision)</span>
+  </div>
+
+  <!-- Worksheet menu bar -->
+  <div class="bg-gray-50 border-b border-gray-200 px-3 h-9 flex items-center justify-between">
+    <div class="flex items-center gap-1">
+      <span class="text-xs text-slate-500 mr-2">pfm26-f001-l68-r00</span>
+      <span class="text-[10px] text-slate-400 mr-3">|</span>
+      <!-- Step buttons -->
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">2단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">3단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">4단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">5단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">6단계</button>
+      <button class="px-2 py-0.5 text-[10px] bg-blue-600 text-white rounded">전체(ALL)</button>
+      <span class="text-[10px] text-slate-400 mx-2">|</span>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">개선추천</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">자동LLD</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600 hover:bg-blue-50">RPN ☐</button>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">저장(Save)</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">확정(Confirm)</button>
+      <button class="px-2 py-0.5 text-[10px] bg-white border border-gray-300 rounded text-gray-600">Export</button>
+    </div>
+  </div>
+
+  <!-- Tab menu -->
+  <div class="bg-white border-b border-gray-200 px-3 h-7 flex items-center gap-0">
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">구조(Structure)</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">기능-L1</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">기능-L2</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">기능-L3</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">고장-L1</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">고장-L2</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">고장-L3</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">고장연결</span>
+    <span class="px-3 py-1 text-[11px] text-blue-600 font-semibold cursor-pointer border-b-2 border-blue-600">ALL</span>
+    <span class="px-3 py-1 text-[11px] text-slate-500 cursor-pointer border-b-2 border-transparent hover:border-gray-300">최적화(Opt)</span>
+  </div>
+
+  <!-- ALL Tab Table -->
+  <div class="scroll-container" style="height: calc(900px - 72px - 8px - 36px - 28px - 28px); width: calc(1440px - 48px);">
+    <table class="all-tab">
+      <!-- Row 1: Step group headers -->
+      <thead>
+        <tr style="height:24px;">
+          <th colspan="1" rowspan="3" class="bg-gray-100 text-[10px] text-gray-500 w-8 min-w-[32px]">No</th>
+          <th colspan="4" class="step-header bg-blue-50 text-blue-800 border-b-2 border-blue-400">2단계 구조분석(Structure Analysis)</th>
+          <th colspan="3" class="step-header bg-green-50 text-green-800 border-b-2 border-green-400">3단계 기능분석(Function Analysis)</th>
+          <th colspan="5" class="step-header bg-orange-50 text-orange-800 border-b-2 border-orange-400">4단계 고장분석(Failure Analysis)</th>
+          <th colspan="6" class="step-header bg-red-50 text-red-800 border-b-2 border-red-400">5단계 리스크분석(Risk Analysis)</th>
+          <th colspan="8" class="step-header bg-purple-50 text-purple-800 border-b-2 border-purple-400">6단계 최적화(Optimization)</th>
+        </tr>
+        <!-- Row 2: Sub-group headers -->
+        <tr style="height:22px;">
+          <!-- Structure sub -->
+          <th class="col-header bg-blue-50 text-blue-700">4M</th>
+          <th class="col-header bg-blue-50 text-blue-700">L1 완제품공정</th>
+          <th class="col-header bg-blue-50 text-blue-700">L2 공정</th>
+          <th class="col-header bg-blue-50 text-blue-700">L3 작업요소</th>
+          <!-- Function sub -->
+          <th class="col-header bg-green-50 text-green-700">L1 기능</th>
+          <th class="col-header bg-green-50 text-green-700">L2 기능</th>
+          <th class="col-header bg-green-50 text-green-700">L3 기능</th>
+          <!-- Failure sub -->
+          <th class="col-header bg-orange-50 text-orange-700">FE 고장영향</th>
+          <th class="col-header bg-orange-50 text-orange-700">FM 고장형태</th>
+          <th class="col-header bg-orange-50 text-orange-700">FC 고장원인</th>
+          <th class="col-header bg-orange-50 text-orange-700">PC 예방관리</th>
+          <th class="col-header bg-orange-50 text-orange-700">DC 검출관리</th>
+          <!-- Risk sub -->
+          <th class="col-header bg-red-50 text-red-700">S</th>
+          <th class="col-header bg-red-50 text-red-700">O</th>
+          <th class="col-header bg-red-50 text-red-700">D</th>
+          <th class="col-header bg-red-50 text-red-700">AP</th>
+          <th class="col-header bg-red-50 text-red-700">PC 현재</th>
+          <th class="col-header bg-red-50 text-red-700">DC 현재</th>
+          <!-- Optimization sub -->
+          <th class="col-header bg-purple-50 text-purple-700">PC 개선</th>
+          <th class="col-header bg-purple-50 text-purple-700">DC 개선</th>
+          <th class="col-header bg-purple-50 text-purple-700">담당자</th>
+          <th class="col-header bg-purple-50 text-purple-700">목표일</th>
+          <th class="col-header bg-purple-50 text-purple-700">S'</th>
+          <th class="col-header bg-purple-50 text-purple-700">O'</th>
+          <th class="col-header bg-purple-50 text-purple-700">D'</th>
+          <th class="col-header bg-purple-50 text-purple-700">AP'</th>
+        </tr>
+        <!-- Row 3: Bilingual column names -->
+        <tr style="height:20px;">
+          <!-- Structure -->
+          <th class="col-header bg-blue-100/50 text-[9px] text-blue-600">분류<br>(Category)</th>
+          <th class="col-header bg-blue-100/50 text-[9px] text-blue-600" style="min-width:100px;">완제품 공정<br>(Product Process)</th>
+          <th class="col-header bg-blue-100/50 text-[9px] text-blue-600" style="min-width:90px;">공정 번호/명<br>(Process No./Name)</th>
+          <th class="col-header bg-blue-100/50 text-[9px] text-blue-600" style="min-width:80px;">작업요소<br>(Work Element)</th>
+          <!-- Function -->
+          <th class="col-header bg-green-100/50 text-[9px] text-green-600" style="min-width:100px;">완제품 기능<br>(Product Function)</th>
+          <th class="col-header bg-green-100/50 text-[9px] text-green-600" style="min-width:100px;">공정 기능<br>(Process Function)</th>
+          <th class="col-header bg-green-100/50 text-[9px] text-green-600" style="min-width:90px;">작업요소 기능<br>(Element Function)</th>
+          <!-- Failure -->
+          <th class="col-header bg-orange-100/50 text-[9px] text-orange-600" style="min-width:100px;">고장영향<br>(Failure Effect)</th>
+          <th class="col-header bg-orange-100/50 text-[9px] text-orange-600" style="min-width:90px;">고장형태<br>(Failure Mode)</th>
+          <th class="col-header bg-orange-100/50 text-[9px] text-orange-600" style="min-width:90px;">고장원인<br>(Failure Cause)</th>
+          <th class="col-header bg-orange-100/50 text-[9px] text-orange-600" style="min-width:90px;">예방관리<br>(Prevention Ctrl)</th>
+          <th class="col-header bg-orange-100/50 text-[9px] text-orange-600" style="min-width:90px;">검출관리<br>(Detection Ctrl)</th>
+          <!-- Risk -->
+          <th class="col-header bg-red-100/50 text-[9px] text-red-600 w-8">심각도<br>(S)</th>
+          <th class="col-header bg-red-100/50 text-[9px] text-red-600 w-8">발생도<br>(O)</th>
+          <th class="col-header bg-red-100/50 text-[9px] text-red-600 w-8">검출도<br>(D)</th>
+          <th class="col-header bg-red-100/50 text-[9px] text-red-600 w-8">AP</th>
+          <th class="col-header bg-red-100/50 text-[9px] text-red-600" style="min-width:80px;">예방관리<br>(Current PC)</th>
+          <th class="col-header bg-red-100/50 text-[9px] text-red-600" style="min-width:80px;">검출관리<br>(Current DC)</th>
+          <!-- Optimization -->
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600" style="min-width:90px;">예방 개선<br>(Improved PC)</th>
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600" style="min-width:90px;">검출 개선<br>(Improved DC)</th>
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600" style="min-width:60px;">담당자<br>(Owner)</th>
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600" style="min-width:70px;">목표일<br>(Target)</th>
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600 w-8">S'</th>
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600 w-8">O'</th>
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600 w-8">D'</th>
+          <th class="col-header bg-purple-100/50 text-[9px] text-purple-600 w-8">AP'</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Data Row 1 -->
+        <tr class="hover:bg-blue-50/30" style="height:28px;">
+          <td class="data-cell text-center text-gray-400">1</td>
+          <td class="data-cell text-center"><span class="px-1 py-0.5 bg-yellow-100 text-yellow-800 text-[10px] rounded">Machine</span></td>
+          <td class="data-cell bg-blue-50/30 font-medium text-blue-900">타이어 제조</td>
+          <td class="data-cell bg-green-50/30 text-green-900">10-압출</td>
+          <td class="data-cell bg-orange-50/20 text-orange-900">온도설정</td>
+          <td class="data-cell">제품 규격 충족</td>
+          <td class="data-cell">압출 온도 유지</td>
+          <td class="data-cell">정확한 온도 설정</td>
+          <td class="data-cell text-red-700 font-medium">타이어 파열</td>
+          <td class="data-cell text-orange-700">두께 불균일</td>
+          <td class="data-cell text-amber-700">온도 편차 ±5°C</td>
+          <td class="data-cell text-sm">온도 모니터링</td>
+          <td class="data-cell text-sm">두께 측정기</td>
+          <td class="data-cell text-center font-bold text-red-600">8</td>
+          <td class="data-cell text-center font-bold">5</td>
+          <td class="data-cell text-center font-bold">7</td>
+          <td class="data-cell text-center"><span class="ap-h px-1.5 py-0.5 rounded text-[10px] font-bold">H</span></td>
+          <td class="data-cell text-[10px]">온도 모니터링</td>
+          <td class="data-cell text-[10px]">두께 측정기</td>
+          <td class="data-cell text-[10px] text-purple-700">자동 온도 보정 시스템</td>
+          <td class="data-cell text-[10px] text-purple-700">인라인 두께 스캐너</td>
+          <td class="data-cell text-center text-[10px]">김철수</td>
+          <td class="data-cell text-center text-[10px]">2026-04-15</td>
+          <td class="data-cell text-center font-bold text-red-600">8</td>
+          <td class="data-cell text-center font-bold">3</td>
+          <td class="data-cell text-center font-bold">3</td>
+          <td class="data-cell text-center"><span class="ap-l px-1.5 py-0.5 rounded text-[10px] font-bold">L</span></td>
+        </tr>
+        <!-- Data Row 2 -->
+        <tr class="hover:bg-blue-50/30 bg-gray-50/50" style="height:28px;">
+          <td class="data-cell text-center text-gray-400">2</td>
+          <td class="data-cell text-center"><span class="px-1 py-0.5 bg-blue-100 text-blue-800 text-[10px] rounded">Man</span></td>
+          <td class="data-cell bg-blue-50/30 font-medium text-blue-900">타이어 제조</td>
+          <td class="data-cell bg-green-50/30 text-green-900">10-압출</td>
+          <td class="data-cell bg-orange-50/20 text-orange-900">압력조절</td>
+          <td class="data-cell">제품 규격 충족</td>
+          <td class="data-cell">압출 압력 유지</td>
+          <td class="data-cell">적정 압력 설정</td>
+          <td class="data-cell text-red-700 font-medium">변형 발생</td>
+          <td class="data-cell text-orange-700">기포 발생</td>
+          <td class="data-cell text-amber-700">압력 변동</td>
+          <td class="data-cell text-sm">압력 게이지 확인</td>
+          <td class="data-cell text-sm">외관 검사</td>
+          <td class="data-cell text-center font-bold">6</td>
+          <td class="data-cell text-center font-bold">4</td>
+          <td class="data-cell text-center font-bold">5</td>
+          <td class="data-cell text-center"><span class="ap-m px-1.5 py-0.5 rounded text-[10px] font-bold">M</span></td>
+          <td class="data-cell text-[10px]">압력 게이지 확인</td>
+          <td class="data-cell text-[10px]">외관 검사</td>
+          <td class="data-cell text-[10px] text-purple-700">자동 압력 조절기</td>
+          <td class="data-cell text-[10px] text-purple-700">X-ray 검사</td>
+          <td class="data-cell text-center text-[10px]">이영희</td>
+          <td class="data-cell text-center text-[10px]">2026-05-01</td>
+          <td class="data-cell text-center font-bold">6</td>
+          <td class="data-cell text-center font-bold">2</td>
+          <td class="data-cell text-center font-bold">3</td>
+          <td class="data-cell text-center"><span class="ap-l px-1.5 py-0.5 rounded text-[10px] font-bold">L</span></td>
+        </tr>
+        <!-- Data Row 3 -->
+        <tr class="hover:bg-blue-50/30" style="height:28px;">
+          <td class="data-cell text-center text-gray-400">3</td>
+          <td class="data-cell text-center"><span class="px-1 py-0.5 bg-green-100 text-green-800 text-[10px] rounded">Material</span></td>
+          <td class="data-cell bg-blue-50/30 font-medium text-blue-900">타이어 제조</td>
+          <td class="data-cell bg-green-50/30 text-green-900">20-성형</td>
+          <td class="data-cell bg-orange-50/20 text-orange-900">속도조절</td>
+          <td class="data-cell">타이어 구조 완성</td>
+          <td class="data-cell">성형 속도 유지</td>
+          <td class="data-cell">회전 속도 제어</td>
+          <td class="data-cell text-red-700 font-medium">접착 불량</td>
+          <td class="data-cell text-orange-700">층간 분리</td>
+          <td class="data-cell text-amber-700">속도 불일치</td>
+          <td class="data-cell text-sm">속도 센서 모니터링</td>
+          <td class="data-cell text-sm">접착력 테스트</td>
+          <td class="data-cell text-center font-bold text-red-600">9</td>
+          <td class="data-cell text-center font-bold">3</td>
+          <td class="data-cell text-center font-bold">4</td>
+          <td class="data-cell text-center"><span class="ap-m px-1.5 py-0.5 rounded text-[10px] font-bold">M</span></td>
+          <td class="data-cell text-[10px]">속도 센서 모니터링</td>
+          <td class="data-cell text-[10px]">접착력 테스트</td>
+          <td class="data-cell text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-center text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-center text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+        </tr>
+        <!-- Data Row 4 -->
+        <tr class="hover:bg-blue-50/30 bg-gray-50/50" style="height:28px;">
+          <td class="data-cell text-center text-gray-400">4</td>
+          <td class="data-cell text-center"><span class="px-1 py-0.5 bg-purple-100 text-purple-800 text-[10px] rounded">Method</span></td>
+          <td class="data-cell bg-blue-50/30 font-medium text-blue-900">타이어 제조</td>
+          <td class="data-cell bg-green-50/30 text-green-900">30-가류</td>
+          <td class="data-cell bg-orange-50/20 text-orange-900">시간관리</td>
+          <td class="data-cell">경화 품질 확보</td>
+          <td class="data-cell">가류 시간 관리</td>
+          <td class="data-cell">시간 정밀 제어</td>
+          <td class="data-cell text-red-700 font-medium">경도 불량</td>
+          <td class="data-cell text-orange-700">과가류/미가류</td>
+          <td class="data-cell text-amber-700">타이머 오류</td>
+          <td class="data-cell text-sm">타이머 교정</td>
+          <td class="data-cell text-sm">경도 테스트</td>
+          <td class="data-cell text-center font-bold">7</td>
+          <td class="data-cell text-center font-bold">2</td>
+          <td class="data-cell text-center font-bold">3</td>
+          <td class="data-cell text-center"><span class="ap-l px-1.5 py-0.5 rounded text-[10px] font-bold">L</span></td>
+          <td class="data-cell text-[10px]">타이머 교정</td>
+          <td class="data-cell text-[10px]">경도 테스트</td>
+          <td class="data-cell text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-center text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-center text-[10px] text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+          <td class="data-cell text-center text-slate-400">-</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>

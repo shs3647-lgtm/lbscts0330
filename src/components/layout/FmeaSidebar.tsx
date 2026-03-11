@@ -1,0 +1,135 @@
+/**
+ * @file FmeaSidebar.tsx
+ * @description FMEA Core 가족 전용 사이드바
+ * 메뉴: MyJob, DFMEA, PFMEA, CP, PFD + 기초정보 + Admin
+ * @created 2026-02-27
+ */
+
+'use client';
+
+import React from 'react';
+import { SidebarShell, ColorIcons } from './SidebarShell';
+import type { MenuItem } from './SidebarShell';
+
+// ─── 공통 하위 메뉴 생성 함수 ───
+
+const createSubItems = (basePath: string) => [
+  { label: '📊 대시보드', href: `${basePath}/dashboard` },
+  { label: '등록', href: `${basePath}/register` },
+  { label: '리스트', href: `${basePath}/list` },
+  { label: '작성화면', href: `${basePath}/worksheet` },
+  { label: '개정관리', href: `${basePath}/revision` },
+];
+
+// ─── FMEA Core 메뉴 정의 ───
+
+const myJobItem: MenuItem = {
+  id: 'myjob',
+  label: 'My Job',
+  shortLabel: 'My Job',
+  Icon: ColorIcons.Person,
+  href: '/myjob',
+  subItems: [
+    { label: '📋 나의 업무현황', href: '/myjob' },
+    { label: '💼 결재현황', href: '/approval/approver-portal' },
+    { label: '📊 프로젝트 진행현황', href: '/pfmea/list' },
+    { label: '🚀 AP 개선 진행현황', href: '/pfmea/ap-improvement' },
+  ],
+};
+
+const pfmeaSubItems = [
+  { label: '📊 대시보드', href: '/pfmea/dashboard' },
+  { label: '📉 Top RPN 분석', href: '/rpn-analysis' },
+  { label: '등록', href: '/pfmea/register' },
+  { label: '리스트', href: '/pfmea/list' },
+  { label: 'New FMEA', href: '/pfmea/worksheet' },
+  // { label: 'FMEA4판', href: '/pfmea/fmea4' },
+  { label: '개정관리', href: '/pfmea/revision' },
+  { label: '📋 LLD(필터코드)', href: '/pfmea/lld' },
+  { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement' },
+];
+
+const dfmeaSubItems = [
+  { label: '📊 대시보드', href: '/dfmea/dashboard' },
+  { label: '등록', href: '/dfmea/register' },
+  { label: '리스트', href: '/dfmea/list' },
+  { label: '작성화면', href: '/dfmea/worksheet' },
+  { label: '개정관리', href: '/dfmea/revision' },
+  { label: '📋 LLD(필터코드)', href: '/dfmea/lld' },
+  { label: '🚀 AP 개선관리', href: '/dfmea/ap-improvement' },
+];
+
+const apqpSubItems = [
+  { label: '📊 대시보드', href: '/apqp/dashboard' },
+  { label: '등록', href: '/apqp/register' },
+  { label: '리스트', href: '/apqp/list' },
+  { label: '작성화면', href: '/apqp/worksheet' },
+  { label: '개정관리', href: '/apqp/revision' },
+];
+
+const mainMenuItems: MenuItem[] = [
+  myJobItem,
+  {
+    id: 'apqp', label: 'APQP', shortLabel: 'A',
+    Icon: ColorIcons.Worksheet, href: '/apqp', subItems: apqpSubItems,
+  },
+  {
+    id: 'dfmea', label: 'DFMEA', shortLabel: 'D',
+    Icon: ColorIcons.Register, href: '/dfmea', subItems: dfmeaSubItems,
+  },
+  {
+    id: 'pfmea', label: 'PFMEA', shortLabel: 'P',
+    Icon: ColorIcons.List, href: '/pfmea', subItems: pfmeaSubItems,
+  },
+  {
+    id: 'cp', label: 'Control Plan', shortLabel: 'C',
+    Icon: ColorIcons.CFT, href: '/control-plan', subItems: createSubItems('/control-plan'),
+  },
+  {
+    id: 'pfd', label: 'PFD', shortLabel: 'F',
+    Icon: ColorIcons.Revision, href: '/pfd', subItems: createSubItems('/pfd'),
+  },
+];
+
+const bottomMenuItems: MenuItem[] = [
+  {
+    id: 'master', label: '기초정보', shortLabel: '',
+    Icon: ColorIcons.Settings, href: '/master',
+    subItems: [
+      { label: '고객사정보', href: '/master/customer' },
+      { label: '사용자정보', href: '/master/user' },
+      { label: 'PFMEA 임포트', href: '/pfmea/import' },
+      { label: 'DFMEA 임포트', href: '/dfmea/import' },
+      { label: 'CP 기초정보', href: '/control-plan/import' },
+      { label: 'PFD 기초정보', href: '/pfd/import' },
+      { label: '데이타 복구 관리', href: '/master/trash' },
+    ],
+  },
+];
+
+const adminMenuItems: MenuItem[] = [
+  {
+    id: 'admin', label: '시스템 관리', shortLabel: '',
+    Icon: ColorIcons.Admin, href: '/admin',
+    subItems: [
+      { label: '사용자 권한 설정', href: '/admin/settings/users' },
+      { label: '⚙️ 결제환경설정', href: '/admin/settings/approval' },
+      { label: '🗄️ DB 뷰어', href: '/admin/db-viewer' },
+    ],
+  },
+];
+
+// ─── 컴포넌트 ───
+
+export const FmeaSidebar = React.memo(function FmeaSidebar() {
+  return (
+    <SidebarShell
+      mainMenuItems={mainMenuItems}
+      bottomMenuItems={bottomMenuItems}
+      adminMenuItems={adminMenuItems}
+    />
+  );
+});
+
+FmeaSidebar.displayName = 'FmeaSidebar';
+export default FmeaSidebar;

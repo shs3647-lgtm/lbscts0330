@@ -1,0 +1,117 @@
+3f16cb5d refactor: 고장분석 탭 단계별 색상 체계 적용 - 구조분석=파란색, 기능분석=녹색, 고장분석=주황색 - 1L영향/2L고장형태 헤더/데이터셀/트리뷰 색상 통일
+b42cd175 feat(1L영향): 1레벨 표준 파란색 통일 - 헤더 2행부터 데이터셀까지 모두 파란색 - 트리뷰 구분/기능/요구사항/고장영향 파란색 통일
+4e1b8ca5 feat: L3 tab header 표준화 및 단계 생성 UI 개선
+50c2923e feat: 색상/글씨 표준화 - L1파랑/L2녹색/L3주황, SOD/AP 글씨색 구분, 11px bold
+93938bae feat: 저장/연동 패턴 통일 및 UI 개선
+4375ea18 feat(PFD): 수동/자동 토글, 확장병합 토글 UI 추가
+f192a94e feat(PFD): 병합 셀 보호 로직 추가
+2ffbb71b feat(PFD): 확장병합 기능 구현 - 코드프리즈
+722e310c fix: PFD worksheet uniqueId 화면 숨김
+3045761e feat: PFD 남색(#1e3a5f) 테마 수평전개
+e90b598e feat: 기능 개선
+cde1e8e7 feat: CP 전체 청록색(teal) 테마 통일
+cfd1a560 feat: CP 개정관리에 변경 히스토리 추가
+4324374d feat: PFD/CP 개정관리 수평전개 완료
+763c15d3 feat: CP 개정관리 PFMEA 수평전개 완료
+2e3c3aa6 feat: CP 워크시트 디자인 개선 완료 (코드 프리즈)
+1f56d8b5 docs: PFD 워크시트 디자인 가이드 v1.0 문서화 (디자인 프리즈)
+9a617642 style(PFD): 디자인 최종 정리
+ed536e09 style(PFD): 파란색 테마 통일 및 글씨 크기 최적화
+683fb2b2 feat(PFD): 컬럼 구조 및 디자인 개선
+3239350d feat(PFD): 컬럼 리사이즈 및 색상 일관성 개선
+830930e1 refactor(PFD): 그룹명 변경 (CP 일관성)
+dae30e90 refactor(PFD): 흐름정보 그룹 삭제
+3da52ef6 fix(PFD): 워크시트 렌더링 오류 수정
+98384a72 feat(PFD): 워크시트 UI/UX CP와 동일하게 완전 재구성
+7e3e71ee feat(PFD): 워크시트 기능 CP와 동일하게 업데이트
+4c959e5a docs: 마스터플랜 v2.9.0 업데이트 - CP/PFD 워크시트 병합 로직 완성
+0ee7f9de feat(PFD): 워크시트 행추가 병합 로직 CP와 동일하게 적용
+6247fa47 feat(CP): 워크시트 행추가 병합 로직 완성 및 모달 기능 개선
+22bc9a6f fix(CP worksheet): 제품특성/공정특성 표시 로직 개선
+5fe79653 fix(CP): CpPreviewPanel 공정번호 기준 중복 제거
+7d475634 fix(CP): file-saver 라이브러리 적용으로 Excel 파일명 확실 보장
+a1258b3d fix(CP): Excel 다운로드 파일명 개선
+2c6ad760 docs: CP Import UI 개선 코드프리즈 문서 추가
+4286b6ac fix(CP): 2패널 레이아웃 최적화 - 겹침 방지
+590ad605 fix(CP): CpPreviewPanel PFMEA와 완전 동일하게 수정
+3a140ebe fix(CP): 우측 분석 DATA 패널은 CP 확정 후에만 데이터 표시
+3c719dd3 refactor(CP): PFMEA 스타일 개별항목 조회로 변경
+f3c74d4b feat(CP): 셀 클릭 모달 및 PFMEA 연결 모달 구현
+4b8df38f feat(CP): 2패널 레이아웃 구현 - PFMEA 벤치마킹
+be043ef4 feat(CP): 병합된 관리계획서 워크시트 Import 기능 추가 및 TS 오류 수정
+f65e7eff fix(cp): CP 단계 5단계로 조정 및 완료 상태 분리 - 승인시 완료 표시
+5a9c2bc7 feat(cp): CP 단계 관리 기능 추가 - 2=공정현황, 3=관리항목, 4=관리방법, 5=조치방법
+86a5fdd9 fix: CP 워크시트 E열/O열/P열/Q열/R열 데이터 누락 해결
+41db0d2d feat: CP 최적화 및 PFD 수평전개
+1cefc714 feat: CP Import 기능 강화
+e141d31c fix: 용어 통일 및 UI 일관성 개선 (코드 프리즈)
+0dfb3a37 fix: CP 등록/저장 연동 수정 및 등록화면 명칭 통일
+e8f3fa6b fix: EP검사장치 마스터 탭 기본 선택
+31c435ed fix: EP검사장치 버튼 텍스트 '행 추가'로 변경
+f6254b8c fix: EP검사장치 API 단순화 - cpNo null로 마스터 구분
+4c3802c4 fix: EP검사장치 모달 열릴 때 마스터+CP별 데이터 모두 로드
+0e528f11 feat: EP검사장치 마스터/CP별 분리 - EPM-XXX/EP-CPID-XXX 번호 체계
+2844d3ad fix: EP검사장치 리스트 로드 문제 해결 - cpNo가 __NEW__인 경우 처리
+0f27ec79 feat: CP 워크시트 메뉴 개선 - PFD 연동 추가, 특별특성 명칭 변경 (제품SC/공정SC)
+460bdb28 fix: CP 워크시트 사이드바 추가 및 TDD 테스트 작성
+567b80bf docs: 리스트 모듈화 코드프리즈 문서 업데이트 (QA테스트결과, CODEFREEZE_FILES, 모듈별_구현현황)
+6b92b763 docs: PFMEA 리스트 PRD 모듈화 구조 문서 추가
+466f2559 refactor: 리스트 모듈화 - 공통 컴포넌트 추출 (StepBadge, TypeBadge, ListActionBar, ListStatusBar, useListSelection)
+2fd69da4 refactor: PFD/APQP 리스트 PFMEA 구조로 수평전개 - UI 표준화, 글씨 크기 최적화
+b298c44b docs: PFMEA 리스트 PRD 문서 추가 및 QA 테스트 결과 업데이트
+9f76d91c refactor: PFMEA/DFMEA/CP 리스트 UI 최적화 - 단계 표시 간소화, 컬럼 크기 조정, 글씨 크기 축소
+8aaab4c0 docs: CP/APQP/PFD 화면별 PRD 문서 추가 - CFT, 접속로그, 기초정보
+b5ea5353 docs: DFMEA/PFD/CP/APQP 모듈별 구현현황 문서 추가
+83fada7b docs: QA 테스트 결과 문서 업데이트 - 2026-01-24 코드 프리즈 내역 추가
+6e6ca5b6 feat: PFMEA Import UI 개선 및 PFD Import 모듈 추가 - 분석 완료 전 데이터 표시 제한, 현재 FMEA ID 표시, 백업 버튼 삭제, 폰트 크기 최적화, PFD Import 신규 추가
+649b90c6 chore: 코드프리즈 - PFMEA Import UI 개선 및 다수 기능 안정화
+a02eda5f fix: layout.tsx 충돌 해결, FixedLayout 반응형 개선, PFD/DFMEA PRD 문서 추가
+47486310 refactor: 모든 등록화면 CP 구조로 수평전개 (APQP 602줄, DFMEA 575줄, PFD 568줄)
+c7cd6f90 refactor: CP 등록화면 PFMEA 구조로 완전 수평전개 (1010줄 → 768줄)
+a0ef2923 fix: CP 등록화면 테이블 너비 수정 - PFMEA와 동일하게 반응형 적용
+f140704a fix: 기본 배율 125% 설정, APQP/CP FixedLayout 반응형 적용
+e13ae2c6 fix: 기본 화면 배율 120% 설정 - 모든 화면 표준화
+9e8bbe16 fix: CP 등록화면 레이아웃 수정 - CP 유형을 1행으로 이동 (PFMEA 동일)
+af79d0f6 feat: CP 등록화면 PFMEA 수평전개 v1.0.0 - DatePickerModal, CFT 독립 저장, 미등록 표시, PRD 문서
+2efa8a35 docs: APQP PRD 문서 v1.1.0 업데이트
+722de05c feat: APQP 등록 화면 코드 프리즈 v1.1.0 - CFT 독립 저장, 미등록 표시, DFMEA 훅 리팩토링
+aae0b389 fix: PFMEA APQP 목록 로드 개선 및 로깅 추가
+072541c2 feat: APQP 등록화면 코드 프리즈 v1.0.0 - DatePickerModal, ID규칙, 문서 추가
+debfae75 feat: APQP ID 생성 규칙 변경 - 개발레벨별 접두사 (n/ma/mi/p)
+085733bb feat: APQP 등록화면 하위 FMEA, 하위 CP 선택 기능 추가
+f6c5d3c6 fix: APQP 등록화면 테이블 빈 헤더 수정 - 엔지니어링위치, 기밀유지수준 3행 배치
+f15621d7 refactor: APQP 등록화면 PFMEA 구조로 통일 - 개발책임, 목표완료일 변경
+139cc718 fix: APQP 등록화면 - ID 자동생성, 달력모달, 개발레벨 선택 추가
+7b5eae5c feat: APQP, CP 등록화면 PFMEA 수평전개 - 데이터 영구 유지, 변경 이력 기록
+1f38a727 docs: PFMEA 등록화면 PRD v1.1.0 - 코드 프리즈 선언
+6a9eed23 feat: 변경 히스토리 개선 및 데이터 영구 유지 기능 추가
+72ee8944 fix: TDD 기반 TypeScript 오류 전체 수정 및 데이터 동기화 개선 - ISSUE-003, 015 수정, 38개 오류 해결, Code Freeze 선언
+211bab04 feat: 리스크분석 습득교훈(LLD) 모달 연동 및 프로젝트 삭제 기능 추가
+da5fd37a fix: UI/UX 코드프리즈 - 검은색 배경 금지, 레이아웃 수정 금지
+a82197da fix: PFMEA 레이아웃 코드프리즈 - Sidebar 표시 복원
+b41329c8 fix: FMEA ID 소문자 정규화 및 UI/UX 코드프리즈
+a5ebaed1 feat: AP 개선관리 UI 고도화 및 표준 레이아웃 적용 (막대 그래프 시각화 및 조회 필터 추가)
+24557831 feat: 구분 약어 통일 (YP/SP/USER) 및 Admin 메뉴 사이드바 추가
+8e6f9962 fix: PFMEA/DFMEA 드롭다운 필터링, 로고 개선, 사이드바 기본 확장
+9c0288d3 feat: CP 엑셀 내보내기 기능 추가 (셀 병합 유지)
+68fd810c feat: ALL화면 멀티시트 엑셀 내보내기 기능 추가 (등록정보+CFT+개정+ALL)
+b91df3ae feat: 대시보드 및 모달 스타일 개선, AP 개선현황 차트 추가
+6474d0b3 feat: FMEA 대시보드 통계 현황 레이아웃 개선
+50e14080 feat: 모달 컴팩트 스타일 전체 수평전개 완료
+93bceddc feat: PFMEA WorkElementSelectModal 컴팩트 스타일 적용
+2b3786e4 feat: 모달 컴팩트 스타일 모듈화 및 전체 적용
+9a32c410 feat: 타이포그래피 표준화 및 자동저장 무한루프 수정
+e9190fae style: 입력모달 디자인 컴팩트화 - 상하패딩 최소화 및 버튼 패딩 1px
+7e4e71dc fix: DFMEA 1L 기능 입력 모달 위치 트리뷰 상단(top: 80)으로 조정
+5ce6cf40 fix: DFMEA 입력모달 용어 통일 (공정→초점요소, 제품특성→요구사항)
+50dad266 fix: PFMEA 모달 위치 트리뷰 상단 맞춤 및 사이드바 서브메뉴 자동확장
+a8143741 feat: 메뉴 UI 최적화 - 아이콘 제거 및 반응형 개선
+225b65c8 fix: PFMEA/DFMEA 데이터 분리 및 삭제 버튼 수정
+fd6b6b8e fix(admin): update FMEA labels to PFMEA in admin layout
+885dfa57 feat(pfmea): fix handleSave, add access logging, and add PFMEA search/load functionality
+eb3f5834 Implement PFMEA stage progression system and UI refinements
+1262fa34 DFMEA 2L 기능분석: 제품특성 → 요구사항 UI 텍스트 변경 및 모달 상위항목 표시 개선
+9ace672b fix: DFMEA 구분/요구사항 모달 필터링 개선
+a4be8687 feat: optimize DFMEA list UI (100% zoom visibility), sync list data with DB
+bcf41623 docs: 중요_ONPREMISE_MASTER_PLAN v2.8.0 업데이트 - FixedLayout 및 모달 Portal 패턴
+c0e472c7 feat: FixedLayout 공통 컴포넌트 적용 및 모달 Portal 패턴 구현

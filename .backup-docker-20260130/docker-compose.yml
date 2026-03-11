@@ -1,0 +1,127 @@
+services:
+  # PostgreSQL 데이터베이스
+  postgres:
+    image: postgres:15-alpine
+    container_name: fmea-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-fmea_db}
+      TZ: Asia/Seoul
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - fmea-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 캐시 서버
+  redis:
+    image: redis:7-alpine
+    container_name: fmea-redis
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - fmea-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js 애플리케이션
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fmea-app
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-fmea_db}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
+      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      NODE_ENV: production
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      - fmea-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx 리버스 프록시 (옵션)
+  nginx:
+    image: nginx:alpine
+    container_name: fmea-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - ./docker/ssl:/etc/nginx/ssl
+      - nginx_cache:/var/cache/nginx
+    networks:
+      - fmea-network
+    depends_on:
+      - app
+
+  # 백업 서비스 (옵션)
+  backup:
+    image: postgres:15-alpine
+    container_name: fmea-backup
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-fmea_db}
+    volumes:
+      - ./backups:/backups
+      - ./docker/scripts:/scripts
+    networks:
+      - fmea-network
+    command: /bin/sh -c "chmod +x /scripts/backup.sh && crond -f"
+    depends_on:
+      - postgres
+
+networks:
+  fmea-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+  logs:
+    driver: local
+  nginx_cache:
+    driver: local

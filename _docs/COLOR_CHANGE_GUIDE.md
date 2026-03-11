@@ -1,0 +1,195 @@
+# FMEA 색상 변경 가이드 📚
+
+> **코드프리즈 태그**: `codefreeze-20260112-color-system`
+> **최종 수정일**: 2026-01-12
+
+---
+
+## 🎨 색상 시스템 개요
+
+FMEA 시스템은 **4가지 색상 타입**을 사용합니다:
+
+| 타입 | 용도 | 진한색 | 연한색 |
+|------|------|--------|--------|
+| `structure` | 구조분석 (공정명, 4M) | `#bbdefb` | `#e3f2fd` |
+| `function` | 기능분석 (기능) | `#c8e6c9` | `#e8f5e9` |
+| `failure` | 고장분석 (고장형태) | `#ffe0b2` | `#fff3e0` |
+| `requirement` | 요구사항/제품특성 | `#e1bee7` | `#f3e5f5` |
+
+---
+
+## 📁 색상 정의 파일 위치
+
+### 1. 줄무늬 색상 (Zebra Colors)
+```
+📂 src/styles/level-colors.ts
+```
+
+```typescript
+// 이 파일에서 줄무늬 색상 변경
+export const ZEBRA_COLORS = {
+  structure: { light: '#e3f2fd', dark: '#bbdefb' },
+  function: { light: '#e8f5e9', dark: '#c8e6c9' },
+  failure: { light: '#fff3e0', dark: '#ffe0b2' },
+  requirement: { light: '#f3e5f5', dark: '#e1bee7' },  // ★ 요구사항/제품특성
+} as const;
+```
+
+### 2. ALL탭 헤더 색상
+```
+📂 src/app/pfmea/worksheet/tabs/all/allTabConstants.ts
+```
+
+```typescript
+// COLORS.function.requirement 섹션에서 변경
+requirement: { 
+  header: '#7b1fa2',      // 헤더 배경
+  headerLight: '#ba68c8', // 헤더 라이트
+  cell: '#f3e5f5',        // 셀 연한색
+  cellAlt: '#e1bee7'      // 셀 진한색
+},
+```
+
+### 3. 트리뷰 색상
+```
+📂 src/app/pfmea/worksheet/panels/TreePanel/TreePanel.tsx
+```
+
+```typescript
+// 트리뷰에서 직접 색상 지정 (검색: bgColor=)
+bgColor="#f3e5f5"  // 연한 연보라
+bgColor="#e1bee7"  // 진한 연보라
+textColor="#7b1fa2" // 보라색 텍스트
+```
+
+---
+
+## 🔧 색상 변경 방법
+
+### 방법 1: 전체 줄무늬 색상 일괄 변경
+
+**파일**: `src/styles/level-colors.ts`
+
+```typescript
+// 예: requirement 색상을 파란색으로 변경
+export const ZEBRA_COLORS = {
+  // ...기존 유지
+  requirement: { 
+    light: '#e3f2fd',  // 연한 파란색
+    dark: '#bbdefb'    // 진한 파란색
+  },
+} as const;
+```
+
+**적용 범위**: 
+- `FailureL1Tab.tsx` (요구사항 컬럼)
+- `FailureL2Tab.tsx` (제품특성 컬럼)
+- 기타 `getZebra('requirement', idx)` 호출하는 모든 곳
+
+---
+
+### 방법 2: 특정 컴포넌트만 색상 변경
+
+**예시**: 트리뷰의 제품특성만 다른 색상 사용
+
+**파일**: `src/app/pfmea/worksheet/panels/TreePanel/TreePanel.tsx`
+
+```typescript
+// 검색: 제품특성 또는 bgColor=
+<TreeLeaf 
+  icon="🏷️" 
+  label={pc.name} 
+  bgColor={pcIdx % 2 === 0 ? '#e1bee7' : '#f3e5f5'}  // ← 여기서 변경
+  textColor="#7b1fa2"  // ← 텍스트 색상 변경
+/>
+```
+
+---
+
+### 방법 3: ALL탭 헤더 색상만 변경
+
+**파일**: `src/app/pfmea/worksheet/tabs/all/allTabConstants.ts`
+
+```typescript
+// 검색: requirement
+requirement: { 
+  header: '#7b1fa2',      // ← 진한 보라 (헤더 배경)
+  headerLight: '#ba68c8', // ← 중간 보라 
+  cell: '#f3e5f5',        // ← 연한 보라 (셀 배경)
+  cellAlt: '#e1bee7'      // ← 진한 보라 (셀 줄무늬)
+},
+```
+
+---
+
+## 🎯 색상 코드 팔레트
+
+### 보라색 계열 (현재 요구사항/제품특성)
+| 이름 | 코드 | 용도 |
+|------|------|------|
+| 가장 진한 보라 | `#7b1fa2` | 텍스트, 헤더 배경 |
+| 중간 보라 | `#ba68c8` | 특별특성 표시 |
+| 진한 연보라 | `#ce93d8` | 특별특성 배경 |
+| 연보라 (dark) | `#e1bee7` | 줄무늬 짝수행 |
+| 연보라 (light) | `#f3e5f5` | 줄무늬 홀수행 |
+
+### 주황색 계열 (고장분석)
+| 이름 | 코드 | 용도 |
+|------|------|------|
+| 진한 주황 | `#e65100` | 텍스트 |
+| 주황 | `#f57c00` | 배지 |
+| 연한 주황 (dark) | `#ffe0b2` | 줄무늬 짝수행 |
+| 연한 주황 (light) | `#fff3e0` | 줄무늬 홀수행 |
+
+### 녹색 계열 (기능분석)
+| 이름 | 코드 | 용도 |
+|------|------|------|
+| 진한 녹색 | `#1b5e20` | 텍스트 |
+| 녹색 (dark) | `#c8e6c9` | 줄무늬 짝수행 |
+| 녹색 (light) | `#e8f5e9` | 줄무늬 홀수행 |
+
+### 파란색 계열 (구조분석)
+| 이름 | 코드 | 용도 |
+|------|------|------|
+| 진한 파랑 | `#1565c0` | 헤더, 텍스트 |
+| 파랑 (dark) | `#bbdefb` | 줄무늬 짝수행 |
+| 파랑 (light) | `#e3f2fd` | 줄무늬 홀수행 |
+
+---
+
+## ⚠️ 주의사항
+
+1. **색상 변경 시 반드시 관련 파일 모두 확인**
+   - `level-colors.ts` 변경 → 워크시트 탭 영향
+   - `allTabConstants.ts` 변경 → ALL탭 헤더 영향
+   - `TreePanel.tsx` 변경 → 트리뷰 영향
+
+2. **색상 대비 확인**
+   - 배경색과 텍스트색 대비율 확인
+   - 연한 배경 → 진한 텍스트 권장
+
+3. **줄무늬 패턴 유지**
+   - 짝수(0, 2, 4...) → dark 색상
+   - 홀수(1, 3, 5...) → light 색상
+
+---
+
+## 📝 코드프리즈 파일 목록
+
+| 파일 | 설명 |
+|------|------|
+| `src/styles/level-colors.ts` | 줄무늬 색상 정의 |
+| `src/app/pfmea/worksheet/tabs/all/allTabConstants.ts` | ALL탭 색상 상수 |
+| `src/app/pfmea/worksheet/tabs/failure/FailureL1Tab.tsx` | 1L 고장영향 (요구사항 색상) |
+| `src/app/pfmea/worksheet/tabs/failure/FailureL2Tab.tsx` | 2L 고장형태 (제품특성 색상) |
+| `src/app/pfmea/worksheet/panels/TreePanel/TreePanel.tsx` | 트리뷰 색상 |
+
+---
+
+**코드프리즈 태그**: `codefreeze-20260112-color-system`
+
+
+
+
+
+

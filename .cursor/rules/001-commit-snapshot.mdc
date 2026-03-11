@@ -1,0 +1,193 @@
+---
+description: 커밋 시 스냅샷 및 테스트 케이스 자동 저장 규칙
+globs: ["**/*"]
+alwaysApply: true
+priority: 1
+---
+
+# 룰 1: 커밋 시 스냅샷 및 테스트 케이스 저장
+
+## 목적
+코드 변경 시 현재 동작 상태를 스냅샷으로 저장하고, 주요 기능 테스트 케이스를 자동 생성하여 회귀 테스트 기반을 마련합니다.
+
+---
+
+## 🔴 TDD 계획 수립 원칙 (필수)
+
+### 원칙: 과거 실패 이력을 TDD에 100% 반영
+
+TDD 계획은 **새로 작성한 코드만 검증하는 것이 아니다.**
+사용자와의 대화에서 발생한 과거 실패 사례, 버그, 재현 시나리오를 
+실전 중심으로 테스트 케이스에 반드시 포함해야 한다.
+
+#### 🔴 금지: 자기 코드만 검증하는 TDD
+```
+❌ 내가 방금 수정한 함수만 단위 테스트
+❌ 새 기능 happy path만 검증
+❌ 사용자가 직접 보고한 문제를 테스트에서 누락
+❌ Playwright 테스트에서 텍스트 부분 매칭으로 false positive 생성
+   (예: 'C' 텍스트 카운트 → specialChar 배지 수로 오인)
+```
+
+#### ✅ 필수: 과거 실패를 재현하는 TDD
+```
+✅ 사용자가 보고한 버그를 재현하는 테스트 케이스 먼저 작성
+✅ 과거에 실패했던 시나리오를 그대로 테스트 입력으로 사용
+✅ 이전에 잘못된 값(378건 failureLinks, specialChar 0건 등)을
+   테스트에서 명시적으로 감지하고 실패로 판정
+✅ Playwright는 실제 DOM 구조로 검증 (텍스트 부분 매칭 금지)
+```
+
+### 이 프로젝트에서 실제 발생한 실패 이력 (TDD에 반드시 반영)
+
+#### [실패 1] specialChar 파이프라인 - 3곳 버그 (2026-02)
+- **증상**: 엑셀 Import 후 2L기능 탭 특별특성 열이 "-"만 표시
+- **근본 원인**:
+  1. `master-api.ts` `saveMasterDataset()`: `.map()`에서 `specialChar` 누락 → DB 미저장
+  2. `master-api.ts` `loadDatasetByFmeaId()`: `.map()`에서 `specialChar` 누락 → 로드 시 손실
+  3. `useImportFileHandlers.ts` merge 단계: `...existing` spread 후 `newItem.specialChar` 미적용 → 재Import도 효과 없음
+- **재현 테스트 필수 항목**:
+  ```typescript
+  // 1. API 저장 검증: specialChar가 DB에 실제로 저장되는가
+  expect(savedItem.specialChar).toBe('C');  // 'C' 또는 'SC'
+  // 2. API 로드 검증: DB에서 읽을 때 specialChar가 살아있는가
+  expect(loadedItem.specialChar).toBe('C');
+  // 3. 재Import 검증: 기존 항목이 있을 때도 specialChar가 업데이트되는가
+  expect(mergedItem.specialChar).toBe('SC');  // existing에 없어도 newItem에서 가져와야 함
+  // 4. 렌더링 검증: 2L기능 탭에서 배지가 표시되는가 (DOM 정확히 확인)
+  await expect(page.locator('[data-sc-badge]').first()).not.toHaveText('-');
+  ```
+
+#### [실패 2] failureLinks 378건 오류 (2026-02)
+- **증상**: FC_고장사슬 시트 589건이 있음에도 378건 fallback 사용
+- **근본 원인**:
+  1. `page.tsx` `doSave()`: `failureChains` 미전달 → master DB에 null 저장
+  2. `TemplateGeneratorPanel.tsx`: `externalChains` 없으면 `buildFailureChainsFromFlat` fallback 실행
+  3. `useImportSteps.ts`: stale closure로 `crossTab` 의존성 누락
+- **재현 테스트 필수 항목**:
+  ```typescript
+  // FA 확정 후 failureLinks 건수 검증
+  expect(failureLinks.length).toBe(589);     // ❌ 378이면 fallback 사용된 것
+  const uniqueFMs = new Set(links.map(l => l.fmValue)).size;
+  expect(uniqueFMs).toBeGreaterThan(17);     // ❌ 17이면 Cartesian product 오류
+  const uniqueFEs = new Set(links.map(l => l.feValue)).size;
+  expect(uniqueFEs).toBeGreaterThan(3);      // ❌ 3이면 Cartesian product 오류
+  ```
+
+#### [실패 3] Playwright false positive (2026-02)
+- **증상**: 테스트가 통과했지만 화면은 여전히 "-" 표시
+- **근본 원인**: `page.locator('td').filter({ hasText: 'C' })` → 공정특성, 기능특성 등 모든 "C" 텍스트 카운트
+- **올바른 검증 방법**:
+  ```typescript
+  // ❌ 잘못된 방법
+  const count = await page.locator('td').filter({ hasText: 'C' }).count();
+  
+  // ✅ 올바른 방법: SpecialCharBadge 컴포넌트의 실제 DOM 확인
+  // specialChar 있으면: <span style="background: #e53935; ...">◆ C</span>
+  // specialChar 없으면: <span style="color: #ccc; font-size: 10px">-</span>
+  const scBadges = page.locator('td').filter({ has: page.locator('span[style*="background"]') });
+  const dashCells = page.locator('span').filter({ hasText: '-' }).filter({ has: page.locator('[style*="color: #ccc"]') });
+  // 배지 수 > 0, 대시(-) 수가 전체보다 적어야 통과
+  ```
+
+#### [실패 4] 하드코딩 데이터로 검증 (2026-02)
+- **증상**: 스크립트로 DB를 직접 조작해 특정 값을 주입 후 "검증 완료" 선언
+- **원칙 위반**: 코드 로직이 아닌 결과값만 맞춘 것 → 실제 Import 시 재현 불가
+- **규칙**: 모든 TDD 검증은 실제 코드 로직이 실행된 결과여야 함
+  ```
+  ❌ DB 직접 조작 후 렌더링 확인
+  ✅ Import 버튼 클릭 → FA 확정 → 렌더링 확인 (실제 코드 실행 경로)
+  ```
+
+---
+
+## TDD 계획 수립 체크리스트
+
+코드 수정 전, 다음을 반드시 확인:
+
+```
+[ ] 1. 사용자가 보고한 버그/증상을 명확히 문서화했는가?
+[ ] 2. 과거 실패 이력(위 목록)에서 관련 항목을 찾아 테스트에 포함했는가?
+[ ] 3. 테스트가 실제 코드 실행 경로를 통과하는가? (DB 직접 조작 금지)
+[ ] 4. Playwright 테스트가 실제 DOM 구조로 검증하는가? (텍스트 부분 매칭 금지)
+[ ] 5. 과거 잘못된 값(378, 17, 3 등)을 명시적으로 감지해 실패로 판정하는가?
+[ ] 6. 테스트가 통과해도 사용자 화면을 직접 캡처해 일치 여부 확인했는가?
+```
+
+---
+
+## 자동 실행 조건
+- `git commit` 실행 시 pre-commit hook에서 자동 실행
+- 스냅샷은 `snapshots/` 폴더에 저장
+
+## 스냅샷 저장 내용
+
+### 1. 파일 구조 스냅샷
+```
+snapshots/
+├── YYYYMMDD-HHMMSS/
+│   ├── snapshot-info.json       # 커밋 정보, 변경 파일 목록
+│   ├── file-structure.txt       # 주요 폴더 구조
+│   ├── api-endpoints.json       # API 엔드포인트 목록
+│   ├── test-cases.md            # 테스트 케이스 체크리스트
+│   └── changed-files.txt        # 변경된 파일 목록
+```
+
+### 2. 테스트 케이스 체크리스트 (자동 생성)
+
+#### PFMEA 모듈
+- [ ] 등록 화면 로드
+- [ ] 기초정보 저장
+- [ ] CFT 멤버 추가/삭제
+- [ ] FMEA 리스트 조회
+- [ ] 워크시트 로드
+- [ ] 구조분석 저장
+- [ ] 기능분석 저장
+- [ ] 고장분석 저장
+- [ ] 고장연결 저장
+- [ ] ALL 화면 로드
+- [ ] 엑셀 임포트 → SA→FC→FA 확정 전체 경로
+- [ ] **[과거실패]** Import 후 specialChar가 2L기능 탭에 표시되는가
+- [ ] **[과거실패]** FA 확정 후 failureLinks가 589건인가 (378건 오류 감지)
+- [ ] 엑셀 내보내기
+
+#### CP 모듈
+- [ ] CP 등록
+- [ ] CP 리스트 조회
+- [ ] FMEA 연동
+- [ ] 워크시트 저장
+
+#### PFD 모듈
+- [ ] PFD 등록
+- [ ] PFD 리스트 조회
+- [ ] FMEA 연동
+
+## 스냅샷 보존 정책
+- 최근 10개 스냅샷 유지
+- 오래된 스냅샷은 자동 삭제 (선택적)
+
+## 사용 방법
+
+### 수동 스냅샷 생성
+```bash
+npm run snapshot
+# 또는
+node scripts/create-snapshot.js
+```
+
+### 커밋과 함께 자동 생성
+```bash
+git add .
+git commit -m "feat: 기능 추가"
+# → pre-commit hook에서 자동으로 스냅샷 생성
+```
+
+### 스냅샷 비교
+```bash
+npm run snapshot:compare [snapshot1] [snapshot2]
+```
+
+## 주의사항
+1. 스냅샷은 `.gitignore`에 포함되어 로컬에만 저장
+2. 중요한 스냅샷은 별도 백업 필요
+3. 테스트 케이스 실패 시 커밋 진행 여부 확인

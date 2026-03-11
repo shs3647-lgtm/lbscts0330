@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>FMEA ALL Export - 양식 시안</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: '맑은 고딕', sans-serif; background: #f0f0f0; padding: 20px; }
+  h2 { margin: 30px 0 10px; color: #333; font-size: 16px; }
+  .sheet { background: #fff; border: 2px solid #999; margin-bottom: 40px; padding: 0; overflow-x: auto; }
+  .sheet-tab { display: inline-block; padding: 6px 16px; color: #fff; font-size: 11px; font-weight: bold; border-radius: 0 0 6px 6px; margin-left: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 9px; }
+  td, th { border: 1px solid #BDBDBD; padding: 3px 5px; text-align: center; vertical-align: middle; white-space: nowrap; }
+
+  /* 제목 */
+  .title { font-size: 14px; font-weight: bold; color: #1565C0; text-align: center; padding: 8px; border: none; }
+
+  /* 라벨/값 */
+  .label { background: #E3F2FD; font-weight: bold; font-size: 9px; }
+  .value { background: #fff; font-size: 9px; }
+
+  /* 색상 */
+  .bg-blue { background: #1565C0; color: #fff; font-weight: bold; }
+  .bg-green { background: #2E7D32; color: #fff; font-weight: bold; }
+  .bg-orange { background: #F57C00; color: #fff; font-weight: bold; }
+  .bg-red { background: #C62828; color: #fff; font-weight: bold; }
+  .bg-section-green { background: #2E7D32; color: #fff; font-weight: bold; font-size: 11px; text-align: left; padding-left: 10px; }
+  .bg-section-orange { background: #F57C00; color: #fff; font-weight: bold; font-size: 11px; text-align: left; padding-left: 10px; }
+
+  /* 데이터 행 */
+  .data-even { background: #F5F5F5; }
+  .data-odd { background: #FFFFFF; }
+
+  /* Sheet2 헤더 */
+  .hdr-structure { background: #1565C0; color: #fff; font-weight: bold; }
+  .hdr-function { background: #2E7D32; color: #fff; font-weight: bold; }
+  .hdr-failure { background: #C62828; color: #fff; font-weight: bold; }
+  .hdr-risk { background: #1565C0; color: #fff; font-weight: bold; }
+  .hdr-opt { background: #F57C00; color: #fff; font-weight: bold; }
+
+  /* 서브그룹 (밝은 톤) */
+  .sub-blue { background: #1976D2; color: #fff; font-weight: bold; font-size: 8px; }
+  .sub-green { background: #388E3C; color: #fff; font-weight: bold; font-size: 8px; }
+  .sub-orange { background: #FF9800; color: #fff; font-weight: bold; font-size: 8px; }
+
+  .info-bar { background: #FAFAFA; font-size: 10px; text-align: left; padding: 4px 8px; font-weight: bold; border: 1px solid #E0E0E0; }
+
+  .spacer { height: 6px; border: none; }
+  .spacer td { border: none; height: 6px; padding: 0; }
+
+  .page-label { display: inline-block; background: #333; color: #fff; padding: 4px 12px; font-size: 12px; font-weight: bold; border-radius: 4px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- Sheet 1: FMEA 정보 -->
+<!-- ============================================ -->
+<div class="page-label">Sheet 1 (1페이지): FMEA 정보</div>
+<span class="sheet-tab" style="background:#1565C0;">1. FMEA 정보</span>
+<span class="sheet-tab" style="background:#C62828;">2. FMEA ALL</span>
+
+<div class="sheet">
+<table>
+  <!-- 제목 -->
+  <tr><td colspan="15" class="title" style="height:35px;">Process Failure Modes Effects Analysis (Process FMEA)</td></tr>
+
+  <!-- 빈 행 -->
+  <tr class="spacer"><td colspan="15"></td></tr>
+
+  <!-- ===== 섹션A: FMEA 등록정보 ===== -->
+  <tr style="height:24px;">
+    <td colspan="2" class="label">FMEA ID</td>
+    <td colspan="2" class="value">JG1-P-2501</td>
+    <td colspan="2" class="label">회사명</td>
+    <td colspan="2" class="value">My Company</td>
+    <td colspan="2" class="label">고객명</td>
+    <td colspan="2" class="value">모비스</td>
+    <td class="label">기밀등급</td>
+    <td colspan="2" class="value">confidential</td>
+  </tr>
+  <tr style="height:24px;">
+    <td colspan="2" class="label">FMEA명</td>
+    <td colspan="2" class="value">JG1 HUD 개발 프로젝트</td>
+    <td colspan="2" class="label">모델년도</td>
+    <td colspan="2" class="value">JG1</td>
+    <td colspan="2" class="label">시작일자</td>
+    <td colspan="2" class="value">2025-12-19</td>
+    <td class="label">개정번호</td>
+    <td colspan="2" class="value">1.00</td>
+  </tr>
+  <tr style="height:24px;">
+    <td colspan="2" class="label">책임자</td>
+    <td colspan="2" class="value">문병식 차장</td>
+    <td colspan="2" class="label">설계책임</td>
+    <td colspan="2" class="value">품질보증부</td>
+    <td colspan="2" class="label">개정일자</td>
+    <td colspan="2" class="value">2025-12-19</td>
+    <td class="label">위치</td>
+    <td colspan="2" class="value">T&F 평택공장</td>
+  </tr>
+
+  <!-- 빈 행 -->
+  <tr class="spacer"><td colspan="15"></td></tr>
+
+  <!-- ===== 섹션B: CFT 현황 ===== -->
+  <tr><td colspan="15" class="bg-section-green" style="height:26px;">CFT 현황 (Cross Functional Team)</td></tr>
+
+  <!-- CFT 헤더 -->
+  <tr style="height:22px;">
+    <td class="bg-green">No</td>
+    <td colspan="2" class="bg-green">CFT역할</td>
+    <td colspan="2" class="bg-green">성명</td>
+    <td colspan="2" class="bg-green">부서</td>
+    <td class="bg-green">직급</td>
+    <td colspan="2" class="bg-green">담당업무</td>
+    <td colspan="2" class="bg-green">Email</td>
+    <td colspan="2" class="bg-green">전화번호</td>
+    <td class="bg-green">비고</td>
+  </tr>
+
+  <!-- CFT 데이터 -->
+  <tr class="data-even" style="height:20px;">
+    <td>1</td>
+    <td colspan="2">Champion</td>
+    <td colspan="2">이OO</td>
+    <td colspan="2">경영지원</td>
+    <td>이사</td>
+    <td colspan="2">경영총괄</td>
+    <td colspan="2">lee@company.kr</td>
+    <td colspan="2">010-1234-5678</td>
+    <td>-</td>
+  </tr>
+  <tr class="data-odd" style="height:20px;">
+    <td>2</td>
+    <td colspan="2">Technical Leader</td>
+    <td colspan="2">문병식</td>
+    <td colspan="2">품질보증부</td>
+    <td>차장</td>
+    <td colspan="2">FMEA 총괄</td>
+    <td colspan="2">moon@company.kr</td>
+    <td colspan="2">010-2345-6789</td>
+    <td>PM</td>
+  </tr>
+  <tr class="data-even" style="height:20px;">
+    <td>3</td>
+    <td colspan="2">CFT 팀원</td>
+    <td colspan="2">김OO</td>
+    <td colspan="2">설계개발부</td>
+    <td>과장</td>
+    <td colspan="2">구조설계</td>
+    <td colspan="2">kim@company.kr</td>
+    <td colspan="2">010-3456-7890</td>
+    <td>-</td>
+  </tr>
+  <tr class="data-odd" style="height:20px;">
+    <td>4</td>
+    <td colspan="2">CFT 팀원</td>
+    <td colspan="2">박OO</td>
+    <td colspan="2">생산기술부</td>
+    <td>대리</td>
+    <td colspan="2">공정관리</td>
+    <td colspan="2">park@company.kr</td>
+    <td colspan="2">010-4567-8901</td>
+    <td>-</td>
+  </tr>
+
+  <!-- 빈 행 -->
+  <tr class="spacer"><td colspan="15"></td></tr>
+
+  <!-- ===== 섹션C: 개정현황 및 승인 ===== -->
+  <tr><td colspan="15" class="bg-section-orange" style="height:26px;">개정현황 및 승인</td></tr>
+
+  <!-- 개정 1단 그룹 헤더 -->
+  <tr style="height:22px;">
+    <td colspan="3" class="bg-blue">개정정보</td>
+    <td colspan="4" class="bg-green">작성</td>
+    <td colspan="4" class="bg-blue">검토</td>
+    <td colspan="4" class="bg-red">승인</td>
+  </tr>
+
+  <!-- 개정 2단 세부 헤더 -->
+  <tr style="height:22px;">
+    <td class="bg-blue" style="font-size:8px;">개정번호</td>
+    <td class="bg-blue" style="font-size:8px;">개정일자</td>
+    <td class="bg-blue" style="font-size:8px;">개정내용</td>
+    <td class="bg-green" style="font-size:8px;">직급</td>
+    <td class="bg-green" style="font-size:8px;">성명</td>
+    <td class="bg-green" style="font-size:8px;">일자</td>
+    <td class="bg-green" style="font-size:8px;">상태</td>
+    <td class="bg-blue" style="font-size:8px;">직급</td>
+    <td class="bg-blue" style="font-size:8px;">성명</td>
+    <td class="bg-blue" style="font-size:8px;">일자</td>
+    <td class="bg-blue" style="font-size:8px;">상태</td>
+    <td class="bg-red" style="font-size:8px;">직급</td>
+    <td class="bg-red" style="font-size:8px;">성명</td>
+    <td class="bg-red" style="font-size:8px;">일자</td>
+    <td class="bg-red" style="font-size:8px;">상태</td>
+  </tr>
+
+  <!-- 개정 데이터 -->
+  <tr class="data-even" style="height:20px;">
+    <td>1.00</td>
+    <td>2025-12-19</td>
+    <td style="text-align:left; padding-left:4px;">초기작성</td>
+    <td>차장</td>
+    <td>문병식</td>
+    <td>12-19</td>
+    <td style="color:#2E7D32; font-weight:bold;">승인</td>
+    <td>부장</td>
+    <td>이영희</td>
+    <td>12-20</td>
+    <td style="color:#2E7D32; font-weight:bold;">승인</td>
+    <td>이사</td>
+    <td>박수호</td>
+    <td>12-21</td>
+    <td style="color:#2E7D32; font-weight:bold;">승인</td>
+  </tr>
+  <tr class="data-odd" style="height:20px;">
+    <td>1.01</td>
+    <td>2026-01-15</td>
+    <td style="text-align:left; padding-left:4px;">고장분석 보완</td>
+    <td>차장</td>
+    <td>문병식</td>
+    <td>01-15</td>
+    <td style="color:#E65100; font-weight:bold;">진행</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td style="color:#999;">대기</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td style="color:#999;">대기</td>
+  </tr>
+</table>
+</div>
+
+<!-- ============================================ -->
+<!-- Sheet 2: FMEA ALL -->
+<!-- ============================================ -->
+<div class="page-label">Sheet 2 (2페이지): FMEA ALL</div>
+<span class="sheet-tab" style="background:#1565C0;">1. FMEA 정보</span>
+<span class="sheet-tab" style="background:#C62828;">2. FMEA ALL</span>
+
+<div class="sheet">
+<table>
+  <!-- Row 1: 프로젝트 정보 바 -->
+  <tr>
+    <td colspan="5" class="info-bar">FMEA ID: JG1-P-2501</td>
+    <td colspan="8" class="info-bar">FMEA명: JG1 HUD 개발 프로젝트(문병식)</td>
+    <td colspan="6" class="info-bar">회사: My Company / 고객: 모비스</td>
+    <td colspan="8" class="info-bar">작성일: 2025-12-19 / 개정: 1.00</td>
+    <td colspan="14" class="info-bar">책임자: 문병식 차장 / 기밀: confidential</td>
+  </tr>
+
+  <!-- Row 2: 빈 행 -->
+  <tr class="spacer"><td colspan="41"></td></tr>
+
+  <!-- Row 3: 1단 그룹 헤더 (5단계) -->
+  <tr style="height:26px;">
+    <td colspan="5" class="hdr-structure">P-FMEA 구조분석(2단계)</td>
+    <td colspan="8" class="hdr-function">P-FMEA 기능분석(3단계)</td>
+    <td colspan="6" class="hdr-failure">P-FMEA 고장분석(4단계)</td>
+    <td colspan="8" class="hdr-risk">P-FMEA 리스크분석(5단계)</td>
+    <td colspan="14" class="hdr-opt">P-FMEA 최적화(6단계)</td>
+  </tr>
+
+  <!-- Row 4: 2단 서브그룹 헤더 -->
+  <tr style="height:28px;">
+    <!-- 구조(5) -->
+    <td class="sub-blue">1.완제품<br>공정명</td>
+    <td colspan="2" class="sub-blue">2.메인<br>공정명</td>
+    <td colspan="2" class="sub-blue">3.작업<br>요소</td>
+    <!-- 기능(8) -->
+    <td colspan="3" class="sub-green">1.완제품공정<br>기능/요구사항</td>
+    <td colspan="2" class="sub-green">2.메인공정<br>기능/제품특성</td>
+    <td colspan="3" class="sub-green">3.작업요소<br>기능/공정특성</td>
+    <!-- 고장(6) -->
+    <td colspan="3" class="sub-orange">1.고장영향<br>(FE)</td>
+    <td class="sub-orange">2.고장형태<br>(FM)</td>
+    <td colspan="2" class="sub-orange">3.고장원인<br>(FC)</td>
+    <!-- 리스크(8) -->
+    <td colspan="2" class="sub-blue">현재<br>예방관리</td>
+    <td colspan="2" class="sub-blue">현재<br>검출관리</td>
+    <td colspan="4" class="sub-blue">리스크<br>평가</td>
+    <!-- 최적화(14) -->
+    <td colspan="4" class="sub-orange">계획</td>
+    <td colspan="3" class="sub-orange">결과<br>모니터링</td>
+    <td colspan="7" class="sub-orange">효과<br>평가</td>
+  </tr>
+
+  <!-- Row 5: 3단 개별 컬럼 헤더 -->
+  <tr style="height:30px; font-size: 8px;">
+    <!-- 구조(5) -->
+    <td class="hdr-structure">완제품<br>공정명</td>
+    <td class="hdr-structure">NO</td>
+    <td class="hdr-structure">공정명</td>
+    <td class="hdr-structure">4M</td>
+    <td class="hdr-structure">작업요소</td>
+    <!-- 기능(8) -->
+    <td class="hdr-function">구분</td>
+    <td class="hdr-function">완제품기능</td>
+    <td class="hdr-function">요구사항</td>
+    <td class="hdr-function">공정기능</td>
+    <td class="hdr-function">제품특성</td>
+    <td class="hdr-function">작업요소</td>
+    <td class="hdr-function">작업요소<br>기능</td>
+    <td class="hdr-function">공정특성</td>
+    <!-- 고장(6) -->
+    <td class="hdr-failure">구분</td>
+    <td class="hdr-failure">고장영향<br>(FE)</td>
+    <td class="hdr-failure">S</td>
+    <td class="hdr-failure">고장형태<br>(FM)</td>
+    <td class="hdr-failure">작업요소</td>
+    <td class="hdr-failure">고장원인<br>(FC)</td>
+    <!-- 리스크(8) -->
+    <td class="hdr-risk">예방관리</td>
+    <td class="hdr-risk">O</td>
+    <td class="hdr-risk">검출관리</td>
+    <td class="hdr-risk">D</td>
+    <td class="hdr-risk">AP</td>
+    <td class="hdr-risk">RPN</td>
+    <td class="hdr-risk">특별특성</td>
+    <td class="hdr-risk">습득교훈</td>
+    <!-- 최적화(14) -->
+    <td class="hdr-opt">예방개선</td>
+    <td class="hdr-opt">검출개선</td>
+    <td class="hdr-opt">책임자</td>
+    <td class="hdr-opt">목표일</td>
+    <td class="hdr-opt">상태</td>
+    <td class="hdr-opt">개선근거</td>
+    <td class="hdr-opt">완료일</td>
+    <td class="hdr-opt">S</td>
+    <td class="hdr-opt">O</td>
+    <td class="hdr-opt">D</td>
+    <td class="hdr-opt">특별특성</td>
+    <td class="hdr-opt">AP</td>
+    <td class="hdr-opt">RPN</td>
+    <td class="hdr-opt">비고</td>
+  </tr>
+
+  <!-- 데이터 행 예시 -->
+  <tr class="data-even" style="height:20px; font-size:8px;">
+    <td rowspan="3">HUD<br>Assembly</td>
+    <td rowspan="3">P01</td>
+    <td rowspan="3">렌즈조립</td>
+    <td>MN</td>
+    <td>작업자</td>
+    <td rowspan="3">YP</td>
+    <td rowspan="3">HUD 영상<br>표시 기능</td>
+    <td rowspan="3">영상 왜곡<br>&lt;0.5%</td>
+    <td>렌즈 정렬</td>
+    <td>정렬 공차</td>
+    <td>작업자</td>
+    <td>정렬 작업</td>
+    <td>정렬 정밀도</td>
+    <td>YP</td>
+    <td>영상 왜곡</td>
+    <td style="font-weight:bold;">8</td>
+    <td>렌즈 틀어짐</td>
+    <td>작업자</td>
+    <td>정렬 미스</td>
+    <td>작업표준서</td>
+    <td>4</td>
+    <td>완제품 검사</td>
+    <td>5</td>
+    <td style="background:#FFCDD2; font-weight:bold;">H</td>
+    <td>160</td>
+    <td></td>
+    <td></td>
+    <td>지그 개선</td>
+    <td>SPC 도입</td>
+    <td>김OO</td>
+    <td>03-15</td>
+    <td>진행</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr class="data-odd" style="height:20px; font-size:8px;">
+    <td>MC</td>
+    <td>조립지그</td>
+    <td>지그 세팅</td>
+    <td>지그 정밀도</td>
+    <td>조립지그</td>
+    <td>지그 관리</td>
+    <td>지그 공차</td>
+    <td>YP</td>
+    <td>영상 왜곡</td>
+    <td style="font-weight:bold;">8</td>
+    <td>지그 마모</td>
+    <td>조립지그</td>
+    <td>지그 노후화</td>
+    <td>예방보전</td>
+    <td>3</td>
+    <td>지그 점검</td>
+    <td>4</td>
+    <td style="background:#FFF9C4; font-weight:bold;">M</td>
+    <td>96</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr class="data-even" style="height:20px; font-size:8px;">
+    <td>IM</td>
+    <td>접착제</td>
+    <td>접착 도포</td>
+    <td>도포량</td>
+    <td>접착제</td>
+    <td>도포 작업</td>
+    <td>도포 균일도</td>
+    <td>YP</td>
+    <td>접착 불량</td>
+    <td style="font-weight:bold;">7</td>
+    <td>접착 미달</td>
+    <td>접착제</td>
+    <td>도포량 부족</td>
+    <td>도포량 관리</td>
+    <td>3</td>
+    <td>외관 검사</td>
+    <td>6</td>
+    <td style="background:#FFF9C4; font-weight:bold;">M</td>
+    <td>126</td>
+    <td>SC</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <!-- 두 번째 공정 그룹 -->
+  <tr class="data-odd" style="height:20px; font-size:8px;">
+    <td rowspan="2">HUD<br>Assembly</td>
+    <td rowspan="2">P02</td>
+    <td rowspan="2">미러조립</td>
+    <td>MN</td>
+    <td>작업자</td>
+    <td rowspan="2">SP</td>
+    <td rowspan="2">미러 반사<br>정밀도</td>
+    <td rowspan="2">반사각<br>편차 &lt;1도</td>
+    <td>미러 세팅</td>
+    <td>반사각도</td>
+    <td>작업자</td>
+    <td>각도 조절</td>
+    <td>각도 정밀도</td>
+    <td>SP</td>
+    <td>반사 불량</td>
+    <td style="font-weight:bold;">6</td>
+    <td>각도 틀어짐</td>
+    <td>작업자</td>
+    <td>세팅 오류</td>
+    <td>작업표준</td>
+    <td>3</td>
+    <td>광학검사</td>
+    <td>3</td>
+    <td style="background:#C8E6C9; font-weight:bold;">L</td>
+    <td>54</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr class="data-even" style="height:20px; font-size:8px;">
+    <td>MC</td>
+    <td>고정지그</td>
+    <td>지그 고정</td>
+    <td>고정력</td>
+    <td>고정지그</td>
+    <td>고정 작업</td>
+    <td>고정 토크</td>
+    <td>SP</td>
+    <td>반사 불량</td>
+    <td style="font-weight:bold;">6</td>
+    <td>고정 불량</td>
+    <td>고정지그</td>
+    <td>토크 부족</td>
+    <td>토크 관리</td>
+    <td>2</td>
+    <td>토크 검사</td>
+    <td>3</td>
+    <td style="background:#C8E6C9; font-weight:bold;">L</td>
+    <td>36</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+</div>
+
+<div style="margin-top:20px; padding:15px; background:#fff3e0; border-radius:6px; font-size:12px;">
+  <b>색상 범례:</b><br>
+  <span style="display:inline-block; width:14px; height:14px; background:#1565C0; vertical-align:middle;"></span> 구조분석 / 리스크분석 (파란) &nbsp;
+  <span style="display:inline-block; width:14px; height:14px; background:#2E7D32; vertical-align:middle;"></span> 기능분석 / CFT (녹색) &nbsp;
+  <span style="display:inline-block; width:14px; height:14px; background:#C62828; vertical-align:middle;"></span> 고장분석 / 승인 (빨간) &nbsp;
+  <span style="display:inline-block; width:14px; height:14px; background:#E65100; vertical-align:middle;"></span> 최적화 / 개정 (주황) &nbsp;
+  <span style="display:inline-block; width:14px; height:14px; background:#FFCDD2; vertical-align:middle;"></span> AP=H &nbsp;
+  <span style="display:inline-block; width:14px; height:14px; background:#FFF9C4; vertical-align:middle;"></span> AP=M &nbsp;
+  <span style="display:inline-block; width:14px; height:14px; background:#C8E6C9; vertical-align:middle;"></span> AP=L
+  <br><br>
+  <b>보라색(purple) 미사용</b> — 리스크분석 헤더는 파란색(#1565C0)으로 통일
+</div>
+
+</body>
+</html>

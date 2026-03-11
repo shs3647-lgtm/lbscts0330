@@ -1,0 +1,471 @@
+/**
+ * @file useLinkData.ts
+ * @description 고장연결 데이터 추출 hook (FE/FM/FC)
+ * @version 1.0.0
+ * 
+ * FailureLinkTab.tsx에서 분리된 데이터 추출 로직
+ * - FE(고장영향): L1.failureScopes에서 추출
+ * - FM(고장형태): L2.failureModes에서 추출  
+ * - FC(고장원인): L3.failureCauses에서 추출
+ */
+
+import { useMemo } from 'react';
+import { uid } from '../../../constants';
+import { FEItem, FMItem, FCItem, LinkResult } from '../FailureLinkTypes';
+
+interface UseLinkDataProps {
+  state: any;
+  savedLinks: LinkResult[];
+}
+
+interface UseLinkDataReturn {
+  feData: FEItem[];
+  fmData: FMItem[];
+  fcData: FCItem[];
+  fmById: Map<string, FMItem>;
+  feById: Map<string, FEItem>;
+  fcById: Map<string, FCItem>;
+  rawFmById: Map<string, { text: string; processName: string }>;
+  rawFeById: Map<string, { text: string; scope: string; severity: number }>;
+  rawFcById: Map<string, { text: string; processName: string; m4: string; workElem: string }>;
+  enrichedLinks: LinkResult[];
+  isL1Confirmed: boolean;
+  isL2Confirmed: boolean;
+  isL3Confirmed: boolean;
+}
+
+/**
+ * 의미 있는 이름인지 확인하는 헬퍼 함수
+ */
+const isMeaningful = (name: string): boolean => {
+  if (!name || name.trim() === '') return false;
+  const placeholders = ['클릭', '선택', '입력', '필요', '기능분석에서'];
+  return !placeholders.some(p => name.includes(p));
+};
+
+/**
+ * 구분(scope)에서 prefix 추출
+ */
+const getScopePrefix = (scope: string): string => {
+  if (scope === 'YP' || scope === 'YP' || scope.startsWith('Y')) return 'Y';
+  if (scope === 'SP' || scope === 'SP' || scope.startsWith('S')) return 'S';
+  if (scope === 'USER' || scope.startsWith('U')) return 'U';
+  return 'U'; // 기본값 User
+};
+
+/**
+ * 고장연결 데이터 추출 hook
+ */
+export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDataReturn {
+  // 확정 상태
+  const isL1Confirmed = state.failureL1Confirmed || false;
+  const isL2Confirmed = state.failureL2Confirmed || false;
+  const isL3Confirmed = state.failureL3Confirmed || false;
+
+  // ★ Fallback: 실제 데이터 존재 여부 (FailureLinkTab 진입조건과 동일)
+  const hasFailureEffects = (state.l1?.failureScopes || []).length > 0;
+  const hasFailureModes = (state.l2 || []).some((p: any) => (p.failureModes || []).length > 0);
+  const hasFailureCauses = (state.l2 || []).some((p: any) =>
+    (p.failureCauses || []).length > 0 ||
+    (p.l3 || []).some((we: any) => (we.failureCauses || []).length > 0)
+  );
+
+  // ========== FE 데이터 추출 (확정 또는 데이터 존재 시 추출) ==========
+  const feData: FEItem[] = useMemo(() => {
+    if (!isL1Confirmed && !hasFailureEffects) {
+      // 1L 미확정 + 데이터 없음 → 빈 배열
+      return [];
+    }
+
+    const items: FEItem[] = [];
+    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const counters: Record<string, number> = { 'YP': 0, 'SP': 0, 'USER': 0 };
+
+    (state.l1?.failureScopes || []).forEach((fs: any) => {
+      if (!fs.effect || !fs.id) return;
+
+      // 역전개: reqId로 구분/완제품기능/요구사항 찾기
+      let scope = 'YP';
+      let functionName = '';
+      let requirement = '';
+      if (fs.reqId) {
+        (state.l1?.types || []).forEach((type: any) => {
+          (type.functions || []).forEach((fn: any) => {
+            (fn.requirements || []).forEach((req: any) => {
+              if (req.id === fs.reqId) {
+                scope = type.name || 'YP';
+                functionName = fn.name || '';
+                requirement = req.name || '';
+              }
+            });
+          });
+        });
+      }
+
+      // 중복 체크 (텍스트 + ID 모두)
+      const key = `${scope}|${fs.effect}`;
+      if (seen.has(key) || seenIds.has(fs.id)) return;
+      seen.add(key);
+      seenIds.add(fs.id);
+
+      // 번호 생성
+      const prefix = getScopePrefix(scope);
+      counters[scope] = (counters[scope] || 0) + 1;
+      const feNo = `${prefix}${counters[scope]}`;
+
+      items.push({
+        id: fs.id,
+        scope,
+        feNo,
+        text: fs.effect,
+        severity: fs.severity || 0,
+        functionName,
+        requirement,
+      });
+    });
+
+    // 정렬: Your Plant → Ship to Plant → User 순서
+    const scopeOrder: Record<string, number> = { 'YP': 0, 'SP': 1, 'User': 2 };
+    items.sort((a, b) => (scopeOrder[a.scope] ?? 9) - (scopeOrder[b.scope] ?? 9));
+
+    // FE 데이터 추출 완료
+    return items;
+  }, [state.l1, isL1Confirmed, hasFailureEffects]);
+
+  // ========== FM 데이터 추출 (확정 또는 데이터 존재 시 추출) ==========
+  const fmData: FMItem[] = useMemo(() => {
+    if (!isL2Confirmed && !hasFailureModes) {
+      // 2L 미확정 + 데이터 없음 → 빈 배열
+      return [];
+    }
+
+    const items: FMItem[] = [];
+    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    let counter = 1;
+
+    (state.l2 || []).forEach((proc: any) => {
+      if (!proc.name || proc.name.includes('클릭')) return;
+
+      (proc.failureModes || []).forEach((fm: any) => {
+        if (!fm.name || fm.name.includes('클릭')) return;
+        if (!fm.id) fm.id = uid();
+
+        const key = `${proc.name}|${fm.name}`;
+        if (seen.has(key) || seenIds.has(fm.id)) return;
+        seen.add(key);
+        seenIds.add(fm.id);
+
+        // 역전개: productCharId로 제품특성 → 공정기능 역추적
+        let processFunction = '';
+        let productChar = '';
+        if (fm.productCharId) {
+          (proc.functions || []).forEach((fn: any) => {
+            (fn.productChars || []).forEach((pc: any) => {
+              if (pc.id === fm.productCharId) {
+                processFunction = fn.name || '';
+                productChar = pc.name || '';
+              }
+            });
+          });
+        }
+        // fallback
+        if (!processFunction && (proc.functions || []).length > 0) {
+          const firstFunc = proc.functions[0];
+          processFunction = firstFunc.name || '';
+          if ((firstFunc.productChars || []).length > 0) {
+            productChar = firstFunc.productChars[0].name || '';
+          }
+        }
+
+        items.push({
+          id: fm.id,
+          fmNo: `M${counter}`,
+          processName: proc.name,
+          processNo: proc.no || '',  // ★ 공정번호 저장
+          text: fm.name,
+          processFunction,
+          productChar,
+        });
+        counter++;
+      });
+    });
+
+    // FM 데이터 추출 완료
+    return items;
+  }, [state.l2, isL2Confirmed, hasFailureModes]);
+
+  // ========== FC 데이터 추출 (확정 또는 데이터 존재 시 추출) ==========
+  const fcData: FCItem[] = useMemo(() => {
+    if (!isL3Confirmed && !hasFailureCauses) {
+      // 3L 미확정 + 데이터 없음 → 빈 배열
+      return [];
+    }
+
+    const items: FCItem[] = [];
+    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    let counter = 1;
+
+    const processes = (state.l2 || []).filter((p: any) => p.name && !p.name.includes('클릭'));
+
+    processes.forEach((proc: any) => {
+      const allCauses = proc.failureCauses || [];
+      const workElements = (proc.l3 || []).filter((we: any) => we.name && !we.name.includes('클릭'));
+
+      // ★★★ 2026-02-05 FIX: 공정 내 동일 이름 공정특성 ID 그룹화 (charIdsByName 패턴) ★★★
+      const charIdsByName = new Map<string, Set<string>>();
+      workElements.forEach((we: any) => {
+        (we.functions || []).forEach((f: any) => {
+          (f.processChars || []).forEach((pc: any) => {
+            const n = String(pc?.name || '').trim();
+            const id = String(pc?.id || '').trim();
+            if (!n || !id) return;
+            if (!charIdsByName.has(n)) charIdsByName.set(n, new Set<string>());
+            charIdsByName.get(n)!.add(id);
+          });
+        });
+      });
+
+      // 공정특성 기준으로 순회
+      workElements.forEach((we: any) => {
+        const weName = we.name || '';
+        const m4 = we.m4 || we.fourM || '';
+
+        const functions = we.functions || [];
+        const allProcessChars: any[] = [];
+
+        functions.forEach((f: any) => {
+          if (!isMeaningful(f.name)) return;
+          (f.processChars || []).forEach((pc: any) => {
+            if (!isMeaningful(pc.name)) return;
+            allProcessChars.push({ ...pc, funcId: f.id, funcName: f.name });
+          });
+        });
+
+        allProcessChars.forEach((pc: any) => {
+          // ★★★ 이름 기반 그룹 매칭 (동일 이름 공정특성의 모든 ID로 검색) ★★★
+          const charName = String(pc.name || '').trim();
+          const ids = charIdsByName.get(charName) || new Set<string>([pc.id]);
+          const linkedCauses = allCauses.filter((c: any) => ids.has(String(c.processCharId || '')));
+
+          linkedCauses.forEach((fc: any) => {
+            if (!isMeaningful(fc.name)) return;
+            if (!fc.id) fc.id = uid();
+
+            const key = `${proc.name}|${weName}|${fc.name}`;
+            if (seen.has(key) || seenIds.has(fc.id)) return;
+            seen.add(key);
+            seenIds.add(fc.id);
+
+            items.push({
+              id: fc.id,
+              fcNo: `C${counter}`,
+              processName: proc.name,
+              m4,
+              workElem: weName,
+              text: fc.name,
+              workFunction: pc.funcName || '',
+              processChar: pc.name || '',
+            });
+            counter++;
+          });
+        });
+      });
+
+      // 하위호환: processCharId가 없는 고장원인 (L3 레벨)
+      workElements.forEach((we: any) => {
+        const weName = we.name || '';
+        const m4 = we.m4 || we.fourM || '';
+
+        (we.failureCauses || []).forEach((fc: any) => {
+          if (!isMeaningful(fc.name)) return;
+          if (!fc.id) fc.id = uid();
+
+          const key = `${proc.name}|${weName}|${fc.name}`;
+          if (seen.has(key) || seenIds.has(fc.id)) return;
+          seen.add(key);
+          seenIds.add(fc.id);
+
+          items.push({
+            id: fc.id,
+            fcNo: `C${counter}`,
+            processName: proc.name,
+            m4,
+            workElem: weName,
+            text: fc.name
+          });
+          counter++;
+        });
+      });
+
+      // ★ processCharId 없는 L2 레벨 FC (failureChainInjector 자동 생성 FC 포함)
+      // primary path(processCharId 매칭)에서 이미 처리된 FC는 seen에 있으므로 중복 방지됨
+      allCauses.forEach((fc: any) => {
+        if (!isMeaningful(fc.name)) return;
+        if (!fc.id) fc.id = uid();
+        // processCharId가 있으면 이미 primary path에서 처리됨 → 스킵
+        if (fc.processCharId) return;
+
+        // m4 기반으로 해당 작업요소 찾기 (자동 생성 FC는 m4를 가질 수 있음)
+        const fcM4 = (fc as any).m4 || '';
+        const matchedWe = fcM4
+          ? workElements.find((we: any) => (we.m4 || we.fourM || '') === fcM4)
+          : undefined;
+        const weName = matchedWe?.name || (workElements[0]?.name || '');
+        const m4 = matchedWe?.m4 || matchedWe?.fourM || fcM4 || (workElements[0]?.m4 || '');
+
+        const key = `${proc.name}|${weName}|${fc.name}`;
+        if (seen.has(key) || seenIds.has(fc.id)) return;
+        seen.add(key);
+        seenIds.add(fc.id);
+
+        items.push({
+          id: fc.id,
+          fcNo: `C${counter}`,
+          processName: proc.name,
+          m4,
+          workElem: weName,
+          text: fc.name,
+        });
+        counter++;
+      });
+    });
+
+    // FC 데이터 추출 완료
+    return items;
+  }, [state.l2, isL3Confirmed, hasFailureCauses]);
+
+  // ========== ID-to-Item Maps ==========
+  const fmById = useMemo(() => new Map(fmData.map(fm => [fm.id, fm])), [fmData]);
+  const feById = useMemo(() => new Map(feData.map(fe => [fe.id, fe])), [feData]);
+  const fcById = useMemo(() => new Map(fcData.map(fc => [fc.id, fc])), [fcData]);
+
+  // ========== Raw Maps (비확정 데이터 포함) ==========
+  const rawFmById = useMemo(() => {
+    const map = new Map<string, { text: string; processName: string }>();
+    (state.l2 || []).forEach((proc: any) => {
+      (proc.failureModes || []).forEach((fm: any) => {
+        if (!fm?.id) return;
+        const text = fm.name || fm.mode || '';
+        map.set(fm.id, { text, processName: proc.name || '' });
+      });
+    });
+    return map;
+  }, [state.l2]);
+
+  const rawFeById = useMemo(() => {
+    const map = new Map<string, { text: string; scope: string; severity: number }>();
+    (state.l1?.failureScopes || []).forEach((fs: any) => {
+      if (!fs?.id) return;
+      let scope = 'YP';
+      if (fs.reqId) {
+        (state.l1?.types || []).forEach((type: any) => {
+          (type.functions || []).forEach((fn: any) => {
+            (fn.requirements || []).forEach((req: any) => {
+              if (req.id === fs.reqId) {
+                scope = type.name || 'YP';
+              }
+            });
+          });
+        });
+      }
+      map.set(fs.id, { text: fs.effect || '', scope, severity: fs.severity || 0 });
+    });
+    return map;
+  }, [state.l1]);
+
+  const rawFcById = useMemo(() => {
+    const map = new Map<string, { text: string; processName: string; m4: string; workElem: string }>();
+    (state.l2 || []).forEach((proc: any) => {
+      // 공정 레벨
+      (proc.failureCauses || []).forEach((fc: any) => {
+        if (!fc?.id) return;
+        map.set(fc.id, {
+          text: fc.name || '',
+          processName: proc.name || '',
+          m4: '',
+          workElem: ''
+        });
+      });
+      // 작업요소 레벨
+      (proc.l3 || []).forEach((we: any) => {
+        const m4 = we.m4 || we.fourM || '';
+        (we.failureCauses || []).forEach((fc: any) => {
+          if (!fc?.id) return;
+          map.set(fc.id, {
+            text: fc.name || '',
+            processName: proc.name || '',
+            m4,
+            workElem: we.name || ''
+          });
+        });
+      });
+    });
+    return map;
+  }, [state.l2]);
+
+  // ========== savedLinks 보강 (ID만 있는 경우 텍스트 복원) ==========
+  const enrichedLinks: LinkResult[] = useMemo(() => {
+    if (savedLinks.length === 0) return [];
+
+    const result = savedLinks.map(link => {
+      const enriched = { ...link };
+
+      // FM 보강
+      if (link.fmId && (!link.fmText || link.fmText.includes('FM-'))) {
+        const fm = fmById.get(link.fmId) || rawFmById.get(link.fmId);
+        if (fm) {
+          enriched.fmText = 'text' in fm ? fm.text : '';
+          enriched.fmProcess = 'processName' in fm ? fm.processName : '';
+        }
+      }
+
+      // FE 보강 — severity는 항상 동기화 (S추천 즉시 반영)
+      if (link.feId) {
+        const fe = feById.get(link.feId) || rawFeById.get(link.feId);
+        if (fe) {
+          enriched.severity = fe.severity ?? enriched.severity ?? 0;
+          if (!link.feText || link.feText.includes('FE-')) {
+            enriched.feText = fe.text;
+            enriched.feScope = fe.scope;
+          }
+        }
+      }
+
+      // FC 보강
+      if (link.fcId && (!link.fcText || link.fcText.includes('FC-'))) {
+        const fc = fcById.get(link.fcId) || rawFcById.get(link.fcId);
+        if (fc) {
+          enriched.fcText = fc.text;
+          enriched.fcProcess = fc.processName;
+          enriched.fcM4 = fc.m4;
+          enriched.fcWorkElem = fc.workElem;
+        }
+      }
+
+      return enriched;
+    });
+
+    return result;
+  }, [savedLinks, fmById, feById, fcById, rawFmById, rawFeById, rawFcById]);
+
+  return {
+    feData,
+    fmData,
+    fcData,
+    fmById,
+    feById,
+    fcById,
+    rawFmById,
+    rawFeById,
+    rawFcById,
+    enrichedLinks,
+    isL1Confirmed,
+    isL2Confirmed,
+    isL3Confirmed,
+  };
+}
+
+export default useLinkData;

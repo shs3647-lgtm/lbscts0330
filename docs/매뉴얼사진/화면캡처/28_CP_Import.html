@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - CP Import</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; }
+</style>
+</head>
+<body class="bg-[#f1f5f9] flex">
+
+<!-- Sidebar -->
+<aside class="w-12 min-h-screen bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] flex flex-col items-center py-3 gap-4 flex-shrink-0">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-white/10 cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg></div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-500/20 text-teal-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-h-screen">
+  <!-- Header -->
+  <header class="h-11 bg-[#1a1f36] flex items-center px-4 justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-teal-400 font-bold text-sm">Control Plan</span>
+      <span class="text-slate-500 text-xs">Import</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">○○타이어</span>
+      <div class="w-7 h-7 bg-teal-500/20 rounded-full flex items-center justify-center">
+        <span class="text-teal-400 text-xs font-bold">김</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top Menu Bar - 3 sections -->
+  <div class="bg-[#1e2540] px-4 py-1.5 flex items-center gap-1 flex-shrink-0">
+    <div class="flex items-center gap-1 mr-3">
+      <span class="text-[10px] text-slate-500 mr-1">구분(Type):</span>
+      <button class="px-2.5 py-1 text-[11px] text-slate-300 bg-slate-700/50 rounded hover:bg-slate-600/50">Prototype</button>
+      <button class="px-2.5 py-1 text-[11px] text-white bg-teal-600 rounded font-medium">Production</button>
+    </div>
+    <div class="w-px h-5 bg-slate-600 mx-2"></div>
+    <div class="flex items-center gap-1 mr-3">
+      <span class="text-[10px] text-slate-500 mr-1">기초정보(Basic Data):</span>
+      <button class="px-2.5 py-1 text-[11px] text-slate-300 bg-slate-700/50 rounded hover:bg-slate-600/50">미리보기</button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-300 bg-slate-700/50 rounded hover:bg-slate-600/50">편집</button>
+    </div>
+    <div class="w-px h-5 bg-slate-600 mx-2"></div>
+    <div class="flex items-center gap-1">
+      <span class="text-[10px] text-slate-500 mr-1">관리계획서(Control Plan):</span>
+      <button class="px-2.5 py-1 text-[11px] text-white bg-teal-600 rounded font-medium">미리보기</button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-300 bg-slate-700/50 rounded hover:bg-slate-600/50">편집</button>
+    </div>
+    <div class="flex-1"></div>
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] text-teal-400">cp26-f001-l68-r00</span>
+      <button class="px-2.5 py-1 text-[11px] text-white bg-blue-600 rounded hover:bg-blue-700">Import</button>
+    </div>
+  </div>
+
+  <!-- Page Content -->
+  <div class="flex-1 p-5">
+    <!-- Info Bar -->
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-3">
+        <h1 class="text-sm font-bold text-slate-800">관리계획서 미리보기 <span class="text-slate-400 font-normal">(CP Preview)</span></h1>
+        <span class="text-[10px] text-slate-400">더블클릭하여 셀을 편집할 수 있습니다.</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full">5행 로드됨</span>
+        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] rounded-full">수정 0건</span>
+      </div>
+    </div>
+
+    <!-- Preview Table -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="bg-teal-600 text-white">
+            <th class="px-3 py-2 text-left font-medium w-16 border-r border-teal-500">공정번호<br><span class="font-normal text-teal-200">Process No</span></th>
+            <th class="px-3 py-2 text-left font-medium w-32 border-r border-teal-500">공정명<br><span class="font-normal text-teal-200">Process</span></th>
+            <th class="px-3 py-2 text-left font-medium border-r border-teal-500">제품특성<br><span class="font-normal text-teal-200">Product Char</span></th>
+            <th class="px-3 py-2 text-left font-medium border-r border-teal-500">공정특성<br><span class="font-normal text-teal-200">Process Char</span></th>
+            <th class="px-3 py-2 text-left font-medium border-r border-teal-500">관리항목<br><span class="font-normal text-teal-200">Control Item</span></th>
+            <th class="px-3 py-2 text-left font-medium border-r border-teal-500">검사방법<br><span class="font-normal text-teal-200">Method</span></th>
+            <th class="px-3 py-2 text-left font-medium w-20 border-r border-teal-500">샘플링<br><span class="font-normal text-teal-200">Sampling</span></th>
+            <th class="px-3 py-2 text-left font-medium">대응방안<br><span class="font-normal text-teal-200">Reaction</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/30">
+            <td class="px-3 py-2 text-slate-600 font-mono">010</td>
+            <td class="px-3 py-2 text-slate-800 font-medium">원재료 입고</td>
+            <td class="px-3 py-2 text-slate-600">고무 경도</td>
+            <td class="px-3 py-2 text-slate-600">입고 검사</td>
+            <td class="px-3 py-2 text-slate-600">경도 55~65 Shore A</td>
+            <td class="px-3 py-2 text-slate-600">경도계</td>
+            <td class="px-3 py-2 text-slate-600">1/Lot</td>
+            <td class="px-3 py-2 text-slate-600">반품 처리</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/30">
+            <td class="px-3 py-2 text-slate-600 font-mono">020</td>
+            <td class="px-3 py-2 text-slate-800 font-medium">혼합/배합</td>
+            <td class="px-3 py-2 text-slate-600">배합비</td>
+            <td class="px-3 py-2 text-slate-600">혼합 온도</td>
+            <td class="px-3 py-2 text-slate-600">온도 120±5°C</td>
+            <td class="px-3 py-2 text-slate-600">온도센서</td>
+            <td class="px-3 py-2 text-slate-600">연속</td>
+            <td class="px-3 py-2 text-slate-600">재배합</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/30">
+            <td class="px-3 py-2 text-slate-600 font-mono">030</td>
+            <td class="px-3 py-2 text-slate-800 font-medium">압출 성형</td>
+            <td class="px-3 py-2 text-slate-600">트레드 폭</td>
+            <td class="px-3 py-2 text-slate-600">압출 속도</td>
+            <td class="px-3 py-2 text-slate-600">폭 205±2mm</td>
+            <td class="px-3 py-2 text-slate-600">레이저 측정기</td>
+            <td class="px-3 py-2 text-slate-600">5/시간</td>
+            <td class="px-3 py-2 text-slate-600">속도 조정</td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-teal-50/30">
+            <td class="px-3 py-2 text-slate-600 font-mono">040</td>
+            <td class="px-3 py-2 text-slate-800 font-medium">가류(가황)</td>
+            <td class="px-3 py-2 text-slate-600">가류 시간</td>
+            <td class="px-3 py-2 text-slate-600">금형 온도</td>
+            <td class="px-3 py-2 text-slate-600">온도 170±3°C</td>
+            <td class="px-3 py-2 text-slate-600">열전대</td>
+            <td class="px-3 py-2 text-slate-600">연속</td>
+            <td class="px-3 py-2 text-slate-600">금형 교체</td>
+          </tr>
+          <tr class="hover:bg-teal-50/30">
+            <td class="px-3 py-2 text-slate-600 font-mono">050</td>
+            <td class="px-3 py-2 text-slate-800 font-medium">최종 검사</td>
+            <td class="px-3 py-2 text-slate-600">외관/균형</td>
+            <td class="px-3 py-2 text-slate-600">검사 속도</td>
+            <td class="px-3 py-2 text-slate-600">유니포미티 ≤15N</td>
+            <td class="px-3 py-2 text-slate-600">UF 시험기</td>
+            <td class="px-3 py-2 text-slate-600">전수</td>
+            <td class="px-3 py-2 text-slate-600">재검사/폐기</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bottom Buttons -->
+    <div class="flex items-center justify-between mt-4">
+      <div class="text-[10px] text-slate-400">
+        <span class="inline-flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          더블클릭으로 셀 편집 | 우클릭으로 행 삭제
+        </span>
+      </div>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 bg-white border border-slate-300 text-slate-600 text-xs rounded hover:bg-slate-50 flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+          되돌리기(Undo)
+        </button>
+        <button class="px-3 py-1.5 bg-teal-500 text-white text-xs rounded hover:bg-teal-600 flex items-center gap-1 font-medium">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          저장(Save)
+        </button>
+        <button class="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 flex items-center gap-1 font-medium">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          확정(Confirm)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

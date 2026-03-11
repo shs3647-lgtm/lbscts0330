@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>P-FMEA 고장연결</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5f5f5; width: 1440px; }
+  .sidebar { position: fixed; left: 0; top: 0; width: 48px; height: 100vh; background: linear-gradient(180deg, #1a237e 0%, #283593 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 8px; }
+  .sidebar-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #90caf9; font-size: 14px; cursor: pointer; }
+  .sidebar-icon.active { background: rgba(255,255,255,0.15); color: #fff; }
+  .tab-item { padding: 6px 12px; font-size: 12px; color: #b0bec5; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .tab-item.active { color: #00e5ff; border-bottom-color: #00e5ff; font-weight: 600; }
+  .link-card { background: #fff; border: 2px solid #e0e0e0; border-radius: 8px; padding: 10px 16px; margin: 8px 0; cursor: pointer; transition: all 0.15s; position: relative; }
+  .link-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .link-card.selected { border-color: #1976d2; background: #e3f2fd; }
+  .link-card.connected { border-left: 4px solid #4caf50; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-icon" title="Home">🏠</div>
+  <div class="sidebar-icon active" title="FMEA">📋</div>
+  <div class="sidebar-icon" title="CP">📑</div>
+  <div class="sidebar-icon" title="PFD">🔀</div>
+  <div class="sidebar-icon" title="Settings">⚙️</div>
+</div>
+
+<div style="margin-left: 48px;">
+  <div style="height: 48px; background: #1a1f36; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+    <div style="color: #e0e0e0; font-size: 15px; font-weight: 600;">Smart System</div>
+    <div style="color: #00e5ff; font-size: 16px; font-weight: 700;">P-FMEA</div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="color: #aaa; font-size: 13px;">관리자</span>
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: #3949ab; color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center;">A</div>
+    </div>
+  </div>
+
+  <div style="height: 36px; background: #263238; display: flex; align-items: center; padding: 0 16px; gap: 2px;">
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">대시보드</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">등록</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">리스트</a>
+    <a style="color: #fff; font-size: 13px; padding: 6px 14px; background: rgba(0,229,255,0.15); border-bottom: 2px solid #00e5ff;">워크시트</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">개정관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">AP개선관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px;">LLD</a>
+  </div>
+
+  <div style="height: 40px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; padding: 0 16px; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="font-size: 12px; color: #666;">FMEA선택:</span>
+      <select style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"><option>pfm26-f001-l68-r00</option></select>
+    </div>
+    <div style="width: 1px; height: 20px; background: #e0e0e0;"></div>
+    <button style="padding: 4px 14px; background: #1976d2; color: #fff; border: none; border-radius: 4px; font-size: 12px;">💾 저장</button>
+    <div style="display: flex; align-items: center; gap: 4px;">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></span>
+      <span style="font-size: 11px; color: #4caf50;">동기화 완료</span>
+    </div>
+    <div style="flex: 1;"></div>
+    <button style="padding: 4px 10px; background: #263238; color: #fff; border: none; border-radius: 4px; font-size: 11px;">RPN</button>
+  </div>
+
+  <div style="height: 34px; background: #1e272e; display: flex; align-items: center; padding: 0 8px;">
+    <div class="tab-item">기초정보</div>
+    <div class="tab-item">구조분석</div>
+    <div class="tab-item">1L기능</div>
+    <div class="tab-item">2L기능</div>
+    <div class="tab-item">3L기능</div>
+    <div class="tab-item">1L고장</div>
+    <div class="tab-item">2L고장</div>
+    <div class="tab-item">3L고장</div>
+    <div class="tab-item active">고장연결</div>
+    <div class="tab-item">전체보기</div>
+    <div class="tab-item">리스크</div>
+    <div class="tab-item">최적화</div>
+  </div>
+
+  <!-- Failure Link Content -->
+  <div style="padding: 0; position: relative;">
+    <div style="background: #5c6bc0; color: #fff; padding: 10px 20px; font-size: 14px; font-weight: 600;">
+      고장연결(Failure Link) — FC → FM → FE 연결
+    </div>
+
+    <!-- 3-Column Layout -->
+    <div style="display: flex; height: calc(100vh - 260px); position: relative;">
+
+      <!-- SVG Overlay for connection lines -->
+      <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
+        <!-- Connection 1: 온도편차 → 두께불균일 -->
+        <path d="M 370 68 L 420 68 L 420 60 L 470 60" fill="none" stroke="#78909c" stroke-width="2" stroke-dasharray="none"/>
+        <!-- Connection 1: 두께불균일 → 타이어 파열 -->
+        <path d="M 830 60 L 880 60 L 880 60 L 930 60" fill="none" stroke="#78909c" stroke-width="2"/>
+
+        <!-- Connection 2: 압력부족 → 기포발생 -->
+        <path d="M 370 148 L 420 148 L 420 140 L 470 140" fill="none" stroke="#78909c" stroke-width="2"/>
+        <!-- Connection 2: 기포발생 → 주행 안전성 저하 -->
+        <path d="M 830 140 L 880 140 L 880 140 L 930 140" fill="none" stroke="#78909c" stroke-width="2"/>
+
+        <!-- Connection 3: 재료불량 → 접착불량 -->
+        <path d="M 370 228 L 420 228 L 420 220 L 470 220" fill="none" stroke="#78909c" stroke-width="2"/>
+        <!-- Connection 3: 접착불량 → 타이어 파열 (cross-link) -->
+        <path d="M 830 220 L 880 220 L 880 60 L 930 60" fill="none" stroke="#b0bec5" stroke-width="1.5" stroke-dasharray="6,3"/>
+
+        <!-- Connection 4: 작업자미숙 → 치수편차 -->
+        <path d="M 370 308 L 420 308 L 420 300 L 470 300" fill="none" stroke="#78909c" stroke-width="2"/>
+        <!-- Connection 4: 치수편차 → 주행 안전성 저하 -->
+        <path d="M 830 300 L 880 300 L 880 140 L 930 140" fill="none" stroke="#b0bec5" stroke-width="1.5" stroke-dasharray="6,3"/>
+
+        <!-- Arrowheads -->
+        <polygon points="468,55 468,65 478,60" fill="#78909c"/>
+        <polygon points="928,55 928,65 938,60" fill="#78909c"/>
+        <polygon points="468,135 468,145 478,140" fill="#78909c"/>
+        <polygon points="928,135 928,145 938,140" fill="#78909c"/>
+        <polygon points="468,215 468,225 478,220" fill="#78909c"/>
+        <polygon points="468,295 468,305 478,300" fill="#78909c"/>
+      </svg>
+
+      <!-- Left Panel: FC (Failure Cause) -->
+      <div style="flex: 1; padding: 16px 20px; border-right: 1px solid #e0e0e0; overflow-y: auto;">
+        <div style="background: #f57c00; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center;">
+          FC 고장원인(Failure Cause)
+        </div>
+
+        <div class="link-card connected" style="border-color: #f57c00;">
+          <div style="font-size: 13px; font-weight: 600; color: #e65100;">온도 편차</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">MC | 온도설정</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+
+        <div class="link-card connected" style="border-color: #f57c00;">
+          <div style="font-size: 13px; font-weight: 600; color: #e65100;">압력 부족</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">MC | 압력조절</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+
+        <div class="link-card connected" style="border-color: #f57c00;">
+          <div style="font-size: 13px; font-weight: 600; color: #e65100;">재료 불량</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">IM | 시간관리</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+
+        <div class="link-card connected" style="border-color: #f57c00;">
+          <div style="font-size: 13px; font-weight: 600; color: #e65100;">작업자 미숙</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">MN | 속도조절</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+      </div>
+
+      <!-- Center Panel: FM (Failure Mode) -->
+      <div style="flex: 1; padding: 16px 20px; border-right: 1px solid #e0e0e0; overflow-y: auto;">
+        <div style="background: #388e3c; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center;">
+          FM 고장형태(Failure Mode)
+        </div>
+
+        <div class="link-card connected" style="border-color: #388e3c;">
+          <div style="font-size: 13px; font-weight: 600; color: #2e7d32;">두께 불균일</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">10-압출 | CC</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+
+        <div class="link-card connected" style="border-color: #388e3c;">
+          <div style="font-size: 13px; font-weight: 600; color: #2e7d32;">기포 발생</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">20-성형 | SC</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+
+        <div class="link-card connected" style="border-color: #388e3c;">
+          <div style="font-size: 13px; font-weight: 600; color: #2e7d32;">접착 불량</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">30-가류 | CC</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+
+        <div class="link-card connected" style="border-color: #388e3c;">
+          <div style="font-size: 13px; font-weight: 600; color: #2e7d32;">치수 편차</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">40-검사</div>
+          <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #4caf50;"></div>
+        </div>
+      </div>
+
+      <!-- Right Panel: FE (Failure Effect) -->
+      <div style="flex: 1; padding: 16px 20px; overflow-y: auto;">
+        <div style="background: #1976d2; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center;">
+          FE 고장영향(Failure Effect)
+        </div>
+
+        <div class="link-card connected" style="border-color: #1976d2;">
+          <div style="font-size: 13px; font-weight: 600; color: #1565c0;">타이어 파열 위험</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">S=9 | 최종사용자 안전</div>
+          <div style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #f44336;"></div>
+        </div>
+
+        <div class="link-card connected" style="border-color: #1976d2; margin-top: 60px;">
+          <div style="font-size: 13px; font-weight: 600; color: #1565c0;">주행 안전성 저하</div>
+          <div style="font-size: 11px; color: #999; margin-top: 2px;">S=8 | 차량 성능 저하</div>
+          <div style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; border-radius: 50%; background: #ff9800;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div style="padding: 12px 20px; background: #fff; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <span style="font-size: 12px; color: #666;">연결 상태:</span>
+        <span style="font-size: 12px; color: #4caf50; font-weight: 500;">FC: 4/4 연결</span>
+        <span style="font-size: 12px; color: #4caf50; font-weight: 500;">FM: 4/4 연결</span>
+        <span style="font-size: 12px; color: #4caf50; font-weight: 500;">FE: 2/2 연결</span>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button style="padding: 8px 20px; background: #fff; border: 1px solid #ccc; color: #666; border-radius: 6px; font-size: 13px; cursor: pointer;">자동 연결</button>
+        <button style="padding: 8px 24px; background: #4caf50; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 8px rgba(76,175,80,0.3);">전체 확정</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

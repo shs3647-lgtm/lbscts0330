@@ -1,0 +1,28 @@
+# Dockerfile.migrate
+# 데이터베이스 마이그레이션 전용 이미지
+
+FROM node:20-alpine
+
+# 필수 시스템 패키지 설치
+RUN apk add --no-cache bash postgresql-client
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# package.json 복사 및 Prisma 관련 패키지만 설치
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production --ignore-scripts && \
+    npm install --save-dev --ignore-scripts prisma@7.2.0 @prisma/dev@7.2.0
+
+# Prisma schema 및 migrations 복사
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+
+# Prisma Client 생성
+RUN npx prisma generate
+
+# 마이그레이션 실행 스크립트
+COPY migrate-entrypoint.sh ./migrate-entrypoint.sh
+RUN chmod +x ./migrate-entrypoint.sh
+
+ENTRYPOINT ["/app/migrate-entrypoint.sh"]

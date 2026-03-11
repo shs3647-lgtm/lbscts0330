@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - PFD 워크시트</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; }
+  .flow-arrow { position: relative; }
+  .flow-arrow::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -12px;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #8b5cf6;
+  }
+</style>
+</head>
+<body class="bg-[#f1f5f9] flex">
+
+<!-- Sidebar -->
+<aside class="w-12 min-h-screen bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] flex flex-col items-center py-3 gap-4 flex-shrink-0">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-violet-500/20 text-violet-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-h-screen">
+  <!-- Header -->
+  <header class="h-11 bg-[#1a1f36] flex items-center px-4 justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-violet-400 font-bold text-sm">PFD</span>
+      <span class="text-slate-500 text-xs">워크시트(Worksheet)</span>
+      <span class="text-slate-600 text-[10px] font-mono ml-2">pfd26-f001-l68-r00</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="px-2 py-1 text-[10px] text-slate-300 bg-slate-700/50 rounded hover:bg-slate-600/50">엑셀 내보내기</button>
+      <button class="px-2 py-1 text-[10px] text-white bg-violet-600 rounded hover:bg-violet-700 font-medium">저장(Save)</button>
+    </div>
+  </header>
+
+  <!-- Top Nav -->
+  <nav class="h-9 bg-[#1e2540] flex items-center px-4 gap-1 flex-shrink-0">
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">대시보드(Dashboard)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">등록(Register)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">리스트(List)</a>
+    <a class="px-3 py-1.5 text-xs text-white bg-violet-500/20 rounded font-medium cursor-pointer">워크시트(Worksheet)</a>
+    <a class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded transition-colors cursor-pointer">개정관리(Revision)</a>
+  </nav>
+
+  <!-- Worksheet -->
+  <div class="flex-1 p-3 overflow-auto">
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <tr class="bg-violet-700 text-white">
+            <th class="px-2 py-2 text-center font-medium border-r border-violet-600 w-12 text-[10px]">순서<br>No</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-violet-600 w-16 text-[10px]">공정번호<br>Process No</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-violet-600 w-28 text-[10px]">공정명<br>Process Name</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-violet-600 w-16 text-[10px]">공정기호<br>Symbol</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-violet-600 text-[10px]">입력(Input)</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-violet-600 text-[10px]">출력(Output)</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-violet-600 text-[10px]">설비(Equipment)</th>
+            <th class="px-2 py-2 text-center font-medium w-28 text-[10px]">4M</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Row 1 -->
+          <tr class="border-b border-slate-100 hover:bg-violet-50/20">
+            <td class="px-2 py-3 text-center text-slate-400 border-r border-slate-100 flow-arrow">1</td>
+            <td class="px-2 py-3 text-center text-slate-500 font-mono border-r border-slate-100">010</td>
+            <td class="px-2 py-3 text-slate-800 font-medium border-r border-slate-100">원재료 입고</td>
+            <td class="px-2 py-3 text-center border-r border-slate-100">
+              <span class="inline-flex items-center justify-center w-8 h-8 bg-violet-100 text-violet-700 font-bold text-lg rounded">&#9661;</span>
+            </td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">천연고무, 합성고무, 카본블랙, 가류제</td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">검사완료 원재료</td>
+            <td class="px-2 py-3 text-slate-500 border-r border-slate-100">경도계, 저울</td>
+            <td class="px-2 py-3 text-slate-500">
+              <div class="flex flex-wrap gap-1">
+                <span class="px-1 py-0.5 bg-blue-50 text-blue-600 text-[9px] rounded">Man: 검사원</span>
+                <span class="px-1 py-0.5 bg-green-50 text-green-600 text-[9px] rounded">Method: IQC</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Row 2 -->
+          <tr class="border-b border-slate-100 hover:bg-violet-50/20">
+            <td class="px-2 py-3 text-center text-slate-400 border-r border-slate-100 flow-arrow">2</td>
+            <td class="px-2 py-3 text-center text-slate-500 font-mono border-r border-slate-100">020</td>
+            <td class="px-2 py-3 text-slate-800 font-medium border-r border-slate-100">혼합/배합</td>
+            <td class="px-2 py-3 text-center border-r border-slate-100">
+              <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 font-bold text-lg rounded">&#9633;</span>
+            </td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">검사완료 원재료, 배합 레시피</td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">배합 고무 시트</td>
+            <td class="px-2 py-3 text-slate-500 border-r border-slate-100">반바리 믹서, 롤밀</td>
+            <td class="px-2 py-3 text-slate-500">
+              <div class="flex flex-wrap gap-1">
+                <span class="px-1 py-0.5 bg-blue-50 text-blue-600 text-[9px] rounded">Man: 배합공</span>
+                <span class="px-1 py-0.5 bg-amber-50 text-amber-600 text-[9px] rounded">Machine: 믹서</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Row 3 -->
+          <tr class="border-b border-slate-100 hover:bg-violet-50/20">
+            <td class="px-2 py-3 text-center text-slate-400 border-r border-slate-100 flow-arrow">3</td>
+            <td class="px-2 py-3 text-center text-slate-500 font-mono border-r border-slate-100">030</td>
+            <td class="px-2 py-3 text-slate-800 font-medium border-r border-slate-100">압출 성형</td>
+            <td class="px-2 py-3 text-center border-r border-slate-100">
+              <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 font-bold text-lg rounded">&#9633;</span>
+            </td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">배합 고무, 금형 사양</td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">트레드, 사이드월 부재</td>
+            <td class="px-2 py-3 text-slate-500 border-r border-slate-100">압출기, 다이헤드</td>
+            <td class="px-2 py-3 text-slate-500">
+              <div class="flex flex-wrap gap-1">
+                <span class="px-1 py-0.5 bg-amber-50 text-amber-600 text-[9px] rounded">Machine: 압출기</span>
+                <span class="px-1 py-0.5 bg-green-50 text-green-600 text-[9px] rounded">Method: SOP-030</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Row 4 - Decision -->
+          <tr class="border-b border-slate-100 hover:bg-violet-50/20">
+            <td class="px-2 py-3 text-center text-slate-400 border-r border-slate-100 flow-arrow">4</td>
+            <td class="px-2 py-3 text-center text-slate-500 font-mono border-r border-slate-100">035</td>
+            <td class="px-2 py-3 text-slate-800 font-medium border-r border-slate-100">치수 검사</td>
+            <td class="px-2 py-3 text-center border-r border-slate-100">
+              <span class="inline-flex items-center justify-center w-8 h-8 bg-amber-100 text-amber-700 font-bold text-lg" style="transform:rotate(45deg)">&#9633;</span>
+            </td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">압출 부재</td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">합격품 / 부적합품</td>
+            <td class="px-2 py-3 text-slate-500 border-r border-slate-100">레이저 측정기</td>
+            <td class="px-2 py-3 text-slate-500">
+              <div class="flex flex-wrap gap-1">
+                <span class="px-1 py-0.5 bg-blue-50 text-blue-600 text-[9px] rounded">Man: 검사원</span>
+                <span class="px-1 py-0.5 bg-red-50 text-red-600 text-[9px] rounded">Material: 부재</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Row 5 -->
+          <tr class="border-b border-slate-100 hover:bg-violet-50/20">
+            <td class="px-2 py-3 text-center text-slate-400 border-r border-slate-100 flow-arrow">5</td>
+            <td class="px-2 py-3 text-center text-slate-500 font-mono border-r border-slate-100">040</td>
+            <td class="px-2 py-3 text-slate-800 font-medium border-r border-slate-100">가류(가황)</td>
+            <td class="px-2 py-3 text-center border-r border-slate-100">
+              <span class="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 font-bold text-lg rounded">&#9633;</span>
+            </td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">그린타이어, 가류 조건</td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">가류 완료 타이어</td>
+            <td class="px-2 py-3 text-slate-500 border-r border-slate-100">가류 프레스, 금형</td>
+            <td class="px-2 py-3 text-slate-500">
+              <div class="flex flex-wrap gap-1">
+                <span class="px-1 py-0.5 bg-amber-50 text-amber-600 text-[9px] rounded">Machine: 프레스</span>
+                <span class="px-1 py-0.5 bg-green-50 text-green-600 text-[9px] rounded">Method: SOP-040</span>
+              </div>
+            </td>
+          </tr>
+          <!-- Row 6 - Inspection -->
+          <tr class="hover:bg-violet-50/20">
+            <td class="px-2 py-3 text-center text-slate-400 border-r border-slate-100">6</td>
+            <td class="px-2 py-3 text-center text-slate-500 font-mono border-r border-slate-100">050</td>
+            <td class="px-2 py-3 text-slate-800 font-medium border-r border-slate-100">최종 검사</td>
+            <td class="px-2 py-3 text-center border-r border-slate-100">
+              <span class="inline-flex items-center justify-center w-8 h-8 bg-green-100 text-green-700 font-bold text-lg rounded-full">&#9675;</span>
+            </td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">가류 완료 타이어</td>
+            <td class="px-2 py-3 text-slate-600 border-r border-slate-100">합격 타이어 (출하 가능)</td>
+            <td class="px-2 py-3 text-slate-500 border-r border-slate-100">UF 시험기, 비전검사</td>
+            <td class="px-2 py-3 text-slate-500">
+              <div class="flex flex-wrap gap-1">
+                <span class="px-1 py-0.5 bg-blue-50 text-blue-600 text-[9px] rounded">Man: 검사원</span>
+                <span class="px-1 py-0.5 bg-amber-50 text-amber-600 text-[9px] rounded">Machine: UF기</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Flow Legend -->
+    <div class="mt-3 flex items-center gap-4 text-[10px] text-slate-500">
+      <span class="font-medium text-slate-600">공정기호:</span>
+      <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 bg-blue-100 text-blue-700 text-center text-[8px] font-bold rounded">&#9633;</span> 가공(Process)</span>
+      <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 bg-amber-100 text-amber-700 text-center text-[8px] font-bold" style="transform:rotate(45deg)">&#9633;</span> 판정(Decision)</span>
+      <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 bg-green-100 text-green-700 text-center text-[8px] font-bold rounded-full">&#9675;</span> 검사(Inspection)</span>
+      <span class="flex items-center gap-1"><span class="inline-block w-4 h-4 bg-violet-100 text-violet-700 text-center text-[8px] font-bold rounded">&#9661;</span> 보관(Storage)</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

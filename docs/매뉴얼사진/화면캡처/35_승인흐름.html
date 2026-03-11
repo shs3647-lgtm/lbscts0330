@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - 승인흐름</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; }
+  @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); } 70% { box-shadow: 0 0 0 8px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }
+  .pulse-active { animation: pulse-ring 2s ease-in-out infinite; }
+</style>
+</head>
+<body class="bg-[#f1f5f9] flex">
+
+<!-- Sidebar -->
+<aside class="w-12 min-h-screen bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] flex flex-col items-center py-3 gap-4 flex-shrink-0">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-cyan-500/20 text-cyan-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-h-screen">
+  <!-- Header -->
+  <header class="h-11 bg-[#1a1f36] flex items-center px-4 justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-cyan-400 font-bold text-sm">승인흐름</span>
+      <span class="text-slate-500 text-xs">(Approval Flow)</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">○○타이어</span>
+      <div class="w-7 h-7 bg-cyan-500/20 rounded-full flex items-center justify-center">
+        <span class="text-cyan-400 text-xs font-bold">김</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Page Content -->
+  <div class="flex-1 p-5">
+    <h1 class="text-lg font-bold text-slate-800 mb-5">결재 승인 흐름 <span class="text-slate-400 font-normal text-sm">(Approval Workflow)</span></h1>
+
+    <!-- Approval Flow Bar -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-5">
+      <div class="flex items-center justify-center gap-0">
+        <!-- Step 1 - Complete -->
+        <div class="flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-200">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div class="mt-2 text-center">
+            <div class="text-xs font-semibold text-green-700">작성자(Author)</div>
+            <div class="text-sm font-bold text-slate-800">김철수</div>
+            <div class="text-[10px] text-green-500 mt-0.5">2026-03-07 09:30</div>
+          </div>
+        </div>
+
+        <!-- Arrow 1 -->
+        <div class="w-24 h-0.5 bg-green-400 mx-2 relative">
+          <div class="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-l-6 border-l-green-400 border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+        </div>
+
+        <!-- Step 2 - Active -->
+        <div class="flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-200 pulse-active">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          </div>
+          <div class="mt-2 text-center">
+            <div class="text-xs font-semibold text-blue-700">검토자(Reviewer)</div>
+            <div class="text-sm font-bold text-slate-800">이영희</div>
+            <div class="text-[10px] text-blue-500 mt-0.5">검토 진행 중...</div>
+          </div>
+        </div>
+
+        <!-- Arrow 2 -->
+        <div class="w-24 h-0.5 bg-slate-300 mx-2 relative">
+          <div class="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-l-6 border-l-slate-300 border-t-4 border-t-transparent border-b-4 border-b-transparent"></div>
+        </div>
+
+        <!-- Step 3 - Pending -->
+        <div class="flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center">
+            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="mt-2 text-center">
+            <div class="text-xs font-semibold text-slate-400">승인자(Approver)</div>
+            <div class="text-sm font-bold text-slate-500">박대리</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">대기 중</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Info -->
+    <div class="grid grid-cols-2 gap-5 mb-5">
+      <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <h2 class="text-sm font-semibold text-slate-700 mb-3">문서 정보 <span class="text-slate-400 font-normal">(Document Info)</span></h2>
+        <table class="w-full text-xs">
+          <tbody>
+            <tr class="border-b border-slate-50">
+              <td class="py-1.5 text-slate-500 w-28">FMEA ID</td>
+              <td class="py-1.5 text-blue-600 font-mono font-semibold">pfm26-f001-l68-r01</td>
+            </tr>
+            <tr class="border-b border-slate-50">
+              <td class="py-1.5 text-slate-500">제목(Title)</td>
+              <td class="py-1.5 text-slate-800">타이어 제조 PFMEA (개정 r01)</td>
+            </tr>
+            <tr class="border-b border-slate-50">
+              <td class="py-1.5 text-slate-500">상신일시(Submitted)</td>
+              <td class="py-1.5 text-slate-600">2026-03-07 09:30:15</td>
+            </tr>
+            <tr>
+              <td class="py-1.5 text-slate-500">변경사유(Reason)</td>
+              <td class="py-1.5 text-slate-600">가류 공정 온도 관리 개선</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+        <h2 class="text-sm font-semibold text-slate-700 mb-3">결재 액션 <span class="text-slate-400 font-normal">(Actions)</span></h2>
+        <div class="space-y-2">
+          <button class="w-full py-2.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            검토 승인(Approve Review)
+          </button>
+          <button class="w-full py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            반려(Reject)
+          </button>
+          <button class="w-full py-2.5 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-200 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+            회수(Withdraw)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Log -->
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+        <h2 class="text-sm font-semibold text-slate-700">결재 이력 <span class="text-slate-400 font-normal">(Approval History)</span></h2>
+      </div>
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="bg-slate-50 text-slate-500 text-[10px]">
+            <th class="px-4 py-1.5 text-center w-8">No</th>
+            <th class="px-4 py-1.5 text-center w-24">일시(Date)</th>
+            <th class="px-4 py-1.5 text-center w-16">담당자</th>
+            <th class="px-4 py-1.5 text-center w-16">단계</th>
+            <th class="px-4 py-1.5 text-center w-16">결과</th>
+            <th class="px-4 py-1.5 text-left">비고(Note)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-50">
+            <td class="px-4 py-1.5 text-center text-slate-400">1</td>
+            <td class="px-4 py-1.5 text-center text-slate-500">2026-03-07 09:30</td>
+            <td class="px-4 py-1.5 text-center text-slate-700 font-medium">김철수</td>
+            <td class="px-4 py-1.5 text-center text-slate-600">상신</td>
+            <td class="px-4 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px]">상신</span></td>
+            <td class="px-4 py-1.5 text-slate-500">가류 공정 온도 관리 개선 반영</td>
+          </tr>
+          <tr class="border-b border-slate-50">
+            <td class="px-4 py-1.5 text-center text-slate-400">2</td>
+            <td class="px-4 py-1.5 text-center text-slate-500">2026-03-07 10:15</td>
+            <td class="px-4 py-1.5 text-center text-slate-700 font-medium">이영희</td>
+            <td class="px-4 py-1.5 text-center text-slate-600">검토</td>
+            <td class="px-4 py-1.5 text-center"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[9px]">진행중</span></td>
+            <td class="px-4 py-1.5 text-slate-500">검토 시작 — SOD 기준 확인 중</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA System - 프로젝트 목록</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; overflow-x: hidden; }
+</style>
+</head>
+<body class="bg-[#0d1b2a] text-white">
+
+<!-- Sidebar -->
+<div class="fixed left-0 top-0 w-12 h-full bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] z-50 flex flex-col items-center py-2 border-r border-slate-700/30">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center mb-4">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 border-t border-slate-600/30 mb-3"></div>
+  <div class="flex flex-col gap-1">
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div>
+    <div class="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-blue-400">P</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-purple-400">D</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-teal-400">CP</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-violet-400">PF</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-amber-400">W</span></div>
+    <div class="w-9 h-9 rounded-lg hover:bg-slate-700/50 flex items-center justify-center cursor-pointer"><span class="text-xs font-bold text-green-400">PM</span></div>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="fixed top-0 left-12 right-0 h-12 bg-[#1a1f36] border-b border-slate-700/30 z-40 flex items-center px-4">
+  <span class="text-sm font-semibold text-slate-200">Smart System</span>
+  <span class="mx-3 text-slate-600">|</span>
+  <span class="text-sm text-cyan-400 font-medium">P-FMEA</span>
+  <div class="flex-1"></div>
+  <div class="flex items-center gap-2">
+    <div class="w-7 h-7 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center"><span class="text-xs font-bold text-white">김</span></div>
+    <span class="text-sm text-slate-200">김철수</span>
+    <span class="text-xs text-slate-500">품질팀</span>
+  </div>
+</div>
+
+<!-- Top Nav Tabs -->
+<div class="fixed top-12 left-12 right-0 h-10 bg-[#151b30] border-b border-slate-700/30 z-30 flex items-center px-4 gap-1">
+  <div class="px-3 py-1.5 rounded-md hover:bg-slate-700/30 text-slate-400 text-xs cursor-pointer">대시보드(Dashboard)</div>
+  <div class="px-3 py-1.5 rounded-md hover:bg-slate-700/30 text-slate-400 text-xs cursor-pointer">Top RPN 분석</div>
+  <div class="px-3 py-1.5 rounded-md hover:bg-slate-700/30 text-slate-400 text-xs cursor-pointer">등록(Register)</div>
+  <div class="px-3 py-1.5 rounded-md bg-cyan-500/20 text-cyan-400 text-xs font-medium cursor-pointer">리스트(List)</div>
+  <div class="px-3 py-1.5 rounded-md hover:bg-slate-700/30 text-slate-400 text-xs cursor-pointer">New FMEA</div>
+  <div class="px-3 py-1.5 rounded-md hover:bg-slate-700/30 text-slate-400 text-xs cursor-pointer">개정관리(Revision)</div>
+  <div class="px-3 py-1.5 rounded-md hover:bg-slate-700/30 text-slate-400 text-xs cursor-pointer">AP 개선관리</div>
+  <div class="px-3 py-1.5 rounded-md hover:bg-slate-700/30 text-slate-400 text-xs cursor-pointer">LLD</div>
+</div>
+
+<!-- Main Content -->
+<div class="ml-12 mt-[88px] p-4 min-h-[812px] bg-gradient-to-br from-[#0d1b2a] to-[#1b263b]">
+
+  <!-- Action Bar -->
+  <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center gap-2">
+      <button class="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-medium rounded-lg shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        새 문서 생성(New)
+      </button>
+      <button class="px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-lg hover:bg-red-500/20 transition-all">삭제(Delete)</button>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <svg class="w-4 h-4 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" placeholder="검색 (Search)..." class="bg-[#111827]/80 border border-slate-700/30 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-300 placeholder-slate-500 w-60 focus:outline-none focus:border-cyan-500/50">
+      </div>
+      <span class="text-xs text-slate-500">총 10건</span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="bg-[#111827]/80 rounded-xl border border-slate-700/30 overflow-hidden">
+    <table class="w-full text-xs">
+      <thead>
+        <tr class="bg-[#1a1f36] border-b border-slate-700/30">
+          <th class="py-2 px-2 text-left text-slate-400 font-medium w-8"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium w-8">No</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">생성일(Created)</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">Type</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">FMEA ID</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">Rev</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">Step</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">공장(Factory)</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">FMEA명(Name)</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">고객사(Customer)</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">담당자(Owner)</th>
+          <th class="py-2 px-2 text-center text-slate-400 font-medium">DFMEA</th>
+          <th class="py-2 px-2 text-center text-slate-400 font-medium">PFD</th>
+          <th class="py-2 px-2 text-center text-slate-400 font-medium">CP</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">현황(Status)</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">시작일(Start)</th>
+          <th class="py-2 px-2 text-left text-slate-400 font-medium">목표일(Target)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-b border-slate-700/10 bg-[#e3f2fd]/5 hover:bg-[#e3f2fd]/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">1</td>
+          <td class="py-2 px-2 text-slate-400">2026-01-15</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">M</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono font-medium">pfm26-f001-l68-r00</td>
+          <td class="py-2 px-2 text-slate-400">0</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">5</span></td>
+          <td class="py-2 px-2 text-slate-300">서산공장</td>
+          <td class="py-2 px-2 text-slate-200 font-medium">타이어 제조 공정 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">현대자동차</td>
+          <td class="py-2 px-2 text-slate-400">김철수</td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">진행중</span></td>
+          <td class="py-2 px-2 text-slate-400">2026-01-15</td>
+          <td class="py-2 px-2 text-slate-400">2026-06-30</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 hover:bg-slate-700/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">2</td>
+          <td class="py-2 px-2 text-slate-400">2026-01-20</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px]">F</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm26-f002-l45-r00</td>
+          <td class="py-2 px-2 text-slate-400">0</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded">3</span></td>
+          <td class="py-2 px-2 text-slate-300">대전공장</td>
+          <td class="py-2 px-2 text-slate-200">브레이크 패드 가공 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">기아</td>
+          <td class="py-2 px-2 text-slate-400">이영희</td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">진행중</span></td>
+          <td class="py-2 px-2 text-slate-400">2026-01-20</td>
+          <td class="py-2 px-2 text-slate-400">2026-05-15</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 bg-[#e3f2fd]/5 hover:bg-[#e3f2fd]/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">3</td>
+          <td class="py-2 px-2 text-slate-400">2025-11-05</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">M</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm26-f003-l92-r00</td>
+          <td class="py-2 px-2 text-slate-400">1</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded">7</span></td>
+          <td class="py-2 px-2 text-slate-300">울산공장</td>
+          <td class="py-2 px-2 text-slate-200">엔진 실린더 조립 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">현대모비스</td>
+          <td class="py-2 px-2 text-slate-400">박민수</td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-500/10 text-green-400 rounded">완료</span></td>
+          <td class="py-2 px-2 text-slate-400">2025-11-05</td>
+          <td class="py-2 px-2 text-slate-400">2026-02-28</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 hover:bg-slate-700/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">4</td>
+          <td class="py-2 px-2 text-slate-400">2026-02-01</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded text-[10px]">P</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm26-f004-l27-r00</td>
+          <td class="py-2 px-2 text-slate-400">0</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded">2</span></td>
+          <td class="py-2 px-2 text-slate-300">창원공장</td>
+          <td class="py-2 px-2 text-slate-200">서스펜션 용접 공정 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">GM</td>
+          <td class="py-2 px-2 text-slate-400">최지현</td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">진행중</span></td>
+          <td class="py-2 px-2 text-slate-400">2026-02-01</td>
+          <td class="py-2 px-2 text-slate-400">2026-07-31</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 bg-[#e3f2fd]/5 hover:bg-[#e3f2fd]/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">5</td>
+          <td class="py-2 px-2 text-slate-400">2025-12-10</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">M</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm26-f005-l30-r00</td>
+          <td class="py-2 px-2 text-slate-400">0</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">5</span></td>
+          <td class="py-2 px-2 text-slate-300">평택공장</td>
+          <td class="py-2 px-2 text-slate-200">와이어링 하네스 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">도요타</td>
+          <td class="py-2 px-2 text-slate-400">정수빈</td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-red-500/10 text-red-400 rounded">지연</span></td>
+          <td class="py-2 px-2 text-slate-400">2025-12-10</td>
+          <td class="py-2 px-2 text-red-400">2026-02-28</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 hover:bg-slate-700/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">6</td>
+          <td class="py-2 px-2 text-slate-400">2026-02-15</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded text-[10px]">F</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm26-f006-l15-r00</td>
+          <td class="py-2 px-2 text-slate-400">0</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded">1</span></td>
+          <td class="py-2 px-2 text-slate-300">화성공장</td>
+          <td class="py-2 px-2 text-slate-200">전장모듈 SMT PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">삼성SDI</td>
+          <td class="py-2 px-2 text-slate-400">한소율</td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">진행중</span></td>
+          <td class="py-2 px-2 text-slate-400">2026-02-15</td>
+          <td class="py-2 px-2 text-slate-400">2026-08-31</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 bg-[#e3f2fd]/5 hover:bg-[#e3f2fd]/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">7</td>
+          <td class="py-2 px-2 text-slate-400">2025-10-20</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">M</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm25-f007-l55-r01</td>
+          <td class="py-2 px-2 text-slate-400">1</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded">7</span></td>
+          <td class="py-2 px-2 text-slate-300">광주공장</td>
+          <td class="py-2 px-2 text-slate-200">도어트림 조립 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">현대자동차</td>
+          <td class="py-2 px-2 text-slate-400">오승환</td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-500/10 text-green-400 rounded">완료</span></td>
+          <td class="py-2 px-2 text-slate-400">2025-10-20</td>
+          <td class="py-2 px-2 text-slate-400">2026-01-31</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 hover:bg-slate-700/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">8</td>
+          <td class="py-2 px-2 text-slate-400">2026-01-05</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded text-[10px]">P</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm26-f008-l40-r00</td>
+          <td class="py-2 px-2 text-slate-400">0</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">4</span></td>
+          <td class="py-2 px-2 text-slate-300">아산공장</td>
+          <td class="py-2 px-2 text-slate-200">배터리팩 조립 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">LG에너지</td>
+          <td class="py-2 px-2 text-slate-400">김다은</td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">진행중</span></td>
+          <td class="py-2 px-2 text-slate-400">2026-01-05</td>
+          <td class="py-2 px-2 text-slate-400">2026-06-15</td>
+        </tr>
+        <tr class="border-b border-slate-700/10 bg-[#e3f2fd]/5 hover:bg-[#e3f2fd]/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">9</td>
+          <td class="py-2 px-2 text-slate-400">2025-09-15</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">M</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm25-f009-l78-r02</td>
+          <td class="py-2 px-2 text-slate-400">2</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded">7</span></td>
+          <td class="py-2 px-2 text-slate-300">서산공장</td>
+          <td class="py-2 px-2 text-slate-200">스티어링 기어 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">BMW</td>
+          <td class="py-2 px-2 text-slate-400">이준호</td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-green-400">●</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-green-500/10 text-green-400 rounded">완료</span></td>
+          <td class="py-2 px-2 text-slate-400">2025-09-15</td>
+          <td class="py-2 px-2 text-slate-400">2025-12-31</td>
+        </tr>
+        <tr class="hover:bg-slate-700/10 cursor-pointer">
+          <td class="py-2 px-2"><input type="checkbox" class="w-3.5 h-3.5 bg-slate-700 border-slate-600 rounded"></td>
+          <td class="py-2 px-2 text-slate-400">10</td>
+          <td class="py-2 px-2 text-slate-400">2026-03-01</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px]">M</span></td>
+          <td class="py-2 px-2 text-cyan-400 font-mono">pfm26-f010-l12-r00</td>
+          <td class="py-2 px-2 text-slate-400">0</td>
+          <td class="py-2 px-2"><span class="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded">1</span></td>
+          <td class="py-2 px-2 text-slate-300">인천공장</td>
+          <td class="py-2 px-2 text-slate-200">시트프레임 프레스 PFMEA</td>
+          <td class="py-2 px-2 text-slate-400">VW</td>
+          <td class="py-2 px-2 text-slate-400">강민지</td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2 text-center"><span class="text-slate-600">○</span></td>
+          <td class="py-2 px-2"><span class="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">진행중</span></td>
+          <td class="py-2 px-2 text-slate-400">2026-03-01</td>
+          <td class="py-2 px-2 text-slate-400">2026-09-30</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>

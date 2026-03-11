@@ -1,0 +1,2303 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============ 프로젝트 (최상위) ============
+
+model APQPProject {
+  id           String   @id @default(uuid())
+  name         String
+  productName  String
+  customerName String
+  status       String // 'planning' | 'development' | 'production' | 'closed'
+  startDate    String?
+  targetDate   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Note: FMEA 데이터는 fmeaId (String)로 연결되며, 직접 FK 관계가 아닙니다
+  // fmeaId는 APQPProject.id와 매칭되지만, Prisma relation으로는 정의하지 않습니다
+
+  @@map("apqp_projects")
+}
+
+// ============ 구조분석 (2단계) - Structure Tables ============
+
+model L1Structure {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID (APQPProject.id 또는 별도 FMEA ID)
+  name      String // 완제품 공정명
+  confirmed Boolean? @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String? // 부모 ID (모자관계 추적)
+  mergeGroupId String? // 병합 그룹 ID
+  rowSpan      Int?    @default(1) // 병합된 행 수
+  colSpan      Int?    @default(1) // 병합된 열 수
+
+  // Relations
+  l2Structures L2Structure[]
+  l1Functions  L1Function[]
+
+  @@index([fmeaId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l1_structures")
+}
+
+model L2Structure {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  l1Id      String // FK: L1Structure.id
+  no        String // 공정 번호
+  name      String // 공정명
+  order     Int // 순서
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String? // 부모 ID (모자관계 추적)
+  mergeGroupId String? // 병합 그룹 ID
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l1Structure  L1Structure   @relation(fields: [l1Id], references: [id], onDelete: Cascade)
+  l3Structures L3Structure[]
+  l2Functions  L2Function[]
+  failureModes FailureMode[]
+
+  @@index([fmeaId])
+  @@index([l1Id])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l2_structures")
+}
+
+model L3Structure {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  l1Id      String // FK: L1Structure.id (연결용)
+  l2Id      String // FK: L2Structure.id
+  m4        String? // 4M 분류: 'MN' | 'MC' | 'IM' | 'EN' | ''
+  name      String // 작업요소명
+  order     Int // 순서
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String? // 부모 ID (모자관계 추적)
+  mergeGroupId String? // 병합 그룹 ID
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l2Structure   L2Structure    @relation(fields: [l2Id], references: [id], onDelete: Cascade)
+  l3Functions   L3Function[]
+  failureCauses FailureCause[]
+
+  @@index([fmeaId])
+  @@index([l1Id])
+  @@index([l2Id])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l3_structures")
+}
+
+// ============ 기능분석 (3단계) - Function Tables ============
+
+model L1Function {
+  id           String   @id @default(uuid())
+  fmeaId       String // FK: FMEA 프로젝트 ID
+  l1StructId   String // FK: L1Structure.id
+  category     String // 'Your Plant' | 'Ship to Plant' | 'User'
+  functionName String // 기능명
+  requirement  String // 요구사항
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l1Structure    L1Structure     @relation(fields: [l1StructId], references: [id], onDelete: Cascade)
+  failureEffects FailureEffect[]
+
+  @@index([fmeaId])
+  @@index([l1StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l1_functions")
+}
+
+model L2Function {
+  id           String   @id @default(uuid())
+  fmeaId       String // FK: FMEA 프로젝트 ID
+  l2StructId   String // FK: L2Structure.id
+  functionName String // 기능명
+  productChar  String // 제품특성
+  specialChar  String? // 특별특성
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l2Structure  L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+  failureModes FailureMode[]
+
+  @@index([fmeaId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l2_functions")
+}
+
+model L3Function {
+  id           String   @id @default(uuid())
+  fmeaId       String // FK: FMEA 프로젝트 ID
+  l3StructId   String // FK: L3Structure.id
+  l2StructId   String // FK: L2Structure.id (연결용)
+  functionName String // 기능명
+  processChar  String // 공정특성
+  specialChar  String? // 특별특성
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l3Structure   L3Structure    @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
+  failureCauses FailureCause[]
+
+  @@index([fmeaId])
+  @@index([l3StructId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("l3_functions")
+}
+
+// ============ 고장분석 (4단계) - Failure Tables ============
+
+model FailureEffect {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  l1FuncId  String // FK: L1Function.id
+  category  String // 'Your Plant' | 'Ship to Plant' | 'User'
+  effect    String // 고장영향 내용
+  severity  Int // 심각도 (1-10)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l1Function   L1Function    @relation(fields: [l1FuncId], references: [id], onDelete: Cascade)
+  failureLinks FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l1FuncId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("failure_effects")
+}
+
+model FailureMode {
+  id            String   @id @default(uuid())
+  fmeaId        String // FK: FMEA 프로젝트 ID
+  l2FuncId      String // FK: L2Function.id
+  l2StructId    String // FK: L2Structure.id (역전개용)
+  productCharId String? // FK: 제품특성 연결용
+  mode          String // 고장형태 내용
+  specialChar   Boolean? @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l2Function   L2Function    @relation(fields: [l2FuncId], references: [id], onDelete: Cascade)
+  l2Structure  L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+  failureLinks FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l2FuncId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("failure_modes")
+}
+
+model FailureCause {
+  id            String   @id @default(uuid())
+  fmeaId        String // FK: FMEA 프로젝트 ID
+  l3FuncId      String // FK: L3Function.id
+  l3StructId    String // FK: L3Structure.id (역전개용)
+  l2StructId    String // FK: L2Structure.id (연결용)
+  processCharId String? // FK: 공정특성 연결용
+  cause         String // 고장원인 내용
+  occurrence    Int? // 발생도 (1-10)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  l3Function   L3Function    @relation(fields: [l3FuncId], references: [id], onDelete: Cascade)
+  l3Structure  L3Structure   @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
+  failureLinks FailureLink[]
+
+  @@index([fmeaId])
+  @@index([l3FuncId])
+  @@index([l3StructId])
+  @@index([l2StructId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("failure_causes")
+}
+
+// =========================================================
+// ============ PFMEA 기초정보 마스터 데이터 (공통) ============
+// =========================================================
+
+model PfmeaMasterDataset {
+  id           String   @id @default(uuid())
+  name         String
+  isActive     Boolean  @default(false)
+  relationData Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  flatItems PfmeaMasterFlatItem[]
+
+  @@index([isActive])
+  @@map("pfmea_master_datasets")
+}
+
+model PfmeaMasterFlatItem {
+  id           String   @id @default(uuid())
+  datasetId    String
+  processNo    String
+  category     String // 'A' | 'B' | 'C'
+  itemCode     String // A1~A6, B1~B5, C1~C4
+  value        String
+  sourceFmeaId String?
+  createdAt    DateTime @default(now())
+
+  dataset PfmeaMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, processNo, itemCode, value])
+  @@index([datasetId])
+  @@map("pfmea_master_flat_items")
+}
+
+model FailureLink {
+  id        String   @id @default(uuid())
+  fmeaId    String // FK: FMEA 프로젝트 ID
+  fmId      String // FK: FailureMode.id (중심축)
+  feId      String // FK: FailureEffect.id
+  fcId      String // FK: FailureCause.id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ★★★ 2026-01-19: 사용자 확인용 텍스트 필드 추가 ★★★
+  fmText     String? // 고장형태 텍스트 (예: "무늬초과")
+  fmProcess  String? // 공정명 (예: "단조")
+  feText     String? // 고장영향 텍스트 (예: "외관불량")
+  feScope    String? // 영향범위 (예: "Your Plant")
+  fcText     String? // 고장원인 텍스트 (예: "금형마모")
+  fcWorkElem String? // 작업요소 (예: "프레스작업")
+  fcM4       String? // 4M 분류 (예: "MC")
+  severity   Int?    // 심각도 (1-10)
+
+  // ★★★ 하이브리드 ID: {FMEA_SEQ}-LK-FM{SEQ}-FE{SEQ}-FC{SEQ} ★★★
+  fmSeq  Int? // FM 순번 (ID에서 추출 가능)
+  feSeq  Int? // FE 순번 (ID에서 추출 가능)
+  fcSeq  Int? // FC 순번 (ID에서 추출 가능)
+  fmPath String? // FM 경로 (역전개 추적용)
+  fePath String? // FE 경로 (역전개 추적용)
+  fcPath String? // FC 경로 (역전개 추적용)
+
+  // ★★★ 하이브리드 ID 시스템 필드 ★★★
+  parentId     String?
+  mergeGroupId String?
+  rowSpan      Int?    @default(1)
+  colSpan      Int?    @default(1)
+
+  // Relations
+  failureMode     FailureMode       @relation(fields: [fmId], references: [id], onDelete: Cascade)
+  failureEffect   FailureEffect     @relation(fields: [feId], references: [id], onDelete: Cascade)
+  failureCause    FailureCause      @relation(fields: [fcId], references: [id], onDelete: Cascade)
+  riskAnalyses    RiskAnalysis[]
+  failureAnalyses FailureAnalysis[] // 고장분석 통합 데이터
+
+  @@index([fmeaId])
+  @@index([fmId])
+  @@index([feId])
+  @@index([fcId])
+  @@index([parentId])
+  @@index([mergeGroupId])
+  @@map("failure_links")
+}
+
+// ============ 고장분석 통합 테이블 (All 화면 렌더링용) ============
+// 고장연결 결과 + 역전개 기능분석 + 역전개 구조분석 통합 저장
+
+model FailureAnalysis {
+  id     String @id @default(uuid())
+  fmeaId String // FK: FMEA 프로젝트 ID
+  linkId String // FK: FailureLink.id (고장연결)
+
+  // ============ 고장연결 정보 (고장형태, 고장원인, 고장영향) ============
+  fmId          String // FK: FailureMode.id
+  fmText        String // 고장형태 내용
+  fmProcessName String // 공정명 (L2 Structure.name)
+
+  feId       String // FK: FailureEffect.id
+  feText     String // 고장영향 내용
+  feCategory String // 구분 (Your Plant/Ship to Plant/User)
+  feSeverity Int // 심각도 (1-10)
+
+  fcId              String // FK: FailureCause.id
+  fcText            String // 고장원인 내용
+  fcOccurrence      Int? // 발생도 (1-10)
+  fcWorkElementName String // 작업요소명 (L3 Structure.name)
+  fcM4              String? // 4M 분류 (MN/MC/IM/EN)
+
+  // ============ 역전개 기능분석 정보 ============
+  // L1 (완제품 기능)
+  l1FuncId      String // FK: L1Function.id
+  l1Category    String // 구분 (Your Plant/Ship to Plant/User)
+  l1FuncName    String // 완제품 기능명
+  l1Requirement String // 요구사항
+
+  // L2 (메인공정 기능)
+  l2FuncId      String // FK: L2Function.id
+  l2FuncName    String // 공정 기능명
+  l2ProductChar String // 제품특성
+  l2SpecialChar String? // 특별특성
+
+  // L3 (작업요소 기능)
+  l3FuncId      String // FK: L3Function.id
+  l3FuncName    String // 작업요소 기능명
+  l3ProcessChar String // 공정특성
+  l3SpecialChar String? // 특별특성
+
+  // ============ 역전개 구조분석 정보 ============
+  // L1 (완제품)
+  l1StructId   String // FK: L1Structure.id
+  l1StructName String // 완제품 공정명
+
+  // L2 (메인공정)
+  l2StructId   String // FK: L2Structure.id
+  l2StructNo   String // 공정 번호
+  l2StructName String // 공정명
+
+  // L3 (작업요소)
+  l3StructId   String // FK: L3Structure.id
+  l3StructM4   String? // 4M 분류
+  l3StructName String // 작업요소명
+
+  // ============ 메타데이터 ============
+  order     Int      @default(0) // 정렬 순서
+  confirmed Boolean  @default(false) // 확정 여부
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  failureLink FailureLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@unique([linkId]) // 하나의 고장연결당 하나의 고장분석 데이터
+  @@index([fmeaId])
+  @@index([linkId])
+  @@index([fmId])
+  @@index([feId])
+  @@index([fcId])
+  @@map("failure_analyses")
+}
+
+// ============ 리스크분석/최적화 (5-6단계) ============
+
+model RiskAnalysis {
+  id                String   @id @default(uuid())
+  fmeaId            String // FK: FMEA 프로젝트 ID
+  linkId            String // FK: FailureLink.id
+  severity          Int // 심각도 (1-10)
+  occurrence        Int // 발생도 (1-10)
+  detection         Int // 검출도 (1-10)
+  ap                String // 'H' | 'M' | 'L'
+  preventionControl String? // 예방관리
+  detectionControl  String? // 검출관리
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  failureLink   FailureLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  optimizations Optimization[]
+
+  @@index([fmeaId])
+  @@index([linkId])
+  @@map("risk_analyses")
+}
+
+model Optimization {
+  id                String   @id @default(uuid())
+  fmeaId            String // FK: FMEA 프로젝트 ID
+  riskId            String // FK: RiskAnalysis.id
+  recommendedAction String // 권고 조치
+  responsible       String // 담당자
+  targetDate        String // YYYY-MM-DD
+  newSeverity       Int? // 개선 후 S
+  newOccurrence     Int? // 개선 후 O
+  newDetection      Int? // 개선 후 D
+  newAP             String? // 개선 후 AP
+  status            String // 'planned' | 'in_progress' | 'completed'
+  completedDate     String? // YYYY-MM-DD
+  remarks           String? // 비고
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  riskAnalysis RiskAnalysis @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([riskId])
+  @@map("optimizations")
+}
+
+// ============================================================================
+// ============ FMEA 프로젝트 관리 테이블들 (화면별 분리) ============
+// ============================================================================
+
+// ============ 1. FMEA 프로젝트 기본 정보 (리스트 화면용) ============
+model FmeaProject {
+  id             String   @id @default(uuid())
+  fmeaId         String   @unique // PFM26-M001 형식
+  fmeaType       String   @default("P") // 'M' | 'F' | 'P' (Master/Family/Part)
+  parentApqpNo   String? // ★ 상위 APQP (최상위)
+  parentFmeaId   String? // 상위 FMEA ID (Master는 본인 ID)
+  parentFmeaType String? // 상위 FMEA 유형
+  status         String   @default("active") // 'active' | 'archived' | 'deleted'
+  step           Int      @default(1) // 현재 단계 (1-7)
+  revisionNo     String   @default("Rev.01")
+  
+  // ✅ 개정 추적 필드 (2026-01-19 추가)
+  revMajor       Int      @default(1) // 정식 개정 번호 (정수: 1, 2, 3...)
+  revMinor       Int      @default(0) // 소수점 개정 (0, 1, 2... → 1.0, 1.1, 1.2)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  registration  FmeaRegistration?
+  cftMembers    FmeaCftMember[]
+  worksheetData FmeaWorksheetData?
+  // confirmedState는 논리적 연결 (fmeaId로 조인)
+
+  @@index([fmeaType])
+  @@index([parentFmeaId])
+  @@index([status])
+  @@map("fmea_projects")
+}
+
+// ============ 2. FMEA 등록 정보 (등록화면 - 기획 및 준비 1단계) ============
+model FmeaRegistration {
+  id                   String   @id @default(uuid())
+  fmeaId               String   @unique // FK: FmeaProject.fmeaId
+  companyName          String? // 회사명
+  engineeringLocation  String? // 엔지니어링 위치
+  customerName         String? // 고객명
+  modelYear            String? // 모델 연식/플랫폼
+  subject              String? // FMEA명 (주제)
+  fmeaStartDate        String? // 시작일자 (YYYY-MM-DD)
+  fmeaRevisionDate     String? // 개정일자 (YYYY-MM-DD)
+  fmeaProjectName      String? // 프로젝트명
+  designResponsibility String? // 공정책임 (부서)
+  confidentialityLevel String? // 기밀유지수준
+  fmeaResponsibleName  String? // 담당자 성명
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  project FmeaProject @relation(fields: [fmeaId], references: [fmeaId], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@map("fmea_registrations")
+}
+
+// ============ 3. CFT 멤버 정보 (등록화면 - CFT 리스트) ============
+model FmeaCftMember {
+  id             String   @id @default(uuid())
+  fmeaId         String // FK: FmeaProject.fmeaId
+  role           String // 역할: 'Champion' | 'Leader' | 'PM' | 'Moderator' | 'CFT 팀원'
+  name           String? // 성명
+  department     String? // 부서
+  position       String? // 직급
+  responsibility String? // 담당업무
+  email          String? // 이메일
+  phone          String? // 전화번호
+  remarks        String? // 비고
+  order          Int      @default(0) // 순서
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  project FmeaProject @relation(fields: [fmeaId], references: [fmeaId], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([role])
+  @@map("fmea_cft_members")
+}
+
+// ============ 4. 워크시트 데이터 (워크시트 화면용) ============
+model FmeaWorksheetData {
+  id           String   @id @default(uuid())
+  fmeaId       String   @unique // FK: FmeaProject.fmeaId
+  l1Data       Json? // L1 구조 데이터 (완제품 공정명, failureScopes 등)
+  l2Data       Json? // L2 공정 배열 데이터
+  riskData     Json? // 리스크분석/최적화 데이터
+  failureLinks Json? // 고장연결 데이터
+  tab          String? // 현재 탭
+  version      String   @default("1.0.0")
+  savedAt      DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  project FmeaProject @relation(fields: [fmeaId], references: [fmeaId], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@map("fmea_worksheet_data")
+}
+
+// ============ 레거시 데이터 (하위호환용 - 점진적 마이그레이션) ============
+// 원자성 DB와의 불일치 방지를 위해 레거시 형식을 JSON으로 직접 저장
+
+model FmeaLegacyData {
+  id        String   @id @default(uuid())
+  fmeaId    String   @unique // FK: FMEA 프로젝트 ID (1:1 관계)
+  data      Json // 레거시 WorksheetState 전체를 JSON으로 저장
+  version   String   @default("1.0.0") // 스키마 버전
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@map("fmea_legacy_data")
+}
+
+// ============ 5. 확정 상태 (단계별 확정 상태 저장) ============
+
+model FmeaConfirmedState {
+  id                    String   @id @default(uuid())
+  fmeaId                String   @unique // FK: FmeaProject.fmeaId (논리적 연결)
+  structureConfirmed    Boolean  @default(false) // 구조분석 확정
+  l1FunctionConfirmed   Boolean  @default(false) // 1L 기능분석 확정
+  l2FunctionConfirmed   Boolean  @default(false) // 2L 기능분석 확정
+  l3FunctionConfirmed   Boolean  @default(false) // 3L 기능분석 확정
+  failureL1Confirmed    Boolean  @default(false) // 1L 고장영향 확정
+  failureL2Confirmed    Boolean  @default(false) // 2L 고장형태 확정
+  failureL3Confirmed    Boolean  @default(false) // 3L 고장원인 확정
+  failureLinkConfirmed  Boolean  @default(false) // 고장연결 확정
+  riskConfirmed         Boolean  @default(false) // 리스크분석 확정
+  optimizationConfirmed Boolean  @default(false) // 최적화 확정
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Note: FK relation은 데이터 마이그레이션 후 추가 예정
+  // project FmeaProject @relation(fields: [fmeaId], references: [fmeaId], onDelete: Cascade)
+
+  @@map("fmea_confirmed_states")
+}
+
+// ============ 6. 개정 이력 (개정관리 화면) ============
+model FmeaRevisionHistory {
+  id              String  @id @default(uuid())
+  fmeaId          String // FK: FmeaProject.fmeaId
+  revisionNumber  String // Rev.00, Rev.01, Rev.02...
+  revisionHistory String? // 개정이력 설명
+
+  // 작성
+  createPosition String? // 작성자 직급
+  createName     String? // 작성자 성명
+  createDate     String? // 작성일자
+  createStatus   String? // 진행/승인/반려
+
+  // 검토
+  reviewPosition String? // 검토자 직급
+  reviewName     String? // 검토자 성명
+  reviewDate     String? // 검토일자
+  reviewStatus   String? // 진행/승인/반려
+
+  // 승인
+  approvePosition String? // 승인자 직급
+  approveName     String? // 승인자 성명
+  approveDate     String? // 승인일자
+  approveStatus   String? // 진행/승인/반려
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@index([revisionNumber])
+  @@map("fmea_revision_history")
+}
+
+// ============ 7. 회의록 (개정관리 화면) ============
+model FmeaMeetingMinute {
+  id             String   @id @default(uuid())
+  fmeaId         String // FK: FmeaProject.fmeaId
+  no             Int // 회의록 번호
+  date           String? // 회의일자
+  projectName    String? // 프로젝트명
+  content        String? // 회의내용
+  author         String? // 작성자
+  authorPosition String? // 작성자 직급
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([fmeaId])
+  @@index([no])
+  @@map("fmea_meeting_minutes")
+}
+
+// ============================================================================
+// ============ 마스터 데이터 테이블들 (전체 프로젝트 공유) ============
+// ============================================================================
+
+// ============ 사용자 정보 마스터 (전체 프로젝트 공유) ============
+model User {
+  id          String    @id @default(uuid())
+  factory     String // 공장
+  department  String // 부서
+  name        String // 성명
+  position    String // 직급
+  phone       String? // 전화번호
+  email       String? // 이메일
+  remark      String? // 비고
+  // ✅ 사용자 인증 필드
+  password    String? // 비밀번호 (해시)
+  isActive    Boolean   @default(true) // 활성화 여부
+  lastLoginAt DateTime? // 마지막 로그인 일시
+  // ✅ 2026-01-19: 시스템 권한 필드 추가
+  role        String    @default("viewer") // 권한: 'admin' | 'editor' | 'viewer'
+  // ✅ 2026-01-19: 모듈별 권한 필드 추가 ('none' | 'read' | 'write')
+  permPfmea   String    @default("none") // PFMEA 권한
+  permDfmea   String    @default("none") // DFMEA 권한
+  permCp      String    @default("none") // CP 권한
+  permPfd     String    @default("none") // PFD 권한
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([email])
+  @@index([name])
+  @@index([department])
+  @@index([factory])
+  @@index([isActive])
+  @@index([role])
+  @@map("users")
+}
+
+// ============ 고객사 정보 마스터 (전체 프로젝트 공유) ============
+model Customer {
+  id          String   @id @default(uuid())
+  name        String // 고객명 (예: 현대자동차)
+  code        String? // 고객 코드 (예: HMC)
+  factory     String? // 공장 (예: 울산공장)
+  description String? // 설명
+  sortOrder   Int      @default(0) // 정렬 순서 (현대=1~, 기아=10~, GM=99)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([code])
+  @@index([name])
+  @@index([sortOrder])
+  @@map("customers")
+}
+
+// ============ 프로젝트 기초정보 마스터 (전체 프로젝트 공유) ============
+model BizInfoProject {
+  id           String   @id @default(uuid())
+  customerName String // 고객명 (예: 현대자동차)
+  customerCode String? // 고객 코드 (예: HMC)
+  factory      String? // 공장 (예: 울산공장)
+  modelYear    String? // 모델년도 (예: 2025)
+  program      String? // 프로그램 (예: NE1)
+  productName  String? // 품명 (예: 도어패널)
+  partNo       String? // 품번 (예: DP-001)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([customerName])
+  @@index([customerCode])
+  @@index([productName])
+  @@map("bizinfo_projects")
+}
+
+// ============================================================================
+// ============ 습득교훈 (Lessons Learned) ============
+// ============================================================================
+
+model LessonsLearned {
+  id            String   @id @default(uuid())
+  lldNo         String   @unique // LLD26-001 형식 시리얼 번호
+  vehicle       String // 차종
+  target        String // 대상: '설계' | '부품' | '제조'
+  failureMode   String // 고장형태
+  location      String? // 발생장소
+  cause         String // 발생원인
+  category      String // 구분: '예방관리' | '검출관리'
+  improvement   String // 개선대책
+  completedDate String? // ★ 완료일자 (LLD 완료된 날짜, 수동 입력)
+  fmeaId        String? // ★ 적용결과 (FMEA ID, 자동 입력)
+  status        String   @default("R") // 상태: 'G' (완료) | 'Y' (진행중) | 'R' (미완료)
+  appliedDate   String? // ★ 적용일자 (FMEA에 입력된 날짜, 자동)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([lldNo])
+  @@index([vehicle])
+  @@index([target])
+  @@index([status])
+  @@index([fmeaId])
+  @@map("lessons_learned")
+}
+
+// ============================================================================
+// ============ Control Plan (관리계획서) ============
+// ============================================================================
+
+// CP 헤더 (하나의 FMEA에 여러 CP 가능 - 1:N 관계)
+model ControlPlan {
+  id   String @id @default(uuid())
+  cpNo String @unique // CP26-M001 형식
+
+  // PFMEA 연결 (1:N - 하나의 FMEA에 여러 CP 가능)
+  fmeaId  String // FK: FMEA 프로젝트 ID
+  fmeaNo  String? // pfm26-M001 (표시용)
+  fmeaRev Int     @default(1) // 연결된 PFMEA Rev
+
+  // 기본 정보 (FMEA에서 가져오거나 CP 고유)
+  projectName String? // 프로젝트명 (FMEA 연동)
+  partName    String? // 품명
+  partNo      String? // 품번
+  revNo       String  @default("A") // Rev No
+  revDate     String? // Rev 일자
+  customer    String? // 고객
+  processFrom String? // 공정 범위 From
+  processTo   String? // 공정 범위 To
+  preparedBy  String? // 작성자
+  approvedBy  String? // 승인자
+
+  // 상태
+  status String @default("draft") // draft | approved | obsolete
+
+  // 동기화 메타
+  syncStatus  String    @default("new") // new | synced | modified
+  lastSyncAt  DateTime?
+  changeCount Int       @default(0) // 변경 알림 카운트
+
+  // 타임스탬프
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  items ControlPlanItem[]
+
+  @@index([fmeaId])
+  @@index([cpNo])
+  @@index([status])
+  @@map("control_plans")
+}
+
+// CP 행 데이터 (24개 컬럼)
+model ControlPlanItem {
+  id   String @id @default(uuid())
+  cpId String // FK: control_plans.id
+
+  // ===== PFMEA 행 연결 (추적성) =====
+  pfmeaRowUid     String? // PFMEA_ROW_UID
+  pfmeaProcessId  String? // PFMEA L2 공정 ID
+  pfmeaWorkElemId String? // PFMEA L3 작업요소 ID
+
+  // ===== 공정현황 (PFMEA 연동, Read-only) =====
+  processNo    String // 공정번호
+  processName  String // 공정명
+  processLevel String? // 공정레벨 (Main/Sub)
+  processDesc  String? // 공정설명
+  workElement  String? // 작업요소
+
+  // ===== 공정현황 (CP 전용, Editable) =====
+  equipment    String? // 설비/금형/Jig/Tools
+  detectorNo   Boolean @default(false) // 검출장치_NO
+  detectorEp   Boolean @default(false) // 검출장치_EP
+  detectorAuto Boolean @default(false) // 검출장치_자동검사
+
+  // ===== 관리항목 (PFMEA 연동) =====
+  productChar String? // 제품특성 (원자성: 한 셀에 하나만)
+  processChar String? // 공정특성 (원자성: 한 셀에 하나만)
+  specialChar String? // 특별특성 (CC/SC/IC)
+  charIndex   Int     @default(0) // 원자성 인덱스: 동일 공정 내 특성 순서
+
+  // ===== 관리항목 (CP 전용) =====
+  specTolerance String? // 스펙/공차
+
+  // ===== 관리방법 (CP 전용, Editable) =====
+  evalMethod    String? // 평가/측정방법
+  sampleSize    String? // 샘플링 크기
+  sampleFreq    String? // 샘플링 주기
+  controlMethod String? // 관리방법
+  owner1        String? // 책임1
+  owner2        String? // 책임2
+  reactionPlan  String? // 대응계획
+
+  // ===== 리스크 참조 (PFMEA Read-only) =====
+  refSeverity   Int? // 심각도 참조
+  refOccurrence Int? // 발생도 참조
+  refDetection  Int? // 검출도 참조
+  refAp         String? // AP 참조 (H/M/L)
+
+  // ===== 상태 =====
+  linkStatus String  @default("linked") // linked | changed | unlinked
+  changeFlag Boolean @default(false) // 변경 알림 Flag
+
+  // 정렬
+  sortOrder Int @default(0)
+
+  // 타임스탬프
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  controlPlan ControlPlan @relation(fields: [cpId], references: [id], onDelete: Cascade)
+
+  @@index([cpId])
+  @@index([pfmeaRowUid])
+  @@index([pfmeaProcessId])
+  @@map("control_plan_items")
+}
+
+// 동기화 로그
+model SyncLog {
+  id String @id @default(uuid())
+
+  sourceType String // 'pfmea' | 'cp'
+  sourceId   String // 원본 ID
+  targetType String // 'pfmea' | 'cp'
+  targetId   String // 대상 ID
+
+  action   String // 'create' | 'update' | 'delete' | 'lock' | 'obsolete'
+  status   String  @default("pending") // pending | synced | failed
+  errorMsg String? // 실패 시 오류 메시지
+
+  fieldChanges String? // 변경된 필드 목록 JSON
+
+  syncedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("sync_logs")
+}
+
+// ============ PFD (공정흐름도) 테이블 ============
+
+// PFD 등록 헤더
+model PfdRegistration {
+  id    String @id @default(uuid())
+  pfdNo String @unique // PFD 번호 (예: pfd26-m001)
+
+  // 연결 정보
+  fmeaId        String? // 연결된 FMEA ID
+  cpNo          String? // 연결된 CP 번호
+  apqpProjectId String? // APQP 프로젝트 ID
+
+  // 기본 정보
+  partName     String? // 부품명
+  partNo       String? // 부품번호
+  subject      String? // 제목
+  customerName String? // 고객사
+  modelYear    String? // 모델연도
+
+  // 담당 정보
+  companyName  String? // 회사명
+  processOwner String? // 공정 담당자
+  createdBy    String? // 작성자
+
+  // 상태
+  status String @default("draft") // draft | active | locked | obsolete
+
+  // 타임스탬프
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  items PfdItem[]
+
+  @@index([fmeaId])
+  @@index([cpNo])
+  @@index([status])
+  @@map("pfd_registrations")
+}
+
+// PFD 항목 (행)
+model PfdItem {
+  id    String @id @default(uuid())
+  pfdId String // PFD 등록 ID
+
+  // 공정 정보
+  processNo   String? // 공정번호
+  processName String? // 공정명
+  processDesc String? // 공정설명 (기능)
+  workElement String? // 작업요소
+
+  // 설비 정보
+  equipment String? // 설비/금형/지그
+
+  // 특성 정보
+  productChar String? // 제품특성
+  processChar String? // 공정특성
+  specialChar String? // 특별특성 (CC/SC)
+
+  // 연결 정보
+  fmeaL2Id String? // 연결된 FMEA L2 ID
+  fmeaL3Id String? // 연결된 FMEA L3 ID
+  cpItemId String? // 연결된 CP Item ID
+
+  // 정렬/상태
+  sortOrder Int     @default(0)
+  isDeleted Boolean @default(false)
+
+  // 타임스탬프
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  pfd PfdRegistration @relation(fields: [pfdId], references: [id], onDelete: Cascade)
+
+  @@index([pfdId])
+  @@index([processNo])
+  @@index([fmeaL2Id])
+  @@index([cpItemId])
+  @@map("pfd_items")
+}
+
+// 문서 연결 테이블
+model DocumentLink {
+  id String @id @default(uuid())
+
+  sourceType String // 'pfd' | 'fmea' | 'cp'
+  sourceId   String // 원본 문서 ID
+  targetType String // 'pfd' | 'fmea' | 'cp'
+  targetId   String // 대상 문서 ID
+
+  linkType   String @default("synced_with") // derived_from | references | synced_with
+  syncPolicy String @default("manual") // manual | realtime | snapshot
+
+  lastSyncAt DateTime?
+  syncHash   String? // 동기화 해시 (변경 감지용)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceType, sourceId, targetType, targetId])
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+  @@map("document_links")
+}
+
+// ============ SOD 기준 마스터 테이블 (PUBLIC) ============
+
+// PFMEA 심각도 기준
+model PfmeaSeverityCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique // 1-10 점수
+  scope       String // YP (Your Plant) | SP (Ship to Plant) | USER (최종사용자)
+  effect      String // 고장영향 설명
+  description String // 상세 기준 설명
+  example     String? // 예시
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@index([scope])
+  @@map("pfmea_severity_criteria")
+}
+
+// PFMEA 발생도 기준
+model PfmeaOccurrenceCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique // 1-10 점수
+  probability String // 발생 확률 범위 (예: ">100/1000")
+  ppm         String? // PPM 범위 (예: ">100,000")
+  description String // 상세 기준 설명
+  prevention  String? // 예방관리 예시
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("pfmea_occurrence_criteria")
+}
+
+// PFMEA 검출도 기준
+model PfmeaDetectionCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique // 1-10 점수
+  maturity    String // 검출 가능성 수준 (매우높음/높음/중간/낮음/매우낮음)
+  description String // 상세 기준 설명
+  detection   String? // 검출관리 예시
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("pfmea_detection_criteria")
+}
+
+// DFMEA 심각도 기준
+model DfmeaSeverityCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique // 1-10 점수
+  scope       String // YP (Your Plant) | SP (Ship to Plant) | USER (최종사용자)
+  effect      String // 고장영향 설명
+  description String // 상세 기준 설명
+  example     String? // 예시
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@index([scope])
+  @@map("dfmea_severity_criteria")
+}
+
+// DFMEA 발생도 기준
+model DfmeaOccurrenceCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique // 1-10 점수
+  probability String // 발생 확률 범위
+  ppm         String? // PPM 범위
+  description String // 상세 기준 설명
+  prevention  String? // 예방관리 예시
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("dfmea_occurrence_criteria")
+}
+
+// DFMEA 검출도 기준
+model DfmeaDetectionCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique // 1-10 점수
+  maturity    String // 검출 가능성 수준
+  description String // 상세 기준 설명
+  detection   String? // 검출관리 예시
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("dfmea_detection_criteria")
+}
+
+// ============ 전역 마스터 테이블 (PFMEA/CP/PFD 공통) ============
+
+// 부품 마스터 - 전역 키
+model Part {
+  id        String   @id @default(uuid())
+  partNo    String   @unique // 품번 (고유)
+  partName  String // 품명
+  customer  String? // 고객
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partNo])
+  @@index([partName])
+  @@map("parts")
+}
+
+// 공정 통합 마스터 - PFMEA/CP 공통
+model MasterProcess {
+  id          String   @id @default(uuid())
+  processNo   String // 공정번호
+  processName String // 공정명
+  processDesc String? // 공정설명 (PFMEA 기능)
+  level       String? // 레벨 (Main/Sub/L1/L2/L3)
+  equipment   String? // 설비/금형/지그
+  sourceType  String   @default("manual") // manual | pfmea_import | cp_import
+  sourceId    String? // 원본 ID (import 시)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([processNo, processName])
+  @@index([processNo])
+  @@index([processName])
+  @@index([sourceType])
+  @@map("master_processes")
+}
+
+// ============ CP 기초정보 마스터 테이블 (PUBLIC) ============
+
+// CP 공정현황 마스터 - 공정번호, 공정명, 레벨, 공정설명, 설비/금형/지그
+model CpMasterProcess {
+  id          String   @id @default(uuid())
+  processNo   String // 공정번호 (부모키)
+  processName String // 공정명
+  level       String? // 레벨 (Main/Sub)
+  processDesc String? // 공정설명
+  equipment   String? // 설비/금형/지그
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([processNo, processName])
+  @@index([processNo])
+  @@map("cp_master_processes")
+}
+
+// CP 검출장치 마스터 - 공정번호, 공정명, EP, 자동검사장치
+model CpMasterDetector {
+  id           String   @id @default(uuid())
+  processNo    String // 공정번호 (부모키)
+  processName  String // 공정명
+  ep           String? // EP (Error Proofing)
+  autoDetector String? // 자동검사장치
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_detectors")
+}
+
+// CP 관리항목 마스터 - 공정번호, 공정명, 제품특성, 공정특성, 특별특성, 스펙/공차
+model CpMasterControlItem {
+  id            String   @id @default(uuid())
+  processNo     String // 공정번호 (부모키)
+  processName   String // 공정명
+  productChar   String? // 제품특성
+  processChar   String? // 공정특성
+  specialChar   String? // 특별특성 (CC/SC/IC)
+  specTolerance String? // 스펙/공차
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_control_items")
+}
+
+// CP 관리방법 마스터 - 공정번호, 공정명, 평가방법, 샘플크기, 주기, 책임1, 책임2
+model CpMasterControlMethod {
+  id          String   @id @default(uuid())
+  processNo   String // 공정번호 (부모키)
+  processName String // 공정명
+  evalMethod  String? // 평가방법
+  sampleSize  String? // 샘플크기
+  frequency   String? // 주기
+  owner1      String? // 책임1
+  owner2      String? // 책임2
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_control_methods")
+}
+
+// CP 대응계획 마스터 - 공정번호, 공정명, 제품특성, 공정특성, 대응계획
+model CpMasterReactionPlan {
+  id           String   @id @default(uuid())
+  processNo    String // 공정번호 (부모키)
+  processName  String // 공정명
+  productChar  String? // 제품특성
+  processChar  String? // 공정특성
+  reactionPlan String? // 대응계획
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([processNo])
+  @@map("cp_master_reaction_plans")
+}
+
+// ============ CP 프로젝트별 데이터 (cpId로 연결) ============
+
+// CP 프로젝트 등록 정보 (기본정보 + 메타)
+model CpRegistration {
+  id   String @id @default(uuid())
+  cpNo String @unique // CP26-P001 형식
+
+  // 상위 연결 (3개)
+  parentApqpNo String? // ★ 상위 APQP (최상위)
+  fmeaId       String? // 상위 FMEA ID
+  fmeaNo       String? // 상위 FMEA 번호
+  parentCpId   String? // 상위 CP ID
+
+  // 회사 정보
+  companyName         String? // 회사명
+  engineeringLocation String? // 엔지니어링 위치
+
+  // 고객 정보
+  customerName String? // 고객명
+  modelYear    String? // 모델연식/플랫폼
+
+  // CP 정보
+  subject              String? // CP명 (품명)
+  cpType               String  @default("P") // M(Master) | F(Family) | P(Part)
+  confidentialityLevel String? // Prototype | Pre-Launch | Production | Safe Launch
+
+  // 일정
+  cpStartDate    String? // 시작일자
+  cpRevisionDate String? // 개정일자
+
+  // 책임
+  processResponsibility String? // 공정책임 (부서)
+  cpResponsibleName     String? // CP 책임자
+
+  // 상태
+  status      String    @default("draft") // draft | confirmed | approved
+  confirmedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  cftMembers         CpCftMember[]
+  revisions          CpRevision[]
+  processes          CpProcess[]
+  atomicProcesses    CpAtomicProcess[]
+  confirmedState     CpConfirmedState? @relation(fields: [cpConfirmedStateId], references: [id])
+  cpConfirmedStateId String?
+
+  @@index([fmeaId])
+  @@index([parentCpId])
+  @@index([customerName])
+  @@map("cp_registrations")
+}
+
+// CP CFT 멤버
+model CpCftMember {
+  id   String @id @default(uuid())
+  cpNo String // FK: cp_registrations.cpNo
+
+  // 멤버 정보
+  seq        Int     @default(0) // 순번
+  role       String? // 역할 (설계/공정/품질/생산/구매)
+  factory    String? // 공장
+  department String? // 부서
+  name       String // 성명
+  position   String? // 직급
+  phone      String? // 전화번호
+  email      String? // 이메일
+  remark     String? // 비고
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  registration CpRegistration @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+
+  @@index([cpNo])
+  @@map("cp_cft_members")
+}
+
+// CP 개정 이력
+model CpRevision {
+  id   String @id @default(uuid())
+  cpNo String // FK: cp_registrations.cpNo
+
+  revNo      String // Rev.01, Rev.02, ...
+  revDate    String? // 개정일자
+  revReason  String? // 개정사유
+  revContent String? // 개정내용
+  revisedBy  String? // 개정자
+  approvedBy String? // 승인자
+  approvedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  registration CpRegistration @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+
+  @@index([cpNo])
+  @@map("cp_revisions")
+}
+
+// CP 공정현황 (단계 1)
+model CpProcess {
+  id   String @id @default(uuid())
+  cpNo String // FK: cp_registrations.cpNo
+
+  // 공정 정보
+  processNo   String // 공정번호
+  processName String // 공정명
+  level       String? // Main | Sub
+  processDesc String? // 공정설명
+  equipment   String? // 설비/금형/지그
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  registration   CpRegistration    @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+  detectors      CpDetector[]
+  controlItems   CpControlItem[]
+  controlMethods CpControlMethod[]
+  reactionPlans  CpReactionPlan[]
+
+  @@unique([cpNo, processNo])
+  @@index([cpNo])
+  @@map("cp_processes")
+}
+
+// CP 검출장치 (단계 2)
+model CpDetector {
+  id        String @id @default(uuid())
+  cpNo      String // FK: cp_registrations.cpNo
+  processNo String // FK: cp_processes.processNo
+
+  ep           String? // EP
+  autoDetector String? // 자동검사장치
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  process CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_detectors")
+}
+
+// CP 관리항목 (단계 3)
+model CpControlItem {
+  id        String @id @default(uuid())
+  cpNo      String // FK: cp_registrations.cpNo
+  processNo String // FK: cp_processes.processNo
+
+  productChar String? // 제품특성
+  processChar String? // 공정특성
+  specialChar String? // 특별특성 (CC/SC/IC)
+  spec        String? // 스펙/공차
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  process CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_control_items")
+}
+
+// CP 관리방법 (단계 4)
+model CpControlMethod {
+  id        String @id @default(uuid())
+  cpNo      String // FK: cp_registrations.cpNo
+  processNo String // FK: cp_processes.processNo
+
+  evalMethod    String? // 평가방법
+  sampleSize    String? // 샘플크기
+  frequency     String? // 주기
+  controlMethod String? // 관리방법 (B7-1)
+  owner1        String? // 책임1
+  owner2        String? // 책임2
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  process CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_control_methods")
+}
+
+// CP 대응계획 (단계 5)
+model CpReactionPlan {
+  id        String @id @default(uuid())
+  cpNo      String // FK: cp_registrations.cpNo
+  processNo String // FK: cp_processes.processNo
+
+  productChar  String? // 제품특성
+  processChar  String? // 공정특성
+  reactionPlan String? // 대응계획
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  process CpProcess @relation(fields: [cpNo, processNo], references: [cpNo, processNo], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@map("cp_reaction_plans")
+}
+
+// ============ CP 원자성 워크시트 테이블 ============
+
+// CP 공정 원자성 (L1: CpProcess)
+model CpAtomicProcess {
+  id           String   @id // 하이브리드 ID: {CP_SEQ}-P{SEQ}
+  cpNo         String // FK: cp_registrations.cpNo
+  processNo    String // 공정번호
+  processName  String // 공정명
+  level        String? // Main | Sub
+  processDesc  String? // 공정설명
+  equipment    String? // 설비/금형/지그
+  workElement  String? // 작업요소
+  sortOrder    Int      @default(0)
+  rowIndex     Int? // 행 인덱스
+  mergeGroupId String? // 병합 그룹 ID
+  parentId     String? // 상위 ID (병합 시)
+  rowSpan      Int      @default(1)
+  colSpan      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  registration   CpRegistration          @relation(fields: [cpNo], references: [cpNo], onDelete: Cascade)
+  detectors      CpAtomicDetector[]
+  controlItems   CpAtomicControlItem[]
+  controlMethods CpAtomicControlMethod[]
+  reactionPlans  CpAtomicReactionPlan[]
+
+  @@unique([cpNo, processNo])
+  @@index([cpNo])
+  @@index([mergeGroupId])
+  @@map("cp_atomic_processes")
+}
+
+// CP 검출장치 원자성 (L2: CpDetector)
+model CpAtomicDetector {
+  id           String   @id // 하이브리드 ID: {CP_SEQ}-P{SEQ}-D{SEQ}
+  cpNo         String // FK
+  processNo    String // FK
+  processId    String // FK: cp_atomic_processes.id
+  ep           String? // EP
+  autoDetector String? // 자동검사장치
+  sortOrder    Int      @default(0)
+  rowIndex     Int?
+  colIndex     Int? // 컬럼 인덱스 (검출장치 그룹 내)
+  mergeGroupId String?
+  parentId     String? // 상위 공정 ID
+  rowSpan      Int      @default(1)
+  colSpan      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  process CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_detectors")
+}
+
+// CP 관리항목 원자성 (L3: CpControlItem)
+model CpAtomicControlItem {
+  id           String   @id // 하이브리드 ID: {CP_SEQ}-P{SEQ}-CI{SEQ}
+  cpNo         String // FK
+  processNo    String // FK
+  processId    String // FK
+  productChar  String? // 제품특성
+  processChar  String? // 공정특성
+  specialChar  String? // 특별특성
+  spec         String? // 스펙/공차
+  sortOrder    Int      @default(0)
+  rowIndex     Int?
+  colIndex     Int? // 컬럼 인덱스 (관리항목 그룹 내)
+  mergeGroupId String?
+  parentId     String? // 상위 공정 ID
+  rowSpan      Int      @default(1)
+  colSpan      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  process CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_control_items")
+}
+
+// CP 관리방법 원자성 (L4: CpControlMethod)
+model CpAtomicControlMethod {
+  id           String   @id // 하이브리드 ID: {CP_SEQ}-P{SEQ}-CM{SEQ}
+  cpNo         String // FK
+  processNo    String // FK
+  processId    String // FK
+  evalMethod   String? // 평가방법
+  sampleSize   String? // 샘플크기
+  frequency    String? // 주기
+  owner1       String? // 책임1
+  owner2       String? // 책임2
+  sortOrder    Int      @default(0)
+  rowIndex     Int?
+  colIndex     Int? // 컬럼 인덱스 (관리방법 그룹 내)
+  mergeGroupId String?
+  parentId     String? // 상위 공정 ID
+  rowSpan      Int      @default(1)
+  colSpan      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  process CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_control_methods")
+}
+
+// CP 대응계획 원자성 (L5: CpReactionPlan)
+model CpAtomicReactionPlan {
+  id           String   @id // 하이브리드 ID: {CP_SEQ}-P{SEQ}-RP{SEQ}
+  cpNo         String // FK
+  processNo    String // FK
+  processId    String // FK
+  productChar  String? // 제품특성
+  processChar  String? // 공정특성
+  reactionPlan String? // 대응계획
+  sortOrder    Int      @default(0)
+  rowIndex     Int?
+  colIndex     Int?
+  mergeGroupId String?
+  parentId     String? // 상위 공정 ID
+  rowSpan      Int      @default(1)
+  colSpan      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  process CpAtomicProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+
+  @@index([cpNo, processNo])
+  @@index([processId])
+  @@map("cp_atomic_reaction_plans")
+}
+
+// CP 확정 상태 (단계별 확정)
+model CpConfirmedState {
+  id                     String           @id @default(uuid())
+  cpNo                   String           @unique // FK: cp_registrations.cpNo
+  processConfirmed       Boolean          @default(false) // 공정현황 확정
+  detectorConfirmed      Boolean          @default(false) // 검출장치 확정
+  controlItemConfirmed   Boolean          @default(false) // 관리항목 확정
+  controlMethodConfirmed Boolean          @default(false) // 관리방법 확정
+  reactionPlanConfirmed  Boolean          @default(false) // 대응계획 확정
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  cpRegistrations        CpRegistration[]
+
+  @@index([cpNo])
+  @@map("cp_confirmed_states")
+}
+
+// CP 마스터 데이터 (Import용)
+model CpMasterDataset {
+  id        String   @id @default(uuid())
+  name      String // 데이터셋 이름
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  flatItems CpMasterFlatItem[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("cp_master_datasets")
+}
+
+model CpMasterFlatItem {
+  id        String   @id @default(uuid())
+  datasetId String // FK: cp_master_datasets.id
+  processNo String // 공정번호
+  category  String // 카테고리
+  itemCode  String // 아이템 코드
+  value     String // 값
+  createdAt DateTime @default(now())
+
+  dataset CpMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
+  @@index([processNo])
+  @@index([category])
+  @@index([itemCode])
+  @@map("cp_master_flat_items")
+}
+
+// ============ APQP 프로젝트별 데이터 (apqpNo로 연결) ============
+// CP와 동일한 구조로 설계
+
+// APQP 프로젝트 등록 정보 (기본정보 + 메타)
+model ApqpRegistration {
+  id     String @id @default(uuid())
+  apqpNo String @unique // pj26-001 형식
+
+  // 상위 연결 (3개)
+  parentApqpNo String? // ★ 상위 APQP (최상위)
+  parentFmeaId String? // 상위 FMEA ID
+  baseCpId     String? // 기반 CP ID
+
+  // 기본 정보 (1단계: 기획 및 준비)
+  companyName           String? // 회사명
+  engineeringLocation   String? // 엔지니어링 위치
+  customerName          String? // 고객명
+  modelYear             String? // 모델연식/플랫폼
+  subject               String? // APQP명 (프로젝트 주제)
+  apqpStartDate         String? // 시작일자
+  apqpRevisionDate      String? // 개정일자
+  processResponsibility String? // 공정책임 부서
+  confidentialityLevel  String? // 기밀유지 수준
+  apqpResponsibleName   String? // APQP 책임자 성명
+
+  // 추가 정보
+  productName String? // 제품명
+  partNo      String? // 품번
+  targetDate  String? // 목표일자
+  status      String? @default("planning") // planning, development, validation, production, closed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  cftMembers ApqpCftMember[]
+  revisions  ApqpRevision[]
+  phases     ApqpPhase[]
+  schedules  ApqpSchedule[]
+
+  @@index([apqpNo])
+  @@index([customerName])
+  @@map("apqp_registrations")
+}
+
+// APQP CFT 멤버
+model ApqpCftMember {
+  id     String @id @default(uuid())
+  apqpNo String // FK: apqp_registrations.apqpNo
+
+  // 멤버 정보
+  seq        Int     @default(0) // 순번
+  role       String? // 역할 (팀장/설계/공정/품질/구매/생산기술)
+  factory    String? // 공장
+  department String? // 부서
+  name       String? // 성명
+  position   String? // 직급
+  phone      String? // 전화번호
+  email      String? // 이메일
+  remark     String? // 담당업무/비고
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  registration ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@map("apqp_cft_members")
+}
+
+// APQP 개정 이력
+model ApqpRevision {
+  id     String @id @default(uuid())
+  apqpNo String // FK: apqp_registrations.apqpNo
+
+  revNo       String // Rev.01, Rev.02, ...
+  revDate     String? // 개정일자
+  description String? // 개정내용
+  author      String? // 작성자
+  approver    String? // 승인자
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  registration ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@map("apqp_revisions")
+}
+
+// APQP 단계 (Phase 1~5)
+model ApqpPhase {
+  id     String @id @default(uuid())
+  apqpNo String // FK: apqp_registrations.apqpNo
+
+  // Phase 정보
+  phaseNo   Int // 1~5
+  phaseName String // Phase 1: 계획 및 정의, Phase 2: 제품설계 및 개발, ...
+  status    String? @default("pending") // pending, in_progress, completed, delayed
+  startDate String? // 시작일
+  endDate   String? // 종료일
+  progress  Int?    @default(0) // 진행률 (0~100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  registration ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+  activities   ApqpActivity[]
+
+  @@unique([apqpNo, phaseNo])
+  @@index([apqpNo])
+  @@map("apqp_phases")
+}
+
+// APQP 활동 항목 (Activity)
+model ApqpActivity {
+  id      String @id @default(uuid())
+  apqpNo  String // FK: apqp_registrations.apqpNo
+  phaseNo Int // FK: apqp_phases.phaseNo
+
+  // Activity 정보
+  activityNo      Int // 활동 순번
+  activityName    String // 활동명
+  description     String? // 설명
+  responsible     String? // 담당자
+  status          String? @default("pending") // pending, in_progress, completed, delayed
+  planStartDate   String? // 계획 시작일
+  planEndDate     String? // 계획 종료일
+  actualStartDate String? // 실제 시작일
+  actualEndDate   String? // 실제 종료일
+  progress        Int?    @default(0) // 진행률 (0~100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  phase        ApqpPhase         @relation(fields: [apqpNo, phaseNo], references: [apqpNo, phaseNo], onDelete: Cascade)
+  deliverables ApqpDeliverable[]
+
+  @@index([apqpNo, phaseNo])
+  @@map("apqp_activities")
+}
+
+// APQP 산출물 (Deliverable)
+model ApqpDeliverable {
+  id         String @id @default(uuid())
+  apqpNo     String // FK: apqp_registrations.apqpNo
+  activityId String // FK: apqp_activities.id
+
+  // Deliverable 정보
+  deliverableName String // 산출물명
+  description     String? // 설명
+  status          String? @default("pending") // pending, in_review, approved, rejected
+  dueDate         String? // 마감일
+  completedDate   String? // 완료일
+  filePath        String? // 파일 경로 (첨부파일)
+  reviewer        String? // 검토자
+  approver        String? // 승인자
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  activity ApqpActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@index([activityId])
+  @@map("apqp_deliverables")
+}
+
+// APQP 일정/마일스톤
+model ApqpSchedule {
+  id     String @id @default(uuid())
+  apqpNo String // FK: apqp_registrations.apqpNo
+
+  // 마일스톤 정보
+  milestoneName String // 마일스톤명 (예: Kick-off, Design Freeze, PPAP, SOP)
+  description   String? // 설명
+  planDate      String? // 계획일
+  actualDate    String? // 실제일
+  status        String? @default("pending") // pending, completed, delayed
+  responsible   String? // 담당자
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  registration ApqpRegistration @relation(fields: [apqpNo], references: [apqpNo], onDelete: Cascade)
+
+  @@index([apqpNo])
+  @@map("apqp_schedules")
+}
+
+// ============================================================================
+// ============ PFMEA-CP-PFD 공유 데이터 및 실시간 동기화 (Polling 기반) ============
+// ============================================================================
+
+// ============ 공유 공정 마스터 (SSOT - Single Source of Truth) ============
+// PFMEA가 SSOT이며, CP/PFD는 이 데이터를 참조
+
+model SharedProcessMaster {
+  id        String @id @default(uuid())
+  projectId String // APQP 프로젝트 ID (공통 연결 키)
+  fmeaId    String // 원본 PFMEA ID (SSOT)
+
+  // 공정 식별자 (PFMEA → CP/PFD 자동 연계)
+  processNo   String // 공정번호 (3앱 공유)
+  processName String // 공정명 (3앱 공유)
+  processDesc String? // 공정설명/기능 (3앱 공유)
+  partName    String? // 부품이름 (3앱 공유)
+
+  // 4M 분류 (CP 연동 대상: MC, IM, EN / 제외: MN)
+  m4          String? // 'MN' | 'MC' | 'IM' | 'EN'
+  workElement String? // 작업요소명 (PFMEA L3)
+
+  // 원본 참조 ID (역추적용)
+  pfmeaL2Id String? // PFMEA L2Structure.id
+  pfmeaL3Id String? // PFMEA L3Structure.id
+
+  // 동기화 메타
+  version  Int     @default(1) // 낙관적 잠금
+  syncHash String? // 변경 감지용 해시
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  characteristics SharedCharacteristicsMaster[]
+  cpMappings      PfmeaCpMapping[]
+  pfdMappings     PfmeaPfdMapping[]
+
+  @@unique([projectId, processNo, workElement])
+  @@index([projectId])
+  @@index([fmeaId])
+  @@index([processNo])
+  @@index([updatedAt])
+  @@map("shared_process_master")
+}
+
+// ============ 공유 특성 마스터 (제품/공정/특별특성) ============
+
+model SharedCharacteristicsMaster {
+  id        String @id @default(uuid())
+  processId String // FK: SharedProcessMaster.id
+
+  // 특성 정보 (PFMEA → CP/PFD 자동 연계)
+  productCharacteristic String? // 제품특성 (PFMEA L2Function.productChar)
+  processCharacteristic String? // 공정특성 (PFMEA L3Function.processChar)
+  specialCharacteristic String? // 특별특성 (CC/SC/IC)
+
+  // 원본 참조 ID (역추적용)
+  pfmeaL2FuncId String? // PFMEA L2Function.id
+  pfmeaL3FuncId String? // PFMEA L3Function.id
+
+  // 동기화 메타
+  version  Int     @default(1)
+  syncHash String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  process        SharedProcessMaster   @relation(fields: [processId], references: [id], onDelete: Cascade)
+  riskReferences SharedRiskReference[]
+
+  @@index([processId])
+  @@index([updatedAt])
+  @@map("shared_characteristics_master")
+}
+
+// ============ 공유 리스크 참조 (PFMEA 리스크 정보 - CP 참조용) ============
+
+model SharedRiskReference {
+  id               String @id @default(uuid())
+  characteristicId String // FK: SharedCharacteristicsMaster.id
+
+  // 고장 정보 (PFMEA → CP 참조)
+  failureEffect String? // 고장영향 (FE)
+  failureMode   String? // 고장형태 (FM)
+  failureCause  String? // 고장원인 (FC)
+
+  // SOD 값 (참조용, Read-only)
+  severity   Int? // 심각도 (1-10)
+  occurrence Int? // 발생도 (1-10)
+  detection  Int? // 검출도 (1-10)
+  ap         String? // AP (H/M/L)
+  rpn        Int? // RPN (S×O×D) - 표시용
+
+  // 원본 참조 ID
+  pfmeaLinkId String? // PFMEA FailureLink.id
+  pfmeaRiskId String? // PFMEA RiskAnalysis.id
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  characteristic SharedCharacteristicsMaster @relation(fields: [characteristicId], references: [id], onDelete: Cascade)
+
+  @@index([characteristicId])
+  @@index([updatedAt])
+  @@map("shared_risk_references")
+}
+
+// ============ PFMEA-CP 매핑 테이블 (행 단위 추적성) ============
+
+model PfmeaCpMapping {
+  id String @id @default(uuid())
+
+  // PFMEA 측 (원본)
+  fmeaId          String // PFMEA 프로젝트 ID
+  fmeaRev         Int    @default(1) // PFMEA Rev
+  pfmeaRowUid     String // PFMEA 행 고유 ID (project_id + rev + process_no + work_element_id)
+  sharedProcessId String // FK: SharedProcessMaster.id
+
+  // CP 측 (대상)
+  cpNo     String // CP 번호
+  cpRev    Int     @default(1) // CP Rev
+  cpItemId String? // CP 항목 ID (생성 후 연결)
+
+  // 연결 상태
+  linkStatus String  @default("active") // active | obsolete | unlinked
+  changeFlag Boolean @default(false) // PFMEA 변경 알림 Flag
+  changeType String? // 변경 유형: 'structure' | 'characteristic' | 'risk'
+
+  // 동기화 상태
+  lastSyncAt DateTime?
+  syncStatus String    @default("pending") // pending | synced | conflict | failed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sharedProcess SharedProcessMaster @relation(fields: [sharedProcessId], references: [id], onDelete: Cascade)
+
+  @@unique([pfmeaRowUid, cpNo])
+  @@index([fmeaId])
+  @@index([cpNo])
+  @@index([sharedProcessId])
+  @@index([linkStatus])
+  @@index([syncStatus])
+  @@index([updatedAt])
+  @@map("pfmea_cp_mappings")
+}
+
+// ============ PFMEA-PFD 매핑 테이블 ============
+
+model PfmeaPfdMapping {
+  id String @id @default(uuid())
+
+  // PFMEA 측 (원본)
+  fmeaId          String
+  pfmeaRowUid     String
+  sharedProcessId String // FK: SharedProcessMaster.id
+
+  // PFD 측 (대상)
+  pfdNo     String // PFD 번호
+  pfdItemId String? // PFD 항목 ID
+
+  // 연결 상태
+  linkStatus String  @default("active")
+  changeFlag Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sharedProcess SharedProcessMaster @relation(fields: [sharedProcessId], references: [id], onDelete: Cascade)
+
+  @@unique([pfmeaRowUid, pfdNo])
+  @@index([fmeaId])
+  @@index([pfdNo])
+  @@index([sharedProcessId])
+  @@index([updatedAt])
+  @@map("pfmea_pfd_mappings")
+}
+
+// ============ 실시간 동기화 추적 테이블 (Polling 기반) ============
+
+model SyncTracker {
+  id String @id @default(uuid())
+
+  // 변경 원본
+  sourceType  String // 'pfmea' | 'cp' | 'pfd'
+  sourceId    String // 원본 문서 ID
+  sourceTable String // 변경된 테이블명
+  sourceRowId String // 변경된 행 ID
+
+  // 변경 내용
+  changeType    String // 'insert' | 'update' | 'delete'
+  changedFields String? // 변경된 필드 목록 (JSON)
+  oldValues     String? // 변경 전 값 (JSON)
+  newValues     String? // 변경 후 값 (JSON)
+
+  // 동기화 대상
+  targetTypes String // 동기화 대상 앱 목록 (JSON: ["cp", "pfd"])
+
+  // 상태
+  status       String    @default("pending") // pending | processing | completed | failed
+  processedAt  DateTime?
+  errorMessage String?
+  retryCount   Int       @default(0)
+
+  // 타임스탬프 (Polling 쿼리용)
+  createdAt DateTime @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([sourceTable])
+  @@map("sync_tracker")
+}
+
+// ============ EP검사장치 마스터 (Error Proofing / 자동검사) ============
+
+model EpDevice {
+  id          String   @id @default(uuid())
+  cpNo        String?  // CP 번호 (CP별 관리 시)
+  fmeaId      String?  // FMEA ID (FMEA별 관리 시)
+  processNo   String   // 공정번호
+  processName String   // 공정명
+  category    String   // 구분: 'Error Proof' | '자동검사'
+  deviceName  String   // 장치명
+  purpose     String?  // 기능/목적
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([cpNo])
+  @@index([fmeaId])
+  @@index([processNo])
+  @@index([category])
+  @@map("ep_devices")
+}
+
+// ============ Polling 상태 관리 (클라이언트별 마지막 폴링 시점) ============
+
+model PollingSyncState {
+  id String @id @default(uuid())
+
+  // 클라이언트 식별
+  clientId   String // 앱 식별자: 'pfmea-{fmeaId}' | 'cp-{cpNo}' | 'pfd-{pfdNo}'
+  appType    String // 'pfmea' | 'cp' | 'pfd'
+  documentId String // fmeaId | cpNo | pfdNo
+
+  // Polling 상태
+  lastPolledAt DateTime @default(now()) // 마지막 폴링 시점
+  lastSyncedId String? // 마지막 동기화된 SyncTracker.id
+
+  // 메타
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId])
+  @@index([appType])
+  @@index([documentId])
+  @@index([lastPolledAt])
+  @@map("polling_sync_states")
+}
+
+// ============ PFMEA 상태 머신 (CP 잠금 제어) ============
+
+model PfmeaStateHistory {
+  id     String @id @default(uuid())
+  fmeaId String // FMEA 프로젝트 ID
+
+  // 상태 변경
+  fromState String // 'draft' | 'approved' | 'revised'
+  toState   String // 'draft' | 'approved' | 'revised'
+
+  // 연관 CP 상태 변경 트리거
+  cpAction String? // 'lock_structure' | 'create_new_rev' | 'mark_obsolete'
+  cpNos    String? // 영향받는 CP 번호 목록 (JSON)
+
+  // 메타
+  changedBy    String? // 변경자
+  changeReason String? // 변경 사유
+  createdAt    DateTime @default(now())
+
+  @@index([fmeaId])
+  @@index([toState])
+  @@index([createdAt])
+  @@map("pfmea_state_history")
+}
+
+// ============ FMEA SOD 변경 히스토리 (ALL 화면 SOD 변경 자동 기록) ============
+
+model FmeaSodHistory {
+  id        String   @id @default(uuid())
+  fmeaId    String   // FK: FMEA 프로젝트 ID
+  
+  // 개정 정보
+  revMajor  Int      @default(1)  // 정식 개정 번호 (1, 2, 3...)
+  revMinor  Int      @default(0)  // 소수점 개정 (0, 1, 2... → 1.0, 1.1, 1.2)
+  
+  // 변경 대상
+  fmId      String   // 변경된 FM ID
+  fmNo      String?  // FM 번호 (표시용)
+  fmText    String?  // FM 텍스트 (표시용)
+  fcId      String?  // 변경된 FC ID (O 변경 시)
+  fcNo      String?  // FC 번호 (표시용)
+  fcText    String?  // FC 텍스트 (표시용)
+  
+  // 변경 내용
+  changeType String  // 'S' | 'O' | 'D' (심각도/발생도/검출도)
+  oldValue   Int     // 변경 전 값
+  newValue   Int     // 변경 후 값
+  changeNote String? // 변경 사유 (선택)
+  
+  // 변경자 정보
+  changedBy  String? // 변경자 이름
+  changedAt  DateTime @default(now())
+  
+  @@index([fmeaId])
+  @@index([revMajor, revMinor])
+  @@index([fmId])
+  @@index([changeType])
+  @@index([changedAt])
+  @@map("fmea_sod_history")
+}
+
+// ============ FMEA 정식 개정 이력 (FMEA 책임자 전용) ============
+
+model FmeaOfficialRevision {
+  id        String   @id @default(uuid())
+  fmeaId    String   // FK: FMEA 프로젝트 ID
+  
+  // 개정 정보
+  revMajor      Int      // 정식 개정 번호 (1, 2, 3...)
+  revisionNote  String?  // 개정 사유
+  
+  // 개정자 정보 (FMEA 책임자만 가능)
+  revisedBy     String?  // 개정자 이름
+  revisedByRole String?  // 개정자 역할 (FMEA 책임자)
+  revisedAt     DateTime @default(now())
+  
+  // 개정 시점의 SOD 변경 카운트 (이 개정까지의 변경 수)
+  sodChangeCount Int     @default(0)
+  
+  @@unique([fmeaId, revMajor])
+  @@index([fmeaId])
+  @@index([revMajor])
+  @@index([revisedAt])
+  @@map("fmea_official_revisions")
+}
+
+// ============ FMEA 버전별 백업 (복구용) ============
+
+model FmeaVersionBackup {
+  id          String   @id @default(uuid())
+  fmeaId      String   // FK: FMEA 프로젝트 ID (예: PFM26-M001)
+  
+  // 버전 정보
+  version     String   // 전체 버전 문자열 (예: "1.00", "1.01", "2.00")
+  revMajor    Int      // 메이저 버전 (정수 부분)
+  revMinor    Int      // 마이너 버전 (소수 부분 * 100)
+  versionType String   // "MAJOR" | "MINOR" (정식 개정 / 자동 증분)
+  
+  // 백업 데이터 (전체 FMEA JSON 스냅샷)
+  backupData  String   @db.Text  // 압축된 JSON 또는 원본 JSON
+  dataSize    Int?     // 원본 데이터 크기 (bytes)
+  compressed  Boolean  @default(false) // 압축 여부
+  
+  // 메타 정보
+  changeNote  String?  // 변경 사유 / 백업 사유
+  triggerType String   // "MANUAL" | "AUTO_CONFIRM" | "MAJOR_REVISION" | "RESTORE"
+  
+  // 생성자 정보
+  createdBy   String   @default("admin")
+  createdAt   DateTime @default(now())
+  
+  @@unique([fmeaId, version])
+  @@index([fmeaId])
+  @@index([fmeaId, revMajor])
+  @@index([fmeaId, createdAt])
+  @@index([versionType])
+  @@map("fmea_version_backups")
+}
+
+// ============ FMEA 결재 (Approval) ============
+
+model FmeaApproval {
+  id              String    @id @default(uuid())
+  fmeaId          String    // FK: FMEA 프로젝트 ID
+  revisionId      String    // 개정 ID
+  revisionNumber  String    // 개정번호 (예: "1.00")
+  
+  // 결재 유형
+  approvalType    String    // "CREATE" | "REVIEW" | "APPROVE"
+  
+  // 결재자 정보
+  approverEmail   String
+  approverName    String?
+  
+  // 요청자 정보
+  requesterName   String?
+  
+  // 결재 토큰 (이메일 링크용)
+  token           String    @unique
+  
+  // 결재 상태
+  status          String    @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED"
+  rejectReason    String?   // 반려 사유
+  
+  // 타임스탬프
+  requestedAt     DateTime  @default(now())
+  processedAt     DateTime?
+  
+  @@index([fmeaId])
+  @@index([status])
+  @@index([approverEmail])
+  @@map("fmea_approvals")
+}

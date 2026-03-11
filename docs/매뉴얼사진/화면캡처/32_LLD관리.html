@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - LLD 관리</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; }
+</style>
+</head>
+<body class="bg-[#f1f5f9] flex">
+
+<!-- Sidebar -->
+<aside class="w-12 min-h-screen bg-gradient-to-b from-[#1a237e] to-[#0d1b4a] flex flex-col items-center py-3 gap-4 flex-shrink-0">
+  <div class="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+  <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+</aside>
+
+<!-- Main Content -->
+<div class="flex-1 flex flex-col min-h-screen">
+  <!-- Header -->
+  <header class="h-11 bg-[#1a1f36] flex items-center px-4 justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-blue-400 font-bold text-sm">PFMEA</span>
+      <span class="text-slate-500 text-xs">LLD 관리(Lessons Learned Database)</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">○○타이어</span>
+      <div class="w-7 h-7 bg-blue-500/20 rounded-full flex items-center justify-center">
+        <span class="text-blue-400 text-xs font-bold">김</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter & Search -->
+  <div class="bg-white border-b border-slate-200 px-4 py-2 flex items-center gap-3 flex-shrink-0">
+    <div class="flex gap-1">
+      <button class="px-2.5 py-1 text-[11px] text-white bg-blue-600 rounded font-medium">전체(All)</button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-500 bg-slate-100 rounded hover:bg-slate-200">RMA</button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-500 bg-slate-100 rounded hover:bg-slate-200">ABN</button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-500 bg-slate-100 rounded hover:bg-slate-200">CIP</button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-500 bg-slate-100 rounded hover:bg-slate-200">CLM</button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-500 bg-slate-100 rounded hover:bg-slate-200">FLD</button>
+    </div>
+    <div class="flex-1"></div>
+    <div class="relative">
+      <input type="text" placeholder="검색어를 입력하세요..." class="w-64 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200">
+      <svg class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    </div>
+    <div class="flex gap-1.5">
+      <button class="px-2.5 py-1 text-[11px] text-white bg-blue-600 rounded hover:bg-blue-700 flex items-center gap-1">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        행 추가
+      </button>
+      <button class="px-2.5 py-1 text-[11px] text-slate-600 bg-white border border-slate-300 rounded hover:bg-slate-50 flex items-center gap-1">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        엑셀 내보내기
+      </button>
+    </div>
+  </div>
+
+  <!-- LLD Table -->
+  <div class="flex-1 p-3 overflow-auto">
+    <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <table class="w-full text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-700 text-white text-[10px]">
+            <th class="px-2 py-2 text-center font-medium w-8 border-r border-slate-600">No</th>
+            <th class="px-2 py-2 text-center font-medium w-24 border-r border-slate-600">LLD No</th>
+            <th class="px-2 py-2 text-center font-medium w-20 border-r border-slate-600">차종<br>Vehicle</th>
+            <th class="px-2 py-2 text-center font-medium w-20 border-r border-slate-600">대상<br>Target</th>
+            <th class="px-2 py-2 text-center font-medium w-14 border-r border-slate-600">구분<br>Category</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-slate-600">고장형태(FM)<br>Failure Mode</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-slate-600">고장원인(FC)<br>Failure Cause</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-slate-600">예방관리(PC)<br>Prevention</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-slate-600">검출관리(DC)<br>Detection</th>
+            <th class="px-2 py-2 text-center font-medium border-r border-slate-600">개선내용<br>Improvement</th>
+            <th class="px-2 py-2 text-center font-medium w-12">상태<br>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">1</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2026-001</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">아반떼 CN7</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">205/55R16</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px]">RMA</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">트레드 분리</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">가류 온도 편차</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">온도 센서 교정 주기 단축</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">가류 후 접착력 시험</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">센서 교정 월→주 변경</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#92D050] text-white">G</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">2</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2026-002</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">쏘나타 DN8</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">235/45R18</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded text-[9px]">ABN</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">사이드월 균열</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">고무 노화 가속</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">산화방지제 함량 증가</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">UV 노화시험 72hr</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">배합비 변경 완료</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#92D050] text-white">G</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">3</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2026-003</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">그랜저 IG</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">245/40R19</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded text-[9px]">CIP</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">유니포미티 불량</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">성형드럼 편심</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">드럼 진원도 점검 강화</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">UF 전수검사</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">드럼 교체 기준 변경</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#FFD966] text-white">Y</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">4</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2026-004</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">투싼 NX4</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">235/55R19</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded text-[9px]">CLM</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">소음 증가</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">트레드 패턴 공진</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">패턴 피치 최적화 시뮬</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">소음 실차 시험</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">패턴 변경 검토 중</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#FFD966] text-white">Y</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">5</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2025-015</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">K5 DL3</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">225/45R18</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-green-100 text-green-600 rounded text-[9px]">FLD</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">비드 이탈</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">비드와이어 장력 부족</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">장력 자동 모니터링</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">비드 시트 착좌 시험</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">와이어 교체 완료</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#92D050] text-white">G</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">6</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2025-014</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">EV6 CV</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">255/40R20</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[9px]">RMA</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">조기 마모</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">EV 토크 대응 배합 미적용</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">EV 전용 배합 적용</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">실차 마모 시험</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">EV 배합 양산 적용</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#92D050] text-white">G</span></td>
+          </tr>
+          <tr class="border-b border-slate-100 hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">7</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2025-013</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">팰리세이드 LX2</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">265/45R20</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded text-[9px]">ABN</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">벨트 분리</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">스틸코드 녹 발생</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">코드 도금 검사 강화</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">고온 내구 시험</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">도금 기준 상향</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#FF6B6B] text-white">R</span></td>
+          </tr>
+          <tr class="hover:bg-blue-50/30">
+            <td class="px-2 py-1.5 text-center text-slate-400 border-r border-slate-50">8</td>
+            <td class="px-2 py-1.5 text-blue-600 font-mono border-r border-slate-50">LLD-2025-012</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">싼타페 MX5</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">245/50R20</td>
+            <td class="px-2 py-1.5 text-center border-r border-slate-50"><span class="px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded text-[9px]">CIP</span></td>
+            <td class="px-2 py-1.5 text-slate-700 border-r border-slate-50">편마모</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">컨투어 설계 편향</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">FEA 시뮬레이션 검증</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">마모 패턴 분석</td>
+            <td class="px-2 py-1.5 text-slate-600 border-r border-slate-50">컨투어 최적화 진행 중</td>
+            <td class="px-2 py-1.5 text-center"><span class="inline-block w-5 h-5 rounded text-[9px] font-bold leading-5 text-center bg-[#FFD966] text-white">Y</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

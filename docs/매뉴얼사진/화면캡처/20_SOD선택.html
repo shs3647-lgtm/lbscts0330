@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>SMART FMEA - SOD 선택</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; padding: 0; width: 1440px; min-height: 900px; font-family: 'Segoe UI', sans-serif; }
+</style>
+</head>
+<body class="bg-gray-100">
+
+<!-- Sidebar -->
+<div class="fixed left-0 top-0 bottom-0 w-12 flex flex-col items-center py-3 gap-4 z-50" style="background:#1a237e;">
+  <div class="w-8 h-8 bg-cyan-400 rounded-lg flex items-center justify-center">
+    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="fixed top-0 left-12 right-0 z-40" style="background:#1a1f36;">
+  <div class="flex items-center justify-between px-4 h-10">
+    <div class="flex items-center gap-3">
+      <span class="text-white font-semibold text-sm">SMART FMEA</span>
+      <span class="text-slate-500 text-xs">|</span>
+      <span class="text-slate-400 text-xs">APQP 품질관리 시스템</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-slate-400 text-xs">admin</span>
+      <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs">A</div>
+    </div>
+  </div>
+</div>
+
+<!-- Dimmed background (ALL tab) -->
+<div class="ml-12 mt-10 opacity-30 pointer-events-none">
+  <div class="bg-slate-800 h-8"></div>
+  <div class="bg-white border-b h-8"></div>
+  <div class="bg-gray-50 border-b h-9"></div>
+  <div class="bg-white border-b h-7"></div>
+  <div class="bg-white p-4">
+    <table class="w-full border-collapse text-[10px]">
+      <tr class="bg-blue-50"><td class="border p-1" colspan="27">ALL 탭 데이터 (배경)</td></tr>
+      <tr class="bg-gray-50"><td class="border p-1" colspan="27">...</td></tr>
+      <tr><td class="border p-1" colspan="27">...</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Overlay -->
+<div class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+  <!-- SOD Selection Modal -->
+  <div class="bg-white rounded-xl shadow-2xl border border-gray-200 w-[680px] max-h-[600px] overflow-hidden">
+    <!-- Modal Header -->
+    <div class="bg-gradient-to-r from-slate-800 to-slate-700 px-5 py-3 flex items-center justify-between">
+      <div>
+        <h2 class="text-white font-semibold text-sm">SOD 평가 기준 선택 <span class="text-slate-400 text-xs">(SOD Rating Selection)</span></h2>
+        <p class="text-slate-400 text-[10px] mt-0.5">AIAG-VDA FMEA 표준 기준</p>
+      </div>
+      <button class="text-slate-400 hover:text-white text-lg">&times;</button>
+    </div>
+
+    <!-- Tab Bar: S / O / D -->
+    <div class="flex border-b border-gray-200 bg-gray-50">
+      <button class="flex-1 py-2 text-sm font-semibold text-red-600 border-b-2 border-red-500 bg-white">
+        S 심각도 <span class="text-[10px] text-gray-400">(Severity)</span>
+      </button>
+      <button class="flex-1 py-2 text-sm text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+        O 발생도 <span class="text-[10px] text-gray-400">(Occurrence)</span>
+      </button>
+      <button class="flex-1 py-2 text-sm text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+        D 검출도 <span class="text-[10px] text-gray-400">(Detection)</span>
+      </button>
+    </div>
+
+    <!-- Rating Table -->
+    <div class="p-4 overflow-y-auto" style="max-height:440px;">
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border border-gray-300 px-2 py-1.5 text-center w-12">등급<br>(Rating)</th>
+            <th class="border border-gray-300 px-2 py-1.5 text-left w-32">구분<br>(Category)</th>
+            <th class="border border-gray-300 px-2 py-1.5 text-left">설명 (Description)</th>
+            <th class="border border-gray-300 px-2 py-1.5 text-center w-16">선택</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rating 10 -->
+          <tr class="bg-red-50 hover:bg-red-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-red-700">10</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-red-700">매우 심각 - 안전</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-red-800">경고 없이 안전 및/또는 규제 요건에 영향을 미치는 잠재적 고장형태. 차량 운행 불가 또는 인명 피해 위험.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-red-400 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 9 -->
+          <tr class="bg-red-50/70 hover:bg-red-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-red-600">9</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-red-600">매우 심각 - 규제</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-red-700">경고와 함께 안전 및/또는 규제 요건에 영향을 미치는 잠재적 고장형태. 차량 기능 심각 저하.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-red-400 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 8 -->
+          <tr class="bg-red-50/50 hover:bg-red-100 cursor-pointer border-2 border-blue-500">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-red-600">8</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-red-600">심각 - 기능상실</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-red-700">차량/아이템의 주요 기능 상실 (차량 운행 가능). 100% 고객 불만.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-blue-500 rounded mx-auto bg-blue-500 flex items-center justify-center"><svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg></div></td>
+          </tr>
+          <!-- Rating 7 -->
+          <tr class="bg-orange-50 hover:bg-orange-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-orange-600">7</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-orange-600">높음 - 기능저하</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-orange-700">차량/아이템의 주요 기능 저하. 대부분의 고객(>75%)이 불만.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-gray-300 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 6 -->
+          <tr class="bg-orange-50/70 hover:bg-orange-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-orange-500">6</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-orange-500">보통 - 성능저하</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-orange-600">차량/아이템의 편의 기능 상실. 50% 이상 고객 불만.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-gray-300 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 5 -->
+          <tr class="bg-yellow-50 hover:bg-yellow-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-yellow-600">5</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-yellow-600">보통 - 기능감소</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-yellow-700">차량/아이템의 편의 기능 저하. 고객의 일부(<50%)가 불만.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-gray-300 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 4 -->
+          <tr class="bg-yellow-50/70 hover:bg-yellow-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-yellow-500">4</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-yellow-500">낮음 - 외관결함</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-yellow-600">외관/소음 결함이 대부분(>75%)의 고객에 의해 감지됨.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-gray-300 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 3 -->
+          <tr class="bg-green-50 hover:bg-green-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-green-600">3</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-green-600">경미 - 불편</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-green-700">외관/소음 결함이 일부(50%)의 고객에 의해 감지됨.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-gray-300 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 2 -->
+          <tr class="bg-green-50/70 hover:bg-green-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-green-500">2</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-green-500">매우 경미</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-green-600">외관/소음 결함이 세심한 고객(<25%)에 의해서만 감지됨.</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-gray-300 rounded mx-auto"></div></td>
+          </tr>
+          <!-- Rating 1 -->
+          <tr class="bg-green-50/50 hover:bg-green-100 cursor-pointer">
+            <td class="border border-gray-300 px-2 py-1.5 text-center font-bold text-green-500">1</td>
+            <td class="border border-gray-300 px-2 py-1.5 font-semibold text-green-500">무시 가능</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-green-600">감지할 수 없는 영향. 고객이 인식하지 못함. (Negligible)</td>
+            <td class="border border-gray-300 px-2 py-1.5 text-center"><div class="w-4 h-4 border-2 border-gray-300 rounded mx-auto"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="border-t border-gray-200 bg-gray-50 px-5 py-3 flex items-center justify-between">
+      <span class="text-[10px] text-gray-400">현재 선택: <span class="font-semibold text-red-600">8 - 심각 (기능상실)</span></span>
+      <div class="flex gap-2">
+        <button class="px-4 py-1.5 text-xs border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100">취소(Cancel)</button>
+        <button class="px-4 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700">선택(Select)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

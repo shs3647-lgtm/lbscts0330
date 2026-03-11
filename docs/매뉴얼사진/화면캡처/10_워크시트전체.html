@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>P-FMEA 워크시트 전체</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5f5f5; width: 1440px; }
+  .sidebar { position: fixed; left: 0; top: 0; width: 48px; height: 100vh; background: linear-gradient(180deg, #1a237e 0%, #283593 100%); z-index: 50; display: flex; flex-direction: column; align-items: center; padding-top: 12px; gap: 8px; }
+  .sidebar-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #90caf9; font-size: 14px; cursor: pointer; }
+  .sidebar-icon:hover { background: rgba(255,255,255,0.1); }
+  .sidebar-icon.active { background: rgba(255,255,255,0.15); color: #fff; }
+  .tab-item { padding: 6px 12px; font-size: 12px; color: #b0bec5; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .tab-item:hover { color: #fff; }
+  .tab-item.active { color: #00e5ff; border-bottom-color: #00e5ff; font-weight: 600; }
+  .panel-tab { writing-mode: vertical-rl; padding: 12px 6px; font-size: 11px; cursor: pointer; border-left: 2px solid transparent; color: #666; background: #f5f5f5; }
+  .panel-tab:hover { background: #e8e8e8; }
+</style>
+</head>
+<body>
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-icon" title="Home">🏠</div>
+  <div class="sidebar-icon active" title="FMEA">📋</div>
+  <div class="sidebar-icon" title="CP">📑</div>
+  <div class="sidebar-icon" title="PFD">🔀</div>
+  <div class="sidebar-icon" title="Settings">⚙️</div>
+</div>
+
+<!-- Main Content -->
+<div style="margin-left: 48px;">
+  <!-- Header -->
+  <div style="height: 48px; background: #1a1f36; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+    <div style="color: #e0e0e0; font-size: 15px; font-weight: 600;">Smart System</div>
+    <div style="color: #00e5ff; font-size: 16px; font-weight: 700; letter-spacing: 1px;">P-FMEA</div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="color: #aaa; font-size: 13px;">관리자</span>
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: #3949ab; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px;">A</div>
+    </div>
+  </div>
+
+  <!-- Top Nav -->
+  <div style="height: 36px; background: #263238; display: flex; align-items: center; padding: 0 16px; gap: 2px;">
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">대시보드</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">등록</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">리스트</a>
+    <a style="color: #fff; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer; background: rgba(0,229,255,0.15); border-bottom: 2px solid #00e5ff;">워크시트</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">개정관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">AP개선관리</a>
+    <a style="color: #90a4ae; font-size: 13px; padding: 6px 14px; border-radius: 4px; text-decoration: none; cursor: pointer;">LLD</a>
+  </div>
+
+  <!-- Worksheet Menu Bar -->
+  <div style="height: 40px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; padding: 0 16px; gap: 12px;">
+    <!-- FMEA Select -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <span style="font-size: 12px; color: #666;">FMEA선택:</span>
+      <select style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; color: #333; background: #fff;">
+        <option>pfm26-f001-l68-r00</option>
+      </select>
+    </div>
+    <div style="width: 1px; height: 20px; background: #e0e0e0;"></div>
+    <!-- Save -->
+    <button style="padding: 4px 14px; background: #1976d2; color: #fff; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">💾 저장</button>
+    <!-- Sync Status -->
+    <div style="display: flex; align-items: center; gap: 4px;">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #4caf50; display: inline-block;"></span>
+      <span style="font-size: 11px; color: #4caf50;">동기화 완료</span>
+    </div>
+    <div style="flex: 1;"></div>
+    <!-- RPN Toggle -->
+    <button style="padding: 4px 10px; background: #263238; color: #fff; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">RPN</button>
+    <div style="width: 1px; height: 20px; background: #e0e0e0;"></div>
+    <!-- Panel Buttons -->
+    <span style="font-size: 11px; color: #999;">패널:</span>
+    <button style="padding: 3px 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; cursor: pointer; color: #666;">AP5</button>
+    <button style="padding: 3px 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; cursor: pointer; color: #666;">AP6</button>
+    <button style="padding: 3px 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; cursor: pointer; color: #666;">RPN</button>
+    <button style="padding: 3px 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; cursor: pointer; color: #666;">PDF</button>
+    <button style="padding: 3px 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; font-size: 11px; cursor: pointer; color: #666;">Tree</button>
+  </div>
+
+  <!-- Tab Menu -->
+  <div style="height: 34px; background: #1e272e; display: flex; align-items: center; padding: 0 8px; gap: 0; overflow-x: auto;">
+    <div class="tab-item">기초정보</div>
+    <div class="tab-item">구조분석</div>
+    <div class="tab-item">1L기능</div>
+    <div class="tab-item">2L기능</div>
+    <div class="tab-item">3L기능</div>
+    <div class="tab-item">1L고장</div>
+    <div class="tab-item">2L고장</div>
+    <div class="tab-item">3L고장</div>
+    <div class="tab-item">고장연결</div>
+    <div class="tab-item active">전체보기</div>
+    <div class="tab-item">리스크</div>
+    <div class="tab-item">최적화</div>
+  </div>
+
+  <!-- Worksheet Content Area -->
+  <div style="display: flex; height: calc(100vh - 206px);">
+    <!-- Main Worksheet -->
+    <div style="flex: 1; overflow: auto; padding: 0;">
+      <!-- Step Header -->
+      <div style="background: #1565c0; color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600;">
+        전체보기(ALL View) — 6단계 통합 워크시트
+      </div>
+
+      <!-- ALL Tab Table -->
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+        <thead>
+          <tr style="background: #e3f2fd;">
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 30px; font-size: 10px;">No</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 90px; font-size: 10px; background: #f0f7ff;">L1 공정</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 80px; font-size: 10px; background: #f1f9f2;">L2 공정</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 80px; font-size: 10px; background: #fffaf5;">L3 작업</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 90px; font-size: 10px;">기능</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 70px; font-size: 10px;">FE</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 70px; font-size: 10px;">FM</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 70px; font-size: 10px;">FC</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 30px; font-size: 10px;">S</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 30px; font-size: 10px;">O</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 30px; font-size: 10px;">D</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 40px; font-size: 10px;">AP</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 90px; font-size: 10px;">예방관리(PC)</th>
+            <th style="padding: 6px 4px; border: 1px solid #bbdefb; text-align: center; width: 90px; font-size: 10px;">검출관리(DC)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e8e8e8;">
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; color: #999;">1</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f1f9f2;">10-압출</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #fffaf5;">온도설정</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">고무 압출</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">타이어 파열</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">두께 불균일</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">온도 편차</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; font-weight: 600;">9</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">5</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">6</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;"><span style="background: #f44336; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">H</span></td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">SPC 관리도</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">두께 게이지</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e8e8e8;">
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; color: #999;">2</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f1f9f2;">20-성형</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #fffaf5;">압력조절</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">트레드 성형</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">안전성 저하</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">기포 발생</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">압력 부족</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; font-weight: 600;">8</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">4</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">5</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;"><span style="background: #ff9800; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">M</span></td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">압력 센서</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">X-ray 검사</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e8e8e8;">
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; color: #999;">3</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f1f9f2;">30-가류</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #fffaf5;">시간관리</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">가류 경화</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">타이어 파열</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">접착 불량</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">재료 불량</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; font-weight: 600;">9</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">3</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">4</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;"><span style="background: #ff9800; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">M</span></td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">IQC 검사</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">접착력 시험</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e8e8e8;">
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; color: #999;">4</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f1f9f2;">40-검사</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #fffaf5;">속도조절</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">외관 검사</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">안전성 저하</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">치수 편차</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">작업자 미숙</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; font-weight: 600;">7</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">5</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">7</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;"><span style="background: #f44336; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">H</span></td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">교육훈련</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">비전 검사기</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e8e8e8;">
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; color: #999;">5</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f0f7ff;">타이어 제조</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #f1f9f2;">10-압출</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; background: #fffaf5;">속도조절</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">압출 속도</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">소음 발생</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">두께 불균일</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0;">속도 편차</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center; font-weight: 600;">6</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">4</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;">5</td>
+            <td style="padding: 4px; border: 1px solid #f0f0f0; text-align: center;"><span style="background: #4caf50; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600;">L</span></td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">속도 센서</td>
+            <td style="padding: 4px 6px; border: 1px solid #f0f0f0; font-size: 10px;">두께 측정기</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Right Panel (Collapsed) -->
+    <div style="width: 32px; background: #f0f0f0; border-left: 1px solid #e0e0e0; display: flex; flex-direction: column; gap: 1px;">
+      <div class="panel-tab" style="background: #e8eaf6; color: #3949ab; border-left-color: #3949ab;">AP5</div>
+      <div class="panel-tab">AP6</div>
+      <div class="panel-tab">RPN</div>
+      <div class="panel-tab">PDF</div>
+      <div class="panel-tab">Tree</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
