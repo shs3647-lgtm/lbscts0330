@@ -51,23 +51,6 @@ export interface PanelConfig {
  */
 export const PANEL_REGISTRY: PanelConfig[] = [
   {
-    id: 'tree',
-    label: 'TREE',
-    icon: '🌳',
-    component: lazy(() => import('./TreePanel')),
-    order: 1,
-  },
-  {
-    id: 'pdf',
-    label: 'PDF',
-    icon: '📄',
-    component: dynamic(() => import('./PDFViewer'), {
-      ssr: false,
-      loading: () => <div className="flex items-center justify-center h-full text-sm text-gray-400">PDF 로딩 중...</div>,
-    }),
-    order: 2,
-  },
-  {
     id: 'rpn',
     label: 'RPN',
     icon: '📊',
