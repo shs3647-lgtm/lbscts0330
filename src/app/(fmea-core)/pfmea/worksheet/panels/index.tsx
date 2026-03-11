@@ -92,14 +92,6 @@ export const PANEL_REGISTRY: PanelConfig[] = [
     color: '#4f46e5',
     order: 8,
   },
-  {
-    id: 'gap',
-    label: 'GAP',
-    icon: '🔍',
-    component: lazy(() => import('./GAPAnalysis')),
-    color: '#7c3aed',
-    order: 9,
-  },
 ];
 
 /**
