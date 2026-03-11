@@ -23,8 +23,7 @@ import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import { useImportSteps } from '../hooks/useImportSteps';
 import { TabBtn, DataStatusBar } from './TemplateSharedUI';
 import { TemplatePreviewContent } from './TemplatePreviewContent';
-import ManualTemplateInline from './ManualTemplateInline';
-import AutoTemplateInline from './AutoTemplateInline';
+// ManualTemplateInline, AutoTemplateInline 삭제 (사용자 요청 — 샘플 Import로 대체)
 
 // ─── Props ───
 
@@ -349,9 +348,7 @@ export function TemplateGeneratorPanel(props: Props) {
       {/* 3탭 */}
       {!collapsed && <div className="flex items-center border-b border-blue-100 bg-blue-50/40">
         <div className="flex flex-1">
-          <TabBtn active={templateMode === 'download'} label="기존 데이터" onClick={() => { setTemplateMode('download'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
-          <TabBtn active={templateMode === 'manual'} label="수동 템플릿" onClick={() => { setTemplateMode('manual'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
-          <TabBtn active={templateMode === 'auto'} label="자동" onClick={() => { setTemplateMode('auto'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
+          <TabBtn active={templateMode === 'download'} label="기존데이타" onClick={() => { setTemplateMode('download'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
         </div>
         {/* ★ 2026-02-27: 샘플/빈 양식 다운로드 — 탭 바 우측 배치 */}
         <div className="flex items-center gap-1 pr-2">
@@ -359,12 +356,6 @@ export function TemplateGeneratorPanel(props: Props) {
             <button onClick={onDownloadSample}
               className="px-2 py-0.5 rounded text-[10px] font-bold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 cursor-pointer">
               샘플Down
-            </button>
-          )}
-          {onDownloadEmpty && (
-            <button onClick={onDownloadEmpty}
-              className="px-2 py-0.5 rounded text-[10px] font-bold border border-gray-300 text-gray-500 bg-white hover:bg-gray-50 cursor-pointer">
-              빈 양식
             </button>
           )}
         </div>
@@ -445,34 +436,10 @@ export function TemplateGeneratorPanel(props: Props) {
           </div>
         )}
 
-        {/* ─── 수동 탭: 인라인 설정 UI ─── */}
-        {templateMode === 'manual' && (
-          <div className="mb-2">
-            <ManualTemplateInline
-              config={manualConfig}
-              updateConfig={updateManualConfig}
-              onGenerate={onGenerate}
-              isSaving={isSaving}
-              hasData={flatData.length > 0}
-            />
-          </div>
-        )}
-
-        {/* ─── 자동 탭: 인라인 작업요소 UI ─── */}
-        {templateMode === 'auto' && (
-          <div className="mb-2">
-            <AutoTemplateInline
-              workElements={workElements}
-              multipliers={multipliers}
-              addWorkElement={addWorkElement}
-              removeWorkElement={removeWorkElement}
-              updateWorkElement={updateWorkElement}
-              updateMultiplier={updateMultiplier}
-              onGenerate={onGenerate}
-              isSaving={isSaving}
-              hasData={flatData.length > 0}
-              selectedFmeaId={selectedFmeaId}
-            />
+        {/* 수동/자동 탭: 샘플 다운로드 → 작성 → Import 안내 */}
+        {(templateMode === 'manual' || templateMode === 'auto') && flatData.length === 0 && (
+          <div className="text-center py-3 text-[11px] text-gray-400">
+            샘플 다운로드 → 엑셀 작성 → Import
           </div>
         )}
 
