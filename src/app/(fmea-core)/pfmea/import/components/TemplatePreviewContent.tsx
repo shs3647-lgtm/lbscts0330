@@ -128,9 +128,12 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   } = props;
 
   const isDownload = templateMode === 'download';
+  const isManualMode = templateMode === 'manual';
   // ★ 2026-03-10: 4개 모드(기존/수동/자동/전처리) 모두 SA→FC→FA 3단계 검증 표준화
   const hasStepProcess = flatData.length > 0;  // 데이터가 있으면 3단계 프로세스 활성화
   const isSAActive = stepState.activeStep === 'SA';
+  // ★ 수동모드: SA만 표시 (FC 제외 — 고장영향까지만 검증)
+  const visibleSteps: readonly ('SA' | 'FC')[] = isManualMode ? ['SA'] : ['SA', 'FC'];
 
   // ── parseStatistics 없을 때 flatData/crossTab에서 통계 자동 생성 ──
   const effectiveStatistics = useMemo<ParseStatistics | undefined>(() => {
@@ -411,7 +414,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       {/* ─── SA/FC/FA 서브탭 — 4개 모드 공통 3단계 확정 배지 ─── */}
       {hasStepProcess && (
         <div className="flex items-center gap-0 mb-1.5 border-b border-gray-200">
-          {(['SA', 'FC'] as const).map((tab, idx) => {
+          {visibleSteps.map((tab, idx) => {
             const labels = { SA: 'SA 시스템분석', FC: 'FC 고장사슬' };
             const counts = { SA: crossTab.total, FC: failureChains.length };
             const confirmed = { SA: stepState.saConfirmed, FC: stepState.fcConfirmed };
@@ -547,8 +550,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               </button>
             )}
 
-            {/* FC검증 토글 — SA확정 후, FC확정 전 위치 (워크플로우 순서) */}
-            {failureChains.length > 0 && (
+            {/* FC검증 토글 — SA확정 후, FC확정 전 위치 (워크플로우 순서) — 수동모드 제외 */}
+            {!isManualMode && failureChains.length > 0 && (
               <button
                 onClick={() => setShowVerification(v => !v)}
                 className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border cursor-pointer ${
@@ -561,8 +564,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               </button>
             )}
 
-            {/* FC: 미확정→확정 / 확정됨→되돌리기 */}
-            {stepState.fcConfirmed ? (
+            {/* FC: 미확정→확정 / 확정됨→되돌리기 — 수동모드 제외 */}
+            {!isManualMode && (stepState.fcConfirmed ? (
               <button
                 onClick={handleFCReset}
                 disabled={isAnalysisComplete}
@@ -581,7 +584,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 }`}>
                 FC 확정
               </button>
-            )}
+            ))}
 
             <button
               onClick={() => confirmFA()}

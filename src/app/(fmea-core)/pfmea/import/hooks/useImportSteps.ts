@@ -13,6 +13,7 @@ import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import type { CrossTab } from '../utils/template-delete-logic';
 import type { BuildResult } from '../utils/buildWorksheetState';
 import type { ParseStatistics } from '../excel-parser';
+import type { TemplateMode } from './useTemplateGenerator';
 import { validateFADataConsistency } from '../utils/faValidation';
 import {
   type ImportStepState,
@@ -65,6 +66,7 @@ interface UseImportStepsParams {
   fmeaInfo?: FmeaInfoForProject; // ★ 등록정보 전달 (프로젝트 자동 생성용)
   parseStatistics?: ParseStatistics; // ★ 파싱 통계(100% 검증 게이트)
   onWorksheetSaved?: () => void; // FA 확정 후 콜백 (라우터 이동 등)
+  templateMode?: TemplateMode; // ★ 수동모드: FC 스킵 (고장영향까지만 검증)
 }
 
 export interface UseImportStepsReturn {
@@ -105,6 +107,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
     fmeaInfo,
     parseStatistics,
     onWorksheetSaved,
+    templateMode,
   } = params;
 
   const [stepState, setStepState] = useState<ImportStepState>(getInitialStepState);
@@ -136,9 +139,11 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
   // flatData 길이 변경(위 useEffect)으로만 전체 리셋 처리
 
   // 확정 가능 여부 (isSaved 조건 제거 — 데이터만 있으면 SA 가능)
+  const isManualMode = templateMode === 'manual';
   const canSA = canConfirmSA({ flatData, missingTotal });
   const canFC = canConfirmFC(stepState);
-  const canFA = canConfirmFA(stepState);
+  // ★ 수동모드: FC 스킵 — SA 확정만으로 FA 가능
+  const canFA = isManualMode ? stepState.saConfirmed : canConfirmFA(stepState);
 
   const expectedByStats = useMemo(() => {
     const stats = parseStatistics?.itemStats || [];
@@ -261,17 +266,33 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
       } else if (saValidation.summary.warnings > 0) {
       }
 
-      setStepState(prev => ({
-        ...advanceToFC(prev),
-        // ★ SA 재확정 시 하위 단계 초기화 (FC/FA 리셋)
-        fcConfirmed: false,
-        faConfirmed: false,
-        fcComparison: null,
-        buildResult: {
-          success: result.success,
-          diagnostics: result.diagnostics,
-        },
-      }));
+      if (isManualMode) {
+        // ★ 수동모드: FC 스킵 — SA 확정 후 바로 FA 단계로
+        setStepState(prev => ({
+          ...prev,
+          saConfirmed: true,
+          fcConfirmed: true,  // FC 자동확정 (수동모드에는 FC 시트 없음)
+          faConfirmed: false,
+          activeStep: 'FA',
+          fcComparison: null,
+          buildResult: {
+            success: result.success,
+            diagnostics: result.diagnostics,
+          },
+        }));
+      } else {
+        setStepState(prev => ({
+          ...advanceToFC(prev),
+          // ★ SA 재확정 시 하위 단계 초기화 (FC/FA 리셋)
+          fcConfirmed: false,
+          faConfirmed: false,
+          fcComparison: null,
+          buildResult: {
+            success: result.success,
+            diagnostics: result.diagnostics,
+          },
+        }));
+      }
 
       // ★ SA 재확정 시 FC 비교 결과 리셋 + FA 상태 리셋
       setFcCompResult(null);
@@ -325,7 +346,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
       alert('SA 확정 중 오류가 발생했습니다: ' + (err instanceof Error ? err.message : String(err)));
       return null;
     }
-  }, [flatData, missingTotal, fmeaId, l1Name, crossTab, failureChains, externalChains, expectedByStats, fmeaInfo]);
+  }, [flatData, missingTotal, fmeaId, l1Name, crossTab, failureChains, externalChains, expectedByStats, fmeaInfo, isManualMode]);
 
   // ── FC 확정 ──
   const confirmFC = useCallback((force = false): void => {
@@ -385,8 +406,13 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
 
   // ── FA 확정 ──
   const confirmFA = useCallback(async (): Promise<void> => {
-    if (!canConfirmFA(stepState)) {
+    // ★ 수동모드: SA 확정만으로 FA 진행 가능 (FC 불필요)
+    if (!isManualMode && !canConfirmFA(stepState)) {
       alert('FA 확정 불가: FC 단계를 먼저 확정해주세요.');
+      return;
+    }
+    if (isManualMode && !stepState.saConfirmed) {
+      alert('FA 확정 불가: SA 단계를 먼저 확정해주세요.');
       return;
     }
     if (!fmeaId) {
@@ -402,8 +428,8 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         : buildFailureChainsFromFlat(flatData, crossTab);
 
 
-    // 체인 데이터 없으면 차단
-    if (parsedChains.length === 0) {
+    // 체인 데이터 없으면 차단 (수동모드 제외 — FC 시트 없음)
+    if (parsedChains.length === 0 && !isManualMode) {
       alert(
         `FA 확정 불가: 고장사슬 데이터가 없습니다.\n\n` +
         `엑셀 파일에 FC 고장사슬 시트가 있는지 확인하세요.\n` +
@@ -509,7 +535,8 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
 
 
       // ★ 2026-02-24: FC 시트 없어도 fallback 데이터 있으면 바로 진행
-      if (usedChains.length === 0) {
+      // ★ 수동모드: 체인 없이도 진행 가능 (워크시트에서 수동 연결)
+      if (usedChains.length === 0 && !isManualMode) {
         alert('FA 확정 불가: 고장사슬 데이터가 없습니다.');
         setIsAnalysisImporting(false);
         return;
@@ -688,6 +715,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
     crossTab,
     expectedByStats,
     onWorksheetSaved,
+    isManualMode,
   ]);
 
   // ── 탭 수동 전환 ──

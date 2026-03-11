@@ -175,6 +175,7 @@ export function TemplateGeneratorPanel(props: Props) {
     fmeaInfo: propsFmeaInfo,
     parseStatistics,
     onWorksheetSaved,
+    templateMode,
   });
 
   // ★ 편집 가능 여부
@@ -349,6 +350,8 @@ export function TemplateGeneratorPanel(props: Props) {
       {!collapsed && <div className="flex items-center border-b border-blue-100 bg-blue-50/40">
         <div className="flex flex-1">
           <TabBtn active={templateMode === 'download'} label="기존데이타" onClick={() => { setTemplateMode('download'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
+          <TabBtn active={templateMode === 'manual'} label="수동" onClick={() => { setTemplateMode('manual'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
+          <TabBtn active={templateMode === 'auto'} label="자동" onClick={() => { setTemplateMode('auto'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
         </div>
         {/* ★ 2026-02-27: 샘플/빈 양식 다운로드 — 탭 바 우측 배치 */}
         <div className="flex items-center gap-1 pr-2">
