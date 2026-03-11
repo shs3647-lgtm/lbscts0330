@@ -37,7 +37,6 @@ import { LinkageModal } from '@/components/linkage/LinkageModal';
 import { LinkedDocItem, TargetModule, getNextLinkGroupNo } from '@/components/linkage/types';
 import { PfdSelectModal } from './components/PfdSelectModal';
 import { FmeaSelectModal } from './components/FmeaSelectModal';
-import { CpSelectModal } from './components/CpSelectModal';
 import PfdBasicInfoTable from './components/PfdBasicInfoTable';
 import CreateDocumentModal from '@/components/modals/CreateDocumentModal'; // ★ 새로 만들기 모달
 

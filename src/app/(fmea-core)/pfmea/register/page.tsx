@@ -48,7 +48,6 @@ import { BizInfoProject } from '@/types/bizinfo';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
 import { FixedLayout } from '@/components/layout';
 import { getAIStatus } from '@/lib/ai-recommendation';
-import PfmeaBasicInfoTable from './components/PfmeaBasicInfoTable';
 import { LinkageModal } from '@/components/linkage/LinkageModal';
 import CreateDocumentModal from '@/components/modals/CreateDocumentModal';
 import AlertModal from '@/components/modals/AlertModal';
@@ -388,7 +387,7 @@ function PFMEARegisterPageContent() {
   const openHelp = (section: HelpSection) => { setHelpSection(section); };
   const toggleHelp = () => { setHelpSection(prev => prev ? null : 'overview'); };
 
-  const headerCell = "bg-[#00587a] text-white px-2 py-1.5 border border-white font-semibold text-xs text-center whitespace-nowrap";
+  const headerCell = "bg-[#00587a] text-white px-1 py-0.5 border border-white font-semibold text-[10px] text-center leading-tight";
   const inputCell = "border border-gray-300 px-1 py-0.5 overflow-hidden";
 
   return (
@@ -440,7 +439,7 @@ function PFMEARegisterPageContent() {
         {/* 기획 및 준비 (1단계) */}
         <div className="bg-white rounded border border-gray-300 mb-3">
           <div className="bg-[#e3f2fd] px-3 py-1.5 border-b border-gray-300 flex items-center justify-between">
-            <h2 className="text-xs font-bold text-gray-700" title="Planning and Preparation (Step 1)">기획 및 준비(Plan&Prep) (1단계)</h2>
+            <h2 className="text-sm font-extrabold text-gray-800" title="Planning and Preparation (Step 1)">기획 및 준비 <span className="text-[10px] font-semibold text-gray-500">(Plan & Prep)</span> 1단계</h2>
             <button onClick={() => openHelp('fields')}
               className="px-1.5 py-0.5 bg-yellow-400 text-[#00587a] text-[9px] font-bold rounded hover:bg-yellow-300 transition-colors"
               title="필드 설명 도움말">
@@ -454,40 +453,69 @@ function PFMEARegisterPageContent() {
                 <col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[9%]" /><col className="w-[16%]" />
               </colgroup>
               <tbody>
-                {/* 1행: FMEA유형, FMEA명, FMEA ID, 연동 CP/PFD */}
-                <tr className="h-8">
-                  <td className={headerCell} title="FMEA Type">FMEA 유형(Type)</td>
+                {/* 1행: FMEA유형, FMEA명, FMEA ID, 상위FMEA */}
+                <tr className="h-9">
+                  <td className={headerCell}>FMEA 유형<br /><span className="text-[8px] font-normal opacity-70">(Type)</span></td>
                   <td className={inputCell}>
-                    <div className="flex items-center gap-1">
-                      <select value={fmeaInfo.fmeaType} onChange={async (e) => {
-                        const newType = e.target.value as FMEAType;
-                        updateField('fmeaType', newType);
-                        const currentIdType = fmeaId?.match(/pfm\d{2}-([mfp])/i)?.[1]?.toUpperCase() || '';
-                        let currentId = fmeaId;
-                        if (currentIdType !== newType) {
-                          currentId = await generateFMEAIdFromDB(newType);
-                          setFmeaId(currentId);
-                          router.replace(`/pfmea/register?id=${currentId}`);
-                        }
-                        if (newType === 'M' && currentId) setSelectedBaseFmea(currentId);
-                        else if (newType !== 'M') setSelectedBaseFmea(null);
-                      }} className="w-full h-7 px-2 text-xs border border-gray-300 bg-white rounded font-semibold cursor-pointer">
-                        <option value="M">M - Master FMEA</option>
-                        <option value="F">F - Family FMEA</option>
-                        <option value="P">P - Part FMEA</option>
-                      </select>
-                    </div>
+                    <select value={fmeaInfo.fmeaType} onChange={async (e) => {
+                      const newType = e.target.value as FMEAType;
+                      updateField('fmeaType', newType);
+                      const currentIdType = fmeaId?.match(/pfm\d{2}-([mfp])/i)?.[1]?.toUpperCase() || '';
+                      let currentId = fmeaId;
+                      if (currentIdType !== newType) {
+                        currentId = await generateFMEAIdFromDB(newType);
+                        setFmeaId(currentId);
+                        router.replace(`/pfmea/register?id=${currentId}`);
+                      }
+                      if (newType === 'M' && currentId) setSelectedBaseFmea(currentId);
+                      else if (newType !== 'M') setSelectedBaseFmea(null);
+                    }} className="w-full h-7 px-1 text-xs border border-gray-300 bg-white rounded font-semibold cursor-pointer">
+                      <option value="M">M - Master</option>
+                      <option value="F">F - Family</option>
+                      <option value="P">P - Part</option>
+                    </select>
                   </td>
-                  <td className={headerCell} title="FMEA Name">FMEA명(Name)</td>
+                  <td className={headerCell}>FMEA명<br /><span className="text-[8px] font-normal opacity-70">(Name)</span></td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.subject} onChange={e => updateField('subject', e.target.value)} onPaste={e => { const text = e.clipboardData.getData('text/plain'); if (text) { e.preventDefault(); updateField('subject', text.replace(/[\r\n]/g, ' ').trim()); } }} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="시스템, 서브시스템 및/또는 구성품" /></td>
-                  <td className={headerCell} title="FMEA Identifier">FMEA ID</td>
+                  <td className={headerCell}>FMEA ID</td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-1">
                       <span className="px-2 text-xs font-semibold text-blue-600 cursor-pointer hover:underline hover:text-blue-700" onClick={() => router.push('/pfmea/list')} title="클릭하여 PFMEA 리스트로 이동">{fmeaId}</span>
                       {revParam && <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded">{revParam}</span>}
                     </div>
                   </td>
-                  <td className={`${headerCell} bg-teal-700`} title="Linked CP">연동 CP</td>
+                  <td className={`${headerCell} bg-yellow-600`}>상위 FMEA<br /><span className="text-[8px] font-normal opacity-70">(Parent)</span></td>
+                  <td className={inputCell}>
+                    <div className="flex items-center gap-1 px-1 cursor-pointer hover:bg-yellow-50 min-h-[28px] min-w-0 flex-wrap" onClick={() => openFmeaSelectModal('MF')} title="클릭하여 상위 FMEA 선택 (Master/Family)">
+                      {selectedBaseFmea ? (<>
+                        <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-yellow-500 shrink-0">FMEA</span>
+                        <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all">{selectedBaseFmea}</span>
+                      </>) : <span className="text-[10px] text-gray-400">-</span>}
+                    </div>
+                  </td>
+                </tr>
+                {/* 2행: 공정책임, FMEA담당자, 시작일자, 연동CP */}
+                <tr className="h-9">
+                  <td className={headerCell}>공정 책임<br /><span className="text-[8px] font-normal opacity-70">(Responsibility)</span></td>
+                  <td className={inputCell}>
+                    <div className="flex items-center gap-0.5 min-w-0">
+                      <input type="text" name={`dept_${Date.now()}`} value={fmeaInfo.designResponsibility} onChange={e => updateField('designResponsibility', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="부서(Department)" />
+                      <button onClick={() => { setUserModalTarget('design'); setUserModalOpen(true); }} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs">🔍</button>
+                    </div>
+                  </td>
+                  <td className={headerCell}>FMEA 담당자<br /><span className="text-[8px] font-normal opacity-70">(Owner)</span></td>
+                  <td className={inputCell}>
+                    <div className="flex items-center gap-0.5 min-w-0">
+                      <input type="text" name={`manager_${Date.now()}`} value={fmeaInfo.fmeaResponsibleName} onChange={e => {
+                        updateField('fmeaResponsibleName', e.target.value);
+                        setCftMembers(prev => prev.map(m => m.role === 'Leader' ? { ...m, name: e.target.value } : m));
+                      }} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="담당자 성명(Name)" />
+                      <button onClick={() => { setUserModalTarget('responsible'); setUserModalOpen(true); }} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs">🔍</button>
+                    </div>
+                  </td>
+                  <td className={headerCell}>시작 일자<br /><span className="text-[8px] font-normal opacity-70">(Start Date)</span></td>
+                  <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaStartDate} onClick={() => setStartDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택" /></td>
+                  <td className={`${headerCell} bg-teal-700`}>연동 CP<br /><span className="text-[8px] font-normal opacity-70">(Linked)</span></td>
                   <td className={inputCell}>
                     {fmeaInfo.linkedCpNo ? (
                       <div className="flex items-center gap-0.5 px-1 min-h-[28px] cursor-pointer hover:opacity-80" onClick={() => router.push(`/control-plan/register?id=${fmeaInfo.linkedCpNo}`)} title="CP 등록화면으로 이동">
@@ -499,52 +527,20 @@ function PFMEARegisterPageContent() {
                     )}
                   </td>
                 </tr>
-                {/* 2행: 공정책임, FMEA담당자, 시작일자, 상위FMEA */}
-                <tr className="h-8">
-                  <td className={headerCell} title="Process Responsibility">공정 책임(Resp.)</td>
+                {/* 3행: 고객명, 엔지니어링위치, 목표완료일, 연동PFD */}
+                <tr className="h-9">
+                  <td className={headerCell}>고객 명<br /><span className="text-[8px] font-normal opacity-70">(Customer)</span></td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 min-w-0">
-                      <input type="text" name={`dept_${Date.now()}`} value={fmeaInfo.designResponsibility} onChange={e => updateField('designResponsibility', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="부서(Department)" />
-                      <button onClick={() => { setUserModalTarget('design'); setUserModalOpen(true); }} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs">🔍</button>
-                    </div>
-                  </td>
-                  <td className={headerCell} title="FMEA Responsible Person">FMEA 담당자(Owner)</td>
-                  <td className={inputCell}>
-                    <div className="flex items-center gap-0.5 min-w-0">
-                      <input type="text" name={`manager_${Date.now()}`} value={fmeaInfo.fmeaResponsibleName} onChange={e => {
-                        updateField('fmeaResponsibleName', e.target.value);
-                        // ✅ FMEA담당자 직접 수정 → CFT Leader name 자동 동기화
-                        setCftMembers(prev => prev.map(m => m.role === 'Leader' ? { ...m, name: e.target.value } : m));
-                      }} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="담당자 성명(Name)" />
-                      <button onClick={() => { setUserModalTarget('responsible'); setUserModalOpen(true); }} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs">🔍</button>
-                    </div>
-                  </td>
-                  <td className={headerCell} title="FMEA Start Date">시작 일자(Start)</td>
-                  <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaStartDate} onClick={() => setStartDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택(Click to Select)" /></td>
-                  <td className={`${headerCell} bg-yellow-600`} title="Parent FMEA (Base/Master)">상위 FMEA(Parent)</td>
-                  <td className={inputCell}>
-                    <div className="flex items-center gap-1 px-1 cursor-pointer hover:bg-yellow-50 min-h-[28px] min-w-0 flex-wrap" onClick={() => openFmeaSelectModal('MF')} title="클릭하여 상위 FMEA 선택 (Master/Family)">
-                      {selectedBaseFmea ? (<>
-                        <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-yellow-500 shrink-0">FMEA</span>
-                        <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all">{selectedBaseFmea}</span>
-                      </>) : <span className="text-[10px] text-gray-400">클릭하여 선택(Click to Select)</span>}
-                    </div>
-                  </td>
-                </tr>
-                {/* 3행: 고객명, 엔지니어링위치, 목표완료일 */}
-                <tr className="h-8">
-                  <td className={headerCell} title="Customer Name">고객 명(Customer)</td>
-                  <td className={inputCell}>
-                    <div className="flex items-center gap-0.5 min-w-0">
-                      <input type="text" name={`customer_${Date.now()}`} value={fmeaInfo.customerName} onChange={e => updateField('customerName', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="고객 명(Customer)" />
+                      <input type="text" name={`customer_${Date.now()}`} value={fmeaInfo.customerName} onChange={e => updateField('customerName', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="고객 명" />
                       <button onClick={() => setBizInfoModalOpen(true)} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs">🔍</button>
                     </div>
                   </td>
-                  <td className={headerCell} title="Engineering Location">엔지니어링 위치(Location)</td>
+                  <td className={headerCell}>엔지니어링 위치<br /><span className="text-[8px] font-normal opacity-70">(Location)</span></td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.engineeringLocation} onChange={e => updateField('engineeringLocation', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="위치(Location)" /></td>
-                  <td className={headerCell} title="Target Completion Date">목표완료일(Target)</td>
-                  <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaRevisionDate} onClick={() => setRevisionDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택(Click to Select)" /></td>
-                  <td className={`${headerCell} bg-indigo-700`} title="Linked PFD">연동 PFD</td>
+                  <td className={headerCell}>목표완료일<br /><span className="text-[8px] font-normal opacity-70">(Target Date)</span></td>
+                  <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaRevisionDate} onClick={() => setRevisionDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택" /></td>
+                  <td className={`${headerCell} bg-indigo-700`}>연동 PFD<br /><span className="text-[8px] font-normal opacity-70">(Linked)</span></td>
                   <td className={inputCell}>
                     {fmeaInfo.linkedPfdNo ? (
                       <div className="flex items-center gap-0.5 px-1 min-h-[28px] cursor-pointer hover:opacity-80" onClick={() => router.push(`/pfd/register?id=${fmeaInfo.linkedPfdNo}`)} title="PFD 등록화면으로 이동">
@@ -557,8 +553,8 @@ function PFMEARegisterPageContent() {
                   </td>
                 </tr>
                 {/* 4행: 회사명, 모델연식, 품명 */}
-                <tr className="h-8">
-                  <td className={headerCell} title="Company Name">회사 명(Company)</td>
+                <tr className="h-9">
+                  <td className={headerCell}>회사 명<br /><span className="text-[8px] font-normal opacity-70">(Company)</span></td>
                   <td className={inputCell}>
                     <input type="text" list="company-list"
                       value={fmeaInfo.companyName} onChange={e => updateField('companyName', e.target.value)}
@@ -568,22 +564,20 @@ function PFMEARegisterPageContent() {
                       {COMPANY_LIST.map(c => <option key={c} value={c} />)}
                     </datalist>
                   </td>
-                  <td className={headerCell} title="Model Year">모델 연식(MY)</td>
+                  <td className={headerCell}>모델 연식<br /><span className="text-[8px] font-normal opacity-70">(Model Year)</span></td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.modelYear} onChange={e => updateField('modelYear', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="어플리케이션" /></td>
-                  <td className={headerCell} title="Part / Product Name">품명(Part)</td>
+                  <td className={headerCell}>품명<br /><span className="text-[8px] font-normal opacity-70">(Part Name)</span></td>
                   <td className={inputCell} colSpan={3}>
-                    <div className="flex items-center h-full">
-                      <input type="text" value={fmeaInfo.partName} onChange={e => handlePartNameChange(e.target.value)} className="flex-1 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="고객사 품명" />
-                    </div>
+                    <input type="text" value={fmeaInfo.partName} onChange={e => handlePartNameChange(e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="고객사 품명" />
                   </td>
                 </tr>
                 {/* 5행: 품번, 상호기능팀, 기밀수준 */}
-                <tr className="h-8">
-                  <td className={headerCell} title="Part Number">품번(Part No.)</td>
+                <tr className="h-9">
+                  <td className={headerCell}>품번<br /><span className="text-[8px] font-normal opacity-70">(Part No.)</span></td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.partNo} onChange={e => updateField('partNo', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품번" /></td>
-                  <td className={headerCell} title="Cross-Functional Team">상호기능팀(CFT)</td>
+                  <td className={headerCell}>상호기능팀<br /><span className="text-[8px] font-normal opacity-70">(CFT)</span></td>
                   <td className={inputCell}><span className="text-xs text-gray-700 px-2">{cftMembers.filter(m => m.name?.trim()).map(m => m.name).join(', ') || '-'}</span></td>
-                  <td className={headerCell} title="Confidentiality Level">기밀수준(Conf.)</td>
+                  <td className={headerCell}>기밀수준<br /><span className="text-[8px] font-normal opacity-70">(Confidential)</span></td>
                   <td className={inputCell} colSpan={3}>
                     <select value={fmeaInfo.confidentialityLevel} onChange={e => updateField('confidentialityLevel', e.target.value)} className="w-full h-7 px-1 text-xs border-0 bg-transparent focus:outline-none">
                       <option value="">선택(Select)</option><option value="사업용도">사업용도(Business)</option><option value="독점">독점(Proprietary)</option><option value="기밀">기밀(Confidential)</option>

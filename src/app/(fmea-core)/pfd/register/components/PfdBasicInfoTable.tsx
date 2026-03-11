@@ -41,7 +41,7 @@ export default function PfdBasicInfoTable({
 }: PfdBasicInfoTableProps) {
     const router = useRouter();
     const { t } = useLocale();
-    const headerCell = "bg-[#1e3a5f] text-white px-2 py-1.5 border border-white font-semibold text-xs text-center whitespace-nowrap";
+    const headerCell = "bg-[#00587a] text-white px-2 py-1.5 border border-white font-semibold text-xs text-center whitespace-nowrap";
     const inputCell = "border border-gray-300 px-1 py-0.5 overflow-hidden";
 
     // 유형 변경 핸들러
@@ -63,6 +63,12 @@ export default function PfdBasicInfoTable({
                 <h2 className="text-xs font-bold text-gray-700" title="PFD Basic Information"><T>PFD 기본정보(Basic Info)</T></h2>
             </div>
             <table className="w-full border-collapse text-xs">
+                <colgroup>
+                    <col className="w-[10%]" /><col className="w-[15%]" />
+                    <col className="w-[10%]" /><col className="w-[15%]" />
+                    <col className="w-[10%]" /><col className="w-[15%]" />
+                    <col className="w-[10%]" /><col className="w-[15%]" />
+                </colgroup>
                 <tbody>
                     {/* 1행: PFD유형, PFD명, PFD ID */}
                     <tr className="h-8">

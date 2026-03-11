@@ -195,7 +195,7 @@ export default function CreateDocumentModal({
             </div>
 
             {/* 본문 - 컴팩트 테이블 형태 */}
-            <div className="overflow-auto px-3 py-1.5">
+            <div className="overflow-auto px-3 py-1">
                 <table className="w-full text-sm border-collapse">
                     <tbody>
                         {/* 프로젝트명 (subject) — 소스앱별 동적 라벨 */}
@@ -376,7 +376,7 @@ export default function CreateDocumentModal({
             </div>
 
             {/* 푸터 */}
-            <div className="px-3 py-1.5 flex justify-end gap-2 shrink-0">
+            <div className="px-3 py-1 flex justify-end gap-2 shrink-0 border-t border-gray-100 mt-auto">
                 <button
                     onClick={onClose}
                     disabled={isLoading}
