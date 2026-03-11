@@ -22,7 +22,7 @@ const UserSelectModal = dynamic(
   () => import('@/components/modals/UserSelectModal').then(mod => ({ default: mod.UserSelectModal })),
   { ssr: false }
 );
-import { ApqpSelectModal, ApqpItem } from '@/components/modals/ApqpSelectModal';
+// ApqpSelectModal 삭제됨 (APQP 모듈 제거)
 import { DatePickerModal } from '@/components/DatePickerModal';
 import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
 import { CFTRegistrationTable, CFTMember, createInitialCFTMembers, ensureRequiredRoles } from '@/components/tables/CFTRegistrationTable';
@@ -64,7 +64,6 @@ function PFDRegisterPageContent() {
   const editId = searchParams.get('id')?.toLowerCase() || null;
   const fromFmeaId = searchParams.get('fmeaId')?.toLowerCase() || null;
   const fromCpNo = searchParams.get('cpNo')?.toLowerCase() || null;
-  const fromApqpNo = searchParams.get('apqpNo')?.toLowerCase() || searchParams.get('apqpProjectId')?.toLowerCase() || null;
   const isEditMode = !!editId;
 
   // 상태
@@ -95,8 +94,6 @@ function PFDRegisterPageContent() {
   const [cpSelectModalOpen, setCpSelectModalOpen] = useState(false);
   const [availableCps, setAvailableCps] = useState<CpItem[]>([]);
   const [cpLocked, setCpLocked] = useState(false);
-  const [apqpModalOpen, setApqpModalOpen] = useState(false);
-  const [apqpList, setApqpList] = useState<ApqpItem[]>([]);
   const [selectedParentApqp, setSelectedParentApqp] = useState<string | null>(null);
 
   // ★ 표준 연동 모달 상태
@@ -351,29 +348,6 @@ function PFDRegisterPageContent() {
     }
   }, [fromCpNo]);
 
-  useEffect(() => {
-    if (fromApqpNo) {
-      setSelectedParentApqp(fromApqpNo);
-      // 통합 DB에서 정보 가져오기
-      fetch(`/api/project-linkage?apqpNo=${fromApqpNo}`).then(res => res.json()).then(data => {
-        const linkage = data.data?.[0];
-        if (linkage) {
-          setPfdInfo(prev => ({
-            ...prev,
-            customerName: linkage.customerName || prev.customerName,
-            modelYear: linkage.modelYear || prev.modelYear,
-            companyName: linkage.companyName || prev.companyName,
-            subject: linkage.subject || prev.subject,
-            partName: linkage.subject?.split('+')[0] || prev.partName,
-            partNo: linkage.partNo || prev.partNo,
-            engineeringLocation: linkage.engineeringLocation || prev.engineeringLocation,
-            processResponsibility: linkage.processResponsibility || prev.processResponsibility,
-            pfdResponsibleName: linkage.responsibleName || prev.pfdResponsibleName,
-          }));
-        }
-      });
-    }
-  }, [fromApqpNo]);
 
   // ★★★ 자동 ID 생성 로직 완전 제거 (2026-01-29) ★★★
   // ID는 오직 모달(CreateDocumentModal)에서만 생성됨
@@ -430,9 +404,6 @@ function PFDRegisterPageContent() {
     setFmeaSelectModalOpen(true);
   };
 
-  const loadApqpList = async () => {
-    try { const res = await fetch('/api/apqp'); const data = await res.json(); if (data.success && data.apqps) setApqpList(data.apqps.map((p: any) => ({ apqpNo: p.apqpNo, subject: p.subject || '', customerName: p.customerName || '' }))); } catch (e) { console.error('[PFD APQP 목록 로드] 오류:', e); setApqpList([]); }
-  };
 
   // 저장
   const handleSave = async () => {
@@ -570,11 +541,11 @@ function PFDRegisterPageContent() {
         {/* 기본정보 테이블 (컴포넌트화) */}
         <PfdBasicInfoTable
           pfdInfo={pfdInfo} pfdId={pfdId} isEditMode={isEditMode} linkedCpList={linkedCpList}
-          selectedBasePfd={selectedBasePfd} selectedParentApqp={selectedParentApqp} selectedParentFmea={selectedParentFmea} fmeaLocked={fmeaLocked}
+          selectedBasePfd={selectedBasePfd} selectedParentFmea={selectedParentFmea} fmeaLocked={fmeaLocked}
           cftMembers={cftMembers}
-          setPfdId={setPfdId} updateField={updateField} setSelectedBasePfd={setSelectedBasePfd} setSelectedParentApqp={setSelectedParentApqp} setSelectedParentFmea={setSelectedParentFmea}
+          setPfdId={setPfdId} updateField={updateField} setSelectedBasePfd={setSelectedBasePfd} setSelectedParentFmea={setSelectedParentFmea}
           setStartDateModalOpen={setStartDateModalOpen} setRevisionDateModalOpen={setRevisionDateModalOpen} setBizInfoModalOpen={setBizInfoModalOpen}
-          setUserModalTarget={setUserModalTarget} setUserModalOpen={setUserModalOpen} loadApqpList={loadApqpList} setApqpModalOpen={setApqpModalOpen}
+          setUserModalTarget={setUserModalTarget} setUserModalOpen={setUserModalOpen}
           openFmeaSelectModal={openFmeaSelectModal} openCpManageModal={() => setLinkageModalOpen(true)}
         />
 
@@ -613,7 +584,6 @@ function PFDRegisterPageContent() {
       {userModalOpen && <UserSelectModal isOpen={userModalOpen} onClose={() => setUserModalOpen(false)} onSelect={handleUserSelect} />}
       {startDateModalOpen && <DatePickerModal isOpen={startDateModalOpen} onClose={() => setStartDateModalOpen(false)} onSelect={(d) => { updateField('pfdStartDate', d); setStartDateModalOpen(false); }} title={t('시작 일자 선택')} />}
       {revisionDateModalOpen && <DatePickerModal isOpen={revisionDateModalOpen} onClose={() => setRevisionDateModalOpen(false)} onSelect={(d) => { updateField('pfdRevisionDate', d); setRevisionDateModalOpen(false); }} title={t('목표 완료일 선택')} />}
-      {apqpModalOpen && <ApqpSelectModal isOpen={apqpModalOpen} onClose={() => setApqpModalOpen(false)} onSelect={(apqpNo: string) => { setSelectedParentApqp(apqpNo); setApqpModalOpen(false); }} apqps={apqpList} />}
       <PfdSelectModal isOpen={pfdSelectModalOpen} onClose={() => setPfdSelectModalOpen(false)} onSelect={handlePfdSelect} availablePfds={availablePfds} pfdSelectType={pfdSelectType} />
       <FmeaSelectModal isOpen={fmeaSelectModalOpen} onClose={() => setFmeaSelectModalOpen(false)} onSelect={(id) => { setSelectedParentFmea(id); setFmeaSelectModalOpen(false); const newId = generateLinkedPfdNo(generatePFDId(pfdInfo.pfdType)); setPfdId(newId); router.replace(`/pfd/register?id=${newId}`); }} availableFmeas={availableFmeas} />
       {/* 표준 연동 모달 */}

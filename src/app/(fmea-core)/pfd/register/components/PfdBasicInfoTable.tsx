@@ -10,17 +10,15 @@ interface PfdBasicInfoTableProps {
     pfdInfo: PFDInfo;
     pfdId: string;
     isEditMode: boolean;
-    linkedCpList: { id: string;[key: string]: any }[];  // 표준 LinkedDocItem 또는 레거시 LinkedCpItem 지원
+    linkedCpList: { id: string;[key: string]: any }[];
     selectedBasePfd: string | null;
-    selectedParentApqp: string | null;
     selectedParentFmea: string | null;
     fmeaLocked: boolean;
-    cftMembers?: { name?: string; role?: string }[];  // ★ CFT 멤버 추가
+    cftMembers?: { name?: string; role?: string }[];
     // Setters
     setPfdId: (id: string) => void;
     updateField: (field: keyof PFDInfo, value: string) => void;
     setSelectedBasePfd: (id: string | null) => void;
-    setSelectedParentApqp: (id: string | null) => void;
     setSelectedParentFmea: (id: string | null) => void;
     // Modal handlers
     setStartDateModalOpen: (v: boolean) => void;
@@ -28,19 +26,17 @@ interface PfdBasicInfoTableProps {
     setBizInfoModalOpen: (v: boolean) => void;
     setUserModalTarget: (v: 'responsible' | 'design' | 'cft') => void;
     setUserModalOpen: (v: boolean) => void;
-    loadApqpList: () => void;
-    setApqpModalOpen: (v: boolean) => void;
     openFmeaSelectModal: () => void;
     openCpManageModal: () => void;
 }
 
 export default function PfdBasicInfoTable({
     pfdInfo, pfdId, isEditMode, linkedCpList,
-    selectedBasePfd, selectedParentApqp, selectedParentFmea, fmeaLocked,
-    cftMembers = [],  // ★ CFT 멤버 추가
-    setPfdId, updateField, setSelectedBasePfd, setSelectedParentApqp, setSelectedParentFmea,
+    selectedBasePfd, selectedParentFmea, fmeaLocked,
+    cftMembers = [],
+    setPfdId, updateField, setSelectedBasePfd, setSelectedParentFmea,
     setStartDateModalOpen, setRevisionDateModalOpen, setBizInfoModalOpen,
-    setUserModalTarget, setUserModalOpen, loadApqpList, setApqpModalOpen,
+    setUserModalTarget, setUserModalOpen,
     openFmeaSelectModal, openCpManageModal,
 }: PfdBasicInfoTableProps) {
     const router = useRouter();
@@ -68,7 +64,7 @@ export default function PfdBasicInfoTable({
             </div>
             <table className="w-full border-collapse text-xs">
                 <tbody>
-                    {/* 1행 */}
+                    {/* 1행: PFD유형, PFD명, PFD ID */}
                     <tr className="h-8">
                         <td className={headerCell} title="PFD Type"><T>PFD 유형(Type)</T></td>
                         <td className={inputCell}>
@@ -84,38 +80,21 @@ export default function PfdBasicInfoTable({
                         </td>
                         <td className={headerCell} title="PFD Name"><T>PFD명(Name)</T></td>
                         <td className={inputCell}>
-                            <input
-                                type="text"
-                                value={pfdInfo.subject}
-                                onChange={e => updateField('subject', e.target.value)}
-                                className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none"
-                                placeholder={t('공정흐름도 제목(PFD Title)')}
-                            />
+                            <input type="text" value={pfdInfo.subject} onChange={e => updateField('subject', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder={t('공정흐름도 제목(PFD Title)')} />
                         </td>
                         <td className={headerCell}><T>PFD ID</T></td>
-                        <td className={inputCell}>
+                        <td colSpan={3} className={inputCell}>
                             <div className="flex items-center gap-1 px-2">
-                                {pfdId && (
+                                {pfdId ? (
                                     <>
                                         <span className="px-1 py-0 rounded text-[9px] font-bold text-white bg-violet-500"><T>연동</T></span>
-                                        <span
-                                            className="text-xs font-bold text-violet-700 cursor-pointer hover:underline"
-                                            onClick={() => router.push('/pfd/list')}
-                                            title={t('클릭하면 PFD 리스트로 이동')}
-                                        >
-                                            {generateLinkedPfdNo(pfdId)}
-                                        </span>
+                                        <span className="text-xs font-bold text-violet-700 cursor-pointer hover:underline" onClick={() => router.push('/pfd/list')} title={t('클릭하면 PFD 리스트로 이동')}>{generateLinkedPfdNo(pfdId)}</span>
                                     </>
-                                )}
-                                {!pfdId && <span className="text-xs text-gray-400">-</span>}
+                                ) : <span className="text-xs text-gray-400">-</span>}
                             </div>
                         </td>
-                        <td className={`${headerCell} opacity-40`} title="Parent APQP"><T>상위 APQP(Parent)</T></td>
-                        <td className={`${inputCell} opacity-40`}>
-                            <span className="text-xs text-gray-400"><T>준비중(Preparing)</T></span>
-                        </td>
                     </tr>
-                    {/* 2행 */}
+                    {/* 2행: 공정책임, PFD담당자, 시작일자, 상위FMEA */}
                     <tr className="h-8">
                         <td className={headerCell} title="Process Responsibility"><T>공정 책임(Process Owner)</T></td>
                         <td className={inputCell}>
@@ -141,24 +120,14 @@ export default function PfdBasicInfoTable({
                                 {selectedParentFmea ? (
                                     <>
                                         {fmeaLocked && <span className="text-yellow-600" title={t('FMEA에서 연동됨 (변경 불가)')}>🔒</span>}
-                                        <span
-                                            className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-yellow-500 cursor-pointer hover:bg-yellow-600"
-                                            onClick={() => router.push(`/pfmea/register?id=${selectedParentFmea.toLowerCase()}`)}
-                                            title={t('FMEA 등록화면으로 이동')}
-                                        >FMEA</span>
-                                        <span
-                                            className={`text-xs font-semibold text-yellow-600 ${!fmeaLocked ? 'cursor-pointer hover:underline' : ''}`}
-                                            onClick={() => !fmeaLocked && openFmeaSelectModal()}
-                                            title={fmeaLocked ? t('FMEA에서 연동됨') : t('FMEA 선택')}
-                                        >{selectedParentFmea}</span>
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-yellow-500 cursor-pointer hover:bg-yellow-600" onClick={() => router.push(`/pfmea/register?id=${selectedParentFmea.toLowerCase()}`)} title={t('FMEA 등록화면으로 이동')}>FMEA</span>
+                                        <span className={`text-xs font-semibold text-yellow-600 ${!fmeaLocked ? 'cursor-pointer hover:underline' : ''}`} onClick={() => !fmeaLocked && openFmeaSelectModal()} title={fmeaLocked ? t('FMEA에서 연동됨') : t('FMEA 선택')}>{selectedParentFmea}</span>
                                     </>
-                                ) : (
-                                    <span className="text-xs text-gray-400">-</span>
-                                )}
+                                ) : <span className="text-xs text-gray-400">-</span>}
                             </div>
                         </td>
                     </tr>
-                    {/* 3행: 고객명, 목표완료일, 회사명, 연동 CP */}
+                    {/* 3행: 고객명, 목표완료일, 회사명, 연동CP */}
                     <tr className="h-8">
                         <td className={headerCell} title="Customer Name"><T>고객 명(Customer)</T></td>
                         <td className={inputCell}>
@@ -180,24 +149,14 @@ export default function PfdBasicInfoTable({
                             <div className="flex items-center gap-1 px-2">
                                 {pfdId ? (
                                     <>
-                                        <span
-                                            className="px-1 py-0 rounded text-[9px] font-bold text-white bg-teal-500 cursor-pointer hover:bg-teal-600"
-                                            onClick={() => router.push(`/control-plan/register?id=${generateLinkedCpNo(pfdId)?.toLowerCase()}`)}
-                                            title={t('CP 등록화면으로 이동')}
-                                        >CP</span>
-                                        <span
-                                            className="text-xs font-bold text-teal-700 cursor-pointer hover:underline"
-                                            onClick={() => router.push(`/control-plan/register?id=${generateLinkedCpNo(pfdId)?.toLowerCase()}`)}
-                                            title={t('CP 등록화면으로 이동')}
-                                        >{generateLinkedCpNo(pfdId)}</span>
+                                        <span className="px-1 py-0 rounded text-[9px] font-bold text-white bg-teal-500 cursor-pointer hover:bg-teal-600" onClick={() => router.push(`/control-plan/register?id=${generateLinkedCpNo(pfdId)?.toLowerCase()}`)} title={t('CP 등록화면으로 이동')}>CP</span>
+                                        <span className="text-xs font-bold text-teal-700 cursor-pointer hover:underline" onClick={() => router.push(`/control-plan/register?id=${generateLinkedCpNo(pfdId)?.toLowerCase()}`)} title={t('CP 등록화면으로 이동')}>{generateLinkedCpNo(pfdId)}</span>
                                     </>
-                                ) : (
-                                    <span className="text-xs text-gray-400">-</span>
-                                )}
+                                ) : <span className="text-xs text-gray-400">-</span>}
                             </div>
                         </td>
                     </tr>
-                    {/* 4행: 모델연식, 엔지니어링위치, 품명, CP종류 */}
+                    {/* 4행: 모델연식, 엔지니어링위치, 품명, PFD종류 */}
                     <tr className="h-8">
                         <td className={headerCell} title="Model Year"><T>모델 연식(Model Year)</T></td>
                         <td className={inputCell}>
@@ -222,7 +181,7 @@ export default function PfdBasicInfoTable({
                             </select>
                         </td>
                     </tr>
-                    {/* 5행: 품번, 기밀수준, 상호기능팀, 상위 DFMEA */}
+                    {/* 5행: 품번, 기밀수준, 상호기능팀 */}
                     <tr className="h-8">
                         <td className={headerCell} title="Part Number"><T>품번(Part No)</T></td>
                         <td className={inputCell}>
@@ -238,33 +197,13 @@ export default function PfdBasicInfoTable({
                             </select>
                         </td>
                         <td className={headerCell} title="Cross Functional Team"><T>상호기능팀(CFT)</T></td>
-                        <td className={inputCell}>
+                        <td colSpan={3} className={inputCell}>
                             <span className="px-2 text-xs text-gray-700">
                                 {cftMembers.filter(m => m.name?.trim()).length > 0
                                     ? cftMembers.filter(m => m.name?.trim()).map(m => m.name).join(', ')
                                     : <span className="text-gray-400"><T>CFT 등록 필요(CFT Required)</T></span>
                                 }
                             </span>
-                        </td>
-                        <td className={`${headerCell} bg-indigo-600`} title="Parent DFMEA"><T>상위 DFMEA(Parent)</T></td>
-                        <td className={inputCell}>
-                            <div className="flex items-center gap-1 px-2">
-                                {pfdInfo.linkedDfmeaNo ? (
-                                    <>
-                                        <span
-                                            className="px-1 py-0 rounded text-[9px] font-bold text-white bg-indigo-500 cursor-pointer hover:bg-indigo-600"
-                                            onClick={() => router.push(`/dfmea/register?id=${pfdInfo.linkedDfmeaNo?.toLowerCase()}`)}
-                                            title={t('DFMEA 등록화면으로 이동')}
-                                        >DFMEA</span>
-                                        <span
-                                            className="text-xs font-bold text-indigo-700 cursor-pointer hover:underline"
-                                            onClick={() => router.push(`/dfmea/register?id=${pfdInfo.linkedDfmeaNo?.toLowerCase()}`)}
-                                        >{pfdInfo.linkedDfmeaNo}</span>
-                                    </>
-                                ) : (
-                                    <span className="text-xs text-gray-400">-</span>
-                                )}
-                            </div>
                         </td>
                     </tr>
                 </tbody>

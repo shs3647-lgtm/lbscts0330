@@ -9,7 +9,7 @@
 
 import { Suspense, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { ApqpSelectModal } from '@/components/modals/ApqpSelectModal';
+// ApqpSelectModal 삭제됨 (APQP 모듈 제거)
 import { DatePickerModal } from '@/components/DatePickerModal';
 import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
 import { CFTRegistrationTable, createInitialCFTMembers } from '@/components/tables/CFTRegistrationTable';
@@ -181,7 +181,6 @@ function CPRegisterPageContent() {
         {/* Modals */}
         <BizInfoSelectModal isOpen={bizInfoModalOpen} onClose={() => setBizInfoModalOpen(false)} onSelect={(info: BizInfoProject) => { setCpInfo(prev => ({ ...prev, customerName: info.customerName || '', modelYear: info.modelYear || '', partName: info.productName || '', partNo: info.partNo || '' })); setBizInfoModalOpen(false); }} />
         <UserSelectModal isOpen={userModalOpen} onClose={() => { setUserModalOpen(false); setSelectedMemberIndex(null); }} onSelect={handleUserSelect} />
-        <ApqpSelectModal isOpen={apqpModalOpen} onClose={() => setApqpModalOpen(false)} onSelect={handlers.handleApqpSelect} apqps={apqpList} />
         <DatePickerModal isOpen={startDateModalOpen} onClose={() => setStartDateModalOpen(false)} onSelect={date => updateField('cpStartDate', date)} currentValue={cpInfo.cpStartDate} title="시작 일자 선택" />
         <DatePickerModal isOpen={revisionDateModalOpen} onClose={() => setRevisionDateModalOpen(false)} onSelect={date => updateField('cpRevisionDate', date)} currentValue={cpInfo.cpRevisionDate} title="목표 완료일 선택" />
 

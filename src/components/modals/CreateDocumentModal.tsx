@@ -57,7 +57,7 @@ export default function CreateDocumentModal({
 }: CreateDocumentModalProps) {
     const router = useRouter();
     const { pos, size, onDragStart, onResizeStart } = useFloatingWindow({
-        isOpen, width: 440, height: 380, minWidth: 360, minHeight: 300
+        isOpen, width: 440, height: 420, minWidth: 360, minHeight: 280
     });
 
     // 상태
@@ -179,7 +179,7 @@ export default function CreateDocumentModal({
     return createPortal(
         <div
             className="fixed z-[9999] bg-white rounded-lg shadow-2xl flex flex-col select-none border border-gray-300"
-            style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}
+            style={{ left: pos.x, top: pos.y, width: size.w, maxHeight: size.h }}
         >
             {/* 헤더 */}
             <div
