@@ -1,7 +1,7 @@
 /**
  * @file TemplateGeneratorPanel.tsx
  * @description 템플릿 생성기 인라인 패널 (항상 화면에 표시)
- * 3탭: ① 기존 데이터 다운로드 / ② 수동 템플릿 / ③ 전처리
+ * 3탭: ① 기존 데이터 다운로드 / ② 수동 템플릿 / ③ 자동
  * + 전체 데이터 미리보기 (실시간 자동 갱신)
  * + 인라인 편집 / 저장 / 구조분석 배지
  * @created 2026-02-18
@@ -23,7 +23,6 @@ import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import { useImportSteps } from '../hooks/useImportSteps';
 import { TabBtn, DataStatusBar } from './TemplateSharedUI';
 import { TemplatePreviewContent } from './TemplatePreviewContent';
-import StepBPreprocessSection from './StepBPreprocessSection';
 import ManualTemplateInline from './ManualTemplateInline';
 import AutoTemplateInline from './AutoTemplateInline';
 
@@ -70,7 +69,6 @@ interface Props {
   // ★ v2.5.1: 파싱 통계 (변환결과 검증용)
   parseStatistics?: import('../../import/excel-parser').ParseStatistics;
   // ★ 전처리 DB 저장 후 콜백 (기존데이터 탭 전환 + 데이터 리로드)
-  onPreprocessSaved?: () => void;
   // ★ 외부에서 펼치기 제어 (BD 사용 클릭 시, 값이 바뀔 때마다 펼침)
   expandTrigger?: number;
 }
@@ -340,10 +338,6 @@ export function TemplateGeneratorPanel(props: Props) {
                     <td style={{ padding: '3px 6px', fontWeight: 700, color: '#2563eb' }}>자동</td>
                     <td style={{ padding: '3px 6px' }}>기존 BD에서 작업요소 자동 추출 → 생성</td>
                   </tr>
-                  <tr>
-                    <td style={{ padding: '3px 6px', fontWeight: 700, color: '#2563eb' }}>전처리</td>
-                    <td style={{ padding: '3px 6px' }}>Import 전 데이터 전처리</td>
-                  </tr>
                 </tbody>
               </table>
               <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 6 }}>* 샘플Down으로 업종별 예시 템플릿을 다운로드할 수 있습니다</p>
@@ -358,7 +352,6 @@ export function TemplateGeneratorPanel(props: Props) {
           <TabBtn active={templateMode === 'download'} label="기존 데이터" onClick={() => { setTemplateMode('download'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
           <TabBtn active={templateMode === 'manual'} label="수동 템플릿" onClick={() => { setTemplateMode('manual'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
           <TabBtn active={templateMode === 'auto'} label="자동" onClick={() => { setTemplateMode('auto'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
-          <TabBtn active={templateMode === 'preprocess'} label="전처리" onClick={() => { setTemplateMode('preprocess'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
         </div>
         {/* ★ 2026-02-27: 샘플/빈 양식 다운로드 — 탭 바 우측 배치 */}
         <div className="flex items-center gap-1 pr-2">
@@ -378,23 +371,23 @@ export function TemplateGeneratorPanel(props: Props) {
       </div>}
 
       {!collapsed && <div className={`p-3 ${isFullscreen ? 'bg-white flex-1 overflow-auto' : 'bg-white/70'}`}>
-        <div className={`flex gap-3 ${isFullscreen ? 'h-full' : ''}`}>
-          {/* ── 좌측: 설정/컨트롤 (전체화면에서는 숨김) ── */}
-          {!isFullscreen && <div className="w-[35%] shrink-0 flex flex-col">
+        <div className={`flex flex-col gap-3 ${isFullscreen ? 'h-full' : ''}`}>
+          {/* ── 상단: 설정/컨트롤 (전체화면에서는 숨김) ── */}
+          {!isFullscreen && <div className="w-full flex flex-col">
         {/* ─── 데이터 현황 ─── */}
         <DataStatusBar flatData={flatData} showApplied={templateMode !== 'download' && flatData.length > 0} bdFmeaId={bdFmeaId} bdFmeaName={bdFmeaName} />
 
         {/* ─── BD 현황 (Part/Master/Family) ─── */}
         {bdStatusList && bdStatusList.length > 0 && (
           <div className="mb-2">
-            <table className="w-full border-collapse text-[9px]">
+            <table className="w-full border-collapse text-[10px]">
               <thead>
                 <tr>
-                  <th className="border border-gray-200 px-1 py-0.5 bg-gray-50 text-gray-500 font-semibold text-center w-[50px]">구분</th>
-                  <th className="border border-gray-200 px-1 py-0.5 bg-gray-50 text-gray-500 font-semibold text-center w-[65px]">BD ID</th>
-                  <th className="border border-gray-200 px-1 py-0.5 bg-gray-50 text-gray-500 font-semibold">FMEA</th>
-                  <th className="border border-gray-200 px-1 py-0.5 bg-gray-50 text-gray-500 font-semibold text-center w-[34px]">상태</th>
-                  <th className="border border-gray-200 px-1 py-0.5 bg-gray-50 text-gray-500 font-semibold text-center w-[55px]">데이터</th>
+                  <th className="border border-gray-200 px-2 py-1 bg-[#e8f0fe] text-gray-700 font-semibold text-center w-[70px]">구분</th>
+                  <th className="border border-gray-200 px-2 py-1 bg-[#e8f0fe] text-gray-700 font-semibold text-center w-[100px]">BD ID</th>
+                  <th className="border border-gray-200 px-2 py-1 bg-[#e8f0fe] text-gray-700 font-semibold text-left">FMEA</th>
+                  <th className="border border-gray-200 px-2 py-1 bg-[#e8f0fe] text-gray-700 font-semibold text-center w-[60px]">상태</th>
+                  <th className="border border-gray-200 px-2 py-1 bg-[#e8f0fe] text-gray-700 font-semibold text-center w-[70px]">데이터</th>
                 </tr>
               </thead>
               <tbody>
@@ -414,25 +407,25 @@ export function TemplateGeneratorPanel(props: Props) {
                   const hasData = (info?.dataCount ?? 0) > 0;
                   return (
                     <tr key={type} className={selectedType === type ? 'bg-blue-50/30' : ''}>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center">
-                        <span className={`text-[8px] font-bold px-1 py-0 rounded ${c.bg} ${c.text} ${c.border} border`}>{label}</span>
+                      <td className="border border-gray-200 px-2 py-1 text-center">
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text} ${c.border} border`}>{label}</span>
                       </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center font-mono font-bold text-indigo-600">
+                      <td className="border border-gray-200 px-2 py-1 text-center font-mono font-bold text-indigo-600 text-[10px]">
                         {info?.bdId || '-'}
                       </td>
-                      <td className="border border-gray-200 px-1 py-0.5 truncate max-w-[120px]">
+                      <td className="border border-gray-200 px-2 py-1 text-left">
                         {info?.fmeaName || <span className="text-gray-400">{type} FMEA 미등록</span>}
                       </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center">
+                      <td className="border border-gray-200 px-2 py-1 text-center whitespace-nowrap">
                         {hasData ? (
-                          <span className="text-[8px] font-bold px-1 py-0 rounded bg-green-100 text-green-700 border border-green-300">연동</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-300 whitespace-nowrap">연동</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center">
+                      <td className="border border-gray-200 px-2 py-1 text-center">
                         {hasData ? (
-                          <span className="text-gray-600">{info!.dataCount}</span>
+                          <span className="font-semibold text-gray-700">{info!.dataCount}</span>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
@@ -483,18 +476,9 @@ export function TemplateGeneratorPanel(props: Props) {
           </div>
         )}
 
-        {/* ─── 전처리 탭: 파일 업로드 UI ─── */}
-        {templateMode === 'preprocess' && (
-          <div className="mb-2">
-            <StepBPreprocessSection selectedFmeaId={selectedFmeaId} onSaved={() => {
-              props.setTemplateMode('download');
-              props.onPreprocessSaved?.();
-            }} />
-          </div>
-        )}
           </div>}
 
-          {/* ── 우측: 미리보기 ── */}
+          {/* ── 하단: 미리보기 (전체 너비) ── */}
           <TemplatePreviewContent
             templateMode={templateMode}
             isFullscreen={isFullscreen}

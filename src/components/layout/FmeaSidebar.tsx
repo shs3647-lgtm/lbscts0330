@@ -33,7 +33,7 @@ const myJobItem: MenuItem = {
     { label: '📋 나의 업무현황', href: '/myjob' },
     { label: '💼 결재현황', href: '/approval/approver-portal' },
     { label: '📊 프로젝트 진행현황', href: '/pfmea/list' },
-    { label: '🚀 AP 개선 진행현황', href: '/pfmea/ap-improvement' },
+    { label: '🚀 AP 개선 진행현황', href: '/pfmea/ap-improvement', multiline: true },
   ],
 };
 
@@ -45,7 +45,7 @@ const pfmeaSubItems = [
   // { label: 'FMEA4판', href: '/pfmea/fmea4' },
   { label: '개정관리', href: '/pfmea/revision' },
   { label: '📋 LLD(필터코드)', href: '/pfmea/lld' },
-  { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement' },
+  { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement', multiline: true },
 ];
 
 const mainMenuItems: MenuItem[] = [

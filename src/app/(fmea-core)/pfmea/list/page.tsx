@@ -136,7 +136,7 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
       onClick={() => onToggle(p.id)}
     >
       <td className="p-0 text-center align-middle" style={{ width: '2.5%' }}>
-        <input type="checkbox" checked={isSelected} onChange={() => onToggle(p.id)} onClick={e => e.stopPropagation()} className="w-3 h-3 cursor-pointer" />
+        <input type="checkbox" checked={isSelected} onChange={() => onToggle(p.id)} onClick={e => e.stopPropagation()} className="w-4 h-4 cursor-pointer" />
       </td>
       <td className="px-1 py-0.5 text-center align-middle font-bold text-[#00587a] whitespace-nowrap">{index + 1}</td>
       {/* ★ 작성일 - 첫번째 */}
@@ -605,40 +605,45 @@ export default function PFMEAListPage() {
         <div ref={scrollRef} className="rounded-lg overflow-y-auto border border-gray-400 bg-white mt-1" style={{ maxHeight: 'calc(100vh - 145px)' }}>
           <table className="pfmea-list-table w-full text-[8px]">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[#00587a] text-white" style={{ height: '28px' }}>
+              <tr className="bg-[#00587a] text-white" style={{ height: '32px' }}>
                 <th className="p-0 text-center align-middle" style={{ width: '2.5%' }}>
-                  <input type="checkbox" checked={isAllSelected(filteredProjects.map(p => p.id))} onChange={() => toggleAllRows(filteredProjects.map(p => p.id))} className="w-3 h-3 cursor-pointer" />
+                  <input type="checkbox" checked={isAllSelected(filteredProjects.map(p => p.id))} onChange={() => toggleAllRows(filteredProjects.map(p => p.id))} className="w-4 h-4 cursor-pointer" />
                 </th>
-                {/* ★ PFMEA 표준 컬럼 - 정렬 가능 (16개) */}
+                {/* ★ PFMEA 표준 컬럼 - 정렬 가능 (16개) — 한글 줄바꿈(영어) */}
                 {[
-                  { label: 'No', field: '', title: 'Number' },
-                  { label: '작성일(Created)', field: 'createdAt', title: 'Created/Modified Date' },
-                  { label: 'Type', field: 'fmeaType', title: 'FMEA Type (M/F/P)' },
-                  { label: 'ID', field: 'id', title: 'FMEA Identifier' },
-                  { label: 'Rev', field: 'revisionNo', title: 'Revision Number' },
-                  { label: '단계(Step)', field: 'step', title: 'Current Step (1-7)' },
-                  { label: '공장(Plant)', field: 'engineeringLocation', title: 'Engineering Location / Plant' },
-                  { label: 'FMEA명(Name)', field: 'subject', title: 'FMEA Name / Subject' },
-                  { label: '고객사(Customer)', field: 'customerName', title: 'Customer Name' },
-                  { label: '담당자(Resp.)', field: 'fmeaResponsibleName', title: 'FMEA Responsible Person' },
-                  { label: 'DFMEA', field: 'linkedDfmeaNo', title: 'Linked Design FMEA' },
-                  { label: 'PFD', field: 'linkedPfdNo', title: 'Linked Process Flow Diagram' },
-                  { label: 'CP', field: 'linkedCpNo', title: 'Linked Control Plan' },
-                  { label: '현황(Status)', field: 'status', title: 'Status (Progress/Delay/Complete)' },
-                  { label: '시작일(Start)', field: 'fmeaStartDate', title: 'FMEA Start Date' },
-                  { label: '목표완료일(Target)', field: 'fmeaRevisionDate', title: 'Target Completion Date' },
+                  { ko: 'No', en: '', field: '', title: 'Number' },
+                  { ko: '작성일', en: 'Created', field: 'createdAt', title: 'Created/Modified Date' },
+                  { ko: 'Type', en: '', field: 'fmeaType', title: 'FMEA Type (M/F/P)' },
+                  { ko: 'ID', en: '', field: 'id', title: 'FMEA Identifier' },
+                  { ko: 'Rev', en: '', field: 'revisionNo', title: 'Revision Number' },
+                  { ko: '단계', en: 'Step', field: 'step', title: 'Current Step (1-7)' },
+                  { ko: '공장', en: 'Plant', field: 'engineeringLocation', title: 'Engineering Location / Plant' },
+                  { ko: 'FMEA명', en: 'Name', field: 'subject', title: 'FMEA Name / Subject' },
+                  { ko: '고객사', en: 'Customer', field: 'customerName', title: 'Customer Name' },
+                  { ko: '담당자', en: 'Resp.', field: 'fmeaResponsibleName', title: 'FMEA Responsible Person' },
+                  { ko: 'DFMEA', en: '', field: 'linkedDfmeaNo', title: 'Linked Design FMEA' },
+                  { ko: 'PFD', en: '', field: 'linkedPfdNo', title: 'Linked Process Flow Diagram' },
+                  { ko: 'CP', en: '', field: 'linkedCpNo', title: 'Linked Control Plan' },
+                  { ko: '현황', en: 'Status', field: 'status', title: 'Status (Progress/Delay/Complete)' },
+                  { ko: '시작일', en: 'Start', field: 'fmeaStartDate', title: 'FMEA Start Date' },
+                  { ko: '목표완료일', en: 'Target', field: 'fmeaRevisionDate', title: 'Target Completion Date' },
                 ].map((col, i) => (
                   <th
                     key={i}
-                    className={`px-0.5 py-0.5 text-center align-middle font-semibold whitespace-nowrap text-[11px] ${col.field ? 'cursor-pointer hover:bg-teal-700' : ''}`}
+                    className={`px-0.5 py-0 text-center align-middle font-semibold whitespace-nowrap ${col.field ? 'cursor-pointer hover:bg-teal-700' : ''}`}
                     style={{ width: COLUMN_WIDTHS[i] }}
                     onClick={() => col.field && handleSort(col.field)}
                     title={col.title}
                   >
-                    {col.label}
-                    {col.field && sortField === col.field && (
-                      <span className="ml-0.5">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
+                    <div className="leading-tight">
+                      <div className="text-[10px]">
+                        {col.ko}
+                        {col.field && sortField === col.field && (
+                          <span className="ml-0.5">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                        )}
+                      </div>
+                      {col.en && <div className="text-[7px] font-normal opacity-60">({col.en})</div>}
+                    </div>
                   </th>
                 ))}
               </tr>

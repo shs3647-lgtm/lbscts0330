@@ -567,22 +567,22 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell}>모델 연식<br /><span className="text-[8px] font-normal opacity-70">(Model Year)</span></td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.modelYear} onChange={e => updateField('modelYear', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="어플리케이션" /></td>
                   <td className={headerCell}>품명<br /><span className="text-[8px] font-normal opacity-70">(Part Name)</span></td>
-                  <td className={inputCell} colSpan={3}>
+                  <td className={inputCell}>
                     <input type="text" value={fmeaInfo.partName} onChange={e => handlePartNameChange(e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="고객사 품명" />
                   </td>
-                </tr>
-                {/* 5행: 품번, 상호기능팀, 기밀수준 */}
-                <tr className="h-9">
-                  <td className={headerCell}>품번<br /><span className="text-[8px] font-normal opacity-70">(Part No.)</span></td>
-                  <td className={inputCell}><input type="text" value={fmeaInfo.partNo} onChange={e => updateField('partNo', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품번" /></td>
-                  <td className={headerCell}>상호기능팀<br /><span className="text-[8px] font-normal opacity-70">(CFT)</span></td>
-                  <td className={inputCell}><span className="text-xs text-gray-700 px-2">{cftMembers.filter(m => m.name?.trim()).map(m => m.name).join(', ') || '-'}</span></td>
                   <td className={headerCell}>기밀수준<br /><span className="text-[8px] font-normal opacity-70">(Confidential)</span></td>
-                  <td className={inputCell} colSpan={3}>
+                  <td className={inputCell}>
                     <select value={fmeaInfo.confidentialityLevel} onChange={e => updateField('confidentialityLevel', e.target.value)} className="w-full h-7 px-1 text-xs border-0 bg-transparent focus:outline-none">
                       <option value="">선택(Select)</option><option value="사업용도">사업용도(Business)</option><option value="독점">독점(Proprietary)</option><option value="기밀">기밀(Confidential)</option>
                     </select>
                   </td>
+                </tr>
+                {/* 5행: 품번, 상호기능팀(넓게) */}
+                <tr className="h-9">
+                  <td className={headerCell}>품번<br /><span className="text-[8px] font-normal opacity-70">(Part No.)</span></td>
+                  <td className={inputCell}><input type="text" value={fmeaInfo.partNo} onChange={e => updateField('partNo', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품번" /></td>
+                  <td className={headerCell}>상호기능팀<br /><span className="text-[8px] font-normal opacity-70">(CFT)</span></td>
+                  <td className={inputCell} colSpan={5}><span className="text-xs text-gray-700 px-2">{cftMembers.filter(m => m.name?.trim()).map(m => m.name).join(', ') || '-'}</span></td>
                 </tr>
               </tbody>
             </table>

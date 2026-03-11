@@ -146,17 +146,17 @@ export function UserSelectModal({
   const handleSave = async () => {
     if (editingUser) {
       if (!editingUser.name || editingUser.name.trim() === '') {
-        alert('❌ 성명은 필수입니다.');
+        alert('❌ 성명은 필수입니다(Name is required).');
         return;
       }
 
       // 필수 필드 검증
       if (!editingUser.factory || editingUser.factory.trim() === '') {
-        alert('❌ 공장은 필수입니다.');
+        alert('❌ 공장은 필수입니다(Plant is required).');
         return;
       }
       if (!editingUser.department || editingUser.department.trim() === '') {
-        alert('❌ 부서는 필수입니다.');
+        alert('❌ 부서는 필수입니다(Dept. is required).');
         return;
       }
 
@@ -196,22 +196,22 @@ export function UserSelectModal({
         // 저장된 사용자 선택 (ID 갱신)
         if (savedUser) {
           setSelectedUserId(savedUser.id);
-          alert(`✅ 사용자 "${savedUser.name}" 저장 완료!`);
+          alert(`✅ "${savedUser.name}" 저장 완료(Saved)!`);
         } else {
           const updatedUsers = await getAllUsers();
           const found = updatedUsers.find(u => u.name === editingUser.name && u.department === editingUser.department);
           if (found) {
             setSelectedUserId(found.id);
-            alert(`✅ 사용자 "${found.name}" 저장 완료!`);
+            alert(`✅ "${found.name}" 저장 완료(Saved)!`);
           } else {
-            alert(`✅ 사용자 저장 완료! 목록을 확인해주세요.`);
+            alert(`✅ 저장 완료(Saved)! 목록을 확인해주세요.`);
           }
         }
 
         setEditingUser(null);
       } catch (error: any) {
         console.error('[UserSelectModal] 저장 오류:', error);
-        alert(`❌ 저장 실패: ${error.message || '알 수 없는 오류'}\n\nlocalStorage로 임시 저장되었을 수 있습니다.`);
+        alert(`❌ 저장 실패(Save Failed): ${error.message || '알 수 없는 오류(Unknown error)'}`);
         // 에러 발생해도 편집 모드 유지하여 재시도 가능하게
       }
     }
@@ -220,11 +220,11 @@ export function UserSelectModal({
   // 삭제 (단일)
   const handleDelete = async () => {
     if (!selectedUserId) {
-      alert('삭제할 사용자를 선택해주세요.');
+      alert('삭제할 사용자를 선택해주세요(Please select a user to delete).');
       return;
     }
     const user = users.find(u => u.id === selectedUserId);
-    if (confirm(`"${user?.name || ''}" 사용자를 삭제하시겠습니까?`)) {
+    if (confirm(`"${user?.name || ''}" 삭제하시겠습니까(Delete)?`)) {
       await deleteUser(selectedUserId);
       await refreshData();
       setSelectedUserId(null);
@@ -266,7 +266,7 @@ export function UserSelectModal({
       const dataRows = jsonData.slice(1).filter(row => row.length > 0 && row[2]); // 성명 필수
 
       if (dataRows.length === 0) {
-        alert('❌ 데이터가 없습니다.');
+        alert('❌ 데이터가 없습니다(No data found).');
         return;
       }
 
@@ -296,10 +296,10 @@ export function UserSelectModal({
       }
 
       await refreshData();
-      alert(`✅ ${importedCount}명 Import 완료!`);
+      alert(`✅ ${importedCount}명 Import 완료(Complete)!`);
     } catch (err) {
       console.error('Import 오류:', err);
-      alert('❌ 엑셀 파일 읽기 오류');
+      alert('❌ 엑셀 파일 읽기 오류(Excel read error)');
     }
     e.target.value = '';
   };
@@ -322,7 +322,7 @@ export function UserSelectModal({
         {/* 헤더 (드래그 영역) — 컴팩트 2줄 반응형 */}
         <div className="flex items-center justify-between px-2 py-0.5 border-b border-gray-300 bg-[#00587a] rounded-t-lg cursor-move shrink-0" onMouseDown={onDragStart}>
           <h2 className="text-[10px] font-bold text-white flex items-center gap-1 select-none whitespace-nowrap" title="Select User">
-            👤 사용자 선택
+            👤 사용자 선택(Select User)
           </h2>
           <div className="flex items-center gap-0.5" onMouseDown={e => e.stopPropagation()}>
             <button onClick={handleImport} title="Import" className="px-1 py-0.5 text-[8px] leading-tight font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100 text-center"><div>📥</div><div className="text-[6px] opacity-70">Import</div></button>
@@ -330,7 +330,7 @@ export function UserSelectModal({
             <button onClick={handleAdd} title="Add" className="px-1 py-0.5 text-[8px] leading-tight font-semibold bg-green-500 text-white rounded hover:bg-green-600 text-center"><div>추가</div><div className="text-[6px] opacity-70">(Add)</div></button>
             <button
               onClick={() => {
-                if (!selectedUserId) { alert('수정할 사용자를 선택해주세요.'); return; }
+                if (!selectedUserId) { alert('수정할 사용자를 선택해주세요(Please select a user to edit).'); return; }
                 const user = users.find(u => u.id === selectedUserId);
                 if (user) setEditingUser({ ...user });
               }}
@@ -353,18 +353,18 @@ export function UserSelectModal({
         {/* 도움말 패널 */}
         {showHelp && (
           <div className="px-3 py-2 bg-yellow-50 border-b border-yellow-200 text-[10px] text-gray-700 space-y-1">
-            <p className="font-bold text-[11px] text-yellow-800 mb-1">사용자 선택 모달 사용법</p>
+            <p className="font-bold text-[11px] text-yellow-800 mb-1">사용법(How to Use)</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-              <p><span className="font-semibold text-blue-700">행 클릭</span> — 해당 사용자 선택</p>
-              <p><span className="font-semibold text-blue-700">행 더블클릭</span> — 즉시 선택 적용</p>
-              <p><span className="font-semibold text-green-700">➕ 추가</span> — 새 사용자 등록 폼 열기</p>
-              <p><span className="font-semibold text-amber-700">✏️ 수정</span> — 1명 선택 후 정보 편집</p>
-              <p><span className="font-semibold text-blue-700">💾 저장</span> — 편집 중인 사용자 DB 저장</p>
-              <p><span className="font-semibold text-red-700">🗑️ 삭제</span> — 선택된 사용자 DB에서 즉시 삭제</p>
-              <p><span className="font-semibold text-[#00587a]">📥 Import</span> — 엑셀 파일로 일괄 등록</p>
-              <p><span className="font-semibold text-[#00587a]">📤 Export</span> — 전체 사용자 엑셀 다운로드</p>
+              <p><span className="font-semibold text-blue-700">행 클릭(Click)</span> — 사용자 선택(Select)</p>
+              <p><span className="font-semibold text-blue-700">더블클릭(DblClick)</span> — 즉시 적용(Apply)</p>
+              <p><span className="font-semibold text-green-700">➕ 추가(Add)</span> — 신규 등록(New)</p>
+              <p><span className="font-semibold text-amber-700">✏️ 수정(Edit)</span> — 정보 편집(Modify)</p>
+              <p><span className="font-semibold text-blue-700">💾 저장(Save)</span> — DB 저장(Store)</p>
+              <p><span className="font-semibold text-red-700">🗑️ 삭제(Del)</span> — DB 삭제(Remove)</p>
+              <p><span className="font-semibold text-[#00587a]">📥 Import</span> — 엑셀 일괄등록(Batch)</p>
+              <p><span className="font-semibold text-[#00587a]">📤 Export</span> — 엑셀 다운로드(Download)</p>
             </div>
-            <p className="text-[9px] text-gray-500 mt-1">* 검색창에서 성명, 부서, 공장, 직급, 담당업무로 검색 가능</p>
+            <p className="text-[9px] text-gray-500 mt-1">* 검색(Search): 성명, 부서, 공장, 직급, 비고</p>
           </div>
         )}
 
@@ -381,7 +381,7 @@ export function UserSelectModal({
         <div className="px-3 py-1 border-b border-gray-200">
           <input
             type="text"
-            placeholder="🔍 검색 (성명/부서/공장/직급/비고)"
+            placeholder="🔍 검색(Search) — 성명/부서/공장/직급/비고"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-2 py-1 text-[11px] border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
@@ -393,7 +393,7 @@ export function UserSelectModal({
         {editingUser ? (
           <div className="flex-1 overflow-y-auto px-3 py-3">
             <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-2">
-              <p className="text-xs font-semibold text-blue-700 mb-2">📝 사용자 {editingUser.id.length < 20 ? '신규 등록' : '수정'}</p>
+              <p className="text-xs font-semibold text-blue-700 mb-2">📝 {editingUser.id.length < 20 ? '신규 등록(New User)' : '사용자 수정(Edit User)'}</p>
               <div className="grid grid-cols-4 gap-x-3 gap-y-2">
                 <div>
                   <label className="text-[10px] text-gray-600 block mb-0.5">성명<span className="text-[7px] text-gray-400 ml-0.5">(Name)</span> <span className="text-red-500">*</span></label>
@@ -421,8 +421,8 @@ export function UserSelectModal({
                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder="Champion / 총괄" />
                 </div>
                 <div className="flex items-end gap-1">
-                  <button onClick={handleSave} title="Save" className="px-2 py-0.5 text-[10px] font-semibold bg-blue-500 text-white rounded hover:bg-blue-600 whitespace-nowrap">💾 저장</button>
-                  <button onClick={() => setEditingUser(null)} title="Cancel" className="px-2 py-0.5 text-[10px] font-semibold bg-gray-300 text-gray-700 rounded hover:bg-gray-400 whitespace-nowrap">취소</button>
+                  <button onClick={handleSave} title="Save" className="px-2 py-0.5 text-[10px] font-semibold bg-blue-500 text-white rounded hover:bg-blue-600 whitespace-nowrap">💾 저장(Save)</button>
+                  <button onClick={() => setEditingUser(null)} title="Cancel" className="px-2 py-0.5 text-[10px] font-semibold bg-gray-300 text-gray-700 rounded hover:bg-gray-400 whitespace-nowrap">취소(Cancel)</button>
                 </div>
               </div>
             </div>
@@ -432,11 +432,11 @@ export function UserSelectModal({
             {/* 안내 메시지 + 선택 적용 버튼 */}
             <div className="flex items-center justify-between px-3 py-1 bg-amber-50 border-b border-amber-200">
               <p className="text-[10px] text-amber-700">
-                클릭 → 선택 | 더블클릭 → 즉시 적용
+                클릭(Click) → 선택(Select) | 더블클릭(DblClick) → 즉시 적용(Apply)
               </p>
               <button
                 onClick={() => {
-                  if (!selectedUserId) { alert('선택된 사용자가 없습니다.'); return; }
+                  if (!selectedUserId) { alert('선택된 사용자가 없습니다(No user selected).'); return; }
                   const user = users.find(u => u.id === selectedUserId);
                   if (user) handleSelect(user);
                 }}
@@ -455,7 +455,7 @@ export function UserSelectModal({
             <div className="flex-1 overflow-y-auto px-2 py-1">
               {filteredUsers.length === 0 ? (
                 <div className="text-center py-6 text-gray-500 text-xs">
-                  사용자가 없습니다. [➕ 추가] 또는 [📥 Import]로 등록하세요.
+                  사용자가 없습니다(No users). [➕ 추가(Add)] 또는 [📥 Import]로 등록하세요.
                 </div>
               ) : (
                 <table className="w-full border-collapse text-[11px]">
@@ -496,12 +496,12 @@ export function UserSelectModal({
         {/* 푸터 */}
         <div className="px-3 py-1.5 border-t border-gray-200 bg-gray-50 rounded-b-lg shrink-0">
           <span className="text-[10px] text-gray-500">
-            총 {filteredUsers.length}명 {selectedUserId && `| 선택: ${users.find(u => u.id === selectedUserId)?.name || ''}`}
+            총(Total) {filteredUsers.length}명 {selectedUserId && `| 선택(Selected): ${users.find(u => u.id === selectedUserId)?.name || ''}`}
           </span>
         </div>
 
         {/* 리사이즈 핸들 */}
-        <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize" onMouseDown={onResizeStart} title="크기 조절">
+        <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize" onMouseDown={onResizeStart} title="크기 조절(Resize)">
           <svg width="14" height="14" viewBox="0 0 14 14" className="text-gray-400 opacity-60">
             <path d="M12 2v10H2" fill="none" stroke="currentColor" strokeWidth="1.5" />
             <path d="M12 6v6H6" fill="none" stroke="currentColor" strokeWidth="1.5" />

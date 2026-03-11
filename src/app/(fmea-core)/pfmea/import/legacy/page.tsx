@@ -433,19 +433,6 @@ export default function LegacyImportPage() {
         fmeaList={fmeaList}
         failureChains={masterChains}
         parseStatistics={parseResult?.statistics}
-        onPreprocessSaved={async () => {
-          if (!selectedFmeaId) return;
-          try {
-            const loaded = await loadDatasetByFmeaId(selectedFmeaId);
-            setFlatData(loaded.flatData);
-            if (loaded.datasetId) setMasterDatasetId(loaded.datasetId);
-            if (loaded.datasetName) setMasterDatasetName(loaded.datasetName);
-            if (loaded.failureChains) setMasterChains(loaded.failureChains as MasterFailureChain[]);
-            setIsSaved(loaded.flatData.length > 0);
-          } catch (e) {
-            console.error('[전처리→기존데이터] 리로드 오류:', e);
-          }
-        }}
       />
 
       {/* BD 현황 테이블 */}

@@ -19,6 +19,8 @@ import CompanyLogo from '@/components/CompanyLogo';
 export interface SubItem {
   label: string;
   href: string;
+  /** true면 한글\n(English) 2줄, false/undefined면 한글(English) 1줄 */
+  multiline?: boolean;
 }
 
 export interface MenuItem {
@@ -126,15 +128,19 @@ const USER_PHOTO_STORAGE_KEY = 'fmea_user_photo';
 // "나의 업무현황(My Tasks)" → 1줄: 나의 업무현황, 2줄: (My Tasks)
 const BILINGUAL_RE = /^([\p{Emoji_Presentation}\p{Emoji}\u200d\ufe0f]*\s*)?(.+?)\(([^)]+)\)$/u;
 
-function BilingualLabel({ text, className }: { text: string; className?: string }) {
+function BilingualLabel({ text, className, multiline = false }: { text: string; className?: string; multiline?: boolean }) {
   const m = text.match(BILINGUAL_RE);
   if (!m) return <span className={className}>{text}</span>;
   const emoji = (m[1] || '').trim();
   const main = m[2].trim();
   const sub = m[3].trim();
+  const displayMain = emoji ? `${emoji} ${main}` : main;
+  if (!multiline) {
+    return <span className={cn(className, 'truncate')}>{displayMain}({sub})</span>;
+  }
   return (
     <span className={cn(className, 'flex flex-col leading-tight')}>
-      <span className="truncate">{emoji ? `${emoji} ${main}` : main}</span>
+      <span className="truncate">{displayMain}</span>
       <span className="text-[8px] opacity-60 truncate">({sub})</span>
     </span>
   );
@@ -324,14 +330,14 @@ export const SidebarShell = React.memo(function SidebarShell({
                   return (
                     <button key={subItem.href} onClick={() => window.location.href = subItem.href}
                       className={cls} title={translated}>
-                      <BilingualLabel text={translated} />
+                      <BilingualLabel text={translated} multiline={subItem.multiline} />
                     </button>
                   );
                 }
                 return (
                   <Link key={subItem.href} href={subItem.href}
                     className={cls} title={translated}>
-                    <BilingualLabel text={translated} />
+                    <BilingualLabel text={translated} multiline={subItem.multiline} />
                   </Link>
                 );
               })}

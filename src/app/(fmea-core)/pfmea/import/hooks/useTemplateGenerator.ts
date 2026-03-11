@@ -14,7 +14,7 @@ import {
   type WorkElementInput,
 } from '../utils/template-data-generator';
 
-export type TemplateMode = 'download' | 'manual' | 'auto' | 'preprocess';
+export type TemplateMode = 'download' | 'manual' | 'auto';
 
 /** 기본 수동 설정 */
 const DEFAULT_MANUAL_CONFIG: ManualTemplateConfig = {

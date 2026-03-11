@@ -286,38 +286,37 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         setStepState(prev => ({ ...prev, fcComparison: comparison }));
       }
 
-      // ★★★ 2026-03-05: SA 확정 시 Master DB에 flatData + failureChains 저장 ★★★
-      // → FC검증 단계에서 DBINPUT 반영 + B5(예방관리)/A6(검출관리) 카운트 반영
+      // ★★★ 2026-03-12: SA 확정 시 failureChains만 PATCH (flatData 중복저장 방지) ★★★
+      // Import 단계에서 이미 saveMasterDataset(replace=true)로 flatData 저장 완료
+      // SA에서 다시 saveMasterDataset 호출하면 DB에 2배 레코드 발생 가능 → PATCH로 chains만 업데이트
       if (fmeaId && flatData.length > 0) {
         const chainsToSave = externalChains && externalChains.length > 0
           ? externalChains
           : failureChains.length > 0 ? failureChains : undefined;
-        import('../utils/master-api').then(async ({ saveMasterDataset }) => {
+        (async () => {
           try {
-            await saveMasterDataset({
-              fmeaId,
-              fmeaType: fmeaInfo?.fmeaType || 'P',
-              parentFmeaId: null,
-              replace: true,
-              flatData,
-              failureChains: chainsToSave,
-            });
-            // ★ 저장 완료 후 verify-counts 재조회 → DBINPUT 즉시 반영
+            // 1) failureChains가 있으면 PATCH로 chains만 업데이트
+            if (chainsToSave && chainsToSave.length > 0) {
+              await fetch(
+                '/api/pfmea/master?fmeaId=' + encodeURIComponent(fmeaId),
+                { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ failureChains: chainsToSave }) },
+              );
+            }
+            // 2) verify-counts 재조회 → DBINPUT 즉시 반영
             const vcRes = await fetch(`/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId)}`);
             if (vcRes.ok) {
               const vcJson = await vcRes.json();
               if (vcJson.success) {
                 setStepState(prev => ({
                   ...prev,
-                  // ★ SA확정: import + db 모두 표시 → 사용자가 I→D 불일치 즉시 확인 가능
                   dbVerifyCounts: { import: vcJson.import, db: vcJson.db },
                 }));
               }
             }
           } catch (err) {
-            console.error('[SA 확정] Master DB 저장/검증 실패:', err);
+            console.error('[SA 확정] failureChains PATCH/검증 실패:', err);
           }
-        }).catch(err => console.error('[SA 확정] master-api import 실패:', err));
+        })();
       }
 
       return result;
