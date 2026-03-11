@@ -133,8 +133,13 @@ export function PfmeaContextMenu({
         const vh = window.innerHeight;
         let x = contextMenu.x;
         let y = contextMenu.y;
-        if (y + rect.height > vh - 8) y = Math.max(8, contextMenu.y - rect.height);
-        if (x + rect.width > vw - 8) x = Math.max(8, contextMenu.x - rect.width);
+        // 하단 넘침 → 위로 플립
+        if (y + rect.height > vh - 8) y = contextMenu.y - rect.height;
+        // 우측 넘침 → 왼쪽 플립
+        if (x + rect.width > vw - 8) x = contextMenu.x - rect.width;
+        // 상단/좌측 경계 보정 (플립 후에도 벗어나면 클램프)
+        y = Math.max(8, Math.min(y, vh - rect.height - 8));
+        x = Math.max(8, Math.min(x, vw - rect.width - 8));
         setAdjustedPos({ x, y });
     }, [contextMenu.visible, contextMenu.x, contextMenu.y]);
 
@@ -298,7 +303,7 @@ export function PfmeaContextMenu({
             {/* 메뉴 (컴팩트 스타일) - 뷰포트 경계 자동 조정 */}
             <div
                 ref={menuRef}
-                className="fixed z-[201] bg-white border border-gray-300 rounded-md shadow-lg py-0.5 min-w-[180px]"
+                className="fixed z-[201] bg-white border border-gray-300 rounded-md shadow-lg py-0.5 min-w-[180px] max-h-[calc(100vh-16px)] overflow-y-auto"
                 style={{
                     left: adjustedPos.x,
                     top: adjustedPos.y,
@@ -310,27 +315,34 @@ export function PfmeaContextMenu({
                     {fmId && <span className="ml-1 text-blue-600">(FM: {fmId.slice(-6)})</span>}
                 </div>
 
-                {/* ★ 행 추가 (위/아래) - 구조분석, 기능분석 모두 지원 */}
-                {onInsertAbove && (
-                    <button
-                        onClick={handleInsertAbove}
-                        className="w-full text-left px-2 py-1 text-[10px] hover:bg-blue-50 flex items-center gap-1.5 transition-colors"
-                    >
-                        <span>⬆️</span>
-                        <span>위로 새 행 추가</span>
-                        {isStructureColumn && <span className="ml-auto text-gray-400 text-[8px]">{columnType?.toUpperCase()}</span>}
-                    </button>
-                )}
-                {onInsertBelow && (
-                    <button
-                        onClick={handleInsertBelow}
-                        className="w-full text-left px-2 py-1 text-[10px] hover:bg-blue-50 flex items-center gap-1.5 transition-colors"
-                    >
-                        <span>⬇️</span>
-                        <span>아래로 새 행 추가</span>
-                        {isStructureColumn && <span className="ml-auto text-gray-400 text-[8px]">{columnType?.toUpperCase()}</span>}
-                    </button>
-                )}
+                {/* ★ 행 추가 (위/아래) - L3(작업요소)에서는 비활성화 (병합 추가 사용) */}
+                {(() => {
+                    const isL3 = columnType === 'l3';
+                    const canInsertAbove = onInsertAbove && !isL3;
+                    const canInsertBelow = onInsertBelow && !isL3;
+                    return (
+                        <>
+                            <button
+                                onClick={canInsertAbove ? handleInsertAbove : undefined}
+                                disabled={!canInsertAbove}
+                                className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 transition-colors ${canInsertAbove ? 'hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`}
+                            >
+                                <span>⬆️</span>
+                                <span>위로 새 행 추가</span>
+                                {isStructureColumn && canInsertAbove && <span className="ml-auto text-gray-400 text-[8px]">{columnType?.toUpperCase()}</span>}
+                            </button>
+                            <button
+                                onClick={canInsertBelow ? handleInsertBelow : undefined}
+                                disabled={!canInsertBelow}
+                                className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 transition-colors ${canInsertBelow ? 'hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`}
+                            >
+                                <span>⬇️</span>
+                                <span>아래로 새 행 추가</span>
+                                {isStructureColumn && canInsertBelow && <span className="ml-auto text-gray-400 text-[8px]">{columnType?.toUpperCase()}</span>}
+                            </button>
+                        </>
+                    );
+                })()}
 
                 {/* ★★★ 2026-02-05: 병합 추가 (작업요소 추가 - 상위 병합 확장) ★★★ */}
                 {(onAddMergedAbove || onAddMergedBelow) && (
@@ -356,18 +368,15 @@ export function PfmeaContextMenu({
                 )}
 
                 {/* ★ 행 삭제 */}
-                {onDeleteRow && (
-                    <>
-                        <div className="border-t border-gray-100 my-0.5" />
-                        <button
-                            onClick={handleDeleteRow}
-                            className="w-full text-left px-2 py-1 text-[10px] hover:bg-red-50 text-red-600 flex items-center gap-1.5 transition-colors"
-                        >
-                            <span>🗑️</span>
-                            <span>행 삭제</span>
-                        </button>
-                    </>
-                )}
+                <div className="border-t border-gray-100 my-0.5" />
+                <button
+                    onClick={onDeleteRow ? handleDeleteRow : undefined}
+                    disabled={!onDeleteRow}
+                    className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 transition-colors ${onDeleteRow ? 'hover:bg-red-50 text-red-600' : 'text-gray-300 cursor-not-allowed'}`}
+                >
+                    <span>🗑️</span>
+                    <span>행 삭제</span>
+                </button>
 
                 {/* ★ 병합 기능 (병합 가능한 컬럼에서만) */}
                 {isMergeableColumn && (onMergeUp || onMergeDown || onUnmerge) && (

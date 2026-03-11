@@ -70,7 +70,7 @@ function JudgeBadge({ processCount, fmCount, fcCount, fmeaId }: {
   return null;
 }
 
-type SortKey = 'fmeaType' | 'companyName' | 'fmeaId' | 'bdId' | 'bdVersion' | 'customerName' | 'fmeaName' | 'revisionNo' | 'startDate' | 'createdAt' | 'processCount' | 'fmCount' | 'fcCount' | 'dataCount' | 'judge';
+type SortKey = 'fmeaType' | 'fmeaId' | 'bdId' | 'bdVersion' | 'customerName' | 'fmeaName' | 'revisionNo' | 'startDate' | 'createdAt' | 'processCount' | 'fmCount' | 'fcCount' | 'dataCount' | 'judge';
 type SortDir = 'asc' | 'desc';
 
 /** ISO 날짜 → YYYY-MM-DD */
@@ -165,7 +165,6 @@ export function BdStatusTable({
       switch (sortKey) {
         case 'fmeaType':
           return dir * ((TYPE_ORDER[a.fmeaType] ?? 3) - (TYPE_ORDER[b.fmeaType] ?? 3)) || a.fmeaId.localeCompare(b.fmeaId);
-        case 'companyName': return dir * (a.companyName || '').localeCompare(b.companyName || '');
         case 'fmeaId': return dir * a.fmeaId.localeCompare(b.fmeaId);
         case 'bdId': return dir * a.bdId.localeCompare(b.bdId);
         case 'bdVersion': return dir * ((a.version ?? 0) - (b.version ?? 0));
@@ -344,13 +343,12 @@ export function BdStatusTable({
           <colgroup>
             <col style={{ width: 28 }} />{/* 체크 */}
             <col style={{ width: 60 }} />{/* 유형 */}
-            <col style={{ width: 100 }} />{/* 회사명 */}
             <col style={{ width: 80 }} />{/* 고객 */}
             <col style={{ width: 90 }} />{/* BD ID */}
             <col style={{ width: 80 }} />{/* BD생성일 */}
             <col style={{ width: 50 }} />{/* BD Rev */}
             <col style={{ width: 130 }} />{/* FMEA ID */}
-            <col />{/* FMEA명 (flex) */}
+            <col />{/* FMEA명 (flex — 회사명 삭제로 확장) */}
             <col style={{ width: 48 }} />{/* Rev */}
             <col style={{ width: 48 }} />{/* 공정 */}
             <col style={{ width: 42 }} />{/* FM */}
@@ -365,7 +363,6 @@ export function BdStatusTable({
                   onChange={toggleAll} className="w-3 h-3 cursor-pointer" onClick={e => e.stopPropagation()} />
               </th>
               <th className={TH} onClick={() => handleSort('fmeaType')} title="FMEA Type: Master / Family / Part"><BiTh ko="유형" en="Type">{sortArrow('fmeaType')}</BiTh></th>
-              <th className={TH} onClick={() => handleSort('companyName')} title="Company Name"><BiTh ko="회사명" en="Company">{sortArrow('companyName')}</BiTh></th>
               <th className={TH} onClick={() => handleSort('customerName')} title="Customer (Delivery destination)"><BiTh ko="고객" en="Cust.">{sortArrow('customerName')}</BiTh></th>
               <th className={TH} onClick={() => handleSort('bdId')} title="Basic Data Unique ID (Auto-generated)">BD ID{sortArrow('bdId')}</th>
               <th className={TH} onClick={() => handleSort('createdAt')} title="Basic Data Creation Date (Import time)"><BiTh ko="BD생성일" en="Created">{sortArrow('createdAt')}</BiTh></th>
@@ -382,7 +379,7 @@ export function BdStatusTable({
             {/* 삭제됨 선택 버튼 (관리자 모드) */}
             {adminMode && deletedCount > 0 && (
               <tr>
-                <td colSpan={15} className="bg-orange-50 border border-gray-300 px-2 py-0.5">
+                <td colSpan={14} className="bg-orange-50 border border-gray-300 px-2 py-0.5">
                   <button onClick={selectDeleted}
                     className="text-[10px] text-orange-600 font-bold hover:underline cursor-pointer">
                     삭제됨 {deletedCount}건 선택
@@ -394,7 +391,7 @@ export function BdStatusTable({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={15} className="text-center py-3 text-[10px] text-gray-400 border border-gray-200">
+                <td colSpan={14} className="text-center py-3 text-[10px] text-gray-400 border border-gray-200">
                   {search ? '검색 결과가 없습니다' : 'Basic Data가 없습니다'}
                 </td>
               </tr>
@@ -422,12 +419,6 @@ export function BdStatusTable({
                     </td>
                     {/* 유형 */}
                     <td className={TD}><TypeBadge type={bd.fmeaType} /></td>
-                    {/* 회사명 — 기본 중앙, 5자 초과 시 좌측정렬 */}
-                    <td className={`${TD} ${(bd.companyName || '').length > 5 ? '!text-left' : ''}`}>
-                      <span className="text-[10px] text-gray-600 truncate block" title={bd.companyName || ''}>
-                        {bd.companyName || '-'}
-                      </span>
-                    </td>
                     {/* 고객 */}
                     <td className={`${TD} !text-left`}>
                       <span className="text-[10px] text-gray-600 truncate block" title={bd.customerName || ''}>
@@ -452,7 +443,7 @@ export function BdStatusTable({
                     </td>
                     {/* FMEA명 */}
                     <td className={`${TD} !text-left`}>
-                      <span className={`text-[9px] break-all line-clamp-2 block leading-tight ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-700'}`} title={bd.fmeaName}>
+                      <span className={`text-[10px] break-all line-clamp-2 block leading-tight ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-700'}`} title={bd.fmeaName}>
                         {isDeleted && <span className="text-[9px] text-orange-500 font-bold no-underline mr-1">[삭제]</span>}
                         {bd.fmeaName}
                       </span>
