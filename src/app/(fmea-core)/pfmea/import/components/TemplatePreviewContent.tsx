@@ -23,7 +23,7 @@ import type { FCComparisonResult } from '../utils/fcComparison';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from '../hooks/useTemplateGenerator';
 import { FailureChainPreview } from './FailureChainPreview';
-import { FullAnalysisPreview } from './FullAnalysisPreview';
+// FullAnalysisPreview 삭제됨 (사용자 요청)
 import ParseStatisticsPanel from './ParseStatisticsPanel';
 import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
@@ -411,10 +411,10 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       {/* ─── SA/FC/FA 서브탭 — 4개 모드 공통 3단계 확정 배지 ─── */}
       {hasStepProcess && (
         <div className="flex items-center gap-0 mb-1.5 border-b border-gray-200">
-          {(['SA', 'FC', 'FA'] as const).map((tab, idx) => {
-            const labels = { SA: 'SA 시스템분석', FC: 'FC 고장사슬', FA: 'FA 통합분석' };
-            const counts = { SA: crossTab.total, FC: failureChains.length, FA: failureChains.length };
-            const confirmed = { SA: stepState.saConfirmed, FC: stepState.fcConfirmed, FA: stepState.faConfirmed };
+          {(['SA', 'FC'] as const).map((tab, idx) => {
+            const labels = { SA: 'SA 시스템분석', FC: 'FC 고장사슬' };
+            const counts = { SA: crossTab.total, FC: failureChains.length };
+            const confirmed = { SA: stepState.saConfirmed, FC: stepState.fcConfirmed };
             const isActive = stepState.activeStep === tab;
             return (
               <React.Fragment key={tab}>
@@ -684,28 +684,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         )}
       </>)}
 
-      {/* ─── FA 콘텐츠: 통합분석 미리보기 (4개 모드 공통) ─── */}
-      {stepState.activeStep === 'FA' && (<>
-        {!stepState.fcConfirmed && stepState.saConfirmed && (
-          <div className="flex items-center gap-2 mb-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-300 rounded text-[11px]">
-            <span className="text-amber-700">FC 고장사슬이 확정되지 않았습니다.</span>
-            <button
-              onClick={() => { confirmFC(true); }}
-              className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-teal-600 text-white border border-teal-600 hover:bg-teal-700 cursor-pointer">
-              FC 확정 후 FA 진행
-            </button>
-          </div>
-        )}
-        <div className="flex items-center justify-end gap-1.5 mb-1.5">
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px]">
-            <b className="text-blue-700">{failureChains.length}</b><span className="text-blue-500">전체</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px]">
-            <b className="text-blue-700">{new Set(failureChains.map(c => c.processNo)).size}</b><span className="text-blue-500">공정</span>
-          </span>
-        </div>
-        <FullAnalysisPreview chains={failureChains} crossTab={crossTab} isFullscreen={isFullscreen} hideStats parseStatistics={effectiveStatistics} />
-      </>)}
+      {/* FA 통합분석 미리보기 삭제됨 (사용자 요청) */}
 
       {/* ─── SA 콘텐츠: L1/L2/L3 미리보기 ─── */}
       {isSAActive && <>
