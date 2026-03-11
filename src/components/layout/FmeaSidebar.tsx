@@ -39,7 +39,6 @@ const myJobItem: MenuItem = {
 
 const pfmeaSubItems = [
   { label: '📊 대시보드', href: '/pfmea/dashboard' },
-  { label: '📉 Top RPN 분석', href: '/rpn-analysis' },
   { label: '등록', href: '/pfmea/register' },
   { label: '리스트', href: '/pfmea/list' },
   { label: 'New FMEA', href: '/pfmea/worksheet' },

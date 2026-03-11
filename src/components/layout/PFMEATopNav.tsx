@@ -18,8 +18,7 @@ interface PFMEATopNavProps {
 export default function PFMEATopNav({ selectedFmeaId, linkedCpNo, linkedPfdNo }: PFMEATopNavProps) {
   const menuItems: TopNavMenuItem[] = [
     { label: '대시보드', shortLabel: '대시보드', path: '/pfmea/dashboard', icon: '📊' },
-    { label: 'Top RPN 분석', shortLabel: 'Top RPN', path: '/rpn-analysis', icon: '📉' },
-    { label: '등록', shortLabel: '등록', path: '/pfmea/register', icon: '📝' },
+{ label: '등록', shortLabel: '등록', path: '/pfmea/register', icon: '📝' },
     { label: '리스트', shortLabel: '리스트', path: '/pfmea/list', icon: '📋' },
     { label: 'New FMEA', shortLabel: 'New FMEA', path: '/pfmea/worksheet', icon: '✏️' },
     { label: '개정관리 현황', shortLabel: '개정관리', path: '/pfmea/revision', icon: '📜' },

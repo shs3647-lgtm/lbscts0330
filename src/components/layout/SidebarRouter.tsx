@@ -19,16 +19,6 @@ const FmeaSidebar = dynamic(() => import('./FmeaSidebar'), {
   loading: () => <SidebarSkeleton />,
 });
 
-const PlanningSidebar = dynamic(() => import('./PlanningSidebar'), {
-  ssr: false,
-  loading: () => <SidebarSkeleton />,
-});
-
-const OperationsSidebar = dynamic(() => import('./OperationsSidebar'), {
-  ssr: false,
-  loading: () => <SidebarSkeleton />,
-});
-
 // Fallback: 전체 사이드바 (common 페이지용)
 const FullSidebar = dynamic(() => import('./Sidebar'), {
   ssr: false,
@@ -45,18 +35,13 @@ function SidebarSkeleton() {
 
 // ─── 경로 매칭 패턴 ───
 
-const FMEA_CORE_PATTERN = /^\/(pfmea|dfmea|control-plan|pfd|master|rpn-analysis)/;
-const PLANNING_PATTERN = /^\/(apqp|gantt)/;
-const OPERATIONS_PATTERN = /^\/(ws|pm)/;
-
+const FMEA_CORE_PATTERN = /^\/(pfmea|control-plan|pfd|master)/;
 // ─── 라우터 컴포넌트 ───
 
 export const SidebarRouter = React.memo(function SidebarRouter() {
   const pathname = usePathname();
 
   if (FMEA_CORE_PATTERN.test(pathname)) return <FmeaSidebar />;
-  if (PLANNING_PATTERN.test(pathname)) return <PlanningSidebar />;
-  if (OPERATIONS_PATTERN.test(pathname)) return <OperationsSidebar />;
 
   // 공통 페이지 (dashboard, admin, myjob 등) → 전체 사이드바
   return <FullSidebar />;

@@ -426,12 +426,7 @@ export default function WelcomePage() {
             <h4>대시보드<span className="badge">NEW</span></h4>
             <p>PFMEA 대시보드</p>
           </Link>
-          <Link href={isLoggedIn ? "/rpn-analysis" : "/login"} className="card mini">
-            <span className="lock-badge">📉</span>
-            <h4>Top RPN<span className="badge" style={{ background: '#ef4444' }}>HOT</span></h4>
-            <p>Top RPN 분석</p>
-          </Link>
-          <Link href={isLoggedIn ? "/pfmea/list" : "/login"} className="card mini">
+<Link href={isLoggedIn ? "/pfmea/list" : "/login"} className="card mini">
             <span className="lock-badge">📋</span>
             <h4>PFMEA리스트</h4>
             <p>PFMEA 리스트</p>

@@ -149,10 +149,9 @@ const apqpSubItems = [
   { label: '개정관리', href: '/apqp/revision' },
 ];
 
-// PFMEA 전용 하위 메뉴 (통일 순서: 대시보드 → Top RPN → 기본메뉴 → 습득교훈 → AP개선)
+// PFMEA 전용 하위 메뉴 (통일 순서: 대시보드 → 기본메뉴 → 습득교훈 → AP개선)
 const pfmeaSubItems = [
   { label: '📊 대시보드', href: '/pfmea/dashboard' },
-  { label: '📉 Top RPN 분석', href: '/rpn-analysis' },
   { label: '등록', href: '/pfmea/register' },
   { label: '리스트', href: '/pfmea/list' },
   { label: 'New FMEA', href: '/pfmea/worksheet' },
