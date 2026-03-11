@@ -293,7 +293,7 @@ export function TemplateGeneratorPanel(props: Props) {
             )}
             <span className="w-px h-4 bg-white/30 mx-1" />
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/15 border border-white/30 rounded text-[11px]">
-              <b>{new Set(flatData.filter(d => d.itemCode === 'A1' || d.itemCode === 'A2').map(d => d.processNo)).size}</b>
+              <b>{new Set(flatData.filter(d => d.category === 'A' && d.processNo && d.processNo !== '00' && d.processNo !== '공통').map(d => d.processNo)).size}</b>
               <span className="text-white/70">공정</span>
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/15 border border-white/30 rounded text-[11px]">
@@ -308,7 +308,7 @@ export function TemplateGeneratorPanel(props: Props) {
             <span className="font-semibold text-[13px]">기초정보 템플릿</span>
             {flatData.length > 0 && (
               <span className="text-[11px] text-white/50">
-                {new Set(flatData.filter(d => d.itemCode === 'A1').map(d => d.processNo)).size}공정 · {flatData.filter(d => d.value?.trim()).length}건
+                {new Set(flatData.filter(d => d.category === 'A' && d.processNo && d.processNo !== '00' && d.processNo !== '공통').map(d => d.processNo)).size}공정 · {flatData.filter(d => d.value?.trim()).length}건
               </span>
             )}
           </>)}

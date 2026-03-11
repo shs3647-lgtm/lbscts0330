@@ -216,15 +216,18 @@ export function useImportFileHandlers({
         p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B2-${i}`, processNo: pNo, category: 'B', itemCode: 'B2', value: ensureString(v), m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || '')}`, createdAt: new Date() }, 'B2', i)));
         p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B3-${i}`, processNo: pNo, category: 'B', itemCode: 'B3', value: ensureString(v), m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.processCharsWE?.[i], p.processChars4M?.[i] || '')}`, createdAt: new Date() }, 'B3', i)));
         p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B4-${i}`, processNo: pNo, category: 'B', itemCode: 'B4', value: ensureString(v), m4: p.failureCauses4M?.[i] || '', parentItemId: `${pNo}-B3-0`, createdAt: new Date() }, 'B4', i)));
+        p.preventionCtrls?.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), parentItemId: `${pNo}-B4-0`, createdAt: new Date() }, 'B5', i)));
+        p.detectionCtrls?.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A6-tpl-${i}`, processNo: pNo, category: 'A', itemCode: 'A6', value: ensureString(v), parentItemId: `${pNo}-A5-0`, createdAt: new Date() }, 'A6', i)));
       });
 
-      // ★★★ B5(예방관리) + A6(검출관리) — FC 시트 failureChains에서 추출 ★★★
-      // ★★★ 2026-03-02 FIX: dedup 키에 값 포함 — 같은 공정에 다른 PC/DC 값 보존 ★★★
+      // ★★★ B5(예방관리) + A6(검출관리) — FC 시트 failureChains에서 추출 (템플릿 보완) ★★★
       const chains = result.failureChains;
       if (chains && chains.length > 0) {
-        // B5: FC별 예방관리 (processNo + m4 + pcValue 기준 unique)
-        const b5Seen = new Set<string>();
-        let b5Idx = 0;
+        // 템플릿(L3-5/L2-6)에서 이미 추가된 B5/A6 항목 dedup 초기화
+        const b5Seen = new Set<string>(
+          flat.filter(d => d.itemCode === 'B5').map(d => `${d.processNo}|${d.m4 || ''}|${d.value}`)
+        );
+        let b5Idx = flat.filter(d => d.itemCode === 'B5').length;
         for (const ch of chains) {
           if (!ch.pcValue?.trim() || !ch.processNo) continue;
           const key = `${ch.processNo}|${ch.m4 || ''}|${ch.pcValue.trim()}`;
@@ -233,9 +236,10 @@ export function useImportFileHandlers({
           flat.push({ id: `${ch.processNo}-B5-${b5Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B5', value: ch.pcValue.trim(), m4: ch.m4 || '', parentItemId: `${ch.processNo}-B4-0`, createdAt: new Date() });
           b5Idx++;
         }
-        // A6: 공정별 검출관리 (processNo + dcValue 기준 unique)
-        const a6Seen = new Set<string>();
-        let a6Idx = 0;
+        const a6Seen = new Set<string>(
+          flat.filter(d => d.itemCode === 'A6').map(d => `${d.processNo}|${d.value}`)
+        );
+        let a6Idx = flat.filter(d => d.itemCode === 'A6').length;
         for (const ch of chains) {
           if (!ch.dcValue?.trim() || !ch.processNo) continue;
           const a6Key = `${ch.processNo}|${ch.dcValue.trim()}`;

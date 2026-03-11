@@ -399,8 +399,8 @@ function FMEAWorksheetPageContent() {
     setPanelFullscreen(false);
   }, [state.tab]);
 
-  // ★★★ RPN 컬럼 표시 여부 (독립 토글 — 패널과 무관) ★★★
-  const [showRPN, setShowRPN] = useState(false);
+  // ★★★ RPN 컬럼 표시 여부 (rpn 패널 활성화 시 true) ★★★
+  const showRPN = activePanelId === 'rpn' || activePanelId === 'rpn-chart';
 
   // ★★★ 2026-01-27: 입력모드 (auto: 기존 모달방식, manual: 컨텍스트 메뉴) ★★★
   const [inputMode, setInputMode] = useState<'manual' | 'auto'>('auto');
@@ -761,21 +761,21 @@ function FMEAWorksheetPageContent() {
           onOpenSpecialChar={() => setIsSpecialCharModalOpen(true)}
           onOpenSOD={() => setIsSODModalOpen(true)}
           onOpen5AP={() => {
-            // ALL 탭으로 이동 후 5AP 패널 표시
             panelButtonClickedRef.current = true;
             if (state.tab !== 'all') setState(prev => ({ ...prev, tab: 'all' }));
-            setPanelFullscreen(false);
             setActivePanelId(prev => prev === '5ap' ? '' : '5ap');
+            setPanelFullscreen(false);
           }}
           onOpen6AP={() => {
             panelButtonClickedRef.current = true;
             if (state.tab !== 'all') setState(prev => ({ ...prev, tab: 'all' }));
-            setPanelFullscreen(false);
             setActivePanelId(prev => prev === '6ap' ? '' : '6ap');
+            setPanelFullscreen(false);
           }}
           onOpenRPN={() => {
+            panelButtonClickedRef.current = true;
             if (state.tab !== 'all') setState(prev => ({ ...prev, tab: 'all' }));
-            setShowRPN(prev => !prev);
+            setActivePanelId(prev => prev === 'rpn' ? '' : 'rpn');
           }}
           showRPN={showRPN}
           onOpenPDF={() => {
@@ -865,11 +865,13 @@ function FMEAWorksheetPageContent() {
               panelButtonClickedRef.current = true;
               if (state.tab !== 'all') setState(prev => ({ ...prev, tab: 'all' }));
               setActivePanelId(prev => prev === '5ap' ? '' : '5ap');
+              setPanelFullscreen(false);
             }}
             onOpen6AP={() => {
               panelButtonClickedRef.current = true;
               if (state.tab !== 'all') setState(prev => ({ ...prev, tab: 'all' }));
               setActivePanelId(prev => prev === '6ap' ? '' : '6ap');
+              setPanelFullscreen(false);
             }}
             onAllClick={() => {
               setActivePanelId('');
@@ -982,22 +984,17 @@ function FMEAWorksheetPageContent() {
                   // ★★★ 2026-01-19: ALL 탭 내 패널 전환 핸들러 ★★★
                   onOpen5AP={() => {
                     panelButtonClickedRef.current = true;
-                    if (activePanelId === '5ap' && panelFullscreen) {
-                      setActivePanelId(''); setPanelFullscreen(false);
-                    } else {
-                      setActivePanelId('5ap'); setPanelFullscreen(true);
-                    }
+                    setActivePanelId(prev => prev === '5ap' ? '' : '5ap');
+                    setPanelFullscreen(false);
                   }}
                   onOpen6AP={() => {
                     panelButtonClickedRef.current = true;
-                    if (activePanelId === '6ap' && panelFullscreen) {
-                      setActivePanelId(''); setPanelFullscreen(false);
-                    } else {
-                      setActivePanelId('6ap'); setPanelFullscreen(true);
-                    }
+                    setActivePanelId(prev => prev === '6ap' ? '' : '6ap');
+                    setPanelFullscreen(false);
                   }}
                   onOpenRPN={() => {
-                    setShowRPN(prev => !prev);
+                    panelButtonClickedRef.current = true;
+                    setActivePanelId(prev => prev === 'rpn' ? '' : 'rpn');
                   }}
                   activePanelId={activePanelId}
                   inputMode={inputMode}
@@ -1065,31 +1062,38 @@ function FMEAWorksheetPageContent() {
           </div>
           {/* 워크시트 영역 닫힘 */}
 
-          {/* ★★★ 우측 패널 영역 삭제 — 워크시트가 전체 너비 사용 ★★★ */}
-          {/* 5AP/6AP/RPN은 풀스크린 모달(아래 overlay)로 표시 */}
+          {/* ===== 우측: 5AP/6AP/RPN 사이드 패널 (350px) ===== */}
+          {(state.tab === 'all' || state.tab === 'risk' || state.tab === 'opt') &&
+           ['5ap', '6ap', 'rpn', 'rpn-chart'].includes(activePanelId) ? (
+            <>
+              <div className="w-[2px] bg-[#1a237e] shrink-0" />
+              <div className="w-[350px] shrink-0 flex flex-col bg-[#f0f4f8] overflow-hidden h-full">
+                <Suspense fallback={
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', fontSize: '14px', color: '#666' }}>
+                    로딩 중...
+                  </div>
+                }>
+                  {(() => {
+                    const panel = getPanelById(activePanelId);
+                    if (!panel) return null;
+                    const PanelComponent = panel.component;
+                    return <PanelComponent state={state} setState={setState} inputMode={inputMode} setInputMode={setInputMode} />;
+                  })()}
+                </Suspense>
+              </div>
+            </>
+          ) : null}
         </div>
 
-        {/* ★★★ 전체화면 오버레이 — 사이드바·네비게이션 유지, 탭+워크시트 영역만 대체 ★★★ */}
-        {panelFullscreen && !!activePanelId && (
+        {/* ★★★ 전체화면 오버레이 — PDF 등 전체화면 필요 패널용 ★★★ */}
+        {panelFullscreen && !!activePanelId && activePanelId === 'pdf' && (
           <div className="fixed top-16 left-[53px] right-0 bottom-0 z-[200] bg-white flex flex-col">
-            {/* 전체화면 상단 미니바 */}
             <div className="h-8 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 text-white flex items-center justify-between px-3 shrink-0 shadow-md">
               <span className="text-[11px] font-bold">
-                {activePanelId === 'pdf' ? '📄 PDF 뷰어' :
-                 activePanelId === 'rpn' ? '📊 RPN 파레토' :
-                 activePanelId === '5ap' ? '🎯 5AP 리스크분석' :
-                 activePanelId === '6ap' ? '✅ 6AP 최적화' :
-                 activePanelId === 'rpn-chart' ? '📊 RPN 차트' :
-                 getPanelById(activePanelId)?.label || '패널'}
+                📄 PDF 뷰어
                 <span className="ml-2 text-[9px] text-gray-400 font-normal">전체화면</span>
               </span>
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPanelFullscreen(false)}
-                  className="px-2.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-500 rounded font-semibold cursor-pointer transition-colors"
-                >
-                  축소
-                </button>
                 <button
                   onClick={() => { setPanelFullscreen(false); setActivePanelId(''); }}
                   className="px-2.5 py-0.5 text-[10px] bg-red-600 hover:bg-red-500 rounded font-semibold cursor-pointer transition-colors"
@@ -1098,7 +1102,6 @@ function FMEAWorksheetPageContent() {
                 </button>
               </div>
             </div>
-            {/* 전체화면 콘텐츠 — 남은 영역 전부 사용 */}
             <div className="flex-1 overflow-hidden">
               <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400 text-sm">로딩 중...</div>}>
                 {(() => {

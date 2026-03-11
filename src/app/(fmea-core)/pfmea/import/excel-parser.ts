@@ -82,6 +82,8 @@ export interface ProcessRelation {
   processCharsWE: string[];
   failureCauses: string[];    // B4
   failureCauses4M: string[];
+  preventionCtrls: string[];   // B5
+  detectionCtrls: string[];    // A6
   // ★★★ 2026-02-25: 아이템별 메타데이터 (key: "A3-0", "B4-2" 등) ★★★
   itemMeta?: Record<string, ItemMeta>;
 }
@@ -663,6 +665,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             processCharsWE: [],
             failureCauses: [],
             failureCauses4M: [],
+            preventionCtrls: [],
+            detectionCtrls: [],
           });
         } else {
           // 이미 있으면 공정명 업데이트 (빈 경우만)
@@ -714,13 +718,15 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               processCharsWE: [],
               failureCauses: [],
               failureCauses4M: [],
+              preventionCtrls: [],
+              detectionCtrls: [],
             });
           }
         }
       });
     }
 
-    // A3-A5, B1-B4 데이터 매핑
+    // A3-A6, B1-B5 데이터 매핑
     const sheetMapping: { sheet: string; field: keyof ProcessRelation }[] = [
       { sheet: 'A3', field: 'processDesc' },
       { sheet: 'A4', field: 'productChars' },
@@ -729,6 +735,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       { sheet: 'B2', field: 'elementFuncs' },
       { sheet: 'B3', field: 'processChars' },
       { sheet: 'B4', field: 'failureCauses' },
+      { sheet: 'A6', field: 'detectionCtrls' },
+      { sheet: 'B5', field: 'preventionCtrls' },
     ];
 
     sheetMapping.forEach(({ sheet, field }) => {
@@ -783,6 +791,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               processCharsWE: [],
               failureCauses: [],
               failureCauses4M: [],
+              preventionCtrls: [],
+              detectionCtrls: [],
             };
             (newProcess[field] as string[]).push(row.value);
             if (row.excelRow) {

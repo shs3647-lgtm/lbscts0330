@@ -131,7 +131,7 @@ export const COMMON = {
 } as const;
 
 // ============ 직접 접근용 상수 ============
-export const RIGHT_PANEL_WIDTH = '300px';  // 우측 패널 (트리뷰/입력모달/5AP/6AP 통일)
+export const RIGHT_PANEL_WIDTH = '350px';  // 우측 패널 (트리뷰/입력모달/5AP/6AP 통일)
 export const SIDEBAR_WIDTH = '48px';       // 사이드바
 export const DIVIDER_WIDTH = '2px';        // 구분선
 

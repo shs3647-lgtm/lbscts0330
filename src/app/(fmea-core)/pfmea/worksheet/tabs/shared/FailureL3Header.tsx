@@ -104,8 +104,8 @@ export function FailureL3Header({
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
           <BiHeader ko="2. 메인 공정명" en="Main Process" />
         </th>
-        <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko="3. 작업 요소명" en="Work Element" />
+        <th className="bg-[#1976d2] text-white border border-[#ccc] p-0.5 text-[10px] font-bold text-center whitespace-nowrap">
+          WE
         </th>
         <th colSpan={2} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <BiHeader ko="3. 작업요소의 기능 및 공정특성" en="Function & Process Char." />
@@ -126,8 +126,8 @@ export function FailureL3Header({
         <th className="bg-[#e3f2fd] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="NO+공정명" en="Process" />
         </th>
-        <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="작업요소" en="Work Element" />
+        <th className="bg-[#e3f2fd] border border-[#ccc] p-0.5 text-[10px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
+          WE
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] border-r-[2px] border-r-orange-500 p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="공정특성" en="Process Char." />

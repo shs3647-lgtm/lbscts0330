@@ -101,7 +101,7 @@ export function DataStatusBar({ flatData, showApplied, bdFmeaId, bdFmeaName }: {
   bdFmeaId?: string;
   bdFmeaName?: string;
 }) {
-  const processCount = new Set(flatData.filter(d => d.itemCode === 'A1' || d.itemCode === 'A2').map(d => d.processNo)).size;
+  const processCount = new Set(flatData.filter(d => d.category === 'A' && d.processNo && d.processNo !== '00' && d.processNo !== '공통').map(d => d.processNo)).size;
   const sheetCount = new Set(flatData.map(d => d.itemCode)).size;
   const dataCount = flatData.filter(d => d.value?.trim()).length;
   const displayBdId = bdFmeaId ? fmeaIdToBdId(bdFmeaId) : null;

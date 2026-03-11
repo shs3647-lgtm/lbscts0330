@@ -128,7 +128,9 @@ const SHEET_NAME_MAP: Record<string, string> = {
   'L2-5': 'A5',
   'L2-5 고장형태': 'A5',
   'L2-5(A5) 고장형태': 'A5',
-  // v3.0: L2-6(A6) 검출관리 IMPORT 제외 → 리스크 탭
+  'L2-6': 'A6',
+  'L2-6 검출관리': 'A6',
+  'L2-6(A6) 검출관리': 'A6',
   'L3-1': 'B1',
   'L3-1 작업요소': 'B1',
   'L3-1(B1) 작업요소': 'B1',
@@ -141,7 +143,9 @@ const SHEET_NAME_MAP: Record<string, string> = {
   'L3-4': 'B4',
   'L3-4 고장원인': 'B4',
   'L3-4(B4) 고장원인': 'B4',
-  // v3.0: L3-5(B5) 예방관리 IMPORT 제외 → 리스크 탭
+  'L3-5': 'B5',
+  'L3-5 예방관리': 'B5',
+  'L3-5(B5) 예방관리': 'B5',
   'L1-1': 'C1',
   'L1-1 구분': 'C1',
   'L1-1(C1) 구분': 'C1',
@@ -158,8 +162,8 @@ const SHEET_NAME_MAP: Record<string, string> = {
   'L2-1,2(A1,2) 공정번호': 'A1',
   'L1-2(C2) 완제품기능': 'C2',
   // 기존 형식도 지원 (하위호환)
-  'A1': 'A1', 'A2': 'A2', 'A3': 'A3', 'A4': 'A4', 'A5': 'A5',
-  'B1': 'B1', 'B2': 'B2', 'B3': 'B3', 'B4': 'B4',
+  'A1': 'A1', 'A2': 'A2', 'A3': 'A3', 'A4': 'A4', 'A5': 'A5', 'A6': 'A6',
+  'B1': 'B1', 'B2': 'B2', 'B3': 'B3', 'B4': 'B4', 'B5': 'B5',
   'C1': 'C1', 'C2': 'C2', 'C3': 'C3', 'C4': 'C4',
 };
 
@@ -188,8 +192,8 @@ export function normalizeSheetName(name: string): string | null {
 
   // 4. L2-1, L3-1, L1-1 형식 직접 매핑 (템플릿 다운로드와 동일)
   const directMap: Record<string, string> = {
-    'L2-1': 'A1', 'L2-2': 'A2', 'L2-3': 'A3', 'L2-4': 'A4', 'L2-5': 'A5',
-    'L3-1': 'B1', 'L3-2': 'B2', 'L3-3': 'B3', 'L3-4': 'B4',
+    'L2-1': 'A1', 'L2-2': 'A2', 'L2-3': 'A3', 'L2-4': 'A4', 'L2-5': 'A5', 'L2-6': 'A6',
+    'L3-1': 'B1', 'L3-2': 'B2', 'L3-3': 'B3', 'L3-4': 'B4', 'L3-5': 'B5',
     'L1-1': 'C1', 'L1-2': 'C2', 'L1-3': 'C3', 'L1-4': 'C4',
   };
 
@@ -210,10 +214,9 @@ export function normalizeSheetName(name: string): string | null {
   }
 
   // 6. 기존 A1~C4 형식 확인 (하위호환)
-  // v3.0: A6/B5 IMPORT 제외
   const validNames = [
-    'A1', 'A2', 'A3', 'A4', 'A5',
-    'B1', 'B2', 'B3', 'B4',
+    'A1', 'A2', 'A3', 'A4', 'A5', 'A6',
+    'B1', 'B2', 'B3', 'B4', 'B5',
     'C1', 'C2', 'C3', 'C4',
   ];
   if (validNames.includes(trimmedName) || validNames.includes(trimmedName.toUpperCase())) {
@@ -228,12 +231,12 @@ export function normalizeSheetName(name: string): string | null {
     { keywords: ['공정기능', '공정설명'], code: 'A3' },
     { keywords: ['제품특성'], code: 'A4' },
     { keywords: ['고장형태', '고장모드'], code: 'A5' },
-    // v3.0: 검출관리(A6) IMPORT 제외
+    { keywords: ['검출관리', '검출'], code: 'A6' },
     { keywords: ['작업요소', '설비'], code: 'B1' },
     { keywords: ['요소기능'], code: 'B2' },
     { keywords: ['공정특성'], code: 'B3' },
     { keywords: ['고장원인', '원인'], code: 'B4' },
-    // v3.0: 예방관리(B5) IMPORT 제외
+    { keywords: ['예방관리', '예방'], code: 'B5' },
     { keywords: ['구분', 'YP', 'SP', 'USER'], code: 'C1' },
     { keywords: ['제품기능'], code: 'C2' },
     { keywords: ['요구사항'], code: 'C3' },

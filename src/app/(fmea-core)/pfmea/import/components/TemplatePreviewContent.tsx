@@ -203,7 +203,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     };
   }, [parseStatistics, flatData, crossTab.total, failureChains.length]);
 
-  // ── FC검증 토글 ──
+  // ── 통계표/FC검증 토글 ──
+  const [showStats, setShowStats] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
 
   // ── 미매칭 항목 스크롤 ──
@@ -513,6 +514,20 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </button>
           )}
 
+          {/* 통계표 토글 */}
+          {effectiveStatistics && effectiveStatistics.itemStats.length > 0 && (
+            <button
+              onClick={() => setShowStats(v => !v)}
+              className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border cursor-pointer ${
+                showStats
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100'
+              }`}
+              title="아이템코드별 Import 통계표 토글">
+              통계
+            </button>
+          )}
+
           <span className="w-px h-4 bg-blue-300 mx-0.5" />
 
           {/* Import */}
@@ -619,6 +634,53 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         </div>
       </div>
 
+
+      {/* ─── Import 통계표 — 토글 시 표시 ─── */}
+      {showStats && effectiveStatistics && effectiveStatistics.itemStats.length > 0 && (
+        <div className="mb-1.5 border border-indigo-200 rounded bg-indigo-50/30">
+          <table className="w-full border-collapse text-[9px]">
+            <thead><tr>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>코드</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-left border-r border-indigo-500">항목</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>원본</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>고유</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center" style={{width:50}}>중복</th>
+            </tr></thead>
+            <tbody>
+              {effectiveStatistics.itemStats.map((s, i) => {
+                const hasDup = s.dupSkipped > 0;
+                const isHighlighted = highlightDupCode === s.itemCode;
+                return (
+                  <tr key={s.itemCode} className={`${isHighlighted ? 'bg-amber-100' : i % 2 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <td className="px-1.5 py-0.5 text-center font-mono font-bold text-[10px] border-r border-gray-200">{s.itemCode}</td>
+                    <td className="px-1.5 py-0.5 border-r border-gray-200">{s.label}</td>
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">{s.rawCount}</td>
+                    <td className="px-1.5 py-0.5 text-center font-bold text-blue-700 border-r border-gray-200">{s.uniqueCount}</td>
+                    <td className="px-1.5 py-0.5 text-center font-bold">
+                      {hasDup ? (
+                        <button onClick={() => handleDupClick(s.itemCode)}
+                          className={`px-1.5 rounded cursor-pointer font-bold ${
+                            isHighlighted ? 'bg-amber-500 text-white' : 'text-red-600 bg-red-50 hover:bg-red-100'
+                          }`}>
+                          {s.dupSkipped}
+                        </button>
+                      ) : (
+                        <span className="text-gray-300">0</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr className="border-t border-indigo-300 bg-indigo-50">
+                <td colSpan={2} className="px-1.5 py-0.5 font-bold text-indigo-800">합계</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-red-600">{effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ─── FC검증 통계 — 토글 시 항상 표시 ─── */}
       {showVerification && failureChains.length > 0 && (
