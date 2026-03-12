@@ -467,21 +467,25 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         <div className="flex flex-wrap items-center gap-1 mb-1">
           {/* 편집 */}
           <button onClick={() => {
-            if (!isSAActive || editDisabled) return;
+            if (editDisabled) return;
+            if (!isSAActive) {
+              if (!confirm('SA 단계로 돌아가서 편집 모드를 활성화합니다.\n계속하시겠습니까?')) return;
+              resetToSA();
+            }
             if (!isEditing && !templateGenerated && !isDownload) {
               onGenerate();
               setTemplateGenerated(true);
             }
             setIsEditing(!isEditing); setSelectedRows(new Set());
           }}
-            disabled={!isSAActive || editDisabled}
+            disabled={editDisabled}
             className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-              !isSAActive || editDisabled ? BTN_DISABLED
+              editDisabled ? BTN_DISABLED
               : isEditing ? 'bg-blue-600 text-white border-blue-600 cursor-pointer' : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 cursor-pointer'
             }`}>
-            {isEditing && isSAActive ? '편집 ON' : '편집'}
+            {isEditing ? '편집 ON' : '편집'}
           </button>
-          {isEditing && isSAActive && (<>
+          {isEditing && (<>
             <button onClick={handleAddFromSelected} disabled={selectedRows.size === 0}
               className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${
                 selectedRows.size > 0 ? 'bg-blue-600 text-white border-blue-600 cursor-pointer' : BTN_DISABLED
@@ -577,11 +581,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             {stepState.saConfirmed ? (
               <button
                 onClick={handleSAReset}
-                disabled={isAnalysisComplete}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                  isAnalysisComplete ? BTN_DISABLED
-                  : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100 cursor-pointer'
-                }`}>
+                className="px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border bg-green-50 text-green-700 border-green-300 hover:bg-green-100 cursor-pointer">
                 SA 확정됨
               </button>
             ) : (
@@ -613,11 +613,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             {!isManualMode && (stepState.fcConfirmed ? (
               <button
                 onClick={handleFCReset}
-                disabled={isAnalysisComplete}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                  isAnalysisComplete ? BTN_DISABLED
-                  : 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100 cursor-pointer'
-                }`}>
+                className="px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border bg-green-50 text-green-700 border-green-300 hover:bg-green-100 cursor-pointer">
                 FC 확정됨
               </button>
             ) : (
@@ -803,7 +799,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         )}
 
         {/* ─── 행추가 폼 ─── */}
-        {isSAActive && isEditing && onAddItems && (
+        {isEditing && onAddItems && (
           <div className="flex items-center gap-1.5 mb-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded">
             <span className="text-[10px] font-bold text-blue-700">+ 행추가</span>
             {previewLevel === 'L1' && (<>
@@ -847,18 +843,18 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               }
               setSelectedRows(new Set(dupRowIndices));
             }}
-              disabled={editDisabled || !isSAActive}
+              disabled={editDisabled}
               className={`px-2 py-0.5 text-[9px] rounded font-bold border ${
-                editDisabled || !isSAActive ? BTN_DISABLED
+                editDisabled ? BTN_DISABLED
                 : 'bg-blue-600 text-white border-blue-600 cursor-pointer hover:bg-blue-700'
               }`}>
               편집
             </button>
             {/* 삭제: 중복행 직접 삭제 (확인 후) */}
             <button onClick={handleDeleteDupRows}
-              disabled={editDisabled || !isSAActive || !onDeleteItems}
+              disabled={editDisabled || !onDeleteItems}
               className={`px-2 py-0.5 text-[9px] rounded font-bold border ${
-                editDisabled || !isSAActive ? BTN_DISABLED
+                editDisabled ? BTN_DISABLED
                 : 'bg-red-600 text-white border-red-600 cursor-pointer hover:bg-red-700'
               }`}>
               삭제
