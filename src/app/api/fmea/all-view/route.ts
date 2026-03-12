@@ -63,6 +63,20 @@ interface AllViewRow {
   optTargetDate: string | null;
   optStatus: string | null;
   optRemarks: string | null;
+  optNewSeverity: number | null;
+  optNewOccurrence: number | null;
+  optNewDetection: number | null;
+  optNewAP: string | null;
+  optCompletionDate: string | null;
+
+  // 지속적개선 (riskData JSON에서 추출)
+  preventionImprove: string | null;
+  detectionImprove: string | null;
+  improvementEvidence: string | null;
+  specialChar: string | null;
+  lldNo: string | null;
+  lldTarget: string | null;
+  lldClassification: string | null;
   
   // 메타데이터
   linkId: string;
@@ -151,6 +165,13 @@ export async function GET(request: NextRequest) {
       const riskByLinkId = new Map<string, any>();
       riskAnalyses.forEach(r => riskByLinkId.set(r.linkId, r));
 
+      // riskData JSON 로드 (LLD/지속적개선 데이터 추출용)
+      const worksheetData = await prisma.fmeaWorksheetData.findUnique({
+        where: { fmeaId },
+        select: { riskData: true },
+      }).catch(() => null);
+      const riskData = (worksheetData?.riskData as Record<string, unknown>) || {};
+
       // FailureAnalyses → AllViewRow 변환
       const rows: AllViewRow[] = normalized.map(fa => {
         const risk = riskByLinkId.get(fa.linkId);
@@ -199,6 +220,20 @@ export async function GET(request: NextRequest) {
           optTargetDate: opt?.targetDate || null,
           optStatus: opt?.status || null,
           optRemarks: opt?.remarks || null,
+          optNewSeverity: opt?.newSeverity ?? null,
+          optNewOccurrence: opt?.newOccurrence ?? null,
+          optNewDetection: opt?.newDetection ?? null,
+          optNewAP: opt?.newAP || null,
+          optCompletionDate: opt?.completedDate || null,
+
+          // 지속적개선 (riskData JSON)
+          preventionImprove: (riskData[`prevention-opt-${fa.fmId}-${fa.fcId}`] as string) || null,
+          detectionImprove: (riskData[`detection-opt-${fa.fmId}-${fa.fcId}`] as string) || null,
+          improvementEvidence: (riskData[`result-opt-${fa.fmId}-${fa.fcId}`] as string) || null,
+          specialChar: (riskData[`specialChar-${fa.fmId}-${fa.fcId}`] as string) || null,
+          lldNo: (riskData[`lesson-${fa.fmId}-${fa.fcId}`] as string) || null,
+          lldTarget: (riskData[`lesson-target-${fa.fmId}-${fa.fcId}`] as string) || null,
+          lldClassification: (riskData[`lesson-cls-${fa.fmId}-${fa.fcId}`] as string) || null,
           
           // 메타
           linkId: fa.linkId,
@@ -218,6 +253,8 @@ export async function GET(request: NextRequest) {
         fcCount: new Set(rows.map(r => r.fcId).filter(Boolean)).size,
         withRisk: rows.filter(r => r.riskSeverity !== null).length,
         withOptimization: rows.filter(r => r.optAction !== null).length,
+        withLLD: rows.filter(r => r.lldNo !== null).length,
+        withImprovement: rows.filter(r => r.preventionImprove !== null || r.detectionImprove !== null).length,
       };
 
 
@@ -286,6 +323,13 @@ export async function GET(request: NextRequest) {
     uniqueFEs.forEach((id, idx) => feIdToNo.set(id, `S${idx + 1}`));
     uniqueFCs.forEach((id, idx) => fcIdToNo.set(id, `C${idx + 1}`));
 
+    // riskData JSON 로드 (LLD/지속적개선 데이터 추출용)
+    const worksheetData2 = await prisma.fmeaWorksheetData.findUnique({
+      where: { fmeaId },
+      select: { riskData: true },
+    }).catch(() => null);
+    const riskData2 = (worksheetData2?.riskData as Record<string, unknown>) || {};
+
     // 데이터 변환
     const rows: AllViewRow[] = failureLinks.map(link => {
       const fm = link.failureMode;
@@ -337,6 +381,20 @@ export async function GET(request: NextRequest) {
         optTargetDate: opt?.targetDate || null,
         optStatus: opt?.status || null,
         optRemarks: opt?.remarks || null,
+        optNewSeverity: opt?.newSeverity ?? null,
+        optNewOccurrence: opt?.newOccurrence ?? null,
+        optNewDetection: opt?.newDetection ?? null,
+        optNewAP: opt?.newAP || null,
+        optCompletionDate: opt?.completedDate || null,
+
+        // 지속적개선 (riskData JSON)
+        preventionImprove: (riskData2[`prevention-opt-${link.fmId}-${link.fcId}`] as string) || null,
+        detectionImprove: (riskData2[`detection-opt-${link.fmId}-${link.fcId}`] as string) || null,
+        improvementEvidence: (riskData2[`result-opt-${link.fmId}-${link.fcId}`] as string) || null,
+        specialChar: (riskData2[`specialChar-${link.fmId}-${link.fcId}`] as string) || null,
+        lldNo: (riskData2[`lesson-${link.fmId}-${link.fcId}`] as string) || null,
+        lldTarget: (riskData2[`lesson-target-${link.fmId}-${link.fcId}`] as string) || null,
+        lldClassification: (riskData2[`lesson-cls-${link.fmId}-${link.fcId}`] as string) || null,
         
         // 메타
         linkId: link.id,
@@ -356,6 +414,8 @@ export async function GET(request: NextRequest) {
       fcCount: new Set(rows.map(r => r.fcId)).size,
       withRisk: rows.filter(r => r.riskSeverity !== null).length,
       withOptimization: rows.filter(r => r.optAction !== null).length,
+      withLLD: rows.filter(r => r.lldNo !== null).length,
+      withImprovement: rows.filter(r => r.preventionImprove !== null || r.detectionImprove !== null).length,
     };
 
 
