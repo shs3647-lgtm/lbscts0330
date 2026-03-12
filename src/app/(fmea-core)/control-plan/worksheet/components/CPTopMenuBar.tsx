@@ -202,14 +202,14 @@ export default function CPTopMenuBar({
           </button>
         )}
         <button
-          onClick={() => router.push(linkedPfdNo ? `/pfd/worksheet?pfdNo=${linkedPfdNo}` : '/pfd/worksheet')}
+          onClick={() => router.push(linkedPfdNo ? `/pfd/worksheet?pfdNo=${encodeURIComponent(linkedPfdNo)}` : '/pfd/worksheet')}
           className="px-1.5 py-0.5 rounded bg-orange-600/70 text-white text-[10px] font-medium hover:bg-orange-500 transition-all whitespace-nowrap"
           title="Go to PFD Worksheet"
         >
           PFD이동(Go)
         </button>
         <button
-          onClick={() => router.push(fmeaId ? `/pfmea/worksheet?id=${fmeaId}` : '/pfmea/worksheet')}
+          onClick={() => router.push(fmeaId ? `/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}` : '/pfmea/worksheet')}
           className="px-1.5 py-0.5 rounded bg-indigo-700/70 text-white text-[10px] font-medium hover:bg-indigo-600 transition-all whitespace-nowrap"
           title="Go to FMEA Worksheet"
         >

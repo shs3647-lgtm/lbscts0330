@@ -133,7 +133,7 @@ export function useSyncHandlers(options: UseSyncHandlersOptions): UseSyncHandler
                         );
 
                         if (proceed) {
-                            router.push(`/pfd/worksheet?pfdNo=${targetPfdNo}`);
+                            router.push(`/pfd/worksheet?pfdNo=${encodeURIComponent(targetPfdNo)}`);
                         }
                         return;
                     }

@@ -118,8 +118,10 @@ export async function POST(request: NextRequest) {
                         // ★ PFD→CP 매핑 수정 (2026-01-31)
                         // PFD.partName(부품명) → CP.partName
                         partName: item.partName || '',
-                        // PFD.equipment(설비) → CP.equipment
+                        // PFD.equipment(설비) → CP.equipment, workElement, equipmentM4
                         equipment: item.equipment || '',
+                        workElement: item.workElement || '',
+                        equipmentM4: item.equipmentM4 || '',
                         productChar: item.productChar || '',
                         processChar: item.processChar || '',
                         specialChar: item.specialChar || '',

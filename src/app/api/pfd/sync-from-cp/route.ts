@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
                         workElement: item.workElement || '',
                         // ★ CP.equipment(설비/금형/JIG) → PFD.equipment(설비 컬럼)
                         equipment: item.equipment || '',
+                        equipmentM4: item.equipmentM4 || '',
                         productChar: item.productChar || '',
                         processChar: item.processChar || '',
                         specialChar: item.specialChar || '',
