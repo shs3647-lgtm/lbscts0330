@@ -229,6 +229,15 @@ export function enrichFailureLinks(
   const fcToL3Map = buildFcToL3Map(state.l2 || []);
   const fmToL2Map = buildFmToL2Map(state.l2 || []);
 
+  // failureScope 조회용 Map (O(n) find → O(1) get)
+  const feScopeById = new Map<string, L1FailureScope>();
+  const feScopeByText = new Map<string, L1FailureScope>();
+  failureScopes.forEach((fs) => {
+    if (fs.id) feScopeById.set(fs.id, fs);
+    const txt = fs.effect || fs.name || '';
+    if (txt && !feScopeByText.has(txt)) feScopeByText.set(txt, fs);
+  });
+
   // fmId/fcId/feId ↔ text 매핑 (AllTabRenderer lines 147-271)
   const fmToTextMap = new Map<string, string>();
   const fmTextToIdMap = new Map<string, string>();
@@ -328,9 +337,9 @@ export function enrichFailureLinks(
       }
     }
 
-    // 3순위: failureScope 직접 찾기
+    // 3순위: failureScope 직접 찾기 (Map O(1) 조회)
     if (!feCategory) {
-      const scope = failureScopes.find((fs) => fs.id === feId || fs.effect === feText);
+      const scope = feScopeById.get(feId) || feScopeByText.get(feText);
       if (scope) {
         feCategory = scope.scope || '';
         feRequirement = scope.requirement || '';

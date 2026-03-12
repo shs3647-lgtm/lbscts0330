@@ -140,24 +140,27 @@ export function useLinkConfirm({
       console.error('[변경 히스토리 기록 오류]', e);
     }
     
-    // AI 학습 데이터 저장
-    try {
-      savedLinks.forEach(link => {
-        saveToAIHistory({
-          processName: link.fmProcess || '',
-          workElement: link.fcWorkElem || '',
-          m4Category: link.fcM4 || '',
-          categoryType: link.feScope || '',
-          failureEffect: link.feText || '',
-          failureMode: link.fmText || '',
-          failureCause: link.fcText || '',
-          severity: link.severity || 0,
-          projectId: state.l1?.name || '',
+    // AI 학습 데이터 배치 저장 (비동기, 논블로킹)
+    requestAnimationFrame(() => {
+      try {
+        const projectId = state.l1?.name || '';
+        savedLinks.forEach(link => {
+          saveToAIHistory({
+            processName: link.fmProcess || '',
+            workElement: link.fcWorkElem || '',
+            m4Category: link.fcM4 || '',
+            categoryType: link.feScope || '',
+            failureEffect: link.feText || '',
+            failureMode: link.fmText || '',
+            failureCause: link.fcText || '',
+            severity: link.severity || 0,
+            projectId,
+          });
         });
-      });
-    } catch (e) {
-      console.error('[AI 학습 오류]', e);
-    }
+      } catch (e) {
+        console.error('[AI 학습 오류]', e);
+      }
+    });
     
     const missingMsg = linkStats.fmMissingCount > 0 
       ? `\n\n⚠️ 누락: ${linkStats.fmMissingCount}개` 

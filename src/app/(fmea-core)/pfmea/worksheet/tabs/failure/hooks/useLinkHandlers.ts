@@ -71,16 +71,20 @@ export function useLinkHandlers({
   linkStats,
 }: UseLinkHandlersProps) {
 
-  // ========== 공정 순서 비교 함수 ==========
-  const getProcessOrder = useCallback((processName: string): number => {
-    const proc = (state.l2 || []).find((p: any) => p.name === processName);
-    if (proc) {
-      const noNum = parseInt(proc.no, 10);
-      if (!isNaN(noNum)) return noNum;
-      return proc.order || (state.l2 || []).indexOf(proc) * 10;
-    }
-    return 9999;
+  // ========== 공정 순서 Map (O(1) 조회) ==========
+  const processOrderMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (state.l2 || []).forEach((p: any, idx: number) => {
+      const noNum = parseInt(p.no, 10);
+      const order = !isNaN(noNum) ? noNum : (p.order || idx * 10);
+      if (p.name) map.set(p.name, order);
+    });
+    return map;
   }, [state.l2]);
+
+  const getProcessOrder = useCallback((processName: string): number => {
+    return processOrderMap.get(processName) ?? 9999;
+  }, [processOrderMap]);
 
   // ========== 현재 FM 연결 상태 확인 ==========
   const isCurrentFMLinked = useMemo(() => {
@@ -683,16 +687,18 @@ export function useLinkHandlers({
 
     // 4. 각 누락 FM에 대해 자동 링크 생성
     const newLinks: LinkResult[] = [...savedLinks];
+    // Set 기반 중복 검사 (O(1) vs O(n) .some())
+    const existingLinkKeys = new Set<string>(
+      savedLinks.map(l => `${l.fmId}|${l.feId}|${l.fcId}`)
+    );
     let linkedCount = 0;
 
     missingFMs.forEach(fm => {
       const pat = processPatterns.get(fm.processName);
 
-      // FE 결정: 같은 공정 패턴 → 없으면 글로벌
       const feSourceMap = (pat && pat.fes.size > 0) ? pat.fes : globalFeMap;
       if (feSourceMap.size === 0) return;
 
-      // FC 결정: 같은 공정 패턴 → 없으면 fcData에서 같은/앞공정 FC
       let fcEntries: { id: string; fcNo: string; process: string; m4: string; workElem: string; text: string; workFunction?: string; processChar?: string }[] = [];
 
       if (pat && pat.fcs.size > 0) {
@@ -709,7 +715,6 @@ export function useLinkHandlers({
           });
         });
       } else {
-        // fcData에서 같은 공정 또는 앞공정 FC 수집
         const fmOrder = getProcessOrder(fm.processName);
         fcData
           .filter(fc => getProcessOrder(fc.processName) <= fmOrder)
@@ -729,14 +734,11 @@ export function useLinkHandlers({
 
       if (fcEntries.length === 0) return;
 
-      // 크로스 프로덕트 생성 (FM × FEs × FCs)
       feSourceMap.forEach(feLink => {
         fcEntries.forEach(fc => {
-          // 중복 방지
-          const dup = newLinks.some(l =>
-            l.fmId === fm.id && l.feId === feLink.feId && l.fcId === fc.id
-          );
-          if (dup) return;
+          const key = `${fm.id}|${feLink.feId}|${fc.id}`;
+          if (existingLinkKeys.has(key)) return;
+          existingLinkKeys.add(key);
 
           newLinks.push({
             fmId: fm.id,

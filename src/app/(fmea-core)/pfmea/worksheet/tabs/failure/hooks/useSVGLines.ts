@@ -184,7 +184,7 @@ export function useSVGLines(
       window.removeEventListener('resize', handleResize);
       observer.disconnect();
     };
-  }, [drawLines, scheduleDrawLines, linkedFEs, linkedFCs, currentFM, chainAreaRef]);
+  }, [drawLines, scheduleDrawLines, chainAreaRef]);
 
   return { svgPaths, drawLines };
 }

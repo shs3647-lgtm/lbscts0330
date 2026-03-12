@@ -47,23 +47,41 @@ export function useWorksheetRows(options: UseWorksheetRowsOptions): UseWorksheet
     const failureLinks = (state as any).failureLinks || [];
 
     if (useFailureLinks && failureLinks.length > 0) {
-      const fmGroups = new Map<string, { fmId: string; fmText: string; fmProcess: string; fes: any[]; fcs: any[] }>();
+      // reqId → L1 메타 lookup Map (O(1) 조회)
+      const reqToL1Map = new Map<string, { typeId: string; type: string; funcId: string; func: string; reqId: string }>();
+      (state.l1?.types || []).forEach((t: any) => {
+        (t.functions || []).forEach((f: any) => {
+          (f.requirements || []).forEach((r: any) => {
+            if (r.id) reqToL1Map.set(r.id, { typeId: t.id, type: t.name, funcId: f.id, func: f.name, reqId: r.id });
+          });
+        });
+      });
+      // processName → proc lookup Map (O(1) 조회)
+      const procByName = new Map<string, (typeof l2Data)[number]>();
+      l2Data.forEach(p => { if (p.name) procByName.set(p.name, p); });
+
+      const fmGroups = new Map<string, { fmId: string; fmText: string; fmProcess: string; fes: any[]; fcs: any[]; feIds: Set<string>; fcIds: Set<string> }>();
 
       failureLinks.forEach((link: any) => {
         if (!fmGroups.has(link.fmId)) {
-          fmGroups.set(link.fmId, { fmId: link.fmId, fmText: link.fmText, fmProcess: link.fmProcess, fes: [], fcs: [] });
+          fmGroups.set(link.fmId, { fmId: link.fmId, fmText: link.fmText, fmProcess: link.fmProcess, fes: [], fcs: [], feIds: new Set(), fcIds: new Set() });
         }
         const group = fmGroups.get(link.fmId)!;
-        if (link.feId && !group.fes.some(f => f.id === link.feId)) {
+        if (link.feId && !group.feIds.has(link.feId)) {
+          group.feIds.add(link.feId);
           group.fes.push({ id: link.feId, scope: link.feScope, text: link.feText, severity: link.severity });
         }
-        if (link.fcId && !group.fcs.some(f => f.id === link.fcId)) {
+        if (link.fcId && !group.fcIds.has(link.fcId)) {
+          group.fcIds.add(link.fcId);
           group.fcs.push({ id: link.fcId, text: link.fcText, workElem: link.fcWorkElem, process: link.fcProcess });
         }
       });
 
       fmGroups.forEach((group) => {
         const maxRows = Math.max(group.fes.length, group.fcs.length, 1);
+        const proc = procByName.get(group.fmProcess) ||
+          l2Data.find(p => p.name.includes(group.fmProcess));
+
         for (let i = 0; i < maxRows; i++) {
           const fe = group.fes[i] || null;
           const fc = group.fcs[i] || null;
@@ -76,21 +94,15 @@ export function useWorksheetRows(options: UseWorksheetRowsOptions): UseWorksheet
           const l1Req = fe?.text || '';
 
           if (fe?.id) {
-            state.l1.types.forEach(t => {
-              t.functions.forEach(f => {
-                const matchingReq = f.requirements.find(r => r.id === fe.id);
-                if (matchingReq) {
-                  l1TypeId = t.id;
-                  l1Type = t.name;
-                  l1FuncId = f.id;
-                  l1Func = f.name;
-                  l1ReqId = matchingReq.id;
-                }
-              });
-            });
+            const l1Data = reqToL1Map.get(fe.id);
+            if (l1Data) {
+              l1TypeId = l1Data.typeId;
+              l1Type = l1Data.type;
+              l1FuncId = l1Data.funcId;
+              l1Func = l1Data.func;
+              l1ReqId = l1Data.reqId;
+            }
           }
-
-          const proc = l2Data.find(p => p.name === group.fmProcess || p.name.includes(group.fmProcess));
 
           result.push({
             l1Id: state.l1.id,

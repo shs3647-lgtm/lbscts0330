@@ -70,10 +70,28 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     (p.l3 || []).some((we: any) => (we.failureCauses || []).length > 0)
   );
 
+  // reqId → { scope, functionName, requirement } lookup Map (feData + rawFeById 공용)
+  const reqLookupMap = useMemo(() => {
+    const map = new Map<string, { scope: string; functionName: string; requirement: string }>();
+    (state.l1?.types || []).forEach((type: any) => {
+      (type.functions || []).forEach((fn: any) => {
+        (fn.requirements || []).forEach((req: any) => {
+          if (req.id) {
+            map.set(req.id, {
+              scope: type.name || 'YP',
+              functionName: fn.name || '',
+              requirement: req.name || '',
+            });
+          }
+        });
+      });
+    });
+    return map;
+  }, [state.l1]);
+
   // ========== FE 데이터 추출 (확정 또는 데이터 존재 시 추출) ==========
   const feData: FEItem[] = useMemo(() => {
     if (!isL1Confirmed && !hasFailureEffects) {
-      // 1L 미확정 + 데이터 없음 → 빈 배열
       return [];
     }
 
@@ -85,22 +103,16 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     (state.l1?.failureScopes || []).forEach((fs: any) => {
       if (!fs.effect || !fs.id) return;
 
-      // 역전개: reqId로 구분/완제품기능/요구사항 찾기
       let scope = 'YP';
       let functionName = '';
       let requirement = '';
       if (fs.reqId) {
-        (state.l1?.types || []).forEach((type: any) => {
-          (type.functions || []).forEach((fn: any) => {
-            (fn.requirements || []).forEach((req: any) => {
-              if (req.id === fs.reqId) {
-                scope = type.name || 'YP';
-                functionName = fn.name || '';
-                requirement = req.name || '';
-              }
-            });
-          });
-        });
+        const lookup = reqLookupMap.get(fs.reqId);
+        if (lookup) {
+          scope = lookup.scope;
+          functionName = lookup.functionName;
+          requirement = lookup.requirement;
+        }
       }
 
       // 중복 체크 (텍스트 + ID 모두)
@@ -131,7 +143,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
 
     // FE 데이터 추출 완료
     return items;
-  }, [state.l1, isL1Confirmed, hasFailureEffects]);
+  }, [state.l1, isL1Confirmed, hasFailureEffects, reqLookupMap]);
 
   // ========== FM 데이터 추출 (확정 또는 데이터 존재 시 추출) ==========
   const fmData: FMItem[] = useMemo(() => {
@@ -359,22 +371,12 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     const map = new Map<string, { text: string; scope: string; severity: number }>();
     (state.l1?.failureScopes || []).forEach((fs: any) => {
       if (!fs?.id) return;
-      let scope = 'YP';
-      if (fs.reqId) {
-        (state.l1?.types || []).forEach((type: any) => {
-          (type.functions || []).forEach((fn: any) => {
-            (fn.requirements || []).forEach((req: any) => {
-              if (req.id === fs.reqId) {
-                scope = type.name || 'YP';
-              }
-            });
-          });
-        });
-      }
+      const lookup = fs.reqId ? reqLookupMap.get(fs.reqId) : undefined;
+      const scope = lookup?.scope || 'YP';
       map.set(fs.id, { text: fs.effect || '', scope, severity: fs.severity || 0 });
     });
     return map;
-  }, [state.l1]);
+  }, [state.l1, reqLookupMap]);
 
   const rawFcById = useMemo(() => {
     const map = new Map<string, { text: string; processName: string; m4: string; workElem: string }>();
