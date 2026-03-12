@@ -125,4 +125,40 @@ test.describe('Import 통계 + L1/L2/L3 레벨 전환 검증', () => {
 
     await page.screenshot({ path: 'tests/screenshots/import-stats-with-l2.png', fullPage: true });
   });
+
+  test('6. 통계표에 A1~C4 전체 15개 코드 표시 확인', async ({ page }) => {
+    await expandPanel(page);
+
+    const statsBtn = page.locator('button:has-text("통계")').first();
+    await expect(statsBtn).toBeVisible({ timeout: 5000 });
+    await statsBtn.click();
+    await page.waitForTimeout(500);
+
+    const allCodes = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'];
+    for (const code of allCodes) {
+      const cell = page.locator(`td:has-text("${code}")`).first();
+      await expect(cell).toBeVisible({ timeout: 3000 });
+    }
+
+    await page.screenshot({ path: 'tests/screenshots/import-stats-all-codes.png', fullPage: true });
+  });
+
+  test('7. 편집 모드에서 저장 버튼 표시 확인', async ({ page }) => {
+    await expandPanel(page);
+
+    const editBtn = page.locator('button:has-text("편집")').first();
+    const isEditVisible = await editBtn.isVisible().catch(() => false);
+    if (!isEditVisible) {
+      test.skip(true, '편집 버튼 미표시');
+      return;
+    }
+
+    await editBtn.click();
+    await page.waitForTimeout(500);
+
+    const saveBtn = page.locator('button').filter({ hasText: /^저장$|^저장됨$|^저장중/ }).first();
+    await expect(saveBtn).toBeVisible({ timeout: 3000 });
+
+    await page.screenshot({ path: 'tests/screenshots/import-edit-save-btn.png' });
+  });
 });

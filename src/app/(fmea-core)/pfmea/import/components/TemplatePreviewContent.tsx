@@ -136,18 +136,35 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   // ── parseStatistics 없을 때 flatData/crossTab에서 통계 자동 생성 ──
   const effectiveStatistics = useMemo<ParseStatistics | undefined>(() => {
-    if (parseStatistics) return parseStatistics;
-    // DB에서 로드한 경우 parseStatistics가 없으므로 crossTab/flatData에서 역산
+    if (parseStatistics) {
+      const ALL_CODES_PS: [string, string][] = [
+        ['A1', '공정번호'], ['A2', '공정명'], ['A3', '공정기능'],
+        ['A4', '제품특성'], ['A5', '고장형태'], ['A6', '검출관리'],
+        ['B1', '작업요소'], ['B2', '요소기능'], ['B3', '공정특성'],
+        ['B4', '고장원인'], ['B5', '예방관리'],
+        ['C1', '구분'], ['C2', '제품기능'], ['C3', '요구사항'], ['C4', '고장영향'],
+      ];
+      const existing = new Set(parseStatistics.itemStats.map(s => s.itemCode));
+      const filled = [...parseStatistics.itemStats];
+      for (const [code, label] of ALL_CODES_PS) {
+        if (!existing.has(code)) filled.push({ itemCode: code, label, rawCount: 0, uniqueCount: 0, dupSkipped: 0 });
+      }
+      filled.sort((a, b) => a.itemCode.localeCompare(b.itemCode));
+      return { ...parseStatistics, itemStats: filled };
+    }
     if (crossTab.total === 0 && flatData.length === 0) return undefined;
 
-    const ITEM_LABELS: Record<string, string> = {
-      A1: '공정번호', A2: '공정명', A3: '공정기능', A4: '제품특성', A5: '고장형태', A6: '검출관리',
-      B1: '작업요소', B2: '요소기능', B3: '공정특성', B4: '고장원인', B5: '예방관리',
-      C1: '구분', C2: '제품기능', C3: '요구사항', C4: '고장영향',
-    };
+    const ALL_CODES: [string, string][] = [
+      ['A1', '공정번호'], ['A2', '공정명'], ['A3', '공정기능'],
+      ['A4', '제품특성'], ['A5', '고장형태'], ['A6', '검출관리'],
+      ['B1', '작업요소'], ['B2', '요소기능'], ['B3', '공정특성'],
+      ['B4', '고장원인'], ['B5', '예방관리'],
+      ['C1', '구분'], ['C2', '제품기능'], ['C3', '요구사항'], ['C4', '고장영향'],
+    ];
+    const ITEM_LABELS: Record<string, string> = Object.fromEntries(ALL_CODES);
 
-    // flatData에서 itemCode별 통계
     const codeCounts = new Map<string, { raw: number; vals: Set<string> }>();
+    ALL_CODES.forEach(([code]) => codeCounts.set(code, { raw: 0, vals: new Set() }));
     flatData.forEach(d => {
       const code = d.itemCode;
       if (!code) return;
@@ -158,7 +175,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     });
 
     const itemStats: import('../excel-parser').ItemCodeStat[] = [];
-    for (const [code, info] of codeCounts) {
+    for (const [code] of ALL_CODES) {
+      const info = codeCounts.get(code) || { raw: 0, vals: new Set<string>() };
       itemStats.push({
         itemCode: code,
         label: ITEM_LABELS[code] || code,
@@ -167,8 +185,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         dupSkipped: info.raw - info.vals.size,
       });
     }
-    // 코드 순서 정렬
-    itemStats.sort((a, b) => a.itemCode.localeCompare(b.itemCode));
 
     // 공정별 통계
     const procMap = new Map<string, { name: string; items: Record<string, { raw: number; unique: Set<string> }> }>();
@@ -202,6 +218,15 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       chainCount: failureChains.length,
     };
   }, [parseStatistics, flatData, crossTab.total, failureChains.length]);
+
+  // ── 편집 후 자동저장 (2초 디바운스) ──
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!dirty || !onSave || isSaving) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => { onSave(); }, 2000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [dirty, onSave, isSaving]);
 
   // ── 통계표/FC검증 토글 ──
   const [showStats, setShowStats] = useState(false);
@@ -469,6 +494,15 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               }`}>
               삭제 ({selectedRows.size})
             </button>
+            {onSave && (
+              <button onClick={onSave} disabled={!dirty || isSaving}
+                className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${
+                  !dirty || isSaving ? BTN_DISABLED
+                  : 'bg-green-600 text-white border-green-600 cursor-pointer hover:bg-green-700'
+                }`}>
+                {isSaving ? '저장중...' : dirty ? '저장' : '저장됨'}
+              </button>
+            )}
           </>)}
 
           <span className="w-px h-4 bg-blue-300 mx-0.5" />
