@@ -68,8 +68,13 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   const [savedLinks, setSavedLinks] = useState<LinkResult[]>([]);
   const [editMode, setEditMode] = useState<'edit' | 'confirm'>('edit');
   const [viewMode, setViewMode] = useState<'diagram' | 'result'>('diagram');
-  const [selectedProcess, setSelectedProcess] = useState<string>('all');
-  const [feFcFilter, setFeFcFilter] = useState<string>('all');
+  // ★★★ 2026-03-12 FIX: 기본 필터를 첫 번째 공정으로 설정 (대량 데이터 렌더링 성능 개선) ★★★
+  const firstProcessNo = useMemo(() => {
+    const procs = (state.l2 || []).filter((p: any) => (p.no || '').trim());
+    return procs.length > 0 ? String(procs[0].no).trim() : 'all';
+  }, [state.l2]);
+  const [selectedProcess, setSelectedProcess] = useState<string>(firstProcessNo);
+  const [feFcFilter, setFeFcFilter] = useState<string>(firstProcessNo);
   const [includeUpstream, setIncludeUpstream] = useState(false);
   const [isResultFullscreen, setIsResultFullscreen] = useState(false);
 
@@ -86,6 +91,8 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   const justConfirmedRef = useRef(false);
   // ✅ 고장매칭 자동 실행 1회 제한
   const autoMatchDoneRef = useRef(false);
+  // ★★★ 2026-03-12: 고장매칭 로딩 상태 ★★★
+  const [isMatching, setIsMatching] = useState(false);
 
   // ========== 초기 데이터 로드 (화면 전환 시에도 항상 복원) ==========
   const stateFailureLinksJson = JSON.stringify((state as any).failureLinks || []);
@@ -413,21 +420,10 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     linkStats,
   });
 
-  // ========== ✅ 탭 진입 시 누락 FM 자동 고장매칭 ==========
+  // ========== ✅ 탭 진입 시 누락 FM 자동 고장매칭 — 비활성화 (수동 버튼으로만 실행) ==========
+  // ★★★ 2026-03-12 FIX: 대량 데이터(FM 152건+) 시 브라우저 멈춤 방지 — 고장매칭 버튼 수동 실행으로 변경 ★★★
   useEffect(() => {
-    // 조건: 데이터 준비 완료 + 누락 FM 존재 + 1회만 실행
-    if (autoMatchDoneRef.current) return;
-    if (fmData.length === 0 || feData.length === 0 || fcData.length === 0) return;
-    if (missingFMs.length === 0) return;
-    // savedLinks가 아직 로드 안 됐으면 대기 (최소 1개 이상의 기존 링크 필요)
-    if (savedLinks.length === 0 && (state as any).failureLinks?.length > 0) return;
-
-    autoMatchDoneRef.current = true;
-    // 약간의 딜레이 후 실행 (데이터 안정화)
-    const timer = setTimeout(() => {
-      handleAutoMatchMissing();
-    }, 500);
-    return () => clearTimeout(timer);
+    return;
   }, [fmData.length, feData.length, fcData.length, missingFMs.length, savedLinks.length, handleAutoMatchMissing, state]);
 
   // ========== ✅ 고아(Orphan) 감지 ==========
@@ -689,6 +685,23 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
 
   return (
     <div style={containerStyle}>
+      {/* ★★★ 2026-03-12: 고장매칭 로딩 오버레이 ★★★ */}
+      {isMatching && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.45)', zIndex: 9999,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 12, padding: '32px 48px',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.3)', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#333' }}>고장매칭 진행 중...</div>
+            <div style={{ fontSize: 13, color: '#666', marginTop: 6 }}>Matching in progress. Please wait.</div>
+          </div>
+        </div>
+      )}
       {/* 좌측: 3개 테이블 (60%) */}
       <FailureLinkTables
         feData={feData}
@@ -747,20 +760,31 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
               ].filter(Boolean).join(', ')}</span>
               {missingFMs.length > 0 && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleAutoMatchMissing(); }}
+                  disabled={isMatching}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMatching(true);
+                    setTimeout(async () => {
+                      let result: { success: boolean; message: string } | undefined;
+                      try { result = await handleAutoMatchMissing(); } finally { setIsMatching(false); }
+                      if (result?.message) {
+                        requestAnimationFrame(() => alert(result!.message));
+                      }
+                    }, 50);
+                  }}
                   style={{
-                    background: '#fff',
-                    color: '#e65100',
+                    background: isMatching ? '#ccc' : '#fff',
+                    color: isMatching ? '#666' : '#e65100',
                     border: '1px solid #fff',
                     borderRadius: 3,
                     padding: '1px 8px',
                     fontSize: 10,
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: isMatching ? 'wait' : 'pointer',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  🔗 고장매칭
+                  {isMatching ? '⏳ 매칭 중...' : '🔗 고장매칭'}
                 </button>
               )}
             </div>

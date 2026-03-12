@@ -90,8 +90,8 @@ export function getPrismaForSchema(schema: string): PrismaClient | null {
  */
 export function getBaseDatabaseUrl(): string {
   const url = process.env.DATABASE_URL || '';
-  // Remove schema parameter if present
-  const baseUrl = url.replace(/\?schema=[^&]*/, '').replace(/&schema=[^&]*/, '');
+  // Remove all query parameters to get clean base URL
+  const baseUrl = url.replace(/\?.*$/, '');
   return baseUrl;
 }
 

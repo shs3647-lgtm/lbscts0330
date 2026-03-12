@@ -25,6 +25,83 @@ import { calculateLastRowMerge } from '../../utils';
 
 const HEADER_ROW_H = 24; // 3행 sticky header stacking용
 
+// ============ 셀 스타일 캐시 (인라인 객체 재생성 제거 → 성능 최적화) ============
+const cellStyleCache = new Map<string, React.CSSProperties>();
+function getCellStyle(bg: string, textAlign: 'left' | 'center' = 'center'): React.CSSProperties {
+  const key = `${bg}|${textAlign}`;
+  let cached = cellStyleCache.get(key);
+  if (!cached) {
+    cached = {
+      background: bg, border: BORDER, padding: '4px 6px',
+      fontSize: '11px', verticalAlign: 'middle', textAlign
+    };
+    cellStyleCache.set(key, cached);
+  }
+  return cached;
+}
+
+// 고장분석용 오버라이드 스타일 캐시 (border: '1px solid #bbb', padding: '6px')
+const failureCellStyleCache = new Map<string, React.CSSProperties>();
+function getFailureCellStyle(bg: string, textAlign: 'left' | 'center' = 'center'): React.CSSProperties {
+  const key = `${bg}|${textAlign}`;
+  let cached = failureCellStyleCache.get(key);
+  if (!cached) {
+    cached = {
+      background: bg, border: '1px solid #bbb', padding: '6px',
+      fontSize: '11px', verticalAlign: 'middle', textAlign
+    };
+    failureCellStyleCache.set(key, cached);
+  }
+  return cached;
+}
+
+// FM 섹션 (padding: '8px', textAlign: 'center') 전용 캐시
+const fmCellStyleCache = new Map<string, React.CSSProperties>();
+function getFmCellStyle(bg: string): React.CSSProperties {
+  let cached = fmCellStyleCache.get(bg);
+  if (!cached) {
+    cached = {
+      background: bg, border: '1px solid #bbb', padding: '8px',
+      fontSize: '11px', verticalAlign: 'middle', textAlign: 'center'
+    };
+    fmCellStyleCache.set(bg, cached);
+  }
+  return cached;
+}
+
+// FC 작업요소 (fontSize: '11px' 명시) 캐시 - getFailureCellStyle과 동일하므로 재사용
+// severity 셀용 캐시 (fontWeight + color 추가)
+const severityCellStyleCache = new Map<string, React.CSSProperties>();
+function getSeverityCellStyle(bg: string, color: string): React.CSSProperties {
+  const key = `${bg}|${color}`;
+  let cached = severityCellStyleCache.get(key);
+  if (!cached) {
+    cached = {
+      background: bg, border: '1px solid #bbb', padding: '6px',
+      fontSize: '11px', verticalAlign: 'middle', textAlign: 'center',
+      fontWeight: 600, color
+    };
+    severityCellStyleCache.set(key, cached);
+  }
+  return cached;
+}
+
+// 리스크 AP 셀용 캐시 (fontWeight + color 추가)
+const riskApCellStyleCache = new Map<string, React.CSSProperties>();
+function getRiskApCellStyle(bg: string, color: string): React.CSSProperties {
+  const key = `${bg}|${color}`;
+  let cached = riskApCellStyleCache.get(key);
+  if (!cached) {
+    cached = {
+      background: bg, border: BORDER, padding: '4px 6px',
+      fontSize: '11px', verticalAlign: 'middle', textAlign: 'center',
+      fontWeight: 600, color
+    };
+    riskApCellStyleCache.set(key, cached);
+  }
+  return cached;
+}
+
 interface AllViewRow {
   l1StructName: string;
   l2StructNo: string;
@@ -194,10 +271,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
     whiteSpace: 'nowrap',
   });
 
-  const cellStyle = (bg: string, textAlign: 'left' | 'center' = 'center'): React.CSSProperties => ({
-    background: bg, border: BORDER, padding: '4px 6px',
-    fontSize: '11px', verticalAlign: 'middle', textAlign
-  });
+  // cellStyle moved to module-level getCellStyle with caching
 
   // 단계 토글 핸들러
   const handleStepToggle = useCallback((step: number) => {
@@ -503,12 +577,12 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                     <>
                       {rowIdx === 0 && (
                         <>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.structure, 'center')}>{structRow?.l1StructName || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.structure, 'center')}>{structRow?.l2StructNo || ''} {structRow?.l2StructName || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.structure, 'center')}>{structRow?.l1StructName || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.structure, 'center')}>{structRow?.l2StructNo || ''} {structRow?.l2StructName || ''}</td>
                         </>
                       )}
-                      <td style={cellStyle(zebra.structure, 'center')}>{structRow?.l3M4 || ''}</td>
-                      <td style={cellStyle(zebra.structure, 'center')}>{structRow?.l3Name || ''}</td>
+                      <td style={getCellStyle(zebra.structure, 'center')}>{structRow?.l3M4 || ''}</td>
+                      <td style={getCellStyle(zebra.structure, 'center')}>{structRow?.l3Name || ''}</td>
                     </>
                   )}
 
@@ -518,30 +592,30 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                       {/* L1 기능 (FE가 있을 때만 첫 번째 행에 표시) */}
                       {rowIdx === 0 && mergeConfig.showFe && feItem && (
                         <>
-                          <td rowSpan={mergeConfig.feRowSpan} style={cellStyle(zebra.function, 'center')}>{firstRow?.l1FuncCategory || ''}</td>
-                          <td rowSpan={mergeConfig.feRowSpan} style={cellStyle(zebra.function, 'left')}>{firstRow?.l1FuncName || ''}</td>
-                          <td rowSpan={mergeConfig.feRowSpan} style={cellStyle(zebra.function, 'center')}>{firstRow?.l1Requirement || ''}</td>
+                          <td rowSpan={mergeConfig.feRowSpan} style={getCellStyle(zebra.function, 'center')}>{firstRow?.l1FuncCategory || ''}</td>
+                          <td rowSpan={mergeConfig.feRowSpan} style={getCellStyle(zebra.function, 'left')}>{firstRow?.l1FuncName || ''}</td>
+                          <td rowSpan={mergeConfig.feRowSpan} style={getCellStyle(zebra.function, 'center')}>{firstRow?.l1Requirement || ''}</td>
                         </>
                       )}
                       {/* FE가 없으면 빈 셀 표시 */}
                       {rowIdx === 0 && feCount === 0 && (
                         <>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.function, 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.function, 'left')}></td>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.function, 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.function, 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.function, 'left')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.function, 'center')}></td>
                         </>
                       )}
                       {/* L2 기능 (FM과 연결, 첫 번째 행에만 표시) */}
                       {rowIdx === 0 && (
                         <>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.function, 'left')}>{firstRow?.l2FuncName || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.function, 'center')}>{firstRow?.l2ProductChar || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle(zebra.function, 'center')}>{firstRow?.l2SpecialChar || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.function, 'left')}>{firstRow?.l2FuncName || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.function, 'center')}>{firstRow?.l2ProductChar || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle(zebra.function, 'center')}>{firstRow?.l2SpecialChar || ''}</td>
                         </>
                       )}
                       {/* L3 기능 (FC와 연결, 각 행마다 표시) */}
-                      <td style={cellStyle(zebra.function, 'left')}>{structRow?.l3FuncName || ''}</td>
-                      <td style={cellStyle(zebra.function, 'center')}>{structRow?.l3ProcessChar || ''}</td>
+                      <td style={getCellStyle(zebra.function, 'left')}>{structRow?.l3FuncName || ''}</td>
+                      <td style={getCellStyle(zebra.function, 'center')}>{structRow?.l3ProcessChar || ''}</td>
                     </>
                   )}
 
@@ -552,29 +626,29 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                       {mergeConfig.showFe ? (
                         feItem ? (
                           <>
-                            <td rowSpan={mergeConfig.feRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center'), border: '1px solid #bbb', padding: '6px' }}>
+                            <td rowSpan={mergeConfig.feRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center')}>
                               {feItem.category === 'YP' ? 'YP' : feItem.category === 'SP' ? 'SP' : feItem.category === 'USER' ? 'USER' : feItem.category}
                             </td>
-                            <td rowSpan={mergeConfig.feRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'left'), border: '1px solid #bbb', padding: '6px' }}>
+                            <td rowSpan={mergeConfig.feRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'left')}>
                               {feItem.effect}
                             </td>
-                            <td rowSpan={mergeConfig.feRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center'), border: '1px solid #bbb', padding: '6px', fontWeight: 600, color: (feItem.severity || 0) >= 8 ? '#d32f2f' : (feItem.severity || 0) >= 5 ? '#f57c00' : '#333' }}>
+                            <td rowSpan={mergeConfig.feRowSpan} style={getSeverityCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', (feItem.severity || 0) >= 8 ? '#d32f2f' : (feItem.severity || 0) >= 5 ? '#f57c00' : '#333')}>
                               {feItem.severity || ''}
                             </td>
                           </>
                         ) : (
                           <>
-                            <td rowSpan={mergeConfig.feRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center'), border: '1px solid #bbb', padding: '6px' }}></td>
-                            <td rowSpan={mergeConfig.feRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'left'), border: '1px solid #bbb', padding: '6px' }}></td>
-                            <td rowSpan={mergeConfig.feRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center'), border: '1px solid #bbb', padding: '6px' }}></td>
+                            <td rowSpan={mergeConfig.feRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center')}></td>
+                            <td rowSpan={mergeConfig.feRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'left')}></td>
+                            <td rowSpan={mergeConfig.feRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center')}></td>
                           </>
                         )
                       ) : null}
                       {/* FM 섹션: 빈칸, 고장형태 (첫 번째 행에만 표시) */}
                       {rowIdx === 0 && (
                         <>
-                          <td rowSpan={totalRows} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#ede7f6' : '#f3e5f5', 'center'), border: '1px solid #bbb', padding: '6px' }}></td>
-                          <td rowSpan={totalRows} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#ede7f6' : '#f3e5f5', 'center'), border: '1px solid #bbb', padding: '8px', textAlign: 'center' }}>
+                          <td rowSpan={totalRows} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#ede7f6' : '#f3e5f5', 'center')}></td>
+                          <td rowSpan={totalRows} style={getFmCellStyle(rowIdx % 2 === 1 ? '#ede7f6' : '#f3e5f5')}>
                             <div className="font-semibold text-purple-900">{group.fm.mode}</div>
                           </td>
                         </>
@@ -583,17 +657,17 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                       {mergeConfig.showFc ? (
                         fcItem ? (
                           <>
-                            <td rowSpan={mergeConfig.fcRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'left'), border: '1px solid #bbb', padding: '6px' }}>
+                            <td rowSpan={mergeConfig.fcRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'left')}>
                               {fcItem.cause}
                             </td>
-                            <td rowSpan={mergeConfig.fcRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'center'), border: '1px solid #bbb', padding: '6px', fontSize: '11px' }}>
+                            <td rowSpan={mergeConfig.fcRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'center')}>
                               {fcItem.workElem}
                             </td>
                           </>
                         ) : (
                           <>
-                            <td rowSpan={mergeConfig.fcRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'left'), border: '1px solid #bbb', padding: '6px' }}></td>
-                            <td rowSpan={mergeConfig.fcRowSpan} style={{ ...cellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'center'), border: '1px solid #bbb', padding: '6px' }}></td>
+                            <td rowSpan={mergeConfig.fcRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'left')}></td>
+                            <td rowSpan={mergeConfig.fcRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#c8e6c9' : '#e8f5e9', 'center')}></td>
                           </>
                         )
                       ) : null}
@@ -605,15 +679,15 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                     <>
                       {rowIdx === 0 && (
                         <>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.preventionControl || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.riskOccurrence || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.detectionControl || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.riskDetection || ''}</td>
-                          <td rowSpan={totalRows} style={{ ...cellStyle('#fff', 'center'), fontWeight: 600, color: firstRow?.riskAP === 'H' ? '#d32f2f' : firstRow?.riskAP === 'M' ? '#f57c00' : '#388e3c' }}>{firstRow?.riskAP || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{((firstRow?.riskSeverity || 0) * (firstRow?.riskOccurrence || 0) * (firstRow?.riskDetection || 0)) || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.l2SpecialChar || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.preventionControl || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.riskOccurrence || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.detectionControl || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.riskDetection || ''}</td>
+                          <td rowSpan={totalRows} style={getRiskApCellStyle('#fff', firstRow?.riskAP === 'H' ? '#d32f2f' : firstRow?.riskAP === 'M' ? '#f57c00' : '#388e3c')}>{firstRow?.riskAP || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{((firstRow?.riskSeverity || 0) * (firstRow?.riskOccurrence || 0) * (firstRow?.riskDetection || 0)) || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.l2SpecialChar || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
                         </>
                       )}
                     </>
@@ -624,21 +698,21 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                     <>
                       {rowIdx === 0 && (
                         <>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.optResponsible || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.optTargetDate || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.optStatus || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}>{firstRow?.optRemarks || ''}</td>
-                          <td rowSpan={totalRows} style={cellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.optResponsible || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.optTargetDate || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.optStatus || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}>{firstRow?.optRemarks || ''}</td>
+                          <td rowSpan={totalRows} style={getCellStyle('#fff', 'center')}></td>
                         </>
                       )}
                     </>

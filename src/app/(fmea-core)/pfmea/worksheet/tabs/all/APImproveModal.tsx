@@ -9,6 +9,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { calculateAP } from './apCalculator';
+import { PLACEHOLDER_NA } from './allTabConstants';
 
 const MIN_TARGET = 2;
 
@@ -142,8 +143,8 @@ export default function APImproveModal({
     onSave({
       uniqueKey,
       direction: selected,
-      preventionOpt: needsO ? textO.trim() : 'N/A',
-      detectionOpt: needsD ? textD.trim() : 'N/A',
+      preventionOpt: needsO ? textO.trim() : PLACEHOLDER_NA,
+      detectionOpt: needsD ? textD.trim() : PLACEHOLDER_NA,
     });
     setSelected(null); setTextO(''); setTextD('');
     setIsDefaultO(false); setIsDefaultD(false);

@@ -232,6 +232,31 @@ export function useFunctionL2Handlers({
 
   // 확정 핸들러
   const handleConfirm = useCallback(() => {
+    // ★★★ 2026-03-12 FIX: 누락 데이터 검증 — 제품특성 미선택 시 확정 차단 ★★★
+    const procs = (state.l2 || []).filter((p: any) => {
+      const name = (p.name || '').trim();
+      return name !== '' && !name.includes('클릭') && !name.includes('선택');
+    });
+    let missing = 0;
+    procs.forEach((proc: any) => {
+      const funcs = (proc.functions || []).filter((f: any) => {
+        const n = (f.name || '').trim();
+        return n && !n.includes('클릭') && !n.includes('미입력') && !n.includes('선택');
+      });
+      if (funcs.length === 0) { missing++; return; }
+      funcs.forEach((f: any) => {
+        const chars = (f.productChars || []).filter((c: any) => {
+          const cn = (c.name || '').trim();
+          return cn && !cn.includes('클릭') && !cn.includes('미입력') && !cn.includes('선택');
+        });
+        if (chars.length === 0) missing++;
+      });
+    });
+    if (missing > 0) {
+      _alert(`누락 ${missing}건이 있습니다. 모든 공정기능에 제품특성을 입력해주세요.`);
+      return;
+    }
+
     const updateFn = (prev: any) => ({ ...prev, l2Confirmed: true });
     if (setStateSynced) {
       setStateSynced(updateFn);
@@ -253,7 +278,7 @@ export function useFunctionL2Handlers({
     });
 
     _alert('2L 메인공정 기능분석이 확정되었습니다.');
-  }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+  }, [state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // 수정 핸들러
   const handleEdit = useCallback(() => {

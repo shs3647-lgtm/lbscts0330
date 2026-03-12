@@ -11,6 +11,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { WorksheetState } from '../../constants';
 import type { ControlModalType, ControlModalState } from './riskOptTypes';
 import { calcAP, getMaxSeverity, getSafeSODValue } from './riskOptUtils';
+import { PLACEHOLDER_NA, RECOMMEND_PREFIX } from './allTabConstants';
 
 interface ControlCellProps {
   colIdx: number;
@@ -181,8 +182,8 @@ export function ControlCell({
         <span>
           {value.split('\n').map((line, i) => {
             const trimmed = line.trim();
-            const isNA = trimmed === 'N/A' || trimmed === 'n/a';
-            const isRecommend = line.startsWith('[추천]');
+            const isNA = trimmed === PLACEHOLDER_NA || trimmed === 'n/a';
+            const isRecommend = line.startsWith(RECOMMEND_PREFIX);
             // ★ 2026-02-28: [FM]/[FC] 마커 파싱
             const hasFmMarker = line.startsWith('[FM]');
             const hasFcMarker = line.startsWith('[FC]');

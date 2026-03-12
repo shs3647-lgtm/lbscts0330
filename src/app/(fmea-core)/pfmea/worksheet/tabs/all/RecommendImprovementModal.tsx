@@ -13,6 +13,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 import IndustryImproveModal from '@/components/modals/IndustryImproveModal';
+import { PLACEHOLDER_NA, RECOMMEND_PREFIX } from './allTabConstants';
 import HelpIcon from '@/components/common/HelpIcon';
 
 // ─── 타입 ───
@@ -156,7 +157,7 @@ export default function RecommendImprovementModal({
   // IndustryImproveModal 저장 핸들러 — 다중 선택 지원
   const handleIndustrySave = useCallback((selectedValues: string[]) => {
     if (!industryModal || selectedValues.length === 0) return;
-    const combined = selectedValues.map(v => `[추천] ${v}`).join('\n');
+    const combined = selectedValues.map(v => `${RECOMMEND_PREFIX} ${v}`).join('\n');
     onApplySingle(industryModal.uniqueKey, industryModal.mode, combined);
     setIndustryModal(null);
   }, [industryModal, onApplySingle]);
@@ -339,18 +340,18 @@ export default function RecommendImprovementModal({
                         <div className="line-clamp-2 text-gray-500" title={c.curPrevOpt}>{c.curPrevOpt || '-'}</div>
                         <div className="text-orange-600 font-semibold text-[8px]">O&apos;={c.targetO}</div>
                       </div>
-                    ) : c.prevRecommend && c.prevRecommend !== 'N/A' ? (
+                    ) : c.prevRecommend && c.prevRecommend !== PLACEHOLDER_NA ? (
                       <button
                         onClick={() => handleItemClick(c, 'prevention')}
                         className="w-full px-0.5 rounded bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
                         title={c.prevRecommend}
                         style={{ lineHeight: '1.2' }}
                       >
-                        <div className="line-clamp-2">{c.prevRecommend.replace('[추천] ', '')}</div>
+                        <div className="line-clamp-2">{c.prevRecommend.replace(`${RECOMMEND_PREFIX} `, '')}</div>
                         <div className="text-orange-600 font-semibold text-[8px]">O&apos;={c.targetO}</div>
                       </button>
                     ) : (
-                      <span className="text-gray-400 text-[8px]">N/A</span>
+                      <span className="text-gray-400 text-[8px]">{PLACEHOLDER_NA}</span>
                     )}
                   </td>
                   {/* 검출관리 현재(D) */}
@@ -367,18 +368,18 @@ export default function RecommendImprovementModal({
                         <div className="line-clamp-2 text-gray-500" title={c.curDetOpt}>{c.curDetOpt || '-'}</div>
                         <div className="text-purple-600 font-semibold text-[8px]">D&apos;={c.targetD}</div>
                       </div>
-                    ) : c.detRecommend && c.detRecommend !== 'N/A' ? (
+                    ) : c.detRecommend && c.detRecommend !== PLACEHOLDER_NA ? (
                       <button
                         onClick={() => handleItemClick(c, 'detection')}
                         className="w-full px-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
                         title={c.detRecommend}
                         style={{ lineHeight: '1.2' }}
                       >
-                        <div className="line-clamp-2">{c.detRecommend.replace('[추천] ', '')}</div>
+                        <div className="line-clamp-2">{c.detRecommend.replace(`${RECOMMEND_PREFIX} `, '')}</div>
                         <div className="text-purple-600 font-semibold text-[8px]">D&apos;={c.targetD}</div>
                       </button>
                     ) : (
-                      <span className="text-gray-400 text-[8px]">N/A</span>
+                      <span className="text-gray-400 text-[8px]">{PLACEHOLDER_NA}</span>
                     )}
                   </td>
                   {/* AP' */}

@@ -8,13 +8,27 @@
 
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // 이미 로그인된 상태면 대시보드로 리다이렉트
+  useEffect(() => {
+    const session = localStorage.getItem('user_session');
+    if (session) {
+      try {
+        const user = JSON.parse(session);
+        if (user?.id) {
+          router.replace('/pfmea');
+          return;
+        }
+      } catch { /* invalid session, stay on login */ }
+    }
+  }, [router]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -120,6 +134,9 @@ export default function LoginPage() {
           localStorage.setItem('user_session', JSON.stringify(data.user));
           localStorage.setItem('USER', JSON.stringify(data.user));
           localStorage.setItem('fmea-user', JSON.stringify(data.user));
+
+          // 쿠키에도 저장 (CommonTopNav에서 사용)
+          document.cookie = `fmea-user=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=86400`;
 
           // 프로필 사진 저장
           if (data.user.photoUrl) {

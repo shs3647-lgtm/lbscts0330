@@ -169,6 +169,6 @@ export function useAutoFillEffects({
           return { ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } };
         });
       })
-      .catch(() => { });
+      .catch((err) => { console.error('[useAutoFillEffects] autofill error:', err); });
   }, [state?.riskData, state?.failureLinks, processedFMGroups, setState, setDirty]);
 }

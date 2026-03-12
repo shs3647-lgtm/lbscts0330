@@ -12,6 +12,16 @@
 
 import { L1, L2, L3 } from '@/styles/worksheet';
 
+// ============ 플레이스홀더/마커 문자열 (중앙 집중 관리) ============
+/** 해당 없음 (Not Applicable) — 개선추천 불필요 시 사용 */
+export const PLACEHOLDER_NA = 'N/A';
+/** 빈값/미입력 대체 문자열 — 표시용 폴백 및 빈값 판별에 사용 */
+export const PLACEHOLDER_DASH = '-';
+/** 미분류 항목 기본값 — FE 카테고리 등 분류 미지정 시 사용 */
+export const PLACEHOLDER_UNCLASSIFIED = '미분류';
+/** 자동추천 접두사 — 산업DB 기반 자동생성 값 식별에 사용 */
+export const RECOMMEND_PREFIX = '[추천]';
+
 // ============ 레벨별 표준 색상 (중앙 집중 관리) ============
 // ★★★ 색상 변경은 여기서만 수정 ★★★
 // cell = 연한줄무늬 (2단계 연함), cellAlt = 진한줄무늬 (1단계 연함)
@@ -81,7 +91,7 @@ export const getSODTextColor = (score: number | undefined): string => {
 export const SPECIAL_CHAR_COLOR = '#1565c0';  // ★ 파란색 통일
 
 export const getSpecialCharColor = (value: string | undefined): string => {
-  if (!value || value === '-') return '#666';  // 빈값/없음: 회색
+  if (!value || value === PLACEHOLDER_DASH) return '#666';  // 빈값/없음: 회색
   return SPECIAL_CHAR_COLOR;                   // 모든 특성값: 파란색
 };
 

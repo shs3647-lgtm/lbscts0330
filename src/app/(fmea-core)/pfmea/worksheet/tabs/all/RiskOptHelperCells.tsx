@@ -16,6 +16,7 @@ import {
   getSpecialCharBadgeStyle, parseTargetFromText,
 } from './riskOptUtils';
 import { getOptRowKey, getOptSODKey } from './multiOptUtils';
+import { PLACEHOLDER_NA } from './allTabConstants';
 import { getSpecialCharMaster, type SpecialCharMaster } from '@/components/modals/SpecialCharMasterModal';
 
 // ★★★ 특별특성 마스터 캐시 (모듈 레벨 — 리렌더 시 localStorage 재읽기 방지)
@@ -54,8 +55,8 @@ export function renderOptSODCell(
   // ★ per-row 개선안 존재(N/A 제외) 체크
   const prevOptText = ((state?.riskData?.[getOptRowKey('prevention-opt-', uniqueKey, optIdx)] as string) || '').trim();
   const detOptText = ((state?.riskData?.[getOptRowKey('detection-opt-', uniqueKey, optIdx)] as string) || '').trim();
-  const hasRealPrevOpt = !!prevOptText && prevOptText !== 'N/A';
-  const hasRealDetOpt = !!detOptText && detOptText !== 'N/A';
+  const hasRealPrevOpt = !!prevOptText && prevOptText !== PLACEHOLDER_NA;
+  const hasRealDetOpt = !!detOptText && detOptText !== PLACEHOLDER_NA;
 
   let currentValue = 0;
   let isLinkedToRisk = false;
@@ -137,8 +138,8 @@ export function renderAPCell(
   if (isOpt) {
     const prevOptText = ((state?.riskData?.[getOptRowKey('prevention-opt-', uniqueKey, optIdx)] as string) || '').trim();
     const detOptText = ((state?.riskData?.[getOptRowKey('detection-opt-', uniqueKey, optIdx)] as string) || '').trim();
-    const hasRealPrevOpt = !!prevOptText && prevOptText !== 'N/A';
-    const hasRealDetOpt = !!detOptText && detOptText !== 'N/A';
+    const hasRealPrevOpt = !!prevOptText && prevOptText !== PLACEHOLDER_NA;
+    const hasRealDetOpt = !!detOptText && detOptText !== PLACEHOLDER_NA;
     const riskO = getSafeSODValue(state?.riskData, `risk-${uniqueKey}-O`);
     const riskD = getSafeSODValue(state?.riskData, `risk-${uniqueKey}-D`);
     const optO = getSafeSODValue(state?.riskData, getOptSODKey(uniqueKey, 'O', optIdx));

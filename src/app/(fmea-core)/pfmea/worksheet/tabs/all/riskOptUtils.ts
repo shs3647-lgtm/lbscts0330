@@ -18,7 +18,7 @@ interface FailureScopeWithFmId {
   fmId?: string;
   severity?: number | string;
 }
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_NA } from './allTabConstants';
 
 // =====================================================
 // 스타일 유틸
@@ -140,7 +140,7 @@ export const getTargetToL = (current: number, type: 'O' | 'D' = 'O'): number => 
 
 /** 개선안 텍스트에서 목표 점수 추출 (예: "발생도 3→2 개선" → 2, "검출도 4→3 개선" → 3) */
 export function parseTargetFromText(text: string): number {
-  if (!text || text === 'N/A') return 0;
+  if (!text || text === PLACEHOLDER_NA) return 0;
   const match = text.match(/[→>](\d+)/);
   if (match) {
     const n = Number(match[1]);
