@@ -153,6 +153,7 @@ export function usePfdSyncHandlers(options: UsePfdSyncHandlersOptions): UsePfdSy
                         setChangeMarkers(markers);
                     }
                 } catch (historyError) {
+                    console.error('[PFD→CP 연동] 변경 이력 저장 실패:', historyError);
                 }
 
                 setState(prev => ({ ...prev, cpNo: targetCpNo }));
@@ -242,6 +243,7 @@ export function usePfdSyncHandlers(options: UsePfdSyncHandlersOptions): UsePfdSy
                         setChangeMarkers(markers);
                     }
                 } catch (historyError) {
+                    console.error('[PFD→FMEA 연동] 변경 이력 저장 실패:', historyError);
                 }
 
                 setState(prev => ({ ...prev, fmeaId: targetFmeaId }));
@@ -293,6 +295,16 @@ export function usePfdSyncHandlers(options: UsePfdSyncHandlersOptions): UsePfdSy
         setSyncStatus('syncing');
 
         try {
+            // CP items 조회 (API가 items 필수)
+            const cpRes = await fetch(`/api/control-plan/${encodeURIComponent(cpNo)}/items`);
+            if (!cpRes.ok) throw new Error('CP 데이터 조회 실패');
+            const cpData = await cpRes.json();
+            const cpItems = cpData.items || cpData.data?.items || [];
+            if (cpItems.length === 0) {
+                alert('CP에 연동할 데이터가 없습니다.(No CP data to sync)');
+                setSyncStatus('idle');
+                return;
+            }
 
             const res = await fetch('/api/pfd/sync-from-cp', {
                 method: 'POST',
@@ -300,6 +312,7 @@ export function usePfdSyncHandlers(options: UsePfdSyncHandlersOptions): UsePfdSy
                 body: JSON.stringify({
                     cpNo,
                     pfdNo,
+                    items: cpItems,
                 }),
             });
 
@@ -321,17 +334,14 @@ export function usePfdSyncHandlers(options: UsePfdSyncHandlersOptions): UsePfdSy
                         setChangeMarkers(markers);
                     }
                 } catch (historyError) {
+                    console.error('[CP→PFD 동기화] 변경 이력 저장 실패:', historyError);
                 }
 
                 setState(prev => ({
                     ...prev,
                     items: data.data.items,
-                    dirty: true,
+                    dirty: false,
                 }));
-
-                if (onSave) {
-                    await onSave();
-                }
 
                 setSyncStatus('success');
 
@@ -400,9 +410,10 @@ export function usePfdSyncHandlers(options: UsePfdSyncHandlersOptions): UsePfdSy
                         setChangeMarkers(markers);
                     }
                 } catch (historyError) {
+                    console.error('[FMEA→PFD 동기화] 변경 이력 저장 실패:', historyError);
                 }
 
-                // ★★★ sync-from-fmea가 이미 DB에 저장 완료 → dirty=false, onSave 불필요 ★★★
+                // sync-from-fmea가 이미 DB에 저장 완료 → dirty=false, onSave 불필요
                 setState(prev => ({
                     ...prev,
                     items: data.data.items,

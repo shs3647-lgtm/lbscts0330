@@ -128,7 +128,8 @@ export async function POST(request: NextRequest) {
           data: { step: 7 }
         });
         // 프로젝트 단계 7 업데이트 완료
-      } catch (e: any) {
+      } catch (e: unknown) {
+        console.error('[개정관리] 프로젝트 step=7 업데이트 실패:', e instanceof Error ? e.message : e);
       }
     }
 

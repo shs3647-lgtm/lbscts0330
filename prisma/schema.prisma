@@ -1059,12 +1059,30 @@ model PfdRegistration {
   updatedAt             DateTime  @updatedAt
   deletedAt             DateTime?
   items                 PfdItem[]
+  revisions             PfdRevision[]
 
   @@index([fmeaId])
   @@index([cpNo])
   @@index([status])
   @@index([deletedAt])
   @@map("pfd_registrations")
+}
+
+model PfdRevision {
+  id           String           @id @default(uuid())
+  pfdNo        String
+  revNo        String
+  revDate      String?
+  revReason    String?
+  revContent   String?
+  revisedBy    String?
+  approvedBy   String?
+  approvedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  registration PfdRegistration  @relation(fields: [pfdNo], references: [pfdNo], onDelete: Cascade)
+
+  @@index([pfdNo])
+  @@map("pfd_revisions")
 }
 
 model PfdItem {
@@ -1564,6 +1582,7 @@ model CpRegistration {
   @@index([customerName])
   @@index([deletedAt])
   @@index([familyGroupId])
+  @@index([status])
   @@map("cp_registrations")
 }
 
@@ -1703,6 +1722,8 @@ model CpAtomicProcess {
   equipment      String?
   equipmentM4    String?                // ★ 4M 원본 코드 보존 (MC/MD/JG/IM/EN)
   workElement    String?
+  pfmeaL2Id      String?                // PFMEA L2Structure 참조
+  pfmeaL3Id      String?                // PFMEA L3Structure 참조
   sortOrder      Int                     @default(0)
   rowIndex       Int?
   mergeGroupId   String?

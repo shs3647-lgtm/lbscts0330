@@ -35,6 +35,9 @@ export interface CPItem {
   sortOrder: number;
   // FMEA 연동 필드
   refSeverity?: number | null;
+  refOccurrence?: number | null;
+  refDetection?: number | null;
+  refAp?: string | null;
   linkStatus?: 'linked' | 'unlinked';
 }
 

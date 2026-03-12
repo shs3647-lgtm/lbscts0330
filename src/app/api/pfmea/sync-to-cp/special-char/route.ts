@@ -44,34 +44,87 @@ export async function POST(request: NextRequest) {
         let updatedCount = 0;
         const riskDataObj = riskData || {};
 
-        // 3. riskData에서 특별특성 키 찾기 (specialChar-{key} 형식)
+        // 3. riskData에서 특별특성 키 찾기 (specialChar-{fmId}-{fcId} 형식)
         const specialCharKeys = Object.keys(riskDataObj).filter(key =>
             key.startsWith('specialChar-')
         );
 
+        if (specialCharKeys.length === 0) {
+            return NextResponse.json({
+                success: true,
+                message: '특별특성 데이터 없음',
+                data: { cpNo, updated: 0 },
+            });
+        }
+
+        // 4. FM/FC ID 수집 → DB에서 l2StructId/l3StructId 일괄 조회
+        const fmIds = new Set<string>();
+        const fcIds = new Set<string>();
+        for (const key of specialCharKeys) {
+            const parts = key.replace('specialChar-', '').split('-');
+            if (parts[0]) fmIds.add(parts[0]);
+            if (parts[1]) fcIds.add(parts[1]);
+        }
+
+        const [fmRows, fcRows] = await Promise.all([
+            fmIds.size > 0
+                ? prisma.failureMode.findMany({
+                    where: { id: { in: [...fmIds] } },
+                    select: { id: true, l2StructId: true },
+                })
+                : [],
+            fcIds.size > 0
+                ? prisma.failureCause.findMany({
+                    where: { id: { in: [...fcIds] } },
+                    select: { id: true, l3StructId: true },
+                })
+                : [],
+        ]);
+
+        const fmToL2 = new Map(fmRows.map(r => [r.id, r.l2StructId]));
+        const fcToL3 = new Map(fcRows.map(r => [r.id, r.l3StructId]));
+
+        // 5. CP Item 인덱스 (pfmeaProcessId+pfmeaWorkElemId → item)
+        const cpIdx = new Map<string, typeof existingItems[number]>();
+        const cpByProcess = new Map<string, typeof existingItems[number][]>();
+        for (const item of existingItems) {
+            if (item.pfmeaProcessId && item.pfmeaWorkElemId) {
+                cpIdx.set(`${item.pfmeaProcessId}|${item.pfmeaWorkElemId}`, item);
+            }
+            if (item.pfmeaProcessId) {
+                const arr = cpByProcess.get(item.pfmeaProcessId) || [];
+                arr.push(item);
+                cpByProcess.set(item.pfmeaProcessId, arr);
+            }
+        }
+
+        // 6. 정확한 매핑으로 특별특성 업데이트
         for (const key of specialCharKeys) {
             const value = riskDataObj[key];
             if (!value) continue;
 
-            // 키에서 fmId, fcId 추출 (specialChar-{fmId}-{fcId} 형식)
             const parts = key.replace('specialChar-', '').split('-');
             const fmId = parts[0];
             const fcId = parts[1];
 
-            // pfmeaProcessId 또는 다른 매핑으로 CP Item 찾기
-            // 현재는 직접 매핑이 어려우므로, 모든 관련 항목 업데이트
-            // TODO: 더 정확한 매핑 로직 필요
+            const l2Id = fmToL2.get(fmId);
+            const l3Id = fcToL3.get(fcId);
 
-            // 우선 모든 Item에 동일한 특별특성이 있으면 업데이트
-            for (const item of existingItems) {
-                if (!item.specialChar && value) {
-                    await prisma.controlPlanItem.update({
-                        where: { id: item.id },
-                        data: { specialChar: value },
-                    });
-                    updatedCount++;
-                    break; // 첫 번째 빈 항목에만
-                }
+            // 우선: processId + workElemId 정확 매칭
+            let target = l2Id && l3Id ? cpIdx.get(`${l2Id}|${l3Id}`) : undefined;
+
+            // 폴백: processId만으로 매칭 (첫 번째 빈 항목)
+            if (!target && l2Id) {
+                const candidates = cpByProcess.get(l2Id) || [];
+                target = candidates.find(c => !c.specialChar);
+            }
+
+            if (target) {
+                await prisma.controlPlanItem.update({
+                    where: { id: target.id },
+                    data: { specialChar: value },
+                });
+                updatedCount++;
             }
         }
 

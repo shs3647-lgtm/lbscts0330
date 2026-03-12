@@ -66,7 +66,6 @@ export function useCPData(options: UseCPDataOptions): UseCPDataReturn {
     const [cpList, setCpList] = useState<CPListItem[]>([]);
     const [epDevices, setEpDevices] = useState<EPDevice[]>([]);
 
-    // FMEA에서 데이터 동기화
     const syncFromFmea = useCallback(async (fmeaId: string) => {
         try {
             const res = await fetch(`/api/pfmea/${fmeaId}`);
@@ -77,68 +76,82 @@ export function useCPData(options: UseCPDataOptions): UseCPDataReturn {
 
             const fmea = data.data;
             const newItems: CPItem[] = [];
+            const uid = () => `cpi-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
-            // L2 (공정) 데이터 매핑
+            const makeBase = (proc: any, charIdx: number): CPItem => ({
+                id: uid(),
+                cpId: cpNoParam,
+                processNo: proc.no || '',
+                processName: proc.name || '',
+                processLevel: (proc.level || 'Main').trim(),
+                processDesc: proc.function || proc.desc || '',
+                partName: '',
+                equipment: '',
+                workElement: '',
+                detectorNo: false,
+                detectorEp: false,
+                detectorAuto: false,
+                epDeviceIds: '',
+                autoDeviceIds: '',
+                productChar: '',
+                processChar: '',
+                specialChar: '',
+                charIndex: charIdx,
+                specTolerance: '',
+                evalMethod: '',
+                sampleSize: '',
+                sampleFreq: '',
+                controlMethod: '',
+                owner1: '',
+                owner2: '',
+                reactionPlan: '',
+                sortOrder: newItems.length,
+                refSeverity: null,
+                refOccurrence: null,
+                refDetection: null,
+                refAp: null,
+                linkStatus: 'linked',
+            });
+
             (fmea.l2 || []).forEach((proc: any) => {
+                let charIdx = 0;
+
+                // L2 제품특성 매핑
                 (proc.productChars || []).forEach((pc: any) => {
-                    newItems.push({
-                        id: `cpi-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-                        cpId: cpNoParam,
-                        processNo: proc.no,
-                        processName: proc.name,
-                        processLevel: 'Main',
-                        processDesc: proc.function || '',
-                        workElement: '',
-                        detectorNo: false,
-                        detectorEp: false,
-                        detectorAuto: false,
-                        epDeviceIds: '',
-                        autoDeviceIds: '',
-                        productChar: pc.name || '',
-                        processChar: '',
-                        specialChar: pc.specialChar || '',
-                        specTolerance: '',
-                        evalMethod: '',
-                        sampleSize: '',
-                        sampleFreq: '',
-                        controlMethod: '',
-                        owner1: '',
-                        owner2: '',
-                        reactionPlan: '',
-                        sortOrder: newItems.length,
-                        refSeverity: pc.severity || null,
-                        linkStatus: 'linked',
-                    } as CPItem);
+                    const item = makeBase(proc, charIdx++);
+                    item.productChar = pc.name || '';
+                    item.specialChar = pc.specialChar || '';
+                    item.refSeverity = pc.severity ?? null;
+                    newItems.push(item);
                 });
 
-                if (!proc.productChars?.length) {
-                    newItems.push({
-                        id: `cpi-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-                        cpId: cpNoParam,
-                        processNo: proc.no,
-                        processName: proc.name,
-                        processLevel: 'Main',
-                        processDesc: proc.function || '',
-                        workElement: '',
-                        detectorNo: false,
-                        detectorEp: false,
-                        detectorAuto: false,
-                        epDeviceIds: '',
-                        autoDeviceIds: '',
-                        productChar: '',
-                        processChar: '',
-                        specialChar: '',
-                        specTolerance: '',
-                        evalMethod: '',
-                        sampleSize: '',
-                        sampleFreq: '',
-                        controlMethod: '',
-                        owner1: '',
-                        owner2: '',
-                        reactionPlan: '',
-                        sortOrder: newItems.length,
-                        linkStatus: 'linked',
-                    } as CPItem);
+                // L3 작업요소 + 공정특성 매핑
+                (proc.l3 || []).forEach((l3: any) => {
+                    const l3Name = (l3.name || '').trim();
+                    if (!l3Name || l3Name.startsWith('00 ') || /^\d+\s+00\s/.test(l3Name)) return;
+                    const m4 = (l3.m4 || l3.fourM || '').trim();
+                    if (m4 === 'MN') return;
+
+                    const pChars = (l3.processChars || l3.functions?.flatMap((f: any) => f.processChars || []) || []);
+
+                    if (pChars.length > 0) {
+                        pChars.forEach((pc: any) => {
+                            const item = makeBase(proc, charIdx++);
+                            item.equipment = l3Name;
+                            item.workElement = l3Name;
+                            item.processChar = pc.name || pc || '';
+                            newItems.push(item);
+                        });
+                    } else {
+                        const item = makeBase(proc, charIdx++);
+                        item.equipment = l3Name;
+                        item.workElement = l3Name;
+                        newItems.push(item);
+                    }
+                });
+
+                if (charIdx === 0) {
+                    newItems.push(makeBase(proc, 0));
                 }
             });
 

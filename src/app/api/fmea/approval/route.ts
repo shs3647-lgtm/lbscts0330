@@ -174,8 +174,19 @@ export async function PUT(request: NextRequest) {
 
     // 결재 결과 이메일 발송 (DB 업데이트 성공 후에만)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const requesterEmail = await (async () => {
+      try {
+        const record = await prisma.fmeaApproval.findFirst({ where: { token }, select: { requesterName: true } });
+        const prismaInst = getPrisma();
+        if (prismaInst && record?.requesterName) {
+          const user = await prismaInst.user.findFirst({ where: { name: record.requesterName }, select: { email: true } });
+          return user?.email || payload.approverEmail;
+        }
+      } catch { /* fallback */ }
+      return payload.approverEmail;
+    })();
     const recipients = [
-      { name: payload.requesterName, email: payload.approverEmail }, // 원래는 요청자에게
+      { name: payload.requesterName, email: requesterEmail },
     ];
     
     // 반려 시: 하위 결재자(요청자)에게 알림

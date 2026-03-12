@@ -66,6 +66,15 @@ export const COLORS = {
     SC: '#ea580c',
     IC: '#ca8a04',
   },
+  // 7. PFMEA 참조 (주황색 계열)
+  pfmeaRef: {
+    header: '#c2410c',
+    headerLight: '#ea580c',
+    header3: '#fb923c',
+    cell: '#fff7ed',
+    cellAlt: '#ffedd5',
+    empty: '#ffffff',
+  },
 };
 
 // ============ 높이 정의 ============
@@ -197,14 +206,33 @@ export const CP_COLUMNS: CPColumnDef[] = [
     id: 20, group: '대응계획(Reaction Plan)', name: '조치방법(Reaction)', key: 'reactionPlan', width: 160,
     headerColor: COLORS.action.headerLight, cellColor: COLORS.action.cell, cellAltColor: COLORS.action.cellAlt, align: 'center'
   },
+
+  // ■ 6. PFMEA 참조 (4컬럼: S, O, D, AP — 읽기전용)
+  {
+    id: 21, group: 'PFMEA참조(PFMEA Ref.)', name: 'S', key: 'refSeverity', width: 28,
+    headerColor: COLORS.pfmeaRef.headerLight, cellColor: COLORS.pfmeaRef.cell, cellAltColor: COLORS.pfmeaRef.cellAlt, align: 'center', editable: false, type: 'number', pfmeaSync: true
+  },
+  {
+    id: 22, group: 'PFMEA참조(PFMEA Ref.)', name: 'O', key: 'refOccurrence', width: 28,
+    headerColor: COLORS.pfmeaRef.headerLight, cellColor: COLORS.pfmeaRef.cell, cellAltColor: COLORS.pfmeaRef.cellAlt, align: 'center', editable: false, type: 'number', pfmeaSync: true
+  },
+  {
+    id: 23, group: 'PFMEA참조(PFMEA Ref.)', name: 'D', key: 'refDetection', width: 28,
+    headerColor: COLORS.pfmeaRef.headerLight, cellColor: COLORS.pfmeaRef.cell, cellAltColor: COLORS.pfmeaRef.cellAlt, align: 'center', editable: false, type: 'number', pfmeaSync: true
+  },
+  {
+    id: 24, group: 'PFMEA참조(PFMEA Ref.)', name: 'AP', key: 'refAp', width: 30,
+    headerColor: COLORS.pfmeaRef.headerLight, cellColor: COLORS.pfmeaRef.cell, cellAltColor: COLORS.pfmeaRef.cellAlt, align: 'center', editable: false, type: 'select', pfmeaSync: true
+  },
 ];
 
 // ============ 그룹 정의 (4개 그룹) ============
 export const CP_GROUPS = [
-  { name: '공정현황(Process Status)', color: COLORS.process.header, colspan: 6 },  // 부품명 추가로 5→6
-  { name: '관리항목(Control Item)', color: COLORS.control.header, colspan: 7 },  // 검출장치(2) + 관리항목(5) 병합
+  { name: '공정현황(Process Status)', color: COLORS.process.header, colspan: 6 },
+  { name: '관리항목(Control Item)', color: COLORS.control.header, colspan: 7 },
   { name: '관리방법(Control Method)', color: COLORS.method.header, colspan: 6 },
   { name: '대응계획(Reaction Plan)', color: COLORS.action.header, colspan: 1 },
+  { name: 'PFMEA참조(PFMEA Ref.)', color: COLORS.pfmeaRef.header, colspan: 4 },
 ];
 
 // ============ 그룹별 스팬 계산 ============

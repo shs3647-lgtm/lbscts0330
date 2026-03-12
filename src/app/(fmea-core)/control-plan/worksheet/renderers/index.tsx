@@ -746,7 +746,7 @@ export function renderCell({
   }
 
   // 기본 텍스트 입력 (통합 모드: 클릭 시 모달, 우클릭 시 컨텍스트 메뉴)
-  const isTextInputColumn = !['processLevel', 'specialChar', 'sampleFreq', 'owner1', 'owner2', 'detectorEp', 'detectorAuto', 'charNo', 'rowNo'].includes(col.key);
+  const isTextInputColumn = col.editable !== false && !['processLevel', 'specialChar', 'sampleFreq', 'owner1', 'owner2', 'detectorEp', 'detectorAuto', 'charNo', 'rowNo'].includes(col.key);
   const isEmptyCell = !value || (typeof value === 'string' && value.trim() === '');
 
   // ★ 컬럼별 컨텍스트 메뉴 타입 결정

@@ -4,7 +4,6 @@
  * @module pfd/worksheet/hooks
  */
 
-export { usePfdSync } from './usePfdSync';
 export * from './useRowSpan';
 export * from './useWorksheetHandlers';
 export * from './useModalHandlers';

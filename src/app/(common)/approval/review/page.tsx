@@ -1,6 +1,7 @@
 /**
  * @file /approval/review/page.tsx
- * @description 이메일 링크를 통한 결재 처리 페이지
+ * @description 이메일 링크를 통한 결재 처리 페이지 (실제 DB 연동)
+ * @fixed 2026-03-12 — 더미 데이터 → /api/fmea/approval 실데이터 연동
  */
 
 'use client';
@@ -19,52 +20,30 @@ function ApprovalReviewContent() {
   const [error, setError] = useState('');
 
   const token = searchParams.get('token');
-  const type = searchParams.get('type'); // 'review' | 'approve'
-  const action = searchParams.get('action'); // 'approve' | 'reject' | 'view'
 
   useEffect(() => {
     if (token) {
       loadApprovalData();
+    } else {
+      setError('결재 토큰이 없습니다.');
+      setLoading(false);
     }
   }, [token]);
 
   const loadApprovalData = async () => {
     try {
-      // 토큰 디코드
-      const decodedToken = atob(token!);
-      const [approvalId, approverId, timestamp] = decodedToken.split(':');
+      const res = await fetch(`/api/fmea/approval?token=${encodeURIComponent(token!)}`);
+      const data = await res.json();
 
-      // 24시간 유효성 검증
-      const tokenAge = Date.now() - parseInt(timestamp);
-      if (tokenAge > 24 * 60 * 60 * 1000) {
-        setError('결재 링크가 만료되었습니다. (24시간 초과)');
+      if (!data.success || !data.approval) {
+        setError(data.error || '결재 정보를 불러올 수 없습니다.');
         setLoading(false);
         return;
       }
 
-      // 실제로는 API를 통해 데이터를 가져와야 함
-      // 여기서는 더미 데이터 사용
-      setApprovalData({
-        approvalId,
-        approverId,
-        fmeaType: 'DFMEA',
-        fmeaTitle: '자동차 도어 시스템 FMEA 분석',
-        projectName: '2026년 신차 프로젝트',
-        requesterName: '김철수',
-        requesterEmail: 'kim@company.com',
-        requestDate: '2026-01-23',
-        dueDate: '2026-01-30',
-        status: 'pending',
-        currentStep: type === 'review' ? '검토' : '승인',
-        details: {
-          totalItems: 45,
-          highRiskItems: 5,
-          mediumRiskItems: 12,
-          lowRiskItems: 28,
-          completionRate: 85
-        }
-      });
-    } catch (error) {
+      setApprovalData(data.approval);
+    } catch (err) {
+      console.error('[결재 리뷰] 데이터 로드 실패:', err);
       setError('결재 정보를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
@@ -79,27 +58,26 @@ function ApprovalReviewContent() {
 
     setProcessing(true);
     try {
-      // API 호출 (실제 구현 필요)
-      const response = await fetch('/api/approval/process', {
-        method: 'POST',
+      const response = await fetch('/api/fmea/approval', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          approvalId: approvalData.approvalId,
-          approverId: approvalData.approverId,
-          decision,
-          comments,
-          type
-        })
+        body: JSON.stringify({ token, action: decision, rejectReason: comments }),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (data.success) {
         alert(decision === 'approve' ? '✅ 승인되었습니다.' : '❌ 반려되었습니다.');
-        router.push('/approval/complete');
+        if (approvalData?.fmeaId) {
+          router.push(`/pfmea/revision?id=${approvalData.fmeaId}`);
+        } else {
+          router.push('/welcomeboard');
+        }
       } else {
-        throw new Error('결재 처리 실패');
+        throw new Error(data.error || '결재 처리 실패');
       }
-    } catch (error) {
-      alert('결재 처리 중 오류가 발생했습니다.');
+    } catch (err: any) {
+      alert(`결재 처리 중 오류: ${err.message}`);
     } finally {
       setProcessing(false);
     }
@@ -135,117 +113,54 @@ function ApprovalReviewContent() {
     );
   }
 
+  const approvalType = approvalData?.approvalType || '';
+  const stepLabel = approvalType === 'CREATE' ? '작성 상신' : approvalType === 'REVIEW' ? '검토' : '최종 승인';
+
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        {/* 헤더 */}
         <div className="bg-[#00587a] text-white rounded-t-lg p-6">
-          <h1 className="text-2xl font-bold">
-            📋 FMEA {type === 'review' ? '검토' : '승인'} 요청
-          </h1>
-          <p className="text-sm mt-2 text-gray-200">
-            이메일 링크를 통한 결재 처리
-          </p>
+          <h1 className="text-2xl font-bold">📋 FMEA {stepLabel} 요청</h1>
+          <p className="text-sm mt-2 text-gray-200">이메일 링크를 통한 결재 처리</p>
         </div>
 
-        {/* 메인 콘텐츠 */}
         <div className="bg-white shadow-lg rounded-b-lg">
-          {/* FMEA 정보 */}
           <div className="p-6 border-b">
-            <h2 className="text-lg font-bold mb-4">📄 FMEA 정보</h2>
+            <h2 className="text-lg font-bold mb-4">📄 결재 정보</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-gray-600">FMEA 유형</label>
-                <p className="font-semibold">{approvalData.fmeaType}</p>
+                <label className="text-sm text-gray-600">FMEA ID</label>
+                <p className="font-semibold">{approvalData?.fmeaId || '-'}</p>
               </div>
               <div>
-                <label className="text-sm text-gray-600">프로젝트</label>
-                <p className="font-semibold">{approvalData.projectName}</p>
+                <label className="text-sm text-gray-600">개정번호</label>
+                <p className="font-semibold">{approvalData?.revisionNumber || '-'}</p>
               </div>
               <div>
-                <label className="text-sm text-gray-600">제목</label>
-                <p className="font-semibold">{approvalData.fmeaTitle}</p>
+                <label className="text-sm text-gray-600">결재 단계</label>
+                <p className="font-semibold">{stepLabel}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-600">요청자</label>
-                <p className="font-semibold">
-                  {approvalData.requesterName} ({approvalData.requesterEmail})
-                </p>
+                <p className="font-semibold">{approvalData?.requesterName || '-'}</p>
               </div>
               <div>
-                <label className="text-sm text-gray-600">요청일</label>
-                <p className="font-semibold">
-                  {new Date(approvalData.requestDate).toLocaleDateString('ko-KR')}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-gray-600">처리 기한</label>
-                <p className="font-semibold text-red-600">
-                  {new Date(approvalData.dueDate).toLocaleDateString('ko-KR')}
-                </p>
+                <label className="text-sm text-gray-600">결재자</label>
+                <p className="font-semibold">{approvalData?.approverName || approvalData?.approverEmail || '-'}</p>
               </div>
             </div>
           </div>
 
-          {/* 분석 요약 */}
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-bold mb-4">📊 분석 요약</h2>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="bg-gray-50 p-4 rounded text-center">
-                <p className="text-2xl font-bold text-gray-700">
-                  {approvalData.details.totalItems}
-                </p>
-                <p className="text-sm text-gray-600">전체 항목</p>
-              </div>
-              <div className="bg-red-50 p-4 rounded text-center">
-                <p className="text-2xl font-bold text-red-600">
-                  {approvalData.details.highRiskItems}
-                </p>
-                <p className="text-sm text-gray-600">고위험</p>
-              </div>
-              <div className="bg-yellow-50 p-4 rounded text-center">
-                <p className="text-2xl font-bold text-yellow-600">
-                  {approvalData.details.mediumRiskItems}
-                </p>
-                <p className="text-sm text-gray-600">중위험</p>
-              </div>
-              <div className="bg-green-50 p-4 rounded text-center">
-                <p className="text-2xl font-bold text-green-600">
-                  {approvalData.details.lowRiskItems}
-                </p>
-                <p className="text-sm text-gray-600">저위험</p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span>완성도</span>
-                <span className="font-semibold">{approvalData.details.completionRate}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className="bg-blue-600 h-3 rounded-full"
-                  style={{ width: `${approvalData.details.completionRate}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          {/* 결재 의견 */}
           <div className="p-6 border-b">
             <h2 className="text-lg font-bold mb-4">💬 결재 의견</h2>
             <textarea
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               className="w-full p-3 border rounded-lg h-32 resize-none"
-              placeholder={
-                action === 'reject'
-                  ? '반려 사유를 입력해주세요. (필수)'
-                  : '검토 의견을 입력해주세요. (선택)'
-              }
+              placeholder="검토 의견을 입력해주세요. (반려 시 필수)"
             />
           </div>
 
-          {/* 결재 버튼 */}
           <div className="p-6 bg-gray-50 flex justify-center gap-4">
             <button
               onClick={() => handleApproval('approve')}
@@ -261,21 +176,22 @@ function ApprovalReviewContent() {
             >
               {processing ? '처리 중...' : '❌ 반려'}
             </button>
-            <button
-              onClick={() => router.push(`/${approvalData.fmeaType.toLowerCase()}/worksheet`)}
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-lg"
-            >
-              📄 상세보기
-            </button>
+            {approvalData?.fmeaId && (
+              <button
+                onClick={() => router.push(`/pfmea/worksheet?id=${approvalData.fmeaId}`)}
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-lg"
+              >
+                📄 상세보기
+              </button>
+            )}
           </div>
 
-          {/* 안내 메시지 */}
           <div className="p-6 bg-yellow-50 border-t border-yellow-200">
             <p className="text-sm text-yellow-800">
               <strong>⚠️ 주의사항:</strong><br/>
               • 결재 후에는 취소할 수 없으니 신중히 검토해주세요.<br/>
               • 반려 시에는 반드시 사유를 입력해야 합니다.<br/>
-              • 이 링크는 24시간 후 자동으로 만료됩니다.
+              • 이 링크는 7일 후 자동으로 만료됩니다.
             </p>
           </div>
         </div>

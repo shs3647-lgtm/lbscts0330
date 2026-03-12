@@ -176,6 +176,26 @@ export default function PfdTopMenuBar({
         >
           FMEA연동(Sync)
         </button>
+        {onCpToPfd && (
+          <button
+            onClick={onCpToPfd}
+            disabled={isSyncing || !cpNo}
+            className="px-1.5 py-0.5 rounded bg-teal-800 text-white text-[10px] font-medium hover:bg-teal-700 transition-all whitespace-nowrap disabled:opacity-40"
+            title="CP → PFD 역방향 연동 (CP 데이터를 PFD로 가져오기)"
+          >
+            CP→PFD
+          </button>
+        )}
+        {onFmeaToPfd && (
+          <button
+            onClick={onFmeaToPfd}
+            disabled={isSyncing || !fmeaId}
+            className="px-1.5 py-0.5 rounded bg-indigo-900 text-white text-[10px] font-medium hover:bg-indigo-800 transition-all whitespace-nowrap disabled:opacity-40"
+            title="FMEA → PFD 역방향 연동 (FMEA 데이터를 PFD로 가져오기)"
+          >
+            FMEA→PFD
+          </button>
+        )}
         <button
           onClick={() => router.push(cpNo ? `/control-plan/worksheet?cpNo=${cpNo}` : '/control-plan/worksheet')}
           className="px-1.5 py-0.5 rounded bg-teal-600/70 text-white text-[10px] font-medium hover:bg-teal-500 transition-all whitespace-nowrap"

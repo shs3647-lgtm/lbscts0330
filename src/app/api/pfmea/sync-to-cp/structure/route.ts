@@ -118,16 +118,14 @@ export async function POST(request: NextRequest) {
 
                 const l3Elements = l2.l3 || [];
 
-                // ★ 공정설명 = L2.functions의 name을 조합 (syncPfmeaCP.ts와 동일한 로직)
-                // TODO: 2026-02-03 공정설명 병합 관련 보완 필요
-                // - 미입력 없어야 함 (공정설명이 비어있으면 공정명을 사용하거나 기본값 설정)
-                // - 같은 공정의 모든 행에 동일한 공정설명 적용
-                // - 공정설명이 같으면 병합, 다르면 구분
                 const rawFunctions = l2.functions || [];
                 const filteredFuncNames = rawFunctions
                     .map(f => (f.name || '').trim())
                     .filter(n => n && !n.includes('클릭') && !n.includes('자동생성') && !n.includes('추가'));
-                const processDesc = filteredFuncNames.join(', ') || `${l2.name || ''} 공정`;  // 빈 값 방지
+                const processDesc = filteredFuncNames.join(', ')
+                    || (l2.desc || '').trim()
+                    || (l2.name || '').trim()
+                    || '공정';
 
                 if (l3Elements.length > 0) {
                     // ★ L3 작업요소의 4M은 L3Structure.m4에 원자성 DB 저장됨
