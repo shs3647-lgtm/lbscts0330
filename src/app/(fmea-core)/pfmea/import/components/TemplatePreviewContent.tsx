@@ -477,23 +477,20 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           {(['L1','L2','L3'] as const).map(lvl => {
             const count = lvl === 'L1' ? crossTab.cRows.length : lvl === 'L2' ? crossTab.aRows.length : crossTab.bRows.length;
             const miss = missingStats[lvl];
-            const disabled = !isSAActive;
             return (
-              <button key={lvl} onClick={() => !disabled && setPreviewLevel(lvl)}
-                disabled={disabled}
+              <button key={lvl} onClick={() => setPreviewLevel(lvl)}
                 className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                  disabled ? BTN_DISABLED
-                  : previewLevel === lvl
+                  previewLevel === lvl
                     ? 'bg-blue-600 text-white border-blue-600 cursor-pointer'
                     : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 cursor-pointer'
                 }`}>
                 {lvl} <span className="text-[9px]">{count}</span>
-                {!disabled && miss > 0 && <span className={`ml-0.5 text-[8px] ${previewLevel === lvl ? 'text-orange-200' : 'text-orange-500'}`}>({miss})</span>}
+                {miss > 0 && <span className={`ml-0.5 text-[8px] ${previewLevel === lvl ? 'text-orange-200' : 'text-orange-500'}`}>({miss})</span>}
               </button>
             );
           })}
 
-          {isSAActive && missingStats[previewLevel] > 0 && (
+          {missingStats[previewLevel] > 0 && (
             <button
               onClick={() => {
                 const details = missingDetails[previewLevel];
@@ -635,12 +632,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       </div>
 
 
-      {/* ─── Import 통계표 — 토글 시 표시 ─── */}
+      {/* ─── Import 통계표 — 전체 표시, 현재 레벨 강조 ─── */}
       {showStats && effectiveStatistics && effectiveStatistics.itemStats.length > 0 && (
         <div className="mb-1.5 border border-indigo-200 rounded bg-indigo-50/30">
           <table className="w-full border-collapse text-[9px]">
             <thead><tr>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>코드</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:30}}>레벨</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>코드</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-left border-r border-indigo-500">항목</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>원본</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>고유</th>
@@ -648,10 +646,17 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </tr></thead>
             <tbody>
               {effectiveStatistics.itemStats.map((s, i) => {
+                const level = s.itemCode.startsWith('C') ? 'L1' : s.itemCode.startsWith('A') ? 'L2' : 'L3';
+                const isCurrentLevel = level === previewLevel;
                 const hasDup = s.dupSkipped > 0;
                 const isHighlighted = highlightDupCode === s.itemCode;
                 return (
-                  <tr key={s.itemCode} className={`${isHighlighted ? 'bg-amber-100' : i % 2 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                  <tr key={s.itemCode} className={`${
+                    isHighlighted ? 'bg-amber-100'
+                    : isCurrentLevel ? 'bg-blue-50 font-semibold'
+                    : i % 2 ? 'bg-white' : 'bg-gray-50/50'
+                  }`}>
+                    <td className={`px-1 py-0.5 text-center text-[9px] border-r border-gray-200 ${isCurrentLevel ? 'text-blue-700 font-bold' : 'text-gray-400'}`}>{level}</td>
                     <td className="px-1.5 py-0.5 text-center font-mono font-bold text-[10px] border-r border-gray-200">{s.itemCode}</td>
                     <td className="px-1.5 py-0.5 border-r border-gray-200">{s.label}</td>
                     <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">{s.rawCount}</td>
@@ -672,7 +677,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 );
               })}
               <tr className="border-t border-indigo-300 bg-indigo-50">
-                <td colSpan={2} className="px-1.5 py-0.5 font-bold text-indigo-800">합계</td>
+                <td colSpan={3} className="px-1.5 py-0.5 font-bold text-indigo-800">합계</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-red-600">{effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}</td>
@@ -745,7 +750,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       {/* FA 통합분석 미리보기 삭제됨 (사용자 요청) */}
 
       {/* ─── SA 콘텐츠: L1/L2/L3 미리보기 ─── */}
-      {isSAActive && <>
+      <>
         {/* ─── 누락 경고 배너 ─── */}
         {missingStats[previewLevel] > 0 && flatData.length > 0 && (
           <button
@@ -764,7 +769,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         )}
 
         {/* ─── 행추가 폼 ─── */}
-        {isEditing && onAddItems && (
+        {isSAActive && isEditing && onAddItems && (
           <div className="flex items-center gap-1.5 mb-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded">
             <span className="text-[10px] font-bold text-blue-700">+ 행추가</span>
             {previewLevel === 'L1' && (<>
@@ -866,7 +871,11 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH}>C3 요구사항</th>
                   <th className={TH}>C4 고장영향</th>
                 </tr></thead><tbody>
-                  {crossTab.cRows.map((r, i) => {
+                  {crossTab.cRows.length === 0 ? (
+                    <tr><td colSpan={isEditing ? 6 : 5} className="text-center py-3 text-gray-400 text-[10px]">
+                      L1 데이터 없음 — L2({crossTab.aRows.length}건) 또는 L3({crossTab.bRows.length}건) 탭을 확인하세요
+                    </td></tr>
+                  ) : crossTab.cRows.map((r, i) => {
                     const cMissing = r.C1 && !r.C2;
                     return (
                     <tr key={i} data-missing={cMissing ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : cMissing ? 'bg-orange-50/60' : i % 2 ? 'bg-gray-50/50' : ''}`}>
@@ -912,7 +921,11 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH}>A5 고장형태</th>
                   <th className={TH} style={{background:'#ff6600',color:'#fff'}}>A6 검출관리</th>
                 </tr></thead><tbody>
-                  {crossTab.aRows.map((r, i) => {
+                  {crossTab.aRows.length === 0 ? (
+                    <tr><td colSpan={isEditing ? 9 : 8} className="text-center py-3 text-gray-400 text-[10px]">
+                      L2 데이터 없음 — L1({crossTab.cRows.length}건) 또는 L3({crossTab.bRows.length}건) 탭을 확인하세요
+                    </td></tr>
+                  ) : crossTab.aRows.map((r, i) => {
                     const aMissing = r.A1 && !r.A2;
                     const aDup = dupRowIndices.has(i) && highlightDupCode?.startsWith('A');
                     return (
@@ -959,7 +972,11 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH}>B4 고장원인</th>
                   <th className={TH} style={{background:'#ff6600',color:'#fff'}}>B5 예방관리</th>
                 </tr></thead><tbody>
-                  {crossTab.bRows.slice(0, 100).map((r, i) => {
+                  {crossTab.bRows.length === 0 ? (
+                    <tr><td colSpan={isEditing ? 11 : 10} className="text-center py-3 text-gray-400 text-[10px]">
+                      L3 데이터 없음 — L1({crossTab.cRows.length}건) 또는 L2({crossTab.aRows.length}건) 탭을 확인하세요
+                    </td></tr>
+                  ) : crossTab.bRows.slice(0, 100).map((r, i) => {
                     const bMissing = false;
                     const bDup = dupRowIndices.has(i) && highlightDupCode?.startsWith('B');
                     return (
@@ -997,7 +1014,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             )}
           </>
         )}
-      </>}
+      </>
     </div>
   );
 }
