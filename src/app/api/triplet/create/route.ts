@@ -637,7 +637,7 @@ async function createPartTripletShell(
   const lgMatch = ids.pfmeaId.match(/-i(\d{2})$/i);
   const linkGroup = lgMatch ? parseInt(lgMatch[1], 10) : null;
   const yearStr = new Date().getFullYear().toString().slice(-2);
-  const subjectName = `${headerData.subject} #${index}`;
+  const subjectName = `#${index}`;
 
   await prisma.$transaction(async (tx) => {
     await tx.tripletGroup.create({
