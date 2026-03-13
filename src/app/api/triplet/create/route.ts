@@ -34,6 +34,7 @@ interface CreateTripletBody {
   partNo?: string;
   parentTripletId?: string;
   parentFmeaId?: string;
+  familyCount?: number;
   partCount?: number;
   immediateCP?: boolean;
   immediatePFD?: boolean;
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
       responsibleName,
       partNo,
       parentFmeaId,
+      familyCount = 0,
       partCount = 0,
       immediateCP = false,
       immediatePFD = false,
@@ -122,8 +124,8 @@ export async function POST(request: NextRequest) {
       partNo: partNo?.trim() || '',
     };
 
-    // 기존 ID 조회 (시리얼 계산용)
-    const [pfmeaIds, cpIds, pfdIds] = await Promise.all([
+    // 기존 ID 조회 (시리얼 계산용 — TripletGroup 포함)
+    const [pfmeaIds, cpIds, pfdIds, tgData] = await Promise.all([
       prisma.fmeaProject.findMany({
         where: { deletedAt: null },
         select: { fmeaId: true },
@@ -136,20 +138,22 @@ export async function POST(request: NextRequest) {
         where: { deletedAt: null },
         select: { pfdNo: true },
       }).then(rows => rows.map(r => r.pfdNo)),
+      prisma.tripletGroup.findMany({
+        select: { id: true, linkGroup: true },
+      }),
     ]);
 
-    // linkGroup 조회 (Part 용)
-    const existingLinkGroups = await prisma.tripletGroup.findMany({
-      where: { linkGroup: { not: null } },
-      select: { linkGroup: true },
-    }).then(rows => rows.map(r => r.linkGroup!).filter(n => n > 0));
+    const tgIds = tgData.map(r => r.id);
+    const existingLinkGroups = tgData
+      .map(r => r.linkGroup)
+      .filter((n): n is number => n != null && n > 0);
 
     if (docType === 'master') {
-      return await createMasterTriplet(prisma, typeCode, pfmeaIds, cpIds, pfdIds, headerData, partCount, existingLinkGroups);
+      return await createMasterTriplet(prisma, typeCode, pfmeaIds, cpIds, pfdIds, tgIds, headerData, familyCount, existingLinkGroups);
     } else if (docType === 'family') {
-      return await createFamilyTriplet(prisma, typeCode, pfmeaIds, cpIds, pfdIds, headerData, parentTripletId!, immediateCP, immediatePFD, partCount, existingLinkGroups);
+      return await createFamilyTriplet(prisma, typeCode, pfmeaIds, cpIds, pfdIds, tgIds, headerData, parentTripletId!, immediateCP, immediatePFD, partCount, existingLinkGroups);
     } else {
-      return await createPartTriplet(prisma, pfmeaIds, cpIds, pfdIds, headerData, parentTripletId!, existingLinkGroups);
+      return await createPartTriplet(prisma, pfmeaIds, cpIds, pfdIds, tgIds, headerData, parentTripletId!, existingLinkGroups);
     }
   } catch (error) {
     console.error('[triplet/create] 오류:', error);
@@ -159,6 +163,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * Master Triplet: PFMEA + CP + PFD 3개 즉시 생성
+ * + 하위 Family 세트 (각 Family = FMEA + CP + PFD 즉시)
  */
 async function createMasterTriplet(
   prisma: NonNullable<ReturnType<typeof getPrisma>>,
@@ -166,15 +171,15 @@ async function createMasterTriplet(
   pfmeaIds: string[],
   cpIds: string[],
   pfdIds: string[],
+  tgIds: string[],
   headerData: Record<string, string>,
-  partCount: number,
+  familyCount: number,
   existingLinkGroups: number[]
 ) {
-  const serials = calcMFSerials(pfmeaIds, cpIds, pfdIds, typeCode);
+  const serials = calcMFSerials(pfmeaIds, cpIds, pfdIds, typeCode, tgIds);
   const ids = generateMFTripletIds('m', serials);
 
   await prisma.$transaction(async (tx) => {
-    // TripletGroup 생성
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
@@ -193,7 +198,6 @@ async function createMasterTriplet(
       },
     });
 
-    // PFMEA 생성
     await tx.fmeaProject.create({
       data: {
         fmeaId: ids.pfmeaId,
@@ -214,7 +218,6 @@ async function createMasterTriplet(
       },
     });
 
-    // Master CP 즉시 생성
     if (ids.cpId) {
       await tx.cpRegistration.create({
         data: {
@@ -233,7 +236,6 @@ async function createMasterTriplet(
       });
     }
 
-    // Master PFD 즉시 생성
     if (ids.pfdId) {
       await tx.pfdRegistration.create({
         data: {
@@ -250,21 +252,31 @@ async function createMasterTriplet(
     }
   });
 
-  // 하위 Part Triplet 생성 (partCount > 0 시)
-  const childTriplets: Array<{ tripletGroupId: string; pfmeaId: string }> = [];
-  if (partCount > 0) {
+  // 하위 Family Triplet 생성 (familyCount > 0 시)
+  // 각 Family = F-FMEA + F-CP + F-PFD 즉시 생성
+  const childTriplets: Array<{ tripletGroupId: string; pfmeaId: string; cpId: string | null; pfdId: string | null }> = [];
+  if (familyCount > 0) {
     const updatedPfmeaIds = [...pfmeaIds, ids.pfmeaId];
     const updatedCpIds = ids.cpId ? [...cpIds, ids.cpId] : cpIds;
     const updatedPfdIds = ids.pfdId ? [...pfdIds, ids.pfdId] : pfdIds;
-    let nextSerial = calcPartUnifiedSerial(updatedPfmeaIds, updatedCpIds, updatedPfdIds);
-    let nextLinkGroup = calcNextLinkGroup(existingLinkGroups);
+    const updatedTgIds = [...tgIds, ids.tripletGroupId];
+    const familyBaseSerials = calcMFSerials(updatedPfmeaIds, updatedCpIds, updatedPfdIds, 'f', updatedTgIds);
 
-    for (let i = 0; i < Math.min(partCount, 10); i++) {
-      const partIds = generatePartTripletIds(nextSerial, nextLinkGroup);
-      await createPartTripletShell(prisma, partIds, ids.tripletGroupId, headerData, i + 1);
-      childTriplets.push({ tripletGroupId: partIds.tripletGroupId, pfmeaId: partIds.pfmeaId });
-      nextSerial++;
-      nextLinkGroup++;
+    for (let i = 0; i < Math.min(familyCount, 3); i++) {
+      const familySerials = {
+        pfmeaSerial: familyBaseSerials.pfmeaSerial + i,
+        cpSerial: familyBaseSerials.cpSerial + i,
+        pfdSerial: familyBaseSerials.pfdSerial + i,
+        unifiedSerial: 0,
+      };
+      const familyIds = generateMFTripletIds('f', familySerials);
+      await createFamilyTripletShell(prisma, familyIds, ids.tripletGroupId, ids.pfmeaId, headerData, i + 1);
+      childTriplets.push({
+        tripletGroupId: familyIds.tripletGroupId,
+        pfmeaId: familyIds.pfmeaId,
+        cpId: familyIds.cpId,
+        pfdId: familyIds.pfdId,
+      });
     }
   }
 
@@ -279,7 +291,7 @@ async function createMasterTriplet(
 }
 
 /**
- * Family Triplet: PFMEA만 즉시, CP/PFD는 Lazy
+ * Family Triplet: PFMEA + CP + PFD 3개 즉시 생성
  */
 async function createFamilyTriplet(
   prisma: NonNullable<ReturnType<typeof getPrisma>>,
@@ -287,21 +299,20 @@ async function createFamilyTriplet(
   pfmeaIds: string[],
   cpIds: string[],
   pfdIds: string[],
+  tgIds: string[],
   headerData: Record<string, string>,
   parentTripletId: string,
-  immediateCP: boolean,
-  immediatePFD: boolean,
+  _immediateCP: boolean,
+  _immediatePFD: boolean,
   partCount: number,
   existingLinkGroups: number[]
 ) {
-  const serials = calcMFSerials(pfmeaIds, cpIds, pfdIds, typeCode);
+  const serials = calcMFSerials(pfmeaIds, cpIds, pfdIds, typeCode, tgIds);
   const ids = generateMFTripletIds('f', serials);
 
-  // Lazy: 기본 null, 체크하면 즉시 생성
-  const cpId = immediateCP ? ids.cpId : null;
-  const pfdId = immediatePFD ? ids.pfdId : null;
+  const cpId = ids.cpId;
+  const pfdId = ids.pfdId;
 
-  // 상위 PFMEA ID 조회 (parentFmeaId로 사용)
   const parentTriplet = await prisma.tripletGroup.findUnique({
     where: { id: parentTripletId },
     select: { pfmeaId: true },
@@ -388,7 +399,8 @@ async function createFamilyTriplet(
     const updatedPfmeaIds = [...pfmeaIds, ids.pfmeaId];
     const updatedCpIds = cpId ? [...cpIds, cpId] : cpIds;
     const updatedPfdIds = pfdId ? [...pfdIds, pfdId] : pfdIds;
-    let nextSerial = calcPartUnifiedSerial(updatedPfmeaIds, updatedCpIds, updatedPfdIds);
+    const updatedTgIds = [...tgIds, ids.tripletGroupId];
+    let nextSerial = calcPartUnifiedSerial(updatedPfmeaIds, updatedCpIds, updatedPfdIds, updatedTgIds);
     let nextLinkGroup = calcNextLinkGroup(existingLinkGroups);
 
     for (let i = 0; i < Math.min(partCount, 10); i++) {
@@ -418,11 +430,12 @@ async function createPartTriplet(
   pfmeaIds: string[],
   cpIds: string[],
   pfdIds: string[],
+  tgIds: string[],
   headerData: Record<string, string>,
   parentTripletId: string,
   existingLinkGroups: number[]
 ) {
-  const unifiedSerial = calcPartUnifiedSerial(pfmeaIds, cpIds, pfdIds);
+  const unifiedSerial = calcPartUnifiedSerial(pfmeaIds, cpIds, pfdIds, tgIds);
   const nextLinkGroup = calcNextLinkGroup(existingLinkGroups);
   const ids = generatePartTripletIds(unifiedSerial, nextLinkGroup);
 
@@ -479,6 +492,96 @@ async function createPartTriplet(
     pfmeaId: ids.pfmeaId,
     cpId: null,
     pfdId: null,
+  });
+}
+
+/**
+ * Family Triplet Shell 생성 (Master의 하위 Family 일괄 생성용)
+ * FMEA + CP + PFD 모두 즉시 생성
+ */
+async function createFamilyTripletShell(
+  prisma: NonNullable<ReturnType<typeof getPrisma>>,
+  ids: { tripletGroupId: string; pfmeaId: string; cpId: string | null; pfdId: string | null },
+  masterTripletGroupId: string,
+  masterPfmeaId: string,
+  headerData: Record<string, string>,
+  index: number
+) {
+  const yearStr = new Date().getFullYear().toString().slice(-2);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tripletGroup.create({
+      data: {
+        id: ids.tripletGroupId,
+        year: yearStr,
+        typeCode: 'f',
+        pfmeaId: ids.pfmeaId,
+        cpId: ids.cpId,
+        pfdId: ids.pfdId,
+        parentTripletId: masterTripletGroupId,
+        subject: `${headerData.subject} F#${index}`,
+        productName: headerData.productName,
+        customerName: headerData.customerName,
+        companyName: headerData.companyName,
+        responsibleName: headerData.responsibleName,
+        partNo: headerData.partNo,
+        syncStatus: 'synced',
+      },
+    });
+
+    await tx.fmeaProject.create({
+      data: {
+        fmeaId: ids.pfmeaId,
+        fmeaType: 'F',
+        parentFmeaId: masterPfmeaId,
+        parentFmeaType: 'M',
+        tripletGroupId: ids.tripletGroupId,
+        status: 'active',
+        registration: {
+          create: {
+            subject: `${headerData.subject} F#${index}`,
+            customerName: headerData.customerName,
+            companyName: headerData.companyName,
+            partNo: headerData.partNo,
+            fmeaResponsibleName: headerData.responsibleName,
+            linkedCpNo: ids.cpId,
+            linkedPfdNo: ids.pfdId,
+          },
+        },
+      },
+    });
+
+    if (ids.cpId) {
+      await tx.cpRegistration.create({
+        data: {
+          cpNo: ids.cpId,
+          cpType: 'F',
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+          linkedPfdNo: ids.pfdId,
+          tripletGroupId: ids.tripletGroupId,
+          subject: `${headerData.subject} F#${index}`,
+          customerName: headerData.customerName,
+          companyName: headerData.companyName,
+          partNo: headerData.partNo,
+        },
+      });
+    }
+
+    if (ids.pfdId) {
+      await tx.pfdRegistration.create({
+        data: {
+          pfdNo: ids.pfdId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+          linkedCpNos: ids.cpId ? JSON.stringify([ids.cpId]) : null,
+          tripletGroupId: ids.tripletGroupId,
+          subject: `${headerData.subject} F#${index}`,
+          customerName: headerData.customerName,
+          companyName: headerData.companyName,
+        },
+      });
+    }
   });
 }
 

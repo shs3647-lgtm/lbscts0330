@@ -86,6 +86,7 @@ export default function CreateDocumentModal({
     const [parentCandidates, setParentCandidates] = useState<ParentCandidate[]>([]);
     const [selectedParentTriplet, setSelectedParentTriplet] = useState<string>('');
     const [partSetCount, setPartSetCount] = useState<number>(0);
+    const [familySetCount, setFamilySetCount] = useState<number>(0);
     const [immediateCP, setImmediateCP] = useState(false);
     const [immediatePFD, setImmediatePFD] = useState(false);
     // 소스 앱 변경 시 초기화
@@ -102,6 +103,7 @@ export default function CreateDocumentModal({
             setCpCount(1);
             setPfdCount(1);
             setPartSetCount(0);
+            setFamilySetCount(0);
             setSelectedParentTriplet('');
             setImmediateCP(false);
             setImmediatePFD(false);
@@ -266,10 +268,13 @@ export default function CreateDocumentModal({
                         tripletBody.parentTripletId = selectedParentTriplet;
                     }
                 }
-                if (docType === 'master' || docType === 'family') {
+                if (docType === 'master') {
+                    tripletBody.familyCount = familySetCount;
+                }
+                if (docType === 'family') {
                     tripletBody.partCount = partSetCount;
-                    tripletBody.immediateCP = immediateCP;
-                    tripletBody.immediatePFD = immediatePFD;
+                    tripletBody.immediateCP = true;
+                    tripletBody.immediatePFD = true;
                 }
 
                 const response = await fetch('/api/triplet/create', {
@@ -518,8 +523,29 @@ export default function CreateDocumentModal({
                             );
                         })()}
 
-                        {/* ★ Triplet: M/F → 하위 Part 세트 수량 */}
-                        {sourceApp === 'pfmea' && (fmeaType === 'M' || fmeaType === 'F') && (
+                        {/* ★ Master → 하위 Family 세트 수량 (0-3, 디폴트 1) */}
+                        {sourceApp === 'pfmea' && fmeaType === 'M' && (
+                            <tr className="border-b">
+                                <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">하위 Family 세트</td>
+                                <td className="py-1">
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={familySetCount}
+                                            onChange={(e) => setFamilySetCount(Number(e.target.value))}
+                                            className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                        >
+                                            {[0,1].map(n => (
+                                                <option key={n} value={n}>{n}개 {n === 0 ? '(나중에 추가)' : ''}</option>
+                                            ))}
+                                        </select>
+                                        <span className="text-[9px] text-gray-500">각 세트 = F-FMEA + F-CP + F-PFD</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+
+                        {/* ★ Family → 하위 Part 세트 수량 */}
+                        {sourceApp === 'pfmea' && fmeaType === 'F' && (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">하위 Part 세트</td>
                                 <td className="py-1">
@@ -535,26 +561,6 @@ export default function CreateDocumentModal({
                                         </select>
                                         <span className="text-[9px] text-gray-500">각 세트 = P-FMEA + P-CP(Lazy) + P-PFD(Lazy)</span>
                                     </div>
-                                </td>
-                            </tr>
-                        )}
-
-                        {/* ★ Triplet: Family → Lazy CP/PFD 즉시 생성 옵션 */}
-                        {sourceApp === 'pfmea' && fmeaType === 'F' && (
-                            <tr className="border-b">
-                                <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">Family 문서</td>
-                                <td className="py-1">
-                                    <div className="flex gap-3 text-xs">
-                                        <label className="flex items-center gap-1 cursor-pointer">
-                                            <input type="checkbox" checked={immediateCP} onChange={(e) => setImmediateCP(e.target.checked)} className="w-3.5 h-3.5 rounded" />
-                                            Family CP 즉시 생성
-                                        </label>
-                                        <label className="flex items-center gap-1 cursor-pointer">
-                                            <input type="checkbox" checked={immediatePFD} onChange={(e) => setImmediatePFD(e.target.checked)} className="w-3.5 h-3.5 rounded" />
-                                            Family PFD 즉시 생성
-                                        </label>
-                                    </div>
-                                    <div className="text-[9px] text-gray-400 mt-0.5">미체크 시 나중에 탭 접근 시 자동 생성 (Lazy Creation)</div>
                                 </td>
                             </tr>
                         )}

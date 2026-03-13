@@ -64,31 +64,37 @@ export function getMaxSerial(ids: string[], prefix: string, typeCode: string): n
 
 /**
  * M/F 타입: 각 prefix별 독립 시리얼 계산
+ * tgIds를 받으면 TripletGroup ID 충돌도 방지 (pfmeaSerial ≥ tgMaxSerial+1)
  */
 export function calcMFSerials(
   pfmeaIds: string[],
   cpIds: string[],
   pfdIds: string[],
-  typeCode: string
+  typeCode: string,
+  tgIds?: string[]
 ): SerialResult {
   const pfmeaSerial = getMaxSerial(pfmeaIds, 'pfm', typeCode) + 1;
   const cpSerial = getMaxSerial(cpIds, 'cp', typeCode) + 1;
   const pfdSerial = getMaxSerial(pfdIds, 'pfd', typeCode) + 1;
-  return { pfmeaSerial, cpSerial, pfdSerial, unifiedSerial: 0 };
+  const tgSerial = tgIds ? getMaxSerial(tgIds, 'tg', typeCode) + 1 : 0;
+  const safePfmeaSerial = Math.max(pfmeaSerial, tgSerial);
+  return { pfmeaSerial: safePfmeaSerial, cpSerial, pfdSerial, unifiedSerial: 0 };
 }
 
 /**
- * P 타입: 3개 prefix 통합 시리얼 계산
+ * P 타입: 3개 prefix + TripletGroup 통합 시리얼 계산
  */
 export function calcPartUnifiedSerial(
   pfmeaIds: string[],
   cpIds: string[],
-  pfdIds: string[]
+  pfdIds: string[],
+  tgIds?: string[]
 ): number {
   const pfmMax = getMaxSerial(pfmeaIds, 'pfm', 'p');
   const cpMax = getMaxSerial(cpIds, 'cp', 'p');
   const pfdMax = getMaxSerial(pfdIds, 'pfd', 'p');
-  return Math.max(pfmMax, cpMax, pfdMax) + 1;
+  const tgMax = tgIds ? getMaxSerial(tgIds, 'tg', 'p') : 0;
+  return Math.max(pfmMax, cpMax, pfdMax, tgMax) + 1;
 }
 
 /**
