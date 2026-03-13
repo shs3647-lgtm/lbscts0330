@@ -312,9 +312,10 @@ export function useRegisterPageHandlers(core: CoreReturn) {
 
       if (originalData) recordChangeHistory(finalId);
 
-      syncToLocalStorage(finalId, fmeaInfo, cftMembers, selectedBaseFmea, selectedParentApqp);
+      setFmeaInfo(prev => ({ ...prev, linkedCpNo: updatedFmeaInfo.linkedCpNo, linkedPfdNo: updatedFmeaInfo.linkedPfdNo }));
+      syncToLocalStorage(finalId, updatedFmeaInfo, cftMembers, selectedBaseFmea, selectedParentApqp);
       localStorage.setItem('pfmea-last-edited', finalId);
-      setOriginalData({ ...fmeaInfo });
+      setOriginalData({ ...updatedFmeaInfo });
 
       // ProjectLinkage 동기화
       try {
@@ -323,8 +324,8 @@ export function useRegisterPageHandlers(core: CoreReturn) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pfmeaId: finalId, apqpNo: selectedParentApqp || null,
-            cpNo: fmeaInfo.linkedCpNo || null, pfdNo: fmeaInfo.linkedPfdNo || null,
-            dfmeaId: fmeaInfo.linkedDfmeaNo || null,
+            cpNo: updatedFmeaInfo.linkedCpNo || null, pfdNo: updatedFmeaInfo.linkedPfdNo || null,
+            dfmeaId: updatedFmeaInfo.linkedDfmeaNo || null,
             projectName: fmeaInfo.subject || '', subject: fmeaInfo.subject || '',
             companyName: fmeaInfo.companyName || '', customerName: fmeaInfo.customerName || '',
             responsibleName: fmeaInfo.fmeaResponsibleName || '', modelYear: fmeaInfo.modelYear || '',
@@ -391,7 +392,6 @@ export function useRegisterPageHandlers(core: CoreReturn) {
         ...prev,
         fmeaResponsibleName: selectedUser.name,
         designResponsibility: selectedUser.department || prev.designResponsibility || '',
-        companyName: 'AMPSYSTEM',
         engineeringLocation: (selectedUser as any).factory || prev.engineeringLocation || '',
       }));
       // ✅ CFT Leader도 자동 동기화 (FMEA담당자 = CFT Leader)

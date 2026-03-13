@@ -123,6 +123,7 @@ function PFMEARegisterPageContent() {
     openFmeaSelectModal, handleFmeaSelect,
     loadApqpList, handleApqpSelect,
     handleSave, handleNewRegister, handleUserSelect,
+    loadFmeaNameList, handleFmeaNameChange,
     cftAlertRoles, setCftAlertRoles,
   } = handlers;
 
@@ -475,7 +476,13 @@ function PFMEARegisterPageContent() {
                     </select>
                   </td>
                   <td className={headerCell}>FMEA명<br /><span className="text-[8px] font-normal opacity-70">(Name)</span></td>
-                  <td className={inputCell}><input type="text" value={fmeaInfo.subject} onChange={e => updateField('subject', e.target.value)} onPaste={e => { const text = e.clipboardData.getData('text/plain'); if (text) { e.preventDefault(); updateField('subject', text.replace(/[\r\n]/g, ' ').trim()); } }} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="시스템, 서브시스템 및/또는 구성품" /></td>
+                  <td className={`${inputCell} relative`}>
+                    <div className="flex items-center gap-0.5 min-w-0">
+                      <input type="text" value={fmeaInfo.subject} onChange={e => handleFmeaNameChange(e.target.value)} onFocus={() => loadFmeaNameList()} onPaste={e => { const text = e.clipboardData.getData('text/plain'); if (text) { e.preventDefault(); handleFmeaNameChange(text.replace(/[\r\n]/g, ' ').trim()); } }} className={`flex-1 min-w-0 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none ${duplicateWarning ? 'text-red-600' : ''}`} placeholder="시스템, 서브시스템 및/또는 구성품" />
+                      <button onClick={() => { loadFmeaNameList(); setFmeaNameModalOpen(true); }} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs" title="기존 FMEA 목록 보기">🔍</button>
+                    </div>
+                    {duplicateWarning && <div className="absolute -bottom-3.5 left-0 text-[9px] text-red-600 font-semibold z-10">{duplicateWarning}</div>}
+                  </td>
                   <td className={headerCell}>FMEA ID</td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-1">
@@ -516,14 +523,17 @@ function PFMEARegisterPageContent() {
                   <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaStartDate} onClick={() => setStartDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택" /></td>
                   <td className={`${headerCell} bg-teal-700`}>연동 CP<br /><span className="text-[8px] font-normal opacity-70">(Linked)</span></td>
                   <td className={inputCell}>
-                    {fmeaInfo.linkedCpNo ? (
-                      <div className="flex items-center gap-0.5 px-1 min-h-[28px] cursor-pointer hover:opacity-80" onClick={() => router.push(`/control-plan/register?id=${fmeaInfo.linkedCpNo}`)} title="CP 등록화면으로 이동">
-                        <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-teal-500">CP</span>
-                        <span className="text-[10px] font-semibold text-teal-700 hover:underline">{fmeaInfo.linkedCpNo}</span>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-gray-400 px-1">-</span>
-                    )}
+                    <div className="flex items-center gap-0.5 px-1 min-h-[28px]">
+                      {fmeaInfo.linkedCpNo ? (
+                        <div className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => router.push(`/control-plan/register?id=${fmeaInfo.linkedCpNo}`)} title="CP 등록화면으로 이동">
+                          <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-teal-500">CP</span>
+                          <span className="text-[10px] font-semibold text-teal-700 hover:underline">{fmeaInfo.linkedCpNo}</span>
+                        </div>
+                      ) : (
+                        <span className="flex-1 text-[10px] text-gray-400">-</span>
+                      )}
+                      <button onClick={() => setLinkageModalOpen(true)} className="text-teal-500 hover:text-teal-700 shrink-0 text-xs" title="연동 CP 설정">🔗</button>
+                    </div>
                   </td>
                 </tr>
                 {/* 3행: 고객명, 엔지니어링위치, 목표완료일, 연동PFD */}
@@ -541,14 +551,17 @@ function PFMEARegisterPageContent() {
                   <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaRevisionDate} onClick={() => setRevisionDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택" /></td>
                   <td className={`${headerCell} bg-indigo-700`}>연동 PFD<br /><span className="text-[8px] font-normal opacity-70">(Linked)</span></td>
                   <td className={inputCell}>
-                    {fmeaInfo.linkedPfdNo ? (
-                      <div className="flex items-center gap-0.5 px-1 min-h-[28px] cursor-pointer hover:opacity-80" onClick={() => router.push(`/pfd/register?id=${fmeaInfo.linkedPfdNo}`)} title="PFD 등록화면으로 이동">
-                        <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-indigo-500">PFD</span>
-                        <span className="text-[10px] font-semibold text-indigo-700 hover:underline">{fmeaInfo.linkedPfdNo}</span>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-gray-400 px-1">-</span>
-                    )}
+                    <div className="flex items-center gap-0.5 px-1 min-h-[28px]">
+                      {fmeaInfo.linkedPfdNo ? (
+                        <div className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => router.push(`/pfd/register?id=${fmeaInfo.linkedPfdNo}`)} title="PFD 등록화면으로 이동">
+                          <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-indigo-500">PFD</span>
+                          <span className="text-[10px] font-semibold text-indigo-700 hover:underline">{fmeaInfo.linkedPfdNo}</span>
+                        </div>
+                      ) : (
+                        <span className="flex-1 text-[10px] text-gray-400">-</span>
+                      )}
+                      <button onClick={() => setLinkageModalOpen(true)} className="text-indigo-500 hover:text-indigo-700 shrink-0 text-xs" title="연동 PFD 설정">🔗</button>
+                    </div>
                   </td>
                 </tr>
                 {/* 4행: 회사명, 모델연식, 품명 */}
@@ -581,7 +594,12 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell}>품번<br /><span className="text-[8px] font-normal opacity-70">(Part No.)</span></td>
                   <td className={inputCell}><input type="text" value={fmeaInfo.partNo} onChange={e => updateField('partNo', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품번" /></td>
                   <td className={headerCell}>상호기능팀<br /><span className="text-[8px] font-normal opacity-70">(CFT)</span></td>
-                  <td className={inputCell} colSpan={5}><span className="text-xs text-gray-700 px-2">{cftMembers.filter(m => m.name?.trim()).map(m => m.name).join(', ') || '-'}</span></td>
+                  <td className={inputCell} colSpan={5}>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="flex-1 text-xs text-gray-700 px-2 truncate">{cftMembers.filter(m => m.name?.trim()).map(m => m.name).join(', ') || '-'}</span>
+                      <button onClick={() => document.getElementById('cft-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-blue-500 hover:text-blue-700 shrink-0 text-[10px] font-semibold px-1" title="CFT 섹션으로 이동">CFT 추가</button>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>

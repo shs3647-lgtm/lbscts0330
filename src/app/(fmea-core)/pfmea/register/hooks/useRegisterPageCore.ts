@@ -69,7 +69,7 @@ export function useRegisterPageCore() {
   const [originalData, setOriginalData] = useState<FMEAInfo | null>(null);
 
   // ★ 성능 개선: 프로젝트 목록 캐시 (page.tsx 중복 API 호출 제거)
-  const [cachedProjects, setCachedProjects] = useState<any[]>([]);
+  const [cachedProjects, setCachedProjects] = useState<Record<string, unknown>[]>([]);
 
   // 연동 모달
   const [linkageModalOpen, setLinkageModalOpen] = useState(false);
