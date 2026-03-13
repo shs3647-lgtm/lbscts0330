@@ -86,6 +86,9 @@ export interface ImportedFlatData {
   parentItemId?: string;   // 부모 아이템 ID (모자관계: A3→A4→A5, B1→B2→B3→B4)
   mergeGroupId?: string;   // 병합 그룹 ID (같은 병합셀 내 데이터 식별)
   rowSpan?: number;        // 엑셀 원본 병합 행 수 (1=단일, 2+=병합)
+
+  // ★★★ 2026-03-13: 수정본 적색 표기 (엑셀 폰트/배경 색상 감지) ★★★
+  isRevised?: boolean;     // true = 엑셀에서 적색으로 표기된 수정 항목
 }
 
 /** 공정 마스터 */

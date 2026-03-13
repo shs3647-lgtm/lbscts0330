@@ -150,8 +150,32 @@ export function validateAccuracy(flatData: ImportedFlatData[]): AccuracyWarning[
   return warnings;
 }
 
+// ── A6 검출관리 3요소 판별 키워드 ──
+const DC_EQUIPMENT_KEYWORDS = [
+  'scope', 'probe', '측정기', '시험기', '검사기', 'avi', 'aoi', 'cmm',
+  'gauge', '게이지', 'caliper', '캘리퍼', '마이크로미터', 'interlock',
+  '카메라', 'camera', '비전', 'vision', 'scanner', '스캐너', 'eol',
+  'nanospec', 'stratus', '두께계', '시험장비', '측정장비',
+];
+const DC_METHOD_KEYWORDS = [
+  '전수', '샘플링', 'sampling', 'lot별', '매lot', 'daily', '검사', '측정',
+  '파괴검사', '비파괴', 'ndt', '육안', '자동', 'auto', '인라인',
+];
+const DC_FREQ_KEYWORDS = [
+  '전수', 'lot', 'daily', '매일', '1회', '분기', '주기', '월', '연',
+  'every', '실시간', 'inline', '샘플', 'aql', 'points', 'wfr',
+];
+
+// ── B5 예방관리 시스템/장치/절차 판별 키워드 ──
+const PC_SYSTEM_KEYWORDS = [
+  'interlock', '인터록', 'poka-yoke', '포카요케', 'spc', 'mes',
+  'sop', '표준서', '작업표준', '관리도', '교정', 'calibration',
+  'pm', '예방보전', '교육', '인증', '시스템', '모니터링', '자동제어',
+  '점검', '관리', '계획', '기준', '절차', '가이드', '알람',
+];
+
 /**
- * FC 고장사슬 기반 B5↔A6 교차 검증 + B1↔WE 표기 일치
+ * FC 고장사슬 기반 B5↔A6 교차 검증 + B1↔WE 표기 일치 + DC/PC 형식 검증
  */
 export function validateFCAccuracy(
   flatData: ImportedFlatData[],
@@ -188,6 +212,64 @@ export function validateFCAccuracy(
           message: `A6(검출관리)에 예방 키워드 "${hit}" 혼입 → B5로 이동 검토`,
         });
       }
+    }
+
+    // ── FMT_A6_3ELEM: A6 검출관리 3요소(장비+방법+빈도) 확인 ──
+    if (dc && dc.length >= 3) {
+      const dcLower = dc.toLowerCase();
+      const hasEquip = DC_EQUIPMENT_KEYWORDS.some(kw => dcLower.includes(kw));
+      const hasMethod = DC_METHOD_KEYWORDS.some(kw => dcLower.includes(kw));
+      const hasFreq = DC_FREQ_KEYWORDS.some(kw => dcLower.includes(kw));
+      const missing: string[] = [];
+      if (!hasEquip) missing.push('장비명');
+      if (!hasMethod) missing.push('검사방법');
+      if (!hasFreq) missing.push('빈도');
+      if (missing.length > 0) {
+        warnings.push({
+          ruleId: 'FMT_A6_3ELEM',
+          itemCode: 'A6',
+          processNo: chain.processNo || '',
+          value: dc,
+          message: `A6(검출관리)에 ${missing.join('·')} 누락 — [장비명]+[방법]+[빈도] 3요소 필수`,
+        });
+      }
+    }
+
+    // ── LEN_A6_SHORT: A6 최소 길이 ──
+    if (dc && dc.length > 0 && dc.length < 5) {
+      warnings.push({
+        ruleId: 'LEN_A6_SHORT',
+        itemCode: 'A6',
+        processNo: chain.processNo || '',
+        value: dc,
+        message: `A6(검출관리) "${dc}" — 내용이 너무 짧음 (5자 이상 권장)`,
+      });
+    }
+
+    // ── FMT_B5_SYSTEM: B5 예방관리 시스템/장치/절차 포함 확인 ──
+    if (pc && pc.length >= 3) {
+      const pcLower = pc.toLowerCase();
+      const hasSystem = PC_SYSTEM_KEYWORDS.some(kw => pcLower.includes(kw));
+      if (!hasSystem) {
+        warnings.push({
+          ruleId: 'FMT_B5_SYSTEM',
+          itemCode: 'B5',
+          processNo: chain.processNo || '',
+          value: pc,
+          message: `B5(예방관리)에 구체적 장치명·시스템명·절차명이 누락 — 추상적 표현 지양`,
+        });
+      }
+    }
+
+    // ── LEN_B5_SHORT: B5 최소 길이 ──
+    if (pc && pc.length > 0 && pc.length < 5) {
+      warnings.push({
+        ruleId: 'LEN_B5_SHORT',
+        itemCode: 'B5',
+        processNo: chain.processNo || '',
+        value: pc,
+        message: `B5(예방관리) "${pc}" — 내용이 너무 짧음 (5자 이상 권장)`,
+      });
     }
   }
 

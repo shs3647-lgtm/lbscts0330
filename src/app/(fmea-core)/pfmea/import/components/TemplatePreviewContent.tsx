@@ -220,6 +220,19 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     };
   }, [parseStatistics, flatData, crossTab.total, failureChains.length]);
 
+  // ── ★★★ 2026-03-13: 수정본 적색 항목 ID Set (엑셀 적색 표기 → UI 반영) ★★★ ──
+  const revisedItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const d of flatData) {
+      if (d.isRevised && d.id) ids.add(d.id);
+    }
+    return ids;
+  }, [flatData]);
+
+  const isRowRevised = useCallback((ids: CrossTabIds): boolean => {
+    return Object.values(ids).some(id => id && revisedItemIds.has(id));
+  }, [revisedItemIds]);
+
   // ── 편집 후 자동저장 (2초 디바운스) ──
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -896,6 +909,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           </div>
         )}
 
+        {/* ─── 수정본 적색 표기 배너 ─── */}
+        {revisedItemIds.size > 0 && (
+          <div className="mb-1 px-2 py-1 bg-red-50 border border-red-200 rounded text-[10px] text-red-700 font-medium flex items-center gap-1">
+            <span>🔴</span>
+            <span>수정본 {revisedItemIds.size}건 감지 (엑셀 적색 표기)</span>
+          </div>
+        )}
+
         {/* ─── 미리보기 테이블 ─── */}
         {crossTab.total === 0 ? (
           <div className="text-center py-3 text-gray-500 text-[11px] font-medium border border-dashed border-gray-300 rounded">
@@ -925,23 +946,24 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                     </td></tr>
                   ) : crossTab.cRows.map((r, i) => {
                     const cMissing = r.C1 && !r.C2;
+                    const cRevised = isRowRevised(r._ids);
                     return (
-                    <tr key={i} data-missing={cMissing ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : cMissing ? 'bg-orange-50/60' : i % 2 ? 'bg-gray-50/50' : ''}`}>
+                    <tr key={i} data-missing={cMissing ? 'true' : undefined} data-revised={cRevised ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : cMissing ? 'bg-orange-50/60' : cRevised ? 'bg-red-50/40' : i % 2 ? 'bg-gray-50/50' : ''}`}>
                       {isEditing && <td className={`${TD} text-center`}><input type="checkbox" checked={selectedRows.has(i)} onChange={() => toggleRow(i)} className="cursor-pointer" /></td>}
-                      <td className={TD_NO}>{i+1}</td>
-                      <td className={`${isEditing ? TD_EDIT : TD} text-center font-medium`}>
+                      <td className={`${TD_NO} ${cRevised ? 'border-l-2 border-l-red-500' : ''}`}>{cRevised ? <span title="수정본">🔴</span> : (i+1)}</td>
+                      <td className={`${isEditing ? TD_EDIT : TD} text-center font-medium ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C1} itemId={r._ids.C1} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C1 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C1', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
-                      <td className={isEditing ? TD_EDIT : TD}>
+                      <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C2} itemId={r._ids.C2} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C2 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C2', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
-                      <td className={isEditing ? TD_EDIT : TD}>
+                      <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C3} itemId={r._ids.C3} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C3 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C3', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
-                      <td className={isEditing ? TD_EDIT : TD}>
+                      <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C4} itemId={r._ids.C4} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C4 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C4', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
@@ -976,24 +998,25 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   ) : crossTab.aRows.map((r, i) => {
                     const aMissing = r.A1 && !r.A2;
                     const aDup = dupRowIndices.has(i) && highlightDupCode?.startsWith('A');
+                    const aRevised = isRowRevised(r._ids);
                     return (
-                    <tr key={i} ref={i === firstDupIdx && aDup ? firstDupRef : undefined} data-missing={aMissing ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : aDup ? 'bg-amber-100 ring-1 ring-amber-400' : aMissing ? 'bg-orange-50/60' : i % 2 ? 'bg-gray-50/50' : ''}`}>
+                    <tr key={i} ref={i === firstDupIdx && aDup ? firstDupRef : undefined} data-missing={aMissing ? 'true' : undefined} data-revised={aRevised ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : aDup ? 'bg-amber-100 ring-1 ring-amber-400' : aMissing ? 'bg-orange-50/60' : aRevised ? 'bg-red-50/40' : i % 2 ? 'bg-gray-50/50' : ''}`}>
                       {isEditing && <td className={`${TD} text-center`}><input type="checkbox" checked={selectedRows.has(i)} onChange={() => toggleRow(i)} className="cursor-pointer" /></td>}
-                      <td className={`${TD_NO} ${aMissing ? 'border-l-2 border-l-orange-400' : ''}`}>{i+1}</td>
-                      <td className={`${isEditing ? TD_EDIT : TD} text-center font-mono font-medium`}>
+                      <td className={`${TD_NO} ${aMissing ? 'border-l-2 border-l-orange-400' : aRevised ? 'border-l-2 border-l-red-500' : ''}`}>{aRevised ? <span title="수정본">🔴</span> : (i+1)}</td>
+                      <td className={`${isEditing ? TD_EDIT : TD} text-center font-mono font-medium ${aRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.A1} itemId={r._ids.A1} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.A1 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A1', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.A2} itemId={r._ids.A2} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A2} itemId={r._ids.A2} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A2 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A2', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.A3} itemId={r._ids.A3} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A3} itemId={r._ids.A3} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A3 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A3', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.A4} itemId={r._ids.A4} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A4} itemId={r._ids.A4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A4 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A4', value: val, createdAt: new Date() }]) : undefined} /></td>
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.A4SC ? 'text-red-700' : 'text-gray-300'}`}>{r.A4SC || '-'}</span></td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.A5} itemId={r._ids.A5} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A5} itemId={r._ids.A5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A5 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A5', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={isEditing ? TD_EDIT : TD} style={{background:'#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`} style={{background: aRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A6 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A6', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
@@ -1027,11 +1050,12 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   ) : crossTab.bRows.slice(0, 100).map((r, i) => {
                     const bMissing = false;
                     const bDup = dupRowIndices.has(i) && highlightDupCode?.startsWith('B');
+                    const bRevised = isRowRevised(r._ids);
                     return (
-                    <tr key={i} ref={i === firstDupIdx && bDup ? firstDupRef : undefined} data-missing={bMissing ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : bDup ? 'bg-amber-100 ring-1 ring-amber-400' : bMissing ? 'bg-orange-50/60' : i % 2 ? 'bg-gray-50/50' : ''}`}>
+                    <tr key={i} ref={i === firstDupIdx && bDup ? firstDupRef : undefined} data-missing={bMissing ? 'true' : undefined} data-revised={bRevised ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : bDup ? 'bg-amber-100 ring-1 ring-amber-400' : bMissing ? 'bg-orange-50/60' : bRevised ? 'bg-red-50/40' : i % 2 ? 'bg-gray-50/50' : ''}`}>
                       {isEditing && <td className={`${TD} text-center`}><input type="checkbox" checked={selectedRows.has(i)} onChange={() => toggleRow(i)} className="cursor-pointer" /></td>}
-                      <td className={`${TD_NO} ${bMissing ? 'border-l-2 border-l-orange-400' : ''}`}>{i+1}</td>
-                      <td className={`${TD} text-center font-mono`}>{r.processNo}</td>
+                      <td className={`${TD_NO} ${bMissing ? 'border-l-2 border-l-orange-400' : bRevised ? 'border-l-2 border-l-red-500' : ''}`}>{bRevised ? <span title="수정본">🔴</span> : (i+1)}</td>
+                      <td className={`${TD} text-center font-mono ${bRevised ? 'text-red-600 font-bold' : ''}`}>{r.processNo}</td>
                       <td className={`${TD} text-center`}>
                         {isEditing && r._ids.B1 && onUpdateM4 ? (
                           <select value={r.m4} onChange={e => onUpdateM4(r._ids.B1, e.target.value)}
@@ -1042,16 +1066,16 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                           <span className={`text-[7px] px-0.5 rounded font-bold ${M4_BADGE[r.m4] || ''}`}>{r.m4}</span>
                         ) : null}
                       </td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.B1} itemId={r._ids.B1} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B1} itemId={r._ids.B1} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B1 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B1', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.B2} itemId={r._ids.B2} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B2} itemId={r._ids.B2} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B2 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B2', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.B3} itemId={r._ids.B3} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B3} itemId={r._ids.B3} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B3 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B3', value: val, createdAt: new Date() }]) : undefined} /></td>
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.B3SC ? 'text-red-700' : 'text-gray-300'}`}>{r.B3SC || '-'}</span></td>
-                      <td className={isEditing ? TD_EDIT : TD}><EditCell value={r.B4} itemId={r._ids.B4} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B4} itemId={r._ids.B4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B4 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B4', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={isEditing ? TD_EDIT : TD} style={{background:'#fff9c4'}}><EditCell value={r.B5} itemId={r._ids.B5} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`} style={{background: bRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.B5} itemId={r._ids.B5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B5 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B5', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );

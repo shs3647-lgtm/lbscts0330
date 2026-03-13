@@ -78,6 +78,9 @@ export interface MasterFailureChain {
   mergeGroupId?: string;     // 병합 그룹 ID (동일 병합셀 내 데이터)
   fmMergeSpan?: number;      // FM(A5) 병합 행 수 — FM 1건이 몇 FC를 커버하는지
   feMergeSpan?: number;      // FE(C4) 병합 행 수 — FE 1건이 몇 FM을 커버하는지
+
+  // ★★★ 2026-03-13: 수정본 적색 표기 ★★★
+  isRevised?: boolean;       // true = 엑셀에서 적색으로 표기된 수정 항목
 }
 
 // ─── flatData → failureChains 자동 도출 ───

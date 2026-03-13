@@ -403,7 +403,6 @@ function PFMEARegisterPageContent() {
             {isRevisionMode && <span className="px-2 py-0.5 text-xs bg-blue-200 text-blue-800 rounded font-bold">개정모드(Revision Mode)</span>}
           </div>
           <div className="flex gap-2">
-            <button onClick={toggleHelp} className={`px-2 py-0.5 text-[9px] font-bold rounded transition-colors ${helpSection ? 'bg-yellow-500 text-white' : 'bg-yellow-400 text-[#00587a] hover:bg-yellow-300'}`} title="등록화면 도움말">도움말(Help)</button>
             <button onClick={handleNewRegister} className="px-3 py-1.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 font-semibold">➕ 새로 작성(Create)</button>
             <button onClick={() => {
               if (isEditMode) { alert('현재 편집 모드입니다. 테이블 필드를 직접 수정하세요.'); }

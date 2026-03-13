@@ -224,10 +224,23 @@ export function UserSelectModal({
       return;
     }
     const user = users.find(u => u.id === selectedUserId);
-    if (confirm(`"${user?.name || ''}" 삭제하시겠습니까(Delete)?`)) {
+    if (!user) {
+      alert('❌ 선택된 사용자를 찾을 수 없습니다(User not found).');
+      return;
+    }
+    if (!confirm(`"${user.name}" (${user.factory}/${user.department}) 삭제하시겠습니까(Delete)?`)) {
+      return;
+    }
+    try {
       await deleteUser(selectedUserId);
       await refreshData();
       setSelectedUserId(null);
+      alert(`✅ "${user.name}" 삭제 완료(Deleted)!`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '알 수 없는 오류';
+      console.error('[UserSelectModal] 삭제 오류:', error);
+      alert(`❌ 삭제 실패(Delete Failed):\n${msg}`);
+      await refreshData();
     }
   };
 
@@ -271,6 +284,9 @@ export function UserSelectModal({
       }
 
       let importedCount = 0;
+      let skipCount = 0;
+      const existingUsers = await getAllUsers();
+      const existingEmails = new Set(existingUsers.filter(u => u.email).map(u => u.email!.toLowerCase()));
 
       // 역순 Import: createdAt desc 정렬에서 엑셀 원본 순서 유지
       for (const row of [...dataRows].reverse()) {
@@ -285,21 +301,28 @@ export function UserSelectModal({
         };
 
         if (userData.name) {
-          // 이메일 중복 체크
-          const existingUsers = await getAllUsers();
-          const emailExists = userData.email && existingUsers.find(u => u.email === userData.email);
-          if (!emailExists) {
+          if (userData.email && existingEmails.has(userData.email.toLowerCase())) {
+            skipCount++;
+            continue;
+          }
+          try {
             await createUser(userData);
+            if (userData.email) existingEmails.add(userData.email.toLowerCase());
             importedCount++;
+          } catch (err) {
+            console.error(`[Import] "${userData.name}" 등록 실패:`, err);
           }
         }
       }
 
       await refreshData();
-      alert(`✅ ${importedCount}명 Import 완료(Complete)!`);
+      const msg = skipCount > 0
+        ? `✅ ${importedCount}명 Import 완료(Complete)!\n⚠️ ${skipCount}명 이메일 중복으로 건너뜀(Skipped).`
+        : `✅ ${importedCount}명 Import 완료(Complete)!`;
+      alert(msg);
     } catch (err) {
       console.error('Import 오류:', err);
-      alert('❌ 엑셀 파일 읽기 오류(Excel read error)');
+      alert(`❌ 엑셀 파일 읽기 오류(Excel read error):\n${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
     e.target.value = '';
   };
@@ -393,7 +416,7 @@ export function UserSelectModal({
         {editingUser ? (
           <div className="flex-1 overflow-y-auto px-3 py-3">
             <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-2">
-              <p className="text-xs font-semibold text-blue-700 mb-2">📝 {editingUser.id.length < 20 ? '신규 등록(New User)' : '사용자 수정(Edit User)'}</p>
+              <p className="text-xs font-semibold text-blue-700 mb-2">📝 {!users.find(u => u.id === editingUser.id) ? '신규 등록(New User)' : '사용자 수정(Edit User)'}</p>
               <div className="grid grid-cols-4 gap-x-3 gap-y-2">
                 <div>
                   <label className="text-[10px] text-gray-600 block mb-0.5">성명<span className="text-[7px] text-gray-400 ml-0.5">(Name)</span> <span className="text-red-500">*</span></label>

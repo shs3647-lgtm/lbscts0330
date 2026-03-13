@@ -139,35 +139,42 @@ export async function updateUser(id: string, updates: Partial<Omit<UserInfo, 'id
 
 /**
  * 사용자 삭제
- * DB 우선, 실패 시 localStorage 사용
+ * DB 우선, 실패 시 에러 throw (호출자에서 처리)
+ * @returns true = 삭제 성공
+ * @throws Error = 삭제 실패 (API 오류, DB 제약 등)
  */
-export async function deleteUser(id: string): Promise<void> {
+export async function deleteUser(id: string): Promise<boolean> {
   try {
-    // DB에서 삭제 시도
     const res = await fetch(`/api/users?id=${id}`, {
       method: 'DELETE'
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success) {
-        // localStorage에도 동기화
-        const users = await getAllUsers();
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
-        }
-        return;
-      }
-    }
-  } catch (error) {
-    console.error('[user-db] 사용자 DB 삭제 실패:', error);
-  }
+    const data = await res.json();
 
-  // 폴백: localStorage 사용
-  const users = await getAllUsers();
-  const filtered = users.filter(u => u.id !== id);
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(filtered));
+    if (res.ok && data.success) {
+      // localStorage에도 동기화
+      const users = await getAllUsers();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+      }
+      return true;
+    }
+
+    // API가 명시적 에러 반환
+    throw new Error(data.error || `삭제 실패 (HTTP ${res.status})`);
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      // 네트워크 오류 → localStorage 폴백
+      console.error('[user-db] 네트워크 오류 — localStorage 폴백 삭제:', error);
+      const users = await getAllUsers();
+      const filtered = users.filter(u => u.id !== id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(filtered));
+      }
+      return true;
+    }
+    // DB/API 오류는 호출자에게 전파
+    throw error;
   }
 }
 

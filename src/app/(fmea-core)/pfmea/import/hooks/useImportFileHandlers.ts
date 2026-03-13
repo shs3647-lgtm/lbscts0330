@@ -12,6 +12,7 @@ import { saveMasterDataset } from '../utils/master-api';
 import { validateExcelFileWithAlert } from '@/lib/excel-validation';
 import { validateImportData } from '../utils/import-validation';
 import { validateHierarchy } from '../utils/hierarchy-validation';
+import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '../utils/excel-color-detector';
 
 interface UseImportFileHandlersProps {
   setFileName: (name: string) => void;
@@ -342,6 +343,23 @@ export function useImportFileHandlers({
           '- "Item Import" 영역의 "찾아보기" 버튼을 사용하세요.\n' +
           '- 항목 선택 후 해당 항목 파일을 업로드합니다.'
         );
+      }
+
+      // ★★★ 2026-03-13: 적색 표기 감지 → isRevised 플래그 적용 ★★★
+      try {
+        const redCellMap = await detectRedCells(file);
+        if (redCellMap.size > 0) {
+          applyRevisedFlags(flat, redCellMap);
+          if (result.failureChains && result.failureChains.length > 0) {
+            applyRevisedFlagsToChains(result.failureChains, redCellMap);
+          }
+          const revisedCount = flat.filter(d => d.isRevised).length;
+          if (revisedCount > 0) {
+            console.log(`[적색감지] ${redCellMap.size}개 적색 셀 감지 → ${revisedCount}건 isRevised 적용`);
+          }
+        }
+      } catch (colorErr) {
+        console.error('[적색감지] 색상 감지 실패 (파싱 결과에 영향 없음):', colorErr);
       }
 
       setPendingData(flat);
