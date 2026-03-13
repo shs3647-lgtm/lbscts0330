@@ -33,6 +33,10 @@ interface PfdBasicInfoTableProps {
     setUserModalOpen: (v: boolean) => void;
     openFmeaSelectModal: () => void;
     openCpManageModal: () => void;
+    tripletInfo?: {
+        id: string; typeCode: string; pfmeaId: string | null; cpId: string | null;
+        syncStatus: string; children: Array<{ id: string; subject: string }>;
+    } | null;
 }
 
 export default function PfdBasicInfoTable({
@@ -43,6 +47,7 @@ export default function PfdBasicInfoTable({
     setStartDateModalOpen, setRevisionDateModalOpen, setBizInfoModalOpen,
     setUserModalTarget, setUserModalOpen,
     openFmeaSelectModal, openCpManageModal,
+    tripletInfo,
 }: PfdBasicInfoTableProps) {
     const router = useRouter();
 
@@ -140,6 +145,31 @@ export default function PfdBasicInfoTable({
                             </div>
                         </td>
                     </tr>
+                    {/* Triplet 상태 행 */}
+                    {tripletInfo && (
+                    <tr className="h-8 bg-gradient-to-r from-indigo-50 to-blue-50">
+                        <td className="px-2 py-1 text-[10px] font-bold text-indigo-700 border border-gray-200 bg-indigo-100" colSpan={2}>
+                            Triplet [{tripletInfo.typeCode.toUpperCase()}] {tripletInfo.id}
+                        </td>
+                        <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
+                            <span className="font-medium text-gray-600">PFMEA: </span>
+                            {tripletInfo.pfmeaId ? (
+                                <span className="text-blue-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/pfmea/register?id=${tripletInfo.pfmeaId}`)}>{tripletInfo.pfmeaId}</span>
+                            ) : <span className="text-gray-400 italic">-</span>}
+                        </td>
+                        <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
+                            <span className="font-medium text-gray-600">CP: </span>
+                            {tripletInfo.cpId ? (
+                                <span className="text-teal-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/control-plan/register?id=${tripletInfo.cpId}`)}>{tripletInfo.cpId}</span>
+                            ) : <span className="text-gray-400 italic">Lazy</span>}
+                        </td>
+                        <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
+                            <span className={`px-1 py-0.5 rounded text-[8px] font-bold text-white ${
+                                tripletInfo.syncStatus === 'synced' ? 'bg-green-500' : tripletInfo.syncStatus === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}>{tripletInfo.syncStatus}</span>
+                        </td>
+                    </tr>
+                    )}
                     {/* 3행: 고객명, 엔지니어링위치, 목표완료일, 연동FMEA(PFD→FMEA 방향) */}
                     <tr className="h-9">
                         <td className={headerCell}>고객 명<br /><span className="text-[8px] font-normal opacity-70">(Customer)</span></td>

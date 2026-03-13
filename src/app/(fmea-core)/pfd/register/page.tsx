@@ -102,6 +102,12 @@ function PFDRegisterPageContent() {
   // ★ 새로 만들기 모달 상태
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // ★ Triplet 상태
+  const [tripletInfo, setTripletInfo] = useState<{
+    id: string; typeCode: string; pfmeaId: string | null; cpId: string | null;
+    syncStatus: string; children: Array<{ id: string; subject: string }>;
+  } | null>(null);
+
   // 접속 로그
   const loadAccessLogs = useCallback(async () => {
     const targetId = pfdId || editId;
@@ -289,6 +295,21 @@ function PFDRegisterPageContent() {
           }]);
           setCpLocked(true);
         }
+        // ★ Triplet 정보 로드
+        const tgId = project.tripletGroupId;
+        if (tgId) {
+          fetch(`/api/triplet/${tgId}/header`).then(r => r.json()).then(tgData => {
+            if (tgData.success && tgData.triplet) {
+              const t = tgData.triplet;
+              setTripletInfo({
+                id: t.id, typeCode: t.typeCode,
+                pfmeaId: t.pfmea?.id || null, cpId: t.cp?.id || null,
+                syncStatus: t.syncStatus, children: t.children || [],
+              });
+            }
+          }).catch(() => {});
+        }
+
         if (!isEditMode) router.replace(`/pfd/register?id=${projectId}`);
       }
     };
@@ -546,6 +567,7 @@ function PFDRegisterPageContent() {
           setStartDateModalOpen={setStartDateModalOpen} setRevisionDateModalOpen={setRevisionDateModalOpen} setBizInfoModalOpen={setBizInfoModalOpen}
           setUserModalTarget={setUserModalTarget} setUserModalOpen={setUserModalOpen}
           openFmeaSelectModal={openFmeaSelectModal} openCpManageModal={() => setLinkageModalOpen(true)}
+          tripletInfo={tripletInfo}
         />
 
         {/* CFT 정보 */}

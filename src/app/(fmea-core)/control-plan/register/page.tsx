@@ -62,6 +62,7 @@ function CPRegisterPageContent() {
     linkageModalOpen, setLinkageModalOpen,
     linkedPfdList, setLinkedPfdList,
     isCreateModalOpen, setIsCreateModalOpen,
+    tripletInfo,
   } = core;
 
   const {
@@ -128,6 +129,7 @@ function CPRegisterPageContent() {
           setLinkageModalOpen={setLinkageModalOpen}
           handleCpTypeChange={handleCpTypeChange}
           router={router}
+          tripletInfo={tripletInfo}
         />
 
         {/* CP 기초정보 등록 옵션 */}

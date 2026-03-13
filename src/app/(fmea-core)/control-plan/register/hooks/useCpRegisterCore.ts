@@ -76,6 +76,12 @@ export function useCpRegisterCore() {
   // 새로 만들기 모달 상태
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  // ★ Triplet 상태
+  const [tripletInfo, setTripletInfo] = useState<{
+    id: string; typeCode: string; pfmeaId: string | null; pfdId: string | null;
+    syncStatus: string; children: Array<{ id: string; subject: string }>;
+  } | null>(null);
+
   // =====================================================
   // Refs
   // =====================================================
@@ -299,6 +305,21 @@ export function useCpRegisterCore() {
           }]);
         }
 
+        // ★ Triplet 정보 로드
+        const tgId = project.tripletGroupId;
+        if (tgId) {
+          fetch(`/api/triplet/${tgId}/header`).then(r => r.json()).then(tgData => {
+            if (tgData.success && tgData.triplet) {
+              const t = tgData.triplet;
+              setTripletInfo({
+                id: t.id, typeCode: t.typeCode,
+                pfmeaId: t.pfmea?.id || null, pfdId: t.pfd?.id || null,
+                syncStatus: t.syncStatus, children: t.children || [],
+              });
+            }
+          }).catch(() => {});
+        }
+
         if (!isEditMode) router.replace(`/control-plan/register?id=${projectId}`);
       }
     };
@@ -373,6 +394,8 @@ export function useCpRegisterCore() {
     originalData, setOriginalData,
     // Create modal
     isCreateModalOpen, setIsCreateModalOpen,
+    // Triplet
+    tripletInfo, setTripletInfo,
     // Functions
     loadAccessLogs, recordAccessLog,
   };
