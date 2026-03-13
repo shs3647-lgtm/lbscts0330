@@ -26,6 +26,7 @@ import { FailureChainPreview } from './FailureChainPreview';
 // FullAnalysisPreview 삭제됨 (사용자 요청)
 import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
+import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
 
 // ─── Props ───
 
@@ -399,13 +400,30 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     const result = confirmSA();
     if (result?.success) {
       const d = result.diagnostics;
-      alert(`SA 확정 완료!\n\nL2 공정: ${d.l2Count}개\nL3 작업요소: ${d.l3Count}개\nL2기능: ${d.l2FuncCount}개, L3기능: ${d.l3FuncCount}개\n고장형태: ${d.fmCount}개, 고장원인: ${d.fcCount}개, 고장영향: ${d.feCount}개`);
+      const accWarnings = validateAccuracy(generatedData);
+      const fcAccWarnings = failureChains.length > 0
+        ? validateFCAccuracy(generatedData, failureChains)
+        : [];
+      const allWarnings = [...accWarnings, ...fcAccWarnings];
+      const summary = summarizeAccuracyWarnings(allWarnings);
+
+      let msg = `SA 확정 완료!\n\nL2 공정: ${d.l2Count}개\nL3 작업요소: ${d.l3Count}개\nL2기능: ${d.l2FuncCount}개, L3기능: ${d.l3FuncCount}개\n고장형태: ${d.fmCount}개, 고장원인: ${d.fcCount}개, 고장영향: ${d.feCount}개`;
+
+      if (summary.total > 0) {
+        const details = allWarnings.slice(0, 10).map(w =>
+          `  [${w.ruleId}] 공정${w.processNo} ${w.itemCode}: ${w.message}`
+        ).join('\n');
+        msg += `\n\n⚠️ 작성정확도 경고 (${summary.total}건):\n${details}`;
+        if (allWarnings.length > 10) msg += `\n  ... 외 ${allWarnings.length - 10}건`;
+        msg += '\n\n※ 경고 항목을 검토하여 정확도를 개선하세요.';
+      }
+      alert(msg);
     } else if (result && !result.success) {
       alert('SA 확정 실패: 계층 구조 빌드에 문제가 있습니다.');
     } else if (!result) {
       alert('SA 확정 불가: 데이터를 먼저 저장해주세요.');
     }
-  }, [generatedData.length, effectiveStatistics, confirmSA]);
+  }, [generatedData.length, effectiveStatistics, confirmSA, generatedData, failureChains]);
 
   // ── SA 되돌리기 핸들러 (확정 후 리셋+SA탭 이동) ──
   const handleSAReset = useCallback(() => {

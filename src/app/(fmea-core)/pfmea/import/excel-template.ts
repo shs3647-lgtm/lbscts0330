@@ -84,26 +84,26 @@ const MANUAL_MODE_EXCLUDE = new Set([
 const HEADER_COLOR = '00587A';  // 디자인 표준 네이비 색상
 
 const SHEET_DEFINITIONS = [
-  { name: 'L2-1(A1) 공정번호', headers: ['L2-1.공정번호', 'L2-2.공정명', '공정유형코드(선택)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'A1' },
-  { name: 'L2-2(A2) 공정명', headers: ['L2-1.공정번호', 'L2-2.공정명'], color: HEADER_COLOR, required: [true, true], legacyName: 'A2' },
-  { name: 'L2-3(A3) 공정기능', headers: ['L2-1.공정번호', 'L2-3.공정기능(설명)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A3' },
-  { name: 'L2-4(A4) 제품특성', headers: ['L2-1.공정번호', 'L2-4.제품특성', '특별특성'], color: HEADER_COLOR, required: [true, false, false], legacyName: 'A4' },
-  { name: 'L2-5(A5) 고장형태', headers: ['L2-1.공정번호', 'L2-5.고장형태'], color: HEADER_COLOR, required: [true, false], legacyName: 'A5' },
+  { name: 'L2-1(A1) 공정번호', headers: ['L2-1.공정번호', 'L2-2.공정명', '공정유형코드(선택)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'A1', guide: '' },
+  { name: 'L2-2(A2) 공정명', headers: ['L2-1.공정번호', 'L2-2.공정명'], color: HEADER_COLOR, required: [true, true], legacyName: 'A2', guide: '' },
+  { name: 'L2-3(A3) 공정기능', headers: ['L2-1.공정번호', 'L2-3.공정기능(설명)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A3', guide: '작성: [대상물]을 [처리방법]으로 [처리]하여 [결과]를 확보한다 | 금지: 파라미터 수치, 검사절차, 불량방지 문구' },
+  { name: 'L2-4(A4) 제품특성', headers: ['L2-1.공정번호', 'L2-4.제품특성(Wafer 결과값 명사)', '특별특성'], color: HEADER_COLOR, required: [true, false, false], legacyName: 'A4', guide: '제품(Wafer)에서 측정하는 품질특성 명사 | 금지: 온도·농도·에너지 등 공정파라미터(→B3), Check·Inspection 동사형' },
+  { name: 'L2-5(A5) 고장형태', headers: ['L2-1.공정번호', 'L2-5.고장형태(A4이탈 현상)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A5', guide: '[A4특성명]+[이탈유형]: 규격이탈/미달/초과/미형성/부재/잔류 | 금지: 원인(→B4), 공정특성이탈(→B4)' },
   // v3.1.1: A6(검출관리) FC 시트 컬럼으로 복원 (별도 시트는 제거 유지)
-  { name: 'L3-1(B1) 작업요소', headers: ['L2-1.공정번호', '4M', 'L3-1.작업요소(설비)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B1' },
-  { name: 'L3-2(B2) 요소기능', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-2.요소기능'], color: HEADER_COLOR, required: [true, true, false, false], legacyName: 'B2' },
-  { name: 'L3-3(B3) 공정특성', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-3.공정특성', '특별특성'], color: HEADER_COLOR, required: [true, true, false, false, false], legacyName: 'B3' },
-  { name: 'L3-4(B4) 고장원인', headers: ['L2-1.공정번호', '4M', 'L3-4.고장원인'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B4' },
+  { name: 'L3-1(B1) 작업요소', headers: ['L2-1.공정번호', '4M', 'L3-1.작업요소(설비·재료·인원 고유명)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B1', guide: 'MC=설비고유명, MN=직무역할명, IM=약품고유명 | B2★작업요소·FC(WE)와 완전 동일 표기 필수' },
+  { name: 'L3-2(B2) 요소기능', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-2.요소기능'], color: HEADER_COLOR, required: [true, true, false, false], legacyName: 'B2', guide: '[B1]이 [행위]하여 [결과]를 제공한다 | 주어=B1명칭, 결과 명시 필수' },
+  { name: 'L3-3(B3) 공정특성', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-3.공정특성(설비·약품 파라미터)', '특별특성'], color: HEADER_COLOR, required: [true, true, false, false, false], legacyName: 'B3', guide: '설비·약품에서 설정·모니터링하는 입력 파라미터 명사+(단위) | 금지: A4 제품특성, B2 요소기능 내용' },
+  { name: 'L3-4(B4) 고장원인', headers: ['L2-1.공정번호', '4M', 'L3-4.고장원인(B3이탈 원인)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B4', guide: 'B3파라미터 이탈의 직접 원인 | 금지: 고장형태(A5) 현상, 대책·행동 기술' },
   // v3.1.1: B5(예방관리) FC 시트 컬럼으로 복원 (별도 시트는 제거 유지)
-  { name: 'L1-1(C1) 구분', headers: ['L1-1.구분'], color: HEADER_COLOR, required: [true], legacyName: 'C1' },  // YP, SP, USER (약어만 사용)
-  { name: 'L1-2(C2) 제품기능', headers: ['L1-1.구분', 'L1-2.제품(반)기능'], color: HEADER_COLOR, required: [true, false], legacyName: 'C2' },
-  { name: 'L1-3(C3) 요구사항', headers: ['L1-1.구분', 'L1-3.제품(반)요구사항'], color: HEADER_COLOR, required: [true, false], legacyName: 'C3' },
-  { name: 'L1-4(C4) 고장영향', headers: ['L1-1.구분', 'L1-4.고장영향'], color: HEADER_COLOR, required: [true, false], legacyName: 'C4' },
+  { name: 'L1-1(C1) 구분', headers: ['L1-1.구분'], color: HEADER_COLOR, required: [true], legacyName: 'C1', guide: 'YP(Your Plant), SP(Ship to Plant), USER 중 택1' },
+  { name: 'L1-2(C2) 제품기능', headers: ['L1-1.구분', 'L1-2.제품(반)기능'], color: HEADER_COLOR, required: [true, false], legacyName: 'C2', guide: '' },
+  { name: 'L1-3(C3) 요구사항', headers: ['L1-1.구분', 'L1-3.제품(반)요구사항'], color: HEADER_COLOR, required: [true, false], legacyName: 'C3', guide: '' },
+  { name: 'L1-4(C4) 고장영향', headers: ['L1-1.구분', 'L1-4.고장영향'], color: HEADER_COLOR, required: [true, false], legacyName: 'C4', guide: '' },
   // ★ FC 고장사슬 (v5.1: 12열 N:1:N — S 컬럼 삭제, Process-first 정렬)
-  { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리', 'A6.검출관리', 'O', 'D', 'AP'], color: 'B91C1C', required: [false, false, true, true, false, false, false, false, false, false, false, false], legacyName: 'FC' },
+  { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'O', 'D', 'AP'], color: 'B91C1C', required: [false, false, true, true, false, false, false, false, false, false, false, false], legacyName: 'FC', guide: 'B5=원인 발생 전 방지 장치·시스템·절차 | A6=발생 후 출하 전 검출 장비+방법+빈도' },
   // ★ 16번째: FA 통합분석 (ALL — v2.7.3: 26→28열, O추천/D추천 추가)
   // v3.1.1: FA 통합분석 26열 유지 (PC/DC는 FC 시트에서 별도 관리)
-  { name: 'FA 통합분석', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '공정No(A1)', '공정명(A2)', '공정기능(A3)', '제품특성(A4)', '특별특성(A4)', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'DC추천1', 'DC추천2', 'PC추천1', 'PC추천2', 'O추천', 'D추천'], color: '1E40AF', required: [false, false, false, true, false, false, false, false, true, false, false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false], legacyName: 'FA' },
+  { name: 'FA 통합분석', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '공정No(A1)', '공정명(A2)', '공정기능(A3)', '제품특성(A4)', '특별특성(A4)', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'DC추천1', 'DC추천2', 'PC추천1', 'PC추천2', 'O추천', 'D추천'], color: '1E40AF', required: [false, false, false, true, false, false, false, false, true, false, false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false], legacyName: 'FA', guide: '' },
 ];
 
 /** 텍스트 너비 계산 (한글=2, 영문/숫자=1.1, 기타=1) */
@@ -202,6 +202,19 @@ export async function downloadEmptyTemplate(customFileName?: string) {
     const headerRow = worksheet.getRow(1);
     headerRow.height = 24;
     headerRow.eachCell((cell) => applyHeaderStyle(cell, def.color));
+
+    // ★ v2.0: 작성 가이드 행 (2행, 연한 노란색 배경)
+    if ((def as typeof def & { guide?: string }).guide) {
+      const guideText = (def as typeof def & { guide?: string }).guide!;
+      const guideRow = worksheet.addRow(def.headers.map((_, i) => i === 0 ? guideText : ''));
+      worksheet.mergeCells(2, 1, 2, def.headers.length);
+      const guideCell = guideRow.getCell(1);
+      guideCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9E6' } };
+      guideCell.font = { name: '맑은 고딕', size: 9, italic: true, color: { argb: '8B6914' } };
+      guideCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      guideCell.border = CELL_BORDERS;
+      guideRow.height = 20;
+    }
 
     for (let i = 0; i < 10; i++) {
       const row = worksheet.addRow(def.headers.map(() => ''));
