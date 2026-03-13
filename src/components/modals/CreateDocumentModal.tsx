@@ -38,8 +38,9 @@ interface CreateDocumentModalProps {
 }
 
 // =====================================================
-// 앱 체크박스 설정 (PFD → PFMEA → CP)
+// Triplet 대상 앱 (PFMEA, CP, PFD — 동일 Triplet API 사용)
 // =====================================================
+const TRIPLET_APPS: AppType[] = ['pfmea', 'cp', 'pfd'];
 const LINKABLE_APPS: AppType[] = ['pfd', 'pfmea', 'cp'];
 
 // =====================================================
@@ -115,7 +116,7 @@ export default function CreateDocumentModal({
             setManagerName(initialManagerName || '');
 
             // ★ 상위 FMEA 후보 로드: TripletGroup + 기존 FmeaProject(M/F) 합산
-            if (sourceApp === 'pfmea') {
+            if (TRIPLET_APPS.includes(sourceApp)) {
                 Promise.all([
                     fetch('/api/triplet/list').then(r => r.ok ? r.json() : { triplets: [] }).catch(() => ({ triplets: [] })),
                     fetch('/api/fmea/projects').then(r => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
@@ -249,8 +250,10 @@ export default function CreateDocumentModal({
         }
 
         try {
-            // ★ PFMEA sourceApp → Triplet API 사용
-            if (sourceApp === 'pfmea') {
+            const isTriplet = TRIPLET_APPS.includes(sourceApp);
+
+            if (isTriplet) {
+                // ★ PFMEA/CP/PFD 공통 → Triplet API 사용
                 const docType = fmeaType === 'M' ? 'master' : fmeaType === 'F' ? 'family' : 'part';
                 const tripletBody: Record<string, unknown> = {
                     docType,
@@ -288,10 +291,13 @@ export default function CreateDocumentModal({
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error || 'Triplet 생성 실패');
 
+                const redirectId = sourceApp === 'cp' ? result.cpId
+                    : sourceApp === 'pfd' ? result.pfdId
+                    : result.pfmeaId;
                 onClose();
-                window.location.href = `${APP_REGISTER_URLS.pfmea}?id=${result.pfmeaId}`;
+                window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
             } else {
-                // ★ CP/PFD sourceApp → 기존 create-linked API 유지
+                // ★ DFMEA 등 비-Triplet 앱 → 기존 create-linked API
                 const request: CreateDocumentRequest & { productName?: string; customer?: string; companyName?: string; managerName?: string; partNo?: string; cpCount?: number; pfdCount?: number } = {
                     linkMode,
                     sourceApp,
@@ -335,7 +341,8 @@ export default function CreateDocumentModal({
 
     const sourceConfig = APP_CONFIGS[sourceApp];
     const selectedCount = Object.values(selectedApps).filter(Boolean).length;
-    const showFmeaTypeSelector = sourceApp === 'pfmea' ||
+    const isTripletApp = TRIPLET_APPS.includes(sourceApp);
+    const showFmeaTypeSelector = isTripletApp ||
         (linkMode === 'linked' && selectedApps.pfmea);
 
     return createPortal(
@@ -424,8 +431,8 @@ export default function CreateDocumentModal({
                             </td>
                         </tr>
 
-                        {/* 연동 모드 (PFMEA Triplet 모드에서는 숨김) */}
-                        {sourceApp !== 'pfmea' && <tr className="border-b">
+                        {/* 연동 모드 (Triplet 앱에서는 숨김 — PFMEA/CP/PFD) */}
+                        {!isTripletApp && <tr className="border-b">
                             <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-top">연동 모드</td>
                             <td className="py-1">
                                 <div className="flex gap-3">
@@ -487,8 +494,8 @@ export default function CreateDocumentModal({
                             </tr>
                         )}
 
-                        {/* ★ 상위 FMEA 선택 (Family/Part 시) */}
-                        {sourceApp === 'pfmea' && (fmeaType === 'F' || fmeaType === 'P') && (() => {
+                        {/* ★ 상위 FMEA 선택 (Family/Part 시 — Triplet 앱 공통) */}
+                        {isTripletApp && (fmeaType === 'F' || fmeaType === 'P') && (() => {
                             const filtered = parentCandidates.filter(t =>
                                 fmeaType === 'F' ? t.typeCode === 'm' : (t.typeCode === 'f' || t.typeCode === 'm')
                             );
@@ -523,8 +530,8 @@ export default function CreateDocumentModal({
                             );
                         })()}
 
-                        {/* ★ Master → 하위 Family 세트 수량 (0-3, 디폴트 1) */}
-                        {sourceApp === 'pfmea' && fmeaType === 'M' && (
+                        {/* ★ Master → 하위 Family 세트 수량 (Triplet 앱 공통) */}
+                        {isTripletApp && fmeaType === 'M' && (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">하위 Family 세트</td>
                                 <td className="py-1">
@@ -544,8 +551,8 @@ export default function CreateDocumentModal({
                             </tr>
                         )}
 
-                        {/* ★ Family → 하위 Part 세트 수량 */}
-                        {sourceApp === 'pfmea' && fmeaType === 'F' && (
+                        {/* ★ Family → 하위 Part 세트 수량 (Triplet 앱 공통) */}
+                        {isTripletApp && fmeaType === 'F' && (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">하위 Part 세트</td>
                                 <td className="py-1">
@@ -565,8 +572,8 @@ export default function CreateDocumentModal({
                             </tr>
                         )}
 
-                        {/* 연동 앱 선택 (연동 모드일 때만, PFMEA Triplet 모드가 아닐 때) - 표 형태 */}
-                        {linkMode === 'linked' && sourceApp !== 'pfmea' && (
+                        {/* 연동 앱 선택 (연동 모드일 때만, Triplet 앱이 아닐 때) - 표 형태 */}
+                        {linkMode === 'linked' && !isTripletApp && (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">
                                     연동 앱

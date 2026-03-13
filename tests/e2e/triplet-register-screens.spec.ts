@@ -184,6 +184,105 @@ test.describe('PFD 등록화면', () => {
   });
 });
 
+test.describe('CP/PFD 모달 Triplet 통합 (수평전개 검증)', () => {
+  test.beforeEach(async ({ page }) => { await login(page); });
+
+  test('4. CP 새로 작성 → M/F/P 타입 선택기 표시', async ({ page }) => {
+    await page.goto('/control-plan/register');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const createBtn = page.locator('button:has-text("새로 작성"), button:has-text("Create")').first();
+    await expect(createBtn).toBeVisible({ timeout: 10000 });
+    await createBtn.click();
+    await page.waitForTimeout(1000);
+
+    const modal = page.locator('text=새 문서 생성');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+
+    const fmeaTypeLabel = page.locator('td:has-text("FMEA 종류")');
+    await expect(fmeaTypeLabel).toBeVisible({ timeout: 3000 });
+
+    const masterBtn = page.locator('label:has-text("Master")').first();
+    const familyBtn = page.locator('label:has-text("Family")').first();
+    const partBtn = page.locator('label:has-text("Part")').first();
+    await expect(masterBtn).toBeVisible({ timeout: 3000 });
+    await expect(familyBtn).toBeVisible({ timeout: 3000 });
+    await expect(partBtn).toBeVisible({ timeout: 3000 });
+  });
+
+  test('5. PFD 새로 작성 → M/F/P 타입 선택기 표시', async ({ page }) => {
+    await page.goto('/pfd/register');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const createBtn = page.locator('button:has-text("새로 작성"), button:has-text("Create")').first();
+    await expect(createBtn).toBeVisible({ timeout: 10000 });
+    await createBtn.click();
+    await page.waitForTimeout(1000);
+
+    const modal = page.locator('text=새 문서 생성');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+
+    const fmeaTypeLabel = page.locator('td:has-text("FMEA 종류")');
+    await expect(fmeaTypeLabel).toBeVisible({ timeout: 3000 });
+
+    const masterBtn = page.locator('label:has-text("Master")').first();
+    const familyBtn = page.locator('label:has-text("Family")').first();
+    const partBtn = page.locator('label:has-text("Part")').first();
+    await expect(masterBtn).toBeVisible({ timeout: 3000 });
+    await expect(familyBtn).toBeVisible({ timeout: 3000 });
+    await expect(partBtn).toBeVisible({ timeout: 3000 });
+  });
+
+  test('6. CP 모달 → 연동모드/연동앱 숨김 확인', async ({ page }) => {
+    await page.goto('/control-plan/register');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const createBtn = page.locator('button:has-text("새로 작성"), button:has-text("Create")').first();
+    await createBtn.click();
+    await page.waitForTimeout(1000);
+
+    const linkModeLabel = page.locator('td:has-text("연동 모드")');
+    const linkAppsLabel = page.locator('td:has-text("연동 앱")');
+    await expect(linkModeLabel).toHaveCount(0);
+    await expect(linkAppsLabel).toHaveCount(0);
+  });
+
+  test('7. PFD 모달 → 연동모드/연동앱 숨김 확인', async ({ page }) => {
+    await page.goto('/pfd/register');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const createBtn = page.locator('button:has-text("새로 작성"), button:has-text("Create")').first();
+    await createBtn.click();
+    await page.waitForTimeout(1000);
+
+    const linkModeLabel = page.locator('td:has-text("연동 모드")');
+    const linkAppsLabel = page.locator('td:has-text("연동 앱")');
+    await expect(linkModeLabel).toHaveCount(0);
+    await expect(linkAppsLabel).toHaveCount(0);
+  });
+
+  test('8. CP 모달 Master 선택 → 하위 Family 세트 표시', async ({ page }) => {
+    await page.goto('/control-plan/register');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const createBtn = page.locator('button:has-text("새로 작성"), button:has-text("Create")').first();
+    await createBtn.click();
+    await page.waitForTimeout(1000);
+
+    const masterRadio = page.locator('label:has-text("Master")').first();
+    await masterRadio.click();
+    await page.waitForTimeout(500);
+
+    const familySetLabel = page.locator('td:has-text("하위 Family 세트")');
+    await expect(familySetLabel).toBeVisible({ timeout: 3000 });
+  });
+});
+
 test.describe('Triplet API 검증', () => {
   test.beforeEach(async ({ page }) => { await login(page); });
 
