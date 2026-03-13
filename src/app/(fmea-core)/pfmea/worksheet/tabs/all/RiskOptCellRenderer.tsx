@@ -8,7 +8,7 @@
 
 import React, { useEffect } from 'react';
 import type { WorksheetState } from '../../constants';
-import { HEIGHTS, IMPORTED_HIGHLIGHT } from './allTabConstants';
+import { HEIGHTS, IMPORTED_HIGHLIGHT, PLACEHOLDER_NA } from './allTabConstants';
 import { ControlCell } from './RiskOptControlCell';
 import type { RiskOptCellRendererProps } from './riskOptTypes';
 import {
@@ -152,7 +152,7 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
     const noValidOpt = !_optVal || typeof _optVal !== 'number';
 
     if (_cat === 'O') {
-      const isRealPrevOpt = _preventOpt && _preventOptText.trim() !== 'N/A';
+      const isRealPrevOpt = _preventOpt && _preventOptText.trim() !== PLACEHOLDER_NA;
       if (isRealPrevOpt && _riskVal > 0) {
         const parsedTarget = parseTargetFromText(_preventOptText);
         const target = parsedTarget > 0 ? parsedTarget : getTargetToL(_riskVal, 'O');
@@ -161,7 +161,7 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
         syncValue = _riskVal;
       }
     } else if (_cat === 'D') {
-      const isRealDetOpt = _detectOpt && _detectOptText.trim() !== 'N/A';
+      const isRealDetOpt = _detectOpt && _detectOptText.trim() !== PLACEHOLDER_NA;
       if (isRealDetOpt && _riskVal > 0) {
         const parsedTarget = parseTargetFromText(_detectOptText);
         const target = parsedTarget > 0 ? parsedTarget : getTargetToL(_riskVal, 'D');

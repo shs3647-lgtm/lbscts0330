@@ -70,7 +70,7 @@ export interface FMGroupRowsProps {
 // FMGroupRows — FM 그룹 1개의 <tr> 행들
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export function FMGroupRows({
+export const FMGroupRows = React.memo(function FMGroupRows({
   fmGroup, fmIdx, columns, optCountKey,
   state, setState, setDirty,
   handlers, loadedFmeaRevisionDate, isCompact,
@@ -211,4 +211,4 @@ export function FMGroupRows({
       })}
     </>
   );
-}
+});

@@ -26,20 +26,8 @@ interface SelectableCellProps {
   onDoubleClickEdit?: (newValue: string) => void; // 더블클릭 인라인 편집 콜백
 }
 
-// 누락 패턴 체크 함수
-// ★ FIX: 실제 데이터가 "선택"/"입력" 등 키워드를 포함할 수 있으므로
-// 짧은 placeholder 문자열만 누락으로 판정 (20자 초과 = 실제 데이터)
-const isMissingValue = (val: string | undefined) => {
-  if (!val) return true;
-  const trimmed = val.trim();
-  if (!trimmed) return true;
-  if (trimmed.length > 20) return false;
-  if (trimmed.includes('클릭')) return true;
-  if (trimmed.includes('추가')) return true;
-  if (trimmed.includes('선택')) return true;
-  if (trimmed.includes('입력')) return true;
-  return false;
-};
+// 누락 판정: value가 비어있으면 미입력
+const isMissingValue = (val: string | undefined) => !val || !val.trim();
 
 /**
  * 선택 가능한 셀 (클릭하면 모달 열림, 더블클릭하면 인라인 편집)

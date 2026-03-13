@@ -11,6 +11,7 @@
 import React from 'react';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 import type { VerificationStats } from './types';
+import { PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED } from '../allTabConstants';
 
 const BORDER = '1px solid #ccc';
 const HEADER_BG = '#1e3a5f';
@@ -32,7 +33,7 @@ const CENTER_CELL = (bg: string): React.CSSProperties => ({
   ...CELL(bg), textAlign: 'center',
 });
 
-const isMissing = (val: string) => !val || val === '-' || val === '미분류';
+const isMissing = (val: string) => !val || val === PLACEHOLDER_DASH || val === PLACEHOLDER_UNCLASSIFIED;
 
 const ROW_BG = '#ffffff';
 const ROW_BG_ALT = '#f8f9fa';
@@ -129,7 +130,7 @@ export function FailureAnalysisSummary({ processedFMGroups, leftStats }: Failure
                     ...CELL(cellBg(row.feText, bg, leftStats.fe.duplicateTexts)),
                     ...(isLastRowOfFM ? { borderBottom: FM_BORDER_BOTTOM } : {}),
                   }}>
-                    {row.feText || '-'}
+                    {row.feText || PLACEHOLDER_DASH}
                   </td>
                 )}
                 {showFE && (
@@ -139,7 +140,7 @@ export function FailureAnalysisSummary({ processedFMGroups, leftStats }: Failure
                     color: row.feSeverity >= 9 ? '#d32f2f' : row.feSeverity >= 7 ? '#e65100' : undefined,
                     ...(isLastRowOfFM ? { borderBottom: FM_BORDER_BOTTOM } : {}),
                   }}>
-                    {row.feSeverity > 0 ? row.feSeverity : '-'}
+                    {row.feSeverity > 0 ? row.feSeverity : PLACEHOLDER_DASH}
                   </td>
                 )}
                 {showFM && (
@@ -149,7 +150,7 @@ export function FailureAnalysisSummary({ processedFMGroups, leftStats }: Failure
                     borderBottom: FM_BORDER_BOTTOM,
                   }}>
                     <span style={{ color: '#1565c0', fontWeight: 700, fontSize: '9px', marginRight: '2px' }}>{fmGroup.fmNo}</span>
-                    {fmGroup.fmText || '-'}
+                    {fmGroup.fmText || PLACEHOLDER_DASH}
                   </td>
                 )}
                 {showFC && (
@@ -157,7 +158,7 @@ export function FailureAnalysisSummary({ processedFMGroups, leftStats }: Failure
                     ...CELL(cellBg(row.fcText, bg, leftStats.fc.duplicateTexts)),
                     ...(isLastRowOfFM ? { borderBottom: FM_BORDER_BOTTOM } : {}),
                   }}>
-                    {row.fcText || '-'}
+                    {row.fcText || PLACEHOLDER_DASH}
                   </td>
                 )}
               </tr>

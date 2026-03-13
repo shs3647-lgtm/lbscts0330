@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 import type { VerificationMode, FlatFERow, FlatFMRow, FlatFCRow, SpannedRow, VerificationStats } from './types';
+import { PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED } from '../allTabConstants';
 
 // M4 정렬 순서 (constants.ts의 M4_SORT_ORDER와 동일)
 const M4_ORDER: Record<string, number> = { MN: 0, MC: 1, IM: 2, EN: 3 };
@@ -34,10 +35,10 @@ function buildFERows(groups: ProcessedFMGroup[]): FlatFERow[] {
       seen.add(row.feId);
       rows.push({
         feId: row.feId,
-        feCategory: row.feCategory || '미분류',
-        feFunctionName: row.feFunctionName || '-',
-        feRequirement: row.feRequirement || '-',
-        feText: row.feText || '-',
+        feCategory: row.feCategory || PLACEHOLDER_UNCLASSIFIED,
+        feFunctionName: row.feFunctionName || PLACEHOLDER_DASH,
+        feRequirement: row.feRequirement || PLACEHOLDER_DASH,
+        feText: row.feText || PLACEHOLDER_DASH,
         feSeverity: row.feSeverity,
       });
     });
@@ -94,11 +95,11 @@ function buildFMRows(groups: ProcessedFMGroup[]): FlatFMRow[] {
   // FM은 이미 그룹 단위 — 각 group이 하나의 FM
   const rows: FlatFMRow[] = groups.map(g => ({
     fmId: g.fmId,
-    processNo: g.fmProcessNo || '-',
-    processName: g.fmProcessName || '-',
-    processFunction: g.fmProcessFunction || '-',
-    productChar: g.fmProductChar || '-',
-    fmText: g.fmText || '-',
+    processNo: g.fmProcessNo || PLACEHOLDER_DASH,
+    processName: g.fmProcessName || PLACEHOLDER_DASH,
+    processFunction: g.fmProcessFunction || PLACEHOLDER_DASH,
+    productChar: g.fmProductChar || PLACEHOLDER_DASH,
+    fmText: g.fmText || PLACEHOLDER_DASH,
   }));
 
   // 정렬: processNo 숫자순 → 기능명 → FM 텍스트
@@ -160,13 +161,13 @@ function buildFCRows(groups: ProcessedFMGroup[]): FlatFCRow[] {
       seen.add(row.fcId);
       rows.push({
         fcId: row.fcId,
-        processNo: g.fmProcessNo || '-',
-        processName: g.fmProcessName || '-',
-        fcM4: row.fcM4 || '-',
-        fcWorkElem: row.fcWorkElem || '-',
-        fcWorkFunction: row.fcWorkFunction || '-',
-        fcProcessChar: row.fcProcessChar || '-',
-        fcText: row.fcText || '-',
+        processNo: g.fmProcessNo || PLACEHOLDER_DASH,
+        processName: g.fmProcessName || PLACEHOLDER_DASH,
+        fcM4: row.fcM4 || PLACEHOLDER_DASH,
+        fcWorkElem: row.fcWorkElem || PLACEHOLDER_DASH,
+        fcWorkFunction: row.fcWorkFunction || PLACEHOLDER_DASH,
+        fcProcessChar: row.fcProcessChar || PLACEHOLDER_DASH,
+        fcText: row.fcText || PLACEHOLDER_DASH,
       });
     });
   });
@@ -230,7 +231,7 @@ function buildFCSpannedRows(rows: FlatFCRow[]): SpannedRow<FlatFCRow>[] {
 
 // ============ 통계 계산 ============
 
-const isMissing = (val: string) => !val || val === '-' || val === '미분류';
+const isMissing = (val: string) => !val || val === PLACEHOLDER_DASH || val === PLACEHOLDER_UNCLASSIFIED;
 
 /** 텍스트 배열에서 중복/누락/적합 통계 계산 */
 function calcStats(texts: string[], missingChecks: boolean[]): VerificationStats {
@@ -286,12 +287,12 @@ export function useVerificationData(mode: VerificationMode, processedFMGroups: P
     processedFMGroups.forEach(g => g.rows.forEach(r => {
       if (!r.feId || seenFe.has(r.feId)) return;
       seenFe.add(r.feId);
-      feTexts.push(r.feText || '-');
+      feTexts.push(r.feText || PLACEHOLDER_DASH);
       feMissing.push(isMissing(r.feText));
     }));
 
     // FM 통계: fmText 기준
-    const fmTexts = processedFMGroups.map(g => g.fmText || '-');
+    const fmTexts = processedFMGroups.map(g => g.fmText || PLACEHOLDER_DASH);
     const fmMissing = fmTexts.map(t => isMissing(t));
 
     // FC 통계: fcText 기준
@@ -301,7 +302,7 @@ export function useVerificationData(mode: VerificationMode, processedFMGroups: P
     processedFMGroups.forEach(g => g.rows.forEach(r => {
       if (!r.fcId || seenFc.has(r.fcId)) return;
       seenFc.add(r.fcId);
-      fcTexts.push(r.fcText || '-');
+      fcTexts.push(r.fcText || PLACEHOLDER_DASH);
       fcMissing.push(isMissing(r.fcText));
     }));
 

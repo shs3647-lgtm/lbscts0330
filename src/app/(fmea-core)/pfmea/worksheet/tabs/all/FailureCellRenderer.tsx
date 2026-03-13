@@ -7,7 +7,7 @@
 'use client';
 
 import React from 'react';
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, getDynamicAlign, COMPACT_CELL_STYLE, COMPACT_HEIGHTS } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, getDynamicAlign, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED } from './allTabConstants';
 
 interface ColumnDef {
   id: number;
@@ -174,7 +174,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
               handleSODClick('S', 'failure', globalRowIdx, row.feSeverity, row.feCategory, row.feId, row.feText);
             }
           }}
-          title={`클릭하여 "${row.feText}" 심각도 설정 (${row.feCategory || '미분류'})`}
+          title={`클릭하여 "${row.feText}" 심각도 설정 (${row.feCategory || PLACEHOLDER_UNCLASSIFIED})`}
         >
           <span style={{ fontWeight: 400 }}>
             {row.feText}
@@ -225,7 +225,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
           }}
           title="클릭하여 모든 고장영향의 심각도 일괄 수정"
         >
-          {fmGroup.maxSeverity > 0 ? fmGroup.maxSeverity : '-'}
+          {fmGroup.maxSeverity > 0 ? fmGroup.maxSeverity : PLACEHOLDER_DASH}
         </td>
       );
     }

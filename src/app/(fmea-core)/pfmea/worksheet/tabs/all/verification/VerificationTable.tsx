@@ -10,7 +10,7 @@
 'use client';
 
 import React from 'react';
-import { LEVEL_COLORS } from '../allTabConstants';
+import { LEVEL_COLORS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED } from '../allTabConstants';
 import type { VerificationMode, FlatFERow, FlatFMRow, FlatFCRow, SpannedRow, VerificationStats } from './types';
 
 // ============ 공용 스타일 (10px 소형 최적화) ============
@@ -32,7 +32,7 @@ const CENTER_CELL = (bg: string): React.CSSProperties => ({
   ...CELL(bg), textAlign: 'center',
 });
 
-const isMissing = (val: string) => !val || val === '-' || val === '미분류';
+const isMissing = (val: string) => !val || val === PLACEHOLDER_DASH || val === PLACEHOLDER_UNCLASSIFIED;
 
 /** 셀 배경: 누락 > 중복 > 기본 */
 function bg(text: string, baseBg: string, dupTexts: Set<string>): string {
@@ -114,7 +114,7 @@ function FETable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFERow>[]
                 fontWeight: 700,
                 color: d.feSeverity >= 9 ? '#d32f2f' : d.feSeverity >= 7 ? '#e65100' : undefined,
               }}>
-                {d.feSeverity > 0 ? d.feSeverity : '-'}
+                {d.feSeverity > 0 ? d.feSeverity : PLACEHOLDER_DASH}
               </td>
             </tr>
           );
@@ -150,7 +150,7 @@ function FMTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFMRow>[]
         {rows.map((sr, idx) => {
           const d = sr.data;
           const baseBg = idx % 2 === 0 ? L2.cell : L2.cellAlt;
-          const processLabel = d.processNo !== '-' ? `${d.processNo} ${d.processName}` : d.processName;
+          const processLabel = d.processNo !== PLACEHOLDER_DASH ? `${d.processNo} ${d.processName}` : d.processName;
           return (
             <tr key={d.fmId || idx} onDoubleClick={() => d.fmId && onRowDblClick?.(d.fmId)} style={{ cursor: 'pointer' }} title="더블클릭: 해당 항목으로 이동">
               {sr.spans.process > 0 && (
@@ -205,7 +205,7 @@ function FCTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFCRow>[]
         {rows.map((sr, idx) => {
           const d = sr.data;
           const baseBg = idx % 2 === 0 ? L3.cell : L3.cellAlt;
-          const processLabel = d.processNo !== '-' ? `${d.processNo} ${d.processName}` : d.processName;
+          const processLabel = d.processNo !== PLACEHOLDER_DASH ? `${d.processNo} ${d.processName}` : d.processName;
           return (
             <tr key={d.fcId || idx} onDoubleClick={() => d.fcId && onRowDblClick?.(d.fcId)} style={{ cursor: 'pointer' }} title="더블클릭: 해당 항목으로 이동">
               {sr.spans.process > 0 && (

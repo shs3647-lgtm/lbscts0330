@@ -9,6 +9,7 @@ import { useCallback, useState } from 'react';
 import type { WorksheetState } from '../../../constants';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 import { extractKeywords, calcRecommendScore, type LLDItem } from '@/lib/lldRecommendUtils';
+import { PLACEHOLDER_NA, PLACEHOLDER_DASH, RECOMMEND_PREFIX } from '../allTabConstants';
 
 // ─── 타입 ───
 
@@ -52,8 +53,8 @@ export interface AutoLldModalState {
 /** 자동생성/빈값 판별: 빈값, "-", "N/A", "[추천]...", "P -", "D -" 등 */
 function isEmptyOrAuto(val: string): boolean {
   const v = (val || '').trim();
-  if (!v || v === '-' || v === 'N/A') return true;
-  if (v.startsWith('[추천]')) return true;
+  if (!v || v === PLACEHOLDER_DASH || v === PLACEHOLDER_NA) return true;
+  if (v.startsWith(RECOMMEND_PREFIX)) return true;
   // "P -", "D -" 등 개선추천 자동생성 패턴
   if (/^[A-Z]\s*-\s*$/.test(v)) return true;
   return false;

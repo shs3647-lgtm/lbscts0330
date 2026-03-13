@@ -184,11 +184,13 @@ export async function upsertActiveMasterFromWorksheetTx(tx: any, db: FMEAWorkshe
   }
 
   try {
-    // ensure active dataset exists
-    let ds = await tx.pfmeaMasterDataset.findFirst({ where: { isActive: true } });
+    // ensure active dataset exists for this fmeaId
+    const fmeaId = db.fmeaId || '';
+    const fmeaType = (db as unknown as Record<string, unknown>).fmeaType as string || 'P';
+    let ds = await tx.pfmeaMasterDataset.findFirst({ where: { fmeaId, isActive: true } });
     if (!ds) {
       ds = await tx.pfmeaMasterDataset.create({
-        data: { name: 'AUTO-MASTER', isActive: true },
+        data: { name: 'AUTO-MASTER', fmeaId, fmeaType, isActive: true },
       });
     }
 

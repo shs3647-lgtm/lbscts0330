@@ -101,17 +101,6 @@ export function useRegisterPageHandlers(core: CoreReturn) {
       if (data.success && data.projects?.length > 0) projects = data.projects;
     } catch (e) { console.error('[FMEA 프로젝트 조회] 오류:', e); toast.error('FMEA 프로젝트 목록을 불러오는데 실패했습니다.'); }
 
-    if (type === 'MF') {
-      const year = new Date().getFullYear().toString().slice(-2);
-      const prefix = fmeaId?.startsWith('dfm') ? 'dfm' : 'pfm';
-      const defaultMasterId = `${prefix}${year}-m001`;
-      const defaultFamilyId = `${prefix}${year}-f001`;
-      if (!projects.some((p: any) => p.id?.toLowerCase() === defaultMasterId))
-        projects.push({ id: defaultMasterId, fmeaType: 'M', fmeaInfo: { subject: 'Master FMEA (기본)' } });
-      if (!projects.some((p: any) => p.id?.toLowerCase() === defaultFamilyId))
-        projects.push({ id: defaultFamilyId, fmeaType: 'F', fmeaInfo: { subject: 'Family FMEA (기본)' } });
-    }
-
     const filtered = type === 'ALL' || type === 'LOAD'
       ? projects.filter((p: any) => p.id !== fmeaId)
       : type === 'MF'
