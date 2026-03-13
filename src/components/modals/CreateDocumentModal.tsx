@@ -111,13 +111,12 @@ export default function CreateDocumentModal({
             setCompanyName(initialCompanyName || '');
             setManagerName(initialManagerName || '');
 
-            // ★ Triplet 목록 로드 (상위 선택용)
+            // ★ Triplet 목록 로드 (상위 선택용) — 모델 미존재 시 빈 배열 fallback
             if (sourceApp === 'pfmea') {
-                fetch('/api/triplet/list').then(r => r.json()).then(data => {
-                    if (data.success && data.triplets) {
-                        setParentTriplets(data.triplets);
-                    }
-                }).catch(() => { setParentTriplets([]); });
+                fetch('/api/triplet/list')
+                    .then(r => r.ok ? r.json() : { success: true, triplets: [] })
+                    .then(data => { setParentTriplets(data?.triplets || []); })
+                    .catch(() => { setParentTriplets([]); });
             }
 
             // ★ 기존 문서 목록 로드 (중복 검증용)
@@ -258,6 +257,9 @@ export default function CreateDocumentModal({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(tripletBody),
                 });
+                if (response.status === 503) {
+                    throw new Error('Triplet 서비스 준비 중입니다. 서버를 재시작해주세요.');
+                }
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error || 'Triplet 생성 실패');
 

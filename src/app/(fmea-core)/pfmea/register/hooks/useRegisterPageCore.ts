@@ -495,6 +495,7 @@ export function useRegisterPageCore() {
         if (!tgId) return;
 
         const tgRes = await fetch(`/api/triplet/${tgId}/header`);
+        if (!tgRes.ok) return;
         const tgData = await tgRes.json();
         if (!cancelled && tgData.success && tgData.triplet) {
           const t = tgData.triplet;

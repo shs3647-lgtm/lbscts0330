@@ -5,13 +5,14 @@
  */
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { hasTripletModel, tripletNotReadyResponse } from '@/lib/utils/tripletGuard';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   const prisma = getPrisma();
-  if (!prisma) {
-    return NextResponse.json({ success: true, triplets: [] });
+  if (!prisma || !hasTripletModel(prisma)) {
+    return tripletNotReadyResponse();
   }
 
   try {

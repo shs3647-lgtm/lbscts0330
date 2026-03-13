@@ -298,16 +298,18 @@ function PFDRegisterPageContent() {
         // ★ Triplet 정보 로드
         const tgId = project.tripletGroupId;
         if (tgId) {
-          fetch(`/api/triplet/${tgId}/header`).then(r => r.json()).then(tgData => {
-            if (tgData.success && tgData.triplet) {
-              const t = tgData.triplet;
-              setTripletInfo({
-                id: t.id, typeCode: t.typeCode,
-                pfmeaId: t.pfmea?.id || null, cpId: t.cp?.id || null,
-                syncStatus: t.syncStatus, children: t.children || [],
-              });
-            }
-          }).catch(() => {});
+          fetch(`/api/triplet/${tgId}/header`)
+            .then(r => r.ok ? r.json() : null)
+            .then(tgData => {
+              if (tgData?.success && tgData.triplet) {
+                const t = tgData.triplet;
+                setTripletInfo({
+                  id: t.id, typeCode: t.typeCode,
+                  pfmeaId: t.pfmea?.id || null, cpId: t.cp?.id || null,
+                  syncStatus: t.syncStatus, children: t.children || [],
+                });
+              }
+            }).catch(() => {});
         }
 
         if (!isEditMode) router.replace(`/pfd/register?id=${projectId}`);

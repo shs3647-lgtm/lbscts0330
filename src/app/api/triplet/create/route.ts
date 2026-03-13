@@ -20,6 +20,7 @@ import {
   getMaxSerial,
 } from '@/lib/utils/tripletIdGenerator';
 import { safeErrorMessage } from '@/lib/security';
+import { hasTripletModel, tripletNotReadyErrorResponse } from '@/lib/utils/tripletGuard';
 
 export const runtime = 'nodejs';
 
@@ -39,8 +40,8 @@ interface CreateTripletBody {
 
 export async function POST(request: NextRequest) {
   const prisma = getPrisma();
-  if (!prisma) {
-    return NextResponse.json({ success: false, error: 'Database not available' }, { status: 500 });
+  if (!prisma || !hasTripletModel(prisma)) {
+    return tripletNotReadyErrorResponse();
   }
 
   try {

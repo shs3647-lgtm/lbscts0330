@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { generateLazyDocId, parseTripletGroupId } from '@/lib/utils/tripletIdGenerator';
 import { safeErrorMessage } from '@/lib/security';
+import { hasTripletModel, tripletNotReadyErrorResponse } from '@/lib/utils/tripletGuard';
 
 export const runtime = 'nodejs';
 
@@ -19,8 +20,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const prisma = getPrisma();
-  if (!prisma) {
-    return NextResponse.json({ success: false, error: 'Database not available' }, { status: 500 });
+  if (!prisma || !hasTripletModel(prisma)) {
+    return tripletNotReadyErrorResponse();
   }
 
   try {
