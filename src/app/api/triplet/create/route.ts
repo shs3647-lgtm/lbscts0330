@@ -33,6 +33,7 @@ interface CreateTripletBody {
   responsibleName?: string;
   partNo?: string;
   parentTripletId?: string;
+  parentFmeaId?: string;
   partCount?: number;
   immediateCP?: boolean;
   immediatePFD?: boolean;
@@ -54,18 +55,61 @@ export async function POST(request: NextRequest) {
       companyName,
       responsibleName,
       partNo,
-      parentTripletId,
+      parentFmeaId,
       partCount = 0,
       immediateCP = false,
       immediatePFD = false,
     } = body;
+    let { parentTripletId } = body;
 
     if (!subject?.trim()) {
       return NextResponse.json({ success: false, error: '문서명을 입력해주세요.' }, { status: 400 });
     }
 
-    if ((docType === 'family' || docType === 'part') && !parentTripletId) {
-      return NextResponse.json({ success: false, error: '상위 Triplet을 선택해주세요.' }, { status: 400 });
+    if ((docType === 'family' || docType === 'part') && !parentTripletId && !parentFmeaId) {
+      return NextResponse.json({ success: false, error: '상위 FMEA를 선택해주세요.' }, { status: 400 });
+    }
+
+    // ★ 기존 FMEA를 부모로 선택한 경우 → 자동 TripletGroup 래핑
+    if (!parentTripletId && parentFmeaId && (docType === 'family' || docType === 'part')) {
+      const existingProject = await prisma.fmeaProject.findUnique({
+        where: { fmeaId: parentFmeaId },
+        include: { registration: true },
+      });
+      if (!existingProject) {
+        return NextResponse.json({ success: false, error: '상위 FMEA를 찾을 수 없습니다.' }, { status: 404 });
+      }
+      // 이미 TripletGroup에 연결된 경우 해당 ID 사용
+      if (existingProject.tripletGroupId) {
+        parentTripletId = existingProject.tripletGroupId;
+      } else {
+        // 자동 래핑: 기존 FMEA를 감싸는 TripletGroup 생성
+        const parentTypeCode = (existingProject.fmeaType || 'M').toLowerCase();
+        const wrapId = `tg-wrap-${parentFmeaId}`;
+        const reg = existingProject.registration;
+        await prisma.tripletGroup.create({
+          data: {
+            id: wrapId,
+            year: new Date().getFullYear().toString().slice(-2),
+            typeCode: parentTypeCode,
+            pfmeaId: parentFmeaId,
+            cpId: null,
+            pfdId: null,
+            subject: reg?.subject || existingProject.fmeaId,
+            productName: reg?.partName || '',
+            customerName: reg?.customerName || '',
+            companyName: reg?.companyName || '',
+            responsibleName: reg?.fmeaResponsibleName || '',
+            partNo: reg?.partNo || '',
+            syncStatus: 'synced',
+          },
+        });
+        await prisma.fmeaProject.update({
+          where: { fmeaId: parentFmeaId },
+          data: { tripletGroupId: wrapId },
+        });
+        parentTripletId = wrapId;
+      }
     }
 
     const typeCode = docType === 'master' ? 'm' : docType === 'family' ? 'f' : 'p';

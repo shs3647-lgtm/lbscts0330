@@ -81,8 +81,9 @@ export default function CreateDocumentModal({
     // ★ 기존 문서 목록 (중복 검증용 실시간 표시)
     const [existingDocs, setExistingDocs] = useState<{ id: string; name: string }[]>([]);
 
-    // ★ Triplet: 상위 Triplet 선택 + Part 세트 수량
-    const [parentTriplets, setParentTriplets] = useState<{ id: string; typeCode: string; subject: string; pfmeaId: string }[]>([]);
+    // ★ 상위 FMEA 후보 목록 (TripletGroup + 기존 FmeaProject 합산)
+    interface ParentCandidate { id: string; typeCode: string; subject: string; pfmeaId: string; source: 'triplet' | 'legacy' }
+    const [parentCandidates, setParentCandidates] = useState<ParentCandidate[]>([]);
     const [selectedParentTriplet, setSelectedParentTriplet] = useState<string>('');
     const [partSetCount, setPartSetCount] = useState<number>(0);
     const [immediateCP, setImmediateCP] = useState(false);
@@ -111,12 +112,27 @@ export default function CreateDocumentModal({
             setCompanyName(initialCompanyName || '');
             setManagerName(initialManagerName || '');
 
-            // ★ Triplet 목록 로드 (상위 선택용) — 모델 미존재 시 빈 배열 fallback
+            // ★ 상위 FMEA 후보 로드: TripletGroup + 기존 FmeaProject(M/F) 합산
             if (sourceApp === 'pfmea') {
-                fetch('/api/triplet/list')
-                    .then(r => r.ok ? r.json() : { success: true, triplets: [] })
-                    .then(data => { setParentTriplets(data?.triplets || []); })
-                    .catch(() => { setParentTriplets([]); });
+                Promise.all([
+                    fetch('/api/triplet/list').then(r => r.ok ? r.json() : { triplets: [] }).catch(() => ({ triplets: [] })),
+                    fetch('/api/fmea/projects').then(r => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
+                ]).then(([tripletData, fmeaData]) => {
+                    const tripletItems: ParentCandidate[] = (tripletData?.triplets || []).map((t: any) => ({
+                        id: t.id, typeCode: t.typeCode, subject: t.subject || '', pfmeaId: t.pfmeaId || '', source: 'triplet' as const,
+                    }));
+                    const tripletPfmeaIds = new Set(tripletItems.map(t => t.pfmeaId));
+                    const legacyItems: ParentCandidate[] = (fmeaData?.projects || [])
+                        .filter((p: any) => ['M', 'F'].includes(p.fmeaType) && !tripletPfmeaIds.has(p.id))
+                        .map((p: any) => ({
+                            id: `legacy:${p.id}`,
+                            typeCode: (p.fmeaType || 'M').toLowerCase(),
+                            subject: p.fmeaInfo?.subject || p.project?.projectName || p.id,
+                            pfmeaId: p.id,
+                            source: 'legacy' as const,
+                        }));
+                    setParentCandidates([...tripletItems, ...legacyItems]);
+                });
             }
 
             // ★ 기존 문서 목록 로드 (중복 검증용)
@@ -244,7 +260,11 @@ export default function CreateDocumentModal({
                     partNo: partNo.trim(),
                 };
                 if (docType === 'family' || docType === 'part') {
-                    tripletBody.parentTripletId = selectedParentTriplet;
+                    if (selectedParentTriplet.startsWith('legacy:')) {
+                        tripletBody.parentFmeaId = selectedParentTriplet.replace('legacy:', '');
+                    } else {
+                        tripletBody.parentTripletId = selectedParentTriplet;
+                    }
                 }
                 if (docType === 'master' || docType === 'family') {
                     tripletBody.partCount = partSetCount;
@@ -462,11 +482,15 @@ export default function CreateDocumentModal({
                             </tr>
                         )}
 
-                        {/* ★ Triplet: 상위 선택 (Family/Part 시) */}
-                        {sourceApp === 'pfmea' && (fmeaType === 'F' || fmeaType === 'P') && (
+                        {/* ★ 상위 FMEA 선택 (Family/Part 시) */}
+                        {sourceApp === 'pfmea' && (fmeaType === 'F' || fmeaType === 'P') && (() => {
+                            const filtered = parentCandidates.filter(t =>
+                                fmeaType === 'F' ? t.typeCode === 'm' : (t.typeCode === 'f' || t.typeCode === 'm')
+                            );
+                            return (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">
-                                    상위 {fmeaType === 'F' ? 'Master' : 'Family/Master'}
+                                    상위 {fmeaType === 'F' ? 'Master' : 'Master/Family'}
                                 </td>
                                 <td className="py-1">
                                     <select
@@ -474,21 +498,25 @@ export default function CreateDocumentModal({
                                         onChange={(e) => setSelectedParentTriplet(e.target.value)}
                                         className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     >
-                                        <option value="">-- 상위 Triplet 선택 --</option>
-                                        {parentTriplets
-                                            .filter(t => fmeaType === 'F' ? t.typeCode === 'm' : (t.typeCode === 'f' || t.typeCode === 'm'))
-                                            .map(t => (
-                                                <option key={t.id} value={t.id}>
-                                                    [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId} ({t.id})
-                                                </option>
-                                            ))}
+                                        <option value="">-- 상위 FMEA 선택 --</option>
+                                        {filtered.map(t => (
+                                            <option key={t.id} value={t.id}>
+                                                [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId}{t.source === 'legacy' ? ' (기존)' : ''}
+                                            </option>
+                                        ))}
                                     </select>
-                                    {(fmeaType === 'F' || fmeaType === 'P') && !selectedParentTriplet && (
-                                        <div className="text-[9px] text-red-500 mt-0.5">상위 Triplet을 선택해야 생성 가능합니다.</div>
+                                    {!selectedParentTriplet && filtered.length === 0 && (
+                                        <div className="text-[9px] text-orange-600 mt-0.5">
+                                            {fmeaType === 'F' ? 'Master' : 'Master/Family'} FMEA가 없습니다. 먼저 Master FMEA를 생성하세요.
+                                        </div>
+                                    )}
+                                    {!selectedParentTriplet && filtered.length > 0 && (
+                                        <div className="text-[9px] text-red-500 mt-0.5">상위 FMEA를 선택해야 생성 가능합니다.</div>
                                     )}
                                 </td>
                             </tr>
-                        )}
+                            );
+                        })()}
 
                         {/* ★ Triplet: M/F → 하위 Part 세트 수량 */}
                         {sourceApp === 'pfmea' && (fmeaType === 'M' || fmeaType === 'F') && (
