@@ -28,6 +28,7 @@ import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
 import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
+import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
 
 // ─── Props ───
 
@@ -488,6 +489,32 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     resetToSA();
   }, [resetToSA]);
 
+  // ── 누락 항목 자동 FIX (A6 검출관리 / B5 예방관리) ──
+  const missingA6Count = useMemo(() => crossTab.aRows.filter(r => !r.A6?.trim() && r.A5?.trim()).length, [crossTab.aRows]);
+  const missingB5Count = useMemo(() => crossTab.bRows.filter(r => !r.B5?.trim() && r.B4?.trim()).length, [crossTab.bRows]);
+
+  const handleAutoFix = useCallback(() => {
+    const a6Result = autoFixMissingA6(crossTab, onUpdateItem, onAddItems);
+    const b5Result = autoFixMissingB5(crossTab, onUpdateItem, onAddItems);
+    const totalFixed = a6Result.fixed + b5Result.fixed;
+    const totalSkipped = a6Result.skipped + b5Result.skipped;
+    const allDetails = [...a6Result.details, ...b5Result.details].map(d =>
+      `[${d.processNo}] ${d.itemCode}: ${d.value} ← ${d.source}`
+    );
+
+    setAlertState({
+      open: true,
+      variant: totalFixed > 0 ? 'success' : 'warning',
+      title: `자동 FIX 완료 — ${totalFixed}건 수정`,
+      summary: [
+        `A6(검출관리): ${a6Result.fixed}건 추론 채움${a6Result.skipped > 0 ? `, ${a6Result.skipped}건 스킵(A5 비어있음)` : ''}`,
+        `B5(예방관리): ${b5Result.fixed}건 추론 채움${b5Result.skipped > 0 ? `, ${b5Result.skipped}건 스킵(B4 비어있음)` : ''}`,
+      ].join('\n'),
+      details: allDetails.length > 0 ? allDetails : undefined,
+      footer: totalSkipped > 0 ? `스킵 ${totalSkipped}건 — 원본 데이터(A5/B4)가 비어있어 추론 불가` : undefined,
+    });
+  }, [crossTab, onUpdateItem, onAddItems]);
+
   // ── FC 확정 핸들러 (미확정 시 전진) ──
   const handleFCConfirm = useCallback(() => {
     if (fcComparison && fcComparison.missing.length > 0) {
@@ -497,7 +524,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         title: `FC 비교 결과 누락 ${fcComparison.missing.length}건`,
         summary: `매칭률: ${fcComparison.stats.matchRate.toFixed(0)}%\n\n경고를 무시하고 FC를 확정하시겠습니까?`,
         details: fcComparison.missing.map(m =>
-          `[${m.processNo || '-'}] ${m.workElement || '-'}: ${m.causeText || '-'}`
+          `[${m.processNo || '-'}] ${m.workElement || '-'}: ${m.fcValue || '-'}`
         ),
         onConfirm: () => confirmFC(true),
       });
@@ -644,6 +671,16 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               title="클릭하면 누락 항목 상세를 보고 첫 누락 행으로 이동합니다"
               className="text-[10px] text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 cursor-pointer hover:bg-orange-100">
               누락 {missingStats[previewLevel]}건
+            </button>
+          )}
+
+          {/* 자동 FIX — A6/B5 누락 자동 채움 */}
+          {(missingA6Count > 0 || missingB5Count > 0) && (
+            <button
+              onClick={handleAutoFix}
+              title={`A6(검출관리) ${missingA6Count}건 + B5(예방관리) ${missingB5Count}건 자동 추론 채움`}
+              className="px-2.5 py-0.5 rounded text-[10px] font-bold border border-purple-400 text-white bg-purple-600 hover:bg-purple-700 cursor-pointer transition-colors">
+              자동FIX ({missingA6Count + missingB5Count})
             </button>
           )}
 
@@ -886,7 +923,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             onClick={() => {
               const details = missingDetails[previewLevel];
               if (details.length > 0) {
-                alert(`${previewLevel} 누락 ${details.length}건:\n\n${details.slice(0, 15).join('\n')}${details.length > 15 ? `\n... 외 ${details.length - 15}건` : ''}\n\n확인 후 해당 행을 편집해 주세요.`);
+                setAlertState({
+                  open: true,
+                  variant: 'warning',
+                  title: `${previewLevel} 누락 ${details.length}건`,
+                  summary: '확인 후 해당 행을 편집해 주세요.',
+                  details,
+                });
               }
             }}
             className="flex items-center gap-2 w-full text-left px-2 py-1 bg-orange-50 border border-orange-300 rounded text-[10px] cursor-pointer hover:bg-orange-100 mb-1"
