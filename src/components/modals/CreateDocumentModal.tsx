@@ -555,11 +555,11 @@ export default function CreateDocumentModal({
                                             onChange={(e) => setPartSetCount(Number(e.target.value))}
                                             className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                                         >
-                                            {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+                                            {[0,1,2,3,4,5].map(n => (
                                                 <option key={n} value={n}>{n}개 {n === 0 ? '(나중에 추가)' : ''}</option>
                                             ))}
                                         </select>
-                                        <span className="text-[9px] text-gray-500">각 세트 = P-FMEA + P-CP(Lazy) + P-PFD(Lazy)</span>
+                                        <span className="text-[9px] text-gray-500">각 세트 = P-FMEA + P-CP + P-PFD</span>
                                     </div>
                                 </td>
                             </tr>

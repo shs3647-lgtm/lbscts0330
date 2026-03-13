@@ -131,7 +131,7 @@ export function generateMFTripletIds(
 
 /**
  * Part Triplet ID 세트 생성
- * P는 통합 시리얼 + linkGroup
+ * P는 통합 시리얼 + linkGroup, CP/PFD 포함 (즉시 생성)
  */
 export function generatePartTripletIds(
   unifiedSerial: number,
@@ -144,8 +144,8 @@ export function generatePartTripletIds(
   return {
     tripletGroupId: generateTripletGroupId('p', unifiedSerial),
     pfmeaId: `pfm${year}-p${serial}-${lg}`.toLowerCase(),
-    cpId: null,
-    pfdId: null,
+    cpId: `cp${year}-p${serial}-${lg}`.toLowerCase(),
+    pfdId: `pfd${year}-p${serial}-${lg}`.toLowerCase(),
   };
 }
 

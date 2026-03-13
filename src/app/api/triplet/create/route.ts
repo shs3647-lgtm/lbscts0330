@@ -124,18 +124,15 @@ export async function POST(request: NextRequest) {
       partNo: partNo?.trim() || '',
     };
 
-    // 기존 ID 조회 (시리얼 계산용 — TripletGroup 포함)
+    // 기존 ID 조회 (시리얼 계산용 — soft-deleted 포함, Unique 충돌 방지)
     const [pfmeaIds, cpIds, pfdIds, tgData] = await Promise.all([
       prisma.fmeaProject.findMany({
-        where: { deletedAt: null },
         select: { fmeaId: true },
       }).then(rows => rows.map(r => r.fmeaId)),
       prisma.cpRegistration.findMany({
-        where: { deletedAt: null },
         select: { cpNo: true },
       }).then(rows => rows.map(r => r.cpNo)),
       prisma.pfdRegistration.findMany({
-        where: { deletedAt: null },
         select: { pfdNo: true },
       }).then(rows => rows.map(r => r.pfdNo)),
       prisma.tripletGroup.findMany({
@@ -444,16 +441,18 @@ async function createPartTriplet(
     select: { pfmeaId: true, typeCode: true },
   });
 
+  const yearStr = new Date().getFullYear().toString().slice(-2);
+
   await prisma.$transaction(async (tx) => {
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
-        year: new Date().getFullYear().toString().slice(-2),
+        year: yearStr,
         typeCode: 'p',
         linkGroup: nextLinkGroup,
         pfmeaId: ids.pfmeaId,
-        cpId: null,
-        pfdId: null,
+        cpId: ids.cpId,
+        pfdId: ids.pfdId,
         parentTripletId,
         subject: headerData.subject,
         productName: headerData.productName,
@@ -480,18 +479,52 @@ async function createPartTriplet(
             companyName: headerData.companyName,
             partNo: headerData.partNo,
             fmeaResponsibleName: headerData.responsibleName,
+            linkedCpNo: ids.cpId,
+            linkedPfdNo: ids.pfdId,
           },
         },
       },
     });
+
+    if (ids.cpId) {
+      await tx.cpRegistration.create({
+        data: {
+          cpNo: ids.cpId,
+          cpType: 'P',
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+          linkedPfdNo: ids.pfdId,
+          tripletGroupId: ids.tripletGroupId,
+          subject: headerData.subject,
+          customerName: headerData.customerName,
+          companyName: headerData.companyName,
+          partNo: headerData.partNo,
+        },
+      });
+    }
+
+    if (ids.pfdId) {
+      await tx.pfdRegistration.create({
+        data: {
+          pfdNo: ids.pfdId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+          linkedCpNos: ids.cpId ? JSON.stringify([ids.cpId]) : null,
+          tripletGroupId: ids.tripletGroupId,
+          subject: headerData.subject,
+          customerName: headerData.customerName,
+          companyName: headerData.companyName,
+        },
+      });
+    }
   });
 
   return NextResponse.json({
     success: true,
     tripletGroupId: ids.tripletGroupId,
     pfmeaId: ids.pfmeaId,
-    cpId: null,
-    pfdId: null,
+    cpId: ids.cpId,
+    pfdId: ids.pfdId,
   });
 }
 
@@ -586,12 +619,12 @@ async function createFamilyTripletShell(
 }
 
 /**
- * Part Triplet Shell 생성 (M/F의 하위 Part 일괄 생성용)
- * PFMEA만 즉시, CP/PFD는 Lazy
+ * Part Triplet Shell 생성 (Family의 하위 Part 일괄 생성용)
+ * FMEA + CP + PFD 모두 즉시 생성
  */
 async function createPartTripletShell(
   prisma: NonNullable<ReturnType<typeof getPrisma>>,
-  ids: { tripletGroupId: string; pfmeaId: string },
+  ids: { tripletGroupId: string; pfmeaId: string; cpId: string | null; pfdId: string | null },
   parentTripletId: string,
   headerData: Record<string, string>,
   index: number
@@ -601,22 +634,23 @@ async function createPartTripletShell(
     select: { pfmeaId: true, typeCode: true, linkGroup: true },
   });
 
-  // linkGroup 추출 (pfmeaId에서)
   const lgMatch = ids.pfmeaId.match(/-i(\d{2})$/i);
   const linkGroup = lgMatch ? parseInt(lgMatch[1], 10) : null;
+  const yearStr = new Date().getFullYear().toString().slice(-2);
+  const subjectName = `${headerData.subject} #${index}`;
 
   await prisma.$transaction(async (tx) => {
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
-        year: new Date().getFullYear().toString().slice(-2),
+        year: yearStr,
         typeCode: 'p',
         linkGroup,
         pfmeaId: ids.pfmeaId,
-        cpId: null,
-        pfdId: null,
+        cpId: ids.cpId,
+        pfdId: ids.pfdId,
         parentTripletId,
-        subject: `${headerData.subject} #${index}`,
+        subject: subjectName,
         productName: headerData.productName,
         customerName: headerData.customerName,
         companyName: headerData.companyName,
@@ -636,14 +670,48 @@ async function createPartTripletShell(
         status: 'active',
         registration: {
           create: {
-            subject: `${headerData.subject} #${index}`,
+            subject: subjectName,
             customerName: headerData.customerName,
             companyName: headerData.companyName,
             partNo: headerData.partNo,
             fmeaResponsibleName: headerData.responsibleName,
+            linkedCpNo: ids.cpId,
+            linkedPfdNo: ids.pfdId,
           },
         },
       },
     });
+
+    if (ids.cpId) {
+      await tx.cpRegistration.create({
+        data: {
+          cpNo: ids.cpId,
+          cpType: 'P',
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+          linkedPfdNo: ids.pfdId,
+          tripletGroupId: ids.tripletGroupId,
+          subject: subjectName,
+          customerName: headerData.customerName,
+          companyName: headerData.companyName,
+          partNo: headerData.partNo,
+        },
+      });
+    }
+
+    if (ids.pfdId) {
+      await tx.pfdRegistration.create({
+        data: {
+          pfdNo: ids.pfdId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+          linkedCpNos: ids.cpId ? JSON.stringify([ids.cpId]) : null,
+          tripletGroupId: ids.tripletGroupId,
+          subject: subjectName,
+          customerName: headerData.customerName,
+          companyName: headerData.companyName,
+        },
+      });
+    }
   });
 }
