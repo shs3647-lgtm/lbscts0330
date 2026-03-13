@@ -38,7 +38,9 @@ import { LinkedDocItem, TargetModule, getNextLinkGroupNo } from '@/components/li
 import { PfdSelectModal } from './components/PfdSelectModal';
 import { FmeaSelectModal } from './components/FmeaSelectModal';
 import PfdBasicInfoTable from './components/PfdBasicInfoTable';
-import CreateDocumentModal from '@/components/modals/CreateDocumentModal'; // ★ 새로 만들기 모달
+import CreateDocumentModal from '@/components/modals/CreateDocumentModal';
+import { HelpPanel } from '@/components/help/HelpPanel';
+import { PFD_REGISTER_SECTIONS, PFD_REGISTER_META } from '@/components/help/content/pfd-register';
 
 // localStorage 동기화
 function syncToLocalStorage(id: string, info: PFDInfo, cft: CFTMember[], basePfd: string | null, apqp: string | null, fmea: string | null, cp: string | null) {
@@ -101,6 +103,9 @@ function PFDRegisterPageContent() {
 
   // ★ 새로 만들기 모달 상태
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // ★ 도움말 상태
+  const [helpSection, setHelpSection] = useState<string | null>(null);
 
   // ★ Triplet 상태
   const [tripletInfo, setTripletInfo] = useState<{
@@ -557,6 +562,7 @@ function PFDRegisterPageContent() {
             <button onClick={handleSave} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 text-xs font-bold rounded ${saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' : saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
               {saveStatus === 'saving' ? `⏳ ${t('저장 중...(Saving)')}` : saveStatus === 'saved' ? `✓ ${t('저장됨(Saved)')}` : `💾 ${t('저장(Save)')}`}
             </button>
+            <button onClick={() => setHelpSection(prev => prev ? null : 'overview')} className="px-1.5 py-1 bg-yellow-400 text-[#00587a] text-[9px] font-bold rounded hover:bg-yellow-300 transition-colors" title="도움말">도움말(Help)</button>
           </div>
         </div>
 
@@ -637,6 +643,9 @@ function PFDRegisterPageContent() {
         onClose={() => setIsCreateModalOpen(false)}
         sourceApp="pfd"
       />
+
+      {/* 도움말 패널 */}
+      <HelpPanel isOpen={helpSection !== null} onClose={() => setHelpSection(null)} sections={PFD_REGISTER_SECTIONS} meta={PFD_REGISTER_META} initialSection={helpSection || undefined} />
     </FixedLayout>
   );
 }

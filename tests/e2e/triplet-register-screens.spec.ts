@@ -283,6 +283,54 @@ test.describe('CP/PFD 모달 Triplet 통합 (수평전개 검증)', () => {
   });
 });
 
+test.describe('CP/PFD 도움말 패널 검증', () => {
+  test.beforeEach(async ({ page }) => { await login(page); });
+
+  test('9. CP 등록화면 → 도움말 버튼 → 패널 표시', async ({ page }) => {
+    await page.goto('/control-plan/register');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const helpBtn = page.locator('button:has-text("도움말")').first();
+    await expect(helpBtn).toBeVisible({ timeout: 5000 });
+    await helpBtn.click();
+    await page.waitForTimeout(500);
+
+    const helpTitle = page.locator('span:has-text("CP 등록화면 도움말")');
+    await expect(helpTitle).toBeVisible({ timeout: 3000 });
+
+    const linkageTab = page.locator('button:has-text("연동 관리")');
+    await expect(linkageTab).toBeVisible({ timeout: 3000 });
+    await linkageTab.click();
+    await page.waitForTimeout(300);
+
+    const tripletText = page.locator('text=Triplet 자동 생성 규칙').first();
+    await expect(tripletText).toBeVisible({ timeout: 3000 });
+  });
+
+  test('10. PFD 등록화면 → 도움말 버튼 → 패널 표시', async ({ page }) => {
+    await page.goto('/pfd/register');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
+
+    const helpBtn = page.locator('button:has-text("도움말")').first();
+    await expect(helpBtn).toBeVisible({ timeout: 5000 });
+    await helpBtn.click();
+    await page.waitForTimeout(500);
+
+    const helpTitle = page.locator('span:has-text("PFD 등록화면 도움말")');
+    await expect(helpTitle).toBeVisible({ timeout: 3000 });
+
+    const linkageTab = page.locator('button:has-text("연동 관리")');
+    await expect(linkageTab).toBeVisible({ timeout: 3000 });
+    await linkageTab.click();
+    await page.waitForTimeout(300);
+
+    const tripletText = page.locator('text=Triplet 자동 생성 규칙').first();
+    await expect(tripletText).toBeVisible({ timeout: 3000 });
+  });
+});
+
 test.describe('Triplet API 검증', () => {
   test.beforeEach(async ({ page }) => { await login(page); });
 

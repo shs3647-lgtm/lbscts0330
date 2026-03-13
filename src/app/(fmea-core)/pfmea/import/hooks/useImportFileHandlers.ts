@@ -13,6 +13,7 @@ import { validateExcelFileWithAlert } from '@/lib/excel-validation';
 import { validateImportData } from '../utils/import-validation';
 import { validateHierarchy } from '../utils/hierarchy-validation';
 import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '../utils/excel-color-detector';
+import { inferDC, inferPC, getDefaultRuleSet } from '../stepb-parser/pc-dc-inference';
 
 interface UseImportFileHandlersProps {
   setFileName: (name: string) => void;
@@ -217,38 +218,69 @@ export function useImportFileHandlers({
         p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B2-${i}`, processNo: pNo, category: 'B', itemCode: 'B2', value: ensureString(v), m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || '')}`, createdAt: new Date() }, 'B2', i)));
         p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B3-${i}`, processNo: pNo, category: 'B', itemCode: 'B3', value: ensureString(v), m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.processCharsWE?.[i], p.processChars4M?.[i] || '')}`, createdAt: new Date() }, 'B3', i)));
         p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B4-${i}`, processNo: pNo, category: 'B', itemCode: 'B4', value: ensureString(v), m4: p.failureCauses4M?.[i] || '', parentItemId: `${pNo}-B3-0`, createdAt: new Date() }, 'B4', i)));
-        p.preventionCtrls?.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), parentItemId: `${pNo}-B4-0`, createdAt: new Date() }, 'B5', i)));
-        p.detectionCtrls?.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A6-tpl-${i}`, processNo: pNo, category: 'A', itemCode: 'A6', value: ensureString(v), parentItemId: `${pNo}-A5-0`, createdAt: new Date() }, 'A6', i)));
+        // ★★★ 2026-03-14 SRP: B5/A6 템플릿 데이터는 FC 체인이 없을 때만 사용 (아래에서 처리) ★★★
+        // p.preventionCtrls / p.detectionCtrls → FC 체인 우선, 템플릿은 폴백
       });
 
-      // ★★★ B5(예방관리) + A6(검출관리) — FC 시트 failureChains에서 추출 (템플릿 보완) ★★★
+      // ★★★ 2026-03-14 SRP: A6(검출관리) + B5(예방관리) — 소스 우선순위 ★★★
+      // 우선순위: ① FC시트 dcValue/pcValue → ② 템플릿 L2-6/L3-5 → ③ 추론(inferDC/inferPC)
       const chains = result.failureChains;
+
+      // ── ① FC 체인에서 A6/B5 추출 (최우선) ──
+      let fcA6Count = 0;
+      let fcB5Count = 0;
       if (chains && chains.length > 0) {
-        // 템플릿(L3-5/L2-6)에서 이미 추가된 B5/A6 항목 dedup 초기화
-        const b5Seen = new Set<string>(
-          flat.filter(d => d.itemCode === 'B5').map(d => `${d.processNo}|${d.m4 || ''}|${d.value}`)
-        );
-        let b5Idx = flat.filter(d => d.itemCode === 'B5').length;
+        const b5Seen = new Set<string>();
+        let b5Idx = 0;
         for (const ch of chains) {
           if (!ch.pcValue?.trim() || !ch.processNo) continue;
           const key = `${ch.processNo}|${ch.m4 || ''}|${ch.pcValue.trim()}`;
           if (b5Seen.has(key)) continue;
           b5Seen.add(key);
-          flat.push({ id: `${ch.processNo}-B5-${b5Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B5', value: ch.pcValue.trim(), m4: ch.m4 || '', parentItemId: `${ch.processNo}-B4-0`, createdAt: new Date() });
+          flat.push({ id: `${ch.processNo}-B5-fc-${b5Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B5', value: ch.pcValue.trim(), m4: ch.m4 || '', parentItemId: `${ch.processNo}-B4-0`, createdAt: new Date() });
           b5Idx++;
         }
-        const a6Seen = new Set<string>(
-          flat.filter(d => d.itemCode === 'A6').map(d => `${d.processNo}|${d.value}`)
-        );
-        let a6Idx = flat.filter(d => d.itemCode === 'A6').length;
+        fcB5Count = b5Idx;
+
+        const a6Seen = new Set<string>();
+        let a6Idx = 0;
         for (const ch of chains) {
           if (!ch.dcValue?.trim() || !ch.processNo) continue;
           const a6Key = `${ch.processNo}|${ch.dcValue.trim()}`;
           if (a6Seen.has(a6Key)) continue;
           a6Seen.add(a6Key);
-          flat.push({ id: `${ch.processNo}-A6-${a6Idx}`, processNo: ch.processNo, category: 'A', itemCode: 'A6', value: ch.dcValue.trim(), parentItemId: `${ch.processNo}-A5-0`, createdAt: new Date() });
+          flat.push({ id: `${ch.processNo}-A6-fc-${a6Idx}`, processNo: ch.processNo, category: 'A', itemCode: 'A6', value: ch.dcValue.trim(), parentItemId: `${ch.processNo}-A5-0`, createdAt: new Date() });
           a6Idx++;
         }
+        fcA6Count = a6Idx;
+        console.log(`[A6/B5 소스] FC체인: A6=${fcA6Count}건, B5=${fcB5Count}건`);
+      }
+
+      // ── ② 템플릿 L2-6/L3-5에서 보충 (FC 체인에서 0건일 때만) ──
+      if (fcB5Count === 0) {
+        result.processes.forEach((p) => {
+          const pNo = p.processNo;
+          p.preventionCtrls?.forEach((v, i) => {
+            if (!ensureString(v).trim()) return;
+            flat.push({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), parentItemId: `${pNo}-B4-0`, createdAt: new Date() });
+          });
+        });
+        const tplB5 = flat.filter(d => d.itemCode === 'B5').length;
+        if (tplB5 > 0) console.log(`[A6/B5 소스] 템플릿 B5=${tplB5}건 (FC 체인 0건이므로 폴백)`);
+      }
+      if (fcA6Count === 0) {
+        result.processes.forEach((p) => {
+          const pNo = p.processNo;
+          p.detectionCtrls?.forEach((v, i) => {
+            if (!ensureString(v).trim()) return;
+            flat.push({ id: `${pNo}-A6-tpl-${i}`, processNo: pNo, category: 'A', itemCode: 'A6', value: ensureString(v), parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
+          });
+        });
+        const tplA6 = flat.filter(d => d.itemCode === 'A6').length;
+        if (tplA6 > 0) console.log(`[A6/B5 소스] 템플릿 A6=${tplA6}건 (FC 체인 0건이므로 폴백)`);
+      }
+
+      if (chains && chains.length > 0) {
         // ★★★ 2026-03-02 FIX: B2(요소기능) — B2 시트 데이터 없으면 FC시트 l3Function에서 추출 ★★★
         const existingB2Count = flat.filter(d => d.itemCode === 'B2').length;
         if (existingB2Count === 0) {
@@ -309,6 +341,80 @@ export function useImportFileHandlers({
           }
         }
 
+      }
+
+      // ★★★ 2026-03-14: B3(공정특성) 중복 제거 — processNo+m4+value 기준 dedup ★★★
+      {
+        const b3Seen = new Set<string>();
+        const toRemove: string[] = [];
+        for (const item of flat) {
+          if (item.itemCode !== 'B3') continue;
+          const key = `${item.processNo}|${item.m4 || ''}|${(item.value || '').trim()}`;
+          if (b3Seen.has(key)) {
+            toRemove.push(item.id);
+          } else {
+            b3Seen.add(key);
+          }
+        }
+        if (toRemove.length > 0) {
+          const removeSet = new Set(toRemove);
+          const before = flat.length;
+          for (let i = flat.length - 1; i >= 0; i--) {
+            if (removeSet.has(flat[i].id)) flat.splice(i, 1);
+          }
+          console.log(`[B3 dedup] ${before - flat.length}건 중복 제거`);
+        }
+      }
+
+      // ★★★ 2026-03-14: A6(검출관리) 자동 추론 — A6=0이면 inferDC(A5) 엔진으로 생성 ★★★
+      {
+        const a6Count = flat.filter(d => d.itemCode === 'A6').length;
+        if (a6Count === 0) {
+          const ruleSet = getDefaultRuleSet();
+          const a5ByProc = new Map<string, Array<{ value: string; idx: number }>>();
+          for (const item of flat) {
+            if (item.itemCode === 'A5' && item.value?.trim()) {
+              const list = a5ByProc.get(item.processNo) || [];
+              list.push({ value: item.value.trim(), idx: list.length });
+              a5ByProc.set(item.processNo, list);
+            }
+          }
+          const a6Seen = new Set<string>();
+          let a6Idx = 0;
+          for (const [pNo, a5List] of a5ByProc) {
+            for (const a5 of a5List) {
+              const { dc } = inferDC(a5.value, ruleSet);
+              if (!dc) continue;
+              const key = `${pNo}|${dc}`;
+              if (a6Seen.has(key)) continue;
+              a6Seen.add(key);
+              flat.push({ id: `${pNo}-A6-infer-${a6Idx}`, processNo: pNo, category: 'A', itemCode: 'A6', value: dc, parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
+              a6Idx++;
+            }
+          }
+          if (a6Idx > 0) console.log(`[A6 inferDC] ${a6Idx}건 자동 추론`);
+        }
+      }
+
+      // ★★★ 2026-03-14: B5(예방관리) 자동 추론 — B5=0이면 inferPC(B4+m4) 엔진으로 생성 ★★★
+      {
+        const b5Count = flat.filter(d => d.itemCode === 'B5').length;
+        if (b5Count === 0) {
+          const ruleSet = getDefaultRuleSet();
+          const b4Items = flat.filter(d => d.itemCode === 'B4' && d.value?.trim());
+          const b5Seen = new Set<string>();
+          let b5Idx = 0;
+          for (const b4 of b4Items) {
+            const pc = inferPC(b4.value!.trim(), b4.m4 || '', ruleSet);
+            if (!pc) continue;
+            const key = `${b4.processNo}|${b4.m4 || ''}|${pc}`;
+            if (b5Seen.has(key)) continue;
+            b5Seen.add(key);
+            flat.push({ id: `${b4.processNo}-B5-infer-${b5Idx}`, processNo: b4.processNo, category: 'B', itemCode: 'B5', value: pc, m4: b4.m4 || '', parentItemId: `${b4.processNo}-B4-0`, createdAt: new Date() });
+            b5Idx++;
+          }
+          if (b5Idx > 0) console.log(`[B5 inferPC] ${b5Idx}건 자동 추론`);
+        }
       }
 
       const C1_CATEGORY_MAP: Record<string, string> = {

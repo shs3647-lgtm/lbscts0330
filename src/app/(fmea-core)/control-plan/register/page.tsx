@@ -7,7 +7,7 @@
 
 'use client';
 
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 // ApqpSelectModal 삭제됨 (APQP 모듈 제거)
 import { DatePickerModal } from '@/components/DatePickerModal';
@@ -27,6 +27,8 @@ import { useCpRegisterHandlers } from './hooks/useCpRegisterHandlers';
 import CpBasicInfoTable from './components/CpBasicInfoTable';
 import CpSelectModals from './components/CpSelectModals';
 import CpMasterInfoTable from './components/CpMasterInfoTable';
+import { HelpPanel } from '@/components/help/HelpPanel';
+import { CP_REGISTER_SECTIONS, CP_REGISTER_META } from '@/components/help/content/cp-register';
 
 // Dynamic imports (xlsx dependency)
 const BizInfoSelectModal = dynamic(
@@ -38,9 +40,12 @@ const UserSelectModal = dynamic(
   { ssr: false }
 );
 
+type CpHelpSection = 'overview' | 'fields' | 'mfp' | 'linkage' | 'workflow';
+
 function CPRegisterPageContent() {
   const core = useCpRegisterCore();
   const handlers = useCpRegisterHandlers(core);
+  const [helpSection, setHelpSection] = useState<CpHelpSection | null>(null);
 
   const {
     user, router, isEditMode,
@@ -111,6 +116,7 @@ function CPRegisterPageContent() {
             <button onClick={handleSave} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 text-xs font-bold rounded ${saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' : saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
               {saveStatus === 'saving' ? '⏳ 저장 중...' : saveStatus === 'saved' ? '✓ 저장됨' : '💾 저장'}
             </button>
+            <button onClick={() => setHelpSection(prev => prev ? null : 'overview')} className="px-1.5 py-1 bg-yellow-400 text-[#00587a] text-[9px] font-bold rounded hover:bg-yellow-300 transition-colors" title="도움말">도움말(Help)</button>
           </div>
         </div>
 
@@ -225,6 +231,9 @@ function CPRegisterPageContent() {
 
         {/* 새로 만들기 모달 */}
         <CreateDocumentModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} sourceApp="cp" />
+
+        {/* 도움말 패널 */}
+        <HelpPanel isOpen={helpSection !== null} onClose={() => setHelpSection(null)} sections={CP_REGISTER_SECTIONS} meta={CP_REGISTER_META} initialSection={helpSection || undefined} />
       </div>
     </FixedLayout>
   );

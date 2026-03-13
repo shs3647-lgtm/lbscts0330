@@ -1,22 +1,33 @@
 /**
  * @file accuracy-validation.ts
- * @description PFMEA 기초정보 작성정확도 검증 (지침서 v2.0 기반)
- * 항목 간 혼입 검출, 형식 검증, B5↔A6 교차 검증
+ * @description PFMEA 기초정보 작성정확도 검증 (지침서 v2.0 + v13.3 교정 반영)
+ * 항목 간 혼입 검출, 형식 검증, B5↔A6 교차 검증, B4/FC 동사형·매칭 검증
  * @created 2026-03-13
+ * @updated 2026-03-14 — v13.3 신규 규칙 8건 추가
  *
- * 검증 규칙:
- *   MIX_A4_B3   — A4(제품특성)에 공정 파라미터(B3) 키워드 혼입
- *   MIX_A5_CAUSE — A5(고장형태)에 고장원인(B4) 키워드 혼입
- *   MIX_B4_SYMPTOM — B4(고장원인)에 고장형태(A5) 키워드 혼입
- *   VERB_A4_A5  — A4/A5에 동사형 표현 사용
- *   MIX_B5_A6   — B5(예방)↔A6(검출) 교차 혼입
- *   MATCH_B1_WE — B1↔FC(WE) 표기 불일치
+ * 검증 규칙 (warning):
+ *   MIX_A4_B3        — A4(제품특성)에 공정 파라미터(B3) 키워드 혼입
+ *   A4_ACTION_VERB   — A4에 Check/Inspection 행위형 표현 ★v13.3
+ *   MIX_A5_CAUSE     — A5(고장형태)에 고장원인(B4) 키워드 혼입
+ *   MIX_A5_EFFECT    — A5에 고장영향(C4) 키워드 혼입 ★v13.3
+ *   A5_FM_PLACEHOLDER — A5에 'FM'/'TBD' 플레이스홀더 ★v13.3
+ *   MIX_B4_SYMPTOM   — B4(고장원인)에 고장형태(A5) 키워드 혼입
+ *   VERB_A4_A5       — A4/A5에 동사형 표현 사용
+ *   B1_NAMING_ERROR  — B1에 설비명이 아닌 관리항목/상태명 ★v13.3
+ *   A3_PROCEDURE_LISTING — A3 절차서 문장 나열 ★v13.3
+ *   B2_PROCEDURE_LISTING — B2 절차서 문장 나열 ★v13.3
+ *   MIX_B5_A6        — B5(예방)↔A6(검출) 교차 혼입
+ *   MATCH_B1_WE      — B1↔FC(WE) 표기 불일치
  *
- * 모든 규칙은 warning 레벨 — 차단하지 않고 경고만 표시
+ * 검증 규칙 (error — Import 전 반드시 수정):
+ *   B4_VERB_ENDING   — B4/FC에 동사형 종결 ★v13.3
+ *   FC_B4_MISMATCH   — FC 고장원인이 B4 기준값에 없음 ★v13.3
  */
 
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
+
+export type AccuracyLevel = 'warning' | 'error';
 
 export interface AccuracyWarning {
   ruleId: string;
@@ -24,6 +35,8 @@ export interface AccuracyWarning {
   processNo: string;
   value: string;
   message: string;
+  /** 'error' = Import 전 반드시 수정, 'warning' = 경고만 (기본값) */
+  level: AccuracyLevel;
 }
 
 // ── A4에 혼입되면 안 되는 공정 파라미터 키워드 (B3 영역) ──
@@ -51,11 +64,40 @@ const A5_KEYWORDS = [
   '불만족', '미검출', '유출',
 ];
 
+// ── A4에서 금지되는 행위형 키워드 (Check/Inspection) ── ★v13.3
+const A4_ACTION_KEYWORDS = [
+  'check', 'inspection', 'test', 'monitor',
+  '확인', '검사', '점검', '모니터링', '측정',
+];
+
+// ── A5에 혼입되면 안 되는 고장영향(C4) 키워드 ── ★v13.3
+const C4_EFFECT_KEYWORDS = [
+  '불량 유출', '유출', '고객 불만', '수율 손실',
+  '라인 정지', '리콜', '납기 지연', '원가 상승',
+  '고객 수령', '시장 유출',
+];
+
+// ── A5에서 금지되는 플레이스홀더 ── ★v13.3
+const A5_PLACEHOLDERS = ['fm', 'tbd', '해당없음', '해당 없음', 'n/a', 'na', '-'];
+
+// ── B1에서 금지되는 관리항목/상태명 키워드 ── ★v13.3
+const B1_INVALID_KEYWORDS = [
+  '관리', '상태 유지', '유지', 'check', '확인',
+];
+
 // ── A4/A5에서 금지되는 동사형 표현 ──
 const VERB_PATTERNS = [
   /check$/i, /inspection$/i, /진행$/,
   /확인하다$/, /검사하다$/, /한다$/, /한다\.?$/,
   /측정$/, /모니터링$/,
+];
+
+// ── B4/FC에서 금지되는 동사형 종결 패턴 ── ★v13.3
+const B4_VERB_ENDING_PATTERNS = [
+  /한다\.?$/, /않는다\.?$/, /진행함\.?$/, /않음\.?$/,
+  /않는다$/, /못한다$/, /한다$/, /않음$/,
+  /진행한다$/, /하지 않는다$/, /하지 않음$/,
+  /을 진행함$/, /를 진행함$/,
 ];
 
 // ── B5(예방)에 혼입되면 안 되는 검출 키워드 ──
@@ -103,6 +145,22 @@ export function validateAccuracy(flatData: ImportedFlatData[]): AccuracyWarning[
           processNo: item.processNo,
           value: val,
           message: `A4(제품특성)에 공정특성(B3) 키워드 "${hit}" 혼입 의심`,
+          level: 'warning',
+        });
+      }
+    }
+
+    // ── A4_ACTION_VERB: A4에 Check/Inspection 행위형 ── ★v13.3
+    if (item.itemCode === 'A4') {
+      const hit = containsAny(val, A4_ACTION_KEYWORDS);
+      if (hit) {
+        warnings.push({
+          ruleId: 'A4_ACTION_VERB',
+          itemCode: 'A4',
+          processNo: item.processNo,
+          value: val,
+          message: `A4(제품특성)에 행위형 키워드 "${hit}" — 측정 가능한 품질특성 명사로 수정`,
+          level: 'warning',
         });
       }
     }
@@ -117,6 +175,37 @@ export function validateAccuracy(flatData: ImportedFlatData[]): AccuracyWarning[
           processNo: item.processNo,
           value: val,
           message: `A5(고장형태)에 고장원인(B4) 키워드 "${hit}" 혼입 의심`,
+          level: 'warning',
+        });
+      }
+    }
+
+    // ── MIX_A5_EFFECT: A5에 고장영향(C4) 키워드 혼입 ── ★v13.3
+    if (item.itemCode === 'A5') {
+      const hit = containsAny(val, C4_EFFECT_KEYWORDS);
+      if (hit) {
+        warnings.push({
+          ruleId: 'MIX_A5_EFFECT',
+          itemCode: 'A5',
+          processNo: item.processNo,
+          value: val,
+          message: `A5(고장형태)에 고장영향(C4) 키워드 "${hit}" 혼입 — A5는 공정 내 현상만 기재`,
+          level: 'warning',
+        });
+      }
+    }
+
+    // ── A5_FM_PLACEHOLDER: A5에 'FM'/'TBD' 플레이스홀더 ── ★v13.3
+    if (item.itemCode === 'A5') {
+      const valLower = val.toLowerCase();
+      if (A5_PLACEHOLDERS.includes(valLower)) {
+        warnings.push({
+          ruleId: 'A5_FM_PLACEHOLDER',
+          itemCode: 'A5',
+          processNo: item.processNo,
+          value: val,
+          message: `A5(고장형태)에 플레이스홀더 "${val}" 사용 금지 — [A4 특성명]+[이탈 유형] 형식으로 기재`,
+          level: 'warning',
         });
       }
     }
@@ -131,8 +220,21 @@ export function validateAccuracy(flatData: ImportedFlatData[]): AccuracyWarning[
           processNo: item.processNo,
           value: val,
           message: `B4(고장원인)에 고장형태(A5) 키워드 "${hit}" 혼입 의심`,
+          level: 'warning',
         });
       }
+    }
+
+    // ── B4_VERB_ENDING: B4에 동사형 종결 (~한다/~않음) ── ★v13.3 (Error 레벨)
+    if (item.itemCode === 'B4' && matchesAnyPattern(val, B4_VERB_ENDING_PATTERNS)) {
+      warnings.push({
+        ruleId: 'B4_VERB_ENDING',
+        itemCode: 'B4',
+        processNo: item.processNo,
+        value: val,
+        message: `B4(고장원인)에 동사형 종결 — 명사형 3대 패턴 사용: [이탈형/인과형/누락형]`,
+        level: 'error',
+      });
     }
 
     // ── VERB_A4_A5: A4/A5에 동사형 표현 ──
@@ -143,6 +245,46 @@ export function validateAccuracy(flatData: ImportedFlatData[]): AccuracyWarning[
         processNo: item.processNo,
         value: val,
         message: `${item.itemCode}는 명사형으로 작성해야 합니다 (동사형 표현 감지)`,
+        level: 'warning',
+      });
+    }
+
+    // ── B1_NAMING_ERROR: B1에 관리항목/상태명 기재 ── ★v13.3
+    if (item.itemCode === 'B1') {
+      const hit = containsAny(val, B1_INVALID_KEYWORDS);
+      if (hit) {
+        warnings.push({
+          ruleId: 'B1_NAMING_ERROR',
+          itemCode: 'B1',
+          processNo: item.processNo,
+          value: val,
+          message: `B1(작업요소)에 관리항목/상태명 "${hit}" — 설비·재료·인원 고유명칭으로 수정`,
+          level: 'warning',
+        });
+      }
+    }
+
+    // ── A3_PROCEDURE_LISTING: A3 절차서 문장 나열 ── ★v13.3
+    if (item.itemCode === 'A3' && val.length > 80) {
+      warnings.push({
+        ruleId: 'A3_PROCEDURE_LISTING',
+        itemCode: 'A3',
+        processNo: item.processNo,
+        value: val.slice(0, 60) + '…',
+        message: `A3(공정기능)이 ${val.length}자 — 절차서 나열 의심. "[대상]을 [방법]으로 [처리]하여 [결과]" 형식 권장`,
+        level: 'warning',
+      });
+    }
+
+    // ── B2_PROCEDURE_LISTING: B2 절차서 문장 나열 ── ★v13.3
+    if (item.itemCode === 'B2' && val.length > 80) {
+      warnings.push({
+        ruleId: 'B2_PROCEDURE_LISTING',
+        itemCode: 'B2',
+        processNo: item.processNo,
+        value: val.slice(0, 60) + '…',
+        message: `B2(요소기능)이 ${val.length}자 — 절차서 나열 의심. "[B1 명칭]이 [행위]하여 [결과]" 형식 권장`,
+        level: 'warning',
       });
     }
   }
@@ -183,6 +325,14 @@ export function validateFCAccuracy(
 ): AccuracyWarning[] {
   const warnings: AccuracyWarning[] = [];
 
+  // ── FC_B4_MISMATCH 준비: B4 기준값 집합 구축 ── ★v13.3
+  const b4ValueSet = new Set<string>();
+  for (const item of flatData) {
+    if (item.itemCode === 'B4' && item.value?.trim()) {
+      b4ValueSet.add(item.value.trim());
+    }
+  }
+
   for (const chain of chains) {
     // ── MIX_B5_A6: B5에 검출 키워드 ──
     const pc = (chain.pcValue || '').trim();
@@ -195,6 +345,7 @@ export function validateFCAccuracy(
           processNo: chain.processNo || '',
           value: pc,
           message: `B5(예방관리)에 검출 키워드 "${hit}" 혼입 → A6으로 이동 검토`,
+          level: 'warning',
         });
       }
     }
@@ -210,6 +361,7 @@ export function validateFCAccuracy(
           processNo: chain.processNo || '',
           value: dc,
           message: `A6(검출관리)에 예방 키워드 "${hit}" 혼입 → B5로 이동 검토`,
+          level: 'warning',
         });
       }
     }
@@ -231,6 +383,7 @@ export function validateFCAccuracy(
           processNo: chain.processNo || '',
           value: dc,
           message: `A6(검출관리)에 ${missing.join('·')} 누락 — [장비명]+[방법]+[빈도] 3요소 필수`,
+          level: 'warning',
         });
       }
     }
@@ -243,6 +396,7 @@ export function validateFCAccuracy(
         processNo: chain.processNo || '',
         value: dc,
         message: `A6(검출관리) "${dc}" — 내용이 너무 짧음 (5자 이상 권장)`,
+        level: 'warning',
       });
     }
 
@@ -257,6 +411,7 @@ export function validateFCAccuracy(
           processNo: chain.processNo || '',
           value: pc,
           message: `B5(예방관리)에 구체적 장치명·시스템명·절차명이 누락 — 추상적 표현 지양`,
+          level: 'warning',
         });
       }
     }
@@ -269,6 +424,32 @@ export function validateFCAccuracy(
         processNo: chain.processNo || '',
         value: pc,
         message: `B5(예방관리) "${pc}" — 내용이 너무 짧음 (5자 이상 권장)`,
+        level: 'warning',
+      });
+    }
+
+    // ── FC_B4_MISMATCH: FC 고장원인이 B4 기준값에 없음 ── ★v13.3 (Error 레벨)
+    const fcValue = (chain.fcValue || '').trim();
+    if (fcValue && b4ValueSet.size > 0 && !b4ValueSet.has(fcValue)) {
+      warnings.push({
+        ruleId: 'FC_B4_MISMATCH',
+        itemCode: 'FC',
+        processNo: chain.processNo || '',
+        value: fcValue,
+        message: `FC 고장원인 "${fcValue.slice(0, 40)}" — B4 시트 기준값에 없음 (WE→FC 연결 실패 위험)`,
+        level: 'error',
+      });
+    }
+
+    // ── B4_VERB_ENDING (FC 컬럼): FC에도 동사형 종결 검사 ── ★v13.3
+    if (fcValue && matchesAnyPattern(fcValue, B4_VERB_ENDING_PATTERNS)) {
+      warnings.push({
+        ruleId: 'B4_VERB_ENDING',
+        itemCode: 'FC',
+        processNo: chain.processNo || '',
+        value: fcValue,
+        message: `FC(고장원인)에 동사형 종결 — 명사형 3대 패턴 사용: [이탈형/인과형/누락형]`,
+        level: 'error',
       });
     }
   }
@@ -298,6 +479,7 @@ export function validateFCAccuracy(
           processNo: chain.processNo,
           value: we,
           message: `B1 "${caseMatch}"과 FC WE "${we}" 대소문자/공백 불일치`,
+          level: 'warning',
         });
       }
     }

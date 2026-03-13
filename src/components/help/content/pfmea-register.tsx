@@ -15,8 +15,8 @@ import type { HelpSectionDef, HelpManualMeta } from '../types';
 export const PFMEA_REGISTER_META: HelpManualMeta = {
   title: 'PFMEA 등록화면 도움말',
   module: 'PFMEA Register',
-  version: 'v3.0',
-  lastUpdated: '2026-02-16',
+  version: 'v3.1',
+  lastUpdated: '2026-03-13',
 };
 
 // =====================================================
@@ -197,8 +197,40 @@ function MFPSection() {
 function LinkageSection() {
   return (
     <div className="space-y-2">
-      <p className="font-bold text-yellow-800">문서 연동 관리</p>
-      <p className="text-[10px] text-gray-600">PFMEA는 APQP, 상위 FMEA, CP(관리계획서), PFD(공정흐름도), DFMEA와 연동할 수 있습니다.</p>
+      <p className="font-bold text-yellow-800">문서 연동 관리 (Triplet 아키텍처)</p>
+      <p className="text-[10px] text-gray-600">PFMEA, CP, PFD는 <strong>Triplet(3중 세트)</strong>로 자동 생성됩니다. 어느 화면에서든 동일한 Triplet API를 사용합니다.</p>
+
+      <div className="bg-indigo-50 rounded p-2 border border-indigo-200">
+        <p className="font-bold text-[10px] text-indigo-700 mb-1">Triplet 자동 생성 규칙</p>
+        <table className="w-full text-[9px] border-collapse bg-white">
+          <thead>
+            <tr className="bg-indigo-100">
+              <th className="border border-indigo-200 px-1.5 py-0.5 text-left w-[18%]">생성 시점</th>
+              <th className="border border-indigo-200 px-1.5 py-0.5 text-left">자동 생성 문서</th>
+              <th className="border border-indigo-200 px-1.5 py-0.5 text-left w-[30%]">하위 세트</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="bg-purple-50">
+              <td className="border border-indigo-200 px-1.5 py-0.5 font-bold text-purple-700">Master 생성</td>
+              <td className="border border-indigo-200 px-1.5 py-0.5">M-FMEA + M-CP + M-PFD</td>
+              <td className="border border-indigo-200 px-1.5 py-0.5">0~1개 Family 세트 선택</td>
+            </tr>
+            <tr className="bg-blue-50">
+              <td className="border border-indigo-200 px-1.5 py-0.5 font-bold text-blue-700">Family 생성</td>
+              <td className="border border-indigo-200 px-1.5 py-0.5">F-FMEA + F-CP + F-PFD</td>
+              <td className="border border-indigo-200 px-1.5 py-0.5">0~5개 Part 세트 선택</td>
+            </tr>
+            <tr className="bg-green-50">
+              <td className="border border-indigo-200 px-1.5 py-0.5 font-bold text-green-700">Part 생성</td>
+              <td className="border border-indigo-200 px-1.5 py-0.5">P-FMEA + P-CP + P-PFD</td>
+              <td className="border border-indigo-200 px-1.5 py-0.5">-</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="text-[9px] text-indigo-600 mt-1">* PFMEA/CP/PFD 어느 등록화면에서 생성해도 동일한 Triplet 세트가 만들어집니다.</p>
+      </div>
+
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-white rounded p-2 border border-yellow-200">
           <p className="font-bold text-[10px] text-yellow-700 mb-1">상위 APQP 연동</p>
@@ -217,7 +249,7 @@ function LinkageSection() {
         <div className="bg-white rounded p-2 border border-yellow-200">
           <p className="font-bold text-[10px] text-teal-700 mb-1">연동 CP (관리계획서)</p>
           <ul className="space-y-0.5 text-[10px]">
-            <li>- PFMEA와 연동된 Control Plan 표시</li>
+            <li>- Triplet으로 자동 생성된 CP 표시</li>
             <li>- 배지 클릭시 CP 등록화면으로 이동</li>
             <li>- 연동 관리 모달에서 추가/삭제 가능</li>
           </ul>
@@ -225,7 +257,7 @@ function LinkageSection() {
         <div className="bg-white rounded p-2 border border-yellow-200">
           <p className="font-bold text-[10px] text-violet-700 mb-1">연동 PFD (공정흐름도)</p>
           <ul className="space-y-0.5 text-[10px]">
-            <li>- PFMEA와 연동된 PFD 표시</li>
+            <li>- Triplet으로 자동 생성된 PFD 표시</li>
             <li>- 배지 클릭시 PFD 등록화면으로 이동</li>
             <li>- 연동 관리 모달에서 추가/삭제 가능</li>
           </ul>
@@ -297,9 +329,9 @@ function WorkflowSection() {
       <div className="bg-white rounded p-2 border border-yellow-200">
         <div className="space-y-2 text-[10px]">
           {[
-            { step: '1', title: '신규 등록', desc: '새로 작성 클릭 → FMEA 유형(M/F/P) 선택 → ID 자동 생성', color: 'bg-green-100 text-green-700' },
+            { step: '1', title: '신규 등록 (Triplet)', desc: '새로 작성 클릭 → M/F/P 유형 선택 → FMEA+CP+PFD Triplet 세트 자동 생성', color: 'bg-green-100 text-green-700' },
             { step: '2', title: '기본정보 입력', desc: 'FMEA명, 담당자, 고객명, 회사명, 품명/품번, 일자 등 입력', color: 'bg-blue-100 text-blue-700' },
-            { step: '3', title: '연동 설정', desc: '상위 APQP, 상위 FMEA, CP/PFD/DFMEA 연동 (선택사항)', color: 'bg-purple-100 text-purple-700' },
+            { step: '3', title: '연동 확인', desc: 'Triplet으로 자동 생성된 CP/PFD 확인, 상위 APQP/FMEA 연동 (선택사항)', color: 'bg-purple-100 text-purple-700' },
             { step: '4', title: 'CFT 구성', desc: 'CFT 멤버 등록 — 역할 지정 및 사용자 검색', color: 'bg-orange-100 text-orange-700' },
             { step: '5', title: '저장', desc: '저장 클릭 → DB에 프로젝트 정보 저장', color: 'bg-indigo-100 text-indigo-700' },
             { step: '6', title: '기초정보 등록', desc: 'Master/Family/Part 데이터 선택 또는 신규 입력 → 워크시트로 이동', color: 'bg-amber-100 text-amber-700' },

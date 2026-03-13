@@ -152,33 +152,72 @@ export function detectColumnMap(sheet: ExcelJS.Worksheet): { headerRow: number; 
     severity: 0, occurrence: 0, detection: 0, ap: 0, specialChar: 0,
   };
 
-  // 1~5행에서 헤더 탐색 (columnCount가 0일 수 있으므로 고정값 25 사용)
+  // ★★★ 2026-03-14 FIX: 전체 행 스캔 후 최다 매칭 행 선택 (멀티행 헤더 완전 지원) ★★★
+  // 기존: 첫 번째 3+ 매칭 행에서 즉시 return → B5/A6가 다른 행에 있으면 누락
+  // 수정: 모든 행 스캔 → 최다 매칭 행 선택 → 인접 행에서 미매핑 필드 보충
+  const MAX_COL = 35;  // 열 스캔 범위 확대 (25→35)
   const maxRow = Math.max(5, sheet.rowCount > 0 ? Math.min(5, sheet.rowCount) : 5);
+  let bestRow = 0;
+  let bestCount = 0;
+  const bestColMap: FCColumnMap = { ...colMap };
+
   for (let r = 1; r <= maxRow; r++) {
     const row = sheet.getRow(r);
+    const tmpMap: FCColumnMap = {
+      processNo: 0, m4: 0, fcValue: 0, fmValue: 0, feValue: 0,
+      pcValue: 0, dcValue: 0,
+      workElement: 0, feScope: 0,
+      productChar: 0, processChar: 0, l2Function: 0, l3Function: 0,
+      severity: 0, occurrence: 0, detection: 0, ap: 0, specialChar: 0,
+    };
     let matchCount = 0;
 
-    for (let c = 1; c <= 25; c++) {
+    for (let c = 1; c <= MAX_COL; c++) {
       const text = cellValueToString(row.getCell(c).value).trim();
       if (!text) continue;
 
       for (const { field, patterns } of HEADER_PATTERNS) {
-        if (colMap[field] > 0) continue; // 이미 매핑됨
+        if (tmpMap[field] > 0) continue;
         if (patterns.some(p => p.test(text))) {
-          colMap[field] = c;
+          tmpMap[field] = c;
           matchCount++;
           break;
         }
       }
     }
 
-    // 최소 3개 필드 매칭 시 헤더 행으로 확정
-    if (matchCount >= 3) {
-      return { headerRow: r, colMap };
+    if (matchCount > bestCount) {
+      bestCount = matchCount;
+      bestRow = r;
+      Object.assign(bestColMap, tmpMap);
+    }
+  }
+
+  if (bestCount >= 3) {
+    Object.assign(colMap, bestColMap);
+
+    // 인접 행에서 미매핑 필드 보충 (멀티행 헤더 지원)
+    const unmappedFields = HEADER_PATTERNS.filter(hp => colMap[hp.field] === 0);
+    if (unmappedFields.length > 0) {
+      for (let adjR = Math.max(1, bestRow - 1); adjR <= Math.min(bestRow + 2, maxRow + 2); adjR++) {
+        if (adjR === bestRow) continue;
+        const adjRow = sheet.getRow(adjR);
+        for (let c = 1; c <= MAX_COL; c++) {
+          const text = cellValueToString(adjRow.getCell(c).value).trim();
+          if (!text) continue;
+          for (const { field, patterns } of unmappedFields) {
+            if (colMap[field] > 0) continue;
+            if (patterns.some(p => p.test(text))) {
+              colMap[field] = c;
+              break;
+            }
+          }
+        }
+      }
     }
 
-    // 리셋 후 다음 행 시도
-    Object.keys(colMap).forEach(k => { (colMap as unknown as Record<string, number>)[k] = 0; });
+    console.log(`[FC detectColumnMap] headerRow=${bestRow}, matched=${bestCount}, pcValue=col${colMap.pcValue}, dcValue=col${colMap.dcValue}`);
+    return { headerRow: bestRow, colMap };
   }
 
   // 감지 실패 → 구형식(13열) 기본값
