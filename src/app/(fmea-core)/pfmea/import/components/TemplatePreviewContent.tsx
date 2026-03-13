@@ -27,6 +27,7 @@ import { FailureChainPreview } from './FailureChainPreview';
 import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
 import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
+import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 
 // ─── Props ───
 
@@ -242,6 +243,10 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [dirty, onSave, isSaving]);
 
+  // ── 경고 다이얼로그 상태 ──
+  const [alertState, setAlertState] = useState<ImportAlertState>(INITIAL_ALERT_STATE);
+  const closeAlert = useCallback(() => setAlertState(INITIAL_ALERT_STATE), []);
+
   // ── 통계표/FC검증 토글 ──
   const [showStats, setShowStats] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
@@ -385,31 +390,21 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       if (row?._ids) Object.values(row._ids).forEach(id => { if (id) ids.push(id); });
     });
     if (ids.length === 0) return;
-    if (!confirm(`${code} 중복 ${dupRowIndices.size}행(${ids.length}개 항목)을 삭제하시겠습니까?\n\n⚠️ 중복 행 전체가 삭제됩니다.\n하나만 유지하려면 [편집]으로 선택 후 개별 삭제하세요.`)) return;
-    onDeleteItems(ids);
-    setHighlightDupCode(null);
-    setSelectedRows(new Set());
+    setAlertState({
+      open: true,
+      variant: 'confirm',
+      title: `${code} 중복 삭제 확인`,
+      summary: `${code} 중복 ${dupRowIndices.size}행(${ids.length}개 항목)을 삭제하시겠습니까?\n\n중복 행 전체가 삭제됩니다.\n하나만 유지하려면 [편집]으로 선택 후 개별 삭제하세요.`,
+      onConfirm: () => {
+        onDeleteItems(ids);
+        setHighlightDupCode(null);
+        setSelectedRows(new Set());
+      },
+    });
   }, [highlightDupCode, dupRowIndices, crossTab, onDeleteItems, setSelectedRows]);
 
-  // ── SA 확정 핸들러 (미확정 시 전진) ──
-  const handleSAConfirm = useCallback(() => {
-    if (generatedData.length === 0) {
-      alert('기초정보 데이터가 없습니다.\n엑셀 Import 또는 템플릿을 먼저 생성해주세요.');
-      return;
-    }
-    const v = effectiveStatistics?.verification;
-    if (v && !v.pass) {
-      const details = v.mismatches.slice(0, 10).map(m => {
-        const typeLabel: Record<string, string> = { FM_COUNT: 'FM건수', FC_PER_FM: 'FC/FM', FE_PER_FM: 'FE/FM', CHAIN_COUNT: '사슬행수' };
-        return `  [${m.processNo}] ${typeLabel[m.type] || m.type}: 원본 ${m.rawCount} → 파싱 ${m.parsedCount}`;
-      }).join('\n');
-      const ok = confirm(
-        `⚠️ 검증 불일치 ${v.mismatches.length}건 발견\n━━━━━━━━━━━━━━━━━━━━\n` + details +
-        (v.mismatches.length > 10 ? `\n  ... 외 ${v.mismatches.length - 10}건` : '') +
-        `\n━━━━━━━━━━━━━━━━━━━━\n원본 엑셀과 파싱 결과가 다릅니다.\n그래도 SA 확정을 진행하시겠습니까?`
-      );
-      if (!ok) return;
-    }
+  // ── SA 확정 실행 (confirm 분기 후 호출) ──
+  const executeSAConfirm = useCallback(() => {
     const result = confirmSA();
     if (result?.success) {
       const d = result.diagnostics;
@@ -420,23 +415,73 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       const allWarnings = [...accWarnings, ...fcAccWarnings];
       const summary = summarizeAccuracyWarnings(allWarnings);
 
-      let msg = `SA 확정 완료!\n\nL2 공정: ${d.l2Count}개\nL3 작업요소: ${d.l3Count}개\nL2기능: ${d.l2FuncCount}개, L3기능: ${d.l3FuncCount}개\n고장형태: ${d.fmCount}개, 고장원인: ${d.fcCount}개, 고장영향: ${d.feCount}개`;
+      const summaryText = [
+        `L2 공정: ${d.l2Count}개`,
+        `L3 작업요소: ${d.l3Count}개`,
+        `L2기능: ${d.l2FuncCount}개, L3기능: ${d.l3FuncCount}개`,
+        `고장형태: ${d.fmCount}개, 고장원인: ${d.fcCount}개, 고장영향: ${d.feCount}개`,
+      ].join('\n');
 
-      if (summary.total > 0) {
-        const details = allWarnings.slice(0, 10).map(w =>
-          `  [${w.ruleId}] 공정${w.processNo} ${w.itemCode}: ${w.message}`
-        ).join('\n');
-        msg += `\n\n⚠️ 작성정확도 경고 (${summary.total}건):\n${details}`;
-        if (allWarnings.length > 10) msg += `\n  ... 외 ${allWarnings.length - 10}건`;
-        msg += '\n\n※ 경고 항목을 검토하여 정확도를 개선하세요.';
-      }
-      alert(msg);
+      const warningDetails = allWarnings.map(w =>
+        `[${w.ruleId}] 공정${w.processNo} ${w.itemCode}: ${w.message}`
+      );
+
+      setAlertState({
+        open: true,
+        variant: summary.total > 0 ? 'warning' : 'success',
+        title: 'SA 확정 완료!',
+        summary: summaryText,
+        details: warningDetails.length > 0 ? warningDetails : undefined,
+        footer: summary.total > 0
+          ? `작성정확도 경고 ${summary.total}건 — 경고 항목을 검토하여 정확도를 개선하세요.`
+          : undefined,
+      });
     } else if (result && !result.success) {
-      alert('SA 확정 실패: 계층 구조 빌드에 문제가 있습니다.');
+      setAlertState({
+        open: true,
+        variant: 'error',
+        title: 'SA 확정 실패',
+        summary: '계층 구조 빌드에 문제가 있습니다.',
+      });
     } else if (!result) {
-      alert('SA 확정 불가: 데이터를 먼저 저장해주세요.');
+      setAlertState({
+        open: true,
+        variant: 'error',
+        title: 'SA 확정 불가',
+        summary: '데이터를 먼저 저장해주세요.',
+      });
     }
-  }, [generatedData.length, effectiveStatistics, confirmSA, generatedData, failureChains]);
+  }, [confirmSA, generatedData, failureChains]);
+
+  // ── SA 확정 핸들러 (미확정 시 전진) ──
+  const handleSAConfirm = useCallback(() => {
+    if (generatedData.length === 0) {
+      setAlertState({
+        open: true,
+        variant: 'error',
+        title: '기초정보 데이터 없음',
+        summary: '기초정보 데이터가 없습니다.\n엑셀 Import 또는 템플릿을 먼저 생성해주세요.',
+      });
+      return;
+    }
+    const v = effectiveStatistics?.verification;
+    if (v && !v.pass) {
+      const typeLabel: Record<string, string> = { FM_COUNT: 'FM건수', FC_PER_FM: 'FC/FM', FE_PER_FM: 'FE/FM', CHAIN_COUNT: '사슬행수' };
+      const mismatchDetails = v.mismatches.map(m =>
+        `[${m.processNo}] ${typeLabel[m.type] || m.type}: 원본 ${m.rawCount} → 파싱 ${m.parsedCount}`
+      );
+      setAlertState({
+        open: true,
+        variant: 'confirm',
+        title: `검증 불일치 ${v.mismatches.length}건 발견`,
+        summary: '원본 엑셀과 파싱 결과가 다릅니다.\n그래도 SA 확정을 진행하시겠습니까?',
+        details: mismatchDetails,
+        onConfirm: executeSAConfirm,
+      });
+      return;
+    }
+    executeSAConfirm();
+  }, [generatedData.length, effectiveStatistics, executeSAConfirm]);
 
   // ── SA 되돌리기 핸들러 (확정 후 리셋+SA탭 이동) ──
   const handleSAReset = useCallback(() => {
@@ -446,13 +491,16 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   // ── FC 확정 핸들러 (미확정 시 전진) ──
   const handleFCConfirm = useCallback(() => {
     if (fcComparison && fcComparison.missing.length > 0) {
-      const ok = confirm(
-        `FC 비교 결과 누락 ${fcComparison.missing.length}건이 있습니다.\n` +
-        `매칭률: ${fcComparison.stats.matchRate.toFixed(0)}%\n\n` +
-        '경고를 무시하고 FC를 확정하시겠습니까?'
-      );
-      if (!ok) return;
-      confirmFC(true);
+      setAlertState({
+        open: true,
+        variant: 'confirm',
+        title: `FC 비교 결과 누락 ${fcComparison.missing.length}건`,
+        summary: `매칭률: ${fcComparison.stats.matchRate.toFixed(0)}%\n\n경고를 무시하고 FC를 확정하시겠습니까?`,
+        details: fcComparison.missing.map(m =>
+          `[${m.processNo || '-'}] ${m.workElement || '-'}: ${m.causeText || '-'}`
+        ),
+        onConfirm: () => confirmFC(true),
+      });
     } else {
       confirmFC();
     }
@@ -500,8 +548,21 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           <button onClick={() => {
             if (editDisabled) return;
             if (!isSAActive) {
-              if (!confirm('SA 단계로 돌아가서 편집 모드를 활성화합니다.\n계속하시겠습니까?')) return;
-              resetToSA();
+              setAlertState({
+                open: true,
+                variant: 'confirm',
+                title: 'SA 단계로 되돌리기',
+                summary: 'SA 단계로 돌아가서 편집 모드를 활성화합니다.\n계속하시겠습니까?',
+                onConfirm: () => {
+                  resetToSA();
+                  if (!isEditing && !templateGenerated && !isDownload) {
+                    onGenerate();
+                    setTemplateGenerated(true);
+                  }
+                  setIsEditing(true);
+                },
+              });
+              return;
             }
             if (!isEditing && !templateGenerated && !isDownload) {
               onGenerate();
@@ -564,7 +625,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               onClick={() => {
                 const details = missingDetails[previewLevel];
                 if (details.length > 0) {
-                  alert(`${previewLevel} 누락 ${details.length}건:\n\n${details.slice(0, 15).join('\n')}${details.length > 15 ? `\n... 외 ${details.length - 15}건` : ''}\n\n확인 후 해당 행을 편집해 주세요.`);
+                  setAlertState({
+                    open: true,
+                    variant: 'warning',
+                    title: `${previewLevel} 누락 ${details.length}건`,
+                    summary: '확인 후 해당 행을 편집해 주세요.',
+                    details,
+                  });
                 }
                 const tableEl = document.querySelector(`[data-preview-level="${previewLevel}"]`);
                 const missingRow = tableEl?.querySelector('tr[data-missing="true"]');
@@ -1087,6 +1154,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           </>
         )}
       </>
+      {/* 경고/확인 다이얼로그 */}
+      <ImportAlertDialog state={alertState} onClose={closeAlert} />
     </div>
   );
 }
