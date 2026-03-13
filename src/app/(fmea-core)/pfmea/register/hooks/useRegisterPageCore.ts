@@ -80,6 +80,18 @@ export function useRegisterPageCore() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [registerHelpSearch, setRegisterHelpSearch] = useState<string | null>(null);
 
+  // ★ Triplet 상태 (M/F/P 계층 연동)
+  interface TripletInfo {
+    id: string;
+    typeCode: string;
+    cpId: string | null;
+    pfdId: string | null;
+    syncStatus: string;
+    parentTripletId: string | null;
+    children: Array<{ id: string; typeCode: string; subject: string; pfmeaId: string }>;
+  }
+  const [tripletInfo, setTripletInfo] = useState<TripletInfo | null>(null);
+
   const excelFileInputRef = useRef<HTMLInputElement>(null);
 
   // =====================================================
@@ -446,6 +458,61 @@ export function useRegisterPageCore() {
     }
   }, [isEditMode, editId, fmeaId]);
 
+  // ★ 페이지 로드 시 FMEA명 목록 자동 로드 (중복 검증용)
+  // useRef 가드 제거: React Strict Mode에서 ref가 cleanup 후에도 true로 남아 재마운트 시 로드 실패
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        const res = await fetch('/api/fmea/projects');
+        const data = await res.json();
+        if (!cancelled && data.success && data.projects?.length > 0) {
+          setFmeaNameList(data.projects.map((p: Record<string, unknown>) => ({
+            id: p.id as string,
+            name: ((p.fmeaInfo as Record<string, unknown>)?.subject as string) ||
+                  ((p.project as Record<string, unknown>)?.productName as string) || '제목 없음',
+            type: (p.fmeaType as string) || 'P',
+          })));
+        }
+      } catch (e) { console.error('[FMEA명 목록 초기 로드] 오류:', e); }
+    }, 800);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, []);
+
+  // ★ Triplet 정보 로드 (편집 모드에서 tripletGroupId 조회)
+  useEffect(() => {
+    const targetId = fmeaId || editId;
+    if (!targetId) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        const projRes = await fetch(`/api/fmea/projects?id=${targetId}`);
+        const projData = await projRes.json();
+        const project = projData?.projects?.[0];
+        const tgId = project?.tripletGroupId;
+        if (!tgId) return;
+
+        const tgRes = await fetch(`/api/triplet/${tgId}/header`);
+        const tgData = await tgRes.json();
+        if (!cancelled && tgData.success && tgData.triplet) {
+          const t = tgData.triplet;
+          setTripletInfo({
+            id: t.id,
+            typeCode: t.typeCode,
+            cpId: t.cp?.id || null,
+            pfdId: t.pfd?.id || null,
+            syncStatus: t.syncStatus,
+            parentTripletId: t.parent?.id || null,
+            children: t.children || [],
+          });
+        }
+      } catch (e) { console.error('[Triplet 정보 로드] 오류:', e); }
+    }, 1000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [fmeaId, editId]);
+
   // 마스터 선택 시 기초정보 항목 수 조회
   useEffect(() => {
     if (selectedBaseFmea?.includes('-m')) {
@@ -497,6 +564,8 @@ export function useRegisterPageCore() {
     // Create modal
     isCreateModalOpen, setIsCreateModalOpen,
     registerHelpSearch, setRegisterHelpSearch,
+    // Triplet
+    tripletInfo, setTripletInfo,
     // Refs
     excelFileInputRef,
     // Functions

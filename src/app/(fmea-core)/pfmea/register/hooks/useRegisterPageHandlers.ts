@@ -212,28 +212,44 @@ export function useRegisterPageHandlers(core: CoreReturn) {
   const loadFmeaNameList = useCallback(async () => {
     let projects: any[] = [];
     try {
-      const res = await fetch('/api/fmea/projects?type=P');
+      const res = await fetch('/api/fmea/projects');
       const data = await res.json();
       if (data.success && data.projects?.length > 0) projects = data.projects;
     } catch (e) { console.error('[FMEA명 목록 조회] 오류:', e); }
-    setFmeaNameList(projects.map((p: any) => ({
-      id: p.id, name: p.fmeaInfo?.subject || p.project?.productName || '제목 없음', type: p.fmeaType || 'F',
-    })));
+    const list = projects.map((p: any) => ({
+      id: p.id, name: p.fmeaInfo?.subject || p.project?.productName || '제목 없음', type: p.fmeaType || 'P',
+    }));
+    setFmeaNameList(list);
+    return list;
   }, [setFmeaNameList]);
 
-  const checkDuplicateName = useCallback((name: string): string | null => {
+  const checkDuplicateName = useCallback((name: string, listOverride?: { id: string; name: string; type: string }[]): string | null => {
     if (!name.trim()) return null;
-    const currentType = fmeaInfo.fmeaType || 'F';
-    const duplicate = fmeaNameList.find(f =>
-      f.name.toLowerCase() === name.toLowerCase() && f.id !== fmeaId && f.type === currentType
+    const currentType = fmeaInfo.fmeaType || 'P';
+    const pfmeaTypes = ['P', 'F', 'M'];
+    const isPfmea = pfmeaTypes.includes(currentType);
+    const targetList = listOverride || fmeaNameList;
+    const duplicate = targetList.find(f =>
+      f.name.toLowerCase() === name.toLowerCase() &&
+      f.id !== fmeaId &&
+      (isPfmea ? pfmeaTypes.includes(f.type) : f.type === currentType)
     );
     return duplicate ? `⚠️ "${duplicate.name}" (${duplicate.id})와 중복됩니다!` : null;
   }, [fmeaInfo.fmeaType, fmeaNameList, fmeaId]);
 
-  const handleFmeaNameChange = useCallback((value: string) => {
+  const handleFmeaNameChange = useCallback(async (value: string) => {
     updateField('subject', value);
-    if (fmeaNameList.length > 0) setDuplicateWarning(checkDuplicateName(value));
-  }, [updateField, fmeaNameList, checkDuplicateName, setDuplicateWarning]);
+    if (!value.trim()) {
+      setDuplicateWarning(null);
+      return;
+    }
+    if (fmeaNameList.length > 0) {
+      setDuplicateWarning(checkDuplicateName(value));
+    } else {
+      const list = await loadFmeaNameList();
+      setDuplicateWarning(checkDuplicateName(value, list));
+    }
+  }, [updateField, fmeaNameList, checkDuplicateName, setDuplicateWarning, loadFmeaNameList]);
 
   // =====================================================
   // 변경 이력 기록
@@ -276,10 +292,23 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     }
     if (!fmeaInfo.subject?.trim()) { alert('PFMEA명을 입력해주세요.'); return; }
 
-    if (fmeaNameList.length === 0) await loadFmeaNameList();
-    const duplicate = checkDuplicateName(fmeaInfo.subject);
-    if (duplicate) {
-      if (!confirm(`${duplicate}\n\n동일한 이름으로 저장하시겠습니까?`)) return;
+    let nameList = fmeaNameList;
+    if (nameList.length === 0) {
+      nameList = await loadFmeaNameList();
+    }
+    const nameToCheck = fmeaInfo.subject.trim().toLowerCase();
+    const currentType = fmeaInfo.fmeaType || 'P';
+    const pfmeaTypes = ['P', 'F', 'M'];
+    const isPfmea = pfmeaTypes.includes(currentType);
+    const duplicateItem = nameList.find(f =>
+      f.name.toLowerCase() === nameToCheck &&
+      f.id !== fmeaId &&
+      (isPfmea ? pfmeaTypes.includes(f.type) : f.type === currentType)
+    );
+    if (duplicateItem) {
+      const msg = `⚠️ "${duplicateItem.name}" (${duplicateItem.id})와 중복됩니다!`;
+      setDuplicateWarning(msg);
+      if (!confirm(`${msg}\n\n동일한 이름으로 저장하시겠습니까?`)) return;
     }
 
     setSaveStatus('saving');

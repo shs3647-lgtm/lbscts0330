@@ -115,6 +115,7 @@ function PFMEARegisterPageContent() {
     isCreateModalOpen, setIsCreateModalOpen,
     cachedProjects,
     showMasterReview, setShowMasterReview,
+    tripletInfo,
   } = core;
 
   const {
@@ -564,6 +565,44 @@ function PFMEARegisterPageContent() {
                     </div>
                   </td>
                 </tr>
+                {/* Triplet 상태 행 (Triplet 연동 시만 표시) */}
+                {tripletInfo && (
+                <tr className="h-8 bg-gradient-to-r from-purple-50 to-blue-50">
+                  <td className="px-2 py-1 text-[10px] font-bold text-purple-700 border border-gray-200 bg-purple-100" colSpan={2}>
+                    Triplet [{tripletInfo.typeCode.toUpperCase()}] {tripletInfo.id}
+                  </td>
+                  <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-600">CP:</span>
+                      {tripletInfo.cpId ? (
+                        <span className="text-teal-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/control-plan/register?id=${tripletInfo.cpId}`)}>{tripletInfo.cpId}</span>
+                      ) : (
+                        <span className="text-gray-400 italic">Lazy (미생성)</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-600">PFD:</span>
+                      {tripletInfo.pfdId ? (
+                        <span className="text-indigo-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/pfd/register?id=${tripletInfo.pfdId}`)}>{tripletInfo.pfdId}</span>
+                      ) : (
+                        <span className="text-gray-400 italic">Lazy (미생성)</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-600">하위:</span>
+                      <span className="text-blue-700">{tripletInfo.children.length}개 Part 세트</span>
+                      <span className={`px-1 py-0.5 rounded text-[8px] font-bold text-white ${
+                        tripletInfo.syncStatus === 'synced' ? 'bg-green-500' :
+                        tripletInfo.syncStatus === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}>{tripletInfo.syncStatus}</span>
+                    </div>
+                  </td>
+                </tr>
+                )}
                 {/* 4행: 회사명, 모델연식, 품명 */}
                 <tr className="h-9">
                   <td className={headerCell}>회사 명<br /><span className="text-[8px] font-normal opacity-70">(Company)</span></td>

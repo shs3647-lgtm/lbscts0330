@@ -78,6 +78,15 @@ export default function CreateDocumentModal({
     const [companyName, setCompanyName] = useState('');
     const [managerName, setManagerName] = useState('');
     const [partNo, setPartNo] = useState('');
+    // ★ 기존 문서 목록 (중복 검증용 실시간 표시)
+    const [existingDocs, setExistingDocs] = useState<{ id: string; name: string }[]>([]);
+
+    // ★ Triplet: 상위 Triplet 선택 + Part 세트 수량
+    const [parentTriplets, setParentTriplets] = useState<{ id: string; typeCode: string; subject: string; pfmeaId: string }[]>([]);
+    const [selectedParentTriplet, setSelectedParentTriplet] = useState<string>('');
+    const [partSetCount, setPartSetCount] = useState<number>(0);
+    const [immediateCP, setImmediateCP] = useState(false);
+    const [immediatePFD, setImmediatePFD] = useState(false);
     // 소스 앱 변경 시 초기화
     useEffect(() => {
         if (isOpen) {
@@ -91,12 +100,53 @@ export default function CreateDocumentModal({
             setFmeaType('P');
             setCpCount(1);
             setPfdCount(1);
+            setPartSetCount(0);
+            setSelectedParentTriplet('');
+            setImmediateCP(false);
+            setImmediatePFD(false);
             setProductName(initialProductName || '');
             setCustomer(initialCustomer || '');
             setPartNo(initialPartNo || '');
             setError(null);
             setCompanyName(initialCompanyName || '');
             setManagerName(initialManagerName || '');
+
+            // ★ Triplet 목록 로드 (상위 선택용)
+            if (sourceApp === 'pfmea') {
+                fetch('/api/triplet/list').then(r => r.json()).then(data => {
+                    if (data.success && data.triplets) {
+                        setParentTriplets(data.triplets);
+                    }
+                }).catch(() => { setParentTriplets([]); });
+            }
+
+            // ★ 기존 문서 목록 로드 (중복 검증용)
+            setExistingDocs([]);
+            const docUrl = sourceApp === 'pfmea' || sourceApp === 'dfmea'
+                ? '/api/fmea/projects'
+                : sourceApp === 'cp' ? '/api/control-plan/list'
+                : sourceApp === 'pfd' ? '/api/pfd/list' : null;
+            if (docUrl) {
+                fetch(docUrl).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        let docs: { id: string; name: string }[] = [];
+                        if (sourceApp === 'pfmea' || sourceApp === 'dfmea') {
+                            docs = (data.projects || []).map((p: any) => ({
+                                id: p.id || p.fmeaId, name: p.fmeaInfo?.subject || p.project?.projectName || '',
+                            }));
+                        } else if (sourceApp === 'cp') {
+                            docs = (data.items || data.cps || []).map((p: any) => ({
+                                id: p.cpNo || p.id, name: p.subject || '',
+                            }));
+                        } else if (sourceApp === 'pfd') {
+                            docs = (data.items || data.pfds || []).map((p: any) => ({
+                                id: p.pfdNo || p.id, name: p.subject || '',
+                            }));
+                        }
+                        setExistingDocs(docs.filter(d => d.name));
+                    }
+                }).catch(() => { /* 무시 */ });
+            }
 
             // 고객사 목록 로드
             fetch('/api/master/customer')
@@ -182,39 +232,69 @@ export default function CreateDocumentModal({
         }
 
         try {
-            const request: CreateDocumentRequest & { productName?: string; customer?: string; companyName?: string; managerName?: string; partNo?: string; cpCount?: number; pfdCount?: number } = {
-                linkMode,
-                sourceApp,
-                linkedApps: linkMode === 'solo'
-                    ? { [sourceApp]: true }
-                    : selectedApps,
-                fmeaType: fmeaType || 'P',
-                productName: productName.trim() || undefined,
-                customer: customer.trim() || undefined,
-                companyName: companyName.trim() || undefined,
-                managerName: managerName.trim() || undefined,
-                partNo: partNo.trim() || undefined,
-                cpCount: selectedApps.cp ? cpCount : 1,
-                pfdCount: selectedApps.pfd ? pfdCount : 1,
-            };
+            // ★ PFMEA sourceApp → Triplet API 사용
+            if (sourceApp === 'pfmea') {
+                const docType = fmeaType === 'M' ? 'master' : fmeaType === 'F' ? 'family' : 'part';
+                const tripletBody: Record<string, unknown> = {
+                    docType,
+                    subject: productName.trim(),
+                    productName: productName.trim(),
+                    customerName: customer.trim(),
+                    companyName: companyName.trim(),
+                    responsibleName: managerName.trim(),
+                    partNo: partNo.trim(),
+                };
+                if (docType === 'family' || docType === 'part') {
+                    tripletBody.parentTripletId = selectedParentTriplet;
+                }
+                if (docType === 'master' || docType === 'family') {
+                    tripletBody.partCount = partSetCount;
+                    tripletBody.immediateCP = immediateCP;
+                    tripletBody.immediatePFD = immediatePFD;
+                }
 
-            const response = await fetch('/api/project/create-linked', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(request),
-            });
+                const response = await fetch('/api/triplet/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tripletBody),
+                });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || 'Triplet 생성 실패');
 
-            const result: CreateDocumentResponse = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error || '문서 생성 실패');
-            }
-
-            const createdId = result.createdDocs[sourceApp];
-            if (createdId) {
-                const registerUrl = `${APP_REGISTER_URLS[sourceApp]}?id=${createdId}`;
                 onClose();
-                window.location.href = registerUrl;
+                window.location.href = `${APP_REGISTER_URLS.pfmea}?id=${result.pfmeaId}`;
+            } else {
+                // ★ CP/PFD sourceApp → 기존 create-linked API 유지
+                const request: CreateDocumentRequest & { productName?: string; customer?: string; companyName?: string; managerName?: string; partNo?: string; cpCount?: number; pfdCount?: number } = {
+                    linkMode,
+                    sourceApp,
+                    linkedApps: linkMode === 'solo'
+                        ? { [sourceApp]: true }
+                        : selectedApps,
+                    fmeaType: fmeaType || 'P',
+                    productName: productName.trim() || undefined,
+                    customer: customer.trim() || undefined,
+                    companyName: companyName.trim() || undefined,
+                    managerName: managerName.trim() || undefined,
+                    partNo: partNo.trim() || undefined,
+                    cpCount: selectedApps.cp ? cpCount : 1,
+                    pfdCount: selectedApps.pfd ? pfdCount : 1,
+                };
+
+                const response = await fetch('/api/project/create-linked', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(request),
+                });
+
+                const result: CreateDocumentResponse = await response.json();
+                if (!result.success) throw new Error(result.error || '문서 생성 실패');
+
+                const createdId = result.createdDocs[sourceApp];
+                if (createdId) {
+                    onClose();
+                    window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${createdId}`;
+                }
             }
         } catch (err: any) {
             console.error('[CreateDocumentModal] 생성 오류:', err);
@@ -266,8 +346,35 @@ export default function CreateDocumentModal({
                                         if (text) { e.preventDefault(); setProductName(text.replace(/[\r\n]/g, ' ').trim()); }
                                     }}
                                     placeholder={`${sourceConfig.name}명을 입력하세요`}
-                                    className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                                    className={`w-full px-3 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm ${
+                                        productName.trim() && existingDocs.some(d => d.name.toLowerCase() === productName.trim().toLowerCase())
+                                            ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-300'
+                                    }`}
                                 />
+                                {/* ★ 중복 문서 실시간 표시 */}
+                                {productName.trim().length >= 2 && existingDocs.filter(d =>
+                                    d.name.toLowerCase().includes(productName.trim().toLowerCase())
+                                ).length > 0 && (
+                                    <div className="mt-1 border border-orange-200 rounded bg-orange-50 max-h-[80px] overflow-y-auto">
+                                        <div className="px-2 py-0.5 text-[10px] font-bold text-orange-700 bg-orange-100 sticky top-0">
+                                            ⚠️ 기존 문서 {existingDocs.filter(d => d.name.toLowerCase().includes(productName.trim().toLowerCase())).length}건 일치
+                                        </div>
+                                        {existingDocs.filter(d =>
+                                            d.name.toLowerCase().includes(productName.trim().toLowerCase())
+                                        ).map(d => (
+                                            <div key={d.id} className={`px-2 py-0.5 text-[10px] flex items-center gap-1 ${
+                                                d.name.toLowerCase() === productName.trim().toLowerCase()
+                                                    ? 'text-red-700 font-bold bg-red-50' : 'text-orange-700'
+                                            }`}>
+                                                <span className="text-gray-400 font-mono">{d.id}</span>
+                                                <span>{d.name}</span>
+                                                {d.name.toLowerCase() === productName.trim().toLowerCase() && (
+                                                    <span className="text-red-600 text-[9px]">← 동일</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </td>
                         </tr>
 
@@ -290,8 +397,8 @@ export default function CreateDocumentModal({
                             </td>
                         </tr>
 
-                        {/* 연동 모드 */}
-                        <tr className="border-b">
+                        {/* 연동 모드 (PFMEA Triplet 모드에서는 숨김) */}
+                        {sourceApp !== 'pfmea' && <tr className="border-b">
                             <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-top">연동 모드</td>
                             <td className="py-1">
                                 <div className="flex gap-3">
@@ -319,7 +426,7 @@ export default function CreateDocumentModal({
                                     </label>
                                 </div>
                             </td>
-                        </tr>
+                        </tr>}
 
                         {/* FMEA 종류 (PFMEA 선택 시) */}
                         {showFmeaTypeSelector && (
@@ -353,8 +460,77 @@ export default function CreateDocumentModal({
                             </tr>
                         )}
 
-                        {/* 연동 앱 선택 (연동 모드일 때만) - 표 형태 */}
-                        {linkMode === 'linked' && (
+                        {/* ★ Triplet: 상위 선택 (Family/Part 시) */}
+                        {sourceApp === 'pfmea' && (fmeaType === 'F' || fmeaType === 'P') && (
+                            <tr className="border-b">
+                                <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">
+                                    상위 {fmeaType === 'F' ? 'Master' : 'Family/Master'}
+                                </td>
+                                <td className="py-1">
+                                    <select
+                                        value={selectedParentTriplet}
+                                        onChange={(e) => setSelectedParentTriplet(e.target.value)}
+                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    >
+                                        <option value="">-- 상위 Triplet 선택 --</option>
+                                        {parentTriplets
+                                            .filter(t => fmeaType === 'F' ? t.typeCode === 'm' : (t.typeCode === 'f' || t.typeCode === 'm'))
+                                            .map(t => (
+                                                <option key={t.id} value={t.id}>
+                                                    [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId} ({t.id})
+                                                </option>
+                                            ))}
+                                    </select>
+                                    {(fmeaType === 'F' || fmeaType === 'P') && !selectedParentTriplet && (
+                                        <div className="text-[9px] text-red-500 mt-0.5">상위 Triplet을 선택해야 생성 가능합니다.</div>
+                                    )}
+                                </td>
+                            </tr>
+                        )}
+
+                        {/* ★ Triplet: M/F → 하위 Part 세트 수량 */}
+                        {sourceApp === 'pfmea' && (fmeaType === 'M' || fmeaType === 'F') && (
+                            <tr className="border-b">
+                                <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">하위 Part 세트</td>
+                                <td className="py-1">
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={partSetCount}
+                                            onChange={(e) => setPartSetCount(Number(e.target.value))}
+                                            className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                        >
+                                            {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+                                                <option key={n} value={n}>{n}개 {n === 0 ? '(나중에 추가)' : ''}</option>
+                                            ))}
+                                        </select>
+                                        <span className="text-[9px] text-gray-500">각 세트 = P-FMEA + P-CP(Lazy) + P-PFD(Lazy)</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+
+                        {/* ★ Triplet: Family → Lazy CP/PFD 즉시 생성 옵션 */}
+                        {sourceApp === 'pfmea' && fmeaType === 'F' && (
+                            <tr className="border-b">
+                                <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">Family 문서</td>
+                                <td className="py-1">
+                                    <div className="flex gap-3 text-xs">
+                                        <label className="flex items-center gap-1 cursor-pointer">
+                                            <input type="checkbox" checked={immediateCP} onChange={(e) => setImmediateCP(e.target.checked)} className="w-3.5 h-3.5 rounded" />
+                                            Family CP 즉시 생성
+                                        </label>
+                                        <label className="flex items-center gap-1 cursor-pointer">
+                                            <input type="checkbox" checked={immediatePFD} onChange={(e) => setImmediatePFD(e.target.checked)} className="w-3.5 h-3.5 rounded" />
+                                            Family PFD 즉시 생성
+                                        </label>
+                                    </div>
+                                    <div className="text-[9px] text-gray-400 mt-0.5">미체크 시 나중에 탭 접근 시 자동 생성 (Lazy Creation)</div>
+                                </td>
+                            </tr>
+                        )}
+
+                        {/* 연동 앱 선택 (연동 모드일 때만, PFMEA Triplet 모드가 아닐 때) - 표 형태 */}
+                        {linkMode === 'linked' && sourceApp !== 'pfmea' && (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">
                                     연동 앱

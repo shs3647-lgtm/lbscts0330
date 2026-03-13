@@ -20,6 +20,46 @@ model APQPProject {
   @@map("apqp_projects")
 }
 
+// =====================================================
+// TripletGroup: PFMEA + CP + PFD 세트 관리 (M/F/P 계층)
+// =====================================================
+model TripletGroup {
+  id                String    @id                    // tg26-m001, tg26-f001, tg26-p001
+  year              String    @db.Char(2)            // 26
+  typeCode          String    @db.Char(1)            // m | f | p
+  linkGroup         Int?                             // p타입만 사용 (i{GG})
+
+  pfmeaId           String?                          // pfm26-m001
+  cpId              String?                          // cp26-m001 (null = Lazy 미생성)
+  pfdId             String?                          // pfd26-m001 (null = Lazy 미생성)
+
+  parentTripletId   String?                          // 상위 TripletGroup ID
+  parent            TripletGroup?  @relation("TripletHierarchy", fields: [parentTripletId], references: [id])
+  children          TripletGroup[] @relation("TripletHierarchy")
+
+  subject           String?                          // 공통 문서명
+  productName       String?                          // 공통 제품명
+  revision          String?    @default("Rev.00")    // 공통 개정번호
+  partNo            String?                          // 공통 부품번호
+  customerName      String?                          // 공통 고객사
+  companyName       String?                          // 공통 회사명
+  responsibleName   String?                          // 공통 담당자
+  processNumber     String?                          // 공통 공정번호
+
+  syncStatus        String     @default("synced")    // synced | pending | conflict
+  version           Int        @default(1)           // Optimistic locking
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([typeCode, year])
+  @@index([parentTripletId])
+  @@index([pfmeaId])
+  @@index([cpId])
+  @@index([pfdId])
+  @@map("triplet_groups")
+}
+
 model ProjectLinkage {
   id                    String   @id @default(uuid())
   apqpNo                String?
@@ -546,26 +586,28 @@ model Optimization {
 }
 
 model FmeaProject {
-  id             String             @id @default(uuid())
-  fmeaId         String             @unique
-  fmeaType       String             @default("P")
-  parentApqpNo   String?
-  parentFmeaId   String?
-  parentFmeaType String?
-  status         String             @default("active")
-  step           Int                @default(1)
-  revisionNo     String             @default("Rev.00")
-  revMajor       Int                @default(0)
-  revMinor       Int                @default(0)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  deletedAt      DateTime?
-  cftMembers     FmeaCftMember[]
-  registration   FmeaRegistration?
-  worksheetData  FmeaWorksheetData?
+  id               String             @id @default(uuid())
+  fmeaId           String             @unique
+  fmeaType         String             @default("P")
+  parentApqpNo     String?
+  parentFmeaId     String?
+  parentFmeaType   String?
+  tripletGroupId   String?            // TripletGroup 연결
+  status           String             @default("active")
+  step             Int                @default(1)
+  revisionNo       String             @default("Rev.00")
+  revMajor         Int                @default(0)
+  revMinor         Int                @default(0)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+  cftMembers       FmeaCftMember[]
+  registration     FmeaRegistration?
+  worksheetData    FmeaWorksheetData?
 
   @@index([fmeaType])
   @@index([parentFmeaId])
+  @@index([tripletGroupId])
   @@index([status])
   @@index([deletedAt])
   @@map("fmea_projects")
@@ -1061,8 +1103,11 @@ model PfdRegistration {
   items                 PfdItem[]
   revisions             PfdRevision[]
 
+  tripletGroupId        String?          // TripletGroup 연결
+
   @@index([fmeaId])
   @@index([cpNo])
+  @@index([tripletGroupId])
   @@index([status])
   @@index([deletedAt])
   @@map("pfd_registrations")
@@ -1577,9 +1622,12 @@ model CpRegistration {
   confirmedState        CpConfirmedState? @relation(fields: [cpConfirmedStateId], references: [id])
   revisions             CpRevision[]
 
+  tripletGroupId        String?          // TripletGroup 연결
+
   @@index([fmeaId])
   @@index([parentCpId])
   @@index([customerName])
+  @@index([tripletGroupId])
   @@index([deletedAt])
   @@index([familyGroupId])
   @@index([status])
