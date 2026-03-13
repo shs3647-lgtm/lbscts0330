@@ -126,6 +126,61 @@ export default function CreateDocumentModal({
         setIsLoading(true);
         setError(null);
 
+        // ★ 중복 검증: 동일한 이름의 문서가 이미 존재하는지 확인
+        if (productName.trim()) {
+            try {
+                const typeParam = sourceApp === 'pfmea' || sourceApp === 'dfmea' ? `&type=${sourceApp === 'pfmea' ? 'P' : 'D'}` : '';
+                const checkUrl = sourceApp === 'pfmea' || sourceApp === 'dfmea'
+                    ? `/api/fmea/projects?type=${sourceApp === 'pfmea' ? 'P' : 'D'}`
+                    : sourceApp === 'cp'
+                        ? '/api/control-plan/list'
+                        : sourceApp === 'pfd'
+                            ? '/api/pfd/list'
+                            : null;
+
+                if (checkUrl) {
+                    const checkRes = await fetch(checkUrl);
+                    const checkData = await checkRes.json();
+
+                    let existingNames: { id: string; name: string }[] = [];
+                    if (checkData.success) {
+                        if (sourceApp === 'pfmea' || sourceApp === 'dfmea') {
+                            existingNames = (checkData.projects || []).map((p: any) => ({
+                                id: p.id || p.fmeaId,
+                                name: p.fmeaInfo?.subject || p.project?.projectName || '',
+                            }));
+                        } else if (sourceApp === 'cp') {
+                            existingNames = (checkData.items || checkData.cps || []).map((p: any) => ({
+                                id: p.cpNo || p.id,
+                                name: p.subject || '',
+                            }));
+                        } else if (sourceApp === 'pfd') {
+                            existingNames = (checkData.items || checkData.pfds || []).map((p: any) => ({
+                                id: p.pfdNo || p.id,
+                                name: p.subject || '',
+                            }));
+                        }
+                    }
+
+                    const duplicate = existingNames.find(
+                        e => e.name.toLowerCase() === productName.trim().toLowerCase()
+                    );
+                    if (duplicate) {
+                        setIsLoading(false);
+                        const proceed = confirm(
+                            `⚠️ 동일한 이름의 문서가 이미 존재합니다!\n\n` +
+                            `기존 문서: "${duplicate.name}" (${duplicate.id})\n\n` +
+                            `동일한 이름으로 새로 생성하시겠습니까?`
+                        );
+                        if (!proceed) return;
+                        setIsLoading(true);
+                    }
+                }
+            } catch (e) {
+                console.error('[CreateDocumentModal] 중복 검증 오류:', e);
+            }
+        }
+
         try {
             const request: CreateDocumentRequest & { productName?: string; customer?: string; companyName?: string; managerName?: string; partNo?: string; cpCount?: number; pfdCount?: number } = {
                 linkMode,
