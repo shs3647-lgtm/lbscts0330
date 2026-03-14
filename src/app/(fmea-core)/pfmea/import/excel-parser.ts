@@ -289,7 +289,12 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       // ★ 공백 제거 정규화 — "요소 기능" → "요소기능" 대응
       const noSp = (s: string) => s.replace(/\s/g, '');
 
-      const headerKeywordMap: { keywords: string[]; code: string }[] = [
+      const headerKeywordMap: { keywords: string[]; code: string; multiMatch?: boolean }[] = [
+        // ★ v5.5: 통합시트 감지 (다중 키워드 동시 매칭 필요 — multiMatch)
+        { keywords: ['공정명', '공정기능', '고장형태'], code: 'L2_UNIFIED', multiMatch: true },
+        { keywords: ['작업요소', '고장원인', '예방관리'], code: 'L3_UNIFIED', multiMatch: true },
+        { keywords: ['구분', '제품기능', '요구사항', '고장영향'], code: 'L1_UNIFIED', multiMatch: true },
+        // 기존 개별시트 감지 (단일 키워드 매칭)
         { keywords: ['공정명', 'l2-2'], code: 'A2' },
         { keywords: ['공정기능', 'l2-3'], code: 'A3' },
         { keywords: ['제품특성', 'l2-4'], code: 'A4' },
@@ -312,32 +317,45 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
 
       // ── 2차: 헤더 기반 보정 (시트명 없을 때 OR 4M/공정명 특수 케이스) ──
       if (!finalSheetName) {
-        // 시트명 매핑 실패 시 → 헤더 키워드로 추론
-        if (secondColumnHeader.includes('4m') || secondColumnHeader.includes('m4')) {
-          // B 시트 계열: 2열=4M → 3열 키워드로 구체 분류
-          for (const { keywords, code } of headerKeywordMap) {
-            if (code.startsWith('B') && keywords.some(kw => noSp(thirdColumnHeader).includes(noSp(kw)))) {
-              finalSheetName = code;
-              break;
-            }
+        const headerText = headers.join(' ').toLowerCase();
+        const headerTextNoSp = noSp(headerText);
+
+        // ★ v5.5: 통합시트 우선 감지 (multiMatch — 모든 키워드 동시 존재)
+        for (const { keywords, code, multiMatch } of headerKeywordMap) {
+          if (multiMatch && keywords.every(kw => headerTextNoSp.includes(noSp(kw)))) {
+            finalSheetName = code;
+            break;
           }
-          if (!finalSheetName) finalSheetName = 'B1'; // 3열도 모르면 B1 기본값
-        } else {
-          // 일반: 2열 키워드 매칭
-          for (const { keywords, code } of headerKeywordMap) {
-            if (keywords.some(kw => noSp(secondColumnHeader).includes(noSp(kw)))) {
-              finalSheetName = code;
-              break;
+        }
+
+        // 통합시트 미감지 시 → 기존 개별시트 감지 로직
+        if (!finalSheetName) {
+          if (secondColumnHeader.includes('4m') || secondColumnHeader.includes('m4')) {
+            // B 시트 계열: 2열=4M → 3열 키워드로 구체 분류
+            for (const { keywords, code } of headerKeywordMap) {
+              if (code.startsWith('B') && keywords.some(kw => noSp(thirdColumnHeader).includes(noSp(kw)))) {
+                finalSheetName = code;
+                break;
+              }
+            }
+            if (!finalSheetName) finalSheetName = 'B1'; // 3열도 모르면 B1 기본값
+          } else {
+            // 일반: 2열 키워드 매칭
+            for (const { keywords, code, multiMatch } of headerKeywordMap) {
+              if (!multiMatch && keywords.some(kw => noSp(secondColumnHeader).includes(noSp(kw)))) {
+                finalSheetName = code;
+                break;
+              }
             }
           }
         }
       }
 
-      // 3차 폴백: 전체 헤더 텍스트에서 재시도
+      // 3차 폴백: 전체 헤더 텍스트에서 재시도 (통합시트 이미 처리됨 → 개별시트만)
       if (!finalSheetName) {
         const headerText = headers.join(' ').toLowerCase();
-        for (const { keywords, code } of headerKeywordMap) {
-          if (keywords.some(kw => noSp(headerText).includes(noSp(kw)))) {
+        for (const { keywords, code, multiMatch } of headerKeywordMap) {
+          if (!multiMatch && keywords.some(kw => noSp(headerText).includes(noSp(kw)))) {
             finalSheetName = code;
             break;
           }
@@ -434,6 +452,118 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       }
 
       // 병합 셀 + 연속 빈 행 처리
+      // ★ v5.5: 통합시트 → 개별 시트 코드로 분배 (기존 processMap 로직 재활용)
+      const isUnified = sheetCode === 'L1_UNIFIED' || sheetCode === 'L2_UNIFIED' || sheetCode === 'L3_UNIFIED';
+      if (isUnified) {
+        // 통합시트: 행 하나에서 여러 필드를 추출하여 개별 sheetDataMap 항목으로 분배
+        // 헤더 인덱스 → 필드 매핑 (헤더 키워드 기반)
+        const colFieldMap: Array<{ col: number; targetCode: string; fieldHint: string }> = [];
+        for (let ci = 0; ci < headers.length; ci++) {
+          const h = (headers[ci] || '').replace(/\s/g, '').toLowerCase();
+          if (sheetCode === 'L2_UNIFIED') {
+            if (h.includes('공정번호')) colFieldMap.push({ col: headerColMap[ci], targetCode: '_KEY', fieldHint: 'processNo' });
+            else if (h.includes('공정명')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'A2', fieldHint: 'processName' });
+            else if (h.includes('공정기능')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'A3', fieldHint: 'processDesc' });
+            else if (h.includes('제품특성')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'A4', fieldHint: 'productChars' });
+            else if (h.includes('특별특성')) colFieldMap.push({ col: headerColMap[ci], targetCode: '_SC', fieldHint: 'specialChar' });
+            else if (h.includes('고장형태')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'A5', fieldHint: 'failureModes' });
+            else if (h.includes('검출관리')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'A6', fieldHint: 'detectionCtrls' });
+          } else if (sheetCode === 'L3_UNIFIED') {
+            if (h.includes('공정번호')) colFieldMap.push({ col: headerColMap[ci], targetCode: '_KEY', fieldHint: 'processNo' });
+            else if (h.includes('4m') || h.includes('m4')) colFieldMap.push({ col: headerColMap[ci], targetCode: '_4M', fieldHint: 'm4' });
+            else if (h.includes('작업요소')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'B1', fieldHint: 'workElements' });
+            else if (h.includes('요소기능')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'B2', fieldHint: 'elementFuncs' });
+            else if (h.includes('공정특성')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'B3', fieldHint: 'processChars' });
+            else if (h.includes('특별특성')) colFieldMap.push({ col: headerColMap[ci], targetCode: '_SC', fieldHint: 'specialChar' });
+            else if (h.includes('고장원인')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'B4', fieldHint: 'failureCauses' });
+            else if (h.includes('예방관리')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'B5', fieldHint: 'preventionCtrls' });
+          } else if (sheetCode === 'L1_UNIFIED') {
+            if (h.includes('구분')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'C1', fieldHint: 'scope' });
+            else if (h.includes('제품기능')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'C2', fieldHint: 'productFunc' });
+            else if (h.includes('요구사항')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'C3', fieldHint: 'requirements' });
+            else if (h.includes('고장영향')) colFieldMap.push({ col: headerColMap[ci], targetCode: 'C4', fieldHint: 'failureEffects' });
+          }
+        }
+
+        const keyMapping = colFieldMap.find(m => m.targetCode === '_KEY' || m.targetCode === 'C1');
+        const m4Mapping = colFieldMap.find(m => m.targetCode === '_4M');
+        const scMapping = colFieldMap.find(m => m.targetCode === '_SC');
+
+        for (let ri = startRow; ri <= sheet.rowCount; ri++) {
+          const uRow = sheet.getRow(ri);
+          if (!uRow || uRow.cellCount === 0) continue;
+
+          const keyVal = keyMapping
+            ? cellValueToString(uRow.getCell(keyMapping.col).value).trim()
+            : '';
+          if (!keyVal) continue;
+
+          const m4Val = m4Mapping ? cellValueToString(uRow.getCell(m4Mapping.col).value).trim().toUpperCase() : '';
+          const scVal = scMapping ? cellValueToString(uRow.getCell(scMapping.col).value).trim() : '';
+
+          for (const mapping of colFieldMap) {
+            if (mapping.targetCode === '_KEY' || mapping.targetCode === '_4M' || mapping.targetCode === '_SC') continue;
+            const val = cellValueToString(uRow.getCell(mapping.col).value).trim();
+            if (!val || val === 'null' || val === 'undefined') continue;
+
+            if (!sheetDataMap[mapping.targetCode]) {
+              sheetDataMap[mapping.targetCode] = { sheetName: mapping.targetCode, headers: [], rows: [] };
+            }
+
+            const rowEntry: { key: string; value: string; m4?: string; extra?: string; specialChar?: string; excelRow: number } = {
+              key: keyVal,
+              value: val,
+              excelRow: ri,
+            };
+
+            // B 시트 계열: 4M 정보 추가
+            if (mapping.targetCode.startsWith('B')) {
+              const normalizedM4 = (m4Val === 'MD' || m4Val === 'JG') ? 'MC' : m4Val;
+              if (['MN', 'MC', 'IM', 'EN'].includes(normalizedM4)) {
+                rowEntry.m4 = normalizedM4;
+              }
+            }
+
+            // A2(공정명): A1도 동시 생성 (공정번호+공정명)
+            if (mapping.targetCode === 'A2') {
+              if (!sheetDataMap['A1']) {
+                sheetDataMap['A1'] = { sheetName: 'A1', headers: [], rows: [] };
+              }
+              const a1Exists = sheetDataMap['A1'].rows.some(
+                (r: { key: string }) => r.key === keyVal
+              );
+              if (!a1Exists) {
+                sheetDataMap['A1'].rows.push({ key: keyVal, value: val, excelRow: ri });
+              }
+            }
+
+            // C1(구분): C1은 key=value=구분
+            if (mapping.targetCode === 'C1') {
+              rowEntry.value = keyVal;
+            }
+
+            // 특별특성 정보 추가 (A4, B3)
+            if (scVal && (mapping.targetCode === 'A4' || mapping.targetCode === 'B3')) {
+              rowEntry.specialChar = scVal;
+            }
+
+            // B2/B3/B5에 소속 workElement 추가 (extra 필드)
+            if ((mapping.targetCode === 'B2' || mapping.targetCode === 'B3' || mapping.targetCode === 'B5') && sheetCode === 'L3_UNIFIED') {
+              const b1Mapping = colFieldMap.find(m => m.targetCode === 'B1');
+              if (b1Mapping) {
+                const weVal = cellValueToString(uRow.getCell(b1Mapping.col).value).trim();
+                if (weVal) rowEntry.extra = weVal;
+              }
+            }
+
+            sheetDataMap[mapping.targetCode].rows.push(rowEntry);
+          }
+        }
+
+        // 통합시트 자체는 sheetDataMap에 저장하지 않음 (이미 개별 코드로 분배)
+        return; // eachSheet callback — 다음 시트로
+      }
+
       let lastKey = '';
       let lastM4 = '';
       let consecutiveEmpty = 0;
@@ -463,11 +593,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         if (key === '0' || key === '00') key = '공통';
 
         // ★ 2026-02-24: 공정번호 추출 (긴 텍스트에서 "N번" 패턴 추출)
-        // 예: "20번 PCB A'SSY SW 버전 일치성을 검사한다" → "20번"
-        // 예: "20번-수입검사" → "20번"
         const processNoMatch = key.match(/^(\d+번)/);
         if (processNoMatch && key.length > processNoMatch[1].length + 1) {
-          // 공정번호 뒤에 추가 텍스트가 있으면 공정번호만 추출
           const extractedKey = processNoMatch[1];
           key = extractedKey;
         }
