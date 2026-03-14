@@ -136,3 +136,6 @@ tests/reports/
 
 # DFMEA backup
 src/app/(fmea-core)/dfmea.bak/
+
+# Playwright auth state
+tests/.auth/user.json

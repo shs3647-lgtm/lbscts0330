@@ -1,12 +1,12 @@
 // scripts/validate-fk.ts
 // Import 후 FK 정합성 검증 — 고아 엔티티 탐지
-// 실행: npx ts-node scripts/validate-fk.ts [processId]
+// 실행: npx ts-node scripts/validate-fk.ts [fmeaId]
 
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-async function validateFK(processId?: string) {
-  const where = processId ? { processId } : {}
+async function validateFK(fmeaId?: string) {
+  const where = fmeaId ? { fmeaId } : {}
   const errors: string[] = []
 
   console.log('=== FK 정합성 검증 시작 ===\n')
@@ -14,11 +14,11 @@ async function validateFK(processId?: string) {
   // 1. productCharId 없는 FailureMode (필수 FK 누락)
   const orphanFMs = await prisma.failureMode.findMany({
     where: { ...where, productCharId: null as any },
-    select: { id: true, name: true },
+    select: { id: true, mode: true },
   })
   if (orphanFMs.length > 0) {
     errors.push(`[오류] productCharId 없는 FailureMode ${orphanFMs.length}건`)
-    orphanFMs.forEach(fm => console.log(`  - FM: ${fm.name} (${fm.id})`))
+    orphanFMs.forEach(fm => console.log(`  - FM: ${fm.mode} (${fm.id})`))
   }
 
   // 2. FM이 없는 ProcessProductChar (고아 A4)
@@ -32,24 +32,24 @@ async function validateFK(processId?: string) {
     orphanPCs.forEach(pc => console.log(`  - PC: ${pc.name} (${pc.id})`))
   }
 
-  // 3. CP와 PFMEA productCharId 불일치
-  const cps = await prisma.controlPlan.findMany({
-    where,
-    select: { id: true, productCharId: true },
-  })
-  const pcIds = new Set(allPCs.map(pc => pc.id))
-  const mismatched = cps.filter(cp => !pcIds.has(cp.productCharId))
-  if (mismatched.length > 0) {
-    errors.push(`[오류] PFMEA에 없는 productCharId 참조하는 CP ${mismatched.length}건`)
+  // 3. CP fmeaId 불일치 검증
+  if (fmeaId) {
+    const cps = await prisma.controlPlan.findMany({
+      where: { fmeaId },
+      select: { id: true, cpNo: true },
+    })
+    if (cps.length === 0) {
+      errors.push(`[경고] fmeaId=${fmeaId}에 대한 ControlPlan 없음`)
+    }
   }
 
-  // 4. functionId 없는 FailureMode
+  // 4. l2FuncId 없는 FailureMode
   const noFnFMs = await prisma.failureMode.findMany({
-    where: { ...where, functionId: null as any },
-    select: { id: true, name: true },
+    where: { ...where, l2FuncId: null as any },
+    select: { id: true, mode: true },
   })
   if (noFnFMs.length > 0) {
-    errors.push(`[오류] functionId 없는 FailureMode ${noFnFMs.length}건`)
+    errors.push(`[오류] l2FuncId 없는 FailureMode ${noFnFMs.length}건`)
   }
 
   // 결과 출력
@@ -64,5 +64,5 @@ async function validateFK(processId?: string) {
   await prisma.$disconnect()
 }
 
-const processId = process.argv[2]
-validateFK(processId).catch(console.error)
+const fmeaId = process.argv[2]
+validateFK(fmeaId).catch(console.error)
