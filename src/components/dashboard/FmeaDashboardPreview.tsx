@@ -2,52 +2,15 @@
  * FMEA 대시보드 프리뷰 (홈 화면 Hero 섹션용)
  * - DB에서 실시간 FMEA 프로젝트 통계 표시
  * - PFMEA(M/F/P), DFMEA, BD, CP/PFD 연동 현황
+ * - SRP: 데이터 패칭은 useDashboardPreviewStats 훅에 분리
  */
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-
-interface FmeaStats {
-  total: number;
-  pfmea: { master: number; family: number; part: number };
-  dfmea: number;
-  bd: number;
-  linked: { cp: number; pfd: number };
-}
-
-const EMPTY: FmeaStats = { total: 0, pfmea: { master: 0, family: 0, part: 0 }, dfmea: 0, bd: 0, linked: { cp: 0, pfd: 0 } };
+import { useDashboardPreviewStats } from './hooks/useDashboardPreviewStats';
 
 export function FmeaDashboardPreview() {
-  const [stats, setStats] = useState<FmeaStats>(EMPTY);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 5000);
-
-    fetch('/api/fmea/dashboard-stats', { signal: ctrl.signal })
-      .then(r => r.json())
-      .then(d => { if (d.success) setStats(d.stats); })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          console.error('[Dashboard] API 타임아웃 (5초)');
-        } else {
-          console.error('[Dashboard] 통계 로드 실패:', err);
-        }
-        setError(true);
-      })
-      .finally(() => {
-        clearTimeout(timer);
-        setLoading(false);
-      });
-
-    return () => {
-      clearTimeout(timer);
-      ctrl.abort();
-    };
-  }, []);
+  const { stats, loading, error } = useDashboardPreviewStats();
 
   const pfmeaTotal = stats.pfmea.master + stats.pfmea.family + stats.pfmea.part;
   const allTotal = pfmeaTotal + stats.dfmea;
