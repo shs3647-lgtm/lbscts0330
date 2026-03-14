@@ -93,7 +93,7 @@ export function TemplateGeneratorPanel(props: Props) {
 
   const displayBdId = bdFmeaId ? fmeaIdToBdId(bdFmeaId) : null;
 
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);  // ★ 디폴트 열림 (Playwright 테스트 접근성)
 
   // BD 사용 클릭 시 자동 펼치기
   React.useEffect(() => {

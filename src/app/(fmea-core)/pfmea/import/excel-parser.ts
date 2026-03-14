@@ -1227,6 +1227,8 @@ function buildMultiSheetStatistics(
     add('B2', proc.elementFuncs);
     add('B3', proc.processChars);
     add('B4', proc.failureCauses);
+    add('A6', proc.detectionCtrls);
+    add('B5', proc.preventionCtrls);
     processStats.push({ processNo: proc.processNo, processName: proc.processName || '', items: pItems });
   }
 
