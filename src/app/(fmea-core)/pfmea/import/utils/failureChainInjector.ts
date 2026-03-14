@@ -377,12 +377,13 @@ export function injectFailureChains(
     }
   }
 
-  // ─── ★ v3.2.0: FE carry-forward 복구 ───
+  // ─── ★ v3.2.0 → v5.5.0: FE carry-forward 복구 (불변성 보장) ───
   // FC 파서가 공정 변경 시 cfFeValue를 초기화하지만, FE는 L1(글로벌) 레벨이므로
   // 공정 간 carry-forward가 올바른 동작. 여기서 빈 feValue를 복구.
-  // 복구 방법: (1) 같은 FM에 이미 FE가 있는 chain에서 참조 (2) 순서 기반 carry-forward
-  const fmToFeValue = new Map<string, string>();  // normalize(fmValue) → feValue
-  for (const c of chains) {
+  // ★ 2026-03-14 F-3: 원본 chains를 mutation하지 않고 복사본에서 처리
+  const enrichedChains: MasterFailureChain[] = chains.map(c => ({ ...c }));
+  const fmToFeValue = new Map<string, string>();
+  for (const c of enrichedChains) {
     if (c.feValue?.trim() && c.fmValue?.trim()) {
       const key = normalize(c.fmValue);
       if (!fmToFeValue.has(key)) fmToFeValue.set(key, c.feValue);
@@ -390,20 +391,16 @@ export function injectFailureChains(
   }
   let cfFERecovery = '';
   let feRecoveredCount = 0;
-  for (const c of chains) {
+  for (const c of enrichedChains) {
     if (c.feValue?.trim()) {
       cfFERecovery = c.feValue;
     } else if (c.fmValue?.trim()) {
-      // 1차: 같은 FM의 FE 참조
       const fromFm = fmToFeValue.get(normalize(c.fmValue));
       if (fromFm) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (c as any).feValue = fromFm;
+        c.feValue = fromFm;
         feRecoveredCount++;
       } else if (cfFERecovery) {
-        // 2차: 순서 기반 carry-forward (직전 chain의 FE)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (c as any).feValue = cfFERecovery;
+        c.feValue = cfFERecovery;
         feRecoveredCount++;
       }
     }
@@ -422,11 +419,11 @@ export function injectFailureChains(
   let skipNoFM = 0;
   let skipNoFC = 0;
   const skipSamples: string[] = []; // 첫 10건만
-  // ★ v3.2.1: FC 빈값 보완용 round-robin 카운터
-  const fcRoundRobinMap = new Map<string, number>();
+  // ★ 2026-03-14 F-2: round-robin 자동채움 제거 (사실 왜곡 방지)
+  // 같은 FM의 기존 FC 재사용(1차)만 유지, round-robin(2차)은 제거
   let fcAutoFilledCount = 0;
 
-  for (const chain of chains) {
+  for (const chain of enrichedChains) {
     const { processNo, m4, feValue, fmValue, fcValue } = chain;
 
     // 빈 값 체인은 스킵
@@ -491,13 +488,14 @@ export function injectFailureChains(
         }
       }
 
-      // 5단계: 글자수 근사 매칭 (60% 이상 2-gram 유사도)
+      // 5단계: 글자수 근사 매칭 (70% 이상 2-gram 유사도)
+      // ★ 2026-03-14 F-1: 50%→70% 상향 (오매칭 방지)
       if (!fe && nfe.length >= 3) {
         let bestScore = 0;
         let bestFe: L1FailureScope | undefined;
         for (const candidate of feAll) {
           const score = charOverlapRatio(feValue, candidate.effect || candidate.name);
-          if (score > bestScore && score >= 0.5) {
+          if (score > bestScore && score >= 0.7) {
             bestScore = score;
             bestFe = candidate;
           }
@@ -533,13 +531,14 @@ export function injectFailureChains(
       }
     }
 
-    // ★ v3.1.3: FM 글자수 근사 매칭 (같은 공정 내, 60% 이상 유사도)
+    // ★ v3.1.3 → v5.5.0: FM 글자수 근사 매칭 (같은 공정 내, 70% 이상 유사도)
+    // ★ 2026-03-14 F-1: 50%→70% 상향 (오매칭 방지)
     if (!fm && fmValue?.trim() && proc) {
       let bestScore = 0;
       let bestFm: (L2FailureMode & { processNo?: string }) | undefined;
       for (const candidate of (proc.failureModes || [])) {
         const score = charOverlapRatio(fmValue, candidate.name);
-        if (score > bestScore && score >= 0.5) {
+        if (score > bestScore && score >= 0.7) {
           bestScore = score;
           bestFm = { ...candidate, processNo: proc.no };
         }
@@ -591,7 +590,8 @@ export function injectFailureChains(
       }
     }
 
-    // ★ v3.1.3: FC 글자수 근사 매칭 (같은 공정 내, 60% 이상 유사도)
+    // ★ v3.1.3 → v5.5.0: FC 글자수 근사 매칭 (같은 공정 내, 70% 이상 유사도)
+    // ★ 2026-03-14 F-1: 50%→70% 상향 (오매칭 방지)
     if (!fc && fcValue?.trim() && proc) {
       let bestScore = 0;
       let bestFc: (L3FailureCauseExtended & { processNo?: string; m4?: string }) | undefined;
@@ -599,7 +599,7 @@ export function injectFailureChains(
       for (const we of (proc.l3 || [])) {
         for (const candidate of (we.failureCauses || [])) {
           const score = charOverlapRatio(fcValue, candidate.name);
-          if (score > bestScore && score >= 0.5) {
+          if (score > bestScore && score >= 0.7) {
             bestScore = score;
             bestFc = { ...candidate, processNo: proc.no, m4: we.m4 };
           }
@@ -608,7 +608,7 @@ export function injectFailureChains(
       // L2 레벨 FC
       for (const candidate of (proc.failureCauses || [])) {
         const score = charOverlapRatio(fcValue, candidate.name);
-        if (score > bestScore && score >= 0.5) {
+        if (score > bestScore && score >= 0.7) {
           bestScore = score;
           bestFc = { ...candidate, processNo: proc.no };
         }
@@ -616,30 +616,20 @@ export function injectFailureChains(
       if (bestFc) fc = bestFc;
     }
 
-    // ★★★ v3.2.1: fcValue 빈 체인 FC 자동 보완 ★★★
-    // 근본원인: buildFailureChainsFromFlat의 순차분배(chunk)에서 FM > FC 시
-    // 마지막 FM들에 FC 미할당 → fcValue="" → FC 매칭 불가 → 스킵
-    // 해결: 같은 공정+FM의 다른 체인에 FC가 있으면 공유, 없으면 같은 공정 FC 순환 할당
+    // ★★★ 2026-03-14 F-2: fcValue 빈 체인 FC 보완 (round-robin 제거) ★★★
+    // 같은 FM의 기존 매칭된 FC만 재사용 (1차)
+    // round-robin 순환 할당은 사실 왜곡이므로 완전 제거
     if (!fc && fe && fm && (!fcValue || !fcValue.trim()) && proc) {
-      // 1차: 같은 FM의 다른 링크에서 이미 매칭된 FC 찾기
+      // 같은 FM의 다른 링크에서 이미 매칭된 FC 찾기 (DB FK 기반 재사용)
       const existingFcForFm = failureLinks.find(l => l.fmId === fm.id && l.fcId);
       if (existingFcForFm) {
         const foundFc = findFcById(proc, existingFcForFm.fcId);
-        if (foundFc) fc = foundFc;
-      }
-
-      // 2차: 같은 공정의 전체 FC 풀에서 순환 할당 (round-robin)
-      if (!fc) {
-        const allFcs = collectAllFCs(proc);
-        if (allFcs.length > 0) {
-          // fcRoundRobin 카운터로 공정별 순환
-          const rrKey = proc.no;
-          const rrIdx = fcRoundRobinMap.get(rrKey) || 0;
-          fc = allFcs[rrIdx % allFcs.length];
-          fcRoundRobinMap.set(rrKey, rrIdx + 1);
+        if (foundFc) {
+          fc = foundFc;
           fcAutoFilledCount++;
         }
       }
+      // ★ round-robin(2차) 완전 제거 — fcValue 없으면 스킵 (링크 미생성)
     }
 
     // ★ 3개 모두 매칭 성공 시에만 링크 생성
@@ -792,7 +782,7 @@ export function injectFailureChains(
   }
 
   // ─── specialChar 전파: chain → productChars/processChars (이름 매칭) ───
-  for (const chain of chains) {
+  for (const chain of enrichedChains) {
     if (!chain.specialChar || !chain.processNo) continue;
     const proc = (state.l2 || []).find(p => p.no === chain.processNo);
     if (!proc) continue;

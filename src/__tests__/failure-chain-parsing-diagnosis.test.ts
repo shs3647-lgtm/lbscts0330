@@ -172,7 +172,7 @@ describe('진단 2: rowSpan 추론 (FM 간 간격)', () => {
 
 describe('진단 3: FE 할당', () => {
 
-  it('FE가 여러 개면 FM에 라운드로빈 분배', () => {
+  it('FE가 여러 개면 carry-forward (L1 글로벌 — 첫 FE 유지)', () => {
     const data: ImportedFlatData[] = [
       flat('10', 'A5', 'FM-A', { excelRow: 5, rowSpan: 1 }),
       flat('10', 'A5', 'FM-B', { excelRow: 6, rowSpan: 1 }),
@@ -188,10 +188,10 @@ describe('진단 3: FE 할당', () => {
 
     expect(chains.length).toBe(3);
 
-    // FM별로 다른 FE 할당 (라운드로빈)
+    // ★ 2026-03-14 I-1: carry-forward — 모든 FM이 첫 FE 사용
+    // FE는 L1 글로벌 레벨이므로 round-robin이 아닌 carry-forward가 올바름
     const feValues = chains.map(c => c.feValue);
-    // 최소 2종류 FE가 사용되어야 함
-    expect(new Set(feValues).size).toBeGreaterThanOrEqual(2);
+    expect(feValues.every(v => v === feValues[0])).toBe(true);
   });
 
   it('FE 없으면 빈 문자열로 생성', () => {

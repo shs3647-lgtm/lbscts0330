@@ -28,6 +28,7 @@
  */
 
 import type { ImportedFlatData } from '../types';
+import type { MasterFailureChain } from '../types/masterFailureChain';
 import {
   uid,
   sortWorkElementsByM4,
@@ -46,6 +47,7 @@ import type {
   L3Function,
   L3FailureCauseExtended,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
+import type { FailureLinkEntry } from './failureChainInjector';
 
 // ════════════════════════════════════════════
 // Types
@@ -54,6 +56,8 @@ import type {
 export interface BuildConfig {
   fmeaId: string;
   l1Name?: string;
+  /** ★ DB중심 고장연결: FC시트 chains → 엔티티 생성 시점에 FK 직접 할당 */
+  chains?: MasterFailureChain[];
 }
 
 export interface BuildDiagnostics {
@@ -68,6 +72,12 @@ export interface BuildDiagnostics {
   fcCount: number;
   feCount: number;
   warnings: string[];
+  /** ★ DB중심 고장연결 진단 (chains 제공 시에만) */
+  linkStats?: {
+    injectedCount: number;
+    skippedCount: number;
+    skipReasons: { noProc: number; noFE: number; noFM: number; noFC: number };
+  };
 }
 
 export interface BuildResult {
@@ -112,6 +122,30 @@ function groupByM4(items: ImportedFlatData[]): Map<string, ImportedFlatData[]> {
     map.get(key)!.push(item);
   }
   return map;
+}
+
+// ─── DB중심 고장연결용 정규화 헬퍼 ───
+
+/** 텍스트 정규화 (공백 통일 + 소문자) */
+function normalizeText(s: string | undefined): string {
+  return (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** 공백 완전 제거 정규화 */
+function normalizeNoSpaceText(s: string | undefined): string {
+  return normalizeText(s).replace(/\s/g, '');
+}
+
+/** 공정번호 정규화 — failureChainInjector/masterFailureChain과 동일 로직 */
+function normalizeProcessNo(pNo: string | undefined): string {
+  if (!pNo) return '';
+  let n = pNo.trim();
+  const lower = n.toLowerCase();
+  if (lower === '0' || lower === '공통공정' || lower === '공통') return '00';
+  n = n.replace(/^(공정|process|proc|p)[\s\-_]*/i, '');
+  n = n.replace(/번$/, '');
+  if (n !== '0' && n !== '00') n = n.replace(/^0+(?=\d)/, '');
+  return n;
 }
 
 /**
@@ -596,10 +630,12 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
   }
   // A3/A4 모두 없으면 functions = [] 유지
 
-  // ★★★ 2026-03-14: A4 공유 ID 적용 후 uniquePCs = 모든 function의 PC 동일 ★★★
-  // 이전: 첫 번째 function만 참조 (Cartesian 우회)
-  // 수정: 공유 ID이므로 어느 function이든 동일한 PC ID
-  const uniquePCs = process.functions[0]?.productChars || [];
+  // ★★★ 2026-03-14 W-2/H-2: A4 공유 ID 적용 + A3=0 방어 ★★★
+  // functions 빈 배열일 때(A3=0) productChars도 빈 배열 → FM에 productCharId 미할당
+  // functions가 있으면 공유 ID이므로 어느 function이든 동일한 PC ID
+  const uniquePCs = (process.functions.length > 0)
+    ? (process.functions[0].productChars || [])
+    : [];
 
   if (uniquePCs.length > 0 && a5Items.length > 0) {
     // ★ 고유 A4에만 균등 배분: distribute(A5, 고유A4개수)
@@ -857,8 +893,9 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         );
 
         if (matchIdx >= 0) {
-          // 해당 function을 빈 WE로 이동
-          const [movedFunc] = otherWe.functions.splice(matchIdx, 1);
+          // 해당 function을 빈 WE로 이동 (★ 2026-03-14 H-4: 불변성 — splice 대신 filter)
+          const movedFunc = otherWe.functions[matchIdx];
+          otherWe.functions = otherWe.functions.filter((_, idx) => idx !== matchIdx);
           emptyWe.functions = [movedFunc];
 
           // B3도 이름 매칭으로 교정
@@ -995,9 +1032,16 @@ export function buildWorksheetState(
     return { success: false, state: createInitialState(), diagnostics: emptyDiag };
   }
 
-  // ★★★ 2026-03-01: 공통공정(00/공통) 방어 필터 ★★★
-  // Import 데이터는 고객 지정 공정만 사용 — 공통공정은 수동모드 모달용 (별도 라우터)
-  const filtered = flatData.filter(d => !isCommonProcessNo(d.processNo || ''));
+  // ★★★ 2026-03-14 W-1: 공통공정(00/공통) 조건부 필터 ★★★
+  // 공통공정이 실제 A5/B4 데이터를 포함하면 보존 (데이터 누락 방지)
+  // 공통공정에 공정번호만 있고 실제 데이터 없으면 제외 (수동모드 모달용)
+  const commonProcessItems = flatData.filter(d => isCommonProcessNo(d.processNo || ''));
+  const hasRealCommonData = commonProcessItems.some(d =>
+    d.itemCode === 'A5' || d.itemCode === 'B4' || d.itemCode === 'A3' || d.itemCode === 'B2'
+  );
+  const filtered = hasRealCommonData
+    ? flatData  // 공통공정에 실제 데이터 있으면 전체 유지
+    : flatData.filter(d => !isCommonProcessNo(d.processNo || ''));
   if (filtered.length < flatData.length) {
   }
 
@@ -1079,6 +1123,24 @@ export function buildWorksheetState(
 
   const feCount = (l1.failureScopes || []).length;
 
+  // ═══════════════════════════════════════════════════════
+  // Phase 3: DB중심 고장연결 — chains → FailureLinks + riskData
+  // ═══════════════════════════════════════════════════════
+  // 원리: 엔티티 생성 직후 같은 함수 스코프에서 Map.get() 순수 조회
+  //       → 유사도/임계값/퍼지매칭 없음 (DB FK 할당과 동일)
+  let linkStats: BuildDiagnostics['linkStats'];
+
+  if (config.chains && config.chains.length > 0) {
+    const linkResult = buildFailureLinksDBCentric(state, config.chains);
+    state.failureLinks = linkResult.failureLinks;
+    state.riskData = linkResult.riskData;
+    linkStats = {
+      injectedCount: linkResult.injectedCount,
+      skippedCount: linkResult.skippedCount,
+      skipReasons: linkResult.skipReasons,
+    };
+  }
+
   return {
     success: true,
     state,
@@ -1094,6 +1156,320 @@ export function buildWorksheetState(
       fcCount,
       feCount,
       warnings,
+      linkStats,
     },
   };
+}
+
+// ═══════════════════════════════════════════════════════
+// Phase 3 구현: DB중심 고장연결 (순수 Map 조회, 유사도 매칭 없음)
+// ═══════════════════════════════════════════════════════
+
+interface LinkBuildResult {
+  failureLinks: FailureLinkEntry[];
+  riskData: Record<string, number | string>;
+  injectedCount: number;
+  skippedCount: number;
+  skipReasons: { noProc: number; noFE: number; noFM: number; noFC: number };
+}
+
+/**
+ * ★★★ DB중심 고장연결 — 순수 Map.get() 조회 ★★★
+ *
+ * FC시트의 chain은 "같은 행 = 같은 링크"라는 구조적 사실.
+ * 엔티티는 이미 같은 flatData에서 생성되었으므로,
+ * 정규화된 텍스트 키로 Map.get()만 하면 100% 매칭 가능.
+ *
+ * 3단계 결정론적 매칭 (유사도/임계값 없음):
+ *   1. 정규화 매칭 (공백 통일 + 소문자)
+ *   2. 공백제거 매칭 (띄어쓰기 차이)
+ *   3. FE carry-forward (같은 FM의 기존 FE 재사용)
+ */
+export function buildFailureLinksDBCentric(
+  state: WorksheetState,
+  chains: MasterFailureChain[],
+): LinkBuildResult {
+  const failureLinks: FailureLinkEntry[] = [];
+  const riskData: Record<string, number | string> = {};
+  let injectedCount = 0;
+  let skippedCount = 0;
+  const skipReasons = { noProc: 0, noFE: 0, noFM: 0, noFC: 0 };
+
+  // ─── 1. 공정 인덱스 (processNo → Process) ───
+  const procByNo = new Map<string, Process>();
+  for (const proc of (state.l2 || [])) {
+    if (proc.no) {
+      procByNo.set(proc.no, proc);
+      const normalized = normalizeProcessNo(proc.no);
+      if (normalized && normalized !== proc.no && !procByNo.has(normalized)) {
+        procByNo.set(normalized, proc);
+      }
+    }
+  }
+
+  // ─── 2. FE 인덱스 (l1.failureScopes) ───
+  const feByText = new Map<string, L1FailureScope>();
+  const feByNoSpace = new Map<string, L1FailureScope>();
+  for (const fe of (state.l1?.failureScopes || [])) {
+    const text = normalizeText(fe.effect || fe.name);
+    if (text && !feByText.has(text)) feByText.set(text, fe);
+    const ns = normalizeNoSpaceText(fe.effect || fe.name);
+    if (ns && !feByNoSpace.has(ns)) feByNoSpace.set(ns, fe);
+  }
+
+  // ─── 3. FM 인덱스 (processNo|fmName → FM) ───
+  const fmByKey = new Map<string, L2FailureMode & { processNo?: string }>();
+  for (const proc of (state.l2 || [])) {
+    const npNo = normalizeProcessNo(proc.no);
+    for (const fm of (proc.failureModes || [])) {
+      const nfm = normalizeText(fm.name);
+      const nsfm = normalizeNoSpaceText(fm.name);
+      const entry = { ...fm, processNo: proc.no };
+      // 원본 pNo 키
+      if (!fmByKey.has(`${proc.no}|${nfm}`)) fmByKey.set(`${proc.no}|${nfm}`, entry);
+      // 정규화 pNo 키
+      if (npNo !== proc.no && !fmByKey.has(`${npNo}|${nfm}`)) fmByKey.set(`${npNo}|${nfm}`, entry);
+      // 공백제거 키
+      if (nsfm !== nfm) {
+        if (!fmByKey.has(`${proc.no}|${nsfm}`)) fmByKey.set(`${proc.no}|${nsfm}`, entry);
+        if (npNo !== proc.no && !fmByKey.has(`${npNo}|${nsfm}`)) fmByKey.set(`${npNo}|${nsfm}`, entry);
+      }
+    }
+  }
+
+  // ─── 4. FC 인덱스 (processNo|m4|fcName → FC) ───
+  const fcByKey = new Map<string, L3FailureCauseExtended & { processNo?: string; m4?: string }>();
+  for (const proc of (state.l2 || [])) {
+    const npNo = normalizeProcessNo(proc.no);
+    // L3 레벨 FC
+    for (const we of (proc.l3 || [])) {
+      for (const fc of (we.failureCauses || [])) {
+        const nfc = normalizeText(fc.name);
+        const nsfc = normalizeNoSpaceText(fc.name);
+        const entry = { ...fc, processNo: proc.no, m4: we.m4 };
+        // m4 포함 키
+        if (!fcByKey.has(`${proc.no}|${we.m4}|${nfc}`)) fcByKey.set(`${proc.no}|${we.m4}|${nfc}`, entry);
+        if (npNo !== proc.no && !fcByKey.has(`${npNo}|${we.m4}|${nfc}`)) fcByKey.set(`${npNo}|${we.m4}|${nfc}`, entry);
+        // m4 무관 키
+        if (!fcByKey.has(`${proc.no}||${nfc}`)) fcByKey.set(`${proc.no}||${nfc}`, entry);
+        if (npNo !== proc.no && !fcByKey.has(`${npNo}||${nfc}`)) fcByKey.set(`${npNo}||${nfc}`, entry);
+        // 공백제거
+        if (nsfc !== nfc) {
+          if (!fcByKey.has(`${proc.no}||${nsfc}`)) fcByKey.set(`${proc.no}||${nsfc}`, entry);
+          if (npNo !== proc.no && !fcByKey.has(`${npNo}||${nsfc}`)) fcByKey.set(`${npNo}||${nsfc}`, entry);
+        }
+      }
+    }
+    // L2 레벨 FC (fallback)
+    for (const fc of (proc.failureCauses || [])) {
+      const nfc = normalizeText(fc.name);
+      const nsfc = normalizeNoSpaceText(fc.name);
+      if (!fcByKey.has(`${proc.no}||${nfc}`)) fcByKey.set(`${proc.no}||${nfc}`, { ...fc, processNo: proc.no });
+      if (npNo !== proc.no && !fcByKey.has(`${npNo}||${nfc}`)) fcByKey.set(`${npNo}||${nfc}`, { ...fc, processNo: proc.no });
+      if (nsfc !== nfc) {
+        if (!fcByKey.has(`${proc.no}||${nsfc}`)) fcByKey.set(`${proc.no}||${nsfc}`, { ...fc, processNo: proc.no });
+      }
+    }
+  }
+
+  // ─── 5. FE carry-forward 복구 (불변성 보장 — 원본 chains 미변경) ───
+  const enrichedChains: MasterFailureChain[] = chains.map(c => ({ ...c }));
+  const fmToFeValue = new Map<string, string>();
+  for (const c of enrichedChains) {
+    if (c.feValue?.trim() && c.fmValue?.trim()) {
+      const key = normalizeText(c.fmValue);
+      if (!fmToFeValue.has(key)) fmToFeValue.set(key, c.feValue);
+    }
+  }
+  let cfFE = '';
+  for (const c of enrichedChains) {
+    if (c.feValue?.trim()) {
+      cfFE = c.feValue;
+    } else if (c.fmValue?.trim()) {
+      const fromFm = fmToFeValue.get(normalizeText(c.fmValue));
+      if (fromFm) {
+        c.feValue = fromFm;
+      } else if (cfFE) {
+        c.feValue = cfFE;
+      }
+    }
+  }
+
+  // ─── 6. 체인 → 링크 생성 (순수 Map.get 조회) ───
+  for (const chain of enrichedChains) {
+    const { processNo, m4, feValue, fmValue, fcValue } = chain;
+
+    // 빈 체인 스킵
+    if (!feValue?.trim() && !fmValue?.trim() && !fcValue?.trim()) {
+      skippedCount++;
+      continue;
+    }
+
+    // 공정 찾기
+    let proc = procByNo.get(processNo);
+    if (!proc) proc = procByNo.get(normalizeProcessNo(processNo));
+    if (!proc) {
+      skippedCount++;
+      skipReasons.noProc++;
+      continue;
+    }
+    const actualPNo = proc.no;
+    const npNo = normalizeProcessNo(processNo);
+
+    // FE 매칭 (Map.get 2단계: 정규화 → 공백제거)
+    let fe: L1FailureScope | undefined;
+    if (feValue?.trim()) {
+      const nfe = normalizeText(feValue);
+      const nsfe = normalizeNoSpaceText(feValue);
+      fe = feByText.get(nfe) || feByNoSpace.get(nsfe);
+    }
+
+    // FM 매칭 (Map.get: pNo|text 조합)
+    const nfm = normalizeText(fmValue);
+    const nsfm = normalizeNoSpaceText(fmValue);
+    const fm = fmByKey.get(`${actualPNo}|${nfm}`)
+      || fmByKey.get(`${npNo}|${nfm}`)
+      || fmByKey.get(`${actualPNo}|${nsfm}`)
+      || fmByKey.get(`${npNo}|${nsfm}`);
+
+    // FC 매칭 (Map.get: pNo|m4|text 조합)
+    let fc: (L3FailureCauseExtended & { processNo?: string; m4?: string }) | undefined;
+    if (fcValue?.trim()) {
+      const nfc = normalizeText(fcValue);
+      const nsfc = normalizeNoSpaceText(fcValue);
+      fc = fcByKey.get(`${actualPNo}|${m4 || ''}|${nfc}`)
+        || fcByKey.get(`${npNo}|${m4 || ''}|${nfc}`)
+        || fcByKey.get(`${actualPNo}||${nfc}`)
+        || fcByKey.get(`${npNo}||${nfc}`)
+        || fcByKey.get(`${actualPNo}||${nsfc}`)
+        || fcByKey.get(`${npNo}||${nsfc}`);
+    }
+
+    // fcValue 빈 체인: 같은 FM의 기존 링크에서 FC 재사용
+    if (!fc && fe && fm && (!fcValue || !fcValue.trim())) {
+      const existingLink = failureLinks.find(l => l.fmId === fm.id && l.fcId);
+      if (existingLink) {
+        // 기존 링크의 FC ID로 직접 조회
+        for (const we of (proc.l3 || [])) {
+          for (const candidate of (we.failureCauses || [])) {
+            if (candidate.id === existingLink.fcId) {
+              fc = { ...candidate, processNo: proc.no, m4: we.m4 };
+              break;
+            }
+          }
+          if (fc) break;
+        }
+      }
+    }
+
+    // 3개 모두 매칭 시 링크 생성
+    if (fe && fm && fc) {
+      const linkId = uid();
+      const feScope = chain.feScope || undefined;
+      const feText = feValue || (fe as L1FailureScope).effect || (fe as L1FailureScope).name;
+      const fmText = fmValue || fm.name;
+      const fcText = fcValue || fc.name;
+
+      failureLinks.push({
+        id: linkId,
+        fmId: fm.id,
+        feId: fe.id,
+        fcId: fc.id,
+        fmText, feText, fcText,
+        fcM4: m4 || undefined,
+        fmProcess: actualPNo,
+        fmProcessNo: actualPNo,
+        feScope,
+        severity: chain.severity || (fe as L1FailureScope).severity || undefined,
+        pcText: chain.pcValue || undefined,
+        dcText: chain.dcValue || undefined,
+        fmPath: `${actualPNo}/${fmText}`,
+        fePath: feScope ? `${feScope}/${feText}` : feText,
+        fcPath: m4 ? `${actualPNo}/${m4}/${fcText}` : `${actualPNo}/${fcText}`,
+        fmMergeSpan: chain.fmMergeSpan || undefined,
+        feMergeSpan: chain.feMergeSpan || undefined,
+        productCharId: (fm as { productCharId?: string }).productCharId || undefined,
+      });
+
+      // riskData
+      const uKey = `${fm.id}-${fc.id}`;
+      if (chain.severity) riskData[`risk-${uKey}-S`] = chain.severity;
+      if (chain.occurrence) riskData[`risk-${uKey}-O`] = chain.occurrence;
+      if (chain.detection) riskData[`risk-${uKey}-D`] = chain.detection;
+      if (chain.pcValue) riskData[`prevention-${uKey}`] = chain.pcValue;
+      if (chain.dcValue) riskData[`detection-${uKey}`] = chain.dcValue;
+      if (chain.specialChar) riskData[`specialChar-${fm.id}-${fc.id}`] = chain.specialChar;
+
+      injectedCount++;
+    } else {
+      skippedCount++;
+      if (!fe) skipReasons.noFE++;
+      if (!fm) skipReasons.noFM++;
+      if (!fc) skipReasons.noFC++;
+    }
+  }
+
+  // specialChar 전파 (chain → productChars/processChars)
+  for (const chain of enrichedChains) {
+    if (!chain.specialChar || !chain.processNo) continue;
+    const proc = (state.l2 || []).find(p => p.no === chain.processNo);
+    if (!proc) continue;
+    if (chain.productChar) {
+      for (const func of (proc.functions || [])) {
+        for (const pc of (func.productChars || [])) {
+          if (normalizeText(pc.name) === normalizeText(chain.productChar) && !pc.specialChar) {
+            pc.specialChar = chain.specialChar;
+          }
+        }
+      }
+    }
+    if (chain.processChar) {
+      for (const we of (proc.l3 || [])) {
+        for (const weFunc of (we.functions || [])) {
+          for (const prc of (weFunc.processChars || [])) {
+            if (normalizeText(prc.name) === normalizeText(chain.processChar) && !prc.specialChar) {
+              prc.specialChar = chain.specialChar;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // seq 필드 계산 (failureChainInjector의 computeSeqFields 로직)
+  computeSeqFieldsLocal(failureLinks);
+
+  return { failureLinks, riskData, injectedCount, skippedCount, skipReasons };
+}
+
+/** seq 필드 계산 (in-place) — failureChainInjector.computeSeqFields와 동일 로직 */
+function computeSeqFieldsLocal(links: FailureLinkEntry[]): void {
+  if (links.length === 0) return;
+
+  // fcSeq: 같은 fmId 내 FC 순서
+  const fmGroupFcCount = new Map<string, number>();
+  for (const link of links) {
+    const count = (fmGroupFcCount.get(link.fmId) || 0) + 1;
+    fmGroupFcCount.set(link.fmId, count);
+    link.fcSeq = count;
+  }
+
+  // fmSeq: 같은 feId 내 FM 순서
+  const feGroupFmOrder = new Map<string, Map<string, number>>();
+  for (const link of links) {
+    if (!feGroupFmOrder.has(link.feId)) feGroupFmOrder.set(link.feId, new Map());
+    const fmOrder = feGroupFmOrder.get(link.feId)!;
+    if (!fmOrder.has(link.fmId)) fmOrder.set(link.fmId, fmOrder.size + 1);
+    link.fmSeq = fmOrder.get(link.fmId)!;
+  }
+
+  // feSeq: 같은 공정 내 FE 순서
+  const procFeOrder = new Map<string, Map<string, number>>();
+  for (const link of links) {
+    const pNo = link.fmProcessNo || '';
+    if (!procFeOrder.has(pNo)) procFeOrder.set(pNo, new Map());
+    const feOrder = procFeOrder.get(pNo)!;
+    if (!feOrder.has(link.feId)) feOrder.set(link.feId, feOrder.size + 1);
+    link.feSeq = feOrder.get(link.feId)!;
+  }
 }

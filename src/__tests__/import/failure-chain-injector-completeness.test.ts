@@ -93,8 +93,9 @@ describe('고장연결 완전성 — injectFailureChains 136FM 전체 연결', (
   // ═══════════════════════════════════════════
   const injection = injectFailureChains(buildResult.state, chains);
 
-  it('★ 핵심: skippedCount === 0 (모든 체인이 매칭되어야 함)', () => {
-    expect(injection.skippedCount).toBe(0);
+  it('★ 핵심: skippedCount ≤ 2 (round-robin 제거 후 fcValue 빈 체인 스킵 허용)', () => {
+    // 2026-03-14 F-2: round-robin 제거 → fcValue 빈 체인은 스킵 (사실 왜곡 방지)
+    expect(injection.skippedCount).toBeLessThanOrEqual(2);
   });
 
   it('★ 핵심: injectedCount >= 251 (FC 수 이상)', () => {
@@ -131,9 +132,9 @@ describe('고장연결 완전성 — injectFailureChains 136FM 전체 연결', (
     }
 
     // 전체 107 FM = 원본 그대로 (불필요 placeholder 제거됨)
-    // 원본 FM 전체에 링크가 있어야 함
+    // 2026-03-14 F-2: round-robin 제거 후 fcValue 빈 체인의 FM은 링크 없을 수 있음
     expect(totalFM).toBe(107);
-    expect(linkedFmCount).toBeGreaterThanOrEqual(107);
+    expect(linkedFmCount).toBeGreaterThanOrEqual(105);  // 107 - 최대2건 스킵 허용
   });
 
   // ═══════════════════════════════════════════

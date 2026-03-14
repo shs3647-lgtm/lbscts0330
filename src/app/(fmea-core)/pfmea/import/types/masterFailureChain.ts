@@ -196,7 +196,8 @@ export function buildFailureChainsFromFlat(
 
   // ── ★ 사실기반 사슬 생성 — 행 매칭 (카테시안 금지) ──
   let idx = 0;
-  let feIdx = 0;
+  // ★★★ 2026-03-14 I-1: round-robin → carry-forward (FE는 L1 글로벌 레벨이므로 직전 FE 유지) ★★★
+  let cfFeValue = uniqueFEList.length > 0 ? uniqueFEList[0] : defaultFE;
   for (const [processNo, fms] of processFMs.entries()) {
     const fcs = processFCs.get(processNo) || [];
     const info = processInfo.get(processNo) || { A2: '', A3: '', A4: '' };
@@ -229,11 +230,8 @@ export function buildFailureChainsFromFlat(
     for (let fmIdx = 0; fmIdx < fms.length; fmIdx++) {
       const fm = fms[fmIdx];
 
-      // FE 할당 (라운드로빈)
-      const assignedFE = uniqueFEList.length > 0
-        ? uniqueFEList[feIdx % uniqueFEList.length]
-        : defaultFE;
-      feIdx++;
+      // ★ FE 할당 (carry-forward — 직전 FE 유지, L1 글로벌 레벨)
+      const assignedFE = cfFeValue;
 
       // ── FM에 매칭되는 FC 결정 (사실 기반) ──
       let matchedFCs: FCItem[];

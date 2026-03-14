@@ -591,12 +591,11 @@ export async function POST(request: NextRequest) {
                 const l3SpecialChars = l3Funcs.map(f => f.specialChar).filter(Boolean);
                 
                 // ★ 금형(MD)/지그(JG)/치공구 + 지게차/크레인/대차/운반구/리프트/컨베이어 등 모두 MC로 분류
-                // ★ MC → CP/PFD 설비금형지그 컬럼에 매핑, MN(사람)은 매핑 제외 (하드코딩)
+                // ★ 2026-03-14 PFD-1: MN(사람) 제외 제거 — PFD에 모든 4M 타입 포함
                 let m4Type = (l3.m4 || '').toUpperCase();
                 if (m4Type === 'MD' || m4Type === 'JG') m4Type = 'MC';
-                if (m4Type === 'MN') continue;  // MN은 CP/PFD 매핑 제외
                 const m4Labels: Record<string, string> = {
-                  MC: '설비', IM: '투입자재', EN: '작업환경'
+                  MC: '설비', IM: '투입자재', EN: '작업환경', MN: '작업자'
                 };
                 const eqLabel = m4Labels[m4Type] || '';
                 const eqValue = eqLabel ? `[${m4Type}] ${l3.name || ''}` : (l3.name || '');

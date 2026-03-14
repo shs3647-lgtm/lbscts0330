@@ -36,11 +36,17 @@ export async function POST(request: NextRequest) {
 
     const normalizedFmeaId = fmeaId.toLowerCase();
 
-    // 2. buildWorksheetState
-    const { buildWorksheetState } = await import(
+    // 2. buildWorksheetState (엔티티 생성)
+    const { buildWorksheetState, buildFailureLinksDBCentric } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState'
     );
-    const buildResult = buildWorksheetState(flatData, { fmeaId: normalizedFmeaId, l1Name });
+    const chainsArray = Array.isArray(failureChains) && failureChains.length > 0
+      ? failureChains : undefined;
+
+    const buildResult = buildWorksheetState(flatData, {
+      fmeaId: normalizedFmeaId,
+      l1Name,
+    });
 
     if (!buildResult.success) {
       return NextResponse.json({
@@ -50,12 +56,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2.5. ★★★ 체인 기반 상태 보강 ★★★
-    // 체인의 FM/FE/FC가 flat data와 불일치할 때,
-    // 워크시트 상태에 없는 FM/FE/FC를 체인에서 추가하여 매칭률 극대화
-    if (Array.isArray(failureChains) && failureChains.length > 0) {
+    // 2.5. 체인 보강 (state에 없는 FM/FE/FC를 체인에서 추가)
+    if (chainsArray) {
       const { enrichStateFromChains } = await import('@/lib/enrich-state-from-chains');
-      const enrichStats = enrichStateFromChains(buildResult.state, failureChains);
+      const enrichStats = enrichStateFromChains(buildResult.state, chainsArray);
       if (enrichStats.addedFM > 0 || enrichStats.addedFE > 0 || enrichStats.addedFC > 0) {
         console.info(
           `[save-from-import] 체인 보강: FM+${enrichStats.addedFM} FE+${enrichStats.addedFE} FC+${enrichStats.addedFC} (skipped=${enrichStats.skippedNoProc})`
@@ -63,16 +67,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. 고장사슬 주입 (선택)
+    // 3. ★★★ DB중심 고장연결 — 순수 Map.get() 조회 (유사도 매칭 완전 제거) ★★★
+    // 보강된 state + chains → buildFailureLinksDBCentric로 링크 생성
     let injectedLinks: unknown[] = [];
     let injectedRisk: Record<string, number | string> = {};
-    if (Array.isArray(failureChains) && failureChains.length > 0) {
-      const { injectFailureChains } = await import(
-        '@/app/(fmea-core)/pfmea/import/utils/failureChainInjector'
+    if (chainsArray) {
+      const linkResult = buildFailureLinksDBCentric(buildResult.state, chainsArray);
+      injectedLinks = linkResult.failureLinks as unknown[];
+      injectedRisk = linkResult.riskData;
+      buildResult.state.failureLinks = linkResult.failureLinks;
+      buildResult.state.riskData = linkResult.riskData;
+      console.info(
+        `[save-from-import] DB중심 링크: injected=${linkResult.injectedCount} skipped=${linkResult.skippedCount} ` +
+        `(noProc=${linkResult.skipReasons.noProc} noFE=${linkResult.skipReasons.noFE} ` +
+        `noFM=${linkResult.skipReasons.noFM} noFC=${linkResult.skipReasons.noFC})`
       );
-      const injection = injectFailureChains(buildResult.state, failureChains);
-      injectedLinks = injection.failureLinks as unknown[];
-      injectedRisk = injection.riskData;
     }
 
     // 4. FM 갭 피드백

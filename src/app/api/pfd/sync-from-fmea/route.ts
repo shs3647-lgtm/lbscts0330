@@ -14,7 +14,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
+import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 import { derivePfdNoFromFmeaId, isValidPfdFormat } from '@/lib/utils/derivePfdNo';
 import { normalizeM4WithOriginal, recordSyncLog } from '@/lib/sync-helpers';
@@ -42,7 +43,12 @@ export async function POST(request: NextRequest) {
         }
 
 
-        const prisma = getPrisma();
+        // ★ 2026-03-14 PFD-5: 프로젝트 스키마 사용 (getPrisma → getPrismaForSchema)
+        // fmea/route.ts와 동일한 스키마 사용 — 프로젝트별 DB 분리 환경에서 데이터 격리 보장
+        const baseUrl = getBaseDatabaseUrl();
+        const schema = getProjectSchemaName(fmeaId);
+        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+        const prisma = getPrismaForSchema(schema) || getPrisma();
         if (!prisma) {
             return NextResponse.json(
                 { success: false, error: 'Database connection failed' },
