@@ -78,6 +78,10 @@ export function compareFCChains(
   const incomplete: MasterFailureChain[] = [];
   const apMismatch: { chain: MasterFailureChain; expected: string; actual: string }[] = [];
 
+  // ★ v5.9: fcValue 빈 derived chain 제외 — FM만 있고 B4 원인 미식별된 스텁은 매칭 대상 아님
+  // 원인: buildFailureChainsFromFlat에서 A5/B4 excelRow가 다른 시트 기준이라 행 기반 매칭 오류 발생
+  const effectiveDerived = derived.filter(d => normalize(d.fcValue) !== '');
+
   // 기존 체인을 키로 인덱싱 (정확 + 완화)
   const existingExactMap = new Map<string, MasterFailureChain>();
   // ★ CRITICAL-3: relaxed map을 배열로 변경 — 동일 processNo+FC에 여러 FM 모두 보존
@@ -94,7 +98,7 @@ export function compareFCChains(
   const matchedExactKeys = new Set<string>();
   const matchedRelaxedKeys = new Set<string>();
 
-  for (const d of derived) {
+  for (const d of effectiveDerived) {
     const exactKey = chainKey(d);
     const relaxedKey = chainKeyRelaxed(d);
 
@@ -135,8 +139,8 @@ export function compareFCChains(
     }
   }
 
-  // 통계
-  const total = derived.length;
+  // 통계 — effectiveDerived 기준 (빈 fcValue 스텁 제외)
+  const total = effectiveDerived.length;
   const matchRate = total > 0 ? Math.round((matched.length / total) * 100) : 0;
   const withSOD = existing.filter(hasCompleteSOD).length;
   const completenessRate = existing.length > 0 ? Math.round((withSOD / existing.length) * 100) : 0;
