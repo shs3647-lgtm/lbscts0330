@@ -313,7 +313,7 @@ export async function POST(request: NextRequest) {
         create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
         update: { data: legacyDataForSave },
       });
-    });
+    }, { timeout: 30000, isolationLevel: 'Serializable' });
 
     const savedL2Len = Array.isArray((legacyDataForSave as LegacyRecord).l2)
       ? (legacyDataForSave as LegacyRecord).l2!.length : 0;

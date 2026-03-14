@@ -1250,6 +1250,7 @@ export async function POST(request: NextRequest) {
       // → 트랜잭션(프로젝트 스키마) 내부 저장은 하지 않고, 아래에서 public 스키마에 best-effort로 저장한다.
     }, {
       timeout: TRANSACTION_TIMEOUT,
+      isolationLevel: 'Serializable',
     });
 
     // ★ P0-4: FmeaInfo 업데이트 - 트랜잭션 밖으로 이동 (트랜잭션 롤백 시 불일치 방지)

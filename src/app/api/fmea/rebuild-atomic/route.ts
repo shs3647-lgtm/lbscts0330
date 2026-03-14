@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
         });
       }
-    });
+    }, { timeout: 30000, isolationLevel: 'Serializable' });
 
     return NextResponse.json({
       ok: true,

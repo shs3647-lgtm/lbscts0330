@@ -345,7 +345,7 @@ model FailureMode {
   l2Function    L2Function          @relation(fields: [l2FuncId], references: [id], onDelete: Cascade)
   l2Structure   L2Structure         @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
   // ★★★ 2026-03-14: ProcessProductChar FK 관계 추가 ★★★
-  productChar   ProcessProductChar? @relation("FmProductChar", fields: [productCharId], references: [id])
+  productChar   ProcessProductChar? @relation("FmProductChar", fields: [productCharId], references: [id], onDelete: Restrict)
 
   @@index([fmeaId])
   @@index([l2FuncId])
