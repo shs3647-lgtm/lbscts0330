@@ -437,7 +437,7 @@ export async function POST(request: NextRequest) {
       await tx.failureCause.deleteMany(deleteCondition);
       await tx.failureMode.deleteMany(deleteCondition);
       await tx.failureEffect.deleteMany(deleteCondition);
-      await tx.processProductChar.deleteMany(deleteCondition).catch(() => { }); // ★ 2026-03-14
+      await tx.processProductChar.deleteMany(deleteCondition).catch(() => { });
       await tx.l3Function.deleteMany(deleteCondition);
       await tx.l2Function.deleteMany(deleteCondition);
       await tx.l1Function.deleteMany(deleteCondition);
