@@ -885,12 +885,21 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       { sheet: 'B5', field: 'preventionCtrls' },
     ];
 
+    // ★★★ 2026-03-14 FIX: 멀티시트 중복 방지 — processNo+sheet+m4+value 기준 dedup ★★★
+    // 이전: 중복 검사 없이 push → 엑셀 병합셀/반복행에서 같은 값 2회 push → 2배 복제
+    // 수정: seen Set으로 dedup (싱글시트 파서의 addIfNew 패턴과 동일)
+    const multiSheetSeen = new Set<string>();
     sheetMapping.forEach(({ sheet, field }) => {
       const sheetData = sheetDataMap[sheet];
       if (sheetData) {
         sheetData.rows.forEach((row) => {
           const process = processMap.get(row.key);
           if (process && row.value) {
+            // ★ 중복 검사: processNo + sheet + m4 + value 기준
+            const dedupKey = `${row.key}|${sheet}|${row.m4 || ''}|${row.value.trim()}`;
+            if (multiSheetSeen.has(dedupKey)) return;  // 중복 → 스킵
+            multiSheetSeen.add(dedupKey);
+
             const idx = (process[field] as string[]).length;
             (process[field] as string[]).push(row.value);
             // 메타데이터 기록
@@ -917,7 +926,9 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               process.productCharsSpecialChar.push(row.specialChar || '');
             }
           } else if (row.key && !processMap.has(row.key)) {
-            // 공정이 없으면 생성
+            // 공정이 없으면 생성 — 첫 행이므로 dedup 키 등록
+            const newDedupKey = `${row.key}|${sheet}|${row.m4 || ''}|${row.value.trim()}`;
+            multiSheetSeen.add(newDedupKey);
             const newProcess: ProcessRelation = {
               processNo: row.key,
               processName: '',

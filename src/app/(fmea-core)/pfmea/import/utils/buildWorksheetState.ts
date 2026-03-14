@@ -607,24 +607,26 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     }];
   } else if (a3Items.length > 0) {
     if (a4Items.length > 0) {
-      // ★ A4 공유 ID: 한 번만 생성, 모든 A3 function이 동일 ID 참조
+      // ★★★ 2026-03-14 FIX: A4 카테시안 2배 복제 근본 해결 ★★★
+      // 이전: 모든 A3 function에 sharedPCs 복사 → A3×A4 카테시안 (A3=2, A4=25 → PC=50)
+      // 수정: A4는 공정 단위 공유 엔티티 → 첫 번째 function에만 배치, 나머지는 빈 배열
       const sharedPCs = a4Items.map(a4 => ({
         id: uid(),
         name: a4.value,
         specialChar: (a4 as unknown as { specialChar?: string }).specialChar || ''
       }));
-      process.functions = a3Items.map(a3 => ({
+      process.functions = a3Items.map((a3, idx) => ({
         id: uid(),
         name: a3.value,
-        productChars: sharedPCs.map(pc => ({ ...pc })),  // 동일 ID, 새 객체 (불변성)
+        productChars: idx === 0 ? sharedPCs.map(pc => ({ ...pc })) : [],  // 첫 번째 A3에만 PC 배치
       }));
     } else {
       // A4 없으면 단일 placeholder 생성 (ID 공유로 A5 연결 보장)
       const placeholderPC = { id: uid(), name: '(제품특성 미입력)', specialChar: '' };
-      process.functions = a3Items.map(a3 => ({
+      process.functions = a3Items.map((a3, idx) => ({
         id: uid(),
         name: a3.value,
-        productChars: [{ ...placeholderPC }],  // placeholder도 동일 ID 공유
+        productChars: idx === 0 ? [{ ...placeholderPC }] : [],  // 첫 번째 A3에만 PC 배치
       }));
     }
   }
@@ -1150,6 +1152,77 @@ export function buildWorksheetState(
       skippedCount: linkResult.skippedCount,
       skipReasons: linkResult.skipReasons,
     };
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // Phase 4: A6(검출관리)/B5(예방관리) flat → riskData 보충
+  // ═══════════════════════════════════════════════════════
+  // chains에 pcValue/dcValue가 없어도, useImportFileHandlers에서
+  // ①전용시트 ②FC체인 ③추론으로 flat에 A6/B5를 생성했을 수 있음.
+  // 이 데이터를 riskData에 반영하여 워크시트 카운트가 0이 되지 않도록 보충.
+  {
+    const a6Items = filtered.filter(d => d.itemCode === 'A6' && d.value?.trim());
+    const b5Items = filtered.filter(d => d.itemCode === 'B5' && d.value?.trim());
+
+    const fLinks = state.failureLinks || [];
+    if ((a6Items.length > 0 || b5Items.length > 0) && fLinks.length > 0) {
+      const riskData = (state.riskData || {}) as Record<string, string | number>;
+
+      // 공정번호별 A6/B5 그룹핑
+      const a6ByProc = new Map<string, string[]>();
+      for (const item of a6Items) {
+        const pNo = item.processNo || '';
+        if (!a6ByProc.has(pNo)) a6ByProc.set(pNo, []);
+        a6ByProc.get(pNo)!.push(item.value!.trim());
+      }
+      const b5ByProc = new Map<string, string[]>();
+      for (const item of b5Items) {
+        const pNo = item.processNo || '';
+        if (!b5ByProc.has(pNo)) b5ByProc.set(pNo, []);
+        b5ByProc.get(pNo)!.push(item.value!.trim());
+      }
+
+      // failureLinks를 공정번호별로 그룹핑
+      const linksByProc = new Map<string, Array<{ fmId: string; fcId: string }>>();
+      for (const link of fLinks) {
+        const pNo = link.fmProcessNo || link.fmProcess || '';
+        if (!pNo || !link.fmId || !link.fcId) continue;
+        if (!linksByProc.has(pNo)) linksByProc.set(pNo, []);
+        linksByProc.get(pNo)!.push({ fmId: link.fmId, fcId: link.fcId });
+      }
+
+      // 공정별 A6/B5를 해당 공정의 failureLinks에 라운드로빈 배분
+      for (const [pNo, dcValues] of a6ByProc) {
+        const procLinks = linksByProc.get(pNo);
+        if (!procLinks || procLinks.length === 0) continue;
+        dcValues.forEach((dc, i) => {
+          const link = procLinks[i % procLinks.length];
+          const uKey = `${link.fmId}-${link.fcId}`;
+          const existingDc = String(riskData[`detection-${uKey}`] ?? '').trim();
+          if (!existingDc) {
+            riskData[`detection-${uKey}`] = dc;
+          } else if (!existingDc.includes(dc)) {
+            riskData[`detection-${uKey}`] = `${existingDc}\n${dc}`;
+          }
+        });
+      }
+      for (const [pNo, pcValues] of b5ByProc) {
+        const procLinks = linksByProc.get(pNo);
+        if (!procLinks || procLinks.length === 0) continue;
+        pcValues.forEach((pc, i) => {
+          const link = procLinks[i % procLinks.length];
+          const uKey = `${link.fmId}-${link.fcId}`;
+          const existingPc = String(riskData[`prevention-${uKey}`] ?? '').trim();
+          if (!existingPc) {
+            riskData[`prevention-${uKey}`] = pc;
+          } else if (!existingPc.includes(pc)) {
+            riskData[`prevention-${uKey}`] = `${existingPc}\n${pc}`;
+          }
+        });
+      }
+
+      state.riskData = riskData;
+    }
   }
 
   return {
