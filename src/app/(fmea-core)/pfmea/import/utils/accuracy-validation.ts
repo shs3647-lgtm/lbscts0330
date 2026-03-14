@@ -112,6 +112,12 @@ const PREVENTION_IN_A6 = [
   '인증 시험', '게시', '표준서', '작업표준',
 ];
 
+// ── B5 예방 맥락 키워드 — 검출 키워드와 함께 나오면 예방 조치로 판단 (false positive 방지) ──
+const B5_PREVENTIVE_CONTEXT = [
+  '교정', 'calibration', '교육', 'training', 'pm', '예방', '보전',
+  '관리', '점검', '강화', '확인', '평가', '숙련도', 'msa',
+];
+
 function containsAny(value: string, keywords: string[]): string | null {
   const lower = value.toLowerCase();
   for (const kw of keywords) {
@@ -298,14 +304,21 @@ const DC_EQUIPMENT_KEYWORDS = [
   'gauge', '게이지', 'caliper', '캘리퍼', '마이크로미터', 'interlock',
   '카메라', 'camera', '비전', 'vision', 'scanner', '스캐너', 'eol',
   'nanospec', 'stratus', '두께계', '시험장비', '측정장비',
+  // v5.9: Au BUMP 공정 장비 키워드 보강
+  'sem', 'kla', '현미경', 'microscope', 'xrf', '카운터', 'counter',
+  '분석기', 'analyzer', '체크리스트',
 ];
 const DC_METHOD_KEYWORDS = [
   '전수', '샘플링', 'sampling', 'lot별', '매lot', 'daily', '검사', '측정',
   '파괴검사', '비파괴', 'ndt', '육안', '자동', 'auto', '인라인',
+  // v5.9: 검사방법 키워드 보강
+  '모니터링', '확인', '분석', '검증', 'monitoring',
 ];
 const DC_FREQ_KEYWORDS = [
   '전수', 'lot', 'daily', '매일', '1회', '분기', '주기', '월', '연',
   'every', '실시간', 'inline', '샘플', 'aql', 'points', 'wfr',
+  // v5.9: 빈도 키워드 보강
+  '정기', '매회', '100%', '이중',
 ];
 
 // ── B5 예방관리 시스템/장치/절차 판별 키워드 ──
@@ -314,6 +327,8 @@ const PC_SYSTEM_KEYWORDS = [
   'sop', '표준서', '작업표준', '관리도', '교정', 'calibration',
   'pm', '예방보전', '교육', '인증', '시스템', '모니터링', '자동제어',
   '점검', '관리', '계획', '기준', '절차', '가이드', '알람',
+  // v5.9: 분석·보정 키워드 보강
+  '분석', '보정', '자동',
 ];
 
 /**
@@ -334,19 +349,23 @@ export function validateFCAccuracy(
   }
 
   for (const chain of chains) {
-    // ── MIX_B5_A6: B5에 검출 키워드 ──
+    // ── MIX_B5_A6: B5에 검출 키워드 (예방 맥락이면 제외) ──
     const pc = (chain.pcValue || '').trim();
     if (pc) {
       const hit = containsAny(pc, DETECTION_IN_B5);
       if (hit) {
-        warnings.push({
-          ruleId: 'MIX_B5_A6',
-          itemCode: 'B5',
-          processNo: chain.processNo || '',
-          value: pc,
-          message: `B5(예방관리)에 검출 키워드 "${hit}" 혼입 → A6으로 이동 검토`,
-          level: 'warning',
-        });
+        // 예방 맥락 키워드가 함께 있으면 false positive — 교정/교육/PM 등은 예방 조치
+        const hasPreventiveContext = containsAny(pc, B5_PREVENTIVE_CONTEXT);
+        if (!hasPreventiveContext) {
+          warnings.push({
+            ruleId: 'MIX_B5_A6',
+            itemCode: 'B5',
+            processNo: chain.processNo || '',
+            value: pc,
+            message: `B5(예방관리)에 검출 키워드 "${hit}" 혼입 → A6으로 이동 검토`,
+            level: 'warning',
+          });
+        }
       }
     }
 
