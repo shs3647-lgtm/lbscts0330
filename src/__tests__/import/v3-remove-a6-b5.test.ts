@@ -1,75 +1,49 @@
 /**
  * @file v3-remove-a6-b5.test.ts
- * @description TDD: v3.0 A6(검출관리)/B5(예방관리) IMPORT 제외 검증
+ * @description A6(검출관리)/B5(예방관리) Import 아키텍처 검증
  *
- * v3.0 핵심 변경: A6/B5는 IMPORT에서 완전 제거 → 리스크 탭에서 입력
- * - LEVEL_ITEM_CODES에서 A6/B5 제거
- * - FAILURE_ITEM_CODES에서 PC/DC 제거
- * - PREVIEW_OPTIONS에서 A6/B5 탭 제거
- * - SAMPLE_DATA에서 A6/B5 항목 제거
- * - SHEET_NAME_MAP에서 A6/B5 매핑 제거
- * - MasterFailureChain에서 pcValue/dcValue 제거
+ * ★ 2026-03-14 아키텍처 변경:
+ *   - v3.0 계획(A6/B5 제거) 철회 → A6/B5 Import 유지
+ *   - LEVEL_ITEM_CODES에 A6/B5 포함 (L2-6, L3-5 시트 지원)
+ *   - FC 체인 우선, 템플릿 폴백, inferDC/inferPC 3단계 소스 우선순위
  *
  * @created 2026-02-28
+ * @updated 2026-03-14 — 아키텍처 변경 반영
  */
 
 import { describe, it, expect } from 'vitest';
 
-// ── TODO-1: types.ts 상수 검증 ──
+describe('types.ts — A6/B5 Import 상수 검증', () => {
 
-describe('v3.0 TODO-1: types.ts — A6/B5 상수 제거', () => {
-
-  it('LEVEL_ITEM_CODES.L2 에 A6이 없어야 함', async () => {
+  it('LEVEL_ITEM_CODES.L2에 A6이 포함되어야 함', async () => {
     const { LEVEL_ITEM_CODES } = await import('@/app/(fmea-core)/pfmea/import/types');
-    expect(LEVEL_ITEM_CODES.L2).not.toContain('A6');
-    // A1~A5 만 포함
-    expect(LEVEL_ITEM_CODES.L2).toEqual(['A1', 'A2', 'A3', 'A4', 'A5']);
+    expect(LEVEL_ITEM_CODES.L2).toContain('A6');
+    expect(LEVEL_ITEM_CODES.L2).toEqual(['A1', 'A2', 'A3', 'A4', 'A5', 'A6']);
   });
 
-  it('LEVEL_ITEM_CODES.L3 에 B5가 없어야 함', async () => {
+  it('LEVEL_ITEM_CODES.L3에 B5가 포함되어야 함', async () => {
     const { LEVEL_ITEM_CODES } = await import('@/app/(fmea-core)/pfmea/import/types');
-    expect(LEVEL_ITEM_CODES.L3).not.toContain('B5');
-    // B1~B4 만 포함
-    expect(LEVEL_ITEM_CODES.L3).toEqual(['B1', 'B2', 'B3', 'B4']);
+    expect(LEVEL_ITEM_CODES.L3).toContain('B5');
+    expect(LEVEL_ITEM_CODES.L3).toEqual(['B1', 'B2', 'B3', 'B4', 'B5']);
   });
 
   it('FAILURE_ITEM_CODES에 PC/DC 키가 없어야 함', async () => {
     const { FAILURE_ITEM_CODES } = await import('@/app/(fmea-core)/pfmea/import/types');
     expect('PC' in FAILURE_ITEM_CODES).toBe(false);
     expect('DC' in FAILURE_ITEM_CODES).toBe(false);
-    // FM, FC, FE만 남아야 함
     expect(Object.keys(FAILURE_ITEM_CODES).sort()).toEqual(['FC', 'FE', 'FM']);
   });
 
-  it('ITEM_CODE_LABELS에 A6/B5 label이 존재해야 함 (STEP B 전처리 지원)', async () => {
+  it('ITEM_CODE_LABELS에 A6/B5 label이 존재해야 함', async () => {
     const { ITEM_CODE_LABELS } = await import('@/app/(fmea-core)/pfmea/import/types');
     expect(ITEM_CODE_LABELS['A6']).toBe('검출관리');
     expect(ITEM_CODE_LABELS['B5']).toBe('예방관리');
-    // L2-6/L3-5 시트명 형식은 여전히 불필요
-    expect('L2-6' in ITEM_CODE_LABELS).toBe(false);
-    expect('L3-5' in ITEM_CODE_LABELS).toBe(false);
-  });
-
-  it('SHEET_TO_CODE_MAP에 A6/B5 매핑이 없어야 함', async () => {
-    const { SHEET_TO_CODE_MAP } = await import('@/app/(fmea-core)/pfmea/import/types');
-    expect('L2-6' in SHEET_TO_CODE_MAP).toBe(false);
-    expect('L3-5' in SHEET_TO_CODE_MAP).toBe(false);
-  });
-
-  it('CODE_TO_SHEET_MAP에 A6/B5 매핑이 없어야 함', async () => {
-    const { CODE_TO_SHEET_MAP } = await import('@/app/(fmea-core)/pfmea/import/types');
-    expect('A6' in CODE_TO_SHEET_MAP).toBe(false);
-    expect('B5' in CODE_TO_SHEET_MAP).toBe(false);
   });
 });
 
-// ── TODO-2: sampleData.ts PREVIEW_OPTIONS 검증 ──
-// NOTE: constants.ts의 SAMPLE_DATA/PREVIEW_OPTIONS 및 sampleData.ts의 SAMPLE_DATA는
-// Rule 13(샘플데이터 금지)에 의해 삭제됨 (2026-03-11)
+describe('sampleData.ts — PREVIEW_OPTIONS A6/B5 제외 유지', () => {
 
-describe('v3.0 TODO-2: sampleData.ts — PREVIEW_OPTIONS A6/B5 제거', () => {
-
-  it('sampleData.ts PREVIEW_OPTIONS에 A6/B5 없어야 함', async () => {
+  it('sampleData.ts PREVIEW_OPTIONS에 A6/B5 없어야 함 (리스크 탭 전용)', async () => {
     const { PREVIEW_OPTIONS } = await import('@/app/(fmea-core)/pfmea/import/sampleData');
     const values = PREVIEW_OPTIONS.map((o: { value: string }) => o.value);
     expect(values).not.toContain('A6');
@@ -77,23 +51,7 @@ describe('v3.0 TODO-2: sampleData.ts — PREVIEW_OPTIONS A6/B5 제거', () => {
   });
 });
 
-// ── TODO-5: excel-parser-utils.ts 검증 ──
-
-describe('v3.0 TODO-5: excel-parser-utils.ts — A6/B5 시트 매핑 제거', () => {
-
-  it('normalizeSheetName("L2-6")이 null을 반환해야 함 (A6 매핑 제거)', async () => {
-    const { normalizeSheetName } = await import('@/app/(fmea-core)/pfmea/import/excel-parser-utils');
-    expect(normalizeSheetName('L2-6')).toBeNull();
-    expect(normalizeSheetName('L2-6 검출관리')).toBeNull();
-    expect(normalizeSheetName('L2-6(A6) 검출관리')).toBeNull();
-  });
-
-  it('normalizeSheetName("L3-5")이 null을 반환해야 함 (B5 매핑 제거)', async () => {
-    const { normalizeSheetName } = await import('@/app/(fmea-core)/pfmea/import/excel-parser-utils');
-    expect(normalizeSheetName('L3-5')).toBeNull();
-    expect(normalizeSheetName('L3-5 예방관리')).toBeNull();
-    expect(normalizeSheetName('L3-5(B5) 예방관리')).toBeNull();
-  });
+describe('excel-parser-utils.ts — A6/B5 시트명 매핑', () => {
 
   it('기존 A1~A5, B1~B4 매핑은 정상 동작해야 함', async () => {
     const { normalizeSheetName } = await import('@/app/(fmea-core)/pfmea/import/excel-parser-utils');

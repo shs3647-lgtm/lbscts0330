@@ -553,6 +553,8 @@ function recoverSkippedRows(
       processChar: getCol(row, colMap.processChar) || undefined,
       l2Function: getCol(row, colMap.l2Function) || undefined,
       l3Function: getCol(row, colMap.l3Function) || undefined,
+      pcValue: getCol(row, colMap.pcValue) || undefined,
+      dcValue: getCol(row, colMap.dcValue) || undefined,
       severity,
       occurrence,
       detection,

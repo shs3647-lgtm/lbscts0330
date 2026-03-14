@@ -294,10 +294,12 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         { keywords: ['공정기능', 'l2-3'], code: 'A3' },
         { keywords: ['제품특성', 'l2-4'], code: 'A4' },
         { keywords: ['고장형태', 'l2-5'], code: 'A5' },
+        { keywords: ['검출관리', 'l2-6'], code: 'A6' },
         { keywords: ['작업요소', '설비', 'l3-1'], code: 'B1' },
         { keywords: ['요소기능', 'l3-2'], code: 'B2' },
         { keywords: ['공정특성', 'l3-3'], code: 'B3' },
         { keywords: ['고장원인', 'l3-4'], code: 'B4' },
+        { keywords: ['예방관리', 'l3-5'], code: 'B5' },
         { keywords: ['구분', 'l1-1'], code: 'C1' },
         { keywords: ['제품기능', 'l1-2'], code: 'C2' },
         { keywords: ['요구사항', 'l1-3'], code: 'C3' },
@@ -566,6 +568,20 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             !dataValue.includes('공정번호') &&
             !/^L[123]-\d/.test(dataValue)) {
             rows.push({ key, value: dataValue, m4: valid4M, extra: bWeValue || undefined, specialChar: bSc || undefined, excelRow: i });
+          }
+        } else if (sheetCode === 'A6' || sheetCode === 'B5') {
+          // ★★★ 2026-03-14 FIX: A6/B5 단일값 파싱 — 첫 번째 값 컬럼만 읽기 ★★★
+          // 문제: 다중 컬럼 루프가 D(검출도) 숫자를 A6 텍스트로 혼입
+          // 해결: valStartCol 단일 컬럼만 읽어 인접 숫자 컬럼(D/비고) 혼입 방지
+          const value = cellValueToString(row.getCell(valStartCol).value);
+          if (value &&
+            value !== 'null' &&
+            value !== 'undefined' &&
+            value !== '(필수)' &&
+            value !== '(선택)' &&
+            value !== '공정번호' &&
+            !/^L[123]-\d/.test(value)) {
+            rows.push({ key, value, excelRow: i });
           }
         } else {
           // A3-A5, C2-C4 시트: 값 시작열부터 읽기 (B1~B4는 위에서 4M 처리)

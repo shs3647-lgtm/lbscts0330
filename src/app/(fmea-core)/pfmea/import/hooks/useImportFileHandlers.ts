@@ -256,28 +256,44 @@ export function useImportFileHandlers({
         console.log(`[A6/B5 소스] FC체인: A6=${fcA6Count}건, B5=${fcB5Count}건`);
       }
 
-      // ── ② 템플릿 L2-6/L3-5에서 보충 (FC 체인에서 0건일 때만) ──
-      if (fcB5Count === 0) {
+      // ── ② 템플릿 L2-6/L3-5에서 보충 (공정별 per-process 체크) ──
+      // ★★★ 2026-03-14 FIX: All-or-Nothing → 공정별 체크 변경 ★★★
+      // 문제: FC 체인에 1건이라도 있으면 모든 공정의 템플릿 폴백이 차단됨
+      // 해결: FC 체인에 해당 공정의 B5/A6이 없는 경우에만 템플릿 보충
+      const fcB5Processes = new Set<string>();
+      const fcA6Processes = new Set<string>();
+      if (chains && chains.length > 0) {
+        for (const ch of chains) {
+          if (ch.pcValue?.trim() && ch.processNo) fcB5Processes.add(ch.processNo);
+          if (ch.dcValue?.trim() && ch.processNo) fcA6Processes.add(ch.processNo);
+        }
+      }
+
+      {
+        let tplB5 = 0;
         result.processes.forEach((p) => {
           const pNo = p.processNo;
+          if (fcB5Processes.has(pNo)) return;
           p.preventionCtrls?.forEach((v, i) => {
             if (!ensureString(v).trim()) return;
             flat.push({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), parentItemId: `${pNo}-B4-0`, createdAt: new Date() });
+            tplB5++;
           });
         });
-        const tplB5 = flat.filter(d => d.itemCode === 'B5').length;
-        if (tplB5 > 0) console.log(`[A6/B5 소스] 템플릿 B5=${tplB5}건 (FC 체인 0건이므로 폴백)`);
+        if (tplB5 > 0) console.log(`[A6/B5 소스] 템플릿 B5=${tplB5}건 (FC 체인 미커버 공정 보충)`);
       }
-      if (fcA6Count === 0) {
+      {
+        let tplA6 = 0;
         result.processes.forEach((p) => {
           const pNo = p.processNo;
+          if (fcA6Processes.has(pNo)) return;
           p.detectionCtrls?.forEach((v, i) => {
             if (!ensureString(v).trim()) return;
             flat.push({ id: `${pNo}-A6-tpl-${i}`, processNo: pNo, category: 'A', itemCode: 'A6', value: ensureString(v), parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
+            tplA6++;
           });
         });
-        const tplA6 = flat.filter(d => d.itemCode === 'A6').length;
-        if (tplA6 > 0) console.log(`[A6/B5 소스] 템플릿 A6=${tplA6}건 (FC 체인 0건이므로 폴백)`);
+        if (tplA6 > 0) console.log(`[A6/B5 소스] 템플릿 A6=${tplA6}건 (FC 체인 미커버 공정 보충)`);
       }
 
       if (chains && chains.length > 0) {
@@ -366,55 +382,59 @@ export function useImportFileHandlers({
         }
       }
 
-      // ★★★ 2026-03-14: A6(검출관리) 자동 추론 — A6=0이면 inferDC(A5) 엔진으로 생성 ★★★
+      // ★★★ 2026-03-14 FIX: A6(검출관리) 자동 추론 — 공정별 A6 미존재 시 inferDC(A5) ★★★
       {
-        const a6Count = flat.filter(d => d.itemCode === 'A6').length;
-        if (a6Count === 0) {
-          const ruleSet = getDefaultRuleSet();
-          const a5ByProc = new Map<string, Array<{ value: string; idx: number }>>();
-          for (const item of flat) {
-            if (item.itemCode === 'A5' && item.value?.trim()) {
-              const list = a5ByProc.get(item.processNo) || [];
-              list.push({ value: item.value.trim(), idx: list.length });
-              a5ByProc.set(item.processNo, list);
-            }
-          }
-          const a6Seen = new Set<string>();
-          let a6Idx = 0;
-          for (const [pNo, a5List] of a5ByProc) {
-            for (const a5 of a5List) {
-              const { dc } = inferDC(a5.value, ruleSet);
-              if (!dc) continue;
-              const key = `${pNo}|${dc}`;
-              if (a6Seen.has(key)) continue;
-              a6Seen.add(key);
-              flat.push({ id: `${pNo}-A6-infer-${a6Idx}`, processNo: pNo, category: 'A', itemCode: 'A6', value: dc, parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
-              a6Idx++;
-            }
-          }
-          if (a6Idx > 0) console.log(`[A6 inferDC] ${a6Idx}건 자동 추론`);
+        const a6ByProc = new Set<string>();
+        for (const item of flat) {
+          if (item.itemCode === 'A6') a6ByProc.add(item.processNo);
         }
+        const ruleSet = getDefaultRuleSet();
+        const a5ByProc = new Map<string, Array<{ value: string; idx: number }>>();
+        for (const item of flat) {
+          if (item.itemCode === 'A5' && item.value?.trim()) {
+            const list = a5ByProc.get(item.processNo) || [];
+            list.push({ value: item.value.trim(), idx: list.length });
+            a5ByProc.set(item.processNo, list);
+          }
+        }
+        const a6Seen = new Set<string>();
+        let a6Idx = 0;
+        for (const [pNo, a5List] of a5ByProc) {
+          if (a6ByProc.has(pNo)) continue;
+          for (const a5 of a5List) {
+            const { dc } = inferDC(a5.value, ruleSet);
+            if (!dc) continue;
+            const key = `${pNo}|${dc}`;
+            if (a6Seen.has(key)) continue;
+            a6Seen.add(key);
+            flat.push({ id: `${pNo}-A6-infer-${a6Idx}`, processNo: pNo, category: 'A', itemCode: 'A6', value: dc, parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
+            a6Idx++;
+          }
+        }
+        if (a6Idx > 0) console.log(`[A6 inferDC] ${a6Idx}건 자동 추론 (공정별 미커버분)`);
       }
 
-      // ★★★ 2026-03-14: B5(예방관리) 자동 추론 — B5=0이면 inferPC(B4+m4) 엔진으로 생성 ★★★
+      // ★★★ 2026-03-14 FIX: B5(예방관리) 자동 추론 — 공정별 B5 미존재 시 inferPC(B4+m4) ★★★
       {
-        const b5Count = flat.filter(d => d.itemCode === 'B5').length;
-        if (b5Count === 0) {
-          const ruleSet = getDefaultRuleSet();
-          const b4Items = flat.filter(d => d.itemCode === 'B4' && d.value?.trim());
-          const b5Seen = new Set<string>();
-          let b5Idx = 0;
-          for (const b4 of b4Items) {
-            const pc = inferPC(b4.value!.trim(), b4.m4 || '', ruleSet);
-            if (!pc) continue;
-            const key = `${b4.processNo}|${b4.m4 || ''}|${pc}`;
-            if (b5Seen.has(key)) continue;
-            b5Seen.add(key);
-            flat.push({ id: `${b4.processNo}-B5-infer-${b5Idx}`, processNo: b4.processNo, category: 'B', itemCode: 'B5', value: pc, m4: b4.m4 || '', parentItemId: `${b4.processNo}-B4-0`, createdAt: new Date() });
-            b5Idx++;
-          }
-          if (b5Idx > 0) console.log(`[B5 inferPC] ${b5Idx}건 자동 추론`);
+        const b5ByProc = new Set<string>();
+        for (const item of flat) {
+          if (item.itemCode === 'B5') b5ByProc.add(item.processNo);
         }
+        const ruleSet = getDefaultRuleSet();
+        const b4Items = flat.filter(d => d.itemCode === 'B4' && d.value?.trim());
+        const b5Seen = new Set<string>();
+        let b5Idx = 0;
+        for (const b4 of b4Items) {
+          if (b5ByProc.has(b4.processNo)) continue;
+          const pc = inferPC(b4.value!.trim(), b4.m4 || '', ruleSet);
+          if (!pc) continue;
+          const key = `${b4.processNo}|${b4.m4 || ''}|${pc}`;
+          if (b5Seen.has(key)) continue;
+          b5Seen.add(key);
+          flat.push({ id: `${b4.processNo}-B5-infer-${b5Idx}`, processNo: b4.processNo, category: 'B', itemCode: 'B5', value: pc, m4: b4.m4 || '', parentItemId: `${b4.processNo}-B4-0`, createdAt: new Date() });
+          b5Idx++;
+        }
+        if (b5Idx > 0) console.log(`[B5 inferPC] ${b5Idx}건 자동 추론 (공정별 미커버분)`);
       }
 
       const C1_CATEGORY_MAP: Record<string, string> = {
