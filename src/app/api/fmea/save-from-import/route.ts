@@ -84,6 +84,94 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 3.5. ★★★ Phase 4: A6(검출관리)/B5(예방관리) flat → riskData 보충 ★★★
+    // buildWorksheetState가 chains 없이 호출되어 Phase 4가 스킵됨
+    // → L2-6 전용시트 A6 데이터가 riskData에 누락되므로 여기서 보충
+    {
+      const a6Items = flatData.filter((d: { itemCode?: string; value?: string }) =>
+        d.itemCode === 'A6' && d.value?.trim()
+      );
+      const b5Items = flatData.filter((d: { itemCode?: string; value?: string }) =>
+        d.itemCode === 'B5' && d.value?.trim()
+      );
+      const fLinks = (buildResult.state.failureLinks || []) as Array<{
+        fmId: string; fcId: string; fmProcessNo?: string; fmProcess?: string;
+      }>;
+
+      if ((a6Items.length > 0 || b5Items.length > 0) && fLinks.length > 0) {
+        const riskData = injectedRisk;
+
+        // 공정번호별 A6/B5 그룹핑
+        const a6ByProc = new Map<string, string[]>();
+        for (const item of a6Items) {
+          const pNo = (item as { processNo?: string }).processNo || '';
+          const val = ((item as { value?: string }).value || '').trim();
+          if (!val) continue;
+          if (!a6ByProc.has(pNo)) a6ByProc.set(pNo, []);
+          a6ByProc.get(pNo)!.push(val);
+        }
+        const b5ByProc = new Map<string, string[]>();
+        for (const item of b5Items) {
+          const pNo = (item as { processNo?: string }).processNo || '';
+          const val = ((item as { value?: string }).value || '').trim();
+          if (!val) continue;
+          if (!b5ByProc.has(pNo)) b5ByProc.set(pNo, []);
+          b5ByProc.get(pNo)!.push(val);
+        }
+
+        // failureLinks를 공정번호별로 그룹핑
+        const linksByProc = new Map<string, Array<{ fmId: string; fcId: string }>>();
+        for (const link of fLinks) {
+          const pNo = link.fmProcessNo || link.fmProcess || '';
+          if (!pNo || !link.fmId || !link.fcId) continue;
+          if (!linksByProc.has(pNo)) linksByProc.set(pNo, []);
+          linksByProc.get(pNo)!.push({ fmId: link.fmId, fcId: link.fcId });
+        }
+
+        // A6 → riskData detection-* 키 보충
+        let a6Injected = 0;
+        for (const [pNo, dcValues] of a6ByProc) {
+          const procLinks = linksByProc.get(pNo);
+          if (!procLinks || procLinks.length === 0) continue;
+          dcValues.forEach((dc, i) => {
+            const link = procLinks[i % procLinks.length];
+            const uKey = `${link.fmId}-${link.fcId}`;
+            const existing = String(riskData[`detection-${uKey}`] ?? '').trim();
+            if (!existing) {
+              riskData[`detection-${uKey}`] = dc;
+              a6Injected++;
+            } else if (!existing.includes(dc)) {
+              riskData[`detection-${uKey}`] = `${existing}\n${dc}`;
+              a6Injected++;
+            }
+          });
+        }
+
+        // B5 → riskData prevention-* 키 보충
+        let b5Injected = 0;
+        for (const [pNo, pcValues] of b5ByProc) {
+          const procLinks = linksByProc.get(pNo);
+          if (!procLinks || procLinks.length === 0) continue;
+          pcValues.forEach((pc, i) => {
+            const link = procLinks[i % procLinks.length];
+            const uKey = `${link.fmId}-${link.fcId}`;
+            const existing = String(riskData[`prevention-${uKey}`] ?? '').trim();
+            if (!existing) {
+              riskData[`prevention-${uKey}`] = pc;
+              b5Injected++;
+            } else if (!existing.includes(pc)) {
+              riskData[`prevention-${uKey}`] = `${existing}\n${pc}`;
+              b5Injected++;
+            }
+          });
+        }
+
+        if (a6Injected > 0 || b5Injected > 0) {
+          console.info(`[save-from-import] Phase 4 A6/B5 보충: A6=${a6Injected}건, B5=${b5Injected}건`);
+        }
+      }
+    }
+
     // 4. FM 갭 피드백
     const { applyFmGapFeedback } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/fm-gap-feedback'
