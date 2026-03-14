@@ -222,11 +222,42 @@ export function useImportFileHandlers({
         // p.preventionCtrls / p.detectionCtrls → FC 체인 우선, 템플릿은 폴백
       });
 
-      // ★★★ 2026-03-14 SRP: A6(검출관리) + B5(예방관리) — 소스 우선순위 ★★★
-      // 우선순위: ① FC시트 dcValue/pcValue → ② 템플릿 L2-6/L3-5 → ③ 추론(inferDC/inferPC)
+      // ★★★ 2026-03-14 v5.4: A6(검출관리) + B5(예방관리) — 소스 우선순위 재설계 ★★★
+      // 우선순위: ① 전용시트 L2-6/L3-5 (최우선) → ② FC시트 dcValue/pcValue (폴백) → ③ 추론(inferDC/inferPC)
+      // 사유: FC 시트 carry-forward 병합셀 처리가 불안정 → 전용시트가 확실한 소스
       const chains = result.failureChains;
 
-      // ── ① FC 체인에서 A6/B5 추출 (최우선) ──
+      // ── ① 전용시트 L2-6(A6)/L3-5(B5)에서 추출 (최우선) ──
+      const tplB5Processes = new Set<string>();
+      const tplA6Processes = new Set<string>();
+      {
+        let tplB5 = 0;
+        result.processes.forEach((p) => {
+          const pNo = p.processNo;
+          p.preventionCtrls?.forEach((v, i) => {
+            if (!ensureString(v).trim()) return;
+            flat.push({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), parentItemId: `${pNo}-B4-0`, createdAt: new Date() });
+            tplB5++;
+            tplB5Processes.add(pNo);
+          });
+        });
+        if (tplB5 > 0) console.log(`[A6/B5 소스] ① 전용시트 B5=${tplB5}건 (최우선)`);
+      }
+      {
+        let tplA6 = 0;
+        result.processes.forEach((p) => {
+          const pNo = p.processNo;
+          p.detectionCtrls?.forEach((v, i) => {
+            if (!ensureString(v).trim()) return;
+            flat.push({ id: `${pNo}-A6-tpl-${i}`, processNo: pNo, category: 'A', itemCode: 'A6', value: ensureString(v), parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
+            tplA6++;
+            tplA6Processes.add(pNo);
+          });
+        });
+        if (tplA6 > 0) console.log(`[A6/B5 소스] ① 전용시트 A6=${tplA6}건 (최우선)`);
+      }
+
+      // ── ② FC 체인에서 A6/B5 추출 (전용시트 미커버 공정만 보충) ──
       let fcA6Count = 0;
       let fcB5Count = 0;
       if (chains && chains.length > 0) {
@@ -234,6 +265,7 @@ export function useImportFileHandlers({
         let b5Idx = 0;
         for (const ch of chains) {
           if (!ch.pcValue?.trim() || !ch.processNo) continue;
+          if (tplB5Processes.has(ch.processNo)) continue;  // 전용시트 우선
           const key = `${ch.processNo}|${ch.m4 || ''}|${ch.pcValue.trim()}`;
           if (b5Seen.has(key)) continue;
           b5Seen.add(key);
@@ -246,6 +278,7 @@ export function useImportFileHandlers({
         let a6Idx = 0;
         for (const ch of chains) {
           if (!ch.dcValue?.trim() || !ch.processNo) continue;
+          if (tplA6Processes.has(ch.processNo)) continue;  // 전용시트 우선
           const a6Key = `${ch.processNo}|${ch.dcValue.trim()}`;
           if (a6Seen.has(a6Key)) continue;
           a6Seen.add(a6Key);
@@ -253,47 +286,7 @@ export function useImportFileHandlers({
           a6Idx++;
         }
         fcA6Count = a6Idx;
-        console.log(`[A6/B5 소스] FC체인: A6=${fcA6Count}건, B5=${fcB5Count}건`);
-      }
-
-      // ── ② 템플릿 L2-6/L3-5에서 보충 (공정별 per-process 체크) ──
-      // ★★★ 2026-03-14 FIX: All-or-Nothing → 공정별 체크 변경 ★★★
-      // 문제: FC 체인에 1건이라도 있으면 모든 공정의 템플릿 폴백이 차단됨
-      // 해결: FC 체인에 해당 공정의 B5/A6이 없는 경우에만 템플릿 보충
-      const fcB5Processes = new Set<string>();
-      const fcA6Processes = new Set<string>();
-      if (chains && chains.length > 0) {
-        for (const ch of chains) {
-          if (ch.pcValue?.trim() && ch.processNo) fcB5Processes.add(ch.processNo);
-          if (ch.dcValue?.trim() && ch.processNo) fcA6Processes.add(ch.processNo);
-        }
-      }
-
-      {
-        let tplB5 = 0;
-        result.processes.forEach((p) => {
-          const pNo = p.processNo;
-          if (fcB5Processes.has(pNo)) return;
-          p.preventionCtrls?.forEach((v, i) => {
-            if (!ensureString(v).trim()) return;
-            flat.push({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), parentItemId: `${pNo}-B4-0`, createdAt: new Date() });
-            tplB5++;
-          });
-        });
-        if (tplB5 > 0) console.log(`[A6/B5 소스] 템플릿 B5=${tplB5}건 (FC 체인 미커버 공정 보충)`);
-      }
-      {
-        let tplA6 = 0;
-        result.processes.forEach((p) => {
-          const pNo = p.processNo;
-          if (fcA6Processes.has(pNo)) return;
-          p.detectionCtrls?.forEach((v, i) => {
-            if (!ensureString(v).trim()) return;
-            flat.push({ id: `${pNo}-A6-tpl-${i}`, processNo: pNo, category: 'A', itemCode: 'A6', value: ensureString(v), parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
-            tplA6++;
-          });
-        });
-        if (tplA6 > 0) console.log(`[A6/B5 소스] 템플릿 A6=${tplA6}건 (FC 체인 미커버 공정 보충)`);
+        if (fcA6Count > 0 || fcB5Count > 0) console.log(`[A6/B5 소스] ② FC체인 폴백: A6=${fcA6Count}건, B5=${fcB5Count}건`);
       }
 
       if (chains && chains.length > 0) {

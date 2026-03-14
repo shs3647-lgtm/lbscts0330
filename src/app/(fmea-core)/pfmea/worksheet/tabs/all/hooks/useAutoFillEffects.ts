@@ -107,6 +107,7 @@ export function useAutoFillEffects({
     pcDcAutoFillRef.current = true;
 
     const toItem = (item: Record<string, unknown>) => ({
+      id: String(item.id || ''),  // v5.4: 소스 구분 (-tpl-, -fc-, -infer-)
       processNo: String(item.processNo || '').trim(),
       value: String(item.value || '').trim(),
       m4: String(item.m4 || '').trim(),

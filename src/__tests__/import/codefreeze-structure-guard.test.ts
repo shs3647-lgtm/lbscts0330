@@ -284,12 +284,11 @@ describe('CODEFREEZE Guard: excel-template.ts', () => {
     expect(content).toMatch(/export\s+(async\s+)?function\s+downloadEmptyTemplate/);
   });
 
-  it('v3.0: B5(예방관리)/A6(검출관리) 시트가 제거됨', () => {
+  // v5.4: A6/B5 전용시트 복원 — 시트 정의가 있어야 함
+  it('v5.4: B5(예방관리)/A6(검출관리) 전용시트가 있어야 함', () => {
     content = content || fs.readFileSync(filePath, 'utf-8');
-    // SHEET_DEFINITIONS에 A6/B5 시트가 없어야 함
-    // legacyName: 'A6' 또는 legacyName: 'B5'가 없어야 함
-    expect(content).not.toMatch(/legacyName:\s*['"]A6['"]/);
-    expect(content).not.toMatch(/legacyName:\s*['"]B5['"]/);
+    expect(content).toMatch(/legacyName:\s*['"]A6['"]/);
+    expect(content).toMatch(/legacyName:\s*['"]B5['"]/);
   });
 });
 

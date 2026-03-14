@@ -89,12 +89,14 @@ const SHEET_DEFINITIONS = [
   { name: 'L2-3(A3) 공정기능', headers: ['L2-1.공정번호', 'L2-3.공정기능(설명)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A3', guide: '작성: [대상물]을 [처리방법]으로 [처리]하여 [결과]를 확보한다 | 금지: 파라미터 수치, 검사절차, 불량방지 문구' },
   { name: 'L2-4(A4) 제품특성', headers: ['L2-1.공정번호', 'L2-4.제품특성(Wafer 결과값 명사)', '특별특성'], color: HEADER_COLOR, required: [true, false, false], legacyName: 'A4', guide: '제품(Wafer)에서 측정하는 품질특성 명사 | 금지: 온도·농도·에너지 등 공정파라미터(→B3), Check·Inspection 동사형' },
   { name: 'L2-5(A5) 고장형태', headers: ['L2-1.공정번호', 'L2-5.고장형태(A4이탈 현상)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A5', guide: '[A4특성명]+[이탈유형]: 규격이탈/미달/초과/미형성/부재/잔류 | 금지: 원인(→B4), 공정특성이탈(→B4)' },
-  // v3.1.1: A6(검출관리) FC 시트 컬럼으로 복원 (별도 시트는 제거 유지)
+  // v5.4: A6(검출관리) 전용 시트 복원 — FC 시트 carry-forward 불안정 해소
+  { name: 'L2-6(A6) 검출관리', headers: ['L2-1.공정번호', 'L2-6.검출관리(발생 후 검출 방법)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A6', guide: '발생 후 출하 전 검출하는 장비+방법+빈도 (예: MES Interlock, 육안 검사, AVI)' },
   { name: 'L3-1(B1) 작업요소', headers: ['L2-1.공정번호', '4M', 'L3-1.작업요소(설비·재료·인원 고유명)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B1', guide: 'MC=설비고유명, MN=직무역할명, IM=약품고유명 | B2★작업요소·FC(WE)와 완전 동일 표기 필수' },
   { name: 'L3-2(B2) 요소기능', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-2.요소기능'], color: HEADER_COLOR, required: [true, true, false, false], legacyName: 'B2', guide: '[B1]이 [행위]하여 [결과]를 제공한다 | 주어=B1명칭, 결과 명시 필수' },
   { name: 'L3-3(B3) 공정특성', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-3.공정특성(설비·약품 파라미터)', '특별특성'], color: HEADER_COLOR, required: [true, true, false, false, false], legacyName: 'B3', guide: '설비·약품에서 설정·모니터링하는 입력 파라미터 명사+(단위) | 금지: A4 제품특성, B2 요소기능 내용' },
   { name: 'L3-4(B4) 고장원인', headers: ['L2-1.공정번호', '4M', 'L3-4.고장원인(B3이탈 원인)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B4', guide: 'B3파라미터 이탈의 직접 원인 | 금지: 고장형태(A5) 현상, 대책·행동 기술' },
-  // v3.1.1: B5(예방관리) FC 시트 컬럼으로 복원 (별도 시트는 제거 유지)
+  // v5.4: B5(예방관리) 전용 시트 복원 — FC 시트 carry-forward 불안정 해소
+  { name: 'L3-5(B5) 예방관리', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-5.예방관리(발생 전 방지)'], color: HEADER_COLOR, required: [true, false, false, false], legacyName: 'B5', guide: '고장원인 발생 전 방지하는 장치·시스템·절차 (예: SPC 관리, 일상점검, PM)' },
   { name: 'L1-1(C1) 구분', headers: ['L1-1.구분'], color: HEADER_COLOR, required: [true], legacyName: 'C1', guide: 'YP(Your Plant), SP(Ship to Plant), USER 중 택1' },
   { name: 'L1-2(C2) 제품기능', headers: ['L1-1.구분', 'L1-2.제품(반)기능'], color: HEADER_COLOR, required: [true, false], legacyName: 'C2', guide: '' },
   { name: 'L1-3(C3) 요구사항', headers: ['L1-1.구분', 'L1-3.제품(반)요구사항'], color: HEADER_COLOR, required: [true, false], legacyName: 'C3', guide: '' },
@@ -187,6 +189,7 @@ export async function downloadEmptyTemplate(customFileName?: string) {
     const emptyWidths: Record<string, number> = {
       'L2-1.공정번호': 14, 'L2-2.공정명': 20, '공정유형코드(선택)': 16,
       'L2-3.공정기능(설명)': 40, 'L2-4.제품특성': 22, '특별특성': 10, 'L2-5.고장형태': 25,
+      'L2-6.검출관리(발생 후 검출 방법)': 40, 'L3-5.예방관리(발생 전 방지)': 40,
       '4M': 8,
       'L3-1.작업요소(설비)': 28, 'L3-2.요소기능': 35, 'L3-3.공정특성': 22,
       'L3-4.고장원인': 30,
@@ -238,10 +241,10 @@ export async function downloadEmptyTemplate(customFileName?: string) {
 const ITEM_TO_SHEET: Record<string, string> = {
   A1: 'L2-1(A1) 공정번호', A2: 'L2-2(A2) 공정명', A3: 'L2-3(A3) 공정기능', A4: 'L2-4(A4) 제품특성',
   A5: 'L2-5(A5) 고장형태',
-  // v3.1.1: A6(검출관리) FC 시트 컬럼으로 복원 (별도 시트는 제거 유지)
+  A6: 'L2-6(A6) 검출관리',  // v5.4: 전용 시트 복원
   B1: 'L3-1(B1) 작업요소', B2: 'L3-2(B2) 요소기능', B3: 'L3-3(B3) 공정특성',
   B4: 'L3-4(B4) 고장원인',
-  // v3.1.1: B5(예방관리) FC 시트 컬럼으로 복원 (별도 시트는 제거 유지)
+  B5: 'L3-5(B5) 예방관리',  // v5.4: 전용 시트 복원
   C1: 'L1-1(C1) 구분', C2: 'L1-2(C2) 제품기능', C3: 'L1-3(C3) 요구사항', C4: 'L1-4(C4) 고장영향',
 };
 
@@ -308,6 +311,17 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
     } else if (d.itemCode === 'A4') {
       // ★ v2.4.0: A4 제품특성 — 공정번호 + 값 + 특별특성 (3컬럼)
       sheetData[sheetName].push([d.processNo, d.value, d.specialChar || '']);
+    } else if (d.itemCode === 'B5') {
+      // ★ v5.4: B5 예방관리 전용 시트 — 공정번호 + 4M + ★작업요소(B1) + 예방관리 (4컬럼)
+      let m4 = d.m4 || '';
+      if (!m4) {
+        const key = `${d.processNo}|B5`;
+        const idx = bIdxMap.get(key) || 0;
+        bIdxMap.set(key, idx + 1);
+        m4 = b1ByPNo[d.processNo]?.[idx] || '';
+      }
+      const b1Name = d.belongsTo || b1NameByPNoM4[`${d.processNo}|${m4}`] || '';
+      sheetData[sheetName].push([d.processNo, m4, b1Name, d.value]);
     } else if (d.itemCode === 'B1' || d.itemCode === 'B2' || d.itemCode === 'B3' || d.itemCode === 'B4') {
       // B1/B4: 공정번호 + 4M + 값 (3컬럼)
       // B2:    공정번호 + 4M + ★작업요소(B1) + 요소기능 (4컬럼)

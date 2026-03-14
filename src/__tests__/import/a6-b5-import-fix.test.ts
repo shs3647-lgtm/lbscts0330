@@ -89,26 +89,25 @@ describe('FIX-2: A6/B5 시트 — 단일값 파싱 (D 숫자 혼입 방지)', ()
 });
 
 
-describe('FIX-3: Template 폴백 — 공정별(per-process) 체크', () => {
+describe('FIX-3: 소스 우선순위 — 전용시트 > FC > 추론 (v5.4 재설계)', () => {
 
-  it('A6 템플릿 폴백이 FC 체인 공정번호 기준으로 분기해야 함', async () => {
+  it('A6 전용시트 우선순위 — tplA6Processes Set으로 공정별 관리', async () => {
     const fs = await import('fs');
     const content = fs.readFileSync(HANDLER_PATH, 'utf-8');
 
-    // 공정별 체크: fcA6Processes / fcA6Set 같은 Set으로 공정별 필터링
-    // 또는 per-process 체크 패턴
+    // v5.4: 전용시트 우선순위 — tplA6Processes Set 사용
     const hasPerProcessA6 = content.match(
-      /fcA6(Processes|Set|ByProc)/
+      /tplA6(Processes|Set|ByProc)/
     );
     expect(hasPerProcessA6).toBeTruthy();
   });
 
-  it('B5 템플릿 폴백이 FC 체인 공정번호 기준으로 분기해야 함', async () => {
+  it('B5 전용시트 우선순위 — tplB5Processes Set으로 공정별 관리', async () => {
     const fs = await import('fs');
     const content = fs.readFileSync(HANDLER_PATH, 'utf-8');
 
     const hasPerProcessB5 = content.match(
-      /fcB5(Processes|Set|ByProc)/
+      /tplB5(Processes|Set|ByProc)/
     );
     expect(hasPerProcessB5).toBeTruthy();
   });

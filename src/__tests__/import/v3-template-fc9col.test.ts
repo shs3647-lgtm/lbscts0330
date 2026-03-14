@@ -19,27 +19,25 @@ import { describe, it, expect } from 'vitest';
 
 describe('v3.2.1: excel-template.ts — A6/B5 별도시트 제거 유지, FC 4열 간소화', () => {
 
-  it('SHEET_DEFINITIONS에 A6(검출관리) 시트가 없어야 함', async () => {
-    // 파일 내용에서 직접 검증
+  // v5.4: A6/B5 전용시트 복원 — 시트 정의가 있어야 함
+  it('SHEET_DEFINITIONS에 A6(검출관리) 전용시트가 있어야 함', async () => {
     const fs = await import('fs');
     const content = fs.readFileSync(
       'src/app/(fmea-core)/pfmea/import/excel-template.ts',
       'utf-8',
     );
-    // L2-6(A6) 검출관리 시트 정의가 없어야 함
-    expect(content).not.toMatch(/name:\s*['"]L2-6\(A6\)\s*검출관리['"]/);
-    expect(content).not.toMatch(/legacyName:\s*['"]A6['"]/);
+    expect(content).toMatch(/name:\s*['"]L2-6\(A6\)\s*검출관리['"]/);
+    expect(content).toMatch(/legacyName:\s*['"]A6['"]/);
   });
 
-  it('SHEET_DEFINITIONS에 B5(예방관리) 시트가 없어야 함', async () => {
+  it('SHEET_DEFINITIONS에 B5(예방관리) 전용시트가 있어야 함', async () => {
     const fs = await import('fs');
     const content = fs.readFileSync(
       'src/app/(fmea-core)/pfmea/import/excel-template.ts',
       'utf-8',
     );
-    // L3-5(B5) 예방관리 시트 정의가 없어야 함
-    expect(content).not.toMatch(/name:\s*['"]L3-5\(B5\)\s*예방관리['"]/);
-    expect(content).not.toMatch(/legacyName:\s*['"]B5['"]/);
+    expect(content).toMatch(/name:\s*['"]L3-5\(B5\)\s*예방관리['"]/);
+    expect(content).toMatch(/legacyName:\s*['"]B5['"]/);
   });
 
   it('FC 고장사슬 시트 headers에 N:1:N 필수 컬럼이 있어야 함', async () => {

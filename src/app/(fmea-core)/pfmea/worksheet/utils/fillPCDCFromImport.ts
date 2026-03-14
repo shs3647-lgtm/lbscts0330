@@ -19,6 +19,7 @@ const O_CAP = 4;
 const D_CAP = 4;
 
 interface MasterItem {
+  id?: string;       // v5.4: 소스 구분 (-tpl-, -fc-, -infer-)
   processNo: string;
   value: string;
   m4?: string;
@@ -225,7 +226,7 @@ export function fillPCDCFromImport(
     }
   }
 
-  // Import B5 → processNo 기준 그룹핑 (fallback용)
+  // Import B5 → processNo 기준 그룹핑
   const b5ByProcess = new Map<string, MasterItem[]>();
   for (const item of b5Items) {
     if (!item.value || !item.processNo) continue;
@@ -245,6 +246,16 @@ export function fillPCDCFromImport(
     a6ByProcess.set(pNo, list);
   }
 
+  // ★ v5.4: 전용시트(tpl) 아이템이 있는 공정 추적 — FC 1:1 매칭보다 우선
+  const tplB5Processes = new Set<string>();
+  const tplA6Processes = new Set<string>();
+  for (const item of b5Items) {
+    if (item.id?.includes('-tpl-') && item.processNo) tplB5Processes.add(item.processNo.trim());
+  }
+  for (const item of a6Items) {
+    if (item.id?.includes('-tpl-') && item.processNo) tplA6Processes.add(item.processNo.trim());
+  }
+
   for (const link of links) {
     if (!link.fmId || !link.fcId) continue;
     const uk = `${link.fmId}-${link.fcId}`;
@@ -254,25 +265,49 @@ export function fillPCDCFromImport(
     const dKey = `risk-${uk}-D`;
     const pNo = link.processNo.trim();
 
-    // ── PC1 선택: FC↔PC 1:1 직접 매칭 우선 → fallback ──
+    // ── PC1 선택: ★ v5.4 우선순위 재설계 ──
+    // ① 전용시트 B5 (process-based, tpl 아이템) → ② FC↔PC 1:1 매칭 → ③ Pool
     const existingPC = updated[pcKey];
     const existPcStr = existingPC ? String(existingPC).trim() : '';
     const fcText = (link.fcText || '').trim();
-    const directKey = fcText ? `${pNo}|${fcText}` : '';
-    const directPcList = directKey ? fcToPcMap.get(directKey) : undefined;
+    const hasTplB5 = tplB5Processes.has(pNo);
 
-    if (directPcList && directPcList.length > 0) {
-      // ★ 직접 FC↔PC 매칭: 빈 셀 OR 자동추천(P:) → 덮어쓰기
-      const isAutoPC = !existPcStr ||
-        existPcStr.split('\n').every(line => {
-          const t = line.trim();
-          return !t || t.startsWith('P:') || t.startsWith('P ');
-        });
-      if (isAutoPC) {
+    const isAutoPC = !existPcStr ||
+      existPcStr.split('\n').every(line => {
+        const t = line.trim();
+        return !t || t.startsWith('P:') || t.startsWith('P ');
+      });
+
+    let pcFilled = false;
+
+    // ① 전용시트 B5 우선 (해당 공정에 전용시트 데이터 있으면 최우선 적용)
+    if (hasTplB5 && isAutoPC) {
+      const importCandidates = b5ByProcess.get(pNo) || [];
+      const bestImport = findBestImportPC(importCandidates, link.m4);
+      if (bestImport) {
+        updated[pcKey] = `P:${bestImport.item.value}`;
+        updated[`imported-prevention-${uk}`] = 'auto';
+        pcFilledCount++;
+        pcFilled = true;
+        const existingO = Number(updated[oKey]) || 0;
+        if (existingO === 0 && bestImport.o > 0) {
+          updated[oKey] = bestImport.o;
+          updated[`imported-O-${uk}`] = 'auto';
+          oEvaluatedCount++;
+        }
+      }
+    }
+
+    // ② FC↔PC 1:1 직접 매칭 (전용시트 미적용 시)
+    if (!pcFilled) {
+      const directKey = fcText ? `${pNo}|${fcText}` : '';
+      const directPcList = directKey ? fcToPcMap.get(directKey) : undefined;
+      if (directPcList && directPcList.length > 0 && isAutoPC) {
         const pcValue = directPcList.map(pc => `P:${pc}`).join('\n');
         updated[pcKey] = pcValue;
         updated[`imported-prevention-${uk}`] = 'auto';
         pcFilledCount++;
+        pcFilled = true;
         const existingO = Number(updated[oKey]) || 0;
         if (existingO === 0) {
           const o = evaluateOUncapped(directPcList[0]);
@@ -283,8 +318,10 @@ export function fillPCDCFromImport(
           }
         }
       }
-    } else if (!existPcStr) {
-      // fallback: 빈 셀만 — processNo 기준 매칭
+    }
+
+    // ③ Process-based fallback + Pool (빈 셀만)
+    if (!pcFilled && !existPcStr) {
       const importCandidates = b5ByProcess.get(pNo) || [];
       const bestImport = findBestImportPC(importCandidates, link.m4);
       let bestPool: { item: MasterItem; o: number } | null = null;
@@ -307,23 +344,47 @@ export function fillPCDCFromImport(
       }
     }
 
-    // ── DC1 선택: FC↔DC 1:1 직접 매칭 우선 → fallback ──
+    // ── DC1 선택: ★ v5.4 우선순위 재설계 ──
+    // ① 전용시트 A6 (process-based, tpl 아이템) → ② FC↔DC 1:1 매칭 → ③ Pool
     const existingDC = updated[dcKey];
     const existDcStr = existingDC ? String(existingDC).trim() : '';
-    const directKeyDC = fcText ? `${pNo}|${fcText}` : '';
-    const directDc = directKeyDC ? fcToDcMap.get(directKeyDC) : undefined;
+    const hasTplA6 = tplA6Processes.has(pNo);
 
-    if (directDc) {
-      // ★ 직접 FC↔DC 매칭: 빈 셀 OR 자동추천(D:) → 덮어쓰기
-      const isAutoDC = !existDcStr ||
-        existDcStr.split('\n').every(line => {
-          const t = line.trim();
-          return !t || t.startsWith('D:') || t.startsWith('D ');
-        });
-      if (isAutoDC) {
+    const isAutoDC = !existDcStr ||
+      existDcStr.split('\n').every(line => {
+        const t = line.trim();
+        return !t || t.startsWith('D:') || t.startsWith('D ');
+      });
+
+    let dcFilled = false;
+
+    // ① 전용시트 A6 우선 (해당 공정에 전용시트 데이터 있으면 최우선 적용)
+    if (hasTplA6 && isAutoDC) {
+      const importCandidates = a6ByProcess.get(pNo) || [];
+      const bestImport = findBestImportDC(importCandidates);
+      if (bestImport) {
+        updated[dcKey] = `D:${bestImport.item.value}`;
+        updated[`imported-detection-${uk}`] = 'auto';
+        dcFilledCount++;
+        dcFilled = true;
+        const existingD = Number(updated[dKey]) || 0;
+        if (existingD === 0 && bestImport.d > 0) {
+          updated[dKey] = bestImport.d;
+          updated[`imported-D-${uk}`] = 'auto';
+          dEvaluatedCount++;
+        }
+      }
+    }
+
+    // ② FC↔DC 1:1 직접 매칭 (전용시트 미적용 시)
+    if (!dcFilled) {
+      const directKeyDC = fcText ? `${pNo}|${fcText}` : '';
+      const directDc = directKeyDC ? fcToDcMap.get(directKeyDC) : undefined;
+      if (directDc && isAutoDC) {
         updated[dcKey] = `D:${directDc}`;
         updated[`imported-detection-${uk}`] = 'auto';
         dcFilledCount++;
+        dcFilled = true;
         const existingD = Number(updated[dKey]) || 0;
         if (existingD === 0) {
           const d = evaluateDUncapped(directDc);
@@ -334,8 +395,10 @@ export function fillPCDCFromImport(
           }
         }
       }
-    } else if (!existDcStr) {
-      // fallback: 빈 셀만 — processNo 기준 매칭
+    }
+
+    // ③ Process-based fallback + Pool (빈 셀만)
+    if (!dcFilled && !existDcStr) {
       const importCandidates = a6ByProcess.get(pNo) || [];
       const bestImport = findBestImportDC(importCandidates);
       let bestPool: { item: MasterItem; d: number } | null = null;
