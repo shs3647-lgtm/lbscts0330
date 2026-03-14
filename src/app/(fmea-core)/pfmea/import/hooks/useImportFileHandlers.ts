@@ -449,8 +449,32 @@ export function useImportFileHandlers({
         };
         flat.push({ id: `C1-${categoryValue}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: categoryValue, createdAt: new Date() });
         p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: ensureString(v), parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
-        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: ensureString(v), parentItemId: `C2-${categoryValue}-0`, createdAt: new Date() }, 'C3', i)));
-        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: ensureString(v), parentItemId: `C3-${categoryValue}-0`, createdAt: new Date() }, 'C4', i)));
+        // ★ C3 → C2 균등배분 (distribute 로직으로 parentItemId 분배)
+        const c2Count = Math.max(1, p.productFuncs.length);
+        const reqCount = p.requirements.length;
+        p.requirements.forEach((v, i) => {
+          const base = Math.floor(reqCount / c2Count);
+          const extra = reqCount % c2Count;
+          let slot = 0, acc = 0;
+          for (let s = 0; s < c2Count; s++) {
+            acc += s < extra ? base + 1 : base;
+            if (i < acc) { slot = s; break; }
+          }
+          flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: ensureString(v), parentItemId: `C2-${categoryValue}-${slot}`, createdAt: new Date() }, 'C3', i));
+        });
+        // ★ C4 → C3 균등배분
+        const c3Count = Math.max(1, p.requirements.length);
+        const feCount = p.failureEffects.length;
+        p.failureEffects.forEach((v, i) => {
+          const base = Math.floor(feCount / c3Count);
+          const extra = feCount % c3Count;
+          let slot = 0, acc = 0;
+          for (let s = 0; s < c3Count; s++) {
+            acc += s < extra ? base + 1 : base;
+            if (i < acc) { slot = s; break; }
+          }
+          flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: ensureString(v), parentItemId: `C3-${categoryValue}-${slot}`, createdAt: new Date() }, 'C4', i));
+        });
       });
 
       // ⚠️ 파싱 결과가 비어있으면 경고 (Item Import 파일 형식 안내 포함)

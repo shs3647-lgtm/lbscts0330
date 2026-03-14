@@ -507,11 +507,29 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         requirements: [],
       }));
 
-      // ★ C3 균등 배분: distribute(C3, C2개수)
-      const c3Dist = distribute(c3Items, funcs.length);
-      funcs.forEach((func, i) => {
-        func.requirements = c3Dist[i].map(c3 => ({ id: uid(), name: c3.value }));
-      });
+      // ★ v5.10: C3 → C2 parentItemId 기반 그룹핑 (distribute 폴백)
+      const hasParentIds = c3Items.some(c3 => c3.parentItemId && c3.parentItemId !== `C2-${type.name}-0`);
+      if (hasParentIds) {
+        // parentItemId 기반: C3 아이템의 parentItemId에서 C2 인덱스 추출
+        funcs.forEach((func, i) => {
+          const expectedParent = `C2-${type.name}-${i}`;
+          const myC3 = c3Items.filter(c3 => c3.parentItemId === expectedParent);
+          func.requirements = myC3.map(c3 => ({ id: uid(), name: c3.value }));
+        });
+        // parentItemId가 어떤 C2에도 매칭 안 되는 C3 → 마지막 func에 추가
+        const allParents = new Set(funcs.map((_, i) => `C2-${type.name}-${i}`));
+        const orphanC3 = c3Items.filter(c3 => !allParents.has(c3.parentItemId || ''));
+        if (orphanC3.length > 0) {
+          const lastFunc = funcs[funcs.length - 1];
+          orphanC3.forEach(c3 => lastFunc.requirements.push({ id: uid(), name: c3.value }));
+        }
+      } else {
+        // 폴백: 기존 distribute() 균등 배분
+        const c3Dist = distribute(c3Items, funcs.length);
+        funcs.forEach((func, i) => {
+          func.requirements = c3Dist[i].map(c3 => ({ id: uid(), name: c3.value }));
+        });
+      }
 
       type.functions = funcs;
     }

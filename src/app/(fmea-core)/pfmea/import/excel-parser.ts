@@ -1012,7 +1012,10 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           const trimmedKey = row.key.trim();
           const product = productMap.get(trimmedKey);
           if (product && row.value) {
-            (product[field] as string[]).push(row.value);
+            const arr = product[field] as string[];
+            if (!arr.includes(row.value)) {
+              arr.push(row.value);
+            }
           } else if (trimmedKey && !productMap.has(trimmedKey)) {
             // C1에 없는 구분이면 자동 생성
             const newProduct: ProductRelation = {
