@@ -305,24 +305,29 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // 8-B. legacyData 저장 (프로젝트 스키마 — Single Source of Truth)
-    await prisma.fmeaLegacyData.upsert({
-      where: { fmeaId: normalizedFmeaId },
-      create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
-      update: { data: legacyDataForSave },
+    // ★★★ 8-B/C. legacyData 저장 — 프로젝트 + public 스키마 트랜잭션 ★★★
+    // 프로젝트 스키마 저장은 반드시 성공해야 하므로 트랜잭션으로 보호
+    await prisma.$transaction(async (tx) => {
+      await tx.fmeaLegacyData.upsert({
+        where: { fmeaId: normalizedFmeaId },
+        create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
+        update: { data: legacyDataForSave },
+      });
     });
 
     const savedL2Len = Array.isArray((legacyDataForSave as LegacyRecord).l2)
       ? (legacyDataForSave as LegacyRecord).l2!.length : 0;
     console.log(`[save-from-import] 8-B. legacyData 저장 완료 l2=${savedL2Len}`);
 
-    // 8-C. public 스키마에도 백업 저장 (복구용)
+    // 8-C. public 스키마에도 백업 저장 (비치명적 — 실패해도 Import 성공)
     const publicPrisma = getPrisma();
     if (publicPrisma) {
-      await publicPrisma.fmeaLegacyData.upsert({
-        where: { fmeaId: normalizedFmeaId },
-        create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
-        update: { data: legacyDataForSave },
+      await publicPrisma.$transaction(async (tx) => {
+        await tx.fmeaLegacyData.upsert({
+          where: { fmeaId: normalizedFmeaId },
+          create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
+          update: { data: legacyDataForSave },
+        });
       }).catch((e: unknown) => {
         console.error('[save-from-import] public 백업 실패 (비치명적):', e instanceof Error ? e.message : String(e));
       });
@@ -417,9 +422,11 @@ export async function POST(request: NextRequest) {
         console.warn(
           `[save-from-import] legacyData 손상 감지: FM=${currentRich.fm}+FC=${currentRich.fc} < saved FM=${savedRich.fm}+FC=${savedRich.fc} → 복원`
         );
-        await prisma.fmeaLegacyData.update({
-          where: { fmeaId: normalizedFmeaId },
-          data: { data: legacyDataForSave },
+        await prisma.$transaction(async (tx) => {
+          await tx.fmeaLegacyData.update({
+            where: { fmeaId: normalizedFmeaId },
+            data: { data: legacyDataForSave },
+          });
         });
       }
 
@@ -438,9 +445,11 @@ export async function POST(request: NextRequest) {
       );
       if (finalRich.total < savedRich.total) {
         console.warn(`[save-from-import] 최종 legacyData 보호: FM+FC=${finalRich.total}→${savedRich.total} 강제 복원`);
-        await prisma.fmeaLegacyData.update({
-          where: { fmeaId: normalizedFmeaId },
-          data: { data: legacyDataForSave },
+        await prisma.$transaction(async (tx) => {
+          await tx.fmeaLegacyData.update({
+            where: { fmeaId: normalizedFmeaId },
+            data: { data: legacyDataForSave },
+          });
         });
       }
     }

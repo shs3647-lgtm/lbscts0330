@@ -632,10 +632,21 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
 
   // ★★★ 2026-03-14 W-2/H-2: A4 공유 ID 적용 + A3=0 방어 ★★★
   // functions 빈 배열일 때(A3=0) productChars도 빈 배열 → FM에 productCharId 미할당
-  // functions가 있으면 공유 ID이므로 어느 function이든 동일한 PC ID
-  const uniquePCs = (process.functions.length > 0)
-    ? (process.functions[0].productChars || [])
-    : [];
+  // 방어: 모든 functions의 PC를 ID 기준으로 중복 제거 (향후 함수별 PC 분리 시에도 안전)
+  const uniquePCs = (() => {
+    if (process.functions.length === 0) return [];
+    const seen = new Set<string>();
+    const result: Array<{ id: string; name: string; specialChar?: string }> = [];
+    for (const fn of process.functions) {
+      for (const pc of (fn.productChars || [])) {
+        if (!seen.has(pc.id)) {
+          seen.add(pc.id);
+          result.push(pc);
+        }
+      }
+    }
+    return result;
+  })();
 
   if (uniquePCs.length > 0 && a5Items.length > 0) {
     // ★ 고유 A4에만 균등 배분: distribute(A5, 고유A4개수)

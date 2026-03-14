@@ -213,6 +213,7 @@ export function useImportFileHandlers({
           for (let j = 0; j < p.workElements.length; j++) {
             if (ensureString(p.workElements[j]) === weName) return j;
           }
+          console.warn(`[Import B2/B3] WE 매칭 실패 — 공정=${pNo} WE명="${weName}" → 첫 번째 WE(0)로 폴백`);
           return 0;
         };
         p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B2-${i}`, processNo: pNo, category: 'B', itemCode: 'B2', value: ensureString(v), m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || '')}`, createdAt: new Date() }, 'B2', i)));
