@@ -340,15 +340,18 @@ export default function LegacyImportPage() {
   const handleDeleteDatasets = useCallback(async (fmeaIds: string[]) => {
     const { softDeleteDatasets, loadAllDatasetSummariesAdmin } = await import('../utils/master-api');
     const result = await softDeleteDatasets(fmeaIds);
-    if (result.ok) {
-      try {
-        const resp = adminMode ? await loadAllDatasetSummariesAdmin() : await loadAllDatasetSummaries();
-        const sums = Array.isArray(resp) ? resp : resp.summaries;
-        const delIds: string[] = Array.isArray(resp) ? [] : (resp.deletedFmeaIds || []);
-        const activeList = adminMode ? fmeaList : fmeaList.filter(p => !delIds.includes(p.id.toLowerCase()));
-        setBdStatusList(buildBdStatusList(activeList, sums));
-      } catch (e) { console.error('BD 현황 리로드 오류:', e); }
+    if (!result.ok) {
+      alert(`BD 삭제 실패: ${result.error || '알 수 없는 오류'}`);
+      console.error('[handleDeleteDatasets] 삭제 실패:', result.error, fmeaIds);
+      return;
     }
+    try {
+      const resp = adminMode ? await loadAllDatasetSummariesAdmin() : await loadAllDatasetSummaries();
+      const sums = Array.isArray(resp) ? resp : resp.summaries;
+      const delIds: string[] = Array.isArray(resp) ? [] : (resp.deletedFmeaIds || []);
+      const activeList = adminMode ? fmeaList : fmeaList.filter(p => !delIds.includes(p.id.toLowerCase()));
+      setBdStatusList(buildBdStatusList(activeList, sums));
+    } catch (e) { console.error('BD 현황 리로드 오류:', e); }
   }, [fmeaList, adminMode, setBdStatusList]);
 
   const handleRestoreDatasets = useCallback(async (fmeaIds: string[]) => {

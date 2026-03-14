@@ -99,7 +99,12 @@ export function useFmeaSelection(): UseFmeaSelectionReturn {
 
   const handleDeleteDatasets = useCallback(async (fmeaIds: string[]) => {
     const result = await softDeleteDatasets(fmeaIds);
-    if (result.ok) await reloadBdStatus(fmeaList, adminMode);
+    if (!result.ok) {
+      alert(`BD 삭제 실패: ${result.error || '알 수 없는 오류'}`);
+      console.error('[handleDeleteDatasets] 삭제 실패:', result.error, fmeaIds);
+      return;
+    }
+    await reloadBdStatus(fmeaList, adminMode);
   }, [fmeaList, adminMode, reloadBdStatus]);
 
   const handleRestoreDatasets = useCallback(async (fmeaIds: string[]) => {

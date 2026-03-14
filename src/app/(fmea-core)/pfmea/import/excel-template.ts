@@ -1032,19 +1032,47 @@ const SAMPLE_DATA: Record<string, string[][]> = {
   // ★ FC 고장사슬 (v5.5): 12열 — Au BUMP 공정 교육용 데모
   // ★ Process-first 정렬 + 모든 행에 값 채움 (병합용)
   'FC 고장사슬': [
+    // ★ v5.6: A5 고장형태 25개 FM 전수 커버 — 36행 (Process-first 정렬)
+    // 12열: FE구분, FE, 공정번호, FM, 4M, WE, FC, PC(예방관리), DC(검출관리), O, D, AP
+    // ── 공정 01: 작업환경 ──
+    ['YP', 'Particle 오염으로 인한 제품 특성 이상', '01', '파티클 초과', 'EN', 'FFU', '풍속 저하', 'FFU 풍속 정기점검', '파티클 카운터 실시간 모니터링', '4', '3', 'M'],
+    // ── 공정 10: IQA(수입검사) ──
+    ['YP', 'Wafer 표면 결함 미검출로 인한 후공정 유출', '10', '두께 규격 이탈', 'MC', '두께 측정기', '측정 오차', '측정기 정기 교정(MSA)', 'Wafer 두께 측정기 전수검사', '3', '3', 'L'],
+    ['YP', 'Wafer 표면 결함 미검출로 인한 후공정 유출', '10', 'TTV 규격 초과', 'IM', 'Wafer', '자재 규격 미달', '수입검사 강화, IQC COA 확인', 'Wafer 두께 측정기 전수검사', '3', '3', 'L'],
+    // ── 공정 20: Sorter ──
+    ['YP', 'Lot 혼입으로 인한 Wafer 수율 손실', '20', '정렬 불량', 'MC', 'Sorter 장비', '정렬 센서 오작동', 'Sorter 일상점검, 센서 교정', '비전 센서 정렬 확인', '3', '3', 'L'],
+    // ── 공정 30: Scrubber ──
+    ['YP', 'Particle 오염으로 인한 제품 특성 이상', '30', '세정 불량', 'MC', 'Scrubber 장비', '노즐 막힘', 'Scrubber PM(예방보전)', 'KLA 파티클 검사', '3', '3', 'L'],
+    ['YP', 'Particle 오염으로 인한 제품 특성 이상', '30', '세정 불량', 'IM', 'DI Water', 'DI Water 비저항 저하', 'DI Water 비저항 실시간 모니터링', 'KLA 파티클 검사', '3', '3', 'L'],
     // ── 공정 40: UBM Sputter ──
     ['YP', '전기적 Open/Short', '40', 'UBM 두께 부족', 'MC', 'Sputter 장비', 'Power 변동', 'Sputter 장비 PM, Power 실시간 모니터링', 'SEM 검사, 4-Point Probe', '3', '4', 'M'],
     ['YP', '전기적 Open/Short', '40', 'UBM 두께 부족', 'MC', 'DC Power Supply', '전압 변동', '정기 교정, UPS 운용', 'SEM 검사, 4-Point Probe', '3', '4', 'M'],
     ['YP', 'Bump Lift-off', '40', 'UBM 두께 부족', 'EN', '진공 챔버', '진공 누설', '진공도 실시간 모니터링, Leak 점검', 'SEM 검사, 4-Point Probe', '3', '4', 'M'],
     ['YP', '전기적 Open/Short', '40', '막질 불균일', 'IM', 'Ti Target', 'Target 소진', 'Target 사용량 카운터 관리', 'SEM 검사, 4-Point Probe', '4', '4', 'M'],
     ['YP', '전기적 Open/Short', '40', '막질 불균일', 'IM', 'Cu Target', 'Target 소진', 'Target 사용량 카운터 관리', 'SEM 검사, 4-Point Probe', '4', '4', 'M'],
+    // ── 공정 50: Scrubber2 ──
+    ['YP', 'Particle 오염으로 인한 제품 특성 이상', '50', '세정 불량', 'MC', 'Scrubber 장비', '노즐 막힘', 'Scrubber PM(예방보전)', 'KLA 파티클 검사', '3', '3', 'L'],
+    // ── 공정 60: PR Coating ──
+    ['YP', 'PR 두께 Spec Out으로 인한 패턴 불량', '60', 'PR 두께 불균일', 'MC', 'Coater', 'RPM 편차', 'Coater PM, RPM 실시간 모니터링', '막두께 측정기 검사', '3', '4', 'M'],
+    ['YP', 'PR 두께 Spec Out으로 인한 패턴 불량', '60', 'PR 두께 불균일', 'IM', 'PR(Photo Resist)', 'PR 열화', 'PR 유효기한 관리, 냉장보관', '막두께 측정기 검사', '3', '4', 'M'],
     // ── 공정 70: Exposure ──
     ['YP', 'Bump간 Bridge', '70', 'CD 규격 이탈', 'MC', 'Stepper/Scanner', '에너지 편차', 'Stepper 정기 교정, 에너지 실시간 모니터링', 'CD SEM 측정', '3', '3', 'M'],
     ['YP', 'Bump간 Bridge', '70', 'CD 규격 이탈', 'IM', 'Mask(Reticle)', 'Mask 결함', 'Mask 정기 검사, 세정', 'CD SEM 측정', '3', '3', 'L'],
+    // ── 공정 80: Develop ──
+    ['YP', 'CD Spec Out으로 인한 Bump 형성 불량', '80', 'Under/Over develop', 'MC', 'Developer', '현상 시간 편차', 'Developer PM, 시간 자동제어', '광학현미경 검사', '3', '4', 'M'],
+    ['YP', 'CD Spec Out으로 인한 Bump 형성 불량', '80', 'Under/Over develop', 'IM', '현상액', '농도 편차', '농도 자동 보정 시스템', '광학현미경 검사', '3', '4', 'M'],
+    // ── 공정 90: Descum ──
+    ['YP', 'PR Scum 잔류로 인한 Au Bump 형성 불량', '90', 'PR 잔사 잔류', 'MC', 'Descum 장비', 'Power 불안정', 'Descum PM, Power 모니터링', '광학현미경 검사', '3', '4', 'M'],
     // ── 공정 100: Au Plating ──
     ['YP', '전기적 Open/Short', '100', '높이 편차', 'MC', 'Au Plating Tank', '전류밀도 편차', 'Plating Tank PM, 전류밀도 자동제어', '높이 측정기, 외관검사', '3', '4', 'H'],
     ['YP', '전기적 Open/Short', '100', '높이 편차', 'MC', '정류기(Rectifier)', '전류 변동', '정류기 정기 교정', '높이 측정기, 외관검사', '3', '4', 'M'],
     ['SP', 'IMC 과성장에 의한 접합부 열화', '100', '순도 저하', 'IM', 'Au 도금액', '농도 저하', '도금액 농도 자동분석, 보충', 'XRF 분석', '4', '4', 'H'],
+    // ── 공정 110: PR Strip ──
+    ['YP', 'Bump Height Spec Out으로 인한 제품 특성 이상', '110', 'PR 잔사 잔류', 'MC', 'Strip 장비', '온도 편차', 'Strip 장비 PM, 온도 자동제어', '광학현미경 검사', '3', '4', 'M'],
+    // ── 공정 120: Au Etch ──
+    ['YP', 'Plating 균일도 Spec Out으로 인한 Bump 특성 이상', '120', '에칭 부족/과다', 'MC', 'Etch 장비', '에칭 시간 편차', 'Etch PM, 시간 자동제어', 'SEM 검사', '3', '4', 'M'],
+    // ── 공정 130: TiW Etch ──
+    ['YP', 'Plating 균일도 Spec Out으로 인한 Bump 특성 이상', '130', 'Under/Over etch', 'MC', 'TiW Etch 장비', '온도 편차', 'Etch PM, 온도 자동제어', 'SEM 검사', '3', '4', 'M'],
     // ── 공정 140: Anneal ──
     ['SP', 'IMC 과성장에 의한 접합부 열화', '140', 'IMC 과성장', 'MC', 'Anneal 장비', '온도 과다/부족', 'Anneal 장비 PM, 온도 프로파일 모니터링', 'Cross-section SEM', '4', '4', 'H'],
     ['SP', 'IMC 과성장에 의한 접합부 열화', '140', 'IMC 과성장', 'EN', 'N₂ 공급장치', '유량 부족', 'N₂ 유량 실시간 모니터링', 'Cross-section SEM', '3', '4', 'M'],
@@ -1052,6 +1080,16 @@ const SAMPLE_DATA: Record<string, string[][]> = {
     ['USER', '고객 라인 정지, 클레임', '150', '외관 불량', 'MC', 'AVI 장비', '해상도 저하', 'AVI 정기 교정, 한도 견본 검증', 'AVI(자동외관검사)', '3', '3', 'M'],
     ['USER', '고객 라인 정지, 클레임', '150', '높이 규격 이탈', 'MC', '높이 측정기', '측정 오차', '측정기 정기 교정(MSA)', '높이 측정기 전수검사', '3', '3', 'M'],
     ['USER', '고객 신뢰도 하락', '150', '외관 불량', 'MN', '검사원', '판정 기준 오적용', '검사원 정기 교육, 한도 견본 비치', 'AVI(자동외관검사)', '3', '3', 'M'],
+    // ── 공정 160: Clean ──
+    ['SP', 'Particle 오염 불량 유출로 인한 고객 기능 이상', '160', '세정 불량', 'MC', 'Clean 장비', '노즐 막힘', 'Clean 장비 PM', 'KLA 파티클 검사', '3', '3', 'L'],
+    // ── 공정 170: Scrubber3 ──
+    ['SP', 'Particle 오염 불량 유출로 인한 고객 기능 이상', '170', '세정 불량', 'MC', 'Scrubber 장비', '노즐 막힘', 'Scrubber PM', 'KLA 파티클 검사', '3', '3', 'L'],
+    // ── 공정 180: Sorter3 ──
+    ['SP', '라벨 불일치로 인한 Lot 혼입 불량 유출', '180', '정렬 불량', 'MC', 'Sorter 장비', '정렬 센서 오작동', 'Sorter 일상점검', '비전 센서 정렬 확인', '3', '3', 'L'],
+    // ── 공정 190: AVI ──
+    ['SP', '외관 결함 불량 유출(고객 Outgoing Defect)', '190', '외관 결함 미검출', 'MC', 'AVI 장비', '해상도 저하', 'AVI 정기 교정', 'AVI 이중 검사', '3', '3', 'L'],
+    // ── 공정 200: OGI/Packing ──
+    ['SP', '고객 Packing 기준 부적합으로 인한 납품 Reject', '200', '포장 불량', 'MC', '포장 장비', '진공 누설', '포장 장비 PM', '포장 체크리스트 확인', '3', '3', 'L'],
   ],
   // ★ FA 통합분석 (ALL): 26열 — Au BUMP Wafer 공정 교육용 데모
   'FA 통합분석': [

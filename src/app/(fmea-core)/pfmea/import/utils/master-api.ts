@@ -211,14 +211,22 @@ export async function inheritFromParent(params: {
 /**
  * ★ v2.4.0: Soft Delete — dataset을 비활성화 (isActive=false)
  */
-export async function softDeleteDatasets(fmeaIds: string[]): Promise<{ ok: boolean; updatedCount: number }> {
-  const res = await fetch('/api/pfmea/master', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fmeaIds, action: 'softDelete' }),
-  });
-  const json = await res.json();
-  return { ok: json.success, updatedCount: json.updatedCount ?? 0 };
+export async function softDeleteDatasets(fmeaIds: string[]): Promise<{ ok: boolean; updatedCount: number; error?: string }> {
+  try {
+    const res = await fetch('/api/pfmea/master', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fmeaIds, action: 'softDelete' }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      return { ok: false, updatedCount: 0, error: json.error || `HTTP ${res.status}` };
+    }
+    return { ok: !!json.success, updatedCount: json.updatedCount ?? 0 };
+  } catch (err) {
+    console.error('[softDeleteDatasets] fetch 실패:', err);
+    return { ok: false, updatedCount: 0, error: '네트워크 오류' };
+  }
 }
 
 /**
