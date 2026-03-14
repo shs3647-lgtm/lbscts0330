@@ -104,6 +104,9 @@ export interface ItemCodeStat {
   rawCount: number;       // 원본 행에서 발견된 총 횟수
   uniqueCount: number;    // 중복 제거 후 고유 건수
   dupSkipped: number;     // 중복으로 스킵된 건수
+  // ★ 2026-03-14: 파이프라인 검증 컬럼 (UUID→DB 정합성)
+  uuidCount?: number;     // 파싱 결과 UUID가 할당된 유효 항목 수
+  dbCount?: number;       // DB(master dataset)에 저장된 항목 수
 }
 
 /** 공정별 아이템코드 카운트 */

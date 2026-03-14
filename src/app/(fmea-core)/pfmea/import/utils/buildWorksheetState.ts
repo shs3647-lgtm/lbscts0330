@@ -561,7 +561,9 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
   const a4Items = byCode(items, 'A4');
   const a5Items = byCode(items, 'A5');
 
-  // A3+A4: 1:N 매칭 (각 A3 function에 모든 A4를 productChars로)
+  // ★★★ 2026-03-14: A4 Cartesian 근본 해결 — 공유 ID 패턴 ★★★
+  // 이전: 각 A3마다 새 uid() → A3×A4 Cartesian 중복 (A3=2, A4=3 → PC=6)
+  // 수정: A4 productChars를 한 번만 생성(공유 ID) → 모든 A3가 같은 ID 참조
   if (a3Items.length === 0 && a4Items.length > 0) {
     // A3 없이 A4만 → 빈 이름 function 생성
     process.functions = [{
@@ -571,33 +573,32 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     }];
   } else if (a3Items.length > 0) {
     if (a4Items.length > 0) {
-      // A4 있음: 모든 A3에 동일한 A4 배분
+      // ★ A4 공유 ID: 한 번만 생성, 모든 A3 function이 동일 ID 참조
+      const sharedPCs = a4Items.map(a4 => ({
+        id: uid(),
+        name: a4.value,
+        specialChar: (a4 as unknown as { specialChar?: string }).specialChar || ''
+      }));
       process.functions = a3Items.map(a3 => ({
         id: uid(),
         name: a3.value,
-        productChars: a4Items.map(a4 => ({
-          id: uid(),
-          name: a4.value,
-          specialChar: (a4 as any).specialChar || ''
-        })),
+        productChars: sharedPCs.map(pc => ({ ...pc })),  // 동일 ID, 새 객체 (불변성)
       }));
     } else {
-      // ★★★ 2026-02-25: A4 없으면 공정 내 다른 A3의 A4를 재사용하지 않고
-      // 단일 placeholder 생성 (ID 공유로 A5 연결 보장)
+      // A4 없으면 단일 placeholder 생성 (ID 공유로 A5 연결 보장)
       const placeholderPC = { id: uid(), name: '(제품특성 미입력)', specialChar: '' };
       process.functions = a3Items.map(a3 => ({
         id: uid(),
         name: a3.value,
-        productChars: [{ ...placeholderPC, id: uid() }],
+        productChars: [{ ...placeholderPC }],  // placeholder도 동일 ID 공유
       }));
     }
   }
   // A3/A4 모두 없으면 functions = [] 유지
 
-  // ★★★ 2026-03-10: A5 원자성 배분 — 고유 A4(제품특성)에만 배분 ★★★
-  // 버그: A3가 N개면 동일 A4가 N번 복제 → allProductChars = A3×A4
-  //       distribute(16 FM, 119 PC) → 대부분 PC에 FM=0 → FK 깨져서 50% 손실
-  // 수정: 첫 번째 function의 PC(= 고유 A4)만 기준으로 배분
+  // ★★★ 2026-03-14: A4 공유 ID 적용 후 uniquePCs = 모든 function의 PC 동일 ★★★
+  // 이전: 첫 번째 function만 참조 (Cartesian 우회)
+  // 수정: 공유 ID이므로 어느 function이든 동일한 PC ID
   const uniquePCs = process.functions[0]?.productChars || [];
 
   if (uniquePCs.length > 0 && a5Items.length > 0) {

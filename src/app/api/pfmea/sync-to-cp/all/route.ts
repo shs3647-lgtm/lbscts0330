@@ -257,6 +257,8 @@ export async function POST(request: NextRequest) {
                                 linkStatus: 'linked',
                                 pfmeaProcessId: l2.id,
                                 refSeverity: l2Risk?.maxSeverity,
+                                // ★★★ 2026-03-14: 제품특성 FK 전파 (FMEA→CP 원자성 연동) ★★★
+                                productCharId: (pc as { id?: string }).id || null,
                                 ...restored,
                             },
                         });

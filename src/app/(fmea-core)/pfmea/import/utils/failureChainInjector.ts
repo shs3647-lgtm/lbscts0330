@@ -57,6 +57,8 @@ export interface FailureLinkEntry {
   // ★★★ 2026-03-10: P1 해결 — 병합 정보 전달 (parser → migration) ★★★
   fmMergeSpan?: number;  // FM 병합 행 수 (엑셀 원본 기준)
   feMergeSpan?: number;  // FE 병합 행 수 (엑셀 원본 기준)
+  // ★★★ 2026-03-14: P0 — FM의 제품특성 FK ID (원자성 DB 연동) ★★★
+  productCharId?: string;  // FM.productCharId → ProcessProductChar.id
 }
 
 interface RiskDataEntry {
@@ -671,6 +673,8 @@ export function injectFailureChains(
         // ★★★ 2026-03-10: P1 — 병합 정보 전달 (parser → migration) ★★★
         fmMergeSpan: chain.fmMergeSpan || undefined,
         feMergeSpan: chain.feMergeSpan || undefined,
+        // ★★★ 2026-03-14: P0 — FM의 제품특성 FK ID 전파 ★★★
+        productCharId: (fm as { productCharId?: string }).productCharId || undefined,
       });
 
       // ★★★ 2026-03-02: riskData 키를 워크시트 표준 형식으로 저장 (risk-{fmId}-{fcId}-S/O/D)

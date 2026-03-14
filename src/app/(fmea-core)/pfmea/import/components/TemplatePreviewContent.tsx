@@ -29,6 +29,7 @@ import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './Template
 import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
+import { useDbVerification } from '../hooks/useDbVerification';
 
 // ─── Props ───
 
@@ -251,6 +252,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   // ── 통계표/FC검증 토글 ──
   const [showStats, setShowStats] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
+
+  // ── ★ 2026-03-14: DB 검증 (파이프라인 정합성: UUID→DB) ──
+  const { dbResult, dbLoading, verifyDb, getUuidCounts } = useDbVerification();
+  const uuidCounts = useMemo(() => getUuidCounts(flatData), [getUuidCounts, flatData]);
+  const handleDbVerify = useCallback(() => {
+    if (fmeaId) verifyDb(fmeaId);
+  }, [fmeaId, verifyDb]);
 
   // ── 미매칭 항목 스크롤 ──
   const [scrollTarget, setScrollTarget] = useState<{ type: 'FE' | 'FM' | 'FC'; text: string } | null>(null);
@@ -800,14 +808,37 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       {/* ─── Import 통계표 — 전체 표시, 현재 레벨 강조 ─── */}
       {showStats && effectiveStatistics && effectiveStatistics.itemStats.length > 0 && (
         <div className="mb-1.5 border border-indigo-200 rounded bg-indigo-50/30">
+          {/* ★ DB검증 버튼 */}
+          {fmeaId && (
+            <div className="flex items-center gap-2 px-1.5 py-0.5 border-b border-indigo-200 bg-indigo-50/50">
+              <button
+                onClick={handleDbVerify}
+                disabled={dbLoading}
+                className={`px-2 py-0.5 rounded text-[9px] font-bold border cursor-pointer transition-colors ${
+                  dbLoading ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-wait'
+                  : dbResult ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100'
+                  : 'bg-cyan-600 text-white border-cyan-600 hover:bg-cyan-700'
+                }`}>
+                {dbLoading ? 'DB 조회중...' : dbResult ? 'DB 재검증' : 'DB 검증'}
+              </button>
+              {dbResult && (
+                <span className="text-[9px] text-gray-500">
+                  DB {dbResult.totalDbItems}건 ({dbResult.loadedAt.toLocaleTimeString()})
+                </span>
+              )}
+            </div>
+          )}
           <table className="w-full border-collapse text-[9px]">
             <thead><tr>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:30}}>레벨</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>코드</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-left border-r border-indigo-500">항목</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>원본</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:50}}>고유</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center" style={{width:50}}>중복</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>원본</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>고유</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>중복</th>
+              <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
+              <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="DB에 저장된 건수">DB</th>
+              <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center" style={{width:40}} title="UUID - DB 차이 (0이면 정합)">차이</th>
             </tr></thead>
             <tbody>
               {effectiveStatistics.itemStats.map((s, i) => {
@@ -815,6 +846,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 const isCurrentLevel = level === previewLevel;
                 const hasDup = s.dupSkipped > 0;
                 const isHighlighted = highlightDupCode === s.itemCode;
+                const uuid = uuidCounts[s.itemCode] ?? 0;
+                const db = dbResult?.counts[s.itemCode] ?? null;
+                const diff = db !== null ? uuid - db : null;
                 return (
                   <tr key={s.itemCode} className={`${
                     isHighlighted ? 'bg-amber-100'
@@ -826,7 +860,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                     <td className="px-1.5 py-0.5 border-r border-gray-200">{s.label}</td>
                     <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">{s.rawCount}</td>
                     <td className="px-1.5 py-0.5 text-center font-bold text-blue-700 border-r border-gray-200">{s.uniqueCount}</td>
-                    <td className="px-1.5 py-0.5 text-center font-bold">
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
                       {hasDup ? (
                         <button onClick={() => handleDupClick(s.itemCode)}
                           className={`px-1.5 rounded cursor-pointer font-bold ${
@@ -838,6 +872,18 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         <span className="text-gray-300">0</span>
                       )}
                     </td>
+                    {/* ★ UUID / DB / 차이 */}
+                    <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700 border-r border-gray-200">{uuid || <span className="text-gray-300">0</span>}</td>
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                      {db !== null ? <span className="text-cyan-700">{db}</span> : <span className="text-gray-300">-</span>}
+                    </td>
+                    <td className="px-1.5 py-0.5 text-center font-bold">
+                      {diff !== null ? (
+                        diff === 0
+                          ? <span className="text-green-600">0</span>
+                          : <span className="text-red-600 bg-red-50 px-1 rounded">{diff > 0 ? `+${diff}` : diff}</span>
+                      ) : <span className="text-gray-300">-</span>}
+                    </td>
                   </tr>
                 );
               })}
@@ -846,6 +892,15 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-red-600">{effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{dbResult ? dbResult.totalDbItems : <span className="text-gray-300">-</span>}</td>
+                <td className="px-1.5 py-0.5 text-center font-bold">{dbResult ? (() => {
+                  const totalUuid = Object.values(uuidCounts).reduce((s, c) => s + c, 0);
+                  const totalDiff = totalUuid - dbResult.totalDbItems;
+                  return totalDiff === 0
+                    ? <span className="text-green-600">0</span>
+                    : <span className="text-red-600">{totalDiff > 0 ? `+${totalDiff}` : totalDiff}</span>;
+                })() : <span className="text-gray-300">-</span>}</td>
               </tr>
             </tbody>
           </table>

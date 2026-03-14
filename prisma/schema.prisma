@@ -169,10 +169,11 @@ model L2Structure {
   mergeGroupId String?
   rowSpan      Int?          @default(1)
   colSpan      Int?          @default(1)
-  failureModes FailureMode[]
-  l2Functions  L2Function[]
-  l1Structure  L1Structure   @relation(fields: [l1Id], references: [id], onDelete: Cascade)
-  l3Structures L3Structure[]
+  failureModes        FailureMode[]
+  l2Functions         L2Function[]
+  processProductChars ProcessProductChar[]  // ★ 2026-03-14: 제품특성 독립 엔티티
+  l1Structure         L1Structure   @relation(fields: [l1Id], references: [id], onDelete: Cascade)
+  l3Structures        L3Structure[]
 
   @@index([fmeaId])
   @@index([l1Id])
@@ -234,12 +235,33 @@ model L1Function {
   @@map("l1_functions")
 }
 
+// ★★★ 2026-03-14: 제품특성 독립 엔티티 (A4 원자성 DB) ★★★
+// 이전: L2Function.productChar = String (텍스트), FailureMode.productCharId = String? (관계 없음)
+// 수정: ProcessProductChar 독립 테이블 → FM이 FK로 참조 → CP/PFD 공유 가능
+model ProcessProductChar {
+  id           String        @id @default(uuid())
+  fmeaId       String
+  l2StructId   String
+  name         String                              // A4 값 (제품특성명)
+  specialChar  String?                             // 특별특성 기호 (◇, ◆, △, ○ 등)
+  orderIndex   Int           @default(0)           // 같은 공정 내 순서
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  l2Structure  L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+  failureModes FailureMode[] @relation("FmProductChar")
+
+  @@index([fmeaId])
+  @@index([l2StructId])
+  @@map("process_product_chars")
+}
+
 model L2Function {
   id           String        @id @default(uuid())
   fmeaId       String
   l2StructId   String
   functionName String
-  productChar  String
+  productChar  String                              // 기존 텍스트 필드 (하위호환)
   specialChar  String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -306,26 +328,29 @@ model FailureEffect {
 }
 
 model FailureMode {
-  id            String        @id @default(uuid())
+  id            String              @id @default(uuid())
   fmeaId        String
   l2FuncId      String
   l2StructId    String
   productCharId String?
   mode          String
-  specialChar   Boolean?      @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  specialChar   Boolean?            @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   parentId      String?
   mergeGroupId  String?
-  rowSpan       Int?          @default(1)
-  colSpan       Int?          @default(1)
+  rowSpan       Int?                @default(1)
+  colSpan       Int?                @default(1)
   failureLinks  FailureLink[]
-  l2Function    L2Function    @relation(fields: [l2FuncId], references: [id], onDelete: Cascade)
-  l2Structure   L2Structure   @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+  l2Function    L2Function          @relation(fields: [l2FuncId], references: [id], onDelete: Cascade)
+  l2Structure   L2Structure         @relation(fields: [l2StructId], references: [id], onDelete: Cascade)
+  // ★★★ 2026-03-14: ProcessProductChar FK 관계 추가 ★★★
+  productChar   ProcessProductChar? @relation("FmProductChar", fields: [productCharId], references: [id])
 
   @@index([fmeaId])
   @@index([l2FuncId])
   @@index([l2StructId])
+  @@index([productCharId])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("failure_modes")
@@ -1041,6 +1066,8 @@ model ControlPlanItem {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   unifiedItemId   String?
+  // ★★★ 2026-03-14: 제품특성 FK (FMEA→CP 원자성 연동) ★★★
+  productCharId   String?             // ProcessProductChar.id 참조 (동일 제품특성 추적)
   controlPlan     ControlPlan         @relation(fields: [cpId], references: [id], onDelete: Cascade)
   unifiedItem     UnifiedProcessItem? @relation(fields: [unifiedItemId], references: [id])
 
@@ -1048,6 +1075,7 @@ model ControlPlanItem {
   @@index([pfmeaRowUid])
   @@index([pfmeaProcessId])
   @@index([unifiedItemId])
+  @@index([productCharId])
   @@map("control_plan_items")
 }
 
@@ -1154,6 +1182,8 @@ model PfdItem {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   unifiedItemId String?
+  // ★★★ 2026-03-14: 제품특성 FK (FMEA→PFD 원자성 연동) ★★★
+  productCharId String?             // ProcessProductChar.id 참조 (동일 제품특성 추적)
   pfd           PfdRegistration     @relation(fields: [pfdId], references: [id], onDelete: Cascade)
   unifiedItem   UnifiedProcessItem? @relation(fields: [unifiedItemId], references: [id])
 
@@ -1161,6 +1191,7 @@ model PfdItem {
   @@index([processNo])
   @@index([fmeaL2Id])
   @@index([cpItemId])
+  @@index([productCharId])
   @@index([unifiedItemId])
   @@map("pfd_items")
 }

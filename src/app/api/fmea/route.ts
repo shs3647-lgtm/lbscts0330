@@ -437,6 +437,7 @@ export async function POST(request: NextRequest) {
       await tx.failureCause.deleteMany(deleteCondition);
       await tx.failureMode.deleteMany(deleteCondition);
       await tx.failureEffect.deleteMany(deleteCondition);
+      await tx.processProductChar.deleteMany(deleteCondition).catch(() => { }); // ★ 2026-03-14
       await tx.l3Function.deleteMany(deleteCondition);
       await tx.l2Function.deleteMany(deleteCondition);
       await tx.l1Function.deleteMany(deleteCondition);
@@ -647,6 +648,37 @@ export async function POST(request: NextRequest) {
           })),
           skipDuplicates: true,
         });
+      }
+
+      // 4.5. ★★★ 2026-03-14: ProcessProductChar 원자성 저장 ★★★
+      // L2Function의 productChars 배열에서 독립 엔티티 추출 → createMany
+      txStep = 'PROCESS_PRODUCT_CHARS';
+      {
+        const pcRows: { id: string; fmeaId: string; l2StructId: string; name: string; specialChar: string | null; orderIndex: number }[] = [];
+        for (const func of db.l2Functions) {
+          const pcs = (func as any).productChars;
+          if (Array.isArray(pcs)) {
+            pcs.forEach((pc: any, idx: number) => {
+              if (!pc?.id || !pc?.name) return;
+              // 중복 방지 (공유 ID 패턴으로 동일 PC가 여러 function에 있을 수 있음)
+              if (pcRows.some(r => r.id === pc.id)) return;
+              pcRows.push({
+                id: pc.id,
+                fmeaId: db.fmeaId,
+                l2StructId: func.l2StructId,
+                name: typeof pc.name === 'string' ? pc.name : String(pc.name),
+                specialChar: pc.specialChar || null,
+                orderIndex: idx,
+              });
+            });
+          }
+        }
+        if (pcRows.length > 0) {
+          await tx.processProductChar.createMany({
+            data: pcRows,
+            skipDuplicates: true,
+          });
+        }
       }
 
       // 5. L2Functions 배치 저장
@@ -2053,6 +2085,7 @@ export async function DELETE(request: NextRequest) {
       await tx.failureCause.deleteMany({ where: { fmeaId } });
       await tx.failureMode.deleteMany({ where: { fmeaId } });
       await tx.failureEffect.deleteMany({ where: { fmeaId } });
+      await tx.processProductChar.deleteMany({ where: { fmeaId } }).catch(() => { }); // ★ 2026-03-14
       await tx.l3Function.deleteMany({ where: { fmeaId } });
       await tx.l2Function.deleteMany({ where: { fmeaId } });
       await tx.l1Function.deleteMany({ where: { fmeaId } });
