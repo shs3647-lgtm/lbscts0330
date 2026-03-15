@@ -426,7 +426,7 @@ export function UserSelectModal({
                 <div>
                   <label className="text-[10px] text-gray-600 block mb-0.5">공장<span className="text-[7px] text-gray-400 ml-0.5">(Plant)</span></label>
                   <input type="text" value={editingUser.factory} onChange={(e) => setEditingUser({ ...editingUser, factory: e.target.value })}
-                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder="울산공장" />
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder="평택공장" />
                 </div>
                 <div>
                   <label className="text-[10px] text-gray-600 block mb-0.5">부서<span className="text-[7px] text-gray-400 ml-0.5">(Dept.)</span></label>

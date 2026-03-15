@@ -31,27 +31,10 @@ export interface SpecialCharMaster {
   linkPFD: boolean;
 }
 
-/** 기본 특별특성 데이터 — 15개 (LBS2 + 현대기아2 + FORD6 + BMW5) */
+/** 기본 특별특성 데이터 — LBS 전용 */
 const DEFAULT_SPECIAL_CHARS: Omit<SpecialCharMaster, 'id' | 'partName' | 'processName' | 'productChar' | 'processChar' | 'failureMode'>[] = [
-  // LBS (LB Semicon) — 제품특성·공정특성·고장형태 모두 특별특성 지정 가능
   { customer: 'LBS', customerSymbol: '◇', internalSymbol: 'SC', meaning: '공정관리 특별특성\n공정 파라미터 Spec Out 시 제품 품질에 영향\n(Etch Rate, Amount 등)', icon: '◇', color: '#00838f', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
   { customer: 'LBS', customerSymbol: '★', internalSymbol: 'CC', meaning: '제품/공정 핵심 특별특성\n고객 요구 규격 직결, Spec Out 시 제품 불량\n(Height, Strength, Co-planarity 등)', icon: '★', color: '#e65100', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
-  // 현대기아
-  { customer: '현대기아', customerSymbol: 'CC', internalSymbol: 'SC', meaning: '안전·법규 관련 특성\n미충족 시 탑승자 안전 또는 법적 규제 위반\n정부 규정/차량 안전 기준에 직접 영향', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
-  { customer: '현대기아', customerSymbol: 'IC', internalSymbol: 'SC', meaning: '기능·성능 관련 중요 특성\n미충족 시 고객 불만·성능 저하·조립성 문제\n제품 기능 요구사항에 영향', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
-  // FORD
-  { customer: 'FORD', customerSymbol: 'YC', internalSymbol: 'SC', meaning: 'Potentially Critical (잠재적 치명특성)\n미준수 시 안전/법규 위반 가능성 있는 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'FORD', customerSymbol: 'YS', internalSymbol: 'SC', meaning: 'Potentially Significant (잠재적 중요특성)\n미준수 시 차량 기능/성능에 영향을 줄 수 있는 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'FORD', customerSymbol: 'CC', internalSymbol: 'SC', meaning: 'Critical Characteristic (치명적 특성)\n안전/법규 직접 관련, 관리 미흡 시 심각한 위험', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'FORD', customerSymbol: 'OS', internalSymbol: 'SC', meaning: 'Operator Safety (작업자 안전)\n작업자의 안전에 직접적인 영향을 주는 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'FORD', customerSymbol: 'SC', internalSymbol: 'SC', meaning: 'Significant Characteristic (중요 특성)\n제품 품질/기능에 유의한 영향을 미치는 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'FORD', customerSymbol: 'HI', internalSymbol: 'SC', meaning: 'High Impact (높은 영향)\n환경/유해물질 관련 높은 영향도를 가진 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  // BMW
-  { customer: 'BMW', customerSymbol: 'BM-L', internalSymbol: 'SC', meaning: 'Type Approval (형식승인)\n법규 인증 관련 특성, 형식승인 요건 충족 필수', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'BMW', customerSymbol: 'BM-C', internalSymbol: 'SC', meaning: 'Legal Requirements (기타 법적 요구사항)\n형식승인 외 기타 법적·규제 관련 요구사항', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'BMW', customerSymbol: 'BM-S', internalSymbol: 'SC', meaning: 'Safety (안전)\n차량/탑승자 안전에 직접 영향을 미치는 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'BMW', customerSymbol: 'BM-F', internalSymbol: 'F/F', meaning: 'Function (기능)\n차량 기능/조립성에 영향을 미치는 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
-  { customer: 'BMW', customerSymbol: 'BM-E', internalSymbol: 'F/F', meaning: 'Economic Loss (경제적 손실)\n고장 시 경제적 손실/보증비용 발생 가능 특성', icon: '', color: '', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false },
 ];
 
 const STYLES = {
@@ -238,7 +221,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
   // ★ 신규 기호는 맨 위에 추가 (아래쪽에 추가하면 스크롤해야 확인 가능)
   const addNewItem = useCallback(() => {
     const newItem: SpecialCharMaster = {
-      id: `SC_${Date.now()}`, customer: '신규', customerSymbol: '', internalSymbol: 'SC', meaning: '',
+      id: `SC_${Date.now()}`, customer: 'LBS', customerSymbol: '', internalSymbol: 'SC', meaning: '',
       icon: '', color: '#f5f5f5', partName: '', processName: '', productChar: '', processChar: '', failureMode: '',
       linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false,
     };
@@ -255,8 +238,8 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
     // ★ 탭별 Export 컬럼 분리 — 각 화면 내용과 100% 일치
     const isSymbolTab = activeTab === 'symbol';
     const headers = isSymbolTab
-      ? ['고객사(Customer)', '표시(Internal)', '기호(Symbol)', '기준(Criteria)']
-      : ['기호(Symbol)', '고객(Customer)', '부품(Part)', '공정(Process)', '제품특성(Product Char)', '공정특성(Process Char)', '고장형태(Failure Mode)', 'D-FMEA', 'P-FMEA', 'CP', 'PFD'];
+      ? ['회사(Company)', '표시(Internal)', '기호(Symbol)', '기준(Criteria)']
+      : ['기호(Symbol)', '회사(Company)', '부품(Part)', '공정(Process)', '제품특성(Product Char)', '공정특성(Process Char)', '고장형태(Failure Mode)', 'D-FMEA', 'P-FMEA', 'CP', 'PFD'];
 
     const exportData = selectedCustomer === '전체' ? masterData : masterData.filter(d => d.customer === selectedCustomer);
     const rows = exportData.map(item => isSymbolTab
@@ -289,7 +272,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       right: { style: 'thin' as const, color: { rgb: color } },
     });
 
-    // 고객사 구분선용 하단 굵은 테두리
+    // 회사 구분선용 하단 굵은 테두리
     const groupBottomBorder = (color: string) => ({
       ...thinBorder(color),
       bottom: { style: 'medium' as const, color: { rgb: isSymbolTab ? '2E7D32' : '1565C0' } },
@@ -339,7 +322,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       alignment: { horizontal: 'left' as const, vertical: 'center' as const, wrapText: true },
     });
 
-    // 고객사 그룹 구분 감지 (Tab1: 첫 컬럼, Tab2: 두 번째 컬럼이 고객)
+    // 회사 그룹 구분 감지 (Tab1: 첫 컬럼, Tab2: 두 번째 컬럼이 회사)
     const customerCol = isSymbolTab ? 0 : 1;
     const isGroupEnd = (rowIdx: number) => {
       if (rowIdx >= rows.length - 1) return false;
@@ -413,11 +396,11 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
 
       const importedData: SpecialCharMaster[] = jsonData.map((row: any, idx) => {
         if (isItemRegisterFormat) {
-          // 항목등록 탭 형식: 기호(Symbol), 고객(Customer), 부품(Part), 공정(Process), ...
+          // 항목등록 탭 형식: 기호(Symbol), 회사(Company), 부품(Part), 공정(Process), ...
           const symbol = row['기호(Symbol)'] || row['기호'] || '';
           return {
             id: `SC_${Date.now()}_${idx}`,
-            customer: row['고객(Customer)'] || row['고객'] || '',
+            customer: row['회사(Company)'] || row['고객(Customer)'] || row['회사'] || row['고객'] || '',
             customerSymbol: symbol,
             internalSymbol: symbol || 'SC',
             meaning: '',
@@ -434,10 +417,10 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
             linkPFD: row['PFD'] === 'Y',
           };
         }
-        // 기호등록 탭 형식: 고객사(Customer), 표시(Internal), 기호(Symbol), 기준(Criteria)
+        // 기호등록 탭 형식: 회사(Company), 표시(Internal), 기호(Symbol), 기준(Criteria)
         return {
           id: `SC_${Date.now()}_${idx}`,
-          customer: row['고객사(Customer)'] || row['고객사'] || row['고객'] || '',
+          customer: row['회사(Company)'] || row['고객사(Customer)'] || row['회사'] || row['고객사'] || row['고객'] || '',
           customerSymbol: row['기호(Symbol)'] || row['기호'] || row['고객기호'] || '',
           internalSymbol: row['표시(Internal)'] || row['표시'] || row['자사표시'] || 'SC',
           meaning: row['기준(Criteria)'] || row['기준'] || row['구분'] || '',
@@ -490,7 +473,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
   const customers = ['전체', ...new Set(masterData.map(d => d.customer))];
   const filteredData = selectedCustomer === '전체' ? masterData : masterData.filter(d => d.customer === selectedCustomer);
 
-  // ★ 고객사별 행 배경색 — 파란색/녹색 번갈아 (단순)
+  // ★ 회사별 행 배경색 — 파란색/녹색 번갈아 (단순)
   const customerColorMap = useMemo(() => {
     const colors = ['#bbdefb', '#c8e6c9']; // 파란, 녹색
     const map = new Map<string, string>();
@@ -579,7 +562,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                     </th>
                   </tr>
                   <tr className="bg-green-100">
-                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-20" title="Customer"><div className="leading-tight"><div>고객사</div><div className="text-[7px] font-normal opacity-60">(Customer)</div></div></th>
+                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-20" title="Company"><div className="leading-tight"><div>회사</div><div className="text-[7px] font-normal opacity-60">(Company)</div></div></th>
                     {onSelect && <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-12 bg-orange-100" title="Select">선택</th>}
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-14" title="Internal Symbol"><div className="leading-tight"><div>표시</div><div className="text-[7px] font-normal opacity-60">(Internal)</div></div></th>
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-16" title="Customer Symbol"><div className="leading-tight"><div>기호</div><div className="text-[7px] font-normal opacity-60">(Symbol)</div></div></th>
@@ -729,7 +712,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-blue-100">
                     <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center w-16"><div className="leading-tight"><div>기호</div><div className="text-[7px] font-normal opacity-60">(Symbol)</div></div></th>
-                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center w-16"><div className="leading-tight"><div>고객</div><div className="text-[7px] font-normal opacity-60">(Customer)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center w-16"><div className="leading-tight"><div>회사</div><div className="text-[7px] font-normal opacity-60">(Company)</div></div></th>
                     <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[100px]"><div className="leading-tight"><div>부품</div><div className="text-[7px] font-normal opacity-60">(Part)</div></div></th>
                     <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[120px]"><div className="leading-tight"><div>공정</div><div className="text-[7px] font-normal opacity-60">(Process)</div></div></th>
                     <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[160px]"><div className="leading-tight"><div>제품특성</div><div className="text-[7px] font-normal opacity-60">(Product Char)</div></div></th>

@@ -53,9 +53,13 @@ export async function POST(request: NextRequest) {
       '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState'
     );
 
+    // ★★★ Chain-Driven 통합: chains를 buildWorksheetState에 직접 전달 ★★★
+    // 이전: build → enrich → link 3단계 분리 → 타이밍 버그 원인
+    // 변경: buildWorksheetState Phase 3 내부에서 enrich + link 순서 보장 실행
     const buildResult = buildWorksheetState(enrichedFlatData, {
       fmeaId: normalizedFmeaId,
       l1Name,
+      chains: chainsArray,
     });
 
     if (!buildResult.success) {
@@ -66,37 +70,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2.5. 체인 보강 (state에 없는 FM/FE/FC를 체인에서 추가)
-    if (chainsArray) {
-      const { enrichStateFromChains } = await import('@/lib/enrich-state-from-chains');
-      const enrichStats = enrichStateFromChains(buildResult.state, chainsArray);
-      if (enrichStats.addedFM > 0 || enrichStats.addedFE > 0 || enrichStats.addedFC > 0) {
-        console.info(
-          `[save-from-import] 체인 보강: FM+${enrichStats.addedFM} FE+${enrichStats.addedFE} FC+${enrichStats.addedFC} (skipped=${enrichStats.skippedNoProc})`
-        );
-      }
-    }
-
-    // 3. ★★★ DB중심 고장연결 — 순수 Map.get() 조회 (유사도 매칭 완전 제거) ★★★
-    // 보강된 state + chains → buildFailureLinksDBCentric로 링크 생성
-    let injectedLinks: unknown[] = [];
-    let injectedRisk: Record<string, number | string> = {};
-    if (chainsArray) {
-      const linkResult = buildFailureLinksDBCentric(buildResult.state, chainsArray);
-      injectedLinks = linkResult.failureLinks as unknown[];
-      injectedRisk = linkResult.riskData;
-      buildResult.state.failureLinks = linkResult.failureLinks;
-      buildResult.state.riskData = linkResult.riskData;
+    // 3. Phase 3 결과 추출 (buildWorksheetState 내부에서 이미 실행됨)
+    const injectedLinks: unknown[] = (buildResult.state.failureLinks || []) as unknown[];
+    const injectedRisk: Record<string, number | string> =
+      (buildResult.state.riskData || {}) as Record<string, number | string>;
+    if (buildResult.diagnostics.linkStats) {
+      const ls = buildResult.diagnostics.linkStats;
       console.info(
-        `[save-from-import] DB중심 링크: injected=${linkResult.injectedCount} skipped=${linkResult.skippedCount} ` +
-        `(noProc=${linkResult.skipReasons.noProc} noFE=${linkResult.skipReasons.noFE} ` +
-        `noFM=${linkResult.skipReasons.noFM} noFC=${linkResult.skipReasons.noFC})`
+        `[save-from-import] DB중심 링크: injected=${ls.injectedCount} skipped=${ls.skippedCount} ` +
+        `(noProc=${ls.skipReasons.noProc} noFE=${ls.skipReasons.noFE} ` +
+        `noFM=${ls.skipReasons.noFM} noFC=${ls.skipReasons.noFC})`
       );
     }
 
-    // 3.5. ★★★ Phase 4: A6(검출관리)/B5(예방관리) flat → riskData 보충 ★★★
-    // buildWorksheetState가 chains 없이 호출되어 Phase 4가 스킵됨
-    // → L2-6 전용시트 A6 데이터가 riskData에 누락되므로 여기서 보충
+    // 3.5. ★★★ Phase 4 안전망: A6/B5 riskData 보충 ★★★
+    // buildWorksheetState Phase 4에서 이미 처리되지만,
+    // 전용시트 A6/B5가 flatData에만 있고 enrichedFlatData에 누락될 경우 대비
+    // (if (!existing) 가드로 중복 방지)
     {
       const a6Items = flatData.filter((d: { itemCode?: string; value?: string }) =>
         d.itemCode === 'A6' && d.value?.trim()

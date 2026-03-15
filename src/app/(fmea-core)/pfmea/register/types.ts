@@ -59,7 +59,7 @@ export interface FMEAInfo {
 // =====================================================
 
 export const INITIAL_FMEA: FMEAInfo = {
-  companyName: 'LBS', engineeringLocation: '', customerName: '', customerIndustry: '', modelYear: '',
+  companyName: 'LBS', engineeringLocation: '평택공장', customerName: '', customerIndustry: '', modelYear: '',
   subject: '', fmeaStartDate: '', fmeaRevisionDate: '', fmeaProjectName: '',
   fmeaId: '', fmeaType: 'P', designResponsibility: '', confidentialityLevel: '',
   fmeaResponsibleName: '', partName: '', partNo: '', linkedCpNo: '', linkedPfdNo: '', linkedDfmeaNo: '',

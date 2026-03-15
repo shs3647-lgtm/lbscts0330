@@ -34,58 +34,37 @@ export interface LoginResult {
 // ============ Admin 초기화 ============
 
 /**
- * Admin 사용자 초기화 (없으면 생성)
+ * Admin 사용자 초기화 — DB에 사용자가 0명일 때만 생성 (초기 부트스트랩 전용)
+ * ★ 온프레미스: 사용자가 admin을 삭제하면 다시 생성하지 않음
+ *   (다른 사용자가 있으면 의도적 삭제로 간주)
  */
 export async function initializeAdmin(): Promise<void> {
   const prisma = getPrisma();
   if (!prisma) return;
 
   try {
-    // admin 계정 확인
-    const existingAdmin = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: 'admin@fmea.local' },
-          { name: 'admin' }
-        ]
+    // DB에 활성 사용자가 1명이라도 있으면 admin 자동 생성 안 함
+    const userCount = await prisma.user.count({ where: { isActive: true } });
+    if (userCount > 0) return;
+
+    // DB에 사용자가 0명 → 최초 설정: admin 계정 생성
+    const hashedPassword = await bcrypt.hash('1234', 10);
+    await prisma.user.create({
+      data: {
+        name: 'admin',
+        email: 'admin@fmea.local',
+        factory: 'LBS',
+        department: 'IT',
+        position: 'Administrator',
+        password: hashedPassword,
+        role: 'admin',
+        isActive: true,
+        permPfmea: 'write',
+        permDfmea: 'write',
+        permCp: 'write',
+        permPfd: 'write',
       }
     });
-
-    if (!existingAdmin) {
-      // admin 계정 생성
-      const hashedPassword = await bcrypt.hash('1234', 10);
-
-      await prisma.user.create({
-        data: {
-          name: 'admin',
-          email: 'admin@fmea.local',
-          factory: 'System',
-          department: 'IT',
-          position: 'Administrator',
-          password: hashedPassword,
-          role: 'admin',
-          isActive: true,
-          permPfmea: 'write',
-          permDfmea: 'write',
-          permCp: 'write',
-          permPfd: 'write',
-        }
-      });
-    } else {
-      // 기존 admin 비밀번호 업데이트
-      const hashedPassword = await bcrypt.hash('1234', 10);
-      await prisma.user.update({
-        where: { id: existingAdmin.id },
-        data: {
-          password: hashedPassword,
-          role: 'admin',
-          permPfmea: 'write',
-          permDfmea: 'write',
-          permCp: 'write',
-          permPfd: 'write',
-        }
-      });
-    }
   } catch (error) {
     console.error('❌ Admin 초기화 실패:', error);
   }
@@ -100,9 +79,9 @@ const HARDCODED_USERS = [
     name: 'admin',
     email: 'admin@fmea.local',
     password: process.env.ADMIN_DEFAULT_PASSWORD || '1234', // 환경변수 우선
-    factory: 'AMPSYSTEM',  // ★ 회사명
+    factory: 'LBS',  // ★ 회사명
     department: 'IT',
-    engineeringLocation: '천안공장', // ★ 엔지니어링 위치 (우리 회사 공장)
+    engineeringLocation: '평택공장', // ★ 엔지니어링 위치
     position: 'Administrator',
     role: 'admin',
     permPfmea: 'write',
@@ -115,9 +94,9 @@ const HARDCODED_USERS = [
     name: '신흥섭',
     email: 'amp@ampbiz.co.kr',
     password: process.env.DEMO_USER_PASSWORD || '1234', // 환경변수 우선
-    factory: 'AMPSYSTEM',  // ★ 회사명
-    department: '개발팀',
-    engineeringLocation: '천안공장', // ★ 엔지니어링 위치 (우리 회사 공장)
+    factory: 'LBS',  // ★ 회사명
+    department: 'FMEA개발팀',
+    engineeringLocation: '천안공장', // ★ 엔지니어링 위치
     position: '데모사용자',
     role: 'admin',
     permPfmea: 'write',

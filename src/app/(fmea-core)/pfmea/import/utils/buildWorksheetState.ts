@@ -48,6 +48,7 @@ import type {
   L3FailureCauseExtended,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import type { FailureLinkEntry } from './failureChainInjector';
+import { enrichStateFromChains } from '@/lib/enrich-state-from-chains';
 
 // ════════════════════════════════════════════
 // Types
@@ -1182,6 +1183,19 @@ export function buildWorksheetState(
   let linkStats: BuildDiagnostics['linkStats'];
 
   if (config.chains && config.chains.length > 0) {
+    // ★ Chain-Driven 통합: enrich → link를 같은 스코프에서 실행
+    // 이전: save-from-import에서 3단계 분리 호출 → 타이밍 버그 원인
+    // 변경: Phase 3 내부에서 enrich + link를 순서 보장 실행
+    const enrichStats = enrichStateFromChains(
+      state,
+      config.chains as unknown as import('@/lib/enrich-state-from-chains').ChainRecord[],
+    );
+    if (enrichStats.addedFM > 0 || enrichStats.addedFE > 0 || enrichStats.addedFC > 0) {
+      console.info(
+        `[buildWS:Phase3] 체인 보강: FM+${enrichStats.addedFM} FE+${enrichStats.addedFE} FC+${enrichStats.addedFC}`
+      );
+    }
+
     const linkResult = buildFailureLinksDBCentric(state, config.chains);
     state.failureLinks = linkResult.failureLinks;
     state.riskData = linkResult.riskData;
