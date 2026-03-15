@@ -448,6 +448,27 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         }
       }
 
+      // ★★★ 2026-03-15 FIX: B4 complex template 감지 — FC 소속 WE 추적 필수 ★★★
+      let b4WECol = 0;          // B4 workElement 컬럼 (1-indexed, 0=미감지)
+      let b4CauseCol = 0;       // B4 고장원인 컬럼 (1-indexed, 0=미감지)
+      if (sheetCode === 'B4' && detected4M && detected4MCol > 0) {
+        const nextHeaderIdx = detected4MCol;
+        const nextHeader = (headers[nextHeaderIdx] || '').replace(/\s/g, '').toLowerCase();
+        if (nextHeader.includes('작업요소') && !nextHeader.includes('기능') && !nextHeader.includes('공정특성') && !nextHeader.includes('고장')) {
+          b4WECol = detected4MCol + 1;
+          for (let hi = nextHeaderIdx + 1; hi < headers.length; hi++) {
+            const h = (headers[hi] || '').replace(/\s/g, '').toLowerCase();
+            if (h.includes('고장원인') || h.includes('원인') || h.includes('l3-4') || h.includes('b4')) {
+              b4CauseCol = hi + 1;
+              break;
+            }
+          }
+          if (!b4CauseCol) {
+            b4CauseCol = detected4MCol + 2; // 폴백: 작업요소 다음열
+          }
+        }
+      }
+
       // 행 제한 (시트당 최대 500행)
       const maxRow = Math.min(sheet.rowCount, startRow + MAX_DATA_ROWS - 1);
 
@@ -661,6 +682,10 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               // B3 complex template: workElement(Col) + processChar(Col)
               bWeValue = cellValueToString(row.getCell(b3WECol).value);
               dataValue = cellValueToString(row.getCell(b3ProcessCharCol).value);
+            } else if (sheetCode === 'B4' && b4WECol > 0 && b4CauseCol > 0) {
+              // ★★★ 2026-03-15 FIX: B4 complex template — 소속 WE + 고장원인 ★★★
+              bWeValue = cellValueToString(row.getCell(b4WECol).value);
+              dataValue = cellValueToString(row.getCell(b4CauseCol).value);
             } else {
               dataValue = cellValueToString(row.getCell(dataColIdx).value);
             }
@@ -925,6 +950,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               process.processCharsWE.push(row.extra || '');
             } else if (sheet === 'B4') {
               process.failureCauses4M.push(row.m4 || '');
+              process.failureCausesWE.push(row.extra || '');  // ★ 2026-03-15 FIX: FC 소속 WE 기록
             }
             if (sheet === 'A4') {
               process.productCharsSpecialChar.push(row.specialChar || '');

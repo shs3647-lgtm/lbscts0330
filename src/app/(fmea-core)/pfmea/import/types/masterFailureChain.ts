@@ -81,6 +81,13 @@ export interface MasterFailureChain {
 
   // ★★★ 2026-03-13: 수정본 적색 표기 ★★★
   isRevised?: boolean;       // true = 엑셀에서 적색으로 표기된 수정 항목
+
+  // ★★★ 2026-03-15: UUID FK 직접 참조 (텍스트 매칭 제거) ★★★
+  // buildWorksheetState Phase 2→3 사이에서 엔티티 UUID를 할당
+  // 이후 모든 링크 생성은 UUID FK만 사용 (텍스트 유사도 매칭 금지)
+  fmId?: string;             // FailureMode(A5) UUID → L2FailureMode.id
+  fcId?: string;             // FailureCause(B4) UUID → L3FailureCauseExtended.id
+  feId?: string;             // FailureEffect(C4) UUID → L1FailureScope.id
 }
 
 // ─── flatData → failureChains 자동 도출 ───

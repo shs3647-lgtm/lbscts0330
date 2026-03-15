@@ -214,9 +214,14 @@ export function useWorksheetDataLoader({
         { label: 'atomicAsLegacy', data: atomicAsLegacy, score: atomicScore },
       ].filter(c => c.score > 0).sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        const rank = (label: string) => (label === 'dbLegacy' ? 2 : 1);
+        const rank = (label: string) => (label === 'atomicAsLegacy' ? 2 : 1);
         return rank(b.label) - rank(a.label);
       });
+
+      // ★★★ 2026-03-15: Atomic DB 우선 로드 — SSoT 전환 ★★★
+      if (candidates.length > 0) {
+        console.log(`[WorksheetDataLoader] SSoT 선택: ${candidates[0].label} (score=${candidates[0].score})`);
+      }
 
       // ★★★ 2026-02-09: ensureL1Types를 모든 경로에서 사용할 수 있도록 외부로 이동 ★★★
       const ensureL1Types = (l1: any) => {

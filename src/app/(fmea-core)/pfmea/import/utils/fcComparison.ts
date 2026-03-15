@@ -1,8 +1,12 @@
 /**
  * @file fcComparison.ts
  * @description FC(고장사슬) 비교/검증 유틸
- * - 자동도출 chains vs 기존(DB/Excel) chains 비교
- * - SOD 완전성 검증, AP 정확성 검증
+ *
+ * ★★★ 2026-03-15: UUID FK 기반 비교로 전환 ★★★
+ * - 텍스트 기반 chainKey 매칭 삭제
+ * - chain.fmId / chain.fcId UUID FK로 직접 비교
+ * - UUID 미할당 시 processNo + fmValue + fcValue 정규화 키로 fallback
+ *
  * @created 2026-02-21
  */
 
@@ -24,8 +28,8 @@ export interface FCComparisonResult {
   incomplete: MasterFailureChain[];   // SOD 누락 체인 (매칭된 것 중)
   apMismatch: { chain: MasterFailureChain; expected: string; actual: string }[];
   stats: {
-    matchRate: number;        // 매칭률 (%)
-    completenessRate: number; // SOD 완전성률 (%)
+    matchRate: number;
+    completenessRate: number;
     total: number;
   };
 }
@@ -43,12 +47,7 @@ function normalize(s: string | undefined): string {
   return (s || '').trim().toLowerCase();
 }
 
-/** 공백 완전 제거 정규화 */
-function normalizeNoSpace(s: string | undefined): string {
-  return normalize(s).replace(/\s+/g, '');
-}
-
-/** processNo 정규화 — "01" → "1", "10번" → "10" */
+/** processNo 정규화 */
 function normalizeProcessNo(pNo: string | undefined): string {
   if (!pNo) return '';
   let n = pNo.trim();
@@ -60,19 +59,15 @@ function normalizeProcessNo(pNo: string | undefined): string {
   return n;
 }
 
-/** 정확 비교 키: processNo(정규화) + fmValue + fcValue */
-function chainKey(c: MasterFailureChain): string {
+/** UUID 기반 비교 키 (우선) */
+function chainKeyByUUID(c: MasterFailureChain): string | null {
+  if (c.fmId && c.fcId) return `uuid:${c.fmId}|${c.fcId}`;
+  return null;
+}
+
+/** 텍스트 fallback 비교 키 (UUID 미할당 시) */
+function chainKeyByText(c: MasterFailureChain): string {
   return `${normalizeProcessNo(c.processNo)}|${normalize(c.fmValue)}|${normalize(c.fcValue)}`;
-}
-
-/** 완화 비교 키: processNo(정규화) + fcValue (FM 무시) */
-function chainKeyRelaxed(c: MasterFailureChain): string {
-  return `${normalizeProcessNo(c.processNo)}|${normalize(c.fcValue)}`;
-}
-
-/** 공백제거 비교 키: processNo(정규화) + fmValue(공백제거) + fcValue(공백제거) */
-function chainKeyNoSpace(c: MasterFailureChain): string {
-  return `${normalizeProcessNo(c.processNo)}|${normalizeNoSpace(c.fmValue)}|${normalizeNoSpace(c.fcValue)}`;
 }
 
 /** SOD 완전 여부 */
@@ -87,9 +82,10 @@ function hasCompleteSOD(c: MasterFailureChain): boolean {
 // ─── 비교 함수 ───
 
 /**
- * 자동도출 chains vs 기존 chains 비교
- * @param derived  - buildFailureChainsFromFlat()으로 자동 도출된 체인
- * @param existing - DB 또는 Excel에서 가져온 기존 체인
+ * ★★★ UUID FK 기반 비교 ★★★
+ *
+ * 1순위: fmId+fcId UUID 키로 매칭
+ * 2순위: processNo+fmValue+fcValue 정규화 키로 매칭 (UUID 미할당 시)
  */
 export function compareFCChains(
   derived: MasterFailureChain[],
@@ -100,55 +96,50 @@ export function compareFCChains(
   const incomplete: MasterFailureChain[] = [];
   const apMismatch: { chain: MasterFailureChain; expected: string; actual: string }[] = [];
 
-  // ★ v5.9: fcValue 빈 derived chain 제외 — FM만 있고 B4 원인 미식별된 스텁은 매칭 대상 아님
-  // 원인: buildFailureChainsFromFlat에서 A5/B4 excelRow가 다른 시트 기준이라 행 기반 매칭 오류 발생
+  // fcValue 빈 derived 제외
   const effectiveDerived = derived.filter(d => normalize(d.fcValue) !== '');
 
-  // 기존 체인을 키로 인덱싱 (정확 + 완화 + 공백제거)
-  const existingExactMap = new Map<string, MasterFailureChain>();
-  // ★ CRITICAL-3: relaxed map을 배열로 변경 — 동일 processNo+FC에 여러 FM 모두 보존
-  const existingRelaxedMap = new Map<string, MasterFailureChain[]>();
-  const existingNoSpaceMap = new Map<string, MasterFailureChain[]>();
+  // existing 인덱싱 (UUID 키 + 텍스트 키)
+  const existingByUUID = new Map<string, MasterFailureChain>();
+  const existingByText = new Map<string, MasterFailureChain>();
   for (const e of existing) {
-    existingExactMap.set(chainKey(e), e);
-    const rKey = chainKeyRelaxed(e);
-    const arr = existingRelaxedMap.get(rKey) || [];
-    arr.push(e);
-    existingRelaxedMap.set(rKey, arr);
-    // ★ 공백제거 인덱스
-    const nsKey = chainKeyNoSpace(e);
-    const nsArr = existingNoSpaceMap.get(nsKey) || [];
-    nsArr.push(e);
-    existingNoSpaceMap.set(nsKey, nsArr);
+    const uuidKey = chainKeyByUUID(e);
+    if (uuidKey && !existingByUUID.has(uuidKey)) existingByUUID.set(uuidKey, e);
+    const textKey = chainKeyByText(e);
+    if (!existingByText.has(textKey)) existingByText.set(textKey, e);
   }
 
-  // derived → existing 매칭 (3단계: 정확 → 완화 → 공백제거)
-  const matchedExactKeys = new Set<string>();
-  const matchedRelaxedKeys = new Set<string>();
+  const matchedKeys = new Set<string>();
 
   for (const d of effectiveDerived) {
-    const exactKey = chainKey(d);
-    const relaxedKey = chainKeyRelaxed(d);
-    const noSpaceKey = chainKeyNoSpace(d);
+    let e: MasterFailureChain | undefined;
+    let matchKey = '';
 
-    // 1단계: 정확 매칭 (processNo + FM + FC)
-    let e = existingExactMap.get(exactKey);
-    // 2단계: 완화 매칭 — 동일 processNo+FC의 기존 체인 중 미매칭된 첫 번째 선택
-    if (!e) {
-      const candidates = existingRelaxedMap.get(relaxedKey) || [];
-      e = candidates.find(c => !matchedExactKeys.has(chainKey(c))) || undefined;
+    // 1순위: UUID FK 매칭
+    const dUuidKey = chainKeyByUUID(d);
+    if (dUuidKey) {
+      e = existingByUUID.get(dUuidKey);
+      if (e) matchKey = dUuidKey;
     }
-    // 3단계: 공백제거 매칭 — 띄어쓰기 차이 극복
+
+    // 2순위: 텍스트 fallback
     if (!e) {
-      const nsCandidates = existingNoSpaceMap.get(noSpaceKey) || [];
-      e = nsCandidates.find(c => !matchedExactKeys.has(chainKey(c))) || undefined;
+      const dTextKey = chainKeyByText(d);
+      e = existingByText.get(dTextKey);
+      if (e && !matchedKeys.has(chainKeyByText(e))) {
+        matchKey = chainKeyByText(e);
+      } else {
+        e = undefined;
+      }
     }
 
     if (e) {
       const sodMatch = hasCompleteSOD(e);
       matched.push({ derived: d, existing: e, sodMatch });
-      matchedExactKeys.add(chainKey(e));
-      matchedRelaxedKeys.add(chainKeyRelaxed(e));
+      matchedKeys.add(matchKey);
+      const eUuidKey = chainKeyByUUID(e);
+      if (eUuidKey) matchedKeys.add(eUuidKey);
+      matchedKeys.add(chainKeyByText(e));
 
       if (!hasCompleteSOD(e)) {
         incomplete.push(e);
@@ -165,15 +156,15 @@ export function compareFCChains(
     }
   }
 
-  // extra: 기존에 있지만 자동도출에 없는 것 (정확+완화 모두 미매칭)
+  // extra: 기존에 있지만 매칭되지 않은 것
   const extra: MasterFailureChain[] = [];
   for (const e of existing) {
-    if (!matchedExactKeys.has(chainKey(e)) && !matchedRelaxedKeys.has(chainKeyRelaxed(e))) {
-      extra.push(e);
-    }
+    const eUuidKey = chainKeyByUUID(e);
+    const eTextKey = chainKeyByText(e);
+    if ((eUuidKey && matchedKeys.has(eUuidKey)) || matchedKeys.has(eTextKey)) continue;
+    extra.push(e);
   }
 
-  // 통계 — effectiveDerived 기준 (빈 fcValue 스텁 제외)
   const total = effectiveDerived.length;
   const matchRate = total > 0 ? Math.round((matched.length / total) * 100) : 0;
   const withSOD = existing.filter(hasCompleteSOD).length;
@@ -191,20 +182,16 @@ export function compareFCChains(
 
 // ─── 완전성 검증 ───
 
-/**
- * 체인 리스트의 SOD 완전성 검증
- * @param chains - 검증 대상 체인
- */
 export function validateFCCompleteness(chains: MasterFailureChain[]): FCCompletenessResult {
   const details: string[] = [];
 
   for (const c of chains) {
     if (!hasCompleteSOD(c)) {
-      const missing: string[] = [];
-      if (!c.severity || c.severity <= 0) missing.push('S');
-      if (!c.occurrence || c.occurrence <= 0) missing.push('O');
-      if (!c.detection || c.detection <= 0) missing.push('D');
-      details.push(`[${c.processNo}] ${c.fcValue} — ${missing.join(',')} 누락`);
+      const missingFields: string[] = [];
+      if (!c.severity || c.severity <= 0) missingFields.push('S');
+      if (!c.occurrence || c.occurrence <= 0) missingFields.push('O');
+      if (!c.detection || c.detection <= 0) missingFields.push('D');
+      details.push(`[${c.processNo}] ${c.fcValue} — ${missingFields.join(',')} 누락`);
     }
   }
 

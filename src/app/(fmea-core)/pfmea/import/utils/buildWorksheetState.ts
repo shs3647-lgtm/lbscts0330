@@ -48,6 +48,7 @@ import type {
   L3FailureCauseExtended,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import type { FailureLinkEntry } from './failureChainInjector';
+import { assignEntityUUIDsToChains } from './assignChainUUIDs';
 import { enrichStateFromChains } from '@/lib/enrich-state-from-chains';
 
 // ════════════════════════════════════════════
@@ -1217,6 +1218,11 @@ export function buildWorksheetState(
       );
     }
 
+    // ★★★ 2026-03-15: Phase 2.5 — chain에 엔티티 UUID FK 할당 ★★★
+    // 텍스트 매칭 완전 제거 — 엔티티 생성 직후 같은 스코프에서 UUID 할당
+    // 이후 모든 링크 생성은 UUID FK만 사용
+    assignEntityUUIDsToChains(state, config.chains);
+
     const linkResult = buildFailureLinksDBCentric(state, config.chains);
     state.failureLinks = linkResult.failureLinks;
     state.riskData = linkResult.riskData;
@@ -1319,7 +1325,13 @@ export function buildWorksheetState(
 }
 
 // ═══════════════════════════════════════════════════════
-// Phase 3 구현: DB중심 고장연결 (순수 Map 조회, 유사도 매칭 없음)
+// Phase 2.5: chain에 엔티티 UUID FK 할당 (순환 import 방지를 위해 assignChainUUIDs.ts로 분리)
+// re-export for backward compatibility
+// ═══════════════════════════════════════════════════════
+export { assignEntityUUIDsToChains } from './assignChainUUIDs';
+
+// ═══════════════════════════════════════════════════════
+// Phase 3 구현: DB중심 고장연결 (UUID FK 직접 조회)
 // ═══════════════════════════════════════════════════════
 
 interface LinkBuildResult {
@@ -1331,16 +1343,11 @@ interface LinkBuildResult {
 }
 
 /**
- * ★★★ DB중심 고장연결 — 순수 Map.get() 조회 ★★★
+ * ★★★ 2026-03-15: UUID FK 기반 고장연결 (텍스트 매칭 완전 제거) ★★★
  *
- * FC시트의 chain은 "같은 행 = 같은 링크"라는 구조적 사실.
- * 엔티티는 이미 같은 flatData에서 생성되었으므로,
- * 정규화된 텍스트 키로 Map.get()만 하면 100% 매칭 가능.
- *
- * 3단계 결정론적 매칭 (유사도/임계값 없음):
- *   1. 정규화 매칭 (공백 통일 + 소문자)
- *   2. 공백제거 매칭 (띄어쓰기 차이)
- *   3. FE carry-forward (같은 FM의 기존 FE 재사용)
+ * Phase 2.5에서 chain.fmId/fcId/feId가 이미 할당됨.
+ * 이 함수는 UUID FK로 직접 엔티티를 조회하여 링크를 생성.
+ * 텍스트 유사도/임계값/contains 매칭 없음.
  */
 export function buildFailureLinksDBCentric(
   state: WorksheetState,
@@ -1352,7 +1359,13 @@ export function buildFailureLinksDBCentric(
   let skippedCount = 0;
   const skipReasons = { noProc: 0, noFE: 0, noFM: 0, noFC: 0 };
 
-  // ─── 1. 공정 인덱스 (processNo → Process) ───
+  // ─── UUID → 엔티티 인덱스 (ID 직접 조회) ───
+  const feById = new Map<string, L1FailureScope>();
+  for (const fe of (state.l1?.failureScopes || [])) {
+    feById.set(fe.id, fe);
+  }
+
+  const fmById = new Map<string, L2FailureMode & { processNo?: string }>();
   const procByNo = new Map<string, Process>();
   for (const proc of (state.l2 || [])) {
     if (proc.no) {
@@ -1362,170 +1375,87 @@ export function buildFailureLinksDBCentric(
         procByNo.set(normalized, proc);
       }
     }
-  }
-
-  // ─── 2. FE 인덱스 (l1.failureScopes) ───
-  const feByText = new Map<string, L1FailureScope>();
-  const feByNoSpace = new Map<string, L1FailureScope>();
-  for (const fe of (state.l1?.failureScopes || [])) {
-    const text = normalizeText(fe.effect || fe.name);
-    if (text && !feByText.has(text)) feByText.set(text, fe);
-    const ns = normalizeNoSpaceText(fe.effect || fe.name);
-    if (ns && !feByNoSpace.has(ns)) feByNoSpace.set(ns, fe);
-  }
-
-  // ─── 3. FM 인덱스 (processNo|fmName → FM) ───
-  const fmByKey = new Map<string, L2FailureMode & { processNo?: string }>();
-  for (const proc of (state.l2 || [])) {
-    const npNo = normalizeProcessNo(proc.no);
     for (const fm of (proc.failureModes || [])) {
-      const nfm = normalizeText(fm.name);
-      const nsfm = normalizeNoSpaceText(fm.name);
-      const entry = { ...fm, processNo: proc.no };
-      // 원본 pNo 키
-      if (!fmByKey.has(`${proc.no}|${nfm}`)) fmByKey.set(`${proc.no}|${nfm}`, entry);
-      // 정규화 pNo 키
-      if (npNo !== proc.no && !fmByKey.has(`${npNo}|${nfm}`)) fmByKey.set(`${npNo}|${nfm}`, entry);
-      // 공백제거 키
-      if (nsfm !== nfm) {
-        if (!fmByKey.has(`${proc.no}|${nsfm}`)) fmByKey.set(`${proc.no}|${nsfm}`, entry);
-        if (npNo !== proc.no && !fmByKey.has(`${npNo}|${nsfm}`)) fmByKey.set(`${npNo}|${nsfm}`, entry);
-      }
+      fmById.set(fm.id, { ...fm, processNo: proc.no });
     }
   }
 
-  // ─── 4. FC 인덱스 (processNo|m4|fcName → FC) ───
-  const fcByKey = new Map<string, L3FailureCauseExtended & { processNo?: string; m4?: string }>();
+  const fcById = new Map<string, L3FailureCauseExtended & { processNo?: string; m4?: string }>();
   for (const proc of (state.l2 || [])) {
-    const npNo = normalizeProcessNo(proc.no);
-    // L3 레벨 FC
     for (const we of (proc.l3 || [])) {
       for (const fc of (we.failureCauses || [])) {
-        const nfc = normalizeText(fc.name);
-        const nsfc = normalizeNoSpaceText(fc.name);
-        const entry = { ...fc, processNo: proc.no, m4: we.m4 };
-        // m4 포함 키
-        if (!fcByKey.has(`${proc.no}|${we.m4}|${nfc}`)) fcByKey.set(`${proc.no}|${we.m4}|${nfc}`, entry);
-        if (npNo !== proc.no && !fcByKey.has(`${npNo}|${we.m4}|${nfc}`)) fcByKey.set(`${npNo}|${we.m4}|${nfc}`, entry);
-        // m4 무관 키
-        if (!fcByKey.has(`${proc.no}||${nfc}`)) fcByKey.set(`${proc.no}||${nfc}`, entry);
-        if (npNo !== proc.no && !fcByKey.has(`${npNo}||${nfc}`)) fcByKey.set(`${npNo}||${nfc}`, entry);
-        // 공백제거
-        if (nsfc !== nfc) {
-          if (!fcByKey.has(`${proc.no}||${nsfc}`)) fcByKey.set(`${proc.no}||${nsfc}`, entry);
-          if (npNo !== proc.no && !fcByKey.has(`${npNo}||${nsfc}`)) fcByKey.set(`${npNo}||${nsfc}`, entry);
-        }
+        fcById.set(fc.id, { ...fc, processNo: proc.no, m4: we.m4 });
       }
     }
-    // L2 레벨 FC (fallback)
     for (const fc of (proc.failureCauses || [])) {
-      const nfc = normalizeText(fc.name);
-      const nsfc = normalizeNoSpaceText(fc.name);
-      if (!fcByKey.has(`${proc.no}||${nfc}`)) fcByKey.set(`${proc.no}||${nfc}`, { ...fc, processNo: proc.no });
-      if (npNo !== proc.no && !fcByKey.has(`${npNo}||${nfc}`)) fcByKey.set(`${npNo}||${nfc}`, { ...fc, processNo: proc.no });
-      if (nsfc !== nfc) {
-        if (!fcByKey.has(`${proc.no}||${nsfc}`)) fcByKey.set(`${proc.no}||${nsfc}`, { ...fc, processNo: proc.no });
+      if (!fcById.has(fc.id)) {
+        fcById.set(fc.id, { ...fc, processNo: proc.no });
       }
     }
   }
 
-  // ─── 5. FE carry-forward 복구 (불변성 보장 — 원본 chains 미변경) ───
-  const enrichedChains: MasterFailureChain[] = chains.map(c => ({ ...c }));
-  const fmToFeValue = new Map<string, string>();
-  for (const c of enrichedChains) {
-    if (c.feValue?.trim() && c.fmValue?.trim()) {
-      const key = normalizeText(c.fmValue);
-      if (!fmToFeValue.has(key)) fmToFeValue.set(key, c.feValue);
+  // ─── FE carry-forward: feId 빈 체인에 같은 FM의 feId 복구 ───
+  const fmIdToFeId = new Map<string, string>();
+  for (const c of chains) {
+    if (c.feId && c.fmId && !fmIdToFeId.has(c.fmId)) {
+      fmIdToFeId.set(c.fmId, c.feId);
     }
   }
-  let cfFE = '';
-  for (const c of enrichedChains) {
-    if (c.feValue?.trim()) {
-      cfFE = c.feValue;
-    } else if (c.fmValue?.trim()) {
-      const fromFm = fmToFeValue.get(normalizeText(c.fmValue));
+  let cfFeId = '';
+  for (const c of chains) {
+    if (c.feId) {
+      cfFeId = c.feId;
+    } else if (c.fmId && !c.feId) {
+      const fromFm = fmIdToFeId.get(c.fmId);
       if (fromFm) {
-        c.feValue = fromFm;
-      } else if (cfFE) {
-        c.feValue = cfFE;
+        c.feId = fromFm;
+      } else if (cfFeId) {
+        c.feId = cfFeId;
       }
     }
   }
 
-  // ─── 6. 체인 → 링크 생성 (순수 Map.get 조회) ───
-  for (const chain of enrichedChains) {
-    const { processNo, m4, feValue, fmValue, fcValue } = chain;
-
-    // 빈 체인 스킵
-    if (!feValue?.trim() && !fmValue?.trim() && !fcValue?.trim()) {
+  // ─── 체인 → 링크 생성 (UUID FK 직접 조회) ───
+  for (const chain of chains) {
+    // UUID FK 미할당 체인 스킵
+    if (!chain.fmId && !chain.fcId && !chain.feId) {
       skippedCount++;
       continue;
     }
 
+    // UUID로 엔티티 직접 조회
+    const fe = chain.feId ? feById.get(chain.feId) : undefined;
+    const fm = chain.fmId ? fmById.get(chain.fmId) : undefined;
+    let fc = chain.fcId ? fcById.get(chain.fcId) : undefined;
+
+    // fcId 없는 체인: 같은 FM의 기존 링크에서 FC 재사용
+    if (!fc && fe && fm) {
+      const existingLink = failureLinks.find(l => l.fmId === fm.id && l.fcId);
+      if (existingLink) {
+        fc = fcById.get(existingLink.fcId);
+      }
+    }
+
     // 공정 찾기
-    let proc = procByNo.get(processNo);
-    if (!proc) proc = procByNo.get(normalizeProcessNo(processNo));
+    let proc = fm?.processNo ? procByNo.get(fm.processNo) : undefined;
+    if (!proc && chain.processNo) {
+      proc = procByNo.get(chain.processNo) || procByNo.get(normalizeProcessNo(chain.processNo));
+    }
     if (!proc) {
       skippedCount++;
       skipReasons.noProc++;
       continue;
     }
     const actualPNo = proc.no;
-    const npNo = normalizeProcessNo(processNo);
+    const m4 = chain.m4 || '';
 
-    // FE 매칭 (Map.get 2단계: 정규화 → 공백제거)
-    let fe: L1FailureScope | undefined;
-    if (feValue?.trim()) {
-      const nfe = normalizeText(feValue);
-      const nsfe = normalizeNoSpaceText(feValue);
-      fe = feByText.get(nfe) || feByNoSpace.get(nsfe);
-    }
-
-    // FM 매칭 (Map.get: pNo|text 조합)
-    const nfm = normalizeText(fmValue);
-    const nsfm = normalizeNoSpaceText(fmValue);
-    const fm = fmByKey.get(`${actualPNo}|${nfm}`)
-      || fmByKey.get(`${npNo}|${nfm}`)
-      || fmByKey.get(`${actualPNo}|${nsfm}`)
-      || fmByKey.get(`${npNo}|${nsfm}`);
-
-    // FC 매칭 (Map.get: pNo|m4|text 조합)
-    let fc: (L3FailureCauseExtended & { processNo?: string; m4?: string }) | undefined;
-    if (fcValue?.trim()) {
-      const nfc = normalizeText(fcValue);
-      const nsfc = normalizeNoSpaceText(fcValue);
-      fc = fcByKey.get(`${actualPNo}|${m4 || ''}|${nfc}`)
-        || fcByKey.get(`${npNo}|${m4 || ''}|${nfc}`)
-        || fcByKey.get(`${actualPNo}||${nfc}`)
-        || fcByKey.get(`${npNo}||${nfc}`)
-        || fcByKey.get(`${actualPNo}||${nsfc}`)
-        || fcByKey.get(`${npNo}||${nsfc}`);
-    }
-
-    // fcValue 빈 체인: 같은 FM의 기존 링크에서 FC 재사용
-    if (!fc && fe && fm && (!fcValue || !fcValue.trim())) {
-      const existingLink = failureLinks.find(l => l.fmId === fm.id && l.fcId);
-      if (existingLink) {
-        // 기존 링크의 FC ID로 직접 조회
-        for (const we of (proc.l3 || [])) {
-          for (const candidate of (we.failureCauses || [])) {
-            if (candidate.id === existingLink.fcId) {
-              fc = { ...candidate, processNo: proc.no, m4: we.m4 };
-              break;
-            }
-          }
-          if (fc) break;
-        }
-      }
-    }
-
-    // 3개 모두 매칭 시 링크 생성
+    // 3개 모두 존재 시 링크 생성
     if (fe && fm && fc) {
       const linkId = uid();
       const feScope = chain.feScope || undefined;
-      const feText = feValue || (fe as L1FailureScope).effect || (fe as L1FailureScope).name;
-      const fmText = fmValue || fm.name;
-      const fcText = fcValue || fc.name;
+      const feText = chain.feValue || (fe as L1FailureScope).effect || (fe as L1FailureScope).name;
+      const fmText = chain.fmValue || fm.name;
+      const fcText = chain.fcValue || fc.name;
 
       failureLinks.push({
         id: linkId,
@@ -1567,7 +1497,7 @@ export function buildFailureLinksDBCentric(
   }
 
   // specialChar 전파 (chain → productChars/processChars)
-  for (const chain of enrichedChains) {
+  for (const chain of chains) {
     if (!chain.specialChar || !chain.processNo) continue;
     const proc = (state.l2 || []).find(p => p.no === chain.processNo);
     if (!proc) continue;
@@ -1593,7 +1523,7 @@ export function buildFailureLinksDBCentric(
     }
   }
 
-  // seq 필드 계산 (failureChainInjector의 computeSeqFields 로직)
+  // seq 필드 계산
   computeSeqFieldsLocal(failureLinks);
 
   return { failureLinks, riskData, injectedCount, skippedCount, skipReasons };

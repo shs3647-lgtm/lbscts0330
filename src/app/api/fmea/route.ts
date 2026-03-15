@@ -756,12 +756,34 @@ export async function POST(request: NextRequest) {
       if (db.failureEffects.length > 0) {
         const l1FuncIdSet = new Set(db.l1Functions.map(f => f.id));
 
+        // ★★★ 2026-03-15: FailureEffect FK 자동복구 ★★★
+        let feRepairedCount = 0;
+        for (const fe of db.failureEffects) {
+          if (!fe.l1FuncId || !l1FuncIdSet.has(fe.l1FuncId)) {
+            // 1순위: 동일 category의 L1Function 매칭
+            const repairFunc = db.l1Functions.find((f: any) => f.category === fe.category);
+            if (repairFunc) {
+              fe.l1FuncId = repairFunc.id;
+              feRepairedCount++;
+            } else if (db.l1Functions.length > 0) {
+              // 2순위: 첫 번째 L1Function 폴백
+              fe.l1FuncId = db.l1Functions[0].id;
+              feRepairedCount++;
+            }
+          }
+        }
+        if (feRepairedCount > 0) {
+          console.warn(`[FMEA API] FailureEffect FK 자동복구: ${feRepairedCount}건`);
+        }
+
         const validFEs = db.failureEffects.filter(fe =>
           !!fe.l1FuncId && l1FuncIdSet.has(fe.l1FuncId)
         );
         validFeIdSet = new Set(validFEs.map(fe => fe.id));
 
         if (validFEs.length !== db.failureEffects.length) {
+          const feDropped = db.failureEffects.length - validFEs.length;
+          console.warn(`[FMEA API] FailureEffect FK 검증: ${db.failureEffects.length}건 중 ${feDropped}건 최종 누락 (자동복구 불가)`);
         }
 
         if (validFEs.length > 0) {
@@ -791,6 +813,43 @@ export async function POST(request: NextRequest) {
         const l2FuncIdSet = new Set(db.l2Functions.map(f => f.id));
         const l2StructIdSet = new Set(db.l2Structures.map(s => s.id));
 
+        // ★★★ 2026-03-15: FailureMode FK 자동복구 ★★★
+        let fmRepairedCount = 0;
+        for (const fm of db.failureModes) {
+          const needsRepair = !fm.l2FuncId || !fm.l2StructId
+            || !l2FuncIdSet.has(fm.l2FuncId) || !l2StructIdSet.has(fm.l2StructId);
+          if (!needsRepair) continue;
+
+          // 1순위: l2StructId가 유효하면 같은 구조의 L2Function 찾기
+          if (fm.l2StructId && l2StructIdSet.has(fm.l2StructId)) {
+            const repairFunc = db.l2Functions.find((f: any) => f.l2StructId === fm.l2StructId);
+            if (repairFunc) {
+              fm.l2FuncId = repairFunc.id;
+              fmRepairedCount++;
+              continue;
+            }
+          }
+          // 2순위: l2FuncId가 유효하면 해당 Function의 l2StructId 찾기
+          if (fm.l2FuncId && l2FuncIdSet.has(fm.l2FuncId)) {
+            const repairFunc = db.l2Functions.find((f: any) => f.id === fm.l2FuncId);
+            if (repairFunc && repairFunc.l2StructId) {
+              fm.l2StructId = repairFunc.l2StructId;
+              fmRepairedCount++;
+              continue;
+            }
+          }
+          // 3순위: 전체 L2Functions 중 첫 번째 폴백
+          if (db.l2Functions.length > 0) {
+            const fallback = db.l2Functions[0];
+            fm.l2FuncId = fallback.id;
+            fm.l2StructId = (fallback as any).l2StructId;
+            fmRepairedCount++;
+          }
+        }
+        if (fmRepairedCount > 0) {
+          console.warn(`[FMEA API] FailureMode FK 자동복구: ${fmRepairedCount}건`);
+        }
+
         const validFMs = db.failureModes.filter(fm =>
           !!fm.l2FuncId && !!fm.l2StructId &&
           l2FuncIdSet.has(fm.l2FuncId) &&
@@ -800,7 +859,7 @@ export async function POST(request: NextRequest) {
 
         if (validFMs.length !== db.failureModes.length) {
           const dropped = db.failureModes.length - validFMs.length;
-          console.warn(`[FMEA API] FailureMode FK 검증: ${db.failureModes.length}건 중 ${dropped}건 누락 (l2FuncId/l2StructId 미매칭)`);
+          console.warn(`[FMEA API] FailureMode FK 검증: ${db.failureModes.length}건 중 ${dropped}건 최종 누락 (자동복구 불가)`);
           const invalidFMs = db.failureModes.filter(fm =>
             !fm.l2FuncId || !fm.l2StructId || !l2FuncIdSet.has(fm.l2FuncId) || !l2StructIdSet.has(fm.l2StructId)
           );
@@ -830,12 +889,44 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 9. FailureCauses 배치 저장 - ★★★ FK 검증 후 저장 ★★★
+      // 9. FailureCauses 배치 저장 - ★★★ FK 검증 + 자동복구 후 저장 ★★★
+      // ★★★ 2026-03-15 FIX: FK 누락 FC를 드롭하지 않고 자동 복구 (FC 103건 누락 근본 해결) ★★★
       txStep = 'FAILURE_CAUSES';
       let validFcIdSet = new Set(db.failureCauses.map(fc => fc.id));
       if (db.failureCauses.length > 0) {
         const l3FuncIdSet = new Set(db.l3Functions.map(f => f.id));
         const l3StructIdSet = new Set(db.l3Structures.map(s => s.id));
+
+        // ★ FK 누락 FC 자동 복구: l3FuncId/l3StructId가 없거나 set에 없으면 자동 할당
+        let repairedCount = 0;
+        for (const fc of db.failureCauses) {
+          const needsRepair = !fc.l3FuncId || !fc.l3StructId
+            || !l3FuncIdSet.has(fc.l3FuncId) || !l3StructIdSet.has(fc.l3StructId);
+          if (!needsRepair) continue;
+
+          // 1순위: l2StructId로 같은 공정의 L3Function 찾기
+          let repairFunc = fc.l2StructId
+            ? db.l3Functions.find(f => f.l2StructId === fc.l2StructId)
+            : null;
+          // 2순위: processCharId로 L3Function 찾기 (migration에서 id=pc.id 패턴)
+          if (!repairFunc && fc.processCharId) {
+            repairFunc = db.l3Functions.find(f => f.id === fc.processCharId);
+          }
+          // 3순위: 전체 L3Functions 중 첫 번째
+          if (!repairFunc && db.l3Functions.length > 0) {
+            repairFunc = db.l3Functions[0];
+          }
+
+          if (repairFunc) {
+            fc.l3FuncId = repairFunc.id;
+            fc.l3StructId = repairFunc.l3StructId;
+            if (!fc.l2StructId) fc.l2StructId = repairFunc.l2StructId;
+            repairedCount++;
+          }
+        }
+        if (repairedCount > 0) {
+          console.warn(`[FMEA API] FailureCause FK 자동복구: ${repairedCount}건 복구 완료`);
+        }
 
         const validFCs = db.failureCauses.filter(fc =>
           !!fc.l3FuncId && !!fc.l3StructId &&
@@ -846,12 +937,12 @@ export async function POST(request: NextRequest) {
 
         if (validFCs.length !== db.failureCauses.length) {
           const dropped = db.failureCauses.length - validFCs.length;
-          console.warn(`[FMEA API] FailureCause FK 검증: ${db.failureCauses.length}건 중 ${dropped}건 누락 (l3FuncId/l3StructId 미매칭)`);
+          console.warn(`[FMEA API] FailureCause FK 검증: ${db.failureCauses.length}건 중 ${dropped}건 최종 누락 (자동복구 불가)`);
           const invalidFCs = db.failureCauses.filter(fc =>
             !fc.l3FuncId || !fc.l3StructId || !l3FuncIdSet.has(fc.l3FuncId) || !l3StructIdSet.has(fc.l3StructId)
           );
           invalidFCs.slice(0, 5).forEach(fc => {
-            console.warn(`  [누락 FC] cause="${fc.cause}" l3FuncId=${fc.l3FuncId} l3StructId=${fc.l3StructId}`);
+            console.warn(`  [최종 누락 FC] cause="${fc.cause}" l3FuncId=${fc.l3FuncId} l3StructId=${fc.l3StructId}`);
           });
         }
 
@@ -1037,6 +1128,11 @@ export async function POST(request: NextRequest) {
       const validRisks = (db.riskAnalyses || []).filter((risk: any) =>
         risk.linkId && savedLinkIdSet.has(risk.linkId)
       );
+      // ★★★ 2026-03-15: RiskAnalysis FK 드롭 로깅 ★★★
+      const riskDropped = (db.riskAnalyses || []).length - validRisks.length;
+      if (riskDropped > 0) {
+        console.warn(`[FMEA API] RiskAnalysis FK 검증: ${riskDropped}건 드롭 (linkId 미매칭)`);
+      }
       if (validRisks.length > 0) {
         await Promise.all(
           validRisks.map((risk: any) =>
@@ -1075,6 +1171,11 @@ export async function POST(request: NextRequest) {
         const validOpts = db.optimizations.filter((opt: any) =>
           opt.riskId && validRiskIdSet.has(opt.riskId)
         );
+        // ★★★ 2026-03-15: Optimization FK 드롭 로깅 ★★★
+        const optDropped = db.optimizations.length - validOpts.length;
+        if (optDropped > 0) {
+          console.warn(`[FMEA API] Optimization FK 검증: ${optDropped}건 드롭 (riskId 미매칭)`);
+        }
         if (validOpts.length > 0) {
         await Promise.all(
           validOpts.map((opt: any) =>

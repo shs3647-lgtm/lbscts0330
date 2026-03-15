@@ -473,11 +473,32 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         return; // 빈 FC 스킵
       }
       
-      // processCharId가 있으면 해당 공정특성의 L3Function 연결
-      let relatedL3Func = fc.processCharId 
+      // ★★★ 2026-03-15 FIX: processCharId → L3Function 다단계 매칭 (FC 누락 방지) ★★★
+      // 1순위: processCharId로 직접 ID 매칭 (L3Function.id === processChar.id)
+      let relatedL3Func = fc.processCharId
         ? db.l3Functions.find(f => f.id === fc.processCharId)
         : null;
-      // 없으면 해당 공정의 첫 번째 L3Function 사용
+      // 2순위: processChar 이름으로 매칭 (ID 불일치 시 이름 기반 복구)
+      if (!relatedL3Func && fc.processCharId) {
+        const fcPcName = (fc.name || '').replace(/\s*부적합$/, '').trim();
+        if (fcPcName) {
+          relatedL3Func = db.l3Functions.find(f =>
+            f.l2StructId === l2Struct.id && f.processChar === fcPcName
+          );
+        }
+      }
+      // 3순위: 같은 공정의 m4 일치 L3Function
+      if (!relatedL3Func && fc.m4) {
+        const m4Key = String(fc.m4).toUpperCase();
+        const l3StructsForM4 = db.l3Structures.filter(s =>
+          s.l2Id === l2Struct.id && String(s.m4 || '').toUpperCase() === m4Key
+        );
+        if (l3StructsForM4.length > 0) {
+          const l3StructIds = new Set(l3StructsForM4.map(s => s.id));
+          relatedL3Func = db.l3Functions.find(f => l3StructIds.has(f.l3StructId));
+        }
+      }
+      // 4순위(최종 fallback): 해당 공정의 첫 번째 L3Function
       if (!relatedL3Func) {
         relatedL3Func = db.l3Functions.find(f => f.l2StructId === l2Struct.id);
       }
@@ -1089,7 +1110,55 @@ export function convertToLegacyFormat(db: FMEAWorksheetDB): OldWorksheetData {
       if (risk.detectionControl) riskData[`detection-${uniqueKey}`] = risk.detectionControl;
     });
   }
+
+  // ★★★ 2026-03-15: Optimization 데이터 복원 (6단계 최적화) ★★★
+  if (db.optimizations && db.optimizations.length > 0) {
+    // Group optimizations by riskId
+    const optByRiskId = new Map<string, typeof db.optimizations>();
+    for (const opt of db.optimizations) {
+      const arr = optByRiskId.get(opt.riskId) || [];
+      arr.push(opt);
+      optByRiskId.set(opt.riskId, arr);
+    }
+
+    // For each riskAnalysis, reconstruct optimization keys
+    if (db.riskAnalyses) {
+      for (const risk of db.riskAnalyses) {
+        const link = db.failureLinks?.find(l => l.id === risk.linkId);
+        if (!link) continue;
+
+        const fmId = link.fmId;
+        const fcId = link.fcId;
+        const uniqueKey = `${fmId}-${fcId}`;
+
+        const opts = optByRiskId.get(risk.id) || [];
+        if (opts.length > 0) {
+          riskData[`opt-rows-${uniqueKey}`] = opts.length;
+        }
+
+        opts.forEach((opt, idx) => {
+          const suffix = idx === 0 ? '' : `-${idx}`;
+          if (opt.newSeverity != null) riskData[`opt-${uniqueKey}-S${suffix}`] = opt.newSeverity;
+          if (opt.newOccurrence != null) riskData[`opt-${uniqueKey}-O${suffix}`] = opt.newOccurrence;
+          if (opt.newDetection != null) riskData[`opt-${uniqueKey}-D${suffix}`] = opt.newDetection;
+          if (opt.newAP) riskData[`opt-${uniqueKey}-AP${suffix}`] = opt.newAP;
+          if (opt.recommendedAction) riskData[`prevention-opt-${uniqueKey}${suffix}`] = opt.recommendedAction;
+          if (opt.responsible) riskData[`person-opt-${uniqueKey}${suffix}`] = opt.responsible;
+          if (opt.targetDate) riskData[`targetDate-opt-${uniqueKey}${suffix}`] = opt.targetDate;
+          if (opt.completedDate) riskData[`completeDate-opt-${uniqueKey}${suffix}`] = opt.completedDate;
+          if (opt.status) riskData[`status-opt-${uniqueKey}${suffix}`] = opt.status;
+        });
+      }
+    }
+  }
+
   (result as any).riskData = riskData;
+
+  // ★★★ 2026-03-15: 리스크/최적화 확정 상태 복원 ★★★
+  if (db.confirmed) {
+    (result as any).riskConfirmed = db.confirmed.risk ?? false;
+    (result as any).optimizationConfirmed = db.confirmed.optimization ?? false;
+  }
 
   return result;
 }

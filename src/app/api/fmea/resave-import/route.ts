@@ -152,10 +152,15 @@ async function handleResave(request: NextRequest, doSave: boolean) {
     };
     diag['5b_postEnrichCounts'] = postEnrichCounts;
 
-    // 6. injectFailureChains
+    // 6. assignEntityUUIDsToChains → injectFailureChains (UUID FK 기반)
     let injectedLinks: unknown[] = [];
     let injectedRisk: Record<string, number | string> = {};
     if (failureChains.length > 0) {
+      const { assignEntityUUIDsToChains } = await import(
+        '@/app/(fmea-core)/pfmea/import/utils/assignChainUUIDs'
+      );
+      // ★ 2026-03-15: chain에 UUID FK 할당 (텍스트 매칭 제거)
+      assignEntityUUIDsToChains(buildResult.state, failureChains as any);
       const { injectFailureChains } = await import(
         '@/app/(fmea-core)/pfmea/import/utils/failureChainInjector'
       );
