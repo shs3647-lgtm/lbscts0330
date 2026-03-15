@@ -210,6 +210,7 @@ export function useFunctionL1Handlers({
         itemCode: i.itemCode,
         value: (i.value || '').trim(),
         sourceFmeaId: i.sourceFmeaId,
+        parentItemId: i.parentItemId || '',               // ★ C3→C2 부모관계 보존
       }));
 
       // Step 2: ★ 마스터 데이터에서 카테고리 추출 (YP/SP/USER 등)
@@ -271,7 +272,32 @@ export function useFunctionL1Handlers({
     if (!previewResult) return;
 
     const funcsByCat = groupMatchedByRoom(previewResult.matched, 'C2');
-    const reqsByCat = groupMatchedByRoom(previewResult.matched, 'C3');
+
+    // ★ 2026-03-16 FIX: C3→C2 parentItemId 기반 그룹핑 (1:1 인덱스 매핑 → 부모관계 매핑)
+    // Step 1: 카테고리별 C2 인덱스→함수명 맵 구축
+    const c2IndexMap = new Map<string, string[]>();
+    for (const entry of previewResult.matched) {
+      if (entry.data.itemCode !== 'C2') continue;
+      const cat = (entry.data.processNo || '').toUpperCase().trim();
+      if (!c2IndexMap.has(cat)) c2IndexMap.set(cat, []);
+      c2IndexMap.get(cat)!.push(entry.data.value);
+    }
+
+    // Step 2: C3의 parentItemId에서 부모 C2 함수명 추출 → 함수명별 요구사항 그룹핑
+    const reqsByFuncName = new Map<string, string[]>();
+    for (const entry of previewResult.matched) {
+      if (entry.data.itemCode !== 'C3') continue;
+      const cat = (entry.data.processNo || '').toUpperCase().trim();
+      const parentId = entry.data.parentItemId || '';
+      const idxMatch = parentId.match(/-(\d+)$/);
+      const funcIdx = idxMatch ? parseInt(idxMatch[1], 10) : 0;
+      const c2Funcs = c2IndexMap.get(cat) || [];
+      const parentFuncName = funcIdx < c2Funcs.length ? c2Funcs[funcIdx] : (c2Funcs[0] || '');
+
+      const key = `${cat}::${parentFuncName}`;
+      if (!reqsByFuncName.has(key)) reqsByFuncName.set(key, []);
+      reqsByFuncName.get(key)!.push(entry.data.value);
+    }
 
     updateState((prev: any) => {
       const prevTypes = prev.l1?.types || [];
@@ -290,7 +316,6 @@ export function useFunctionL1Handlers({
         if (hasNAFunction) return t;
 
         const funcNames = funcsByCat.get(cat) || [];
-        const reqNames = reqsByCat.get(cat) || [];
 
         if (funcNames.length === 0) {
           if (action === 'proceed') {
@@ -303,14 +328,16 @@ export function useFunctionL1Handlers({
         const existingFuncNames = new Set(cleanedFunctions.map((f: any) => f.name));
         const newFunctions = funcNames
           .filter((name: string) => !existingFuncNames.has(name))
-          .map((funcName: string, fIdx: number) => {
-            const reqForFunc = fIdx < reqNames.length
-              ? [reqNames[fIdx]]
-              : (fIdx === funcNames.length - 1 ? reqNames.slice(funcNames.length - 1) : []);
+          .map((funcName: string) => {
+            // ★ parentItemId 기반: 해당 함수에 속하는 요구사항만 매핑
+            const key = `${cat}::${funcName}`;
+            const reqForFunc = reqsByFuncName.get(key) || [];
             return {
               id: uid(),
               name: funcName,
-              requirements: reqForFunc.map((reqName: string) => ({ id: uid(), name: reqName })),
+              requirements: reqForFunc.length > 0
+                ? reqForFunc.map((reqName: string) => ({ id: uid(), name: reqName }))
+                : [{ id: uid(), name: '' }],
             };
           });
 

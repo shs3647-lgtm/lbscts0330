@@ -32,6 +32,7 @@ export interface DataKey {
   value: string;
   sourceFmeaId?: string;
   specialChar?: string;  // ★ 2026-02-23: A4/B3 특별특성 메타데이터
+  parentItemId?: string; // ★ 2026-03-16: C3→C2 부모관계 매핑용
 }
 
 /** 키가 맞아서 입장한 데이터 */
