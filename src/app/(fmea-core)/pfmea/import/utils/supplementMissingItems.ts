@@ -278,6 +278,7 @@ export function supplementMissingItems(
   // ── C4 고장영향 ──
   if (missing.includes('C4')) {
     const feSeen = new Set<string>();
+    // 1차: 체인의 feValue에서 C4 생성
     for (const ch of failureChains) {
       const fe = ch.feValue?.trim();
       if (!fe) continue;
@@ -289,6 +290,32 @@ export function supplementMissingItems(
         id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C4',
         value: fe, createdAt: now,
       });
+    }
+
+    // ★ 2차 폴백: 체인에 feValue 없지만 fmValue 있으면 FM 기반 기본 FE 생성
+    // FC 시트에 고장영향 컬럼 없는 경우 대응
+    if (feSeen.size === 0 && failureChains.length > 0) {
+      // FM 텍스트에서 scope별 고유 FE 추론
+      const fmByScope = new Map<string, Set<string>>();
+      for (const ch of failureChains) {
+        const fm = ch.fmValue?.trim();
+        if (!fm) continue;
+        const scope = ch.feScope || 'YP';
+        if (!fmByScope.has(scope)) fmByScope.set(scope, new Set());
+        fmByScope.get(scope)!.add(fm);
+      }
+      for (const [scope, fmSet] of fmByScope) {
+        for (const fm of fmSet) {
+          const fe = `${fm}에 의한 품질 저하`;
+          const key = `${scope}|${fe}`;
+          if (feSeen.has(key)) continue;
+          feSeen.add(key);
+          supplements.push({
+            id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C4',
+            value: fe, inherited: true, createdAt: now,
+          });
+        }
+      }
     }
   }
 

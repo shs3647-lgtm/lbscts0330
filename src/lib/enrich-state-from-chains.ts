@@ -100,13 +100,8 @@ export function enrichStateFromChains(
     const { processNo, fmValue, feValue, fcValue, feScope, m4 } = chain;
     if (!processNo) continue;
 
-    const proc = procByNo.get(processNo);
-    if (!proc) {
-      stats.skippedNoProc++;
-      continue;
-    }
-
-    // Add FE if not exists
+    // ★ FE(고장영향)는 L1-level(scope 기반) → L2 processNo 매칭과 무관하게 추가
+    // 이전: proc 매칭 실패 시 FE까지 skip → C4=0 원인
     if (feValue?.trim()) {
       const nfe = normalize(feValue);
       if (!existingFE.has(nfe)) {
@@ -122,6 +117,12 @@ export function enrichStateFromChains(
         existingFE.add(nfe);
         stats.addedFE++;
       }
+    }
+
+    const proc = procByNo.get(processNo);
+    if (!proc) {
+      stats.skippedNoProc++;
+      continue;
     }
 
     // Add FM if not exists
