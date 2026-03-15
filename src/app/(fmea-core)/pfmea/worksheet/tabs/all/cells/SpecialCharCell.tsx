@@ -34,6 +34,9 @@ export function SpecialCharCell({
     value,
     align = 'center',
 }: SpecialCharCellProps) {
+    // ★ 레거시 CC/SC → LBS 기호 변환 (DB에 저장된 레거시값 호환)
+    const displayValue = value === 'CC' ? '★' : value === 'SC' ? '◇' : value;
+
     return (
         <td
             key={colIdx}
@@ -48,10 +51,10 @@ export function SpecialCharCell({
                 verticalAlign: 'middle',
                 cursor: 'default',
             }}
-            title={value ? `특별특성: ${value}` : '특별특성 없음'}
+            title={displayValue ? `특별특성: ${displayValue}` : '특별특성 없음'}
         >
-            {value ? (
-                <span style={getBadgeStyle(value)}>{value}</span>
+            {displayValue ? (
+                <span style={getBadgeStyle(displayValue)}>{displayValue}</span>
             ) : (
                 ''
             )}

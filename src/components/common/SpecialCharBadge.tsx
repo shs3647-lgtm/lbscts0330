@@ -30,7 +30,9 @@ export interface SpecialCharBadgeProps {
  * - 표준화된 디자인으로 2L/3L 모든 화면에서 일관성 있게 사용
  */
 const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, size = 'md' }: SpecialCharBadgeProps) {
-  const charData = SPECIAL_CHAR_DATA.find(d => d.symbol === value);
+  // ★ 레거시 CC/SC → LBS 기호 변환 (DB에 저장된 레거시값 호환)
+  const displayValue = value === 'CC' ? '★' : value === 'SC' ? '◇' : value;
+  const charData = SPECIAL_CHAR_DATA.find(d => d.symbol === displayValue);
   
   // 크기별 스타일
   const sizeStyles = {
@@ -42,7 +44,7 @@ const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, 
   const style = sizeStyles[size];
   
   // 미지정 상태 - 빈 칸으로 표시 (클릭하면 선택 가능)
-  if (!value) {
+  if (!displayValue) {
     return (
       <div 
         onClick={onClick} 
@@ -80,10 +82,10 @@ const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, 
           whiteSpace: 'nowrap',
           border: `2px solid ${bgColor}`,
         }}
-        title={charData?.meaning || value}
+        title={charData?.meaning || displayValue}
       >
-        {icon && icon !== value && <span style={{ fontSize: '10px' }}>{icon}</span>}
-        {value}
+        {icon && icon !== displayValue && <span style={{ fontSize: '10px' }}>{icon}</span>}
+        {displayValue}
       </span>
     </div>
   );
