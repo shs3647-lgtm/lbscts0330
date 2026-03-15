@@ -7,7 +7,7 @@
  * ⚠️ FULL_SYSTEM 필요: npm run dev 실행 후 테스트
  */
 
-import { describe, test, expect, beforeAll } from 'vitest';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 
 /** ⚠️ 서버 실행 여부 — 미실행 시 통합 테스트 자동 스킵 */
 let serverAvailable = false;
@@ -78,6 +78,24 @@ describe('PFD ↔ CP 양방향 연동 테스트', () => {
             serverAvailable = res.ok;
         } catch {
             serverAvailable = false;
+        }
+    });
+
+    // ★ 테스트 후 DB 정리 — 테스트 PFD/CP가 리스트에 남는 버그 방지
+    afterAll(async () => {
+        if (!serverAvailable) return;
+        const pfdNos = [TEST_PFD_NO];
+        // TEST_PFD_NO_2는 describe 블록 내 로컬 변수이므로 패턴으로 삭제 불가
+        // → 가능한 PFD만 삭제
+        for (const pfdNo of pfdNos) {
+            try {
+                await fetch(`${API_BASE.replace(/\/api$/, '')}/api/pfd?pfdNo=${encodeURIComponent(pfdNo)}`, {
+                    method: 'DELETE',
+                    signal: AbortSignal.timeout(5000),
+                });
+            } catch {
+                // 삭제 실패해도 계속 진행
+            }
         }
     });
 

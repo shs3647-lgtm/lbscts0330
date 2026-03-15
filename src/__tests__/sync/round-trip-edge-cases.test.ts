@@ -190,6 +190,24 @@ describe('CP↔PFD 왕복 연동 엣지케이스', () => {
     }
   });
 
+  // ★ 테스트 후 DB 정리 — 테스트 데이터가 PFD 리스트에 남는 버그 방지
+  afterAll(async () => {
+    if (!serverAvailable) return;
+    const suffixes = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10'];
+    for (const suffix of suffixes) {
+      const pfdNo = `${TEST_PFD_NO}-${suffix}`;
+      try {
+        await httpRequest(
+          `${BASE_URL}/api/pfd?pfdNo=${encodeURIComponent(pfdNo)}`,
+          'DELETE'
+        );
+      } catch {
+        // 삭제 실패해도 다음 항목 계속 진행
+      }
+    }
+    console.log(`🧹 테스트 데이터 정리 완료: ${TEST_PFD_NO}-s1~s10`);
+  });
+
   // ────────────────────────────────────────────
   // 시나리오 1: CP→PFD→CP 왕복 데이터 동일성
   // ────────────────────────────────────────────
