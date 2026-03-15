@@ -105,6 +105,8 @@ export function useWorksheetSave({
 
       // ★★★ 2026-02-23: 구조 해시 기반 buildFailureAnalyses 캐시 (riskData만 변경 시 스킵) ★★★
       if (newAtomicDB.failureLinks.length > 0 && newAtomicDB.confirmed.failureLink) {
+        // ★★★ 2026-03-15 FIX: link ID 포함 — migrateToAtomicDB가 매번 uid() 생성하므로
+        // 카운트만 비교하면 캐시된 analyses의 linkId와 새 link ID 불일치 → 연쇄 드롭 ★★★
         const structuralHash = JSON.stringify({
           fl: newAtomicDB.failureLinks.length,
           fe: newAtomicDB.failureEffects.length,
@@ -113,6 +115,7 @@ export function useWorksheetSave({
           l2: newAtomicDB.l2Structures.length,
           l3: newAtomicDB.l3Structures.length,
           flc: (newAtomicDB as any).confirmed?.failureLink,
+          lk0: newAtomicDB.failureLinks[0]?.id || '',
         });
         if (structuralHash !== lastStructuralHashRef.current || cachedFailureAnalysesRef.current.length === 0) {
           const { buildFailureAnalyses } = await import('../utils/failure-analysis-builder');
