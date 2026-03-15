@@ -1291,7 +1291,7 @@ export function buildWorksheetState(
           const existingDc = String(riskData[`detection-${uKey}`] ?? '').trim();
           if (!existingDc) {
             riskData[`detection-${uKey}`] = dc;
-          } else if (!existingDc.includes(dc)) {
+          } else if (!existingDc.split('\n').some(v => v.trim() === dc)) {
             riskData[`detection-${uKey}`] = `${existingDc}\n${dc}`;
           }
         });
@@ -1305,7 +1305,7 @@ export function buildWorksheetState(
           const existingPc = String(riskData[`prevention-${uKey}`] ?? '').trim();
           if (!existingPc) {
             riskData[`prevention-${uKey}`] = pc;
-          } else if (!existingPc.includes(pc)) {
+          } else if (!existingPc.split('\n').some(v => v.trim() === pc)) {
             riskData[`prevention-${uKey}`] = `${existingPc}\n${pc}`;
           }
         });
