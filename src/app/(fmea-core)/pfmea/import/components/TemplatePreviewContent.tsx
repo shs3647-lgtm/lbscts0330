@@ -27,6 +27,8 @@ import { FailureChainPreview } from './FailureChainPreview';
 import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
 import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
+import { validateStructuralCompleteness, summarizeStructuralIssues } from '../utils/structural-validation';
+import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integrity-validation';
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
 import { useDbVerification } from '../hooks/useDbVerification';
@@ -424,6 +426,10 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       const allWarnings = [...accWarnings, ...fcAccWarnings];
       const summary = summarizeAccuracyWarnings(allWarnings);
 
+      // ★ 구조 검증 + UUID 정합성 검증
+      const structResult = validateStructuralCompleteness(generatedData, failureChains);
+      const uuidResult = validateUUIDIntegrity(generatedData);
+
       const summaryText = [
         `L2 공정: ${d.l2Count}개`,
         `L3 작업요소: ${d.l3Count}개`,
@@ -431,9 +437,24 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         `고장형태: ${d.fmCount}개, 고장원인: ${d.fcCount}개, 고장영향: ${d.feCount}개`,
       ].join('\n');
 
+      // 작성정확도만 details에 표시 (구조/UUID는 콘솔 로깅)
       const warningDetails = allWarnings.map(w =>
         `[${w.ruleId}] 공정${w.processNo} ${w.itemCode}: ${w.message}`
       );
+
+      // 구조/UUID 검증 결과는 콘솔에 로깅 (개발자용)
+      if (structResult.summary.totalIssues > 0) {
+        console.log('[구조검증]', summarizeStructuralIssues(structResult));
+        for (const i of structResult.issues) {
+          console.log(`  [${i.ruleId}] ${i.sheet} 공정${i.processNo}: ${i.message}`);
+        }
+      }
+      if (uuidResult.issues.length > 0) {
+        console.log('[UUID검증]', summarizeUUIDIssues(uuidResult));
+        for (const i of uuidResult.issues) {
+          console.log(`  [${i.ruleId}] ${i.itemCode} 공정${i.processNo}: ${i.message}`);
+        }
+      }
 
       setAlertState({
         open: true,

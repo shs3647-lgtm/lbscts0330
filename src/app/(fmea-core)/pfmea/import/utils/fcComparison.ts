@@ -43,14 +43,36 @@ function normalize(s: string | undefined): string {
   return (s || '').trim().toLowerCase();
 }
 
-/** 정확 비교 키: processNo + fmValue + fcValue */
-function chainKey(c: MasterFailureChain): string {
-  return `${c.processNo}|${normalize(c.fmValue)}|${normalize(c.fcValue)}`;
+/** 공백 완전 제거 정규화 */
+function normalizeNoSpace(s: string | undefined): string {
+  return normalize(s).replace(/\s+/g, '');
 }
 
-/** 완화 비교 키: processNo + fcValue (FM 무시 — SA 자동도출의 FM 할당 오류 대응) */
+/** processNo 정규화 — "01" → "1", "10번" → "10" */
+function normalizeProcessNo(pNo: string | undefined): string {
+  if (!pNo) return '';
+  let n = pNo.trim();
+  const lower = n.toLowerCase();
+  if (lower === '0' || lower === '공통공정' || lower === '공통') return '00';
+  n = n.replace(/^(공정|process|proc|p)[\s\-_]*/i, '');
+  n = n.replace(/번$/, '');
+  if (n !== '0' && n !== '00') n = n.replace(/^0+(?=\d)/, '');
+  return n;
+}
+
+/** 정확 비교 키: processNo(정규화) + fmValue + fcValue */
+function chainKey(c: MasterFailureChain): string {
+  return `${normalizeProcessNo(c.processNo)}|${normalize(c.fmValue)}|${normalize(c.fcValue)}`;
+}
+
+/** 완화 비교 키: processNo(정규화) + fcValue (FM 무시) */
 function chainKeyRelaxed(c: MasterFailureChain): string {
-  return `${c.processNo}|${normalize(c.fcValue)}`;
+  return `${normalizeProcessNo(c.processNo)}|${normalize(c.fcValue)}`;
+}
+
+/** 공백제거 비교 키: processNo(정규화) + fmValue(공백제거) + fcValue(공백제거) */
+function chainKeyNoSpace(c: MasterFailureChain): string {
+  return `${normalizeProcessNo(c.processNo)}|${normalizeNoSpace(c.fmValue)}|${normalizeNoSpace(c.fcValue)}`;
 }
 
 /** SOD 완전 여부 */
@@ -82,25 +104,32 @@ export function compareFCChains(
   // 원인: buildFailureChainsFromFlat에서 A5/B4 excelRow가 다른 시트 기준이라 행 기반 매칭 오류 발생
   const effectiveDerived = derived.filter(d => normalize(d.fcValue) !== '');
 
-  // 기존 체인을 키로 인덱싱 (정확 + 완화)
+  // 기존 체인을 키로 인덱싱 (정확 + 완화 + 공백제거)
   const existingExactMap = new Map<string, MasterFailureChain>();
   // ★ CRITICAL-3: relaxed map을 배열로 변경 — 동일 processNo+FC에 여러 FM 모두 보존
   const existingRelaxedMap = new Map<string, MasterFailureChain[]>();
+  const existingNoSpaceMap = new Map<string, MasterFailureChain[]>();
   for (const e of existing) {
     existingExactMap.set(chainKey(e), e);
     const rKey = chainKeyRelaxed(e);
     const arr = existingRelaxedMap.get(rKey) || [];
     arr.push(e);
     existingRelaxedMap.set(rKey, arr);
+    // ★ 공백제거 인덱스
+    const nsKey = chainKeyNoSpace(e);
+    const nsArr = existingNoSpaceMap.get(nsKey) || [];
+    nsArr.push(e);
+    existingNoSpaceMap.set(nsKey, nsArr);
   }
 
-  // derived → existing 매칭 (2단계: 정확 → 완화)
+  // derived → existing 매칭 (3단계: 정확 → 완화 → 공백제거)
   const matchedExactKeys = new Set<string>();
   const matchedRelaxedKeys = new Set<string>();
 
   for (const d of effectiveDerived) {
     const exactKey = chainKey(d);
     const relaxedKey = chainKeyRelaxed(d);
+    const noSpaceKey = chainKeyNoSpace(d);
 
     // 1단계: 정확 매칭 (processNo + FM + FC)
     let e = existingExactMap.get(exactKey);
@@ -108,6 +137,11 @@ export function compareFCChains(
     if (!e) {
       const candidates = existingRelaxedMap.get(relaxedKey) || [];
       e = candidates.find(c => !matchedExactKeys.has(chainKey(c))) || undefined;
+    }
+    // 3단계: 공백제거 매칭 — 띄어쓰기 차이 극복
+    if (!e) {
+      const nsCandidates = existingNoSpaceMap.get(noSpaceKey) || [];
+      e = nsCandidates.find(c => !matchedExactKeys.has(chainKey(c))) || undefined;
     }
 
     if (e) {
