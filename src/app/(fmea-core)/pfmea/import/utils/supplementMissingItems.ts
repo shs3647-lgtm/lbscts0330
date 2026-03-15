@@ -39,7 +39,12 @@ export function supplementMissingItems(
   // A4 계층 보충 필요 여부 (A3가 있거나 보충될 때, A4 없는 공정 보충)
   const needsA4Supplement = missing.includes('A3') || flatData.some(d => d.itemCode === 'A3');
 
-  if (missing.length === 0 && !needsA4Supplement) return [];
+  // ★ B1 공정별 갭 감지: 전역 B1 존재해도, 개별 공정에 B1 없으면 보충 필요
+  const b1Procs = new Set(flatData.filter(d => d.itemCode === 'B1').map(d => d.processNo).filter(Boolean));
+  const b3b4Procs = new Set(flatData.filter(d => (d.itemCode === 'B3' || d.itemCode === 'B4') && d.processNo).map(d => d.processNo!));
+  const needsPerProcessB1 = !missing.includes('B1') && [...b3b4Procs].some(pno => !b1Procs.has(pno));
+
+  if (missing.length === 0 && !needsA4Supplement && !needsPerProcessB1) return [];
 
   // ── 공정 정보 수집 (A-레벨 flatData에서) ──
   const processNos = new Set<string>();
@@ -120,14 +125,41 @@ export function supplementMissingItems(
     }
   }
 
-  // ── B1 작업요소 + B2 요소기능 ──
-  if (missing.includes('B1') || missing.includes('B2')) {
-    // 체인에서 workElement + m4 조합 추출
+  // ── B1 작업요소 + B2 요소기능 (전역 누락 + 공정별 갭 통합 처리) ──
+  if (missing.includes('B1') || missing.includes('B2') || needsPerProcessB1) {
+    // 현재 flatData+supplements에서 이미 B1이 있는 공정 파악
+    const existingB1Procs = new Set(
+      [...flatData, ...supplements].filter(d => d.itemCode === 'B1').map(d => d.processNo).filter(Boolean),
+    );
+    const existingB2Procs = new Set(
+      [...flatData, ...supplements].filter(d => d.itemCode === 'B2').map(d => d.processNo).filter(Boolean),
+    );
+
+    // B1 보충이 필요한 공정 식별
+    const procsNeedingB1 = new Set<string>();
+    if (missing.includes('B1')) {
+      // 전역 누락: 모든 공정
+      for (const pno of sortedProcNos) procsNeedingB1.add(pno);
+    } else {
+      // 공정별 갭: B3/B4 있는데 B1 없는 공정
+      for (const pno of b3b4Procs) {
+        if (!existingB1Procs.has(pno)) procsNeedingB1.add(pno);
+      }
+    }
+
+    // B2 보충이 필요한 공정 식별
+    const procsNeedingB2 = new Set<string>();
+    if (missing.includes('B2')) {
+      for (const pno of sortedProcNos) procsNeedingB2.add(pno);
+    }
+
+    // 체인에서 workElement + m4 조합 추출 (공정별)
     const b1Seen = new Set<string>();
     const b1Items: { pno: string; m4: string; we: string; func: string }[] = [];
 
     for (const ch of failureChains) {
       if (!ch.processNo) continue;
+      if (!procsNeedingB1.has(ch.processNo) && !procsNeedingB2.has(ch.processNo)) continue;
       const m4 = ch.m4 || 'MC';
       const we = ch.workElement || '';
       if (!we) continue;
@@ -142,34 +174,71 @@ export function supplementMissingItems(
       });
     }
 
-    // B1이 없으면 B3/B4의 m4로부터 폴백 생성
-    if (b1Items.length === 0) {
+    // ★ 공정별 폴백: 체인에서 workElement 못 찾은 공정은 B3/B4의 m4로 생성
+    // 공정명 룩업 (A2 데이터에서 공정번호→공정명 매핑)
+    const procNameMap = new Map<string, string>();
+    for (const d of [...flatData, ...supplements]) {
+      if (d.itemCode === 'A2' && d.processNo && d.value) {
+        procNameMap.set(d.processNo, d.value);
+      }
+    }
+    const getProcLabel = (pno: string) => procNameMap.get(pno) || `${pno}번 공정`;
+
+    const coveredProcs = new Set(b1Items.map(i => i.pno));
+    const uncoveredProcs = [...procsNeedingB1].filter(pno => !coveredProcs.has(pno));
+    if (uncoveredProcs.length > 0) {
       const b3b4Items = flatData.filter(d =>
         (d.itemCode === 'B3' || d.itemCode === 'B4') && d.processNo && d.m4,
       );
       const fallbackSeen = new Set<string>();
       for (const d of b3b4Items) {
+        if (!d.processNo || !uncoveredProcs.includes(d.processNo)) continue;
         const key = `${d.processNo}|${d.m4}`;
         if (fallbackSeen.has(key)) continue;
         fallbackSeen.add(key);
         b1Items.push({
-          pno: d.processNo!,
+          pno: d.processNo,
           m4: d.m4!,
-          we: d.belongsTo || `${d.m4} 작업요소`,
-          func: `${d.m4} 작업을 수행한다`,
+          we: d.belongsTo || `${getProcLabel(d.processNo)} ${d.m4} 작업요소`,
+          func: `${getProcLabel(d.processNo)} ${d.m4} 작업을 수행한다`,
         });
+      }
+
+      // ★★ 최종 폴백: B3/B4에도 없는 공정 → 체인의 m4로 기본 WE 생성
+      const stillUncovered = uncoveredProcs.filter(pno => !b1Items.some(i => i.pno === pno));
+      for (const pno of stillUncovered) {
+        const chainM4s = new Set(
+          failureChains.filter(ch => ch.processNo === pno && ch.m4).map(ch => ch.m4!),
+        );
+        if (chainM4s.size > 0) {
+          for (const m4 of chainM4s) {
+            b1Items.push({
+              pno, m4,
+              we: `${getProcLabel(pno)} ${m4} 작업요소`,
+              func: `${getProcLabel(pno)} ${m4} 작업을 수행한다`,
+            });
+          }
+        } else {
+          // 완전 폴백: MC 기본값
+          b1Items.push({
+            pno, m4: 'MC',
+            we: `${getProcLabel(pno)} 작업요소`,
+            func: `${getProcLabel(pno)} 작업을 수행한다`,
+          });
+        }
       }
     }
 
     for (const item of b1Items) {
-      if (missing.includes('B1')) {
+      if (procsNeedingB1.has(item.pno) && !existingB1Procs.has(item.pno)) {
         const b1Id = uuidv4();
         supplements.push({
           id: b1Id, processNo: item.pno, category: 'B', itemCode: 'B1',
           value: item.we, m4: item.m4, createdAt: now,
         });
+        existingB1Procs.add(item.pno); // 같은 공정에 중복 추가 방지 (첫 번째만)
 
-        if (missing.includes('B2')) {
+        if (procsNeedingB2.has(item.pno) && !existingB2Procs.has(item.pno)) {
           supplements.push({
             id: uuidv4(), processNo: item.pno, category: 'B', itemCode: 'B2',
             value: item.func, m4: item.m4,
@@ -177,8 +246,7 @@ export function supplementMissingItems(
             createdAt: now,
           });
         }
-      } else if (missing.includes('B2')) {
-        // B1 있지만 B2만 없는 경우
+      } else if (procsNeedingB2.has(item.pno) && !existingB2Procs.has(item.pno)) {
         supplements.push({
           id: uuidv4(), processNo: item.pno, category: 'B', itemCode: 'B2',
           value: item.func, m4: item.m4,

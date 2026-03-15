@@ -1041,12 +1041,17 @@ export default function StructureTab(props: StructureTabProps) {
         return true;
       });
 
-      // 유효한 작업요소 중 4M이 빈 것만 카운트
-      validL3.forEach((we) => {
-        if (isMissing(we.m4)) {
-          l3Count++;
-        }
-      });
+      // ★ 유효한 WE가 0개인 공정 = 작업요소 자체가 없음 → 누락 1건
+      if (validL3.length === 0) {
+        l3Count++;
+      } else {
+        // 유효한 작업요소 중 4M이 빈 것만 카운트
+        validL3.forEach((we) => {
+          if (isMissing(we.m4)) {
+            l3Count++;
+          }
+        });
+      }
     });
 
     return { l1Count, l2Count, l3Count, total: l1Count + l2Count + l3Count };

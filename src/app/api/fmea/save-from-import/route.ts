@@ -36,14 +36,24 @@ export async function POST(request: NextRequest) {
 
     const normalizedFmeaId = fmeaId.toLowerCase();
 
+    // 1.5. ★ 누락 항목 보충 — buildWorksheetState 전에 B1 등 누락 보충
+    const { supplementMissingItems } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/supplementMissingItems'
+    );
+    const chainsArray = Array.isArray(failureChains) && failureChains.length > 0
+      ? failureChains : undefined;
+    const supplements = supplementMissingItems(flatData, chainsArray || []);
+    const enrichedFlatData = supplements.length > 0 ? [...flatData, ...supplements] : flatData;
+    if (supplements.length > 0) {
+      console.info(`[save-from-import] 누락 보충: ${supplements.length}건 (${supplements.map((s: { itemCode?: string }) => s.itemCode).filter((v: string | undefined, i: number, a: (string | undefined)[]) => a.indexOf(v) === i).join(',')})`);
+    }
+
     // 2. buildWorksheetState (엔티티 생성)
     const { buildWorksheetState, buildFailureLinksDBCentric } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState'
     );
-    const chainsArray = Array.isArray(failureChains) && failureChains.length > 0
-      ? failureChains : undefined;
 
-    const buildResult = buildWorksheetState(flatData, {
+    const buildResult = buildWorksheetState(enrichedFlatData, {
       fmeaId: normalizedFmeaId,
       l1Name,
     });

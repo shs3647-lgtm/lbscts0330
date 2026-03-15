@@ -54,6 +54,10 @@ vi.mock('@/lib/security', () => ({
   isValidFmeaId: vi.fn((id: string) => typeof id === 'string' && id.length >= 3),
 }));
 
+vi.mock('@/app/(fmea-core)/pfmea/import/utils/supplementMissingItems', () => ({
+  supplementMissingItems: vi.fn(() => []),
+}));
+
 // ── 테스트 헬퍼 ──
 
 function makeFlatData(count = 3): ImportedFlatData[] {

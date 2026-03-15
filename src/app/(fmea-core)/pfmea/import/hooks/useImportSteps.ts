@@ -36,6 +36,7 @@ import {
   type ValidationResult,
 } from '../utils/importValidationFramework';
 import { quickWorksheetSave } from '../utils/quickWorksheetSave';
+import { supplementMissingItems } from '../utils/supplementMissingItems';
 // 규칙 등록 (import만으로 자동 등록)
 import '../utils/importValidationRules';
 
@@ -166,10 +167,20 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
     if (!canConfirmSA({ flatData, missingTotal })) return null;
 
     try {
+      // ★ 누락 항목 보충 — buildWorksheetState 전에 B1 등 자동 보충
+      const chainsForSupplement = externalChains && externalChains.length > 0
+        ? externalChains
+        : failureChains;
+      const saSupplements = supplementMissingItems(flatData, chainsForSupplement);
+      const enrichedFlatData = saSupplements.length > 0 ? [...flatData, ...saSupplements] : flatData;
+      if (saSupplements.length > 0) {
+        console.info(`[SA 확정] 누락 보충: ${saSupplements.length}건 자동 생성`);
+      }
+
       // buildWorksheetState는 동기 함수 (CODEFREEZE → dynamic import 불필요)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { buildWorksheetState } = require('../utils/buildWorksheetState');
-      const result: BuildResult = buildWorksheetState(flatData, { fmeaId, l1Name });
+      const result: BuildResult = buildWorksheetState(enrichedFlatData, { fmeaId, l1Name });
 
       // ★★★ 2026-03-02: IMPORT 계층 체인 검증 ★★★
       // 규칙: 상위 ≤ 하위 (하위가 크거나 같아야 정상)

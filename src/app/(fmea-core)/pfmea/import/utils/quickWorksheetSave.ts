@@ -14,6 +14,7 @@ import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import type { CrossTab } from './template-delete-logic';
+import { supplementMissingItems } from './supplementMissingItems';
 
 export interface QuickSaveParams {
   fmeaId: string;
@@ -121,22 +122,29 @@ export async function quickWorksheetSave(params: QuickSaveParams): Promise<Quick
       : (failureChains && failureChains.length > 0) ? failureChains
       : buildFailureChainsFromFlat(flatData, crossTab ?? emptyCrossTab);
 
+    // ── 2.5. ★ 누락 항목 보충 — buildWorksheetState 전에 B1 등 자동 보충 ──
+    const supplements = supplementMissingItems(flatData, usedChains);
+    const enrichedFlatData = supplements.length > 0 ? [...flatData, ...supplements] : flatData;
+    if (supplements.length > 0) {
+      console.info(`[quickSave] 누락 보충: ${supplements.length}건 자동 생성`);
+    }
+
     // ── 3. 워크시트 생성 + DB 저장 ──
     const { saveWorksheetFromImport } = await import('./saveWorksheetFromImport');
     const wsResult = await saveWorksheetFromImport({
       fmeaId,
-      flatData,
+      flatData: enrichedFlatData,
       l1Name,
       failureChains: usedChains,
     });
 
     // ── 4. Master DB에 flatData + failureChains 저장 ──
-    if (fmeaId && flatData.length > 0) {
+    if (fmeaId && enrichedFlatData.length > 0) {
       try {
         const feedbackItems = wsResult.feedback?.additionalItems || [];
         const mergedFlatData = feedbackItems.length > 0
-          ? [...flatData, ...feedbackItems]
-          : flatData;
+          ? [...enrichedFlatData, ...feedbackItems]
+          : enrichedFlatData;
 
         // failureChains PATCH
         if (usedChains.length > 0) {

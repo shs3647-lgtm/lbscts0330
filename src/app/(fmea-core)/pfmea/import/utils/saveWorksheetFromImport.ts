@@ -17,6 +17,7 @@ import type { MasterFailureChain } from '../types/masterFailureChain';
 import { isValidFmeaId } from '@/lib/security';
 import { buildWorksheetState, type BuildResult } from './buildWorksheetState';
 import { applyFmGapFeedback, type FmGapFeedbackResult } from './fm-gap-feedback';
+import { supplementMissingItems } from './supplementMissingItems';
 
 export interface SaveFromImportParams {
   fmeaId: string;
@@ -47,14 +48,21 @@ export async function saveWorksheetFromImport(
     };
   }
 
+  // ★ 0. 누락 항목 보충 — buildWorksheetState 전에 B1 등 누락 보충
+  const supplements = supplementMissingItems(flatData, failureChains || []);
+  const enrichedFlatData = supplements.length > 0 ? [...flatData, ...supplements] : flatData;
+  if (supplements.length > 0) {
+    console.info(`[Import 보충] saveWorksheetFromImport: ${supplements.length}건 자동 보충 (${supplements.map(s => s.itemCode).filter((v, i, a) => a.indexOf(v) === i).join(',')})`);
+  }
+
   // 1. 클라이언트에서 빌드 + 피드백 (UI 표시용)
-  const buildResult = buildWorksheetState(flatData, { fmeaId, l1Name });
+  const buildResult = buildWorksheetState(enrichedFlatData, { fmeaId, l1Name });
 
   if (!buildResult.success) {
     return { success: false, buildResult, error: '데이터 빌드 실패' };
   }
 
-  const feedback = applyFmGapFeedback(buildResult.state, flatData);
+  const feedback = applyFmGapFeedback(buildResult.state, enrichedFlatData);
   if (feedback.totalAdded > 0) {
     console.info(`[FM-Feedback] ${feedback.summary}`);
   }
@@ -68,7 +76,7 @@ export async function saveWorksheetFromImport(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fmeaId,
-        flatData,
+        flatData: enrichedFlatData,
         l1Name: l1Name || '',
         failureChains: failureChains || [],
       }),
