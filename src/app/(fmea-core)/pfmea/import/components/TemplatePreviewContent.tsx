@@ -31,6 +31,7 @@ import { validateStructuralCompleteness, summarizeStructuralIssues } from '../ut
 import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integrity-validation';
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
+import { supplementMissingItems } from '../utils/supplementMissingItems';
 import { useDbVerification } from '../hooks/useDbVerification';
 
 // ─── Props ───
@@ -270,6 +271,18 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   const handleDbVerify = useCallback(() => {
     if (fmeaId) verifyDb(fmeaId);
   }, [fmeaId, verifyDb]);
+
+  // ── ★ 2026-03-15: 누락 항목코드 자동 보충 (A1-A3, B1-B2, C1-C4) ──
+  const supplementedRef = useRef(false);
+  useEffect(() => {
+    if (supplementedRef.current || flatData.length === 0 || !onAddItems) return;
+    const newItems = supplementMissingItems(flatData, failureChains);
+    if (newItems.length > 0) {
+      supplementedRef.current = true;
+      onAddItems(newItems);
+      console.log(`[Import 보충] 누락 항목 ${newItems.length}건 자동 생성`);
+    }
+  }, [flatData, failureChains, onAddItems]);
 
   // ── 미매칭 항목 스크롤 ──
   const [scrollTarget, setScrollTarget] = useState<{ type: 'FE' | 'FM' | 'FC'; text: string } | null>(null);
