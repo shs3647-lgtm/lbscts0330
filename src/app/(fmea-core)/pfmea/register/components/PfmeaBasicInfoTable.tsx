@@ -9,8 +9,6 @@
 
 import { useRouter } from 'next/navigation';
 
-/** 회사명 목록 (드롭다운 + 직접입력) */
-const COMPANY_LIST = ['AMP', 'T&F', 'LBS', '금호타이어', '넥센타이어', '한국타이어', '일진글로벌'];
 
 // 타입
 type FMEAType = 'M' | 'F' | 'P';
@@ -290,13 +288,7 @@ export default function PfmeaBasicInfoTable({
                     <tr className="h-8">
                         <td className={headerCell} title="Company Name">회사명(Company)</td>
                         <td className={inputCell}>
-                            <input type="text" list="company-list-alt"
-                                value={fmeaInfo.companyName} onChange={e => updateField('companyName', e.target.value)}
-                                autoComplete="off"
-                                className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="회사명 선택 또는 입력(Company)" />
-                            <datalist id="company-list-alt">
-                                {COMPANY_LIST.map(c => <option key={c} value={c} />)}
-                            </datalist>
+                            <span className="w-full h-7 px-2 text-xs flex items-center">LBS</span>
                         </td>
                         <td className={headerCell} title="Model Year">모델 연식(MY)</td>
                         <td className={inputCell}><input type="text" value={fmeaInfo.modelYear} onChange={e => updateField('modelYear', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="모델 연식(Model Year)" /></td>

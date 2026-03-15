@@ -961,13 +961,18 @@ model LLDFilterCode {
   cause           String                         // 발생원인
 
   // -- 관리 기준값 --
+  severity        Int?                           // 심각도 S값 (1-10)
   occurrence      Int?                           // 발생도 O값 (예방관리 시 필수)
   detection       Int?                           // 검출도 D값 (검출관리 시 필수)
-  improvement     String                         // 개선대책
+  improvement     String                         // 개선대책 (레거시 호환)
+  preventionImprovement String @default("")      // 예방관리 개선
+  detectionImprovement  String @default("")      // 검출관리 개선
 
   // -- 메타 --
   vehicle         String   @default("")          // 차종
   target          String   @default("제조")      // 설계 | 부품 | 제조
+  owner           String   @default("")          // 담당자
+  attachmentUrl   String?                        // 첨부(근거서류) URL
   m4Category      String?                        // MN | MC | IM | EN
   location        String?                        // 발생장소
   completedDate   String?                        // 완료일자

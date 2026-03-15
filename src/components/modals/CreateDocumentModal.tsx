@@ -11,8 +11,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 
-/** 회사명 목록 (드롭다운 + 직접입력) */
-const COMPANY_LIST = ['AMP', 'T&F', 'LBS', '금호타이어', '넥센타이어', '한국타이어', '일진글로벌'];
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 import {
     AppType,
@@ -76,7 +74,7 @@ export default function CreateDocumentModal({
     const [productName, setProductName] = useState('');
     const [customer, setCustomer] = useState('');
     const [customers, setCustomers] = useState<string[]>([]);
-    const [companyName, setCompanyName] = useState('');
+    const [companyName, setCompanyName] = useState('LBS');
     const [managerName, setManagerName] = useState('');
     const [partNo, setPartNo] = useState('');
     // ★ 기존 문서 목록 (중복 검증용 실시간 표시)
@@ -416,18 +414,7 @@ export default function CreateDocumentModal({
                         <tr className="border-b">
                             <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-middle">회사명</td>
                             <td className="py-1">
-                                <input
-                                    type="text"
-                                    list="company-list-create"
-                                    value={companyName}
-                                    onChange={(e) => setCompanyName(e.target.value)}
-                                    autoComplete="off"
-                                    placeholder="회사명 선택 또는 입력"
-                                    className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                                />
-                                <datalist id="company-list-create">
-                                    {COMPANY_LIST.map(c => <option key={c} value={c} />)}
-                                </datalist>
+                                <span className="w-full px-3 py-1 text-sm">LBS</span>
                             </td>
                         </tr>
 
