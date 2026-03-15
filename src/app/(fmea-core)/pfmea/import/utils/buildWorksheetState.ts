@@ -554,11 +554,12 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
           orphanC3.forEach(c3 => lastFunc.requirements.push({ id: uid(), name: c3.value, ...rev(c3) }));
         }
       } else {
-        // 폴백: 기존 distribute() 균등 배분
-        const c3Dist = distribute(c3Items, funcs.length);
-        funcs.forEach((func, i) => {
-          func.requirements = c3Dist[i].map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) }));
-        });
+        // ★★★ 2026-03-16 FIX: distribute 제거 → 첫 번째 C2에 전부 꽂아넣기 ★★★
+        // 이전: distribute(C3, C2개수) → 빈 C2 슬롯에 거짓 요구사항 생성
+        // parentItemId 없으면 모든 C3를 첫 번째 function에 할당 (실제 데이터만 렌더)
+        if (funcs.length > 0) {
+          funcs[0].requirements = c3Items.map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) }));
+        }
       }
 
       type.functions = funcs;
@@ -707,19 +708,28 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
   })();
 
   if (uniquePCs.length > 0 && a5Items.length > 0) {
-    // ★ 고유 A4에만 균등 배분: distribute(A5, 고유A4개수)
-    const a5Dist = distribute(a5Items, uniquePCs.length);
+    // ★★★ 2026-03-16 FIX: distribute 제거 → parentItemId 기반 꽂아넣기 ★★★
+    // 이전 버그: distribute(A5, A4개수) → A4 슬롯에 강제 배분 → 빈 PC에 거짓 FM 생성
+    // 수정: A5.parentItemId → a4Items 인덱스 → uniquePC 매핑 (FK 없으면 첫 번째 PC)
+    const a4IdToIdx = new Map<string, number>();
+    a4Items.forEach((a4, i) => { if (a4.id) a4IdToIdx.set(a4.id, i); });
+
     const modes: L2FailureMode[] = [];
-    uniquePCs.forEach((pc, i) => {
-      a5Dist[i].forEach(a5 => {
-        modes.push({
-          id: uid(),
-          name: a5.value,
-          ...rev(a5),
-          productCharId: pc.id,
-        });
+    for (const a5 of a5Items) {
+      let pcIdx = 0; // 기본: 첫 번째 PC
+      if (a5.parentItemId) {
+        const mapped = a4IdToIdx.get(a5.parentItemId);
+        if (mapped !== undefined && mapped < uniquePCs.length) {
+          pcIdx = mapped;
+        }
+      }
+      modes.push({
+        id: uid(),
+        name: a5.value,
+        ...rev(a5),
+        productCharId: uniquePCs[pcIdx].id,
       });
-    });
+    }
     process.failureModes = modes;
   } else {
     // 제품특성 없으면 productCharId 없이 생성
@@ -842,12 +852,23 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
             processChars: effectiveB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
           }];
         } else {
-          const b3PerFunc = distribute(effectiveB3, myB2.length);
+          // ★★★ 2026-03-16 FIX: distribute 제거 → parentItemId 기반 꽂아넣기 ★★★
+          // B3.parentItemId → B2 매칭 시도, 실패 시 첫 번째 B2에 전부 할당
+          const b3ByParent = new Map<number, ImportedFlatData[]>();
+          for (const b3 of effectiveB3) {
+            let targetIdx = 0; // 기본: 첫 번째 B2
+            if (b3.parentItemId) {
+              const found = myB2.findIndex(b2 => b2.id === b3.parentItemId);
+              if (found >= 0) targetIdx = found;
+            }
+            if (!b3ByParent.has(targetIdx)) b3ByParent.set(targetIdx, []);
+            b3ByParent.get(targetIdx)!.push(b3);
+          }
           we.functions = myB2.map((b2, fIdx) => ({
             id: uid(),
             name: b2.value,
             ...rev(b2),
-            processChars: b3PerFunc[fIdx].map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
+            processChars: (b3ByParent.get(fIdx) || []).map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
           }));
         }
       } else if (effectiveB3.length > 0) {
@@ -913,12 +934,32 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         }
       }
 
-      const b2Dist = distribute(unmatchedB2Fallback, emptyWEs.length);
-      const b3Dist = distribute(unmatchedB3Fallback, emptyWEs.length);
+      // ★★★ 2026-03-16 FIX: distribute 제거 → parentItemId 기반 꽂아넣기 ★★★
+      // 미매칭 B2/B3를 WE에 parentItemId 기반으로 꽂아넣기, 없으면 첫 번째 빈 WE에 전부
+      const b2ByWE = new Map<number, ImportedFlatData[]>();
+      const b3ByWE = new Map<number, ImportedFlatData[]>();
+      for (const b2 of unmatchedB2Fallback) {
+        let weIdx = 0;
+        if (b2.parentItemId) {
+          const found = emptyWEs.findIndex(we => we.id === b2.parentItemId);
+          if (found >= 0) weIdx = found;
+        }
+        if (!b2ByWE.has(weIdx)) b2ByWE.set(weIdx, []);
+        b2ByWE.get(weIdx)!.push(b2);
+      }
+      for (const b3 of unmatchedB3Fallback) {
+        let weIdx = 0;
+        if (b3.parentItemId) {
+          const found = emptyWEs.findIndex(we => we.id === b3.parentItemId);
+          if (found >= 0) weIdx = found;
+        }
+        if (!b3ByWE.has(weIdx)) b3ByWE.set(weIdx, []);
+        b3ByWE.get(weIdx)!.push(b3);
+      }
 
       emptyWEs.forEach((we, weIdx) => {
-        const myB2 = b2Dist[weIdx];
-        const myB3 = b3Dist[weIdx];
+        const myB2 = b2ByWE.get(weIdx) || [];
+        const myB3 = b3ByWE.get(weIdx) || [];
         if (myB2.length > 0) {
           if (myB2.length === 1) {
             we.functions = [{
@@ -928,12 +969,12 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
               processChars: myB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
             }];
           } else {
-            const b3PerFunc = distribute(myB3, myB2.length);
+            // ★ distribute 제거 → 첫 번째 B2에 전부 할당 (FK 없으므로)
             we.functions = myB2.map((b2, fIdx) => ({
               id: uid(),
               name: b2.value,
               ...rev(b2),
-              processChars: b3PerFunc[fIdx].map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
+              processChars: fIdx === 0 ? myB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })) : [],
             }));
           }
         } else if (myB3.length > 0) {
@@ -1011,23 +1052,27 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     }
   }
 
-  // m4별 B4→processChar 균등 배분 (매칭원칙 #3)
+  // m4별 B4→processChar 꽂아넣기 (parentItemId FK 기반)
   const unmatchedB4: ImportedFlatData[] = []; // ★ m4 불일치 B4 수집
   for (const [m4Key, m4B4] of b4ByM4) {
     const m4PCs = pcByM4.get(m4Key) || [];
     if (m4PCs.length > 0 && m4B4.length > 0) {
-      const b4Dist = distribute(m4B4, m4PCs.length);
-      m4PCs.forEach((pc, i) => {
-        b4Dist[i].forEach(b4 => {
-          causes.push({
-            id: uid(),
-            name: b4.value,
-            ...rev(b4),
-            m4: b4.m4,
-            processCharId: pc.id,
-          } as L3FailureCauseExtended);
-        });
-      });
+      // ★★★ 2026-03-16 FIX: distribute → parentItemId 기반 꽂아넣기
+      // parentItemId가 B3의 id와 일치하면 해당 PC에 연결, 미매칭 시 첫 PC
+      const pcIdSet = new Set(m4PCs.map(pc => pc.id));
+      for (const b4 of m4B4) {
+        let targetPc = m4PCs[0]; // fallback: 첫 PC
+        if (b4.parentItemId && pcIdSet.has(b4.parentItemId)) {
+          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || m4PCs[0];
+        }
+        causes.push({
+          id: uid(),
+          name: b4.value,
+          ...rev(b4),
+          m4: b4.m4,
+          processCharId: targetPc.id,
+        } as L3FailureCauseExtended);
+      }
     } else if (m4PCs.length === 0 && m4B4.length > 0) {
       // ★★★ 2026-03-03: m4 불일치 → fallback 대상에 추가 ★★★
       unmatchedB4.push(...m4B4);
@@ -1038,18 +1083,18 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
   // 이전: processCharId 없이 생성 → 워크시트에서 "고장원인 선택" 표시 (누락)
   // 수정: 전체 processChars에 균등 배분 → processCharId 연결 → 정상 표시
   if (unmatchedB4.length > 0 && allProcessChars.length > 0) {
-    const b4Fallback = distribute(unmatchedB4, allProcessChars.length);
-    allProcessChars.forEach((pc, i) => {
-      b4Fallback[i].forEach(b4 => {
-        causes.push({
-          id: uid(),
-          name: b4.value,
-          ...rev(b4),
-          m4: b4.m4,
-          processCharId: pc.id,
-        } as L3FailureCauseExtended);
-      });
-    });
+    // ★★★ 2026-03-16 FIX: distribute → 첫 PC에 전부 꽂아넣기 (m4 불일치 fallback)
+    // 배분하면 데이터 없는 PC에도 강제 할당 → 거짓 누락행 발생
+    const firstPc = allProcessChars[0];
+    for (const b4 of unmatchedB4) {
+      causes.push({
+        id: uid(),
+        name: b4.value,
+        ...rev(b4),
+        m4: b4.m4,
+        processCharId: firstPc.id,
+      } as L3FailureCauseExtended);
+    }
   } else if (unmatchedB4.length > 0) {
     // processChars도 없으면 processCharId 없이 생성 (최종 fallback)
     for (const b4 of unmatchedB4) {

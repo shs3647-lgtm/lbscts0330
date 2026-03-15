@@ -617,8 +617,9 @@ function isValid(val: string): boolean {
   if (!t || t === '-' || t === 'null' || t === 'undefined') return false;
   if (t.includes('(필수)') || t.includes('(선택)')) return false;
   if (/^L[123]-\d/.test(t)) return false;
-  // 헤더 키워드 제외
+  // 헤더 키워드 제외 (L1 통합 시트 페이지 구분 헤더 포함)
   if (t === '구분' || t === '4M' || t === 'NO') return false;
+  if (t === '기능' || t === '요구사항' || t === '고장영향' || t === '완제품기능' || t === '제품기능') return false;
   return true;
 }
 
