@@ -117,6 +117,23 @@ async function _doSave(db: FMEAWorksheetDB, legacyData?: any): Promise<void> {
       console.error(`[db-storage] FailureLink ${dropped}건 FK 검증 실패로 드롭됨`, result.linkStats.droppedLinkReasons);
       _notifyError(`⚠️ 고장연결 ${dropped}건이 FK 불일치로 저장되지 않았습니다. 고장연결 탭에서 확인하세요.`);
     }
+
+    // ★ P2: 연쇄 드롭 알림 (고장분석/위험분석/최적화)
+    const cascading: string[] = [];
+    if (result.linkStats?.analysisDropped > 0)
+      cascading.push(`고장분석 ${result.linkStats.analysisDropped}건`);
+    if (result.linkStats?.riskDropped > 0)
+      cascading.push(`위험분석 ${result.linkStats.riskDropped}건`);
+    if (result.linkStats?.optDropped > 0)
+      cascading.push(`최적화 ${result.linkStats.optDropped}건`);
+    if (cascading.length > 0) {
+      _notifyError(`⚠️ 연쇄 삭제: ${cascading.join(', ')}. 고장연결 확인 필요.`);
+    }
+
+    // ★ P3: feId 미지정 링크 경고
+    if (result.linkStats?.feIdEmpty > 0) {
+      console.warn(`[db-storage] ${result.linkStats.feIdEmpty}건 feId 미지정 — DB 미저장 (legacyData에만 보존)`);
+    }
   } finally {
     clearTimeout(timeoutId);
   }

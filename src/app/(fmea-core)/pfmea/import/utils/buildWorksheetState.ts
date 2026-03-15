@@ -1394,23 +1394,52 @@ export function buildFailureLinksDBCentric(
     }
   }
 
-  // ─── FE carry-forward: feId 빈 체인에 같은 FM의 feId 복구 ───
-  const fmIdToFeId = new Map<string, string>();
-  for (const c of chains) {
-    if (c.feId && c.fmId && !fmIdToFeId.has(c.fmId)) {
-      fmIdToFeId.set(c.fmId, c.feId);
+  // ─── FM→FE 매핑: FM의 processNo 순서 기반 FE 순차 할당 ───
+  // chain의 feValue가 1종류뿐인 경우(Excel FC시트 구조적 한계),
+  // C4 flatData에서 생성된 FE를 FM 순서대로 할당
+  const allFEs = state.l1?.failureScopes || [];
+
+  // chain에서 feId가 몇 종류인지 확인
+  const uniqueFeIds = new Set(chains.filter(c => c.feId).map(c => c.feId));
+
+  if (uniqueFeIds.size <= 1 && allFEs.length > 1) {
+    // ★ FE가 1종류 이하 → FM 순서 기반 FE 할당
+    // FM 고유 목록 (processNo 순서 유지)
+    const fmIds = [...new Set(chains.filter(c => c.fmId).map(c => c.fmId!))];
+
+    // FM별 FE 할당: FM 순서대로 FE 순환 배정 (같은 FM = 같은 FE)
+    const fmToFeId = new Map<string, string>();
+    fmIds.forEach((fmId, i) => {
+      const feIdx = i % allFEs.length;
+      fmToFeId.set(fmId, allFEs[feIdx].id);
+    });
+
+    // chain에 FM별 FE 할당
+    for (const c of chains) {
+      if (c.fmId) {
+        const mappedFeId = fmToFeId.get(c.fmId);
+        if (mappedFeId) c.feId = mappedFeId;
+      }
     }
-  }
-  let cfFeId = '';
-  for (const c of chains) {
-    if (c.feId) {
-      cfFeId = c.feId;
-    } else if (c.fmId && !c.feId) {
-      const fromFm = fmIdToFeId.get(c.fmId);
-      if (fromFm) {
-        c.feId = fromFm;
-      } else if (cfFeId) {
-        c.feId = cfFeId;
+
+    console.info(
+      `[buildWS:Phase3] FE 재매핑: ${fmIds.length} FM → ${allFEs.length} FE (chain feId 단일값 보정)`
+    );
+  } else {
+    // ★ 기존 FE carry-forward: feId 빈 체인에 같은 FM의 feId 복구
+    const fmIdToFeId = new Map<string, string>();
+    for (const c of chains) {
+      if (c.feId && c.fmId && !fmIdToFeId.has(c.fmId)) {
+        fmIdToFeId.set(c.fmId, c.feId);
+      }
+    }
+    // Same-FM FE 복구만 허용, Cross-FM carry-forward 제거 (의미적 오류 방지)
+    for (const c of chains) {
+      if (!c.feId && c.fmId) {
+        const fromFm = fmIdToFeId.get(c.fmId);
+        if (fromFm) {
+          c.feId = fromFm;
+        }
       }
     }
   }

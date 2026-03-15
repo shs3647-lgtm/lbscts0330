@@ -75,20 +75,22 @@ export function preserveFailureLinks<T>(incoming: T[], existing: T[]): T[] {
 }
 
 /**
- * FK 검증 필터 — fmId/feId/fcId가 모두 유효한 링크만 통과
- * @returns { valid: 통과 링크[], dropped: 제외 건수 }
+ * FK 검증 필터 — fmId/fcId 필수, feId 선택적 (FMEA 표준: FE 없이 FM-FC 연결 허용)
+ * @returns { valid: 통과 링크[], dropped: 제외 건수, feIdEmpty: feId 미지정 건수 }
  */
 export function filterValidLinks<T extends LinkFKFields>(
   links: T[],
   fmIds: Set<string>,
   feIds: Set<string>,
   fcIds: Set<string>,
-): { valid: T[]; dropped: number } {
+): { valid: T[]; dropped: number; feIdEmpty: number } {
   const valid = links.filter(link =>
-    !!link.fmId && !!link.feId && !!link.fcId &&
-    fmIds.has(link.fmId) && feIds.has(link.feId) && fcIds.has(link.fcId)
+    !!link.fmId && !!link.fcId &&
+    fmIds.has(link.fmId) && fcIds.has(link.fcId) &&
+    (!link.feId || feIds.has(link.feId))
   );
-  return { valid, dropped: links.length - valid.length };
+  const feIdEmpty = valid.filter(link => !link.feId).length;
+  return { valid, dropped: links.length - valid.length, feIdEmpty };
 }
 
 /**

@@ -78,21 +78,22 @@ describe('filterValidLinks — FK 검증 필터', () => {
     expect(dropped).toBe(3);
   });
 
-  it('빈 ID 필드가 있는 링크 제외', () => {
+  it('빈 ID 필드가 있는 링크 제외 (feId는 선택적)', () => {
     const fmIds = new Set(['fm1']);
     const feIds = new Set(['fe1']);
     const fcIds = new Set(['fc1']);
 
     const links = [
-      { fmId: '', feId: 'fe1', fcId: 'fc1' },     // empty fmId
-      { fmId: 'fm1', feId: '', fcId: 'fc1' },      // empty feId
-      { fmId: 'fm1', feId: 'fe1', fcId: '' },      // empty fcId
+      { fmId: '', feId: 'fe1', fcId: 'fc1' },     // empty fmId → 제외
+      { fmId: 'fm1', feId: '', fcId: 'fc1' },      // empty feId → 허용 (FMEA 표준: FE 선택적)
+      { fmId: 'fm1', feId: 'fe1', fcId: '' },      // empty fcId → 제외
       { fmId: 'fm1', feId: 'fe1', fcId: 'fc1' },   // valid
     ];
 
-    const { valid, dropped } = filterValidLinks(links, fmIds, feIds, fcIds);
-    expect(valid.length).toBe(1);
-    expect(dropped).toBe(3);
+    const { valid, dropped, feIdEmpty } = filterValidLinks(links, fmIds, feIds, fcIds);
+    expect(valid.length).toBe(2);  // feId 빈 링크 + 완전 유효 링크
+    expect(dropped).toBe(2);       // empty fmId + empty fcId
+    expect(feIdEmpty).toBe(1);     // feId 미지정 1건
   });
 
   it('모든 링크가 유효하면 dropped=0', () => {

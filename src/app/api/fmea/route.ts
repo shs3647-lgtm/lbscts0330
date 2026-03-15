@@ -218,6 +218,10 @@ export async function POST(request: NextRequest) {
     let preservedLinkCount = 0;      // 빈 배열 POST 시 DB에서 복원한 건수
     let fkValidLinkCount = 0;        // FK 검증 통과 건수
     let fkDroppedCount = 0;          // FK 검증 실패 건수
+    let analysisDroppedCount = 0;    // FailureAnalysis 연쇄 드롭 건수
+    let riskDroppedCount = 0;        // RiskAnalysis 연쇄 드롭 건수
+    let optDroppedCount = 0;         // Optimization 연쇄 드롭 건수
+    let feEmptyLinkCount = 0;        // feId 미지정 링크 건수
     let droppedLinkReasons: Array<{ fmId: string; feId: string; fcId: string; fmOK: boolean; feOK: boolean; fcOK: boolean; fmText: string; fcText: string }> = [];
     let legacyLinksPreserved = false; // legacyData 보존 여부
 
@@ -765,10 +769,9 @@ export async function POST(request: NextRequest) {
             if (repairFunc) {
               fe.l1FuncId = repairFunc.id;
               feRepairedCount++;
-            } else if (db.l1Functions.length > 0) {
-              // 2순위: 첫 번째 L1Function 폴백
-              fe.l1FuncId = db.l1Functions[0].id;
-              feRepairedCount++;
+            } else {
+              // 카테고리 매칭 실패 — 임의 폴백 금지 (의미적 오류 방지)
+              console.warn(`[FMEA API] FE 복구 불가: id=${fe.id}, category=${fe.category}`);
             }
           }
         }
@@ -838,13 +841,8 @@ export async function POST(request: NextRequest) {
               continue;
             }
           }
-          // 3순위: 전체 L2Functions 중 첫 번째 폴백
-          if (db.l2Functions.length > 0) {
-            const fallback = db.l2Functions[0];
-            fm.l2FuncId = fallback.id;
-            fm.l2StructId = (fallback as any).l2StructId;
-            fmRepairedCount++;
-          }
+          // 1순위/2순위 매칭 실패 — 임의 폴백 금지 (의미적 오류 방지)
+          console.warn(`[FMEA API] FM 복구 불가: id=${fm.id}, mode="${fm.mode}"`);
         }
         if (fmRepairedCount > 0) {
           console.warn(`[FMEA API] FailureMode FK 자동복구: ${fmRepairedCount}건`);
@@ -912,9 +910,10 @@ export async function POST(request: NextRequest) {
           if (!repairFunc && fc.processCharId) {
             repairFunc = db.l3Functions.find(f => f.id === fc.processCharId);
           }
-          // 3순위: 전체 L3Functions 중 첫 번째
-          if (!repairFunc && db.l3Functions.length > 0) {
-            repairFunc = db.l3Functions[0];
+          // 1순위/2순위 매칭 실패 — 임의 폴백 금지 (의미적 오류 방지)
+          if (!repairFunc) {
+            console.warn(`[FMEA API] FC 복구 불가: id=${fc.id}, cause="${fc.cause}"`);
+            continue;
           }
 
           if (repairFunc) {
@@ -984,14 +983,21 @@ export async function POST(request: NextRequest) {
 
         // ★★★ 디버그 로그: ID Set 크기 및 샘플 ★★★
 
-        const { valid: validLinks, dropped: fkDropped } = filterValidLinks(
+        const { valid: validLinks, dropped: fkDropped, feIdEmpty } = filterValidLinks(
           db.failureLinks, fmIdSet, feIdSet, fcIdSet
         );
         fkValidLinkCount = validLinks.length;
         fkDroppedCount = fkDropped;
 
+        // ★ feId 빈 링크는 DB FK 제약으로 저장 불가 → legacyData에만 보존
+        const dbSavableLinks = validLinks.filter((l: any) => !!l.feId);
+        feEmptyLinkCount = validLinks.length - dbSavableLinks.length;
+        if (feEmptyLinkCount > 0) {
+          console.warn(`[FMEA API] FailureLink ${feEmptyLinkCount}건 feId 미지정 → DB 저장 건너뜀 (legacyData에 보존)`);
+        }
+
         // ★★★ 실제 저장된 링크 ID 저장 (failureAnalyses에서 참조) ★★★
-        savedLinkIds = validLinks.map(l => l.id);
+        savedLinkIds = dbSavableLinks.map(l => l.id);
 
         // ★ P1: droppedLinks 상세 정보를 API 응답에 포함 (Silent Drop 가시화)
         if (fkDropped > 0) {
@@ -1005,19 +1011,19 @@ export async function POST(request: NextRequest) {
           console.error(`[fmea/route] FailureLink FK 검증 실패: ${fkDropped}건 드롭`, JSON.stringify(droppedLinkReasons));
         }
 
-        if (validLinks.length > 0) {
+        if (dbSavableLinks.length > 0) {
           // ★ Soft delete 대응: 기존 soft-deleted 링크 restore + 신규 링크 create
-          const validLinkIds = validLinks.map((l: any) => l.id);
+          const savableLinkIds = dbSavableLinks.map((l: any) => l.id);
 
           // Step 1: soft-deleted 상태인 기존 링크 중 다시 들어온 것 → restore (deletedAt: null)
           await tx.failureLink.updateMany({
-            where: { id: { in: validLinkIds }, fmeaId: db.fmeaId, deletedAt: { not: null } },
+            where: { id: { in: savableLinkIds }, fmeaId: db.fmeaId, deletedAt: { not: null } },
             data: { deletedAt: null },
           });
 
           // Step 2: 신규 링크 생성 (skipDuplicates로 이미 존재하는 ID는 건너뜀)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const linkData = validLinks.map((link: any) => ({
+          const linkData = dbSavableLinks.map((link: any) => ({
             id: link.id,
             fmeaId: db.fmeaId,
             fmId: link.fmId,
@@ -1055,6 +1061,10 @@ export async function POST(request: NextRequest) {
       const validAnalyses = (db.failureAnalyses || []).filter(fa =>
         savedLinkIdSet.has(fa.linkId) // linkId가 실제 저장된 failureLink를 참조하는지 확인
       );
+      analysisDroppedCount = (db.failureAnalyses || []).length - validAnalyses.length;
+      if (analysisDroppedCount > 0) {
+        console.warn(`[FMEA API] FailureAnalysis FK 검증: ${analysisDroppedCount}건 드롭 (linkId 미매칭)`);
+      }
 
       if (validAnalyses.length > 0) {
         // 기존 고장분석 데이터 삭제 (고장연결 재확정 시 재생성)
@@ -1129,9 +1139,9 @@ export async function POST(request: NextRequest) {
         risk.linkId && savedLinkIdSet.has(risk.linkId)
       );
       // ★★★ 2026-03-15: RiskAnalysis FK 드롭 로깅 ★★★
-      const riskDropped = (db.riskAnalyses || []).length - validRisks.length;
-      if (riskDropped > 0) {
-        console.warn(`[FMEA API] RiskAnalysis FK 검증: ${riskDropped}건 드롭 (linkId 미매칭)`);
+      riskDroppedCount = (db.riskAnalyses || []).length - validRisks.length;
+      if (riskDroppedCount > 0) {
+        console.warn(`[FMEA API] RiskAnalysis FK 검증: ${riskDroppedCount}건 드롭 (linkId 미매칭)`);
       }
       if (validRisks.length > 0) {
         await Promise.all(
@@ -1172,9 +1182,9 @@ export async function POST(request: NextRequest) {
           opt.riskId && validRiskIdSet.has(opt.riskId)
         );
         // ★★★ 2026-03-15: Optimization FK 드롭 로깅 ★★★
-        const optDropped = db.optimizations.length - validOpts.length;
-        if (optDropped > 0) {
-          console.warn(`[FMEA API] Optimization FK 검증: ${optDropped}건 드롭 (riskId 미매칭)`);
+        optDroppedCount = db.optimizations.length - validOpts.length;
+        if (optDroppedCount > 0) {
+          console.warn(`[FMEA API] Optimization FK 검증: ${optDroppedCount}건 드롭 (riskId 미매칭)`);
         }
         if (validOpts.length > 0) {
         await Promise.all(
@@ -1459,6 +1469,10 @@ export async function POST(request: NextRequest) {
         dbPreserved: preservedLinkCount,
         fkValid: fkValidLinkCount,
         fkDropped: fkDroppedCount,
+        feIdEmpty: feEmptyLinkCount,
+        analysisDropped: analysisDroppedCount,
+        riskDropped: riskDroppedCount,
+        optDropped: optDroppedCount,
         // ★ P1: 드롭된 링크 상세 정보 (클라이언트 toast 용)
         ...(fkDroppedCount > 0 ? { droppedLinkReasons } : {}),
       },
