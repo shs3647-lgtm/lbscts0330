@@ -86,10 +86,11 @@ describe('B5_MN_MC_SWAP 방지 — inferPC 4M 적합성 검증', () => {
     expect(result.value.toLowerCase()).toMatch(/pm|예방|보전/);
   });
 
-  it('IM m4Default는 수입검사를 반환', () => {
+  it('IM m4Default는 수입품질 관리를 반환 (SA 적합 보강)', () => {
     const result = inferPCWithConfidence('알 수 없는 고장원인', 'IM', testRuleSet);
     expect(result.confidence).toBe('m4-default');
-    expect(result.value).toContain('수입검사');
+    // enhancePCFormat: "수입검사" → "수입품질 관리(IQC), 자재 성적서(COC) 확인"
+    expect(result.value).toContain('수입품질');
   });
 
   it('EN m4Default는 작업표준서를 반환', () => {

@@ -28,6 +28,8 @@ vi.mock('../../app/(fmea-core)/pfmea/import/stepb-parser/pc-dc-inference', () =>
   inferMissingPCDC: (rows: Array<Record<string, string>>) => rows,
   inferC2C3: () => ({ c2Items: [], c3Items: [] }),
   getIndustryRuleSet: () => null,
+  enhancePCFormat: (pc: string) => pc,
+  enhanceDCFormat: (dc: string) => dc,
 }));
 
 import { buildImportData } from '../../app/(fmea-core)/pfmea/import/stepb-parser/import-builder';

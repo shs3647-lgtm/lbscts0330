@@ -171,7 +171,7 @@ export function inferPCWithConfidence(fc: string, m4: string, rules: IndustryRul
         // ★ B5_MN_MC_SWAP 방지: FC 매칭 결과가 해당 4M에 부적합하면 스킵
         if (m4Upper && !isPC4MCompatible(rule.pc, m4Upper)) continue;
         if (containsBannedStandalone(rule.pc)) continue;
-        return { value: rule.pc, confidence: 'fc-keyword', requiresReview: false };
+        return { value: enhancePCFormat(rule.pc, m4), confidence: 'fc-keyword', requiresReview: false };
       }
     }
   }
@@ -182,18 +182,18 @@ export function inferPCWithConfidence(fc: string, m4: string, rules: IndustryRul
       if (matchKeywords(fm, rule.keywords)) {
         if (m4Upper && !isPC4MCompatible(rule.pc, m4Upper)) continue;
         if (containsBannedStandalone(rule.pc)) continue;
-        return { value: rule.pc, confidence: 'fm-keyword', requiresReview: false };
+        return { value: enhancePCFormat(rule.pc, m4), confidence: 'fm-keyword', requiresReview: false };
       }
     }
   }
 
   // 3차: 4M 카테고리 기본값 — 항상 4M에 적합한 결과 보장
   if (m4Upper && rules.m4Defaults[m4Upper]) {
-    return { value: rules.m4Defaults[m4Upper], confidence: 'm4-default', requiresReview: true };
+    return { value: enhancePCFormat(rules.m4Defaults[m4Upper], m4), confidence: 'm4-default', requiresReview: true };
   }
 
   // 4차: fallback — requiresReview: true (사용자 검토 필요)
-  return { value: rules.fallbackPC, confidence: 'fallback', requiresReview: true };
+  return { value: enhancePCFormat(rules.fallbackPC, m4), confidence: 'fallback', requiresReview: true };
 }
 
 /**
@@ -241,12 +241,12 @@ export function inferDCWithConfidence(fm: string, rules: IndustryRuleSet): { dc:
   if (fm) {
     for (const rule of rules.dcRules) {
       if (matchKeywords(fm, rule.keywords)) {
-        return { dc: rule.dc, d: rule.d, confidence: 'fm-keyword', requiresReview: false };
+        return { dc: enhanceDCFormat(rule.dc), d: rule.d, confidence: 'fm-keyword', requiresReview: false };
       }
     }
   }
 
-  return { ...rules.fallbackDC, confidence: 'fallback', requiresReview: true };
+  return { ...rules.fallbackDC, dc: enhanceDCFormat(rules.fallbackDC.dc), confidence: 'fallback', requiresReview: true };
 }
 
 /**
@@ -349,8 +349,97 @@ export function inferC2C3(
   return { c2Map, c3Map };
 }
 
+// ═══════════════════════════════════════════════
+// SA 경고 방지 — 추론 결과 후처리
+// ═══════════════════════════════════════════════
+
+/** DC 3요소 키워드 목록 (SA FMT_A6_3ELEM 검증과 동일) */
+const DC_EQUIP_HINTS = ['scope', 'probe', '측정기', '검사기', 'avi', 'aoi', 'cmm', 'gauge', '비전', 'vision', 'sem', 'kla', '현미경', '체크리스트', 'nanospec', 'stratus', '카메라', '스캐너', '육안', '게이지', '시험기', '시험장비', '측정장비'];
+const DC_METHOD_HINTS = ['전수', '샘플링', 'sampling', '검사', '측정', '육안', '자동', '모니터링', '확인', '분석'];
+const DC_FREQ_HINTS = ['전수', 'lot', 'daily', '매일', '1회', '분기', '주기', '매회', '100%', 'inline', '실시간', '정기'];
+
+/**
+ * A6(검출관리) 3요소 보강 — 장비+방법+빈도 중 누락된 요소 추가
+ * SA FMT_A6_3ELEM 경고 방지
+ */
+export function enhanceDCFormat(dc: string): string {
+  if (!dc || dc.length === 0) return dc;
+  const lower = dc.toLowerCase();
+
+  const hasEquip = DC_EQUIP_HINTS.some(kw => lower.includes(kw));
+  const hasMethod = DC_METHOD_HINTS.some(kw => lower.includes(kw));
+  const hasFreq = DC_FREQ_HINTS.some(kw => lower.includes(kw));
+
+  // 이미 3요소 충족
+  if (hasEquip && hasMethod && hasFreq) return dc;
+
+  const parts = [dc.trim()];
+  // 장비 누락 → 기본 추가
+  if (!hasEquip) parts.push('체크리스트');
+  // 방법 누락 → 기본 추가
+  if (!hasMethod) parts.push('검사');
+  // 빈도 누락 → 기본 추가
+  if (!hasFreq) parts.push('매 LOT');
+
+  return parts.join(', ');
+}
+
+/** B5(예방관리) 혼입 방지 키워드 */
+const B5_DETECTION_KEYWORDS = ['검사', '측정', '검출', 'inspection', 'measurement'];
+/** B5 시스템 키워드 (SA FMT_B5_SYSTEM 검증과 동일) */
+const B5_SYSTEM_HINTS = ['interlock', '인터록', 'spc', 'mes', 'sop', '표준서', '작업표준', '관리도', '교정', 'pm', '예방보전', '교육', '시스템', '모니터링', '점검', '관리', '계획', '기준', '절차', '알람', '분석', '보정', '자동'];
+
+/**
+ * B5(예방관리) SA 적합성 보강
+ * - MIX_B5_A6: "검사" 등 검출 키워드 → 예방관리 용어로 대체
+ * - FMT_B5_SYSTEM: 시스템 키워드 없으면 보강
+ * - LEN_B5_SHORT: 5자 미만이면 보강
+ */
+export function enhancePCFormat(pc: string, m4: string): string {
+  if (!pc || pc.length === 0) return pc;
+  let enhanced = pc;
+
+  // "수입검사" → "수입품질 관리(IQC)" (IM 4M 대표 케이스)
+  if (enhanced === '수입검사') {
+    enhanced = '수입품질 관리(IQC), 자재 성적서(COC) 확인';
+    return enhanced;
+  }
+
+  // "검사" 단독 → "점검" 대체 (MIX_B5_A6 방지)
+  const lower = enhanced.toLowerCase();
+  const hasDetection = B5_DETECTION_KEYWORDS.some(kw => lower.includes(kw));
+  const hasSystem = B5_SYSTEM_HINTS.some(kw => lower.includes(kw));
+
+  if (hasDetection && !hasSystem) {
+    // "검사" → "점검/관리"로 교체
+    enhanced = enhanced.replace(/검사/g, '점검 관리');
+    enhanced = enhanced.replace(/측정/g, '관리 기준 준수');
+  }
+
+  // 5자 미만 → 보강
+  if (enhanced.length < 5) {
+    const m4Upper = (m4 || '').toUpperCase();
+    const suffix: Record<string, string> = {
+      MN: ' 교육/훈련 관리',
+      MC: ' 설비 점검 관리',
+      IM: ' 자재 관리 기준 준수',
+      EN: ' 공정 기준서 관리',
+    };
+    enhanced = enhanced + (suffix[m4Upper] || ' 관리 기준 준수');
+  }
+
+  // 시스템 키워드 없으면 추가 (FMT_B5_SYSTEM 방지)
+  const enhancedLower = enhanced.toLowerCase();
+  if (!B5_SYSTEM_HINTS.some(kw => enhancedLower.includes(kw))) {
+    enhanced = enhanced + ', 작업표준서 준수';
+  }
+
+  return enhanced;
+}
+
 /**
  * fcChains에서 빈 PC/DC를 자동추론으로 채움
+ * ★ v5.5: SA 경고 방지 후처리 적용
  * @param rules 업종별 규칙 셋 (없으면 기본 규칙 사용)
  * @returns 추론 적용 건수
  */
@@ -456,7 +545,7 @@ function buildDefaultRuleSet(): IndustryRuleSet {
     m4Defaults,
     dcRules,
     fallbackPC: '작업 표준 준수 교육',
-    fallbackDC: { dc: '육안 검사', d: 7 },
+    fallbackDC: { dc: '육안 검사, 외관 확인, 매 LOT', d: 7 },
   };
 }
 

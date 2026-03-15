@@ -20,7 +20,7 @@ import type {
   StepBC4Item, StepBFCChain, WarningCollector,
 } from './types';
 import { stripPrefix } from './prefix-utils';
-import { inferC2C3, inferChar, getDefaultRuleSet } from './pc-dc-inference';
+import { inferC2C3, inferChar, inferPC, inferDC, getDefaultRuleSet, enhancePCFormat, enhanceDCFormat } from './pc-dc-inference';
 // 업종별 규칙 셋 자동 등록 (사이드이펙트 import)
 import './industry-rules';
 
@@ -434,23 +434,41 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     }
   }
 
-  // ★ HIGH-1: Step 3/4 분리 — Import 단계(Step 3)에서는 PC/DC 자동추론하지 않음
-  // PC/DC는 워크시트에서 사용자가 체인을 확인한 후 별도 시점에 할당
-  // (기존: inferMissingPCDC(fcChains, warn) — 제거됨)
-  const emptyPcCount = fcChains.filter(ch => !ch.pc).length;
-  const emptyDcCount = fcChains.filter(ch => !ch.dc).length;
-  if (emptyPcCount > 0 || emptyDcCount > 0) {
-    warn.info('PCDC_DEFERRED', `PC ${emptyPcCount}건 / DC ${emptyDcCount}건 미할당 — 워크시트에서 자동추론 예정`);
+  // ★ v5.5: Import 단계에서 빈 PC/DC 즉시 추론 — autoFix 사후 보정 제거
+  // FC 파싱 시 PC/DC 컬럼이 비어있으면 추론 엔진으로 즉시 채움
+  {
+    const ruleSet = getDefaultRuleSet();
+    let inferredPc = 0;
+    let inferredDc = 0;
+    for (const ch of fcChains) {
+      if (!ch.pc && ch.fc) {
+        ch.pc = inferPC(ch.fc, ch.m4, ruleSet, ch.fm);
+        if (ch.pc) inferredPc++;
+      }
+      if (!ch.dc && ch.fm) {
+        const { dc } = inferDC(ch.fm, ruleSet);
+        if (dc) { ch.dc = dc; inferredDc++; }
+      }
+    }
+    if (inferredPc > 0 || inferredDc > 0) {
+      warn.info('PCDC_INFERRED', `Import 시 추론: PC ${inferredPc}건 / DC ${inferredDc}건 채움`);
+    }
   }
 
-  // A6 검출관리 + B5 예방관리 — fcChains에서 추출
+  // ★ v5.6: 기존 Excel PC/DC 값도 SA 적합성 보강 (추론값은 이미 enhance 내장)
+  for (const ch of fcChains) {
+    if (ch.pc) ch.pc = enhancePCFormat(ch.pc, ch.m4);
+    if (ch.dc) ch.dc = enhanceDCFormat(ch.dc);
+  }
+
+  // A6 검출관리 + B5 예방관리 — fcChains에서 추출 + b4/a5 기반 보충
   const a6Map = new Map<string, string[]>();
   const b5Map = new Map<string, StepBB5Item[]>();
   const seenA6 = new Set<string>();
   const seenB5 = new Set<string>();
 
+  // 1차: fcChains에서 추출 (PC/DC는 위에서 이미 추론 완료)
   for (const ch of fcChains) {
-    // A6 검출관리: procNo + DC (중복 제거)
     if (ch.dc) {
       const dcKey = `${ch.procNo}|${ch.dc}`;
       if (!seenA6.has(dcKey)) {
@@ -460,8 +478,6 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
         a6Map.set(ch.procNo, list);
       }
     }
-
-    // B5 예방관리: procNo + 4M + PC (중복 제거)
     if (ch.pc) {
       const pcKey = `${ch.procNo}|${ch.m4}|${ch.pc}`;
       if (!seenB5.has(pcKey)) {
@@ -470,6 +486,35 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
         list.push({ m4: ch.m4, pc: ch.pc });
         b5Map.set(ch.procNo, list);
       }
+    }
+  }
+
+  // 2차: fcChains에 없는 공정 (01번 공통 등)에 대해 a5/b4 기반 추론 보충
+  {
+    const ruleSet = getDefaultRuleSet();
+    for (const [pno, fms] of a5Map) {
+      if (a6Map.has(pno) && (a6Map.get(pno) || []).length > 0) continue;
+      const dcList: string[] = [];
+      for (const fm of fms) {
+        const { dc } = inferDC(fm, ruleSet);
+        if (dc && !seenA6.has(`${pno}|${dc}`)) {
+          seenA6.add(`${pno}|${dc}`);
+          dcList.push(dc);
+        }
+      }
+      if (dcList.length > 0) a6Map.set(pno, dcList);
+    }
+    for (const [pno, b4Items] of b4Map) {
+      if (b5Map.has(pno) && (b5Map.get(pno) || []).length > 0) continue;
+      const pcList: StepBB5Item[] = [];
+      for (const b4 of b4Items) {
+        const pc = inferPC(b4.fc, b4.m4, ruleSet);
+        if (pc && !seenB5.has(`${pno}|${b4.m4}|${pc}`)) {
+          seenB5.add(`${pno}|${b4.m4}|${pc}`);
+          pcList.push({ m4: b4.m4, pc });
+        }
+      }
+      if (pcList.length > 0) b5Map.set(pno, pcList);
     }
   }
 

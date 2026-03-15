@@ -58,10 +58,17 @@ const B4_KEYWORDS = [
 
 // ── B4에 혼입되면 안 되는 이탈 현상 키워드 (A5 영역) ──
 const A5_KEYWORDS = [
-  '규격 이탈', '미달', '초과', '미형성', '부재', '잔류',
+  '규격 이탈', '미형성', '부재', '잔류',
   'scratch', '파손', '크랙', 'chipping', 'crack',
   'spec out', 'under-spec', 'over-spec', 'missing',
   '불만족', '미검출', '유출',
+];
+// ── B4 원인 맥락 키워드 — A5 키워드와 함께 있으면 정당한 원인 기술 (false positive 방지) ──
+const B4_CAUSE_CONTEXT = [
+  '미준수', '미실시', '오설정', '오적용', '미숙지', '미점검',
+  '노후', '마모', '열화', '수명', '미교체', '누락', '혼동',
+  '부족', '과다', '오류', '불량', '관리', '교정',
+  '미조치', '인한', '때문', '원인', '발생',
 ];
 
 // ── A4에서 금지되는 행위형 키워드 (Check/Inspection) ── ★v13.3
@@ -216,18 +223,22 @@ export function validateAccuracy(flatData: ImportedFlatData[]): AccuracyWarning[
       }
     }
 
-    // ── MIX_B4_SYMPTOM: B4에 이탈 현상 키워드 혼입 ──
+    // ── MIX_B4_SYMPTOM: B4에 이탈 현상 키워드 혼입 (원인 맥락 있으면 허용) ──
     if (item.itemCode === 'B4') {
       const hit = containsAny(val, A5_KEYWORDS);
       if (hit) {
-        warnings.push({
-          ruleId: 'MIX_B4_SYMPTOM',
-          itemCode: 'B4',
-          processNo: item.processNo,
-          value: val,
-          message: `B4(고장원인)에 고장형태(A5) 키워드 "${hit}" 혼입 의심`,
-          level: 'warning',
-        });
+        // B4 원인 맥락 키워드가 함께 있으면 정당한 원인 기술 → false positive 방지
+        const hasCauseContext = containsAny(val, B4_CAUSE_CONTEXT);
+        if (!hasCauseContext) {
+          warnings.push({
+            ruleId: 'MIX_B4_SYMPTOM',
+            itemCode: 'B4',
+            processNo: item.processNo,
+            value: val,
+            message: `B4(고장원인)에 고장형태(A5) 키워드 "${hit}" 혼입 의심`,
+            level: 'warning',
+          });
+        }
       }
     }
 
@@ -307,6 +318,8 @@ const DC_EQUIPMENT_KEYWORDS = [
   // v5.9: Au BUMP 공정 장비 키워드 보강
   'sem', 'kla', '현미경', 'microscope', 'xrf', '카운터', 'counter',
   '분석기', 'analyzer', '체크리스트',
+  // v5.10: 육안 검사 장비 인정 + PLC/인라인 보강
+  '육안', 'plc', '인라인',
 ];
 const DC_METHOD_KEYWORDS = [
   '전수', '샘플링', 'sampling', 'lot별', '매lot', 'daily', '검사', '측정',

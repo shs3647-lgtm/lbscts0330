@@ -277,23 +277,22 @@ describe('H-1: Step 3/4 분리 — Import에서 PC/DC 미할당 허용', () => {
     expect(fcChains[0].dc).toBe('');
   });
 
-  it('inferMissingPCDC가 import-builder에서 호출되지 않음을 확인', async () => {
-    // import-builder.ts의 import 목록에 inferMissingPCDC가 없어야 함
+  it('Import 단계에서 빈 PC/DC를 즉시 추론하여 채움 (PCDC_INFERRED)', async () => {
+    // import-builder.ts에서 inferPC/inferDC가 즉시 호출되어야 함
     const { readFileSync } = await import('fs');
     const builderSource = readFileSync(
       'src/app/(fmea-core)/pfmea/import/stepb-parser/import-builder.ts',
       'utf-8'
     );
 
-    // inferMissingPCDC가 실행 코드로 호출되지 않아야 함 (주석 제외)
-    // 주석이 아닌 실제 코드 라인에서 호출이 없어야 함
+    // inferMissingPCDC 일괄 함수는 사용하지 않음 (개별 inferPC/inferDC 사용)
     const codeLines = builderSource.split('\n').filter(
       (line: string) => !line.trim().startsWith('//') && !line.trim().startsWith('*')
     );
     const codeOnly = codeLines.join('\n');
     expect(codeOnly).not.toContain('inferMissingPCDC(fcChains');
-    // PCDC_DEFERRED 로그가 존재해야 함
-    expect(builderSource).toContain('PCDC_DEFERRED');
+    // PCDC_INFERRED 로그가 존재해야 함 (Import 시 즉시 추론)
+    expect(builderSource).toContain('PCDC_INFERRED');
   });
 });
 
@@ -312,9 +311,10 @@ describe('H-1b: PC/DC confidence 추적', () => {
       expect(result.requiresReview).toBe(false);
     });
 
-    it('FM 키워드 매칭 (FC 실패 시) → confidence: fm-keyword', () => {
+    it('FM 키워드 매칭 (FC 실패 시) → confidence: fm-keyword (SA 보강)', () => {
       const result = inferPCWithConfidence('알 수 없는 FC', 'MC', rules, '변형');
-      expect(result.value).toBe('변형 방지 공정');
+      // enhancePCFormat: 시스템 키워드 없으면 "작업표준서 준수" 보강
+      expect(result.value).toContain('변형 방지 공정');
       expect(result.confidence).toBe('fm-keyword');
       expect(result.requiresReview).toBe(false);
     });
@@ -335,17 +335,21 @@ describe('H-1b: PC/DC confidence 추적', () => {
   });
 
   describe('inferDCWithConfidence', () => {
-    it('FM 키워드 매칭 → confidence: fm-keyword', () => {
+    it('FM 키워드 매칭 → confidence: fm-keyword (SA 3요소 보강)', () => {
       const result = inferDCWithConfidence('균열 발생', rules);
-      expect(result.dc).toBe('비파괴 검사');
+      // enhanceDCFormat: "비파괴 검사" → 장비+방법+빈도 보강
+      expect(result.dc).toContain('비파괴');
+      expect(result.dc).toContain('검사');
       expect(result.d).toBe(3);
       expect(result.confidence).toBe('fm-keyword');
       expect(result.requiresReview).toBe(false);
     });
 
-    it('FM 매칭 실패 → fallback + requiresReview: true', () => {
+    it('FM 매칭 실패 → fallback + requiresReview: true (SA 3요소 보강)', () => {
       const result = inferDCWithConfidence('알 수 없는 FM', rules);
-      expect(result.dc).toBe('최종 검사');
+      // enhanceDCFormat: "최종 검사" → 장비+빈도 보강
+      expect(result.dc).toContain('최종');
+      expect(result.dc).toContain('검사');
       expect(result.d).toBe(7);
       expect(result.confidence).toBe('fallback');
       expect(result.requiresReview).toBe(true);
