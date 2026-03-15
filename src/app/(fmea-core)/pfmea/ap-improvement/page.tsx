@@ -29,10 +29,7 @@ import APModal from './APModal';
 import APSummaryChart from './APSummaryChart';
 import APImprovementChart from './APImprovementChart';
 import { useAPData } from './hooks/useAPData';
-
-// ── 상수 ──
-const CIP_TARGETS = ['Field', 'Yield', 'Quality', 'Cost', 'Delivery', 'Safety'] as const;
-type CIPTarget = typeof CIP_TARGETS[number];
+import { useAPImportExport, CIP_TARGETS, type CIPTarget } from './hooks/useAPImportExport';
 
 const TARGET_COLORS: Record<string, string> = {
   Field: '#8b5cf6', Yield: '#3b82f6', Quality: '#ef4444',
@@ -155,6 +152,16 @@ export default function APImprovementPage() {
 
   const allData = useMemo(() => [...data, ...manualRows], [data, manualRows]);
   const stats = calculateStats(allData);
+
+  const {
+    fileInputRef,
+    handleExport, handleDownloadTemplate,
+    handleImport, handleFileChange,
+    handleSave: handleSaveToDb,
+    handleDeleteAll,
+  } = useAPImportExport({
+    allData, manualRows, setManualRows, cipOverlay, setCipOverlay, selectedFmeaId, refresh,
+  });
 
   // Filter + sort → 가상화할 최종 데이터
   const filteredData = useMemo(() => {
@@ -309,9 +316,14 @@ export default function APImprovementPage() {
               <Input placeholder={`${t('검색')}...`} className="pl-5 w-24 h-5 text-[9px] border-slate-300 rounded" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
             <span className="text-slate-300 text-[8px]">|</span>
+            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#22c55e] text-white hover:bg-[#16a34a]" onClick={handleImport}>↑Import</button>
+            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#f97316] text-white hover:bg-[#ea580c]" onClick={handleExport}>↓Export</button>
+            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#64748b] text-white hover:bg-[#475569]" onClick={handleDownloadTemplate}>📋양식</button>
             <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#3b82f6] text-white hover:bg-[#2563eb]" onClick={handleAddRow}>+Add</button>
-            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#f97316] text-white hover:bg-[#ea580c]">↓Export</button>
+            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#0d47a1] text-white hover:bg-[#1565c0]" onClick={handleSaveToDb}>⊞Save</button>
+            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#dc2626] text-white hover:bg-[#b91c1c]" onClick={handleDeleteAll}>✕Del</button>
             <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#0d9488] text-white hover:bg-[#0f766e]" onClick={refresh} disabled={loading}>{loading ? '⟳...' : '⟳Refresh'}</button>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
           </div>
         </div>
 

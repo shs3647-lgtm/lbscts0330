@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: CIP 항목 생성
+// POST: CIP 항목 생성 (단건 또는 일괄)
 export async function POST(request: NextRequest) {
   const prisma = getPrisma();
   if (!prisma) {
@@ -62,6 +62,64 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+
+    // 일괄 저장 (items 배열)
+    if (body.items && Array.isArray(body.items)) {
+      const items = body.items as Array<Record<string, unknown>>;
+      if (items.length === 0) {
+        return NextResponse.json({ success: false, error: '저장할 데이터가 없습니다.' }, { status: 400 });
+      }
+
+      const results = [];
+      for (const item of items) {
+        const cipNo = (item.cipNo as string) || await generateCipNo(prisma);
+        const fmeaId = item.fmeaId as string | null;
+
+        if (fmeaId && !isValidFmeaId(fmeaId)) {
+          return NextResponse.json({ success: false, error: `Invalid fmeaId: ${fmeaId}` }, { status: 400 });
+        }
+
+        const created = await prisma.continuousImprovementPlan.upsert({
+          where: { cipNo },
+          update: {
+            fmeaId: fmeaId || null,
+            apLevel: (item.apLevel as string) || null,
+            category: (item.category as string) || '',
+            failureMode: (item.failureMode as string) || '',
+            cause: (item.cause as string) || '',
+            improvement: (item.improvement as string) || '',
+            responsible: (item.responsible as string) || null,
+            targetDate: (item.targetDate as string) || null,
+            completedDate: (item.completedDate as string) || null,
+            status: (item.status as string) || 'R',
+            s: item.s != null ? Number(item.s) : null,
+            o: item.o != null ? Number(item.o) : null,
+            d: item.d != null ? Number(item.d) : null,
+          },
+          create: {
+            cipNo,
+            fmeaId: fmeaId || null,
+            apLevel: (item.apLevel as string) || null,
+            category: (item.category as string) || '',
+            failureMode: (item.failureMode as string) || '',
+            cause: (item.cause as string) || '',
+            improvement: (item.improvement as string) || '',
+            responsible: (item.responsible as string) || null,
+            targetDate: (item.targetDate as string) || null,
+            completedDate: (item.completedDate as string) || null,
+            status: (item.status as string) || 'R',
+            s: item.s != null ? Number(item.s) : null,
+            o: item.o != null ? Number(item.o) : null,
+            d: item.d != null ? Number(item.d) : null,
+          },
+        });
+        results.push(created);
+      }
+
+      return NextResponse.json({ success: true, count: results.length, message: `${results.length}건 저장 완료` });
+    }
+
+    // 단건 저장 (기존 호환)
     const { fmeaId, uniqueKey, apLevel, category, failureMode, cause, improvement, responsible, targetDate, status, s, o, d } = body;
 
     if (!category || !failureMode) {

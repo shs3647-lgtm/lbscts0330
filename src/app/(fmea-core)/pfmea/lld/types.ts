@@ -56,11 +56,15 @@ export interface LLDRow {
   productName: string;
   failureMode: string;
   cause: string;
+  severity: number | null;
   occurrence: number | null;
   detection: number | null;
   improvement: string;
+  preventionImprovement: string;
+  detectionImprovement: string;
   vehicle: string;
   target: string;
+  owner: string;
   m4Category: string;
   location: string;
   completedDate: string;
@@ -69,6 +73,7 @@ export interface LLDRow {
   priority: number;
   fmeaId: string;
   appliedDate: string;
+  attachmentUrl: string;
 }
 
 // 통계
@@ -93,11 +98,15 @@ export function createEmptyLLDRow(): LLDRow {
     productName: '',
     failureMode: '',
     cause: '',
+    severity: null,
     occurrence: null,
     detection: null,
     improvement: '',
+    preventionImprovement: '',
+    detectionImprovement: '',
     vehicle: '',
     target: '제조',
+    owner: '',
     m4Category: '',
     location: '',
     completedDate: '',
@@ -106,5 +115,6 @@ export function createEmptyLLDRow(): LLDRow {
     priority: 0,
     fmeaId: '',
     appliedDate: '',
+    attachmentUrl: '',
   };
 }

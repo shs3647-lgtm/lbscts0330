@@ -6,13 +6,74 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
+import { safeErrorMessage } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
 // 허용 분류값
 const VALID_CLASSIFICATIONS = ['RMA', 'ABN', 'CIP', 'ECN', 'FieldIssue', 'DevIssue'] as const;
 const VALID_APPLY_TO = ['prevention', 'detection'] as const;
+
+// LLD 아이템 타입
+interface LLDItem {
+  lldNo: string;
+  classification: string;
+  applyTo: string;
+  processNo: string;
+  processName: string;
+  productName: string;
+  failureMode: string;
+  cause: string;
+  severity?: number;
+  occurrence?: number;
+  detection?: number;
+  improvement: string;
+  preventionImprovement?: string;
+  detectionImprovement?: string;
+  vehicle?: string;
+  target?: string;
+  owner?: string;
+  m4Category?: string;
+  location?: string;
+  completedDate?: string;
+  status?: string;
+  sourceType?: string;
+  priority?: number;
+  fmeaId?: string;
+  appliedDate?: string;
+  attachmentUrl?: string;
+}
+
+// upsert 데이터 빌드 (create/update 공용)
+function buildUpsertData(item: LLDItem) {
+  return {
+    classification: item.classification,
+    applyTo: item.applyTo,
+    processNo: item.processNo,
+    processName: item.processName,
+    productName: item.productName,
+    failureMode: item.failureMode || '',
+    cause: item.cause || '',
+    severity: item.severity ?? null,
+    occurrence: item.occurrence ?? null,
+    detection: item.detection ?? null,
+    improvement: item.improvement || '',
+    preventionImprovement: item.preventionImprovement || '',
+    detectionImprovement: item.detectionImprovement || '',
+    vehicle: item.vehicle || '',
+    target: item.target || '제조',
+    owner: item.owner || '',
+    m4Category: item.m4Category || null,
+    location: item.location || null,
+    completedDate: item.completedDate || null,
+    status: item.status || 'R',
+    sourceType: item.sourceType || 'manual',
+    priority: item.priority ?? 0,
+    fmeaId: item.fmeaId || null,
+    appliedDate: item.appliedDate || null,
+    attachmentUrl: item.attachmentUrl || null,
+  };
+}
 
 // GET: LLD 목록 조회 (필터 지원)
 export async function GET(request: NextRequest) {
@@ -87,9 +148,9 @@ export async function POST(request: NextRequest) {
 
     // 입력 검증
     for (const item of items) {
-      if (!item.lldNo || !item.processNo || !item.processName || !item.productName) {
+      if (!item.lldNo || !item.processName || !item.productName) {
         return NextResponse.json(
-          { success: false, error: `필수 필드 누락: lldNo, processNo, processName, productName (${item.lldNo || 'unknown'})` },
+          { success: false, error: `필수 필드 누락: lldNo, processName, productName (${item.lldNo || 'unknown'})` },
           { status: 400 }
         );
       }
@@ -108,75 +169,13 @@ export async function POST(request: NextRequest) {
     }
 
     const results = await prisma.$transaction(
-      items.map((item: {
-        lldNo: string;
-        classification: string;
-        applyTo: string;
-        processNo: string;
-        processName: string;
-        productName: string;
-        failureMode: string;
-        cause: string;
-        occurrence?: number;
-        detection?: number;
-        improvement: string;
-        vehicle?: string;
-        target?: string;
-        m4Category?: string;
-        location?: string;
-        completedDate?: string;
-        status?: string;
-        sourceType?: string;
-        priority?: number;
-        fmeaId?: string;
-        appliedDate?: string;
-      }) =>
+      items.map((item: LLDItem) =>
         prisma.lLDFilterCode.upsert({
           where: { lldNo: item.lldNo },
-          update: {
-            classification: item.classification,
-            applyTo: item.applyTo,
-            processNo: item.processNo,
-            processName: item.processName,
-            productName: item.productName,
-            failureMode: item.failureMode || '',
-            cause: item.cause || '',
-            occurrence: item.occurrence ?? null,
-            detection: item.detection ?? null,
-            improvement: item.improvement || '',
-            vehicle: item.vehicle || '',
-            target: item.target || '제조',
-            m4Category: item.m4Category || null,
-            location: item.location || null,
-            completedDate: item.completedDate || null,
-            status: item.status || 'R',
-            sourceType: item.sourceType || 'manual',
-            priority: item.priority ?? 0,
-            fmeaId: item.fmeaId || null,
-            appliedDate: item.appliedDate || null,
-          },
+          update: buildUpsertData(item),
           create: {
             lldNo: item.lldNo,
-            classification: item.classification,
-            applyTo: item.applyTo,
-            processNo: item.processNo,
-            processName: item.processName,
-            productName: item.productName,
-            failureMode: item.failureMode || '',
-            cause: item.cause || '',
-            occurrence: item.occurrence ?? null,
-            detection: item.detection ?? null,
-            improvement: item.improvement || '',
-            vehicle: item.vehicle || '',
-            target: item.target || '제조',
-            m4Category: item.m4Category || null,
-            location: item.location || null,
-            completedDate: item.completedDate || null,
-            status: item.status || 'R',
-            sourceType: item.sourceType || 'manual',
-            priority: item.priority ?? 0,
-            fmeaId: item.fmeaId || null,
-            appliedDate: item.appliedDate || null,
+            ...buildUpsertData(item),
           },
         })
       )
