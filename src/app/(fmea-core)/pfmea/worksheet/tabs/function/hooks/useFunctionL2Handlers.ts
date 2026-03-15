@@ -11,7 +11,7 @@ import { useCallback, useState } from 'react';
 import { uid } from '../../../constants';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { findLinkedProductCharsForFunction, getAutoLinkMessage } from '../../../utils/auto-link';
-import { filterMeaningfulFunctionsL2 } from '../functionL2Utils';
+import { filterMeaningfulFunctionsL2, filterMeaningfulProductChars } from '../functionL2Utils';
 import { validateAutoMapping, groupMatchedByRoom, groupMatchedByRoomMeta, protectStructure, ensureMinimumL2Functions } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
 
@@ -232,24 +232,20 @@ export function useFunctionL2Handlers({
 
   // 확정 핸들러
   const handleConfirm = useCallback(() => {
-    // ★★★ 2026-03-12 FIX: 누락 데이터 검증 — 제품특성 미선택 시 확정 차단 ★★★
-    const procs = (state.l2 || []).filter((p: any) => {
+    // ★★★ 2026-03-15 FIX: missingCount와 동일한 필터 사용 (filterMeaningfulFunctionsL2/filterMeaningfulProductChars) ★★★
+    const meaningfulProcs = (state.l2 || []).filter((p: any) => {
       const name = (p.name || '').trim();
       return name !== '' && !name.includes('클릭') && !name.includes('선택');
     });
     let missing = 0;
-    procs.forEach((proc: any) => {
-      const funcs = (proc.functions || []).filter((f: any) => {
-        const n = (f.name || '').trim();
-        return n && !n.includes('클릭') && !n.includes('미입력') && !n.includes('선택');
-      });
+    meaningfulProcs.forEach((proc: any) => {
+      const funcs = filterMeaningfulFunctionsL2(proc.functions || []);
       if (funcs.length === 0) { missing++; return; }
       funcs.forEach((f: any) => {
-        const chars = (f.productChars || []).filter((c: any) => {
-          const cn = (c.name || '').trim();
-          return cn && !cn.includes('클릭') && !cn.includes('미입력') && !cn.includes('선택');
-        });
-        if (chars.length === 0) missing++;
+        if (f.name && f.name.trim()) {
+          const chars = filterMeaningfulProductChars(f.productChars || []);
+          if (chars.length === 0) missing++;
+        }
       });
     });
     if (missing > 0) {
