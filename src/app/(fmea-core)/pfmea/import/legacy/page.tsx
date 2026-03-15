@@ -295,6 +295,7 @@ export default function LegacyImportPage() {
             parentFmeaId: p.parentFmeaId || null,
             parentFmeaType: p.parentFmeaType || null,
             revisionNo: p.revisionNo,
+            cftMembers: Array.isArray(p.cftMembers) ? (p.cftMembers as FMEAProject['cftMembers']) : [],
           })) as FMEAProject[];
           setFmeaList(loadedProjects);
           if (!selectedFmeaId && loadedProjects.length > 0) {
@@ -453,6 +454,55 @@ export default function LegacyImportPage() {
         failureChains={masterChains}
         parseStatistics={parseResult?.statistics}
       />
+
+      {/* CFT 읽기전용 테이블 */}
+      {selectedFmea && (
+        <div className="bg-white rounded border border-gray-300 mt-2">
+          <div className="flex items-center px-3 py-1.5 border-b border-gray-300 bg-[#e8f5e9]">
+            <span className="mr-2">👥</span>
+            <h2 className="text-xs font-bold text-gray-700">CFT (Cross Functional Team)</h2>
+            <span className="ml-2 text-[10px] text-gray-500">{selectedFmea.cftMembers?.length || 0}명</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr style={{ backgroundColor: '#00587a', height: '26px' }} className="text-white">
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-10">No</th>
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-24">CFT역할(Role)</th>
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-28">성명(Name)</th>
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-24">부서(Dept.)</th>
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-16">직급(Position)</th>
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-32">담당업무(Task)</th>
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-36">Email</th>
+                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-28">전화번호(Phone)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedFmea.cftMembers && selectedFmea.cftMembers.length > 0) ? (
+                  selectedFmea.cftMembers.map((m, i) => (
+                    <tr key={m.id} className="hover:bg-blue-50" style={{ height: '28px', backgroundColor: i % 2 === 0 ? '#e3f2fd' : 'white' }}>
+                      <td className="border border-gray-300 px-2 py-1 text-center font-bold text-[#00587a]">{i + 1}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-center font-semibold">{m.role}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-center">{m.name}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-center">{m.department}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-center">{m.position}</td>
+                      <td className="border border-gray-300 px-2 py-1">{m.task}</td>
+                      <td className="border border-gray-300 px-2 py-1">{m.email}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-center">{m.phone}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="border border-gray-300 px-4 py-3 text-center text-gray-400 text-xs">
+                      등록된 CFT 멤버가 없습니다. 등록화면에서 CFT를 등록해주세요.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* BD 현황 테이블 */}
       <BdStatusTable

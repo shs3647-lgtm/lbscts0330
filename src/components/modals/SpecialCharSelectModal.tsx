@@ -22,8 +22,8 @@ interface SpecialCharItem {
 
 /** 기본 특별특성 데이터 — LBS 전용 */
 const DEFAULT_SPECIAL_CHAR_DATA: SpecialCharItem[] = [
-  { id: 'LBS_DIA', customer: 'LBS', symbol: '◇', notation: 'SC', meaning: '공정관리 특별특성 (Process Control)', icon: '◇', color: '#00838f' },
-  { id: 'LBS_STAR', customer: 'LBS', symbol: '★', notation: 'CC', meaning: '제품/공정 핵심 특별특성 (Critical)', icon: '★', color: '#e65100' },
+  { id: 'LBS_DIA', customer: 'LBS', symbol: '◇', notation: '◇', meaning: '공정 특별 특성\nEtch Rate, Plating 두께, Chemical 농도, Mold 온도/압력', icon: '◇', color: '#00838f' },
+  { id: 'LBS_STAR', customer: 'LBS', symbol: '★', notation: '★', meaning: '제품 특별특성\nBall Height, Co-planarity, Bond Strength, Vf/Ir/BVR', icon: '★', color: '#e65100' },
   { id: 'COMMON_NONE', customer: 'LBS', symbol: '-', notation: '-', meaning: '해당없음', icon: '', color: '#9e9e9e' },
 ];
 
@@ -72,10 +72,12 @@ interface SpecialCharSelectModalProps {
   customerName?: string;
 }
 
-/** 표시별 색상 매핑 */
+/** 표시별 색상 매핑 — 기호(symbol)와 표기(notation) 양쪽 키 지원 */
 const NOTATION_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   SC: { bg: '#e8f5e9', text: '#2e7d32', border: '#4caf50' },
+  '◇': { bg: '#e8f5e9', text: '#2e7d32', border: '#4caf50' },
   CC: { bg: '#fff3e0', text: '#e65100', border: '#ff9800' },
+  '★': { bg: '#fff3e0', text: '#e65100', border: '#ff9800' },
   'F/F': { bg: '#e3f2fd', text: '#1565c0', border: '#42a5f5' },
   '-': { bg: '#f5f5f5', text: '#757575', border: '#bdbdbd' },
 };
@@ -159,7 +161,7 @@ export default function SpecialCharSelectModal({
           className="bg-gradient-to-r from-orange-500 to-orange-600 py-1 px-2 text-white flex justify-between items-center cursor-move select-none"
           onMouseDown={handleMouseDown}
         >
-          <span className="text-[10px] font-bold">특별특성 선택 (SC)</span>
+          <span className="text-[10px] font-bold">특별특성 선택</span>
           <button onClick={onClose} className="bg-red-500 hover:bg-red-600 border-none text-white px-1.5 py-0.5 rounded text-[9px] cursor-pointer font-bold">×</button>
         </div>
 
@@ -196,8 +198,8 @@ export default function SpecialCharSelectModal({
                   {isRecommended && (
                     <span className="absolute -top-1.5 -right-1.5 text-[6px] bg-purple-600 text-white px-1 py-px rounded-full leading-none font-bold">추천</span>
                   )}
-                  <span className="text-sm font-bold leading-none">{item.notation}</span>
-                  <span className="text-[7px] opacity-60 mt-0.5 leading-none truncate max-w-full">{item.symbol}</span>
+                  <span className="text-lg font-bold leading-none">{item.symbol}</span>
+                  <span className="text-[8px] opacity-60 mt-0.5 leading-none truncate max-w-full">{item.notation}</span>
                 </button>
               );
             })}
@@ -206,7 +208,7 @@ export default function SpecialCharSelectModal({
 
         {/* 범례 — 1줄 */}
         <div className="py-0.5 px-2 bg-gray-50 border-t border-gray-200 text-[7px] text-gray-500 text-center">
-          SC=Safety | CC=Critical | F/F=Fit/Function
+          ◇=공정 특별특성 | ★=제품 특별특성
         </div>
       </div>
     </div>

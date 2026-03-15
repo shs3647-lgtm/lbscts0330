@@ -35,6 +35,17 @@ export interface FMEAProject {
   parentFmeaId?: string | null;
   parentFmeaType?: string | null;
   revisionNo?: string;
+  cftMembers?: Array<{
+    id: string;
+    role: string;
+    name: string;
+    department: string;
+    position: string;
+    task: string;
+    email: string;
+    phone: string;
+    remark?: string;
+  }>;
 }
 
 export interface ImportPageState {

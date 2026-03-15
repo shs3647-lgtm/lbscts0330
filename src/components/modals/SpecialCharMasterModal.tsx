@@ -35,8 +35,8 @@ export interface SpecialCharMaster {
 
 /** 기본 특별특성 데이터 — LBS 전용 */
 const DEFAULT_SPECIAL_CHARS: Omit<SpecialCharMaster, 'id' | 'partName' | 'processName' | 'productChar' | 'processChar' | 'failureMode'>[] = [
-  { customer: 'LBS', customerSymbol: '◇', internalSymbol: 'SC', meaning: '공정관리 특별특성\n공정 파라미터 Spec Out 시 제품 품질에 영향\n(Etch Rate, Amount 등)', icon: '◇', color: '#00838f', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
-  { customer: 'LBS', customerSymbol: '★', internalSymbol: 'CC', meaning: '제품/공정 핵심 특별특성\n고객 요구 규격 직결, Spec Out 시 제품 불량\n(Height, Strength, Co-planarity 등)', icon: '★', color: '#e65100', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
+  { customer: 'LBS', customerSymbol: '◇', internalSymbol: '◇', meaning: '공정 특별 특성\nEtch Rate, Plating 두께, Chemical 농도, Curing Time, Plasma Power, Mold 온도/압력', icon: '◇', color: '#00838f', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
+  { customer: 'LBS', customerSymbol: '★', internalSymbol: '★', meaning: '제품 특별특성\nBall Height, Co-planarity, Bond Strength, 전기적 특성(Vf, Ir, BVR), 패키지 치수', icon: '★', color: '#e65100', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
 ];
 
 const STYLES = {

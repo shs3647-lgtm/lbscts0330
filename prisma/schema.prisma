@@ -2666,6 +2666,32 @@ model SpecialCharMasterItem {
   @@map("special_char_master_items")
 }
 
+// =====================================================
+// SeverityUsageRecord: 심각도 사용 이력 (개선루프 추천)
+//   비유: "이전 프로젝트에서 비슷한 고장영향에 S=5를 적용했다"면
+//   새 프로젝트에서도 동일 고장영향에 S=5를 추천
+// =====================================================
+model SeverityUsageRecord {
+  id              String   @id @default(uuid())
+  feText          String                          // 고장영향 텍스트
+  severity        Int                             // 심각도 값 (1-10)
+  feCategory      String   @default("")           // FE 카테고리 (YP/SP/USER)
+  processName     String   @default("")           // 공정명
+  productChar     String   @default("")           // 제품특성
+  usageCount      Int      @default(1)            // 사용 횟수
+  lastUsedAt      DateTime @default(now())        // 마지막 사용일
+  sourceFmeaId    String?                         // 최초 등록 FMEA ID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([feText, severity])
+  @@index([feText])
+  @@index([severity])
+  @@index([usageCount(sort: Desc)])
+  @@index([processName])
+  @@map("severity_usage_records")
+}
+
 // ── Enum definitions (for future use — do not change existing String fields) ──
 
 enum M4Category {
