@@ -739,20 +739,18 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     }));
   }
 
-  // ★★★ 근본 방어: 첫 번째 function의 PC 중 FM 없는 것만 placeholder 생성 ★★★
-  // (다른 A3의 복제 PC는 동일 A4이므로 placeholder 불필요)
-  const linkedPCIds = new Set(
-    process.failureModes
-      .map(fm => (fm as { productCharId?: string }).productCharId)
-      .filter(Boolean)
-  );
-  for (const pc of uniquePCs) {
-    if (pc.name && !linkedPCIds.has(pc.id)) {
-      process.failureModes.push({
-        id: uid(),
-        name: `${pc.name} 부적합`,
-        productCharId: pc.id,
-      });
+  // ★★★ 2026-03-16 FIX: FM 없는 PC → placeholder는 A5가 0건일 때만 생성
+  // A5 항목이 존재하나 parentItemId 미설정으로 첫 PC에 몰린 경우,
+  // 나머지 PC에 거짓 placeholder FM 생성하면 안 됨 (거짓 누락행 원인)
+  if (a5Items.length === 0) {
+    for (const pc of uniquePCs) {
+      if (pc.name) {
+        process.failureModes.push({
+          id: uid(),
+          name: `${pc.name} 부적합`,
+          productCharId: pc.id,
+        });
+      }
     }
   }
 }
@@ -1051,18 +1049,19 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     }
   }
 
-  // m4별 B4→processChar 꽂아넣기 (parentItemId FK 기반)
+  // m4별 B4→processChar 꽂아넣기 (parentItemId FK 기반, 폴백: 순차 할당)
   const unmatchedB4: ImportedFlatData[] = []; // ★ m4 불일치 B4 수집
   for (const [m4Key, m4B4] of b4ByM4) {
     const m4PCs = pcByM4.get(m4Key) || [];
     if (m4PCs.length > 0 && m4B4.length > 0) {
-      // ★★★ 2026-03-16 FIX: distribute → parentItemId 기반 꽂아넣기
-      // parentItemId가 B3의 id와 일치하면 해당 PC에 연결, 미매칭 시 첫 PC
+      // ★★★ 2026-03-16 FIX: distribute → parentItemId FK 기반 꽂아넣기
+      // parentItemId 없으면 순차 할당 (i번째 B4 → i번째 PC, 초과분은 마지막 PC)
       const pcIdSet = new Set(m4PCs.map(pc => pc.id));
-      for (const b4 of m4B4) {
-        let targetPc = m4PCs[0]; // fallback: 첫 PC
+      for (let bi = 0; bi < m4B4.length; bi++) {
+        const b4 = m4B4[bi];
+        let targetPc = m4PCs[Math.min(bi, m4PCs.length - 1)]; // 순차, 초과→마지막
         if (b4.parentItemId && pcIdSet.has(b4.parentItemId)) {
-          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || m4PCs[0];
+          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || targetPc;
         }
         causes.push({
           id: uid(),
@@ -1105,11 +1104,10 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       } as L3FailureCauseExtended);
     }
   }
-  // ★★★ 2026-03-15 FIX: orphan processChar에 placeholder FC 자동생성 (항상 실행) ★★★
-  // 이전 버그: hasRealB4Causes 가드 → B4가 1개라도 있으면 placeholder 스킵 → FC 누락 반복
-  // 수정: B4 distribute 후 FC 미연결 processChar에 항상 placeholder 생성
-  // placeholder 이름 "${pc.name} 부적합"은 isMissing() 판정에 걸리지 않음 (키워드 미포함)
-  {
+  // ★★★ 2026-03-16 FIX: orphan processChar → placeholder FC는 B4가 0건일 때만 생성
+  // B4 항목이 존재하나 parentItemId 미설정으로 첫 PC에 몰린 경우,
+  // 나머지 PC에 거짓 placeholder FC 생성하면 안 됨 (거짓 누락행 원인)
+  if (b4Items.length === 0) {
     const linkedProcessCharIds = new Set(
       causes.map(fc => (fc as { processCharId?: string }).processCharId).filter(Boolean)
     );

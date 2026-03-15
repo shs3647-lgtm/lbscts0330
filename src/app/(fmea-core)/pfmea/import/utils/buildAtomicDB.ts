@@ -328,10 +328,11 @@ function buildL2Entities(
         productCharId: targetPC.id, mode: a5.value, specialChar: Boolean(targetPC.specialChar),
       });
     }
-    // FM 없는 PC → placeholder
-    const linkedPCIds = new Set(failureModes.map(fm => fm.productCharId).filter(Boolean));
-    for (const pc of sharedPCs) {
-      if (pc.name && !linkedPCIds.has(pc.id)) {
+    // ★★★ 2026-03-16 FIX: FM 없는 PC → placeholder는 A5가 0건일 때만 생성
+    // A5 항목이 존재하나 parentItemId 미설정으로 첫 PC에 몰린 경우,
+    // 나머지 PC에 거짓 placeholder FM 생성하면 안 됨 (거짓 누락행 원인)
+    if (a5Items.length === 0) {
+      for (const pc of sharedPCs) {
         failureModes.push({
           id: uid(), fmeaId, l2FuncId, l2StructId,
           productCharId: pc.id, mode: `${pc.name} 부적합`, specialChar: Boolean(pc.specialChar),
@@ -474,12 +475,14 @@ function buildL3Entities(
   for (const [m4Key, m4B4] of b4ByM4) {
     const m4PCs = pcByM4.get(m4Key) || [];
     if (m4PCs.length > 0 && m4B4.length > 0) {
-      // ★★★ 2026-03-16 FIX: distribute → parentItemId 꽂아넣기, 미매칭 시 첫 PC
+      // ★★★ 2026-03-16 FIX: distribute → parentItemId FK 기반 꽂아넣기
+      // parentItemId 없으면 순차 할당 (i번째 B4 → i번째 PC, 초과분은 마지막 PC)
       const pcIdSet = new Set(m4PCs.map(pc => pc.id));
-      for (const b4 of m4B4) {
-        let targetPc = m4PCs[0]; // fallback
+      for (let bi = 0; bi < m4B4.length; bi++) {
+        const b4 = m4B4[bi];
+        let targetPc = m4PCs[Math.min(bi, m4PCs.length - 1)]; // 순차, 초과→마지막
         if (b4.parentItemId && pcIdSet.has(b4.parentItemId)) {
-          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || m4PCs[0];
+          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || targetPc;
         }
         const l3ForPc = l3Structures[targetPc.l3Idx];
         const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
@@ -517,8 +520,11 @@ function buildL3Entities(
     }
   }
 
-  // orphan processChar → placeholder FC 자동생성
+  // ★★★ 2026-03-16 FIX: orphan processChar → placeholder FC는 B4가 0건일 때만 생성
+  // B4 항목이 존재하나 parentItemId 미설정으로 첫 PC에 몰린 경우,
+  // 나머지 PC에 거짓 placeholder FC 생성하면 안 됨
   const linkedPcIds = new Set(failureCauses.map(fc => fc.processCharId).filter(Boolean));
+  if (b4Items.length === 0) {
   for (const pc of pcRecords) {
     if (pc.name && !linkedPcIds.has(pc.id)) {
       const l3ForPc = l3Structures[pc.l3Idx];
@@ -529,6 +535,7 @@ function buildL3Entities(
         processCharId: pc.id, cause: `${pc.name} 부적합`, occurrence: 0,
       });
     }
+  } // if (b4Items.length === 0)
   }
 
   return { l3Functions, failureCauses };

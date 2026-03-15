@@ -250,10 +250,17 @@ export function buildFailureChainsFromFlat(
           fc.excelRow != null && fc.excelRow >= fm.excelRow! && fc.excelRow <= rowEnd,
         );
       } else if (fcs.length > 0) {
-        // ★★★ 2026-03-16 FIX: 라운드로빈 배분 제거 → 첫 FM에 전부 꽂아넣기
-        // 배분하면 데이터 없는 FM에도 FC 강제 할당 → 거짓 누락행 발생
-        // excelRow 없으면 정확한 FM↔FC 매칭 불가 → 첫 FM에 전부 보수적 할당
-        matchedFCs = fmIdx === 0 ? fcs : [];
+        // ★★★ 2026-03-01 FIX: 라운드로빈 분배 — 모든 FM에 최소 1개 FC 보장 ★★★
+        // 체인 빌딩(검증 미리보기)용 — 워크시트 렌더링과 무관
+        // excelRow 없으면 FM↔FC 정확한 매칭 불가 → 라운드로빈 근사치 유지
+        const base = Math.floor(fcs.length / fms.length);
+        const remainder = fcs.length % fms.length;
+        let offset = 0;
+        for (let i = 0; i < fmIdx; i++) {
+          offset += base + (i < remainder ? 1 : 0);
+        }
+        const count = base + (fmIdx < remainder ? 1 : 0);
+        matchedFCs = fcs.slice(offset, offset + count);
       } else {
         matchedFCs = [];
       }
