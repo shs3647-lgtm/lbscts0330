@@ -868,7 +868,12 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       //    엔지니어가 사실에 근거한 완벽한 FMEA를 작성하도록 돕는 기초자료이므로,
       //    빈 칸(placeholder) 대신 WE명 기반의 의미있는 공정특성을 생성한다.
       //    ↔ 기존 자료 Import는 원본 사실 데이터를 그대로 보존하는 것이 목적 (변환/보충 없음)
-      if (we.name) {
+      // ★★★ 2026-03-16 FIX: Import에 B3 데이터가 이미 있는 공정은 placeholder 생성 스킵
+      //    이전 버그: B3=88 Import인데 빈 function에 placeholder +1 → B3=89, B4=89 (gap=-1)
+      //    수정: b3Items가 존재하면(Import 데이터 있음) 해당 공정은 원본 보존 우선
+      const processHasImportedB3 = myB3.length > 0 || parentB3.length > 0 ||
+        b3Items.some(b3 => b3.m4 === we.m4);
+      if (we.name && !processHasImportedB3) {
         for (const func of we.functions) {
           if (func.processChars.length === 0) {
             func.processChars = [{ id: uid(), name: `${we.name} 관리 특성`, specialChar: '' }];

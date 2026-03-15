@@ -68,7 +68,19 @@ export function supplementMissingItems(
   }
   const needsPerProcessB1 = !missing.includes('B1') && [...allProcNos].some(pno => !b1Procs.has(pno));
 
-  if (missing.length === 0 && !needsA4Supplement && !needsPerProcessB1) return [];
+  // ★★ B2 공정별 갭 감지 — B1은 있지만 B2가 없는 공정 보충
+  const b2Procs = new Set(flatData.filter(d => d.itemCode === 'B2').map(d => normPno(d.processNo)));
+  const needsPerProcessB2 = !missing.includes('B2') && [...b1Procs].some(pno => !b2Procs.has(pno));
+
+  // ★★ C2/C3 scope별 갭 감지 — 일부 scope에만 C2/C3가 있는 경우
+  const c1Scopes = new Set(flatData.filter(d => d.itemCode === 'C1' && d.processNo).map(d => d.processNo));
+  const c2Scopes = new Set(flatData.filter(d => d.itemCode === 'C2' && d.processNo).map(d => d.processNo));
+  const c3Scopes = new Set(flatData.filter(d => d.itemCode === 'C3' && d.processNo).map(d => d.processNo));
+  const needsScopeC2C3 = c1Scopes.size > 0 && (
+    [...c1Scopes].some(s => !c2Scopes.has(s)) || [...c1Scopes].some(s => !c3Scopes.has(s))
+  );
+
+  if (missing.length === 0 && !needsA4Supplement && !needsPerProcessB1 && !needsPerProcessB2 && !needsScopeC2C3) return [];
 
   // ── 공정 정보 수집 (A-레벨 flatData에서) — normPno 정규화 ──
   // ★ 원본 processNo 보존 (보충 항목에 원본 형식 사용)
@@ -167,7 +179,7 @@ export function supplementMissingItems(
   }
 
   // ── B1 작업요소 + B2 요소기능 (전역 누락 + 공정별 갭 통합 처리) ──
-  if (missing.includes('B1') || missing.includes('B2') || needsPerProcessB1) {
+  if (missing.includes('B1') || missing.includes('B2') || needsPerProcessB1 || needsPerProcessB2) {
     // ★ normPno로 정규화하여 '01' vs '1' 매칭 보장
     const existingB1Procs = new Set(
       [...flatData, ...supplements].filter(d => d.itemCode === 'B1').map(d => normPno(d.processNo)).filter(Boolean),
@@ -186,10 +198,15 @@ export function supplementMissingItems(
       }
     }
 
-    // B2 보충이 필요한 공정 식별
+    // B2 보충이 필요한 공정 식별 (전역 누락 + 공정별 갭)
     const procsNeedingB2 = new Set<string>();
     if (missing.includes('B2')) {
       for (const pno of sortedProcNos) procsNeedingB2.add(pno);
+    } else if (needsPerProcessB2) {
+      // B2가 전역적으로는 있지만, B1이 있는데 B2가 없는 공정만 보충
+      for (const pno of existingB1Procs) {
+        if (!existingB2Procs.has(pno)) procsNeedingB2.add(pno);
+      }
     }
 
     // 체인에서 workElement + m4 조합 추출 (공정별, normalized 비교)
@@ -359,30 +376,45 @@ export function supplementMissingItems(
     }
   }
 
-  // ── C2 제품기능 / C3 요구사항 — scope별 자동생성 ──
-  if (missing.includes('C2') || missing.includes('C3')) {
+  // ── C2 제품기능 / C3 요구사항 — scope별 자동생성 (전역 누락 + 개별 scope 갭 통합) ──
+  {
+    const allItems = [...flatData, ...supplements];
     const scopes = new Set<string>();
-    // C1이 이미 있거나 위에서 보충했으면 그 scope 사용
-    const c1Items = [...flatData, ...supplements].filter(d => d.itemCode === 'C1');
+    const c1Items = allItems.filter(d => d.itemCode === 'C1');
     for (const c1 of c1Items) {
       if (c1.processNo) scopes.add(c1.processNo);
     }
-    if (scopes.size === 0) scopes.add('YP'); // 최소 1개 scope
+    if (scopes.size === 0) scopes.add('YP');
+
+    // scope별 기존 C2/C3 존재 여부 확인
+    const existingC2Scopes = new Set(
+      allItems.filter(d => d.itemCode === 'C2' && d.processNo).map(d => d.processNo),
+    );
+    const existingC3Scopes = new Set(
+      allItems.filter(d => d.itemCode === 'C3' && d.processNo).map(d => d.processNo),
+    );
+
+    const scopeLabel = (s: string) =>
+      s === 'YP' ? '후속공정' : s === 'SP' ? '안전/법규' : '사용자';
 
     for (const scope of scopes) {
-      if (missing.includes('C2')) {
+      // C2: 해당 scope에 C2가 없으면 보충
+      if (!existingC2Scopes.has(scope)) {
         supplements.push({
           id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C2',
-          value: `${scope === 'YP' ? '후속공정' : scope === 'SP' ? '안전/법규' : '사용자'} 요구사항을 만족한다`,
+          value: `${scopeLabel(scope)} 요구사항을 만족한다`,
           inherited: true, createdAt: now,
         });
+        existingC2Scopes.add(scope);
       }
-      if (missing.includes('C3')) {
+      // C3: 해당 scope에 C3가 없으면 보충
+      if (!existingC3Scopes.has(scope)) {
         supplements.push({
           id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C3',
-          value: `${scope === 'YP' ? '후속공정' : scope === 'SP' ? '안전/법규' : '사용자'} 품질 기준 충족`,
+          value: `${scopeLabel(scope)} 품질 기준 충족`,
           inherited: true, createdAt: now,
         });
+        existingC3Scopes.add(scope);
       }
     }
   }
