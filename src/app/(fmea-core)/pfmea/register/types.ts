@@ -16,10 +16,25 @@ export type FMEASelectType = 'M' | 'F' | 'P' | 'ALL' | 'LOAD' | 'MF';
 // FMEA 정보 인터페이스
 // =====================================================
 
+/** 고객사 분류 — 특별특성 기호 필터링용 */
+export type CustomerIndustry = '' | '자사' | 'LBS' | '현대기아' | 'FORD' | 'BMW';
+
+/** 고객사 분류 옵션 목록 */
+export const CUSTOMER_INDUSTRY_OPTIONS: { value: CustomerIndustry; label: string }[] = [
+  { value: '', label: '선택 안 함' },
+  { value: '자사', label: '자사 (In-house)' },
+  { value: 'LBS', label: 'LBS (LB Semicon)' },
+  { value: '현대기아', label: '현대/기아 (Hyundai/Kia)' },
+  { value: 'FORD', label: 'FORD' },
+  { value: 'BMW', label: 'BMW' },
+];
+
 export interface FMEAInfo {
   companyName: string;
   engineeringLocation: string;
   customerName: string;
+  /** 고객사 분류 — 특별특성 기호 필터링용 (customerName과 별도) */
+  customerIndustry: CustomerIndustry;
   modelYear: string;
   subject: string;
   fmeaStartDate: string;
@@ -44,7 +59,7 @@ export interface FMEAInfo {
 // =====================================================
 
 export const INITIAL_FMEA: FMEAInfo = {
-  companyName: '', engineeringLocation: '', customerName: '', modelYear: '',
+  companyName: '', engineeringLocation: '', customerName: '', customerIndustry: '', modelYear: '',
   subject: '', fmeaStartDate: '', fmeaRevisionDate: '', fmeaProjectName: '',
   fmeaId: '', fmeaType: 'P', designResponsibility: '', confidentialityLevel: '',
   fmeaResponsibleName: '', partName: '', partNo: '', linkedCpNo: '', linkedPfdNo: '', linkedDfmeaNo: '',

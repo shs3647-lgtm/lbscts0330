@@ -25,6 +25,8 @@ interface SpecialCharItem {
 const DEFAULT_SPECIAL_CHAR_DATA: SpecialCharItem[] = [
   { id: 'JASA_SC', customer: '자사', symbol: 'SC', notation: 'SC', meaning: 'Safety/Compliance (법규·규제 특성)', icon: '●', color: '#1565c0' },
   { id: 'JASA_FF', customer: '자사', symbol: 'F/F', notation: 'F/F', meaning: 'Fit/Function (기능·조립성 특성)', icon: '●', color: '#2e7d32' },
+  { id: 'LBS_DIA', customer: 'LBS', symbol: '◇', notation: 'SC', meaning: '공정관리 특별특성 (Process Control)', icon: '◇', color: '#00838f' },
+  { id: 'LBS_STAR', customer: 'LBS', symbol: '★', notation: 'CC', meaning: '제품/공정 핵심 특별특성 (Critical)', icon: '★', color: '#e65100' },
   { id: 'HK_IC', customer: '현대/기아', symbol: 'IC', notation: 'SC', meaning: '중요 (Important Characteristic)', icon: '◆', color: '#e53935' },
   { id: 'HK_CC', customer: '현대/기아', symbol: 'CC', notation: 'SC', meaning: '핵심 (Critical Characteristic)', icon: '★', color: '#d32f2f' },
   { id: 'COMMON_C', customer: '공통', symbol: 'C', notation: 'SC', meaning: 'Critical (핵심 특성)', icon: '◆', color: '#e53935' },
@@ -108,11 +110,15 @@ export default function SpecialCharSelectModal({
     let data = loadRegisteredSymbols();
     if (customerName && customerName.trim()) {
       const cn = customerName.trim();
+      // 정규화: 현대기아 ↔ 현대/기아 호환
+      const normalize = (s: string) => s.replace(/[\/\s]/g, '').toLowerCase();
+      const cnNorm = normalize(cn);
       // 자사 + 등록 고객사 + 공통(해당없음)만 표시
-      data = data.filter(d =>
-        d.customer === '자사' || d.customer === '공통' ||
-        d.customer.includes(cn) || cn.includes(d.customer)
-      );
+      data = data.filter(d => {
+        if (d.customer === '자사' || d.customer === '공통') return true;
+        const dNorm = normalize(d.customer);
+        return dNorm.includes(cnNorm) || cnNorm.includes(dNorm);
+      });
     }
     // ★ 자사를 맨 위로 정렬
     data.sort((a, b) => {

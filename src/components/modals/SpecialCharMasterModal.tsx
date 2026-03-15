@@ -31,11 +31,8 @@ export interface SpecialCharMaster {
   linkPFD: boolean;
 }
 
-/** 기본 특별특성 데이터 — 17개 (자사2 + LBS2 + 현대기아2 + FORD6 + BMW5) */
+/** 기본 특별특성 데이터 — 15개 (LBS2 + 현대기아2 + FORD6 + BMW5) */
 const DEFAULT_SPECIAL_CHARS: Omit<SpecialCharMaster, 'id' | 'partName' | 'processName' | 'productChar' | 'processChar' | 'failureMode'>[] = [
-  // 자사
-  { customer: '자사', customerSymbol: '', internalSymbol: 'SC', meaning: 'Safety / Compliance\n법규·규제 특성', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
-  { customer: '자사', customerSymbol: '', internalSymbol: 'F/F', meaning: 'Fit / Function\n기능·조립성 특성', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
   // LBS (LB Semicon) — 제품특성·공정특성·고장형태 모두 특별특성 지정 가능
   { customer: 'LBS', customerSymbol: '◇', internalSymbol: 'SC', meaning: '공정관리 특별특성\n공정 파라미터 Spec Out 시 제품 품질에 영향\n(Etch Rate, Amount 등)', icon: '◇', color: '#00838f', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
   { customer: 'LBS', customerSymbol: '★', internalSymbol: 'CC', meaning: '제품/공정 핵심 특별특성\n고객 요구 규격 직결, Spec Out 시 제품 불량\n(Height, Strength, Co-planarity 등)', icon: '★', color: '#e65100', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
@@ -199,28 +196,19 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
     let data: SpecialCharMaster[];
     if (saved) {
       data = JSON.parse(saved);
-      // ★ 자사 SC/F/F가 없으면 맨 위에 자동 추가
-      const hasJasaSC = data.some(d => d.customer === '자사' && d.internalSymbol === 'SC');
-      const hasJasaFF = data.some(d => d.customer === '자사' && d.internalSymbol === 'F/F');
-      const jasaDefaults = DEFAULT_SPECIAL_CHARS.filter(d => d.customer === '자사');
-      if (!hasJasaFF) {
-        const ffDef = jasaDefaults.find(d => d.internalSymbol === 'F/F');
-        if (ffDef) data.unshift({ ...ffDef, id: `JASA_FF_${Date.now()}`, partName: '', processName: '', productChar: '', processChar: '' });
-      }
-      if (!hasJasaSC) {
-        const scDef = jasaDefaults.find(d => d.internalSymbol === 'SC');
-        if (scDef) data.unshift({ ...scDef, id: `JASA_SC_${Date.now()}`, partName: '', processName: '', productChar: '', processChar: '' });
-      }
     } else {
       data = DEFAULT_SPECIAL_CHARS.map((item, idx) => ({
         ...item, id: `SC_${idx + 1}`, partName: '', processName: '', productChar: '', processChar: '', failureMode: '',
       }));
     }
-    // ★ 자사를 맨 위로 정렬
+    // ★ LBS → 나머지 순서로 정렬
+    const topOrder = ['LBS'];
     data.sort((a, b) => {
-      if (a.customer === '자사' && b.customer !== '자사') return -1;
-      if (a.customer !== '자사' && b.customer === '자사') return 1;
-      return 0;
+      const aIdx = topOrder.indexOf(a.customer);
+      const bIdx = topOrder.indexOf(b.customer);
+      const aPri = aIdx >= 0 ? aIdx : topOrder.length;
+      const bPri = bIdx >= 0 ? bIdx : topOrder.length;
+      return aPri - bPri;
     });
     setMasterData(data);
   }, [isOpen]);
@@ -396,10 +384,10 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       }
     }
 
-    const sheetName = isSymbolTab ? '기호등록' : '특별특성조회';
+    const sheetName = isSymbolTab ? '기호등록' : '특별특성항목등록';
     const fileName = isSymbolTab
       ? `특별특성_기호등록_${new Date().toISOString().slice(0,10)}.xlsx`
-      : `특별특성_조회_${new Date().toISOString().slice(0,10)}.xlsx`;
+      : `특별특성_항목등록_${new Date().toISOString().slice(0,10)}.xlsx`;
 
     const wb = XS.utils.book_new();
     XS.utils.book_append_sheet(wb, ws, sheetName);
@@ -415,18 +403,78 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       const workbook = XLSX.read(data, { type: 'binary' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      const importedData: SpecialCharMaster[] = jsonData.map((row: any, idx) => ({
-        id: `SC_${Date.now()}_${idx}`, customer: row['고객사'] || row['고객'] || '', customerSymbol: row['기호'] || row['고객기호'] || '',
-        internalSymbol: row['표시'] || row['자사표시'] || 'SC', meaning: row['기준'] || row['구분'] || '', icon: '', color: '#f5f5f5',
-        partName: '', processName: '', productChar: '', processChar: '',
-        linkDFMEA: row['D-FMEA'] === 'Y', linkPFMEA: row['P-FMEA'] === 'Y', linkCP: row['CP'] === 'Y', linkPFD: row['PFD'] === 'Y',
-      }));
-      saveData(importedData);
-      alert(`${importedData.length}개 항목을 가져왔습니다.`);
+
+      // ★ 시트명/헤더로 탭 형식 자동 감지
+      const sheetName = workbook.SheetNames[0] || '';
+      const firstRow = jsonData[0] as Record<string, unknown> | undefined;
+      const headers = firstRow ? Object.keys(firstRow) : [];
+      const isItemRegisterFormat = sheetName === '특별특성항목등록'
+        || headers.some(h => h.includes('부품') || h.includes('Part') || h.includes('제품특성') || h.includes('Product Char'));
+
+      const importedData: SpecialCharMaster[] = jsonData.map((row: any, idx) => {
+        if (isItemRegisterFormat) {
+          // 항목등록 탭 형식: 기호(Symbol), 고객(Customer), 부품(Part), 공정(Process), ...
+          const symbol = row['기호(Symbol)'] || row['기호'] || '';
+          return {
+            id: `SC_${Date.now()}_${idx}`,
+            customer: row['고객(Customer)'] || row['고객'] || '',
+            customerSymbol: symbol,
+            internalSymbol: symbol || 'SC',
+            meaning: '',
+            icon: symbol,
+            color: '#f5f5f5',
+            partName: row['부품(Part)'] || row['부품'] || '',
+            processName: row['공정(Process)'] || row['공정'] || '',
+            productChar: row['제품특성(Product Char)'] || row['제품특성'] || '',
+            processChar: row['공정특성(Process Char)'] || row['공정특성'] || '',
+            failureMode: row['고장형태(Failure Mode)'] || row['고장형태'] || '',
+            linkDFMEA: row['D-FMEA'] === 'Y',
+            linkPFMEA: row['P-FMEA'] === 'Y',
+            linkCP: row['CP'] === 'Y',
+            linkPFD: row['PFD'] === 'Y',
+          };
+        }
+        // 기호등록 탭 형식: 고객사(Customer), 표시(Internal), 기호(Symbol), 기준(Criteria)
+        return {
+          id: `SC_${Date.now()}_${idx}`,
+          customer: row['고객사(Customer)'] || row['고객사'] || row['고객'] || '',
+          customerSymbol: row['기호(Symbol)'] || row['기호'] || row['고객기호'] || '',
+          internalSymbol: row['표시(Internal)'] || row['표시'] || row['자사표시'] || 'SC',
+          meaning: row['기준(Criteria)'] || row['기준'] || row['구분'] || '',
+          icon: '',
+          color: '#f5f5f5',
+          partName: '',
+          processName: '',
+          productChar: '',
+          processChar: '',
+          failureMode: '',
+          linkDFMEA: row['D-FMEA'] === 'Y',
+          linkPFMEA: row['P-FMEA'] === 'Y',
+          linkCP: row['CP'] === 'Y',
+          linkPFD: row['PFD'] === 'Y',
+        };
+      });
+
+      // 기존 데이터에 병합 (동일 고객+기호 중복 제거)
+      const existing = masterData;
+      const merged = [...existing];
+      let addedCount = 0;
+      for (const item of importedData) {
+        const dup = merged.find(m =>
+          m.customer === item.customer && m.customerSymbol === item.customerSymbol
+          && m.partName === item.partName && m.processName === item.processName
+        );
+        if (!dup) {
+          merged.push(item);
+          addedCount++;
+        }
+      }
+      saveData(merged);
+      alert(`${addedCount}개 항목 추가 (중복 ${importedData.length - addedCount}개 제외). 총 ${merged.length}개`);
     };
     reader.readAsBinaryString(file);
     e.target.value = '';
-  }, [saveData]);
+  }, [saveData, masterData]);
 
   const getSelectItems = (field: string) => {
     switch (field) {
@@ -490,24 +538,25 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       className="fixed z-[10000] bg-white rounded-lg shadow-2xl flex flex-col select-none border border-gray-300"
       style={{ left: pos.x, top: pos.y, width: dynamicW, height: size.h, transition: 'width 0.2s ease' }}
     >
-        {/* 헤더 + 탭 + 버튼 통합 (컴팩트) */}
+        {/* 헤더: 탭 + 액션 버튼 통합 */}
         <div className="text-white py-0.5 px-2 flex justify-between items-center cursor-move shrink-0 rounded-t-lg" style={headerGradientStyle} onMouseDown={onDragStart}>
-          <div className="flex items-center gap-2">
-            <h3 className="m-0 text-[11px] font-bold" title="Special Characteristic Master">★ 특별특성(SC) 기준</h3>
+          <div className="flex items-center gap-1">
             <div className="flex items-center gap-0.5">
-              <button onClick={() => setActiveTab('symbol')} className={`py-0.5 px-2 border-none rounded text-[10px] cursor-pointer font-semibold ${activeTab === 'symbol' ? 'bg-white text-green-800' : 'bg-white/20 text-white hover:bg-white/30'}`} title="Symbol Registration">
-                기호등록(Symbol)
+              <button onClick={() => setActiveTab('symbol')} className={`py-0.5 px-2 border-none rounded text-[10px] cursor-pointer font-semibold leading-tight ${activeTab === 'symbol' ? 'bg-white text-green-800' : 'bg-white/20 text-white hover:bg-white/30'}`} title="Symbol Registration">
+                <div>기호등록</div><div className="text-[7px] opacity-70">(Symbol)</div>
               </button>
-              <button onClick={() => setActiveTab('fmea')} className={`py-0.5 px-2 border-none rounded text-[10px] cursor-pointer font-semibold ${activeTab === 'fmea' ? 'bg-white text-green-800' : 'bg-white/20 text-white hover:bg-white/30'}`} title="Special Characteristic Lookup">
-                특별특성 조회(SC Lookup)
+              <button onClick={() => setActiveTab('fmea')} className={`py-0.5 px-2 border-none rounded text-[10px] cursor-pointer font-semibold leading-tight ${activeTab === 'fmea' ? 'bg-white text-green-800' : 'bg-white/20 text-white hover:bg-white/30'}`} title="SC Item Register">
+                <div>항목등록</div><div className="text-[7px] opacity-70">(SC Item)</div>
               </button>
             </div>
+            <div className="w-px h-4 bg-white/30" />
+            <button onClick={addNewItem} className="py-0.5 px-1.5 bg-green-500 text-white border-none rounded text-[9px] cursor-pointer font-bold" onMouseDown={e => e.stopPropagation()}>+ 추가</button>
           </div>
           <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
             <button onClick={handleExport} className="py-0.5 px-1.5 bg-blue-600 text-white border-none rounded text-[9px] cursor-pointer">Export</button>
             <button onClick={() => fileInputRef.current?.click()} className="py-0.5 px-1.5 bg-orange-500 text-white border-none rounded text-[9px] cursor-pointer">Import</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
-            <button onClick={() => { saveData(masterData); alert('저장되었습니다.'); onClose(); }} className="py-0.5 px-2 bg-yellow-500 text-gray-900 border-none rounded text-[9px] cursor-pointer font-bold" title="Save">저장<span className="text-[7px] opacity-70 ml-0.5">(Save)</span></button>
+            <button onClick={() => { saveData(masterData); alert('저장되었습니다.'); onClose(); }} className="py-0.5 px-2 bg-yellow-500 text-gray-900 border-none rounded text-[9px] cursor-pointer font-bold" title="Save">저장</button>
             <button onClick={onClose} onMouseDown={e => e.stopPropagation()} className="bg-white/20 border-none text-white w-5 h-5 rounded-full cursor-pointer text-[10px] leading-none">×</button>
           </div>
         </div>
@@ -518,25 +567,24 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
             <div className="flex-1 overflow-auto">
               <table className="w-full border-collapse">
                 <thead className="sticky top-0 z-[1]">
-                  {/* 필터바를 테이블 헤더 위에 통합 */}
+                  {/* 필터바 */}
                   <tr className="bg-green-50">
-                    <th colSpan={onSelect ? 6 : 5} className="py-1 px-2 border border-green-200">
+                    <th colSpan={onSelect ? 6 : 5} className="py-0.5 px-2 border border-green-200">
                       <div className="flex gap-2 items-center">
                         <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="py-0.5 px-1.5 border border-gray-300 rounded text-[10px]">
                           {customers.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        <button onClick={addNewItem} className="py-0.5 px-2 bg-green-600 text-white border-none rounded text-[10px] cursor-pointer font-semibold">+ 신규</button>
                         <span className="text-[10px] text-gray-500">{filteredData.length}개</span>
                       </div>
                     </th>
                   </tr>
                   <tr className="bg-green-100">
-                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-20" title="Customer"><div className="leading-tight"><div>고객사</div><div className="text-[7px] font-normal opacity-60">(Cust.)</div></div></th>
+                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-20" title="Customer"><div className="leading-tight"><div>고객사</div><div className="text-[7px] font-normal opacity-60">(Customer)</div></div></th>
                     {onSelect && <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-12 bg-orange-100" title="Select">선택</th>}
-                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-14" title="Internal Symbol"><div className="leading-tight"><div>표시</div><div className="text-[7px] font-normal opacity-60">(Int.)</div></div></th>
-                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-16" title="Customer Symbol"><div className="leading-tight"><div>기호</div><div className="text-[7px] font-normal opacity-60">(Sym.)</div></div></th>
+                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-14" title="Internal Symbol"><div className="leading-tight"><div>표시</div><div className="text-[7px] font-normal opacity-60">(Internal)</div></div></th>
+                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-16" title="Customer Symbol"><div className="leading-tight"><div>기호</div><div className="text-[7px] font-normal opacity-60">(Symbol)</div></div></th>
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center" title="Criteria"><div className="leading-tight"><div>기준</div><div className="text-[7px] font-normal opacity-60">(Criteria)</div></div></th>
-                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-12" title="Delete"><div className="leading-tight"><div>삭제</div><div className="text-[7px] font-normal opacity-60">(Del)</div></div></th>
+                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-8" title="Delete">삭제</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -586,63 +634,61 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
               </datalist>
             </div>
 
-            <div className="px-3 py-1.5 bg-green-50 border-t border-gray-300">
-              <div className="text-[10px] text-green-800 leading-4">
-                <b>표시(자사)</b>: SC = Safety/Compliance (안전·법규·규제 관련) | F/F = Fit/Function (기능·조립성·성능 관련)<br/>
-                <b>기호(고객)</b>: 고객사가 정의한 특별특성 기호 (CC, IC, BM-S 등) — 기준 컬럼에 의미를 입력하세요
+            <div className="px-2 py-1 bg-green-50 border-t border-gray-300">
+              <div className="text-[9px] text-green-800 leading-3">
+                <b>SC</b> = Safety/Compliance | <b>CC</b> = Critical Char | <b>F/F</b> = Fit/Function
               </div>
             </div>
           </>
         )}
 
-        {/* ===== 탭 2: FMEA 조회 ===== */}
+        {/* ===== 탭 2: 특별특성항목등록 ===== */}
         {activeTab === 'fmea' && (
           <>
-            <div className="py-2 px-4 bg-blue-50 border-b border-gray-300 flex gap-2 items-center flex-wrap">
-              <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="py-1.5 px-2.5 border border-gray-300 rounded text-xs">
+            <div className="py-0.5 px-2 bg-blue-50 border-b border-gray-300 flex gap-2 items-center flex-wrap">
+              <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="py-0.5 px-1.5 border border-gray-300 rounded text-[10px]">
                 {customers.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              
-              {/* FMEA ID 검색 영역 (드롭다운 콤보박스) */}
-              <div className="relative flex items-center gap-1 bg-white border border-purple-300 rounded px-2 py-0.5">
-                <span className="text-[10px] text-purple-700 font-semibold whitespace-nowrap">🔍 FMEA ID:</span>
+
+              {/* FMEA ID 검색 */}
+              <div className="relative flex items-center gap-1 bg-white border border-purple-300 rounded px-1.5 py-0.5">
+                <span className="text-[9px] text-purple-700 font-semibold whitespace-nowrap">FMEA:</span>
                 <div className="relative">
-                  <input 
-                    type="text" 
-                    value={searchFmeaId} 
+                  <input
+                    type="text"
+                    value={searchFmeaId}
                     onChange={(e) => setSearchFmeaId(e.target.value)}
                     onFocus={() => setShowFmeaDropdown(true)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearchFmea()}
-                    placeholder={currentFmeaId || 'FMEA ID 검색/선택'}
-                    className="w-[160px] py-1 px-2 border-none text-xs outline-none bg-transparent"
+                    placeholder={currentFmeaId || 'ID 검색/선택'}
+                    className="w-[130px] py-0.5 px-1.5 border-none text-[10px] outline-none bg-transparent"
                   />
-                  <button 
+                  <button
                     onClick={() => setShowFmeaDropdown(!showFmeaDropdown)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-600"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-600 text-[10px]"
                     title="FMEA 목록 보기"
                   >
                     ▼
                   </button>
-                  
+
                   {/* FMEA ID 드롭다운 목록 */}
                   {showFmeaDropdown && (
-                    <div 
+                    <div
                       className="absolute top-full left-0 mt-1 w-[280px] max-h-[200px] overflow-y-auto bg-white border border-purple-300 rounded shadow-lg z-50"
                       onMouseLeave={() => setShowFmeaDropdown(false)}
                     >
                       <div className="sticky top-0 bg-purple-100 px-2 py-1 text-[10px] text-purple-700 font-semibold border-b border-purple-200">
-                        📋 등록된 FMEA ({availableFmeaList.length}개)
+                        등록된 FMEA ({availableFmeaList.length}개)
                       </div>
                       {filteredFmeaList.length === 0 ? (
                         <div className="px-3 py-2 text-xs text-gray-500">검색 결과 없음</div>
                       ) : (
-                        filteredFmeaList.map((fmea, idx) => (
+                        filteredFmeaList.map((fmea) => (
                           <div
                             key={fmea.id}
                             onClick={() => {
                               setShowFmeaDropdown(false);
                               setSearchFmeaId(fmea.id);
-                              // ✅ 선택 즉시 검색 실행 - ID 직접 전달로 상태 타이밍 문제 해결
                               handleSearchFmea(fmea.id);
                             }}
                             className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-purple-50 border-b border-gray-100 ${
@@ -653,65 +699,60 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                             {fmea.name !== fmea.id && (
                               <span className="text-gray-500 ml-1">({fmea.name.replace(fmea.id + ' - ', '')})</span>
                             )}
-                            {fmea.id.toLowerCase() === currentFmeaId?.toLowerCase() && <span className="ml-1 text-green-600">✓ 현재</span>}
-                            {loadedFmeaIds.some(id => id.toLowerCase() === fmea.id.toLowerCase()) && fmea.id.toLowerCase() !== currentFmeaId?.toLowerCase() && (
-                              <span className="ml-1 text-blue-500">✓ 로드됨</span>
-                            )}
+                            {fmea.id.toLowerCase() === currentFmeaId?.toLowerCase() && <span className="ml-1 text-green-600">✓</span>}
                           </div>
                         ))
                       )}
                     </div>
                   )}
                 </div>
-                <button 
-                  onClick={() => handleSearchFmea()} 
+                <button
+                  onClick={() => handleSearchFmea()}
                   disabled={isSearching}
-                  className="py-1 px-3 bg-purple-600 text-white border-none rounded text-[10px] cursor-pointer font-semibold disabled:bg-gray-400"
+                  className="py-0.5 px-2 bg-purple-600 text-white border-none rounded text-[9px] cursor-pointer font-semibold disabled:bg-gray-400"
                 >
                   {isSearching ? '...' : '검색'}
                 </button>
               </div>
-              
-              {/* 현재 로드된 FMEA 표시 */}
+
               {currentFmeaId && (
-                <span className="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded border border-green-300">
-                  현재: {currentFmeaId.toUpperCase()}
+                <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded border border-green-300">
+                  {currentFmeaId.toUpperCase()}
                 </span>
               )}
-              {loadedFmeaIds.length > 0 && (
-                <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                  동기화: {loadedFmeaIds.join(', ')}
-                </span>
-              )}
-              
-              <span className="text-[11px] text-gray-600 ml-1">총 {filteredData.length}개</span>
+
+              <span className="text-[10px] text-gray-500">{filteredData.length}개</span>
             </div>
 
             <div className="flex-1 overflow-auto">
               <table className="w-full border-collapse min-w-[1260px]">
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-blue-100">
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center w-16" title="Symbol">기호(Symbol)</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center w-20" title="Customer">고객(Customer)</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-blue-200 w-[100px]" title="Part">부품(Part)</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-blue-200 w-[120px]" title="Process">공정(Process)</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-blue-200 w-[160px]" title="Product Characteristic">제품특성(Product Char)</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-blue-200 w-[160px]" title="Process Characteristic">공정특성(Process Char)</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-orange-200 w-[160px]" title="Failure Mode">고장형태(Failure Mode)</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-purple-200 w-[55px]">D-FMEA</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-purple-200 w-[55px]">P-FMEA</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-purple-200 w-10">CP</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-purple-200 w-10">PFD</th>
-                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-gray-200 w-16">삭제</th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center w-16"><div className="leading-tight"><div>기호</div><div className="text-[7px] font-normal opacity-60">(Symbol)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center w-16"><div className="leading-tight"><div>고객</div><div className="text-[7px] font-normal opacity-60">(Customer)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[100px]"><div className="leading-tight"><div>부품</div><div className="text-[7px] font-normal opacity-60">(Part)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[120px]"><div className="leading-tight"><div>공정</div><div className="text-[7px] font-normal opacity-60">(Process)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[160px]"><div className="leading-tight"><div>제품특성</div><div className="text-[7px] font-normal opacity-60">(Product Char)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[160px]"><div className="leading-tight"><div>공정특성</div><div className="text-[7px] font-normal opacity-60">(Process Char)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-orange-200 w-[160px]"><div className="leading-tight"><div>고장형태</div><div className="text-[7px] font-normal opacity-60">(Failure Mode)</div></div></th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-purple-200 w-12">D-FMEA</th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-purple-200 w-12">P-FMEA</th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-purple-200 w-8">CP</th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-purple-200 w-8">PFD</th>
+                    <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-gray-200 w-8">삭제</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map(item => (
+                  {filteredData.map(item => {
+                    // ★ 기호 표시: customerSymbol > internalSymbol > icon 순서 폴백
+                    const displaySymbol = item.customerSymbol || item.internalSymbol || item.icon || '?';
+                    const badgeBg = item.color && item.color !== '#f5f5f5' && item.color !== '' ? item.color : '#5c6bc0';
+                    return (
                     <tr key={item.id} className="bg-white hover:bg-blue-50">
                       <td className="p-1 border border-gray-300 text-center">
-                        <span style={{ ...STYLES.badge, background: item.color }}>{item.icon} {item.customerSymbol || '?'}</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white inline-block" style={{ background: badgeBg }}>{displaySymbol}</span>
                       </td>
-                      <td className="p-1 border border-gray-300 text-[11px] text-center">{item.customer}</td>
+                      <td className="p-1 border border-gray-300 text-[10px] text-center font-medium">{item.customer}</td>
                       <td style={STYLES.td}><SelectButton itemId={item.id} field="partName" value={item.partName || ''} title="부품 선택" /></td>
                       <td style={STYLES.td}><SelectButton itemId={item.id} field="processName" value={item.processName || ''} title="공정 선택" /></td>
                       <td style={STYLES.td}><SelectButton itemId={item.id} field="productChar" value={item.productChar || ''} title="제품특성 선택" /></td>
@@ -730,16 +771,13 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                         <button onClick={() => toggleLink(item.id, 'linkPFD')} style={linkBtnStyle(item.linkPFD)}>{item.linkPFD ? '연동' : '-'}</button>
                       </td>
                       <td className="p-1 border border-gray-300 text-center">
-                        <button onClick={() => deleteItem(item.id)} className="py-1 px-2 bg-red-500 text-white border-none rounded text-[10px] cursor-pointer">🗑</button>
+                        <button onClick={() => deleteItem(item.id)} className="py-0.5 px-1.5 bg-red-500 text-white border-none rounded text-[9px] cursor-pointer">✕</button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
-            </div>
-
-            <div className="px-4 py-2 bg-blue-50 border-t border-gray-300">
-              <span className="text-[11px] text-blue-700">💡 FMEA ID를 검색하여 해당 FMEA의 특별특성을 조회/연동하세요. 연동 시 해당 문서에 자동 표시됩니다.</span>
             </div>
           </>
         )}

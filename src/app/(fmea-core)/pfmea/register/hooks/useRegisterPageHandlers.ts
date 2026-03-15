@@ -257,7 +257,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
   const recordChangeHistory = useCallback((targetId: string) => {
     if (!originalData) return;
     const fieldLabels: Record<keyof FMEAInfo, string> = {
-      companyName: '회사명', engineeringLocation: '엔지니어링 위치', customerName: '고객명',
+      companyName: '회사명', engineeringLocation: '엔지니어링 위치', customerName: '고객명', customerIndustry: '고객사 분류',
       modelYear: '모델 연식', subject: 'FMEA명', fmeaStartDate: '시작 일자',
       fmeaRevisionDate: '목표 완료일', fmeaProjectName: '프로젝트명', fmeaId: 'FMEA ID',
       fmeaType: 'FMEA 유형', designResponsibility: '공정 책임', confidentialityLevel: '기밀유지 수준',
@@ -356,7 +356,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
             cpNo: updatedFmeaInfo.linkedCpNo || null, pfdNo: updatedFmeaInfo.linkedPfdNo || null,
             dfmeaId: updatedFmeaInfo.linkedDfmeaNo || null,
             projectName: fmeaInfo.subject || '', subject: fmeaInfo.subject || '',
-            companyName: fmeaInfo.companyName || '', customerName: fmeaInfo.customerName || '',
+            companyName: fmeaInfo.companyName || '', customerName: fmeaInfo.customerName || '', customerIndustry: fmeaInfo.customerIndustry || '',
             responsibleName: fmeaInfo.fmeaResponsibleName || '', modelYear: fmeaInfo.modelYear || '',
             engineeringLocation: fmeaInfo.engineeringLocation || '',
             processResponsibility: fmeaInfo.designResponsibility || '',

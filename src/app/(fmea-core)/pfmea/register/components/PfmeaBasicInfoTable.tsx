@@ -19,6 +19,7 @@ interface FMEAInfo {
     companyName: string;
     engineeringLocation: string;
     customerName: string;
+    customerIndustry?: string;
     modelYear: string;
     subject: string;
     fmeaStartDate: string;
@@ -258,6 +259,19 @@ export default function PfmeaBasicInfoTable({
                         <td className={inputCell}>
                             <div className="flex items-center gap-1">
                                 <input type="text" value={fmeaInfo.customerName} onChange={e => updateField('customerName', e.target.value)} className="flex-1 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="고객 명(Customer)" />
+                                <select
+                                    value={fmeaInfo.customerIndustry || ''}
+                                    onChange={e => updateField('customerIndustry', e.target.value)}
+                                    className="h-7 px-1 text-[10px] border border-gray-300 rounded bg-white cursor-pointer"
+                                    title="고객사 분류 (SC 기호 필터)"
+                                >
+                                    <option value="">SC분류</option>
+                                    <option value="자사">자사</option>
+                                    <option value="LBS">LBS</option>
+                                    <option value="현대기아">현대/기아</option>
+                                    <option value="FORD">FORD</option>
+                                    <option value="BMW">BMW</option>
+                                </select>
                                 <button onClick={() => setBizInfoModalOpen(true)} className="text-blue-500 hover:text-blue-700">🔍</button>
                             </div>
                         </td>

@@ -543,6 +543,19 @@ function PFMEARegisterPageContent() {
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 min-w-0">
                       <input type="text" name={`customer_${Date.now()}`} value={fmeaInfo.customerName} onChange={e => updateField('customerName', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="고객 명" />
+                      <select
+                        value={fmeaInfo.customerIndustry || ''}
+                        onChange={e => updateField('customerIndustry', e.target.value)}
+                        className="h-7 px-0.5 text-[9px] border border-gray-300 rounded bg-white cursor-pointer shrink-0"
+                        title="고객사 분류 (SC 기호 필터)"
+                      >
+                        <option value="">SC분류</option>
+                        <option value="자사">자사</option>
+                        <option value="LBS">LBS</option>
+                        <option value="현대기아">현대/기아</option>
+                        <option value="FORD">FORD</option>
+                        <option value="BMW">BMW</option>
+                      </select>
                       <button onClick={() => setBizInfoModalOpen(true)} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs">🔍</button>
                     </div>
                   </td>

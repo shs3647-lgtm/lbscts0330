@@ -686,7 +686,7 @@ function FMEAWorksheetPageContent() {
     suppressAutoSaveRef,  // ★ 2026-02-18: 데이터 로드 중 저장 차단
     onAPClick: () => setShowAPModal(true),
     fmeaId: selectedFmeaId || undefined, // ★ 2026-02-08: 자동모드 마스터 필터링용
-    customerName: currentFmea?.fmeaInfo?.customerName || '', // ★ 특별특성 고객사 필터용
+    customerName: (currentFmea?.fmeaInfo as any)?.customerIndustry || currentFmea?.fmeaInfo?.customerName || '', // ★ 특별특성 고객사 필터용 (customerIndustry 우선)
     importCounts: importCounts.loaded ? importCounts : undefined,
   };
 
