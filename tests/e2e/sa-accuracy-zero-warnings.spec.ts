@@ -30,7 +30,8 @@ test.describe('SA 확정 작성정확도 경고 0건 검증', () => {
     // 1. Import 페이지 이동
     await page.goto(IMPORT_URL);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    // 메인 콘텐츠 로드 대기
+    await page.locator('body').waitFor({ state: 'visible', timeout: 15000 });
 
     await page.screenshot({ path: 'tests/screenshots/sa-acc-01-import-page.png', fullPage: true });
 

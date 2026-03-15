@@ -15,35 +15,37 @@ async function openImportWithData(page: Page) {
 
   await page.goto(`${BASE}/pfmea/import/legacy`);
   await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(2000);
+
+  // BD 현황 테이블이 로드될 때까지 대기
+  await page.locator('table').first().waitFor({ state: 'visible', timeout: 15000 });
 
   // BD 현황 테이블에서 데이터 있는 FMEA 선택 (pfm26-m001-i01 = 1278 데이터)
   const fmeaCell = page.locator('td:has-text("pfm26-m001-i01")').first();
-  const exists = await fmeaCell.isVisible({ timeout: 5000 }).catch(() => false);
+  const exists = await fmeaCell.isVisible({ timeout: 10000 }).catch(() => false);
   if (exists) {
     await fmeaCell.click();
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle');
   } else {
     // pfm26-m002-i02 fallback
     const fmeaCell2 = page.locator('td:has-text("pfm26-m002-i02")').first();
-    const exists2 = await fmeaCell2.isVisible({ timeout: 3000 }).catch(() => false);
+    const exists2 = await fmeaCell2.isVisible({ timeout: 5000 }).catch(() => false);
     if (exists2) {
       await fmeaCell2.click();
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle');
     }
   }
 
   // 패널 펼치기 (▶이면 접힌 상태)
   const collapsedArrow = page.locator('span:has-text("▶")').first();
-  const isCollapsed = await collapsedArrow.isVisible({ timeout: 2000 }).catch(() => false);
+  const isCollapsed = await collapsedArrow.isVisible({ timeout: 3000 }).catch(() => false);
   if (isCollapsed) {
     const panelHeader = page.locator('text=기초정보 템플릿').first();
     await panelHeader.click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
   }
 
   // L2 버튼 보일 때까지 대기 (데이터 로드 확인)
-  await expect(page.locator('button').filter({ hasText: /^L2\s/ }).first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('button').filter({ hasText: /^L2\s/ }).first()).toBeVisible({ timeout: 20000 });
 }
 
 /** SA→FC→FA 전체 확정 플로우 실행 */

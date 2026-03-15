@@ -9,14 +9,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('ProjectLinkage 데이터 연동 테스트', () => {
 
-    test.beforeEach(async ({ page }) => {
-        // 로그인
-        await page.goto('/auth/login');
-        await page.fill('input[name="loginId"]', 'admin');
-        await page.fill('input[name="password"]', 'admin');
-        await page.click('button[type="submit"]');
-        await page.waitForURL(/welcomeboard|apqp/);
-    });
+    // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
     test('APQP 저장 시 ProjectLinkage에 기초정보 동기화', async ({ page }) => {
         // 1. APQP 등록화면으로 이동

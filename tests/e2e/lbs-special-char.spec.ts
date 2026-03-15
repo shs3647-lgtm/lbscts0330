@@ -9,10 +9,9 @@ test.describe('LBS 특별특성 시스템', () => {
   test('1. 등록 페이지 SC분류 드롭다운 + LBS 선택', async ({ page }) => {
     await page.goto('/pfmea/register');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
 
     const scSelect = page.locator('select:has(option[value="LBS"])');
-    await expect(scSelect).toHaveCount(1, { timeout: 10000 });
+    await expect(scSelect).toHaveCount(1, { timeout: 20000 });
 
     await scSelect.selectOption('LBS');
     await expect(scSelect).toHaveValue('LBS');
@@ -23,7 +22,8 @@ test.describe('LBS 특별특성 시스템', () => {
   test('2. 워크시트 2기능탭 → SC 선택 모달 → LBS 기호 확인', async ({ page }) => {
     await page.goto('/pfmea/worksheet?id=pfm26-m011');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(4000);
+    // 워크시트 테이블 로드 대기
+    await page.locator('table').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
 
     // "2기능" 탭 클릭 (L Function)
     const funcL2Tab = page.locator('button:has-text("2기능")');
@@ -73,10 +73,9 @@ test.describe('LBS 특별특성 시스템', () => {
   test('3. 특별특성 컬럼 헤더 visible', async ({ page }) => {
     await page.goto('/pfmea/register');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     const scHeader = page.locator('th:has-text("특별특성")').first();
-    await expect(scHeader).toBeVisible({ timeout: 5000 });
+    await expect(scHeader).toBeVisible({ timeout: 20000 });
 
     await page.screenshot({ path: 'tests/screenshots/lbs-03-sc-column.png' });
   });

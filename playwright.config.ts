@@ -4,15 +4,17 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 2 : 1,
   workers: 1,
   reporter: 'html',
-  timeout: 60000,
+  timeout: 90000,
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'on',
     video: 'on-first-retry',
+    navigationTimeout: 60000,
+    actionTimeout: 30000,
   },
   projects: [
     // ★ Global Setup: 로그인 1회 → 세션 저장

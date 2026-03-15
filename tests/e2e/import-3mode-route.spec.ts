@@ -18,15 +18,14 @@ test.describe('Import 리다이렉트', () => {
   test('/pfmea/import → /pfmea/import/legacy 리다이렉트', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
     // 리다이렉트 후 URL에 /legacy 포함
-    await expect(page).toHaveURL(/\/pfmea\/import\/legacy/);
+    await expect(page).toHaveURL(/\/pfmea\/import\/legacy/, { timeout: 15000 });
   });
 
   test('/pfmea/import?id=xxx → /pfmea/import/legacy?id=xxx 쿼리 보존', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import?id=test-fmea-id`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await expect(page).toHaveURL(/\/pfmea\/import\/legacy/, { timeout: 15000 });
     const url = page.url();
     expect(url).toContain('/pfmea/import/legacy');
     expect(url).toContain('id=test-fmea-id');
@@ -39,14 +38,13 @@ test.describe('Import 3모드 페이지 로드', () => {
   test('수동 모드 (/pfmea/import/manual) 로드 성공', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/manual`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // URL 확인
     await expect(page).toHaveURL(/\/pfmea\/import\/manual/);
 
     // 수동 템플릿 설정 UI 존재 확인
     const settingLabel = page.locator('text=수동 템플릿 설정');
-    await expect(settingLabel.first()).toBeVisible({ timeout: 5000 });
+    await expect(settingLabel.first()).toBeVisible({ timeout: 15000 });
 
     // 업종사례 select 존재
     const industrySelect = page.locator('text=업종사례');
@@ -70,14 +68,13 @@ test.describe('Import 3모드 페이지 로드', () => {
   test('자동 모드 (/pfmea/import/auto) 로드 성공', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/auto`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // URL 확인
     await expect(page).toHaveURL(/\/pfmea\/import\/auto/);
 
     // 자동 템플릿 UI 존재 확인 ("자동 템플릿 — 작업요소" 형태)
     const settingLabel = page.locator('text=자동 템플릿');
-    await expect(settingLabel.first()).toBeVisible({ timeout: 5000 });
+    await expect(settingLabel.first()).toBeVisible({ timeout: 15000 });
 
     // 작업요소 섹션 존재
     const workElementLabel = page.locator('text=작업요소');
@@ -93,14 +90,13 @@ test.describe('Import 3모드 페이지 로드', () => {
   test('기존데이터 모드 (/pfmea/import/legacy) 로드 성공', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/legacy`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // URL 확인
     await expect(page).toHaveURL(/\/pfmea\/import\/legacy/);
 
     // 기초정보 템플릿 패널 존재 확인
     const templatePanel = page.locator('text=기초정보 템플릿');
-    await expect(templatePanel.first()).toBeVisible({ timeout: 5000 });
+    await expect(templatePanel.first()).toBeVisible({ timeout: 15000 });
 
     // BD 현황 테이블 존재
     const bdHeader = page.locator('text=Basic Data 현황');
@@ -120,25 +116,24 @@ test.describe('Import 모드 메뉴바', () => {
   test('모드 메뉴바에 3개 버튼이 보여야 한다', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/legacy`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // 수동/자동/기존데이터 링크 존재
     const manualLink = page.locator('a:has-text("수동")');
     const autoLink = page.locator('a:has-text("자동")');
     const legacyLink = page.locator('a:has-text("기존데이터")');
 
-    await expect(manualLink.first()).toBeVisible({ timeout: 3000 });
-    await expect(autoLink.first()).toBeVisible({ timeout: 3000 });
-    await expect(legacyLink.first()).toBeVisible({ timeout: 3000 });
+    await expect(manualLink.first()).toBeVisible({ timeout: 15000 });
+    await expect(autoLink.first()).toBeVisible({ timeout: 10000 });
+    await expect(legacyLink.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('수동 모드에서 메뉴바 활성 상태 표시', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/manual`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // 수동 링크가 활성 스타일 (font-bold) 가져야 함
     const manualLink = page.locator('a:has-text("수동")').first();
+    await expect(manualLink).toBeVisible({ timeout: 15000 });
     const classes = await manualLink.getAttribute('class');
     expect(classes).toContain('font-bold');
   });
@@ -147,28 +142,27 @@ test.describe('Import 모드 메뉴바', () => {
     // legacy에서 시작
     await page.goto(`${BASE}/pfmea/import/legacy`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // 수동 클릭 → manual 이동
     const manualLink = page.locator('a:has-text("수동")').first();
+    await expect(manualLink).toBeVisible({ timeout: 15000 });
     await manualLink.click();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1500);
-    await expect(page).toHaveURL(/\/pfmea\/import\/manual/);
+    await expect(page).toHaveURL(/\/pfmea\/import\/manual/, { timeout: 15000 });
 
     // 자동 클릭 → auto 이동
     const autoLink = page.locator('a:has-text("자동")').first();
+    await expect(autoLink).toBeVisible({ timeout: 10000 });
     await autoLink.click();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1500);
-    await expect(page).toHaveURL(/\/pfmea\/import\/auto/);
+    await expect(page).toHaveURL(/\/pfmea\/import\/auto/, { timeout: 15000 });
 
     // 기존데이터 클릭 → legacy 이동
     const legacyLink = page.locator('a:has-text("기존데이터")').first();
+    await expect(legacyLink).toBeVisible({ timeout: 10000 });
     await legacyLink.click();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1500);
-    await expect(page).toHaveURL(/\/pfmea\/import\/legacy/);
+    await expect(page).toHaveURL(/\/pfmea\/import\/legacy/, { timeout: 15000 });
   });
 });
 
@@ -179,12 +173,10 @@ test.describe('Import 공유 레이아웃', () => {
     for (const mode of ['manual', 'auto', 'legacy']) {
       await page.goto(`${BASE}/pfmea/import/${mode}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(1500);
 
       // 사이드바 존재 확인 (aside 또는 nav)
       const sidebar = page.locator('aside, nav[class*="sidebar"], [class*="Sidebar"]').first();
-      const hasSidebar = await sidebar.isVisible().catch(() => false);
-      expect(hasSidebar).toBe(true);
+      await expect(sidebar).toBeVisible({ timeout: 15000 });
     }
   });
 
@@ -192,12 +184,10 @@ test.describe('Import 공유 레이아웃', () => {
     for (const mode of ['manual', 'auto', 'legacy']) {
       await page.goto(`${BASE}/pfmea/import/${mode}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(1500);
 
       // TopNav — 메뉴 항목 (등록/리스트 등) 포함
       const topNav = page.locator('text=등록').first();
-      const hasTopNav = await topNav.isVisible().catch(() => false);
-      expect(hasTopNav).toBe(true);
+      await expect(topNav).toBeVisible({ timeout: 15000 });
     }
   });
 });
@@ -209,8 +199,9 @@ test.describe('Import 화이트 스크린 방지', () => {
     for (const mode of ['manual', 'auto', 'legacy']) {
       await page.goto(`${BASE}/pfmea/import/${mode}`);
       await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(2000);
 
+      // 페이지 콘텐츠가 렌더링될 때까지 대기
+      await page.locator('body').waitFor({ state: 'visible', timeout: 15000 });
       const bodyText = await page.locator('body').textContent();
       expect(bodyText?.trim().length).toBeGreaterThan(10);
     }

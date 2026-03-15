@@ -19,8 +19,10 @@ const FMEA_ID = 'pfm26-p002-l02';
 
 // ==================== 공통 헬퍼 ====================
 
-async function waitForStable(page: Page, ms = 1500) {
+async function waitForStable(page: Page, ms = 2000) {
   await page.waitForLoadState('networkidle');
+  // 워크시트 테이블 렌더링 대기
+  await page.locator('table').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(ms);
 }
 

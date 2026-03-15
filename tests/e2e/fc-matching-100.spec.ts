@@ -32,7 +32,8 @@ test.describe('FC 매칭률 100% 검증', () => {
     // 1. Import 페이지 이동
     await page.goto(IMPORT_URL);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    // BD 테이블 또는 메인 콘텐츠 로드 대기
+    await page.locator('body').waitFor({ state: 'visible', timeout: 15000 });
 
     // 2. 샘플 다운로드 → 재업로드
     const sampleBtn = page.locator('button:has-text("샘플Down"), button:has-text("샘플")').first();

@@ -17,11 +17,11 @@ test.describe('PFD 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-01. PFD 워크시트 페이지 정상 로드 + 테이블 렌더링', async ({ page }) => {
     await page.goto(`${BASE_URL}/pfd/worksheet`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // 테이블이 보일 때까지 대기
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 테이블 행이 존재하는지 확인
     const rows = page.locator('table tbody tr');
@@ -31,10 +31,10 @@ test.describe('PFD 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-02. 셀 우클릭 시 컨텍스트 메뉴 표시 + 5개 버튼 확인', async ({ page }) => {
     await page.goto(`${BASE_URL}/pfd/worksheet`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 첫 번째 데이터 행의 첫 번째 td 셀을 우클릭
     const firstCell = page.locator('table tbody tr td').first();
@@ -60,10 +60,10 @@ test.describe('PFD 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-03. 행 추가 클릭 후 메뉴 닫힘 + 동작 확인', async ({ page }) => {
     await page.goto(`${BASE_URL}/pfd/worksheet`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 첫 번째 데이터 셀 우클릭으로 컨텍스트 메뉴 열기
     const firstCell = page.locator('table tbody tr td').first();
@@ -90,10 +90,10 @@ test.describe('PFD 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-04. 메뉴 외부 클릭 시 닫힘', async ({ page }) => {
     await page.goto(`${BASE_URL}/pfd/worksheet`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 우클릭으로 메뉴 열기
     const firstCell = page.locator('table tbody tr td').first();

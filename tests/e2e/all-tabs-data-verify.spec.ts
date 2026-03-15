@@ -121,7 +121,8 @@ test.describe('전체 탭 데이터 누락 검증', () => {
     // ========== 1. Import (샘플 다운로드 → 재업로드) ==========
     await page.goto(IMPORT_URL);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    // 메인 콘텐츠 로드 대기
+    await page.locator('body').waitFor({ state: 'visible', timeout: 15000 });
 
     // 샘플 다운로드 → 재업로드
     const sampleBtn = page.locator('button:has-text("샘플Down"), button:has-text("샘플")').first();
@@ -193,7 +194,8 @@ test.describe('전체 탭 데이터 누락 검증', () => {
     // ========== 2. 워크시트 이동 ==========
     await page.goto(WORKSHEET_URL);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(5000);
+    // 워크시트 테이블 로드 대기
+    await page.locator('table').first().waitFor({ state: 'visible', timeout: 30000 });
 
     await page.screenshot({ path: 'tests/screenshots/all-tabs-02-worksheet.png', fullPage: true });
     console.log('✅ 워크시트 로드 완료');

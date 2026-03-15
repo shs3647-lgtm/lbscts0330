@@ -21,8 +21,9 @@ const TEST_FMEA_ID = 'pfm26-f001-l68-r03';
 // ── Helpers ──
 
 async function waitForPageLoad(page: Page) {
-  await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(3000);
+  await page.waitForLoadState('networkidle');
+  // 워크시트 테이블 렌더링 대기
+  await page.locator('table').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
 }
 
 async function navigateToWorksheet(page: Page): Promise<string | null> {

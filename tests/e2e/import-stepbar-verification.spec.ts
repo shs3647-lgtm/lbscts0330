@@ -22,11 +22,10 @@ test.describe('수동 탭 — ImportStepBar 검증', () => {
   test('1. 생성 버튼 클릭 후 ImportStepBar 표시', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/manual`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // 수동 템플릿 설정 UI 존재 확인
     const settingLabel = page.locator('text=수동 템플릿 설정');
-    await expect(settingLabel.first()).toBeVisible({ timeout: 5000 });
+    await expect(settingLabel.first()).toBeVisible({ timeout: 15000 });
 
     // BD 현황 테이블에서 FMEA 프로젝트가 하나라도 있는지 확인
     const bdRows = page.locator('table tbody tr');
@@ -83,11 +82,10 @@ test.describe('자동 탭 — ImportStepBar 검증', () => {
   test('2. 자동 탭 로드 + 작업요소 UI 확인', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/auto`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // 자동 템플릿 타이틀 확인
     const title = page.locator('text=자동 템플릿');
-    await expect(title.first()).toBeVisible({ timeout: 5000 });
+    await expect(title.first()).toBeVisible({ timeout: 15000 });
 
     // + 추가 버튼 존재
     const addBtn = page.locator('button:has-text("+ 추가")');
@@ -107,11 +105,10 @@ test.describe('전처리 탭 — 기본 UI 검증', () => {
   test('3. 전처리 탭 로드 + 업로드 UI 확인', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/preprocess`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // STEP B 전처리 변환 타이틀
     const title = page.locator('text=STEP B 전처리 변환');
-    await expect(title.first()).toBeVisible({ timeout: 5000 });
+    await expect(title.first()).toBeVisible({ timeout: 15000 });
 
     // 변환 시작 버튼
     const convertBtn = page.locator('button:has-text("변환 시작")');
@@ -131,7 +128,6 @@ test.describe('기존 데이터 탭 — 검증 프로세스 확인', () => {
   test('4. 기존 데이터 탭 로드 확인', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/legacy`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // URL 확인
     await expect(page).toHaveURL(/\/pfmea\/import\/legacy/);
@@ -146,7 +142,6 @@ test.describe('FMEA 작성 → 버튼 FA 완료 전 disabled 가드', () => {
   test('5. 수동 탭에서 FMEA 작성 버튼이 FA 완료 전 비활성', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/manual`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // 생성 전에는 ImportStepBar 자체가 안 보임
     const fmeaBtnBefore = page.locator('button:has-text("FMEA 작성")');
@@ -165,7 +160,6 @@ test.describe('SA 확정 → 상태 전이', () => {
   test('6. SA 확정 버튼 → SA 확정됨 전이 (프로젝트 선택 + 생성 필요)', async ({ page }) => {
     await page.goto(`${BASE}/pfmea/import/manual`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
     // 프로젝트 선택 시도
     const firstRadio = page.locator('input[type="radio"]').first();

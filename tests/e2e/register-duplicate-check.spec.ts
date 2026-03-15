@@ -15,17 +15,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('PFMEA 등록화면 중복 검증', () => {
 
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/auth/login');
-    await page.waitForLoadState('networkidle');
-    const alreadyLoggedIn = page.url().includes('/pfmea') || page.url().includes('/welcomeboard');
-    if (!alreadyLoggedIn) {
-      await page.fill('#login-id', 'admin');
-      await page.fill('#login-password', '1234');
-      await page.click('button[type="submit"]');
-      await page.waitForURL(/\//, { timeout: 10000 });
-    }
-  });
+  // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
   test('1. 등록화면 로드 후 FMEA명 목록 자동 로드 (API 호출 확인)', async ({ page }) => {
     let fmeaProjectsApiCalled = false;

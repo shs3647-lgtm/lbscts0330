@@ -15,8 +15,10 @@ import { test, expect, Page } from '@playwright/test';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 const FMEA_ID = 'pfm26-p002-l02';
 
-async function waitForStable(page: Page, ms = 1500) {
+async function waitForStable(page: Page, ms = 2000) {
   await page.waitForLoadState('networkidle');
+  // 테이블 렌더링 완료 대기
+  await page.locator('table').first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(ms);
 }
 

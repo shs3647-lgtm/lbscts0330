@@ -20,11 +20,14 @@ async function navigateToFailureL2Tab(page: Page) {
     await page.goto(`${BASE_URL}/pfmea/worksheet?id=${TEST_FMEA_ID}`);
     await page.waitForLoadState('networkidle');
 
+    // 테이블이 로드될 때까지 대기
+    await page.locator('table').first().waitFor({ state: 'visible', timeout: 30000 });
+
     // 2L고장 탭 클릭
     const tab = page.locator('button:has-text("2L고장")');
-    if (await tab.isVisible()) {
+    if (await tab.isVisible({ timeout: 10000 }).catch(() => false)) {
         await tab.click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
     }
 }
 
@@ -207,19 +210,22 @@ test.describe('순차 회귀 테스트 (5회)', () => {
             await page.goto(`${BASE_URL}/pfmea/worksheet?id=${TEST_FMEA_ID}`);
             await page.waitForLoadState('networkidle');
 
+            // 테이블이 로드될 때까지 대기
+            await page.locator('table').first().waitFor({ state: 'visible', timeout: 30000 });
+
             // 2L고장 탭 클릭
             const tab = page.locator('button:has-text("2L고장")');
-            if (await tab.isVisible()) {
+            if (await tab.isVisible({ timeout: 10000 }).catch(() => false)) {
                 await tab.click();
-                await page.waitForTimeout(500);
+                await page.waitForTimeout(1000);
             }
 
             // 페이지 로드 확인
-            const pageLoaded = await page.locator('table').isVisible();
+            const pageLoaded = await page.locator('table').first().isVisible({ timeout: 10000 });
             expect(pageLoaded).toBe(true);
 
             // 데이터 테이블 존재 확인
-            const tableExists = await page.locator('th:has-text("고장형태")').isVisible();
+            const tableExists = await page.locator('th:has-text("고장형태")').isVisible({ timeout: 5000 }).catch(() => false);
             console.log(`[회귀 #${i}] 테이블 렌더링: ${tableExists ? '성공' : '실패'}`);
 
             // 공정 목록 표시 확인

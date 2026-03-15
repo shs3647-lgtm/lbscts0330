@@ -54,7 +54,8 @@ test.describe('샘플다운로드 완전성 검증', () => {
     // ── 2. Import 페이지 → 샘플Down ──
     await page.goto(IMPORT_URL);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    // 메인 콘텐츠 로드 대기
+    await page.locator('body').waitFor({ state: 'visible', timeout: 15000 });
 
     // dialog 자동 승인
     page.on('dialog', async d => await d.accept());

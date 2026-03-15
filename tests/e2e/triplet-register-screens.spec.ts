@@ -3,34 +3,12 @@
  * @description PFMEA/CP/PFD 등록화면 + Triplet API E2E 검증
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
-async function login(page: Page) {
-  await page.goto('/auth/login');
-  await page.waitForLoadState('domcontentloaded');
-
-  const loginInput = page.locator('#login-id');
-  const isLoginPage = await loginInput.isVisible({ timeout: 3000 }).catch(() => false);
-
-  if (!isLoginPage) return;
-
-  await loginInput.click();
-  await loginInput.fill('');
-  await loginInput.fill('admin');
-
-  const pwdInput = page.locator('#login-password');
-  await pwdInput.click();
-  await pwdInput.fill('');
-  await pwdInput.fill('1234');
-
-  await page.locator('button[type="submit"]').click();
-
-  await page.waitForURL(url => !url.toString().includes('/auth/login'), { timeout: 15000 });
-  await page.waitForTimeout(1000);
-}
+// storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
 test.describe('PFMEA 등록화면', () => {
-  test.beforeEach(async ({ page }) => { await login(page); });
+  // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
   test('1. PFMEA 등록화면 로드 성공', async ({ page }) => {
     await page.goto('/pfmea/register');
@@ -103,7 +81,7 @@ test.describe('PFMEA 등록화면', () => {
 });
 
 test.describe('CP 등록화면', () => {
-  test.beforeEach(async ({ page }) => { await login(page); });
+  // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
   test('1. CP 등록화면 로드 성공', async ({ page }) => {
     await page.goto('/control-plan/register');
@@ -144,7 +122,7 @@ test.describe('CP 등록화면', () => {
 });
 
 test.describe('PFD 등록화면', () => {
-  test.beforeEach(async ({ page }) => { await login(page); });
+  // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
   test('1. PFD 등록화면 로드 성공', async ({ page }) => {
     await page.goto('/pfd/register');
@@ -185,7 +163,7 @@ test.describe('PFD 등록화면', () => {
 });
 
 test.describe('CP/PFD 모달 Triplet 통합 (수평전개 검증)', () => {
-  test.beforeEach(async ({ page }) => { await login(page); });
+  // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
   test('4. CP 새로 작성 → M/F/P 타입 선택기 표시', async ({ page }) => {
     await page.goto('/control-plan/register');
@@ -284,7 +262,7 @@ test.describe('CP/PFD 모달 Triplet 통합 (수평전개 검증)', () => {
 });
 
 test.describe('CP/PFD 도움말 패널 검증', () => {
-  test.beforeEach(async ({ page }) => { await login(page); });
+  // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
   test('9. CP 등록화면 → 도움말 버튼 → 패널 표시', async ({ page }) => {
     await page.goto('/control-plan/register');
@@ -332,7 +310,7 @@ test.describe('CP/PFD 도움말 패널 검증', () => {
 });
 
 test.describe('Triplet API 검증', () => {
-  test.beforeEach(async ({ page }) => { await login(page); });
+  // storageState가 playwright.config.ts에서 이미 적용됨 → 수동 로그인 불필요
 
   test('1. Triplet 목록 API 응답', async ({ page }) => {
     const res = await page.request.get('/api/triplet/list');

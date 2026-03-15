@@ -11,9 +11,9 @@ const AP_PAGE = `${BASE_URL}/pfmea/ap-improvement`;
 
 test.describe('AP 개선관리 Import/Export + 그래프', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(AP_PAGE, { waitUntil: 'networkidle', timeout: 30000 });
-    // "12 au bump" 프로젝트 선택 대기
-    await page.waitForTimeout(1500);
+    await page.goto(AP_PAGE, { waitUntil: 'networkidle', timeout: 60000 });
+    // "12 au bump" 프로젝트 선택 대기 — 메뉴바 버튼이 보일 때까지 대기
+    await page.locator('button', { hasText: '↑Import' }).waitFor({ state: 'visible', timeout: 20000 });
   });
 
   test('1. 페이지 로드 — 메뉴바에 모든 버튼 존재 (Import/Export/양식/Save/Del/Help)', async ({ page }) => {
@@ -30,7 +30,7 @@ test.describe('AP 개선관리 Import/Export + 그래프', () => {
     // "12 au bump" 프로젝트가 이미 선택되어 있으므로 CIP 데이터가 로드되어야 함
     // 5건의 시드 데이터 중 하나가 테이블에 보이는지 확인
     const tableBody = page.locator('tbody');
-    await page.waitForTimeout(2000);
+    await expect(tableBody).toBeVisible({ timeout: 15000 });
     const bodyText = await tableBody.textContent();
 
     // 시드 데이터의 고장형태 중 하나가 표시되는지 확인
@@ -46,11 +46,10 @@ test.describe('AP 개선관리 Import/Export + 그래프', () => {
   });
 
   test('3. 그래프 렌더링 — AP 등급 분포 차트에 데이터 표시', async ({ page }) => {
-    await page.waitForTimeout(2000);
 
     // APSummaryChart: "AP 등급 분포" 제목이 표시되는지 확인
     const summaryChart = page.locator('text=AP 등급 분포');
-    await expect(summaryChart).toBeVisible();
+    await expect(summaryChart).toBeVisible({ timeout: 15000 });
 
     // APImprovementChart: "AP 개선 현황" 제목이 표시되는지 확인
     const improvementChart = page.locator('text=AP 개선 현황');
@@ -136,7 +135,6 @@ test.describe('AP 개선관리 Import/Export + 그래프', () => {
   });
 
   test('8. 필터 동작 — AP H/M/L 및 Target 필터', async ({ page }) => {
-    await page.waitForTimeout(1500);
 
     // H 필터
     const hBtn = page.locator('button', { hasText: /^H\(/ });
@@ -164,7 +162,6 @@ test.describe('AP 개선관리 Import/Export + 그래프', () => {
   });
 
   test('9. 그래프 카운터 — 상태 카운트 표시 확인', async ({ page }) => {
-    await page.waitForTimeout(2000);
 
     // 상태 카운트가 표시되는지 확인 (✓, ◎, ✕)
     const menuBar = page.locator('.flex-shrink-0.bg-white.border-b');

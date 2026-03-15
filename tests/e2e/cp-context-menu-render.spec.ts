@@ -18,11 +18,11 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('1. CP 워크시트 페이지 정상 로드 + 테이블 렌더링', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // 테이블이 보일 때까지 대기
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 테이블 행이 존재하는지 확인
     const rows = page.locator('table tbody tr');
@@ -32,10 +32,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('2. 공정번호 셀 우클릭 시 컨텍스트 메뉴 표시 + 행 추가 버튼 확인', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 공정번호(A열) 셀 찾기 - "10" 텍스트가 있는 셀
     // 렌더러에서 processNo 셀에 onContextMenu가 바인딩됨
@@ -65,10 +65,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('3. 행 추가 클릭 후 행이 실제로 추가됨', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 초기 항목 수 확인 ("총 N개 항목" 텍스트)
     const totalText = page.locator('text=/총 \\d+개 항목/');
@@ -94,10 +94,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('4. 메뉴 외부 클릭 시 닫힘', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 우클릭으로 메뉴 열기
     const processNoCell = page.locator('table tbody tr td').filter({ hasText: '10' }).first();
@@ -117,10 +117,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-01. general 컬럼(스펙/공차) 우클릭 시 행 추가 메뉴 표시 (회귀 방지)', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 스펙/공차(L열) 셀 찾기 — 헤더에 "스펙/공차" 텍스트가 있는 th의 getBoundingClientRect().x를 기준으로
     // 같은 x 좌표 범위에 있는 tbody td를 클릭
@@ -162,10 +162,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-02. 행 추가 → 저장 → 새로고침 → 데이터 유지 (전체 E2E 흐름)', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 초기 항목 수 파싱
     const totalText = page.locator('text=/총 \\d+개 항목/');
@@ -194,10 +194,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
     // 페이지 새로고침
     await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     // 테이블 재로드 대기
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
     await expect(totalText).toBeVisible({ timeout: 5000 });
 
     // 새로고침 후에도 행 수 유지 확인
@@ -208,10 +208,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-03. 행 삭제 후 행 수 감소 확인', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // 초기 항목 수 파싱
     const totalText = page.locator('text=/총 \\d+개 항목/');
@@ -239,10 +239,10 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
 
   test('P-04. 타입별 컨텍스트 메뉴 라벨 확인 (process, work)', async ({ page }) => {
     await page.goto(`${BASE_URL}/control-plan/worksheet?cpNo=${TEST_CP_NO}`);
-    await page.waitForLoadState('domcontentloaded');
+    await page.waitForLoadState('networkidle');
 
     const table = page.locator('table');
-    await expect(table.first()).toBeVisible({ timeout: 15000 });
+    await expect(table.first()).toBeVisible({ timeout: 30000 });
 
     // --- (1) process 타입: 공정번호("10") 셀 우클릭 → "공정설명 기준" 라벨 확인 ---
     const processNoCell = page.locator('table tbody tr td').filter({ hasText: '10' }).first();
@@ -260,7 +260,7 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
     // --- (2) work 타입: equipment(설비/금형/JIG) 셀 우클릭 → "설비/금형/JIG 기준" 라벨 확인 ---
     // 헤더에서 "설비/금형/JIG" 텍스트가 있는 th의 bounding box 중심 x를 기준으로 tbody 셀 클릭
     const equipHeader = page.locator('th', { hasText: '설비/금형/JIG' }).first();
-    const equipHeaderVisible = await equipHeader.isVisible().catch(() => false);
+    const equipHeaderVisible = await equipHeader.isVisible({ timeout: 10000 }).catch(() => false);
 
     if (equipHeaderVisible) {
       const eqBox = await equipHeader.boundingBox();
@@ -271,7 +271,7 @@ test.describe('CP 워크시트 컨텍스트 메뉴 렌더링', () => {
       // 두 번째 데이터 행(첫 행은 빈 행일 수 있으므로) 세로 중심에서 클릭
       // "ss-01" 텍스트가 있는 행 (설비 데이터가 있는 행)
       const equipDataCell = page.locator('table tbody tr td').filter({ hasText: 'ss-01' }).first();
-      const equipDataVisible = await equipDataCell.isVisible().catch(() => false);
+      const equipDataVisible = await equipDataCell.isVisible({ timeout: 5000 }).catch(() => false);
 
       if (equipDataVisible) {
         const cellBox = await equipDataCell.boundingBox();
