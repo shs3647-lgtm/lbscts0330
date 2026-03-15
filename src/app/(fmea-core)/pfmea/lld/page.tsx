@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
@@ -16,12 +16,14 @@ import { useLocale } from '@/lib/locale';
 import { CLASSIFICATION_OPTIONS, CLASSIFICATION_LABELS, CLASSIFICATION_COLORS } from './types';
 import { COLUMNS, COL_COUNT, ROW_HEIGHT } from './constants';
 import LLDTableRow from './components/LLDTableRow';
+import LLDHelpModal from './components/LLDHelpModal';
 import { useLLDData } from './hooks/useLLDData';
 import { useLLDImportExport } from './hooks/useLLDImportExport';
 
 export default function LLDPage() {
   const { t } = useLocale();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const {
     data, setData, isLoading,
@@ -85,6 +87,7 @@ export default function LLDPage() {
             <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#a855f7] text-white hover:bg-[#9333ea]" onClick={handleDeploy}>⇄H.P.</button>
             <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#3b82f6] text-white hover:bg-[#2563eb]" onClick={handleAddRow}>+Add Row</button>
             <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#0d47a1] text-white hover:bg-[#1565c0]" onClick={handleSave}>⊞Save</button>
+            <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#00587a] text-white hover:bg-[#004060]" onClick={() => setIsHelpOpen(true)}>?Help</button>
             <button className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-400 text-white hover:bg-slate-500"
               onClick={() => { try { window.close(); } catch { /* fallback */ } setTimeout(() => history.back(), 100); }}>✕Close</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
@@ -117,6 +120,7 @@ export default function LLDPage() {
           </table>
         </div>
       </div>
+      <LLDHelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </FixedLayout>
   );
 }

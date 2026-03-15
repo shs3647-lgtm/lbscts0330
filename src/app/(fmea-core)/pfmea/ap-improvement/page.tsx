@@ -43,7 +43,7 @@ const STATUS_MAP: Record<string, { label: string; bg: string }> = {
   '완료': { label: '완료', bg: '#2563eb' },
 };
 
-const ROW_HEIGHT = 24;
+const ROW_HEIGHT = 32;
 const COL_COUNT = 16;
 
 const COLUMNS = [
@@ -89,46 +89,49 @@ const APRow = React.memo(function APRow({
   const { item, index, cipNo, target, isManual } = row;
   const statusInfo = STATUS_MAP[item.status] || STATUS_MAP['대기'];
 
+  const cellBase = 'px-1 py-0.5 border-b border-r border-slate-200 text-[11px] leading-[14px] align-top';
+  const wrapStyle: React.CSSProperties = { whiteSpace: 'pre-line', wordBreak: 'break-word', lineHeight: '14px' };
+
   return (
     <tr
       className={index % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-slate-50 hover:bg-blue-50'}
-      style={{ height: ROW_HEIGHT }}
+      style={{ minHeight: ROW_HEIGHT }}
     >
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center font-bold bg-slate-50 text-[8px]">{index + 1}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center font-bold text-[7px] font-mono text-[#00587a]">{cipNo}</td>
-      <td className="p-0 border-b border-r border-slate-200 text-center">
+      <td className={`${cellBase} text-center font-bold bg-slate-50`}>{index + 1}</td>
+      <td className={`${cellBase} text-center font-bold font-mono text-[#00587a]`}>{cipNo}</td>
+      <td className="p-0 border-b border-r border-slate-200 text-center align-middle">
         <span
-          className="inline-block w-4 h-4 rounded-full text-white text-[8px] leading-4 font-bold"
+          className="inline-block w-5 h-5 rounded-full text-white text-[10px] leading-5 font-bold"
           style={{ backgroundColor: item.ap5 === 'H' ? '#ef4444' : item.ap5 === 'M' ? '#f97316' : '#22c55e' }}
         >{item.ap5}</span>
       </td>
-      <td className="p-0 border-b border-r border-slate-200 text-center">
+      <td className="p-0 border-b border-r border-slate-200 text-center align-middle">
         <Select value={target} onValueChange={v => onTargetChange(item.id, v)}>
-          <SelectTrigger className="h-4 text-[7px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden">
-            <span className="px-1 rounded text-white text-[7px] font-bold" style={{ backgroundColor: TARGET_COLORS[target] }}>{target}</span>
+          <SelectTrigger className="h-6 text-[10px] border-0 bg-transparent p-0 justify-center [&>svg]:hidden">
+            <span className="px-1.5 py-0.5 rounded text-white text-[10px] font-bold" style={{ backgroundColor: TARGET_COLORS[target] }}>{target}</span>
           </SelectTrigger>
           <SelectContent>
-            {CIP_TARGETS.map(tgt => <SelectItem key={tgt} value={tgt} className="text-[9px]">{tgt}</SelectItem>)}
+            {CIP_TARGETS.map(tgt => <SelectItem key={tgt} value={tgt} className="text-[11px]">{tgt}</SelectItem>)}
           </SelectContent>
         </Select>
       </td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center text-[8px] truncate">{item.specialChar || '-'}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center text-[8px] truncate">{item.processName || '-'}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center font-bold text-[9px]">{item.severity || '-'}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-[8px] truncate">{item.failureMode || '\u00A0'}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-[8px] truncate">{item.failureCause || '\u00A0'}</td>
-      <td className="p-0 border-b border-r border-slate-200 text-center font-bold text-[9px]" style={{ backgroundColor: '#eef6fb', color: '#1a365d' }}>{item.occurrence || '-'}</td>
-      <td className="p-0 border-b border-r border-slate-200 text-center font-bold text-[9px]" style={{ backgroundColor: '#fef9ee', color: '#7c2d12' }}>{item.detection || '-'}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-[8px] truncate">{item.preventionAction || item.detectionAction || '\u00A0'}</td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center text-[8px] truncate">{item.responsible || '-'}</td>
-      <td className="p-0 border-b border-r border-slate-200 text-center">
-        <Badge style={{ backgroundColor: statusInfo.bg, color: '#fff', border: 'none', fontWeight: 600 }} className="h-3 text-[6px] px-0.5">{statusInfo.label}</Badge>
+      <td className={`${cellBase} text-center`}>{item.specialChar || '-'}</td>
+      <td className={`${cellBase} text-center`}>{item.processName || '-'}</td>
+      <td className={`${cellBase} text-center font-bold`} style={{ backgroundColor: '#fef2f2', color: '#991b1b' }}>{item.severity || '-'}</td>
+      <td className={cellBase} style={wrapStyle} title={item.failureMode}>{item.failureMode || '\u00A0'}</td>
+      <td className={cellBase} style={wrapStyle} title={item.failureCause}>{item.failureCause || '\u00A0'}</td>
+      <td className={`${cellBase} text-center font-bold`} style={{ backgroundColor: '#eef6fb', color: '#1a365d' }}>{item.occurrence || '-'}</td>
+      <td className={`${cellBase} text-center font-bold`} style={{ backgroundColor: '#fef9ee', color: '#7c2d12' }}>{item.detection || '-'}</td>
+      <td className={cellBase} style={wrapStyle} title={item.preventionAction || item.detectionAction}>{item.preventionAction || item.detectionAction || '\u00A0'}</td>
+      <td className={`${cellBase} text-center`}>{item.responsible || '-'}</td>
+      <td className="p-0 border-b border-r border-slate-200 text-center align-middle">
+        <Badge style={{ backgroundColor: statusInfo.bg, color: '#fff', border: 'none', fontWeight: 600 }} className="h-4 text-[9px] px-1">{statusInfo.label}</Badge>
       </td>
-      <td className="px-0.5 py-0 border-b border-r border-slate-200 text-center text-[7px] truncate">{item.dueDate || '-'}</td>
-      <td className="p-0 border-b border-slate-200 text-center">
-        <div className="flex items-center justify-center gap-0">
-          <Button variant="ghost" size="sm" className="h-3.5 w-3.5 p-0" onClick={() => onOpenModal(item)}><Edit2 className="w-2.5 h-2.5 text-blue-600" /></Button>
-          {isManual && <Button variant="ghost" size="sm" className="h-3.5 w-3.5 p-0" onClick={() => onDeleteRow(item.id)}><Trash2 className="w-2.5 h-2.5 text-red-500" /></Button>}
+      <td className={`${cellBase} text-center`}>{item.dueDate || '-'}</td>
+      <td className="p-0 border-b border-slate-200 text-center align-middle">
+        <div className="flex items-center justify-center gap-0.5">
+          <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => onOpenModal(item)}><Edit2 className="w-3 h-3 text-blue-600" /></Button>
+          {isManual && <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => onDeleteRow(item.id)}><Trash2 className="w-3 h-3 text-red-500" /></Button>}
         </div>
       </td>
     </tr>
@@ -332,16 +335,16 @@ export default function APImprovementPage() {
 
         {/* 가상화 테이블 */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white border border-slate-300 shadow-sm">
-          <table className="w-full text-[9px] border-collapse" style={{ tableLayout: 'fixed' }}>
+          <table className="w-full text-[11px] border-collapse" style={{ tableLayout: 'fixed' }}>
             <thead className="sticky top-0 z-20 bg-[#00587a] text-white">
               <tr>
                 {COLUMNS.map((col, i) => (
                   <th key={i}
-                    className={`px-0.5 py-0.5 border-b border-r border-white/20 font-bold text-center leading-tight ${col.key ? 'cursor-pointer hover:bg-[#004060] select-none' : ''}`}
+                    className={`px-0.5 py-1 border-b border-r border-white/20 font-bold text-center leading-tight ${col.key ? 'cursor-pointer hover:bg-[#004060] select-none' : ''}`}
                     style={col.w ? { width: col.w } : {}}
                     onClick={() => col.key && handleSort(col.key)}>
-                    <div className="text-[8px] leading-none">{col.ko}</div>
-                    {col.key && <span className="text-[6px]">{sortArrow(col.key)}</span>}
+                    <div className="text-[10px] leading-[12px]">{col.ko}</div>
+                    {col.key && <span className="text-[7px] opacity-60">{sortArrow(col.key)}</span>}
                   </th>
                 ))}
               </tr>
