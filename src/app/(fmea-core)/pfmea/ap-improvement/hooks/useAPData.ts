@@ -61,7 +61,7 @@ export function useAPData(): UseAPDataReturn {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 2. 선택된 프로젝트의 AP 데이터 로드
+  // 2. 선택된 프로젝트의 AP 데이터 로드 (RiskAnalysis + CIP 통합)
   const loadData = useCallback(async (fmeaId: string) => {
     if (!fmeaId) {
       setData([]);
@@ -69,14 +69,49 @@ export function useAPData(): UseAPDataReturn {
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/ap-improvement?fmeaId=${encodeURIComponent(fmeaId)}`);
-      const result = await res.json();
-      if (result.success) {
-        setData(result.items || []);
-      } else {
-        console.error('[useAPData] API error:', result.error);
-        setData([]);
-      }
+      // RiskAnalysis + CIP 병렬 로드
+      const [raRes, cipRes] = await Promise.all([
+        fetch(`/api/ap-improvement?fmeaId=${encodeURIComponent(fmeaId)}`),
+        fetch(`/api/cip?fmeaId=${encodeURIComponent(fmeaId)}`),
+      ]);
+      const raResult = await raRes.json();
+      const cipResult = await cipRes.json();
+
+      const raItems: APItem[] = raResult.success ? (raResult.items || []) : [];
+
+      // CIP → APItem 매핑
+      const cipItems: APItem[] = (cipResult.success && cipResult.items)
+        ? cipResult.items.map((cip: Record<string, unknown>) => {
+            const improvement = (cip.improvement as string) || '';
+            const statusMap: Record<string, string> = { G: '완료', Y: '진행중', R: '대기' };
+            return {
+              id: `cip-${cip.id}`,
+              riskId: `cip-${cip.id}`,
+              fmeaId: (cip.fmeaId as string) || '',
+              linkId: '',
+              ap5: ((cip.apLevel as string) || 'M') as APItem['ap5'],
+              ap6: '' as APItem['ap6'],
+              specialChar: '',
+              category: '' as APItem['category'],
+              preventiveControl: '',
+              severity: (cip.s as number) || 0,
+              failureMode: (cip.failureMode as string) || '',
+              failureCause: (cip.cause as string) || '',
+              occurrence: (cip.o as number) || 0,
+              detectionControl: '',
+              detection: (cip.d as number) || 0,
+              preventionAction: extractCipAction(improvement, '예방'),
+              detectionAction: extractCipAction(improvement, '검출'),
+              responsible: (cip.responsible as string) || '',
+              status: (statusMap[(cip.status as string) || 'R'] || '대기') as APItem['status'],
+              dueDate: (cip.targetDate as string) || '',
+              completedDate: (cip.completedDate as string) || undefined,
+              processName: (cip.category as string) || '',
+            };
+          })
+        : [];
+
+      setData([...raItems, ...cipItems]);
     } catch (err) {
       console.error('[useAPData] Failed to load AP data:', err);
       setData([]);
@@ -150,4 +185,15 @@ export function useAPData(): UseAPDataReturn {
     updateItem,
     refresh,
   };
+}
+
+/** CIP improvement 필드에서 예방/검출 조치 분리 */
+function extractCipAction(improvement: string, type: '예방' | '검출'): string {
+  if (!improvement) return '';
+  const tag = `[${type}]`;
+  const parts = improvement.split(' | ');
+  const found = parts.find(p => p.startsWith(tag));
+  if (found) return found.replace(tag, '').trim();
+  if (type === '예방' && !improvement.includes('[검출]')) return improvement;
+  return '';
 }

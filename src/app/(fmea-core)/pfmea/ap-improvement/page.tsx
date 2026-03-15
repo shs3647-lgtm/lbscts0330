@@ -30,6 +30,7 @@ import APSummaryChart from './APSummaryChart';
 import APImprovementChart from './APImprovementChart';
 import { useAPData } from './hooks/useAPData';
 import { useAPImportExport, CIP_TARGETS, type CIPTarget } from './hooks/useAPImportExport';
+import APHelpModal from './components/APHelpModal';
 
 const TARGET_COLORS: Record<string, string> = {
   Field: '#8b5cf6', Yield: '#3b82f6', Quality: '#ef4444',
@@ -148,6 +149,7 @@ export default function APImprovementPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [cipOverlay, setCipOverlay] = useState<Record<string, { cipNo: string; target: CIPTarget }>>({});
   const [manualRows, setManualRows] = useState<APItem[]>([]);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const allData = useMemo(() => [...data, ...manualRows], [data, manualRows]);
@@ -323,6 +325,7 @@ export default function APImprovementPage() {
             <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#0d47a1] text-white hover:bg-[#1565c0]" onClick={handleSaveToDb}>⊞Save</button>
             <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#dc2626] text-white hover:bg-[#b91c1c]" onClick={handleDeleteAll}>✕Del</button>
             <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#0d9488] text-white hover:bg-[#0f766e]" onClick={refresh} disabled={loading}>{loading ? '⟳...' : '⟳Refresh'}</button>
+            <button className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#6366f1] text-white hover:bg-[#4f46e5]" onClick={() => setIsHelpOpen(true)}>?Help</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
           </div>
         </div>
@@ -373,6 +376,7 @@ export default function APImprovementPage() {
         editingItem={editingItem}
         onSave={handleSave}
       />
+      <APHelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </FixedLayout>
   );
 }
