@@ -231,14 +231,14 @@ describe('C-3: relaxed match multi-FM 보존 (fcComparison)', () => {
     expect(result.extra).toHaveLength(0);
   });
 
-  it('relaxed match 시 이미 매칭된 existing은 재사용하지 않음', () => {
-    // derived FM이 existing FM과 미묘하게 다른 경우 relaxed match 사용
+  it('UUID FK 기반 매칭 — fmValue 불일치 시 missing 처리 (relaxed match 제거됨)', () => {
+    // 2026-03-15: relaxed match 제거 → UUID FK 또는 정확한 텍스트 키만 매칭
+    // fmValue가 다르면 매칭 불가 → missing으로 분류
     const derived = [
       makeChain({ id: 'd1', processNo: '10', fmValue: 'FM-X', fcValue: '토크 부족' }),
       makeChain({ id: 'd2', processNo: '10', fmValue: 'FM-Y', fcValue: '토크 부족' }),
     ];
 
-    // existing에 FM이 다르지만 FC 동일 → relaxed match
     const existing = [
       makeChain({ id: 'e1', processNo: '10', fmValue: 'FM-A', fcValue: '토크 부족' }),
       makeChain({ id: 'e2', processNo: '10', fmValue: 'FM-B', fcValue: '토크 부족' }),
@@ -246,9 +246,9 @@ describe('C-3: relaxed match multi-FM 보존 (fcComparison)', () => {
 
     const result = compareFCChains(derived, existing);
 
-    // relaxed match로 d1→e1, d2→e2 (각각 한 번씩만 매칭)
-    expect(result.matched).toHaveLength(2);
-    expect(result.missing).toHaveLength(0);
+    // fmValue 불일치 → 텍스트 키 매칭 실패 → missing
+    expect(result.matched).toHaveLength(0);
+    expect(result.missing).toHaveLength(2);
   });
 });
 

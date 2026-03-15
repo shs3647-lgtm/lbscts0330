@@ -245,8 +245,9 @@ describe('CODEFREEZE Guard: failureChainInjector.ts', () => {
 
   it('2차 패스 제거됨 (카테시안 초과 링크 방지)', () => {
     content = content || fs.readFileSync(filePath, 'utf-8');
-    // "2차 패스 전면 제거" 주석 존재 (과거 코드의 의도적 제거)
-    expect(content).toMatch(/2차\s*패스\s*전면\s*제거|2차\s*패스.*제거/);
+    // 2026-03-15: UUID FK 기반으로 전환 — 2차 패스 함수/로직이 코드에 존재하지 않음
+    expect(content).not.toMatch(/function\s+secondPassMatch/);
+    expect(content).not.toMatch(/charOverlapRatio/);
   });
 });
 

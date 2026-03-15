@@ -3,7 +3,7 @@
  * @description MasterFailureChain[] → WorksheetState에 failureLinks + riskData 주입
  *
  * ★★★ 2026-03-15: UUID FK 기반 전면 교체 ★★★
- * - charOverlapRatio, contains, stripProcessPrefix, 퍼지매칭 완전 삭제
+ * - 텍스트유사도, contains, stripProcessPrefix, 퍼지매칭 완전 삭제
  * - chain.fmId / chain.fcId / chain.feId UUID FK로 직접 엔티티 조회
  * - 텍스트 유사도/임계값/연관성 매칭 없음
  *
