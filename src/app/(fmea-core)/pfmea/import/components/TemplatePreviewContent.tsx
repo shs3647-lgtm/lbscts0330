@@ -32,6 +32,7 @@ import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integr
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
 import { supplementMissingItems } from '../utils/supplementMissingItems';
+import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
 import { useDbVerification } from '../hooks/useDbVerification';
 
 // ─── Props ───
@@ -283,6 +284,37 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       console.log(`[Import 보충] 누락 항목 ${newItems.length}건 자동 생성`);
     }
   }, [flatData, failureChains, onAddItems]);
+
+  // ── ★ 2026-03-16: FC시트 chains를 메인시트 flatData로 보충 (FAVerificationBar 검증 통과) ──
+  const supplementedChains = useMemo(() => {
+    if (failureChains.length === 0 || flatData.length === 0) return failureChains;
+    return supplementChainsFromFlatData(failureChains, flatData);
+  }, [failureChains, flatData]);
+
+  // ── ★ 2026-03-16: scanner 공정 수를 보충된 chains 기준으로 보정 ──
+  const verificationStatistics = useMemo(() => {
+    if (!effectiveStatistics) return effectiveStatistics;
+    const suppProcs = new Set(supplementedChains.map(c => c.processNo).filter(Boolean));
+    const rf = effectiveStatistics.rawFingerprint;
+    if (!rf || rf.processes.length >= suppProcs.size) return effectiveStatistics;
+    // scanner 공정 수가 보충 후 체인보다 적으면 보정
+    const existingPnos = new Set(rf.processes.map(p => p.processNo));
+    const newProcs = [...suppProcs]
+      .filter(pno => !existingPnos.has(pno))
+      .map(pno => ({
+        processNo: pno, processName: pno, fmCount: 0,
+        fcByFm: {} as Record<string, number>,
+        feByFm: {} as Record<string, number>,
+        chainRows: 0,
+      }));
+    return {
+      ...effectiveStatistics,
+      rawFingerprint: {
+        ...rf,
+        processes: [...rf.processes, ...newProcs],
+      },
+    };
+  }, [effectiveStatistics, supplementedChains]);
 
   // ── 미매칭 항목 스크롤 ──
   const [scrollTarget, setScrollTarget] = useState<{ type: 'FE' | 'FM' | 'FC'; text: string } | null>(null);
@@ -964,7 +996,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
       {/* ─── FC검증 통계 — 토글 시 항상 표시 ─── */}
       {showVerification && failureChains.length > 0 && (
-        <FAVerificationBar chains={failureChains} parseStatistics={effectiveStatistics} flatData={flatData} onScrollToItem={handleScrollToUnmatched} />
+        <FAVerificationBar chains={supplementedChains} parseStatistics={verificationStatistics} flatData={flatData} onScrollToItem={handleScrollToUnmatched} />
       )}
 
       {/* ─── FC 콘텐츠: 고장사슬 미리보기 + 비교 결과 (4개 모드 공통) ─── */}
