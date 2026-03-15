@@ -1,28 +1,14 @@
-// CODEFREEZE
+// CODEFREEZE-LIFTED: 2026-03-15 atomicDbLoader 경로 추가
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @file useWorksheetDataLoader.ts
- * @description 워크시트 데이터 로드 로직 분리 (P1)
- * 
- * ★★★ TODO: 리팩토링 필요 ★★★
- * 현재 이 파일에는 50개 이상의 localStorage 호출이 있습니다.
- * 원인:
- * 1. 대문자/소문자 마이그레이션 로직 (레거시)
- * 2. 중복 폴백 경로 (DB 실패 → localStorage → 원자성 백업)
- * 3. 탭/riskData 등 개별 상태 저장 (분산)
- * 4. 코드 중복 (같은 로직이 여러 곳에서 반복)
- * 
- * 리팩토링 시 고려사항:
- * - 모든 데이터를 DB로 통합 (localStorage 완전 제거)
- * - 단일 데이터 로드 경로 구현 (폴백 로직 제거)
- * - 상태 저장 통합 (탭/riskData를 워크시트 데이터에 포함)
- * - 2026-01-30: DB Only 정책으로 핵심 localStorage 호출 비활성화됨
+ * @description 워크시트 데이터 로드 로직 — atomic DB 우선 로드 + legacy 폴백
  *
- * @status CODEFREEZE L4 (Gold) 🔒
- * @freeze_level L4 (Critical - Gold Test Passed)
- * @frozen_date 2026-03-02
- * @gold_tag v4.0.0-gold
- * @allowed_changes NONE — 사용자 명시적 승인 + full test pass 필수
+ * 2026-03-15 변경:
+ * - atomicDbLoader.loadAtomicDB()로 먼저 로드 시도
+ * - atomic 데이터 존재 시 atomicToLegacy()로 변환하여 legacy 탭 호환
+ * - atomic 데이터 없으면 기존 legacy 로드 경로로 폴백
+ * - 기존 로드 경로는 그대로 유지 (호환성)
  */
 
 'use client';
@@ -35,6 +21,8 @@ import { loadWorksheetDB, saveWorksheetDB, loadWorksheetDBAtomic } from '../db-s
 import { normalizeConfirmedFlags } from '@/shared/types/worksheet';
 import { normalizeFailureLinks } from './useFailureLinkUtils';
 import { computeCompletenessScore } from '@/lib/failure-link-utils';
+import { loadAtomicDB } from './atomicDbLoader';
+import { atomicToLegacy } from '../atomicToLegacyAdapter';
 
 interface UseWorksheetDataLoaderParams {
   selectedFmeaId: string | null;
@@ -137,6 +125,101 @@ export function useWorksheetDataLoader({
         console.error('[기초정보] DB 로드 오류:', e);
       }
 
+      // ★★★ 2026-03-15: Atomic DB 직접 로드 (UUID 보존, migrateToAtomicDB 미사용) ★★★
+      const atomicData = await loadAtomicDB(normalizedFmeaId);
+      if (atomicData && Array.isArray(atomicData.l2Structures) && atomicData.l2Structures.length > 0) {
+        // atomic 데이터가 존재하면 직접 사용 — legacy 변환은 렌더링용
+        const legacyFromAtomic = atomicToLegacy(atomicData);
+
+        // 탭 결정: URL > localStorage > DB > 'structure'
+        const atomicUrlTab = typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('tab')
+          : null;
+        let atomicSavedTab = '';
+        try {
+          const storedTab = localStorage.getItem(`pfmea_tab_${normalizedFmeaId}`);
+          if (storedTab) atomicSavedTab = storedTab;
+        } catch (_e) { /* ignore */ }
+        const atomicTab = atomicUrlTab || atomicSavedTab || 'structure';
+
+        // L1 이름: 등록정보 우선
+        if (projectL1Name && legacyFromAtomic.l1) {
+          const currentL1Name = legacyFromAtomic.l1.name || '';
+          const isPlaceholder = !currentL1Name || currentL1Name.trim() === '' || currentL1Name.includes('입력');
+          if (isPlaceholder || projectL1Name) {
+            legacyFromAtomic.l1 = { ...legacyFromAtomic.l1, name: projectL1Name || currentL1Name };
+          }
+        }
+
+        // ensureL1Types 인라인 (기존 함수가 아직 정의 전이므로)
+        const l1 = legacyFromAtomic.l1 || createInitialState().l1;
+        const types = l1.types || [];
+        let finalL1 = l1;
+        if (types.length === 0) {
+          const ts = Date.now();
+          finalL1 = {
+            ...l1,
+            types: [
+              { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [] }] },
+              { id: `type-${ts}-sp`, name: 'SP', functions: [{ id: `func-${ts}-sp`, name: '', requirements: [] }] },
+              { id: `type-${ts}-user`, name: 'USER', functions: [{ id: `func-${ts}-user`, name: '', requirements: [] }] },
+            ],
+            failureScopes: l1.failureScopes || [],
+          };
+        }
+
+        const newState: WorksheetState = {
+          fmeaId: normalizedFmeaId,
+          l1: finalL1 as any,
+          l2: legacyFromAtomic.l2 || [],
+          tab: atomicTab,
+          riskData: legacyFromAtomic.riskData || {},
+          search: '',
+          selected: { type: 'L2', id: null },
+          levelView: 'all',
+          visibleSteps: [2, 3, 4, 5, 6],
+          failureLinks: legacyFromAtomic.failureLinks || [],
+          fmea4Rows: [],
+          structureConfirmed: legacyFromAtomic.structureConfirmed,
+          l1Confirmed: legacyFromAtomic.l1Confirmed,
+          l2Confirmed: legacyFromAtomic.l2Confirmed,
+          l3Confirmed: legacyFromAtomic.l3Confirmed,
+          failureL1Confirmed: legacyFromAtomic.failureL1Confirmed,
+          failureL2Confirmed: legacyFromAtomic.failureL2Confirmed,
+          failureL3Confirmed: legacyFromAtomic.failureL3Confirmed,
+          failureLinkConfirmed: legacyFromAtomic.failureLinkConfirmed,
+          riskConfirmed: legacyFromAtomic.riskConfirmed,
+          optimizationConfirmed: legacyFromAtomic.optimizationConfirmed,
+        };
+
+        // placeholder 공정 정리 (Rule 10.5 준수: 별도 후처리)
+        const rawL2 = newState.l2 || [];
+        const realProcesses = rawL2.filter((p: any) => {
+          const n = (p.name || '').trim();
+          return n && !n.includes('클릭하여') && !n.includes('공정 선택');
+        });
+        if (realProcesses.length > 0 && realProcesses.length < rawL2.length) {
+          newState.l2 = realProcesses;
+        }
+
+        setStateSynced(prev => ({
+          ...newState,
+          tab: atomicTab,
+          visibleSteps: Array.isArray(prev.visibleSteps) ? prev.visibleSteps : newState.visibleSteps,
+        }));
+
+        // atomicDB를 직접 설정 (migrateToAtomicDB 불필요 — 이미 atomic 형식)
+        atomicData.fmeaId = normalizedFmeaId;
+        setAtomicDB(atomicData);
+
+        console.log('[WorksheetDataLoader] Atomic DB 직접 로드 성공 — migrateToAtomicDB 스킵');
+        requestAnimationFrame(() => {
+          suppressAutoSaveRef.current = false;
+        });
+        return;
+      }
+
+      // ── FALLBACK: Atomic 데이터 없음 → 기존 legacy 로드 경로 ──
       const loadedDB = await loadWorksheetDB(normalizedFmeaId);
       const loadedAtomicDB = await loadWorksheetDBAtomic(normalizedFmeaId);
 

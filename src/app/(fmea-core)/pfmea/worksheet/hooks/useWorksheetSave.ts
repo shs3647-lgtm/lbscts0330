@@ -1,8 +1,14 @@
-// CODEFREEZE-LIFTED: 2026-03-15 연쇄삭제 캐시 버그 수정
+// CODEFREEZE-LIFTED: 2026-03-15 migrateToAtomicDB 제거 + atomicDbSaver 연결
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @file useWorksheetSave.ts
- * @description 워크시트 저장 관련 로직 분리 (P2)
+ * @description 워크시트 저장 로직 — atomicDB가 있으면 직접 저장, 없으면 legacy 변환 폴백
+ *
+ * 핵심 변경 (2026-03-15):
+ * - atomicDB가 이미 존재하면 migrateToAtomicDB를 호출하지 않음
+ * - UUID가 매번 재생성되어 FailureAnalysis 187건 연쇄 삭제되던 버그 해결
+ * - atomicDbSaver.saveAtomicDB()를 사용하여 기존 link ID 보존
+ * - legacy-only 상태(atomicDB 미존재)에서는 기존 migrateToAtomicDB 경로 유지
  */
 
 'use client';
@@ -12,6 +18,7 @@ import { WorksheetState, FMEAProject } from '../constants';
 import { FMEAWorksheetDB } from '../schema';
 import { migrateToAtomicDB } from '../migration';
 import { saveWorksheetDB } from '../db-storage';
+import { saveAtomicDB as saveAtomicDBDirect } from './atomicDbSaver';
 import { normalizeFailureLinks } from './useFailureLinkUtils';
 
 interface UseWorksheetSaveParams {
@@ -32,6 +39,66 @@ interface UseWorksheetSaveReturn {
   saveToLocalStorageOnly: () => void;
 }
 
+// ── 헬퍼: atomicDB에 현재 stateRef의 confirmed 상태 + riskData 반영 ──
+
+function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB {
+  return {
+    ...db,
+    confirmed: {
+      ...db.confirmed,
+      structure: (state as any).structureConfirmed || false,
+      l1Function: (state as any).l1Confirmed || false,
+      l2Function: (state as any).l2Confirmed || false,
+      l3Function: (state as any).l3Confirmed || false,
+      l1Failure: (state as any).failureL1Confirmed || false,
+      l2Failure: (state as any).failureL2Confirmed || false,
+      l3Failure: (state as any).failureL3Confirmed || false,
+      failureLink: (state as any).failureLinkConfirmed || false,
+    },
+  };
+}
+
+/**
+ * stateRef(legacy)에서 변경된 failureLinks를 atomicDB.failureLinks에 반영.
+ * legacy의 failureLinks는 풍부한 텍스트 필드를 가지지만,
+ * atomicDB.failureLinks는 fmId/feId/fcId FK만 저장.
+ * state에서 링크가 추가/제거되었을 수 있으므로 동기화 필요.
+ */
+function syncFailureLinksFromState(
+  db: FMEAWorksheetDB,
+  state: WorksheetState,
+): FMEAWorksheetDB {
+  const stateLinks = (state as any).failureLinks || [];
+  if (stateLinks.length === 0 && db.failureLinks.length === 0) return db;
+
+  // state의 failureLinks에 id가 있으면 그대로, 없으면 기존 DB에서 조회
+  const dbLinkById = new Map(db.failureLinks.map((l: any) => [l.id, l]));
+
+  const syncedLinks = stateLinks
+    .filter((sl: any) => sl.fmId && sl.fcId) // 최소 FK 필요
+    .map((sl: any) => {
+      const existing = dbLinkById.get(sl.id);
+      if (existing) {
+        // 기존 링크 유지 (FK만 갱신)
+        return {
+          ...existing,
+          fmId: sl.fmId,
+          feId: sl.feId || existing.feId,
+          fcId: sl.fcId,
+        };
+      }
+      // 새로 추가된 링크
+      return {
+        id: sl.id || '',
+        fmId: sl.fmId,
+        feId: sl.feId || '',
+        fcId: sl.fcId,
+      };
+    });
+
+  return { ...db, failureLinks: syncedLinks };
+}
+
 export function useWorksheetSave({
   selectedFmeaId,
   currentFmea,
@@ -46,12 +113,12 @@ export function useWorksheetSave({
 
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastAutoSaveHashRef = useRef<string>('');
-  // ★★★ 2026-02-23: buildFailureAnalyses 캐시 (구조 데이터 변경 없으면 재사용) ★★★
+  // ★ Legacy fallback 전용 캐시 (atomic 경로는 atomicDbSaver 내부에서 캐시)
   const lastStructuralHashRef = useRef<string>('');
   const cachedFailureAnalysesRef = useRef<any[]>([]);
 
-  // 원자성 DB 저장
-  const saveAtomicDB = useCallback(async (force?: boolean) => {
+  // ── 원자성 DB 저장 ──
+  const saveAtomicDBCallback = useCallback(async (force?: boolean) => {
     const targetFmeaId = atomicDB?.fmeaId || selectedFmeaId || currentFmea?.id;
 
     if (!targetFmeaId) {
@@ -61,7 +128,6 @@ export function useWorksheetSave({
     if (!force && suppressAutoSaveRef.current) {
       return;
     }
-    // force 모드 로그 생략 (성능)
 
     // ★ P0-3: 완전히 빈 데이터 DB 덮어쓰기 방지
     const preCheckState = stateRef.current;
@@ -71,7 +137,6 @@ export function useWorksheetSave({
     const preCheckL1FuncCount = (preCheckState.l1 as any)?.types?.reduce(
       (acc: number, t: any) => acc + (t.functions?.length || 0), 0
     ) || 0;
-    // ★★★ 2026-02-18: force=true(확정)이면 가드 스킵 + structureConfirmed면 허용 ★★★
     const preCheckStructConfirmed = (preCheckState as any).structureConfirmed === true;
     if (!force && !preCheckStructConfirmed && preCheckL2Count === 0 && preCheckFMCount === 0 && preCheckFECount === 0 && preCheckL1FuncCount === 0) {
       return;
@@ -79,63 +144,76 @@ export function useWorksheetSave({
 
     setIsSaving(true);
     try {
-      const currentState = stateRef.current;
+      // ★★★ 2026-03-15: DUAL PATH — atomicDB 존재하면 직접 저장, 없으면 legacy 변환 ★★★
+      if (atomicDB && Array.isArray(atomicDB.l2Structures)) {
+        // ── ATOMIC PATH: UUID 보존, migrateToAtomicDB 호출 없음 ──
+        let dbToSave = syncConfirmedFlags(atomicDB, stateRef.current);
+        dbToSave = syncFailureLinksFromState(dbToSave, stateRef.current);
 
-      const normalizedFailureLinks = normalizeFailureLinks((currentState as any).failureLinks || [], currentState);
-      const legacyData = {
-        fmeaId: targetFmeaId,
-        l1: currentState.l1,
-        l2: currentState.l2,
-        failureLinks: normalizedFailureLinks,
-        // ★★★ 2026-02-03: riskData 추가 (예방관리/검출관리 등 DB 저장) ★★★
-        riskData: currentState.riskData || {},
-        // ★★★ 2026-02-10: fmea4Rows 추가 (FMEA 4판 데이터 DB 저장) ★★★
-        fmea4Rows: (currentState as any).fmea4Rows || [],
-        structureConfirmed: (currentState as any).structureConfirmed || false,
-        l1Confirmed: (currentState as any).l1Confirmed || false,
-        l2Confirmed: (currentState as any).l2Confirmed || false,
-        l3Confirmed: (currentState as any).l3Confirmed || false,
-        failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
-        failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
-        failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
-        failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
-      };
+        // force 모드(확정) 시 forceOverwrite 전달
+        if (force) {
+          dbToSave = { ...dbToSave, forceOverwrite: true } as any;
+        }
 
-      const newAtomicDB = migrateToAtomicDB(legacyData);
-
-      // ★★★ 2026-02-23: 구조 해시 기반 buildFailureAnalyses 캐시 (riskData만 변경 시 스킵) ★★★
-      if (newAtomicDB.failureLinks.length > 0 && newAtomicDB.confirmed.failureLink) {
-        // ★★★ 2026-03-15 FIX: link ID 포함 — migrateToAtomicDB가 매번 uid() 생성하므로
-        // 카운트만 비교하면 캐시된 analyses의 linkId와 새 link ID 불일치 → 연쇄 드롭 ★★★
-        const structuralHash = JSON.stringify({
-          fl: newAtomicDB.failureLinks.length,
-          fe: newAtomicDB.failureEffects.length,
-          fm: newAtomicDB.failureModes.length,
-          fc: newAtomicDB.failureCauses.length,
-          l2: newAtomicDB.l2Structures.length,
-          l3: newAtomicDB.l3Structures.length,
-          flc: (newAtomicDB as any).confirmed?.failureLink,
-          lk0: newAtomicDB.failureLinks[0]?.id || '',
-        });
-        if (structuralHash !== lastStructuralHashRef.current || cachedFailureAnalysesRef.current.length === 0) {
-          const { buildFailureAnalyses } = await import('../utils/failure-analysis-builder');
-          newAtomicDB.failureAnalyses = buildFailureAnalyses(newAtomicDB);
-          lastStructuralHashRef.current = structuralHash;
-          cachedFailureAnalysesRef.current = newAtomicDB.failureAnalyses;
-        } else {
-          newAtomicDB.failureAnalyses = cachedFailureAnalysesRef.current;
+        const result = await saveAtomicDBDirect(dbToSave);
+        if (result.success) {
+          setAtomicDB(dbToSave);
+          setDirty(false);
+          setLastSaved(new Date().toLocaleTimeString('ko-KR'));
         }
       } else {
-        newAtomicDB.failureAnalyses = [];
+        // ── LEGACY FALLBACK: atomicDB가 아직 없는 경우 (첫 로드 직후 등) ──
+        const currentState = stateRef.current;
+        const normalizedFailureLinks = normalizeFailureLinks((currentState as any).failureLinks || [], currentState);
+        const legacyData = {
+          fmeaId: targetFmeaId,
+          l1: currentState.l1,
+          l2: currentState.l2,
+          failureLinks: normalizedFailureLinks,
+          riskData: currentState.riskData || {},
+          fmea4Rows: (currentState as any).fmea4Rows || [],
+          structureConfirmed: (currentState as any).structureConfirmed || false,
+          l1Confirmed: (currentState as any).l1Confirmed || false,
+          l2Confirmed: (currentState as any).l2Confirmed || false,
+          l3Confirmed: (currentState as any).l3Confirmed || false,
+          failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
+          failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
+          failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
+          failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
+        };
+
+        const newAtomicDB = migrateToAtomicDB(legacyData);
+
+        // failureAnalyses 캐시 (legacy path만 — atomic path는 atomicDbSaver 내부 캐시)
+        if (newAtomicDB.failureLinks.length > 0 && newAtomicDB.confirmed.failureLink) {
+          const structuralHash = JSON.stringify({
+            fl: newAtomicDB.failureLinks.length,
+            fe: newAtomicDB.failureEffects.length,
+            fm: newAtomicDB.failureModes.length,
+            fc: newAtomicDB.failureCauses.length,
+            l2: newAtomicDB.l2Structures.length,
+            l3: newAtomicDB.l3Structures.length,
+            flc: (newAtomicDB as any).confirmed?.failureLink,
+            lk0: newAtomicDB.failureLinks[0]?.id || '',
+          });
+          if (structuralHash !== lastStructuralHashRef.current || cachedFailureAnalysesRef.current.length === 0) {
+            const { buildFailureAnalyses } = await import('../utils/failure-analysis-builder');
+            newAtomicDB.failureAnalyses = buildFailureAnalyses(newAtomicDB);
+            lastStructuralHashRef.current = structuralHash;
+            cachedFailureAnalysesRef.current = newAtomicDB.failureAnalyses;
+          } else {
+            newAtomicDB.failureAnalyses = cachedFailureAnalysesRef.current;
+          }
+        } else {
+          newAtomicDB.failureAnalyses = [];
+        }
+
+        const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
+        await saveWorksheetDB(dbToSave as any, legacyData);
+        setAtomicDB(newAtomicDB);
+        setDirty(false);
+        setLastSaved(new Date().toLocaleTimeString('ko-KR'));
       }
-
-      // ★★★ 2026-02-18: force=true(확정) 시 forceOverwrite 전달 → 서버 덮어쓰기 가드 우회 ★★★
-      const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
-      await saveWorksheetDB(dbToSave as any, legacyData);
-      setAtomicDB(newAtomicDB);
-
-      setDirty(false);
-      setLastSaved(new Date().toLocaleTimeString('ko-KR'));
     } catch (e) {
       console.error('[원자성 DB 저장] 오류:', e);
     } finally {
@@ -168,41 +246,53 @@ export function useWorksheetSave({
     const l1FuncCount = (currentState.l1 as any)?.types?.reduce(
       (acc: number, t: any) => acc + (t.functions?.length || 0), 0
     ) || 0;
-    // ★★★ 2026-02-18: 구조확정 상태면 무조건 저장 허용 (공정 1개도 유효) ★★★
     const isStructureConfirmed = (currentState as any).structureConfirmed === true;
-    // ★ l2ProcessCount === 0 으로 완화 (기존 <= 1은 공정 1개 저장 차단 버그)
     if (!force && !isStructureConfirmed && l2ProcessCount === 0 && l2FMCount === 0 && feScopeCount === 0 && l1FuncCount === 0) {
       return;
     }
 
     setIsSaving(true);
     try {
-      const normalizedFailureLinks = normalizeFailureLinks((currentState as any).failureLinks || [], currentState);
-      const worksheetData = {
-        fmeaId: targetId,
-        l1: currentState.l1,
-        l2: currentState.l2,
-        tab: currentState.tab,
-        structureConfirmed: (currentState as any).structureConfirmed || false,
-        l1Confirmed: (currentState as any).l1Confirmed || false,
-        l2Confirmed: (currentState as any).l2Confirmed || false,
-        l3Confirmed: (currentState as any).l3Confirmed || false,
-        failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
-        failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
-        failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
-        failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
-        failureLinks: normalizedFailureLinks,
-        riskData: currentState.riskData || {},
-        fmea4Rows: (currentState as any).fmea4Rows || [],
-        savedAt: new Date().toISOString(),
-      };
+      // ★★★ 2026-03-15: DUAL PATH — atomicDB 직접 저장 / legacy 변환 폴백 ★★★
+      if (atomicDB && Array.isArray(atomicDB.l2Structures)) {
+        // ── ATOMIC PATH ──
+        let dbToSave = syncConfirmedFlags(atomicDB, currentState);
+        dbToSave = syncFailureLinksFromState(dbToSave, currentState);
+        if (force) {
+          dbToSave = { ...dbToSave, forceOverwrite: true } as any;
+        }
+        saveAtomicDBDirect(dbToSave).then(result => {
+          if (result.success) {
+            setAtomicDB(dbToSave);
+          }
+        }).catch(e => console.error('[저장] DB 저장 오류:', e));
+      } else {
+        // ── LEGACY FALLBACK ──
+        const normalizedFailureLinks = normalizeFailureLinks((currentState as any).failureLinks || [], currentState);
+        const worksheetData = {
+          fmeaId: targetId,
+          l1: currentState.l1,
+          l2: currentState.l2,
+          tab: currentState.tab,
+          structureConfirmed: (currentState as any).structureConfirmed || false,
+          l1Confirmed: (currentState as any).l1Confirmed || false,
+          l2Confirmed: (currentState as any).l2Confirmed || false,
+          l3Confirmed: (currentState as any).l3Confirmed || false,
+          failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
+          failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
+          failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
+          failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
+          failureLinks: normalizedFailureLinks,
+          riskData: currentState.riskData || {},
+          fmea4Rows: (currentState as any).fmea4Rows || [],
+          savedAt: new Date().toISOString(),
+        };
 
-      // DB 저장만 수행 (localStorage 제거)
-      const newAtomicDB = migrateToAtomicDB(worksheetData);
-      // ★★★ 2026-02-18: force=true(확정) 시 forceOverwrite 전달 ★★★
-      const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
-      saveWorksheetDB(dbToSave as any, worksheetData).catch(e => console.error('[저장] DB 저장 오류:', e));
-      setAtomicDB(newAtomicDB);
+        const newAtomicDB = migrateToAtomicDB(worksheetData);
+        const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
+        saveWorksheetDB(dbToSave as any, worksheetData).catch(e => console.error('[저장] DB 저장 오류:', e));
+        setAtomicDB(newAtomicDB);
+      }
 
       setDirty(false);
       setLastSaved(new Date().toLocaleTimeString('ko-KR'));
@@ -211,7 +301,7 @@ export function useWorksheetSave({
     } finally {
       setIsSaving(false);
     }
-  }, [selectedFmeaId, currentFmea?.id, setAtomicDB, stateRef, suppressAutoSaveRef, setIsSaving, setDirty, setLastSaved]);
+  }, [selectedFmeaId, currentFmea?.id, atomicDB, setAtomicDB, stateRef, suppressAutoSaveRef, setIsSaving, setDirty, setLastSaved]);
 
   // 자동저장 useEffect
   useEffect(() => {
@@ -248,8 +338,8 @@ export function useWorksheetSave({
     autoSaveTimeoutRef.current = setTimeout(() => {
       // ★★★ 2026-02-18: 타이머 발동 시점에도 suppress 재확인 (레이스컨디션 방지) ★★★
       if (suppressAutoSaveRef.current) return;
-      // ★★★ 2026-02-23: 이중 저장 제거 — saveAtomicDB만 호출 (saveToLocalStorage도 동일 DB POST하여 2회 중복) ★★★
-      saveAtomicDB().catch(e => console.error('[자동저장] 원자성 DB 저장 오류:', e));
+      // ★★★ 2026-02-23: 이중 저장 제거 — saveAtomicDB만 호출 ★★★
+      saveAtomicDBCallback().catch(e => console.error('[자동저장] 원자성 DB 저장 오류:', e));
     }, 500);
 
     return () => {
@@ -257,10 +347,10 @@ export function useWorksheetSave({
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [stateRef.current, selectedFmeaId, currentFmea?.id, saveAtomicDB, suppressAutoSaveRef]);
+  }, [stateRef.current, selectedFmeaId, currentFmea?.id, saveAtomicDBCallback, suppressAutoSaveRef]);
 
   return {
-    saveAtomicDB,
+    saveAtomicDB: saveAtomicDBCallback,
     saveToLocalStorage,
     saveToLocalStorageOnly,
   };
