@@ -187,7 +187,8 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
         l2Id: proc.id, l2No: proc.no, l2Name: proc.name, l2Functions: proc.functions || [],
         l2ProductChars: (proc.functions || []).flatMap((f: any) => f.productChars || []),
         l2FailureMode: (proc.failureModes || []).map((m: any) => m.name).join(', '),
-        l3Id: '', m4: '', l3Name: '(작업요소 없음)', l3Functions: [], l3ProcessChars: [], l3FailureCause: ''
+        l3Id: '', m4: '', l3Name: '(작업요소 없음)', l3Functions: [], l3ProcessChars: [], l3FailureCause: '',
+        l2IsRevised: proc.isRevised,
       });
       rowIdx++;
     } else {
@@ -204,7 +205,8 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
           l2FailureMode: (proc.failureModes || []).map((m: any) => m.name).join(', '),
           l3Id: we.id, m4: we.m4, l3Name: we.name,
           l3Functions: we.functions || [], l3ProcessChars: we.processChars || [],
-          l3FailureCause: (we.failureCauses || []).map((c: any) => c.name).join(', ')
+          l3FailureCause: (we.failureCauses || []).map((c: any) => c.name).join(', '),
+          l2IsRevised: proc.isRevised, l3IsRevised: we.isRevised,
         });
         rowIdx++;
       });

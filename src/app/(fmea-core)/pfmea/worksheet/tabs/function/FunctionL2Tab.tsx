@@ -784,7 +784,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                   </td>
                 )}
                 <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, f.id)}>
-                  <SelectableCell value={f.name} placeholder="공정기능" bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: '메인공정 기능 선택', itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
+                  <SelectableCell value={f.name} placeholder="공정기능" bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: '메인공정 기능 선택', itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
                 </td>
                 <td className={cellP0} style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'productChar', proc.id, f.id, '')}>
                   <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, title: '제품특성 선택', itemCode: 'A4' })} />
@@ -808,11 +808,11 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                 )}
                 {cIdx === 0 && (
                   <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: firstRowZebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, f.id)}>
-                    <SelectableCell value={f.name} placeholder="공정기능" bgColor={firstRowZebra.function} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: '메인공정 기능 선택', itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
+                    <SelectableCell value={f.name} placeholder="공정기능" bgColor={firstRowZebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: '메인공정 기능 선택', itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
                   </td>
                 )}
                 <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={(e) => handleContextMenu(e, 'productChar', proc.id, f.id, c.id)}>
-                  <SelectableCell value={c.name} placeholder="제품특성" bgColor={zebra.failure} textColor={'#e65100'} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, charId: c.id, title: '제품특성 선택', itemCode: 'A4' })} onDoubleClickEdit={(newValue) => handleInlineEditProductChar(proc.id, f.id, c.id, newValue)} />
+                  <SelectableCell value={c.name} placeholder="제품특성" bgColor={zebra.failure} textColor={'#e65100'} isRevised={c.isRevised} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, charId: c.id, title: '제품특성 선택', itemCode: 'A4' })} onDoubleClickEdit={(newValue) => handleInlineEditProductChar(proc.id, f.id, c.id, newValue)} />
                 </td>
                 <td className="border border-[#ccc] p-0 text-center align-middle" style={{ background: zebra.failure }}>
                   <SpecialCharBadge value={c.specialChar || ''} onClick={() => setSpecialCharModal({ procId: proc.id, funcId: f.id, charId: c.id, charName: c.name, currentValue: c.specialChar || '' })} />

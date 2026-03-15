@@ -38,26 +38,26 @@ const PFD_SHEET_DEFINITIONS = [
 /** 샘플 데이터 */
 const PFD_SAMPLE_DATA: Record<string, string[][]> = {
   '공정정보': [
-    ['10', '자재입고', '원자재 입고 및 검수', '입고 확인', '바코드 스캐너'],
-    ['20', '수입검사', '원자재 품질 검사', '성적서 확인', 'Mooney Viscometer'],
-    ['30', 'MB Mixing', 'Master Batch 배합', '배합 작업', '믹서'],
-    ['40', 'FM Mixing', 'Final Mix 배합', '최종 배합', '믹서'],
-    ['50', '압출', '고무 압출 공정', '압출 작업', '압출기'],
-    ['60', '압연', '고무 시트 압연', '압연 작업', '압연기'],
-    ['80', '성형', '제품 성형', '성형 작업', '프레스'],
-    ['90', '가류', '가류 공정', '가류 작업', '가류기'],
-    ['100', '완성검사', '최종 검사', '검사 작업', 'X-ray 검사기'],
+    ['10', '자재입고', 'Wafer 및 원부자재 입고 검수', '입고 확인', '바코드 스캐너'],
+    ['20', '수입검사', 'Wafer 외관 및 물성 수입검사', '성적서 확인', '현미경, 프로브 스테이션'],
+    ['30', 'Scrubber', 'Wafer 표면 세정 처리', '세정 작업', 'Scrubber 장비'],
+    ['40', 'UBM Sputter', 'Under Bump Metallurgy 증착', '증착 작업', 'Sputter 장비'],
+    ['50', 'PR Coating', 'Photo Resist 도포', 'PR 도포', 'Coater'],
+    ['60', 'Expose/Develop', '노광 및 현상 공정', '패턴 형성', 'Stepper, Developer'],
+    ['70', 'Au Plating', 'Au Bump 전기도금', '도금 작업', '도금조'],
+    ['90', 'Reflow', 'Bump Reflow 처리', 'Reflow 작업', 'Reflow Oven'],
+    ['100', '완성검사', 'Bump 높이/위치/외관 최종검사', '검사 작업', '3D 측정기'],
   ],
   '특성정보': [
-    ['10', '자재입고', 'P', '입고 확인', 'C', '바코드 일치'],
-    ['20', '수입검사', '', 'ML1+4', '', 'Mooney 점도'],
-    ['30', 'MB Mixing', '', '배합비', '', '온도'],
-    ['40', 'FM Mixing', 'P', '최종 배합비', 'C', 'RPM'],
-    ['50', '압출', '', '압출 두께', '', '압출 속도'],
-    ['60', '압연', '', '시트 두께', '', '압연 속도'],
-    ['80', '성형', 'P', '성형 치수', 'C', '프레스 압력'],
-    ['90', '가류', '', '가류 시간', '', '가류 온도'],
-    ['100', '완성검사', 'P', '외관 검사', 'C', 'X-ray 검사'],
+    ['10', '자재입고', 'P', 'Wafer 외관', 'C', '바코드 일치'],
+    ['20', '수입검사', '', 'Wafer 두께 TTV', '', '검사 정밀도'],
+    ['30', 'Scrubber', '', '파티클 수', '', '세정 시간'],
+    ['40', 'UBM Sputter', 'P', 'Ti/Cu 막두께', 'C', 'Sputter Power'],
+    ['50', 'PR Coating', '', 'PR 두께', '', 'Spin Speed'],
+    ['60', 'Expose/Develop', 'P', 'CD(Critical Dimension)', 'C', '노광량'],
+    ['70', 'Au Plating', 'P', 'Bump 높이', 'C', '도금 전류밀도'],
+    ['90', 'Reflow', '', 'Bump 형상', '', 'Reflow 온도'],
+    ['100', '완성검사', 'P', 'Bump 높이 균일도', 'C', 'AOI 검사'],
   ],
 };
 
@@ -293,14 +293,14 @@ const INDIVIDUAL_ITEM_CONFIG: Record<string, { label: string; width: number }> =
 };
 
 const INDIVIDUAL_SAMPLE_DATA: Record<string, string[][]> = {
-  processName: [['10', '자재입고'], ['20', '수입검사'], ['30', 'MB Mixing']],
-  processDesc: [['10', '원자재 입고 및 검수'], ['20', '원자재 품질 검사'], ['30', 'Master Batch 배합']],
-  workElement: [['10', '입고 확인'], ['20', '성적서 확인'], ['30', '배합 작업']],
-  equipment: [['10', '바코드 스캐너'], ['20', 'Mooney Viscometer'], ['30', '믹서']],
-  productSpecialChar: [['10', 'P'], ['40', 'P'], ['80', 'P']],
-  productChar: [['10', '입고 확인'], ['20', 'ML1+4'], ['30', '배합비']],
-  processSpecialChar: [['10', 'C'], ['40', 'C'], ['80', 'C']],
-  processChar: [['10', '바코드 일치'], ['20', 'Mooney 점도'], ['30', '온도']],
+  processName: [['10', '자재입고'], ['20', '수입검사'], ['30', 'Scrubber']],
+  processDesc: [['10', 'Wafer 및 원부자재 입고 검수'], ['20', 'Wafer 외관 및 물성 수입검사'], ['30', 'Wafer 표면 세정 처리']],
+  workElement: [['10', '입고 확인'], ['20', '성적서 확인'], ['30', '세정 작업']],
+  equipment: [['10', '바코드 스캐너'], ['20', '현미경, 프로브 스테이션'], ['30', 'Scrubber 장비']],
+  productSpecialChar: [['10', 'P'], ['40', 'P'], ['70', 'P']],
+  productChar: [['10', 'Wafer 외관'], ['20', 'Wafer 두께 TTV'], ['30', '파티클 수']],
+  processSpecialChar: [['10', 'C'], ['40', 'C'], ['70', 'C']],
+  processChar: [['10', '바코드 일치'], ['20', '검사 정밀도'], ['30', '세정 시간']],
 };
 
 /** 개별 항목 빈 템플릿 */

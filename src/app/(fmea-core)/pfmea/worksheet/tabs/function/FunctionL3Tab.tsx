@@ -789,7 +789,7 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
                     </>
                   )}
                   <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, we.id, f.id)}>
-                    <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
+                    <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
                   </td>
                   <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={(e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, '')}>
                     <SelectableCell value="" placeholder="공정특성 선택" bgColor={zebra.failure} onClick={() => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 })} />
@@ -825,11 +825,11 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
                   )}
                   {cIdx === 0 && (
                     <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcZebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, we.id, f.id)}>
-                      <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={funcZebra.function} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
+                      <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={funcZebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
                     </td>
                   )}
                   <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={(e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, c.id)}>
-                    <SelectableCell value={c.name} placeholder="공정특성" bgColor={zebra.failure} onClick={() => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditProcessChar(proc.id, we.id, f.id, c.id, newValue)} />
+                    <SelectableCell value={c.name} placeholder="공정특성" bgColor={zebra.failure} isRevised={c.isRevised} onClick={() => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditProcessChar(proc.id, we.id, f.id, c.id, newValue)} />
                   </td>
                   <td className="border border-[#ccc] border-l-0 p-1 text-center align-middle" style={{ background: zebra.failure }}>
                     <SpecialCharBadge value={c.specialChar || ''} onClick={() => setSpecialCharModal({ procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id })} />

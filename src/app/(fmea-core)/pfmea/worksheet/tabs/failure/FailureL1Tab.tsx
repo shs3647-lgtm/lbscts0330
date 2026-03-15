@@ -104,6 +104,7 @@ interface FailureEffect {
   reqId: string; // 연결된 요구사항 ID
   effect: string; // 고장영향
   severity?: number; // 심각도
+  isRevised?: boolean; // 개정 마커
 }
 
 // ✅ 기능분석 탭에서 생성되는 플레이스홀더/빈 요구사항은 고장영향 분석 대상에서 제외
@@ -570,7 +571,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       id: s.id,
       reqId: s.reqId || '',
       effect: s.effect || '',
-      severity: s.severity
+      severity: s.severity,
+      isRevised: s.isRevised
     }));
   }, [(state.l1 as any)?.failureScopes]);
 
@@ -709,6 +711,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       effectId: string;
       effect: string;
       severity?: number;
+      isRevised?: boolean;
     }[] = [];
 
     const typeShown: Record<string, boolean> = {};
@@ -763,7 +766,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
             reqId: reqRow.reqId,
             effectId: eff.id,
             effect: eff.effect,
-            severity: eff.severity
+            severity: eff.severity,
+            isRevised: eff.isRevised
           });
 
           typeShown[group.typeName] = true;
@@ -936,6 +940,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                     <td className={cellP0} style={{ background: zebra.failure }}>
                       <SelectableCell
                         value={row.effect}
+                        isRevised={row.isRevised}
                         placeholder="고장영향 선택"
                         bgColor={zebra.failure}
                         onClick={() => {

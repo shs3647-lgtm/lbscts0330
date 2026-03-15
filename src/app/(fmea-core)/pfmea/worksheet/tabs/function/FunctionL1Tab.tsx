@@ -821,11 +821,11 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                 )}
                 {fIdx === 0 && (
                   <td rowSpan={typeRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: getTypeColor(t.name).light }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
-                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder="YP / SP / USER" bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} />
+                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder="YP / SP / USER" bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" isRevised={t.isRevised} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} />
                   </td>
                 )}
                 <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcBlockZebra }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
-                  <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" onClick={() => handleCellClick({ type: 'l1Function', id: t.id, funcId: f.id, title: '완제품 기능 선택', itemCode: 'C2', parentCategory: t.name })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
+                  <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l1Function', id: t.id, funcId: f.id, title: '완제품 기능 선택', itemCode: 'C2', parentCategory: t.name })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
                 </td>
                 <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, f.id, '')}>
                   <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={failZebraBg} textColor={COLORS.failure.text} onClick={() => handleCellClick({ type: 'l1Requirement', id: f.id, title: '요구사항 선택', itemCode: 'C3', parentFunction: f.name, parentCategory: t.name })} />
@@ -849,12 +849,12 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                 )}
                 {fIdx === 0 && rIdx === 0 && (
                   <td rowSpan={typeRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: getTypeColor(t.name).light }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
-                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder="YP / SP / USER" bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1', parentCategory: 'PFMEA' })} />
+                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder="YP / SP / USER" bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" isRevised={t.isRevised} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1', parentCategory: 'PFMEA' })} />
                   </td>
                 )}
                 {rIdx === 0 && (
                   <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcBlockZebra }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
-                    <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" onClick={() => handleCellClick({ type: 'l1Function', id: t.id, funcId: f.id, title: '완제품 기능 선택', itemCode: 'C2', parentCategory: t.name })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
+                    <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l1Function', id: t.id, funcId: f.id, title: '완제품 기능 선택', itemCode: 'C2', parentCategory: t.name })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
                   </td>
                 )}
                 <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, f.id, r.id)}>
@@ -863,6 +863,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                     placeholder="요구사항"
                     bgColor={failZebraBg}
                     textColor={COLORS.failure.text}
+                    isRevised={r.isRevised}
                     onClick={() => handleCellClick({ type: 'l1Requirement', id: f.id, reqId: r.id, title: '요구사항 선택', itemCode: 'C3', parentFunction: f.name, parentCategory: t.name })}
                     onDoubleClickEdit={(newValue) => handleInlineEditRequirement(t.id, f.id, r.id, newValue)}
                   />

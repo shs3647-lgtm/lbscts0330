@@ -22,6 +22,7 @@ interface SelectableCellProps {
   textColor?: string;
   textAlign?: 'left' | 'center' | 'right';
   fontSize?: string; // ★ 폰트 크기 오버라이드 (기본 '11px')
+  isRevised?: boolean; // true = 엑셀에서 적색으로 표기된 수정 항목 → 적색 텍스트
   onClick: () => void;
   onDoubleClickEdit?: (newValue: string) => void; // 더블클릭 인라인 편집 콜백
 }
@@ -40,6 +41,7 @@ const SelectableCell = React.memo(function SelectableCell({
   textColor,
   textAlign = 'left',
   fontSize = '11px',
+  isRevised,
   onClick,
   onDoubleClickEdit,
 }: SelectableCellProps) {
@@ -145,7 +147,7 @@ const SelectableCell = React.memo(function SelectableCell({
         minHeight: '24px',
         fontSize,  // ★ 표준 11px (prop으로 오버라이드 가능)
         fontFamily: 'inherit',
-        color: isMissing ? missingTextColor : (textColor || 'inherit'),
+        color: isRevised ? '#c62828' : isMissing ? missingTextColor : (textColor || 'inherit'),
         fontWeight: 400,  // ★ placeholder도 실제 내용과 동일한 굵기
         fontStyle: isMissing ? 'italic' : 'normal',  // ★ 기울임만 차이
         justifyContent: textAlign === 'center' ? 'center' : textAlign === 'right' ? 'flex-end' : 'flex-start',

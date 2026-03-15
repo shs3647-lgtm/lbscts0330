@@ -329,6 +329,7 @@ export function StructureRow({
           zebraBg={l2ZebraBg}  // ✅ 공정 인덱스 기준 줄무늬 색상
           rowSpan={spanCount || 1}
           isConfirmed={isConfirmed}
+          isRevised={row.l2IsRevised}
         />
       )}
       <EditableM4Cell
@@ -344,7 +345,7 @@ export function StructureRow({
         isConfirmed={isConfirmed}
       />
       {/* ★ 2026-02-20: setStateSynced 전달 (stateRef 즉시 동기화 → DB 저장 안정) */}
-      <EditableL3Cell value={row.l3Name} l3Id={row.l3Id} l2Id={row.l2Id} state={state} setState={setState} setStateSynced={setStateSynced} setDirty={setDirty} handleSelect={handleSelect} setTargetL2Id={setTargetL2Id || (() => { })} setIsWorkElementModalOpen={setIsWorkElementModalOpen || (() => { })} saveToLocalStorage={saveToLocalStorage} saveAtomicDB={saveAtomicDB} zebraBg={zebraBg} isConfirmed={isConfirmed} />
+      <EditableL3Cell value={row.l3Name} l3Id={row.l3Id} l2Id={row.l2Id} state={state} setState={setState} setStateSynced={setStateSynced} setDirty={setDirty} handleSelect={handleSelect} setTargetL2Id={setTargetL2Id || (() => { })} setIsWorkElementModalOpen={setIsWorkElementModalOpen || (() => { })} saveToLocalStorage={saveToLocalStorage} saveAtomicDB={saveAtomicDB} zebraBg={zebraBg} isConfirmed={isConfirmed} isRevised={row.l3IsRevised} />
     </>
   );
 }

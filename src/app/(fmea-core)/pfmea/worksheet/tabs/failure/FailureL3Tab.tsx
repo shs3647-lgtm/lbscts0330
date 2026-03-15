@@ -1037,6 +1037,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
                         value={row.cause?.name || ''}
                         placeholder="고장원인 선택"
                         bgColor={zebra.failure}
+                        isRevised={row.cause?.isRevised}
                         onClick={() => {
                           handleCellClick({
                             type: 'l3FailureCause',

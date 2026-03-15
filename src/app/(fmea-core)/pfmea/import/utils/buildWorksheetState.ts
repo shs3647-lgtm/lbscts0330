@@ -512,6 +512,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         l1.failureScopes!.push({
           id: uid(),
           name: c4.value,
+          ...rev(c4),
           scope: type.name,
           effect: c4.value,
         });
@@ -524,13 +525,14 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
       type.functions = [{
         id: uid(),
         name: '',
-        requirements: c3Items.map(c3 => ({ id: uid(), name: c3.value })),
+        requirements: c3Items.map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) })),
       }];
     } else {
       // C2 기능 생성
       const funcs: L1Function[] = c2Items.map(c2 => ({
         id: uid(),
         name: c2.value,
+        ...rev(c2),
         requirements: [],
       }));
 
@@ -541,20 +543,20 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         funcs.forEach((func, i) => {
           const expectedParent = `C2-${type.name}-${i}`;
           const myC3 = c3Items.filter(c3 => c3.parentItemId === expectedParent);
-          func.requirements = myC3.map(c3 => ({ id: uid(), name: c3.value }));
+          func.requirements = myC3.map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) }));
         });
         // parentItemId가 어떤 C2에도 매칭 안 되는 C3 → 마지막 func에 추가
         const allParents = new Set(funcs.map((_, i) => `C2-${type.name}-${i}`));
         const orphanC3 = c3Items.filter(c3 => !allParents.has(c3.parentItemId || ''));
         if (orphanC3.length > 0) {
           const lastFunc = funcs[funcs.length - 1];
-          orphanC3.forEach(c3 => lastFunc.requirements.push({ id: uid(), name: c3.value }));
+          orphanC3.forEach(c3 => lastFunc.requirements.push({ id: uid(), name: c3.value, ...rev(c3) }));
         }
       } else {
         // 폴백: 기존 distribute() 균등 배분
         const c3Dist = distribute(c3Items, funcs.length);
         funcs.forEach((func, i) => {
-          func.requirements = c3Dist[i].map(c3 => ({ id: uid(), name: c3.value }));
+          func.requirements = c3Dist[i].map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) }));
         });
       }
 
@@ -579,6 +581,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         l1.failureScopes!.push({
           id: uid(),
           name: c4Items[ri].value,
+          ...rev(c4Items[ri]),
           reqId: req.id,
           requirement: req.name,
           scope: type.name,
@@ -593,6 +596,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
           l1.failureScopes!.push({
             id: uid(),
             name: c4Items[ei].value,
+            ...rev(c4Items[ei]),
             reqId: lastReq.id,
             requirement: lastReq.name,
             scope: type.name,
@@ -616,6 +620,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         l1.failureScopes!.push({
           id: uid(),
           name: c4.value,
+          ...rev(c4),
           scope: type.name,
           effect: c4.value,
         });
@@ -648,7 +653,7 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     process.functions = [{
       id: uid(),
       name: '',
-      productChars: a4Items.map(a4 => ({ id: uid(), name: a4.value, specialChar: a4.specialChar || '' })),
+      productChars: a4Items.map(a4 => ({ id: uid(), name: a4.value, ...rev(a4), specialChar: a4.specialChar || '' })),
     }];
   } else if (a3Items.length > 0) {
     if (a4Items.length > 0) {
@@ -658,11 +663,13 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
       const sharedPCs = a4Items.map(a4 => ({
         id: uid(),
         name: a4.value,
+        ...rev(a4),
         specialChar: (a4 as unknown as { specialChar?: string }).specialChar || ''
       }));
       process.functions = a3Items.map((a3, idx) => ({
         id: uid(),
         name: a3.value,
+        ...rev(a3),
         productChars: idx === 0 ? sharedPCs.map(pc => ({ ...pc })) : [],  // 첫 번째 A3에만 PC 배치
       }));
     } else {
@@ -671,6 +678,7 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
       process.functions = a3Items.map((a3, idx) => ({
         id: uid(),
         name: a3.value,
+        ...rev(a3),
         productChars: idx === 0 ? [{ ...placeholderPC }] : [],  // 첫 번째 A3에만 PC 배치
       }));
     }
@@ -704,6 +712,7 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
         modes.push({
           id: uid(),
           name: a5.value,
+          ...rev(a5),
           productCharId: pc.id,
         });
       });
@@ -714,6 +723,7 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     process.failureModes = a5Items.map(a5 => ({
       id: uid(),
       name: a5.value,
+      ...rev(a5),
     }));
   }
 
@@ -825,14 +835,16 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           we.functions = [{
             id: uid(),
             name: myB2[0].value,
-            processChars: effectiveB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' })),
+            ...rev(myB2[0]),
+            processChars: effectiveB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
           }];
         } else {
           const b3PerFunc = distribute(effectiveB3, myB2.length);
           we.functions = myB2.map((b2, fIdx) => ({
             id: uid(),
             name: b2.value,
-            processChars: b3PerFunc[fIdx].map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' })),
+            ...rev(b2),
+            processChars: b3PerFunc[fIdx].map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
           }));
         }
       } else if (effectiveB3.length > 0) {
@@ -840,7 +852,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         we.functions = [{
           id: uid(),
           name: '',
-          processChars: effectiveB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' })),
+          processChars: effectiveB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
         }];
       }
       // ★★★ 2026-03-02: B2/B3 모두 없으면 placeholder 함수 생성 (렌더링 보장) ★★★
@@ -904,21 +916,23 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
             we.functions = [{
               id: uid(),
               name: myB2[0].value,
-              processChars: myB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' })),
+              ...rev(myB2[0]),
+              processChars: myB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
             }];
           } else {
             const b3PerFunc = distribute(myB3, myB2.length);
             we.functions = myB2.map((b2, fIdx) => ({
               id: uid(),
               name: b2.value,
-              processChars: b3PerFunc[fIdx].map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' })),
+              ...rev(b2),
+              processChars: b3PerFunc[fIdx].map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
             }));
           }
         } else if (myB3.length > 0) {
           we.functions = [{
             id: uid(),
             name: '',
-            processChars: myB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' })),
+            processChars: myB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
           }];
         }
       });
@@ -961,7 +975,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           const matchedB3 = allB3.filter(b3 => normalize(b3.value).startsWith(emptyName));
           if (matchedB3.length > 0 && movedFunc.processChars.length === 0) {
             movedFunc.processChars = matchedB3.map(b3 => ({
-              id: uid(), name: b3.value, specialChar: b3.specialChar || '',
+              id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '',
             }));
           }
           break;
@@ -1000,6 +1014,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           causes.push({
             id: uid(),
             name: b4.value,
+            ...rev(b4),
             m4: b4.m4,
             processCharId: pc.id,
           } as L3FailureCauseExtended);
@@ -1021,6 +1036,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         causes.push({
           id: uid(),
           name: b4.value,
+          ...rev(b4),
           m4: b4.m4,
           processCharId: pc.id,
         } as L3FailureCauseExtended);
@@ -1032,6 +1048,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       causes.push({
         id: uid(),
         name: b4.value,
+        ...rev(b4),
         m4: b4.m4,
       } as L3FailureCauseExtended);
     }

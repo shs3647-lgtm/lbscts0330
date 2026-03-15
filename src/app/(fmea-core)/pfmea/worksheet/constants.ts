@@ -211,6 +211,8 @@ export interface FlatRow {
   l3Functions: L3Function[];
   l3ProcessChars: L3ProcessChar[];
   l3FailureCause: string;
+  l2IsRevised?: boolean; // 엑셀 적색 표기 (공정명)
+  l3IsRevised?: boolean; // 엑셀 적색 표기 (작업요소명)
 }
 
 export interface FMEAProject {

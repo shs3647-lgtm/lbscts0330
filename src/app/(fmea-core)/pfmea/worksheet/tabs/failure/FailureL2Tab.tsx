@@ -797,6 +797,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
       showChar: boolean;
       modeId: string;
       modeName: string;
+      isRevised?: boolean;
     }[] = [];
 
     processes.forEach(proc => {
@@ -885,7 +886,8 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
                     charId: pc.id, charName: pc.name, specialChar: pc.specialChar || '',
                     charRowSpan: mIdx === 0 ? uniqueModes.length : 0,
                     showChar: mIdx === 0,
-                    modeId: m.id, modeName: m.name
+                    modeId: m.id, modeName: m.name,
+                    isRevised: m.isRevised
                   });
                 });
               }
@@ -1146,6 +1148,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
                   <td className={cellP0} style={{ background: zebra.failure }}>
                     <SelectableCell
                       value={row.modeName || ''}
+                      isRevised={row.isRevised}
                       placeholder={row.charName ? "고장형태 선택" : ""}
                       bgColor={zebra.failure}
                       onClick={() => {

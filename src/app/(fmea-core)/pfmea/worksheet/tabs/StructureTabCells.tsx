@@ -91,10 +91,11 @@ interface EditableL1CellProps {
   zebraBg: string;
   rowSpan: number;
   isConfirmed?: boolean;
+  isRevised?: boolean;
 }
 
 export function EditableL1Cell({
-  value, state, setState, setDirty, saveToLocalStorage, saveAtomicDB, zebraBg, rowSpan, isConfirmed
+  value, state, setState, setDirty, saveToLocalStorage, saveAtomicDB, zebraBg, rowSpan, isConfirmed, isRevised
 }: EditableL1CellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value || '');
@@ -148,7 +149,7 @@ export function EditableL1Cell({
       title="더블클릭: 완제품공정명 수동 수정"
     >
       {/* ★★★ "완제품명" + 줄바꿈 + "생산공정" 하드코딩 ★★★ */}
-      <span className="font-normal text-gray-800 text-[11px]">
+      <span className="font-normal text-[11px]" style={{ color: isRevised ? '#c62828' : '#1f2937' }}>
         {isPlaceholder ? '완제품공정명 입력' : <>{safeName}<br />생산공정</>}
       </span>
     </td>
@@ -170,10 +171,11 @@ interface EditableL2CellProps {
   zebraBg: string;
   rowSpan: number;
   isConfirmed?: boolean;
+  isRevised?: boolean;
 }
 
 export function EditableL2Cell({
-  l2Id, l2No, l2Name, state, setState, setDirty, handleSelect, setIsProcessModalOpen, saveToLocalStorage, saveAtomicDB, zebraBg, rowSpan, isConfirmed
+  l2Id, l2No, l2Name, state, setState, setDirty, handleSelect, setIsProcessModalOpen, saveToLocalStorage, saveAtomicDB, zebraBg, rowSpan, isConfirmed, isRevised
 }: EditableL2CellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(l2Name || '');
@@ -274,7 +276,7 @@ export function EditableL2Cell({
       onDoubleClick={handleDoubleClick}
       title="클릭: 공정 선택 모달 | 더블클릭: 직접 입력"
     >
-      {isPlaceholder ? <span className="text-[#e65100] font-semibold italic text-[10px]">🔍 클릭하여 공정 선택</span> : <span className={`font-normal text-gray-800 ${adaptiveText(`${l2No} ${safeName}`, 23)}`}>{l2No} {safeName}</span>}
+      {isPlaceholder ? <span className="text-[#e65100] font-semibold italic text-[10px]">🔍 클릭하여 공정 선택</span> : <span className={`font-normal ${adaptiveText(`${l2No} ${safeName}`, 23)}`} style={{ color: isRevised ? '#c62828' : '#1f2937' }}>{l2No} {safeName}</span>}
     </td>
   );
 }
@@ -296,10 +298,11 @@ interface EditableL3CellProps {
   saveAtomicDB?: (force?: boolean) => Promise<void>;
   zebraBg: string;
   isConfirmed?: boolean;
+  isRevised?: boolean;
 }
 
 export function EditableL3Cell({
-  value, l3Id, l2Id, state, setState, setStateSynced, setDirty, handleSelect, setTargetL2Id, setIsWorkElementModalOpen, saveToLocalStorage, saveAtomicDB, zebraBg, isConfirmed
+  value, l3Id, l2Id, state, setState, setStateSynced, setDirty, handleSelect, setTargetL2Id, setIsWorkElementModalOpen, saveToLocalStorage, saveAtomicDB, zebraBg, isConfirmed, isRevised
 }: EditableL3CellProps) {
   // ★ 2026-02-20: setStateSynced 사용 (stateRef 즉시 동기화 → DB 저장 안정)
   const updateState = setStateSynced || setState;
@@ -412,7 +415,7 @@ export function EditableL3Cell({
       {isPlaceholder || !value || value.trim() === '' ? (
         <span className="text-[#e65100] font-semibold italic text-[11px]">🔍 클릭하여 작업요소 추가</span>
       ) : (
-        <span className={`font-normal ${adaptiveText(value, 55)}`}>{value}</span>
+        <span className={`font-normal ${adaptiveText(value, 55)}`} style={isRevised ? { color: '#c62828' } : undefined}>{value}</span>
       )}
     </td>
   );
