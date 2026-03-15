@@ -95,6 +95,7 @@ export interface StepBBuildData {
 }
 
 export interface StepBC4Item {
+  procNo: string;
   scope: string;
   fe: string;
   s: number | null;

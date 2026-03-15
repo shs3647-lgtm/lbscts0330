@@ -177,7 +177,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       if (!codeCounts.has(code)) codeCounts.set(code, { raw: 0, vals: new Set() });
       const entry = codeCounts.get(code)!;
       entry.raw++;
-      if (d.value?.trim()) entry.vals.add(`${d.processNo || ''}|${d.value.trim()}`);
+      if (d.value?.trim()) {
+        // B-레벨: 같은 공정·다른 4M의 동일 텍스트는 별개 항목 → m4 포함
+        const uniqueKey = d.category === 'B' && d.m4
+          ? `${d.processNo || ''}|${d.m4}|${d.value.trim()}`
+          : `${d.processNo || ''}|${d.value.trim()}`;
+        entry.vals.add(uniqueKey);
+      }
     });
 
     const itemStats: import('../excel-parser').ItemCodeStat[] = [];
@@ -254,6 +260,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   // ── 통계표/FC검증 토글 ──
   const [showStats, setShowStats] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
+
+  // ── ★ SA/FA 단계별 스냅샷 (검증 통계 컬럼용) ──
+  const [saSnapshot, setSaSnapshot] = useState<Record<string, number> | null>(null);
 
   // ── ★ 2026-03-14: DB 검증 (파이프라인 정합성: UUID→DB) ──
   const { dbResult, dbLoading, verifyDb, getUuidCounts } = useDbVerification();
@@ -418,6 +427,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   const executeSAConfirm = useCallback(() => {
     const result = confirmSA();
     if (result?.success) {
+      // ★ SA 확정 시점의 UUID 카운트 스냅샷 저장 (검증 통계용)
+      setSaSnapshot({ ...uuidCounts });
       const d = result.diagnostics;
       const accWarnings = validateAccuracy(generatedData);
       const fcAccWarnings = failureChains.length > 0
@@ -481,7 +492,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         summary: '데이터를 먼저 저장해주세요.',
       });
     }
-  }, [confirmSA, generatedData, failureChains]);
+  }, [confirmSA, generatedData, failureChains, uuidCounts]);
 
   // ── SA 확정 핸들러 (미확정 시 전진) ──
   const handleSAConfirm = useCallback(() => {
@@ -515,6 +526,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   // ── SA 되돌리기 핸들러 (확정 후 리셋+SA탭 이동) ──
   const handleSAReset = useCallback(() => {
+    setSaSnapshot(null);  // SA 스냅샷 초기화
     resetToSA();
   }, [resetToSA]);
 
@@ -858,8 +870,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>고유</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>중복</th>
               <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
-              <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="DB에 저장된 건수">DB</th>
-              <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center" style={{width:40}} title="UUID - DB 차이 (0이면 정합)">차이</th>
+              <th className="bg-emerald-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-emerald-600" style={{width:32}} title="SA(구조확정) 시점 카운트">SA</th>
+              <th className="bg-amber-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-amber-500" style={{width:32}} title="FA(고장확정) → DB 저장 카운트">FA</th>
+              <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center" style={{width:40}} title="UUID - FA 차이 (0이면 정합)">차이</th>
             </tr></thead>
             <tbody>
               {effectiveStatistics.itemStats.map((s, i) => {
@@ -893,10 +906,15 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         <span className="text-gray-300">0</span>
                       )}
                     </td>
-                    {/* ★ UUID / DB / 차이 */}
+                    {/* ★ UUID / SA / FA / 차이 */}
                     <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700 border-r border-gray-200">{uuid || <span className="text-gray-300">0</span>}</td>
                     <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
-                      {db !== null ? <span className="text-cyan-700">{db}</span> : <span className="text-gray-300">-</span>}
+                      {saSnapshot ? (
+                        <span className={saSnapshot[s.itemCode] === uuid ? 'text-emerald-600' : 'text-orange-600'}>{saSnapshot[s.itemCode] ?? 0}</span>
+                      ) : <span className="text-gray-300">-</span>}
+                    </td>
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                      {db !== null ? <span className={db === uuid ? 'text-amber-600' : 'text-red-600'}>{db}</span> : <span className="text-gray-300">-</span>}
                     </td>
                     <td className="px-1.5 py-0.5 text-center font-bold">
                       {diff !== null ? (
@@ -914,7 +932,10 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-red-600">{effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
-                <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{dbResult ? dbResult.totalDbItems : <span className="text-gray-300">-</span>}</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-emerald-600">
+                  {saSnapshot ? Object.values(saSnapshot).reduce((s, c) => s + c, 0) : <span className="text-gray-300">-</span>}
+                </td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-amber-600">{dbResult ? dbResult.totalDbItems : <span className="text-gray-300">-</span>}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold">{dbResult ? (() => {
                   const totalUuid = Object.values(uuidCounts).reduce((s, c) => s + c, 0);
                   const totalDiff = totalUuid - dbResult.totalDbItems;

@@ -204,16 +204,17 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     return (order[a] ?? 9) - (order[b] ?? 9);
   });
 
-  // C4 고장영향 (S충돌 → 최대값) — C2 추론보다 먼저 빌드 (C4가 C2의 입력)
+  // C4 고장영향 (S충돌 → 최대값) — 공정별 중복제거 (procNo 포함)
   const feMap = new Map<string, StepBC4Item>();
   for (const r of rows) {
+    const procNo = r.procNo;
     const scope = r.feScopeNorm;
     const fe = r.feNorm;
     const s = r.sInt;
-    const key = `${scope}|${fe}`;
+    const key = `${procNo}|${scope}|${fe}`;
     const existing = feMap.get(key);
     if (!existing) {
-      feMap.set(key, { scope, fe, s });
+      feMap.set(key, { procNo, scope, fe, s });
     } else if (s !== null && (existing.s === null || s > existing.s)) {
       feMap.set(key, { ...existing, s });
     }
@@ -727,7 +728,7 @@ export function convertToImportFormat(
     }
   }
 
-  // C4 고장영향
+  // C4 고장영향 — processNo는 scope(YP/SP/USER) 유지 (buildWorksheetState C1 필터 호환)
   for (const item of data.c4) {
     flatData.push({
       id: uuidv4(), processNo: item.scope, category: 'C', itemCode: 'C4',
@@ -755,7 +756,7 @@ export function convertToImportFormat(
       feValue: ch.fe,
       pcValue: ch.pc || '',
       dcValue: ch.dc || '',
-      feScope: data.c4.find(c => c.fe === ch.fe)?.scope || 'YP',
+      feScope: data.c4.find(c => c.procNo === ch.procNo && c.fe === ch.fe)?.scope || 'YP',
       s: ch.s,
       o: ch.o,
       d: ch.d,
@@ -770,6 +771,57 @@ export function convertToImportFormat(
   const autoCount = flatData.filter(d => d.inherited).length;
   if (autoCount > 0) {
     warn.info('AUTO_GENERATED', `자동생성 항목: ${autoCount}건 (적색 표시 대상)`);
+  }
+
+  // ★ FE:FM:FC 매칭 검증 — Import 파싱 시점에 즉시 검증 (사후 FAVerificationBar 전에 경고)
+  {
+    // C4(FE) vs FC시트(chains) 교차 검증
+    const c4FeTexts = new Set(flatData.filter(d => d.itemCode === 'C4' && d.value?.trim()).map(d => d.value.trim()));
+    const chainFeTexts = new Set(failureChains.filter(c => c.feValue?.trim()).map(c => c.feValue!.trim()));
+    const a5FmTexts = new Set(flatData.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => d.value.trim()));
+    const chainFmTexts = new Set(failureChains.filter(c => c.fmValue?.trim()).map(c => c.fmValue!.trim()));
+    const b4FcTexts = new Set(flatData.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => d.value.trim()));
+    const chainFcTexts = new Set(failureChains.filter(c => c.fcValue?.trim()).map(c => c.fcValue!.trim()));
+
+    // FE: C4에 있지만 FC시트에 없는 FE
+    const unmatchedFE = [...c4FeTexts].filter(v => !chainFeTexts.has(v));
+    if (unmatchedFE.length > 0) {
+      const sample = unmatchedFE.slice(0, 3).map(v => `"${v.slice(0, 30)}"`).join(', ');
+      warn.error('FE_UNMATCHED', `C4(고장영향) ${unmatchedFE.length}건이 FC시트에 없음 → 고장연결 누락 예상 (예: ${sample})`, undefined,
+        `C4=${c4FeTexts.size}건, FC시트FE=${chainFeTexts.size}건`);
+    }
+
+    // FM: A5에 있지만 FC시트에 없는 FM
+    const unmatchedFM = [...a5FmTexts].filter(v => !chainFmTexts.has(v));
+    if (unmatchedFM.length > 0) {
+      const sample = unmatchedFM.slice(0, 3).map(v => `"${v.slice(0, 30)}"`).join(', ');
+      warn.warn('FM_UNMATCHED', `A5(고장형태) ${unmatchedFM.length}건이 FC시트에 없음 (예: ${sample})`, undefined,
+        `A5=${a5FmTexts.size}건, FC시트FM=${chainFmTexts.size}건`);
+    }
+
+    // FC: B4에 있지만 FC시트에 없는 FC
+    const unmatchedFC = [...b4FcTexts].filter(v => !chainFcTexts.has(v));
+    if (unmatchedFC.length > 0) {
+      const sample = unmatchedFC.slice(0, 3).map(v => `"${v.slice(0, 30)}"`).join(', ');
+      warn.warn('FC_UNMATCHED', `B4(고장원인) ${unmatchedFC.length}건이 FC시트에 없음 (예: ${sample})`, undefined,
+        `B4=${b4FcTexts.size}건, FC시트FC=${chainFcTexts.size}건`);
+    }
+
+    // 역방향: FC시트에만 있고 메인시트에 없는 항목
+    const reverseUnmatchedFE = [...chainFeTexts].filter(v => !c4FeTexts.has(v));
+    if (reverseUnmatchedFE.length > 0) {
+      warn.warn('FE_ONLY_IN_FC', `FC시트 FE ${reverseUnmatchedFE.length}건이 C4시트에 없음 — 템플릿 C4 데이터 보충 필요`);
+    }
+
+    // 종합 정합성 리포트
+    const feOk = unmatchedFE.length === 0 && reverseUnmatchedFE.length === 0;
+    const fmOk = unmatchedFM.length === 0;
+    const fcOk = unmatchedFC.length === 0;
+    if (feOk && fmOk && fcOk) {
+      warn.info('FC_MATCH_OK', `FE:FM:FC 매칭 100% — C4=${c4FeTexts.size}, A5=${a5FmTexts.size}, B4=${b4FcTexts.size}, FC시트=${failureChains.length}행`);
+    } else {
+      warn.error('FC_MATCH_NG', `FE:FM:FC 매칭 불일치 — FE미매칭=${unmatchedFE.length}, FM미매칭=${unmatchedFM.length}, FC미매칭=${unmatchedFC.length} → 엑셀 수정 후 재Import 필요`);
+    }
   }
 
   return { flatData, failureChains };

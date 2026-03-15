@@ -74,7 +74,7 @@ function makeBuildData(overrides: Partial<StepBBuildData> = {}): StepBBuildData 
     c1: ['YP'],
     c2: new Map([['YP', ['기능1']]]),
     c3: new Map([['YP', ['요구1']]]),
-    c4: [{ scope: 'YP', fe: '안전 위험', s: 8 }],
+    c4: [{ procNo: '10', scope: 'YP', fe: '안전 위험', s: 8 }],
     a3: new Map([['10', { func: '조립 기능', auto: false }]]),
     a4: new Map([['10', [{ char: '치수', sc: '' }]]]),
     a5: new Map([['10', ['미조립']]]),
