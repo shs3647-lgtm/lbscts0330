@@ -314,6 +314,10 @@ export function renderSpecialCharCell(
     }
   }
 
+  // ⑤ 레거시 CC/SC → LBS 기호 변환 (DB에 저장된 레거시값 호환)
+  if (scVal === 'CC') scVal = '★';
+  if (scVal === 'SC') scVal = '◇';
+
   return (
     <td key={colIdx} rowSpan={fcRowSpan} style={{ ...style, cursor: 'pointer', textAlign: 'center' }}
       title={scVal ? `특별특성: ${scVal}` : '클릭하여 특별특성 선택'}

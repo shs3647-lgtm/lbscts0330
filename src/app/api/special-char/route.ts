@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       for (const item of body.items) {
         const data = {
           customer: item.customer || '',
-          internalSymbol: item.internalSymbol || 'SC',
+          internalSymbol: item.internalSymbol || '',
           customerSymbol: item.customerSymbol || '',
           meaning: item.meaning || '',
           color: item.color || '#f5f5f5',
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     const created = await prisma.specialCharMasterItem.create({
       data: {
         customer: body.customer || '',
-        internalSymbol: body.internalSymbol || 'SC',
+        internalSymbol: body.internalSymbol || '',
         customerSymbol: body.customerSymbol || '',
         meaning: body.meaning || '',
         color: body.color || '#f5f5f5',

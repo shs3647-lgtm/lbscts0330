@@ -45,7 +45,7 @@ const M4_EXCLUDE_FROM_CP = ['MN'] as const; // 사람(MN)은 CP 연동에서 제
 // CP_ROWS = productCharCount + processCharCount (MN 제외)
 
 // 특별특성 코드 (HARDCODED)
-const SPECIAL_CHAR_CODES = ['CC', 'SC', 'IC'] as const;
+const SPECIAL_CHAR_CODES = ['★', '◇', ''] as const;
 
 // ============================================================
 
@@ -633,7 +633,7 @@ export default function CpSyncWizard({
                                                         </span>
                                                     );
                                                 } else if (col.renderAs === 'sc' && val) {
-                                                    const bg = val === 'CC' ? 'bg-red-500' : val === 'SC' ? 'bg-orange-500' : 'bg-yellow-500';
+                                                    const bg = (val === '★' || val === 'CC') ? 'bg-red-500' : (val === '◇' || val === 'SC') ? 'bg-orange-500' : 'bg-yellow-500';
                                                     content = <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold text-white ${bg}`}>{val}</span>;
                                                 }
                                                 return (

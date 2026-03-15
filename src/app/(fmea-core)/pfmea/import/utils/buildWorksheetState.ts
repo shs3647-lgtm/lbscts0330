@@ -91,6 +91,11 @@ export interface BuildResult {
 // Helpers
 // ════════════════════════════════════════════
 
+/** isRevised 플래그 전달 — 엑셀 적색 셀이면 { isRevised: true } 반환 */
+function rev(item: { isRevised?: boolean }): { isRevised?: boolean } {
+  return item.isRevised ? { isRevised: true } : {};
+}
+
 /** 공통공정 processNo 판별 (0, 00, 공통공정, 공통 등) */
 function isCommonProcessNo(pNo: string): boolean {
   const normalized = pNo.trim().toLowerCase();
@@ -470,6 +475,7 @@ function buildL3ForProcess(items: ImportedFlatData[]): { wes: WorkElement[]; b1I
       id: weId,
       m4: b1.m4 || '',
       name: b1.value,
+      ...rev(b1),
       order: (idx + 1) * 10,
       functions: [],
     };

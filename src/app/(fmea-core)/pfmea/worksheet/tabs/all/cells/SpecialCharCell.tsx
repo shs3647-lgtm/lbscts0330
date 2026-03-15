@@ -18,10 +18,10 @@ interface SpecialCharCellProps {
     align?: 'left' | 'center' | 'right';
 }
 
-// CC/SC 배지 스타일
+// 특별특성 배지 스타일 — LBS: ★=제품(주황), ◇=공정(청록)
 const getBadgeStyle = (sc: string): CSSProperties => {
-    if (sc === 'CC') return { backgroundColor: '#ef5350', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
-    if (sc === 'SC') return { backgroundColor: '#ff9800', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
+    if (sc === '★' || sc === 'CC') return { backgroundColor: '#e65100', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
+    if (sc === '◇' || sc === 'SC') return { backgroundColor: '#00838f', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
     return {};
 };
 

@@ -62,8 +62,10 @@ export const COLORS = {
   },
   // 특별특성 색상
   special: {
-    CC: '#dc2626',
-    SC: '#ea580c',
+    '★': '#dc2626',    // 제품 특별특성 (레거시 CC)
+    '◇': '#ea580c',    // 공정 특별특성 (레거시 SC)
+    CC: '#dc2626',      // 레거시 호환
+    SC: '#ea580c',      // 레거시 호환
     IC: '#ca8a04',
   },
   // 7. PFMEA 참조 (주황색 계열)
@@ -287,8 +289,8 @@ export function calculateTotalWidth(columns?: CPColumnDef[]): number {
 // ★ 제품SC, 공정SC는 드롭다운 옵션이 아님 - 탭 필터 라벨로만 사용
 export const SPECIAL_CHAR_OPTIONS = [
   { value: '', label: '-' },
-  { value: 'CC', label: 'CC' },  // 중요특성 (Critical Characteristic)
-  { value: 'IC', label: 'IC' },  // 중요특성 (Important Characteristic)
+  { value: '★', label: '★ (제품 특별특성)' },
+  { value: '◇', label: '◇ (공정 특별특성)' },
 ];
 
 export const FREQUENCY_OPTIONS = [

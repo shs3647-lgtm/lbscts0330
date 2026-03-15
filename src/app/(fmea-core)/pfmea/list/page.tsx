@@ -42,9 +42,9 @@ const ROW_HEIGHT = 28;
 
 // ★★★ HARDCODED - 컬럼폭 반응형 (코드프리즈 L2: 버그수정만 허용) ★★★
 // 체크박스: 2.5%, No: 2.5% (동일 고정)
-// 16개 컬럼: No, 작성일, Type, ID, Rev, 단계, 공장, FMEA명, 고객, 담당, DFMEA, PFD, CP, 현황, 시작, 목표
+// 15개 컬럼: No, 작성일, Type, ID, Rev, 단계, 공장, FMEA명, 고객, 담당, PFD, CP, 현황, 시작, 목표
 const COLUMN_WIDTHS = [
-  '2.5%', '6%', '4%', '8%', '3%', '4%', '5%', '14%', '6%', '5%', '6%', '5%', '5%', '4%', '6%', '7%'  // HARDCODED
+  '2.5%', '6%', '4%', '8%', '3%', '4%', '5%', '16%', '7%', '5%', '5%', '5%', '5%', '6%', '7%'  // HARDCODED
 ];
 
 // =====================================================
@@ -74,8 +74,6 @@ interface FMEAProject {
   };
   cftMembers?: Array<{ name: string }>;
   parentFmeaId?: string;
-  parentApqpNo?: string;   // 향후 APQP 연동용 (현재 컬럼 숨김)
-  linkedDfmeaNo?: string;  // ★ DFMEA 연동
   linkedPfdNo?: string;
   linkedCpNo?: string;
   step?: number;
@@ -167,14 +165,6 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
       </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">
         {(p.fmeaInfo?.fmeaResponsibleName || p.project?.leader || '').split(/[\/,]/).map(s => s.trim()).filter(Boolean)[0] || renderEmpty(p.id)}
-      </td>
-      {/* ★ 연동 DFMEA - 간략 표시 (접두사 제거) */}
-      <td className="px-0.5 py-0.5 text-center align-middle whitespace-nowrap text-[8px]">
-        {p.linkedDfmeaNo ? (
-          <Link href={`/dfmea/register?id=${p.linkedDfmeaNo}`} prefetch={false} className="text-orange-600 hover:underline font-semibold" onClick={e => e.stopPropagation()}>
-            {p.linkedDfmeaNo.replace(/^dfm/i, '')}
-          </Link>
-        ) : '-'}
       </td>
       {/* ★ 연동 PFD - 간략 표시 (접두사 제거) */}
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap">
@@ -269,7 +259,6 @@ export default function PFMEAListPage() {
           ...p,
           id: (p.id || '').toLowerCase(),
           deletedAt: p.deletedAt || null,
-          linkedDfmeaNo: p.linkedDfmeaNo || p.fmeaInfo?.linkedDfmeaNo || '',
           linkedPfdNo: p.linkedPfdNo || p.fmeaInfo?.linkedPfdNo || '',
           linkedCpNo: p.linkedCpNo || p.fmeaInfo?.linkedCpNo || '',
           fmeaInfo: {
@@ -638,7 +627,6 @@ export default function PFMEAListPage() {
                   { ko: 'FMEA명', en: 'Name', field: 'subject', title: 'FMEA Name / Subject' },
                   { ko: '고객사', en: 'Customer', field: 'customerName', title: 'Customer Name' },
                   { ko: '담당자', en: 'Resp.', field: 'fmeaResponsibleName', title: 'FMEA Responsible Person' },
-                  { ko: 'DFMEA', en: '', field: '', title: 'Linked Design FMEA' },
                   { ko: 'PFD', en: '', field: '', title: 'Linked Process Flow Diagram' },
                   { ko: 'CP', en: '', field: '', title: 'Linked Control Plan' },
                   { ko: '현황', en: 'Status', field: '', title: 'Status (Progress/Delay/Complete)' },

@@ -14,9 +14,9 @@ import React from 'react';
 
 // 특별특성 데이터 — LBS (LB Semicon) 전용
 export const SPECIAL_CHAR_DATA = [
-  { symbol: '◇', meaning: 'LBS 공정관리 특별특성 (Process Control)', color: '#00838f', icon: '◇' },
-  { symbol: '★', meaning: 'LBS 제품/공정 핵심 특별특성 (Critical)', color: '#e65100', icon: '★' },
-  { symbol: '-', meaning: '해당없음 (N/A)', color: '#9e9e9e', icon: '' },
+  { symbol: '◇', meaning: '공정 특별특성', color: '#00838f', icon: '◇' },
+  { symbol: '★', meaning: '제품 특별특성', color: '#e65100', icon: '★' },
+  { symbol: '-', meaning: '해당없음', color: '#9e9e9e', icon: '' },
 ];
 
 export interface SpecialCharBadgeProps {

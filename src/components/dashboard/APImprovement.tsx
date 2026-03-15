@@ -7,7 +7,7 @@ interface APItem {
   no: number;
   ap5: 'H' | 'M' | 'L';
   ap6: 'H' | 'M' | 'L';
-  special?: 'SC' | 'CC';
+  special?: '◇' | '★' | 'SC' | 'CC';
   s: number;
   failureMode: string;
   failureCause: string;
@@ -18,10 +18,10 @@ interface APItem {
 
 // 샘플 데이터 (pfm26-m001)
 const sampleData: APItem[] = [
-  { no: 1, ap5: 'M', ap6: 'L', special: 'SC', s: 7, failureMode: '10 미비지점 누락', failureCause: '작업자 미비지점 식별 누락', o: 4, d: 6, rpn: 168 },
-  { no: 2, ap5: 'M', ap6: 'L', special: 'SC', s: 7, failureMode: '10 제품,제품 파손', failureCause: '금형온도 과열로 제품 파손', o: 3, d: 6, rpn: 126 },
-  { no: 3, ap5: 'L', ap6: 'L', special: 'SC', s: 2, failureMode: '11 상태온도 불량', failureCause: '파라미터 입력 실수', o: 5, d: 6, rpn: 60 },
-  { no: 4, ap5: 'H', ap6: 'M', special: 'CC', s: 9, failureMode: '용접 강도 부족', failureCause: '용접 파라미터 이탈', o: 4, d: 5, rpn: 180 },
+  { no: 1, ap5: 'M', ap6: 'L', special: '◇', s: 7, failureMode: '10 미비지점 누락', failureCause: '작업자 미비지점 식별 누락', o: 4, d: 6, rpn: 168 },
+  { no: 2, ap5: 'M', ap6: 'L', special: '◇', s: 7, failureMode: '10 제품,제품 파손', failureCause: '금형온도 과열로 제품 파손', o: 3, d: 6, rpn: 126 },
+  { no: 3, ap5: 'L', ap6: 'L', special: '◇', s: 2, failureMode: '11 상태온도 불량', failureCause: '파라미터 입력 실수', o: 5, d: 6, rpn: 60 },
+  { no: 4, ap5: 'H', ap6: 'M', special: '★', s: 9, failureMode: '용접 강도 부족', failureCause: '용접 파라미터 이탈', o: 4, d: 5, rpn: 180 },
   { no: 5, ap5: 'L', ap6: 'L', special: undefined, s: 6, failureMode: '외관 스크래치', failureCause: '취급 부주의', o: 5, d: 6, rpn: 180 },
 ];
 
@@ -37,9 +37,9 @@ const APImprovement: React.FC = () => {
   };
 
   // 특수 항목 색상
-  const getSpecialColor = (special?: 'SC' | 'CC') => {
-    if (special === 'SC') return '#3b82f6'; // blue-500
-    if (special === 'CC') return '#8b5cf6'; // violet-500
+  const getSpecialColor = (special?: '◇' | '★' | 'SC' | 'CC') => {
+    if (special === '◇' || special === 'SC') return '#00838f'; // 공정 특별특성 (청록)
+    if (special === '★' || special === 'CC') return '#e65100'; // 제품 특별특성 (주황)
     return 'transparent';
   };
 

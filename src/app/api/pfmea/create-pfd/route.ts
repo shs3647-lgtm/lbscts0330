@@ -16,13 +16,17 @@ import { getPrisma } from '@/lib/prisma';
 import { safeErrorMessage } from '@/lib/security';
 import { derivePfdNoFromFmeaId, isValidPfdFormat } from '@/lib/utils/derivePfdNo';
 
-/** FMEA specialChar → PFD SC값 변환 */
+/** FMEA specialChar → PFD SC값 변환 — LBS: ★=제품, ◇=공정 */
 function mapSpecialChar(raw: string | null | undefined): string {
-    const v = (raw || '').trim().toUpperCase();
-    if (v === 'C' || v === 'CC') return 'CC';
-    if (v === 'S' || v === 'SC') return 'SC';
-    if (v === 'I' || v === 'IC') return 'IC';
-    return '';
+    const v = (raw || '').trim();
+    if (v === '★') return '★';
+    if (v === '◇') return '◇';
+    // 레거시 호환
+    const up = v.toUpperCase();
+    if (up === 'C' || up === 'CC') return '★';
+    if (up === 'S' || up === 'SC') return '◇';
+    if (up === 'I' || up === 'IC') return '';
+    return v || '';
 }
 
 export async function POST(request: NextRequest) {

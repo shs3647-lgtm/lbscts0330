@@ -24,15 +24,17 @@ export const AP_COLORS: Record<ActionPriority, { bg: string; text: string }> = {
   L: { bg: '#D1FAE5', text: '#059669' }, // 녹색
 };
 
-/** 특별특성 코드 */
-export type SpecialCharType = 'CC' | 'SC' | 'FFF' | 'HI' | 'BM-C' | 'BM-L' | 'BM-S' | '';
+/** 특별특성 코드 — LBS 온프레미스: ★=제품특별특성, ◇=공정특별특성 */
+export type SpecialCharType = '★' | '◇' | 'CC' | 'SC' | 'FFF' | 'HI' | 'BM-C' | 'BM-L' | 'BM-S' | '';
 
-/** 특별특성 색상 */
+/** 특별특성 색상 — LBS: ★=제품(주황), ◇=공정(청록) */
 export const SPECIAL_CHAR_COLORS: Record<string, string> = {
-  CC: '#DC2626',  // Critical - 빨강
-  SC: '#D97706',  // Significant - 주황
-  FFF: '#2563EB', // Fit/Form/Function - 파랑
-  HI: '#F97316',  // High Impact - 오렌지
+  '★': '#e65100',  // 제품 특별특성 - 주황
+  '◇': '#00838f',  // 공정 특별특성 - 청록
+  CC: '#e65100',   // 레거시 CC → 제품 특별특성 색상
+  SC: '#00838f',   // 레거시 SC → 공정 특별특성 색상
+  FFF: '#2563EB',  // Fit/Form/Function - 파랑
+  HI: '#F97316',   // High Impact - 오렌지
 };
 
 /** 개선조치 상태 */

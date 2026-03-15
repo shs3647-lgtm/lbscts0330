@@ -14,6 +14,7 @@ export interface AtomicUnit {
   id: string;
   name: string;
   description?: string;
+  isRevised?: boolean; // true = 엑셀에서 적색으로 표기된 수정 항목
 }
 
 // L1 트리 구조 (기능분석)
@@ -76,6 +77,7 @@ export interface WorkElement {
   m4: string;
   name: string;
   order: number;
+  isRevised?: boolean; // true = 엑셀에서 적색으로 표기된 수정 항목
   // 원자적 기능 정의 (각 기능에 공정특성 포함)
   functions: L3Function[];
   processChars?: L3ProcessChar[]; // 하위호환용 (deprecated, 기능별로 관리)
@@ -94,6 +96,7 @@ export interface Process {
   no: string;
   name: string;
   order: number;
+  isRevised?: boolean; // true = 엑셀에서 적색으로 표기된 수정 항목
   l3: WorkElement[];
   // 원자적 기능 정의 (각 기능에 제품특성 포함)
   functions: L2Function[];

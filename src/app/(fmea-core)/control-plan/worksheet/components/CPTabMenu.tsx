@@ -89,7 +89,7 @@ export default function CPTabMenu({
               );
             })}
 
-            {/* 필터 탭 (전체, CC, SC) */}
+            {/* 필터 탭 (전체, ★, ◇) */}
           </nav>
 
           {/* 구분선 */}

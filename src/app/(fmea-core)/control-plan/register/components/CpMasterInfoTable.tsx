@@ -461,8 +461,8 @@ export default function CpMasterInfoTable({ cpNo, isOpen }: Props) {
                           <span
                             key={sc}
                             className={`inline-block px-1 py-px rounded text-[8px] font-bold mr-0.5 ${
-                              sc === 'CC' ? 'bg-red-100 text-red-700' :
-                              sc === 'SC' ? 'bg-orange-100 text-orange-700' :
+                              (sc === '★' || sc === 'CC') ? 'bg-red-100 text-red-700' :
+                              (sc === '◇' || sc === 'SC') ? 'bg-orange-100 text-orange-700' :
                               'bg-yellow-100 text-yellow-700'
                             }`}
                           >{sc}</span>

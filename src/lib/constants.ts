@@ -87,13 +87,15 @@ export function getFmeaTypeFromId(fmeaId: string | null | undefined): FmeaType |
 // =====================================================
 
 /**
- * 특별특성 기호
- * - CC: Critical Characteristic (중요특성)
- * - SC: Significant Characteristic (주요특성)
+ * 특별특성 기호 — LBS 온프레미스 전용
+ * - ★: 제품 특별특성 (Product Special Characteristic)
+ * - ◇: 공정 특별특성 (Process Special Characteristic)
  */
 export const SPECIAL_CHARS = {
-  CC: 'CC',
-  SC: 'SC',
+  PRODUCT: '★',
+  PROCESS: '◇',
+  CC: '★',   // 레거시 호환: CC → ★
+  SC: '◇',   // 레거시 호환: SC → ◇
   NONE: '',
 } as const;
 

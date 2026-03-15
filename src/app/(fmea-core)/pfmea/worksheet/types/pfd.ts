@@ -143,12 +143,11 @@ export const PROCESS_TYPE_OPTIONS = [
   { value: 'storage', label: '보관공정' },
 ];
 
-// 특별특성 옵션 (CP와 동일)
+// 특별특성 옵션 — LBS 온프레미스: ★=제품, ◇=공정
 export const SPECIAL_CHAR_OPTIONS = [
   { value: '', label: '-', color: '#6b7280' },
-  { value: 'CC', label: 'CC (Critical)', color: '#dc2626' },
-  { value: 'SC', label: 'SC (Significant)', color: '#ea580c' },
-  { value: 'IC', label: 'IC (Important)', color: '#ca8a04' },
+  { value: '★', label: '★ (제품 특별특성)', color: '#e65100' },
+  { value: '◇', label: '◇ (공정 특별특성)', color: '#00838f' },
 ];
 
 

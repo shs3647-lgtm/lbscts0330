@@ -16,13 +16,9 @@ export const projectStats: ProjectStats = {
 
 /** 바로가기 메뉴 데이터 */
 export const quickLinks: QuickLinkItem[] = [
-  { id: 'project', title: 'Project', badge: 'GO', desc: '프로젝트 목록', href: '/apqp/list' },
-  { id: 'dfmea', title: 'DFMEA', badge: '설계', desc: '설계FMEA', href: '/dfmea/worksheet' },
   { id: 'pfmea', title: 'PFMEA', badge: '공정', desc: '공정FMEA', href: '/pfmea/worksheet' },
   { id: 'cp', title: 'Control Plan', badge: null, desc: '관리계획서', href: '/control-plan/worksheet' },
   { id: 'pfd', title: 'PFD', badge: null, desc: '공정 흐름도', href: '/pfd/worksheet' },
-  { id: 'ws', title: 'WS', badge: null, desc: '작업표준', href: '/ws' },
-  { id: 'pm', title: 'PM', badge: null, desc: '설비/예방보전', href: '/pm' },
 ];
 
 /** AP Improvement 요약 데이터 */

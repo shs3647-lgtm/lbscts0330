@@ -150,11 +150,8 @@ export const TREE_HELP: Record<string, TabHelp> = {
         label: '특별특성 (제품특성 옆 배지)',
         items: [
           { title: '지정 방법', desc: '제품특성 옆의 배지를 클릭하면 특별특성 선택 모달이 열립니다.' },
-          { title: 'CC (Critical)', desc: '안전/법규 관련 중요 특성. 반드시 관리계획서(CP)에 포함해야 합니다.' },
-          { title: 'SC (Significant)', desc: '기능/성능에 중요한 특성. 공정관리가 필요합니다.' },
-          { title: 'FFF', desc: 'Fit, Form, Function — 조립성/외관/기능 관련 특성입니다.' },
-          { title: 'HI (High Impact)', desc: '높은 영향도 특성. 고객 불만 또는 필드 클레임 위험이 있습니다.' },
-          { title: 'BM-C / BM-L / BM-S', desc: 'Benchmark 특성 (Customer/Legal/Safety). 벤치마크 기준 관리 항목입니다.' },
+          { title: '★ (제품 특별특성)', desc: '고객 요구 규격 직결. Ball Height, Co-planarity, Bond Strength, 전기적 특성(Vf, Ir, BVR) 등' },
+          { title: '◇ (공정 특별특성)', desc: '공정 파라미터 관리 필요. Etch Rate, Plating 두께, Chemical 농도, Mold 온도/압력 등' },
           { title: '빈 값', desc: '특별특성 해당 없음. 배지를 클릭하여 해제할 수 있습니다.' },
         ],
       },

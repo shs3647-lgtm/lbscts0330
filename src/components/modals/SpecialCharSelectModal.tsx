@@ -27,8 +27,9 @@ const DEFAULT_SPECIAL_CHAR_DATA: SpecialCharItem[] = [
   { id: 'COMMON_NONE', customer: 'LBS', symbol: '-', notation: '-', meaning: '해당없음', icon: '', color: '#9e9e9e' },
 ];
 
-/** ★ 등록 마스터(localStorage)에서 기호 데이터를 읽어 SpecialCharItem[] 형태로 변환 */
-function loadRegisteredSymbols(): SpecialCharItem[] {
+/** ★ 등록 마스터(localStorage)에서 기호 데이터를 읽어 SpecialCharItem[] 형태로 변환
+ *  customerName이 전달되면 해당 고객사 기호만 필터링 */
+function loadRegisteredSymbols(customerName?: string): SpecialCharItem[] {
   if (typeof window === 'undefined') return DEFAULT_SPECIAL_CHAR_DATA;
   const saved = localStorage.getItem('pfmea_special_char_master');
   if (!saved) return DEFAULT_SPECIAL_CHAR_DATA;
@@ -38,21 +39,22 @@ function loadRegisteredSymbols(): SpecialCharItem[] {
       internalSymbol: string; meaning: string; icon?: string; color: string;
     }>;
     if (masterData.length === 0) return DEFAULT_SPECIAL_CHAR_DATA;
+    const targetCustomer = (customerName || 'LBS').trim().toUpperCase();
     const items: SpecialCharItem[] = masterData
       .filter(m => {
         const cust = (m.customer || '').trim().toUpperCase();
-        return cust === 'LBS' && (m.customerSymbol?.trim() || m.internalSymbol?.trim());
+        return cust === targetCustomer && (m.customerSymbol?.trim() || m.internalSymbol?.trim());
       })
       .map(m => ({
         id: m.id,
-        customer: m.customer || 'LBS',
+        customer: m.customer || targetCustomer,
         symbol: (m.customerSymbol && m.customerSymbol.trim()) ? m.customerSymbol : m.internalSymbol,
-        notation: m.internalSymbol || 'SC',
+        notation: m.internalSymbol || m.customerSymbol || '',
         meaning: m.meaning || '',
         icon: m.icon || '●',
         color: m.color || '#9e9e9e',
       }));
-    items.push({ id: 'COMMON_NONE', customer: 'LBS', symbol: '-', notation: '-', meaning: '해당없음', icon: '', color: '#9e9e9e' });
+    items.push({ id: 'COMMON_NONE', customer: targetCustomer, symbol: '-', notation: '-', meaning: '해당없음', icon: '', color: '#9e9e9e' });
     return items.length > 1 ? items : DEFAULT_SPECIAL_CHAR_DATA;
   } catch {
     return DEFAULT_SPECIAL_CHAR_DATA;
@@ -91,7 +93,7 @@ function getNotationStyle(notation: string, isSelected: boolean) {
 }
 
 export default function SpecialCharSelectModal({
-  isOpen, onClose, onSelect, currentValue, productCharName,
+  isOpen, onClose, onSelect, currentValue, productCharName, customerName,
 }: SpecialCharSelectModalProps) {
   const { position: modalPosition, handleMouseDown } =
     useDraggableModal({ initialPosition: { top: 130, right: 360 }, modalWidth: 240, modalHeight: 280, isOpen });
@@ -101,7 +103,7 @@ export default function SpecialCharSelectModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    setSymbolData(loadRegisteredSymbols());
+    setSymbolData(loadRegisteredSymbols(customerName));
 
     // ★ 추천 루프: 제품특성명으로 이전 사용 이력 조회
     if (productCharName) {
@@ -116,7 +118,7 @@ export default function SpecialCharSelectModal({
         })
         .catch(() => setRecommendedNotation(null));
     }
-  }, [isOpen, productCharName]);
+  }, [isOpen, productCharName, customerName]);
 
   // 중복 표시(notation) 제거 — 같은 표시는 1개만 표시
   const uniqueItems = useMemo(() => {

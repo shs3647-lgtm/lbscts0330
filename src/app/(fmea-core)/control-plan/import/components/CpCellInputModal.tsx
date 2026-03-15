@@ -25,7 +25,7 @@ const COLUMN_CONFIG: Record<string, {
     equipment: { label: '설비(Equipment)', type: 'text' },
     productChar: { label: '제품특성(Product Char.)', type: 'multi-select', pfmeaField: 'A4' },
     processChar: { label: '공정특성(Process Char.)', type: 'multi-select', pfmeaField: 'B3' },
-    specialChar: { label: '특별특성(SC)', type: 'dropdown', options: ['CC', 'SC', 'IC', 'HC', '-'] },
+    specialChar: { label: '특별특성(SC)', type: 'dropdown', options: ['★', '◇', '-'] },
     spec: { label: '스펙/허용차(Spec/Tolerance)', type: 'text' },
     evalMethod: { label: '평가/측정방법(Eval Method)', type: 'select', options: ['육안검사', '버니어캘리퍼스', '마이크로미터', '게이지', '압력계', '온도계', '저울', '테스터', '직접입력'] },
     sampleSize: { label: '샘플크기(Sample Size)', type: 'text' },

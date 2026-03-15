@@ -89,17 +89,27 @@ export async function POST(request: NextRequest) {
             for (let idx = 0; idx < items.length; idx++) {
                 const item = items[idx];
 
-                // 특별특성 분리 (CC, SC)
-                const specialChar = (item.specialChar || '').toUpperCase();
+                // 특별특성 분리 — LBS: ★=제품, ◇=공정
+                const specialChar = (item.specialChar || '').trim();
                 let productSC = '';
                 let processSC = '';
 
+                // 레거시 CC/SC → ★/◇ 매핑
+                const mapSC = (sc: string): string => {
+                    if (sc === '★' || sc === '◇') return sc;
+                    const up = sc.toUpperCase();
+                    if (up === 'CC' || up === 'C') return '★';
+                    if (up === 'SC' || up === 'S') return '◇';
+                    return '';
+                };
+                const mappedSC = mapSC(specialChar);
+
                 // 제품특성이 있으면 productSC에, 공정특성이 있으면 processSC에
                 if (item.productChar && item.productChar.trim()) {
-                    productSC = specialChar.includes('CC') ? 'CC' : (specialChar.includes('SC') ? 'SC' : '');
+                    productSC = mappedSC;
                 }
                 if (item.processChar && item.processChar.trim()) {
-                    processSC = specialChar.includes('CC') ? 'CC' : (specialChar.includes('SC') ? 'SC' : '');
+                    processSC = mappedSC;
                 }
 
                 // ★★★ DB에 PfdItem 저장 ★★★

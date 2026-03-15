@@ -36,12 +36,10 @@ export { StatusBar } from './StatusBar';
 export { default as CommonTopNav } from './CommonTopNav';
 export type { TopNavMenuItem, TopNavStatItem, CommonTopNavProps } from './CommonTopNav';
 
-// 모듈별 TopNav (CommonTopNav 기반)
+// 모듈별 TopNav (CommonTopNav 기반) — LBS 온프레미스: PFMEA, CP, PFD, Admin만 사용
 export { default as PFMEATopNav } from './PFMEATopNav';
-export { default as DFMEATopNav } from './DFMEATopNav';
 export { default as CPTopNav } from './CPTopNav';
 export { default as PFDTopNav } from './PFDTopNav';
-export { default as APQPTopNav } from './APQPTopNav';
 export { default as AdminTopNav } from './AdminTopNav';
 
 // ✅ 2026-01-22: 고정 레이아웃 공통 컴포넌트

@@ -580,8 +580,8 @@ export function renderCell({
           }}
         >
           <option value=""></option>
-          <option value="CC">CC</option>
-          <option value="SC">SC</option>
+          <option value="★">★</option>
+          <option value="◇">◇</option>
         </select>
       </td>
     );
