@@ -34,9 +34,9 @@ interface VerifyRow {
   src: Source;
 }
 
-// ─── 텍스트 정규화 (비교용) ───
+// ─── 텍스트 정규화 (비교용, NFKC 강화) ───
 function norm(s: string): string {
-  return s.trim().replace(/\s+/g, ' ').toLowerCase();
+  return s.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollToItem }: FAVerificationBarProps) {

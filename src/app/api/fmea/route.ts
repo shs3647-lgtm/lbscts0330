@@ -983,11 +983,21 @@ export async function POST(request: NextRequest) {
 
         // ★★★ 디버그 로그: ID Set 크기 및 샘플 ★★★
 
+        // ★★★ 2026-03-15 DIAG: FK 검증 전 ID Set 크기 로깅 ★★★
+        console.log(`[FMEA API DIAG] FK Sets: fmIdSet=${fmIdSet.size}, feIdSet=${feIdSet.size}, fcIdSet=${fcIdSet.size}`);
+        console.log(`[FMEA API DIAG] Incoming links: ${db.failureLinks.length}, analyses: ${(db.failureAnalyses||[]).length}, risks: ${(db.riskAnalyses||[]).length}`);
+        if (db.failureLinks.length > 0) {
+          const sample = db.failureLinks[0] as any;
+          console.log(`[FMEA API DIAG] Link[0]: id=${(sample.id||'').substring(0,20)}, fmId=${(sample.fmId||'').substring(0,20)}, feId=${(sample.feId||'').substring(0,20)}, fcId=${(sample.fcId||'').substring(0,20)}`);
+          console.log(`[FMEA API DIAG] fmOK=${fmIdSet.has(sample.fmId)}, feOK=${feIdSet.has(sample.feId)}, fcOK=${fcIdSet.has(sample.fcId)}`);
+        }
+
         const { valid: validLinks, dropped: fkDropped, feIdEmpty } = filterValidLinks(
           db.failureLinks, fmIdSet, feIdSet, fcIdSet
         );
         fkValidLinkCount = validLinks.length;
         fkDroppedCount = fkDropped;
+        console.log(`[FMEA API DIAG] FK result: valid=${validLinks.length}, dropped=${fkDropped}, feEmpty=${feIdEmpty}`);
 
         // ★ feId 빈 링크는 DB FK 제약으로 저장 불가 → legacyData에만 보존
         const dbSavableLinks = validLinks.filter((l: any) => !!l.feId);
@@ -1058,6 +1068,17 @@ export async function POST(request: NextRequest) {
       // 고장연결 확정 시 자동 생성된 고장분석 통합 데이터 저장
       // ★★★ 핵심: 실제 저장된 validLinks의 linkId만 참조할 수 있음 - FK 위반 방지 ★★★
       const savedLinkIdSet = new Set(savedLinkIds);
+      // ★★★ 2026-03-15 DIAG: savedLinkIds vs analyses linkIds 비교 ★★★
+      console.log(`[FMEA API DIAG] savedLinkIds: ${savedLinkIds.length}, analyses: ${(db.failureAnalyses||[]).length}, risks: ${(db.riskAnalyses||[]).length}`);
+      if (savedLinkIds.length > 0 && (db.failureAnalyses||[]).length > 0) {
+        console.log(`[FMEA API DIAG] savedLink[0]=${savedLinkIds[0]?.substring(0,20)}, analysis[0].linkId=${(db.failureAnalyses[0] as any)?.linkId?.substring(0,20)}`);
+        console.log(`[FMEA API DIAG] match=${savedLinkIdSet.has((db.failureAnalyses[0] as any)?.linkId)}`);
+      }
+      if (savedLinkIds.length > 0 && (db.riskAnalyses||[]).length > 0) {
+        console.log(`[FMEA API DIAG] risk[0].linkId=${(db.riskAnalyses[0] as any)?.linkId?.substring(0,20)}`);
+        console.log(`[FMEA API DIAG] riskMatch=${savedLinkIdSet.has((db.riskAnalyses[0] as any)?.linkId)}`);
+      }
+
       const validAnalyses = (db.failureAnalyses || []).filter(fa =>
         savedLinkIdSet.has(fa.linkId) // linkId가 실제 저장된 failureLink를 참조하는지 확인
       );

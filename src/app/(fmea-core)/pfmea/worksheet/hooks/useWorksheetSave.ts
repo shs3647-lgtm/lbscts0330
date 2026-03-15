@@ -1,4 +1,4 @@
-// CODEFREEZE
+// CODEFREEZE-LIFTED: 2026-03-15 연쇄삭제 캐시 버그 수정
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @file useWorksheetSave.ts

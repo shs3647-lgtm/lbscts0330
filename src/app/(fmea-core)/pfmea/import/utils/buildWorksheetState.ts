@@ -48,7 +48,7 @@ import type {
   L3FailureCauseExtended,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import type { FailureLinkEntry } from './failureChainInjector';
-import { assignEntityUUIDsToChains } from './assignChainUUIDs';
+import { assignEntityUUIDsToChains, supplementOrphanChains } from './assignChainUUIDs';
 import { enrichStateFromChains } from '@/lib/enrich-state-from-chains';
 
 // ════════════════════════════════════════════
@@ -1222,6 +1222,15 @@ export function buildWorksheetState(
     // 텍스트 매칭 완전 제거 — 엔티티 생성 직후 같은 스코프에서 UUID 할당
     // 이후 모든 링크 생성은 UUID FK만 사용
     assignEntityUUIDsToChains(state, config.chains);
+
+    // ★★★ 2026-03-15 v2: 고아 FM/FC 자동보충 ★★★
+    // 메인시트에 있지만 FC시트에 없는 FM/FC → 합성 chain 생성 후 UUID 직접 할당
+    const orphanStats = supplementOrphanChains(state, config.chains);
+    if (orphanStats.addedFM > 0 || orphanStats.addedFC > 0) {
+      console.info(
+        `[buildWS:Phase2.7] 고아 보충: FM+${orphanStats.addedFM} FC+${orphanStats.addedFC}`
+      );
+    }
 
     const linkResult = buildFailureLinksDBCentric(state, config.chains);
     state.failureLinks = linkResult.failureLinks;
