@@ -29,13 +29,17 @@ export function supplementMissingItems(
     if (d.itemCode) existingCodes.add(d.itemCode);
   }
 
-  // 이미 모든 항목이 있으면 보충 불필요
+  // 누락 코드 + 계층 불균형 감지
   const REQUIRED = ['A1', 'A2', 'A3', 'B1', 'B2', 'C1', 'C2', 'C3', 'C4'];
   const missing = REQUIRED.filter(code => {
     const count = flatData.filter(d => d.itemCode === code).length;
     return count === 0;
   });
-  if (missing.length === 0) return [];
+
+  // A4 계층 보충 필요 여부 (A3가 있거나 보충될 때, A4 없는 공정 보충)
+  const needsA4Supplement = missing.includes('A3') || flatData.some(d => d.itemCode === 'A3');
+
+  if (missing.length === 0 && !needsA4Supplement) return [];
 
   // ── 공정 정보 수집 (A-레벨 flatData에서) ──
   const processNos = new Set<string>();
@@ -79,6 +83,40 @@ export function supplementMissingItems(
         value: `${pno}번 공정을 수행하여 품질을 확보한다`,
         inherited: true, createdAt: now,
       });
+    }
+  }
+
+  // ── A4 제품특성 — 계층 보충 (A3 있는 공정에 A4 없으면 보충) ──
+  {
+    const a4Procs = new Set(
+      [...flatData, ...supplements].filter(d => d.itemCode === 'A4').map(d => d.processNo),
+    );
+    const a3Procs = [...flatData, ...supplements]
+      .filter(d => d.itemCode === 'A3')
+      .map(d => d.processNo)
+      .filter(Boolean);
+    for (const pno of a3Procs) {
+      if (!pno || a4Procs.has(pno)) continue;
+      // 체인에서 해당 공정의 FM/FC로부터 제품특성 추론
+      const chainChars = failureChains
+        .filter(ch => ch.processNo === pno && ch.processChar)
+        .map(ch => ch.processChar!);
+      const uniqueChars = [...new Set(chainChars)];
+      if (uniqueChars.length > 0) {
+        for (const char of uniqueChars) {
+          supplements.push({
+            id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A4',
+            value: char, createdAt: now,
+          });
+        }
+      } else {
+        // 폴백: 공정명 기반 기본 제품특성
+        supplements.push({
+          id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A4',
+          value: `${pno}번 공정 특성`, inherited: true, createdAt: now,
+        });
+      }
+      a4Procs.add(pno);
     }
   }
 
