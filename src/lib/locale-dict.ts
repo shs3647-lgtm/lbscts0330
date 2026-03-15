@@ -17,7 +17,6 @@ export const MENU_DICT: Record<string, string> = {
   '고객사정보': 'Customer Info',
   '사용자정보': 'User Info',
   'PFMEA 임포트': 'PFMEA Import',
-  'DFMEA 임포트': 'DFMEA Import',
   'CP 기초정보': 'CP Master Data',
   'PFD 기초정보': 'PFD Master Data',
   '데이타 복구 관리': 'Data Recovery',
@@ -114,11 +113,6 @@ export const MENU_DICT: Record<string, string> = {
   'FMEA4판': 'FMEA Ed.4',
   '4판': 'Ed.4',
 
-  // ── DFMEA 서브메뉴 ──
-  'DFMEA등록': 'DFMEA Register',
-  'DFMEA 리스트': 'DFMEA List',
-  'DFMEA 작성화면': 'DFMEA Worksheet',
-  'DFMEA 개정관리': 'DFMEA Revision',
   '관리설정': 'Admin Settings',
 
   // ── APQP TopNav ──
@@ -128,7 +122,7 @@ export const MENU_DICT: Record<string, string> = {
   'APQP 개정관리': 'APQP Revision',
 
   // ════════════════════════════════════════════════
-  // 워크시트 탭 (PFMEA/DFMEA)
+  // 워크시트 탭 (PFMEA)
   // ════════════════════════════════════════════════
   '구조분석': 'Structure',
   '기능분석': 'Function',
@@ -152,7 +146,6 @@ export const MENU_DICT: Record<string, string> = {
   '검증': 'Verify',
   '전체보기 (검증 해제)': 'All View (Unverify)',
 
-  // ── DFMEA TabMenu 추가 ──
   '6ST확정': '6ST Confirm',
   '승인': 'Approve',
 
@@ -180,7 +173,7 @@ export const MENU_DICT: Record<string, string> = {
   'WS Work Sheet': 'WS Work Sheet',
 
   // ════════════════════════════════════════════════
-  // TopMenuBar (PFMEA/DFMEA 워크시트 상단)
+  // TopMenuBar (PFMEA 워크시트 상단)
   // ════════════════════════════════════════════════
   '저장중': 'Saving',
   '저장': 'Save',
@@ -492,7 +485,6 @@ export const MENU_DICT: Record<string, string> = {
   'CP 데이터 연동': 'CP Data Sync',
   'CP 이동': 'Go to CP',
   'CP로': 'To CP',
-  'DFMEA 준비 중...': 'Preparing DFMEA...',
   'EP검사장치': 'EP Device',
   'Excel 파일 처리 중...': 'Processing Excel...',
   'FMEA 데이터 연동': 'FMEA Data Sync',
@@ -556,8 +548,6 @@ export const MENU_DICT: Record<string, string> = {
   '공개': 'Public',
   '상호기능팀': 'Cross-Functional Team',
   'CFT 등록 필요': 'CFT Registration Required',
-  '상위 DFMEA': 'Parent DFMEA',
-  'DFMEA 등록화면으로 이동': 'Go to DFMEA Register',
   '연동': 'Linked',
 
   // ════════════════════════════════════════════════
@@ -683,7 +673,6 @@ export const MENU_DICT: Record<string, string> = {
   '고객사 정보를 등록하고 관리합니다.': 'Register and manage customer info.',
   '시스템 사용자 정보를 관리합니다.': 'Manage system user info.',
   'PFMEA 데이터를 임포트합니다.': 'Import PFMEA data.',
-  'DFMEA 데이터를 임포트합니다.': 'Import DFMEA data.',
   'Control Plan 기초정보를 관리합니다.': 'Manage Control Plan master data.',
   '삭제된 문서를 복원하거나 영구삭제합니다.': 'Restore or permanently delete documents.',
   '데이터베이스를 조회합니다.': 'Browse the database.',

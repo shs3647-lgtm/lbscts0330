@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     try {
       linkage = await (prisma as any).projectLinkage.findFirst({
         where: {
-          OR: [{ pfmeaId: fmeaId }, { dfmeaId: fmeaId }],
+          pfmeaId: fmeaId,
           status: 'active',
         },
       });
@@ -204,7 +204,7 @@ export async function PUT(request: NextRequest) {
         await prisma.fmeaProject.create({
           data: {
             fmeaId,
-            fmeaType: fmeaId.startsWith('dfm') ? 'D' : 'P',
+            fmeaType: 'P',
             status: 'draft',
           },
         });

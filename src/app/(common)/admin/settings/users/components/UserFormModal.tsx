@@ -121,7 +121,7 @@ export default function UserFormModal({
         {/* 권한 설정 */}
         <div className="mb-4">
           <h3 className="text-sm font-bold text-gray-700 mb-2 border-b pb-1">권한 설정</h3>
-          <div className="grid grid-cols-5 gap-3 text-sm">
+          <div className="grid grid-cols-4 gap-3 text-sm">
             <div>
               <label className="block text-gray-600 mb-1 text-xs">시스템 권한 *</label>
               <select
@@ -134,9 +134,9 @@ export default function UserFormModal({
                 <option value="admin">🔴 관리자</option>
               </select>
             </div>
-            {(['permPfmea', 'permDfmea', 'permCp', 'permPfd'] as const).map(mod => {
-              const label = mod === 'permPfmea' ? 'PFMEA' : mod === 'permDfmea' ? 'DFMEA' : mod === 'permCp' ? 'CP' : 'PFD';
-              const bg = mod === 'permPfmea' ? 'bg-blue-50' : mod === 'permDfmea' ? 'bg-purple-50' : mod === 'permCp' ? 'bg-orange-50' : 'bg-green-50';
+            {(['permPfmea', 'permCp', 'permPfd'] as const).map(mod => {
+              const label = mod === 'permPfmea' ? 'PFMEA' : mod === 'permCp' ? 'CP' : 'PFD';
+              const bg = mod === 'permPfmea' ? 'bg-blue-50' : mod === 'permCp' ? 'bg-orange-50' : 'bg-green-50';
               return (
                 <div key={mod}>
                   <label className="block text-gray-600 mb-1 text-xs">{label}</label>

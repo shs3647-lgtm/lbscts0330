@@ -39,9 +39,6 @@ const MODULE_TABLES: Record<string, { label: string; value: string; description:
     { label: 'PFMEA 심각도 기준', value: 'pfmea_severity_criteria', description: 'PFMEA 심각도 평가기준 (1-10)' },
     { label: 'PFMEA 발생도 기준', value: 'pfmea_occurrence_criteria', description: 'PFMEA 발생도 평가기준 (1-10)' },
     { label: 'PFMEA 검출도 기준', value: 'pfmea_detection_criteria', description: 'PFMEA 검출도 평가기준 (1-10)' },
-    { label: 'DFMEA 심각도 기준', value: 'dfmea_severity_criteria', description: 'DFMEA 심각도 평가기준 (1-10)' },
-    { label: 'DFMEA 발생도 기준', value: 'dfmea_occurrence_criteria', description: 'DFMEA 발생도 평가기준 (1-10)' },
-    { label: 'DFMEA 검출도 기준', value: 'dfmea_detection_criteria', description: 'DFMEA 검출도 평가기준 (1-10)' },
   ],
   'FMEA': [
     { label: 'FMEA 프로젝트', value: 'fmea_projects', description: 'FMEA 프로젝트 기본정보' },
@@ -156,7 +153,6 @@ const CATEGORY_COLORS: Record<string, string> = {
 const PROJECT_TYPES = [
   { key: 'all', label: '전체', icon: '📊' },
   { key: 'PFMEA', label: 'PFMEA', icon: '🔧', table: 'fmea_projects', idField: 'fmeaId', nameField: 'subject' },
-  { key: 'DFMEA', label: 'DFMEA', icon: '📐', table: 'fmea_projects', idField: 'fmeaId', nameField: 'subject' },
   { key: 'APQP', label: 'APQP', icon: '📆', table: 'apqp_registrations', idField: 'apqpNo', nameField: 'subject' },
   { key: 'CP', label: 'CP', icon: '📝', table: 'cp_registrations', idField: 'cpNo', nameField: 'subject' },
   { key: 'PFD', label: 'PFD', icon: '📋', table: 'pfd_projects', idField: 'pfdId', nameField: 'name' },

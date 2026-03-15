@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
         });
         for (const l of activeLinkages) {
             if (l.pfmeaId) allIdsForLinkGroup.push(l.pfmeaId);
-            if (l.dfmeaId) allIdsForLinkGroup.push(l.dfmeaId);
             if (l.pfdNo) allIdsForLinkGroup.push(l.pfdNo);
             if (l.cpNo) allIdsForLinkGroup.push(l.cpNo);
             if (l.apqpNo) allIdsForLinkGroup.push(l.apqpNo);
@@ -120,9 +119,8 @@ export async function POST(request: NextRequest) {
                 sourceIds = (await prisma.apqpRegistration.findMany({ where: { deletedAt: null }, select: { apqpNo: true } })).map((r) => r.apqpNo);
                 break;
             case 'pfmea':
-            case 'dfmea':
                 sourceIds = (await prisma.fmeaProject.findMany({ where: { deletedAt: null }, select: { fmeaId: true } })).map((r) => r.fmeaId)
-                    .filter((id) => sourceApp === 'pfmea' ? id.toLowerCase().startsWith('pfm') : id.toLowerCase().startsWith('dfm'));
+                    .filter((id) => id.toLowerCase().startsWith('pfm'));
                 // ★★★ typeCode별 필터링: Part(p)/Family(f)/Master(m) 각각 독립 시리얼 ★★★
                 sourceIds = sourceIds.filter((id) =>
                     id.toLowerCase().startsWith(`${sourcePrefix}${year}-${typeCode}`)
@@ -187,7 +185,6 @@ export async function POST(request: NextRequest) {
                     data: {
                         apqpNo: createdDocs.apqp,
                         pfmeaId: createdDocs.pfmea,
-                        dfmeaId: createdDocs.dfmea,
                         pfdNo: createdDocs.pfd,
                         cpNo: createdDocs.cp,
                         // ★★★ 기초정보 저장 (APQP에서 입력된 정보) ★★★
@@ -229,7 +226,6 @@ export async function POST(request: NextRequest) {
                                 processResponsibility: '',
                                 status: 'planning',
                                 linkedFmea: createdDocs.pfmea || null,
-                                linkedDfmea: createdDocs.dfmea || null,
                                 linkedCp: createdDocs.cp || null,
                                 linkedPfd: createdDocs.pfd || null,
                             },
@@ -239,7 +235,6 @@ export async function POST(request: NextRequest) {
                                 companyName: basicInfo.companyName,
                                 apqpResponsibleName: basicInfo.managerName,
                                 linkedFmea: createdDocs.pfmea || null,
-                                linkedDfmea: createdDocs.dfmea || null,
                                 linkedCp: createdDocs.cp || null,
                                 linkedPfd: createdDocs.pfd || null,
                             },
@@ -274,7 +269,7 @@ export async function POST(request: NextRequest) {
                                             partNo: basicInfo.partNo,         // ★ 품번
                                             linkedCpNo: createdDocs.cp || null,
                                             linkedPfdNo: createdDocs.pfd || null,
-                                            linkedDfmeaNo: createdDocs.dfmea || null,  // ★ DFMEA 연동 추가
+                                            linkedDfmeaNo: null,
                                         },
                                     },
                                 },
@@ -297,64 +292,7 @@ export async function POST(request: NextRequest) {
                                             partNo: basicInfo.partNo,         // ★ 품번
                                             linkedCpNo: createdDocs.cp || null,
                                             linkedPfdNo: createdDocs.pfd || null,
-                                            linkedDfmeaNo: createdDocs.dfmea || null,  // ★ DFMEA 연동 추가
-                                        },
-                                    },
-                                },
-                            });
-                        }
-                        break;
-
-                    case 'dfmea':
-                        // ★★★ DFMEA upsert ★★★
-                        const existingDfmea = await tx.fmeaProject.findUnique({ where: { fmeaId: docId } });
-                        // ★★★ FMEA명: 품명 + DFMEA (2026-02-02) ★★★
-                        const dfmeaSubject = basicInfo.projectName ? `${basicInfo.projectName} DFMEA` : '품명+DFMEA';
-                        if (existingDfmea) {
-                            await tx.fmeaProject.update({
-                                where: { fmeaId: docId },
-                                data: {
-                                    parentApqpNo: createdDocs.apqp,
-                                    fmeaType: 'D',
-                                    status: 'active',
-                                    deletedAt: null,  // ★ FIX: soft-delete된 레코드 복구
-                                    registration: {
-                                        update: {
-                                            subject: dfmeaSubject,
-                                            customerName: basicInfo.customerName,
-                                            companyName: basicInfo.companyName,
-                                            modelYear: '',
-                                            fmeaResponsibleName: basicInfo.managerName,
-                                            engineeringLocation: '',
-                                            designResponsibility: '',
-                                            partName: '',  // ★ 품명은 등록 화면에서 별도 입력
-                                            partNo: basicInfo.partNo,         // ★ 품번
-                                            linkedCpNo: createdDocs.cp || null,
-                                            linkedPfdNo: createdDocs.pfd || null,
-                                            linkedPfmeaNo: createdDocs.pfmea || null,
-                                        },
-                                    },
-                                },
-                            });
-                        } else {
-                            await tx.fmeaProject.create({
-                                data: {
-                                    fmeaId: docId,
-                                    fmeaType: 'D',  // ★ DFMEA는 항상 'D' 타입
-                                    parentApqpNo: createdDocs.apqp,
-                                    status: 'active',
-                                    registration: {
-                                        create: {
-                                            subject: dfmeaSubject,
-                                            customerName: basicInfo.customerName,
-                                            companyName: basicInfo.companyName,
-                                            modelYear: '',
-                                            fmeaResponsibleName: basicInfo.managerName,
-                                            partName: '',  // ★ 품명은 등록 화면에서 별도 입력
-                                            partNo: basicInfo.partNo,         // ★ 품번
-                                            linkedCpNo: createdDocs.cp || null,
-                                            linkedPfdNo: createdDocs.pfd || null,
-                                            linkedPfmeaNo: createdDocs.pfmea || null,
+                                            linkedDfmeaNo: null,
                                         },
                                     },
                                 },
@@ -372,7 +310,7 @@ export async function POST(request: NextRequest) {
                                     fmeaId: createdDocs.pfmea,
                                     apqpProjectId: createdDocs.apqp,
                                     parentApqpNo: createdDocs.apqp || null,
-                                    linkedDfmeaNo: createdDocs.dfmea || null,
+                                    linkedDfmeaNo: null,
                                     linkedPfmeaNo: createdDocs.pfmea || null,
                                     linkedCpNos: cpDocIds.length > 0 ? JSON.stringify(cpDocIds) : (createdDocs.cp ? JSON.stringify([createdDocs.cp]) : null),
                                     subject: basicInfo.projectName,
@@ -384,7 +322,7 @@ export async function POST(request: NextRequest) {
                                     fmeaId: createdDocs.pfmea,
                                     apqpProjectId: createdDocs.apqp,
                                     parentApqpNo: createdDocs.apqp || null,
-                                    linkedDfmeaNo: createdDocs.dfmea || null,
+                                    linkedDfmeaNo: null,
                                     linkedPfmeaNo: createdDocs.pfmea || null,
                                     linkedCpNos: cpDocIds.length > 0 ? JSON.stringify(cpDocIds) : (createdDocs.cp ? JSON.stringify([createdDocs.cp]) : null),
                                     subject: basicInfo.projectName,
@@ -405,7 +343,7 @@ export async function POST(request: NextRequest) {
                                     parentApqpNo: createdDocs.apqp,
                                     fmeaId: createdDocs.pfmea,
                                     linkedPfdNo: createdDocs.pfd || null,
-                                    linkedDfmeaNo: createdDocs.dfmea || null,
+                                    linkedDfmeaNo: null,
                                     linkedPfmeaNo: createdDocs.pfmea || null,
                                     subject: basicInfo.projectName,
                                     customerName: basicInfo.customerName,
@@ -416,7 +354,7 @@ export async function POST(request: NextRequest) {
                                     parentApqpNo: createdDocs.apqp,
                                     fmeaId: createdDocs.pfmea,
                                     linkedPfdNo: createdDocs.pfd || null,
-                                    linkedDfmeaNo: createdDocs.dfmea || null,
+                                    linkedDfmeaNo: null,
                                     linkedPfmeaNo: createdDocs.pfmea || null,
                                     subject: basicInfo.projectName,
                                     customerName: basicInfo.customerName,

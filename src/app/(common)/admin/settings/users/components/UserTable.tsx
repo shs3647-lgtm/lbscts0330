@@ -35,7 +35,7 @@ interface UserTableProps {
   error: string | null;
   totalCount: number;
   onRoleChange: (userId: string, newRole: UserRole) => void;
-  onPermChange: (userId: string, module: 'permPfmea' | 'permDfmea' | 'permCp' | 'permPfd', perm: ModulePermission) => void;
+  onPermChange: (userId: string, module: 'permPfmea' | 'permCp' | 'permPfd', perm: ModulePermission) => void;
   onToggleActive: (userId: string) => void;
   onEdit: (user: User) => void;
   onResetPassword: (userId: string, userName: string) => void;
@@ -47,9 +47,9 @@ interface UserTableProps {
 // =====================================================
 function PermSelect({ userId, module, value, onChange }: {
   userId: string;
-  module: 'permPfmea' | 'permDfmea' | 'permCp' | 'permPfd';
+  module: 'permPfmea' | 'permCp' | 'permPfd';
   value: ModulePermission;
-  onChange: (userId: string, module: 'permPfmea' | 'permDfmea' | 'permCp' | 'permPfd', perm: ModulePermission) => void;
+  onChange: (userId: string, module: 'permPfmea' | 'permCp' | 'permPfd', perm: ModulePermission) => void;
 }) {
   const colors = PERM_COLORS[value];
   return (
@@ -97,7 +97,6 @@ export default function UserTable({
           <th className="px-2 py-2 text-left font-semibold text-gray-700">부서</th>
           <th className="px-2 py-2 text-center font-semibold text-gray-700 w-24">시스템</th>
           <th className="px-1 py-2 text-center font-semibold text-gray-700 w-16 bg-blue-50">PFMEA</th>
-          <th className="px-1 py-2 text-center font-semibold text-gray-700 w-16 bg-purple-50">DFMEA</th>
           <th className="px-1 py-2 text-center font-semibold text-gray-700 w-16 bg-orange-50">CP</th>
           <th className="px-1 py-2 text-center font-semibold text-gray-700 w-16 bg-green-50">PFD</th>
           <th className="px-2 py-2 text-center font-semibold text-gray-700 w-16">상태</th>
@@ -130,9 +129,6 @@ export default function UserTable({
               </td>
               <td className="px-1 py-2 text-center bg-blue-50/30">
                 <PermSelect userId={user.id} module="permPfmea" value={user.permPfmea || 'none'} onChange={onPermChange} />
-              </td>
-              <td className="px-1 py-2 text-center bg-purple-50/30">
-                <PermSelect userId={user.id} module="permDfmea" value={user.permDfmea || 'none'} onChange={onPermChange} />
               </td>
               <td className="px-1 py-2 text-center bg-orange-50/30">
                 <PermSelect userId={user.id} module="permCp" value={user.permCp || 'none'} onChange={onPermChange} />

@@ -14,6 +14,7 @@ import { validateImportData } from '../utils/import-validation';
 import { validateHierarchy } from '../utils/hierarchy-validation';
 import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '../utils/excel-color-detector';
 import { inferDC, inferPC, getDefaultRuleSet } from '../stepb-parser/pc-dc-inference';
+import { v4 as uuidv4 } from 'uuid';
 
 interface UseImportFileHandlersProps {
   setFileName: (name: string) => void;
@@ -179,6 +180,31 @@ export function useImportFileHandlers({
       };
 
       const flat: ImportedFlatData[] = [];
+      // ★★★ UUID 기반 parentItemId 매칭 인프라 (import-builder.ts 패턴 차용) ★★★
+      const globalB1IdMap = new Map<string, string>(); // `pNo|m4|weName` → B1 UUID
+      /** B1 UUID 조회 — WE명+m4 정확 매칭 → m4 무시 → 공정 첫 번째 B1 폴백 */
+      const findB1Uuid = (pNo: string, weName: string | undefined, m4: string): string | undefined => {
+        if (weName) {
+          const exactKey = `${pNo}|${m4}|${weName}`;
+          const exact = globalB1IdMap.get(exactKey);
+          if (exact) return exact;
+          for (const [k, v] of globalB1IdMap) {
+            if (k.startsWith(`${pNo}|`) && k.endsWith(`|${weName}`)) return v;
+          }
+        }
+        for (const [k, v] of globalB1IdMap) {
+          if (k.startsWith(`${pNo}|`)) return v;
+        }
+        return undefined;
+      };
+      /** 해당 공정의 첫 번째 B1 UUID 조회 */
+      const firstB1Uuid = (pNo: string): string | undefined => {
+        for (const [k, v] of globalB1IdMap) {
+          if (k.startsWith(`${pNo}|`)) return v;
+        }
+        return undefined;
+      };
+
       result.processes.forEach((p) => {
         const pNo = ensureString(p.processNo);
         if (pNo === '공통') {

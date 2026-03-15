@@ -3,7 +3,6 @@
  *
  * GET /api/fmea/next-id?type=P&module=pfmea&linkGroup=0
  * - DB에서 기존 fmeaId 목록 조회 → 다음 시퀀스 번호 계산
- * - module: 'pfmea' | 'dfmea' (접두사 결정)
  *
  * @created 2026-02-07
  */
@@ -15,15 +14,15 @@ export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const fmeaType = (searchParams.get('type') || 'P').toUpperCase();
-  const module = searchParams.get('module') || 'pfmea';  // pfmea | dfmea
+  const module = searchParams.get('module') || 'pfmea';
   const linkGroupNo = parseInt(searchParams.get('linkGroup') || '0');
 
   const year = new Date().getFullYear().toString().slice(-2);
   const typeChar = fmeaType.toLowerCase();
-  const prefix = module === 'dfmea' ? `dfm${year}-${typeChar}` : `pfm${year}-${typeChar}`;
+  const prefix = `pfm${year}-${typeChar}`;
 
   // 연동 접미사: Part FMEA만 사용 (Master/Family는 접미사 없음)
-  const needsSuffix = module === 'pfmea' && fmeaType === 'P';
+  const needsSuffix = fmeaType === 'P';
   const linkSuffix = needsSuffix
     ? (linkGroupNo > 0 ? `-L${String(linkGroupNo).padStart(2, '0')}` : '-S')
     : '';

@@ -3,7 +3,7 @@
  *
  * GET /api/fmea/delete-check?ids=pfm26-f001-l04,pfm26-f002-l05
  *
- * 연관 모듈(CP/PFD/APQP/DFMEA/WS/PM)의 승인 상태를 확인하여
+ * 연관 모듈(CP/PFD/APQP/WS/PM)의 승인 상태를 확인하여
  * 삭제 가능 여부와 연관 모듈 목록을 반환
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,7 +12,7 @@ import { getPrisma } from '@/lib/prisma';
 export const runtime = 'nodejs';
 
 interface LinkedModule {
-  type: 'CP' | 'PFD' | 'APQP' | 'PFMEA' | 'DFMEA' | 'WS' | 'PM';
+  type: 'CP' | 'PFD' | 'APQP' | 'PFMEA' | 'WS' | 'PM';
   id: string;
   status: string;
   approved: boolean;
@@ -44,14 +44,10 @@ export async function GET(request: NextRequest) {
     let canDelete = true;
     let reason: string | undefined;
 
-    const isPfmea = fmeaId.startsWith('pfm');
-
     // projectLinkage에서 연관 모듈 조회
     try {
       const linkages = await (prisma as any).projectLinkage.findMany({
-        where: isPfmea
-          ? { pfmeaId: { equals: fmeaId, mode: 'insensitive' }, status: 'active' }
-          : { dfmeaId: { equals: fmeaId, mode: 'insensitive' }, status: 'active' },
+        where: { pfmeaId: { equals: fmeaId, mode: 'insensitive' }, status: 'active' },
       });
 
       for (const link of linkages) {
@@ -100,23 +96,20 @@ export async function GET(request: NextRequest) {
           } catch { /* not found */ }
         }
 
-        // 상대편 FMEA 확인 (PFMEA→DFMEA, DFMEA→PFMEA)
-        const otherFmeaId = isPfmea ? link.dfmeaId : link.pfmeaId;
-        if (otherFmeaId) {
+        // 연동된 PFMEA 확인 (linkage에 다른 pfmeaId가 있는 경우)
+        if (link.pfmeaId && link.pfmeaId.toLowerCase() !== fmeaId) {
           try {
             const other = await prisma.fmeaProject.findUnique({
-              where: { fmeaId: otherFmeaId },
+              where: { fmeaId: link.pfmeaId },
               select: { status: true, deletedAt: true },
             });
             if (other && !other.deletedAt) {
-              // FMEA 승인 확인: FmeaApproval 테이블
               const approval = await (prisma as any).fmeaApproval.findFirst({
-                where: { fmeaId: { equals: otherFmeaId, mode: 'insensitive' }, status: 'APPROVED' },
+                where: { fmeaId: { equals: link.pfmeaId, mode: 'insensitive' }, status: 'APPROVED' },
               });
               const isApproved = !!approval;
-              const type = isPfmea ? 'DFMEA' : 'PFMEA';
-              linkedModules.push({ type, id: otherFmeaId, status: other.status || 'active', approved: isApproved });
-              if (isApproved) { canDelete = false; reason = `${type}(${otherFmeaId})가 이미 승인되어 삭제할 수 없습니다.`; }
+              linkedModules.push({ type: 'PFMEA', id: link.pfmeaId, status: other.status || 'active', approved: isApproved });
+              if (isApproved) { canDelete = false; reason = `PFMEA(${link.pfmeaId})가 이미 승인되어 삭제할 수 없습니다.`; }
             }
           } catch { /* not found */ }
         }

@@ -22,7 +22,7 @@ export type LinkMode = 'solo' | 'linked';
 // =====================================================
 // 앱 유형
 // =====================================================
-export type AppType = 'apqp' | 'pfmea' | 'dfmea' | 'pfd' | 'cp';
+export type AppType = 'apqp' | 'pfmea' | 'dfmea' | 'pfd' | 'cp';  // legacy — dfmea는 DB 호환성 유지용
 
 // =====================================================
 // 앱 설정
@@ -41,7 +41,7 @@ export interface AppConfig {
 export const APP_CONFIGS: Record<AppType, AppConfig> = {
     apqp: { id: 'apqp', name: 'APQP', prefix: 'apq', color: '#16a34a', bgColor: 'bg-green-500', icon: '📋' },  // HARDCODED ★ apq (3자리)
     pfmea: { id: 'pfmea', name: 'PFMEA', prefix: 'pfm', color: '#00587a', bgColor: 'bg-teal-600', icon: '🔧' },  // HARDCODED
-    dfmea: { id: 'dfmea', name: 'DFMEA', prefix: 'dfm', color: '#7c3aed', bgColor: 'bg-violet-600', icon: '🔩' },  // HARDCODED
+    dfmea: { id: 'dfmea', name: 'DFMEA', prefix: 'dfm', color: '#7c3aed', bgColor: 'bg-violet-600', icon: '🔩' },  // HARDCODED — legacy, DB 호환성 유지용
     pfd: { id: 'pfd', name: 'PFD', prefix: 'pfd', color: '#8b5cf6', bgColor: 'bg-purple-500', icon: '📐' },  // HARDCODED
     cp: { id: 'cp', name: 'CP', prefix: 'cp', color: '#0d9488', bgColor: 'bg-teal-500', icon: '📝' },  // HARDCODED
 };
@@ -95,9 +95,9 @@ export type LinkSuffix = 'S' | `L${string}`;
 // 연동 계층 관계 (상위 → 하위)
 // =====================================================
 export const APP_HIERARCHY: Record<AppType, AppType[]> = {
-    apqp: ['pfmea', 'dfmea'],           // APQP → PFMEA, DFMEA
+    apqp: ['pfmea'],                     // APQP → PFMEA (dfmea 제거)
     pfmea: ['pfd', 'cp'],                // PFMEA → PFD, CP
-    dfmea: [],                           // DFMEA → (없음)
+    dfmea: [],                           // legacy — DB 호환성 유지용
     pfd: ['cp'],                         // PFD → CP
     cp: [],                              // CP → (없음)
 };
@@ -108,7 +108,7 @@ export const APP_HIERARCHY: Record<AppType, AppType[]> = {
 export const APP_REGISTER_URLS: Record<AppType, string> = {
     apqp: '/apqp/register',
     pfmea: '/pfmea/register',
-    dfmea: '/dfmea/register',
+    dfmea: '/dfmea/register',    // legacy — DB 호환성 유지용
     pfd: '/pfd/register',
     cp: '/control-plan/register',
 };
@@ -119,7 +119,7 @@ export const APP_REGISTER_URLS: Record<AppType, string> = {
 export const APP_LIST_URLS: Record<AppType, string> = {
     apqp: '/apqp/list',
     pfmea: '/pfmea/list',
-    dfmea: '/dfmea/list',
+    dfmea: '/dfmea/list',        // legacy — DB 호환성 유지용
     pfd: '/pfd/list',
     cp: '/control-plan/list',
 };

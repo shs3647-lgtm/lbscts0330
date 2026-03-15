@@ -3,7 +3,7 @@
  * GET /api/fmea/dashboard-stats
  *
  * 홈 화면 FMEA Dashboard 프리뷰에서 사용
- * - 활성 프로젝트 수 (PFMEA M/F/P, DFMEA)
+ * - 활성 프로젝트 수 (PFMEA M/F/P)
  * - 모듈별 연동 현황 (CP, PFD 등)
  */
 import { NextResponse } from 'next/server';
@@ -27,7 +27,6 @@ export async function GET() {
     const pfmeaM = projects.filter(p => p.fmeaType === 'M').length;
     const pfmeaF = projects.filter(p => p.fmeaType === 'F').length;
     const pfmeaP = projects.filter(p => p.fmeaType === 'P').length;
-    const dfmea = projects.filter(p => p.fmeaType === 'D').length;
     const total = projects.length;
 
     // BD(기초정보) 데이터셋 수
@@ -54,7 +53,6 @@ export async function GET() {
       stats: {
         total,
         pfmea: { master: pfmeaM, family: pfmeaF, part: pfmeaP },
-        dfmea,
         bd: bdCount,
         linked: { cp: cpCount, pfd: pfdCount },
       },
@@ -70,7 +68,6 @@ function emptyStats() {
   return {
     total: 0,
     pfmea: { master: 0, family: 0, part: 0 },
-    dfmea: 0,
     bd: 0,
     linked: { cp: 0, pfd: 0 },
   };

@@ -1,7 +1,7 @@
 /**
  * FMEA 대시보드 프리뷰 (홈 화면 Hero 섹션용)
  * - DB에서 실시간 FMEA 프로젝트 통계 표시
- * - PFMEA(M/F/P), DFMEA, BD, CP/PFD 연동 현황
+ * - PFMEA(M/F/P), BD, CP/PFD 연동 현황
  * - SRP: 데이터 패칭은 useDashboardPreviewStats 훅에 분리
  */
 'use client';
@@ -12,25 +12,21 @@ import { useDashboardPreviewStats } from './hooks/useDashboardPreviewStats';
 export function FmeaDashboardPreview() {
   const { stats, loading, error } = useDashboardPreviewStats();
 
-  const pfmeaTotal = stats.pfmea.master + stats.pfmea.family + stats.pfmea.part;
-  const allTotal = pfmeaTotal + stats.dfmea;
+  const allTotal = stats.pfmea.master + stats.pfmea.family + stats.pfmea.part;
 
   // 도넛 차트 비율 계산
   const circumference = 2 * Math.PI * 40; // ≈251.3
-  const mPct = allTotal > 0 ? (stats.pfmea.master / allTotal) * 100 : 25;
-  const fPct = allTotal > 0 ? (stats.pfmea.family / allTotal) * 100 : 25;
-  const pPct = allTotal > 0 ? (stats.pfmea.part / allTotal) * 100 : 25;
-  const dPct = allTotal > 0 ? (stats.dfmea / allTotal) * 100 : 25;
+  const mPct = allTotal > 0 ? (stats.pfmea.master / allTotal) * 100 : 33;
+  const fPct = allTotal > 0 ? (stats.pfmea.family / allTotal) * 100 : 33;
+  const pPct = allTotal > 0 ? (stats.pfmea.part / allTotal) * 100 : 34;
 
   const mDash = (mPct / 100) * circumference;
   const fDash = (fPct / 100) * circumference;
   const pDash = (pPct / 100) * circumference;
-  const dDash = (dPct / 100) * circumference;
 
   const mOff = 0;
   const fOff = -(mDash);
   const pOff = -(mDash + fDash);
-  const dOff = -(mDash + fDash + pDash);
 
   return (
     <Link href="/pfmea/list" className="card hero-right" style={{ cursor: 'pointer', textDecoration: 'none' }}>
@@ -87,9 +83,6 @@ export function FmeaDashboardPreview() {
                 {/* Part - amber */}
                 <circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" strokeWidth="12"
                   strokeDasharray={`${pDash} ${circumference - pDash}`} strokeDashoffset={pOff} strokeLinecap="round" />
-                {/* DFMEA - purple */}
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#a855f7" strokeWidth="12"
-                  strokeDasharray={`${dDash} ${circumference - dDash}`} strokeDashoffset={dOff} strokeLinecap="round" />
               </svg>
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
                 <div style={{ fontSize: '24px', fontWeight: 900, color: '#fff' }}>{allTotal}</div>
@@ -100,7 +93,6 @@ export function FmeaDashboardPreview() {
               <span style={{ fontSize: '8px', color: '#14b8a6' }}>● Master</span>
               <span style={{ fontSize: '8px', color: '#3b82f6' }}>● Family</span>
               <span style={{ fontSize: '8px', color: '#f59e0b' }}>● Part</span>
-              <span style={{ fontSize: '8px', color: '#a855f7' }}>● DFMEA</span>
             </div>
           </div>
 
@@ -110,7 +102,6 @@ export function FmeaDashboardPreview() {
             <StatBar label="Master (M)" value={stats.pfmea.master} max={Math.max(allTotal, 1)} color="#14b8a6" />
             <StatBar label="Family (F)" value={stats.pfmea.family} max={Math.max(allTotal, 1)} color="#3b82f6" />
             <StatBar label="Part (P)" value={stats.pfmea.part} max={Math.max(allTotal, 1)} color="#f59e0b" />
-            <StatBar label="DFMEA" value={stats.dfmea} max={Math.max(allTotal, 1)} color="#a855f7" />
 
             {/* 구분선 */}
             <div style={{ borderTop: '1px solid #1e3a5f', margin: '2px 0' }} />

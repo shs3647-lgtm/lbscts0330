@@ -115,7 +115,7 @@ export function getAppTypeFromId(id: string): AppType | null {
     const lowerCaseId = id.toLowerCase();
     if (lowerCaseId.startsWith('apqp')) return 'apqp';
     if (lowerCaseId.startsWith('pfm')) return 'pfmea';
-    if (lowerCaseId.startsWith('dfm')) return 'dfmea';
+    if (lowerCaseId.startsWith('dfm')) return 'dfmea'; // legacy — DFMEA ID가 DB에 남아있을 수 있음
     if (lowerCaseId.startsWith('pfd')) return 'pfd';
     if (lowerCaseId.startsWith('cp')) return 'cp';
     return null;

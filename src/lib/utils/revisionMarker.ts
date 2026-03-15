@@ -18,7 +18,7 @@
 // =====================================================
 
 /** 연동 모듈 유형 */
-export type SyncSource = 'pfmea' | 'dfmea' | 'cp' | 'pfd';
+export type SyncSource = 'pfmea' | 'cp' | 'pfd';
 
 /** 개정 마커 정보 */
 export interface RevisionMarker {
@@ -38,7 +38,6 @@ export interface RevisionMarker {
 
 const MARKERS: Record<SyncSource, RevisionMarker> = {
   pfmea: { char: 'ᶠ', color: '#1565c0', label: 'PFMEA', code: 'F' },
-  dfmea: { char: 'ᶠ', color: '#1565c0', label: 'DFMEA', code: 'F' },
   cp:    { char: 'ᶜ', color: '#2e7d32', label: 'CP',    code: 'C' },
   pfd:   { char: 'ᵖ', color: '#e65100', label: 'PFD',   code: 'P' },
 };

@@ -24,7 +24,6 @@ interface UserInfo {
     loginId?: string;
     role: 'admin' | 'editor' | 'viewer';
     permPfmea: 'none' | 'read' | 'write';
-    permDfmea: 'none' | 'read' | 'write';
     permCp: 'none' | 'read' | 'write';
     permPfd: 'none' | 'read' | 'write';
     isActive: boolean;
@@ -44,7 +43,6 @@ const DEFAULT_USER: Omit<UserInfo, 'id'> = {
     loginId: '',
     role: 'viewer',
     permPfmea: 'read',
-    permDfmea: 'none',
     permCp: 'read',
     permPfd: 'none',
     isActive: true,
@@ -325,7 +323,6 @@ export default function UsersManagementPage() {
                 loginType: (row['로그인방식'] === '이메일' ? 'email' : 'id_pw') as 'email' | 'id_pw',
                 role: (row['역할'] || row['role'] || 'viewer') as 'admin' | 'editor' | 'viewer',
                 permPfmea: (row['PFMEA'] || row['permPfmea'] || 'read') as 'none' | 'read' | 'write',
-                permDfmea: (row['DFMEA'] || row['permDfmea'] || 'none') as 'none' | 'read' | 'write',
                 permCp: (row['CP'] || row['permCp'] || 'read') as 'none' | 'read' | 'write',
                 permPfd: (row['PFD'] || row['permPfd'] || 'none') as 'none' | 'read' | 'write',
                 isActive: row['활성'] !== '비활성',
@@ -364,7 +361,6 @@ export default function UsersManagementPage() {
             '로그인방식': user.loginType === 'email' ? '이메일' : 'ID/PW',
             '역할': user.role,
             'PFMEA': user.permPfmea,
-            'DFMEA': user.permDfmea,
             'CP': user.permCp,
             'PFD': user.permPfd,
             '활성': user.isActive ? '활성' : '비활성',
@@ -378,9 +374,9 @@ export default function UsersManagementPage() {
 
     const downloadSampleExcel = () => {
         const sampleData = [
-            { '고객사': '현대자동차', '이름': '홍길동', '로그인ID': 'hong123', '이메일': 'hong@company.com', '부서': '품질팀', '직급': '과장', '전화번호': '010-1234-5678', '로그인방식': 'ID/PW', '역할': 'editor', 'PFMEA': 'write', 'DFMEA': 'read', 'CP': 'write', 'PFD': 'read', '활성': '활성' },
-            { '고객사': '기아자동차', '이름': '김철수', '로그인ID': 'kimcs', '이메일': 'kim@company.com', '부서': '설계팀', '직급': '대리', '전화번호': '010-2345-6789', '로그인방식': 'ID/PW', '역할': 'viewer', 'PFMEA': 'read', 'DFMEA': 'read', 'CP': 'read', 'PFD': 'none', '활성': '활성' },
-            { '고객사': 'GM', '이름': '박영희', '로그인ID': '', '이메일': 'park@gm.com', '부서': '개발팀', '직급': '차장', '전화번호': '010-3456-7890', '로그인방식': '이메일', '역할': 'admin', 'PFMEA': 'write', 'DFMEA': 'write', 'CP': 'write', 'PFD': 'write', '활성': '활성' },
+            { '고객사': '현대자동차', '이름': '홍길동', '로그인ID': 'hong123', '이메일': 'hong@company.com', '부서': '품질팀', '직급': '과장', '전화번호': '010-1234-5678', '로그인방식': 'ID/PW', '역할': 'editor', 'PFMEA': 'write', 'CP': 'write', 'PFD': 'read', '활성': '활성' },
+            { '고객사': '기아자동차', '이름': '김철수', '로그인ID': 'kimcs', '이메일': 'kim@company.com', '부서': '설계팀', '직급': '대리', '전화번호': '010-2345-6789', '로그인방식': 'ID/PW', '역할': 'viewer', 'PFMEA': 'read', 'CP': 'read', 'PFD': 'none', '활성': '활성' },
+            { '고객사': 'GM', '이름': '박영희', '로그인ID': '', '이메일': 'park@gm.com', '부서': '개발팀', '직급': '차장', '전화번호': '010-3456-7890', '로그인방식': '이메일', '역할': 'admin', 'PFMEA': 'write', 'CP': 'write', 'PFD': 'write', '활성': '활성' },
         ];
         const ws = XLSX.utils.json_to_sheet(sampleData);
         const wb = XLSX.utils.book_new();
@@ -460,7 +456,6 @@ export default function UsersManagementPage() {
                                     <th className="px-3 py-2 text-center font-bold text-gray-700 border-b">PW</th>
                                     <th className="px-3 py-2 text-center font-bold text-gray-700 border-b">역할</th>
                                     <th className="px-2 py-2 text-center font-bold text-gray-700 border-b text-[11px]">PFMEA</th>
-                                    <th className="px-2 py-2 text-center font-bold text-gray-700 border-b text-[11px]">DFMEA</th>
                                     <th className="px-2 py-2 text-center font-bold text-gray-700 border-b text-[11px]">CP</th>
                                     <th className="px-2 py-2 text-center font-bold text-gray-700 border-b text-[11px]">PFD</th>
                                     <th className="px-3 py-2 text-left font-bold text-gray-700 border-b">부서</th>
@@ -545,7 +540,6 @@ export default function UsersManagementPage() {
                                             )}
                                         </td>
                                         <td className="px-2 py-2 text-center"><PermBadge level={user.permPfmea} /></td>
-                                        <td className="px-2 py-2 text-center"><PermBadge level={user.permDfmea} /></td>
                                         <td className="px-2 py-2 text-center"><PermBadge level={user.permCp} /></td>
                                         <td className="px-2 py-2 text-center"><PermBadge level={user.permPfd} /></td>
                                         <td className="px-3 py-2 text-gray-600 text-xs">{user.department}</td>
@@ -631,7 +625,6 @@ export default function UsersManagementPage() {
                             </div>
                             <div className="grid grid-cols-4 gap-2">
                                 <div><label className="block text-xs font-medium text-gray-700 mb-1">PFMEA</label><select value={newUser.permPfmea} onChange={e => setNewUser({ ...newUser, permPfmea: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
-                                <div><label className="block text-xs font-medium text-gray-700 mb-1">DFMEA</label><select value={newUser.permDfmea} onChange={e => setNewUser({ ...newUser, permDfmea: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
                                 <div><label className="block text-xs font-medium text-gray-700 mb-1">CP</label><select value={newUser.permCp} onChange={e => setNewUser({ ...newUser, permCp: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
                                 <div><label className="block text-xs font-medium text-gray-700 mb-1">PFD</label><select value={newUser.permPfd} onChange={e => setNewUser({ ...newUser, permPfd: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
                             </div>
@@ -770,7 +763,6 @@ export default function UsersManagementPage() {
                             </div>
                             <div className="grid grid-cols-4 gap-2">
                                 <div><label className="block text-xs font-medium text-gray-700 mb-1">PFMEA</label><select value={editingUser.permPfmea} onChange={e => setEditingUser({ ...editingUser, permPfmea: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
-                                <div><label className="block text-xs font-medium text-gray-700 mb-1">DFMEA</label><select value={editingUser.permDfmea} onChange={e => setEditingUser({ ...editingUser, permDfmea: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
                                 <div><label className="block text-xs font-medium text-gray-700 mb-1">CP</label><select value={editingUser.permCp} onChange={e => setEditingUser({ ...editingUser, permCp: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
                                 <div><label className="block text-xs font-medium text-gray-700 mb-1">PFD</label><select value={editingUser.permPfd} onChange={e => setEditingUser({ ...editingUser, permPfd: e.target.value as any })} className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="none">없음</option><option value="read">읽기</option><option value="write">쓰기</option></select></div>
                             </div>

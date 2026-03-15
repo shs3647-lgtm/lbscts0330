@@ -17,8 +17,6 @@ import {
     APP_CONFIGS,
     APP_REGISTER_URLS,
     LinkMode,
-    CreateDocumentRequest,
-    CreateDocumentResponse,
 } from '@/types/linkage';
 
 // =====================================================
@@ -138,7 +136,7 @@ export default function CreateDocumentModal({
 
             // ★ 기존 문서 목록 로드 (중복 검증용)
             setExistingDocs([]);
-            const docUrl = sourceApp === 'pfmea' || sourceApp === 'dfmea'
+            const docUrl = sourceApp === 'pfmea'
                 ? '/api/fmea/projects'
                 : sourceApp === 'cp' ? '/api/control-plan/list'
                 : sourceApp === 'pfd' ? '/api/pfd/list' : null;
@@ -146,7 +144,7 @@ export default function CreateDocumentModal({
                 fetch(docUrl).then(r => r.json()).then(data => {
                     if (data.success) {
                         let docs: { id: string; name: string }[] = [];
-                        if (sourceApp === 'pfmea' || sourceApp === 'dfmea') {
+                        if (sourceApp === 'pfmea') {
                             docs = (data.projects || []).map((p: any) => ({
                                 id: p.id || p.fmeaId, name: p.fmeaInfo?.subject || p.project?.projectName || '',
                             }));
@@ -195,9 +193,8 @@ export default function CreateDocumentModal({
         // ★ 중복 검증: 동일한 이름의 문서가 이미 존재하는지 확인
         if (productName.trim()) {
             try {
-                const typeParam = sourceApp === 'pfmea' || sourceApp === 'dfmea' ? `&type=${sourceApp === 'pfmea' ? 'P' : 'D'}` : '';
-                const checkUrl = sourceApp === 'pfmea' || sourceApp === 'dfmea'
-                    ? `/api/fmea/projects?type=${sourceApp === 'pfmea' ? 'P' : 'D'}`
+                const checkUrl = sourceApp === 'pfmea'
+                    ? '/api/fmea/projects?type=P'
                     : sourceApp === 'cp'
                         ? '/api/control-plan/list'
                         : sourceApp === 'pfd'
@@ -210,7 +207,7 @@ export default function CreateDocumentModal({
 
                     let existingNames: { id: string; name: string }[] = [];
                     if (checkData.success) {
-                        if (sourceApp === 'pfmea' || sourceApp === 'dfmea') {
+                        if (sourceApp === 'pfmea') {
                             existingNames = (checkData.projects || []).map((p: any) => ({
                                 id: p.id || p.fmeaId,
                                 name: p.fmeaInfo?.subject || p.project?.projectName || '',
@@ -294,38 +291,6 @@ export default function CreateDocumentModal({
                     : result.pfmeaId;
                 onClose();
                 window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
-            } else {
-                // ★ DFMEA 등 비-Triplet 앱 → 기존 create-linked API
-                const request: CreateDocumentRequest & { productName?: string; customer?: string; companyName?: string; managerName?: string; partNo?: string; cpCount?: number; pfdCount?: number } = {
-                    linkMode,
-                    sourceApp,
-                    linkedApps: linkMode === 'solo'
-                        ? { [sourceApp]: true }
-                        : selectedApps,
-                    fmeaType: fmeaType || 'P',
-                    productName: productName.trim() || undefined,
-                    customer: customer.trim() || undefined,
-                    companyName: companyName.trim() || undefined,
-                    managerName: managerName.trim() || undefined,
-                    partNo: partNo.trim() || undefined,
-                    cpCount: selectedApps.cp ? cpCount : 1,
-                    pfdCount: selectedApps.pfd ? pfdCount : 1,
-                };
-
-                const response = await fetch('/api/project/create-linked', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(request),
-                });
-
-                const result: CreateDocumentResponse = await response.json();
-                if (!result.success) throw new Error(result.error || '문서 생성 실패');
-
-                const createdId = result.createdDocs[sourceApp];
-                if (createdId) {
-                    onClose();
-                    window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${createdId}`;
-                }
             }
         } catch (err: any) {
             console.error('[CreateDocumentModal] 생성 오류:', err);

@@ -16,7 +16,6 @@ import { useState, useEffect, useRef } from 'react';
 export interface FmeaStats {
   total: number;
   pfmea: { master: number; family: number; part: number };
-  dfmea: number;
   bd: number;
   linked: { cp: number; pfd: number };
 }
@@ -24,7 +23,6 @@ export interface FmeaStats {
 const EMPTY: FmeaStats = {
   total: 0,
   pfmea: { master: 0, family: 0, part: 0 },
-  dfmea: 0,
   bd: 0,
   linked: { cp: 0, pfd: 0 },
 };

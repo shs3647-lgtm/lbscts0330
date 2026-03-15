@@ -29,14 +29,12 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const apqpNo = searchParams.get('apqpNo')?.toLowerCase();
         const pfmeaId = searchParams.get('pfmeaId')?.toLowerCase();
-        const dfmeaId = searchParams.get('dfmeaId')?.toLowerCase();
         const pfdNo = searchParams.get('pfdNo')?.toLowerCase();
         const cpNo = searchParams.get('cpNo')?.toLowerCase();
 
         const whereClause: any = { status: 'active' };
         if (apqpNo) whereClause.apqpNo = apqpNo;
         if (pfmeaId) whereClause.pfmeaId = pfmeaId;
-        if (dfmeaId) whereClause.dfmeaId = dfmeaId;
         if (pfdNo) whereClause.pfdNo = pfdNo;
         if (cpNo) whereClause.cpNo = cpNo;
 
@@ -58,7 +56,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST: 연동 관계 생성/수정 (Upsert)
- * Body: { apqpNo?, pfmeaId?, dfmeaId?, pfdNo?, cpNo?, 기초정보들... }
+ * Body: { apqpNo?, pfmeaId?, pfdNo?, cpNo?, 기초정보들... }
  */
 export async function POST(request: NextRequest) {
     const prisma = getPrisma();
@@ -69,7 +67,7 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const {
-            apqpNo, pfmeaId, dfmeaId, pfdNo, cpNo,
+            apqpNo, pfmeaId, pfdNo, cpNo,
             // 기초정보
             companyName, engineeringLocation, customerName, modelYear, subject,
             projectName, startDate, revisionDate, processResponsibility,
@@ -77,9 +75,9 @@ export async function POST(request: NextRequest) {
         } = body;
 
         // 최소 하나는 있어야 함
-        if (!apqpNo && !pfmeaId && !dfmeaId && !pfdNo && !cpNo) {
+        if (!apqpNo && !pfmeaId && !pfdNo && !cpNo) {
             return NextResponse.json(
-                { success: false, error: 'At least one of apqpNo, pfmeaId, dfmeaId, pfdNo, cpNo is required' },
+                { success: false, error: 'At least one of apqpNo, pfmeaId, pfdNo, cpNo is required' },
                 { status: 400 }
             );
         }
@@ -88,7 +86,6 @@ export async function POST(request: NextRequest) {
         const data: any = {
             apqpNo: apqpNo?.toLowerCase() || null,
             pfmeaId: pfmeaId?.toLowerCase() || null,
-            dfmeaId: dfmeaId?.toLowerCase() || null,
             pfdNo: pfdNo?.toLowerCase() || null,
             cpNo: cpNo?.toLowerCase() || null,
             // 기초정보
@@ -117,8 +114,6 @@ export async function POST(request: NextRequest) {
                     ...(data.apqpNo ? [{ apqpNo: data.apqpNo, status: 'active' }] : []),
                     // PFMEA 기준 매칭
                     ...(data.pfmeaId ? [{ pfmeaId: data.pfmeaId, status: 'active' }] : []),
-                    // DFMEA 기준 매칭
-                    ...(data.dfmeaId ? [{ dfmeaId: data.dfmeaId, status: 'active' }] : []),
                 ],
             },
         });

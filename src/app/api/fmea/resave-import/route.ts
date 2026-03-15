@@ -98,6 +98,7 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       });
       if (reg) {
         const raw = reg.partName || reg.subject || '';
+        // 방어적 정규화: 접미사 제거 (PFMEA/DFMEA/FMEA/생산공정)
         l1Name = raw.replace(/\+?(PFMEA|DFMEA|FMEA|생산공정)\s*$/i, '').trim();
       }
     } catch { /* registration not found */ }

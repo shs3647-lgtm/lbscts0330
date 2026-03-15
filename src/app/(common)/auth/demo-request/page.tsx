@@ -17,7 +17,6 @@ interface DemoRequestForm {
   department: string;
   position: string;
   reqPfmea: boolean;
-  reqDfmea: boolean;
   reqCp: boolean;
   reqPfd: boolean;
   message: string;
@@ -31,7 +30,6 @@ const INITIAL_FORM: DemoRequestForm = {
   department: '',
   position: '',
   reqPfmea: false,
-  reqDfmea: false,
   reqCp: false,
   reqPfd: false,
   message: '',
@@ -67,7 +65,7 @@ export default function DemoRequestPage() {
       return;
     }
 
-    if (!form.reqPfmea && !form.reqDfmea && !form.reqCp && !form.reqPfd) {
+    if (!form.reqPfmea && !form.reqCp && !form.reqPfd) {
       setError('관심 모듈을 최소 1개 이상 선택해주세요.');
       return;
     }
@@ -216,17 +214,6 @@ export default function DemoRequestPage() {
                       />
                       <span className="font-medium">PFMEA</span>
                       <span className="text-xs text-gray-400">(공정)</span>
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer hover:bg-purple-50 px-3 py-1.5 rounded border transition-colors">
-                      <input
-                        type="checkbox"
-                        name="reqDfmea"
-                        checked={form.reqDfmea}
-                        onChange={handleChange}
-                        className="w-4 h-4 text-purple-600 rounded"
-                      />
-                      <span className="font-medium">DFMEA</span>
-                      <span className="text-xs text-gray-400">(설계)</span>
                     </label>
                     <label className="flex items-center gap-1.5 cursor-pointer hover:bg-orange-50 px-3 py-1.5 rounded border transition-colors">
                       <input

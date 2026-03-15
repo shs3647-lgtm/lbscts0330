@@ -225,7 +225,6 @@ export async function POST(req: NextRequest) {
           await tx.projectLinkage.create({
             data: {
               pfmeaId: newFmeaId,
-              dfmeaId: link.dfmeaId,
               cpNo: link.cpNo,
               pfdNo: link.pfdNo,
               apqpNo: link.apqpNo,

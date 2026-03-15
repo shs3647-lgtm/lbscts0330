@@ -94,16 +94,12 @@ export async function getProjects(
     try {
       const linkages = await (prisma as any).projectLinkage.findMany({
         where: {
-          OR: [
-            { pfmeaId: { in: fmeaIds } },
-            { dfmeaId: { in: fmeaIds } }
-          ],
+          pfmeaId: { in: fmeaIds },
           status: 'active'
         }
       });
       linkages.forEach((l: any) => {
         if (l.pfmeaId) linkageMap.set(l.pfmeaId.toLowerCase(), l);
-        if (l.dfmeaId) linkageMap.set(l.dfmeaId.toLowerCase(), l);
       });
     } catch (e) {
       console.error('[fmea-project] ProjectLinkage 조회 실패:', e);
@@ -118,7 +114,7 @@ export async function getProjects(
     // ★★★ 연동 정보를 최상위 레벨에도 추가 (리스트 페이지 호환) ★★★
     const linkedPfdNo = linkage?.pfdNo || p.registration?.linkedPfdNo || '';
     const linkedCpNo = linkage?.cpNo || p.registration?.linkedCpNo || '';
-    const linkedPfmeaNo = p.registration?.linkedPfmeaNo || '';  // ★ DFMEA → PFMEA 연동
+    const linkedPfmeaNo = p.registration?.linkedPfmeaNo || '';
 
     // ★★★ 공통 데이터: ProjectLinkage 우선, 없으면 registration 사용 ★★★
     const subject = linkage?.subject || p.registration?.subject || '';
@@ -147,7 +143,7 @@ export async function getProjects(
       // ★★★ 최상위 레벨 연동 정보 (리스트 페이지 직접 접근용) ★★★
       linkedPfdNo,
       linkedCpNo,
-      linkedPfmeaNo,  // ★ DFMEA → PFMEA 연동
+      linkedPfmeaNo,
       // ★★★ fmeaInfo: ProjectLinkage 우선, registration 폴백 ★★★
       fmeaInfo: {
         companyName,
@@ -332,16 +328,12 @@ export async function getProjectsPaginated(
     try {
       const linkages = await (prisma as any).projectLinkage.findMany({
         where: {
-          OR: [
-            { pfmeaId: { in: fmeaIds } },
-            { dfmeaId: { in: fmeaIds } },
-          ],
+          pfmeaId: { in: fmeaIds },
           status: 'active',
         },
       });
       linkages.forEach((l: any) => {
         if (l.pfmeaId) linkageMap.set(l.pfmeaId.toLowerCase(), l);
-        if (l.dfmeaId) linkageMap.set(l.dfmeaId.toLowerCase(), l);
       });
     } catch (e) {
       console.error('[fmea-project] ProjectLinkage 조회 실패:', e);
@@ -637,8 +629,8 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
           fmeaResponsibleName: fmeaInfo.fmeaResponsibleName || undefined,
           linkedCpNo: fmeaInfo.linkedCpNo || undefined,  // ✅ 연동 CP
           linkedPfdNo: fmeaInfo.linkedPfdNo || undefined, // ✅ 연동 PFD
-          linkedPfmeaNo: fmeaInfo.linkedPfmeaNo || undefined, // ✅ 연동 PFMEA (DFMEA→PFMEA)
-          linkedDfmeaNo: fmeaInfo.linkedDfmeaNo || undefined, // ★ 연동 DFMEA 추가
+          linkedPfmeaNo: fmeaInfo.linkedPfmeaNo || undefined,
+          linkedDfmeaNo: fmeaInfo.linkedDfmeaNo || undefined, // legacy — DB 컬럼 유지
           partName: effectivePartName || undefined,  // ★ subject에서 자동 추출
           partNo: fmeaInfo.partNo || undefined,      // ★ 품번 추가
           remark: fmeaInfo.remark || undefined,       // ★ 비고
@@ -657,8 +649,8 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
           fmeaResponsibleName: fmeaInfo.fmeaResponsibleName || undefined,
           linkedCpNo: fmeaInfo.linkedCpNo || undefined,  // ✅ 연동 CP
           linkedPfdNo: fmeaInfo.linkedPfdNo || undefined, // ✅ 연동 PFD
-          linkedPfmeaNo: fmeaInfo.linkedPfmeaNo || undefined, // ✅ 연동 PFMEA (DFMEA→PFMEA)
-          linkedDfmeaNo: fmeaInfo.linkedDfmeaNo || undefined, // ★ 연동 DFMEA 추가
+          linkedPfmeaNo: fmeaInfo.linkedPfmeaNo || undefined,
+          linkedDfmeaNo: fmeaInfo.linkedDfmeaNo || undefined, // legacy — DB 컬럼 유지
           partName: effectivePartName || undefined,  // ★ subject에서 자동 추출
           partNo: fmeaInfo.partNo || undefined,      // ★ 품번 추가
           remark: fmeaInfo.remark || undefined,       // ★ 비고
@@ -701,10 +693,7 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
         const idLower = fmeaId.toLowerCase();
         const existingLinkage = await (tx as any).projectLinkage.findFirst({
           where: {
-            OR: [
-              { pfmeaId: idLower },
-              { dfmeaId: idLower }
-            ],
+            pfmeaId: idLower,
             status: 'active'
           }
         });
@@ -714,7 +703,7 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
 
         const commonData = {
           pfmeaId: fmeaId.toLowerCase().startsWith('pfm') ? idLower : existingLinkage?.pfmeaId || null,
-          dfmeaId: fmeaId.toLowerCase().startsWith('dfm') ? idLower : existingLinkage?.dfmeaId || null,
+          dfmeaId: existingLinkage?.dfmeaId || null, // legacy — DB 컬럼 유지
           pfdNo: fmeaInfo.linkedPfdNo?.toLowerCase() || existingLinkage?.pfdNo || null,
           cpNo: fmeaInfo.linkedCpNo?.toLowerCase() || existingLinkage?.cpNo || null,
           subject: unifiedSubject,
@@ -878,17 +867,13 @@ export async function deleteProject(
     try {
       // 1) 연결된 linkage 조회 (삭제 전에 연관 ID 확보)
       const linkedRecords = await (prisma as any).projectLinkage.findMany({
-        where: isPfmea
-          ? { pfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'active' }
-          : { dfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'active' },
+        where: { pfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'active' },
         select: { cpNo: true, pfdNo: true, apqpNo: true, pfmeaId: true, dfmeaId: true },
       });
 
       // 2) ProjectLinkage 비활성화
       await (prisma as any).projectLinkage.updateMany({
-        where: isPfmea
-          ? { pfmeaId: { equals: actualFmeaId, mode: 'insensitive' } }
-          : { dfmeaId: { equals: actualFmeaId, mode: 'insensitive' } },
+        where: { pfmeaId: { equals: actualFmeaId, mode: 'insensitive' } },
         data: { status: 'deleted' },
       });
 
@@ -913,13 +898,11 @@ export async function deleteProject(
             });
           } catch { /* 이미 삭제됨 */ }
         }
-        // 상대편 FMEA soft-delete (PFMEA→DFMEA, DFMEA→PFMEA)
-        const otherFmeaId = isPfmea ? link.dfmeaId : link.pfmeaId;
-        const otherType = isPfmea ? 'DFMEA' : 'PFMEA';
-        if (otherFmeaId && shouldDelete(otherType)) {
+        // legacy: 연동 DFMEA가 있으면 함께 soft-delete (하위호환)
+        if (link.dfmeaId && shouldDelete('DFMEA')) {
           try {
             await prisma.fmeaProject.update({
-              where: { fmeaId: otherFmeaId },
+              where: { fmeaId: link.dfmeaId },
               data: { deletedAt: now },
             });
           } catch { /* 이미 삭제됨 */ }
@@ -1022,9 +1005,7 @@ export async function restoreProject(fmeaId: string): Promise<void> {
   const isPfmea = actualFmeaId.startsWith('pfm');
   try {
     await (prisma as any).projectLinkage.updateMany({
-      where: isPfmea
-        ? { pfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'deleted' }
-        : { dfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'deleted' },
+      where: { pfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'deleted' },
       data: { status: 'active' },
     });
   } catch { /* projectLinkage 테이블 없으면 무시 */ }
@@ -1059,9 +1040,8 @@ async function hardDeleteRevision(prisma: any, fmeaId: string): Promise<void> {
 
   // 2) ProjectLinkage 삭제
   try {
-    const isPfmea = fmeaId.toLowerCase().startsWith('pfm');
     await prisma.$executeRawUnsafe(
-      `DELETE FROM "project_linkages" WHERE "${isPfmea ? 'pfmeaId' : 'dfmeaId'}" = $1`, fmeaId
+      `DELETE FROM "project_linkages" WHERE "pfmeaId" = $1`, fmeaId
     );
   } catch { /* 무시 */ }
 

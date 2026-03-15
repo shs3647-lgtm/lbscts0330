@@ -199,7 +199,7 @@ export interface ConfirmedFlags {
 
 export interface FMEAProject {
   id: string;
-  fmeaType?: 'PFMEA' | 'DFMEA';
+  fmeaType?: 'PFMEA';
   project?: {
     productName?: string;
     modelYear?: string;
