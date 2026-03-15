@@ -330,16 +330,15 @@ function nameMatchDistribute(
     }
   }
 
-  // ── 4단계: 폴백 — 빈 슬롯에 균등 배분 ──
+  // ── 4단계: 폴백 — 빈 슬롯에 꽂아넣기 (첫 빈 슬롯에 전부) ──
   if (unmatched.length > 0) {
     const emptySlots = result.map((arr, idx) => ({ idx, empty: arr.length === 0 }))
       .filter(s => s.empty);
 
     if (emptySlots.length > 0) {
-      const fallback = distribute(unmatched, emptySlots.length);
-      emptySlots.forEach((slot, fi) => {
-        result[slot.idx] = fallback[fi];
-      });
+      // ★★★ 2026-03-16 FIX: distribute → 첫 빈 슬롯에 전부 꽂아넣기
+      // 배분하면 데이터 없는 WE에도 강제 할당 → 거짓 누락행 발생
+      result[emptySlots[0].idx] = unmatched;
     } else {
       // ★★★ FIX: 마지막 WE 몰아넣기 → 전체 WE에 균등 재배분 ★★★
       // 이전: result[result.length-1].push(...unmatched) → 교차매핑 근본원인!

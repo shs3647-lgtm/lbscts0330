@@ -45,7 +45,6 @@ import {
   byCode,
   groupByM4,
   groupByProcessNo,
-  distribute,
   mapC1Category,
 } from './buildAtomicHelpers';
 import type { ProcessProductCharRecord, B1IdMapping } from './buildAtomicHelpers';
@@ -217,14 +216,13 @@ function buildL1Entities(
         l1Functions.push({ id: funcId, fmeaId, l1StructId, category, functionName: '', requirement: '' });
       }
     } else {
-      // C2 + C3 parentItemId 기반 매칭 → 폴백 distribute
+      // ★★★ 2026-03-16 FIX: distribute → parentItemId 꽂아넣기 (폴백: 첫 C2에 전부)
       const hasParentIds = c3Items.some(c3 => c3.parentItemId && c3.parentItemId !== `C2-${cat}-0`);
-      const c3Dist = distribute(c3Items, c2Items.length);
 
       c2Items.forEach((c2, i) => {
         const myC3 = hasParentIds
           ? c3Items.filter(c3 => c3.parentItemId === `C2-${cat}-${i}`)
-          : (c3Dist[i] || []);
+          : (i === 0 ? c3Items : []);  // 첫 C2에 전부 할당 (배분 금지)
         if (myC3.length === 0) {
           const funcId = uid();
           funcIds.push(funcId);
@@ -311,18 +309,25 @@ function buildL2Entities(
     });
   }
 
-  // A5 → FailureMode (A4 제품특성에 균등 배분)
+  // ★★★ 2026-03-16 FIX: A5 → FailureMode (parentItemId FK 기반 꽂아넣기)
   const l2FuncId = l2Functions.length > 0 ? l2Functions[0].id : '';
   if (sharedPCs.length > 0 && a5Items.length > 0) {
-    const a5Dist = distribute(a5Items, sharedPCs.length);
-    sharedPCs.forEach((pc, i) => {
-      a5Dist[i].forEach(a5 => {
-        failureModes.push({
-          id: uid(), fmeaId, l2FuncId, l2StructId,
-          productCharId: pc.id, mode: a5.value, specialChar: Boolean(pc.specialChar),
-        });
-      });
+    // parentItemId가 A4의 id와 일치하면 해당 PC에 연결, 미매칭 시 첫 PC
+    const a4IdToPC = new Map<string, ProcessProductCharRecord>();
+    a4Items.forEach((a4, i) => {
+      if (a4.id && i < sharedPCs.length) a4IdToPC.set(a4.id, sharedPCs[i]);
     });
+    for (const a5 of a5Items) {
+      let targetPC = sharedPCs[0]; // fallback
+      if (a5.parentItemId) {
+        const mapped = a4IdToPC.get(a5.parentItemId);
+        if (mapped) targetPC = mapped;
+      }
+      failureModes.push({
+        id: uid(), fmeaId, l2FuncId, l2StructId,
+        productCharId: targetPC.id, mode: a5.value, specialChar: Boolean(targetPC.specialChar),
+      });
+    }
     // FM 없는 PC → placeholder
     const linkedPCIds = new Set(failureModes.map(fm => fm.productCharId).filter(Boolean));
     for (const pc of sharedPCs) {
@@ -344,7 +349,7 @@ function buildL2Entities(
 
 /**
  * B2→L3Function, B3→processChar, B4→FailureCause
- * parentItemId 기반 WE 매칭 → 폴백: m4 기반 distribute
+ * parentItemId 기반 WE 매칭 → 폴백: 첫 WE에 전부 꽂아넣기
  */
 function buildL3Entities(
   fmeaId: string, l2StructId: string, l3Structures: L3Structure[],
@@ -421,25 +426,25 @@ function buildL3Entities(
   for (const [m4Key, wes] of weByM4) {
     const m4B2Unmatched = b2ByM4Unmatched.get(m4Key) || [];
     const m4B3Unmatched = b3ByM4Unmatched.get(m4Key) || [];
-    const b2Dist = m4B2Unmatched.length > 0
-      ? distribute(m4B2Unmatched, wes.length) : Array.from({ length: wes.length }, () => [] as ImportedFlatData[]);
-    const b3Dist = m4B3Unmatched.length > 0
-      ? distribute(m4B3Unmatched, wes.length) : Array.from({ length: wes.length }, () => [] as ImportedFlatData[]);
-
+    // ★★★ 2026-03-16 FIX: distribute → 첫 WE에 전부 꽂아넣기 (unmatched B2/B3)
+    // 배분하면 데이터 없는 WE에도 강제 할당 → 거짓 누락행 발생
     wes.forEach(({ l3, globalIdx }, weIdx) => {
       const parentB2 = b2Split.matched.get(globalIdx) || [];
       const parentB3 = b3Split.matched.get(globalIdx) || [];
-      const myB2 = [...parentB2, ...b2Dist[weIdx]];
-      const myB3 = [...parentB3, ...b3Dist[weIdx]];
+      // unmatched는 첫 WE에만 할당
+      const myB2 = weIdx === 0 ? [...parentB2, ...m4B2Unmatched] : [...parentB2];
+      const myB3 = weIdx === 0 ? [...parentB3, ...m4B3Unmatched] : [...parentB3];
 
       if (myB2.length > 0) {
         if (myB2.length === 1) {
           const chars = myB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' }));
           addL3Func(l3, globalIdx, myB2[0].value, chars);
         } else {
-          const b3PerFunc = distribute(myB3, myB2.length);
+          // ★★★ 2026-03-16 FIX: distribute → 첫 B2에 전부 꽂아넣기
           myB2.forEach((b2, fIdx) => {
-            const chars = b3PerFunc[fIdx].map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' }));
+            const chars = fIdx === 0
+              ? myB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' }))
+              : [];
             addL3Func(l3, globalIdx, b2.value, chars);
           });
         }
@@ -457,7 +462,7 @@ function buildL3Entities(
     });
   }
 
-  // ── B4 → FailureCause (processChar에 균등 배분) ──
+  // ── B4 → FailureCause (parentItemId FK 기반 꽂아넣기) ──
   const b4ByM4 = groupByM4(b4Items);
   const pcByM4 = new Map<string, typeof pcRecords>();
   for (const pc of pcRecords) {
@@ -469,37 +474,38 @@ function buildL3Entities(
   for (const [m4Key, m4B4] of b4ByM4) {
     const m4PCs = pcByM4.get(m4Key) || [];
     if (m4PCs.length > 0 && m4B4.length > 0) {
-      const b4Dist = distribute(m4B4, m4PCs.length);
-      m4PCs.forEach((pc, i) => {
-        b4Dist[i].forEach(b4 => {
-          const l3ForPc = l3Structures[pc.l3Idx];
-          const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
-          failureCauses.push({
-            id: uid(), fmeaId, l3FuncId: l3FuncForPc?.id || '',
-            l3StructId: l3ForPc?.id || '', l2StructId,
-            processCharId: pc.id, cause: b4.value, occurrence: 0,
-          });
+      // ★★★ 2026-03-16 FIX: distribute → parentItemId 꽂아넣기, 미매칭 시 첫 PC
+      const pcIdSet = new Set(m4PCs.map(pc => pc.id));
+      for (const b4 of m4B4) {
+        let targetPc = m4PCs[0]; // fallback
+        if (b4.parentItemId && pcIdSet.has(b4.parentItemId)) {
+          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || m4PCs[0];
+        }
+        const l3ForPc = l3Structures[targetPc.l3Idx];
+        const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
+        failureCauses.push({
+          id: uid(), fmeaId, l3FuncId: l3FuncForPc?.id || '',
+          l3StructId: l3ForPc?.id || '', l2StructId,
+          processCharId: targetPc.id, cause: b4.value, occurrence: 0,
         });
-      });
+      }
     } else if (m4PCs.length === 0 && m4B4.length > 0) {
       unmatchedB4.push(...m4B4);
     }
   }
 
-  // m4 불일치 B4 → 전체 processChars에 재배분
+  // ★★★ 2026-03-16 FIX: m4 불일치 B4 → 첫 PC에 전부 꽂아넣기 (배분 금지)
   if (unmatchedB4.length > 0 && pcRecords.length > 0) {
-    const b4Fallback = distribute(unmatchedB4, pcRecords.length);
-    pcRecords.forEach((pc, i) => {
-      b4Fallback[i].forEach(b4 => {
-        const l3ForPc = l3Structures[pc.l3Idx];
-        const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
-        failureCauses.push({
-          id: uid(), fmeaId, l3FuncId: l3FuncForPc?.id || '',
-          l3StructId: l3ForPc?.id || '', l2StructId,
-          processCharId: pc.id, cause: b4.value, occurrence: 0,
-        });
+    const firstPc = pcRecords[0];
+    const l3ForPc = l3Structures[firstPc.l3Idx];
+    const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
+    for (const b4 of unmatchedB4) {
+      failureCauses.push({
+        id: uid(), fmeaId, l3FuncId: l3FuncForPc?.id || '',
+        l3StructId: l3ForPc?.id || '', l2StructId,
+        processCharId: firstPc.id, cause: b4.value, occurrence: 0,
       });
-    });
+    }
   } else if (unmatchedB4.length > 0) {
     const firstL3 = l3Structures[0];
     const firstL3Func = l3Functions.find(f => f.l3StructId === firstL3?.id);

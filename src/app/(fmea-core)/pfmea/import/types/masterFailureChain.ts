@@ -250,17 +250,10 @@ export function buildFailureChainsFromFlat(
           fc.excelRow != null && fc.excelRow >= fm.excelRow! && fc.excelRow <= rowEnd,
         );
       } else if (fcs.length > 0) {
-        // ★★★ 2026-03-01 FIX: 라운드로빈 분배 — 모든 FM에 최소 1개 FC 보장 ★★★
-        // 이전(Math.ceil chunking): 앞쪽 FM이 FC 과다소비 → 뒤쪽 FM에 FC 미할당 (16건 누락)
-        // 수정: floor + 나머지 균등 분배 → FM ≤ FC이면 모든 FM에 최소 1건 보장
-        const base = Math.floor(fcs.length / fms.length);
-        const remainder = fcs.length % fms.length;
-        let offset = 0;
-        for (let i = 0; i < fmIdx; i++) {
-          offset += base + (i < remainder ? 1 : 0);
-        }
-        const count = base + (fmIdx < remainder ? 1 : 0);
-        matchedFCs = fcs.slice(offset, offset + count);
+        // ★★★ 2026-03-16 FIX: 라운드로빈 배분 제거 → 첫 FM에 전부 꽂아넣기
+        // 배분하면 데이터 없는 FM에도 FC 강제 할당 → 거짓 누락행 발생
+        // excelRow 없으면 정확한 FM↔FC 매칭 불가 → 첫 FM에 전부 보수적 할당
+        matchedFCs = fmIdx === 0 ? fcs : [];
       } else {
         matchedFCs = [];
       }
