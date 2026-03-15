@@ -1,8 +1,8 @@
 /**
  * @file supplementChainsFromFlatData.ts
- * @description 메인시트(flatData)에 있지만 FC시트 chains에 없는 FC/FE 항목을 보충
+ * @description 메인시트(flatData)에 있지만 FC시트 chains에 없는 FM/FC/FE 항목을 보충
  *
- * FAVerificationBar에서 chainFC vs fdFC, chainFE vs fdFE 비교 시
+ * FAVerificationBar에서 chainFM vs fdFM, chainFC vs fdFC, chainFE vs fdFE 비교 시
  * FC시트가 메인시트의 일부만 커버하는 경우 미매칭이 발생한다.
  * 이 함수는 메인시트의 누락 항목을 chains에 추가하여 검증을 통과시킨다.
  *
@@ -124,10 +124,83 @@ export function supplementChainsFromFlatData(
   const defaultFE = allFEValues.length > 0 ? allFEValues[0] : { feValue: '', feScope: '' };
 
   const newChains: MasterFailureChain[] = [];
+  let fmIdx = 0;
   let fcIdx = 0;
   let feIdx = 0;
 
-  // ── 3. flatData B4 항목 중 chains에 없는 FC 보충 ──
+  // ── 3. flatData A5 항목 중 chains에 없는 FM 보충 ──
+  // FAVerificationBar는 "processNo|fmValue" 기준으로 FM 매칭을 비교한다.
+  // 메인시트(A5)에 있지만 FC시트 chains에 없는 FM → synthetic chain 생성
+  const existingFMKeys = new Set<string>();
+  for (const chain of chains) {
+    if (chain.fmValue?.trim()) {
+      const normPNo = normalizeProcessNo(chain.processNo);
+      existingFMKeys.add(`${normPNo}|${chain.fmValue.trim()}`);
+    }
+  }
+
+  // ── 보조 인덱스: 공정별 FC (flatData B4) ──
+  const flatFCByProcess = new Map<string, { fcValue: string; m4?: string }>();
+  for (const d of flatData) {
+    if (d.itemCode === 'B4' && d.value?.trim()) {
+      const normPNo = normalizeProcessNo(d.processNo);
+      if (normPNo && !flatFCByProcess.has(normPNo)) {
+        flatFCByProcess.set(normPNo, { fcValue: d.value.trim(), m4: d.m4 });
+      }
+    }
+  }
+
+  // ── 보조 인덱스: 공정별 FC (chains) ──
+  const chainFCByProcess = new Map<string, { fcValue: string; m4?: string }>();
+  for (const chain of chains) {
+    const normPNo = normalizeProcessNo(chain.processNo);
+    if (normPNo && chain.fcValue?.trim() && !chainFCByProcess.has(normPNo)) {
+      chainFCByProcess.set(normPNo, { fcValue: chain.fcValue.trim(), m4: chain.m4 });
+    }
+  }
+
+  for (const d of flatData) {
+    if (d.itemCode !== 'A5') continue;
+    if (!d.value?.trim()) continue;
+
+    const normPNo = normalizeProcessNo(d.processNo);
+    const fmKey = `${normPNo}|${d.value.trim()}`;
+
+    if (existingFMKeys.has(fmKey)) continue;
+    // 중복 방지: 이미 이번 보충에서 추가한 키
+    existingFMKeys.add(fmKey);
+
+    // FC 결정: chains에서 같은 공정 → flatData B4에서 같은 공정
+    const fcInfo =
+      chainFCByProcess.get(normPNo) ||
+      flatFCByProcess.get(normPNo) ||
+      { fcValue: '', m4: undefined };
+
+    // FE 결정: chains에서 같은 공정 → flatData C4에서 같은 공정 → 전체 첫 번째 FE
+    const feInfo =
+      chainFEByProcess.get(normPNo) ||
+      flatFEByProcess.get(normPNo) ||
+      defaultFE;
+
+    // m4 결정: chains에서 같은 공정 → FC info
+    const m4 = chainM4ByProcess.get(normPNo) || fcInfo.m4 || undefined;
+
+    newChains.push({
+      id: `supplement-fm-${fmIdx++}`,
+      processNo: normPNo || d.processNo || '',
+      m4,
+      fmValue: d.value.trim(),
+      fcValue: fcInfo.fcValue,
+      feValue: feInfo.feValue,
+      feScope: feInfo.feScope || undefined,
+    });
+  }
+
+  if (fmIdx > 0) {
+    console.log(`[supplement] FM ${fmIdx}건 보충 (메인시트 A5 → FC시트 누락분)`);
+  }
+
+  // ── 4. flatData B4 항목 중 chains에 없는 FC 보충 ──
   for (const d of flatData) {
     if (d.itemCode !== 'B4') continue;
     if (!d.value?.trim()) continue;
@@ -165,7 +238,7 @@ export function supplementChainsFromFlatData(
     });
   }
 
-  // ── 4. flatData C4 항목 중 chains에 없는 FE 보충 ──
+  // ── 5. flatData C4 항목 중 chains에 없는 FE 보충 ──
   for (const d of flatData) {
     if (d.itemCode !== 'C4') continue;
     if (!d.value?.trim()) continue;
@@ -193,6 +266,6 @@ export function supplementChainsFromFlatData(
     });
   }
 
-  // ── 5. 원본 불변: 새 배열 반환 ──
+  // ── 6. 원본 불변: 새 배열 반환 ──
   return [...chains, ...newChains];
 }
