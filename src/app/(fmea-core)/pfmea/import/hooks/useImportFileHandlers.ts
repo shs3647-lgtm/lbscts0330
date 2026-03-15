@@ -227,27 +227,17 @@ export function useImportFileHandlers({
         p.processDesc.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A3-${i}`, processNo: pNo, category: 'A', itemCode: 'A3', value: ensureString(v), parentItemId: `${pNo}-A1`, createdAt: new Date() }, 'A3', i)));
         p.productChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A4-${i}`, processNo: pNo, category: 'A', itemCode: 'A4', value: ensureString(v), specialChar: p.productCharsSpecialChar?.[i] || undefined, parentItemId: `${pNo}-A3-0`, createdAt: new Date() }, 'A4', i)));
         p.failureModes.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A5-${i}`, processNo: pNo, category: 'A', itemCode: 'A5', value: ensureString(v), parentItemId: `${pNo}-A4-0`, createdAt: new Date() }, 'A5', i)));
-        p.workElements.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B1-${i}`, processNo: pNo, category: 'B', itemCode: 'B1', value: ensureString(v), m4: p.workElements4M?.[i] || '', parentItemId: `${pNo}-A1`, createdAt: new Date() }, 'B1', i)));
-        // ★★★ 2026-03-10: B2/B3 parentItemId를 올바른 B1에 연결 (WE명+m4 기반) ★★★
-        // 이전: 항상 B1-0에 고정 → 모든 B2/B3가 첫 번째 WE에 몰려 나머지 WE processChars 빈 상태 → auto-supplement +1
-        const findB1Idx = (weName: string | undefined, m4: string): number => {
-          if (!weName) return 0;
-          for (let j = 0; j < p.workElements.length; j++) {
-            if (ensureString(p.workElements[j]) === weName && (p.workElements4M?.[j] || '') === m4) return j;
-          }
-          // m4 무시 폴백
-          for (let j = 0; j < p.workElements.length; j++) {
-            if (ensureString(p.workElements[j]) === weName) return j;
-          }
-          console.warn(`[Import B2/B3] WE 매칭 실패 — 공정=${pNo} WE명="${weName}" → 첫 번째 WE(0)로 폴백`);
-          return 0;
-        };
-        p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B2-${i}`, processNo: pNo, category: 'B', itemCode: 'B2', value: ensureString(v), m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || '')}`, createdAt: new Date() }, 'B2', i)));
-        p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B3-${i}`, processNo: pNo, category: 'B', itemCode: 'B3', value: ensureString(v), m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.processCharsWE?.[i], p.processChars4M?.[i] || '')}`, createdAt: new Date() }, 'B3', i)));
-        // ★★★ 2026-03-15 FIX: B4도 B2/B3와 동일하게 belongsTo + findB1Idx로 WE 매칭 ★★★
-        // 이전: parentItemId가 항상 B3-0 고정 → 모든 FC가 첫 번째 WE에 몰림
-        // 수정: failureCausesWE 기반 WE 매칭 → 올바른 processChar에 FC 배분
-        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B4-${i}`, processNo: pNo, category: 'B', itemCode: 'B4', value: ensureString(v), m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.failureCausesWE?.[i], p.failureCauses4M?.[i] || '')}`, createdAt: new Date() }, 'B4', i)));
+        // ★★★ 2026-03-16: B1 UUID 기반 — import-builder.ts 패턴 통일 ★★★
+        p.workElements.forEach((v, i) => {
+          const b1Uuid = uuidv4();
+          const weKey = `${pNo}|${p.workElements4M?.[i] || ''}|${ensureString(v)}`;
+          globalB1IdMap.set(weKey, b1Uuid);
+          flat.push(withMeta({ id: b1Uuid, processNo: pNo, category: 'B', itemCode: 'B1', value: ensureString(v), m4: p.workElements4M?.[i] || '', parentItemId: `${pNo}-A1`, createdAt: new Date() }, 'B1', i));
+        });
+        // ★★★ 2026-03-16: B2/B3/B4 parentItemId를 B1 UUID로 직접 참조 ★★★
+        p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B2-${i}`, processNo: pNo, category: 'B', itemCode: 'B2', value: ensureString(v), m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: findB1Uuid(pNo, p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || ''), createdAt: new Date() }, 'B2', i)));
+        p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B3-${i}`, processNo: pNo, category: 'B', itemCode: 'B3', value: ensureString(v), m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: findB1Uuid(pNo, p.processCharsWE?.[i], p.processChars4M?.[i] || ''), createdAt: new Date() }, 'B3', i)));
+        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B4-${i}`, processNo: pNo, category: 'B', itemCode: 'B4', value: ensureString(v), m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: findB1Uuid(pNo, p.failureCausesWE?.[i], p.failureCauses4M?.[i] || ''), createdAt: new Date() }, 'B4', i)));
         // ★★★ 2026-03-14 SRP: B5/A6 템플릿 데이터는 FC 체인이 없을 때만 사용 (아래에서 처리) ★★★
         // p.preventionCtrls / p.detectionCtrls → FC 체인 우선, 템플릿은 폴백
       });
@@ -330,7 +320,7 @@ export function useImportFileHandlers({
             const key = `${ch.processNo}|${ch.m4 || ''}|${ch.l3Function.trim()}`;
             if (b2Seen.has(key)) continue;
             b2Seen.add(key);
-            flat.push({ id: `${ch.processNo}-B2-fc-${b2Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B2', value: ch.l3Function.trim(), m4: ch.m4 || '', belongsTo: ch.workElement || undefined, parentItemId: `${ch.processNo}-B1-0`, createdAt: new Date() });
+            flat.push({ id: `${ch.processNo}-B2-fc-${b2Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B2', value: ch.l3Function.trim(), m4: ch.m4 || '', belongsTo: ch.workElement || undefined, parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
             b2Idx++;
           }
         }
@@ -360,7 +350,7 @@ export function useImportFileHandlers({
             const key = `${ch.processNo}|${ch.m4 || ''}|${ch.processChar.trim()}`;
             if (b3Seen.has(key)) continue;
             b3Seen.add(key);
-            flat.push({ id: `${ch.processNo}-B3-fc-${b3Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B3', value: ch.processChar.trim(), m4: ch.m4 || '', parentItemId: `${ch.processNo}-B2-0`, createdAt: new Date() });
+            flat.push({ id: `${ch.processNo}-B3-fc-${b3Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B3', value: ch.processChar.trim(), m4: ch.m4 || '', parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
             b3Idx++;
           }
         }

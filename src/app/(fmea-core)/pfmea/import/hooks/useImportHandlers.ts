@@ -6,6 +6,7 @@
 
 // CODEFREEZE: DB Only 정책 적용 완료 (2026-02-16) - localStorage pfmea_master_data 폴백 제거
 import { useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { ImportedFlatData } from '../types';
 import { parseMultiSheetExcel, ParseResult } from '../excel-parser';
 import { FMEAProject } from './useImportState';
@@ -209,6 +210,23 @@ export function useImportHandlers(props: UseImportHandlersProps) {
       setParseResult(result);
 
       const flat: ImportedFlatData[] = [];
+      // ★★★ 2026-03-16: UUID 기반 parentItemId 매칭 (import-builder.ts 패턴 통일) ★★★
+      const b1IdMap = new Map<string, string>(); // `pNo|m4|weName` → B1 UUID
+      const findB1Uuid = (pNo: string, weName: string | undefined, m4: string): string | undefined => {
+        if (weName) {
+          const exactKey = `${pNo}|${m4}|${weName}`;
+          const exact = b1IdMap.get(exactKey);
+          if (exact) return exact;
+          for (const [k, v] of b1IdMap) {
+            if (k.startsWith(`${pNo}|`) && k.endsWith(`|${weName}`)) return v;
+          }
+        }
+        for (const [k, v] of b1IdMap) {
+          if (k.startsWith(`${pNo}|`)) return v;
+        }
+        return undefined;
+      };
+
       result.processes.forEach((p) => {
         const meta = (code: string, i: number) => p.itemMeta?.[`${code}-${i}`];
         const withMeta = (base: ImportedFlatData, code: string, i: number): ImportedFlatData => {
@@ -224,11 +242,17 @@ export function useImportHandlers(props: UseImportHandlersProps) {
         p.processDesc.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-A3-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A3', value: v, parentItemId: `${p.processNo}-A1`, createdAt: new Date() }, 'A3', i)));
         p.productChars.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-A4-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A4', value: v, specialChar: p.productCharsSpecialChar?.[i] || undefined, parentItemId: `${p.processNo}-A3-0`, createdAt: new Date() }, 'A4', i)));
         p.failureModes.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-A5-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A5', value: v, parentItemId: `${p.processNo}-A4-0`, createdAt: new Date() }, 'A5', i)));
-        p.workElements.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B1-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B1', value: v, m4: p.workElements4M?.[i] || '', parentItemId: `${p.processNo}-A1`, createdAt: new Date() }, 'B1', i)));
-        p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: `${p.processNo}-B1-0`, createdAt: new Date() }, 'B2', i)));
-        p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: `${p.processNo}-B2-0`, createdAt: new Date() }, 'B3', i)));
-        // ★★★ 2026-03-15 FIX: B4에 belongsTo(WE 소속) 추가 — dedup 키에 WE 컨텍스트 필요 ★★★
-        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: `${p.processNo}-B3-0`, createdAt: new Date() }, 'B4', i)));
+        // ★★★ B1: UUID 기반 ID + globalB1IdMap 등록 ★★★
+        p.workElements.forEach((v, i) => {
+          const b1Uuid = uuidv4();
+          const weKey = `${p.processNo}|${p.workElements4M?.[i] || ''}|${v}`;
+          b1IdMap.set(weKey, b1Uuid);
+          flat.push(withMeta({ id: b1Uuid, processNo: p.processNo, category: 'B', itemCode: 'B1', value: v, m4: p.workElements4M?.[i] || '', parentItemId: `${p.processNo}-A1`, createdAt: new Date() }, 'B1', i));
+        });
+        // ★★★ B2/B3/B4: parentItemId를 B1 UUID로 직접 참조 ★★★
+        p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: findB1Uuid(p.processNo, p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || ''), createdAt: new Date() }, 'B2', i)));
+        p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: findB1Uuid(p.processNo, p.processCharsWE?.[i], p.processChars4M?.[i] || ''), createdAt: new Date() }, 'B3', i)));
+        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: findB1Uuid(p.processNo, p.failureCausesWE?.[i], p.failureCauses4M?.[i] || ''), createdAt: new Date() }, 'B4', i)));
       });
       // ★ C1 카테고리 영문 풀네임 → 약어 변환 (Your Plant→YP 등)
       const C1_CATEGORY_MAP: Record<string, string> = {
@@ -249,8 +273,32 @@ export function useImportHandlers(props: UseImportHandlersProps) {
         };
         flat.push({ id: `C1-${categoryValue}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: categoryValue, createdAt: new Date() });
         p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: v, parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
-        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, parentItemId: `C2-${categoryValue}-0`, createdAt: new Date() }, 'C3', i)));
-        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, parentItemId: `C3-${categoryValue}-0`, createdAt: new Date() }, 'C4', i)));
+        // ★★★ 2026-03-16: C3 → C2 균등배분 (하드코딩 -0 제거) ★★★
+        const c2Count = Math.max(1, p.productFuncs.length);
+        p.requirements.forEach((v, i) => {
+          const reqCount = p.requirements.length;
+          const base = Math.floor(reqCount / c2Count);
+          const extra = reqCount % c2Count;
+          let slot = 0, acc = 0;
+          for (let s = 0; s < c2Count; s++) {
+            acc += s < extra ? base + 1 : base;
+            if (i < acc) { slot = s; break; }
+          }
+          flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, parentItemId: `C2-${categoryValue}-${slot}`, createdAt: new Date() }, 'C3', i));
+        });
+        // ★★★ 2026-03-16: C4 → C3 균등배분 (하드코딩 -0 제거) ★★★
+        const c3Count = Math.max(1, p.requirements.length);
+        p.failureEffects.forEach((v, i) => {
+          const feCount = p.failureEffects.length;
+          const base = Math.floor(feCount / c3Count);
+          const extra = feCount % c3Count;
+          let slot = 0, acc = 0;
+          for (let s = 0; s < c3Count; s++) {
+            acc += s < extra ? base + 1 : base;
+            if (i < acc) { slot = s; break; }
+          }
+          flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, parentItemId: `C3-${categoryValue}-${slot}`, createdAt: new Date() }, 'C4', i));
+        });
       });
 
       setPendingData(flat);
