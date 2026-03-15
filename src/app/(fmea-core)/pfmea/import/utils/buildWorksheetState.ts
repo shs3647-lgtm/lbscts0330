@@ -97,11 +97,31 @@ function isCommonProcessNo(pNo: string): boolean {
     normalized === '공통공정' || normalized === '공통';
 }
 
-/** processNo별로 flat items 그룹핑 (★ 원본 processNo 그대로 사용 — 사용자가 엑셀에서 정규화) */
+/**
+ * ★ processNo 정규화 — '01' vs '1' 불일치 방지
+ * FC 시트 sanitizeProcessNo는 앞자리 0 제거, L3 시트는 원본 유지 → 동일 공정이 분리됨
+ */
+function normalizePno(pno: string | undefined): string {
+  if (!pno) return '';
+  const trimmed = pno.trim();
+  if (!trimmed) return '';
+  if (/^\d+$/.test(trimmed)) return String(parseInt(trimmed, 10));
+  return trimmed;
+}
+
+/**
+ * processNo별로 flat items 그룹핑
+ * ★ normalizePno로 '01'과 '1'을 동일 그룹으로 병합
+ * ★ 첫 번째로 등장한 원본 processNo를 canonical key로 사용
+ */
 function groupByProcessNo(data: ImportedFlatData[]): Map<string, ImportedFlatData[]> {
   const map = new Map<string, ImportedFlatData[]>();
+  const normToCanonical = new Map<string, string>(); // normalized → first-seen raw
   for (const item of data) {
-    const key = item.processNo;
+    const raw = item.processNo;
+    const norm = normalizePno(raw);
+    if (!normToCanonical.has(norm)) normToCanonical.set(norm, raw);
+    const key = normToCanonical.get(norm)!;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(item);
   }
