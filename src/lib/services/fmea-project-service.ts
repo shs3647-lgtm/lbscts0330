@@ -975,14 +975,6 @@ export async function deleteProject(
       }
     } catch { /* pfmeaMasterDataset 없으면 무시 */ }
 
-    // 4-2) DFMEA BD 데이터도 삭제
-    try {
-      const deleted = await prisma.dfmeaMasterDataset.deleteMany({
-        where: { fmeaId: actualFmeaId },
-      });
-      if (deleted.count > 0) {
-      }
-    } catch { /* dfmeaMasterDataset 없으면 무시 */ }
 
     // 5) WS soft-delete (parentFmeaId 기반)
     if (shouldDelete('WS')) {

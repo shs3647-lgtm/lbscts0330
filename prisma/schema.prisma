@@ -435,43 +435,6 @@ model PfmeaMasterFlatItem {
   @@map("pfmea_master_flat_items")
 }
 
-// ★★★ 2026-02-16: DFMEA도 동일한 1 FMEA = 1 Dataset 구조 ★★★
-model DfmeaMasterDataset {
-  id             String                @id @default(uuid())
-  name           String
-  fmeaId         String                @unique  // ★ 1 FMEA = 1 Dataset
-  fmeaType       String                         // M | F | P
-  parentFmeaId   String?                        // 상위 FMEA 연결
-  isActive       Boolean               @default(true)
-  version        Int                    @default(1)
-  relationData   Json?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  flatItems      DfmeaMasterFlatItem[]
-
-  @@index([fmeaId])
-  @@index([fmeaType])
-  @@index([isActive])
-  @@map("dfmea_master_datasets")
-}
-
-model DfmeaMasterFlatItem {
-  id           String             @id @default(uuid())
-  datasetId    String
-  processNo    String
-  category     String
-  itemCode     String
-  value        String
-  inherited    Boolean            @default(false)  // ★ 상위에서 가져온 데이터
-  sourceId     String?                              // ★ 원본 dataset ID
-  createdAt    DateTime           @default(now())
-  dataset      DfmeaMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
-
-  @@unique([datasetId, processNo, itemCode, value])
-  @@index([datasetId])
-  @@map("dfmea_master_flat_items")
-}
-
 model FailureLink {
   id              String           @id @default(uuid())
   fmeaId          String
@@ -1268,53 +1231,6 @@ model PfmeaDetectionCriteria {
   @@map("pfmea_detection_criteria")
 }
 
-model DfmeaSeverityCriteria {
-  id          String   @id @default(uuid())
-  rating      Int      @unique
-  scope       String
-  effect      String
-  description String
-  example     String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([rating])
-  @@index([scope])
-  @@map("dfmea_severity_criteria")
-}
-
-model DfmeaOccurrenceCriteria {
-  id          String   @id @default(uuid())
-  rating      Int      @unique
-  probability String
-  ppm         String?
-  description String
-  prevention  String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([rating])
-  @@map("dfmea_occurrence_criteria")
-}
-
-model DfmeaDetectionCriteria {
-  id          String   @id @default(uuid())
-  rating      Int      @unique
-  maturity    String
-  description String
-  detection   String?
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([rating])
-  @@map("dfmea_detection_criteria")
-}
 
 model SpecialCharacteristicCriteria {
   id          String   @id @default(uuid())

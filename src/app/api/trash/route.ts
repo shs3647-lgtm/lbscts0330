@@ -269,10 +269,6 @@ async function permanentDelete(
             await tx.pfmeaMasterFlatItem.deleteMany({
               where: { sourceFmeaId: { equals: actualDocNo, mode: 'insensitive' } },
             });
-          } else {
-            await tx.dfmeaMasterFlatItem.deleteMany({
-              where: { sourceFmeaId: { equals: actualDocNo, mode: 'insensitive' } },
-            });
           }
         } catch { /* 무시 */ }
         // MasterDataset 정리: flatItem이 0개인 고아 dataset 삭제
@@ -283,15 +279,6 @@ async function permanentDelete(
             });
             if (orphaned.length > 0) {
               await tx.pfmeaMasterDataset.deleteMany({
-                where: { id: { in: orphaned.map((d: { id: string }) => d.id) } },
-              });
-            }
-          } else {
-            const orphaned = await tx.dfmeaMasterDataset.findMany({
-              where: { flatItems: { none: {} } }, select: { id: true },
-            });
-            if (orphaned.length > 0) {
-              await tx.dfmeaMasterDataset.deleteMany({
                 where: { id: { in: orphaned.map((d: { id: string }) => d.id) } },
               });
             }

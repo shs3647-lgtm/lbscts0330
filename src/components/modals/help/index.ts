@@ -16,7 +16,6 @@
  * │  ├── manual-dashboard.ts ← 대시보드, MyJob, 결재, Top RPN
  * │  ├── manual-ap-lld.ts  ← AP 개선관리, 습득교훈(LLD), FC검증
  * │  ├── manual-cp-pfd.ts  ← CP/PFD 상세 + 연동
- * │  ├── manual-dfmea.ts   ← DFMEA 모듈
  * │  ├── manual-admin.ts   ← 관리자, 기초정보 관리, WS, PM
  * │  ├── manual-apqp.ts    ← APQP 상세
  * │  └── manual-glossary.ts ← FMEA 용어집
@@ -46,7 +45,6 @@ import { MODALS_ITEMS_KO, MODALS_ITEMS_EN } from './manual-modals';
 import { DASHBOARD_ITEMS_KO, DASHBOARD_ITEMS_EN } from './manual-dashboard';
 import { AP_LLD_ITEMS_KO, AP_LLD_ITEMS_EN } from './manual-ap-lld';
 import { CP_PFD_ITEMS_KO, CP_PFD_ITEMS_EN } from './manual-cp-pfd';
-import { DFMEA_ITEMS_KO, DFMEA_ITEMS_EN } from './manual-dfmea';
 import { ADMIN_ITEMS_KO, ADMIN_ITEMS_EN } from './manual-admin';
 import { APQP_DETAIL_ITEMS_KO, APQP_DETAIL_ITEMS_EN } from './manual-apqp';
 import { GLOSSARY_ITEMS_KO, GLOSSARY_ITEMS_EN } from './manual-glossary';
@@ -69,7 +67,6 @@ export const MANUAL_DATA: Record<Language, ManualItem[]> = {
     ...DASHBOARD_ITEMS_KO,
     ...AP_LLD_ITEMS_KO,
     ...CP_PFD_ITEMS_KO,
-    ...DFMEA_ITEMS_KO,
     ...ADMIN_ITEMS_KO,
     ...APQP_DETAIL_ITEMS_KO,
     ...GLOSSARY_ITEMS_KO,
@@ -85,7 +82,6 @@ export const MANUAL_DATA: Record<Language, ManualItem[]> = {
     ...DASHBOARD_ITEMS_EN,
     ...AP_LLD_ITEMS_EN,
     ...CP_PFD_ITEMS_EN,
-    ...DFMEA_ITEMS_EN,
     ...ADMIN_ITEMS_EN,
     ...APQP_DETAIL_ITEMS_EN,
     ...GLOSSARY_ITEMS_EN,
