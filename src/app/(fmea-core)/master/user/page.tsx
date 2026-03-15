@@ -107,14 +107,27 @@ export default function UserMasterPage() {
 
   // 삭제
   const handleDelete = async () => {
-    if (selectedId) {
-      if (confirm('선택한 사용자를 삭제하시겠습니까?')) {
-        await deleteUser(selectedId);
-        await refreshData();
-        setSelectedId(null);
-      }
-    } else {
-      alert('삭제할 사용자를 선택해주세요.');
+    if (!selectedId) {
+      window.alert('삭제할 사용자를 선택해주세요(Please select a user to delete).');
+      return;
+    }
+    const user = users.find(u => u.id === selectedId);
+    if (!user) {
+      window.alert('❌ 선택된 사용자를 찾을 수 없습니다(User not found).');
+      return;
+    }
+    const confirmed = window.confirm(`"${user.name}" (${user.factory}/${user.department}) 삭제하시겠습니까(Delete)?`);
+    if (!confirmed) return;
+    try {
+      await deleteUser(selectedId);
+      await refreshData();
+      setSelectedId(null);
+      setEditingUser(null);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '알 수 없는 오류';
+      console.error('[UserMasterPage] 삭제 오류:', error);
+      window.alert(`❌ 삭제 실패(Delete Failed):\n${msg}`);
+      await refreshData();
     }
   };
 

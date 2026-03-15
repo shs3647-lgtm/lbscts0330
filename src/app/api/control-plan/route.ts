@@ -416,53 +416,126 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 목록 조회 (fmeaId 필터 지원)
-    const whereClause: any = { deletedAt: null };
+    // 목록 조회 (fmeaId 필터 지원 + 서버사이드 페이지네이션)
+    const pageParam = searchParams.get('page');
+    const sizeParam = searchParams.get('size');
+    const sortFieldParam = searchParams.get('sortField');
+    const sortOrderParam = searchParams.get('sortOrder');
+    const searchParam = searchParams.get('search');
+
+    // ★ includeDeleted: 휴지통 모드 (삭제된 항목 포함)
+    const includeDeleted = searchParams.get('includeDeleted') === 'true';
+    const whereClause: any = includeDeleted ? {} : { deletedAt: null };
     if (fmeaId) {
       whereClause.fmeaId = fmeaId;
     }
 
-    const cps = await prisma.cpRegistration.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        cpNo: true,
-        fmeaId: true,
-        fmeaNo: true,
-        parentApqpNo: true,  // ★ 상위 APQP
-        parentCpId: true,    // ★ 상위 CP
-        linkedPfdNo: true,   // ★★★ 연동 PFD (DB 필드 직접 조회)
-        customerName: true,
-        modelYear: true,
-        subject: true,
-        cpType: true,
-        confidentialityLevel: true,
-        cpStartDate: true,
-        cpRevisionDate: true,
-        processResponsibility: true,
-        cpResponsibleName: true,
-        // Family CP 필드
-        familyGroupId: true,
-        variantNo: true,
-        variantLabel: true,
-        isBaseVariant: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            cftMembers: true,
-            processes: true,
-          },
+    // ★ 검색 필터 (search → OR clause)
+    if (searchParam && searchParam.trim()) {
+      const q = searchParam.trim();
+      whereClause.OR = [
+        { cpNo: { contains: q, mode: 'insensitive' } },
+        { subject: { contains: q, mode: 'insensitive' } },
+        { customerName: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    // ★ 정렬 (화이트리스트)
+    const SORTABLE_FIELDS = ['createdAt', 'updatedAt', 'cpNo', 'subject', 'customerName', 'processResponsibility', 'cpResponsibleName', 'confidentialityLevel'];
+    const resolvedSortField = sortFieldParam && SORTABLE_FIELDS.includes(sortFieldParam) ? sortFieldParam : 'createdAt';
+    const resolvedSortOrder = sortOrderParam === 'asc' ? 'asc' : 'desc';
+
+    const selectFields = {
+      id: true,
+      cpNo: true,
+      fmeaId: true,
+      fmeaNo: true,
+      parentApqpNo: true,  // ★ 상위 APQP
+      parentCpId: true,    // ★ 상위 CP
+      linkedPfdNo: true,   // ★★★ 연동 PFD (DB 필드 직접 조회)
+      customerName: true,
+      modelYear: true,
+      subject: true,
+      cpType: true,
+      confidentialityLevel: true,
+      cpStartDate: true,
+      cpRevisionDate: true,
+      processResponsibility: true,
+      cpResponsibleName: true,
+      // Family CP 필드
+      familyGroupId: true,
+      variantNo: true,
+      variantLabel: true,
+      isBaseVariant: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      deletedAt: true,
+      _count: {
+        select: {
+          cftMembers: true,
+          processes: true,
         },
       },
-    });
+    };
 
-    // 디버그: 조회된 데이터 확인
-    if (cps.length > 0) {
-      const sample = cps[0];
+    // ★ 페이지네이션 모드 (page 파라미터 존재 시)
+    if (pageParam) {
+      const PAGE_SIZE = sizeParam ? Math.min(Math.max(parseInt(sizeParam, 10) || 50, 1), 200) : 50;
+      const currentPage = Math.max(parseInt(pageParam, 10) || 1, 1);
+
+      const [totalCount, cps] = await Promise.all([
+        prisma.cpRegistration.count({ where: whereClause }),
+        prisma.cpRegistration.findMany({
+          where: whereClause,
+          orderBy: { [resolvedSortField]: resolvedSortOrder },
+          skip: (currentPage - 1) * PAGE_SIZE,
+          take: PAGE_SIZE,
+          select: selectFields,
+        }),
+      ]);
+
+      const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+      // ★★★ ProjectLinkage(중앙 연동DB)에서 연동 PFD 조회 ★★★
+      const cpNos = cps.map(cp => cp.cpNo);
+      const linkageMap = new Map<string, string>();
+
+      try {
+        const linkages = await (prisma as any).projectLinkage.findMany({
+          where: { cpNo: { in: cpNos }, status: 'active' },
+          select: { cpNo: true, pfdNo: true },
+        });
+        linkages.forEach((l: { cpNo?: string; pfdNo?: string }) => {
+          if (l.cpNo && l.pfdNo) linkageMap.set(l.cpNo.toLowerCase(), l.pfdNo);
+        });
+      } catch (e) {
+        console.error('[CP API] ProjectLinkage 목록 조회 오류:', e);
+      }
+
+      const cpsWithLinkage = cps.map(cp => ({
+        ...cp,
+        linkedPfdNo: (cp as any).linkedPfdNo || linkageMap.get(cp.cpNo?.toLowerCase() || '') || null,
+      }));
+
+      return NextResponse.json({
+        success: true,
+        data: cpsWithLinkage,
+        pagination: {
+          page: currentPage,
+          pageSize: PAGE_SIZE,
+          totalCount,
+          totalPages,
+        },
+      });
     }
+
+    // ★ 레거시 모드 (page 파라미터 없음 — 하위 호환)
+    const cps = await prisma.cpRegistration.findMany({
+      where: whereClause,
+      orderBy: { [resolvedSortField]: resolvedSortOrder },
+      select: selectFields,
+    });
 
     // ★★★ ProjectLinkage(중앙 연동DB)에서 연동 PFD 조회 ★★★
     const cpNos = cps.map(cp => cp.cpNo);
@@ -578,5 +651,89 @@ export async function DELETE(request: NextRequest) {
       { success: false, error: error.message || 'CP 삭제 실패' },
       { status: 500 }
     );
+  }
+}
+
+// ============================================================================
+// PATCH: CP 복원 (휴지통 → 활성)
+// ============================================================================
+export async function PATCH(request: NextRequest) {
+  const prisma = getPrisma();
+  if (!prisma) {
+    return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
+  }
+
+  try {
+    const body = await request.json();
+    const { action, cpNo } = body;
+
+    if (!cpNo || !['restore', 'softDelete'].includes(action)) {
+      return NextResponse.json({ success: false, error: 'action=(restore|softDelete) and cpNo required' }, { status: 400 });
+    }
+
+    const cpNoLower = cpNo.toLowerCase();
+
+    if (action === 'restore') {
+      // 1) CP 복원 (deletedAt → null)
+      const restored = await prisma.cpRegistration.updateMany({
+        where: {
+          cpNo: { equals: cpNoLower, mode: 'insensitive' },
+          deletedAt: { not: null },
+        },
+        data: { deletedAt: null },
+      });
+
+      if (restored.count === 0) {
+        return NextResponse.json({ success: false, error: `CP ${cpNo} not found in trash` }, { status: 404 });
+      }
+
+      // 2) ProjectLinkage 복원 (status → active)
+      try {
+        await (prisma as any).projectLinkage.updateMany({
+          where: { cpNo: { equals: cpNoLower, mode: 'insensitive' }, status: 'deleted' },
+          data: { status: 'active' },
+        });
+      } catch (e) {
+        console.error('[CP 복원] ProjectLinkage 복원 실패:', e);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `CP ${cpNo} 복원 완료(Restored)`,
+        cpNo: cpNoLower,
+      });
+    }
+
+    // action === 'softDelete'
+    const softDeleted = await prisma.cpRegistration.updateMany({
+      where: {
+        cpNo: { equals: cpNoLower, mode: 'insensitive' },
+        deletedAt: null,
+      },
+      data: { deletedAt: new Date() },
+    });
+
+    if (softDeleted.count === 0) {
+      return NextResponse.json({ success: false, error: `CP ${cpNo} not found` }, { status: 404 });
+    }
+
+    // ProjectLinkage status → deleted
+    try {
+      await (prisma as any).projectLinkage.updateMany({
+        where: { cpNo: { equals: cpNoLower, mode: 'insensitive' }, status: 'active' },
+        data: { status: 'deleted' },
+      });
+    } catch (e) {
+      console.error('[CP softDelete] ProjectLinkage 상태 변경 실패:', e);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `CP ${cpNo} 삭제 완료(Moved to trash)`,
+      cpNo: cpNoLower,
+    });
+  } catch (error: any) {
+    console.error('[CP API] 복원 오류:', error);
+    return NextResponse.json({ success: false, error: error.message || 'CP 복원 실패' }, { status: 500 });
   }
 }

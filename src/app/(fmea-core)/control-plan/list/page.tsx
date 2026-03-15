@@ -1,22 +1,22 @@
 /**
  * @file page.tsx
- * @description Control Plan 리스트 페이지 - 가상화 + 배치삭제 + 컴팩트
- * @version 3.2.0
- * @updated 2026-03-11 @tanstack/react-virtual 가상화 + 배치삭제 + 여백최소화
+ * @description Control Plan 리스트 페이지 - 서버사이드 페이지네이션 + 배치삭제 + 컴팩트
+ * @version 4.0.0
+ * @updated 2026-03-15 가상화 → 서버사이드 페이지네이션 전환
  */
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import CPTopNav from '@/components/layout/CPTopNav';
 import { FixedLayout } from '@/components/layout';
-import { TypeBadge, extractTypeFromId, ListActionBar, ListStatusBar, useListSelection } from '@/components/list';
+import { TypeBadge, extractTypeFromId, ListActionBar, PaginationBar, useListSelection } from '@/components/list';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 import CPStepBadge, { CP_STEPS, getStepName } from './CPStepBadge';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
+import { useAuth } from '@/hooks/useAuth';
 
 const CONFIG = {
   moduleName: 'CP',
@@ -27,7 +27,7 @@ const CONFIG = {
   apiEndpoint: '/api/control-plan',
 };
 
-const ROW_HEIGHT = 28;
+const PAGE_SIZE = 50;
 
 const COLUMN_WIDTHS = ['35px', '70px', '80px', '35px', '70px', '120px', '60px', '55px', '50px', '75px', '75px', '75px', '40px', '60px', '60px', '35px', '50px'];
 
@@ -53,6 +53,7 @@ interface CPProject {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  deletedAt?: string | null;
 }
 
 // ★ 단계 확정 모달
@@ -107,10 +108,10 @@ function formatId(id: string, index: number): string {
   return `CP${year}-P${(index + 1).toString().padStart(3, '0')}`;
 }
 
-// ★ React.memo Row 컴포넌트 — 가상화 렌더링 최적화
+// ★ React.memo Row 컴포넌트
 interface CPListRowProps {
   project: CPProject;
-  index: number;
+  globalIndex: number;
   isSelected: boolean;
   onToggle: (id: string) => void;
   onOpenRegister: (id: string) => void;
@@ -119,17 +120,17 @@ interface CPListRowProps {
 }
 
 const CPListRow = React.memo(function CPListRow({
-  project: p, index, isSelected, onToggle, onOpenRegister, onStepClick, renderEmptyFn,
+  project: p, globalIndex, isSelected, onToggle, onOpenRegister, onStepClick, renderEmptyFn,
 }: CPListRowProps) {
   return (
-    <tr className={`hover:bg-blue-50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-blue-50/50' : 'bg-white'} ${isSelected ? 'bg-blue-100' : ''}`}
-      style={{ height: ROW_HEIGHT }} onClick={() => onToggle(p.id)}>
+    <tr className={`hover:bg-blue-50 cursor-pointer transition-colors ${globalIndex % 2 === 0 ? 'bg-blue-50/50' : 'bg-white'} ${isSelected ? 'bg-blue-100' : ''}`}
+      style={{ height: 28 }} onClick={() => onToggle(p.id)}>
       <td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" checked={isSelected} onChange={() => onToggle(p.id)} onClick={e => e.stopPropagation()} className="w-3.5 h-3.5" /></td>
-      <td className="px-1 py-0.5 text-center align-middle font-bold text-blue-700 whitespace-nowrap">{index + 1}</td>
+      <td className="px-1 py-0.5 text-center align-middle font-bold text-blue-700 whitespace-nowrap">{globalIndex + 1}</td>
       <td className="px-0.5 py-0.5 text-center align-middle whitespace-nowrap text-[9px] text-gray-700">
         {(p.updatedAt || p.cpInfo?.updatedAt || p.createdAt || p.cpInfo?.createdAt || '').slice(0, 10) || '-'}
       </td>
-      <td className="px-1 py-0.5 text-center align-middle font-semibold text-blue-600 whitespace-nowrap"><a href={`${CONFIG.registerUrl}?id=${p.id.toLowerCase()}`} className="hover:underline text-[9px]">{formatId(p.id, index)}</a></td>
+      <td className="px-1 py-0.5 text-center align-middle font-semibold text-blue-600 whitespace-nowrap"><a href={`${CONFIG.registerUrl}?id=${p.id.toLowerCase()}`} className="hover:underline text-[9px]">{formatId(p.id, globalIndex)}</a></td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap"><TypeBadge typeCode={extractTypeFromId(p.id, CONFIG.modulePrefix)} /></td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">
         {p.cpInfo?.confidentialityLevel ? (
@@ -200,26 +201,58 @@ const CPListRow = React.memo(function CPListRow({
 export default function CPListPage() {
   const [projects, setProjects] = useState<CPProject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isLoading, setIsLoading] = useState(true);
   const [sortField, setSortField] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const { selectedRows, toggleRow, toggleAllRows, clearSelection, isAllSelected } = useListSelection();
   const { confirmDialog, ConfirmDialogUI } = useConfirmDialog();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { isAdmin } = useAuth();
+  const [trashMode, setTrashMode] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [stepModal, setStepModal] = useState<{ isOpen: boolean; cpId: string; currentStep: number }>({
     isOpen: false, cpId: '', currentStep: 1
   });
 
+  // ★ 검색 디바운스 (300ms)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // 검색 변경 시 1페이지로
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery]);
+
+  // ★ 휴지통 모드 전환 시 1페이지로 리셋
+  useEffect(() => {
+    setPage(1);
+    clearSelection();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trashMode]);
+
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(CONFIG.apiEndpoint);
+      const params = new URLSearchParams({
+        page: String(page),
+        size: String(PAGE_SIZE),
+        sortField,
+        sortOrder,
+      });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (trashMode && isAdmin) params.set('includeDeleted', 'true');
+
+      const res = await fetch(`${CONFIG.apiEndpoint}?${params.toString()}`);
       const result = await res.json();
-      let projectList: CPProject[] = [];
+
       if (result?.success && result?.data) {
-        projectList = result.data.map((cp: any) => ({
+        const projectList: CPProject[] = result.data.map((cp: any) => ({
           id: cp.cpNo,
           cpInfo: {
             subject: cp.subject,
@@ -231,52 +264,78 @@ export default function CPListPage() {
             confidentialityLevel: cp.confidentialityLevel,
           },
           parentCpId: cp.parentCpId,
-          parentApqpNo: cp.apqpNo,
+          parentApqpNo: cp.parentApqpNo,
           parentFmeaId: cp.fmeaId,
-          linkedPfdNo: cp.pfdNo,
+          linkedPfdNo: cp.linkedPfdNo,
           step: cp.step || 1,
           revisionNo: cp.revisionNo || 'Rev.00',
           status: cp.status || 'draft',
           createdAt: cp.createdAt || '',
           updatedAt: cp.updatedAt || '',
+          deletedAt: cp.deletedAt || null,
         }));
-      }
 
-      // ★ ProjectLinkage에서 연동 정보 병합
-      try {
-        const linkageRes = await fetch('/api/project-linkage');
-        const linkageData = await linkageRes.json();
-        if (linkageData.success && linkageData.data?.length > 0) {
-          const linkageMap = new Map<string, { pfmeaId?: string; pfdNo?: string; apqpNo?: string }>();
-          for (const link of linkageData.data) {
-            if (link.cpNo) {
-              const cpNoLower = link.cpNo.toLowerCase();
-              const existing = linkageMap.get(cpNoLower);
-              linkageMap.set(cpNoLower, {
-                pfmeaId: link.pfmeaId || existing?.pfmeaId,
-                pfdNo: link.pfdNo || existing?.pfdNo,
-                apqpNo: link.apqpNo || existing?.apqpNo,
-              });
+        // ★ ProjectLinkage에서 연동 정보 병합
+        try {
+          const linkageRes = await fetch('/api/project-linkage');
+          const linkageData = await linkageRes.json();
+          if (linkageData.success && linkageData.data?.length > 0) {
+            const linkageMap = new Map<string, { pfmeaId?: string; pfdNo?: string; apqpNo?: string }>();
+            for (const link of linkageData.data) {
+              if (link.cpNo) {
+                const cpNoLower = link.cpNo.toLowerCase();
+                const existing = linkageMap.get(cpNoLower);
+                linkageMap.set(cpNoLower, {
+                  pfmeaId: link.pfmeaId || existing?.pfmeaId,
+                  pfdNo: link.pfdNo || existing?.pfdNo,
+                  apqpNo: link.apqpNo || existing?.apqpNo,
+                });
+              }
+            }
+            for (let i = 0; i < projectList.length; i++) {
+              const linkage = linkageMap.get(projectList[i].id?.toLowerCase() || '');
+              if (linkage) {
+                projectList[i] = {
+                  ...projectList[i],
+                  parentFmeaId: linkage.pfmeaId || projectList[i].parentFmeaId,
+                  linkedPfdNo: linkage.pfdNo || projectList[i].linkedPfdNo,
+                  parentApqpNo: linkage.apqpNo || projectList[i].parentApqpNo,
+                };
+              }
             }
           }
-          projectList = projectList.map(p => {
-            const linkage = linkageMap.get(p.id?.toLowerCase() || '');
-            return {
-              ...p,
-              parentFmeaId: linkage?.pfmeaId || p.parentFmeaId,
-              linkedPfdNo: linkage?.pfdNo || p.linkedPfdNo,
-              parentApqpNo: linkage?.apqpNo || p.parentApqpNo,
-            };
-          });
+        } catch (linkErr) {
+          console.error('[CP List] ProjectLinkage 조회 실패:', linkErr);
         }
-      } catch (linkErr) {
-        console.error('[CP List] ProjectLinkage 조회 실패:', linkErr);
-      }
 
-      setProjects(projectList.sort((a, b) => (b.id || '').localeCompare(a.id || '')));
-    } catch { setProjects([]); }
-    finally { setIsLoading(false); }
-  }, []);
+        // ★ 휴지통 모드: 삭제된 항목만 / 일반 모드: 활성 항목만
+        let filteredList = projectList;
+        if (trashMode && isAdmin) {
+          filteredList = projectList.filter(p => p.deletedAt != null);
+        } else {
+          filteredList = projectList.filter(p => p.deletedAt == null);
+        }
+
+        setProjects(filteredList);
+
+        // ★ 페이지네이션 메타 업데이트
+        if (result.pagination) {
+          setTotalCount(result.pagination.totalCount);
+          setTotalPages(result.pagination.totalPages);
+        }
+      } else {
+        setProjects([]);
+        setTotalCount(0);
+        setTotalPages(0);
+      }
+    } catch {
+      setProjects([]);
+      setTotalCount(0);
+      setTotalPages(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, sortField, sortOrder, debouncedSearch, trashMode, isAdmin]);
 
   const handleSave = useCallback(() => {
     setSaveStatus('saving');
@@ -292,71 +351,69 @@ export default function CPListPage() {
       setSortField(field);
       setSortOrder('desc');
     }
+    setPage(1); // 정렬 변경 시 1페이지로
   };
 
-  const filteredProjects = useMemo(() => projects
-    .filter(p => {
-      const q = searchQuery.toLowerCase();
-      return p.id?.toLowerCase().includes(q) ||
-        p.cpInfo?.subject?.toLowerCase().includes(q) ||
-        p.cpInfo?.customerName?.toLowerCase().includes(q) ||
-        p.cpInfo?.processResponsibility?.toLowerCase().includes(q) ||
-        p.cpInfo?.cpResponsibleName?.toLowerCase().includes(q);
-    })
-    .sort((a, b) => {
-      let aVal = '', bVal = '';
-      if (sortField === 'createdAt') {
-        aVal = a.updatedAt || a.cpInfo?.updatedAt || a.createdAt || a.cpInfo?.createdAt || '';
-        bVal = b.updatedAt || b.cpInfo?.updatedAt || b.createdAt || b.cpInfo?.createdAt || '';
-      } else if (sortField === 'subject') {
-        aVal = a.cpInfo?.subject || '';
-        bVal = b.cpInfo?.subject || '';
-      } else if (sortField === 'customerName') {
-        aVal = a.cpInfo?.customerName || '';
-        bVal = b.cpInfo?.customerName || '';
-      } else if (sortField === 'cpResponsibleName') {
-        aVal = a.cpInfo?.cpResponsibleName || '';
-        bVal = b.cpInfo?.cpResponsibleName || '';
-      } else if (sortField === 'confidentialityLevel') {
-        aVal = a.cpInfo?.confidentialityLevel || '';
-        bVal = b.cpInfo?.confidentialityLevel || '';
-      } else {
-        aVal = (a as any)[sortField] || '';
-        bVal = (b as any)[sortField] || '';
-      }
-      const compare = String(aVal).localeCompare(String(bVal));
-      return sortOrder === 'asc' ? compare : -compare;
-    }), [projects, searchQuery, sortField, sortOrder]);
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    clearSelection();
+  }, [clearSelection]);
 
-  // ★ 배치 삭제 (5개씩 순차 처리)
+  // ★ 배치 삭제 (휴지통 모드: 영구삭제, 일반 모드: Soft Delete)
   const handleDelete = async () => {
     if (selectedRows.size === 0) { toast.warn('삭제할 항목을 선택해주세요.'); return; }
     const deleteCount = selectedRows.size;
-    const ok = await confirmDialog({ title: '삭제 확인(Delete Confirm)', message: `선택한 ${deleteCount}개 CP를 삭제하시겠습니까?(Delete ${deleteCount} selected CPs?)\n\n⚠️ DB에서 영구 삭제됩니다.`, variant: 'danger', confirmText: '삭제(Delete)', cancelText: '취소(Cancel)' });
+    const ids = Array.from(selectedRows);
+
+    // ★ 휴지통 모드: 영구삭제
+    if (trashMode && isAdmin) {
+      const ok = await confirmDialog({ title: '⚠️ 영구삭제 확인(Confirm Permanent Delete)', message: `선택한 ${deleteCount}개 CP를 영구삭제하시겠습니까?(Permanently delete ${deleteCount} CPs?)\n\n⚠️ 복원 불가능합니다!(This action cannot be undone!)`, variant: 'danger', confirmText: '영구삭제(Permanent Delete)', cancelText: '취소(Cancel)' });
+      if (!ok) return;
+
+      let successCount = 0;
+      const BATCH = 5;
+      for (let i = 0; i < ids.length; i += BATCH) {
+        const batch = ids.slice(i, i + BATCH);
+        const results = await Promise.all(batch.map(async (cpNo) => {
+          try {
+            const res = await fetch(`${CONFIG.apiEndpoint}?cpNo=${encodeURIComponent(cpNo.toLowerCase())}`, { method: 'DELETE' });
+            if (res.ok) {
+              await fetch('/api/control-plan/worksheet', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cpNo: cpNo.toLowerCase() }),
+              }).catch(e => console.error(`[CP 워크시트 삭제] ${cpNo}:`, e));
+            }
+            return { success: res.ok };
+          } catch { return { success: false }; }
+        }));
+        successCount += results.filter(r => r.success).length;
+      }
+      await loadData();
+      clearSelection();
+      toast.success(`${successCount}개 영구삭제 완료(${successCount} permanently deleted)`);
+      return;
+    }
+
+    // ★ 일반 모드: Soft Delete (휴지통으로 이동)
+    const ok = await confirmDialog({ title: '삭제 확인(Delete Confirm)', message: `선택한 ${deleteCount}개 CP를 삭제하시겠습니까?(Delete ${deleteCount} CPs?)\n\n♻️ 휴지통에서 복원 가능합니다.(Can be restored from trash.)`, variant: 'danger', confirmText: '삭제(Delete)', cancelText: '취소(Cancel)' });
     if (!ok) return;
 
     let successCount = 0;
     let failCount = 0;
-    const ids = Array.from(selectedRows);
     const BATCH = 5;
 
     for (let i = 0; i < ids.length; i += BATCH) {
       const batch = ids.slice(i, i + BATCH);
       const results = await Promise.all(batch.map(async (cpNo) => {
         try {
-          const res = await fetch(`${CONFIG.apiEndpoint}?cpNo=${encodeURIComponent(cpNo.toLowerCase())}`, { method: 'DELETE' });
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            console.error(`[CP 삭제] ${cpNo} 실패 (${res.status}):`, body);
-            throw new Error(body.error || '삭제 실패');
-          }
-          // 워크시트 데이터도 삭제
-          await fetch('/api/control-plan/worksheet', {
-            method: 'DELETE',
+          const res = await fetch(CONFIG.apiEndpoint, {
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cpNo: cpNo.toLowerCase() }),
-          }).catch(e => console.error(`[CP 워크시트 삭제] ${cpNo}:`, e));
-          return { id: cpNo, success: true };
+            body: JSON.stringify({ action: 'softDelete', cpNo: cpNo.toLowerCase() }),
+          });
+          const data = await res.json();
+          return { id: cpNo, success: data.success };
         } catch (e) {
           console.error(`[CP 삭제] ${cpNo} 오류:`, e);
           return { id: cpNo, success: false };
@@ -368,8 +425,36 @@ export default function CPListPage() {
 
     await loadData();
     clearSelection();
-    if (failCount > 0) { toast.error(`삭제: ${successCount}개 성공, ${failCount}개 실패 — 콘솔(F12)에서 오류 확인`); }
-    else { toast.success(`${deleteCount}개 CP 삭제 완료`); }
+    if (failCount > 0) { toast.error(`삭제: ${successCount}개 성공, ${failCount}개 실패`); }
+    else { toast.success(`${deleteCount}개 항목 삭제 완료(휴지통으로 이동)`); }
+  };
+
+  // ★ 복원 핸들러 (관리자 휴지통 모드 전용)
+  const handleRestore = async () => {
+    if (selectedRows.size === 0) { toast.warn('복원할 항목을 선택해주세요.(Please select items to restore.)'); return; }
+    const ids = Array.from(selectedRows);
+    const ok = await confirmDialog({ title: '복원 확인(Confirm Restore)', message: `선택한 ${ids.length}개 항목을 복원하시겠습니까?(Restore ${ids.length} selected items?)`, variant: 'default', confirmText: '복원(Restore)', cancelText: '취소(Cancel)' });
+    if (!ok) return;
+
+    let successCount = 0;
+    for (const cpNo of ids) {
+      try {
+        const res = await fetch(CONFIG.apiEndpoint, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore', cpNo: cpNo.toLowerCase() }),
+        });
+        const data = await res.json();
+        if (data.success) successCount++;
+      } catch (e) {
+        console.error(`[CP 복원] ${cpNo} 오류:`, e);
+      }
+    }
+
+    await loadData();
+    clearSelection();
+    if (successCount === ids.length) { toast.success(`${successCount}개 항목 복원 완료(${successCount} items restored)`); }
+    else { toast.warn(`${successCount}/${ids.length}개 복원 완료(${successCount}/${ids.length} restored)`); }
   };
 
   const handleEdit = useCallback(() => {
@@ -399,32 +484,33 @@ export default function CPListPage() {
     <span className="text-orange-400 text-[9px] cursor-pointer hover:text-orange-600 hover:underline" onClick={(e) => { e.stopPropagation(); handleOpenRegister(id); }}>미입력(Empty)</span>
   ), [handleOpenRegister]);
 
-  // ★ @tanstack/react-virtual 가상화
-  const rowVirtualizer = useVirtualizer({
-    count: filteredProjects.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 20,
-  });
-
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const totalSize = rowVirtualizer.getTotalSize();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
-  const paddingBottom = virtualRows.length > 0 ? totalSize - virtualRows[virtualRows.length - 1].end : 0;
-
   return (
     <FixedLayout topNav={<CPTopNav selectedCpId="" />} topNavHeight={48} showSidebar={true} contentPadding="p-0">
       <div className="font-[Malgun_Gothic] px-2 pt-1">
         <div className="flex items-center gap-1 mb-1">
           <span className="text-sm">📋</span>
           <h1 className="text-xs font-bold text-gray-800">Control Plan 리스트</h1>
-          <span className="text-[10px] text-gray-500 ml-1">{isLoading ? '로딩 중...(Loading)' : `총 ${filteredProjects.length}건`}</span>
+          <span className="text-[10px] text-gray-500 ml-1">{isLoading ? '로딩 중...(Loading)' : `총 ${totalCount}건`}</span>
         </div>
 
         <div className="flex items-start gap-1 mb-1">
           <div className="flex-1">
             <ListActionBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="🔍 CP명, 고객사로 검색..." onRefresh={loadData} onSave={handleSave} saveStatus={saveStatus} onEdit={handleEdit} editDisabled={selectedRows.size !== 1} onDelete={handleDelete} deleteDisabled={selectedRows.size === 0} deleteCount={selectedRows.size} registerUrl={CONFIG.registerUrl} themeColor={CONFIG.themeColor} />
           </div>
+          {isAdmin && (
+            <div className="flex items-center gap-1">
+              <button onClick={() => { setTrashMode(prev => !prev); clearSelection(); }}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${trashMode ? 'bg-red-100 text-red-700 border-red-300' : 'bg-gray-100 text-gray-600 border-gray-300'}`}>
+                {trashMode ? '📋 리스트(List)' : '🗑️ 휴지통(Trash)'}
+              </button>
+              {trashMode && (
+                <button onClick={handleRestore} disabled={selectedRows.size === 0}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${selectedRows.size > 0 ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}>
+                  ♻️ 복원(Restore) ({selectedRows.size})
+                </button>
+              )}
+            </div>
+          )}
           <DeleteHelpBadge />
         </div>
 
@@ -435,31 +521,31 @@ export default function CPListPage() {
           .cp-list-table tbody td { border-bottom: 1px solid #9ca3af; border-right: 1px solid #d1d5db; }
           .cp-list-table tbody td:last-child { border-right: none; }
         `}} />
-        <div ref={scrollRef} className="rounded-lg overflow-x-auto border border-gray-400 bg-white" style={{ maxHeight: 'calc(100vh - 160px)', overflow: 'auto' }}>
+        <div className="rounded-lg overflow-x-auto border border-gray-400 bg-white" style={{ maxHeight: 'calc(100vh - 190px)', overflow: 'auto' }}>
           <table className="w-full cp-list-table text-[10px]">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="bg-[#00587a] text-white" style={{ height: '28px' }}>
                 <th className="px-1 py-1 text-center align-middle w-8">
-                  <input type="checkbox" checked={isAllSelected(filteredProjects.map(p => p.id))} onChange={() => toggleAllRows(filteredProjects.map(p => p.id))} className="w-3.5 h-3.5" />
+                  <input type="checkbox" checked={isAllSelected(projects.map(p => p.id))} onChange={() => toggleAllRows(projects.map(p => p.id))} className="w-3.5 h-3.5" />
                 </th>
                 {[
                   { label: 'No', field: '' },
                   { label: '작성일(Date)', field: 'createdAt' },
-                  { label: 'CP ID', field: 'id' },
+                  { label: 'CP ID', field: 'cpNo' },
                   { label: 'TYPE', field: '' },
                   { label: 'CP 종류(Category)', field: 'confidentialityLevel' },
                   { label: 'CP명(Name)', field: 'subject' },
                   { label: '고객사(Customer)', field: 'customerName' },
                   { label: '공정책임(Resp.)', field: 'processResponsibility' },
                   { label: '담당자(Owner)', field: 'cpResponsibleName' },
-                  { label: '상위 APQP(Parent)', field: 'parentApqpNo' },
-                  { label: '상위 FMEA(Parent)', field: 'parentFmeaId' },
-                  { label: '연동 PFD(Linked)', field: 'linkedPfdNo' },
+                  { label: '상위 APQP(Parent)', field: '' },
+                  { label: '상위 FMEA(Parent)', field: '' },
+                  { label: '연동 PFD(Linked)', field: '' },
                   { label: '현황(Status)', field: '' },
-                  { label: '시작일(Start)', field: 'cpStartDate' },
-                  { label: '목표완료일(Target)', field: 'cpRevisionDate' },
-                  { label: 'Rev', field: 'revisionNo' },
-                  { label: '단계(Step)', field: 'step' },
+                  { label: '시작일(Start)', field: '' },
+                  { label: '목표완료일(Target)', field: '' },
+                  { label: 'Rev', field: '' },
+                  { label: '단계(Step)', field: '' },
                 ].map((col, i) => (
                   <th key={i}
                     className={`px-1 py-1 text-center align-middle font-semibold whitespace-nowrap text-[11px] ${col.field ? 'cursor-pointer hover:bg-teal-700' : ''}`}
@@ -472,23 +558,21 @@ export default function CPListPage() {
               </tr>
             </thead>
             <tbody>
-              {totalSize > 0 && <tr><td colSpan={18} style={{ height: paddingTop, padding: 0, border: 'none' }} /></tr>}
-              {virtualRows.map(vRow => {
-                const p = filteredProjects[vRow.index];
+              {projects.map((p, index) => {
+                const globalIndex = (page - 1) * PAGE_SIZE + index;
                 return (
-                  <CPListRow key={p.id} project={p} index={vRow.index}
+                  <CPListRow key={p.id} project={p} globalIndex={globalIndex}
                     isSelected={selectedRows.has(p.id)} onToggle={handleToggleRow}
                     onOpenRegister={handleOpenRegister} onStepClick={handleStepClick}
                     renderEmptyFn={renderEmpty} />
                 );
               })}
-              {totalSize > 0 && <tr><td colSpan={18} style={{ height: paddingBottom, padding: 0, border: 'none' }} /></tr>}
-              {filteredProjects.length === 0 && <tr style={{ height: '28px' }} className="bg-blue-50/50"><td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" disabled className="w-3.5 h-3.5 opacity-30" /></td>{Array.from({ length: 16 }).map((_, i) => <td key={i} className="px-2 py-1 text-center align-middle text-gray-300">-</td>)}</tr>}
+              {projects.length === 0 && <tr style={{ height: '28px' }} className="bg-blue-50/50"><td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" disabled className="w-3.5 h-3.5 opacity-30" /></td>{Array.from({ length: 16 }).map((_, i) => <td key={i} className="px-2 py-1 text-center align-middle text-gray-300">-</td>)}</tr>}
             </tbody>
           </table>
         </div>
 
-        <ListStatusBar filteredCount={filteredProjects.length} totalCount={projects.length} moduleName={CONFIG.moduleName} version="v3.2" />
+        <PaginationBar page={page} totalPages={totalPages} totalCount={totalCount} pageSize={PAGE_SIZE} onPageChange={handlePageChange} moduleName={CONFIG.moduleName} version="v4.0" />
       </div>
 
       <StepConfirmModal isOpen={stepModal.isOpen} cpId={stepModal.cpId} currentStep={stepModal.currentStep}

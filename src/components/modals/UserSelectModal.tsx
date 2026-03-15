@@ -219,27 +219,31 @@ export function UserSelectModal({
 
   // 삭제 (단일)
   const handleDelete = async () => {
-    if (!selectedUserId) {
-      alert('삭제할 사용자를 선택해주세요(Please select a user to delete).');
-      return;
-    }
-    const user = users.find(u => u.id === selectedUserId);
-    if (!user) {
-      alert('❌ 선택된 사용자를 찾을 수 없습니다(User not found).');
-      return;
-    }
-    if (!confirm(`"${user.name}" (${user.factory}/${user.department}) 삭제하시겠습니까(Delete)?`)) {
-      return;
-    }
     try {
-      await deleteUser(selectedUserId);
+      console.log('[UserSelectModal] handleDelete — selectedUserId:', selectedUserId);
+      if (!selectedUserId) {
+        window.alert('삭제할 사용자를 선택해주세요(Please select a user to delete).');
+        return;
+      }
+      const user = users.find(u => u.id === selectedUserId);
+      if (!user) {
+        window.alert('❌ 선택된 사용자를 찾을 수 없습니다(User not found).');
+        return;
+      }
+      const confirmed = window.confirm(`"${user.name}" (${user.factory}/${user.department}) 삭제하시겠습니까(Delete)?`);
+      if (!confirmed) return;
+
+      const targetId = selectedUserId;
+      const targetName = user.name;
+      await deleteUser(targetId);
       await refreshData();
       setSelectedUserId(null);
-      alert(`✅ "${user.name}" 삭제 완료(Deleted)!`);
+      setEditingUser(null);
+      window.alert(`✅ "${targetName}" 삭제 완료(Deleted)!`);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '알 수 없는 오류';
       console.error('[UserSelectModal] 삭제 오류:', error);
-      alert(`❌ 삭제 실패(Delete Failed):\n${msg}`);
+      window.alert(`❌ 삭제 실패(Delete Failed):\n${msg}`);
       await refreshData();
     }
   };
@@ -348,12 +352,13 @@ export function UserSelectModal({
             👤 사용자 선택(Select User)
           </h2>
           <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
-            <button onClick={handleImport} title="가져오기(Import)" className="px-2 py-1 text-[10px] font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">가져오기(Import)</button>
-            <button onClick={handleExport} title="내보내기(Export)" className="px-2 py-1 text-[10px] font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">내보내기(Export)</button>
-            <button onClick={handleAdd} title="추가(Add)" className="px-2 py-1 text-[10px] font-semibold bg-green-500 text-white rounded hover:bg-green-600">추가(Add)</button>
+            <button data-testid="usm-import" onClick={handleImport} title="가져오기(Import)" className="px-2 py-1 text-[10px] font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">가져오기(Import)</button>
+            <button data-testid="usm-export" onClick={handleExport} title="내보내기(Export)" className="px-2 py-1 text-[10px] font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">내보내기(Export)</button>
+            <button data-testid="usm-add" onClick={handleAdd} title="추가(Add)" className="px-2 py-1 text-[10px] font-semibold bg-green-500 text-white rounded hover:bg-green-600">추가(Add)</button>
             <button
+              data-testid="usm-edit"
               onClick={() => {
-                if (!selectedUserId) { alert('수정할 사용자를 선택해주세요(Please select a user to edit).'); return; }
+                if (!selectedUserId) { window.alert('수정할 사용자를 선택해주세요(Please select a user to edit).'); return; }
                 const user = users.find(u => u.id === selectedUserId);
                 if (user) setEditingUser({ ...user });
               }}
@@ -361,12 +366,13 @@ export function UserSelectModal({
               className="px-2 py-1 text-[10px] font-semibold rounded bg-amber-500 text-white hover:bg-amber-600"
             >수정(Edit)</button>
             <button
+              data-testid="usm-save"
               onClick={handleSave}
               disabled={!editingUser}
               title="저장(Save)"
               className={`px-2 py-1 text-[10px] font-semibold rounded ${editingUser ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-400 text-gray-200 cursor-not-allowed'}`}
             >저장(Save)</button>
-            <button onClick={handleDelete} title="삭제(Del)" className="px-2 py-1 text-[10px] font-semibold bg-red-500 text-white rounded hover:bg-red-600">삭제(Del)</button>
+            <button data-testid="usm-delete" onClick={handleDelete} title="삭제(Del)" className="px-2 py-1 text-[10px] font-semibold bg-red-500 text-white rounded hover:bg-red-600">삭제(Del)</button>
             <div className="w-px h-5 bg-white/40 mx-0.5" />
             <button onClick={() => setShowHelp(v => !v)} title="도움말(Help)" className={`px-1.5 py-1 text-[10px] font-semibold rounded ${showHelp ? 'bg-yellow-400 text-gray-800' : 'bg-white text-[#00587a]'} hover:bg-yellow-300`}>?</button>
             <button onClick={onClose} title="닫기(Close)" className="px-1.5 py-1 text-[10px] font-semibold bg-gray-200 text-gray-700 rounded hover:bg-gray-300">✕</button>

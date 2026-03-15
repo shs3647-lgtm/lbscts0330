@@ -18,8 +18,8 @@ import { UserInfo, USER_STORAGE_KEY } from '@/types/user';
  */
 export async function getAllUsers(): Promise<UserInfo[]> {
   try {
-    // DB에서 조회 시도
-    const res = await fetch('/api/users');
+    // DB에서 조회 시도 (cache: 'no-store'로 항상 최신 데이터 보장)
+    const res = await fetch('/api/users', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data.success && data.users) {
@@ -144,18 +144,35 @@ export async function updateUser(id: string, updates: Partial<Omit<UserInfo, 'id
  * @throws Error = 삭제 실패 (API 오류, DB 제약 등)
  */
 export async function deleteUser(id: string): Promise<boolean> {
+  console.log('[user-db] deleteUser called, id:', id);
+
+  if (!id || typeof id !== 'string') {
+    throw new Error('삭제할 사용자 ID가 유효하지 않습니다.');
+  }
+
   try {
-    const res = await fetch(`/api/users?id=${id}`, {
-      method: 'DELETE'
+    const res = await fetch(`/api/users?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
     });
 
-    const data = await res.json();
+    let data: { success?: boolean; error?: string; message?: string };
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`서버 응답 파싱 실패 (HTTP ${res.status})`);
+    }
+
+    console.log('[user-db] deleteUser response:', res.status, data);
 
     if (res.ok && data.success) {
       // localStorage에도 동기화
-      const users = await getAllUsers();
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+      try {
+        const users = await getAllUsers();
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+        }
+      } catch (syncError) {
+        console.error('[user-db] localStorage 동기화 실패 (삭제는 성공):', syncError);
       }
       return true;
     }
@@ -164,14 +181,9 @@ export async function deleteUser(id: string): Promise<boolean> {
     throw new Error(data.error || `삭제 실패 (HTTP ${res.status})`);
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      // 네트워크 오류 → localStorage 폴백
-      console.error('[user-db] 네트워크 오류 — localStorage 폴백 삭제:', error);
-      const users = await getAllUsers();
-      const filtered = users.filter(u => u.id !== id);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(filtered));
-      }
-      return true;
+      // 네트워크 오류 → 에러 전파 (조용히 성공 처리하면 안 됨)
+      console.error('[user-db] 네트워크 오류:', error);
+      throw new Error('네트워크 오류로 삭제할 수 없습니다. 서버 연결을 확인해주세요.');
     }
     // DB/API 오류는 호출자에게 전파
     throw error;

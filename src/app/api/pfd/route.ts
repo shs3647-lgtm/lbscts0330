@@ -92,8 +92,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ★ includeDeleted: 휴지통 모드 (삭제된 항목 포함)
+    const includeDeleted = searchParams.get('includeDeleted') === 'true';
+
     // 필터 조건 구성
-    const where: any = { deletedAt: null };
+    const where: any = includeDeleted ? {} : { deletedAt: null };
 
     if (fmeaId) where.fmeaId = fmeaId;
     if (cpNo) where.cpNo = cpNo;
@@ -117,7 +120,37 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: latestPfd });
     }
 
-    // PFD 목록 조회
+    // ★★★ 서버사이드 페이지네이션 파라미터 ★★★
+    const pageParam = searchParams.get('page');
+    const sizeParam = searchParams.get('size');
+    const sortFieldParam = searchParams.get('sortField') || 'createdAt';
+    const sortOrderParam = searchParams.get('sortOrder') || 'desc';
+
+    // 정렬 필드 매핑 (허용된 필드만)
+    const SORTABLE_FIELDS: Record<string, string> = {
+      createdAt: 'createdAt', updatedAt: 'updatedAt', pfdNo: 'pfdNo',
+      subject: 'subject', customerName: 'customerName',
+      confidentialityLevel: 'confidentialityLevel',
+      processResponsibility: 'processResponsibility',
+      pfdResponsibleName: 'pfdResponsibleName',
+      pfdStartDate: 'pfdStartDate', pfdRevisionDate: 'pfdRevisionDate',
+      revisionNo: 'revisionNo', step: 'step',
+    };
+    const sortField = SORTABLE_FIELDS[sortFieldParam] || 'createdAt';
+    const sortOrder = sortOrderParam === 'asc' ? 'asc' as const : 'desc' as const;
+
+    // 페이지네이션 모드 (page 파라미터가 있으면 페이지네이션)
+    const isPaginated = !!pageParam;
+    const page = Math.max(1, parseInt(pageParam || '1', 10));
+    const pageSize = Math.min(200, Math.max(10, parseInt(sizeParam || '50', 10)));
+
+    // 전체 카운트 (페이지네이션 모드일 때만)
+    let totalCount = 0;
+    if (isPaginated) {
+      totalCount = await prisma.pfdRegistration.count({ where });
+    }
+
+    // PFD 목록 조회 (페이지네이션 적용)
     const pfds = await prisma.pfdRegistration.findMany({
       where,
       include: {
@@ -125,7 +158,8 @@ export async function GET(req: NextRequest) {
           select: { items: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { [sortField]: sortOrder },
+      ...(isPaginated ? { skip: (page - 1) * pageSize, take: pageSize } : {}),
     });
 
     // ★★★ ProjectLinkage(중앙 연동DB)에서 연동 CP 조회 ★★★
@@ -154,34 +188,51 @@ export async function GET(req: NextRequest) {
         }
       });
     } catch (e) {
+      console.error('[PFD API] ProjectLinkage 조회 실패:', e);
     }
 
     // DB 필드 + ProjectLinkage 병합
+    const mappedData = pfds.map((pfd: any) => {
+      // DB에서 linkedCpNos 파싱 (JSON string → array)
+      let dbLinkedCpNos: string[] = [];
+      if (pfd.linkedCpNos) {
+        try {
+          dbLinkedCpNos = JSON.parse(pfd.linkedCpNos);
+        } catch {
+          dbLinkedCpNos = [pfd.linkedCpNos];
+        }
+      }
+
+      // ProjectLinkage에서 가져온 연동 정보
+      const linkageCpNos = linkageMap.get(pfd.pfdNo?.toLowerCase() || '') || [];
+
+      // 병합 (중복 제거)
+      const allCpNos = [...new Set([...dbLinkedCpNos, ...linkageCpNos])];
+
+      return {
+        ...pfd,
+        itemCount: pfd._count.items,
+        linkedCpNos: allCpNos,  // ★ DB + ProjectLinkage 병합
+      };
+    });
+
+    // 페이지네이션 응답 vs 전체 응답
+    if (isPaginated) {
+      return NextResponse.json({
+        success: true,
+        data: mappedData,
+        pagination: {
+          page,
+          pageSize,
+          totalCount,
+          totalPages: Math.ceil(totalCount / pageSize),
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      data: pfds.map((pfd: any) => {
-        // DB에서 linkedCpNos 파싱 (JSON string → array)
-        let dbLinkedCpNos: string[] = [];
-        if (pfd.linkedCpNos) {
-          try {
-            dbLinkedCpNos = JSON.parse(pfd.linkedCpNos);
-          } catch {
-            dbLinkedCpNos = [pfd.linkedCpNos];
-          }
-        }
-
-        // ProjectLinkage에서 가져온 연동 정보
-        const linkageCpNos = linkageMap.get(pfd.pfdNo?.toLowerCase() || '') || [];
-
-        // 병합 (중복 제거)
-        const allCpNos = [...new Set([...dbLinkedCpNos, ...linkageCpNos])];
-
-        return {
-          ...pfd,
-          itemCount: pfd._count.items,
-          linkedCpNos: allCpNos,  // ★ DB + ProjectLinkage 병합
-        };
-      }),
+      data: mappedData,
     });
 
   } catch (error: any) {
@@ -553,6 +604,84 @@ export async function DELETE(req: NextRequest) {
       { success: false, error: safeErrorMessage(error) },
       { status: 500 }
     );
+  }
+}
+
+// ============================================================================
+// PATCH: PFD 복원 (휴지통 → 활성) 또는 Soft Delete
+// ============================================================================
+export async function PATCH(req: NextRequest) {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'Database not configured' }, { status: 500 });
+    }
+
+    const body = await req.json();
+    const { action, pfdNo } = body;
+
+    if (!pfdNo) {
+      return NextResponse.json({ success: false, error: 'pfdNo required' }, { status: 400 });
+    }
+
+    const pfdNoLower = pfdNo.toLowerCase();
+
+    if (action === 'restore') {
+      // 복원: deletedAt → null
+      const restored = await prisma.pfdRegistration.updateMany({
+        where: {
+          pfdNo: { equals: pfdNoLower, mode: 'insensitive' },
+          deletedAt: { not: null },
+        },
+        data: { deletedAt: null },
+      });
+
+      if (restored.count === 0) {
+        return NextResponse.json({ success: false, error: `PFD ${pfdNo} not found in trash` }, { status: 404 });
+      }
+
+      // ProjectLinkage 복원
+      try {
+        await (prisma as any).projectLinkage.updateMany({
+          where: { pfdNo: { equals: pfdNoLower, mode: 'insensitive' }, status: 'deleted' },
+          data: { status: 'active' },
+        });
+      } catch (e) {
+        console.error('[PFD 복원] ProjectLinkage 복원 실패:', e);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `PFD ${pfdNo} 복원 완료(Restored)`,
+        pfdNo: pfdNoLower,
+      });
+    }
+
+    if (action === 'softDelete') {
+      // Soft Delete: deletedAt 설정 (휴지통으로 이동)
+      const deleted = await prisma.pfdRegistration.updateMany({
+        where: {
+          pfdNo: { equals: pfdNoLower, mode: 'insensitive' },
+          deletedAt: null,
+        },
+        data: { deletedAt: new Date() },
+      });
+
+      if (deleted.count === 0) {
+        return NextResponse.json({ success: false, error: `PFD ${pfdNo} not found` }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `PFD ${pfdNo} 삭제 완료(Moved to trash)`,
+        pfdNo: pfdNoLower,
+      });
+    }
+
+    return NextResponse.json({ success: false, error: 'action must be restore or softDelete' }, { status: 400 });
+  } catch (error: any) {
+    console.error('[PFD API] PATCH 오류:', error);
+    return NextResponse.json({ success: false, error: safeErrorMessage(error) }, { status: 500 });
   }
 }
 

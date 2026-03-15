@@ -10,4 +10,5 @@ export { default as TypeBadge, extractTypeFromId } from './TypeBadge';
 export type { ModuleTypeCode } from './TypeBadge';
 export { default as ListActionBar } from './ListActionBar';
 export { default as ListStatusBar } from './ListStatusBar';
+export { default as PaginationBar } from './PaginationBar';
 export { useListSelection } from './hooks/useListSelection';

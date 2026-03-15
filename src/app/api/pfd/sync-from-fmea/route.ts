@@ -366,6 +366,37 @@ export async function POST(request: NextRequest) {
             }
         });
 
+        // ★★★ ProjectLinkage에 pfdNo 등록 (삭제 연쇄를 위해 필수) ★★★
+        try {
+            const fmeaLinkage = await (prisma as any).projectLinkage.findFirst({
+                where: {
+                    OR: [
+                        { pfmeaId: { equals: fmeaId.toLowerCase(), mode: 'insensitive' } },
+                        { dfmeaId: { equals: fmeaId.toLowerCase(), mode: 'insensitive' } },
+                    ],
+                    status: 'active',
+                },
+            });
+            if (fmeaLinkage) {
+                await (prisma as any).projectLinkage.update({
+                    where: { id: fmeaLinkage.id },
+                    data: { pfdNo: targetPfdNo },
+                });
+            } else {
+                const isPfmea = fmeaId.toLowerCase().startsWith('pfm');
+                await (prisma as any).projectLinkage.create({
+                    data: {
+                        ...(isPfmea ? { pfmeaId: fmeaId.toLowerCase() } : { dfmeaId: fmeaId.toLowerCase() }),
+                        pfdNo: targetPfdNo,
+                        linkType: 'auto',
+                        status: 'active',
+                    },
+                });
+            }
+        } catch (linkErr) {
+            console.error('[sync-from-fmea] ProjectLinkage 업데이트 실패:', linkErr);
+        }
+
         // DocumentLink 생성/갱신 (sync-from-cp 패턴)
         const existingLink = await prisma.documentLink.findFirst({
             where: {

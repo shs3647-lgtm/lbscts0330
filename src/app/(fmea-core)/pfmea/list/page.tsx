@@ -1,22 +1,13 @@
 /**
  * @file page.tsx
- * @description PFMEA 리스트 페이지 - 모듈화 적용 + @tanstack/react-virtual 가상화
- * @version 3.2.0
- * @updated 2026-03-08 @tanstack/react-virtual 가상화 적용 (대규모 목록 성능 개선)
- *
- * @status CODEFREEZE L4 (Gold) 🔒
- * @freeze_level L4 (Critical - Gold Test Passed)
- * @frozen_date 2026-03-02
- * @gold_tag v4.0.0-gold
- * @allowed_changes NONE — 사용자 명시적 승인 + full test pass 필수
- *
- * ⚠️ 이 파일은 L4 코드프리즈 상태입니다. 절대 수정 금지.
+ * @description PFMEA 리스트 페이지 - 서버사이드 페이지네이션
+ * @version 4.0.0
+ * @updated 2026-03-15 서버사이드 페이지네이션으로 전환 (useVirtualizer 제거)
  */
 
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
 import { FixedLayout } from '@/components/layout';
 import {
@@ -24,7 +15,7 @@ import {
   TypeBadge,
   extractTypeFromId,
   ListActionBar,
-  ListStatusBar,
+  PaginationBar,
   useListSelection
 } from '@/components/list';
 import Link from 'next/link';
@@ -46,6 +37,7 @@ const CONFIG = {
   apiEndpoint: '/api/fmea/projects?type=P',
 };
 
+const PAGE_SIZE = 50;
 const ROW_HEIGHT = 28;
 
 // ★★★ HARDCODED - 컬럼폭 반응형 (코드프리즈 L2: 버그수정만 허용) ★★★
@@ -76,9 +68,9 @@ interface FMEAProject {
     modelYear?: string;
     designResponsibility?: string;
     fmeaResponsibleName?: string;
-    engineeringLocation?: string; // ✅ 공장 (엔지니어링 위치)
-    createdAt?: string;   // ✅ 최초 작성일
-    updatedAt?: string;   // ✅ 수정일
+    engineeringLocation?: string; // 공장 (엔지니어링 위치)
+    createdAt?: string;   // 최초 작성일
+    updatedAt?: string;   // 수정일
   };
   cftMembers?: Array<{ name: string }>;
   parentFmeaId?: string;
@@ -88,8 +80,8 @@ interface FMEAProject {
   linkedCpNo?: string;
   step?: number;
   revisionNo?: string;
-  createdAt?: string;  // ✅ 프로젝트 생성일
-  updatedAt?: string;  // ✅ 프로젝트 수정일
+  createdAt?: string;  // 프로젝트 생성일
+  updatedAt?: string;  // 프로젝트 수정일
   deletedAt?: string | null;  // ★ soft delete 타임스탬프
 }
 
@@ -103,7 +95,7 @@ function formatId(id: string, index: number): string {
 }
 
 // =====================================================
-// PFMEAListRow - 가상화된 행 컴포넌트
+// PFMEAListRow - 행 컴포넌트
 // =====================================================
 interface PFMEAListRowProps {
   project: FMEAProject;
@@ -235,10 +227,16 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
 export default function PFMEAListPage() {
   const [projects, setProjects] = useState<FMEAProject[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isLoading, setIsLoading] = useState(false);
   const [sortField, setSortField] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // ★ 페이지네이션 상태
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   const { isAdmin } = useAuth();
   const [trashMode, setTrashMode] = useState(false);
@@ -247,87 +245,66 @@ export default function PFMEAListPage() {
   const { confirmDialog, ConfirmDialogUI } = useConfirmDialog();
   const { deleteSelectDialog, DeleteSelectDialogUI } = useDeleteSelectDialog();
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // ★ 검색 디바운스 (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // 검색 시 1페이지로 리셋
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  // 데이터 로드
+  // 데이터 로드 (서버사이드 페이지네이션)
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // ★ 관리자 휴지통 모드: 삭제 항목 포함 조회
-      const endpoint = trashMode && isAdmin
-        ? `${CONFIG.apiEndpoint}&includeDeleted=true`
-        : CONFIG.apiEndpoint;
-      const response = await fetch(endpoint);
+      const includeDeletedParam = trashMode && isAdmin ? '&includeDeleted=true' : '';
+      const url = `${CONFIG.apiEndpoint}${includeDeletedParam}&page=${page}&size=${PAGE_SIZE}&sortField=${sortField}&sortOrder=${sortOrder}&search=${encodeURIComponent(debouncedSearch)}`;
+
+      const response = await fetch(url);
       const result = await response.json();
 
-      let projectList: FMEAProject[] = [];
-      if (result.success && result.projects?.length > 0) {
-        projectList = result.projects
-          .filter((p: any) => p.id?.toLowerCase().startsWith(CONFIG.modulePrefix))
-          .map((p: any) => ({
-            ...p,
-            id: p.id.toLowerCase(),
-            deletedAt: p.deletedAt || null,
-            // ★ fmeaInfo에서 연동 정보를 프로젝트 레벨로 끌어올림
-            linkedDfmeaNo: p.linkedDfmeaNo || p.fmeaInfo?.linkedDfmeaNo || '',
-            linkedPfdNo: p.linkedPfdNo || p.fmeaInfo?.linkedPfdNo || '',
-            linkedCpNo: p.linkedCpNo || p.fmeaInfo?.linkedCpNo || '',
-            fmeaInfo: {
-              ...p.fmeaInfo,
-              engineeringLocation: p.fmeaInfo?.engineeringLocation || p.engineeringLocation || ''
-            }
-          }));
-      }
-      // ★ localStorage 폴백 제거 - DB Only
+      if (result.success && result.data) {
+        let projectList: FMEAProject[] = result.data.map((p: any) => ({
+          ...p,
+          id: (p.id || '').toLowerCase(),
+          deletedAt: p.deletedAt || null,
+          linkedDfmeaNo: p.linkedDfmeaNo || p.fmeaInfo?.linkedDfmeaNo || '',
+          linkedPfdNo: p.linkedPfdNo || p.fmeaInfo?.linkedPfdNo || '',
+          linkedCpNo: p.linkedCpNo || p.fmeaInfo?.linkedCpNo || '',
+          fmeaInfo: {
+            ...p.fmeaInfo,
+            engineeringLocation: p.fmeaInfo?.engineeringLocation || p.engineeringLocation || '',
+          },
+        }));
 
-      // ★★★ ProjectLinkage에서 연동 정보 병합 ★★★
-      try {
-        const linkageRes = await fetch('/api/project-linkage');
-        const linkageData = await linkageRes.json();
-        if (linkageData.success && linkageData.data?.length > 0) {
-          const linkageMap = new Map<string, { dfmeaNo?: string; pfdNo?: string; cpNo?: string; apqpNo?: string }>();
-          // PFMEA ID 기준으로 Map 생성
-          for (const link of linkageData.data) {
-            if (link.pfmeaId) {
-              const existing = linkageMap.get(link.pfmeaId);
-              linkageMap.set(link.pfmeaId, {
-                dfmeaNo: link.dfmeaId || existing?.dfmeaNo,
-                pfdNo: link.pfdNo || existing?.pfdNo,
-                cpNo: link.cpNo || existing?.cpNo,
-                apqpNo: link.apqpNo || existing?.apqpNo,
-              });
-            }
-          }
-          // 프로젝트 목록에 연동 정보 병합
-          projectList = projectList.map(p => {
-            const linkage = linkageMap.get(p.id.toLowerCase());
-            return {
-              ...p,
-              linkedDfmeaNo: linkage?.dfmeaNo || p.linkedDfmeaNo,
-              linkedPfdNo: linkage?.pfdNo || p.linkedPfdNo,
-              linkedCpNo: linkage?.cpNo || p.linkedCpNo,
-              parentApqpNo: linkage?.apqpNo || p.parentApqpNo,
-            };
-          });
+        // ★ 휴지통 모드: 삭제된 항목만 / 일반 모드: 활성 항목만
+        if (trashMode && isAdmin) {
+          projectList = projectList.filter(p => p.deletedAt != null);
+        } else {
+          projectList = projectList.filter(p => p.deletedAt == null);
         }
-      } catch (linkErr) {
-        console.error('[PFMEA List] 프로젝트 연동 로드 실패:', linkErr);
-      }
 
-      // ★ 휴지통 모드: 삭제된 항목만 / 일반 모드: 활성 항목만
-      if (trashMode && isAdmin) {
-        projectList = projectList.filter(p => p.deletedAt != null);
+        setProjects(projectList);
+
+        // 페이지네이션 정보 설정
+        if (result.pagination) {
+          setTotalCount(result.pagination.totalCount);
+          setTotalPages(result.pagination.totalPages);
+        }
       } else {
-        projectList = projectList.filter(p => p.deletedAt == null);
+        setProjects([]);
+        setTotalCount(0);
+        setTotalPages(1);
       }
-
-      setProjects(projectList);
     } catch {
       setProjects([]);
+      setTotalCount(0);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
-  }, [trashMode, isAdmin]);
+  }, [page, sortField, sortOrder, debouncedSearch, trashMode, isAdmin]);
 
   // ★ handleSave 제거 - DB Only 방식으로 저장은 등록 페이지에서 직접 API 호출
   const handleSave = useCallback(() => {
@@ -343,12 +320,12 @@ export default function PFMEAListPage() {
 
   // ★ 휴지통 모드 전환 시 데이터 새로 로드
   useEffect(() => {
-    loadData();
+    setPage(1);
     clearSelection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trashMode]);
 
-  // ★ 정렬 핸들러
+  // ★ 정렬 핸들러 — 정렬 변경 시 1페이지로 리셋
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -356,96 +333,14 @@ export default function PFMEAListPage() {
       setSortField(field);
       setSortOrder('desc');
     }
+    setPage(1);
   };
 
-  // 필터링 및 정렬
-  const filteredProjects = projects
-    .filter(p => {
-      const q = searchQuery.toLowerCase();
-      // 현황 파생값
-      const step = p.step || 1;
-      const targetDate = p.fmeaInfo?.fmeaRevisionDate;
-      const today = new Date().toISOString().slice(0, 10);
-      const status = step >= 7 ? '완료' : (targetDate && targetDate < today) ? '지연' : '진행';
-
-      return p.id?.toLowerCase().includes(q) ||
-        p.project?.projectName?.toLowerCase().includes(q) ||
-        p.fmeaInfo?.subject?.toLowerCase().includes(q) ||
-        p.project?.customer?.toLowerCase().includes(q) ||
-        p.fmeaInfo?.modelYear?.toLowerCase().includes(q) ||
-        p.fmeaInfo?.designResponsibility?.toLowerCase().includes(q) ||
-        p.fmeaInfo?.fmeaResponsibleName?.toLowerCase().includes(q) ||
-        p.project?.leader?.toLowerCase().includes(q) ||
-        // ★ 추가 검색 필드
-        (p.fmeaInfo?.engineeringLocation || '').toLowerCase().includes(q) ||  // 공장
-        String(p.step || '').includes(q) ||                                     // 단계
-        status.includes(q) ||                                                    // 현황
-        (p.fmeaInfo?.fmeaStartDate || p.project?.startDate || '').includes(q);  // 시작일
-    })
-    .sort((a, b) => {
-      let aVal = '', bVal = '';
-      if (sortField === 'fmeaType') {
-        aVal = a.fmeaType || extractTypeFromId(a.id, CONFIG.modulePrefix);
-        bVal = b.fmeaType || extractTypeFromId(b.id, CONFIG.modulePrefix);
-      } else if (sortField === 'createdAt') {
-        aVal = (a as any).updatedAt || a.fmeaInfo?.updatedAt || (a as any).createdAt || a.fmeaInfo?.createdAt || '';
-        bVal = (b as any).updatedAt || b.fmeaInfo?.updatedAt || (b as any).createdAt || b.fmeaInfo?.createdAt || '';
-      } else if (sortField === 'subject') {
-        aVal = a.fmeaInfo?.subject || '';
-        bVal = b.fmeaInfo?.subject || '';
-      } else if (sortField === 'customerName') {
-        aVal = a.project?.customer || '';
-        bVal = b.project?.customer || '';
-      } else if (sortField === 'designResponsibility') {
-        aVal = a.fmeaInfo?.designResponsibility || '';
-        bVal = b.fmeaInfo?.designResponsibility || '';
-      } else if (sortField === 'fmeaResponsibleName') {
-        aVal = a.fmeaInfo?.fmeaResponsibleName || '';
-        bVal = b.fmeaInfo?.fmeaResponsibleName || '';
-      } else if (sortField === 'engineeringLocation') {
-        aVal = a.fmeaInfo?.engineeringLocation || '';
-        bVal = b.fmeaInfo?.engineeringLocation || '';
-      } else if (sortField === 'fmeaStartDate') {
-        aVal = a.fmeaInfo?.fmeaStartDate || a.project?.startDate || '';
-        bVal = b.fmeaInfo?.fmeaStartDate || b.project?.startDate || '';
-      } else if (sortField === 'fmeaRevisionDate') {
-        aVal = a.fmeaInfo?.fmeaRevisionDate || '';
-        bVal = b.fmeaInfo?.fmeaRevisionDate || '';
-      } else if (sortField === 'step') {
-        return sortOrder === 'asc'
-          ? (a.step || 0) - (b.step || 0)
-          : (b.step || 0) - (a.step || 0);
-      } else if (sortField === 'status') {
-        // 현황: 완료 > 진행 > 지연 순서
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const getStatus = (p: FMEAProject) => {
-          const s = p.step || 1;
-          if (s >= 7) return 3; // 완료
-          if (p.fmeaInfo?.fmeaRevisionDate && p.fmeaInfo.fmeaRevisionDate < todayStr) return 1; // 지연
-          return 2; // 진행
-        };
-        return sortOrder === 'asc'
-          ? getStatus(a) - getStatus(b)
-          : getStatus(b) - getStatus(a);
-      } else {
-        aVal = (a as any)[sortField] || '';
-        bVal = (b as any)[sortField] || '';
-      }
-      const compare = String(aVal).localeCompare(String(bVal));
-      return sortOrder === 'asc' ? compare : -compare;
-    });
-
-  // ★ 가상화
-  const virtualizer = useVirtualizer({
-    count: filteredProjects.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 20,
-  });
-  const virtualRows = virtualizer.getVirtualItems();
-  const totalSize = virtualizer.getTotalSize();
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
-  const paddingBottom = virtualRows.length > 0 ? totalSize - virtualRows[virtualRows.length - 1].end : 0;
+  // ★ 페이지 변경 핸들러
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    clearSelection();
+  }, [clearSelection]);
 
   // 핸들러
   const handleToggleRow = useCallback((id: string) => toggleRow(id), [toggleRow]);
@@ -542,7 +437,7 @@ export default function PFMEAListPage() {
     }
 
 
-    // ✅ DB에서 삭제 (각 프로젝트별로 API 호출)
+    // DB에서 삭제 (각 프로젝트별로 API 호출)
     const deletePromises = ids.map(async (id) => {
       try {
         // 1. 프로젝트 정보 삭제 (선택된 모듈 전달)
@@ -667,7 +562,7 @@ export default function PFMEAListPage() {
           {isLoading ? (
             <span className="text-xs text-blue-500 ml-2">⏳ 로딩 중...(Loading...)</span>
           ) : (
-            <span className="text-xs text-gray-500 ml-2">총(Total) {filteredProjects.length}건(Items)</span>
+            <span className="text-xs text-gray-500 ml-2">총(Total) {totalCount}건(Items)</span>
           )}
           {/* ★ 관리자 전용: 휴지통 토글 + 복원 버튼 */}
           {isAdmin && (
@@ -724,29 +619,29 @@ export default function PFMEAListPage() {
           .pfmea-list-table tbody td { border-bottom: 1px solid #9ca3af; border-right: 1px solid #d1d5db; }
           .pfmea-list-table tbody td:last-child { border-right: none; }
         `}} />
-        <div ref={scrollRef} className="rounded-lg overflow-y-auto border border-gray-400 bg-white mt-1" style={{ maxHeight: 'calc(100vh - 145px)' }}>
+        <div className="rounded-lg overflow-y-auto border border-gray-400 bg-white mt-1" style={{ maxHeight: 'calc(100vh - 185px)' }}>
           <table className="pfmea-list-table w-full text-[8px]">
             <thead className="sticky top-0 z-10">
               <tr className="bg-[#00587a] text-white" style={{ height: '32px' }}>
                 <th className="p-0 text-center align-middle" style={{ width: '2.5%' }}>
-                  <input type="checkbox" checked={isAllSelected(filteredProjects.map(p => p.id))} onChange={() => toggleAllRows(filteredProjects.map(p => p.id))} className="w-4 h-4 cursor-pointer" />
+                  <input type="checkbox" checked={isAllSelected(projects.map(p => p.id))} onChange={() => toggleAllRows(projects.map(p => p.id))} className="w-4 h-4 cursor-pointer" />
                 </th>
                 {/* ★ PFMEA 표준 컬럼 - 정렬 가능 (16개) — 한글 줄바꿈(영어) */}
                 {[
                   { ko: 'No', en: '', field: '', title: 'Number' },
                   { ko: '작성일', en: 'Created', field: 'createdAt', title: 'Created/Modified Date' },
                   { ko: 'Type', en: '', field: 'fmeaType', title: 'FMEA Type (M/F/P)' },
-                  { ko: 'ID', en: '', field: 'id', title: 'FMEA Identifier' },
+                  { ko: 'ID', en: '', field: 'fmeaId', title: 'FMEA Identifier' },
                   { ko: 'Rev', en: '', field: 'revisionNo', title: 'Revision Number' },
                   { ko: '단계', en: 'Step', field: 'step', title: 'Current Step (1-7)' },
                   { ko: '공장', en: 'Plant', field: 'engineeringLocation', title: 'Engineering Location / Plant' },
                   { ko: 'FMEA명', en: 'Name', field: 'subject', title: 'FMEA Name / Subject' },
                   { ko: '고객사', en: 'Customer', field: 'customerName', title: 'Customer Name' },
                   { ko: '담당자', en: 'Resp.', field: 'fmeaResponsibleName', title: 'FMEA Responsible Person' },
-                  { ko: 'DFMEA', en: '', field: 'linkedDfmeaNo', title: 'Linked Design FMEA' },
-                  { ko: 'PFD', en: '', field: 'linkedPfdNo', title: 'Linked Process Flow Diagram' },
-                  { ko: 'CP', en: '', field: 'linkedCpNo', title: 'Linked Control Plan' },
-                  { ko: '현황', en: 'Status', field: 'status', title: 'Status (Progress/Delay/Complete)' },
+                  { ko: 'DFMEA', en: '', field: '', title: 'Linked Design FMEA' },
+                  { ko: 'PFD', en: '', field: '', title: 'Linked Process Flow Diagram' },
+                  { ko: 'CP', en: '', field: '', title: 'Linked Control Plan' },
+                  { ko: '현황', en: 'Status', field: '', title: 'Status (Progress/Delay/Complete)' },
                   { ko: '시작일', en: 'Start', field: 'fmeaStartDate', title: 'FMEA Start Date' },
                   { ko: '목표완료일', en: 'Target', field: 'fmeaRevisionDate', title: 'Target Completion Date' },
                 ].map((col, i) => (
@@ -771,16 +666,13 @@ export default function PFMEAListPage() {
               </tr>
             </thead>
             <tbody>
-              {totalSize > 0 && (
-                <tr><td colSpan={17} style={{ height: paddingTop, padding: 0, border: 'none' }} /></tr>
-              )}
-              {virtualRows.map(vRow => {
-                const p = filteredProjects[vRow.index];
+              {projects.map((p, idx) => {
+                const globalIndex = (page - 1) * PAGE_SIZE + idx;
                 return (
                   <PFMEAListRow
                     key={p.id}
                     project={p}
-                    index={vRow.index}
+                    index={globalIndex}
                     isSelected={selectedRows.has(p.id)}
                     isDeleted={p.deletedAt != null}
                     onToggle={handleToggleRow}
@@ -790,10 +682,7 @@ export default function PFMEAListPage() {
                   />
                 );
               })}
-              {totalSize > 0 && (
-                <tr><td colSpan={17} style={{ height: paddingBottom, padding: 0, border: 'none' }} /></tr>
-              )}
-              {filteredProjects.length === 0 && (
+              {projects.length === 0 && (
                 <tr style={{ height: '28px' }} className="bg-[#e3f2fd]">
                   <td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" disabled className="w-3.5 h-3.5 opacity-30" /></td>
                   {Array.from({ length: 16 }).map((_, i) => <td key={i} className="px-2 py-1 text-center align-middle text-gray-300">-</td>)}
@@ -803,8 +692,16 @@ export default function PFMEAListPage() {
           </table>
         </div>
 
-        {/* 상태바 */}
-        <ListStatusBar filteredCount={filteredProjects.length} totalCount={projects.length} moduleName={CONFIG.moduleName} version="v3.0" />
+        {/* 페이지네이션 바 */}
+        <PaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          pageSize={PAGE_SIZE}
+          onPageChange={handlePageChange}
+          moduleName={CONFIG.moduleName}
+          version="v4.0"
+        />
       </div>
 
       <ConfirmDialogUI />

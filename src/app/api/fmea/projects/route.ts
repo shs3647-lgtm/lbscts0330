@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getProjects,
+  getProjectsPaginated,
   createOrUpdateProject,
   deleteProject,
   updateProjectRemark,
@@ -23,25 +24,46 @@ import {
 export const runtime = 'nodejs';
 
 // ============ GET: 프로젝트 목록 조회 ============
+// page 파라미터 존재 시 → 서버사이드 페이지네이션 모드
+// page 파라미터 없음 → 레거시 모드 (전체 반환, 하위호환)
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const targetId = searchParams.get('id') || null;
     const fmeaType = searchParams.get('type') || null;  // ★ D/P 유형 필터
     const includeDeleted = searchParams.get('includeDeleted') === 'true';
+    const pageParam = searchParams.get('page');
 
+    // ★ 페이지네이션 모드: page 파라미터가 있으면 서버사이드 페이징
+    if (pageParam && !targetId) {
+      const page = Math.max(1, parseInt(pageParam, 10) || 1);
+      const size = Math.min(200, Math.max(1, parseInt(searchParams.get('size') || '50', 10)));
+      const sortField = searchParams.get('sortField') || 'createdAt';
+      const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
+      const search = searchParams.get('search') || '';
+
+      const result = await getProjectsPaginated(fmeaType, page, size, sortField, sortOrder, search, { includeDeleted });
+
+      return NextResponse.json({
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+      });
+    }
+
+    // ★ 레거시 모드: 전체 데이터 반환 (하위호환)
     const projects = await getProjects(targetId, fmeaType, { includeDeleted });
-    
+
     return NextResponse.json({ success: true, projects });
   } catch (error: any) {
     console.error('[FMEA 프로젝트] 목록 조회 실패:', error.message);
-    
+
     // DB 연결 실패 시에도 빈 배열 반환 (클라이언트에서 localStorage 폴백 사용)
-    return NextResponse.json({ 
-      success: false, 
+    return NextResponse.json({
+      success: false,
       error: error.message,
       dbError: true,  // ★ DB 에러 플래그 추가
-      projects: [] 
+      projects: []
     }, { status: 200 });  // ★ 200으로 변경하여 클라이언트에서 처리 가능하게
   }
 }

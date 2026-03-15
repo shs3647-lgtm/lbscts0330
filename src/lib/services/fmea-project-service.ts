@@ -211,6 +211,231 @@ export async function getProjects(
   return result;
 }
 
+// ============ 프로젝트 페이지네이션 조회 ============
+
+/** 정렬 가능 필드 화이트리스트 */
+const SORTABLE_FIELDS: Record<string, string> = {
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  fmeaId: 'fmeaId',
+  fmeaType: 'fmeaType',
+  step: 'step',
+  revisionNo: 'revisionNo',
+};
+
+/** 정렬이 registration 테이블에 속하는 필드 */
+const REGISTRATION_SORT_FIELDS: Record<string, string> = {
+  subject: 'subject',
+  customer: 'customerName',
+  customerName: 'customerName',
+  processOwner: 'designResponsibility',
+  responsibleName: 'fmeaResponsibleName',
+  fmeaResponsibleName: 'fmeaResponsibleName',
+  startDate: 'fmeaStartDate',
+  fmeaStartDate: 'fmeaStartDate',
+  targetDate: 'fmeaRevisionDate',
+  fmeaRevisionDate: 'fmeaRevisionDate',
+  engineeringLocation: 'engineeringLocation',
+};
+
+export interface PaginatedResult {
+  data: FMEAProjectData[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * 페이지네이션된 프로젝트 목록 조회
+ * - 서버 사이드 정렬/검색/페이징
+ */
+export async function getProjectsPaginated(
+  fmeaType: string | null,
+  page: number,
+  pageSize: number,
+  sortField: string,
+  sortOrder: 'asc' | 'desc',
+  search: string,
+  options?: { includeDeleted?: boolean },
+): Promise<PaginatedResult> {
+  const prisma = getPrisma();
+  if (!prisma) {
+    throw new Error('Database not configured');
+  }
+
+  // Where 조건 구성
+  const whereClause: Record<string, any> = {};
+
+  if (!options?.includeDeleted) {
+    whereClause.deletedAt = null;
+  }
+
+  // 유형 필터 (P → P/F/M 포함)
+  if (fmeaType) {
+    const upper = fmeaType.toUpperCase();
+    if (upper === 'P') {
+      whereClause.fmeaType = { in: ['P', 'F', 'M'] };
+    } else {
+      whereClause.fmeaType = upper;
+    }
+  }
+
+  // 검색 조건 (fmeaId OR registration.subject)
+  if (search && search.trim()) {
+    const q = search.trim();
+    whereClause.OR = [
+      { fmeaId: { contains: q, mode: 'insensitive' } },
+      { registration: { subject: { contains: q, mode: 'insensitive' } } },
+      { registration: { customerName: { contains: q, mode: 'insensitive' } } },
+      { registration: { fmeaResponsibleName: { contains: q, mode: 'insensitive' } } },
+      { registration: { engineeringLocation: { contains: q, mode: 'insensitive' } } },
+    ];
+  }
+
+  // 총 개수 조회
+  const totalCount = await prisma.fmeaProject.count({ where: whereClause });
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
+  // 정렬 조건 구성
+  const order = sortOrder === 'asc' ? 'asc' : 'desc';
+  let orderBy: any[] = [];
+
+  if (SORTABLE_FIELDS[sortField]) {
+    orderBy = [{ [SORTABLE_FIELDS[sortField]]: order }];
+  } else if (REGISTRATION_SORT_FIELDS[sortField]) {
+    orderBy = [{ registration: { [REGISTRATION_SORT_FIELDS[sortField]]: order } }];
+  } else {
+    // 기본 정렬: fmeaType asc, createdAt desc
+    orderBy = [{ fmeaType: 'asc' }, { createdAt: 'desc' }];
+  }
+
+  // 페이지네이션 쿼리
+  const projects = await prisma.fmeaProject.findMany({
+    where: whereClause,
+    include: {
+      registration: true,
+      cftMembers: { orderBy: { order: 'asc' } },
+    },
+    orderBy,
+    skip: (safePage - 1) * pageSize,
+    take: pageSize,
+  });
+
+  // ProjectLinkage 병합
+  const linkageMap = new Map<string, any>();
+  if (projects.length > 0) {
+    const fmeaIds = projects.map(p => p.fmeaId.toLowerCase());
+    try {
+      const linkages = await (prisma as any).projectLinkage.findMany({
+        where: {
+          OR: [
+            { pfmeaId: { in: fmeaIds } },
+            { dfmeaId: { in: fmeaIds } },
+          ],
+          status: 'active',
+        },
+      });
+      linkages.forEach((l: any) => {
+        if (l.pfmeaId) linkageMap.set(l.pfmeaId.toLowerCase(), l);
+        if (l.dfmeaId) linkageMap.set(l.dfmeaId.toLowerCase(), l);
+      });
+    } catch (e) {
+      console.error('[fmea-project] ProjectLinkage 조회 실패:', e);
+    }
+  }
+
+  // 응답 변환 (기존 getProjects와 동일한 형식)
+  const data = projects.map(p => {
+    const linkage = linkageMap.get(p.fmeaId.toLowerCase());
+    const linkedPfdNo = linkage?.pfdNo || p.registration?.linkedPfdNo || '';
+    const linkedCpNo = linkage?.cpNo || p.registration?.linkedCpNo || '';
+    const linkedPfmeaNo = p.registration?.linkedPfmeaNo || '';
+    const subject = linkage?.subject || p.registration?.subject || '';
+    const customerName = linkage?.customerName || p.registration?.customerName || '';
+    const companyName = linkage?.companyName || p.registration?.companyName || '';
+    const modelYear = linkage?.modelYear || p.registration?.modelYear || '';
+    const engineeringLocation = linkage?.engineeringLocation || p.registration?.engineeringLocation || '';
+    const partNo = linkage?.partNo || p.registration?.partNo || '';
+    const responsibleName = linkage?.responsibleName || p.registration?.fmeaResponsibleName || '';
+    const partName = p.registration?.partName || (subject.includes('+') ? subject.split('+')[0] : subject) || '';
+
+    return {
+      id: p.fmeaId.toLowerCase(),
+      fmeaType: p.fmeaType,
+      deletedAt: p.deletedAt ? p.deletedAt.toISOString() : null,
+      parentApqpNo: p.parentApqpNo || null,
+      parentFmeaId: p.parentFmeaId ? p.parentFmeaId.toLowerCase() : null,
+      parentFmeaType: p.parentFmeaType,
+      status: p.status,
+      step: p.step,
+      revisionNo: p.revisionNo,
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+      linkedPfdNo,
+      linkedCpNo,
+      linkedPfmeaNo,
+      fmeaInfo: {
+        companyName,
+        engineeringLocation,
+        customerName,
+        modelYear,
+        subject,
+        fmeaStartDate: p.registration?.fmeaStartDate || linkage?.startDate || '',
+        fmeaRevisionDate: p.registration?.fmeaRevisionDate || linkage?.revisionDate || '',
+        fmeaProjectName: p.registration?.fmeaProjectName || subject || '',
+        fmeaId: p.fmeaId,
+        fmeaType: p.fmeaType,
+        designResponsibility: p.registration?.designResponsibility || linkage?.processResponsibility || '',
+        confidentialityLevel: p.registration?.confidentialityLevel || linkage?.confidentialityLevel || '',
+        fmeaResponsibleName: responsibleName,
+        linkedCpNo,
+        linkedPfdNo,
+        linkedDfmeaNo: p.registration?.linkedDfmeaNo || '',
+        partName: partName || p.registration?.partName || '',
+        partNo,
+        remark: p.registration?.remark || '',
+      },
+      project: p.registration ? {
+        projectName: subject || p.registration.fmeaProjectName || p.registration.subject || '',
+        customer: customerName || p.registration.customerName || '',
+        productName: subject || p.registration.subject || '',
+        department: p.registration.designResponsibility || '',
+        leader: p.registration.fmeaResponsibleName || '',
+        startDate: p.registration.fmeaStartDate || '',
+      } : { projectName: subject || '', productName: subject || '' },
+      cftMembers: p.cftMembers.length > 0
+        ? p.cftMembers.map(m => ({
+          id: m.id,
+          role: m.role,
+          name: m.name || '',
+          department: m.department || '',
+          position: m.position || '',
+          task: m.responsibility || '',
+          responsibility: m.responsibility || '',
+          email: m.email || '',
+          phone: m.phone || '',
+          remark: m.remarks || '',
+          remarks: m.remarks || '',
+        }))
+        : [],
+    };
+  });
+
+  return {
+    data,
+    pagination: {
+      page: safePage,
+      pageSize,
+      totalCount,
+      totalPages,
+    },
+  };
+}
+
 // ============ 프로젝트 생성/수정 ============
 
 /**
@@ -702,6 +927,44 @@ export async function deleteProject(
         // ※ APQP는 부모 모듈이므로 자식에서 삭제하지 않음 (APQP 리스트에서만 삭제 가능)
       }
     } catch { /* projectLinkage 없으면 무시 */ }
+
+    // 3-2) ★★★ 폴백: fmeaId 직접 조회로 PFD/CP 삭제 (ProjectLinkage에 누락된 경우 대비) ★★★
+    const fallbackNow = new Date();
+    if (shouldDelete('PFD')) {
+      try {
+        const fallbackResult = await prisma.pfdRegistration.updateMany({
+          where: {
+            OR: [
+              { fmeaId: { equals: actualFmeaId, mode: 'insensitive' } },
+              { linkedPfmeaNo: { equals: actualFmeaId, mode: 'insensitive' } },
+            ],
+            deletedAt: null,
+          },
+          data: { deletedAt: fallbackNow },
+        });
+        if (fallbackResult.count > 0) {
+          console.log(`[FMEA 삭제] PFD 폴백 삭제: ${fallbackResult.count}건 (fmeaId=${actualFmeaId})`);
+        }
+      } catch (e) {
+        console.error('[FMEA 삭제] PFD 폴백 삭제 실패:', e);
+      }
+    }
+    if (shouldDelete('CP')) {
+      try {
+        const fallbackResult = await prisma.cpRegistration.updateMany({
+          where: {
+            fmeaId: { equals: actualFmeaId, mode: 'insensitive' },
+            deletedAt: null,
+          },
+          data: { deletedAt: fallbackNow },
+        });
+        if (fallbackResult.count > 0) {
+          console.log(`[FMEA 삭제] CP 폴백 삭제: ${fallbackResult.count}건 (fmeaId=${actualFmeaId})`);
+        }
+      } catch (e) {
+        console.error('[FMEA 삭제] CP 폴백 삭제 실패:', e);
+      }
+    }
 
     // 4) PfmeaMasterDataset (BD 데이터) 삭제 — FlatItem은 FK cascade로 자동 삭제
     try {
