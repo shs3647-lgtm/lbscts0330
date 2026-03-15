@@ -9,6 +9,7 @@ import { uid } from '../../../constants';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { validateAutoMapping, groupMatchedByRoom } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
+import { bulkRecordSeverity } from '@/hooks/useSeverityRecommend';
 
 interface UseFailureL1HandlersProps {
   state: any;
@@ -113,10 +114,27 @@ export function useFailureL1Handlers({
       } catch (e) {
         console.error('[FailureL1Tab] 확정 후 DB 저장 오류:', e);
       }
+
+      // ★★★ 2026-03-15: 심각도 개선루프 — 확정 시 전체 FE-S 쌍 일괄 동기화 ★★★
+      try {
+        const failureScopes = state.l1?.failureScopes || [];
+        const records = failureScopes
+          .filter((sc: any) => sc.effect && sc.severity > 0)
+          .map((sc: any) => ({
+            feText: sc.effect,
+            severity: sc.severity,
+            feCategory: sc.scope || '',
+          }));
+        if (records.length > 0) {
+          bulkRecordSeverity(records, fmeaId).catch(() => { /* fire-and-forget */ });
+        }
+      } catch {
+        // 동기화 실패해도 확정 자체는 성공
+      }
     }, 100);
 
     _alert('1L 고장영향(FE) 분석이 확정되었습니다.');
-  }, [isUpstreamConfirmed, missingCount, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+  }, [isUpstreamConfirmed, missingCount, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, state.l1?.failureScopes, fmeaId]);
 
   // 수정 핸들러
   const handleEdit = useCallback(() => {

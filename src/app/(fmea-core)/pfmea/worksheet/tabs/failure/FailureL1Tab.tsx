@@ -57,6 +57,7 @@ import { handleEnterBlur } from '../../utils/keyboard';
 import { BORDER, cellBase, headerStyle, dataCell, STRUCTURE_COLORS, FUNCTION_COLORS, FAILURE_COLORS, INDICATOR_COLORS } from '../shared/tabStyles';
 import { FailureL1Header } from '../shared/FailureL1Header';
 import { matchFESeverity } from '../all/hooks/severityKeywordMap';
+import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 import { useFailureL1Handlers } from './hooks/useFailureL1Handlers';
 import { useAlertModal } from '../../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
@@ -1017,13 +1018,22 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                           }
 
                           const bestMatch = row.effect ? matchFESeverity(row.effect) : [];
+                          const keywordRating = bestMatch.length > 0 ? bestMatch[0].rating : undefined;
                           setSODModal({
                             effectId: row.effectId,
                             currentValue: row.severity,
                             scope: scopeValue,
                             feText: row.effect,
-                            recommendedRating: bestMatch.length > 0 ? bestMatch[0].rating : undefined,
+                            recommendedRating: keywordRating,
                           });
+                          // ★★★ 2026-03-15: DB 이력 비동기 조회 → high/medium이면 추천값 업데이트 ★★★
+                          if (row.effect) {
+                            recommendSeverity(row.effect).then(result => {
+                              if (result.severity && (result.confidence === 'high' || result.confidence === 'medium')) {
+                                setSODModal(prev => prev ? { ...prev, recommendedRating: result.severity! } : prev);
+                              }
+                            }).catch(() => { /* fire-and-forget */ });
+                          }
                         }
                       }}
                       title={row.effectId ? '클릭하여 심각도 선택' : ''}

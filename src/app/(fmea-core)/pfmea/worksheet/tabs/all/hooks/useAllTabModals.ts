@@ -8,6 +8,7 @@ import { WorksheetState, WorksheetFailureLink } from '../../../constants';
 import { UserInfo } from '@/types/user';
 import type { SODItem } from '@/components/modals/SODMasterData';
 import { getRecommendedDetectionMethods } from './detectionKeywordMap';
+import { recordSeverityUsage } from '@/hooks/useSeverityRecommend';
 
 /** WorksheetFailureLink + feSeverity (런타임에 존재하는 확장 필드) */
 interface FailureLinkWithSeverity extends WorksheetFailureLink {
@@ -275,6 +276,15 @@ export function useAllTabModals(
         setTimeout(() => { Promise.resolve(saveAtomicDB(true)).catch((e: unknown) => console.error('[SOD 저장] 오류:', e)); }, 150);
       }
 
+      // ★★★ 2026-03-15: 심각도 개선루프 — FE-S 쌍 DB 기록 (fire-and-forget) ★★★
+      if (sodModal.feText && rating > 0) {
+        recordSeverityUsage({
+          feText: sodModal.feText,
+          severity: rating,
+          feCategory: sodModal.scope || '',
+        }).catch(() => { /* fire-and-forget */ });
+      }
+
       setSodModal(prev => ({ ...prev, isOpen: false }));
       return;
     }
@@ -367,6 +377,15 @@ export function useAllTabModals(
     // ★★★ 2026-01-12: DB 저장 트리거 (auto-save 500ms debounce가 처리) ★★★
     if (setDirty) {
       setDirty(true);
+    }
+
+    // ★★★ 2026-03-15: 리스크/최적화 심각도 선택 시에도 FE-S 쌍 DB 기록 ★★★
+    if (sodModal.category === 'S' && sodModal.feText && rating > 0) {
+      recordSeverityUsage({
+        feText: sodModal.feText,
+        severity: rating,
+        feCategory: sodModal.scope || '',
+      }).catch(() => { /* fire-and-forget */ });
     }
 
     setSodModal(prev => ({ ...prev, isOpen: false }));

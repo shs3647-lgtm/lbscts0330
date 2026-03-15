@@ -13,6 +13,7 @@ import { useCallback, useRef } from 'react';
 import type { WorksheetState, WorksheetFailureLink } from '../../../constants';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 import { matchFESeverity } from './severityKeywordMap';
+import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 
 /** WorksheetFailureLink + feSeverity (런타임에 존재하는 확장 필드) */
 interface FailureLinkWithSeverity extends WorksheetFailureLink {
@@ -77,35 +78,69 @@ export function useAutoRecommendS({
         });
       });
 
-      // 2. ★ 키워드 기반 심각도 매칭 (AIAG VDA 1st Edition)
+      // 2. ★★★ 2026-03-15: DB 이력 우선 조회 + 키워드 기반 매칭 병합 (지속적 개선 루프) ★★★
       let filledCount = 0;
       let skippedAlready = 0;
       let noMatchCount = 0;
       const recommendations: { feId: string; feText: string; rating: number; score: number; level: string; keywords: string[] }[] = [];
 
+      // DB 이력 일괄 조회 (병렬)
+      const pendingEntries: Array<{ feId: string; feData: { text: string; currentSeverity: number } }> = [];
       feMap.forEach((feData, feId) => {
-        // 이미 심각도가 있으면 스킵
         if (feData.currentSeverity > 0) {
           skippedAlready++;
-          return;
+        } else {
+          pendingEntries.push({ feId, feData });
         }
+      });
 
-        const matches = matchFESeverity(feData.text);
-        if (matches.length > 0) {
-          const best = matches[0];
+      // DB 이력 조회 (fire-and-forget 실패 시 키워드 폴백)
+      const dbResults = new Map<string, number>();
+      try {
+        const dbPromises = pendingEntries.map(async ({ feId, feData }) => {
+          const result = await recommendSeverity(feData.text);
+          if (result.severity && (result.confidence === 'high' || result.confidence === 'medium')) {
+            dbResults.set(feId, result.severity);
+          }
+        });
+        await Promise.all(dbPromises);
+      } catch {
+        // DB 조회 실패 시 키워드 매칭으로 전체 폴백
+      }
+
+      // DB 이력 우선 → 키워드 매칭 폴백
+      for (const { feId, feData } of pendingEntries) {
+        const dbSeverity = dbResults.get(feId);
+        if (dbSeverity) {
+          // DB 이력에서 확인된 값 우선 적용
           recommendations.push({
             feId,
             feText: feData.text,
-            rating: best.rating,
-            score: best.score,
-            level: best.level,
-            keywords: best.matchedKeywords,
+            rating: dbSeverity,
+            score: 2.0,
+            level: 'DB이력',
+            keywords: ['과거프로젝트'],
           });
           filledCount++;
         } else {
-          noMatchCount++;
+          // 키워드 기반 매칭 (기존 로직)
+          const matches = matchFESeverity(feData.text);
+          if (matches.length > 0) {
+            const best = matches[0];
+            recommendations.push({
+              feId,
+              feText: feData.text,
+              rating: best.rating,
+              score: best.score,
+              level: best.level,
+              keywords: best.matchedKeywords,
+            });
+            filledCount++;
+          } else {
+            noMatchCount++;
+          }
         }
-      });
+      }
 
       if (recommendations.length === 0) {
         if (!silent) {
