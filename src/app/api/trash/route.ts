@@ -10,7 +10,6 @@ const MODULE_CONFIG: Record<string, {
 }> = {
   APQP: { model: 'apqpRegistration', docNoField: 'apqpNo', titleField: 'subject', customerField: 'customerName' },
   PFMEA: { model: 'fmeaProject', docNoField: 'fmeaId', titleField: 'fmeaId', customerField: '' },
-  DFMEA: { model: 'fmeaProject', docNoField: 'fmeaId', titleField: 'fmeaId', customerField: '' },
   CP: { model: 'cpRegistration', docNoField: 'cpNo', titleField: 'subject', customerField: 'customerName' },
   PFD: { model: 'pfdRegistration', docNoField: 'pfdNo', titleField: 'subject', customerField: 'customerName' },
   WS: { model: 'wsRegistration', docNoField: 'wsNo', titleField: 'subject', customerField: 'customerName' },
@@ -51,15 +50,13 @@ export async function GET(request: NextRequest) {
       const prismaModel = (prisma as Record<string, any>)[config.model];
       if (!prismaModel) continue;
 
-      // PFMEA/DFMEA 구분 처리
+      // PFMEA 필터 처리
       const whereClause: Record<string, any> = {
         deletedAt: { not: null },
       };
 
       if (mod === 'PFMEA') {
-        whereClause.fmeaType = { in: ['P', 'F'] };
-      } else if (mod === 'DFMEA') {
-        whereClause.fmeaType = 'D';
+        whereClause.fmeaType = { in: ['P', 'F', 'M'] };
       }
 
       const records = await prismaModel.findMany({
@@ -163,11 +160,10 @@ export async function POST(request: NextRequest) {
             data: { deletedAt: null },
           });
           // ★ FMEA 복원 시 ProjectLinkage status도 active로 복구
-          if (item.module === 'PFMEA' || item.module === 'DFMEA') {
-            const linkField = item.module === 'PFMEA' ? 'pfmeaId' : 'dfmeaId';
+          if (item.module === 'PFMEA') {
             try {
               await (prisma as any).projectLinkage.updateMany({
-                where: { [linkField]: { equals: item.docNo, mode: 'insensitive' }, status: 'deleted' },
+                where: { pfmeaId: { equals: item.docNo, mode: 'insensitive' }, status: 'deleted' },
                 data: { status: 'active' },
               });
             } catch { /* 무시 */ }
@@ -236,19 +232,16 @@ async function permanentDelete(
         break;
 
       case 'PFMEA':
-      case 'DFMEA':
         // 레거시 데이터 삭제
         try {
           await tx.fmeaLegacyData.deleteMany({
             where: { fmeaId: { in: [actualDocNo, actualDocNo.toLowerCase()] } },
           });
         } catch { /* 무시 */ }
-        // ProjectLinkage 정리 (pfmeaId 또는 dfmeaId)
+        // ProjectLinkage 정리 (pfmeaId)
         try {
           await tx.projectLinkage.deleteMany({
-            where: module === 'PFMEA'
-              ? { pfmeaId: { equals: actualDocNo, mode: 'insensitive' } }
-              : { dfmeaId: { equals: actualDocNo, mode: 'insensitive' } },
+            where: { pfmeaId: { equals: actualDocNo, mode: 'insensitive' } },
           });
         } catch { /* 무시 */ }
         // FmeaRegistration 정리
@@ -263,25 +256,21 @@ async function permanentDelete(
             where: { fmeaId: { equals: actualDocNo, mode: 'insensitive' } },
           });
         } catch { /* 무시 */ }
-        // MasterFlatItem 정리 (sourceFmeaId 매칭) - PFMEA/DFMEA 분기
+        // MasterFlatItem 정리 (sourceFmeaId 매칭)
         try {
-          if (module === 'PFMEA') {
-            await tx.pfmeaMasterFlatItem.deleteMany({
-              where: { sourceFmeaId: { equals: actualDocNo, mode: 'insensitive' } },
-            });
-          }
+          await tx.pfmeaMasterFlatItem.deleteMany({
+            where: { sourceFmeaId: { equals: actualDocNo, mode: 'insensitive' } },
+          });
         } catch { /* 무시 */ }
         // MasterDataset 정리: flatItem이 0개인 고아 dataset 삭제
         try {
-          if (module === 'PFMEA') {
-            const orphaned = await tx.pfmeaMasterDataset.findMany({
-              where: { flatItems: { none: {} } }, select: { id: true },
+          const orphaned = await tx.pfmeaMasterDataset.findMany({
+            where: { flatItems: { none: {} } }, select: { id: true },
+          });
+          if (orphaned.length > 0) {
+            await tx.pfmeaMasterDataset.deleteMany({
+              where: { id: { in: orphaned.map((d: { id: string }) => d.id) } },
             });
-            if (orphaned.length > 0) {
-              await tx.pfmeaMasterDataset.deleteMany({
-                where: { id: { in: orphaned.map((d: { id: string }) => d.id) } },
-              });
-            }
           }
         } catch { /* 무시 */ }
         // UnifiedProcessItem 정리
