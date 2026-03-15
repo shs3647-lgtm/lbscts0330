@@ -55,6 +55,13 @@ export async function saveWorksheetFromImport(
     console.info(`[Import 보충] saveWorksheetFromImport: ${supplements.length}건 자동 보충 (${supplements.map(s => s.itemCode).filter((v, i, a) => a.indexOf(v) === i).join(',')})`);
   }
 
+  // ★★★ 2026-03-15: 검증 레이어 — buildWorksheetState 전에 데이터 품질 검사 ★★★
+  const { validateAndLogFlatData } = await import('./validateAndLogFlatData');
+  const { report: validationReport } = validateAndLogFlatData(enrichedFlatData);
+  if (validationReport.errorCount > 0) {
+    console.warn(`[saveWorksheetFromImport] 검증 오류 ${validationReport.errorCount}건 — 데이터 통과 (관대한 정책)`);
+  }
+
   // 1. 클라이언트에서 빌드 + 피드백 (UI 표시용)
   const buildResult = buildWorksheetState(enrichedFlatData, { fmeaId, l1Name });
 

@@ -177,6 +177,13 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         console.info(`[SA 확정] 누락 보충: ${saSupplements.length}건 자동 생성`);
       }
 
+      // ★★★ 2026-03-15: 검증 레이어 — buildWorksheetState 전에 데이터 품질 검사 ★★★
+      const { validateAndLogFlatData } = require('../utils/validateAndLogFlatData');
+      const { report: validationReport } = validateAndLogFlatData(enrichedFlatData);
+      if (validationReport.errorCount > 0) {
+        console.warn(`[SA 확정] 검증 오류 ${validationReport.errorCount}건 발견 — 데이터 통과 (관대한 정책)`);
+      }
+
       // buildWorksheetState는 동기 함수 (CODEFREEZE → dynamic import 불필요)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { buildWorksheetState } = require('../utils/buildWorksheetState');
