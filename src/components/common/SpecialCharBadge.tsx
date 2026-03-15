@@ -24,6 +24,9 @@ export const SPECIAL_CHAR_DATA = [
   { symbol: 'PC', meaning: 'Process Characteristic (공정 특성)', color: '#1565c0', icon: '🔵' },
   { symbol: 'IC', meaning: 'Important Characteristic (중요 공정특성)', color: '#f57c00', icon: '🟠' },
   { symbol: 'QC', meaning: 'Quality Characteristic (품질 특성)', color: '#42a5f5', icon: '🔵' },
+  // LBS (LB Semicon) 특별특성
+  { symbol: '◇', meaning: 'LBS 공정관리 특별특성 (Process Control)', color: '#00838f', icon: '◇' },
+  { symbol: '★', meaning: 'LBS 제품/공정 특별특성 (Product/Process Critical)', color: '#e65100', icon: '★' },
   // 공통
   { symbol: 'F', meaning: 'Fit (적합)', color: '#388e3c', icon: '🟢' },
   { symbol: 'S', meaning: 'Safety (안전)', color: '#1976d2', icon: '🔵' },

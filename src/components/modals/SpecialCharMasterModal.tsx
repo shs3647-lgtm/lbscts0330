@@ -24,17 +24,21 @@ export interface SpecialCharMaster {
   processName?: string;
   productChar?: string;
   processChar?: string;
+  failureMode?: string;
   linkDFMEA: boolean;
   linkPFMEA: boolean;
   linkCP: boolean;
   linkPFD: boolean;
 }
 
-/** 기본 특별특성 데이터 — 15개 (자사2 + 현대기아2 + FORD6 + BMW5) */
-const DEFAULT_SPECIAL_CHARS: Omit<SpecialCharMaster, 'id' | 'partName' | 'processName' | 'productChar' | 'processChar'>[] = [
+/** 기본 특별특성 데이터 — 17개 (자사2 + LBS2 + 현대기아2 + FORD6 + BMW5) */
+const DEFAULT_SPECIAL_CHARS: Omit<SpecialCharMaster, 'id' | 'partName' | 'processName' | 'productChar' | 'processChar' | 'failureMode'>[] = [
   // 자사
   { customer: '자사', customerSymbol: '', internalSymbol: 'SC', meaning: 'Safety / Compliance\n법규·규제 특성', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
   { customer: '자사', customerSymbol: '', internalSymbol: 'F/F', meaning: 'Fit / Function\n기능·조립성 특성', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
+  // LBS (LB Semicon) — 제품특성·공정특성·고장형태 모두 특별특성 지정 가능
+  { customer: 'LBS', customerSymbol: '◇', internalSymbol: 'SC', meaning: '공정관리 특별특성\n공정 파라미터 Spec Out 시 제품 품질에 영향\n(Etch Rate, Amount 등)', icon: '◇', color: '#00838f', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
+  { customer: 'LBS', customerSymbol: '★', internalSymbol: 'CC', meaning: '제품/공정 핵심 특별특성\n고객 요구 규격 직결, Spec Out 시 제품 불량\n(Height, Strength, Co-planarity 등)', icon: '★', color: '#e65100', linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: true },
   // 현대기아
   { customer: '현대기아', customerSymbol: 'CC', internalSymbol: 'SC', meaning: '안전·법규 관련 특성\n미충족 시 탑승자 안전 또는 법적 규제 위반\n정부 규정/차량 안전 기준에 직접 영향', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
   { customer: '현대기아', customerSymbol: 'IC', internalSymbol: 'SC', meaning: '기능·성능 관련 중요 특성\n미충족 시 고객 불만·성능 저하·조립성 문제\n제품 기능 요구사항에 영향', icon: '', color: '', linkDFMEA: true, linkPFMEA: true, linkCP: true, linkPFD: true },
@@ -182,7 +186,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
   });
   const [masterData, setMasterData] = useState<SpecialCharMaster[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('전체');
-  const [selectModal, setSelectModal] = useState<{ itemId: string; field: 'partName' | 'processName' | 'productChar' | 'processChar'; title: string } | null>(null);
+  const [selectModal, setSelectModal] = useState<{ itemId: string; field: 'partName' | 'processName' | 'productChar' | 'processChar' | 'failureMode'; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'symbol' | 'fmea'>('symbol');
   // 탭별 동적 폭 계산
@@ -209,7 +213,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       }
     } else {
       data = DEFAULT_SPECIAL_CHARS.map((item, idx) => ({
-        ...item, id: `SC_${idx + 1}`, partName: '', processName: '', productChar: '', processChar: '',
+        ...item, id: `SC_${idx + 1}`, partName: '', processName: '', productChar: '', processChar: '', failureMode: '',
       }));
     }
     // ★ 자사를 맨 위로 정렬
@@ -247,7 +251,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
   const addNewItem = useCallback(() => {
     const newItem: SpecialCharMaster = {
       id: `SC_${Date.now()}`, customer: '신규', customerSymbol: '', internalSymbol: 'SC', meaning: '',
-      icon: '', color: '#f5f5f5', partName: '', processName: '', productChar: '', processChar: '',
+      icon: '', color: '#f5f5f5', partName: '', processName: '', productChar: '', processChar: '', failureMode: '',
       linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false,
     };
     saveData([newItem, ...masterData]);
@@ -260,20 +264,31 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
   const handleExport = useCallback(async () => {
     const XS = (await import('xlsx-js-style')).default;
 
-    const headers = ['고객사', '표시(자사)', '기호(고객)', '기준', 'D-FMEA', 'P-FMEA', 'CP', 'PFD'];
-    const rows = masterData.map(item => [
-      item.customer, item.internalSymbol, item.customerSymbol, item.meaning,
-      item.linkDFMEA ? 'Y' : '', item.linkPFMEA ? 'Y' : '', item.linkCP ? 'Y' : '', item.linkPFD ? 'Y' : '',
-    ]);
+    // ★ 탭별 Export 컬럼 분리 — 각 화면 내용과 100% 일치
+    const isSymbolTab = activeTab === 'symbol';
+    const headers = isSymbolTab
+      ? ['고객사(Customer)', '표시(Internal)', '기호(Symbol)', '기준(Criteria)']
+      : ['기호(Symbol)', '고객(Customer)', '부품(Part)', '공정(Process)', '제품특성(Product Char)', '공정특성(Process Char)', '고장형태(Failure Mode)', 'D-FMEA', 'P-FMEA', 'CP', 'PFD'];
+
+    const exportData = selectedCustomer === '전체' ? masterData : masterData.filter(d => d.customer === selectedCustomer);
+    const rows = exportData.map(item => isSymbolTab
+      ? [item.customer, item.internalSymbol, item.customerSymbol, item.meaning]
+      : [
+          item.customerSymbol || item.internalSymbol, item.customer,
+          item.partName || '', item.processName || '',
+          item.productChar || '', item.processChar || '', item.failureMode || '',
+          item.linkDFMEA ? 'Y' : '', item.linkPFMEA ? 'Y' : '',
+          item.linkCP ? 'Y' : '', item.linkPFD ? 'Y' : '',
+        ]
+    );
 
     const aoa = [headers, ...rows];
     const ws = XS.utils.aoa_to_sheet(aoa);
 
-    // 열 너비
-    ws['!cols'] = [
-      { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 36 },
-      { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 },
-    ];
+    // 열 너비 — 탭별
+    ws['!cols'] = isSymbolTab
+      ? [{ wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 36 }]
+      : [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
 
     // 행 높이
     ws['!rows'] = aoa.map((_, i) => ({ hpt: i === 0 ? 30 : 24 }));
@@ -289,42 +304,64 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
     // 고객사 구분선용 하단 굵은 테두리
     const groupBottomBorder = (color: string) => ({
       ...thinBorder(color),
-      bottom: { style: 'medium' as const, color: { rgb: '2E7D32' } },
+      bottom: { style: 'medium' as const, color: { rgb: isSymbolTab ? '2E7D32' : '1565C0' } },
     });
 
-    // 헤더 스타일
+    // 헤더 스타일 — 탭별 색상
+    const headerColor = isSymbolTab ? '2E7D32' : '1565C0';
+    const headerBorderColor = isSymbolTab ? '1B5E20' : '0D47A1';
     const headerStyle = {
-      fill: { patternType: 'solid' as const, fgColor: { rgb: '2E7D32' } },
+      fill: { patternType: 'solid' as const, fgColor: { rgb: headerColor } },
       font: { name: '맑은 고딕', sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
-      border: thinBorder('1B5E20'),
+      border: thinBorder(headerBorderColor),
       alignment: { horizontal: 'center' as const, vertical: 'center' as const, wrapText: true },
     };
 
+    // 4M 컬럼 헤더 (SC Lookup 탭 전용)
+    const header4MStyle = {
+      ...headerStyle,
+      fill: { patternType: 'solid' as const, fgColor: { rgb: '1976D2' } },
+    };
+
+    // 연동 컬럼 헤더 (SC Lookup 탭 전용)
+    const headerLinkStyle = {
+      ...headerStyle,
+      fill: { patternType: 'solid' as const, fgColor: { rgb: '7B1FA2' } },
+    };
+
     // 데이터 스타일 (짝수/홀수)
+    const oddBg = isSymbolTab ? 'F1F8E9' : 'E3F2FD';
     const makeDataStyle = (isOdd: boolean, isGroupEnd: boolean) => ({
-      fill: { patternType: 'solid' as const, fgColor: { rgb: isOdd ? 'F1F8E9' : 'FFFFFF' } },
+      fill: { patternType: 'solid' as const, fgColor: { rgb: isOdd ? oddBg : 'FFFFFF' } },
       font: { name: '맑은 고딕', sz: 10 },
       border: isGroupEnd ? groupBottomBorder('D0D0D0') : thinBorder('D0D0D0'),
       alignment: { horizontal: 'center' as const, vertical: 'center' as const, wrapText: true },
     });
 
     // Y 셀 강조 스타일
+    const yColor = isSymbolTab ? '2E7D32' : '7B1FA2';
     const makeYCellStyle = (isOdd: boolean, isGroupEnd: boolean) => ({
       ...makeDataStyle(isOdd, isGroupEnd),
-      font: { name: '맑은 고딕', sz: 10, bold: true, color: { rgb: '2E7D32' } },
+      font: { name: '맑은 고딕', sz: 10, bold: true, color: { rgb: yColor } },
     });
 
-    // 기준 컬럼 (좌측 정렬)
-    const makeCriteriaStyle = (isOdd: boolean, isGroupEnd: boolean) => ({
+    // 기준/텍스트 컬럼 (좌측 정렬)
+    const makeLeftAlignStyle = (isOdd: boolean, isGroupEnd: boolean) => ({
       ...makeDataStyle(isOdd, isGroupEnd),
       alignment: { horizontal: 'left' as const, vertical: 'center' as const, wrapText: true },
     });
 
-    // 고객사 그룹 구분 감지
+    // 고객사 그룹 구분 감지 (Tab1: 첫 컬럼, Tab2: 두 번째 컬럼이 고객)
+    const customerCol = isSymbolTab ? 0 : 1;
     const isGroupEnd = (rowIdx: number) => {
       if (rowIdx >= rows.length - 1) return false;
-      return rows[rowIdx][0] !== rows[rowIdx + 1][0];
+      return rows[rowIdx][customerCol] !== rows[rowIdx + 1][customerCol];
     };
+
+    // 좌측 정렬 컬럼 인덱스 (Tab1: 기준=3, Tab2: 부품~공정특성=2~5)
+    const leftAlignCols = isSymbolTab ? new Set([3]) : new Set([2, 3, 4, 5]);
+    // Y값 컬럼 시작 인덱스 (Tab1: 없음, Tab2: D-FMEA~PFD=6~9)
+    const yCellStartCol = isSymbolTab ? 999 : 6;
 
     // 스타일 적용
     const range = XS.utils.decode_range(ws['!ref'] || 'A1');
@@ -334,18 +371,23 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
         if (!ws[addr]) ws[addr] = { v: '', t: 's' };
 
         if (r === 0) {
-          ws[addr].s = headerStyle;
+          // SC Lookup 탭: 4M(2~5) / 연동(6~9) 컬럼별 헤더 색상 분리
+          if (!isSymbolTab && c >= 2 && c <= 5) {
+            ws[addr].s = header4MStyle;
+          } else if (!isSymbolTab && c >= 6 && c <= 9) {
+            ws[addr].s = headerLinkStyle;
+          } else {
+            ws[addr].s = headerStyle;
+          }
         } else {
           const dataIdx = r - 1;
           const odd = r % 2 === 0;
           const groupEnd = isGroupEnd(dataIdx);
           const cellValue = ws[addr].v;
 
-          if (c === 3) {
-            // 기준 컬럼: 좌측 정렬
-            ws[addr].s = makeCriteriaStyle(odd, groupEnd);
-          } else if (c >= 4 && cellValue === 'Y') {
-            // Y 값 강조
+          if (leftAlignCols.has(c)) {
+            ws[addr].s = makeLeftAlignStyle(odd, groupEnd);
+          } else if (c >= yCellStartCol && cellValue === 'Y') {
             ws[addr].s = makeYCellStyle(odd, groupEnd);
           } else {
             ws[addr].s = makeDataStyle(odd, groupEnd);
@@ -354,10 +396,15 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       }
     }
 
+    const sheetName = isSymbolTab ? '기호등록' : '특별특성조회';
+    const fileName = isSymbolTab
+      ? `특별특성_기호등록_${new Date().toISOString().slice(0,10)}.xlsx`
+      : `특별특성_조회_${new Date().toISOString().slice(0,10)}.xlsx`;
+
     const wb = XS.utils.book_new();
-    XS.utils.book_append_sheet(wb, ws, '특별특성');
-    XS.writeFile(wb, `특별특성_마스터_${new Date().toISOString().slice(0,10)}.xlsx`);
-  }, [masterData]);
+    XS.utils.book_append_sheet(wb, ws, sheetName);
+    XS.writeFile(wb, fileName);
+  }, [activeTab, masterData, selectedCustomer]);
 
   const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -387,6 +434,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
       case 'processName': return masterItems.processes;
       case 'productChar': return masterItems.productChars;
       case 'processChar': return masterItems.processChars;
+      case 'failureMode': return masterItems.failureModes || [];
       default: return [];
     }
   };
@@ -411,7 +459,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
   if (!isOpen) return null;
 
   // 선택 버튼 컴포넌트
-  const SelectButton = ({ itemId, field, value, title }: { itemId: string; field: 'partName' | 'processName' | 'productChar' | 'processChar'; value: string; title: string }) => (
+  const SelectButton = ({ itemId, field, value, title }: { itemId: string; field: 'partName' | 'processName' | 'productChar' | 'processChar' | 'failureMode'; value: string; title: string }) => (
     <button 
       onClick={() => setSelectModal({ itemId, field, title })}
       style={STYLES.selectBtn}
@@ -640,7 +688,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
             </div>
 
             <div className="flex-1 overflow-auto">
-              <table className="w-full border-collapse min-w-[1100px]">
+              <table className="w-full border-collapse min-w-[1260px]">
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-blue-100">
                     <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center w-16" title="Symbol">기호(Symbol)</th>
@@ -649,6 +697,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                     <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-blue-200 w-[120px]" title="Process">공정(Process)</th>
                     <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-blue-200 w-[160px]" title="Product Characteristic">제품특성(Product Char)</th>
                     <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-blue-200 w-[160px]" title="Process Characteristic">공정특성(Process Char)</th>
+                    <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-orange-200 w-[160px]" title="Failure Mode">고장형태(Failure Mode)</th>
                     <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-purple-200 w-[55px]">D-FMEA</th>
                     <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-purple-200 w-[55px]">P-FMEA</th>
                     <th className="p-2 border border-blue-300 text-[11px] font-semibold text-center bg-purple-200 w-10">CP</th>
@@ -667,6 +716,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                       <td style={STYLES.td}><SelectButton itemId={item.id} field="processName" value={item.processName || ''} title="공정 선택" /></td>
                       <td style={STYLES.td}><SelectButton itemId={item.id} field="productChar" value={item.productChar || ''} title="제품특성 선택" /></td>
                       <td style={STYLES.td}><SelectButton itemId={item.id} field="processChar" value={item.processChar || ''} title="공정특성 선택" /></td>
+                      <td style={STYLES.td}><SelectButton itemId={item.id} field="failureMode" value={item.failureMode || ''} title="고장형태 선택" /></td>
                       <td className="p-1 border border-gray-300 text-center">
                         <button onClick={() => toggleLink(item.id, 'linkDFMEA')} style={linkBtnStyle(item.linkDFMEA)}>{item.linkDFMEA ? '연동' : '-'}</button>
                       </td>

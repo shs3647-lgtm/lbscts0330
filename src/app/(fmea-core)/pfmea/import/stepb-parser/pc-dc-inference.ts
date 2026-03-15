@@ -98,6 +98,50 @@ function matchKeywords(text: string, keywords: string[]): boolean {
   return keywords.some(kw => lower.includes(kw.toLowerCase()));
 }
 
+// ═══════════════════════════════════════════════
+// B5_MN_MC_SWAP 방지 — 4M 적합성 검증
+// ═══════════════════════════════════════════════
+
+/** 4M별 PC 부적합 키워드 (해당 4M에 있으면 안 되는 키워드) */
+const M4_INCOMPATIBLE_KEYWORDS: Record<string, string[]> = {
+  MN: ['pm', '예방보전', '정기 교정', '교정(', 'calibration', '장비 pm', '설비 pm', '파라미터 자동제어', '인터록'],
+  MC: ['교육', '숙련도', '작업표준', '작업자 교육', 'ojt', '자격인증', '인수인계'],
+  IM: ['교육', '숙련도', 'pm', '예방보전', '교정('],
+  EN: ['교육', '숙련도', 'pm', '예방보전', '교정('],
+};
+
+/** B5 금지 표현 — "실시간 모니터링" 단독은 A6(검출관리) 성격 */
+const B5_BANNED_STANDALONE = ['실시간 모니터링'];
+
+/**
+ * PC 결과가 해당 4M 코드에 적합한지 검증
+ * 비유: 작업자(MN) 관리 행에 "설비 PM"이 들어가면 안 되고,
+ *       설비(MC) 관리 행에 "작업자 교육"이 들어가면 안 됨.
+ */
+function isPC4MCompatible(pc: string, m4: string): boolean {
+  const m4Upper = m4.toUpperCase();
+  const incompatible = M4_INCOMPATIBLE_KEYWORDS[m4Upper];
+  if (!incompatible) return true;
+  const pcLower = pc.toLowerCase();
+  return !incompatible.some(kw => pcLower.includes(kw));
+}
+
+/**
+ * B5 금지 표현 검사 — "실시간 모니터링" 단독은 A6 성격이므로 B5에 부적합
+ * "인터록 + 실시간 모니터링" 등 복합 표현은 허용
+ */
+function containsBannedStandalone(pc: string): boolean {
+  for (const banned of B5_BANNED_STANDALONE) {
+    if (pc.includes(banned)) {
+      // 예방적 조치 키워드와 함께 쓰이면 허용
+      const preventiveKeywords = ['인터록', 'pm', '교정', '교육', '점검', '관리', '기준'];
+      const hasPreventive = preventiveKeywords.some(kw => pc.toLowerCase().includes(kw) && kw !== '관리');
+      if (!hasPreventive) return true;
+    }
+  }
+  return false;
+}
+
 /** ★ H-1: 추론 결과 + confidence 추적 타입 */
 export type InferConfidence = 'fc-keyword' | 'fm-keyword' | 'm4-default' | 'fallback';
 
@@ -110,6 +154,7 @@ export interface InferResult {
 /**
  * FC + FM + 4M으로 예방관리(PC) 추론
  * 매칭 순서: FC규칙 → FM규칙 → 4M기본값 → fallback
+ * ★ v5.4.1: 4M 적합성 검증 추가 — MN/MC 스왑 방지
  */
 export function inferPC(fc: string, m4: string, rules: IndustryRuleSet, fm?: string): string {
   return inferPCWithConfidence(fc, m4, rules, fm).value;
@@ -117,26 +162,32 @@ export function inferPC(fc: string, m4: string, rules: IndustryRuleSet, fm?: str
 
 /** ★ H-1: confidence 추적 버전 — 워크시트 Step 4에서 사용 */
 export function inferPCWithConfidence(fc: string, m4: string, rules: IndustryRuleSet, fm?: string): InferResult {
-  // 1차: FC 키워드 매칭
+  const m4Upper = (m4 || '').toUpperCase();
+
+  // 1차: FC 키워드 매칭 + 4M 적합성 검증
   if (fc) {
     for (const rule of rules.pcRulesFC) {
       if (matchKeywords(fc, rule.keywords)) {
+        // ★ B5_MN_MC_SWAP 방지: FC 매칭 결과가 해당 4M에 부적합하면 스킵
+        if (m4Upper && !isPC4MCompatible(rule.pc, m4Upper)) continue;
+        if (containsBannedStandalone(rule.pc)) continue;
         return { value: rule.pc, confidence: 'fc-keyword', requiresReview: false };
       }
     }
   }
 
-  // 2차: FM 키워드 매칭 (FC에서 못 찾으면)
+  // 2차: FM 키워드 매칭 + 4M 적합성 검증
   if (fm) {
     for (const rule of rules.pcRulesFM) {
       if (matchKeywords(fm, rule.keywords)) {
+        if (m4Upper && !isPC4MCompatible(rule.pc, m4Upper)) continue;
+        if (containsBannedStandalone(rule.pc)) continue;
         return { value: rule.pc, confidence: 'fm-keyword', requiresReview: false };
       }
     }
   }
 
-  // 3차: 4M 카테고리 기본값
-  const m4Upper = (m4 || '').toUpperCase();
+  // 3차: 4M 카테고리 기본값 — 항상 4M에 적합한 결과 보장
   if (m4Upper && rules.m4Defaults[m4Upper]) {
     return { value: rules.m4Defaults[m4Upper], confidence: 'm4-default', requiresReview: true };
   }

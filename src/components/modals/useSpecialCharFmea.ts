@@ -109,6 +109,39 @@ function extractSCFromFmea(
       });
     });
 
+    // 고장형태(FM): proc.functions[].productChars[].failureModes[]
+    (proc.functions || []).forEach((func: any) => {
+      (func.productChars || []).forEach((pc: any) => {
+        (pc.failureModes || []).forEach((fm: any) => {
+          const fmName = fm.name?.trim();
+          if (!fmName || fmName.includes('클릭')) return;
+
+          const symbol = fm.specialChar;
+          if (symbol && symbol !== '' && symbol !== '-') {
+            const exists = [...currentData, ...newItems].some(m => m.failureMode === fmName && m.linkPFMEA);
+            if (!exists) {
+              newItems.push({
+                id: `SC_FMEA_${fmeaId}_${Date.now()}_${syncCount}`,
+                customer: `FMEA: ${fmeaId}`,
+                customerSymbol: symbol,
+                internalSymbol: symbol === 'CC' ? 'SC' : symbol,
+                meaning: `고장형태 ${symbol}`,
+                icon: symbol === '★' ? '★' : symbol === '◇' ? '◇' : '◆',
+                color: symbol === '★' ? '#e65100' : symbol === '◇' ? '#00838f' : '#d32f2f',
+                partName: data?.l1?.name || '',
+                processName: processName || '',
+                productChar: '',
+                processChar: '',
+                failureMode: fmName,
+                linkDFMEA: false, linkPFMEA: true, linkCP: true, linkPFD: false,
+              });
+              syncCount++;
+            }
+          }
+        });
+      });
+    });
+
     // 공정특성: proc.l3[].functions[].processChars[]
     (proc.l3 || []).forEach((we: any) => {
       if (!we.name || we.name.includes('클릭')) return;
@@ -205,12 +238,13 @@ export function useSpecialCharFmea({
 
   // FMEA 기초정보에서 항목 목록 가져오기
   const masterItems = useMemo(() => {
-    if (typeof window === 'undefined') return { parts: [] as string[], processes: [] as string[], productChars: [] as string[], processChars: [] as string[] };
+    if (typeof window === 'undefined') return { parts: [] as string[], processes: [] as string[], productChars: [] as string[], processChars: [] as string[], failureModes: [] as string[] };
 
     const parts: string[] = [];
     const processes: string[] = [];
     const productChars: string[] = [];
     const processChars: string[] = [];
+    const failureModes: string[] = [];
 
     // ★★★ 2026-02-16: localStorage 폴백 제거 (DB Only 정책) ★★★
     // pfmea_master_data localStorage 읽기 삭제됨 - DB API에서만 로드
@@ -248,6 +282,33 @@ export function useSpecialCharFmea({
       console.error('프로젝트 로드 오류:', e);
     }
 
+    // 워크시트에서 고장형태(FM) 목록 추출
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('pfmea_worksheet_')) {
+          const rawData = localStorage.getItem(key);
+          if (rawData) {
+            const data = JSON.parse(rawData);
+            (data?.l2 || []).forEach((proc: any) => {
+              (proc.functions || []).forEach((func: any) => {
+                (func.productChars || []).forEach((pc: any) => {
+                  (pc.failureModes || []).forEach((fm: any) => {
+                    const fmName = fm.name?.trim();
+                    if (fmName && !fmName.includes('클릭') && !failureModes.includes(fmName)) {
+                      failureModes.push(fmName);
+                    }
+                  });
+                });
+              });
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('고장형태 로드 오류:', e);
+    }
+
     return {
       parts: parts.sort(),
       processes: processes.sort((a, b) => {
@@ -257,6 +318,7 @@ export function useSpecialCharFmea({
       }),
       productChars: productChars.sort(),
       processChars: processChars.sort(),
+      failureModes: failureModes.sort(),
     };
   }, [isOpen]);
 

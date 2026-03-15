@@ -3,6 +3,7 @@
  * @description Import 미리보기에서 누락 항목 자동 채움 유틸
  * - A6(검출관리): A5(고장형태) 기반 inferDC 엔진으로 추론
  * - B5(예방관리): B4(고장원인) + 4M 기반 inferPC 엔진으로 추론
+ * ★ v5.4.1: B5_MN_MC_SWAP 사후 검증 추가
  * @created 2026-03-14
  */
 
@@ -21,6 +22,57 @@ export interface AutoFixResult {
     value: string;
     source: string;
   }>;
+}
+
+// ═══════════════════════════════════════════════
+// B5_MN_MC_SWAP 사후 검증
+// ═══════════════════════════════════════════════
+
+/** 4M별 B5 부적합 키워드 — 해당 4M 행에 있으면 스왑 의심 */
+const B5_SWAP_DETECTORS: Record<string, { forbidden: string[]; label: string }> = {
+  MN: { forbidden: ['PM', '정기 교정', '장비 PM', '설비 PM', 'Calibration'], label: '작업자' },
+  MC: { forbidden: ['교육', '숙련도', '작업표준 교육', '작업자 교육'], label: '설비' },
+};
+
+export interface B5SwapWarning {
+  processNo: string;
+  m4: string;
+  value: string;
+  reason: string;
+}
+
+/**
+ * B5 autoFix 결과에서 MN/MC 스왑 감지
+ * MC 행에 "교육/숙련도" → 오류, MN 행에 "PM/교정" → 오류
+ */
+export function detectB5MnMcSwap(
+  details: AutoFixResult['details'],
+  bRows: CrossTab['bRows'],
+): B5SwapWarning[] {
+  const warnings: B5SwapWarning[] = [];
+
+  for (const d of details) {
+    if (d.itemCode !== 'B5') continue;
+    const row = bRows.find(r => r.processNo === d.processNo && r._ids.B5 === d.value);
+    const m4 = row?.m4?.toUpperCase() || '';
+    const detector = B5_SWAP_DETECTORS[m4];
+    if (!detector) continue;
+
+    const valueLower = d.value.toLowerCase();
+    for (const kw of detector.forbidden) {
+      if (valueLower.includes(kw.toLowerCase())) {
+        warnings.push({
+          processNo: d.processNo,
+          m4,
+          value: d.value,
+          reason: `${detector.label}(${m4}) 행에 부적합 키워드 "${kw}" 감지 — B5_MN_MC_SWAP 의심`,
+        });
+        break;
+      }
+    }
+  }
+
+  return warnings;
 }
 
 /**
