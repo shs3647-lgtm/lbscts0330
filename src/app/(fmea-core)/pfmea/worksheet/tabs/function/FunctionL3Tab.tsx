@@ -535,11 +535,11 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
       <table className="w-full border-collapse table-fixed">
         <colgroup>
           <col style={{ width: '13%' }} />
-          <col style={{ width: '7%' }} />
+          <col style={{ width: '9%' }} />
           <col style={{ width: '15%' }} />
-          <col style={{ width: '27%' }} />
-          <col style={{ width: '27%' }} />
-          <col style={{ width: '11%' }} />
+          <col style={{ width: '28%' }} />
+          <col style={{ width: '28%' }} />
+          <col style={{ width: '7%' }} />
         </colgroup>
 
         <L3TabHeader

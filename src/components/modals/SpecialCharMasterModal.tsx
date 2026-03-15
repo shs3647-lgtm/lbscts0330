@@ -29,6 +29,8 @@ export interface SpecialCharMaster {
   linkPFMEA: boolean;
   linkCP: boolean;
   linkPFD: boolean;
+  usageCount?: number;
+  lastUsedAt?: string | null;
 }
 
 /** 기본 특별특성 데이터 — LBS 전용 */
@@ -169,37 +171,131 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
   const [selectModal, setSelectModal] = useState<{ itemId: string; field: 'partName' | 'processName' | 'productChar' | 'processChar' | 'failureMode'; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'symbol' | 'fmea'>('symbol');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // 탭별 동적 폭 계산
   const dynamicW = activeTab === 'fmea' ? Math.max(size.w, fmeaW) : Math.min(size.w, symbolW);
 
-  // 초기 데이터 로드 — 자사가 항상 맨 위 (없으면 자동 추가)
+  const [dbSynced, setDbSynced] = useState(false);
+
+  // ★ DB에서 로드 → localStorage 동기화 → 없으면 localStorage → DB 마이그레이션
   useEffect(() => {
     if (!isOpen) return;
-    const saved = localStorage.getItem('pfmea_special_char_master');
-    let data: SpecialCharMaster[];
-    if (saved) {
-      data = JSON.parse(saved);
-    } else {
-      data = DEFAULT_SPECIAL_CHARS.map((item, idx) => ({
-        ...item, id: `SC_${idx + 1}`, partName: '', processName: '', productChar: '', processChar: '', failureMode: '',
-      }));
-    }
-    // ★ LBS → 나머지 순서로 정렬
-    const topOrder = ['LBS'];
-    data.sort((a, b) => {
-      const aIdx = topOrder.indexOf(a.customer);
-      const bIdx = topOrder.indexOf(b.customer);
-      const aPri = aIdx >= 0 ? aIdx : topOrder.length;
-      const bPri = bIdx >= 0 ? bIdx : topOrder.length;
-      return aPri - bPri;
-    });
-    setMasterData(data);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/special-char');
+        const json = await res.json();
+        if (!cancelled && json.success && json.data.length > 0) {
+          // DB 데이터를 SpecialCharMaster 형태로 변환
+          const dbData: SpecialCharMaster[] = json.data.map((d: Record<string, unknown>) => ({
+            id: d.id as string,
+            customer: d.customer as string || '',
+            internalSymbol: d.internalSymbol as string || 'SC',
+            customerSymbol: d.customerSymbol as string || '',
+            meaning: d.meaning as string || '',
+            icon: (d.customerSymbol as string) || '',
+            color: d.color as string || '#f5f5f5',
+            partName: d.partName as string || '',
+            processName: d.processName as string || '',
+            productChar: d.productChar as string || '',
+            processChar: d.processChar as string || '',
+            failureMode: d.failureMode as string || '',
+            linkDFMEA: d.linkDFMEA as boolean ?? false,
+            linkPFMEA: d.linkPFMEA as boolean ?? true,
+            linkCP: d.linkCP as boolean ?? true,
+            linkPFD: d.linkPFD as boolean ?? false,
+            usageCount: d.usageCount as number ?? 0,
+            lastUsedAt: d.lastUsedAt as string || null,
+          }));
+          sortByCustomer(dbData);
+          setMasterData(dbData);
+          // localStorage도 동기화
+          localStorage.setItem('pfmea_special_char_master', JSON.stringify(dbData));
+          setDbSynced(true);
+          return;
+        }
+      } catch {
+        console.error('[SC] DB 로드 실패, localStorage 폴백');
+      }
+
+      // DB 비어있거나 실패 → localStorage에서 로드
+      if (cancelled) return;
+      const saved = localStorage.getItem('pfmea_special_char_master');
+      let data: SpecialCharMaster[];
+      if (saved) {
+        data = JSON.parse(saved);
+        // ★ localStorage → DB 자동 마이그레이션
+        migrateToDb(data);
+      } else {
+        data = DEFAULT_SPECIAL_CHARS.map((item, idx) => ({
+          ...item, id: `SC_${idx + 1}`, partName: '', processName: '', productChar: '', processChar: '', failureMode: '',
+        }));
+      }
+      sortByCustomer(data);
+      setMasterData(data);
+    })();
+
+    return () => { cancelled = true; };
   }, [isOpen]);
 
+  // localStorage → DB 일회 마이그레이션
+  const migrateToDb = useCallback(async (data: SpecialCharMaster[]) => {
+    try {
+      await fetch('/api/special-char', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: data }),
+      });
+      setDbSynced(true);
+    } catch {
+      console.error('[SC] DB 마이그레이션 실패');
+    }
+  }, []);
+
+  const sortByCustomer = (data: SpecialCharMaster[]) => {
+    const topOrder = ['LBS'];
+    data.sort((a, b) => {
+      const aPri = topOrder.indexOf(a.customer) >= 0 ? topOrder.indexOf(a.customer) : topOrder.length;
+      const bPri = topOrder.indexOf(b.customer) >= 0 ? topOrder.indexOf(b.customer) : topOrder.length;
+      return aPri - bPri;
+    });
+  };
+
+  // 저장: DB + localStorage 동시 기록
   const saveData = useCallback((data: SpecialCharMaster[]) => {
     setMasterData(data);
     localStorage.setItem('pfmea_special_char_master', JSON.stringify(data));
   }, []);
+
+  // DB 저장 (저장 버튼 클릭 시)
+  const saveToDb = useCallback(async (data: SpecialCharMaster[]) => {
+    try {
+      // 기존 DB 전체 삭제 후 재등록 (간단한 동기화)
+      const existRes = await fetch('/api/special-char');
+      const existJson = await existRes.json();
+      if (existJson.success && existJson.data.length > 0) {
+        const ids = existJson.data.map((d: { id: string }) => d.id);
+        await fetch('/api/special-char', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids }),
+        });
+      }
+      // 신규 등록
+      await fetch('/api/special-char', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: data }),
+      });
+      setDbSynced(true);
+    } catch {
+      console.error('[SC] DB 저장 실패');
+    }
+  }, []);
+
+  const customers = useMemo(() => ['전체', ...new Set(masterData.map(d => d.customer))], [masterData]);
+  const filteredData = useMemo(() => selectedCustomer === '전체' ? masterData : masterData.filter(d => d.customer === selectedCustomer), [masterData, selectedCustomer]);
 
   // FMEA 동기화/검색 hook
   const {
@@ -230,6 +326,71 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
 
   const deleteItem = useCallback((id: string) => {
     if (confirm('삭제하시겠습니까?')) saveData(masterData.filter(item => item.id !== id));
+  }, [masterData, saveData]);
+
+  // 다중선택 토글
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    const visibleIds = filteredData.map(d => d.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }, [filteredData, selectedIds]);
+
+  // 선택 삭제
+  const deleteSelected = useCallback(() => {
+    if (selectedIds.size === 0) { alert('삭제할 항목을 선택하세요.'); return; }
+    if (confirm(`${selectedIds.size}개 항목을 삭제하시겠습니까?`)) {
+      saveData(masterData.filter(item => !selectedIds.has(item.id)));
+      setSelectedIds(new Set());
+    }
+  }, [masterData, saveData, selectedIds]);
+
+  // 중복제거 (동일 회사+표시+기호)
+  const removeDuplicates = useCallback(() => {
+    const seen = new Set<string>();
+    const unique: SpecialCharMaster[] = [];
+    let removed = 0;
+    for (const item of masterData) {
+      const key = `${item.customer}|${item.internalSymbol}|${item.customerSymbol}`;
+      if (seen.has(key)) { removed++; } else { seen.add(key); unique.push(item); }
+    }
+    if (removed === 0) { alert('중복 항목이 없습니다.'); return; }
+    if (confirm(`${removed}개 중복 항목을 제거하시겠습니까?`)) {
+      saveData(unique);
+      setSelectedIds(new Set());
+    }
+  }, [masterData, saveData]);
+
+  // 빈행 제거 (회사+표시+기호+기준 모두 비어있는 행)
+  const removeEmptyRows = useCallback(() => {
+    const empties = masterData.filter(item =>
+      !item.customer.trim() && !item.internalSymbol.trim() && !item.customerSymbol.trim() && !item.meaning.trim()
+    );
+    if (empties.length === 0) { alert('빈 행이 없습니다.'); return; }
+    if (confirm(`${empties.length}개 빈 행을 제거하시겠습니까?`)) {
+      const emptyIds = new Set(empties.map(e => e.id));
+      saveData(masterData.filter(item => !emptyIds.has(item.id)));
+      setSelectedIds(new Set());
+    }
   }, [masterData, saveData]);
 
   const handleExport = useCallback(async () => {
@@ -470,9 +631,6 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
     }
   };
 
-  const customers = ['전체', ...new Set(masterData.map(d => d.customer))];
-  const filteredData = selectedCustomer === '전체' ? masterData : masterData.filter(d => d.customer === selectedCustomer);
-
   // ★ 회사별 행 배경색 — 파란색/녹색 번갈아 (단순)
   const customerColorMap = useMemo(() => {
     const colors = ['#bbdefb', '#c8e6c9']; // 파란, 녹색
@@ -534,12 +692,16 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
             </div>
             <div className="w-px h-4 bg-white/30" />
             <button onClick={addNewItem} className="py-0.5 px-1.5 bg-green-500 text-white border-none rounded text-[9px] cursor-pointer font-bold" onMouseDown={e => e.stopPropagation()}>+ 추가</button>
+            <button onClick={deleteSelected} className="py-0.5 px-1.5 bg-red-600 text-white border-none rounded text-[9px] cursor-pointer font-bold" onMouseDown={e => e.stopPropagation()} title="선택 삭제">선택삭제{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}</button>
+            <button onClick={removeDuplicates} className="py-0.5 px-1.5 bg-amber-600 text-white border-none rounded text-[9px] cursor-pointer" onMouseDown={e => e.stopPropagation()} title="중복제거">중복제거</button>
+            <button onClick={removeEmptyRows} className="py-0.5 px-1.5 bg-gray-600 text-white border-none rounded text-[9px] cursor-pointer" onMouseDown={e => e.stopPropagation()} title="빈행 제거">빈행제거</button>
           </div>
           <div className="flex items-center gap-1" onMouseDown={e => e.stopPropagation()}>
             <button onClick={handleExport} className="py-0.5 px-1.5 bg-blue-600 text-white border-none rounded text-[9px] cursor-pointer">Export</button>
             <button onClick={() => fileInputRef.current?.click()} className="py-0.5 px-1.5 bg-orange-500 text-white border-none rounded text-[9px] cursor-pointer">Import</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
-            <button onClick={() => { saveData(masterData); alert('저장되었습니다.'); onClose(); }} className="py-0.5 px-2 bg-yellow-500 text-gray-900 border-none rounded text-[9px] cursor-pointer font-bold" title="Save">저장</button>
+            <button onClick={() => { saveData(masterData); saveToDb(masterData); alert('저장되었습니다 (DB 동기화).'); onClose(); }} className="py-0.5 px-2 bg-yellow-500 text-gray-900 border-none rounded text-[9px] cursor-pointer font-bold" title="Save">저장</button>
+            {dbSynced && <span className="text-[7px] text-green-200 ml-0.5">DB</span>}
             <button onClick={onClose} onMouseDown={e => e.stopPropagation()} className="bg-white/20 border-none text-white w-5 h-5 rounded-full cursor-pointer text-[10px] leading-none">×</button>
           </div>
         </div>
@@ -552,7 +714,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                 <thead className="sticky top-0 z-[1]">
                   {/* 필터바 */}
                   <tr className="bg-green-50">
-                    <th colSpan={onSelect ? 6 : 5} className="py-0.5 px-2 border border-green-200">
+                    <th colSpan={onSelect ? 8 : 7} className="py-0.5 px-2 border border-green-200">
                       <div className="flex gap-2 items-center">
                         <select value={selectedCustomer} onChange={e => setSelectedCustomer(e.target.value)} className="py-0.5 px-1.5 border border-gray-300 rounded text-[10px]">
                           {customers.map(c => <option key={c} value={c}>{c}</option>)}
@@ -562,17 +724,20 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                     </th>
                   </tr>
                   <tr className="bg-green-100">
+                    <th className="py-0.5 px-1 border border-green-300 text-center w-8"><input type="checkbox" checked={filteredData.length > 0 && filteredData.every(d => selectedIds.has(d.id))} onChange={toggleSelectAll} className="cursor-pointer" title="전체선택" /></th>
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-20" title="Company"><div className="leading-tight"><div>회사</div><div className="text-[7px] font-normal opacity-60">(Company)</div></div></th>
                     {onSelect && <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-12 bg-orange-100" title="Select">선택</th>}
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-14" title="Internal Symbol"><div className="leading-tight"><div>표시</div><div className="text-[7px] font-normal opacity-60">(Internal)</div></div></th>
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-16" title="Customer Symbol"><div className="leading-tight"><div>기호</div><div className="text-[7px] font-normal opacity-60">(Symbol)</div></div></th>
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center" title="Criteria"><div className="leading-tight"><div>기준</div><div className="text-[7px] font-normal opacity-60">(Criteria)</div></div></th>
+                    <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-10 bg-purple-100" title="Usage Count"><div className="leading-tight"><div>사용</div><div className="text-[7px] font-normal opacity-60">(Used)</div></div></th>
                     <th className="py-0.5 px-1 border border-green-300 text-[10px] font-semibold text-center w-8" title="Delete">삭제</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.map(item => (
                     <tr key={item.id} style={{ background: customerColorMap.get(item.customer) || '#fff' }} className="hover:brightness-95">
+                      <td className="py-1 px-1 border border-gray-200 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} className="cursor-pointer" /></td>
                       {onSelect && (
                         <td className="py-1 px-1 border border-gray-200 text-center">
                           <button
@@ -601,6 +766,15 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                         <textarea value={item.meaning} onChange={e => updateItem(item.id, 'meaning', e.target.value)}
                           rows={Math.max(1, (item.meaning || '').split('\n').length)}
                           className="w-full py-0.5 px-1 border border-gray-300 rounded text-[10px] bg-white/80 resize-none leading-tight" />
+                      </td>
+                      <td className="py-1 px-1 border border-gray-200 text-center">
+                        {(item.usageCount ?? 0) > 0 ? (
+                          <span className="text-[9px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded" title={item.lastUsedAt ? `최종: ${new Date(item.lastUsedAt).toLocaleDateString('ko-KR')}` : ''}>
+                            {item.usageCount}회
+                          </span>
+                        ) : (
+                          <span className="text-[8px] text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="py-1 px-1 border border-gray-200 text-center">
                         <button onClick={() => deleteItem(item.id)} className="py-0.5 px-1.5 bg-red-500 text-white border-none rounded text-[9px] cursor-pointer">🗑</button>
@@ -711,6 +885,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
               <table className="w-full border-collapse min-w-[1260px]">
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-blue-100">
+                    <th className="py-0.5 px-1 border border-blue-300 text-center w-8"><input type="checkbox" checked={filteredData.length > 0 && filteredData.every(d => selectedIds.has(d.id))} onChange={toggleSelectAll} className="cursor-pointer" title="전체선택" /></th>
                     <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center w-16"><div className="leading-tight"><div>기호</div><div className="text-[7px] font-normal opacity-60">(Symbol)</div></div></th>
                     <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center w-16"><div className="leading-tight"><div>회사</div><div className="text-[7px] font-normal opacity-60">(Company)</div></div></th>
                     <th className="py-0.5 px-1 border border-blue-300 text-[10px] font-semibold text-center bg-blue-200 w-[100px]"><div className="leading-tight"><div>부품</div><div className="text-[7px] font-normal opacity-60">(Part)</div></div></th>
@@ -732,6 +907,7 @@ export default function SpecialCharMasterModal({ isOpen, onClose, currentFmeaId,
                     const badgeBg = item.color && item.color !== '#f5f5f5' && item.color !== '' ? item.color : '#5c6bc0';
                     return (
                     <tr key={item.id} className="bg-white hover:bg-blue-50">
+                      <td className="p-1 border border-gray-300 text-center"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} className="cursor-pointer" /></td>
                       <td className="p-1 border border-gray-300 text-center">
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white inline-block" style={{ background: badgeBg }}>{displaySymbol}</span>
                       </td>

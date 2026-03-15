@@ -17,6 +17,7 @@ import {
   createOrUpdateProject,
   deleteProject,
   updateProjectRemark,
+  restoreProject,
 } from '@/lib/services/fmea-project-service';
 
 export const runtime = 'nodejs';
@@ -27,8 +28,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const targetId = searchParams.get('id') || null;
     const fmeaType = searchParams.get('type') || null;  // ★ D/P 유형 필터
+    const includeDeleted = searchParams.get('includeDeleted') === 'true';
 
-    const projects = await getProjects(targetId, fmeaType);
+    const projects = await getProjects(targetId, fmeaType, { includeDeleted });
     
     return NextResponse.json({ success: true, projects });
   } catch (error: any) {
@@ -117,14 +119,27 @@ export async function POST(req: NextRequest) {
 // body: { fmeaId: string, remark: string }
 export async function PATCH(req: NextRequest) {
   try {
-    const { fmeaId, remark } = await req.json();
+    const body = await req.json();
+
+    // ★ 복원 액션 (admin 휴지통에서 복원)
+    if (body.action === 'restore' && body.fmeaId) {
+      await restoreProject(body.fmeaId);
+      return NextResponse.json({
+        success: true,
+        fmeaId: body.fmeaId.toLowerCase(),
+        message: '프로젝트가 복원되었습니다.(Project restored.)',
+      });
+    }
+
+    // ★ 기존: 비고(remark) 업데이트
+    const { fmeaId, remark } = body;
     if (!fmeaId) {
       return NextResponse.json({ success: false, error: 'fmeaId is required' }, { status: 400 });
     }
     await updateProjectRemark(fmeaId, remark ?? '');
     return NextResponse.json({ success: true, fmeaId: fmeaId.toLowerCase() });
   } catch (error: any) {
-    console.error('[FMEA 프로젝트] 비고 업데이트 실패:', error.message);
+    console.error('[FMEA 프로젝트] PATCH 실패:', error.message);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -136,7 +151,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json();
-    const { fmeaId, deleteModules } = body as { fmeaId: string; deleteModules?: string[] };
+    const { fmeaId, deleteModules, permanentDelete } = body as { fmeaId: string; deleteModules?: string[]; permanentDelete?: boolean };
 
     if (!fmeaId) {
       return NextResponse.json({
@@ -147,6 +162,7 @@ export async function DELETE(req: NextRequest) {
 
     await deleteProject(fmeaId, {
       deleteModules: deleteModules || undefined,
+      permanentDelete: permanentDelete || false,
     });
 
     return NextResponse.json({

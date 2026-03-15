@@ -44,14 +44,22 @@ export interface CreateProjectData {
 /**
  * 프로젝트 목록 조회 (특정 ID 또는 전체)
  */
-export async function getProjects(fmeaId?: string | null, fmeaType?: string | null): Promise<FMEAProjectData[]> {
+export async function getProjects(
+  fmeaId?: string | null,
+  fmeaType?: string | null,
+  options?: { includeDeleted?: boolean },
+): Promise<FMEAProjectData[]> {
   const prisma = getPrisma();
   if (!prisma) {
     throw new Error('Database not configured');
   }
 
   const targetId = fmeaId?.toLowerCase() || null;
-  const whereClause: Record<string, any> = { deletedAt: null };
+  const whereClause: Record<string, any> = {};
+  // ★ 기본: 삭제 항목 제외 / includeDeleted=true: 전체 반환 (admin 휴지통용)
+  if (!options?.includeDeleted) {
+    whereClause.deletedAt = null;
+  }
   if (targetId) whereClause.fmeaId = targetId;
   // ★ 2026-02-09: D/P 유형별 필터링
   // PFMEA 모듈(type=P)은 P(Part), F(Family), M(Machine) 서브타입 모두 포함
@@ -127,6 +135,7 @@ export async function getProjects(fmeaId?: string | null, fmeaType?: string | nu
     return {
       id: p.fmeaId.toLowerCase(),
       fmeaType: p.fmeaType,
+      deletedAt: p.deletedAt ? p.deletedAt.toISOString() : null,
       parentApqpNo: p.parentApqpNo || null,  // ★ 상위 APQP
       parentFmeaId: p.parentFmeaId ? p.parentFmeaId.toLowerCase() : null,
       parentFmeaType: p.parentFmeaType,
@@ -562,9 +571,10 @@ export async function updateProjectRemark(fmeaId: string, remark: string): Promi
 
 export async function deleteProject(
   fmeaId: string,
-  options?: { skipApprovalCheck?: boolean; deleteModules?: string[] }
+  options?: { skipApprovalCheck?: boolean; deleteModules?: string[]; permanentDelete?: boolean }
 ): Promise<void> {
   const skipApprovalCheck = options?.skipApprovalCheck ?? false;
+  const permanentDelete = options?.permanentDelete ?? false;
   // deleteModules: 삭제할 모듈 목록. undefined=전부, ['FMEA']=FMEA만, ['FMEA','CP','PFD']=선택적
   const deleteModules = options?.deleteModules;
   const prisma = getPrisma();
@@ -622,6 +632,12 @@ export async function deleteProject(
   try {
     // ★ 개정본: 완전삭제 (hard delete) → 개정번호 연속 생성 가능
     if (isRevision) {
+      await hardDeleteRevision(prisma, actualFmeaId);
+      return;
+    }
+
+    // ★ 영구삭제 (admin 휴지통에서 완전 삭제)
+    if (permanentDelete) {
       await hardDeleteRevision(prisma, actualFmeaId);
       return;
     }
@@ -729,6 +745,34 @@ export async function deleteProject(
     throw deleteError;
   }
 
+}
+
+// ── 프로젝트 복원 (admin 휴지통에서 복원) ──
+export async function restoreProject(fmeaId: string): Promise<void> {
+  const prisma = getPrisma();
+  if (!prisma) throw new Error('Database not configured');
+
+  const actualFmeaId = fmeaId.toLowerCase();
+  const project = await prisma.fmeaProject.findUnique({ where: { fmeaId: actualFmeaId } });
+  if (!project) throw new Error(`프로젝트를 찾을 수 없습니다: ${fmeaId}`);
+  if (!project.deletedAt) throw new Error(`이미 활성 상태인 프로젝트입니다: ${fmeaId}`);
+
+  // 1. FmeaProject 복원
+  await prisma.fmeaProject.update({
+    where: { fmeaId: actualFmeaId },
+    data: { deletedAt: null },
+  });
+
+  // 2. ProjectLinkage status 복원
+  const isPfmea = actualFmeaId.startsWith('pfm');
+  try {
+    await (prisma as any).projectLinkage.updateMany({
+      where: isPfmea
+        ? { pfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'deleted' }
+        : { dfmeaId: { equals: actualFmeaId, mode: 'insensitive' }, status: 'deleted' },
+      data: { status: 'active' },
+    });
+  } catch { /* projectLinkage 테이블 없으면 무시 */ }
 }
 
 // ── 개정본 완전삭제 (hard delete) ──

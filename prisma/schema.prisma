@@ -2633,6 +2633,39 @@ model ImportAtomMap {
   @@map("import_atom_maps")
 }
 
+// =====================================================
+// SpecialCharMasterItem: 특별특성 마스터 (DB 영속화 + 추천 루프)
+// =====================================================
+model SpecialCharMasterItem {
+  id              String   @id @default(uuid())
+  customer        String                          // 회사명 (LBS, 자사, 포드 등)
+  internalSymbol  String                          // 표시 (SC, CC, F/F 등)
+  customerSymbol  String   @default("")           // 기호 (◇, ★ 등)
+  meaning         String   @default("")           // 기준/설명
+  color           String   @default("#f5f5f5")
+  partName        String   @default("")           // 부품명
+  processName     String   @default("")           // 공정명
+  productChar     String   @default("")           // 제품특성
+  processChar     String   @default("")           // 공정특성
+  failureMode     String   @default("")           // 고장형태
+  linkDFMEA       Boolean  @default(false)
+  linkPFMEA       Boolean  @default(true)
+  linkCP          Boolean  @default(true)
+  linkPFD         Boolean  @default(false)
+  usageCount      Int      @default(0)            // 사용 횟수 (추천 정렬)
+  lastUsedAt      DateTime?                       // 마지막 사용일
+  sourceFmeaId    String?                         // 최초 등록 FMEA ID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([customer])
+  @@index([internalSymbol])
+  @@index([productChar])
+  @@index([processChar])
+  @@index([usageCount(sort: Desc)])
+  @@map("special_char_master_items")
+}
+
 // ── Enum definitions (for future use — do not change existing String fields) ──
 
 enum M4Category {

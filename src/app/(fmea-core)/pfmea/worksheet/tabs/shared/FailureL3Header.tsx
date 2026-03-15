@@ -74,7 +74,10 @@ export function FailureL3Header({
         </th>
         <th className="bg-[#f57c00] text-white border border-[#ccc] py-1 px-[9px] text-[11px] font-bold">
           <div className="flex items-center justify-between gap-1">
-            <span className="font-bold whitespace-nowrap"><BiHeader ko="3L 고장분석" en="Failure" /></span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold whitespace-nowrap"><BiHeader ko="3L 고장분석" en="Failure" /></span>
+              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowHelp(prev => !prev); }} className={`px-1.5 py-0 text-[10px] font-bold rounded cursor-pointer border whitespace-nowrap shadow-sm ${showHelp ? 'bg-yellow-400 text-gray-800 border-yellow-500' : 'bg-white/20 text-white border-white/40 hover:bg-white/30'}`} title="도움말 보기/닫기">도움말(Help)</button>
+            </div>
             <div className="flex gap-1 items-center shrink-0">
               {!isUpstreamConfirmed ? (
                 <span className="bg-yellow-500 text-white px-2 py-0 rounded text-[10px] whitespace-nowrap">미확정(Unconfirmed)</span>
@@ -113,7 +116,6 @@ export function FailureL3Header({
         <th className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <div className="flex items-center justify-center gap-1">
             <span><BiHeader ko="3. 고장원인" en="Failure Cause/FC" /></span>
-            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowHelp(prev => !prev); }} className={`px-1.5 py-0 text-[10px] font-bold rounded cursor-pointer border whitespace-nowrap ${showHelp ? 'bg-yellow-400 text-gray-800 border-yellow-500' : 'bg-white/20 text-white border-white/40 hover:bg-white/30'}`} title="도움말 보기/닫기">도움말(Help)</button>
             {missingCount > 0 && (
               <button type="button" onClick={onMissingClick} className="bg-orange-500 text-white px-1.5 py-0 rounded-full text-[10px] cursor-pointer hover:opacity-80">누락(Missing) {missingCount}건(cases)</button>
             )}

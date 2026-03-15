@@ -227,7 +227,8 @@ export function useImportHandlers(props: UseImportHandlersProps) {
         p.workElements.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B1-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B1', value: v, m4: p.workElements4M?.[i] || '', parentItemId: `${p.processNo}-A1`, createdAt: new Date() }, 'B1', i)));
         p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: `${p.processNo}-B1-0`, createdAt: new Date() }, 'B2', i)));
         p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: `${p.processNo}-B2-0`, createdAt: new Date() }, 'B3', i)));
-        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', parentItemId: `${p.processNo}-B3-0`, createdAt: new Date() }, 'B4', i)));
+        // ★★★ 2026-03-15 FIX: B4에 belongsTo(WE 소속) 추가 — dedup 키에 WE 컨텍스트 필요 ★★★
+        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: `${p.processNo}-B3-0`, createdAt: new Date() }, 'B4', i)));
       });
       // ★ C1 카테고리 영문 풀네임 → 약어 변환 (Your Plant→YP 등)
       const C1_CATEGORY_MAP: Record<string, string> = {

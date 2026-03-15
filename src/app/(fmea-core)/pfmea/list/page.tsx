@@ -32,6 +32,7 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { useDeleteSelectDialog } from '@/hooks/useDeleteSelectDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
+import { useAuth } from '@/hooks/useAuth';
 
 // =====================================================
 // 설정
@@ -89,6 +90,7 @@ interface FMEAProject {
   revisionNo?: string;
   createdAt?: string;  // ✅ 프로젝트 생성일
   updatedAt?: string;  // ✅ 프로젝트 수정일
+  deletedAt?: string | null;  // ★ soft delete 타임스탬프
 }
 
 // =====================================================
@@ -107,6 +109,7 @@ interface PFMEAListRowProps {
   project: FMEAProject;
   index: number;
   isSelected: boolean;
+  isDeleted?: boolean;
   onToggle: (id: string) => void;
   onOpenRegister: (id: string, section?: string) => void;
   config: typeof CONFIG;
@@ -117,6 +120,7 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
   project: p,
   index,
   isSelected,
+  isDeleted,
   onToggle,
   onOpenRegister,
   config,
@@ -131,7 +135,7 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
 
   return (
     <tr
-      className={`hover:bg-blue-50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-[#e3f2fd]' : 'bg-white'} ${isSelected ? 'bg-blue-100' : ''}`}
+      className={`hover:bg-blue-50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-[#e3f2fd]' : 'bg-white'} ${isSelected ? 'bg-blue-100' : ''} ${isDeleted ? 'opacity-50' : ''}`}
       style={{ height: `${ROW_HEIGHT}px` }}
       onClick={() => onToggle(p.id)}
     >
@@ -236,6 +240,9 @@ export default function PFMEAListPage() {
   const [sortField, setSortField] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  const { isAdmin } = useAuth();
+  const [trashMode, setTrashMode] = useState(false);
+
   const { selectedRows, toggleRow, toggleAllRows, clearSelection, isAllSelected } = useListSelection();
   const { confirmDialog, ConfirmDialogUI } = useConfirmDialog();
   const { deleteSelectDialog, DeleteSelectDialogUI } = useDeleteSelectDialog();
@@ -246,7 +253,11 @@ export default function PFMEAListPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(CONFIG.apiEndpoint);
+      // ★ 관리자 휴지통 모드: 삭제 항목 포함 조회
+      const endpoint = trashMode && isAdmin
+        ? `${CONFIG.apiEndpoint}&includeDeleted=true`
+        : CONFIG.apiEndpoint;
+      const response = await fetch(endpoint);
       const result = await response.json();
 
       let projectList: FMEAProject[] = [];
@@ -256,6 +267,7 @@ export default function PFMEAListPage() {
           .map((p: any) => ({
             ...p,
             id: p.id.toLowerCase(),
+            deletedAt: p.deletedAt || null,
             // ★ fmeaInfo에서 연동 정보를 프로젝트 레벨로 끌어올림
             linkedDfmeaNo: p.linkedDfmeaNo || p.fmeaInfo?.linkedDfmeaNo || '',
             linkedPfdNo: p.linkedPfdNo || p.fmeaInfo?.linkedPfdNo || '',
@@ -302,13 +314,20 @@ export default function PFMEAListPage() {
         console.error('[PFMEA List] 프로젝트 연동 로드 실패:', linkErr);
       }
 
+      // ★ 휴지통 모드: 삭제된 항목만 / 일반 모드: 활성 항목만
+      if (trashMode && isAdmin) {
+        projectList = projectList.filter(p => p.deletedAt != null);
+      } else {
+        projectList = projectList.filter(p => p.deletedAt == null);
+      }
+
       setProjects(projectList);
     } catch {
       setProjects([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [trashMode, isAdmin]);
 
   // ★ handleSave 제거 - DB Only 방식으로 저장은 등록 페이지에서 직접 API 호출
   const handleSave = useCallback(() => {
@@ -321,6 +340,13 @@ export default function PFMEAListPage() {
     window.addEventListener('fmea-projects-updated', handleUpdate);
     return () => window.removeEventListener('fmea-projects-updated', handleUpdate);
   }, [loadData]);
+
+  // ★ 휴지통 모드 전환 시 데이터 새로 로드
+  useEffect(() => {
+    loadData();
+    clearSelection();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trashMode]);
 
   // ★ 정렬 핸들러
   const handleSort = (field: string) => {
@@ -432,7 +458,40 @@ export default function PFMEAListPage() {
     const deleteCount = selectedRows.size;
     const ids = Array.from(selectedRows).map(id => (id as string).toLowerCase());
 
-    // ★★★ 1단계: 승인 상태 + 연관 모듈 확인 ★★★
+    // ★ 휴지통 모드: 영구삭제 확인
+    if (trashMode && isAdmin) {
+      const ok = await confirmDialog({
+        title: '⚠️ 영구삭제 확인(Confirm Permanent Delete)',
+        message: `선택한 ${deleteCount}개 항목을 영구삭제하시겠습니까?(Permanently delete ${deleteCount} items?)\n\n⚠️ 복원 불가능합니다!(This action cannot be undone!)`,
+        variant: 'danger',
+        confirmText: '영구삭제(Permanent Delete)',
+        cancelText: '취소(Cancel)',
+      });
+      if (!ok) return;
+
+      const deletePromises = ids.map(async (id) => {
+        try {
+          const res = await fetch(CONFIG.apiEndpoint, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId: id, permanentDelete: true })
+          });
+          return { id, success: res.ok };
+        } catch (e) {
+          console.error(`[영구삭제] ${id} 오류:`, e);
+          return { id, success: false };
+        }
+      });
+
+      const results = await Promise.all(deletePromises);
+      const successCount = results.filter(r => r.success).length;
+      await loadData();
+      clearSelection();
+      toast.success(`${successCount}개 항목 영구삭제 완료(${successCount} items permanently deleted)`);
+      return;
+    }
+
+    // ★★★ 일반 모드: 1단계 — 승인 상태 + 연관 모듈 확인 ★★★
     let selectedModules: string[] | undefined;
     try {
       const checkRes = await fetch(`/api/fmea/delete-check?ids=${ids.join(',')}`);
@@ -525,6 +584,46 @@ export default function PFMEAListPage() {
     }
   };
 
+  // ★ 복원 핸들러 (관리자 휴지통 모드 전용)
+  const handleRestore = async () => {
+    if (selectedRows.size === 0) {
+      toast.warn('복원할 항목을 선택해주세요.(Please select items to restore.)');
+      return;
+    }
+    const ids = Array.from(selectedRows).map(id => (id as string).toLowerCase());
+    const ok = await confirmDialog({
+      title: '복원 확인(Confirm Restore)',
+      message: `선택한 ${ids.length}개 항목을 복원하시겠습니까?(Restore ${ids.length} selected items?)`,
+      variant: 'default',
+      confirmText: '복원(Restore)',
+      cancelText: '취소(Cancel)',
+    });
+    if (!ok) return;
+
+    let successCount = 0;
+    for (const id of ids) {
+      try {
+        const res = await fetch('/api/fmea/projects', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'restore', fmeaId: id }),
+        });
+        const data = await res.json();
+        if (data.success) successCount++;
+      } catch (e) {
+        console.error(`[복원] ${id} 오류:`, e);
+      }
+    }
+
+    await loadData();
+    clearSelection();
+    if (successCount === ids.length) {
+      toast.success(`${successCount}개 항목 복원 완료(${successCount} items restored)`);
+    } else {
+      toast.warn(`${successCount}/${ids.length}개 복원 완료(${successCount}/${ids.length} restored)`);
+    }
+  };
+
   // ★★★ 개정 핸들러 — 복제 API 호출 → 등록화면 이동
   const handleRevision = async () => {
     if (selectedRows.size !== 1) return alert('개정은 한 번에 하나만 가능합니다.(Only one item can be revised at a time.)');
@@ -569,6 +668,28 @@ export default function PFMEAListPage() {
             <span className="text-xs text-blue-500 ml-2">⏳ 로딩 중...(Loading...)</span>
           ) : (
             <span className="text-xs text-gray-500 ml-2">총(Total) {filteredProjects.length}건(Items)</span>
+          )}
+          {/* ★ 관리자 전용: 휴지통 토글 + 복원 버튼 */}
+          {isAdmin && (
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={() => { setTrashMode(prev => !prev); clearSelection(); }}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${trashMode ? 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200' : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'}`}
+                title={trashMode ? '일반 목록으로 돌아가기(Back to list)' : '삭제된 항목 보기(View deleted items)'}
+              >
+                {trashMode ? '📋 리스트(List)' : '🗑️ 휴지통(Trash)'}
+              </button>
+              {trashMode && (
+                <button
+                  onClick={handleRestore}
+                  disabled={selectedRows.size === 0}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${selectedRows.size > 0 ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200' : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}
+                  title="선택 항목 복원(Restore selected items)"
+                >
+                  ♻️ 복원(Restore) {selectedRows.size > 0 ? `(${selectedRows.size})` : ''}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -661,6 +782,7 @@ export default function PFMEAListPage() {
                     project={p}
                     index={vRow.index}
                     isSelected={selectedRows.has(p.id)}
+                    isDeleted={p.deletedAt != null}
                     onToggle={handleToggleRow}
                     onOpenRegister={handleOpenRegister}
                     config={CONFIG}

@@ -912,10 +912,10 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
       <table className="w-full border-collapse table-fixed" style={{ marginBottom: '50px' }}>
         <colgroup>
           <col style={{ width: '10%' }} /> {/* NO+공정명 */}
-          <col style={{ width: '4%' }} />  {/* WE (4M) */}
-          <col style={{ width: '33%' }} /> {/* 공정특성 */}
-          <col style={{ width: '8%' }} />  {/* 특별특성 */}
-          <col style={{ width: '45%' }} /> {/* 고장원인(FC) */}
+          <col style={{ width: '6%' }} />  {/* WE (4M) */}
+          <col style={{ width: '31%' }} /> {/* 공정특성 */}
+          <col style={{ width: '6%' }} />  {/* 특별특성 */}
+          <col style={{ width: '47%' }} /> {/* 고장원인(FC) */}
         </colgroup>
 
         {/* 3행 헤더 - FailureL3Header 공용 컴포넌트 사용 */}
@@ -1001,7 +1001,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
 
                   {/* 작업요소 셀: showWe && weRowSpan > 0 (파란색) ★ 읽기전용: 컨텍스트 메뉴 차단 */}
                   {row.showWe && row.weRowSpan > 0 && (
-                    <td rowSpan={row.weRowSpan} className="border border-[#ccc] px-0.5 py-0.5 text-center align-middle text-[10px] whitespace-nowrap" style={{ background: getZebra('structure', weStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <td rowSpan={row.weRowSpan} className="border border-[#ccc] px-0.5 py-0.5 text-center align-middle text-[10px] break-words" style={{ background: getZebra('structure', weStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       {row.we?.name || '-'}
                     </td>
                   )}

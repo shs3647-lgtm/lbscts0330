@@ -46,6 +46,17 @@ function normalize(s: string | undefined): string {
   return (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/** processNo 정규화 — buildWorksheetState.ts와 동일 로직 */
+function normalizeProcessNo(pNo: string | undefined): string {
+  if (!pNo) return '';
+  let n = pNo.trim();
+  const lower = n.toLowerCase();
+  if (lower === '0' || lower === '공통공정' || lower === '공통') return '00';
+  n = n.replace(/^(공정|process|proc|p)[\s\-_]*/i, '');
+  n = n.replace(/^0+(\d)/, '$1');
+  return n;
+}
+
 /**
  * 체인의 FM/FE/FC 텍스트를 워크시트 상태에 추가
  *
@@ -62,10 +73,16 @@ export function enrichStateFromChains(
 
   if (!chains || chains.length === 0) return stats;
 
-  // Process index
+  // Process index — 정규화된 processNo로도 조회 가능하게 dual-key 등록
   const procByNo = new Map<string, Process>();
   for (const proc of (state.l2 || [])) {
-    if (proc.no) procByNo.set(proc.no, proc);
+    if (proc.no) {
+      procByNo.set(proc.no, proc);
+      const normalized = normalizeProcessNo(proc.no);
+      if (normalized && normalized !== proc.no) {
+        procByNo.set(normalized, proc);
+      }
+    }
   }
 
   // Existing FE index (normalized text → true)
@@ -119,7 +136,7 @@ export function enrichStateFromChains(
       }
     }
 
-    const proc = procByNo.get(processNo);
+    const proc = procByNo.get(processNo) || procByNo.get(normalizeProcessNo(processNo));
     if (!proc) {
       stats.skippedNoProc++;
       continue;

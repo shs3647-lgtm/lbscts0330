@@ -689,7 +689,7 @@ function createEmptyProcess(processNo: string, processName: string): ProcessRela
     workElements: [], workElements4M: [],
     elementFuncs: [], elementFuncs4M: [], elementFuncsWE: [],
     processChars: [], processChars4M: [], processCharsSpecialChar: [], processCharsWE: [],
-    failureCauses: [], failureCauses4M: [],
+    failureCauses: [], failureCauses4M: [], failureCausesWE: [],
     preventionCtrls: [], detectionCtrls: [],
   };
 }

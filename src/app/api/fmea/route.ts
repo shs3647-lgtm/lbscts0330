@@ -224,10 +224,13 @@ export async function POST(request: NextRequest) {
 
     // ★★★ 고장 데이터 상세 로깅 ★★★
     if (db.failureModes?.length > 0) {
+      console.log(`[FMEA API] FailureModes: ${db.failureModes.length}건`);
     }
     if (db.failureCauses?.length > 0) {
+      console.log(`[FMEA API] FailureCauses: ${db.failureCauses.length}건`);
     }
     if (db.failureEffects?.length > 0) {
+      console.log(`[FMEA API] FailureEffects: ${db.failureEffects.length}건`);
     }
 
     // ★★★ 2026-02-18: productChars 데이터 상세 로깅 (버그 추적용) ★★★
@@ -842,6 +845,14 @@ export async function POST(request: NextRequest) {
         validFcIdSet = new Set(validFCs.map(fc => fc.id));
 
         if (validFCs.length !== db.failureCauses.length) {
+          const dropped = db.failureCauses.length - validFCs.length;
+          console.warn(`[FMEA API] FailureCause FK 검증: ${db.failureCauses.length}건 중 ${dropped}건 누락 (l3FuncId/l3StructId 미매칭)`);
+          const invalidFCs = db.failureCauses.filter(fc =>
+            !fc.l3FuncId || !fc.l3StructId || !l3FuncIdSet.has(fc.l3FuncId) || !l3StructIdSet.has(fc.l3StructId)
+          );
+          invalidFCs.slice(0, 5).forEach(fc => {
+            console.warn(`  [누락 FC] cause="${fc.cause}" l3FuncId=${fc.l3FuncId} l3StructId=${fc.l3StructId}`);
+          });
         }
 
         if (validFCs.length > 0) {

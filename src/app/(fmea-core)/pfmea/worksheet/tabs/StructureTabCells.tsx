@@ -438,8 +438,8 @@ export function StructureColgroup() {
  * 4단계: >threshold×3 → 8px 줄바꿈 (전부 표시)
  */
 export function adaptiveText(text: string, threshold = 25): string {
-  if (!text || text.length <= threshold) return 'text-[10px] whitespace-nowrap';
-  if (text.length <= threshold * 2) return 'text-[10px] break-keep';
-  if (text.length <= threshold * 3) return 'text-[9px] break-keep';
-  return 'text-[8px] break-keep';
+  if (!text || text.length <= threshold) return 'text-[11px] break-words';
+  if (text.length <= threshold * 2) return 'text-[10px] break-words';
+  if (text.length <= threshold * 3) return 'text-[9px] break-words';
+  return 'text-[8px] break-words';
 }

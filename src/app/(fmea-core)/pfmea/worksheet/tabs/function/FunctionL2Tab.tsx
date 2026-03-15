@@ -594,9 +594,9 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
       <table className="w-full border-collapse table-fixed">
         <colgroup>
           <col style={{ width: '15%' }} />
-          <col style={{ width: '38%' }} />
-          <col style={{ width: '35%' }} />
-          <col style={{ width: '12%' }} />
+          <col style={{ width: '40%' }} />
+          <col style={{ width: '37%' }} />
+          <col style={{ width: '8%' }} />
         </colgroup>
 
         <FunctionL2Header

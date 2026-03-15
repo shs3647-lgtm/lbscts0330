@@ -82,6 +82,7 @@ export interface ProcessRelation {
   processCharsWE: string[];
   failureCauses: string[];    // B4
   failureCauses4M: string[];
+  failureCausesWE: string[];  // ★ 2026-03-15: B4 소속 WE 추적 (FC dedup/배분에 필수)
   preventionCtrls: string[];   // B5
   detectionCtrls: string[];    // A6
   // ★★★ 2026-02-25: 아이템별 메타데이터 (key: "A3-0", "B4-2" 등) ★★★
@@ -550,8 +551,9 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               rowEntry.specialChar = scVal;
             }
 
-            // B2/B3/B5에 소속 workElement 추가 (extra 필드)
-            if ((mapping.targetCode === 'B2' || mapping.targetCode === 'B3' || mapping.targetCode === 'B5') && sheetCode === 'L3_UNIFIED') {
+            // B2/B3/B4/B5에 소속 workElement 추가 (extra 필드)
+            // ★★★ 2026-03-15 FIX: B4도 WE 정보 저장 — WE별 FC 배분/dedup에 필수 ★★★
+            if ((mapping.targetCode === 'B2' || mapping.targetCode === 'B3' || mapping.targetCode === 'B4' || mapping.targetCode === 'B5') && sheetCode === 'L3_UNIFIED') {
               const b1Mapping = colFieldMap.find(m => m.targetCode === 'B1');
               if (b1Mapping) {
                 const weVal = cellValueToString(uRow.getCell(b1Mapping.col).value).trim();
@@ -811,6 +813,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             processCharsWE: [],
             failureCauses: [],
             failureCauses4M: [],
+            failureCausesWE: [],
             preventionCtrls: [],
             detectionCtrls: [],
           });
@@ -864,6 +867,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               processCharsWE: [],
               failureCauses: [],
               failureCauses4M: [],
+              failureCausesWE: [],
               preventionCtrls: [],
               detectionCtrls: [],
             });
@@ -948,6 +952,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               processCharsWE: [],
               failureCauses: [],
               failureCauses4M: [],
+              failureCausesWE: [],
               preventionCtrls: [],
               detectionCtrls: [],
             };
@@ -1058,12 +1063,13 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         proc.processCharsSpecialChar = paired.map(p => p.sc);
         proc.processCharsWE = paired.map(p => p.we);
       }
-      // B4: failureCauses + failureCauses4M
+      // B4: failureCauses + failureCauses4M + failureCausesWE
       if (proc.failureCauses4M.length > 0 && proc.failureCauses4M.some(m => m)) {
-        const paired = proc.failureCauses.map((v, i) => ({ v, m4: proc.failureCauses4M[i] || '' }));
+        const paired = proc.failureCauses.map((v, i) => ({ v, m4: proc.failureCauses4M[i] || '', we: proc.failureCausesWE?.[i] || '' }));
         paired.sort((a, b) => m4SortValue(a.m4) - m4SortValue(b.m4));
         proc.failureCauses = paired.map(p => p.v);
         proc.failureCauses4M = paired.map(p => p.m4);
+        proc.failureCausesWE = paired.map(p => p.we);
       }
     }
 

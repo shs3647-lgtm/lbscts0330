@@ -1031,8 +1031,8 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
           <col style={{ width: '10%' }} />   {/* NO+공정명 */}
           <col style={{ width: '26%' }} />   {/* 기능명 */}
           <col style={{ width: '18%' }} />   {/* 제품특성 */}
-          <col style={{ width: '8%' }} />    {/* 특별특성 */}
-          <col style={{ width: '38%' }} />   {/* 고장형태(FM) */}
+          <col style={{ width: '6%' }} />    {/* 특별특성 */}
+          <col style={{ width: '40%' }} />   {/* 고장형태(FM) */}
         </colgroup>
 
         {/* 헤더 - 하단 2px 검은색 구분선 */}
@@ -1114,19 +1114,19 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
                 <tr key={`row-${idx}`} data-mode-id={row.modeId} onContextMenu={(e) => handleContextMenu(e, 'failureMode', row.procId, row.charId, row.modeId)}>
                   {/* 공정명 - rowSpan (파란색) ★ 읽기전용: 컨텍스트 메뉴 차단 */}
                   {row.showProc && (
-                    <td rowSpan={row.procRowSpan} className="border border-[#ccc] px-0.5 py-0.5 text-center font-semibold text-[10px] align-middle" style={{ background: getZebra('structure', procStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <td rowSpan={row.procRowSpan} className="border border-[#ccc] px-0.5 py-0.5 text-center font-semibold text-[10px] align-middle break-words" style={{ background: getZebra('structure', procStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       {row.procNo}. {row.procName}
                     </td>
                   )}
                   {/* 기능명 - rowSpan (녹색) ★ 읽기전용: 컨텍스트 메뉴 차단 */}
                   {row.showFunc && (
-                    <td rowSpan={row.funcRowSpan} className="border border-[#ccc] p-2 text-left text-xs align-middle" style={{ background: getZebra('function', funcStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <td rowSpan={row.funcRowSpan} className="border border-[#ccc] p-2 text-left text-xs align-middle break-words" style={{ background: getZebra('function', funcStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       {row.funcName || '(기능분석에서 입력)'}
                     </td>
                   )}
                   {/* 제품특성 - rowSpan (녹색 줄무늬) ★ 읽기전용: 컨텍스트 메뉴 차단 */}
                   {row.showChar && (
-                    <td rowSpan={row.charRowSpan} className="border border-[#ccc] border-r-[2px] border-r-green-500 p-2 text-center text-xs align-middle" style={{ background: getZebra('function', charStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                    <td rowSpan={row.charRowSpan} className="border border-[#ccc] border-r-[2px] border-r-green-500 p-2 text-center text-xs align-middle break-words" style={{ background: getZebra('function', charStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       {row.charName || ''}
                     </td>
                   )}

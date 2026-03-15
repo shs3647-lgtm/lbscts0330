@@ -779,12 +779,12 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     <div className="p-0 overflow-auto h-full" style={{ paddingBottom: '50px' }} onKeyDown={handleEnterBlur}>
       <table className="w-full border-collapse table-fixed" style={{ minWidth: '100%', marginBottom: '50px' }}>
         <colgroup>
-          <col style={{ width: '16%' }} /> {/* 완제품공정명 */}
-          <col style={{ width: '8%' }} />  {/* 구분 */}
-          <col style={{ width: '20%' }} /> {/* 완제품기능 */}
-          <col style={{ width: '16%' }} /> {/* 요구사항 */}
-          <col style={{ width: '36%' }} /> {/* 고장영향 */}
-          <col style={{ width: '4%' }} />  {/* S */}
+          <col style={{ width: '14%' }} /> {/* 완제품공정명 */}
+          <col style={{ width: '7%' }} />  {/* 구분 */}
+          <col style={{ width: '19%' }} /> {/* 완제품기능 */}
+          <col style={{ width: '14%' }} /> {/* 요구사항 */}
+          <col style={{ width: '40%' }} /> {/* 고장영향 */}
+          <col style={{ width: '6%' }} />  {/* S */}
         </colgroup>
 
         {/* 3행 헤더 구조 - 하단 2px 검은색 구분선 */}
@@ -906,9 +906,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                           background: funcZebra,
                           fontSize: FONT_SIZES.cell,
                           verticalAlign: 'middle',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word'
                         }}
                         title={row.funcName}
                       >

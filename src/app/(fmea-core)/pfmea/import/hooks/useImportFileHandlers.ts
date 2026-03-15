@@ -218,7 +218,10 @@ export function useImportFileHandlers({
         };
         p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B2-${i}`, processNo: pNo, category: 'B', itemCode: 'B2', value: ensureString(v), m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || '')}`, createdAt: new Date() }, 'B2', i)));
         p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B3-${i}`, processNo: pNo, category: 'B', itemCode: 'B3', value: ensureString(v), m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.processCharsWE?.[i], p.processChars4M?.[i] || '')}`, createdAt: new Date() }, 'B3', i)));
-        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B4-${i}`, processNo: pNo, category: 'B', itemCode: 'B4', value: ensureString(v), m4: p.failureCauses4M?.[i] || '', parentItemId: `${pNo}-B3-0`, createdAt: new Date() }, 'B4', i)));
+        // ★★★ 2026-03-15 FIX: B4도 B2/B3와 동일하게 belongsTo + findB1Idx로 WE 매칭 ★★★
+        // 이전: parentItemId가 항상 B3-0 고정 → 모든 FC가 첫 번째 WE에 몰림
+        // 수정: failureCausesWE 기반 WE 매칭 → 올바른 processChar에 FC 배분
+        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B4-${i}`, processNo: pNo, category: 'B', itemCode: 'B4', value: ensureString(v), m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: `${pNo}-B1-${findB1Idx(p.failureCausesWE?.[i], p.failureCauses4M?.[i] || '')}`, createdAt: new Date() }, 'B4', i)));
         // ★★★ 2026-03-14 SRP: B5/A6 템플릿 데이터는 FC 체인이 없을 때만 사용 (아래에서 처리) ★★★
         // p.preventionCtrls / p.detectionCtrls → FC 체인 우선, 템플릿은 폴백
       });
@@ -522,15 +525,16 @@ export function useImportFileHandlers({
     }
   };
 
-  /** 비즈니스 키 생성 - B1~B4 전체 m4 포함, B3는 belongsTo(작업요소) 추가 (2026-03-03) */
+  /** 비즈니스 키 생성 - B1~B5 m4 포함, B3/B4는 belongsTo(작업요소) 추가 (2026-03-15) */
   const getBusinessKey = (d: ImportedFlatData): string => {
-    if (['B1', 'B2', 'B4', 'B5'].includes(d.itemCode) && d.m4) {
+    if (['B1', 'B2', 'B5'].includes(d.itemCode) && d.m4) {
       return `${d.processNo}|${d.itemCode}|${d.m4}|${d.value}`;
     }
-    // ★★★ 2026-03-03: B3 dedup 키에 belongsTo(작업요소 참조) 추가 ★★★
-    // 같은 공정/m4에서 다른 B1 작업요소가 동일한 B3 공정특성을 가질 수 있음
-    // 예: 120/MC에서 "에어 압력"이 3개 다른 JIG에 적용 → 별도 항목으로 유지
-    if (d.itemCode === 'B3' && d.m4) {
+    // ★★★ 2026-03-15 FIX: B3 + B4 dedup 키에 belongsTo(작업요소 참조) 추가 ★★★
+    // B3: 같은 공정/m4에서 다른 WE가 동일한 공정특성을 가질 수 있음
+    // B4: 같은 공정/m4에서 다른 WE가 동일한 FC 텍스트를 가질 수 있음
+    // 예: 40/IM에서 "Target 소진"이 Ti Target과 Cu Target에 각각 적용 → 별도 항목으로 유지
+    if ((d.itemCode === 'B3' || d.itemCode === 'B4') && d.m4) {
       return `${d.processNo}|${d.itemCode}|${d.m4}|${d.belongsTo || ''}|${d.value}`;
     }
     return `${d.processNo}|${d.itemCode}|${d.value}`;

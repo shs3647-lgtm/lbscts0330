@@ -1030,13 +1030,11 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       } as L3FailureCauseExtended);
     }
   }
-  // ★★★ 근본 방어: processChar에 연결된 FC가 없으면 placeholder 자동생성 ★★★
-  // 원인: B4 부분 존재 시 import-builder 폴백이 스킵되어 orphan processChar 발생
-  // 증상: "고장원인 선택" (FC 누락) 반복 발생
-  // ★★★ 2026-03-10: 실제 B4 기반 FC가 이미 존재하는 공정에서는 placeholder 스킵 ★★★
-  // 이유: placeholder FC는 chains/B4에 대응 데이터가 없어 failureLink 생성 불가 → 영원히 "누락 FC"로 표시
-  const hasRealB4Causes = causes.length > 0;
-  if (!hasRealB4Causes) {
+  // ★★★ 2026-03-15 FIX: orphan processChar에 placeholder FC 자동생성 (항상 실행) ★★★
+  // 이전 버그: hasRealB4Causes 가드 → B4가 1개라도 있으면 placeholder 스킵 → FC 누락 반복
+  // 수정: B4 distribute 후 FC 미연결 processChar에 항상 placeholder 생성
+  // placeholder 이름 "${pc.name} 부적합"은 isMissing() 판정에 걸리지 않음 (키워드 미포함)
+  {
     const linkedProcessCharIds = new Set(
       causes.map(fc => (fc as { processCharId?: string }).processCharId).filter(Boolean)
     );

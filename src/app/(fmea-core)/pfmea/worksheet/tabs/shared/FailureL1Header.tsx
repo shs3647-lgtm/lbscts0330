@@ -87,7 +87,10 @@ export function FailureL1Header({
         </th>
         <th colSpan={2} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold">
           <div className="flex items-center justify-between gap-1">
-            <span className="whitespace-nowrap font-bold"><BiHeader ko="1L 고장분석" en="Failure Analysis" /></span>
+            <div className="flex items-center gap-1.5">
+              <span className="whitespace-nowrap font-bold"><BiHeader ko="1L 고장분석" en="Failure Analysis" /></span>
+              <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowHelp(prev => !prev); }} className={`px-1.5 py-0 text-[10px] font-bold rounded cursor-pointer border whitespace-nowrap shadow-sm ${showHelp ? 'bg-yellow-400 text-gray-800 border-yellow-500' : 'bg-white/20 text-white border-white/40 hover:bg-white/30'}`} title="도움말 보기/닫기">도움말(Help)</button>
+            </div>
             <div className="flex gap-1 items-center shrink-0">
               {isConfirmed ? (
                 <span className={badgeConfirmed}>확정됨(Confirmed)({confirmedCount})</span>
@@ -124,9 +127,6 @@ export function FailureL1Header({
                 S추천(S Recommend)({missingSeverityCount})
               </button>
             )}
-            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowHelp(prev => !prev); }}
-              className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer border whitespace-nowrap shadow-sm ${showHelp ? 'bg-yellow-400 text-gray-800 border-yellow-500' : 'bg-[#1565c0] text-white border-[#42a5f5] hover:bg-[#0d47a1]'}`}
-              title="도움말 보기/닫기">도움말(Help)</button>
           </div>
         </th>
       </tr>

@@ -36,6 +36,7 @@ function makeProcess(overrides: Partial<ProcessRelation> = {}): ProcessRelation 
     processCharsWE: [],                  // B3 소속 WE
     failureCauses: ['토크 부족'],        // B4
     failureCauses4M: ['MC'],             // B4 4M
+    failureCausesWE: [],                 // B4 소속 WE
     preventionCtrls: [],                 // B5
     detectionCtrls: [],                  // A6
     ...overrides,
