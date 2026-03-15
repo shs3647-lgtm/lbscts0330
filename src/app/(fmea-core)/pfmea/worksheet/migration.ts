@@ -1164,22 +1164,6 @@ export function convertToLegacyFormat(db: FMEAWorksheetDB): OldWorksheetData {
 }
 
 /**
- * ★★★ 2026-02-16: DB Only 정책 - localStorage 로드 비활성화 ★★★
- * DB에서만 데이터를 가져옴. localStorage 읽기 금지.
- * @deprecated DB Only 정책으로 비활성화. db-storage.ts의 async loadWorksheetDB 사용.
- */
-export function loadWorksheetDB(_fmeaId: string): FMEAWorksheetDB | null {
-  return null;
-}
-
-/**
- * ★★★ 2026-02-16: DB Only 정책 - localStorage 저장 비활성화 ★★★
- * @deprecated DB Only 정책으로 비활성화. db-storage.ts의 async saveWorksheetDB 사용.
- */
-export function saveWorksheetDBLocal(_db: FMEAWorksheetDB): void {
-}
-
-/**
  * 고장연결 확정 및 저장
  * - 자동 변환 없음! 사용자가 입력한 FK 관계만 저장
  * - 확정 상태 업데이트
