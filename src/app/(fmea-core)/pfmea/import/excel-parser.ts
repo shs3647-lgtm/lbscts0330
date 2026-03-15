@@ -39,7 +39,7 @@ import {
   normalizeSheetName,
 } from './excel-parser-utils';
 import { m4SortValue } from '@/app/(fmea-core)/pfmea/worksheet/constants';
-import { detectDataRange, getMergedCellValue } from '@/lib/excel-data-range';
+import { detectDataRange, getMergedCellValue, getMergeSpan } from '@/lib/excel-data-range';
 import { isSingleSheetFmea, isStepASheet, parseSingleSheetFmea } from './excel-parser-single-sheet';
 import { findFCSheet, parseFCSheet } from './excel-parser-fc';
 // ★★★ 2026-02-24: VERIFY 시트 리더 (엑셀 수식 기반 검증) ★★★
@@ -724,7 +724,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             dataValue !== '(선택)' &&
             !dataValue.includes('공정번호') &&
             !/^L[123]-\d/.test(dataValue)) {
-            rows.push({ key, value: dataValue, m4: valid4M, extra: bWeValue || undefined, specialChar: bSc || undefined, excelRow: i });
+            rows.push({ key, value: dataValue, m4: valid4M, extra: bWeValue || undefined, specialChar: bSc || undefined, excelRow: i, rowSpan: getMergeSpan(sheet, i, valStartCol).rowSpan });
           }
         } else if (sheetCode === 'A6' || sheetCode === 'B5') {
           // ★★★ 2026-03-14 FIX: A6/B5 단일값 파싱 — 첫 번째 값 컬럼만 읽기 ★★★
@@ -738,7 +738,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             value !== '(선택)' &&
             value !== '공정번호' &&
             !/^L[123]-\d/.test(value)) {
-            rows.push({ key, value, excelRow: i });
+            rows.push({ key, value, excelRow: i, rowSpan: getMergeSpan(sheet, i, valStartCol).rowSpan });
           }
         } else {
           // A3-A5, C2-C4 시트: 값 시작열부터 읽기 (B1~B4는 위에서 4M 처리)
@@ -766,7 +766,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               value !== '(필수)' &&
               value !== '(선택)' &&
               !isHeaderOnly) {
-              rows.push({ key, value, specialChar: aSc || undefined, excelRow: i });
+              rows.push({ key, value, specialChar: aSc || undefined, excelRow: i, rowSpan: getMergeSpan(sheet, i, valStartCol).rowSpan });
               hasValue = true;
               // ★ C4 디버그 로그
               if (sheetCode === 'C4') {
@@ -785,7 +785,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               value !== '(필수)' &&
               value !== '(선택)' &&
               !isHeaderOnlyFallback) {
-              rows.push({ key, value, specialChar: aSc || undefined, excelRow: i });
+              rows.push({ key, value, specialChar: aSc || undefined, excelRow: i, rowSpan: getMergeSpan(sheet, i, valStartCol).rowSpan });
             }
           }
         }
@@ -936,6 +936,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               if (!process.itemMeta) process.itemMeta = {};
               process.itemMeta[`${sheet}-${idx}`] = {
                 excelRow: row.excelRow,
+                rowSpan: row.rowSpan,
                 mergeGroupId: `${process.processNo}-${sheet}`,
               };
             }
@@ -984,7 +985,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             };
             (newProcess[field] as string[]).push(row.value);
             if (row.excelRow) {
-              newProcess.itemMeta = { [`${sheet}-0`]: { excelRow: row.excelRow, mergeGroupId: `${row.key}-${sheet}` } };
+              newProcess.itemMeta = { [`${sheet}-0`]: { excelRow: row.excelRow, rowSpan: row.rowSpan, mergeGroupId: `${row.key}-${sheet}` } };
             }
             if (sheet === 'B1') {
               newProcess.workElements4M.push(row.m4 || '');

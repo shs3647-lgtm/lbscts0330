@@ -14,6 +14,7 @@ import { validateImportData } from '../utils/import-validation';
 import { validateHierarchy } from '../utils/hierarchy-validation';
 import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '../utils/excel-color-detector';
 import { inferDC, inferPC, getDefaultRuleSet } from '../stepb-parser/pc-dc-inference';
+import { assignParentsByRowSpan } from '../utils/parentItemId-mapper';
 import { v4 as uuidv4 } from 'uuid';
 
 interface UseImportFileHandlersProps {
@@ -500,6 +501,40 @@ export function useImportFileHandlers({
           flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: ensureString(v), parentItemId: `C3-${categoryValue}-${slot}`, createdAt: new Date() }, 'C4', i));
         });
       });
+
+      // ★★★ 2026-03-16: rowSpan 기반 parentItemId 정확 매핑 ★★★
+      // 하드코딩 `-0` 패턴 → excelRow+rowSpan 범위 기반 매핑으로 교체
+      // B2/B3/B4→B1은 이미 UUID 기반 (findB1Uuid) — 변경 불필요
+      {
+        const mapAndApply = (parentCode: string, childCode: string) => {
+          const parentItems = flat
+            .filter(it => it.itemCode === parentCode)
+            .map(it => ({ id: it.id, excelRow: it.excelRow, rowSpan: it.rowSpan, processNo: it.processNo }));
+          const childItems = flat
+            .filter(it => it.itemCode === childCode)
+            .map(it => ({ id: it.id, excelRow: it.excelRow, processNo: it.processNo }));
+          if (parentItems.length === 0 || childItems.length === 0) return;
+          const mapping = assignParentsByRowSpan(parentItems, childItems);
+          if (mapping.size === 0) return;
+          for (const item of flat) {
+            if (item.itemCode === childCode && mapping.has(item.id)) {
+              item.parentItemId = mapping.get(item.id)!;
+            }
+          }
+        };
+
+        // A-level: A4→A3, A5→A4, A6→A5
+        mapAndApply('A3', 'A4');
+        mapAndApply('A4', 'A5');
+        mapAndApply('A5', 'A6');
+
+        // B-level: B5→B4
+        mapAndApply('B4', 'B5');
+
+        // C-level: C3→C2, C4→C3
+        mapAndApply('C2', 'C3');
+        mapAndApply('C3', 'C4');
+      }
 
       // ⚠️ 파싱 결과가 비어있으면 경고 (Item Import 파일 형식 안내 포함)
       if (flat.length === 0) {

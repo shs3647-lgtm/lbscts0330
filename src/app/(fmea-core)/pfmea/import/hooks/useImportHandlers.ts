@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { ImportedFlatData } from '../types';
 import { parseMultiSheetExcel, ParseResult } from '../excel-parser';
+import { assignParentsByRowSpan } from '../utils/parentItemId-mapper';
 import { FMEAProject } from './useImportState';
 
 interface UseImportHandlersProps {
@@ -273,33 +274,52 @@ export function useImportHandlers(props: UseImportHandlersProps) {
         };
         flat.push({ id: `C1-${categoryValue}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: categoryValue, createdAt: new Date() });
         p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: v, parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
-        // ★★★ 2026-03-16: C3 → C2 균등배분 (하드코딩 -0 제거) ★★★
-        const c2Count = Math.max(1, p.productFuncs.length);
-        p.requirements.forEach((v, i) => {
-          const reqCount = p.requirements.length;
-          const base = Math.floor(reqCount / c2Count);
-          const extra = reqCount % c2Count;
-          let slot = 0, acc = 0;
-          for (let s = 0; s < c2Count; s++) {
-            acc += s < extra ? base + 1 : base;
-            if (i < acc) { slot = s; break; }
-          }
-          flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, parentItemId: `C2-${categoryValue}-${slot}`, createdAt: new Date() }, 'C3', i));
-        });
-        // ★★★ 2026-03-16: C4 → C3 균등배분 (하드코딩 -0 제거) ★★★
-        const c3Count = Math.max(1, p.requirements.length);
-        p.failureEffects.forEach((v, i) => {
-          const feCount = p.failureEffects.length;
-          const base = Math.floor(feCount / c3Count);
-          const extra = feCount % c3Count;
-          let slot = 0, acc = 0;
-          for (let s = 0; s < c3Count; s++) {
-            acc += s < extra ? base + 1 : base;
-            if (i < acc) { slot = s; break; }
-          }
-          flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, parentItemId: `C3-${categoryValue}-${slot}`, createdAt: new Date() }, 'C4', i));
-        });
+        // ★★★ 2026-03-16: C3 → C2 rowSpan 기반 매핑 (assignParentsByRowSpan 후처리) ★★★
+        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, parentItemId: `C2-${categoryValue}-0`, createdAt: new Date() }, 'C3', i)));
+        // ★★★ 2026-03-16: C4 → C3 rowSpan 기반 매핑 (assignParentsByRowSpan 후처리) ★★★
+        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, parentItemId: `C3-${categoryValue}-0`, createdAt: new Date() }, 'C4', i)));
       });
+
+      // ★★★ 2026-03-16: rowSpan 기반 parentItemId 후처리 (assignParentsByRowSpan) ★★★
+      // A-level 매핑: A4→A3, A5→A4 (processNo 기반 그룹핑)
+      const pairsA: Array<{ parentCode: string; childCode: string }> = [
+        { parentCode: 'A3', childCode: 'A4' },
+        { parentCode: 'A4', childCode: 'A5' },
+      ];
+      for (const { parentCode, childCode } of pairsA) {
+        const parents = flat.filter(it => it.itemCode === parentCode).map(it => ({
+          id: it.id, excelRow: it.excelRow, rowSpan: it.rowSpan, processNo: it.processNo,
+        }));
+        const children = flat.filter(it => it.itemCode === childCode).map(it => ({
+          id: it.id, excelRow: it.excelRow, processNo: it.processNo,
+        }));
+        const map = assignParentsByRowSpan(parents, children);
+        for (const item of flat) {
+          if (item.itemCode === childCode && map.has(item.id)) {
+            item.parentItemId = map.get(item.id)!;
+          }
+        }
+      }
+
+      // C-level 매핑: C3→C2, C4→C3 (processNo = categoryValue 기반 그룹핑)
+      const pairsC: Array<{ parentCode: string; childCode: string }> = [
+        { parentCode: 'C2', childCode: 'C3' },
+        { parentCode: 'C3', childCode: 'C4' },
+      ];
+      for (const { parentCode, childCode } of pairsC) {
+        const parents = flat.filter(it => it.itemCode === parentCode).map(it => ({
+          id: it.id, excelRow: it.excelRow, rowSpan: it.rowSpan, processNo: it.processNo,
+        }));
+        const children = flat.filter(it => it.itemCode === childCode).map(it => ({
+          id: it.id, excelRow: it.excelRow, processNo: it.processNo,
+        }));
+        const map = assignParentsByRowSpan(parents, children);
+        for (const item of flat) {
+          if (item.itemCode === childCode && map.has(item.id)) {
+            item.parentItemId = map.get(item.id)!;
+          }
+        }
+      }
 
       setPendingData(flat);
     } catch (error) {

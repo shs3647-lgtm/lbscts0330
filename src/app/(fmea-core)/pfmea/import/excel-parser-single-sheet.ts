@@ -33,7 +33,7 @@ import type ExcelJS from 'exceljs';
 import type { ParseResult, ProcessRelation, ProductRelation, ParseStatistics, ItemCodeStat, ProcessItemStat } from './excel-parser';
 import type { MasterFailureChain } from './types/masterFailureChain';
 import { cellValueToString } from './excel-parser-utils';
-import { getMergedCellValue } from '@/lib/excel-data-range';
+import { getMergedCellValue, getMergeSpan } from '@/lib/excel-data-range';
 import { m4SortValue } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import { scanRawFingerprint, verifyParsing } from './excel-parser-verification';
 
@@ -315,9 +315,11 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
 
       const setMeta = (code: string, arr: string[]) => {
         if (!proc.itemMeta) proc.itemMeta = {};
+        const col = roleColMap[code as ColumnRole];
         proc.itemMeta[`${code}-${arr.length}`] = {
           excelRow: r,
-          excelCol: roleColMap[code as ColumnRole],
+          excelCol: col,
+          rowSpan: col ? getMergeSpan(sheet, r, col).rowSpan : undefined,
           mergeGroupId: `${normProcNo}-${code}`,
         };
       };
@@ -369,9 +371,11 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
 
       const setProdMeta = (code: string, arr: string[]) => {
         if (!product.itemMeta) product.itemMeta = {};
+        const col = roleColMap[code as ColumnRole];
         product.itemMeta[`${code}-${arr.length}`] = {
           excelRow: r,
-          excelCol: roleColMap[code as ColumnRole],
+          excelCol: col,
+          rowSpan: col ? getMergeSpan(sheet, r, col).rowSpan : undefined,
           mergeGroupId: `${normC1}-${code}`,
         };
       };
