@@ -39,6 +39,7 @@ export interface EnrichStats {
   addedFM: number;
   addedFE: number;
   addedFC: number;
+  addedPC: number;
   skippedNoProc: number;
 }
 
@@ -69,7 +70,7 @@ export function enrichStateFromChains(
   state: WorksheetState,
   chains: ChainRecord[],
 ): EnrichStats {
-  const stats: EnrichStats = { addedFM: 0, addedFE: 0, addedFC: 0, skippedNoProc: 0 };
+  const stats: EnrichStats = { addedFM: 0, addedFE: 0, addedFC: 0, addedPC: 0, skippedNoProc: 0 };
 
   if (!chains || chains.length === 0) return stats;
 
@@ -111,6 +112,59 @@ export function enrichStateFromChains(
     for (const fc of (proc.failureCauses || [])) {
       existingFC.add(`${proc.no}|${normalize(fc.name)}`);
     }
+  }
+
+  // ★★★ 2026-03-15 FIX: productChars 보충 — placeholder(name='') 교체 + 신규 추가 ★★★
+  const existingPCByProc = new Map<string, Set<string>>();
+  for (const proc of (state.l2 || [])) {
+    const pcNames = new Set<string>();
+    for (const fn of (proc.functions || [])) {
+      for (const pc of (fn.productChars || [])) {
+        const n = normalize(pc.name);
+        if (n) pcNames.add(n);
+      }
+    }
+    existingPCByProc.set(proc.no, pcNames);
+    const normalized = normalizeProcessNo(proc.no);
+    if (normalized && normalized !== proc.no) existingPCByProc.set(normalized, pcNames);
+  }
+
+  let addedPC = 0;
+  for (const chain of chains) {
+    const pcName = (chain as Record<string, unknown>).productChar as string | undefined;
+    if (!pcName?.trim() || !chain.processNo) continue;
+
+    const proc = procByNo.get(chain.processNo) || procByNo.get(normalizeProcessNo(chain.processNo));
+    if (!proc) continue;
+
+    const npc = normalize(pcName);
+    const existing = existingPCByProc.get(proc.no);
+    if (existing?.has(npc)) continue;
+
+    // placeholder 교체: 첫 번째 빈 이름 productChar를 찾아 교체
+    let replaced = false;
+    for (const fn of (proc.functions || [])) {
+      for (const pc of (fn.productChars || [])) {
+        if (!pc.name || !pc.name.trim()) {
+          pc.name = pcName.trim();
+          replaced = true;
+          break;
+        }
+      }
+      if (replaced) break;
+    }
+
+    if (!replaced && proc.functions && proc.functions.length > 0) {
+      const targetFn = proc.functions[0];
+      if (!targetFn.productChars) (targetFn as unknown as { productChars: Array<{ id: string; name: string; specialChar?: string }> }).productChars = [];
+      targetFn.productChars.push({
+        id: uid(), name: pcName.trim(), specialChar: '',
+      });
+    }
+
+    if (!existing) existingPCByProc.set(proc.no, new Set([npc]));
+    else existing.add(npc);
+    addedPC++;
   }
 
   for (const chain of chains) {
@@ -184,5 +238,6 @@ export function enrichStateFromChains(
     }
   }
 
+  stats.addedPC = addedPC;
   return stats;
 }

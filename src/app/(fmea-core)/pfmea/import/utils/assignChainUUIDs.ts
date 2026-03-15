@@ -11,6 +11,11 @@
  * - FE scope 접두사 제거 ("C3-4:효과명" → "효과명")
  * - 메인시트 FM/FC 중 FC시트 미포함 항목 자동보충 chain 생성
  *
+ * ★★★ 2026-03-15 v3: FE 3단계 자동할당으로 FE 100% 달성 ★★★
+ * - 1단계: 텍스트 직접 매칭 (기존 — feValue ↔ C4)
+ * - 2단계: 같은 FM의 다른 chain에서 feId 복사 (같은 FM = 같은 FE, PFMEA 규칙)
+ * - 3단계: scope 기반 + 공정별 carry-forward + 전역 fallback
+ *
  * @created 2026-03-15
  */
 
@@ -170,9 +175,112 @@ export function assignEntityUUIDsToChains(
 
   if (assignedFM > 0 || assignedFC > 0 || assignedFE > 0) {
     console.info(
-      `[assignChainUUIDs] UUID FK 할당: FM=${assignedFM}/${chains.length} FC=${assignedFC}/${chains.length} FE=${assignedFE}/${chains.length}`
+      `[assignChainUUIDs] 1단계 텍스트 매칭: FM=${assignedFM}/${chains.length} FC=${assignedFC}/${chains.length} FE=${assignedFE}/${chains.length}`
     );
   }
+
+  // ══════════════════════════════════════════════════════════════
+  // 2단계: 같은 FM의 다른 chain에서 feId 복사
+  //
+  // PFMEA 규칙: 동일 고장형태(FM)는 동일 고장영향(FE)을 유발.
+  // 비유: "엔진 과열"이라는 고장(FM)은 언제나 "차량 정지"라는 피해(FE)를 유발.
+  //       FM이 같으면 FE도 같다.
+  // ══════════════════════════════════════════════════════════════
+  const fmToFeId = new Map<string, string>();
+
+  // 1단계에서 매칭된 chain들의 FM→FE 관계 수집
+  for (const chain of chains) {
+    if (chain.fmId && chain.feId && !fmToFeId.has(chain.fmId)) {
+      fmToFeId.set(chain.fmId, chain.feId);
+    }
+  }
+
+  let feFromFM = 0;
+  for (const chain of chains) {
+    if (chain.feId) continue;
+    if (chain.fmId && fmToFeId.has(chain.fmId)) {
+      chain.feId = fmToFeId.get(chain.fmId)!;
+      feFromFM++;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 3단계: scope 기반 FE 할당 + 공정별 carry-forward
+  //
+  // 3a: chain.feScope(YP/SP/USER) → state.l1.failureScopes에서 같은 scope FE 찾기
+  // 3b: 같은 공정(processNo)의 이전 chain에서 feId carry-forward
+  // 3c: 전체 FE 중 첫 번째 fallback (최후의 수단)
+  //
+  // 비유: 3a = "이 공정은 사용자 안전(USER) 영향" → USER scope FE 할당
+  //       3b = "같은 공정의 직전 항목과 같은 영향" (연속된 행 = 같은 FE)
+  //       3c = "아무 정보도 없으면 첫 번째 FE" (누락보다 나음)
+  // ══════════════════════════════════════════════════════════════
+  const feByScopeMap = new Map<string, string>();
+  for (const fe of (state.l1?.failureScopes || [])) {
+    const scope = normalizeText(fe.scope || '');
+    if (scope && !feByScopeMap.has(scope)) {
+      feByScopeMap.set(scope, fe.id);
+    }
+  }
+
+  const procToFeId = new Map<string, string>();
+  let feFromScope = 0;
+  let feFromCarry = 0;
+
+  // 이미 할당된 chain에서 공정별 feId 초기값 수집
+  for (const chain of chains) {
+    if (chain.feId && chain.processNo) {
+      if (!procToFeId.has(chain.processNo)) {
+        procToFeId.set(chain.processNo, chain.feId);
+      }
+    }
+  }
+
+  for (const chain of chains) {
+    if (chain.feId) {
+      // 이 공정의 최근 feId 갱신
+      if (chain.processNo) procToFeId.set(chain.processNo, chain.feId);
+      continue;
+    }
+
+    // 3a: feScope로 매칭 (YP/SP/USER → 해당 scope의 첫 FE)
+    if (chain.feScope) {
+      const scopeKey = normalizeText(chain.feScope);
+      const feId = feByScopeMap.get(scopeKey);
+      if (feId) {
+        chain.feId = feId;
+        feFromScope++;
+        if (chain.processNo) procToFeId.set(chain.processNo, feId);
+        continue;
+      }
+    }
+
+    // 3b: 같은 공정 carry-forward (직전 chain의 feId 재사용)
+    if (chain.processNo && procToFeId.has(chain.processNo)) {
+      chain.feId = procToFeId.get(chain.processNo)!;
+      feFromCarry++;
+      continue;
+    }
+
+    // 3c: 전체 FE 중 첫 번째 fallback (최후의 수단 — 누락보다 낫다)
+    const allFEs = state.l1?.failureScopes || [];
+    if (allFEs.length > 0) {
+      chain.feId = allFEs[0].id;
+      feFromCarry++;
+    }
+  }
+
+  // ── FE 할당 결과 로깅 ──
+  const totalFeAssigned = chains.filter(c => c.feId).length;
+  const totalFEs = new Set(
+    (state.l1?.failureScopes || []).map(fe => fe.id)
+  ).size;
+
+  console.info(
+    `[assignChainUUIDs] FE 보충: FM그룹=${feFromFM} scope=${feFromScope} carry=${feFromCarry} | ` +
+    `FE 최종: ${totalFeAssigned}/${chains.length} chains에 할당, ` +
+    `${totalFEs}개 고유 FE 중 ${new Set(chains.filter(c => c.feId).map(c => c.feId!)).size}개 사용`
+  );
 }
 
 // ═══════════════════════════════════════════════════════

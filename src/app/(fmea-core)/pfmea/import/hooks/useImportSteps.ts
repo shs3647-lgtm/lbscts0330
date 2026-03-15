@@ -453,7 +453,6 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
     const validation = validateFADataConsistency(parsedChains, flatData, expectedByStats);
     if (!validation.pass) {
       const itemRef = validation.failedItems?.length ? ` [${validation.failedItems.join(', ')}]` : '';
-      // 검증 실패해도 진행 허용 (로그만 남김)
     }
 
     setIsAnalysisImporting(true);

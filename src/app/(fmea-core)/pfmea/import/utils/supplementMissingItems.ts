@@ -143,10 +143,10 @@ export function supplementMissingItems(
     for (const pno of a3Procs) {
       if (!pno || a4Procs.has(pno)) continue;
       const origPno = getOrigPno(pno);
-      // 체인에서 해당 공정의 FM/FC로부터 제품특성 추론
+      // ★ 2026-03-15 FIX: ch.processChar(B3) → ch.productChar(A4) 버그 수정
       const chainChars = failureChains
-        .filter(ch => normPno(ch.processNo) === pno && ch.processChar)
-        .map(ch => ch.processChar!);
+        .filter(ch => normPno(ch.processNo) === pno && ch.productChar)
+        .map(ch => ch.productChar!);
       const uniqueChars = [...new Set(chainChars)];
       if (uniqueChars.length > 0) {
         for (const char of uniqueChars) {

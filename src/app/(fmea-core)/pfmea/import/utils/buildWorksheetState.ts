@@ -646,9 +646,13 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
   const a4Items = byCode(items, 'A4');
   const a5Items = byCode(items, 'A5');
 
-  // ★★★ 2026-03-14: A4 Cartesian 근본 해결 — 공유 ID 패턴 ★★★
-  // 이전: 각 A3마다 새 uid() → A3×A4 Cartesian 중복 (A3=2, A4=3 → PC=6)
-  // 수정: A4 productChars를 한 번만 생성(공유 ID) → 모든 A3가 같은 ID 참조
+  // ★★★ 2026-03-15 FIX: UUID 공유 참조 패턴 (카테시안 금지) ★★★
+  //
+  // 카테시안 = 각 A3마다 새 uid() → A3×A4 곱셈 중복 (A3=2, A4=3 → PC=6) ← 금지!
+  // UUID 공유 = sharedPCs 한 번 생성 → 모든 A3가 같은 ID 참조 → 중복 없음
+  //
+  // uniquePCs (아래)가 ID 기준 중복 제거 → FM.productCharId 연결은 정확히 A4개수만큼
+  // calculateL2Counts가 proc.no|name 기준 중복 제거 → 표시 카운트도 정확
   if (a3Items.length === 0 && a4Items.length > 0) {
     // A3 없이 A4만 → 빈 이름 function 생성
     process.functions = [{
@@ -658,29 +662,27 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     }];
   } else if (a3Items.length > 0) {
     if (a4Items.length > 0) {
-      // ★★★ 2026-03-14 FIX: A4 카테시안 2배 복제 근본 해결 ★★★
-      // 이전: 모든 A3 function에 sharedPCs 복사 → A3×A4 카테시안 (A3=2, A4=25 → PC=50)
-      // 수정: A4는 공정 단위 공유 엔티티 → 첫 번째 function에만 배치, 나머지는 빈 배열
+      // ★ A4 엔티티를 한 번만 생성 (공유 UUID)
       const sharedPCs = a4Items.map(a4 => ({
         id: uid(),
         name: a4.value,
         ...rev(a4),
         specialChar: (a4 as unknown as { specialChar?: string }).specialChar || ''
       }));
-      process.functions = a3Items.map((a3, idx) => ({
+      // ★ 모든 A3 function이 같은 UUID의 A4를 참조 (카테시안 아님 — ID 동일)
+      process.functions = a3Items.map((a3) => ({
         id: uid(),
         name: a3.value,
         ...rev(a3),
-        productChars: idx === 0 ? sharedPCs.map(pc => ({ ...pc })) : [],  // 첫 번째 A3에만 PC 배치
+        productChars: sharedPCs.map(pc => ({ ...pc })),
       }));
     } else {
-      // A4 없으면 단일 placeholder 생성 (ID 공유로 A5 연결 보장)
-      const placeholderPC = { id: uid(), name: '(제품특성 미입력)', specialChar: '' };
-      process.functions = a3Items.map((a3, idx) => ({
+      // A4 없으면 각 function에 placeholder 생성 (개별 ID — 추후 수동입력 대비)
+      process.functions = a3Items.map((a3) => ({
         id: uid(),
         name: a3.value,
         ...rev(a3),
-        productChars: idx === 0 ? [{ ...placeholderPC }] : [],  // 첫 번째 A3에만 PC 배치
+        productChars: [{ id: uid(), name: '', specialChar: '' }],
       }));
     }
   }

@@ -339,13 +339,18 @@ export function useImportFileHandlers({
           }
         }
 
-        // ★★★ 2026-03-02 FIX: A4(제품특성) — A4 시트 데이터 없으면 FC시트 productChar에서 추출 ★★★
-        const existingA4Count = flat.filter(d => d.itemCode === 'A4').length;
-        if (existingA4Count === 0) {
+        // ★★★ 2026-03-15 FIX: A4(제품특성) — 공정별 A4 갭 보충 (전역→공정별 조건) ★★★
+        // 이전: existingA4Count === 0 전역 조건 → 일부 공정에 A4 있으면 나머지 보충 안 됨
+        // 수정: 공정별로 A4 유무 확인 → 없는 공정만 체인에서 추출
+        {
+          const a4ProcSet = new Set(
+            flat.filter(d => d.itemCode === 'A4' && d.processNo).map(d => d.processNo),
+          );
           const a4Seen = new Set<string>();
           let a4Idx = 0;
           for (const ch of chains) {
             if (!ch.productChar?.trim() || !ch.processNo) continue;
+            if (a4ProcSet.has(ch.processNo)) continue;
             const key = `${ch.processNo}|${ch.productChar.trim()}`;
             if (a4Seen.has(key)) continue;
             a4Seen.add(key);

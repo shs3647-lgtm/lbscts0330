@@ -21,6 +21,20 @@ export interface FCMatchEntry {
   sodMatch: boolean;
 }
 
+/** FE 매칭 통계 (assignChainUUIDs 3단계 결과 집계) */
+export interface FEMatchStats {
+  total: number;         // C4 고유 FE 수 (state.l1.failureScopes.length)
+  matched: number;       // chain에 feId 할당된 고유 FE 수
+  chainsWithFeId: number; // feId가 있는 chain 수
+  chainsTotal: number;   // 전체 chain 수
+  method: {
+    text: number;        // 1단계: 텍스트 직접 매칭
+    fmGroup: number;     // 2단계: FM그룹 복사
+    scope: number;       // 3a: scope 기반
+    carry: number;       // 3b+3c: carry-forward + fallback
+  };
+}
+
 export interface FCComparisonResult {
   matched: FCMatchEntry[];
   missing: MasterFailureChain[];      // 자동도출에 있는데 기존FC에 없음
@@ -32,6 +46,7 @@ export interface FCComparisonResult {
     completenessRate: number;
     total: number;
   };
+  feStats?: FEMatchStats;             // FE 매칭 통계 (선택적 — 호출자가 제공)
 }
 
 export interface FCCompletenessResult {
@@ -280,5 +295,34 @@ export function validateFCCompleteness(chains: MasterFailureChain[]): FCComplete
     isComplete: details.length === 0,
     incompleteCount: details.length,
     details,
+  };
+}
+
+// ─── FE 매칭 통계 계산 ───
+
+/**
+ * FE 매칭 통계를 계산한다.
+ *
+ * assignChainUUIDs의 3단계 할당 후 호출하여
+ * 전체 FE 중 몇 개가 chain에 연결되었는지 집계.
+ *
+ * @param chains     - feId가 할당된 chain 배열 (assignEntityUUIDsToChains 실행 후)
+ * @param totalFEs   - state.l1.failureScopes의 고유 FE 수
+ * @param methodCounts - assignChainUUIDs 로그에서 추출한 단계별 할당 수
+ */
+export function computeFEMatchStats(
+  chains: MasterFailureChain[],
+  totalFEs: number,
+  methodCounts?: { text: number; fmGroup: number; scope: number; carry: number },
+): FEMatchStats {
+  const chainsWithFeId = chains.filter(c => !!c.feId);
+  const uniqueFeIds = new Set(chainsWithFeId.map(c => c.feId!));
+
+  return {
+    total: totalFEs,
+    matched: uniqueFeIds.size,
+    chainsWithFeId: chainsWithFeId.length,
+    chainsTotal: chains.length,
+    method: methodCounts ?? { text: 0, fmGroup: 0, scope: 0, carry: 0 },
   };
 }
