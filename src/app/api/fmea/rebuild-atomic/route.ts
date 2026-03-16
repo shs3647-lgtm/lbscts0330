@@ -69,8 +69,23 @@ export async function POST(request: NextRequest) {
     const atomic = migrateToAtomicDB(legacyData as any);
 
     await prisma.$transaction(async (tx: any) => {
-      // purge (cascade)
+      // ★★★ 명시적 전체 삭제 — FK cascade가 없는 프로젝트 스키마 대응 (2026-03-17)
+      // 문제: 프로젝트 스키마는 LIKE ... INCLUDING ALL로 생성되어 FK 제약 없음
+      // 결과: l1Structure.deleteMany가 cascade 미작동 → 좀비 레코드 누적
+      // 해결: 자식→부모 순서로 모든 원자성 테이블을 fmeaId 기준 명시적 삭제
+      await tx.failureLink.deleteMany({ where: { fmeaId } });
+      try { if (tx.failureAnalysis) await tx.failureAnalysis.deleteMany({ where: { fmeaId } }); } catch {}
+      await tx.failureEffect.deleteMany({ where: { fmeaId } });
+      await tx.failureMode.deleteMany({ where: { fmeaId } });
+      await tx.failureCause.deleteMany({ where: { fmeaId } });
+      try { if (tx.l1Requirement) await tx.l1Requirement.deleteMany({ where: { fmeaId } }); } catch {}
+      await tx.l1Function.deleteMany({ where: { fmeaId } });
+      try { if (tx.processProductChar) await tx.processProductChar.deleteMany({ where: { fmeaId } }); } catch {}
+      await tx.l2Function.deleteMany({ where: { fmeaId } });
+      await tx.l3Function.deleteMany({ where: { fmeaId } });
       await tx.l1Structure.deleteMany({ where: { fmeaId } });
+      await tx.l2Structure.deleteMany({ where: { fmeaId } });
+      await tx.l3Structure.deleteMany({ where: { fmeaId } });
 
       if (atomic.l1Structure) {
         await tx.l1Structure.create({
@@ -270,8 +285,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // FailureLinks는 전체 삭제 후 재생성
-      await tx.failureLink.deleteMany({ where: { fmeaId } });
+      // FailureLinks 재생성 (상단 명시적 삭제로 이미 purge됨)
       if (atomic.failureLinks.length) {
         await tx.failureLink.createMany({
           data: atomic.failureLinks.map((l: any) => ({
