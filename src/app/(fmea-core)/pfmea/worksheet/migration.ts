@@ -172,13 +172,14 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     const category = type.name as 'Your Plant' | 'Ship to Plant' | 'User';
     const functions = type.functions || [];
     
-    functions.forEach((func: { name?: string; requirements?: any[] }) => {
+    functions.forEach((func: { name?: string; requirements?: any[]; id?: string }) => {
       const requirements = func.requirements || [];
-      
+
       if (requirements.length === 0) {
         // 요구사항 없는 경우에도 기능은 저장
+        // ★ 2026-03-17: func.id (genC2) 보존 — uid() 대신 원본 ID 유지
         const l1Func: L1Function = {
-          id: uid(),
+          id: func.id || uid(),
           fmeaId: oldData.fmeaId,
           l1StructId: db.l1Structure?.id || '',
           category: category,
@@ -301,8 +302,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       const productChars = func.productChars || [];
       
       if (productChars.length === 0) {
+        // ★ 2026-03-17: func.id (genA3) 보존 — uid() 대신 원본 ID 유지
         db.l2Functions.push({
-          id: uid(),
+          id: func.id || uid(),
           fmeaId: oldData.fmeaId,
           l2StructId: l2Struct.id,
           functionName: func.name,
@@ -435,8 +437,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         if (processChars.length === 0) {
           // 이름 없는 함수 + 공정특성 없음 → DB 저장 불필요 (스킵)
           if (!funcName.trim()) return;
+          // ★ 2026-03-17: func.id (genB2) 보존 — uid() 대신 원본 ID 유지
           db.l3Functions.push({
-            id: uid(),
+            id: func.id || uid(),
             fmeaId: oldData.fmeaId,
             l3StructId: l3Struct.id,
             l2StructId: l2Struct.id,

@@ -182,7 +182,8 @@ export async function POST(request: NextRequest) {
         // 2. Legacy l2[].functions[].productChars (워크시트 경유)
         if (pcRows.length === 0 && legacyData.l2) {
           for (const proc of legacyData.l2) {
-            const l2Id = atomic.l2Structures.find((s: any) => s.no === proc.no)?.id;
+            // ★ 2026-03-17: proc.id(genA1) 우선 — 텍스트 매칭(proc.no) 폴백
+            const l2Id = proc.id || atomic.l2Structures.find((s: any) => s.no === proc.no)?.id;
             if (!l2Id) continue;
             for (const func of (proc.functions || [])) {
               for (const pc of (func.productChars || [])) {
