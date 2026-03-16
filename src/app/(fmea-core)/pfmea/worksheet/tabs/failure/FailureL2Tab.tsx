@@ -143,10 +143,12 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
   const processes = meaningfulProcs.length > 0 ? meaningfulProcs : allL2;
 
   // ★ buildFlatRows와 동일한 isMeaningful 함수
+  // ★ FIX: 20자 초과 = 실제 데이터 (키워드 포함해도 placeholder 아님)
   const isMeaningful = (name: string | undefined | null) => {
     if (!name) return false;
     const trimmed = String(name).trim();
     if (trimmed === '') return false;
+    if (trimmed.length > 20) return true; // 20자 초과는 항상 실제 데이터
     if (trimmed.includes('클릭')) return false;
     if (trimmed.includes('선택')) return false;
     if (trimmed.includes('입력')) return false;
@@ -248,7 +250,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
         (proc.functions || []).forEach((f: any) => {
           (f.productChars || []).forEach((pc: any) => {
             const name = (pc.name || '').trim();
-            if (name && !name.includes('클릭') && !name.includes('선택')) {
+            if (name && (name.length > 20 || (!name.includes('클릭') && !name.includes('선택')))) {
               productChars.push({ id: pc.id, name });
             }
           });
