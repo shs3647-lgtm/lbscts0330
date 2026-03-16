@@ -581,11 +581,28 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         ]);
         const orphanC3 = c3Items.filter(c3 => !c3.parentItemId || !allParents.has(c3.parentItemId));
         if (orphanC3.length > 0 && funcs.length > 0) {
-          // ★★★ 2026-03-17: 고아 C3 경고 로그 — 진단용 (parentItemId 미설정 또는 불일치)
-          console.warn(`[buildWorksheetState] 고아 C3 ${orphanC3.length}건 (div="${div}") → 마지막 C2에 배정`);
+          console.warn(`[buildWorksheetState] 고아 C3 ${orphanC3.length}건 (div="${div}") — 처리 중`);
           orphanC3.forEach(c3 => console.warn(`  C3 orphan: "${c3.value?.substring(0,40)}" parentItemId="${c3.parentItemId || 'null'}"`));
-          const lastFunc = funcs[funcs.length - 1];
-          orphanC3.forEach(c3 => { c3seq++; lastFunc.requirements.push({ id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }); });
+          const isAllOrphan = orphanC3.length === c3Items.length;
+          if (isAllOrphan && funcs.length > 1) {
+            // 모든 C3가 orphan(parentItemId=NULL) → C2에 균등 배분
+            const M = funcs.length, N = orphanC3.length;
+            const base = Math.floor(N / M), extra = N % M;
+            let cIdx = 0;
+            for (let fi = 0; fi < M; fi++) {
+              const share = fi < extra ? base + 1 : base;
+              c3seq = 0;
+              for (let si = 0; si < share; si++) {
+                c3seq++;
+                const c3 = orphanC3[cIdx++];
+                funcs[fi].requirements.push({ id: genC3('PF', div, fi + 1, c3seq), name: c3.value, ...rev(c3) });
+              }
+            }
+          } else {
+            // 일부 orphan → 마지막 C2에 배정
+            const lastFunc = funcs[funcs.length - 1];
+            orphanC3.forEach(c3 => { c3seq++; lastFunc.requirements.push({ id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }); });
+          }
         }
       }
       {

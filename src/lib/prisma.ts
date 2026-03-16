@@ -61,7 +61,15 @@ export function getPrismaForSchema(schema: string): PrismaClient | null {
     globalForPrisma.schemaClients = new Map();
   }
   const cached = globalForPrisma.schemaClients.get(schema);
-  if (cached) return cached;
+  if (cached) {
+    // ★ 스테일 캐시 탐지: L1Requirement 모델이 현재 클라이언트에 없으면 캐시 무효화
+    if (!(cached as any).l1Requirement) {
+      console.warn(`[Prisma] getPrismaForSchema(${schema}): 캐시 스테일 — l1Requirement 없음 → 캐시 무효화 후 재생성`);
+      globalForPrisma.schemaClients.delete(schema);
+    } else {
+      return cached;
+    }
+  }
 
   // Base URL (schema 파라미터 제거)
   const baseUrl = getBaseDatabaseUrl();

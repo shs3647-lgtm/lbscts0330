@@ -126,18 +126,27 @@ export async function POST(request: NextRequest) {
         });
 
         // ★ C3 별도 테이블: L1Function.requirement → L1Requirement (1:1)
-        const reqRows = atomic.l1Functions
-          .filter((f: any) => f.requirement !== undefined && f.requirement !== null)
-          .map((f: any) => ({
-            id: `${f.id}-R`,
-            fmeaId,
-            l1StructId: f.l1StructId,
-            l1FuncId: f.id,
-            requirement: f.requirement,
-            orderIndex: 0,
-          }));
-        if (reqRows.length > 0) {
-          await tx.l1Requirement.createMany({ data: reqRows, skipDuplicates: true });
+        // ★ 비치명적 — l1Requirement 미지원 Prisma 캐시 대응 (try-catch)
+        try {
+          if (tx.l1Requirement) {
+            const reqRows = atomic.l1Functions
+              .filter((f: any) => f.requirement !== undefined && f.requirement !== null)
+              .map((f: any) => ({
+                id: `${f.id}-R`,
+                fmeaId,
+                l1StructId: f.l1StructId,
+                l1FuncId: f.id,
+                requirement: f.requirement,
+                orderIndex: 0,
+              }));
+            if (reqRows.length > 0) {
+              await tx.l1Requirement.createMany({ data: reqRows, skipDuplicates: true });
+            }
+          } else {
+            console.warn('[rebuild-atomic] tx.l1Requirement 없음 — Prisma 캐시 갱신 필요 (서버 재시작 권장)');
+          }
+        } catch (reqErr: any) {
+          console.warn('[rebuild-atomic] L1Requirement 보조 저장 실패 (메인 저장 계속):', reqErr.code, reqErr.message?.slice(0, 100));
         }
       }
 
@@ -186,8 +195,16 @@ export async function POST(request: NextRequest) {
         }
         console.log(`[rebuild-atomic] PC 추출: path1=${atomic.l2Functions.filter((f: any) => Array.isArray((f as any).productChars)).length}funcs, path2 l2=${legacyData.l2?.length || 0}procs, pcRows=${pcRows.length}`);
         if (pcRows.length > 0) {
-          await tx.processProductChar.createMany({ data: pcRows, skipDuplicates: true });
-          console.log(`[rebuild-atomic] PC 저장 완료: ${pcRows.length}건`);
+          try {
+            if (tx.processProductChar) {
+              await tx.processProductChar.createMany({ data: pcRows, skipDuplicates: true });
+              console.log(`[rebuild-atomic] PC 저장 완료: ${pcRows.length}건`);
+            } else {
+              console.warn('[rebuild-atomic] tx.processProductChar 없음 — Prisma 캐시 갱신 필요 (서버 재시작 권장)');
+            }
+          } catch (pcErr: any) {
+            console.warn('[rebuild-atomic] ProcessProductChar 저장 실패 (메인 저장 계속):', pcErr.code, pcErr.message?.slice(0, 100));
+          }
         } else {
           console.warn(`[rebuild-atomic] PC 0건 — 추출 실패`);
         }

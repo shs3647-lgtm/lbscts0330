@@ -71,14 +71,17 @@ function syncFailureEffectsFromState(
   const failureScopes: Array<{ id?: string; reqId?: string; effect?: string; name?: string; severity?: number; scope?: string }> =
     (state as any).l1?.failureScopes || [];
 
-  if (failureScopes.length === 0 && db.failureEffects.length === 0) return db;
+  // 수정 1: failureScopes가 비어있으면 DB FE를 보존하고 즉시 반환
+  // (기존: failureScopes가 비어도 db.failureEffects가 있으면 syncedEffects=[]로 wipe했음)
+  if (failureScopes.length === 0) return db;
 
   // 기존 FE를 ID 기준으로 맵핑
   const existingFeById = new Map((db.failureEffects || []).map((fe: any) => [fe.id, fe]));
   const l1FuncIdSet = new Set((db.l1Functions || []).map((f: any) => f.id));
 
-  const syncedEffects = failureScopes
-    .filter((fs) => !!(fs.effect || fs.name)) // 빈 FE 제외
+  const validScopes = failureScopes.filter((fs) => !!(fs.effect || fs.name)); // 빈 FE 제외
+
+  const syncedEffects = validScopes
     .map((fs) => {
       const feId = fs.id || '';
       if (!feId) return null;
@@ -93,11 +96,12 @@ function syncFailureEffectsFromState(
         };
       }
 
-      // 새 FE: l1FuncId = reqId (migration 패턴: req.id === l1FuncId)
+      // 수정 2: 새 FE — l1FuncId를 못 찾아도 drop하지 않고 API에 전달
+      // (API의 LAST RESORT 로직이 l1FuncId를 복구함)
       const l1FuncId = (fs.reqId && l1FuncIdSet.has(fs.reqId))
         ? fs.reqId
-        : db.l1Functions?.length > 0 ? (db.l1Functions[0] as any).id : '';
-      if (!l1FuncId) return null;
+        : db.l1Functions?.length > 0 ? (db.l1Functions[0] as any).id : (fs.reqId || '');
+      // l1FuncId가 비어있어도 drop 금지 — API LAST RESORT가 복구
 
       const l1Func = (db.l1Functions || []).find((f: any) => f.id === l1FuncId);
       const category = (fs.scope as any) || (l1Func as any)?.category || 'Your Plant';
@@ -112,6 +116,15 @@ function syncFailureEffectsFromState(
       };
     })
     .filter(Boolean);
+
+  // 수정 3: 일부 FE가 제외된 경우 경고 로그
+  if (syncedEffects.length !== validScopes.length) {
+    console.warn('[syncFE] 일부 FE 제외:', {
+      input: failureScopes.length,
+      validInput: validScopes.length,
+      output: syncedEffects.length,
+    });
+  }
 
   return { ...db, failureEffects: syncedEffects as any[] };
 }

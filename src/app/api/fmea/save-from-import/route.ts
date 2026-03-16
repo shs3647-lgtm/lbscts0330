@@ -462,19 +462,24 @@ export async function POST(request: NextRequest) {
     const expectedFC = savedRich.fc;
     const expectedLinks = Array.isArray((legacyDataForSave as LegacyRecord).failureLinks)
       ? (legacyDataForSave as LegacyRecord).failureLinks!.length : 0;
+    const legacyL1 = (legacyDataForSave as LegacyRecord).l1 as any;
+    const expectedL1Funcs = Array.isArray(legacyL1?.types)
+      ? legacyL1.types.reduce((sum: number, t: any) => sum + (Array.isArray(t.functions) ? t.functions.length : 0), 0)
+      : 0;
 
     console.log(
-      `[save-from-import] 기대값: l2=${expectedL2} FM=${expectedFM} FC=${expectedFC} Links=${expectedLinks}`
+      `[save-from-import] 기대값: l1Funcs=${expectedL1Funcs} l2=${expectedL2} FM=${expectedFM} FC=${expectedFC} Links=${expectedLinks}`
     );
 
     const MAX_VERIFY_RETRIES = 3;
     let verifyPassed = false;
-    let actualCounts = { l2: 0, l3: 0, fm: 0, fc: 0, fe: 0, links: 0 };
+    let actualCounts = { l1Funcs: 0, l2: 0, l3: 0, fm: 0, fc: 0, fe: 0, links: 0 };
     const gaps: string[] = [];
 
     for (let attempt = 0; attempt <= MAX_VERIFY_RETRIES; attempt++) {
       // 9-A. atomic 카운트 검증
-      const [l2Count, l3Count, fmCount, fcCount, feCount, linkCount] = await Promise.all([
+      const [l1FuncCount, l2Count, l3Count, fmCount, fcCount, feCount, linkCount] = await Promise.all([
+        prisma.l1Function.count({ where: { fmeaId: normalizedFmeaId } }),
         prisma.l2Structure.count({ where: { fmeaId: normalizedFmeaId } }),
         prisma.l3Structure.count({ where: { fmeaId: normalizedFmeaId } }),
         prisma.failureMode.count({ where: { fmeaId: normalizedFmeaId } }),
@@ -482,10 +487,11 @@ export async function POST(request: NextRequest) {
         prisma.failureEffect.count({ where: { fmeaId: normalizedFmeaId } }),
         prisma.failureLink.count({ where: { fmeaId: normalizedFmeaId } }),
       ]);
-      actualCounts = { l2: l2Count, l3: l3Count, fm: fmCount, fc: fcCount, fe: feCount, links: linkCount };
+      actualCounts = { l1Funcs: l1FuncCount, l2: l2Count, l3: l3Count, fm: fmCount, fc: fcCount, fe: feCount, links: linkCount };
 
       // FM/FC/Links 종합 검증 (migration skip 조건 때문에 약간의 차이 허용: 90% 이상이면 통과)
       gaps.length = 0;
+      if (expectedL1Funcs > 0 && l1FuncCount < expectedL1Funcs) gaps.push(`L1Funcs: ${l1FuncCount}/${expectedL1Funcs}`);
       if (expectedL2 > 0 && l2Count < expectedL2) gaps.push(`l2: ${l2Count}/${expectedL2}`);
       // migration.ts는 '클릭'/'추가' 포함 FM을 skip하므로, atomic FM은 legacy FM보다 적을 수 있음
       // 90% 이상이면 정상 (migration skip 허용)
@@ -497,7 +503,7 @@ export async function POST(request: NextRequest) {
         verifyPassed = true;
         console.log(
           `[save-from-import] ✅ 검증 통과 (attempt ${attempt}): ` +
-          `l2=${l2Count}/${expectedL2} FM=${fmCount}/${expectedFM} FC=${fcCount}/${expectedFC} ` +
+          `L1Funcs=${l1FuncCount}/${expectedL1Funcs} l2=${l2Count}/${expectedL2} FM=${fmCount}/${expectedFM} FC=${fcCount}/${expectedFC} ` +
           `FE=${feCount} Links=${linkCount}/${expectedLinks}`
         );
         break;
