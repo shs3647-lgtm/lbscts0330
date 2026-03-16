@@ -1,111 +1,69 @@
 /**
  * @file /api/severity-recommend/sync/route.ts
- * @description 워크시트 상태에서 FE-S 쌍을 추출하여 DB에 일괄 기록
+ * @description 워크시트 저장 후 FE-S 쌍을 프로젝트 스키마에서 추출하여 SeverityUsageRecord에 기록
  *
- * 워크시트 확정 또는 저장 후 클라이언트에서 호출:
- *   POST /api/severity-recommend/sync
- *   body: { fmeaId: string }
+ * POST /api/severity-recommend/sync
+ * body: { fmeaId: string }
  *
- * 워크시트 상태(FmeaWorksheetState)에서 FE + severity를 읽어
- * SeverityUsageRecord에 자동 기록 → 다음 프로젝트 추천에 활용
+ * 실제 데이터 경로: 프로젝트 스키마 failure_effects.effect + failure_effects.severity
+ * SeverityUsageRecord는 public 스키마에 저장 (전사 공유)
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getPrismaForSchema } from '@/lib/prisma';
+import { getProjectSchemaName } from '@/lib/project-schema';
 
 export async function POST(req: NextRequest) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
-
     const body = await req.json();
     const { fmeaId } = body;
     if (!fmeaId) return NextResponse.json({ success: false, error: 'fmeaId 필수' }, { status: 400 });
 
-    // 워크시트 상태에서 FE + severity 데이터 추출
-    const wsState = await prisma.fmeaWorksheetData.findUnique({
-      where: { fmeaId },
-      select: { l1Data: true, riskData: true, failureLinks: true },
-    });
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
 
-    if (!wsState) {
-      return NextResponse.json({ success: false, error: '워크시트 데이터 없음' }, { status: 404 });
+    // 프로젝트 스키마에서 failure_effects 읽기 (실제 FE+severity 저장 위치)
+    const schema = getProjectSchemaName(fmeaId);
+    const projectPrisma = getPrismaForSchema(schema);
+    if (!projectPrisma) return NextResponse.json({ success: true, saved: 0, message: '프로젝트 스키마 없음' });
+
+    const effects = await projectPrisma.failureEffect.findMany({
+      where: { fmeaId, severity: { gt: 0 } },
+      select: { effect: true, severity: true, category: true },
+    }).catch(() => [] as { effect: string; severity: number; category: string }[]);
+
+    if (effects.length === 0) {
+      return NextResponse.json({ success: true, saved: 0, message: 'FE-S 데이터 없음 (severity=0)' });
     }
 
-    const records: Array<{ feText: string; severity: number; feCategory: string }> = [];
-
-    // l1Data에서 failureScopes (고장영향) 추출
-    const l1Data = wsState.l1Data as Record<string, unknown> | null;
-    if (l1Data) {
-      const l1Items = (l1Data as { items?: Array<{ failureScopes?: Array<{ effect?: string; severity?: number; category?: string }> }> }).items;
-      if (Array.isArray(l1Items)) {
-        for (const l1 of l1Items) {
-          if (!Array.isArray(l1.failureScopes)) continue;
-          for (const fe of l1.failureScopes) {
-            if (fe.effect && fe.severity && fe.severity > 0) {
-              records.push({
-                feText: fe.effect,
-                severity: fe.severity,
-                feCategory: fe.category || '',
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // failureLinks에서도 FE + severity 추출 (보완)
-    const links = wsState.failureLinks;
-    if (Array.isArray(links)) {
-      for (const link of links as Array<{ feText?: string; feSeverity?: number; feCategory?: string }>) {
-        if (link.feText && link.feSeverity && link.feSeverity > 0) {
-          // 중복 제거 (같은 feText+severity 조합)
-          const exists = records.some(r => r.feText === link.feText && r.severity === link.feSeverity);
-          if (!exists) {
-            records.push({
-              feText: link.feText,
-              severity: link.feSeverity,
-              feCategory: link.feCategory || '',
-            });
-          }
-        }
-      }
-    }
-
-    if (records.length === 0) {
-      return NextResponse.json({ success: true, saved: 0, message: 'FE-S 데이터 없음' });
-    }
-
-    // DB에 upsert
+    // public 스키마 SeverityUsageRecord에 upsert
     let saved = 0;
-    for (const rec of records) {
+    for (const fe of effects) {
+      if (!fe.effect?.trim() || !fe.severity) continue;
       try {
-        await prisma.severityUsageRecord.upsert({
-          where: { feText_severity: { feText: rec.feText, severity: rec.severity } },
+        await publicPrisma.severityUsageRecord.upsert({
+          where: { feText_severity: { feText: fe.effect, severity: fe.severity } },
           update: {
             usageCount: { increment: 1 },
             lastUsedAt: new Date(),
-            feCategory: rec.feCategory,
+            feCategory: fe.category || '',
             sourceFmeaId: fmeaId,
           },
           create: {
-            feText: rec.feText,
-            severity: rec.severity,
-            feCategory: rec.feCategory,
+            feText: fe.effect,
+            severity: fe.severity,
+            feCategory: fe.category || '',
             sourceFmeaId: fmeaId,
+            usageCount: 1,
+            lastUsedAt: new Date(),
           },
         });
         saved++;
       } catch {
-        // unique 충돌 등 무시
+        // 무시 (unique 충돌 등)
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      saved,
-      total: records.length,
-      fmeaId,
-    });
+    return NextResponse.json({ success: true, saved, total: effects.length, fmeaId });
   } catch (error) {
     console.error('[severity-recommend/sync] POST error:', error);
     return NextResponse.json({ success: false, error: '심각도 동기화 실패' }, { status: 500 });
