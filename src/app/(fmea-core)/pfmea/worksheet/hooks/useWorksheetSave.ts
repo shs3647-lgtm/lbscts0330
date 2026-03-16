@@ -59,6 +59,64 @@ function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWor
 }
 
 /**
+ * stateRef(legacy)에서 변경된 failureScopes를 atomicDB.failureEffects에 반영.
+ * 사용자가 1L고장분석 탭에서 FE를 추가/수정하면 state.l1.failureScopes가 업데이트되지만
+ * ATOMIC PATH는 migrateToAtomicDB를 호출하지 않으므로 별도 동기화 필요.
+ * l1FuncId 매핑: migration 패턴에 따라 req.id === l1FuncId (동일 ID)
+ */
+function syncFailureEffectsFromState(
+  db: FMEAWorksheetDB,
+  state: WorksheetState,
+): FMEAWorksheetDB {
+  const failureScopes: Array<{ id?: string; reqId?: string; effect?: string; name?: string; severity?: number; scope?: string }> =
+    (state as any).l1?.failureScopes || [];
+
+  if (failureScopes.length === 0 && db.failureEffects.length === 0) return db;
+
+  // 기존 FE를 ID 기준으로 맵핑
+  const existingFeById = new Map((db.failureEffects || []).map((fe: any) => [fe.id, fe]));
+  const l1FuncIdSet = new Set((db.l1Functions || []).map((f: any) => f.id));
+
+  const syncedEffects = failureScopes
+    .filter((fs) => !!(fs.effect || fs.name)) // 빈 FE 제외
+    .map((fs) => {
+      const feId = fs.id || '';
+      if (!feId) return null;
+
+      const existing = existingFeById.get(feId);
+      if (existing) {
+        // 기존 FE 업데이트 (effect 텍스트 + severity만 변경)
+        return {
+          ...existing,
+          effect: fs.effect || fs.name || existing.effect,
+          severity: fs.severity ?? existing.severity,
+        };
+      }
+
+      // 새 FE: l1FuncId = reqId (migration 패턴: req.id === l1FuncId)
+      const l1FuncId = (fs.reqId && l1FuncIdSet.has(fs.reqId))
+        ? fs.reqId
+        : db.l1Functions?.length > 0 ? (db.l1Functions[0] as any).id : '';
+      if (!l1FuncId) return null;
+
+      const l1Func = (db.l1Functions || []).find((f: any) => f.id === l1FuncId);
+      const category = (fs.scope as any) || (l1Func as any)?.category || 'Your Plant';
+
+      return {
+        id: feId,
+        fmeaId: db.fmeaId,
+        l1FuncId,
+        category,
+        effect: fs.effect || fs.name || '',
+        severity: fs.severity ?? 0,
+      };
+    })
+    .filter(Boolean);
+
+  return { ...db, failureEffects: syncedEffects as any[] };
+}
+
+/**
  * stateRef(legacy)에서 변경된 failureLinks를 atomicDB.failureLinks에 반영.
  * legacy의 failureLinks는 풍부한 텍스트 필드를 가지지만,
  * atomicDB.failureLinks는 fmId/feId/fcId FK만 저장.
@@ -149,6 +207,8 @@ export function useWorksheetSave({
         // ── ATOMIC PATH: UUID 보존, migrateToAtomicDB 호출 없음 ──
         let dbToSave = syncConfirmedFlags(atomicDB, stateRef.current);
         dbToSave = syncFailureLinksFromState(dbToSave, stateRef.current);
+        // ★ FE 동기화: 1L고장분석에서 추가/수정된 FE를 atomicDB.failureEffects에 반영
+        dbToSave = syncFailureEffectsFromState(dbToSave, stateRef.current);
 
         // force 모드(확정) 시 forceOverwrite 전달
         if (force) {
@@ -258,6 +318,8 @@ export function useWorksheetSave({
         // ── ATOMIC PATH ──
         let dbToSave = syncConfirmedFlags(atomicDB, currentState);
         dbToSave = syncFailureLinksFromState(dbToSave, currentState);
+        // ★ FE 동기화
+        dbToSave = syncFailureEffectsFromState(dbToSave, currentState);
         if (force) {
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }

@@ -199,13 +199,15 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         const countOf = (code: string) => flatData.filter(d => d.itemCode === code).length;
 
         // ── 1) A/B 체인: 총합 기준 검증 ──
+        // B3→B4는 검증 제외: 하나의 고장원인(B4)이 여러 공정특성(B3)에 공유될 수 있어
+        // L3통합시트에서 B3:B4 = 1:1 행 매칭이지만 동일 원인이 여러 B3에 재사용 가능 →
+        // B3 수 > B4 수가 정상 케이스이므로 count 기반 검증은 부적합
         const HIERARCHY_CHAINS: { upper: string; lower: string; uLabel: string; lLabel: string }[] = [
           { upper: 'A2', lower: 'A3', uLabel: '공정명', lLabel: '공정기능' },
           { upper: 'A3', lower: 'A4', uLabel: '공정기능', lLabel: '제품특성' },
           { upper: 'A4', lower: 'A5', uLabel: '제품특성', lLabel: '고장형태' },
           { upper: 'B1', lower: 'B2', uLabel: '작업요소명', lLabel: '작업요소기능' },
           { upper: 'B2', lower: 'B3', uLabel: '작업요소기능', lLabel: '공정특성' },
-          { upper: 'B3', lower: 'B4', uLabel: '공정특성', lLabel: '고장원인' },
         ];
 
         const warnings: string[] = [];
