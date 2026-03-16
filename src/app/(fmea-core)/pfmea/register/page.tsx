@@ -504,14 +504,14 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell}>공정 책임<br /><span className="text-[8px] font-normal opacity-70">(Responsibility)</span></td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 min-w-0">
-                      <input type="text" name={`dept_${Date.now()}`} value={fmeaInfo.designResponsibility} onChange={e => updateField('designResponsibility', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="부서(Department)" />
+                      <input type="text" name="dept_no_autocomplete" value={fmeaInfo.designResponsibility} onChange={e => updateField('designResponsibility', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="부서(Department)" />
                       <button onClick={() => { setUserModalTarget('design'); setUserModalOpen(true); }} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs">🔍</button>
                     </div>
                   </td>
                   <td className={headerCell}>FMEA 담당자<br /><span className="text-[8px] font-normal opacity-70">(Owner)</span></td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 min-w-0">
-                      <input type="text" name={`manager_${Date.now()}`} value={fmeaInfo.fmeaResponsibleName} onChange={e => {
+                      <input type="text" name="manager_no_autocomplete" value={fmeaInfo.fmeaResponsibleName} onChange={e => {
                         updateField('fmeaResponsibleName', e.target.value);
                         setCftMembers(prev => prev.map(m => m.role === 'Leader' ? { ...m, name: e.target.value } : m));
                       }} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="담당자 성명(Name)" />
@@ -540,7 +540,7 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell}>고객 명<br /><span className="text-[8px] font-normal opacity-70">(Customer)</span></td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 min-w-0">
-                      <input type="text" name={`customer_${Date.now()}`} value={fmeaInfo.customerName} onChange={e => updateField('customerName', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="고객 명" />
+                      <input type="text" name="customer_no_autocomplete" value={fmeaInfo.customerName} onChange={e => updateField('customerName', e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} data-form-type="other" className="flex-1 min-w-0 h-7 px-1 text-xs border-0 bg-transparent focus:outline-none truncate" placeholder="고객 명" />
                       <select
                         value={fmeaInfo.customerIndustry || ''}
                         onChange={e => updateField('customerIndustry', e.target.value)}
