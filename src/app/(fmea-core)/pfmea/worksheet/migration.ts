@@ -576,7 +576,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         mergeGroupId: fcMergeGroupId,
         rowSpan: 1,
       });
-      fcIdx++;
+      // ★ 2026-03-17 FIX: fcIdx++ 이중증가 제거 (line 548에서 이미 증가함)
     });
     
     // ✅ 하위 호환: we.failureCauses도 확인 (기존 데이터 마이그레이션용)

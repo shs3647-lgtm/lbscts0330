@@ -171,6 +171,78 @@ function syncFailureLinksFromState(
 }
 
 /**
+ * stateRef(legacy)에서 변경된 failureCauses를 atomicDB.failureCauses에 반영.
+ * 사용자가 3L고장분석 탭에서 FC를 추가/수정하면 state.l2[].failureCauses가 업데이트되지만
+ * ATOMIC PATH는 migrateToAtomicDB를 호출하지 않으므로 별도 동기화 필요.
+ * processCharId = l3FuncId (l3_functions.id가 processChar의 ID이므로 동일)
+ *
+ * ★★★ 2026-03-17 FIX: FC 103건 누락 근본 해결 — FM/FE와 동일 패턴 ★★★
+ */
+function syncFailureCausesFromState(
+  db: FMEAWorksheetDB,
+  state: WorksheetState,
+): FMEAWorksheetDB {
+  const l2Procs = (state as any).l2 || [];
+
+  // l2StructId → 첫 번째 l3FuncId 매핑 (신규 FC의 FK 설정용)
+  const structToL3FuncMap = new Map<string, { id: string; l3StructId: string }>();
+  for (const fn of (db.l3Functions || [])) {
+    if (fn.l2StructId && !structToL3FuncMap.has(fn.l2StructId)) {
+      structToL3FuncMap.set(fn.l2StructId, { id: fn.id, l3StructId: fn.l3StructId });
+    }
+  }
+
+  // 모든 의미있는 FC 수집
+  const allStateFcs: any[] = [];
+  for (const proc of l2Procs) {
+    const procId = proc.id;
+    for (const fc of (proc.failureCauses || [])) {
+      if (!fc.id || !fc.name?.trim()) continue; // placeholder/빈 FC 제외
+      allStateFcs.push({
+        id: fc.id,
+        name: fc.name.trim(),
+        processCharId: fc.processCharId || '',
+        occurrence: fc.occurrence,
+        l2StructId: procId,
+      });
+    }
+  }
+
+  // state에 FC가 없으면 DB FC 보존 (우발적 wipe 방지)
+  if (allStateFcs.length === 0) return db;
+
+  const existingFcById = new Map((db.failureCauses || []).map((fc: any) => [fc.id, fc]));
+
+  const syncedFCs = allStateFcs.map((sfc) => {
+    const existing = existingFcById.get(sfc.id);
+    if (existing) {
+      return {
+        ...existing,
+        cause: sfc.name,
+        processCharId: sfc.processCharId || existing.processCharId,
+        occurrence: sfc.occurrence ?? existing.occurrence,
+      };
+    }
+    // 신규 FC: l2StructId 기반으로 올바른 l3FuncId 조회
+    const resolved = structToL3FuncMap.get(sfc.l2StructId);
+    const resolvedL3FuncId = resolved?.id || sfc.processCharId || '';
+    const resolvedL3StructId = resolved?.l3StructId || '';
+    return {
+      id: sfc.id,
+      fmeaId: db.fmeaId,
+      l2StructId: sfc.l2StructId,
+      l3FuncId: resolvedL3FuncId,
+      l3StructId: resolvedL3StructId, // API 5단계 폴백이 복구
+      cause: sfc.name,
+      occurrence: sfc.occurrence,
+      processCharId: sfc.processCharId,
+    };
+  });
+
+  return { ...db, failureCauses: syncedFCs as any[] };
+}
+
+/**
  * stateRef(legacy)에서 변경된 failureModes를 atomicDB.failureModes에 반영.
  * 사용자가 2L고장분석 탭에서 FM을 추가/수정하면 state.l2[].failureModes가 업데이트되지만
  * ATOMIC PATH는 migrateToAtomicDB를 호출하지 않으므로 별도 동기화 필요.
@@ -181,6 +253,14 @@ function syncFailureModesFromState(
   state: WorksheetState,
 ): FMEAWorksheetDB {
   const l2Procs = (state as any).l2 || [];
+
+  // l2StructId → 첫 번째 l2FuncId 매핑 (신규 FM의 FK 설정용)
+  const structToFuncMap = new Map<string, string>();
+  for (const fn of (db.l2Functions || [])) {
+    if (fn.l2StructId && !structToFuncMap.has(fn.l2StructId)) {
+      structToFuncMap.set(fn.l2StructId, fn.id);
+    }
+  }
 
   // 모든 의미있는 FM 수집
   const allStateFms: any[] = [];
@@ -213,12 +293,13 @@ function syncFailureModesFromState(
         specialChar: sfm.sc,
       };
     }
-    // 신규 FM: productCharId === l2FuncId (l2_functions.id가 곧 productChar ID)
+    // 신규 FM: l2StructId 기반으로 올바른 l2FuncId 조회
+    const resolvedL2FuncId = structToFuncMap.get(sfm.l2StructId) || '';
     return {
       id: sfm.id,
       fmeaId: db.fmeaId,
       l2StructId: sfm.l2StructId,
-      l2FuncId: sfm.productCharId, // productCharId = l2_functions.id
+      l2FuncId: resolvedL2FuncId,
       productCharId: sfm.productCharId,
       mode: sfm.name,
       specialChar: sfm.sc ?? false,
@@ -282,6 +363,8 @@ export function useWorksheetSave({
         dbToSave = syncFailureEffectsFromState(dbToSave, stateRef.current);
         // ★ FM 동기화: 2L고장분석에서 추가/수정된 FM을 atomicDB.failureModes에 반영
         dbToSave = syncFailureModesFromState(dbToSave, stateRef.current);
+        // ★ FC 동기화: 3L고장분석에서 추가/수정된 FC를 atomicDB.failureCauses에 반영
+        dbToSave = syncFailureCausesFromState(dbToSave, stateRef.current);
 
         // force 모드(확정) 시 forceOverwrite 전달
         if (force) {
@@ -393,6 +476,10 @@ export function useWorksheetSave({
         dbToSave = syncFailureLinksFromState(dbToSave, currentState);
         // ★ FE 동기화
         dbToSave = syncFailureEffectsFromState(dbToSave, currentState);
+        // ★ FM 동기화
+        dbToSave = syncFailureModesFromState(dbToSave, currentState);
+        // ★ FC 동기화
+        dbToSave = syncFailureCausesFromState(dbToSave, currentState);
         if (force) {
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }
