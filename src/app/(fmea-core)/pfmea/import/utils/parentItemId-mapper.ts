@@ -85,13 +85,28 @@ export function assignParentsByRowSpan(
     });
   }
 
-  // 자식별 inferParent 실행
+  // 자식별 inferParent 실행 (rowSpan 범위 매칭 → 실패 시 선행 근접 C2 fallback)
   for (const c of children) {
     if (c.excelRow == null || c.processNo == null) continue;
     const procParents = parentsByProc.get(c.processNo);
     if (!procParents) continue;
 
-    const parentId = inferParent(c.excelRow, procParents);
+    let parentId = inferParent(c.excelRow, procParents);
+
+    // ★ Fallback: rowSpan 범위 미매칭 시 (C2 셀 미병합 케이스)
+    // → excelRow가 자식 행보다 작거나 같은 부모 중 가장 마지막(가장 가까운) 부모 선택
+    if (!parentId) {
+      let closest: { id: string; excelRow: number; rowSpan: number } | undefined;
+      for (const p of procParents) {
+        if (p.excelRow <= c.excelRow) {
+          if (!closest || p.excelRow > closest.excelRow) {
+            closest = p;
+          }
+        }
+      }
+      if (closest) parentId = closest.id;
+    }
+
     if (parentId) {
       result.set(c.id, parentId);
     }
