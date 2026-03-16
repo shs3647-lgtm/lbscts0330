@@ -126,6 +126,9 @@ export async function GET(request: NextRequest) {
       prisma.processProductChar.count({ where: { fmeaId, name: '(제품특성 미입력)' } }),
       prisma.failureMode.count({ where: { fmeaId, mode: { endsWith: '부적합' } } }),
       prisma.failureCause.count({ where: { fmeaId, cause: { endsWith: '부적합' } } }),
+      // ★ A6/B5 실제 DB 저장 건수 — RiskAnalysis 테이블 (flatItem 동일값 tautology 방지)
+      prisma.riskAnalysis.count({ where: { fmeaId, detectionControl: { not: null }, NOT: { detectionControl: '' } } }),
+      prisma.riskAnalysis.count({ where: { fmeaId, preventionControl: { not: null }, NOT: { preventionControl: '' } } }),
     ]);
 
     const b2UniqueSet = new Set(b2Distinct.map((r: { l2StructId: string; functionName: string }) => `${r.l2StructId}|${r.functionName}`));
@@ -403,8 +406,9 @@ async function runImportComparison(
     C4: dbCounts.failureEffect,
     A5: dbCounts.failureMode - autoGenCounts.fm,  // 자동생성 '부적합' 제외
     B4: dbCounts.failureCause - autoGenCounts.fc,  // 자동생성 '부적합' 제외
-    A6: importCounts['A6'] || 0,  // flatItem 기반
-    B5: importCounts['B5'] || 0,  // flatItem 기반
+    // ★ A6/B5: RiskAnalysis 실제 저장 건수 (flatItem tautology 제거 — 미매칭 건 탐지)
+    A6: await prisma.riskAnalysis.count({ where: { fmeaId, detectionControl: { not: null }, NOT: { detectionControl: '' } } }),
+    B5: await prisma.riskAnalysis.count({ where: { fmeaId, preventionControl: { not: null }, NOT: { preventionControl: '' } } }),
     // link: DB 기준 (정리 후 실제 유효 링크가 기준, Import chains는 참고치)
     link: dbCounts.failureLink,
   };
@@ -421,21 +425,14 @@ async function runImportComparison(
     // 판정 기준:
     // - Import 없음 → N/A
     // - diff === 0 → OK (완전 일치)
-    // - diff > 0 (Import > DB) → MISMATCH (DB 누락)
-    // - diff < 0 (DB > Import):
-    //     초과 비율 ≤ 20% → OK (수동추가/auto-supplement 허용 범위)
-    //     초과 비율 > 20% → MISMATCH (비정상적 초과)
+    // - diff ≠ 0 (Import ≠ DB) → MISMATCH (UUID 끼워넣기 포함 모든 불일치 탐지)
     let status: 'OK' | 'MISMATCH' | 'N/A' = 'OK';
     if (!dataset) {
       status = 'N/A';
     } else if (diff === 0) {
       status = 'OK';
-    } else if (diff > 0) {
-      status = 'MISMATCH';  // Import > DB = DB 누락
     } else {
-      // DB > Import — 초과 비율로 판정
-      const excessRatio = imp > 0 ? Math.abs(diff) / imp : (db > 0 ? 1 : 0);
-      status = excessRatio > 0.2 ? 'MISMATCH' : 'OK';
+      status = 'MISMATCH';
     }
     return {
       code,
