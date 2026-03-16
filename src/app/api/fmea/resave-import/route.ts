@@ -57,6 +57,7 @@ async function handleResave(request: NextRequest, doSave: boolean) {
     // 2. Load flat items
     const flatItems = await prisma.pfmeaMasterFlatItem.findMany({
       where: { datasetId: dataset.id },
+      orderBy: { orderIndex: 'asc' },
       select: {
         id: true,
         itemCode: true,
