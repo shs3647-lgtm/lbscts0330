@@ -343,6 +343,17 @@ export default function TopMenuBar({
         >
           {t('확정')}
         </button>
+        <button
+          onClick={() => {
+            if (selectedFmeaId) {
+              window.open(`/pfmea/verify?fmeaId=${encodeURIComponent(selectedFmeaId)}`, '_blank');
+            }
+          }}
+          className="px-1 py-0.5 rounded bg-teal-700 border border-teal-400 text-white text-[9px] font-bold hover:bg-teal-600 transition-all whitespace-nowrap"
+          title={t('통계검증 페이지 열기 (새 탭)')}
+        >
+          {t('검증')}
+        </button>
       </div>
 
       {/* ★★★ 2026-02-05: 수동/자동 토글 삭제 - StructureHeader에서 관리 ★★★ */}
