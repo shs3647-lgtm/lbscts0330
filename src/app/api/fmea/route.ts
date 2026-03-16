@@ -662,9 +662,10 @@ export async function POST(request: NextRequest) {
 
       // 4.1. ★★★ 2026-03-17: L1Requirement(C3) 저장 — L1Function.requirement → 별도 테이블 ★★★
       // rebuild-atomic과 동일한 패턴: id = `${l1FuncId}-R`, 1:1 매핑
+      txStep = 'L1_REQUIREMENTS';
       {
         const reqRows = db.l1Functions
-          .filter(f => f.requirement !== undefined && f.requirement !== null && f.requirement !== '')
+          .filter(f => f.requirement !== undefined && f.requirement !== null && f.requirement !== '' && f.l1StructId)
           .map(f => ({
             id: `${f.id}-R`,
             fmeaId: db.fmeaId,
@@ -1646,6 +1647,7 @@ export async function POST(request: NextRequest) {
       L2_STRUCTURES: '공정 정보 저장 실패',
       L3_STRUCTURES: '작업요소 정보 저장 실패',
       L1_FUNCTIONS: '완제품 기능 저장 실패',
+      L1_REQUIREMENTS: '완제품 요구사항 저장 실패',
       L2_FUNCTIONS: '공정 기능 저장 실패',
       L3_FUNCTIONS: '작업요소 기능 저장 실패',
       FAILURE_EFFECTS: '고장 영향 저장 실패',
