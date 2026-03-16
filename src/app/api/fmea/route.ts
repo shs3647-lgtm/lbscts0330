@@ -662,8 +662,9 @@ export async function POST(request: NextRequest) {
 
       // 4.1. ★★★ 2026-03-17: L1Requirement(C3) 저장 — L1Function.requirement → 별도 테이블 ★★★
       // rebuild-atomic과 동일한 패턴: id = `${l1FuncId}-R`, 1:1 매핑
+      // ★ 비차단: 실패해도 메인 트랜잭션 롤백 안 함 (C3 backfill용 보조 데이터)
       txStep = 'L1_REQUIREMENTS';
-      {
+      try {
         const reqRows = db.l1Functions
           .filter(f => f.requirement !== undefined && f.requirement !== null && f.requirement !== '' && f.l1StructId)
           .map(f => ({
@@ -677,6 +678,8 @@ export async function POST(request: NextRequest) {
         if (reqRows.length > 0) {
           await tx.l1Requirement.createMany({ data: reqRows, skipDuplicates: true });
         }
+      } catch (reqErr: any) {
+        console.warn('[L1Requirement] 보조 저장 실패 (메인 저장 계속):', reqErr.code, reqErr.message?.slice(0, 100));
       }
 
       // 4.5. ★★★ 2026-03-14: ProcessProductChar 원자성 저장 ★★★
