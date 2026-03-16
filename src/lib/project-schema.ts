@@ -20,6 +20,7 @@ const PROJECT_TABLES = [
   'l2_structures',
   'l3_structures',
   'l1_functions',
+  'l1_requirements',   // ★ 2026-03-17: C3 요구사항 별도 테이블
   'l2_functions',
   'l3_functions',
   'failure_effects',

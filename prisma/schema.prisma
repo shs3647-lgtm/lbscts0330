@@ -144,8 +144,9 @@ model L1Structure {
   mergeGroupId String?
   rowSpan      Int?          @default(1)
   colSpan      Int?          @default(1)
-  l1Functions  L1Function[]
-  l2Structures L2Structure[]
+  l1Functions    L1Function[]
+  l1Requirements L1Requirement[]
+  l2Structures   L2Structure[]
 
   @@index([fmeaId])
   @@index([parentId])
@@ -213,26 +214,45 @@ model L3Structure {
 }
 
 model L1Function {
-  id             String          @id @default(uuid())
-  fmeaId         String
-  l1StructId     String
-  category       String
-  functionName   String
-  requirement    String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  parentId       String?
-  mergeGroupId   String?
-  rowSpan        Int?            @default(1)
-  colSpan        Int?            @default(1)
-  failureEffects FailureEffect[]
-  l1Structure    L1Structure     @relation(fields: [l1StructId], references: [id], onDelete: Cascade)
+  id              String           @id @default(uuid())
+  fmeaId          String
+  l1StructId      String
+  category        String
+  functionName    String
+  requirement     String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  parentId        String?
+  mergeGroupId    String?
+  rowSpan         Int?             @default(1)
+  colSpan         Int?             @default(1)
+  failureEffects  FailureEffect[]
+  l1Requirements  L1Requirement[]
+  l1Structure     L1Structure      @relation(fields: [l1StructId], references: [id], onDelete: Cascade)
 
   @@index([fmeaId])
   @@index([l1StructId])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("l1_functions")
+}
+
+/// C3 요구사항 전용 원자성 테이블 — 2026-03-17
+/// L1Function.requirement(문자열)과 별도로 C3 행 수를 정확히 카운트하기 위해 분리
+model L1Requirement {
+  id           String      @id
+  fmeaId       String
+  l1StructId   String
+  l1FuncId     String
+  requirement  String
+  orderIndex   Int         @default(0)
+  createdAt    DateTime    @default(now())
+  l1Function   L1Function  @relation(fields: [l1FuncId], references: [id], onDelete: Cascade)
+  l1Structure  L1Structure @relation(fields: [l1StructId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([l1FuncId])
+  @@map("l1_requirements")
 }
 
 // ★★★ 2026-03-14: 제품특성 독립 엔티티 (A4 원자성 DB) ★★★

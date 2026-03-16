@@ -93,8 +93,8 @@ export async function GET(request: NextRequest) {
         distinct: ['functionName'],
         select: { functionName: true },
       }),
-      // C3: 요구사항 count
-      prisma.l1Function.count({ where: { fmeaId, requirement: { not: '' } } }),
+      // C3: 요구사항 count — L1Requirement 별도 테이블 (2026-03-17)
+      prisma.l1Requirement.count({ where: { fmeaId } }),
       // A3: DISTINCT(l2StructId, functionName)
       prisma.l2Function.findMany({
         where: { fmeaId, functionName: { not: '' } },
@@ -418,17 +418,23 @@ async function runImportComparison(
     importCounts['link'] = dbCounts.failureLink;  // DB = SSoT
   }
 
+  // ★ A6/B5 SKIP 조건: RiskAnalysis 미생성 상태 → 오탐 방지
+  const riskTotal = dbCounts.riskAnalysis ?? 0;
+
   const items = [...ITEM_CODES, 'link' as const].map(code => {
     const imp = importCounts[code] || 0;
     const db = dbMap[code] || 0;
     const diff = imp - db;
     // 판정 기준:
     // - Import 없음 → N/A
+    // - A6/B5이고 RiskAnalysis 0건 → N/A (미생성 상태, 오탐 방지)
     // - diff === 0 → OK (완전 일치)
-    // - diff ≠ 0 (Import ≠ DB) → MISMATCH (UUID 끼워넣기 포함 모든 불일치 탐지)
+    // - diff ≠ 0 → MISMATCH (UUID 끼워넣기 포함 모든 불일치 탐지)
     let status: 'OK' | 'MISMATCH' | 'N/A' = 'OK';
     if (!dataset) {
       status = 'N/A';
+    } else if ((code === 'A6' || code === 'B5') && riskTotal === 0) {
+      status = 'N/A';  // RiskAnalysis 미생성 → A6/B5 검증 스킵
     } else if (diff === 0) {
       status = 'OK';
     } else {

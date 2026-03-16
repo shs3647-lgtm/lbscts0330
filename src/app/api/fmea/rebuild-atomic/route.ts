@@ -124,6 +124,21 @@ export async function POST(request: NextRequest) {
           })),
           skipDuplicates: true,
         });
+
+        // ★ C3 별도 테이블: L1Function.requirement → L1Requirement (1:1)
+        const reqRows = atomic.l1Functions
+          .filter((f: any) => f.requirement && f.requirement.trim() !== '')
+          .map((f: any) => ({
+            id: `${f.id}-R`,
+            fmeaId,
+            l1StructId: f.l1StructId,
+            l1FuncId: f.id,
+            requirement: f.requirement,
+            orderIndex: 0,
+          }));
+        if (reqRows.length > 0) {
+          await tx.l1Requirement.createMany({ data: reqRows, skipDuplicates: true });
+        }
       }
 
       if (atomic.l2Functions.length) {
