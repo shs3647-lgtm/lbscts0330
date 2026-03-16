@@ -58,6 +58,7 @@ export interface ItemMeta {
   excelCol?: number;      // 엑셀 원본 열 번호 (1-based)
   rowSpan?: number;       // 병합 행 수 (1=단일)
   mergeGroupId?: string;  // 병합 그룹 ID (processNo-itemCode 기반)
+  parentItemId?: string;  // ★ 직접 꽂기용: 같은 행의 부모 UUID (C3→C2 등)
 }
 
 /** 공정별 관계형 데이터 */
@@ -967,8 +968,11 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         sheetData.rows.forEach((row) => {
           const process = processMap.get(row.key);
           if (process && row.value) {
-            // ★ 중복 검사: processNo + sheet + m4 + value 기준
-            const dedupKey = `${row.key}|${sheet}|${row.m4 || ''}|${row.value.trim()}`;
+            // ★ 중복 검사: processNo + sheet + value 기준 (B5/A6는 m4 제외 — verify-counts distinct 기준과 일치)
+            // B5(예방관리)/A6(검출관리): 같은 공정+값이면 m4가 달라도 중복으로 처리
+            const dedupKey = (sheet === 'B5' || sheet === 'A6')
+              ? `${row.key}|${sheet}|${row.value.trim()}`
+              : `${row.key}|${sheet}|${row.m4 || ''}|${row.value.trim()}`;
             if (multiSheetSeen.has(dedupKey)) return;  // 중복 → 스킵
             multiSheetSeen.add(dedupKey);
 

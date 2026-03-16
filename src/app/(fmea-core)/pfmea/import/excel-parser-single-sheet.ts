@@ -376,7 +376,7 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
       }
       const product = productMap.get(normC1)!;
 
-      const setProdMeta = (code: string, arr: string[]) => {
+      const setProdMeta = (code: string, arr: string[], parentItemId?: string) => {
         if (!product.itemMeta) product.itemMeta = {};
         const col = roleColMap[code as ColumnRole];
         product.itemMeta[`${code}-${arr.length}`] = {
@@ -384,11 +384,18 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
           excelCol: col,
           rowSpan: col ? getMergeSpan(sheet, r, col).rowSpan : undefined,
           mergeGroupId: `${normC1}-${code}`,
+          parentItemId,
         };
       };
 
       addIfNew(seen, `${normC1}|C2|${vals.C2}`, vals.C2, v => { setProdMeta('C2', product.productFuncs); product.productFuncs.push(v); }, counter, normC1, 'C2');
-      addIfNew(seen, `${normC1}|C3|${vals.C3}`, vals.C3, v => { setProdMeta('C3', product.requirements); product.requirements.push(v); }, counter, normC1, 'C3');
+      addIfNew(seen, `${normC1}|C3|${vals.C3}`, vals.C3, v => {
+        // ★ UUID 직접 꽂기: 같은 행의 C2 인덱스를 parentItemId로 기록
+        const c2Idx = product.productFuncs.findIndex(f => f === vals.C2);
+        const c2ParentId = c2Idx >= 0 ? `C2-${normC1}-${c2Idx}` : undefined;
+        setProdMeta('C3', product.requirements, c2ParentId);
+        product.requirements.push(v);
+      }, counter, normC1, 'C3');
       addIfNew(seen, `${normC1}|C4|${vals.C4}`, vals.C4, v => { setProdMeta('C4', product.failureEffects); product.failureEffects.push(v); }, counter, normC1, 'C4');
     }
   }

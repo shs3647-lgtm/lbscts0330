@@ -475,7 +475,8 @@ export function useImportFileHandlers({
         const withPMeta = (base: ImportedFlatData, code: string, idx: number): ImportedFlatData => {
           const m = pMeta(code, idx);
           if (!m) return { ...base, orderIndex: idx };
-          return { ...base, orderIndex: idx, excelRow: m.excelRow, excelCol: m.excelCol, mergeGroupId: m.mergeGroupId, rowSpan: m.rowSpan };
+          // ★ parentItemId: 직접 꽂기 (single-sheet 파서가 기록한 C3→C2 UUID 그대로 사용)
+          return { ...base, orderIndex: idx, excelRow: m.excelRow, excelCol: m.excelCol, mergeGroupId: m.mergeGroupId, rowSpan: m.rowSpan, ...(m.parentItemId ? { parentItemId: m.parentItemId } : {}) };
         };
         flat.push({ id: `C1-${categoryValue}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: categoryValue, createdAt: new Date() });
         p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: ensureString(v), parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
