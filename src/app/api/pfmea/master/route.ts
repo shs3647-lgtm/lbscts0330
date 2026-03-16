@@ -86,6 +86,10 @@ export async function GET(req: NextRequest) {
                 id: true, processNo: true, category: true,
                 itemCode: true, value: true, m4: true, specialChar: true,
                 inherited: true, sourceId: true, createdAt: true,
+                // ★★★ 2026-03-17 FIX: parentItemId + 위치 정보 포함 — buildWorksheetState C3→C2 매핑에 필수
+                parentItemId: true, belongsTo: true,
+                excelRow: true, excelCol: true, orderIndex: true,
+                mergeGroupId: true, rowSpan: true,
               },
             },
           }

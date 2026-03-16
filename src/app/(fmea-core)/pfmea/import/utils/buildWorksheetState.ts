@@ -1,4 +1,4 @@
-// CODEFREEZE 2026-02-25 — 고장연결 완성 (누락 해결: C4/A4/B3 상위 데이터 재사용)
+// 2026-03-17: CODEFREEZE 해제 — C3 parentItemId 파이프라인 수정 완료
 /**
  * buildWorksheetState.ts
  *
@@ -581,6 +581,9 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         ]);
         const orphanC3 = c3Items.filter(c3 => !c3.parentItemId || !allParents.has(c3.parentItemId));
         if (orphanC3.length > 0 && funcs.length > 0) {
+          // ★★★ 2026-03-17: 고아 C3 경고 로그 — 진단용 (parentItemId 미설정 또는 불일치)
+          console.warn(`[buildWorksheetState] 고아 C3 ${orphanC3.length}건 (div="${div}") → 마지막 C2에 배정`);
+          orphanC3.forEach(c3 => console.warn(`  C3 orphan: "${c3.value?.substring(0,40)}" parentItemId="${c3.parentItemId || 'null'}"`));
           const lastFunc = funcs[funcs.length - 1];
           orphanC3.forEach(c3 => { c3seq++; lastFunc.requirements.push({ id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }); });
         }

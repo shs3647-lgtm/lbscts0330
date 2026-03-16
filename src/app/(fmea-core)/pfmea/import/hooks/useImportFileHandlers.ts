@@ -503,6 +503,10 @@ export function useImportFileHandlers({
           if (mapping.size === 0) return;
           for (const item of flat) {
             if (item.itemCode === childCode && mapping.has(item.id)) {
+              // ★★★ 2026-03-17 FIX: C3→C2 rowSpan이 다른 물리 시트 좌표를 혼동하는 문제
+              // L1_UNIFIED 텍스트 매핑(itemMeta)으로 이미 설정된 parentItemId는 보존
+              // 개별 시트(L1-2/L1-3)의 rowSpan은 보완 용도(NULL일 때만)
+              if (childCode === 'C3' && item.parentItemId) continue;
               item.parentItemId = mapping.get(item.id)!;
             }
           }
@@ -617,11 +621,13 @@ export function useImportFileHandlers({
         const existing = existingByKey.get(key);
         if (existing) {
           // ✅ 매칭: 기존 UUID 보존, 새 값 적용 (specialChar는 newItem 우선)
+          // ★★★ 2026-03-17: parentItemId = newItem 우선 (파서가 계산한 최신 부모 관계 반영)
           importData.push({
             ...existing,
             m4: newItem.m4 || existing.m4,
             specialChar: newItem.specialChar || existing.specialChar || undefined,
             belongsTo: newItem.belongsTo || existing.belongsTo || undefined,
+            parentItemId: newItem.parentItemId || existing.parentItemId || undefined,
             id: existing.id,
             createdAt: new Date(),
           });

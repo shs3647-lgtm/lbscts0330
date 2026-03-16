@@ -507,13 +507,19 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               else if (h.includes('요구사항') && c3Col < 0) c3Col = headerColMap[ci];
             }
             if (c1Col > 0 && c2Col > 0 && c3Col > 0) {
+              // ★★★ 2026-03-17 FIX: 병합 셀 carry-forward
+              // L1_UNIFIED 시트에서 C1/C2가 병합 셀이면 비-마스터 행은 빈 값 반환
+              // → lastC1/lastC2 carry-forward로 병합 범위 전체에 올바른 부모 값 유지
+              let lastC1 = '', lastC2 = '';
               for (let ri = startRow; ri <= sheet.rowCount; ri++) {
                 const uRow = sheet.getRow(ri);
-                const c1Val = cellValueToString(uRow.getCell(c1Col).value).trim();
-                const c2Val = cellValueToString(uRow.getCell(c2Col).value).trim();
+                const c1Raw = cellValueToString(uRow.getCell(c1Col).value).trim();
+                const c2Raw = cellValueToString(uRow.getCell(c2Col).value).trim();
                 const c3Val = cellValueToString(uRow.getCell(c3Col).value).trim();
-                if (c1Val && c2Val && c3Val) {
-                  l1UnifiedC3ToC2.set(`${c1Val}|${c3Val}`, c2Val);
+                if (c1Raw) lastC1 = c1Raw;
+                if (c2Raw) lastC2 = c2Raw;
+                if (lastC1 && lastC2 && c3Val) {
+                  l1UnifiedC3ToC2.set(`${lastC1}|${c3Val}`, lastC2);
                 }
               }
             }
@@ -553,6 +559,32 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         const keyMapping = colFieldMap.find(m => m.targetCode === '_KEY' || m.targetCode === 'C1');
         const m4Mapping = colFieldMap.find(m => m.targetCode === '_4M');
         const scMapping = colFieldMap.find(m => m.targetCode === '_SC');
+
+        // ★★★ 2026-03-17 FIX: 통합시트 전용 파일 — L1_UNIFIED에서 직접 C3→C2 매핑 추출
+        // hasIndividualSheets=false인 경우 l1UnifiedC3ToC2 맵이 비어있어
+        // lines 1193-1244의 C3 parentItemId 설정이 동작하지 않는 문제 해결.
+        // carry-forward로 병합 셀(C1/C2 merged) 대응.
+        if (sheetCode === 'L1_UNIFIED' && keyMapping) {
+          const c2Entry = colFieldMap.find(m => m.targetCode === 'C2');
+          const c3Entry = colFieldMap.find(m => m.targetCode === 'C3');
+          if (c2Entry && c3Entry) {
+            let lastC1 = '';
+            let lastC2 = '';
+            for (let ri = startRow; ri <= sheet.rowCount; ri++) {
+              const uRow = sheet.getRow(ri);
+              if (!uRow || uRow.cellCount === 0) continue;
+              const c1Raw = cellValueToString(uRow.getCell(keyMapping.col).value).trim();
+              const c2Raw = cellValueToString(uRow.getCell(c2Entry.col).value).trim();
+              const c3Raw = cellValueToString(uRow.getCell(c3Entry.col).value).trim();
+              if (c1Raw) lastC1 = c1Raw;
+              if (c2Raw) lastC2 = c2Raw;
+              if (lastC1 && lastC2 && c3Raw) {
+                l1UnifiedC3ToC2.set(`${lastC1}|${c3Raw}`, lastC2);
+              }
+            }
+            console.info(`[L1_UNIFIED 직접] C3→C2 매핑 구축: ${l1UnifiedC3ToC2.size}건`);
+          }
+        }
 
         for (let ri = startRow; ri <= sheet.rowCount; ri++) {
           const uRow = sheet.getRow(ri);
@@ -1159,14 +1191,72 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
 
     // ★★★ 2026-03-16 FIX: L1 통합시트 매핑으로 C3 itemMeta.parentItemId 보정
     // 개별시트(L1-2/L1-3)만 있을 때 C3→C2 상하관계가 누락되는 문제 해결
+    // 2026-03-17: 정규화 비교로 변경 — L1_UNIFIED 텍스트와 개별시트 텍스트 불일치 대응
+    // 2026-03-17 FIX2: C1 구분 전체명↔약어 정규화 — "YOUR PLANT"↔"YP" 불일치 해소
+    const normText = (s: string) => s.trim().replace(/\s+/g, ' ');
+    // C1 카테고리 전체명 → 약어 매핑 (useImportFileHandlers.ts C1_CATEGORY_MAP와 동일)
+    const C1_ABBREV_MAP: Record<string, string> = {
+      'your plant': 'YP', 'yourplant': 'YP',
+      'ship to plant': 'SP', 'shiptoplant': 'SP',
+      'user': 'USER', 'end user': 'USER', 'enduser': 'USER',
+      '자사공장': 'YP', '고객사': 'SP', '최종사용자': 'USER',
+    };
+    const abbrevC1 = (s: string): string => {
+      const lower = s.toLowerCase().replace(/\s+/g, '');
+      return C1_ABBREV_MAP[lower] ?? C1_ABBREV_MAP[s.toLowerCase().trim()] ?? s;
+    };
+    // 정규화 키 맵: 원본 맵에서 못 찾을 경우를 위한 보조 맵 (정규화된 c1+c3 → c2)
+    // ★ c1 약어 정규화 포함: "YOUR PLANT|req" → also stored as "YP|req"
+    const l1UnifiedC3ToC2Norm = new Map<string, string>();
+    for (const [k, v] of l1UnifiedC3ToC2.entries()) {
+      const [c1Part, ...c3Parts] = k.split('|');
+      const c3Norm = normText(c3Parts.join('|'));
+      l1UnifiedC3ToC2Norm.set(`${normText(c1Part)}|${c3Norm}`, v);
+      // also store abbreviated C1 key for cross-format lookup
+      const c1Abbrev = abbrevC1(c1Part);
+      l1UnifiedC3ToC2Norm.set(`${c1Abbrev}|${c3Norm}`, v);
+    }
     if (l1UnifiedC3ToC2.size > 0) {
+      let c3ParentAssigned = 0;
+      let c3C2NotFound = 0;
+      let c3MapMiss = 0;
       for (const [c1Key, product] of productMap.entries()) {
         product.requirements.forEach((c3Val, c3Idx) => {
-          const c2Val = l1UnifiedC3ToC2.get(`${c1Key}|${c3Val}`);
-          if (!c2Val) return;
-          const c2Idx = product.productFuncs.findIndex(f => f === c2Val);
-          if (c2Idx < 0) return;
-          const parentId = `C2-${c1Key}-${c2Idx}`;
+          const c3ValNorm = normText(c3Val);
+          const key1 = `${c1Key}|${c3Val}`;
+          const key2 = `${normText(c1Key)}|${c3ValNorm}`;
+          const key3 = `${abbrevC1(c1Key)}|${c3ValNorm}`;
+          const c2Val = l1UnifiedC3ToC2.get(key1)
+            ?? l1UnifiedC3ToC2Norm.get(key2)
+            ?? l1UnifiedC3ToC2Norm.get(key3);
+          if (!c2Val) {
+            c3MapMiss++;
+            console.warn(`[l1UnifiedC3ToC2] 맵 미스 — c1="${c1Key}" c3="${c3Val.substring(0,40)}" keys=["${key1.substring(0,50)}","${key3.substring(0,50)}"]`);
+            return;
+          }
+          const c2ValNorm = normText(c2Val);
+          const c2Idx = product.productFuncs.findIndex(f => {
+            const fn = normText(f);
+            return fn === c2ValNorm || fn.startsWith(c2ValNorm) || c2ValNorm.startsWith(fn);
+          });
+          let resolvedC2Idx = c2Idx;
+          if (c2Idx < 0) {
+            // ★★★ 2026-03-17 FIX: C2가 productFuncs에 없으면 L1_UNIFIED 값으로 보충
+            // 이유: 개별 L1 시트에 C2(제품기능) 열이 없거나 텍스트 불일치 시 발생
+            // 해결: productFuncs에 없는 경우 c2Val을 추가 → useImportFileHandlers에서 C2 flat item 자동 생성
+            // ★ 중복 방지: 같은 c2Val이 이미 추가되었으면 해당 인덱스 재사용
+            const existingIdx = product.productFuncs.findIndex(f => normText(f) === c2ValNorm);
+            if (existingIdx >= 0) {
+              resolvedC2Idx = existingIdx;
+            } else {
+              resolvedC2Idx = product.productFuncs.length;
+              product.productFuncs.push(c2Val);
+              console.info(`[l1UnifiedC3ToC2] C2 보충 — c1="${c1Key}" c2Val="${c2Val.substring(0,40)}" (idx=${resolvedC2Idx})`);
+            }
+            c3C2NotFound++;
+          }
+          // ★ c1Key를 약어로 정규화 — flat item id는 normalizeC1 결과(예: "YP")를 사용하기 때문
+          const parentId = `C2-${abbrevC1(c1Key)}-${resolvedC2Idx}`;
           if (!product.itemMeta) product.itemMeta = {};
           const existing = product.itemMeta[`C3-${c3Idx}`];
           if (existing) {
@@ -1174,8 +1264,10 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           } else {
             product.itemMeta[`C3-${c3Idx}`] = { parentItemId: parentId };
           }
+          c3ParentAssigned++;
         });
       }
+      console.log(`[l1UnifiedC3ToC2] 결과 — 할당성공: ${c3ParentAssigned}건, C2못찾음: ${c3C2NotFound}건, 맵미스: ${c3MapMiss}건 (map.size=${l1UnifiedC3ToC2.size})`);
     }
 
     // ★★★ 2026-02-17: B1~B4 데이터를 4M 순서(MN→MC→IM→EN)로 정렬 ★★★

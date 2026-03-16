@@ -93,6 +93,14 @@ export async function loadDatasetByFmeaId(fmeaId: string): Promise<{
     specialChar: it.specialChar || undefined,
     inherited: it.inherited || false,
     sourceId: it.sourceId || undefined,
+    // ★★★ 2026-03-17 FIX: parentItemId + 위치 정보 — DB에 저장된 값 복원 (buildWorksheetState에 필수)
+    parentItemId: (it as any).parentItemId || undefined,
+    belongsTo: (it as any).belongsTo || undefined,
+    excelRow: (it as any).excelRow ?? undefined,
+    excelCol: (it as any).excelCol ?? undefined,
+    orderIndex: (it as any).orderIndex ?? undefined,
+    mergeGroupId: (it as any).mergeGroupId || undefined,
+    rowSpan: (it as any).rowSpan ?? undefined,
     createdAt: new Date(it.createdAt),
   }));
   return {
