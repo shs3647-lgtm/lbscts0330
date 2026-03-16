@@ -524,7 +524,7 @@ export default function HelpChatbot({ renderTrigger }: { renderTrigger?: (onOpen
 
   // renderTrigger 모드: 외부 트리거 + portal 윈도우
   // typeof window 체크 제거 — SSR에서 null 반환 시 React 트리 위치 이탈로 hydration 불일치 발생
-  const chatWindow = isOpen ? createPortal(
+  const chatWindow = (typeof window !== 'undefined' && isOpen) ? createPortal(
     <>
       {/* 챗봇 윈도우 */}
       <div
