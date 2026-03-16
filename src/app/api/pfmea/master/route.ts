@@ -104,6 +104,55 @@ export async function GET(req: NextRequest) {
       value: ensureStringValue(item.value),
     }));
 
+    // ★ C3 parentItemId 백필 — Atomic DB(L1Requirement+L1Function) 기반 결정론적 매핑
+    // 구형 데이터(parentItemId=null)를 원자성 DB에서 꽂아넣는다
+    const orphanC3 = includeItems
+      ? flatItems.filter((item: any) => item.itemCode === 'C3' && !item.parentItemId)
+      : [];
+
+    if (orphanC3.length > 0) {
+      const [l1Reqs, l1Funcs] = await Promise.all([
+        prisma.l1Requirement.findMany({
+          where: { fmeaId },
+          select: { l1FuncId: true, requirement: true },
+        }),
+        prisma.l1Function.findMany({
+          where: { fmeaId },
+          select: { id: true, functionName: true, category: true },
+        }),
+      ]);
+
+      // Map: l1FuncId → { functionName, category }
+      const funcById = new Map(l1Funcs.map(f => [f.id, f]));
+      // Map: `${category}|${requirement}` → functionName (C2)
+      const reqToFuncName = new Map<string, string>();
+      for (const req of l1Reqs) {
+        const fn = funcById.get(req.l1FuncId);
+        if (fn && !reqToFuncName.has(`${fn.category}|${req.requirement}`)) {
+          reqToFuncName.set(`${fn.category}|${req.requirement}`, fn.functionName);
+        }
+      }
+      // Map: `${processNo}|${value}` → C2 flat item id
+      const c2ById = new Map<string, string>();
+      for (const item of flatItems) {
+        if ((item as any).itemCode === 'C2') {
+          c2ById.set(`${(item as any).processNo}|${(item as any).value}`, (item as any).id);
+        }
+      }
+      // Backfill
+      let backfilled = 0;
+      for (const c3 of orphanC3) {
+        const funcName = reqToFuncName.get(`${(c3 as any).processNo}|${(c3 as any).value}`);
+        if (funcName) {
+          const c2Id = c2ById.get(`${(c3 as any).processNo}|${funcName}`);
+          if (c2Id) { (c3 as any).parentItemId = c2Id; backfilled++; }
+        }
+      }
+      if (backfilled > 0) {
+        console.info(`[master GET] C3 parentItemId 백필: ${backfilled}/${orphanC3.length}건 (fmeaId=${fmeaId})`);
+      }
+    }
+
     return jsonOk({
       dataset: {
         id: dataset.id,
