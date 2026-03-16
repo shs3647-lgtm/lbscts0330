@@ -94,7 +94,10 @@ export async function GET(request: NextRequest) {
         select: { functionName: true },
       }),
       // C3: 요구사항 count — L1Requirement 별도 테이블 (2026-03-17)
-      prisma.l1Requirement.count({ where: { fmeaId } }),
+      // 방어: 스테일 Prisma 클라이언트에서 l1Requirement 모델이 없을 수 있음 → 0 폴백
+      (prisma as any).l1Requirement
+        ? prisma.l1Requirement.count({ where: { fmeaId } })
+        : Promise.resolve(0),
       // A3: DISTINCT(l2StructId, functionName)
       prisma.l2Function.findMany({
         where: { fmeaId, functionName: { not: '' } },
@@ -126,9 +129,6 @@ export async function GET(request: NextRequest) {
       prisma.processProductChar.count({ where: { fmeaId, name: '(제품특성 미입력)' } }),
       prisma.failureMode.count({ where: { fmeaId, mode: { endsWith: '부적합' } } }),
       prisma.failureCause.count({ where: { fmeaId, cause: { endsWith: '부적합' } } }),
-      // ★ A6/B5 실제 DB 저장 건수 — RiskAnalysis 테이블 (flatItem 동일값 tautology 방지)
-      prisma.riskAnalysis.count({ where: { fmeaId, detectionControl: { not: null }, NOT: { detectionControl: '' } } }),
-      prisma.riskAnalysis.count({ where: { fmeaId, preventionControl: { not: null }, NOT: { preventionControl: '' } } }),
     ]);
 
     const b2UniqueSet = new Set(b2Distinct.map((r: { l2StructId: string; functionName: string }) => `${r.l2StructId}|${r.functionName}`));

@@ -240,8 +240,8 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     
     // ★★★ targetFunc가 없으면 자동 생성 (누락 금지) ★★★
     if (!targetFunc) {
-      // L1Function 자동 생성 (★ P7: uid()로 통일 — 충돌 위험 제거)
-      const tempL1FuncId = uid();
+      // ★ 2026-03-17: fs.reqId(genC3) 보존 — 결정론적 ID (uid() 대신)
+      const tempL1FuncId = fs.reqId || uid();
       targetFunc = {
         id: tempL1FuncId,
         fmeaId: oldData.fmeaId,
