@@ -78,6 +78,8 @@ export default function LegacyImportPage() {
   }, [selectedFmeaId]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // ★ 파일 선택 후 loadData() 덮어쓰기 방지 guard
+  const fileSelectedRef = useRef(false);
 
   // ── 훅 연결 ──
   const {
@@ -122,9 +124,15 @@ export default function LegacyImportPage() {
   ];
 
   // ── 파일 핸들러 ──
+  // ★ 파일 선택/임포트 시 guard 활성화 (loadData() race condition 방지)
+  const setFlatDataFromFile = useCallback((data: React.SetStateAction<ImportedFlatData[]>) => {
+    fileSelectedRef.current = true;
+    setFlatData(data);
+  }, []);
+
   const { handleFileSelect, handleImport: _handleImportRaw } = useImportFileHandlers({
     setFileName, setIsParsing, setImportSuccess, setParseResult, setPendingData,
-    setFlatData, setIsImporting, setMasterDatasetId, setMasterChains, setIsSaved, setDirty,
+    setFlatData: setFlatDataFromFile, setIsImporting, setMasterDatasetId, setMasterChains, setIsSaved, setDirty,
     setValidationMessage,
     flatData, pendingData, masterChains, parseMultiSheetExcel,
     masterDatasetId,
@@ -321,7 +329,7 @@ export default function LegacyImportPage() {
           const loaded = await loadDatasetByFmeaId(currentFmeaId);
           if (loaded.datasetId) setMasterDatasetId(loaded.datasetId);
           if (loaded.datasetName) setMasterDatasetName(loaded.datasetName);
-          if (loaded.flatData.length > 0) {
+          if (loaded.flatData.length > 0 && !fileSelectedRef.current) {
             setFlatData(loaded.flatData);
             setIsSaved(true);
           }
