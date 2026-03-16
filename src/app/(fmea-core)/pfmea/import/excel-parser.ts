@@ -268,6 +268,10 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       errors.push(`⚠️ 인식되지 않은 시트: ${unmappedSheets.join(', ')} (예상 시트명: L2-1~L2-6, L3-1~L3-5, L1-1~L1-4)`);
     }
 
+    // ★★★ 2026-03-16: L1 통합시트 C3→C2 텍스트 매핑 (개별시트 우선 정책 시 parentItemId 보정용)
+    // key: `${c1}|${c3_value}`, value: c2_value
+    const l1UnifiedC3ToC2 = new Map<string, string>();
+
     workbook.eachSheet((sheet) => {
       const originalSheetName = sheet.name.trim();
       const sheetName = normalizeSheetName(originalSheetName);
@@ -492,6 +496,28 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           : ['B1', 'B2', 'B3', 'B4'];
         const hasIndividualSheets = unifiedCodes.some(code => sheetDataMap[code]?.rows?.length > 0);
         if (hasIndividualSheets) {
+          // ★★★ 2026-03-16 FIX: L1_UNIFIED 스킵 시에도 C3→C2 텍스트 매핑 추출
+          // 이 매핑을 이용해 아래에서 C3 itemMeta.parentItemId를 보정함
+          if (sheetCode === 'L1_UNIFIED') {
+            let c1Col = -1, c2Col = -1, c3Col = -1;
+            for (let ci = 0; ci < headers.length; ci++) {
+              const h = (headers[ci] || '').replace(/\s/g, '').toLowerCase();
+              if (h.includes('구분') && c1Col < 0) c1Col = headerColMap[ci];
+              else if (h.includes('제품기능') && c2Col < 0) c2Col = headerColMap[ci];
+              else if (h.includes('요구사항') && c3Col < 0) c3Col = headerColMap[ci];
+            }
+            if (c1Col > 0 && c2Col > 0 && c3Col > 0) {
+              for (let ri = startRow; ri <= sheet.rowCount; ri++) {
+                const uRow = sheet.getRow(ri);
+                const c1Val = cellValueToString(uRow.getCell(c1Col).value).trim();
+                const c2Val = cellValueToString(uRow.getCell(c2Col).value).trim();
+                const c3Val = cellValueToString(uRow.getCell(c3Col).value).trim();
+                if (c1Val && c2Val && c3Val) {
+                  l1UnifiedC3ToC2.set(`${c1Val}|${c3Val}`, c2Val);
+                }
+              }
+            }
+          }
           return; // 개별 시트가 이미 존재 → 통합 시트 스킵
         }
         // 통합시트: 행 하나에서 여러 필드를 추출하여 개별 sheetDataMap 항목으로 분배
@@ -1130,6 +1156,27 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         });
       }
     });
+
+    // ★★★ 2026-03-16 FIX: L1 통합시트 매핑으로 C3 itemMeta.parentItemId 보정
+    // 개별시트(L1-2/L1-3)만 있을 때 C3→C2 상하관계가 누락되는 문제 해결
+    if (l1UnifiedC3ToC2.size > 0) {
+      for (const [c1Key, product] of productMap.entries()) {
+        product.requirements.forEach((c3Val, c3Idx) => {
+          const c2Val = l1UnifiedC3ToC2.get(`${c1Key}|${c3Val}`);
+          if (!c2Val) return;
+          const c2Idx = product.productFuncs.findIndex(f => f === c2Val);
+          if (c2Idx < 0) return;
+          const parentId = `C2-${c1Key}-${c2Idx}`;
+          if (!product.itemMeta) product.itemMeta = {};
+          const existing = product.itemMeta[`C3-${c3Idx}`];
+          if (existing) {
+            existing.parentItemId = parentId;
+          } else {
+            product.itemMeta[`C3-${c3Idx}`] = { parentItemId: parentId };
+          }
+        });
+      }
+    }
 
     // ★★★ 2026-02-17: B1~B4 데이터를 4M 순서(MN→MC→IM→EN)로 정렬 ★★★
     // 공용 상수 m4SortValue (constants.ts) 사용 — 중복 정의 방지

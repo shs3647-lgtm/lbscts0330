@@ -330,11 +330,11 @@ describe('C3→C2 UUID FK 꽂아넣기 전체 파이프라인', () => {
       const result = buildWorksheetState(flat, { fmeaId: 'test', l1Name: '' });
       const ypType = result.state.l1.types.find(t => t.name === 'YP');
       expect(ypType).toBeDefined();
-      // 기능1: C3 2건 전부 (폴백)
-      expect(ypType!.functions[0].requirements.filter(r => r.name).length).toBe(2);
-      // 기능2: placeholder (빈 name)
-      expect(ypType!.functions[1].requirements.length).toBe(1);
-      expect(ypType!.functions[1].requirements[0].name).toBe('');
+      // 고아 C3 → 마지막 C2(기능2)에 전부 배정
+      expect(ypType!.functions[1].requirements.filter(r => r.name).length).toBe(2);
+      // 기능1: placeholder (빈 name) — C3가 하나도 없어서
+      expect(ypType!.functions[0].requirements.length).toBe(1);
+      expect(ypType!.functions[0].requirements[0].name).toBe('');
     });
   });
 });
