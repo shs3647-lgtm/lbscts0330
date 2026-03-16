@@ -2138,8 +2138,9 @@ export async function GET(request: NextRequest) {
         l3FuncId: fc.l3FuncId,
         l3StructId: fc.l3StructId,
         l2StructId: fc.l2StructId,
-        // ✅ 누락 버그 수정: processCharId도 atomic 응답에 포함 (legacy 역변환/연동에 필요)
-        processCharId: fc.processCharId || undefined,
+        // ✅ 2026-03-17 FIX: processCharId가 NULL이면 l3FuncId로 폴백 (processChar.id === L3Function.id)
+        // NULL인 채로 undefined 반환하면 JSON에서 제거 → UI에서 매칭 실패 → 누락 표시
+        processCharId: fc.processCharId || fc.l3FuncId || undefined,
         cause: fc.cause,
         occurrence: fc.occurrence || undefined,
         createdAt: fc.createdAt.toISOString(),
