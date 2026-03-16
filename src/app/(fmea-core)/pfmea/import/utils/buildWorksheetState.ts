@@ -560,16 +560,23 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         };
       });
 
-      // ★★★ 2026-03-16 FIX: parentItemId UUID 기반 매칭만 사용 (하드코딩/배분 금지)
+      // ★★★ 2026-03-16 FIX: parentItemId UUID 기반 매칭 (+ legacy key 폴백)
+      // c2Items[i].id(UUID) 우선 매칭 → "C2-YP-0" 레거시 키 폴백 (양방향 호환)
       {
         funcs.forEach((func, i) => {
-          const expectedParent = `C2-${type.name}-${i}`;
-          const myC3 = c3Items.filter(c3 => c3.parentItemId === expectedParent);
+          const c2UuidParent = c2Items[i]?.id || '';          // C2 flat item UUID (안정적)
+          const keyParent = `C2-${type.name}-${i}`;          // 레거시 키 포맷
+          const myC3 = c3Items.filter(c3 =>
+            c3.parentItemId === c2UuidParent || c3.parentItemId === keyParent
+          );
           c3seq = 0;
           func.requirements = myC3.map(c3 => { c3seq++; return { id: genC3('PF', div, i + 1, c3seq), name: c3.value, ...rev(c3) }; });
         });
         // parentItemId 미설정 C3 → orphan 처리 (마지막 func에 추가)
-        const allParents = new Set(funcs.map((_, i) => `C2-${type.name}-${i}`));
+        const allParents = new Set([
+          ...c2Items.map(c2 => c2.id),                       // UUID 포맷
+          ...funcs.map((_, i) => `C2-${type.name}-${i}`),   // 레거시 키 포맷
+        ]);
         const orphanC3 = c3Items.filter(c3 => !c3.parentItemId || !allParents.has(c3.parentItemId));
         if (orphanC3.length > 0 && funcs.length > 0) {
           const lastFunc = funcs[funcs.length - 1];
