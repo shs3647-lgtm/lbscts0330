@@ -41,6 +41,11 @@ import type {
 } from '@/app/(fmea-core)/pfmea/worksheet/schema';
 import { uid } from '@/app/(fmea-core)/pfmea/worksheet/schema';
 import {
+  genC1, genC2, genC3, genC4,
+  genA1, genA3, genA4, genA5,
+  genB1, genB2, genB3, genB4,
+} from '@/lib/uuid-generator';
+import {
   isCommonProcessNo,
   byCode,
   groupByM4,
@@ -81,7 +86,7 @@ export interface AtomicBuildResult {
 /** L1 완제품 공정 구조 생성 (단일 엔티티) */
 function buildL1Structure(fmeaId: string, l1Name: string): L1Structure {
   return {
-    id: uid(), fmeaId, name: l1Name || '', confirmed: false,
+    id: genC1('PF', 'YP'), fmeaId, name: l1Name || '', confirmed: false,
     rowIndex: 0, colIndex: 0, rowSpan: 1, colSpan: 1,
   };
 }
@@ -129,8 +134,9 @@ function buildStructures(
 
   // L2/L3 생성
   sorted.forEach(([pNo, pName], idx) => {
-    const l2Id = uid();
-    const order = parseInt(pNo) || (idx + 1) * 10;
+    const pnoNum = parseInt(pNo) || (idx + 1) * 10;
+    const l2Id = genA1('PF', pnoNum);
+    const order = pnoNum;
     l2Structures.push({
       id: l2Id, fmeaId, l1Id, no: pNo, name: pName, order,
       rowIndex: idx, colIndex: 1, rowSpan: 1, colSpan: 1,
@@ -146,7 +152,7 @@ function buildStructures(
     if (b1Items.length === 0) {
       // 수동모드 placeholder
       l3List.push({
-        id: uid(), fmeaId, l1Id, l2Id,
+        id: genB1('PF', pnoNum, '', 1), fmeaId, l1Id, l2Id,
         m4: '' as L3Structure['m4'], name: '', order: 10,
         rowIndex: 0, colIndex: 3, rowSpan: 1, colSpan: 1,
       });
@@ -155,8 +161,13 @@ function buildStructures(
       const sortedB1 = [...b1Items].sort((a, b) =>
         (m4Order[a.m4 || ''] ?? 4) - (m4Order[b.m4 || ''] ?? 4)
       );
+      // m4별 seq 카운터
+      const m4SeqCounter = new Map<string, number>();
       sortedB1.forEach((b1, i) => {
-        const l3Id = uid();
+        const m4 = b1.m4 || '';
+        const b1seq = (m4SeqCounter.get(m4) || 0) + 1;
+        m4SeqCounter.set(m4, b1seq);
+        const l3Id = genB1('PF', pnoNum, m4, b1seq);
         if (b1.id) b1IdToL3Id.set(b1.id, l3Id);
         l3List.push({
           id: l3Id, fmeaId, l1Id, l2Id,
@@ -192,55 +203,65 @@ function buildL1Entities(
   const allCategories = [...new Set([...c1Values, 'YP', 'SP', 'USER'])];
 
   for (const cat of allCategories) {
+    const div = cat === 'USER' ? 'US' : cat;
     const category = mapC1Category(cat) as L1Function['category'];
     const c2Items = cItems.filter(i => i.itemCode === 'C2' && i.processNo === cat);
     const c3Items = cItems.filter(i => i.itemCode === 'C3' && i.processNo === cat);
     const c4Items = cItems.filter(i => i.itemCode === 'C4' && i.processNo === cat);
 
+    // seq 카운터: C2→c2seq, C3→c3seq (C2 변경 시 리셋), C4→c4seq (C3 변경 시 리셋)
+    let c2seq = 0;
+    let c3seq = 0;
+    let c4seq = 0;
+
     // ── C2+C3 → L1Function ──
     const funcIds: string[] = [];
     if (c2Items.length === 0 && c3Items.length === 0) {
-      const funcId = uid();
+      c2seq++;
+      const funcId = genC2('PF', div, c2seq);
       funcIds.push(funcId);
       l1Functions.push({ id: funcId, fmeaId, l1StructId, category, functionName: '', requirement: '' });
     } else if (c2Items.length === 0) {
       // C3만 있으면 각각 별도 function
+      c2seq++;
+      c3seq = 0;
       c3Items.forEach(c3 => {
-        const funcId = uid();
+        c3seq++;
+        const funcId = genC3('PF', div, c2seq, c3seq);
         funcIds.push(funcId);
         l1Functions.push({ id: funcId, fmeaId, l1StructId, category, functionName: '', requirement: c3.value });
       });
       if (c3Items.length === 0) {
-        const funcId = uid();
+        const funcId = genC2('PF', div, c2seq);
         funcIds.push(funcId);
         l1Functions.push({ id: funcId, fmeaId, l1StructId, category, functionName: '', requirement: '' });
       }
     } else {
-      // ★★★ 2026-03-16 FIX: distribute → parentItemId 꽂아넣기 (폴백: 첫 C2에 전부)
-      const hasParentIds = c3Items.some(c3 => c3.parentItemId && c3.parentItemId !== `C2-${cat}-0`);
-
+      // ★★★ 2026-03-16 FIX: parentItemId UUID 기반 매칭만 사용 (하드코딩/배분 금지)
       c2Items.forEach((c2, i) => {
-        const myC3 = hasParentIds
-          ? c3Items.filter(c3 => c3.parentItemId === `C2-${cat}-${i}`)
-          : (i === 0 ? c3Items : []);  // 첫 C2에 전부 할당 (배분 금지)
+        c2seq++;
+        c3seq = 0;
+        const myC3 = c3Items.filter(c3 => c3.parentItemId === `C2-${cat}-${i}`);
         if (myC3.length === 0) {
-          const funcId = uid();
+          const funcId = genC2('PF', div, c2seq);
           funcIds.push(funcId);
           l1Functions.push({ id: funcId, fmeaId, l1StructId, category, functionName: c2.value, requirement: '' });
         } else {
           myC3.forEach(c3 => {
-            const funcId = uid();
+            c3seq++;
+            const funcId = genC3('PF', div, c2seq, c3seq);
             funcIds.push(funcId);
             l1Functions.push({ id: funcId, fmeaId, l1StructId, category, functionName: c2.value, requirement: c3.value });
           });
         }
       });
 
-      // orphan C3 (parentItemId 매칭 안 되는)
-      if (hasParentIds) {
+      // orphan C3 (parentItemId 미설정 또는 매칭 안 되는)
+      {
         const allParents = new Set(c2Items.map((_, i) => `C2-${cat}-${i}`));
-        c3Items.filter(c3 => !allParents.has(c3.parentItemId || '')).forEach(c3 => {
-          const funcId = uid();
+        c3Items.filter(c3 => !c3.parentItemId || !allParents.has(c3.parentItemId)).forEach(c3 => {
+          c3seq++;
+          const funcId = genC3('PF', div, c2seq, c3seq);
           funcIds.push(funcId);
           l1Functions.push({
             id: funcId, fmeaId, l1StructId, category,
@@ -251,18 +272,21 @@ function buildL1Entities(
     }
 
     // ── C4 → FailureEffect (funcIds에 1:1 매칭) ──
+    c4seq = 0;
     if (funcIds.length > 0 && c4Items.length > 0) {
       const matched = Math.min(funcIds.length, c4Items.length);
       for (let ri = 0; ri < matched; ri++) {
+        c4seq++;
         failureEffects.push({
-          id: uid(), fmeaId, l1FuncId: funcIds[ri],
+          id: genC4('PF', div, c2seq, c3seq > 0 ? ri + 1 : 1, c4seq), fmeaId, l1FuncId: funcIds[ri],
           category: category as FailureEffect['category'], effect: c4Items[ri].value, severity: 0,
         });
       }
       // 남은 C4 → 마지막 func
       for (let ei = funcIds.length; ei < c4Items.length; ei++) {
+        c4seq++;
         failureEffects.push({
-          id: uid(), fmeaId, l1FuncId: funcIds[funcIds.length - 1],
+          id: genC4('PF', div, c2seq, c3seq > 0 ? funcIds.length : 1, c4seq), fmeaId, l1FuncId: funcIds[funcIds.length - 1],
           category: category as FailureEffect['category'], effect: c4Items[ei].value, severity: 0,
         });
       }
@@ -286,31 +310,38 @@ function buildL2Entities(
   const a4Items = byCode(processItems, 'A4');
   const a5Items = byCode(processItems, 'A5');
 
+  // l2StructId에서 공정번호 추출 (PF-L2-040 → 40)
+  const pnoMatch = l2StructId.match(/PF-L2-(\d+)/);
+  const pnoNum = pnoMatch ? parseInt(pnoMatch[1]) : 0;
+
   // ★ A4 → ProcessProductChar — 공정 단위 1회 생성 (카테시안 방지)
   const sharedPCs: ProcessProductCharRecord[] = a4Items.map((a4, i) => ({
-    id: uid(), fmeaId, l2StructId, name: a4.value,
+    id: genA4('PF', pnoNum, i + 1), fmeaId, l2StructId, name: a4.value,
     specialChar: a4.specialChar || '', orderIndex: i,
   }));
   processProductChars.push(...sharedPCs);
 
-  // A3 → L2Function
+  // A3 → L2Function (★ productChars를 embed — route.ts 662행이 func.productChars에서 PC 추출)
   if (a3Items.length > 0) {
-    a3Items.forEach(a3 => {
+    a3Items.forEach((a3, i) => {
       l2Functions.push({
-        id: uid(), fmeaId, l2StructId, functionName: a3.value,
+        id: genA3('PF', pnoNum, i + 1), fmeaId, l2StructId, functionName: a3.value,
         productChar: a4Items.length > 0 ? a4Items[0].value : '',
         specialChar: a4Items.length > 0 ? (a4Items[0].specialChar || '') : '',
-      });
+        productChars: sharedPCs.map(pc => ({ id: pc.id, name: pc.name, specialChar: pc.specialChar, orderIndex: pc.orderIndex })),
+      } as L2Function & { productChars: { id: string; name: string; specialChar: string; orderIndex: number }[] });
     });
   } else if (a4Items.length > 0) {
     l2Functions.push({
-      id: uid(), fmeaId, l2StructId, functionName: '',
+      id: genA3('PF', pnoNum, 1), fmeaId, l2StructId, functionName: '',
       productChar: a4Items[0].value, specialChar: a4Items[0].specialChar || '',
-    });
+      productChars: sharedPCs.map(pc => ({ id: pc.id, name: pc.name, specialChar: pc.specialChar, orderIndex: pc.orderIndex })),
+    } as L2Function & { productChars: { id: string; name: string; specialChar: string; orderIndex: number }[] });
   }
 
   // ★★★ 2026-03-16 FIX: A5 → FailureMode (parentItemId FK 기반 꽂아넣기)
   const l2FuncId = l2Functions.length > 0 ? l2Functions[0].id : '';
+  let a5seq = 0;
   if (sharedPCs.length > 0 && a5Items.length > 0) {
     // parentItemId가 A4의 id와 일치하면 해당 PC에 연결, 미매칭 시 첫 PC
     const a4IdToPC = new Map<string, ProcessProductCharRecord>();
@@ -318,30 +349,31 @@ function buildL2Entities(
       if (a4.id && i < sharedPCs.length) a4IdToPC.set(a4.id, sharedPCs[i]);
     });
     for (const a5 of a5Items) {
+      a5seq++;
       let targetPC = sharedPCs[0]; // fallback
       if (a5.parentItemId) {
         const mapped = a4IdToPC.get(a5.parentItemId);
         if (mapped) targetPC = mapped;
       }
       failureModes.push({
-        id: uid(), fmeaId, l2FuncId, l2StructId,
+        id: genA5('PF', pnoNum, a5seq), fmeaId, l2FuncId, l2StructId,
         productCharId: targetPC.id, mode: a5.value, specialChar: Boolean(targetPC.specialChar),
       });
     }
     // ★★★ 2026-03-16 FIX: FM 없는 PC → placeholder는 A5가 0건일 때만 생성
-    // A5 항목이 존재하나 parentItemId 미설정으로 첫 PC에 몰린 경우,
-    // 나머지 PC에 거짓 placeholder FM 생성하면 안 됨 (거짓 누락행 원인)
     if (a5Items.length === 0) {
       for (const pc of sharedPCs) {
+        a5seq++;
         failureModes.push({
-          id: uid(), fmeaId, l2FuncId, l2StructId,
+          id: genA5('PF', pnoNum, a5seq), fmeaId, l2FuncId, l2StructId,
           productCharId: pc.id, mode: `${pc.name} 부적합`, specialChar: Boolean(pc.specialChar),
         });
       }
     }
   } else {
     a5Items.forEach(a5 => {
-      failureModes.push({ id: uid(), fmeaId, l2FuncId, l2StructId, mode: a5.value });
+      a5seq++;
+      failureModes.push({ id: genA5('PF', pnoNum, a5seq), fmeaId, l2FuncId, l2StructId, mode: a5.value });
     });
   }
 
@@ -404,19 +436,36 @@ function buildL3Entities(
   // processChar 기록 (B4 → processCharId 연결용)
   const pcRecords: { id: string; name: string; l3Idx: number; m4: string }[] = [];
 
+  // l2StructId에서 공정번호 추출 (PF-L2-040 → 40)
+  const l2PnoMatch = l2StructId.match(/PF-L2-(\d+)/);
+  const l2PnoNum = l2PnoMatch ? parseInt(l2PnoMatch[1]) : 0;
+
+  // L3 → B2(function) seq 카운터 (l3Id별)
+  const l3FuncSeqMap = new Map<string, number>();
+  // L3 → B3(processChar) seq 카운터 (l3Id별)
+  const l3CharSeqMap = new Map<string, number>();
+
+  /** l3.id에서 m4, b1seq 파싱 — PF-L3-040-MC-001 → { m4: 'MC', b1seq: 1 } */
+  function parseL3Id(l3Id: string): { m4: string; b1seq: number } {
+    const match = l3Id.match(/PF-L3-\d+-([A-Z]*)-(\d+)/);
+    if (match) return { m4: match[1], b1seq: parseInt(match[2]) };
+    return { m4: '', b1seq: 1 };
+  }
+
   /** L3Function 생성 + processChar 기록 헬퍼 */
   function addL3Func(l3: L3Structure, globalIdx: number, funcName: string, chars: { id: string; name: string; specialChar: string }[]) {
-    if (chars.length === 0 && l3.name) {
-      chars.push({ id: uid(), name: `${l3.name} 관리 특성`, specialChar: '' });
-    }
+    const { m4, b1seq } = parseL3Id(l3.id);
+    // ★★★ 2026-03-16 FIX: B3 자동 생성 제거 — Import 원본만 저장 (통계 일치 원칙)
     const firstChar = chars[0] || { name: '', specialChar: '' };
     l3Functions.push({
-      id: uid(), fmeaId, l3StructId: l3.id, l2StructId,
+      id: genB2('PF', l2PnoNum, m4, b1seq), fmeaId, l3StructId: l3.id, l2StructId,
       functionName: funcName, processChar: firstChar.name, specialChar: firstChar.specialChar,
     });
     chars.slice(1).forEach(ch => {
+      const fseq = (l3FuncSeqMap.get(l3.id) || 1) + 1;
+      l3FuncSeqMap.set(l3.id, fseq);
       l3Functions.push({
-        id: uid(), fmeaId, l3StructId: l3.id, l2StructId,
+        id: `${genB1('PF', l2PnoNum, m4, b1seq)}-G-${String(fseq).padStart(3, '0')}`, fmeaId, l3StructId: l3.id, l2StructId,
         functionName: funcName, processChar: ch.name, specialChar: ch.specialChar,
       });
     });
@@ -436,29 +485,42 @@ function buildL3Entities(
       const myB2 = weIdx === 0 ? [...parentB2, ...m4B2Unmatched] : [...parentB2];
       const myB3 = weIdx === 0 ? [...parentB3, ...m4B3Unmatched] : [...parentB3];
 
+      const { m4: weM4, b1seq: weB1seq } = parseL3Id(l3.id);
       if (myB2.length > 0) {
         if (myB2.length === 1) {
-          const chars = myB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' }));
+          const chars = myB3.map((b3, ci) => {
+            const cseq = (l3CharSeqMap.get(l3.id) || 0) + 1;
+            l3CharSeqMap.set(l3.id, cseq);
+            return { id: genB3('PF', l2PnoNum, weM4, weB1seq, cseq), name: b3.value, specialChar: b3.specialChar || '' };
+          });
           addL3Func(l3, globalIdx, myB2[0].value, chars);
         } else {
           // ★★★ 2026-03-16 FIX: distribute → 첫 B2에 전부 꽂아넣기
           myB2.forEach((b2, fIdx) => {
             const chars = fIdx === 0
-              ? myB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' }))
+              ? myB3.map((b3, ci) => {
+                  const cseq = (l3CharSeqMap.get(l3.id) || 0) + 1;
+                  l3CharSeqMap.set(l3.id, cseq);
+                  return { id: genB3('PF', l2PnoNum, weM4, weB1seq, cseq), name: b3.value, specialChar: b3.specialChar || '' };
+                })
               : [];
             addL3Func(l3, globalIdx, b2.value, chars);
           });
         }
       } else if (myB3.length > 0) {
-        const chars = myB3.map(b3 => ({ id: uid(), name: b3.value, specialChar: b3.specialChar || '' }));
+        const chars = myB3.map((b3, ci) => {
+          const cseq = (l3CharSeqMap.get(l3.id) || 0) + 1;
+          l3CharSeqMap.set(l3.id, cseq);
+          return { id: genB3('PF', l2PnoNum, weM4, weB1seq, cseq), name: b3.value, specialChar: b3.specialChar || '' };
+        });
         addL3Func(l3, globalIdx, '', chars);
       } else {
         // placeholder
         l3Functions.push({
-          id: uid(), fmeaId, l3StructId: l3.id, l2StructId,
+          id: genB2('PF', l2PnoNum, weM4, weB1seq), fmeaId, l3StructId: l3.id, l2StructId,
           functionName: '', processChar: '',
         });
-        if (l3.name) pcRecords.push({ id: uid(), name: `${l3.name} 관리 특성`, l3Idx: globalIdx, m4: l3.m4 || '' });
+        // ★★★ 2026-03-16 FIX: B3 자동 생성 제거 — Import 원본만 저장
       }
     });
   }
@@ -471,24 +533,29 @@ function buildL3Entities(
     pcByM4.get(pc.m4)!.push(pc);
   }
 
+  // B4 kseq 카운터 (l3Id별)
+  const b4KseqMap = new Map<string, number>();
+
   const unmatchedB4: ImportedFlatData[] = [];
   for (const [m4Key, m4B4] of b4ByM4) {
     const m4PCs = pcByM4.get(m4Key) || [];
     if (m4PCs.length > 0 && m4B4.length > 0) {
-      // ★★★ 2026-03-16 FIX: distribute → parentItemId FK 기반 꽂아넣기
-      // parentItemId 없으면 순차 할당 (i번째 B4 → i번째 PC, 초과분은 마지막 PC)
       const pcIdSet = new Set(m4PCs.map(pc => pc.id));
       for (let bi = 0; bi < m4B4.length; bi++) {
         const b4 = m4B4[bi];
-        let targetPc = m4PCs[Math.min(bi, m4PCs.length - 1)]; // 순차, 초과→마지막
+        let targetPc = m4PCs[Math.min(bi, m4PCs.length - 1)];
         if (b4.parentItemId && pcIdSet.has(b4.parentItemId)) {
           targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || targetPc;
         }
         const l3ForPc = l3Structures[targetPc.l3Idx];
         const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
+        const l3Id = l3ForPc?.id || '';
+        const { m4: fcM4, b1seq: fcB1seq } = parseL3Id(l3Id);
+        const kseq = (b4KseqMap.get(l3Id) || 0) + 1;
+        b4KseqMap.set(l3Id, kseq);
         failureCauses.push({
-          id: uid(), fmeaId, l3FuncId: l3FuncForPc?.id || '',
-          l3StructId: l3ForPc?.id || '', l2StructId,
+          id: genB4('PF', l2PnoNum, fcM4, fcB1seq, kseq), fmeaId, l3FuncId: l3FuncForPc?.id || '',
+          l3StructId: l3Id, l2StructId,
           processCharId: targetPc.id, cause: b4.value, occurrence: 0,
         });
       }
@@ -502,20 +569,28 @@ function buildL3Entities(
     const firstPc = pcRecords[0];
     const l3ForPc = l3Structures[firstPc.l3Idx];
     const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
+    const l3Id = l3ForPc?.id || '';
+    const { m4: umM4, b1seq: umB1seq } = parseL3Id(l3Id);
     for (const b4 of unmatchedB4) {
+      const kseq = (b4KseqMap.get(l3Id) || 0) + 1;
+      b4KseqMap.set(l3Id, kseq);
       failureCauses.push({
-        id: uid(), fmeaId, l3FuncId: l3FuncForPc?.id || '',
-        l3StructId: l3ForPc?.id || '', l2StructId,
+        id: genB4('PF', l2PnoNum, umM4, umB1seq, kseq), fmeaId, l3FuncId: l3FuncForPc?.id || '',
+        l3StructId: l3Id, l2StructId,
         processCharId: firstPc.id, cause: b4.value, occurrence: 0,
       });
     }
   } else if (unmatchedB4.length > 0) {
     const firstL3 = l3Structures[0];
     const firstL3Func = l3Functions.find(f => f.l3StructId === firstL3?.id);
+    const l3Id = firstL3?.id || '';
+    const { m4: umM4, b1seq: umB1seq } = parseL3Id(l3Id);
     for (const b4 of unmatchedB4) {
+      const kseq = (b4KseqMap.get(l3Id) || 0) + 1;
+      b4KseqMap.set(l3Id, kseq);
       failureCauses.push({
-        id: uid(), fmeaId, l3FuncId: firstL3Func?.id || '',
-        l3StructId: firstL3?.id || '', l2StructId, cause: b4.value, occurrence: 0,
+        id: genB4('PF', l2PnoNum, umM4, umB1seq, kseq), fmeaId, l3FuncId: firstL3Func?.id || '',
+        l3StructId: l3Id, l2StructId, cause: b4.value, occurrence: 0,
       });
     }
   }
@@ -529,9 +604,13 @@ function buildL3Entities(
     if (pc.name && !linkedPcIds.has(pc.id)) {
       const l3ForPc = l3Structures[pc.l3Idx];
       const l3FuncForPc = l3Functions.find(f => f.l3StructId === l3ForPc?.id);
+      const l3Id = l3ForPc?.id || '';
+      const { m4: phM4, b1seq: phB1seq } = parseL3Id(l3Id);
+      const kseq = (b4KseqMap.get(l3Id) || 0) + 1;
+      b4KseqMap.set(l3Id, kseq);
       failureCauses.push({
-        id: uid(), fmeaId, l3FuncId: l3FuncForPc?.id || '',
-        l3StructId: l3ForPc?.id || '', l2StructId,
+        id: genB4('PF', l2PnoNum, phM4, phB1seq, kseq), fmeaId, l3FuncId: l3FuncForPc?.id || '',
+        l3StructId: l3Id, l2StructId,
         processCharId: pc.id, cause: `${pc.name} 부적합`, occurrence: 0,
       });
     }

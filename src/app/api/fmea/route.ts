@@ -445,7 +445,10 @@ export async function POST(request: NextRequest) {
       await tx.failureCause.deleteMany(deleteCondition);
       await tx.failureMode.deleteMany(deleteCondition);
       await tx.failureEffect.deleteMany(deleteCondition);
-      await tx.processProductChar.deleteMany(deleteCondition).catch(() => { });
+      // ★★★ 2026-03-16: PC는 삭제하지 않고 보존 — rebuild-atomic이 생성한 PC를 유지
+      // FM.productCharId FK가 PC를 참조하므로, PC 삭제 → FM 재생성 시 orphan 발생 방지
+      // 대신 PC는 rebuild-atomic에서만 관리 (Import 시점에 genA4()로 생성)
+      // await tx.processProductChar.deleteMany(deleteCondition).catch(() => { }); // DISABLED
       await tx.l3Function.deleteMany(deleteCondition);
       await tx.l2Function.deleteMany(deleteCondition);
       await tx.l1Function.deleteMany(deleteCondition);
@@ -678,6 +681,56 @@ export async function POST(request: NextRequest) {
                 orderIndex: idx,
               });
             });
+          }
+        }
+        // ★★★ 2026-03-16: PC fallback — l2Functions에 productChars가 없으면 FM.productCharId + legacyData.l2에서 복원
+        if (pcRows.length === 0) {
+          const seenIds = new Set<string>();
+          // 방법 1: legacyData.l2[].functions[].productChars에서 추출
+          if (legacyData?.l2?.length > 0) {
+            for (const proc of legacyData.l2) {
+              const l2Struct = db.l2Structures.find((s: any) => s.no === proc.no || s.no === String(proc.no));
+              const l2StructIdForPc = l2Struct?.id || '';
+              for (const func of (proc.functions || [])) {
+                for (const pc of (func.productChars || [])) {
+                  if (!pc?.id || seenIds.has(pc.id)) continue;
+                  seenIds.add(pc.id);
+                  pcRows.push({
+                    id: pc.id,
+                    fmeaId: db.fmeaId,
+                    l2StructId: l2StructIdForPc,
+                    name: typeof pc.name === 'string' ? pc.name : String(pc.name || ''),
+                    specialChar: pc.specialChar || null,
+                    orderIndex: 0,
+                  });
+                }
+              }
+            }
+          }
+          // 방법 2: FM.productCharId에서 id만 수집 (이름은 L2Function.productChar에서)
+          if (pcRows.length === 0 && db.failureModes.length > 0) {
+            const pcIdToL2 = new Map<string, string>();
+            for (const fm of db.failureModes as any[]) {
+              if (fm.productCharId && !seenIds.has(fm.productCharId)) {
+                seenIds.add(fm.productCharId);
+                pcIdToL2.set(fm.productCharId, fm.l2StructId || '');
+              }
+            }
+            // L2Function.productChar (텍스트)에서 이름 추출
+            const funcByL2Struct = new Map<string, string>();
+            for (const f of db.l2Functions as any[]) {
+              if (f.l2StructId && f.productChar) funcByL2Struct.set(f.l2StructId, f.productChar);
+            }
+            for (const [pcId, l2StructId] of pcIdToL2) {
+              pcRows.push({
+                id: pcId,
+                fmeaId: db.fmeaId,
+                l2StructId,
+                name: funcByL2Struct.get(l2StructId) || '',
+                specialChar: null,
+                orderIndex: 0,
+              });
+            }
           }
         }
         if (pcRows.length > 0) {

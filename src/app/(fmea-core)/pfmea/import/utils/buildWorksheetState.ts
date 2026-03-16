@@ -48,6 +48,12 @@ import type {
   L3FailureCauseExtended,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import type { FailureLinkEntry } from './failureChainInjector';
+import {
+  genC1, genC2, genC3, genC4,
+  genA1, genA3, genA4, genA5,
+  genB1, genB2, genB3, genB4,
+  genFC,
+} from '@/lib/uuid-generator';
 import { assignEntityUUIDsToChains, supplementOrphanChains } from './assignChainUUIDs';
 import { enrichStateFromChains } from '@/lib/enrich-state-from-chains';
 
@@ -370,13 +376,13 @@ function buildL1(cItems: ImportedFlatData[], l1Name: string): L1Data {
   const allCategories = [...new Set([...c1Values, ...defaults])];
 
   const types: L1Type[] = allCategories.map(cat => ({
-    id: uid(),
+    id: genC1('PF', cat === 'USER' ? 'US' : cat),
     name: cat,
     functions: [], // Phase 2에서 채움
   }));
 
   return {
-    id: uid(),
+    id: genC1('PF', 'YP'),
     name: l1Name,
     types,
     failureScopes: [],
@@ -420,14 +426,15 @@ function buildL2Structure(
   });
 
   const processes = sorted.map(([pNo, pName], idx) => {
+    const pnoNum = parseInt(pNo) || (idx + 1) * 10;
     const items = byProcess.get(pNo) || [];
-    const { wes, b1IdToWeId } = buildL3ForProcess(items);
+    const { wes, b1IdToWeId } = buildL3ForProcess(items, pnoNum);
     b1IdMaps.set(pNo, b1IdToWeId);
     return {
-      id: uid(),
+      id: genA1('PF', pnoNum),
       no: pNo,
       name: pName,
-      order: (parseInt(pNo) || (idx + 1) * 10),
+      order: pnoNum,
       functions: [],
       failureModes: [],
       failureCauses: [],
@@ -447,7 +454,7 @@ function buildL2Structure(
 /** B1 원본 ID → WE 런타임 ID 매핑 (B2/B3 parentItemId 기반 매칭용) */
 type B1IdMapping = Map<string, string>;
 
-function buildL3ForProcess(items: ImportedFlatData[]): { wes: WorkElement[]; b1IdToWeId: B1IdMapping } {
+function buildL3ForProcess(items: ImportedFlatData[], pnoNum: number): { wes: WorkElement[]; b1IdToWeId: B1IdMapping } {
   const b1Items = byCode(items, 'B1');
   const b1IdToWeId: B1IdMapping = new Map();
 
@@ -455,7 +462,7 @@ function buildL3ForProcess(items: ImportedFlatData[]): { wes: WorkElement[]; b1I
   if (b1Items.length === 0) {
     return {
       wes: [{
-        id: uid(),
+        id: genB1('PF', pnoNum, '', 1),
         m4: '',
         name: '',
         order: 10,
@@ -465,8 +472,13 @@ function buildL3ForProcess(items: ImportedFlatData[]): { wes: WorkElement[]; b1I
     };
   }
 
+  // m4별 seq 카운터
+  const m4SeqCounter = new Map<string, number>();
   const workElements: WorkElement[] = b1Items.map((b1, idx) => {
-    const weId = uid();
+    const m4 = b1.m4 || '';
+    const b1seq = (m4SeqCounter.get(m4) || 0) + 1;
+    m4SeqCounter.set(m4, b1seq);
+    const weId = genB1('PF', pnoNum, m4, b1seq);
     // B1 원본 ID(import-builder UUID) → WE 런타임 ID 매핑
     if (b1.id) {
       b1IdToWeId.set(b1.id, weId);
@@ -500,17 +512,24 @@ function buildL3ForProcess(items: ImportedFlatData[]): { wes: WorkElement[]; b1I
  */
 function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
   for (const type of l1.types) {
+    const div = type.name === 'USER' ? 'US' : type.name;
     const c2Items = cItems.filter(i => i.itemCode === 'C2' && i.processNo === type.name);
     const c3Items = cItems.filter(i => i.itemCode === 'C3' && i.processNo === type.name);
     const c4Items = cItems.filter(i => i.itemCode === 'C4' && i.processNo === type.name);
 
+    let c2seq = 0;
+    let c3seq = 0;
+    let c4seq = 0;
+
     // C2+C3: 균등 배분
     if (c2Items.length === 0 && c3Items.length === 0) {
-      type.functions = [{ id: uid(), name: '', requirements: [] }];
+      c2seq++;
+      type.functions = [{ id: genC2('PF', div, c2seq), name: '', requirements: [] }];
       // ★ C4(고장영향)는 C2/C3 없어도 처리 (간소화 포맷 대응)
       for (const c4 of c4Items) {
+        c4seq++;
         l1.failureScopes!.push({
-          id: uid(),
+          id: genC4('PF', div, c2seq, 1, c4seq),
           name: c4.value,
           ...rev(c4),
           scope: type.name,
@@ -522,48 +541,46 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
 
     // C2가 없으면 빈 이름 기능 1개에 모든 C3를 요구사항으로
     if (c2Items.length === 0) {
+      c2seq++;
+      c3seq = 0;
       type.functions = [{
-        id: uid(),
+        id: genC2('PF', div, c2seq),
         name: '',
-        requirements: c3Items.map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) })),
+        requirements: c3Items.map(c3 => { c3seq++; return { id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }; }),
       }];
     } else {
       // C2 기능 생성
-      const funcs: L1Function[] = c2Items.map(c2 => ({
-        id: uid(),
-        name: c2.value,
-        ...rev(c2),
-        requirements: [],
-      }));
+      const funcs: L1Function[] = c2Items.map(c2 => {
+        c2seq++;
+        return {
+          id: genC2('PF', div, c2seq),
+          name: c2.value,
+          ...rev(c2),
+          requirements: [],
+        };
+      });
 
-      // ★ v5.10: C3 → C2 parentItemId 기반 그룹핑 (블록 배분 폴백)
-      const hasParentIds = c3Items.some(c3 => c3.parentItemId && c3.parentItemId !== `C2-${type.name}-0`);
-      if (hasParentIds) {
-        // parentItemId 기반: C3 아이템의 parentItemId에서 C2 인덱스 추출
+      // ★★★ 2026-03-16 FIX: parentItemId UUID 기반 매칭만 사용 (하드코딩/배분 금지)
+      {
         funcs.forEach((func, i) => {
           const expectedParent = `C2-${type.name}-${i}`;
           const myC3 = c3Items.filter(c3 => c3.parentItemId === expectedParent);
-          func.requirements = myC3.map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) }));
+          c3seq = 0;
+          func.requirements = myC3.map(c3 => { c3seq++; return { id: genC3('PF', div, i + 1, c3seq), name: c3.value, ...rev(c3) }; });
         });
-        // parentItemId가 어떤 C2에도 매칭 안 되는 C3 → 마지막 func에 추가
+        // parentItemId 미설정 C3 → orphan 처리 (마지막 func에 추가)
         const allParents = new Set(funcs.map((_, i) => `C2-${type.name}-${i}`));
-        const orphanC3 = c3Items.filter(c3 => !allParents.has(c3.parentItemId || ''));
-        if (orphanC3.length > 0) {
+        const orphanC3 = c3Items.filter(c3 => !c3.parentItemId || !allParents.has(c3.parentItemId));
+        if (orphanC3.length > 0 && funcs.length > 0) {
           const lastFunc = funcs[funcs.length - 1];
-          orphanC3.forEach(c3 => lastFunc.requirements.push({ id: uid(), name: c3.value, ...rev(c3) }));
+          orphanC3.forEach(c3 => { c3seq++; lastFunc.requirements.push({ id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }); });
         }
-      } else {
-        // ★★★ 2026-03-16 FIX: parentItemId 미설정 폴백 ★★★
-        // excel-parser에서 itemMeta 기록 → assignParentsByRowSpan으로 정확 매핑이 정상 경로
-        // 여기 도달 = 모든 C3가 C2-{scope}-0(첫 번째 C2)에 하드코딩된 경우
-        // → 첫 번째 C2에 모든 C3 할당, 나머지 C2는 placeholder
-        if (funcs.length > 0 && c3Items.length > 0) {
-          funcs[0].requirements = c3Items.map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) }));
-        }
+      }
+      {
         // 빈 C2 function에 placeholder requirement 추가 (워크시트 편집용)
-        for (const func of funcs) {
-          if (func.requirements.length === 0) {
-            func.requirements = [{ id: uid(), name: '' }];
+        for (let fi = 0; fi < funcs.length; fi++) {
+          if (funcs[fi].requirements.length === 0) {
+            funcs[fi].requirements = [{ id: genC3('PF', div, fi + 1, 1), name: '' }];
           }
         }
       }
@@ -575,19 +592,18 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
     const allReqs: { id: string; name: string }[] = [];
     type.functions.forEach(f => f.requirements.forEach(r => allReqs.push(r)));
 
+    c4seq = 0;
     if (allReqs.length > 0 && c4Items.length > 0) {
-      // ★★★ 2026-03-01 수정: C4 실제 데이터만 사용 (추론 생성 제거) ★★★
-      // 이전: C4 < C3이면 마지막 C4 반복 → 추론 FE 생성 → Import/워크시트 갯수 불일치
-      // 수정: C4 1:1 매칭만 + 남은 C4는 마지막 req에 추가 (반복 없음)
       const R = allReqs.length;
       const E = c4Items.length;
       const matched = Math.min(R, E);
 
       // 1:1 매칭 (실제 C4 데이터만)
       for (let ri = 0; ri < matched; ri++) {
+        c4seq++;
         const req = allReqs[ri];
         l1.failureScopes!.push({
-          id: uid(),
+          id: genC4('PF', div, c2seq, c3seq > 0 ? ri + 1 : 1, c4seq),
           name: c4Items[ri].value,
           ...rev(c4Items[ri]),
           reqId: req.id,
@@ -601,8 +617,9 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
       if (E > R) {
         const lastReq = allReqs[R - 1];
         for (let ei = R; ei < E; ei++) {
+          c4seq++;
           l1.failureScopes!.push({
-            id: uid(),
+            id: genC4('PF', div, c2seq, c3seq > 0 ? R : 1, c4seq),
             name: c4Items[ei].value,
             ...rev(c4Items[ei]),
             reqId: lastReq.id,
@@ -625,8 +642,9 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
     } else {
       // 요구사항 없이 C4만 → scope만 설정
       for (const c4 of c4Items) {
+        c4seq++;
         l1.failureScopes!.push({
-          id: uid(),
+          id: genC4('PF', div, c2seq || 1, 1, c4seq),
           name: c4.value,
           ...rev(c4),
           scope: type.name,
@@ -652,44 +670,38 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
   const a3Items = byCode(items, 'A3');
   const a4Items = byCode(items, 'A4');
   const a5Items = byCode(items, 'A5');
+  const pnoNum = parseInt(process.no) || 0;
 
   // ★★★ 2026-03-15 FIX: UUID 공유 참조 패턴 (카테시안 금지) ★★★
-  //
-  // 카테시안 = 각 A3마다 새 uid() → A3×A4 곱셈 중복 (A3=2, A4=3 → PC=6) ← 금지!
-  // UUID 공유 = sharedPCs 한 번 생성 → 모든 A3가 같은 ID 참조 → 중복 없음
-  //
-  // uniquePCs (아래)가 ID 기준 중복 제거 → FM.productCharId 연결은 정확히 A4개수만큼
-  // calculateL2Counts가 proc.no|name 기준 중복 제거 → 표시 카운트도 정확
   if (a3Items.length === 0 && a4Items.length > 0) {
-    // A3 없이 A4만 → 빈 이름 function 생성
     process.functions = [{
-      id: uid(),
+      id: genA3('PF', pnoNum, 1),
       name: '',
-      productChars: a4Items.map(a4 => ({ id: uid(), name: a4.value, ...rev(a4), specialChar: a4.specialChar || '' })),
+      productChars: a4Items.map((a4, i) => ({ id: genA4('PF', pnoNum, i + 1), name: a4.value, ...rev(a4), specialChar: a4.specialChar || '' })),
     }];
   } else if (a3Items.length > 0) {
     if (a4Items.length > 0) {
       // ★ A4 엔티티를 한 번만 생성 (공유 UUID)
-      const sharedPCs = a4Items.map(a4 => ({
-        id: uid(),
+      const sharedPCs = a4Items.map((a4, i) => ({
+        id: genA4('PF', pnoNum, i + 1),
         name: a4.value,
         ...rev(a4),
         specialChar: (a4 as unknown as { specialChar?: string }).specialChar || ''
       }));
       // ★ 모든 A3 function이 같은 UUID의 A4를 참조 (카테시안 아님 — ID 동일)
-      process.functions = a3Items.map((a3) => ({
-        id: uid(),
+      process.functions = a3Items.map((a3, ai) => ({
+        id: genA3('PF', pnoNum, ai + 1),
         name: a3.value,
         ...rev(a3),
         productChars: sharedPCs.map(pc => ({ ...pc })),
       }));
     } else {
-      // A4 없으면 각 function에 placeholder 생성 (개별 ID — 추후 수동입력 대비)
-      process.functions = a3Items.map((a3) => ({
-        id: uid(),
+      // A4 없으면 각 function에 placeholder 생성
+      process.functions = a3Items.map((a3, ai) => ({
+        id: genA3('PF', pnoNum, ai + 1),
         name: a3.value,
         ...rev(a3),
-        productChars: [{ id: uid(), name: '', specialChar: '' }],
+        productChars: [{ id: genA4('PF', pnoNum, 1), name: '', specialChar: '' }],
       }));
     }
   }
@@ -720,8 +732,10 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     const a4IdToIdx = new Map<string, number>();
     a4Items.forEach((a4, i) => { if (a4.id) a4IdToIdx.set(a4.id, i); });
 
+    let a5seq = 0;
     const modes: L2FailureMode[] = [];
     for (const a5 of a5Items) {
+      a5seq++;
       let pcIdx = 0; // 기본: 첫 번째 PC
       if (a5.parentItemId) {
         const mapped = a4IdToIdx.get(a5.parentItemId);
@@ -730,7 +744,7 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
         }
       }
       modes.push({
-        id: uid(),
+        id: genA5('PF', pnoNum, a5seq),
         name: a5.value,
         ...rev(a5),
         productCharId: uniquePCs[pcIdx].id,
@@ -739,21 +753,25 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     process.failureModes = modes;
   } else {
     // 제품특성 없으면 productCharId 없이 생성
-    process.failureModes = a5Items.map(a5 => ({
-      id: uid(),
+    let a5seq = 0;
+    process.failureModes = a5Items.map(a5 => {
+      a5seq++;
+      return {
+      id: genA5('PF', pnoNum, a5seq),
       name: a5.value,
       ...rev(a5),
-    }));
+    };
+    });
   }
 
   // ★★★ 2026-03-16 FIX: FM 없는 PC → placeholder는 A5가 0건일 때만 생성
-  // A5 항목이 존재하나 parentItemId 미설정으로 첫 PC에 몰린 경우,
-  // 나머지 PC에 거짓 placeholder FM 생성하면 안 됨 (거짓 누락행 원인)
   if (a5Items.length === 0) {
+    let phSeq = 0;
     for (const pc of uniquePCs) {
       if (pc.name) {
+        phSeq++;
         process.failureModes.push({
-          id: uid(),
+          id: genA5('PF', pnoNum, phSeq),
           name: `${pc.name} 부적합`,
           productCharId: pc.id,
         });
@@ -780,6 +798,18 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
   const b2Items = byCode(items, 'B2');
   const b3Items = byCode(items, 'B3');
   const b4Items = byCode(items, 'B4');
+  const pnoNum = parseInt(process.no) || 0;
+
+  /** we.id에서 m4, b1seq 파싱 — PF-L3-040-MC-001 → { m4: 'MC', b1seq: 1 } */
+  function parseWeId(weId: string): { m4: string; b1seq: number } {
+    const match = weId.match(/PF-L3-\d+-([A-Z]*)-(\d+)/);
+    if (match) return { m4: match[1], b1seq: parseInt(match[2]) };
+    return { m4: '', b1seq: 1 };
+  }
+  // WE별 B3 seq 카운터
+  const weCharSeqMap = new Map<string, number>();
+  // WE별 B4 seq 카운터
+  const weKseqMap = new Map<string, number>();
 
   // ★★★ 2026-03-05: parentItemId 기반 원자성 매칭 (이름 매칭 → 폴백으로 강등) ★★★
   // import-builder가 B1 UUID를 B2/B3의 parentItemId에 기록 → buildL3ForProcess가 B1 UUID→WE ID 매핑
@@ -847,20 +877,19 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       // 수정: B3 없는 WE는 빈 processChar로 유지 (Import=DB 일치)
       const effectiveB3 = myB3;
 
+      const { m4: weM4, b1seq: weB1seq } = parseWeId(we.id);
       if (myB2.length > 0) {
         if (myB2.length === 1) {
           we.functions = [{
-            id: uid(),
+            id: genB2('PF', pnoNum, weM4, weB1seq),
             name: myB2[0].value,
             ...rev(myB2[0]),
-            processChars: effectiveB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
+            processChars: effectiveB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
           }];
         } else {
-          // ★★★ 2026-03-16 FIX: distribute 제거 → parentItemId 기반 꽂아넣기 ★★★
-          // B3.parentItemId → B2 매칭 시도, 실패 시 첫 번째 B2에 전부 할당
           const b3ByParent = new Map<number, ImportedFlatData[]>();
           for (const b3 of effectiveB3) {
-            let targetIdx = 0; // 기본: 첫 번째 B2
+            let targetIdx = 0;
             if (b3.parentItemId) {
               const found = myB2.findIndex(b2 => b2.id === b3.parentItemId);
               if (found >= 0) targetIdx = found;
@@ -869,42 +898,26 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
             b3ByParent.get(targetIdx)!.push(b3);
           }
           we.functions = myB2.map((b2, fIdx) => ({
-            id: uid(),
+            id: fIdx === 0 ? genB2('PF', pnoNum, weM4, weB1seq) : `${genB1('PF', pnoNum, weM4, weB1seq)}-G-${String(fIdx + 1).padStart(3, '0')}`,
             name: b2.value,
             ...rev(b2),
-            processChars: (b3ByParent.get(fIdx) || []).map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
+            processChars: (b3ByParent.get(fIdx) || []).map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
           }));
         }
       } else if (effectiveB3.length > 0) {
-        // B2 없이 B3만 → 빈 이름 function
         we.functions = [{
-          id: uid(),
+          id: genB2('PF', pnoNum, weM4, weB1seq),
           name: '',
-          processChars: effectiveB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
+          processChars: effectiveB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
         }];
       }
-      // ★★★ 2026-03-02: B2/B3 모두 없으면 placeholder 함수 생성 (렌더링 보장) ★★★
       if (we.functions.length === 0) {
-        we.functions = [{ id: uid(), name: '', processChars: [] }];
+        we.functions = [{ id: genB2('PF', pnoNum, weM4, weB1seq), name: '', processChars: [] }];
       }
 
-      // ★★★ 2026-03-05: B3 누락 방어 — B2는 있는데 processChars가 비어있으면 WE명 기반 자동생성 ★★★
-      // ── 목적: CP 전처리/Import는 "완전한 데이터"를 만드는 것이 목표.
-      //    엔지니어가 사실에 근거한 완벽한 FMEA를 작성하도록 돕는 기초자료이므로,
-      //    빈 칸(placeholder) 대신 WE명 기반의 의미있는 공정특성을 생성한다.
-      //    ↔ 기존 자료 Import는 원본 사실 데이터를 그대로 보존하는 것이 목적 (변환/보충 없음)
-      // ★★★ 2026-03-16 FIX: Import에 B3 데이터가 이미 있는 공정은 placeholder 생성 스킵
-      //    이전 버그: B3=88 Import인데 빈 function에 placeholder +1 → B3=89, B4=89 (gap=-1)
-      //    수정: b3Items가 존재하면(Import 데이터 있음) 해당 공정은 원본 보존 우선
-      const processHasImportedB3 = myB3.length > 0 || parentB3.length > 0 ||
-        b3Items.some(b3 => b3.m4 === we.m4);
-      if (we.name && !processHasImportedB3) {
-        for (const func of we.functions) {
-          if (func.processChars.length === 0) {
-            func.processChars = [{ id: uid(), name: `${we.name} 관리 특성`, specialChar: '' }];
-          }
-        }
-      }
+      // ★★★ 2026-03-16 FIX: B3 자동 생성 제거 — Import 원본만 저장 (통계 일치 원칙)
+      // 이전: B3 없는 WE에 "{WE명} 관리 특성" placeholder 자동 생성 → Import 77건 → DB 102건 (+25 불일치)
+      // 수정: 자동 생성 제거. 빈 B3는 워크시트에서 수동 입력
     });
   }
 
@@ -962,30 +975,30 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       }
 
       emptyWEs.forEach((we, weIdx) => {
+        const { m4: weM4, b1seq: weB1seq } = parseWeId(we.id);
         const myB2 = b2ByWE.get(weIdx) || [];
         const myB3 = b3ByWE.get(weIdx) || [];
         if (myB2.length > 0) {
           if (myB2.length === 1) {
             we.functions = [{
-              id: uid(),
+              id: genB2('PF', pnoNum, weM4, weB1seq),
               name: myB2[0].value,
               ...rev(myB2[0]),
-              processChars: myB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
+              processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
             }];
           } else {
-            // ★ distribute 제거 → 첫 번째 B2에 전부 할당 (FK 없으므로)
             we.functions = myB2.map((b2, fIdx) => ({
-              id: uid(),
+              id: fIdx === 0 ? genB2('PF', pnoNum, weM4, weB1seq) : `${genB1('PF', pnoNum, weM4, weB1seq)}-G-${String(fIdx + 1).padStart(3, '0')}`,
               name: b2.value,
               ...rev(b2),
-              processChars: fIdx === 0 ? myB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })) : [],
+              processChars: fIdx === 0 ? myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }) : [],
             }));
           }
         } else if (myB3.length > 0) {
           we.functions = [{
-            id: uid(),
+            id: genB2('PF', pnoNum, weM4, weB1seq),
             name: '',
-            processChars: myB3.map(b3 => ({ id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' })),
+            processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
           }];
         }
       });
@@ -1027,9 +1040,11 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           const allB3 = byCode(items, 'B3');
           const matchedB3 = allB3.filter(b3 => normalize(b3.value).startsWith(emptyName));
           if (matchedB3.length > 0 && movedFunc.processChars.length === 0) {
-            movedFunc.processChars = matchedB3.map(b3 => ({
-              id: uid(), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '',
-            }));
+            const { m4: emM4, b1seq: emB1seq } = parseWeId(emptyWe.id);
+            movedFunc.processChars = matchedB3.map(b3 => {
+              const cs = (weCharSeqMap.get(emptyWe.id) || 0) + 1; weCharSeqMap.set(emptyWe.id, cs);
+              return { id: genB3('PF', pnoNum, emM4, emB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' };
+            });
           }
           break;
         }
@@ -1066,12 +1081,17 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       const pcIdSet = new Set(m4PCs.map(pc => pc.id));
       for (let bi = 0; bi < m4B4.length; bi++) {
         const b4 = m4B4[bi];
-        let targetPc = m4PCs[Math.min(bi, m4PCs.length - 1)]; // 순차, 초과→마지막
+        let targetPc = m4PCs[Math.min(bi, m4PCs.length - 1)];
         if (b4.parentItemId && pcIdSet.has(b4.parentItemId)) {
           targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || targetPc;
         }
+        // B4 → genB4: targetPc.id에서 WE 파싱하여 m4/b1seq 추출
+        const pcParsed = parseWeId(targetPc.id);  // B3 id에서 WE prefix 파싱
+        const weIdFromPc = genB1('PF', pnoNum, pcParsed.m4, pcParsed.b1seq);
+        const kseq = (weKseqMap.get(weIdFromPc) || 0) + 1;
+        weKseqMap.set(weIdFromPc, kseq);
         causes.push({
-          id: uid(),
+          id: genB4('PF', pnoNum, b4.m4 || pcParsed.m4, pcParsed.b1seq, kseq),
           name: b4.value,
           ...rev(b4),
           m4: b4.m4,
@@ -1091,9 +1111,13 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     // ★★★ 2026-03-16 FIX: distribute → 첫 PC에 전부 꽂아넣기 (m4 불일치 fallback)
     // 배분하면 데이터 없는 PC에도 강제 할당 → 거짓 누락행 발생
     const firstPc = allProcessChars[0];
+    const fpParsed = parseWeId(firstPc.id);
+    const fpWeId = genB1('PF', pnoNum, fpParsed.m4, fpParsed.b1seq);
     for (const b4 of unmatchedB4) {
+      const kseq = (weKseqMap.get(fpWeId) || 0) + 1;
+      weKseqMap.set(fpWeId, kseq);
       causes.push({
-        id: uid(),
+        id: genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq),
         name: b4.value,
         ...rev(b4),
         m4: b4.m4,
@@ -1101,10 +1125,11 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       } as L3FailureCauseExtended);
     }
   } else if (unmatchedB4.length > 0) {
-    // processChars도 없으면 processCharId 없이 생성 (최종 fallback)
+    let fallbackKseq = 0;
     for (const b4 of unmatchedB4) {
+      fallbackKseq++;
       causes.push({
-        id: uid(),
+        id: genB4('PF', pnoNum, b4.m4 || '', 1, fallbackKseq),
         name: b4.value,
         ...rev(b4),
         m4: b4.m4,
@@ -1122,8 +1147,12 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       for (const func of we.functions) {
         for (const pc of func.processChars || []) {
           if (pc.name && !linkedProcessCharIds.has(pc.id)) {
+            const { m4: phM4, b1seq: phB1seq } = parseWeId(we.id);
+            const phWeId = genB1('PF', pnoNum, phM4, phB1seq);
+            const kseq = (weKseqMap.get(phWeId) || 0) + 1;
+            weKseqMap.set(phWeId, kseq);
             causes.push({
-              id: uid(),
+              id: genB4('PF', pnoNum, phM4, phB1seq, kseq),
               name: `${pc.name} 부적합`,
               m4: we.m4 || '',
               processCharId: pc.id,
@@ -1545,7 +1574,14 @@ export function buildFailureLinksDBCentric(
 
     // 3개 모두 존재 시 링크 생성
     if (fe && fm && fc) {
-      const linkId = uid();
+      // FM/FC id에서 seq 파싱하여 genFC 호출
+      const fmMatch = fm.id?.match(/M-(\d+)$/);
+      const mseq = fmMatch ? parseInt(fmMatch[1]) : 1;
+      const fcMatch = fc.id?.match(/(\w+)-(\d+)-K-(\d+)$/);
+      const fcM4 = fcMatch ? fcMatch[1] : m4;
+      const fcB1seq = fcMatch ? parseInt(fcMatch[2]) : 1;
+      const fcKseq = fcMatch ? parseInt(fcMatch[3]) : 1;
+      const linkId = genFC('PF', parseInt(actualPNo) || 0, mseq, fcM4, fcB1seq, fcKseq);
       const feScope = chain.feScope || undefined;
       const feText = chain.feValue || (fe as L1FailureScope).effect || (fe as L1FailureScope).name;
       const fmText = chain.fmValue || fm.name;

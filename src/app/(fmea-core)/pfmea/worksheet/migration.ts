@@ -682,8 +682,8 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     if (fm && fe && fc) {
       linkIdx++;
       
-      // ★★★ P7: uid()로 통일 — 배열 인덱스 기반 ID 제거 (재정렬 시 충돌 방지) ★★★
-      const linkId = uid();
+      // ★★★ 2026-03-16: 기존 link.id 보존 (genFC() 계층 UUID가 Legacy JSON에 저장됨) ★★★
+      const linkId = oldLink.id || uid();
       const linkFmeaSeq = extractFmeaSeq(oldData.fmeaId);
       const fmSeq = db.failureModes.findIndex(m => m.id === fm!.id) + 1;
       const feSeq = db.failureEffects.findIndex(e => e.id === fe!.id) + 1;

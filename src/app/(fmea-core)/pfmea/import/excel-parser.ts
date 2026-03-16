@@ -84,6 +84,8 @@ export interface ProcessRelation {
   failureCauses4M: string[];
   failureCausesWE: string[];  // ★ 2026-03-15: B4 소속 WE 추적 (FC dedup/배분에 필수)
   preventionCtrls: string[];   // B5
+  preventionCtrls4M: string[];
+  preventionCtrlsWE: string[];
   detectionCtrls: string[];    // A6
   // ★★★ 2026-02-25: 아이템별 메타데이터 (key: "A3-0", "B4-2" 등) ★★★
   itemMeta?: Record<string, ItemMeta>;
@@ -546,10 +548,11 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               sheetDataMap[mapping.targetCode] = { sheetName: mapping.targetCode, headers: [], rows: [] };
             }
 
-            const rowEntry: { key: string; value: string; m4?: string; extra?: string; specialChar?: string; excelRow: number } = {
+            const rowEntry: { key: string; value: string; m4?: string; extra?: string; specialChar?: string; excelRow: number; rowSpan?: number } = {
               key: keyVal,
               value: val,
               excelRow: ri,
+              rowSpan: getMergeSpan(sheet, ri, mapping.col).rowSpan,
             };
 
             // B 시트 계열: 4M 정보 추가
@@ -738,10 +741,27 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             rows.push({ key, value: dataValue, m4: valid4M, extra: bWeValue || undefined, specialChar: bSc || undefined, excelRow: i, rowSpan: getMergeSpan(sheet, i, valStartCol).rowSpan });
           }
         } else if (sheetCode === 'A6' || sheetCode === 'B5') {
-          // ★★★ 2026-03-14 FIX: A6/B5 단일값 파싱 — 첫 번째 값 컬럼만 읽기 ★★★
-          // 문제: 다중 컬럼 루프가 D(검출도) 숫자를 A6 텍스트로 혼입
-          // 해결: valStartCol 단일 컬럼만 읽어 인접 숫자 컬럼(D/비고) 혼입 방지
-          const value = cellValueToString(row.getCell(valStartCol).value);
+          // ★★★ 2026-03-16 FIX: A6/B5 — 4M+WE 포함 파싱 (B1~B4와 동일한 패턴)
+          // 이전 버그: m4/WE 누락 → dedupKey에서 m4 빈 문자열 → 같은 공정 내 다른 WE의 B5 중복 제거
+          // B5 시트 구조: [공정번호(1), 4M(2), ★작업요소(3), B5 예방관리(4)]
+          // A6 시트 구조: [공정번호(1), A6 검출관리(2)] (4M/WE 없음)
+          let a6b5m4 = '';
+          let a6b5we = '';
+          const hasB5WECol = sheetCode === 'B5' && detected4M && detected4MCol > 0;
+          if (hasB5WECol) {
+            a6b5m4 = cellValueToString(row.getCell(detected4MCol).value).toUpperCase();
+            if (a6b5m4 === 'MD' || a6b5m4 === 'JG') a6b5m4 = 'MC';
+            if (!a6b5m4 && lastM4) a6b5m4 = lastM4;
+            if (a6b5m4 && ['MN', 'MC', 'IM', 'EN'].includes(a6b5m4)) lastM4 = a6b5m4;
+            // WE 컬럼 (4M 다음 컬럼)
+            a6b5we = cellValueToString(row.getCell(detected4MCol + 1).value);
+          }
+          // ★★★ B5: 값은 WE 다음 컬럼(4열), A6: valStartCol 그대로 ★★★
+          const b5a6ValueCol = hasB5WECol ? detected4MCol + 2 : valStartCol;
+          if (i === startRow && (sheetCode === 'B5' || sheetCode === 'A6')) {
+            console.log(`[excel-parser:${sheetCode}] detected4MCol=${detected4MCol} valStartCol=${valStartCol} b5a6ValueCol=${b5a6ValueCol} hasB5WECol=${hasB5WECol}`);
+          }
+          const value = cellValueToString(row.getCell(b5a6ValueCol).value);
           if (value &&
             value !== 'null' &&
             value !== 'undefined' &&
@@ -749,7 +769,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             value !== '(선택)' &&
             value !== '공정번호' &&
             !/^L[123]-\d/.test(value)) {
-            rows.push({ key, value, excelRow: i, rowSpan: getMergeSpan(sheet, i, valStartCol).rowSpan });
+            const validM4 = ['MN', 'MC', 'IM', 'EN'].includes(a6b5m4) ? a6b5m4 : '';
+            rows.push({ key, value, m4: validM4, extra: a6b5we || undefined, excelRow: i, rowSpan: getMergeSpan(sheet, i, valStartCol).rowSpan });
           }
         } else {
           // A3-A5, C2-C4 시트: 값 시작열부터 읽기 (B1~B4는 위에서 4M 처리)
@@ -804,6 +825,10 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
 
       sheetDataMap[sheetCode] = { sheetName: sheetCode, headers, rows };
       sheetSummary.push({ name: sheetCode, rowCount: rows.length });
+      // ★ DEBUG: A6/B5 파싱 결과 로그
+      if (sheetCode === 'A6' || sheetCode === 'B5') {
+        console.log(`[excel-parser] ${sheetCode} 시트 파싱: ${rows.length}건, detected4M=${detected4M}, valStartCol=${valStartCol}`);
+      }
     });
 
     // 공정별 관계형 데이터 구축
@@ -851,6 +876,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             failureCauses4M: [],
             failureCausesWE: [],
             preventionCtrls: [],
+            preventionCtrls4M: [],
+            preventionCtrlsWE: [],
             detectionCtrls: [],
           });
         } else {
@@ -905,6 +932,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               failureCauses4M: [],
               failureCausesWE: [],
               preventionCtrls: [],
+              preventionCtrls4M: [],
+              preventionCtrlsWE: [],
               detectionCtrls: [],
             });
           }
@@ -931,6 +960,9 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
     const multiSheetSeen = new Set<string>();
     sheetMapping.forEach(({ sheet, field }) => {
       const sheetData = sheetDataMap[sheet];
+      if (sheet === 'B5' || sheet === 'A6') {
+        console.log(`[excel-parser] sheetMapping ${sheet}: sheetData=${sheetData ? sheetData.rows.length + '건' : 'NULL'}`);
+      }
       if (sheetData) {
         sheetData.rows.forEach((row) => {
           const process = processMap.get(row.key);
@@ -963,6 +995,9 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             } else if (sheet === 'B4') {
               process.failureCauses4M.push(row.m4 || '');
               process.failureCausesWE.push(row.extra || '');  // ★ 2026-03-15 FIX: FC 소속 WE 기록
+            } else if (sheet === 'B5') {
+              process.preventionCtrls4M.push(row.m4 || '');
+              process.preventionCtrlsWE.push(row.extra || '');
             }
             if (sheet === 'A4') {
               process.productCharsSpecialChar.push(row.specialChar || '');
@@ -992,6 +1027,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               failureCauses4M: [],
               failureCausesWE: [],
               preventionCtrls: [],
+              preventionCtrls4M: [],
+              preventionCtrlsWE: [],
               detectionCtrls: [],
             };
             (newProcess[field] as string[]).push(row.value);

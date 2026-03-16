@@ -22,6 +22,7 @@ import type {
   Process,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import { uid } from '@/app/(fmea-core)/pfmea/worksheet/constants';
+import { genFC } from '@/lib/uuid-generator';
 import { assignEntityUUIDsToChains } from './assignChainUUIDs';
 
 // ─── Types ───
@@ -218,7 +219,13 @@ export function injectFailureChains(
 
     // 3개 모두 존재 시 링크 생성
     if (fe && fm && fc) {
-      const linkId = uid();
+      const fmMatch = fm.id?.match(/M-(\d+)$/);
+      const mseq = fmMatch ? parseInt(fmMatch[1]) : 1;
+      const fcMatch = fc.id?.match(/(\w+)-(\d+)-K-(\d+)$/);
+      const fcM4 = fcMatch ? fcMatch[1] : m4;
+      const fcB1seq = fcMatch ? parseInt(fcMatch[2]) : 1;
+      const fcKseq = fcMatch ? parseInt(fcMatch[3]) : 1;
+      const linkId = genFC('PF', parseInt(actualProcessNo) || 0, mseq, fcM4, fcB1seq, fcKseq);
       const feScope = chain.feScope || undefined;
       const feText = chain.feValue || (fe as L1FailureScope).effect || (fe as L1FailureScope).name;
       const fmText = chain.fmValue || fm.name;

@@ -44,6 +44,11 @@ export async function POST(request: NextRequest) {
       ? failureChains : undefined;
     const supplements = supplementMissingItems(flatData, chainsArray || []);
     const enrichedFlatData = supplements.length > 0 ? [...flatData, ...supplements] : flatData;
+    // ★ DEBUG: A6/B5 flatData 카운트
+    const a6cnt = flatData.filter((d: any) => d.itemCode === 'A6').length;
+    const b5cnt = flatData.filter((d: any) => d.itemCode === 'B5').length;
+    if (a6cnt > 0 || b5cnt > 0) console.log(`[save-from-import] flatData A6=${a6cnt} B5=${b5cnt}`);
+    else console.warn(`[save-from-import] ⚠️ flatData에 A6/B5 없음! total=${flatData.length}`);
     if (supplements.length > 0) {
       console.info(`[save-from-import] 누락 보충: ${supplements.length}건 (${supplements.map((s: { itemCode?: string }) => s.itemCode).filter((v: string | undefined, i: number, a: (string | undefined)[]) => a.indexOf(v) === i).join(',')})`);
     }
@@ -205,6 +210,7 @@ export async function POST(request: NextRequest) {
     const { uid } = await import(
       '@/app/(fmea-core)/pfmea/worksheet/constants'
     );
+    const { genFC } = await import('@/lib/uuid-generator');
     const legacyCopy = JSON.parse(JSON.stringify(legacyData));
     const atomicDB = migrateToAtomicDB(legacyCopy);
     Object.assign(atomicDB, { forceOverwrite: true });
@@ -258,8 +264,17 @@ export async function POST(request: NextRequest) {
           if (!existingCombos.has(combo)) {
             existingCombos.add(combo);
             atomicDB.failureLinks = atomicDB.failureLinks || [];
+            // FM/FC id에서 seq 파싱하여 genFC 호출
+            const fmSeqMatch = fm.id.match(/M-(\d+)$/);
+            const mseq = fmSeqMatch ? parseInt(fmSeqMatch[1]) : 1;
+            const fcSeqMatch = fc.id.match(/(\w+)-(\d+)-K-(\d+)$/);
+            const fcM4 = fcSeqMatch ? fcSeqMatch[1] : '';
+            const fcB1seq = fcSeqMatch ? parseInt(fcSeqMatch[2]) : 1;
+            const fcKseq = fcSeqMatch ? parseInt(fcSeqMatch[3]) : 1;
+            const pnoMatch = fm.id.match(/L2-(\d+)/);
+            const pnoForLink = pnoMatch ? parseInt(pnoMatch[1]) : 0;
             atomicDB.failureLinks.push({
-              id: uid(),
+              id: genFC('PF', pnoForLink, mseq, fcM4, fcB1seq, fcKseq),
               fmeaId: normalizedFmeaId,
               fmId: fm.id,
               feId: fe.id,

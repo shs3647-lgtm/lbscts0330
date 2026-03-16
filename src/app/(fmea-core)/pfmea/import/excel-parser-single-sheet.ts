@@ -331,6 +331,7 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
         proc.productCharsSpecialChar.push(vals.SC_A4 || '');
       }, counter, normProcNo, 'A4');
       addIfNew(seen, `${normProcNo}|A5|${vals.A5}`, vals.A5, v => { setMeta('A5', proc.failureModes); proc.failureModes.push(v); }, counter, normProcNo, 'A5');
+      addIfNew(seen, `${normProcNo}|A6|${vals.A6}`, vals.A6, v => { setMeta('A6', proc.detectionCtrls); proc.detectionCtrls.push(v); }, counter, normProcNo, 'A6');
 
       // ★★★ 2026-03-02: B1 "XX번-장비명" → "장비명" 접두사 제거 ★★★
       const b1Clean = vals.B1 ? vals.B1.replace(/^\d+번[-\s]?/, '') : vals.B1;
@@ -358,6 +359,12 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
         proc.failureCauses.push(v);
         proc.failureCauses4M.push(fail4M);
       }, counter, normProcNo, 'B4');
+
+      addIfNew(seen, `${normProcNo}|B5|${fail4M}|${b1Clean}|${vals.B5}`, vals.B5, v => {
+        setMeta('B5', proc.preventionCtrls);
+        proc.preventionCtrls.push(v);
+        proc.preventionCtrls4M.push(fail4M);
+      }, counter, normProcNo, 'B5');
     }
 
     // ── Product 데이터 (C 레벨) ──
@@ -695,7 +702,7 @@ function createEmptyProcess(processNo: string, processName: string): ProcessRela
     elementFuncs: [], elementFuncs4M: [], elementFuncsWE: [],
     processChars: [], processChars4M: [], processCharsSpecialChar: [], processCharsWE: [],
     failureCauses: [], failureCauses4M: [], failureCausesWE: [],
-    preventionCtrls: [], detectionCtrls: [],
+    preventionCtrls: [], preventionCtrls4M: [], preventionCtrlsWE: [], detectionCtrls: [],
   };
 }
 

@@ -140,6 +140,44 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // ★★★ 2026-03-16: ProcessProductChar 저장 (L2Function.productChars 또는 legacyData.l2[].functions[].productChars에서 추출)
+      {
+        const pcRows: { id: string; fmeaId: string; l2StructId: string; name: string; specialChar: string | null; orderIndex: number }[] = [];
+        const seenPcIds = new Set<string>();
+        // 1. atomic.l2Functions에 embed된 productChars (buildAtomicDB 경유)
+        for (const func of atomic.l2Functions) {
+          const pcs = (func as any).productChars;
+          if (Array.isArray(pcs)) {
+            pcs.forEach((pc: any, idx: number) => {
+              if (!pc?.id || seenPcIds.has(pc.id)) return;
+              seenPcIds.add(pc.id);
+              pcRows.push({ id: pc.id, fmeaId, l2StructId: func.l2StructId, name: pc.name || '', specialChar: pc.specialChar || null, orderIndex: pc.orderIndex ?? idx });
+            });
+          }
+        }
+        // 2. Legacy l2[].functions[].productChars (워크시트 경유)
+        if (pcRows.length === 0 && legacyData.l2) {
+          for (const proc of legacyData.l2) {
+            const l2Id = atomic.l2Structures.find((s: any) => s.no === proc.no)?.id;
+            if (!l2Id) continue;
+            for (const func of (proc.functions || [])) {
+              for (const pc of (func.productChars || [])) {
+                if (!pc?.id || seenPcIds.has(pc.id)) continue;
+                seenPcIds.add(pc.id);
+                pcRows.push({ id: pc.id, fmeaId, l2StructId: l2Id, name: pc.name || '', specialChar: pc.specialChar || null, orderIndex: 0 });
+              }
+            }
+          }
+        }
+        console.log(`[rebuild-atomic] PC 추출: path1=${atomic.l2Functions.filter((f: any) => Array.isArray((f as any).productChars)).length}funcs, path2 l2=${legacyData.l2?.length || 0}procs, pcRows=${pcRows.length}`);
+        if (pcRows.length > 0) {
+          await tx.processProductChar.createMany({ data: pcRows, skipDuplicates: true });
+          console.log(`[rebuild-atomic] PC 저장 완료: ${pcRows.length}건`);
+        } else {
+          console.warn(`[rebuild-atomic] PC 0건 — 추출 실패`);
+        }
+      }
+
       if (atomic.l3Functions.length) {
         await tx.l3Function.createMany({
           data: atomic.l3Functions.map((f: any) => ({

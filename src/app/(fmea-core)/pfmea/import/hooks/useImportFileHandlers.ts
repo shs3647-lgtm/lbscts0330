@@ -65,6 +65,8 @@ export function useImportFileHandlers({
 
   // ★ rawFingerprint 보관 (handleFileSelect → handleImport 전달용)
   const rawFingerprintRef = useRef<Record<string, unknown> | null>(null);
+  // ★★★ 2026-03-16: A6/B5 캐시 (handleFileSelect → handleImport 전달용)
+  const cachedA6B5Ref = useRef<{ a6: ImportedFlatData[]; b5: ImportedFlatData[] }>({ a6: [], b5: [] });
 
   /** 파일 선택 핸들러 (파싱 후 pendingData에 저장) */
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,7 +259,10 @@ export function useImportFileHandlers({
           const pNo = p.processNo;
           p.preventionCtrls?.forEach((v, i) => {
             if (!ensureString(v).trim()) return;
-            flat.push({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), parentItemId: `${pNo}-B4-0`, createdAt: new Date() });
+            const b5m4 = p.preventionCtrls4M?.[i] || '';
+            const b5we = p.preventionCtrlsWE?.[i] || '';
+            const b1Uuid = findB1Uuid(pNo, b5we, b5m4);
+            flat.push({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), m4: b5m4, belongsTo: b5we || undefined, parentItemId: b1Uuid || `${pNo}-B4-0`, createdAt: new Date() });
             tplB5++;
             tplB5Processes.add(pNo);
           });
@@ -476,8 +481,9 @@ export function useImportFileHandlers({
         p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: ensureString(v), parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
         // ★★★ 2026-03-16: C3/C4 → assignParentsByRowSpan 후처리에서 정확 매핑 (distribute 제거) ★★★
         // L1 통합(C1-C4) 파싱결과를 그대로 사용 — 하위갯수 기반 rowSpan 매핑
-        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: ensureString(v), parentItemId: `C2-${categoryValue}-0`, createdAt: new Date() }, 'C3', i)));
-        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: ensureString(v), parentItemId: `C3-${categoryValue}-0`, createdAt: new Date() }, 'C4', i)));
+        // ★★★ 2026-03-16 FIX: 하드코딩 제거 → assignParentsByRowSpan이 rowSpan 기반으로 정확 매핑
+        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: ensureString(v), createdAt: new Date() }, 'C3', i)));
+        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: ensureString(v), createdAt: new Date() }, 'C4', i)));
       });
 
       // ★★★ 2026-03-16: rowSpan 기반 parentItemId 정확 매핑 ★★★
@@ -543,6 +549,14 @@ export function useImportFileHandlers({
         console.error('[적색감지] 색상 감지 실패 (파싱 결과에 영향 없음):', colorErr);
       }
 
+      // ★★★ 2026-03-16: A6/B5를 ref에 캐시 (handleImport에서 복원용)
+      cachedA6B5Ref.current = {
+        a6: flat.filter(d => d.itemCode === 'A6'),
+        b5: flat.filter(d => d.itemCode === 'B5'),
+      };
+      if (cachedA6B5Ref.current.a6.length > 0 || cachedA6B5Ref.current.b5.length > 0) {
+        console.log(`[handleFileSelect] A6/B5 캐시: A6=${cachedA6B5Ref.current.a6.length} B5=${cachedA6B5Ref.current.b5.length}`);
+      }
       setPendingData(flat);
       setFlatData(flat);
 
@@ -616,6 +630,23 @@ export function useImportFileHandlers({
         }
       });
 
+      // ★★★ 2026-03-16 FIX: A6/B5가 importData에 없으면 cachedA6B5Ref에서 복원 ★★★
+      const hasA6 = importData.some(d => d.itemCode === 'A6');
+      const hasB5 = importData.some(d => d.itemCode === 'B5');
+      const pdA6 = pendingData.filter(d => d.itemCode === 'A6').length;
+      const pdB5 = pendingData.filter(d => d.itemCode === 'B5').length;
+      console.log(`[handleImport] pendingData A6=${pdA6} B5=${pdB5}, importData A6=${hasA6} B5=${hasB5}, cache A6=${cachedA6B5Ref.current.a6.length} B5=${cachedA6B5Ref.current.b5.length}`);
+      if (!hasA6 || !hasB5) {
+        const cached = cachedA6B5Ref.current;
+        if (!hasA6 && cached.a6.length > 0) {
+          importData.push(...cached.a6);
+          console.log(`[handleImport] A6 복원: ${cached.a6.length}건`);
+        }
+        if (!hasB5 && cached.b5.length > 0) {
+          importData.push(...cached.b5);
+          console.log(`[handleImport] B5 복원: ${cached.b5.length}건`);
+        }
+      }
       setFlatData(importData);
       setPendingData([]);
 

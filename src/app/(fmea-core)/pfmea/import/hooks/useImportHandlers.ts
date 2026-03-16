@@ -275,9 +275,9 @@ export function useImportHandlers(props: UseImportHandlersProps) {
         flat.push({ id: `C1-${categoryValue}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: categoryValue, createdAt: new Date() });
         p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: v, parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
         // ★★★ 2026-03-16: C3 → C2 rowSpan 기반 매핑 (assignParentsByRowSpan 후처리) ★★★
-        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, parentItemId: `C2-${categoryValue}-0`, createdAt: new Date() }, 'C3', i)));
-        // ★★★ 2026-03-16: C4 → C3 rowSpan 기반 매핑 (assignParentsByRowSpan 후처리) ★★★
-        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, parentItemId: `C3-${categoryValue}-0`, createdAt: new Date() }, 'C4', i)));
+        // ★★★ 2026-03-16 FIX: 하드코딩 제거 → assignParentsByRowSpan이 rowSpan 기반으로 정확 매핑
+        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, createdAt: new Date() }, 'C3', i)));
+        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, createdAt: new Date() }, 'C4', i)));
       });
 
       // ★★★ 2026-03-16: rowSpan 기반 parentItemId 후처리 (assignParentsByRowSpan) ★★★
