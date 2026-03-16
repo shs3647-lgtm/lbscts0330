@@ -170,6 +170,64 @@ function syncFailureLinksFromState(
   return { ...db, failureLinks: syncedLinks };
 }
 
+/**
+ * stateRef(legacy)에서 변경된 failureModes를 atomicDB.failureModes에 반영.
+ * 사용자가 2L고장분석 탭에서 FM을 추가/수정하면 state.l2[].failureModes가 업데이트되지만
+ * ATOMIC PATH는 migrateToAtomicDB를 호출하지 않으므로 별도 동기화 필요.
+ * productCharId = l2FuncId (l2_functions.id가 productChar의 ID이므로 동일)
+ */
+function syncFailureModesFromState(
+  db: FMEAWorksheetDB,
+  state: WorksheetState,
+): FMEAWorksheetDB {
+  const l2Procs = (state as any).l2 || [];
+
+  // 모든 의미있는 FM 수집
+  const allStateFms: any[] = [];
+  for (const proc of l2Procs) {
+    const procId = proc.id;
+    for (const fm of (proc.failureModes || [])) {
+      if (!fm.id || !fm.name?.trim()) continue; // placeholder/빈 FM 제외
+      allStateFms.push({
+        id: fm.id,
+        name: fm.name.trim(),
+        productCharId: fm.productCharId || '',
+        sc: fm.sc ?? (fm.specialChar ?? false),
+        l2StructId: procId,
+      });
+    }
+  }
+
+  // state에 FM이 없으면 DB FM 보존 (우발적 wipe 방지)
+  if (allStateFms.length === 0) return db;
+
+  const existingFmById = new Map((db.failureModes || []).map((fm: any) => [fm.id, fm]));
+
+  const syncedFMs = allStateFms.map((sfm) => {
+    const existing = existingFmById.get(sfm.id);
+    if (existing) {
+      return {
+        ...existing,
+        mode: sfm.name,
+        productCharId: sfm.productCharId || existing.productCharId,
+        specialChar: sfm.sc,
+      };
+    }
+    // 신규 FM: productCharId === l2FuncId (l2_functions.id가 곧 productChar ID)
+    return {
+      id: sfm.id,
+      fmeaId: db.fmeaId,
+      l2StructId: sfm.l2StructId,
+      l2FuncId: sfm.productCharId, // productCharId = l2_functions.id
+      productCharId: sfm.productCharId,
+      mode: sfm.name,
+      specialChar: sfm.sc ?? false,
+    };
+  });
+
+  return { ...db, failureModes: syncedFMs as any[] };
+}
+
 export function useWorksheetSave({
   selectedFmeaId,
   currentFmea,
@@ -222,6 +280,8 @@ export function useWorksheetSave({
         dbToSave = syncFailureLinksFromState(dbToSave, stateRef.current);
         // ★ FE 동기화: 1L고장분석에서 추가/수정된 FE를 atomicDB.failureEffects에 반영
         dbToSave = syncFailureEffectsFromState(dbToSave, stateRef.current);
+        // ★ FM 동기화: 2L고장분석에서 추가/수정된 FM을 atomicDB.failureModes에 반영
+        dbToSave = syncFailureModesFromState(dbToSave, stateRef.current);
 
         // force 모드(확정) 시 forceOverwrite 전달
         if (force) {
