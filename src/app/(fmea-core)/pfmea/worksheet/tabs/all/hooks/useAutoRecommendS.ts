@@ -55,24 +55,26 @@ export function useAutoRecommendS({
     try {
       // 1. FE별 심각도 매칭 — failureLinks + processedFMGroups에서 수집
       const failureLinks: FailureLinkWithSeverity[] = state.failureLinks || [];
-      const feMap = new Map<string, { text: string; currentSeverity: number }>();
+      const feMap = new Map<string, { text: string; currentSeverity: number; processName: string }>();
 
       failureLinks.forEach((link) => {
         if (link.feId && link.feText && !feMap.has(link.feId)) {
           feMap.set(link.feId, {
             text: link.feText,
             currentSeverity: link.feSeverity || 0,
+            processName: (link as unknown as Record<string, string>).fmProcessName || '',
           });
         }
       });
 
-      // processedFMGroups에서도 수집 (보완)
+      // processedFMGroups에서도 수집 (보완 + processName)
       processedFMGroups.forEach(fmGroup => {
         fmGroup.rows.forEach(row => {
           if (row.feId && row.feText && !feMap.has(row.feId)) {
             feMap.set(row.feId, {
               text: row.feText,
               currentSeverity: row.feSeverity || 0,
+              processName: fmGroup.fmProcessName || '',
             });
           }
         });
@@ -85,7 +87,7 @@ export function useAutoRecommendS({
       const recommendations: { feId: string; feText: string; rating: number; score: number; level: string; keywords: string[] }[] = [];
 
       // DB 이력 일괄 조회 (병렬)
-      const pendingEntries: Array<{ feId: string; feData: { text: string; currentSeverity: number } }> = [];
+      const pendingEntries: Array<{ feId: string; feData: { text: string; currentSeverity: number; processName: string } }> = [];
       feMap.forEach((feData, feId) => {
         if (feData.currentSeverity > 0) {
           skippedAlready++;
@@ -95,10 +97,11 @@ export function useAutoRecommendS({
       });
 
       // DB 이력 조회 (fire-and-forget 실패 시 키워드 폴백)
+      // ✅ 2026-03-17: processName 전달하여 공정별 정확한 추천 (마스터 학습 데이터)
       const dbResults = new Map<string, number>();
       try {
         const dbPromises = pendingEntries.map(async ({ feId, feData }) => {
-          const result = await recommendSeverity(feData.text);
+          const result = await recommendSeverity(feData.text, feData.processName);
           if (result.severity && (result.confidence === 'high' || result.confidence === 'medium')) {
             dbResults.set(feId, result.severity);
           }

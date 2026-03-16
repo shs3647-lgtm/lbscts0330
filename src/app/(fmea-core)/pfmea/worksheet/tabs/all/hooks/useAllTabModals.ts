@@ -276,12 +276,16 @@ export function useAllTabModals(
         setTimeout(() => { Promise.resolve(saveAtomicDB(true)).catch((e: unknown) => console.error('[SOD 저장] 오류:', e)); }, 150);
       }
 
-      // ★★★ 2026-03-15: 심각도 개선루프 — FE-S 쌍 DB 기록 (fire-and-forget) ★★★
+      // ★★★ 2026-03-17: 심각도 개선루프 — FE-S 쌍 DB 기록 + fmeaId (마스터→F/P 전파) ★★★
       if (sodModal.feText && rating > 0) {
+        const fmeaId = typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('id') || ''
+          : '';
         recordSeverityUsage({
           feText: sodModal.feText,
           severity: rating,
           feCategory: sodModal.scope || '',
+          fmeaId,
         }).catch(() => { /* fire-and-forget */ });
       }
 
@@ -379,12 +383,16 @@ export function useAllTabModals(
       setDirty(true);
     }
 
-    // ★★★ 2026-03-15: 리스크/최적화 심각도 선택 시에도 FE-S 쌍 DB 기록 ★★★
+    // ★★★ 2026-03-17: 리스크/최적화 심각도 선택 시에도 FE-S 쌍 DB 기록 + fmeaId ★★★
     if (sodModal.category === 'S' && sodModal.feText && rating > 0) {
+      const fmeaId = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('id') || ''
+        : '';
       recordSeverityUsage({
         feText: sodModal.feText,
         severity: rating,
         feCategory: sodModal.scope || '',
+        fmeaId,
       }).catch(() => { /* fire-and-forget */ });
     }
 

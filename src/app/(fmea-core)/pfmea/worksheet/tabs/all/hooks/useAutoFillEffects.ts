@@ -7,10 +7,11 @@
  */
 
 import { useRef, useEffect } from 'react';
-import type { WorksheetState } from '../../../constants';
+import type { WorksheetState, WorksheetFailureLink } from '../../../constants';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 // ★ O 자동채움 비활성화 (2026-03-02) — autoFillMissingOccurrence, correctOccurrence 미사용
 import { fillPCDCFromImport } from '../../../utils/fillPCDCFromImport';
+import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 
 interface UseAutoFillEffectsParams {
   state: WorksheetState | undefined;
@@ -172,4 +173,70 @@ export function useAutoFillEffects({
       })
       .catch((err) => { console.error('[useAutoFillEffects] autofill error:', err); });
   }, [state?.riskData, state?.failureLinks, processedFMGroups, setState, setDirty]);
+
+  // ★★★ 심각도(S) 자동추천 — 마스터 FE-S 학습 데이터 자동 적용 (지속적 개선 루프) ★★★
+  // 비유: 선배의 진단 기록부를 물려받아, 같은 증상이면 같은 심각도를 자동 적용
+  const severityAutoFillRef = useRef(false);
+  useEffect(() => {
+    if (severityAutoFillRef.current || !state || !setState) return;
+    const links: WorksheetFailureLink[] = state.failureLinks || [];
+    if (links.length === 0) return;
+
+    // 심각도가 비어있는 FE 수집
+    interface FEEntry { feId: string; feText: string }
+    const pendingFEs: FEEntry[] = [];
+    const seen = new Set<string>();
+    for (const link of links) {
+      if (!link.feId || !link.feText) continue;
+      if (seen.has(link.feId)) continue;
+      seen.add(link.feId);
+      const s = (link as unknown as Record<string, unknown>).feSeverity;
+      if (s && Number(s) > 0) continue;
+      pendingFEs.push({ feId: link.feId, feText: link.feText });
+    }
+
+    if (pendingFEs.length === 0) return;
+    severityAutoFillRef.current = true;
+
+    // DB 이력 조회 → 매칭된 것만 적용 (confidence high/medium)
+    (async () => {
+      try {
+        const results = new Map<string, number>();
+        await Promise.all(pendingFEs.map(async ({ feId, feText }) => {
+          const rec = await recommendSeverity(feText);
+          if (rec.severity && (rec.confidence === 'high' || rec.confidence === 'medium')) {
+            results.set(feId, rec.severity);
+          }
+        }));
+
+        if (results.size === 0) return;
+
+        setState((prev: WorksheetState) => {
+          const updatedLinks = (prev.failureLinks || []).map((link) => {
+            const rating = link.feId ? results.get(link.feId) : undefined;
+            if (rating === undefined) return link;
+            const cur = (link as unknown as Record<string, unknown>).feSeverity;
+            if (cur && Number(cur) > 0) return link;
+            return { ...link, feSeverity: rating, severity: rating } as WorksheetFailureLink;
+          });
+
+          const updatedScopes = (prev.l1?.failureScopes || []).map((scope) => {
+            const rating = results.get(scope.id);
+            if (rating === undefined || (scope.severity && scope.severity > 0)) return scope;
+            return { ...scope, severity: rating };
+          });
+
+          return {
+            ...prev,
+            failureLinks: updatedLinks,
+            l1: { ...prev.l1!, failureScopes: updatedScopes },
+          };
+        });
+        setDirty?.(true);
+        console.log(`[심각도 자동적용] DB이력 기반 ${results.size}건 적용 (마스터 학습 데이터)`);
+      } catch (err) {
+        console.error('[useAutoFillEffects] severity auto-fill error:', err);
+      }
+    })();
+  }, [state?.failureLinks, setState, setDirty]);
 }

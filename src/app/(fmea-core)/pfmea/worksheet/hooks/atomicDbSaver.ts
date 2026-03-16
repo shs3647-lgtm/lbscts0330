@@ -221,6 +221,12 @@ export async function saveAtomicDB(db: FMEAWorksheetDB): Promise<SaveResult> {
     result = await _doSave(dbToSave);
     if (result.success) {
       _consecutiveFailures = 0;
+      // ✅ 심각도 개선루프: 저장 성공 후 FE-S 쌍 DB 동기화 (fire-and-forget)
+      fetch('/api/severity-recommend/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fmeaId: db.fmeaId }),
+      }).catch(() => { /* fire-and-forget */ });
     } else {
       _consecutiveFailures++;
     }

@@ -1067,7 +1067,7 @@ export async function POST(request: NextRequest) {
               l3FuncId: fc.l3FuncId,
               l3StructId: fc.l3StructId,
               l2StructId: fc.l2StructId,
-              processCharId: fc.processCharId || null,
+              processCharId: fc.processCharId || fc.l3FuncId || null, // ✅ l3FuncId fallback (processChar.id === L3Function.id)
               cause: fc.cause,
               occurrence: fc.occurrence || null,
               // ★★★ 하이브리드 ID 시스템 필드 ★★★
@@ -1823,8 +1823,8 @@ export async function GET(request: NextRequest) {
               const cur = String(fc.processCharId || '').trim();
               if (cur) return fc;
               const atomic = byId.get(String(fc.id));
-              // ★ 2026-03-04: l3FuncId 폴백 제거 (의미적 오류 — 함수ID≠공정특성ID)
-              const fallback = atomic?.processCharId || '';
+              // ✅ 2026-03-17 FIX: l3FuncId 폴백 복원 (processChar.id === L3Function.id — 동일 FK)
+              const fallback = atomic?.processCharId || atomic?.l3FuncId || '';
               if (fallback) {
                 patchedCount++;
                 return { ...fc, processCharId: String(fallback) };

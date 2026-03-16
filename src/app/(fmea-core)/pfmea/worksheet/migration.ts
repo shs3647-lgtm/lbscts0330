@@ -1035,13 +1035,14 @@ export function convertToLegacyFormat(db: FMEAWorksheetDB): OldWorksheetData {
     });
     
     // ✅ FC는 proc.failureCauses에 저장 (l2StructId 기준으로 그룹화)
-    // ✅ processCharId 직접 복원 (FailureMode의 productCharId 패턴과 동일)
+    // ✅ processCharId 복원: DB에 processCharId가 없으면 l3FuncId로 fallback
+    // (워크시트에서 processChar.id === L3Function.id 이므로 동일한 FK)
     const allFcs = db.failureCauses.filter(c => c.l2StructId === l2.id);
     procObj.failureCauses = allFcs.map(fc => ({
       id: fc.id,
       name: fc.cause,
       occurrence: fc.occurrence,
-      processCharId: fc.processCharId || '', // ✅ processCharId 직접 복원
+      processCharId: fc.processCharId || fc.l3FuncId || '', // ✅ l3FuncId fallback (FC 누락 방지)
     }));
     
     result.l2.push(procObj);
