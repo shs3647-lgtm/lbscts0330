@@ -581,74 +581,11 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         ]);
         const orphanC3 = c3Items.filter(c3 => !c3.parentItemId || !allParents.has(c3.parentItemId));
         if (orphanC3.length > 0 && funcs.length > 0) {
-          console.warn(`[buildWorksheetState] 고아 C3 ${orphanC3.length}건 (div="${div}") → rowSpan 추론 재배정 시도`);
+          // ★★★ 2026-03-17: 고아 C3 경고 로그 — 진단용 (parentItemId 미설정 또는 불일치)
+          console.warn(`[buildWorksheetState] 고아 C3 ${orphanC3.length}건 (div="${div}") → 마지막 C2에 배정`);
           orphanC3.forEach(c3 => console.warn(`  C3 orphan: "${c3.value?.substring(0,40)}" parentItemId="${c3.parentItemId || 'null'}"`));
-
-          // ★★★ 2026-03-17 FIX: excelRow 기반 rowSpan 추론 재배정 (old DB 데이터 호환)
-          // 이유: parentItemId 없는 구형 데이터도 SA확정 시 올바른 C2에 배정되어야 함
-          const hasRowData = c2Items.some(c2 => c2.excelRow != null) && orphanC3.some(c3 => c3.excelRow != null);
-
-          if (hasRowData) {
-            // rowSpan 범위 기반 매핑
-            const stillOrphan: typeof orphanC3 = [];
-            for (const c3 of orphanC3) {
-              let assignedIdx = -1;
-              if (c3.excelRow != null) {
-                // 1차: rowSpan 범위 포함 확인
-                for (let ci = 0; ci < c2Items.length; ci++) {
-                  const c2 = c2Items[ci];
-                  if (c2.excelRow == null) continue;
-                  const span = c2.rowSpan ?? 1;
-                  if (c3.excelRow >= c2.excelRow && c3.excelRow < c2.excelRow + span) {
-                    assignedIdx = ci;
-                    break;
-                  }
-                }
-                // 2차: 가장 가까운 선행 C2
-                if (assignedIdx < 0) {
-                  let closestRow = -1;
-                  for (let ci = 0; ci < c2Items.length; ci++) {
-                    const c2 = c2Items[ci];
-                    if (c2.excelRow != null && c2.excelRow <= c3.excelRow && c2.excelRow > closestRow) {
-                      closestRow = c2.excelRow;
-                      assignedIdx = ci;
-                    }
-                  }
-                }
-              }
-              if (assignedIdx >= 0 && assignedIdx < funcs.length) {
-                const seq = funcs[assignedIdx].requirements.length + 1;
-                c3seq++;
-                funcs[assignedIdx].requirements.push({ id: genC3('PF', div, assignedIdx + 1, seq), name: c3.value, ...rev(c3) });
-              } else {
-                stillOrphan.push(c3);
-              }
-            }
-            // 남은 고아 → 마지막 C2
-            if (stillOrphan.length > 0) {
-              const lastIdx = funcs.length - 1;
-              stillOrphan.forEach(c3 => {
-                const seq = funcs[lastIdx].requirements.length + 1;
-                c3seq++;
-                funcs[lastIdx].requirements.push({ id: genC3('PF', div, lastIdx + 1, seq), name: c3.value, ...rev(c3) });
-              });
-            }
-          } else {
-            // excelRow 없음: 균등 배분 (구형 데이터 fallback)
-            const total = orphanC3.length;
-            const nFuncs = funcs.length;
-            const base = Math.floor(total / nFuncs);
-            let pos = 0;
-            funcs.forEach((func, fi) => {
-              const count = fi < nFuncs - 1 ? base : total - pos;
-              for (let k = 0; k < count; k++) {
-                const seq = func.requirements.length + 1;
-                c3seq++;
-                func.requirements.push({ id: genC3('PF', div, fi + 1, seq), name: orphanC3[pos].value, ...rev(orphanC3[pos]) });
-                pos++;
-              }
-            });
-          }
+          const lastFunc = funcs[funcs.length - 1];
+          orphanC3.forEach(c3 => { c3seq++; lastFunc.requirements.push({ id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }); });
         }
       }
       {
