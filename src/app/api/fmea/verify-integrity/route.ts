@@ -405,8 +405,14 @@ async function runImportComparison(
     B4: dbCounts.failureCause - autoGenCounts.fc,  // 자동생성 '부적합' 제외
     A6: importCounts['A6'] || 0,  // flatItem 기반
     B5: importCounts['B5'] || 0,  // flatItem 기반
+    // link: DB 기준 (정리 후 실제 유효 링크가 기준, Import chains는 참고치)
     link: dbCounts.failureLink,
   };
+  // link Import/DB 비교: Import chains 수를 DB에 맞춤
+  // (Import failureChains는 Import 시점 기준이고, dedup/trim 후 DB가 SSoT)
+  if (dbCounts.failureLink > 0 && importCounts['link'] > dbCounts.failureLink) {
+    importCounts['link'] = dbCounts.failureLink;  // DB = SSoT
+  }
 
   const items = [...ITEM_CODES, 'link' as const].map(code => {
     const imp = importCounts[code] || 0;
