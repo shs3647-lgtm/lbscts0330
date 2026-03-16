@@ -480,6 +480,17 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       // ★ v5.5: 통합시트 → 개별 시트 코드로 분배 (기존 processMap 로직 재활용)
       const isUnified = sheetCode === 'L1_UNIFIED' || sheetCode === 'L2_UNIFIED' || sheetCode === 'L3_UNIFIED';
       if (isUnified) {
+        // ★★★ 2026-03-16 FIX: 개별 시트가 이미 존재하면 통합 시트 건너뛰기 ★★★
+        // 개별 시트(C2, C3 등)와 통합 시트(L1 통합)가 공존하면
+        // 같은 sheetDataMap에 중복 push → C3 4× 중복 발생
+        // 개별 시트 우선 정책: 개별 시트가 이미 파싱되었으면 통합 시트 스킵
+        const unifiedCodes = sheetCode === 'L1_UNIFIED' ? ['C1', 'C2', 'C3', 'C4']
+          : sheetCode === 'L2_UNIFIED' ? ['A2', 'A3', 'A4', 'A5']
+          : ['B1', 'B2', 'B3', 'B4'];
+        const hasIndividualSheets = unifiedCodes.some(code => sheetDataMap[code]?.rows?.length > 0);
+        if (hasIndividualSheets) {
+          return; // 개별 시트가 이미 존재 → 통합 시트 스킵
+        }
         // 통합시트: 행 하나에서 여러 필드를 추출하여 개별 sheetDataMap 항목으로 분배
         // 헤더 인덱스 → 필드 매핑 (헤더 키워드 기반)
         const colFieldMap: Array<{ col: number; targetCode: string; fieldHint: string }> = [];
@@ -1046,7 +1057,17 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           if (product && row.value) {
             const arr = product[field] as string[];
             if (!arr.includes(row.value)) {
+              const idx = arr.length;
               arr.push(row.value);
+              // ★★★ 2026-03-16: C2/C3/C4 itemMeta 기록 — rowSpan 기반 parentItemId 매핑에 필수 ★★★
+              if (row.excelRow) {
+                if (!product.itemMeta) product.itemMeta = {};
+                product.itemMeta[`${sheet}-${idx}`] = {
+                  excelRow: row.excelRow,
+                  rowSpan: row.rowSpan,
+                  mergeGroupId: `${trimmedKey}-${sheet}`,
+                };
+              }
             }
           } else if (trimmedKey && !productMap.has(trimmedKey)) {
             // C1에 없는 구분이면 자동 생성
@@ -1057,6 +1078,12 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               failureEffects: [],
             };
             (newProduct[field] as string[]).push(row.value);
+            // ★★★ 2026-03-16: 자동 생성된 product에도 itemMeta 기록 ★★★
+            if (row.excelRow) {
+              newProduct.itemMeta = {
+                [`${sheet}-0`]: { excelRow: row.excelRow, rowSpan: row.rowSpan, mergeGroupId: `${trimmedKey}-${sheet}` },
+              };
+            }
             productMap.set(trimmedKey, newProduct);
           }
         });

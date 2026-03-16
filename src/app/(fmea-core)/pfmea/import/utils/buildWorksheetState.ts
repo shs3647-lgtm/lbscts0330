@@ -536,7 +536,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         requirements: [],
       }));
 
-      // ★ v5.10: C3 → C2 parentItemId 기반 그룹핑 (distribute 폴백)
+      // ★ v5.10: C3 → C2 parentItemId 기반 그룹핑 (블록 배분 폴백)
       const hasParentIds = c3Items.some(c3 => c3.parentItemId && c3.parentItemId !== `C2-${type.name}-0`);
       if (hasParentIds) {
         // parentItemId 기반: C3 아이템의 parentItemId에서 C2 인덱스 추출
@@ -553,11 +553,18 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
           orphanC3.forEach(c3 => lastFunc.requirements.push({ id: uid(), name: c3.value, ...rev(c3) }));
         }
       } else {
-        // ★★★ 2026-03-16 FIX: distribute 제거 → 첫 번째 C2에 전부 꽂아넣기 ★★★
-        // 이전: distribute(C3, C2개수) → 빈 C2 슬롯에 거짓 요구사항 생성
-        // parentItemId 없으면 모든 C3를 첫 번째 function에 할당 (실제 데이터만 렌더)
-        if (funcs.length > 0) {
+        // ★★★ 2026-03-16 FIX: parentItemId 미설정 폴백 ★★★
+        // excel-parser에서 itemMeta 기록 → assignParentsByRowSpan으로 정확 매핑이 정상 경로
+        // 여기 도달 = 모든 C3가 C2-{scope}-0(첫 번째 C2)에 하드코딩된 경우
+        // → 첫 번째 C2에 모든 C3 할당, 나머지 C2는 placeholder
+        if (funcs.length > 0 && c3Items.length > 0) {
           funcs[0].requirements = c3Items.map(c3 => ({ id: uid(), name: c3.value, ...rev(c3) }));
+        }
+        // 빈 C2 function에 placeholder requirement 추가 (워크시트 편집용)
+        for (const func of funcs) {
+          if (func.requirements.length === 0) {
+            func.requirements = [{ id: uid(), name: '' }];
+          }
         }
       }
 
