@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
       include: includeItems
         ? {
             flatItems: {
-              orderBy: { createdAt: 'desc' },
+              orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }],
               select: {
                 id: true, processNo: true, category: true,
                 itemCode: true, value: true, m4: true, specialChar: true,

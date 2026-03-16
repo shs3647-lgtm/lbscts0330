@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 
         // ★ C3 별도 테이블: L1Function.requirement → L1Requirement (1:1)
         const reqRows = atomic.l1Functions
-          .filter((f: any) => f.requirement && f.requirement.trim() !== '')
+          .filter((f: any) => f.requirement !== undefined && f.requirement !== null)
           .map((f: any) => ({
             id: `${f.id}-R`,
             fmeaId,

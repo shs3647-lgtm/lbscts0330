@@ -448,7 +448,7 @@ model PfmeaMasterFlatItem {
   belongsTo      String?            // 소속 작업요소 이름 (B2/B3)
   dataset        PfmeaMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
 
-  @@unique([datasetId, processNo, itemCode, value])
+  @@unique([datasetId, processNo, itemCode, parentItemId, value])
   @@index([datasetId])
   @@index([parentItemId])
   @@index([mergeGroupId])

@@ -660,6 +660,24 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // 4.1. ★★★ 2026-03-17: L1Requirement(C3) 저장 — L1Function.requirement → 별도 테이블 ★★★
+      // rebuild-atomic과 동일한 패턴: id = `${l1FuncId}-R`, 1:1 매핑
+      {
+        const reqRows = db.l1Functions
+          .filter(f => f.requirement !== undefined && f.requirement !== null && f.requirement !== '')
+          .map(f => ({
+            id: `${f.id}-R`,
+            fmeaId: db.fmeaId,
+            l1StructId: f.l1StructId,
+            l1FuncId: f.id,
+            requirement: f.requirement as string,
+            orderIndex: 0,
+          }));
+        if (reqRows.length > 0) {
+          await tx.l1Requirement.createMany({ data: reqRows, skipDuplicates: true });
+        }
+      }
+
       // 4.5. ★★★ 2026-03-14: ProcessProductChar 원자성 저장 ★★★
       // L2Function의 productChars 배열에서 독립 엔티티 추출 → createMany
       txStep = 'PROCESS_PRODUCT_CHARS';
