@@ -4,8 +4,9 @@ import CommonTopNav, { TopNavMenuItem } from './CommonTopNav';
 
 interface PFMEATopNavProps {
   selectedFmeaId?: string;
-  linkedCpNo?: string | null;   // 향후 복원용 유지
-  linkedPfdNo?: string | null;  // 향후 복원용 유지
+  linkedCpNo?: string | null;
+  linkedPfdNo?: string | null;
+  openNavInNewTab?: boolean;
 }
 
 /**
@@ -15,7 +16,7 @@ interface PFMEATopNavProps {
  * 
  * @version 4.0.0 - Admin 메뉴 제거, FMEA 메뉴만 표시
  */
-export default function PFMEATopNav({ selectedFmeaId, linkedCpNo, linkedPfdNo }: PFMEATopNavProps) {
+export default function PFMEATopNav({ selectedFmeaId, linkedCpNo, linkedPfdNo, openNavInNewTab }: PFMEATopNavProps) {
   const menuItems: TopNavMenuItem[] = [
     { label: '대시보드', shortLabel: '대시보드', path: '/pfmea/dashboard', icon: '📊' },
 { label: '등록', shortLabel: '등록', path: '/pfmea/register', icon: '📝' },
@@ -33,6 +34,7 @@ export default function PFMEATopNav({ selectedFmeaId, linkedCpNo, linkedPfdNo }:
       selectedId={selectedFmeaId}
       gradientFrom="#1a237e"
       gradientTo="#283593"
+      openNavInNewTab={openNavInNewTab}
     />
   );
 }

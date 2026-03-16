@@ -123,7 +123,7 @@ function VerifyPageContent() {
   ];
 
   return (
-    <FixedLayout topNav={<PFMEATopNav />} bgColor="#f8fafc">
+    <FixedLayout topNav={<PFMEATopNav openNavInNewTab={true} />} bgColor="#f8fafc">
       <div className="max-w-[1400px] mx-auto">
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-4">
@@ -158,6 +158,12 @@ function VerifyPageContent() {
               className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? '검증 중...' : '새로고침(Refresh)'}
+            </button>
+            <button
+              onClick={() => window.close()}
+              className="px-3 py-1.5 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
+            >
+              닫기(Close)
             </button>
           </div>
         </div>

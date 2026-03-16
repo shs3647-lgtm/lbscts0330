@@ -46,6 +46,8 @@ export interface CommonTopNavProps {
   selectedId?: string;
   gradientFrom?: string;
   gradientTo?: string;
+  /** 팝업/새탭에서 열릴 때 — 메뉴 클릭 시 새 탭으로 이동 (현재 탭 유지) */
+  openNavInNewTab?: boolean;
 }
 
 const STAT_COLORS = {
@@ -66,6 +68,7 @@ export default function CommonTopNav({
   selectedId,
   gradientFrom = '#1a237e',
   gradientTo = '#283593',
+  openNavInNewTab = false,
 }: CommonTopNavProps) {
   const pathname = usePathname();
   const { locale, setLocale, t } = useLocale();
@@ -132,15 +135,19 @@ export default function CommonTopNav({
   const isActive = (path: string) => pathname?.startsWith(path);
 
   const handleNavigation = (path: string) => {
+    let finalPath: string;
     if (path.includes('?id=')) {
-      // 이미 id param이 있는 경로 (예: PFMEA/CP 연동 링크) → 그대로 사용
-      window.location.href = path;
+      finalPath = path;
     } else if (selectedId) {
-      // ✅ ID 소문자 통일 (DB 정규화)
       const sep = path.includes('?') ? '&' : '?';
-      window.location.href = `${path}${sep}id=${selectedId.toLowerCase()}`;
+      finalPath = `${path}${sep}id=${selectedId.toLowerCase()}`;
     } else {
-      window.location.href = path;
+      finalPath = path;
+    }
+    if (openNavInNewTab) {
+      window.open(finalPath, '_blank');
+    } else {
+      window.location.href = finalPath;
     }
   };
 
