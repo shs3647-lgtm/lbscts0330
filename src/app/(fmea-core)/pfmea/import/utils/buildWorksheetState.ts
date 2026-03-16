@@ -564,10 +564,12 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
       // c2Items[i].id(UUID) 우선 매칭 → "C2-YP-0" 레거시 키 폴백 (양방향 호환)
       {
         funcs.forEach((func, i) => {
-          const c2UuidParent = c2Items[i]?.id || '';          // C2 flat item UUID (안정적)
-          const keyParent = `C2-${type.name}-${i}`;          // 레거시 키 포맷
+          const c2Id = c2Items[i]?.id || '';
+          const keyParent = `C2-${type.name}-${i}`;
+          // keyParent 폴백: 동일 key를 id로 가진 C2가 이미 있으면 사용 금지 (충돌 방지)
+          const keyParentTaken = c2Items.some(c2 => c2.id === keyParent);
           const myC3 = c3Items.filter(c3 =>
-            c3.parentItemId === c2UuidParent || c3.parentItemId === keyParent
+            c3.parentItemId === c2Id || (!keyParentTaken && c3.parentItemId === keyParent)
           );
           c3seq = 0;
           func.requirements = myC3.map(c3 => { c3seq++; return { id: genC3('PF', div, i + 1, c3seq), name: c3.value, ...rev(c3) }; });
