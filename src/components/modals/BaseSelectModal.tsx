@@ -182,7 +182,7 @@ export default function BaseSelectModal({
 
   // ★★★ 2026-02-05: WorkElementSelectModal과 위치/크기 통일 ★★★
   const { position: modalPosition, handleMouseDown } =
-    useDraggableModal({ initialPosition: { top: 60, right: 360 }, modalWidth: 400, modalHeight: 500, isOpen });
+    useDraggableModal({ initialPosition: { top: 10, right: 360 }, modalWidth: 400, modalHeight: 500, isOpen });
 
   // AI 추천 로드
   useEffect(() => {
@@ -332,32 +332,32 @@ export default function BaseSelectModal({
 
         {/* ===== 상위항목 (옵션) ===== */}
         {renderParentInfo && (
-          <div className={`px-3 py-2 border-b bg-gradient-to-r from-${colors.light} to-white`}>
+          <div className={`px-2 py-1 border-b bg-gradient-to-r from-${colors.light} to-white`}>
             {renderParentInfo()}
           </div>
         )}
 
         {/* ===== 하위항목 라벨 (옵션) ===== */}
         {subTitle && (
-          <div className={`px-3 py-1 border-b bg-${colors.light}`}>
-            <span className={`text-[10px] font-bold text-${colors.accent}`}>▼ {subTitle}</span>
+          <div className={`px-2 py-0.5 border-b bg-${colors.light}`}>
+            <span className={`text-[9px] font-bold text-${colors.accent}`}>▼ {subTitle}</span>
           </div>
         )}
 
         {/* ===== 검색 + 버튼 ===== */}
-        <div className="px-3 py-2 border-b bg-gray-50 flex items-center gap-2">
+        <div className="px-2 py-1 border-b bg-gray-50 flex items-center gap-1">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={searchPlaceholder}
-            className={`flex-1 px-2 py-1 text-[10px] border rounded focus:outline-none focus:ring-1 focus:${colors.ring}`}
+            className={`flex-1 px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:${colors.ring}`}
           />
-          <button onClick={selectAll} title="Select All" className="px-2 py-1 text-[11px] font-bold bg-blue-500 text-white rounded hover:bg-blue-600"><span>전체</span><span className="text-[8px] opacity-70 ml-0.5">(All)</span></button>
-          <button onClick={deselectAll} title="Deselect All" className="px-2 py-1 text-[11px] font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400"><span>해제</span><span className="text-[8px] opacity-50 ml-0.5">(Clr)</span></button>
-          <button onClick={handleApply} title="Apply" className="ml-1 px-2 py-1 text-[11px] font-bold bg-green-600 text-white rounded hover:bg-green-700"><span>적용</span><span className="text-[8px] opacity-70 ml-0.5">(OK)</span></button>
+          <button onClick={selectAll} title="Select All" className="px-2 py-0.5 text-[10px] font-bold bg-blue-500 text-white rounded hover:bg-blue-600">전체</button>
+          <button onClick={deselectAll} title="Deselect All" className="px-2 py-0.5 text-[10px] font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400">해제</button>
+          <button onClick={handleApply} title="Apply" className="px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded hover:bg-green-700">적용</button>
           {showDeleteAll && (
-            <button onClick={handleDeleteAll} title="Delete" className="ml-2 px-2 py-1 text-[11px] font-bold bg-red-500 text-white rounded hover:bg-red-600"><span>삭제</span><span className="text-[8px] opacity-70 ml-0.5">(Del)</span></button>
+            <button onClick={handleDeleteAll} title="Delete" className="px-2 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded hover:bg-red-600">삭제</button>
           )}
           {/* AI 추천 토글 버튼 */}
           {aiRecommendType && aiReady && aiRecommendations.length > 0 && (
@@ -419,7 +419,7 @@ export default function BaseSelectModal({
         )}
 
         {/* ===== 새 항목 입력 ===== */}
-        <div className={`px-3 py-1.5 border-b bg-${colors.light} flex items-center gap-1`}>
+        <div className={`px-2 py-1 border-b bg-${colors.light} flex items-center gap-1`}>
           <span className={`text-[10px] font-bold text-${colors.accent}`}>+</span>
           <input
             type="text"
@@ -439,7 +439,7 @@ export default function BaseSelectModal({
         </div>
 
         {/* ===== 리스트 ===== */}
-        <div className="overflow-auto p-2 h-[280px] min-h-[280px]">
+        <div className="overflow-auto p-1.5 flex-1 min-h-[200px]">
           <div className="grid grid-cols-2 gap-1">
             {filteredItems.map(item => {
               const isSelected = selectedIds.has(item.id);
@@ -450,7 +450,7 @@ export default function BaseSelectModal({
                 <div
                   key={item.id}
                   onClick={() => toggleSelect(item.id)}
-                  className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer transition-all ${isSelected
+                  className={`flex items-center gap-1.5 px-1.5 py-1 rounded border cursor-pointer transition-all ${isSelected
                     ? (isCurrent ? 'bg-green-50 border-green-400' : `${colors.selectedBg} ${colors.selectedBorder}`)
                     : `bg-white border-gray-200 hover:${colors.selectedBorder}`
                     }`}
@@ -494,7 +494,7 @@ export default function BaseSelectModal({
 
             {/* 빈 행 채우기 */}
             {Array.from({ length: Math.max(0, minRows - filteredItems.length) }).map((_, idx) => (
-              <div key={`empty-${idx}`} className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-100 bg-gray-50/50">
+              <div key={`empty-${idx}`} className="flex items-center gap-1.5 px-1.5 py-1 rounded border border-gray-100 bg-gray-50/50">
                 <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
                 <span className="text-[9px] text-gray-300">--</span>
                 <span className="flex-1 text-[10px] text-gray-300">-</span>
@@ -504,8 +504,8 @@ export default function BaseSelectModal({
         </div>
 
         {/* ===== 푸터 ===== */}
-        <div className="px-3 py-2 border-t bg-gray-50 flex items-center justify-center">
-          <span className={`text-xs font-bold text-${colors.accent}`}>✓ {selectedIds.size}개 선택</span>
+        <div className="px-2 py-0.5 border-t bg-gray-50 flex items-center justify-center">
+          <span className={`text-[10px] font-bold text-${colors.accent}`}>✓ {selectedIds.size}개 선택</span>
         </div>
       </div>
     </>

@@ -116,27 +116,27 @@ export default function FailureEffectSelectModal({
 
   // 상위항목 렌더링
   const renderParentInfo = () => (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] font-bold text-red-700 shrink-0">★ {t('상위항목')}:</span>
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1 flex-wrap">
+        <span className="text-[10px] font-bold text-red-700 shrink-0">★ {t('상위항목')}:</span>
         {productName && (
-          <span className="px-2 py-1 text-[10px] font-bold bg-blue-600 text-white rounded">{productName}</span>
+          <span className="px-1.5 py-0 text-[9px] font-bold bg-blue-600 text-white rounded">{productName}</span>
         )}
         {parentFuncName && (
-          <span className="px-2 py-1 text-[10px] font-bold bg-green-600 text-white rounded">{parentFuncName}</span>
+          <span className="px-1.5 py-0 text-[9px] font-bold bg-green-600 text-white rounded">{parentFuncName}</span>
         )}
         {parentReqName && (
-          <span className="px-2 py-1 text-[10px] font-bold bg-orange-500 text-white rounded">{parentReqName}</span>
+          <span className="px-1.5 py-0 text-[9px] font-bold bg-orange-500 text-white rounded leading-5">{parentReqName}</span>
         )}
       </div>
       {/* 그룹 필터 */}
-      <div className="flex items-center gap-1 mt-1">
+      <div className="flex items-center gap-1">
         <span className="text-[9px] text-gray-600">{t('필터')}:</span>
         {['All', 'YP', 'SP', 'USER'].map(g => (
           <button
             key={g}
             onClick={() => setGroupFilter(g)}
-            className={`px-2 py-0.5 text-[9px] font-bold rounded ${
+            className={`px-1.5 py-0 text-[9px] font-bold rounded leading-5 ${
               groupFilter === g ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             }`}
           >
