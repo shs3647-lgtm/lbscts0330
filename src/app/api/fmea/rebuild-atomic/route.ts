@@ -280,15 +280,15 @@ export async function POST(request: NextRequest) {
             fmId: l.fmId,
             feId: l.feId,
             fcId: l.fcId,
-            // ★★★ 2026-01-19: 사용자 확인용 텍스트 필드 저장 ★★★
-            fmText: l.fmText || l.originalFmText || null,
-            fmProcess: l.fmProcess || l.processName || null,
-            feText: l.feText || l.originalFeText || null,
-            feScope: l.feScope || l.scope || null,
-            fcText: l.fcText || l.originalFcText || null,
-            fcWorkElem: l.fcWorkElem || l.workElementName || null,
+            // ★★★ 2026-03-17: l.cache.* 우선 (migration.ts/save-from-import 모두 cache에 저장)
+            fmText: l.cache?.fmText || l.fmText || l.originalFmText || null,
+            fmProcess: l.cache?.fmProcess || l.fmProcess || l.processName || null,
+            feText: l.cache?.feText || l.feText || l.originalFeText || null,
+            feScope: l.cache?.feCategory || l.feScope || l.scope || null,
+            fcText: l.cache?.fcText || l.fcText || l.originalFcText || null,
+            fcWorkElem: l.cache?.fcWorkElem || l.fcWorkElem || l.workElementName || null,
             fcM4: l.fcM4 || l.m4 || null,
-            severity: l.severity || null,
+            severity: l.cache?.feSeverity || l.severity || null,
           })),
           skipDuplicates: true,
         });
