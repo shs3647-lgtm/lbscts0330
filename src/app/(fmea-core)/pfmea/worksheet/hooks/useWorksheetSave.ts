@@ -126,7 +126,10 @@ function syncFailureEffectsFromState(
     });
   }
 
-  return { ...db, failureEffects: syncedEffects as any[] };
+  // ★ MERGE 방식: state에서 생성된 FE + DB에만 있는 FE 보존
+  const syncedFeIds = new Set(syncedEffects.map((fe: any) => fe.id));
+  const dbOnlyFEs = (db.failureEffects || []).filter((fe: any) => !syncedFeIds.has(fe.id));
+  return { ...db, failureEffects: [...syncedEffects, ...dbOnlyFEs] as any[] };
 }
 
 /**
@@ -192,13 +195,13 @@ function syncFailureCausesFromState(
     }
   }
 
-  // 모든 의미있는 FC 수집
-  const allStateFcs: any[] = [];
+  // state의 모든 의미있는 FC 수집
+  const stateFcById = new Map<string, any>();
   for (const proc of l2Procs) {
     const procId = proc.id;
     for (const fc of (proc.failureCauses || [])) {
-      if (!fc.id || !fc.name?.trim()) continue; // placeholder/빈 FC 제외
-      allStateFcs.push({
+      if (!fc.id || !fc.name?.trim()) continue;
+      stateFcById.set(fc.id, {
         id: fc.id,
         name: fc.name.trim(),
         processCharId: fc.processCharId || '',
@@ -209,37 +212,49 @@ function syncFailureCausesFromState(
   }
 
   // state에 FC가 없으면 DB FC 보존 (우발적 wipe 방지)
-  if (allStateFcs.length === 0) return db;
+  if (stateFcById.size === 0) return db;
 
-  const existingFcById = new Map((db.failureCauses || []).map((fc: any) => [fc.id, fc]));
+  // ★ MERGE 방식: DB 기존 FC 보존 + state 변경분 반영 + 신규 추가
+  const mergedFCs: any[] = [];
+  const processedIds = new Set<string>();
 
-  const syncedFCs = allStateFcs.map((sfc) => {
-    const existing = existingFcById.get(sfc.id);
-    if (existing) {
-      return {
-        ...existing,
-        cause: sfc.name,
-        processCharId: sfc.processCharId || existing.processCharId,
-        occurrence: sfc.occurrence ?? existing.occurrence,
-      };
+  // 1단계: DB 기존 FC를 순회하며 state 변경분 반영
+  for (const dbFc of (db.failureCauses || [])) {
+    processedIds.add(dbFc.id);
+    const stateFc = stateFcById.get(dbFc.id);
+    if (stateFc) {
+      // DB에도 state에도 있음 → state 값으로 업데이트
+      mergedFCs.push({
+        ...dbFc,
+        cause: stateFc.name,
+        processCharId: stateFc.processCharId || dbFc.processCharId,
+        occurrence: stateFc.occurrence ?? dbFc.occurrence,
+      });
+    } else {
+      // DB에만 있고 state에 없음 → DB 값 보존 (삭제 방지)
+      mergedFCs.push(dbFc);
     }
-    // 신규 FC: l2StructId 기반으로 올바른 l3FuncId 조회
+  }
+
+  // 2단계: state에만 있는 신규 FC 추가
+  for (const [id, sfc] of stateFcById) {
+    if (processedIds.has(id)) continue;
     const resolved = structToL3FuncMap.get(sfc.l2StructId);
     const resolvedL3FuncId = resolved?.id || sfc.processCharId || '';
     const resolvedL3StructId = resolved?.l3StructId || '';
-    return {
+    mergedFCs.push({
       id: sfc.id,
       fmeaId: db.fmeaId,
       l2StructId: sfc.l2StructId,
       l3FuncId: resolvedL3FuncId,
-      l3StructId: resolvedL3StructId, // API 5단계 폴백이 복구
+      l3StructId: resolvedL3StructId,
       cause: sfc.name,
       occurrence: sfc.occurrence,
       processCharId: sfc.processCharId,
-    };
-  });
+    });
+  }
 
-  return { ...db, failureCauses: syncedFCs as any[] };
+  return { ...db, failureCauses: mergedFCs as any[] };
 }
 
 /**
@@ -262,13 +277,13 @@ function syncFailureModesFromState(
     }
   }
 
-  // 모든 의미있는 FM 수집
-  const allStateFms: any[] = [];
+  // state의 모든 의미있는 FM 수집
+  const stateFmById = new Map<string, any>();
   for (const proc of l2Procs) {
     const procId = proc.id;
     for (const fm of (proc.failureModes || [])) {
-      if (!fm.id || !fm.name?.trim()) continue; // placeholder/빈 FM 제외
-      allStateFms.push({
+      if (!fm.id || !fm.name?.trim()) continue;
+      stateFmById.set(fm.id, {
         id: fm.id,
         name: fm.name.trim(),
         productCharId: fm.productCharId || '',
@@ -279,23 +294,35 @@ function syncFailureModesFromState(
   }
 
   // state에 FM이 없으면 DB FM 보존 (우발적 wipe 방지)
-  if (allStateFms.length === 0) return db;
+  if (stateFmById.size === 0) return db;
 
-  const existingFmById = new Map((db.failureModes || []).map((fm: any) => [fm.id, fm]));
+  // ★ MERGE 방식: DB 기존 FM 보존 + state 변경분 반영 + 신규 추가
+  const mergedFMs: any[] = [];
+  const processedIds = new Set<string>();
 
-  const syncedFMs = allStateFms.map((sfm) => {
-    const existing = existingFmById.get(sfm.id);
-    if (existing) {
-      return {
-        ...existing,
-        mode: sfm.name,
-        productCharId: sfm.productCharId || existing.productCharId,
-        specialChar: sfm.sc,
-      };
+  // 1단계: DB 기존 FM을 순회하며 state 변경분 반영
+  for (const dbFm of (db.failureModes || [])) {
+    processedIds.add(dbFm.id);
+    const stateFm = stateFmById.get(dbFm.id);
+    if (stateFm) {
+      // DB에도 state에도 있음 → state 값으로 업데이트
+      mergedFMs.push({
+        ...dbFm,
+        mode: stateFm.name,
+        productCharId: stateFm.productCharId || dbFm.productCharId,
+        specialChar: stateFm.sc,
+      });
+    } else {
+      // DB에만 있고 state에 없음 → DB 값 보존 (삭제 방지)
+      mergedFMs.push(dbFm);
     }
-    // 신규 FM: l2StructId 기반으로 올바른 l2FuncId 조회
+  }
+
+  // 2단계: state에만 있는 신규 FM 추가
+  for (const [id, sfm] of stateFmById) {
+    if (processedIds.has(id)) continue;
     const resolvedL2FuncId = structToFuncMap.get(sfm.l2StructId) || '';
-    return {
+    mergedFMs.push({
       id: sfm.id,
       fmeaId: db.fmeaId,
       l2StructId: sfm.l2StructId,
@@ -303,10 +330,10 @@ function syncFailureModesFromState(
       productCharId: sfm.productCharId,
       mode: sfm.name,
       specialChar: sfm.sc ?? false,
-    };
-  });
+    });
+  }
 
-  return { ...db, failureModes: syncedFMs as any[] };
+  return { ...db, failureModes: mergedFMs as any[] };
 }
 
 export function useWorksheetSave({
