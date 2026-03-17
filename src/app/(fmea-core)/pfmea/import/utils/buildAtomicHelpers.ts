@@ -6,7 +6,7 @@
  * - processNo 정규화/그룹핑
  * - itemCode 필터링
  * - m4 그룹핑
- * - distribute 균등 배분
+ * - parentItemId FK 기반 직접 꽂기
  *
  * @created 2026-03-15
  */
@@ -73,29 +73,7 @@ export function groupByProcessNo(data: ImportedFlatData[]): Map<string, Imported
   return map;
 }
 
-/**
- * M개 아이템을 N개 슬롯에 균등 배분 (앞쪽 슬롯 우선)
- *
- * 비유: 카드를 N명에게 돌리듯, 앞쪽 사람이 1장 더 받음
- *
- * 예: distribute(4items, 2slots) → [[0,1], [2,3]]  (2:2 균등)
- * 예: distribute(5items, 2slots) → [[0,1,2], [3,4]] (3:2 나머지→처음)
- */
-export function distribute<T>(items: T[], slots: number): T[][] {
-  if (slots <= 0) return [];
-  if (items.length === 0) return Array.from({ length: slots }, () => []);
-  const result: T[][] = Array.from({ length: slots }, () => []);
-  const base = Math.floor(items.length / slots);
-  const extra = items.length % slots;
-  let idx = 0;
-  for (let s = 0; s < slots; s++) {
-    const count = s < extra ? base + 1 : base;
-    for (let i = 0; i < count && idx < items.length; i++) {
-      result[s].push(items[idx++]);
-    }
-  }
-  return result;
-}
+// ★★★ 2026-03-17: distribute() 제거 — parentItemId FK 기반 직접 꽂기로 전환 ★★★
 
 /** C1 값 → L1Function.category 변환 */
 export function mapC1Category(c1Value: string): string {

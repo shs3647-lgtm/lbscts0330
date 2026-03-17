@@ -474,10 +474,10 @@ export default function DataSelectModal({
     <>
       {/* ✅ 2026-01-19: 배경을 클릭 통과하도록 변경 - 다른 항목 클릭 시 자동 전환 */}
       <div
-        className="fixed inset-0 z-[99998] pointer-events-none"
+        className="fixed inset-0 z-[9998] pointer-events-none"
       />
       <div
-        className="fixed bg-white rounded-lg shadow-2xl w-[350px] max-w-[350px] min-w-[350px] flex flex-col overflow-hidden max-h-[calc(100vh-120px)] cursor-move z-[99999] pointer-events-auto"
+        className="fixed bg-white rounded-lg shadow-2xl w-[400px] max-w-[400px] min-w-[400px] flex flex-col overflow-hidden max-h-[calc(100vh-80px)] cursor-move z-[9999] pointer-events-auto"
         style={{
           top: `${modalPosition.top}px`,
           right: `${modalPosition.right}px`

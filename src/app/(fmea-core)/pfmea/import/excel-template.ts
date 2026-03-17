@@ -233,7 +233,7 @@ export async function downloadEmptyTemplate(customFileName?: string) {
 
   // 파일 다운로드
   const buffer = await workbook.xlsx.writeBuffer();
-  const fileName = customFileName || `PFMEA_기초정보_템플릿_${TEMPLATE_VERSION}`;
+  const fileName = customFileName || `PFMEA_Master_Template_${TEMPLATE_VERSION}`;
   await downloadExcelBuffer(buffer, fileName);
 }
 
@@ -1805,7 +1805,7 @@ export async function downloadSampleTemplate(customFileName?: string, manualMode
 
   // 파일 다운로드
   const buffer = await workbook.xlsx.writeBuffer();
-  const fileName = customFileName || `PFMEA_기초정보_샘플_${TEMPLATE_VERSION}`;
+  const fileName = customFileName || `PFMEA_Master_Sample_${TEMPLATE_VERSION}`;
   await downloadExcelBuffer(buffer, fileName);
 }
 

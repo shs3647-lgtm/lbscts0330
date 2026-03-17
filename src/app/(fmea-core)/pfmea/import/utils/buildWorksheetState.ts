@@ -330,11 +330,9 @@ function buildL3ForProcess(items: ImportedFlatData[], pnoNum: number): { wes: Wo
 // ════════════════════════════════════════════
 
 /**
- * L1 데이터 채움: C2(기능)+C3(요구사항) = 균등 배분, C4(고장영향) = reqId 연결
+ * L1 데이터 채움: C2(기능)+C3(요구사항) parentItemId FK 기반, C4(고장영향) = reqId 연결
  *
- * ★ C2:C3 = 균등 배분 (매칭원칙 #3)
- *   C2=2, C3=4 → func[0]에 2개, func[1]에 2개 (2:2)
- *   C2=2, C3=5 → func[0]에 2개, func[1]에 3개 (2:3 나머지→마지막)
+ * C3 → parentItemId로 C2에 직접 매칭. orphan인 경우만 위치 기반 fallback.
  *
  * ★ C4 = reqId FK — 각 고장영향이 특정 요구사항에 연결
  *   배분: 순차 블록 (앞쪽 R-extra 요구사항: baseShare개, 나머지: baseShare+1개)

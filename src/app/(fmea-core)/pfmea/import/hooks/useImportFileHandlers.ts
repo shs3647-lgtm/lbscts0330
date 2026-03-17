@@ -483,7 +483,7 @@ export function useImportFileHandlers({
         };
         flat.push({ id: `C1-${categoryValue}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: categoryValue, createdAt: new Date() });
         p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: ensureString(v), parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
-        // ★★★ 2026-03-16: C3/C4 → assignParentsByRowSpan 후처리에서 정확 매핑 (distribute 제거) ★★★
+        // C3/C4 → assignParentsByRowSpan 후처리에서 정확 매핑
         // L1 통합(C1-C4) 파싱결과를 그대로 사용 — 하위갯수 기반 rowSpan 매핑
         // ★★★ 2026-03-16 FIX: 하드코딩 제거 → assignParentsByRowSpan이 rowSpan 기반으로 정확 매핑
         p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: ensureString(v), createdAt: new Date() }, 'C3', i)));

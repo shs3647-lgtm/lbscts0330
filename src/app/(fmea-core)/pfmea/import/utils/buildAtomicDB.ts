@@ -476,8 +476,7 @@ function buildL3Entities(
   for (const [m4Key, wes] of weByM4) {
     const m4B2Unmatched = b2ByM4Unmatched.get(m4Key) || [];
     const m4B3Unmatched = b3ByM4Unmatched.get(m4Key) || [];
-    // ★★★ 2026-03-16 FIX: distribute → 첫 WE에 전부 꽂아넣기 (unmatched B2/B3)
-    // 배분하면 데이터 없는 WE에도 강제 할당 → 거짓 누락행 발생
+    // parentItemId 매칭 + unmatched는 첫 WE에 꽂기
     wes.forEach(({ l3, globalIdx }, weIdx) => {
       const parentB2 = b2Split.matched.get(globalIdx) || [];
       const parentB3 = b3Split.matched.get(globalIdx) || [];
@@ -495,7 +494,7 @@ function buildL3Entities(
           });
           addL3Func(l3, globalIdx, myB2[0].value, chars);
         } else {
-          // ★★★ 2026-03-16 FIX: distribute → 첫 B2에 전부 꽂아넣기
+          // 여러 B2: 첫 B2에 모든 B3 꽂기
           myB2.forEach((b2, fIdx) => {
             const chars = fIdx === 0
               ? myB3.map((b3, ci) => {
