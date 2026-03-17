@@ -38,6 +38,8 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     setUserModalOpen, setSelectedMemberIndex,
     userModalTarget, setUserModalTarget,
     recordAccessLog, loadAccessLogs,
+    apqpList, setApqpList,
+    selectedParentApqp, setSelectedParentApqp,
   } = core;
 
   // CFT 미입력 경고 모달 상태
@@ -388,10 +390,34 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     setUserModalOpen(false);
   }, [userModalTarget, cftMembers, setCftMembers, setFmeaInfo, setUserModalOpen, core.selectedMemberIndex, recordAccessLog, fmeaId, editId]);
 
+  // =====================================================
+  // APQP 연동
+  // =====================================================
+  const loadApqpList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/apqp');
+      if (res.ok) {
+        const data = await res.json();
+        const list = (data.projects || data || []).map((p: Record<string, unknown>) => ({
+          id: String(p.id || ''),
+          name: String(p.projectName || p.name || ''),
+        }));
+        setApqpList(list);
+      }
+    } catch (error) {
+      console.error('APQP 목록 로드 실패:', error);
+    }
+  }, [setApqpList]);
+
+  const handleApqpSelect = useCallback((apqpId: string) => {
+    setSelectedParentApqp(apqpId);
+  }, [setSelectedParentApqp]);
+
   return {
     updateField, handlePartNameChange,
     handleAddLinkedDoc, handleRemoveLinkedDoc, handleToggleLinkage,
     openFmeaSelectModal, handleFmeaSelect,
+    loadApqpList, handleApqpSelect,
     loadFmeaNameList, checkDuplicateName, handleFmeaNameChange,
     recordChangeHistory,
     handleSave, handleNewRegister, handleUserSelect,

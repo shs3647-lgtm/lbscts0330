@@ -45,6 +45,10 @@ interface PfmeaBasicInfoTableProps {
     updateField: (field: keyof FMEAInfo, value: string) => void;
     setFmeaId: (id: string) => void;
     setSelectedBaseFmea: (id: string | null) => void;
+    setSelectedParentApqp?: (id: string | null) => void;
+    selectedParentApqp?: string | null;
+    loadApqpList?: () => void;
+    setApqpModalOpen?: (v: boolean) => void;
     handleFmeaNameChange: (value: string) => void;
     // 모달 핸들러
     openFmeaSelectModal: (type: 'M' | 'F' | 'P' | 'ALL' | 'LOAD') => void;
@@ -84,6 +88,9 @@ export default function PfmeaBasicInfoTable({
     setFmeaId,
     setSelectedBaseFmea,
     setSelectedParentApqp,
+    selectedParentApqp,
+    loadApqpList,
+    setApqpModalOpen,
     handleFmeaNameChange,
     openFmeaSelectModal,
     loadFmeaNameList,
@@ -192,7 +199,7 @@ export default function PfmeaBasicInfoTable({
                                         >APQP</span>
                                         <span
                                             className="text-xs font-semibold text-green-600 cursor-pointer hover:underline"
-                                            onClick={() => { loadApqpList(); setApqpModalOpen(true); }}
+                                            onClick={() => { loadApqpList?.(); setApqpModalOpen?.(true); }}
                                             title="APQP 선택"
                                         >{derivedParentApqp}</span>
                                     </>

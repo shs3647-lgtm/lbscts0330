@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 
 interface StepResult {
   step: number;
@@ -88,7 +89,7 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
   const steps = result?.steps || [];
   const hasErrors = steps.some(s => s.status === 'error' || s.status === 'warn');
 
-  return (
+  return ReactDOM.createPortal(
     <div
       ref={panelRef}
       className="fixed left-0 right-0 mx-auto w-[720px] bg-gray-900 border border-gray-600 rounded-b-lg shadow-2xl"
@@ -184,7 +185,8 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 

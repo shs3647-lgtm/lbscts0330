@@ -66,6 +66,11 @@ export function useRegisterPageCore() {
   // ★ 성능 개선: 프로젝트 목록 캐시 (page.tsx 중복 API 호출 제거)
   const [cachedProjects, setCachedProjects] = useState<Record<string, unknown>[]>([]);
 
+  // ★ APQP 연동
+  const [apqpModalOpen, setApqpModalOpen] = useState(false);
+  const [apqpList, setApqpList] = useState<{ id: string; name: string }[]>([]);
+  const [selectedParentApqp, setSelectedParentApqp] = useState<string | null>(null);
+
   // 연동 모달
   const [linkageModalOpen, setLinkageModalOpen] = useState(false);
   const [linkedPfdList, setLinkedPfdList] = useState<LinkedDocItem[]>([]);
@@ -541,6 +546,9 @@ export function useRegisterPageCore() {
     availableFmeas, setAvailableFmeas,
     selectedBaseFmea, setSelectedBaseFmea,
     masterDataCount, setMasterDataCount,
+    // APQP
+    apqpModalOpen, setApqpModalOpen, apqpList, setApqpList,
+    selectedParentApqp, setSelectedParentApqp,
     // FMEA name
     fmeaNameModalOpen, setFmeaNameModalOpen,
     fmeaNameList, setFmeaNameList,
