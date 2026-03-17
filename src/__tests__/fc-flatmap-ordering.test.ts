@@ -9,7 +9,7 @@
  */
 
 import { describe, test, expect } from 'vitest';
-import { buildWorksheetState, type BuildConfig, type FlatToEntityMap } from '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState';
+import { buildWorksheetState, type BuildConfig } from '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState';
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
 import type { L3FailureCauseExtended } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 
@@ -73,22 +73,21 @@ describe('flatMap.fc 순서 정합성 (다중 m4)', () => {
       makeItem('10', 'B4', '자재 오투입', 'IM'),     // b4[5]
     ];
 
-    const flatMap: FlatToEntityMap = { fm: new Map(), fc: new Map(), fe: new Map() };
-    const result = buildWorksheetState(flatData, config, undefined, flatMap);
+    const result = buildWorksheetState(flatData, config);
     expect(result.success).toBe(true);
+    const flatMap = result.flatMap!;
+    expect(flatMap).toBeTruthy();
 
     const proc = result.state.l2[0];
     const causes = proc.failureCauses as L3FailureCauseExtended[];
     expect(causes.length).toBe(6);
 
-    // 핵심 검증: flatMap.fc의 각 매핑이 이름 일치하는 FC entity를 가리키는지
     const b4Items = flatData.filter(d => d.itemCode === 'B4');
     expect(flatMap.fc.size).toBe(6);
 
     for (const b4 of b4Items) {
       const entityId = flatMap.fc.get(b4.id);
       expect(entityId).toBeTruthy();
-      // entityId가 가리키는 FC의 이름이 b4.value와 같아야 함
       const matchedCause = causes.find(c => c.id === entityId);
       expect(matchedCause).toBeTruthy();
       expect(matchedCause!.name).toBe(b4.value);
@@ -114,9 +113,9 @@ describe('flatMap.fc 순서 정합성 (다중 m4)', () => {
       makeItem('20', 'B4', '교육 부족', 'MN'),
     ];
 
-    const flatMap: FlatToEntityMap = { fm: new Map(), fc: new Map(), fe: new Map() };
-    const result = buildWorksheetState(flatData, config, undefined, flatMap);
+    const result = buildWorksheetState(flatData, config);
     expect(result.success).toBe(true);
+    const flatMap = result.flatMap!;
 
     const b4Count = flatData.filter(d => d.itemCode === 'B4').length;
     expect(flatMap.fc.size).toBe(b4Count);
@@ -134,9 +133,9 @@ describe('flatMap.fc 순서 정합성 (다중 m4)', () => {
       makeItem('30', 'B4', '치수B 불량', 'MC'),
     ];
 
-    const flatMap: FlatToEntityMap = { fm: new Map(), fc: new Map(), fe: new Map() };
-    const result = buildWorksheetState(flatData, config, undefined, flatMap);
+    const result = buildWorksheetState(flatData, config);
     expect(result.success).toBe(true);
+    const flatMap = result.flatMap!;
 
     const b4Items = flatData.filter(d => d.itemCode === 'B4');
     const proc = result.state.l2[0];
@@ -163,12 +162,11 @@ describe('flatMap.fc 순서 정합성 (다중 m4)', () => {
       makeItem('40', 'B4', '치수 편차', 'MC'),
     ];
 
-    const flatMap: FlatToEntityMap = { fm: new Map(), fc: new Map(), fe: new Map() };
-    const result = buildWorksheetState(flatData, config, undefined, flatMap);
+    const result = buildWorksheetState(flatData, config);
     expect(result.success).toBe(true);
+    const flatMap = result.flatMap!;
 
     const b4Items = flatData.filter(d => d.itemCode === 'B4');
-    // unmatchedB4 포함 모든 B4가 flatMap.fc에 기록되어야 함
     expect(flatMap.fc.size).toBe(b4Items.length);
 
     for (const b4 of b4Items) {

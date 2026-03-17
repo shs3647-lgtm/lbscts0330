@@ -92,6 +92,7 @@ export interface BuildResult {
   success: boolean;
   state: WorksheetState;
   diagnostics: BuildDiagnostics;
+  flatMap?: FlatToEntityMap;
 }
 
 /** ★★★ 2026-03-17: flatData.id → entity.id 결정론적 매핑 (텍스트 매칭 제거) ★★★ */
@@ -1157,13 +1158,15 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         const weIdFromPc = genB1('PF', pnoNum, pcParsed.m4, pcParsed.b1seq);
         const kseq = (weKseqMap.get(weIdFromPc) || 0) + 1;
         weKseqMap.set(weIdFromPc, kseq);
+        const entityId = b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || pcParsed.m4, pcParsed.b1seq, kseq);
         causes.push({
-          id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || pcParsed.m4, pcParsed.b1seq, kseq),
+          id: entityId,
           name: b4.value,
           ...rev(b4),
           m4: b4.m4,
           processCharId: targetPc.id,
         } as L3FailureCauseExtended);
+        if (flatMap && b4.id) flatMap.fc.set(b4.id, entityId);
       }
     } else if (m4PCs.length === 0 && m4B4.length > 0) {
       // ★★★ 2026-03-03: m4 불일치 → fallback 대상에 추가 ★★★
@@ -1183,17 +1186,17 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     for (const b4 of unmatchedB4) {
       const kseq = (weKseqMap.get(fpWeId) || 0) + 1;
       weKseqMap.set(fpWeId, kseq);
+      const entityId = b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq);
       causes.push({
-        id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq),
+        id: entityId,
         name: b4.value,
         ...rev(b4),
         m4: b4.m4,
         processCharId: firstPc.id,
       } as L3FailureCauseExtended);
+      if (flatMap && b4.id) flatMap.fc.set(b4.id, entityId);
     }
   } else if (unmatchedB4.length > 0) {
-    // ★★★ 2026-03-17 FIX: allProcessChars가 비어도 process.l3에서 재탐색 ★★★
-    // allProcessChars 수집 이후에 processChars가 추가되었을 수 있으므로 재탐색
     const lateProcessChars: { id: string; name: string }[] = [];
     for (const we of process.l3) {
       for (const func of we.functions) {
@@ -1204,32 +1207,34 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     }
 
     if (lateProcessChars.length > 0) {
-      // 재탐색으로 찾은 첫 번째 PC에 전부 할당
       const firstPc = lateProcessChars[0];
       const fpParsed = parseWeId(firstPc.id);
       const fpWeId = genB1('PF', pnoNum, fpParsed.m4, fpParsed.b1seq);
       for (const b4 of unmatchedB4) {
         const kseq = (weKseqMap.get(fpWeId) || 0) + 1;
         weKseqMap.set(fpWeId, kseq);
+        const entityId = b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq);
         causes.push({
-          id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq),
+          id: entityId,
           name: b4.value,
           ...rev(b4),
           m4: b4.m4,
           processCharId: firstPc.id,
         } as L3FailureCauseExtended);
+        if (flatMap && b4.id) flatMap.fc.set(b4.id, entityId);
       }
     } else {
-      // 진짜로 processChars가 없는 경우 — 기존 fallback 유지
       let fallbackKseq = 0;
       for (const b4 of unmatchedB4) {
         fallbackKseq++;
+        const entityId = b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || '', 1, fallbackKseq);
         causes.push({
-          id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || '', 1, fallbackKseq),
+          id: entityId,
           name: b4.value,
           ...rev(b4),
           m4: b4.m4,
         } as L3FailureCauseExtended);
+        if (flatMap && b4.id) flatMap.fc.set(b4.id, entityId);
       }
     }
   }
@@ -1257,13 +1262,6 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           }
         }
       }
-    }
-  }
-
-  // ★ flatId→entityId 매핑 기록: B4 flatData.id → FC entity.id
-  if (flatMap) {
-    for (let ci = 0; ci < causes.length && ci < b4Items.length; ci++) {
-      if (b4Items[ci].id) flatMap.fc.set(b4Items[ci].id, causes[ci].id);
     }
   }
 
@@ -1521,6 +1519,7 @@ export function buildWorksheetState(
       warnings,
       linkStats,
     },
+    flatMap,
   };
 }
 

@@ -360,8 +360,12 @@ export async function POST(request: NextRequest) {
           const firstFeId = atomic.failureEffects.length > 0 ? (atomic.failureEffects[0] as any).id : null;
 
           const synthLinks: any[] = [];
+          const allFms = atomic.failureModes as any[];
           for (const fc of unlinkedFcs) {
-            const fm = fmByL2.get(fc.l2StructId);
+            let fm = fmByL2.get(fc.l2StructId);
+            if (!fm && allFms.length > 0) {
+              fm = allFms[0];
+            }
             if (!fm) continue;
             const feId = fmToFe.get(fm.id) || firstFeId;
             if (!feId) continue;

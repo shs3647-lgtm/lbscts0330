@@ -472,8 +472,13 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     let fcIdx = 0; // FC 항목 인덱스 (1-based)
     
     procFailureCauses.forEach((fc: any, fcLocalIdx: number) => {
-      if (!fc.name || fc.name.includes('클릭') || fc.name.includes('추가')) {
-        return; // 빈 FC 스킵
+      const fcNameTrimmed = (fc.name || '').trim();
+      if (!fcNameTrimmed
+        || fcNameTrimmed === '고장원인 선택'
+        || fcNameTrimmed === '클릭하여 추가'
+        || fcNameTrimmed === '여기를 클릭하여 추가'
+        || fcNameTrimmed === '고장원인을 입력하세요') {
+        return;
       }
       
       // ★★★ 2026-03-15 FIX: processCharId → L3Function 다단계 매칭 (FC 누락 방지) ★★★
