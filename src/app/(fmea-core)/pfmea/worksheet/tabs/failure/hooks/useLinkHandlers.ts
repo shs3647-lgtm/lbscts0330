@@ -6,6 +6,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { FEItem, FCItem, FMItem, LinkResult } from '../FailureLinkTypes';
+import { uid } from '../../../constants';
 
 interface UseLinkHandlersProps {
   state: any;
@@ -119,12 +120,19 @@ export function useLinkHandlers({
     if (sameContent) return; // 변경 없음
 
     // 새 링크 빌드 (confirmLink과 동일 로직, UI 프롬프트 없음)
+    // ★★★ 2026-03-17 FIX: 기존 링크 ID 보존 — 동일 FM+FE+FC 조합이면 기존 ID 재사용
+    const existingLinkMap = new Map<string, string>(); // FM+FE+FC → id
+    for (const l of savedLinks) {
+      if ((l as any).id) existingLinkMap.set(`${l.fmId}|${l.feId}|${l.fcId}`, (l as any).id);
+    }
     const newLinks = savedLinks.filter(l => l.fmId !== currentFMId);
 
     if (feArray.length > 0) {
       feArray.forEach(fe => {
         fcArray.forEach(fc => {
+          const linkKey = `${currentFMId}|${fe.id}|${fc.id}`;
           newLinks.push({
+            id: existingLinkMap.get(linkKey) || uid(),
             fmId: currentFMId,
             fmNo: currentFM.fmNo,
             fmText: currentFM.text,
@@ -145,12 +153,14 @@ export function useLinkHandlers({
             fcText: fc.text,
             fcWorkFunction: fc.workFunction || '',
             fcProcessChar: fc.processChar || '',
-          });
+          } as any);
         });
       });
     } else {
       fcArray.forEach(fc => {
+        const linkKey = `${currentFMId}||${fc.id}`;
         newLinks.push({
+          id: existingLinkMap.get(linkKey) || uid(),
           fmId: currentFMId,
           fmNo: currentFM.fmNo,
           fmText: currentFM.text,
@@ -171,7 +181,7 @@ export function useLinkHandlers({
           fcText: fc.text,
           fcWorkFunction: fc.workFunction || '',
           fcProcessChar: fc.processChar || '',
-        });
+        } as any);
       });
     }
 
@@ -476,12 +486,19 @@ export function useLinkHandlers({
       if (!window.confirm('고장영향평가 누락됨 계속진행하겠습니까?')) return;
     }
 
+    // ★★★ 2026-03-17 FIX: 기존 링크 ID 보존 + 새 링크에 uid() 생성
+    const existingLinkMap = new Map<string, string>();
+    for (const l of savedLinks) {
+      if ((l as any).id) existingLinkMap.set(`${l.fmId}|${l.feId}|${l.fcId}`, (l as any).id);
+    }
     const newLinks = savedLinks.filter(l => l.fmId !== currentFMId);
 
     if (feArray.length > 0) {
       feArray.forEach(fe => {
         fcArray.forEach(fc => {
+          const linkKey = `${currentFMId}|${fe.id}|${fc.id}`;
           newLinks.push({
+            id: existingLinkMap.get(linkKey) || uid(),
             fmId: currentFMId,
             fmNo: currentFM.fmNo,
             fmText: currentFM.text,
@@ -502,13 +519,14 @@ export function useLinkHandlers({
             fcText: fc.text,
             fcWorkFunction: fc.workFunction || '',
             fcProcessChar: fc.processChar || '',
-          });
+          } as any);
         });
       });
     } else {
-      // FE 없이 FC만 연결
       fcArray.forEach(fc => {
+        const linkKey = `${currentFMId}||${fc.id}`;
         newLinks.push({
+          id: existingLinkMap.get(linkKey) || uid(),
           fmId: currentFMId,
           fmNo: currentFM.fmNo,
           fmText: currentFM.text,
@@ -529,7 +547,7 @@ export function useLinkHandlers({
           fcText: fc.text,
           fcWorkFunction: fc.workFunction || '',
           fcProcessChar: fc.processChar || '',
-        });
+        } as any);
       });
     }
 

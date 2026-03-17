@@ -1101,11 +1101,35 @@ export async function POST(request: NextRequest) {
         fkValidLinkCount = validLinks.length;
         fkDroppedCount = fkDropped;
 
-        // ★ feId 빈 링크는 DB FK 제약으로 저장 불가 → legacyData에만 보존
-        const dbSavableLinks = validLinks.filter((l: any) => !!l.feId);
+        // ★★★ 2026-03-17 FIX: feId 빈 링크 → 같은 FM/공정의 기존 FE 자동 할당 (저장 보장)
+        // 근본원인: confirmLink에서 FE 미선택 시 feId='' → DB FK 제약으로 저장 불가 → 고장연결 소실
+        const fmToFeId = new Map<string, string>();
+        for (const vl of validLinks) {
+          if ((vl as any).feId && !fmToFeId.has((vl as any).fmId)) {
+            fmToFeId.set((vl as any).fmId, (vl as any).feId);
+          }
+        }
+        const firstFeId = db.failureEffects.length > 0 ? db.failureEffects[0].id : null;
+
+        let feAutoAssignCount = 0;
+        const dbSavableLinks = validLinks.map((l: any) => {
+          if (l.feId) return l;
+          // 1순위: 같은 FM의 기존 링크에서 FE 가져오기
+          // 2순위: 전역 첫 번째 FE (fallback)
+          const autoFeId = fmToFeId.get(l.fmId) || firstFeId;
+          if (autoFeId && feIdSet.has(autoFeId)) {
+            feAutoAssignCount++;
+            return { ...l, feId: autoFeId };
+          }
+          return l;
+        }).filter((l: any) => !!l.feId);
+
         feEmptyLinkCount = validLinks.length - dbSavableLinks.length;
+        if (feAutoAssignCount > 0) {
+          console.info(`[FMEA API] FailureLink feId 자동할당: ${feAutoAssignCount}건 (같은 FM/전역 FE)`);
+        }
         if (feEmptyLinkCount > 0) {
-          console.warn(`[FMEA API] FailureLink ${feEmptyLinkCount}건 feId 미지정 → DB 저장 건너뜀 (legacyData에 보존)`);
+          console.warn(`[FMEA API] FailureLink ${feEmptyLinkCount}건 feId 미지정 → DB 저장 건너뜀 (FE 없음)`);
         }
 
         // ★★★ 실제 저장된 링크 ID 저장 (failureAnalyses에서 참조) ★★★
@@ -1123,45 +1147,46 @@ export async function POST(request: NextRequest) {
           console.error(`[fmea/route] FailureLink FK 검증 실패: ${fkDropped}건 드롭`, JSON.stringify(droppedLinkReasons));
         }
 
-        if (dbSavableLinks.length > 0) {
-          // ★ Soft delete 대응: 기존 soft-deleted 링크 restore + 신규 링크 create
-          const savableLinkIds = dbSavableLinks.map((l: any) => l.id);
-
-          // Step 1: soft-deleted 상태인 기존 링크 중 다시 들어온 것 → restore (deletedAt: null)
-          await tx.failureLink.updateMany({
-            where: { id: { in: savableLinkIds }, fmeaId: db.fmeaId, deletedAt: { not: null } },
-            data: { deletedAt: null },
+        // ★★★ 2026-03-17 FIX: DELETE-THEN-INSERT 패턴으로 변경
+        // 근본원인: INSERT-ONLY(createMany+skipDuplicates)는 기존 링크를 삭제하지 않아
+        //          사용자가 연결을 수정해도 DB에 반영되지 않음 → 새로고침 시 원래 상태로 복귀
+        // 해결: (1) 기존 활성 링크 전체 삭제 (2) 신규 링크 INSERT
+        {
+          // Step 0: 기존 활성 링크 전체 삭제 (soft-delete가 아닌 hard-delete)
+          await tx.failureLink.deleteMany({
+            where: { fmeaId: db.fmeaId },
           });
 
-          // Step 2: 신규 링크 생성 (skipDuplicates로 이미 존재하는 ID는 건너뜀)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const linkData = dbSavableLinks.map((link: any) => ({
-            id: link.id,
-            fmeaId: db.fmeaId,
-            fmId: link.fmId,
-            feId: link.feId,
-            fcId: link.fcId,
-            fmText: link.fmText || link.cache?.fmText || link.originalFmText || null,
-            fmProcess: link.fmProcess || link.cache?.fmProcess || link.processName || null,
-            feText: link.feText || link.cache?.feText || link.originalFeText || null,
-            feScope: link.feScope || link.cache?.feCategory || link.scope || null,
-            fcText: link.fcText || link.cache?.fcText || link.originalFcText || null,
-            fcWorkElem: link.fcWorkElem || link.cache?.fcWorkElem || link.workElementName || null,
-            fcM4: link.fcM4 || link.m4 || null,
-            severity: link.severity || null,
-            fmSeq: link.fmSeq ?? null,
-            feSeq: link.feSeq ?? null,
-            fcSeq: link.fcSeq ?? null,
-            fmPath: link.fmPath ?? null,
-            fePath: link.fePath ?? null,
-            fcPath: link.fcPath ?? null,
-            parentId: link.parentId || null,
-            mergeGroupId: link.mergeGroupId || null,
-            rowSpan: link.rowSpan || 1,
-            colSpan: link.colSpan || 1,
-            deletedAt: null,
-          }));
-          await tx.failureLink.createMany({ data: linkData, skipDuplicates: true });
+          if (dbSavableLinks.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const linkData = dbSavableLinks.map((link: any) => ({
+              id: link.id || undefined,
+              fmeaId: db.fmeaId,
+              fmId: link.fmId,
+              feId: link.feId,
+              fcId: link.fcId,
+              fmText: link.fmText || link.cache?.fmText || link.originalFmText || null,
+              fmProcess: link.fmProcess || link.cache?.fmProcess || link.processName || null,
+              feText: link.feText || link.cache?.feText || link.originalFeText || null,
+              feScope: link.feScope || link.cache?.feCategory || link.scope || null,
+              fcText: link.fcText || link.cache?.fcText || link.originalFcText || null,
+              fcWorkElem: link.fcWorkElem || link.cache?.fcWorkElem || link.workElementName || null,
+              fcM4: link.fcM4 || link.m4 || null,
+              severity: link.severity || null,
+              fmSeq: link.fmSeq ?? null,
+              feSeq: link.feSeq ?? null,
+              fcSeq: link.fcSeq ?? null,
+              fmPath: link.fmPath ?? null,
+              fePath: link.fePath ?? null,
+              fcPath: link.fcPath ?? null,
+              parentId: link.parentId || null,
+              mergeGroupId: link.mergeGroupId || null,
+              rowSpan: link.rowSpan || 1,
+              colSpan: link.colSpan || 1,
+              deletedAt: null,
+            }));
+            await tx.failureLink.createMany({ data: linkData, skipDuplicates: true });
+          }
         }
       }
 

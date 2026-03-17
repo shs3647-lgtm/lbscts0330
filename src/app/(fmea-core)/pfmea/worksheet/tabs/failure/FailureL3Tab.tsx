@@ -100,10 +100,13 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     if (!name) return false;
     const trimmed = String(name).trim();
     if (trimmed === '') return false;
-    // ★ FIX: 20자 초과 = 실제 데이터 (키워드 포함해도 placeholder 아님)
-    if (trimmed.length > 20) return true;
-    const placeholders = ['클릭', '선택', '입력', '필요', '기능분석에서'];
-    return !placeholders.some(p => trimmed.includes(p));
+    const PLACEHOLDERS = [
+      '클릭하여 추가', '여기를 클릭하여 추가', '클릭하여 선택',
+      '요구사항 선택', '고장원인 선택', '고장형태 선택', '고장영향 선택',
+      '선택하세요', '입력하세요', '추가하세요',
+      '고장원인을 입력하세요', '(기능분석에서 입력)', '기능 입력 필요',
+    ];
+    return !PLACEHOLDERS.includes(trimmed);
   };
 
   // ★★★ 2026-02-05 FIX: missingCount — flatRows와 동일 isMeaningful/charIdsByName 로직 사용 ★★★
@@ -160,20 +163,25 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
 
             if (uniqueLinked.length === 0) {
               count++;
+              if (typeof window !== 'undefined') console.warn(`[FC누락] NO_FC: 공정${proc.no}(${proc.name}) WE="${we.name}" PC="${charName}" ids=[${[...ids]}] allCauses=${allCauses.length}`);
             } else {
               uniqueLinked.forEach(c => {
-                if (isMissing(c.name)) count++;
+                if (isMissing(c.name)) {
+                  count++;
+                  if (typeof window !== 'undefined') console.warn(`[FC누락] PLACEHOLDER: 공정${proc.no}(${proc.name}) PC="${charName}" FC="${c.name}"`);
+                }
               });
             }
           });
         });
 
-        // ★ FIX: 의미있는 작업요소에 공정특성이 전혀 없으면 → 누락 1건 (공정특성 미입력)
         if (hasMeaningfulFunc && !weHasAnyMeaningfulChar) {
           count++;
+          if (typeof window !== 'undefined') console.warn(`[FC누락] NO_PC: 공정${proc.no}(${proc.name}) WE="${we.name}"`);
         }
       });
     });
+    if (count > 0 && typeof window !== 'undefined') console.warn(`[FC누락] Total missingCount=${count}`);
     return count;
   }, [state.l2]);
 
@@ -768,13 +776,15 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
       const procFirstRowIdx = rows.length;
 
       workElements.forEach((we: any, weIdx: number) => {
-        // ✅ 작업요소의 의미 있는 공정특성만 수집 (placeholder 제외)
-        // ★ FIX: 20자 초과 = 실제 데이터 (키워드 포함해도 placeholder 아님)
         const isMeaningful = (name: string) => {
           if (!name || name.trim() === '') return false;
-          if (name.trim().length > 20) return true;
-          const placeholders = ['클릭', '선택', '입력', '필요', '기능분석에서'];
-          return !placeholders.some(p => name.includes(p));
+          const PLACEHOLDERS = [
+            '클릭하여 추가', '여기를 클릭하여 추가', '클릭하여 선택',
+            '요구사항 선택', '고장원인 선택', '고장형태 선택', '고장영향 선택',
+            '선택하세요', '입력하세요', '추가하세요',
+            '고장원인을 입력하세요', '(기능분석에서 입력)', '기능 입력 필요',
+          ];
+          return !PLACEHOLDERS.includes(name.trim());
         };
 
         const allProcessChars: any[] = [];

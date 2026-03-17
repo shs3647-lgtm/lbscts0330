@@ -57,6 +57,7 @@ export interface FCItem {
 
 /** 연결 결과 (FM-FE-FC 연결) */
 export interface LinkResult {
+  id?: string;     // ★ DB FailureLink UUID (2026-03-17: 저장 안정성을 위해 추가)
   fmId: string;
   fmNo?: string;  // FM 순번
   fmText: string;

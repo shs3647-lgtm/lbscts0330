@@ -13,17 +13,16 @@
 export const isMissing = (name: string | undefined | null): boolean => {
   if (name === null || name === undefined) return true;
   if (!name) return true;
-  const str = String(name);
-  const trimmed = str.trim();
+  const trimmed = String(name).trim();
   if (trimmed === '' || trimmed === '-') return true;
-  // ★ FIX: 20자 초과 = 실제 데이터 (키워드 포함해도 placeholder 아님)
-  if (trimmed.length > 20) return false;
-  if (str.includes('클릭')) return true;
-  if (str.includes('추가')) return true;
-  if (str.includes('선택')) return true;
-  if (str.includes('입력')) return true;
-  if (str.includes('필요')) return true;
-  return false;
+  const PLACEHOLDERS = [
+    '고장원인 선택', '클릭하여 추가', '여기를 클릭하여 추가',
+    '고장원인을 입력하세요', '고장원인 추가', '선택하세요',
+    '입력하세요', '추가하세요', '클릭하여 선택',
+    '고장형태 선택', '고장영향 선택', '요구사항 선택',
+    '(기능분석에서 입력)', '기능 입력 필요',
+  ];
+  return PLACEHOLDERS.includes(trimmed);
 };
 
 /**

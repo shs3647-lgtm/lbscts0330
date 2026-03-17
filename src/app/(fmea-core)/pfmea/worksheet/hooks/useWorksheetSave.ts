@@ -14,7 +14,7 @@
 'use client';
 
 import { useCallback, useRef, useEffect } from 'react';
-import { WorksheetState, FMEAProject } from '../constants';
+import { WorksheetState, FMEAProject, uid } from '../constants';
 import { FMEAWorksheetDB } from '../schema';
 import { migrateToAtomicDB } from '../migration';
 import { saveWorksheetDB } from '../db-storage';
@@ -145,28 +145,95 @@ function syncFailureLinksFromState(
   const stateLinks = (state as any).failureLinks || [];
   if (stateLinks.length === 0 && db.failureLinks.length === 0) return db;
 
-  // state의 failureLinks에 id가 있으면 그대로, 없으면 기존 DB에서 조회
+  // ★★★ 2026-03-17 FIX: 3단계 매칭 + feId 보존 + FM+FC 키 매칭 (feId 불일치 허용)
+  // 근본원인: (1) confirmLink이 id 없이 링크 생성 → DB link와 매칭 불가
+  //          (2) API에서 feId 자동할당 → client feId='' vs DB feId='Y4' → 복합키 불일치
+  //          (3) 매칭 실패 → 매번 새 UUID → DB에 old link 잔존 + new link 충돌
+
+  // 인덱스 구축
   const dbLinkById = new Map(db.failureLinks.map((l: any) => [l.id, l]));
+  const dbLinkByComposite = new Map<string, any>();
+  const dbLinkByFmFc = new Map<string, any>(); // FM+FC 2중키 (feId 무관 매칭용)
+  for (const l of db.failureLinks as any[]) {
+    const key3 = `${l.fmId}|${l.feId || ''}|${l.fcId}`;
+    if (!dbLinkByComposite.has(key3)) dbLinkByComposite.set(key3, l);
+    const key2 = `${l.fmId}|${l.fcId}`;
+    if (!dbLinkByFmFc.has(key2)) dbLinkByFmFc.set(key2, l);
+  }
 
   const syncedLinks = stateLinks
-    .filter((sl: any) => sl.fmId && sl.fcId) // 최소 FK 필요
+    .filter((sl: any) => sl.fmId && sl.fcId)
     .map((sl: any) => {
-      const existing = dbLinkById.get(sl.id);
-      if (existing) {
-        // 기존 링크 유지 (FK만 갱신)
+      // 1순위: id로 기존 DB 링크 매칭
+      const existingById = sl.id ? dbLinkById.get(sl.id) : null;
+      if (existingById) {
         return {
-          ...existing,
+          ...existingById,
           fmId: sl.fmId,
-          feId: sl.feId || existing.feId,
+          feId: sl.feId || existingById.feId,
           fcId: sl.fcId,
+          fmText: sl.fmText || existingById.fmText,
+          feText: sl.feText || existingById.feText,
+          fcText: sl.fcText || existingById.fcText,
+          fmProcess: sl.fmProcess || existingById.fmProcess,
+          feScope: sl.feScope || existingById.feScope,
+          fcWorkElem: sl.fcWorkElem || existingById.fcWorkElem,
+          fcM4: sl.fcM4 || existingById.fcM4,
+          severity: sl.severity ?? existingById.severity,
         };
       }
-      // 새로 추가된 링크
+      // 2순위: FM+FE+FC 3중 복합키로 매칭
+      const compositeKey = `${sl.fmId}|${sl.feId || ''}|${sl.fcId}`;
+      const existingByKey3 = dbLinkByComposite.get(compositeKey);
+      if (existingByKey3) {
+        return {
+          ...existingByKey3,
+          fmId: sl.fmId,
+          feId: sl.feId || existingByKey3.feId,
+          fcId: sl.fcId,
+          fmText: sl.fmText || existingByKey3.fmText,
+          feText: sl.feText || existingByKey3.feText,
+          fcText: sl.fcText || existingByKey3.fcText,
+          fmProcess: sl.fmProcess || existingByKey3.fmProcess,
+          feScope: sl.feScope || existingByKey3.feScope,
+          fcWorkElem: sl.fcWorkElem || existingByKey3.fcWorkElem,
+          fcM4: sl.fcM4 || existingByKey3.fcM4,
+          severity: sl.severity ?? existingByKey3.severity,
+        };
+      }
+      // 3순위: FM+FC 2중키 매칭 (feId 불일치 허용 — API 자동할당으로 인한 차이 해결)
+      const key2 = `${sl.fmId}|${sl.fcId}`;
+      const existingByKey2 = dbLinkByFmFc.get(key2);
+      if (existingByKey2) {
+        return {
+          ...existingByKey2,
+          fmId: sl.fmId,
+          feId: sl.feId || existingByKey2.feId, // DB의 feId 보존 (API 자동할당값)
+          fcId: sl.fcId,
+          fmText: sl.fmText || existingByKey2.fmText,
+          feText: sl.feText || existingByKey2.feText,
+          fcText: sl.fcText || existingByKey2.fcText,
+          fmProcess: sl.fmProcess || existingByKey2.fmProcess,
+          feScope: sl.feScope || existingByKey2.feScope,
+          fcWorkElem: sl.fcWorkElem || existingByKey2.fcWorkElem,
+          fcM4: sl.fcM4 || existingByKey2.fcM4,
+          severity: sl.severity ?? existingByKey2.severity,
+        };
+      }
+      // 4순위: 완전 새 링크 → 고유 UUID (이미 confirmLink에서 uid() 할당됨, 안전망)
       return {
-        id: sl.id || '',
+        id: sl.id || uid(),
         fmId: sl.fmId,
         feId: sl.feId || '',
         fcId: sl.fcId,
+        fmText: sl.fmText || null,
+        feText: sl.feText || null,
+        fcText: sl.fcText || null,
+        fmProcess: sl.fmProcess || null,
+        feScope: sl.feScope || null,
+        fcWorkElem: sl.fcWorkElem || null,
+        fcM4: sl.fcM4 || null,
+        severity: sl.severity ?? null,
       };
     });
 

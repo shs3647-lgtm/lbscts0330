@@ -86,6 +86,21 @@ export function useWorksheetDataLoader({
       localStorage.setItem(migrationKey, new Date().toISOString());
     }
 
+    // ★★★ 2026-03-17 FIX: stale localStorage 강제 클리어 (FC 누락 근본 해결)
+    // localStorage의 이전 캐시가 atomic DB 데이터를 오염시키는 문제 방지
+    const cacheVersion = 'v2-fc-fix-20260317';
+    const cacheKey = `pfmea_cache_ver_${normalizedFmeaId}`;
+    if (localStorage.getItem(cacheKey) !== cacheVersion) {
+      const staleKeys = [
+        `pfmea_worksheet_${normalizedFmeaId}`,
+        `pfmea_atomic_${normalizedFmeaId}`,
+        `pfmea_riskData_${normalizedFmeaId}`,
+      ];
+      staleKeys.forEach(k => localStorage.removeItem(k));
+      localStorage.setItem(cacheKey, cacheVersion);
+      console.log('[WorksheetDataLoader] stale localStorage 클리어 완료 (FC fix)');
+    }
+
     // 원자성 DB 로드 시도 (async) - ★★★ 프로젝트 정보 로드도 여기서 ★★★
     (async () => {
 

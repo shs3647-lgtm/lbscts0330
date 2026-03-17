@@ -209,7 +209,23 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-        console.log(`[rebuild-atomic] PC 추출: path1=${atomic.l2Functions.filter((f: any) => Array.isArray((f as any).productChars)).length}funcs, path2 l2=${legacyData.l2?.length || 0}procs, pcRows=${pcRows.length}`);
+        // 3. Legacy l2[].l3[].functions[].processChars (B3 — FC의 processCharId 대상)
+        if (legacyData.l2) {
+          for (const proc of legacyData.l2) {
+            const l2Id = proc.id || atomic.l2Structures.find((s: any) => s.no === proc.no)?.id;
+            if (!l2Id) continue;
+            for (const we of (proc.l3 || [])) {
+              for (const func of (we.functions || [])) {
+                for (const pc of (func.processChars || [])) {
+                  if (!pc?.id || seenPcIds.has(pc.id)) continue;
+                  seenPcIds.add(pc.id);
+                  pcRows.push({ id: pc.id, fmeaId, l2StructId: l2Id, name: pc.name || '', specialChar: pc.specialChar || null, orderIndex: 0 });
+                }
+              }
+            }
+          }
+        }
+        console.log(`[rebuild-atomic] PC 추출: path1=${atomic.l2Functions.filter((f: any) => Array.isArray((f as any).productChars)).length}funcs, path2 l2=${legacyData.l2?.length || 0}procs, path3 l3-processChars, pcRows=${pcRows.length}`);
         if (pcRows.length > 0) {
           try {
             if (tx.processProductChar) {
