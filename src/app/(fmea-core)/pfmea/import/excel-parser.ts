@@ -524,7 +524,48 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               }
             }
           }
-          return; // 개별 시트가 이미 존재 → 통합 시트 스킵
+          // ★★★ 2026-03-17 FIX: 개별시트 스킵 시에도 A6/B5 추출 ★★★
+          // L2_UNIFIED 스킵 → A6(검출관리, G컬럼) 데이터 소실 방지
+          // L3_UNIFIED 스킵 → B5(예방관리, H컬럼) 데이터 소실 방지
+          const extraCodes = sheetCode === 'L2_UNIFIED' ? ['A6'] : sheetCode === 'L3_UNIFIED' ? ['B5'] : [];
+          const needsExtraExtract = extraCodes.some(c => !(sheetDataMap[c]?.rows?.length > 0));
+          if (needsExtraExtract && extraCodes.length > 0) {
+            let keyCol = -1;
+            const extraColMap: Array<{ col: number; targetCode: string }> = [];
+            let m4Col = -1;
+            for (let ci = 0; ci < headers.length; ci++) {
+              const h = (headers[ci] || '').replace(/\s/g, '').toLowerCase();
+              if (h.includes('공정번호')) keyCol = headerColMap[ci];
+              if (sheetCode === 'L2_UNIFIED' && h.includes('검출관리')) extraColMap.push({ col: headerColMap[ci], targetCode: 'A6' });
+              if (sheetCode === 'L3_UNIFIED' && h.includes('예방관리')) extraColMap.push({ col: headerColMap[ci], targetCode: 'B5' });
+              if (sheetCode === 'L3_UNIFIED' && (h.includes('4m') || h.includes('m4'))) m4Col = headerColMap[ci];
+            }
+            if (keyCol > 0 && extraColMap.length > 0) {
+              let lastKey = '';
+              let lastM4 = '';
+              for (let ri = startRow; ri <= Math.min(sheet.rowCount, startRow + MAX_DATA_ROWS - 1); ri++) {
+                const uRow = sheet.getRow(ri);
+                const rawKey = cellValueToString(uRow.getCell(keyCol).value).trim();
+                if (rawKey) lastKey = rawKey;
+                const pKey = lastKey;
+                if (!pKey) continue;
+                const m4Val = m4Col > 0 ? cellValueToString(uRow.getCell(m4Col).value).trim().toUpperCase() : '';
+                if (m4Val && ['MN', 'MC', 'IM', 'EN'].includes(m4Val)) lastM4 = m4Val;
+                for (const ec of extraColMap) {
+                  const val = cellValueToString(uRow.getCell(ec.col).value).trim();
+                  if (val && val !== 'null') {
+                    if (!sheetDataMap[ec.targetCode]) sheetDataMap[ec.targetCode] = { sheetName: ec.targetCode, headers: [], rows: [] };
+                    sheetDataMap[ec.targetCode].rows.push({ key: pKey, value: val, m4: lastM4 || undefined, excelRow: ri, rowSpan: 1 });
+                  }
+                }
+              }
+              for (const ec of extraCodes) {
+                const cnt = sheetDataMap[ec]?.rows?.length || 0;
+                if (cnt > 0) console.info(`[excel-parser] 통합시트 스킵 후 ${ec} 추출: ${cnt}건`);
+              }
+            }
+          }
+          return; // 개별 시트가 이미 존재 → 나머지 통합 시트 데이터 스킵
         }
         // 통합시트: 행 하나에서 여러 필드를 추출하여 개별 sheetDataMap 항목으로 분배
         // 헤더 인덱스 → 필드 매핑 (헤더 키워드 기반)

@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
       // 문제: 프로젝트 스키마는 LIKE ... INCLUDING ALL로 생성되어 FK 제약 없음
       // 결과: l1Structure.deleteMany가 cascade 미작동 → 좀비 레코드 누적
       // 해결: 자식→부모 순서로 모든 원자성 테이블을 fmeaId 기준 명시적 삭제
+      await tx.riskAnalysis.deleteMany({ where: { fmeaId } }).catch(() => {});
       await tx.failureLink.deleteMany({ where: { fmeaId } });
       try { if (tx.failureAnalysis) await tx.failureAnalysis.deleteMany({ where: { fmeaId } }); } catch {}
       await tx.failureEffect.deleteMany({ where: { fmeaId } });
@@ -405,6 +406,43 @@ export async function POST(request: NextRequest) {
           }
         }
       }
+      // ★★★ 2026-03-17 FIX: RiskAnalysis 저장 (preventionControl/detectionControl 포함) ★★★
+      if (atomic.riskAnalyses && (atomic.riskAnalyses as any[]).length > 0) {
+        const savedLinkIds = new Set(
+          (await tx.failureLink.findMany({ where: { fmeaId }, select: { id: true } }))
+            .map((l: any) => l.id)
+        );
+        const validRisks = (atomic.riskAnalyses as any[]).filter((r: any) =>
+          r.linkId && savedLinkIds.has(r.linkId)
+        );
+        if (validRisks.length > 0) {
+          for (const risk of validRisks) {
+            await tx.riskAnalysis.upsert({
+              where: { id: risk.id },
+              create: {
+                id: risk.id,
+                fmeaId,
+                linkId: risk.linkId,
+                severity: risk.severity ?? 0,
+                occurrence: risk.occurrence ?? 0,
+                detection: risk.detection ?? 0,
+                ap: risk.ap ?? 'L',
+                preventionControl: risk.preventionControl || null,
+                detectionControl: risk.detectionControl || null,
+              },
+              update: {
+                severity: risk.severity ?? 0,
+                occurrence: risk.occurrence ?? 0,
+                detection: risk.detection ?? 0,
+                ap: risk.ap ?? 'L',
+                preventionControl: risk.preventionControl || null,
+                detectionControl: risk.detectionControl || null,
+              },
+            });
+          }
+          console.info(`[rebuild-atomic] RiskAnalysis 저장: ${validRisks.length}건 (PC/DC 포함)`);
+        }
+      }
     }, { timeout: 30000, isolationLevel: 'Serializable' });
 
     return NextResponse.json({
@@ -421,6 +459,7 @@ export async function POST(request: NextRequest) {
         failureModes: atomic.failureModes.length,
         failureCauses: atomic.failureCauses.length,
         failureLinks: atomic.failureLinks.length,
+        riskAnalyses: (atomic.riskAnalyses as any[] || []).length,
       },
     });
   } catch (e: any) {

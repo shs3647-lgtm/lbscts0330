@@ -43,6 +43,7 @@
     "node_modules",
     "backups",
     "tests",
+    "scripts",
     "src/app/pfmea/worksheet",
     "src/app/pfd",
     "src/app/ws"

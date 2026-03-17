@@ -383,13 +383,16 @@ export function useImportFileHandlers({
 
       }
 
-      // ★★★ 2026-03-14: B3(공정특성) 중복 제거 — processNo+m4+value 기준 dedup ★★★
+      // ★★★ 2026-03-17 FIX: B3 중복 제거 — processNo+m4+WE+value 기준 ★★★
+      // 이전 키: processNo|m4|value → Ti Target과 Cu Target이 같은 값이면 하나 삭제됨
+      // 수정 키: processNo|m4|parentItemId(WE)|value → 다른 WE의 같은 값 보존
       {
         const b3Seen = new Set<string>();
         const toRemove: string[] = [];
         for (const item of flat) {
           if (item.itemCode !== 'B3') continue;
-          const key = `${item.processNo}|${item.m4 || ''}|${(item.value || '').trim()}`;
+          const we = item.parentItemId || '';
+          const key = `${item.processNo}|${item.m4 || ''}|${we}|${(item.value || '').trim()}`;
           if (b3Seen.has(key)) {
             toRemove.push(item.id);
           } else {

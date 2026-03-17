@@ -39,7 +39,7 @@ export default function APSummaryTable({ data, stats }: APSummaryTableProps) {
             완료: {stats.completed}/{stats.total}
           </span>
           <Link
-            href="/welcomeboard/ap-improvement"
+            href="/pfmea/ap-improvement"
             className="ml-2 px-3 py-1 rounded bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
           >
             전체보기 →

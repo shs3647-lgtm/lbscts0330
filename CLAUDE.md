@@ -267,6 +267,169 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 // 4. 참조 데이터는 Cache-Control 헤더 추가
 ```
 
+#### 🔁 파이프라인 검증 테스트 매뉴얼 (2026-03-17, 매일 1회 필수)
+
+> **목적**: 코드 수정 전후에 5단계 파이프라인 검증을 실행하여 데이터 정합성을 확인한다.
+> **원본 엑셀**: `data/master-fmea/master_import_12inch_AuBump.xlsx` (통합 PFMEA, 35KB)
+> **대상 fmeaId**: `pfm26-m066` (12inch Au Bump)
+> **마스터 JSON**: `data/master-fmea/pfm26-m066.json`
+
+##### 골든 베이스라인 (2026-03-17 확정)
+
+| 항목 | 기대값 | PASS 기준 |
+|------|--------|-----------|
+| L2 (공정) | 21 | = 21 |
+| L3 (작업요소) | 91 | = 91 |
+| L1Function | 17 | = 17 |
+| L2Function | 26 | = 26 |
+| L3Function | 103 | = 103 |
+| FM (고장형태) | 26 | = 26 |
+| FE (고장영향) | 20 | = 20 |
+| FC (고장원인) | 104 | = 104 |
+| FailureLink | 104 | = 104 |
+| RiskAnalysis | 104 | = 104 |
+| DC (검출관리) in RiskAnalysis | 104 | = 104 (NULL 0건) |
+| PC (예방관리) in RiskAnalysis | 104 | = 104 (NULL 0건) |
+| Chains with DC | 104 | = 104 |
+| Chains with PC | 104 | = 104 |
+| flatData 합계 | 670 | ≥ 660 |
+
+##### flatData 항목별 기대값
+
+| 코드 | 이름 | 기대값 | PASS 기준 |
+|------|------|--------|-----------|
+| A1 | 공정번호 | 21 | = 21 |
+| A2 | 공정명 | 21 | = 21 |
+| A3 | 공정기능 | 21 | ≥ 20 |
+| A4 | 제품특성 | 26 | ≥ 25 |
+| A5 | 고장형태 | 26 | = 26 |
+| A6 | 검출관리 | 21 | ≥ 20 (공정별 중복제거) |
+| B1 | 작업요소 | 91 | = 91 |
+| B2 | 요소기능 | 91 | ≥ 90 |
+| B3 | 공정특성 | 103 | ≥ 100 |
+| B4 | 고장원인 | 104 | = 104 |
+| B5 | 예방관리 | 98 | ≥ 90 (L3별 중복제거) |
+| C1 | L1 범주 | 3 | ≥ 3 |
+| C2 | L1 기능 | 7 | ≥ 7 |
+| C3 | L1 요구사항 | 17 | ≥ 17 |
+| C4 | 고장영향 | 20 | = 20 |
+
+##### 5단계 검증 PASS 기준
+
+**STEP 1 — IMPORT**
+| 검증 항목 | PASS 기준 | FAIL 시 조치 |
+|-----------|-----------|-------------|
+| Legacy 데이터 존재 | `legacy != null` | Import 재실행 |
+| L2 공정 수 | ≥ 20 | 엑셀 시트 확인 |
+| L1 완제품명 | 비어있지 않음 | L1 시트 확인 |
+
+**STEP 2 — 파싱**
+| 검증 항목 | PASS 기준 | FAIL 시 조치 |
+|-----------|-----------|-------------|
+| A5 (고장형태) | > 0 | excel-parser.ts 확인 |
+| B4 (고장원인) | > 0 | B4 파싱 로직 확인 |
+| C4 (고장영향) | > 0 | L1 시트 파싱 확인 |
+| A6 (검출관리) | > 0 | 통합시트 A6 추출 확인 |
+| B5 (예방관리) | > 0 | 통합시트 B5 추출 확인 |
+| 빈 공정특성 | = 0 | B3 빈값 원인 확인 |
+
+**STEP 3 — UUID**
+| 검증 항목 | PASS 기준 | FAIL 시 조치 |
+|-----------|-----------|-------------|
+| L2Structure | = 베이스라인 | rebuild-atomic 실행 |
+| L3Structure | = 베이스라인 | rebuild-atomic 실행 |
+| FM (FailureMode) | ≥ 베이스라인 90% | migration.ts 확인 |
+| FC (FailureCause) | ≥ 베이스라인 90% | migration.ts 확인 |
+| 고아 L3Function | = 0 | L3-L2 매핑 확인 |
+
+**STEP 4 — FK (고장사슬)**
+| 검증 항목 | PASS 기준 | FAIL 시 조치 |
+|-----------|-----------|-------------|
+| FailureLink | ≥ 베이스라인 50% | failureChainInjector 확인 |
+| Broken FC (끊어진 FC) | = 0 | FC FK 확인 |
+| Broken FM (끊어진 FM) | = 0 | FM FK 확인 |
+| Broken FE (끊어진 FE) | = 0 | FE FK 확인 |
+| Unlinked FC | = 0 | 미연결 FC 자동수정 |
+
+**STEP 5 — WS (워크시트)**
+| 검증 항목 | PASS 기준 | FAIL 시 조치 |
+|-----------|-----------|-------------|
+| 빈 공정특성 | = 0 | PC 데이터 확인 |
+| 고아 공정특성 | = 0 | PC-FM 매핑 확인 |
+| Legacy Links | ≥ 베이스라인 50% | legacyData 확인 |
+
+##### 테스트 실행 커맨드 (복사 붙여넣기용)
+
+```powershell
+# 0. 사전: 타입 체크
+npx tsc --noEmit
+
+# 1. 파이프라인 검증 (GET = 읽기전용, POST = 자동수정 포함)
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5
+
+# 2. 파이프라인 자동수정 + ImportValidation 저장
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
+
+# 3. rebuild-atomic (RiskAnalysis DC/PC 최신화)
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m066" -Method POST | ConvertTo-Json -Depth 3
+
+# 4. 마스터 FMEA 재생성 + DB 동기화
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
+
+# 5. 마스터 DC/PC 검증 (node)
+node -e "const d=JSON.parse(require('fs').readFileSync('data/master-fmea/pfm26-m066.json','utf8')); const r=d.atomicDB.riskAnalyses; const ch=d.chains; console.log('risks:',r.length,'DC:',r.filter(x=>x.detectionControl?.trim()).length,'PC:',r.filter(x=>x.preventionControl?.trim()).length); console.log('chains:',ch.length,'dcChain:',ch.filter(x=>x.dcValue?.trim()).length,'pcChain:',ch.filter(x=>x.pcValue?.trim()).length); console.log('flat:',JSON.stringify(d.stats.flatBreakdown));"
+
+# 6. import-validation 실행 (16개 규칙 검증)
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ForEach-Object { Write-Host "Total=$($_.summary.total) Errors=$($_.summary.errors) Warns=$($_.summary.warns)" }
+```
+
+##### 세션 시작 시 체크리스트
+
+```
+[ ] 1. dev 서버 기동 확인 (npm run dev, localhost:3000 응답)
+[ ] 2. tsc --noEmit 에러 0건
+[ ] 3. pipeline-verify GET → allGreen=true 확인
+[ ] 4. 마스터 JSON DC/PC 104/104 확인
+[ ] 5. 코드 수정 시작
+```
+
+##### 코드 수정 후 체크리스트
+
+```
+[ ] 1. tsc --noEmit 에러 0건
+[ ] 2. pipeline-verify POST → allGreen=true
+[ ] 3. rebuild-atomic 실행 → riskAnalyses=104
+[ ] 4. export-master 실행 → DC=104, PC=104
+[ ] 5. import-validation 실행 → 신규 ERROR 0건
+[ ] 6. (Import 관련 수정 시) 원본 엑셀 re-import → pipeline ALL GREEN
+```
+
+##### 테스트 이력 로그 형식
+
+> 이 형식으로 테스트 결과를 기록하여 회귀 추적에 사용한다.
+
+```
+## [날짜] 파이프라인 테스트 결과
+- tsc: ✅ 에러 0건
+- STEP1 IMPORT: ✅ L2=21
+- STEP2 파싱: ✅ A6=104 B5=104
+- STEP3 UUID: ✅ FM=26 FC=104
+- STEP4 FK: ✅ links=104 broken=0
+- STEP5 WS: ✅ emptyPC=0 orphanPC=0
+- Master DC/PC: ✅ 104/104
+- allGreen: ✅
+- 수정사항: (해당 세션에서 변경한 내용)
+- 발견된 이슈: (있으면 기록)
+```
+
+##### 발견된 버그 이력
+
+| 날짜 | 증상 | 근본 원인 | 수정 파일 | 검증 |
+|------|------|----------|----------|------|
+| 2026-03-17 | RiskAnalysis DC/PC NULL → 마스터에 DC/PC 없음 | rebuild-atomic에서 riskAnalysis.deleteMany 누락 → 중복 208건 (NULL 우선 선택) | `rebuild-atomic/route.ts` L76 | ✅ DC=104 PC=104 |
+| 2026-03-17 | 통합시트 A6/B5 파싱 누락 | excel-parser가 개별시트 존재 시 통합시트 전체 스킵 | `excel-parser.ts` L527-567 | ✅ A6>0 B5>0 |
+| 2026-03-17 | rebuild-atomic에서 RiskAnalysis 미저장 | upsert 로직 누락 | `rebuild-atomic/route.ts` L408-443 | ✅ riskAnalyses=104 |
+
 ### 🔴 Rule 2: 기존 UI 변경 금지
 기존 UI는 절대 변경하지 않습니다. 사용자가 명시적으로 UI 변경을 요청한 경우에만 수정합니다.
 

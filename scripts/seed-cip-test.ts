@@ -4,7 +4,7 @@
  * 실행: npx tsx scripts/seed-cip-test.ts
  */
 
-async function main() {
+(async function seedCipTest() {
   const items = [
     {
       cipNo: 'CIP26-001',
@@ -88,6 +88,4 @@ async function main() {
   for (const item of verifyResult.items || []) {
     console.log(`  ${item.cipNo}: ${item.failureMode} | ${item.cause}`);
   }
-}
-
-main().catch(console.error);
+})().catch(console.error);
