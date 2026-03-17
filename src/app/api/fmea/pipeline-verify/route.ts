@@ -556,37 +556,43 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       return { fmeaId, steps, allGreen, loopCount, timestamp: new Date().toISOString() };
     }
 
+    // STEP 0 (SAMPLE) — 자동수정 대상 아님 (Master 데이터 문제)
     // STEP 1 (IMPORT) 에러면 → 사용자 개입 필요 (자동수정 불가)
-    if (steps[0].status === 'error') {
+    const stepImport = steps.find(s => s.name === 'IMPORT');
+    if (stepImport?.status === 'error') {
       return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
     }
 
     // STEP 2 (파싱) 수정 — C계열 Legacy 미동기화 자동수정
-    if (steps[1].status !== 'ok') {
+    const stepParsing = steps.find(s => s.name === '파싱');
+    if (stepParsing && stepParsing.status !== 'ok') {
       const fixes = await fixStep2Parsing(prisma, fmeaId);
-      steps[1].fixed = fixes;
-      if (fixes.length > 0) steps[1].status = 'fixed';
+      stepParsing.fixed = fixes;
+      if (fixes.length > 0) stepParsing.status = 'fixed';
     }
 
     // STEP 3 (UUID) 수정
-    if (steps[2].status !== 'ok') {
+    const stepUuid = steps.find(s => s.name === 'UUID');
+    if (stepUuid && stepUuid.status !== 'ok') {
       const fixes = await fixStep3Uuid(prisma, fmeaId);
-      steps[2].fixed = fixes;
-      if (fixes.length > 0) steps[2].status = 'fixed';
+      stepUuid.fixed = fixes;
+      if (fixes.length > 0) stepUuid.status = 'fixed';
     }
 
     // STEP 4 (FK) 수정
-    if (steps[3].status !== 'ok') {
+    const stepFk = steps.find(s => s.name === 'FK');
+    if (stepFk && stepFk.status !== 'ok') {
       const fixes = await fixStep4Fk(prisma, fmeaId);
-      steps[3].fixed = fixes;
-      if (fixes.length > 0) steps[3].status = 'fixed';
+      stepFk.fixed = fixes;
+      if (fixes.length > 0) stepFk.status = 'fixed';
     }
 
     // STEP 5 (WS) 수정
-    if (steps[4].status !== 'ok') {
+    const stepWs = steps.find(s => s.name === 'WS');
+    if (stepWs && stepWs.status !== 'ok') {
       const fixes = await fixStep5Ws(prisma, fmeaId);
-      steps[4].fixed = fixes;
-      if (fixes.length > 0) steps[4].status = 'fixed';
+      stepWs.fixed = fixes;
+      if (fixes.length > 0) stepWs.status = 'fixed';
     }
 
     const anyFixed = steps.some(s => s.fixed.length > 0);

@@ -391,9 +391,64 @@ export default function LegacyImportPage() {
   }, [fmeaList, setBdStatusList]);
 
   // ── 렌더링 ──
+  const processCount = new Set(flatData.filter(d => d.category === 'A' && d.processNo && d.processNo !== '00' && d.processNo !== '공통').map(d => d.processNo)).size;
+  const dataCount = flatData.filter(d => d.value?.trim()).length;
+  const chainCount = masterChains?.length || 0;
+
   return (
     <>
-      {/* 템플릿 생성기 패널 — SA/FC/FA 3단계 확정 */}
+      {/* ★ Import 요약 + 워크시트 이동 카드 */}
+      <div className="mb-3 border border-blue-200 rounded-lg bg-gradient-to-r from-blue-50 to-white shadow-sm">
+        <div className="px-4 py-3 flex items-center justify-between">
+          {/* 좌측: 상태 요약 */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-bold text-gray-700">Import 데이터</span>
+              {flatData.length > 0 ? (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[11px] font-bold rounded border border-green-300">
+                  {processCount}공정 · {dataCount}건
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[11px] rounded border border-gray-300">
+                  데이터 없음
+                </span>
+              )}
+              {chainCount > 0 && (
+                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-[11px] font-bold rounded border border-orange-300">
+                  고장사슬 {chainCount}건
+                </span>
+              )}
+            </div>
+            {/* 파일 업로드 */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-1 text-[11px] font-bold bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer"
+            >
+              엑셀 Import
+            </button>
+            {fileName && <span className="text-[10px] text-gray-500">{fileName}</span>}
+          </div>
+          {/* 우측: 워크시트 이동 */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-400">상세 검증/편집: 워크시트 → Verify → STEP 0</span>
+            {selectedFmeaId && (
+              <button
+                onClick={() => window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}`}
+                disabled={flatData.length === 0}
+                className={`px-4 py-1.5 text-[12px] font-bold rounded shadow-sm ${
+                  flatData.length > 0
+                    ? 'bg-orange-500 text-white hover:bg-orange-600 cursor-pointer'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                워크시트 이동 →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 기초정보 상세 (기본 접힘 — 클릭 시 펼침) */}
       <TemplateGeneratorPanel
         onGenerate={templateGen.handleGenerate}
         templateMode={templateGen.templateMode}

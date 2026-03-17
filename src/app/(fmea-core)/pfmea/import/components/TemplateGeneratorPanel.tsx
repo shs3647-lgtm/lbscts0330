@@ -93,7 +93,7 @@ export function TemplateGeneratorPanel(props: Props) {
 
   const displayBdId = bdFmeaId ? fmeaIdToBdId(bdFmeaId) : null;
 
-  const [collapsed, setCollapsed] = useState(false);  // ★ 디폴트 열림 (Playwright 테스트 접근성)
+  const [collapsed, setCollapsed] = useState(true);  // ★ 디폴트 접힘 (데이터는 워크시트 STEP 0에서 검증)
 
   // BD 사용 클릭 시 자동 펼치기
   React.useEffect(() => {
@@ -305,7 +305,7 @@ export function TemplateGeneratorPanel(props: Props) {
               <span className="text-white/70">데이터</span>
             </span>
           </>) : (<>
-            <span className="font-semibold text-[13px]">기초정보 템플릿</span>
+            <span className="font-semibold text-[13px]">기초정보</span>
             {flatData.length > 0 && (
               <span className="text-[11px] text-white/50">
                 {new Set(flatData.filter(d => d.category === 'A' && d.processNo && d.processNo !== '00' && d.processNo !== '공통').map(d => d.processNo)).size}공정 · {flatData.filter(d => d.value?.trim()).length}건

@@ -243,6 +243,12 @@ export async function saveAtomicDB(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fmeaId: db.fmeaId }),
       }).catch(() => { /* fire-and-forget */ });
+      // ✅ 특별특성: 저장 성공 후 FMEA → LBS SpecialCharMasterItem 동기화 (fire-and-forget)
+      fetch('/api/special-char/sync-from-fmea', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fmeaId: db.fmeaId }),
+      }).catch(() => { /* fire-and-forget */ });
     } else {
       _consecutiveFailures++;
     }

@@ -630,29 +630,31 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   return (
     <div className={`flex-1 min-w-0 ${isFullscreen ? '' : 'border-l border-blue-200 pl-3'}`}>
-      {/* ─── SA/FC/FA 서브탭 — 4개 모드 공통 3단계 확정 배지 ─── */}
+      {/* ─── 데이터/고장사슬 서브탭 ─── */}
       {hasStepProcess && (
         <div className="flex items-center gap-0 mb-1.5 border-b border-gray-200">
           {visibleSteps.map((tab, idx) => {
-            const labels = { SA: 'SA 시스템분석', FC: 'FC 고장사슬' };
+            const labels = { SA: '데이터 미리보기', FC: 'FC 고장사슬' };
             const counts = { SA: crossTab.total, FC: failureChains.length };
-            const confirmed = { SA: stepState.saConfirmed, FC: stepState.fcConfirmed };
             const isActive = stepState.activeStep === tab;
             return (
               <React.Fragment key={tab}>
-                {idx > 0 && <span className="text-gray-300 text-[10px] mx-0.5">&rarr;</span>}
+                {idx > 0 && <span className="text-gray-300 text-[10px] mx-0.5">|</span>}
                 <button onClick={() => setActiveStep(tab)}
                   className={`px-3 py-1 text-[11px] font-bold cursor-pointer transition-colors border-b-2 ${
                     isActive
                       ? 'text-blue-700 border-blue-600 bg-blue-50/60'
                       : 'text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50'
                   }`}>
-                  {confirmed[tab] && <span className="text-green-600 mr-0.5">&#10003;</span>}
                   {labels[tab]} <span className="text-[9px] font-normal">({counts[tab]})</span>
                 </button>
               </React.Fragment>
             );
           })}
+          {/* 워크시트 검증 안내 */}
+          <span className="ml-auto text-[9px] text-gray-400 pr-2">
+            상세 검증/편집: 워크시트 → Verify → STEP 0
+          </span>
         </div>
       )}
 
@@ -798,87 +800,36 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
           {/* FMEA 작성 — ★ 2026-03-10: FA 완료 후에만 활성화 */}
 
-          {/* ─── 확정 버튼 그룹 (4개 모드 공통 — 데이터 있으면 활성화) ─── */}
-          {hasStepProcess && (<>
-            {/* SA: 미확정→확정 / 확정됨→되돌리기 */}
-            {stepState.saConfirmed ? (
-              <button
-                onClick={handleSAReset}
-                className="px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border bg-green-50 text-green-700 border-green-300 hover:bg-green-100 cursor-pointer">
-                SA 확정됨
-              </button>
-            ) : (
-              <button
-                onClick={handleSAConfirm}
-                disabled={!canSA}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                  canSA ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 cursor-pointer' : BTN_DISABLED
-                }`}>
-                SA 확정
-              </button>
-            )}
-
-            {/* FC검증 토글 — SA확정 후, FC확정 전 위치 (워크플로우 순서) — 수동모드 제외 */}
-            {!isManualMode && failureChains.length > 0 && (
-              <button
-                onClick={() => setShowVerification(v => !v)}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border cursor-pointer ${
-                  showVerification
-                    ? 'bg-teal-600 text-white border-teal-600'
-                    : 'bg-teal-50 text-teal-700 border-teal-300 hover:bg-teal-100'
-                }`}
-                title="FC검증 통계표 토글">
-                FC검증
-              </button>
-            )}
-
-            {/* FC: 미확정→확정 / 확정됨→되돌리기 — 수동모드 제외 */}
-            {!isManualMode && (stepState.fcConfirmed ? (
-              <button
-                onClick={handleFCReset}
-                className="px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border bg-green-50 text-green-700 border-green-300 hover:bg-green-100 cursor-pointer">
-                FC 확정됨
-              </button>
-            ) : (
-              <button
-                onClick={handleFCConfirm}
-                disabled={!canFC}
-                className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                  canFC ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 cursor-pointer' : BTN_DISABLED
-                }`}>
-                FC 확정
-              </button>
-            ))}
-
+          {/* ─── 원클릭 Import→워크시트 (SA/FC/FA 자동 확정) ─── */}
+          {hasStepProcess && fmeaId && (
             <button
-              onClick={() => confirmFA()}
-              disabled={!canFA || isAnalysisImporting || isAnalysisComplete}
-              className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                isAnalysisComplete ? BTN_CONFIRMED
-                : canFA && !isAnalysisImporting
+              onClick={async () => {
+                if (!canSA) return;
+                confirmSA();
+                if (canFC) confirmFC();
+                confirmFA();
+              }}
+              disabled={!canSA}
+              className={`px-3 py-0.5 rounded text-[10px] font-bold transition-colors border ${
+                canSA
                   ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 cursor-pointer'
                   : BTN_DISABLED
               }`}>
-              {isAnalysisImporting ? '생성중...' : isAnalysisComplete ? 'FA 완료' : 'FA 확정'}
+              {isAnalysisImporting ? '처리중...' : isAnalysisComplete ? '✓ 확정완료' : 'SA+FC+FA 자동확정'}
             </button>
+          )}
 
-            {/* ★ FMEA 작성 → : FA 완료 후에만 활성화 */}
-            {fmeaId && (
-              <button
-                onClick={() => window.location.href = `/pfmea/worksheet?id=${fmeaId}`}
-                disabled={!isAnalysisComplete}
-                className={`px-3 py-0.5 rounded text-[10px] font-bold border ${
-                  isAnalysisComplete
-                    ? 'border-orange-400 text-white bg-orange-500 hover:bg-orange-600 cursor-pointer'
-                    : BTN_DISABLED
-                }`}>
-                FMEA 작성 →
-              </button>
-            )}
-            {isAnalysisComplete && (
-              <span className="text-[10px] text-green-600 font-bold">✓ 검증 완료</span>
-            )}
-          </>)}
+          {/* ★ 워크시트 이동 — 데이터 있으면 활성화 (FA 완료 불필요) */}
+          {fmeaId && flatData.length > 0 && (
+            <button
+              onClick={() => window.location.href = `/pfmea/worksheet?id=${fmeaId}`}
+              className="px-3 py-0.5 rounded text-[10px] font-bold border border-orange-400 text-white bg-orange-500 hover:bg-orange-600 cursor-pointer">
+              워크시트 →
+            </button>
+          )}
+          {isAnalysisComplete && (
+            <span className="text-[10px] text-green-600 font-bold">✓ 검증 완료</span>
+          )}
 
           {/* ★ 2026-02-27: 엑셀 내보내기 제거, 샘플Down/빈 양식은 탭 바 우측으로 이동 */}
         </div>

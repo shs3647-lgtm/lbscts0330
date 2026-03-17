@@ -486,6 +486,15 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const sp = Object.fromEntries(req.nextUrl.searchParams.entries());
 
+    // ★ flatItem 단건 편집 (PipelineStep0Detail 인라인 편집)
+    if (body.fmeaId && body.itemId && body.field && body.value !== undefined) {
+      const updated = await prisma.pfmeaMasterFlatItem.update({
+        where: { id: body.itemId },
+        data: { [body.field]: body.value },
+      });
+      return jsonOk({ success: true, updated: { id: updated.id } });
+    }
+
     // ★ failureChains 단독 업데이트 (FA 확정 후 master DB 동기화)
     if (sp.fmeaId && body.failureChains) {
       const fmeaId = sp.fmeaId.toLowerCase();
