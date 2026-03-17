@@ -227,15 +227,9 @@ export async function POST(request: NextRequest) {
     let legacyLinksPreserved = false; // legacyData 보존 여부
 
 
-    // ★★★ 고장 데이터 상세 로깅 ★★★
-    if (db.failureModes?.length > 0) {
-      console.log(`[FMEA API] FailureModes: ${db.failureModes.length}건`);
-    }
-    if (db.failureCauses?.length > 0) {
-      console.log(`[FMEA API] FailureCauses: ${db.failureCauses.length}건`);
-    }
-    if (db.failureEffects?.length > 0) {
-      console.log(`[FMEA API] FailureEffects: ${db.failureEffects.length}건`);
+    // 고장 데이터 요약 (info 레벨)
+    if (db.failureModes?.length > 0 || db.failureCauses?.length > 0 || db.failureEffects?.length > 0) {
+      console.info(`[FMEA API] FM=${db.failureModes?.length || 0} FC=${db.failureCauses?.length || 0} FE=${db.failureEffects?.length || 0}`);
     }
 
     // ★★★ 2026-02-18: productChars 데이터 상세 로깅 (버그 추적용) ★★★
@@ -2045,7 +2039,7 @@ export async function GET(request: NextRequest) {
               }
             });
             if (scopePatched > 0 || linkPatched > 0) {
-              console.log(`[FMEA GET] FE severity 보강: scopes ${scopePatched}건, links ${linkPatched}건`);
+              console.info(`[FMEA GET] FE severity 보강: scopes=${scopePatched} links=${linkPatched}`);
             }
           }
         }

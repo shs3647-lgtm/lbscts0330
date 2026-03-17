@@ -226,12 +226,12 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-        console.log(`[rebuild-atomic] PC 추출: path1=${atomic.l2Functions.filter((f: any) => Array.isArray((f as any).productChars)).length}funcs, path2 l2=${legacyData.l2?.length || 0}procs, path3 l3-processChars, pcRows=${pcRows.length}`);
+        console.info(`[rebuild-atomic] PC: ${pcRows.length}건`);
         if (pcRows.length > 0) {
           try {
             if (tx.processProductChar) {
               await tx.processProductChar.createMany({ data: pcRows, skipDuplicates: true });
-              console.log(`[rebuild-atomic] PC 저장 완료: ${pcRows.length}건`);
+              console.info(`[rebuild-atomic] PC 저장: ${pcRows.length}건`);
             } else {
               console.warn('[rebuild-atomic] tx.processProductChar 없음 — Prisma 캐시 갱신 필요 (서버 재시작 권장)');
             }
