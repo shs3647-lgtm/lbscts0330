@@ -94,6 +94,13 @@ export interface BuildResult {
   diagnostics: BuildDiagnostics;
 }
 
+/** ★★★ 2026-03-17: flatData.id → entity.id 결정론적 매핑 (텍스트 매칭 제거) ★★★ */
+export interface FlatToEntityMap {
+  fm: Map<string, string>;  // A5 flatData.id → L2FailureMode.id
+  fc: Map<string, string>;  // B4 flatData.id → L3FailureCauseExtended.id
+  fe: Map<string, string>;  // C4 flatData.id → L1FailureScope.id
+}
+
 // ════════════════════════════════════════════
 // Helpers
 // ════════════════════════════════════════════
@@ -478,7 +485,7 @@ function buildL3ForProcess(items: ImportedFlatData[], pnoNum: number): { wes: Wo
     const m4 = b1.m4 || '';
     const b1seq = (m4SeqCounter.get(m4) || 0) + 1;
     m4SeqCounter.set(m4, b1seq);
-    const weId = genB1('PF', pnoNum, m4, b1seq);
+    const weId = b1.id?.startsWith('PF-') ? b1.id : genB1('PF', pnoNum, m4, b1seq);
     // B1 원본 ID(import-builder UUID) → WE 런타임 ID 매핑
     if (b1.id) {
       b1IdToWeId.set(b1.id, weId);
@@ -510,7 +517,7 @@ function buildL3ForProcess(items: ImportedFlatData[], pnoNum: number): { wes: Wo
  * ★ C4 = reqId FK — 각 고장영향이 특정 요구사항에 연결
  *   배분: 순차 블록 (앞쪽 R-extra 요구사항: baseShare개, 나머지: baseShare+1개)
  */
-function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
+function fillL1Data(l1: L1Data, cItems: ImportedFlatData[], flatMap?: FlatToEntityMap): void {
   for (const type of l1.types) {
     const div = type.name === 'USER' ? 'US' : type.name;
     const c2Items = cItems.filter(i => i.itemCode === 'C2' && i.processNo === type.name);
@@ -529,7 +536,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
       for (const c4 of c4Items) {
         c4seq++;
         l1.failureScopes!.push({
-          id: genC4('PF', div, c2seq, 1, c4seq),
+          id: c4.id?.startsWith('PF-') ? c4.id : genC4('PF', div, c2seq, 1, c4seq),
           name: c4.value,
           ...rev(c4),
           scope: type.name,
@@ -546,14 +553,14 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
       type.functions = [{
         id: genC2('PF', div, c2seq),
         name: '',
-        requirements: c3Items.map(c3 => { c3seq++; return { id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }; }),
+        requirements: c3Items.map(c3 => { c3seq++; return { id: c3.id?.startsWith('PF-') ? c3.id : genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }; }),
       }];
     } else {
       // C2 기능 생성
       const funcs: L1Function[] = c2Items.map(c2 => {
         c2seq++;
         return {
-          id: genC2('PF', div, c2seq),
+          id: c2.id?.startsWith('PF-') ? c2.id : genC2('PF', div, c2seq),
           name: c2.value,
           ...rev(c2),
           requirements: [],
@@ -572,7 +579,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
             c3.parentItemId === c2Id || (!keyParentTaken && c3.parentItemId === keyParent)
           );
           c3seq = 0;
-          func.requirements = myC3.map(c3 => { c3seq++; return { id: genC3('PF', div, i + 1, c3seq), name: c3.value, ...rev(c3) }; });
+          func.requirements = myC3.map(c3 => { c3seq++; return { id: c3.id?.startsWith('PF-') ? c3.id : genC3('PF', div, i + 1, c3seq), name: c3.value, ...rev(c3) }; });
         });
         // parentItemId 미설정 C3 → orphan 처리 (마지막 func에 추가)
         const allParents = new Set([
@@ -595,13 +602,13 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
               for (let si = 0; si < share; si++) {
                 c3seq++;
                 const c3 = orphanC3[cIdx++];
-                funcs[fi].requirements.push({ id: genC3('PF', div, fi + 1, c3seq), name: c3.value, ...rev(c3) });
+                funcs[fi].requirements.push({ id: c3.id?.startsWith('PF-') ? c3.id : genC3('PF', div, fi + 1, c3seq), name: c3.value, ...rev(c3) });
               }
             }
           } else {
             // 일부 orphan → 마지막 C2에 배정
             const lastFunc = funcs[funcs.length - 1];
-            orphanC3.forEach(c3 => { c3seq++; lastFunc.requirements.push({ id: genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }); });
+            orphanC3.forEach(c3 => { c3seq++; lastFunc.requirements.push({ id: c3.id?.startsWith('PF-') ? c3.id : genC3('PF', div, c2seq, c3seq), name: c3.value, ...rev(c3) }); });
           }
         }
       }
@@ -632,7 +639,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         c4seq++;
         const req = allReqs[ri];
         l1.failureScopes!.push({
-          id: genC4('PF', div, c2seq, c3seq > 0 ? ri + 1 : 1, c4seq),
+          id: c4Items[ri].id?.startsWith('PF-') ? c4Items[ri].id : genC4('PF', div, c2seq, c3seq > 0 ? ri + 1 : 1, c4seq),
           name: c4Items[ri].value,
           ...rev(c4Items[ri]),
           reqId: req.id,
@@ -648,7 +655,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
         for (let ei = R; ei < E; ei++) {
           c4seq++;
           l1.failureScopes!.push({
-            id: genC4('PF', div, c2seq, c3seq > 0 ? R : 1, c4seq),
+            id: c4Items[ei].id?.startsWith('PF-') ? c4Items[ei].id : genC4('PF', div, c2seq, c3seq > 0 ? R : 1, c4seq),
             name: c4Items[ei].value,
             ...rev(c4Items[ei]),
             reqId: lastReq.id,
@@ -673,13 +680,22 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
       for (const c4 of c4Items) {
         c4seq++;
         l1.failureScopes!.push({
-          id: genC4('PF', div, c2seq || 1, 1, c4seq),
+          id: c4.id?.startsWith('PF-') ? c4.id : genC4('PF', div, c2seq || 1, 1, c4seq),
           name: c4.value,
           ...rev(c4),
           scope: type.name,
           effect: c4.value,
         });
       }
+    }
+  }
+
+  // ★ flatId→entityId 매핑: C4 flatData.id → FE entity.id
+  if (flatMap) {
+    const allC4 = cItems.filter(d => d.itemCode === 'C4');
+    const allFE = l1.failureScopes || [];
+    for (let fi = 0; fi < allC4.length && fi < allFE.length; fi++) {
+      if (allC4[fi].id) flatMap.fe.set(allC4[fi].id, allFE[fi].id);
     }
   }
 }
@@ -695,7 +711,7 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[]): void {
  *   A4=3, A5=6 → 2:2:2 균등 배분
  *   FailureL2Tab 렌더링: m.productCharId === pc.id 필터
  */
-function fillL2Data(process: Process, items: ImportedFlatData[]): void {
+function fillL2Data(process: Process, items: ImportedFlatData[], flatMap?: FlatToEntityMap): void {
   const a3Items = byCode(items, 'A3');
   const a4Items = byCode(items, 'A4');
   const a5Items = byCode(items, 'A5');
@@ -706,20 +722,20 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     process.functions = [{
       id: genA3('PF', pnoNum, 1),
       name: '',
-      productChars: a4Items.map((a4, i) => ({ id: genA4('PF', pnoNum, i + 1), name: a4.value, ...rev(a4), specialChar: a4.specialChar || '' })),
+      productChars: a4Items.map((a4, i) => ({ id: a4.id?.startsWith('PF-') ? a4.id : genA4('PF', pnoNum, i + 1), name: a4.value, ...rev(a4), specialChar: a4.specialChar || '' })),
     }];
   } else if (a3Items.length > 0) {
     if (a4Items.length > 0) {
       // ★ A4 엔티티를 한 번만 생성 (공유 UUID)
       const sharedPCs = a4Items.map((a4, i) => ({
-        id: genA4('PF', pnoNum, i + 1),
+        id: a4.id?.startsWith('PF-') ? a4.id : genA4('PF', pnoNum, i + 1),
         name: a4.value,
         ...rev(a4),
         specialChar: (a4 as unknown as { specialChar?: string }).specialChar || ''
       }));
       // ★ 모든 A3 function이 같은 UUID의 A4를 참조 (카테시안 아님 — ID 동일)
       process.functions = a3Items.map((a3, ai) => ({
-        id: genA3('PF', pnoNum, ai + 1),
+        id: a3.id?.startsWith('PF-') ? a3.id : genA3('PF', pnoNum, ai + 1),
         name: a3.value,
         ...rev(a3),
         productChars: sharedPCs.map(pc => ({ ...pc })),
@@ -727,7 +743,7 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     } else {
       // A4 없으면 각 function에 placeholder 생성
       process.functions = a3Items.map((a3, ai) => ({
-        id: genA3('PF', pnoNum, ai + 1),
+        id: a3.id?.startsWith('PF-') ? a3.id : genA3('PF', pnoNum, ai + 1),
         name: a3.value,
         ...rev(a3),
         productChars: [{ id: genA4('PF', pnoNum, 1), name: '', specialChar: '' }],
@@ -755,29 +771,49 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
   })();
 
   if (uniquePCs.length > 0 && a5Items.length > 0) {
-    // ★★★ 2026-03-16 FIX: distribute 제거 → parentItemId 기반 꽂아넣기 ★★★
-    // 이전 버그: distribute(A5, A4개수) → A4 슬롯에 강제 배분 → 빈 PC에 거짓 FM 생성
-    // 수정: A5.parentItemId → a4Items 인덱스 → uniquePC 매핑 (FK 없으면 첫 번째 PC)
+    // ★★★ 2026-03-17 FIX: parentItemId 기반 + 위치 기반 fallback ★★★
+    // 1차: parentItemId → A4 인덱스 매핑
+    // 2차: parentItemId 없으면 위치 기반 균등 배분 (A4=A5 → 1:1, A4<A5 → 균등)
     const a4IdToIdx = new Map<string, number>();
     a4Items.forEach((a4, i) => { if (a4.id) a4IdToIdx.set(a4.id, i); });
 
+    // 위치 기반 배분 테이블: a5Index → pcIndex
+    const positionalMap = new Map<number, number>();
+    if (uniquePCs.length > 0) {
+      const perPC = Math.max(1, Math.floor(a5Items.length / uniquePCs.length));
+      for (let i = 0; i < a5Items.length; i++) {
+        const pcIdx = Math.min(Math.floor(i / perPC), uniquePCs.length - 1);
+        positionalMap.set(i, pcIdx);
+      }
+    }
+
     let a5seq = 0;
     const modes: L2FailureMode[] = [];
-    for (const a5 of a5Items) {
+    for (let i = 0; i < a5Items.length; i++) {
+      const a5 = a5Items[i];
       a5seq++;
-      let pcIdx = 0; // 기본: 첫 번째 PC
+      let pcIdx = 0; // 최종 fallback: 첫 번째 PC
       if (a5.parentItemId) {
         const mapped = a4IdToIdx.get(a5.parentItemId);
         if (mapped !== undefined && mapped < uniquePCs.length) {
           pcIdx = mapped;
+        } else {
+          // parentItemId가 있지만 매칭 실패 → 위치 기반 fallback
+          pcIdx = positionalMap.get(i) ?? 0;
         }
+      } else {
+        // parentItemId 없음 → 위치 기반 fallback
+        pcIdx = positionalMap.get(i) ?? 0;
       }
+      const entityId = a5.id?.startsWith('PF-') ? a5.id : genA5('PF', pnoNum, a5seq);
       modes.push({
-        id: genA5('PF', pnoNum, a5seq),
+        id: entityId,
         name: a5.value,
         ...rev(a5),
         productCharId: uniquePCs[pcIdx].id,
       });
+      // ★ flatId→entityId 매핑 기록 (결정론적 chain 연결용)
+      if (flatMap && a5.id) flatMap.fm.set(a5.id, entityId);
     }
     process.failureModes = modes;
   } else {
@@ -785,11 +821,9 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
     let a5seq = 0;
     process.failureModes = a5Items.map(a5 => {
       a5seq++;
-      return {
-      id: genA5('PF', pnoNum, a5seq),
-      name: a5.value,
-      ...rev(a5),
-    };
+      const entityId = a5.id?.startsWith('PF-') ? a5.id : genA5('PF', pnoNum, a5seq);
+      if (flatMap && a5.id) flatMap.fm.set(a5.id, entityId);
+      return { id: entityId, name: a5.value, ...rev(a5) };
     });
   }
 
@@ -823,7 +857,7 @@ function fillL2Data(process: Process, items: ImportedFlatData[]): void {
  *   지그   → B2[0] 1함수 → B3[0..1] 2특성
  *   프레스 → B2[1] 1함수 → B3[2..3] 2특성
  */
-function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1IdMapping): void {
+function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1IdMapping, flatMap?: FlatToEntityMap): void {
   const b2Items = byCode(items, 'B2');
   const b3Items = byCode(items, 'B3');
   const b4Items = byCode(items, 'B4');
@@ -910,10 +944,10 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       if (myB2.length > 0) {
         if (myB2.length === 1) {
           we.functions = [{
-            id: genB2('PF', pnoNum, weM4, weB1seq),
+            id: myB2[0].id?.startsWith('PF-') ? myB2[0].id : genB2('PF', pnoNum, weM4, weB1seq),
             name: myB2[0].value,
             ...rev(myB2[0]),
-            processChars: effectiveB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
+            processChars: effectiveB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
           }];
         } else {
           const b3ByParent = new Map<number, ImportedFlatData[]>();
@@ -927,17 +961,19 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
             b3ByParent.get(targetIdx)!.push(b3);
           }
           we.functions = myB2.map((b2, fIdx) => ({
-            id: fIdx === 0 ? genB2('PF', pnoNum, weM4, weB1seq) : `${genB1('PF', pnoNum, weM4, weB1seq)}-G-${String(fIdx + 1).padStart(3, '0')}`,
+            id: fIdx === 0
+              ? (b2.id?.startsWith('PF-') ? b2.id : genB2('PF', pnoNum, weM4, weB1seq))
+              : (b2.id?.startsWith('PF-') ? b2.id : `${genB1('PF', pnoNum, weM4, weB1seq)}-G-${String(fIdx + 1).padStart(3, '0')}`),
             name: b2.value,
             ...rev(b2),
-            processChars: (b3ByParent.get(fIdx) || []).map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
+            processChars: (b3ByParent.get(fIdx) || []).map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
           }));
         }
       } else if (effectiveB3.length > 0) {
         we.functions = [{
           id: genB2('PF', pnoNum, weM4, weB1seq),
           name: '',
-          processChars: effectiveB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
+          processChars: effectiveB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
         }];
       }
       if (we.functions.length === 0) {
@@ -1010,24 +1046,26 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         if (myB2.length > 0) {
           if (myB2.length === 1) {
             we.functions = [{
-              id: genB2('PF', pnoNum, weM4, weB1seq),
+              id: myB2[0].id?.startsWith('PF-') ? myB2[0].id : genB2('PF', pnoNum, weM4, weB1seq),
               name: myB2[0].value,
               ...rev(myB2[0]),
-              processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
+              processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
             }];
           } else {
             we.functions = myB2.map((b2, fIdx) => ({
-              id: fIdx === 0 ? genB2('PF', pnoNum, weM4, weB1seq) : `${genB1('PF', pnoNum, weM4, weB1seq)}-G-${String(fIdx + 1).padStart(3, '0')}`,
+              id: fIdx === 0
+                ? (b2.id?.startsWith('PF-') ? b2.id : genB2('PF', pnoNum, weM4, weB1seq))
+                : (b2.id?.startsWith('PF-') ? b2.id : `${genB1('PF', pnoNum, weM4, weB1seq)}-G-${String(fIdx + 1).padStart(3, '0')}`),
               name: b2.value,
               ...rev(b2),
-              processChars: fIdx === 0 ? myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }) : [],
+              processChars: fIdx === 0 ? myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }) : [],
             }));
           }
         } else if (myB3.length > 0) {
           we.functions = [{
             id: genB2('PF', pnoNum, weM4, weB1seq),
             name: '',
-            processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
+            processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
           }];
         }
       });
@@ -1072,7 +1110,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
             const { m4: emM4, b1seq: emB1seq } = parseWeId(emptyWe.id);
             movedFunc.processChars = matchedB3.map(b3 => {
               const cs = (weCharSeqMap.get(emptyWe.id) || 0) + 1; weCharSeqMap.set(emptyWe.id, cs);
-              return { id: genB3('PF', pnoNum, emM4, emB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' };
+              return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, emM4, emB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' };
             });
           }
           break;
@@ -1120,7 +1158,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         const kseq = (weKseqMap.get(weIdFromPc) || 0) + 1;
         weKseqMap.set(weIdFromPc, kseq);
         causes.push({
-          id: genB4('PF', pnoNum, b4.m4 || pcParsed.m4, pcParsed.b1seq, kseq),
+          id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || pcParsed.m4, pcParsed.b1seq, kseq),
           name: b4.value,
           ...rev(b4),
           m4: b4.m4,
@@ -1146,7 +1184,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       const kseq = (weKseqMap.get(fpWeId) || 0) + 1;
       weKseqMap.set(fpWeId, kseq);
       causes.push({
-        id: genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq),
+        id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq),
         name: b4.value,
         ...rev(b4),
         m4: b4.m4,
@@ -1154,15 +1192,45 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       } as L3FailureCauseExtended);
     }
   } else if (unmatchedB4.length > 0) {
-    let fallbackKseq = 0;
-    for (const b4 of unmatchedB4) {
-      fallbackKseq++;
-      causes.push({
-        id: genB4('PF', pnoNum, b4.m4 || '', 1, fallbackKseq),
-        name: b4.value,
-        ...rev(b4),
-        m4: b4.m4,
-      } as L3FailureCauseExtended);
+    // ★★★ 2026-03-17 FIX: allProcessChars가 비어도 process.l3에서 재탐색 ★★★
+    // allProcessChars 수집 이후에 processChars가 추가되었을 수 있으므로 재탐색
+    const lateProcessChars: { id: string; name: string }[] = [];
+    for (const we of process.l3) {
+      for (const func of we.functions) {
+        for (const pc of (func.processChars || [])) {
+          lateProcessChars.push(pc);
+        }
+      }
+    }
+
+    if (lateProcessChars.length > 0) {
+      // 재탐색으로 찾은 첫 번째 PC에 전부 할당
+      const firstPc = lateProcessChars[0];
+      const fpParsed = parseWeId(firstPc.id);
+      const fpWeId = genB1('PF', pnoNum, fpParsed.m4, fpParsed.b1seq);
+      for (const b4 of unmatchedB4) {
+        const kseq = (weKseqMap.get(fpWeId) || 0) + 1;
+        weKseqMap.set(fpWeId, kseq);
+        causes.push({
+          id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq),
+          name: b4.value,
+          ...rev(b4),
+          m4: b4.m4,
+          processCharId: firstPc.id,
+        } as L3FailureCauseExtended);
+      }
+    } else {
+      // 진짜로 processChars가 없는 경우 — 기존 fallback 유지
+      let fallbackKseq = 0;
+      for (const b4 of unmatchedB4) {
+        fallbackKseq++;
+        causes.push({
+          id: b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || '', 1, fallbackKseq),
+          name: b4.value,
+          ...rev(b4),
+          m4: b4.m4,
+        } as L3FailureCauseExtended);
+      }
     }
   }
   // ★★★ 2026-03-16 FIX: orphan processChar → placeholder FC는 B4가 0건일 때만 생성
@@ -1189,6 +1257,13 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           }
         }
       }
+    }
+  }
+
+  // ★ flatId→entityId 매핑 기록: B4 flatData.id → FC entity.id
+  if (flatMap) {
+    for (let ci = 0; ci < causes.length && ci < b4Items.length; ci++) {
+      if (b4Items[ci].id) flatMap.fc.set(b4Items[ci].id, causes[ci].id);
     }
   }
 
@@ -1245,7 +1320,9 @@ export function buildWorksheetState(
   }
 
   // ── Phase 2: 데이터 채움 ──
-  fillL1Data(l1, cItems);
+  // ★★★ 2026-03-17: flatId→entityId 매핑 (결정론적 chain 연결용) ★★★
+  const flatMap: FlatToEntityMap = { fm: new Map(), fc: new Map(), fe: new Map() };
+  fillL1Data(l1, cItems, flatMap);
 
   // ★ 진단: B2 아이템 존재 여부 (L3기능 0개 문제 추적)
   const allB2 = flatData.filter(d => d.itemCode === 'B2');
@@ -1260,8 +1337,8 @@ export function buildWorksheetState(
     const b2InProc = processItems.filter(d => d.itemCode === 'B2');
     if (b2InProc.length === 0 && allB2.length > 0) {
     }
-    fillL2Data(proc, processItems);
-    fillL3Data(proc, processItems, b1IdMaps.get(proc.no));
+    fillL2Data(proc, processItems, flatMap);
+    fillL3Data(proc, processItems, b1IdMaps.get(proc.no), flatMap);
   }
 
   // ── 결과 조립 ──
@@ -1332,10 +1409,10 @@ export function buildWorksheetState(
       );
     }
 
-    // ★★★ 2026-03-15: Phase 2.5 — chain에 엔티티 UUID FK 할당 ★★★
-    // 텍스트 매칭 완전 제거 — 엔티티 생성 직후 같은 스코프에서 UUID 할당
-    // 이후 모든 링크 생성은 UUID FK만 사용
-    assignEntityUUIDsToChains(state, config.chains);
+    // ★★★ 2026-03-17: Phase 2.5 — flatId 기반 결정론적 UUID FK 할당 ★★★
+    // 1차: chain.fmFlatId/fcFlatId/feFlatId → flatMap → entityId (100% 결정론적)
+    // 2차: 텍스트 매칭 fallback (flatId 없는 레거시 chain 대응)
+    assignEntityUUIDsToChains(state, config.chains, flatMap);
 
     // ★★★ 2026-03-15 v2: 고아 FM/FC 자동보충 ★★★
     // 메인시트에 있지만 FC시트에 없는 FM/FC → 합성 chain 생성 후 UUID 직접 할당

@@ -40,11 +40,11 @@ describe('A6/B5 시트 파싱 — 단일값 아키텍처', () => {
     expect(interfaceMatch![1]).toMatch(/preventionCtrls/);
   });
 
-  it('ProcessRelation에 preventionCtrls4M 필드가 없어야 함', () => {
+  it('ProcessRelation에 preventionCtrls4M 필드가 있어야 함 (B5 4M 추적용)', () => {
     const src = readSource();
     const interfaceMatch = src.match(/export\s+interface\s+ProcessRelation\s*\{([\s\S]*?)\n\}/);
     expect(interfaceMatch).not.toBeNull();
-    expect(interfaceMatch![1]).not.toMatch(/preventionCtrls4M/);
+    expect(interfaceMatch![1]).toMatch(/preventionCtrls4M/);
   });
 });
 
@@ -121,9 +121,9 @@ describe('headerKeywordMap — A6/B5 키워드 등록', () => {
   });
 });
 
-describe('B5 4M 정렬 코드 제거 확인', () => {
-  it('B5 preventionCtrls4M 정렬 블록이 없어야 함', () => {
+describe('B5 4M 정렬 코드 존재 확인', () => {
+  it('B5 preventionCtrls4M 파싱이 존재해야 함 (B5 시트 4M 추적용)', () => {
     const src = readSource();
-    expect(src).not.toMatch(/preventionCtrls4M/);
+    expect(src).toMatch(/preventionCtrls4M/);
   });
 });

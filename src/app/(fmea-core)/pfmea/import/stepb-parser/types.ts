@@ -85,6 +85,7 @@ export interface StepBBuildData {
   a3: Map<string, { func: string; auto: boolean }>;
   a4: Map<string, StepBA4Item[]>;
   a5: Map<string, string[]>;         // procNo → FM[]
+  a5ParentA4?: Map<string, string>;   // `pno|fm` → a4Char (A5→A4 부모 매핑)
   a6: Map<string, string[]>;         // procNo → DC[] (검출관리)
   b1: Map<string, StepBB1Item[]>;
   b2: Map<string, StepBB2Item[]>;
@@ -154,6 +155,13 @@ export interface StepBFCChain {
   fcId?: string;
   parentId?: string;
   mergeGroupId?: string;
+  // ★★★ 2026-03-17: flatData ID 직접 참조 (결정론적 매핑) ★★★
+  fmFlatId?: string;
+  fcFlatId?: string;
+  feFlatId?: string;
+  // ★★★ 2026-03-17: MAIN시트 텍스트 사전 매칭 결과 (buildImportData에서 설정) ★★★
+  matchedFmText?: string;   // a5Map에서 매칭된 MAIN시트 FM 텍스트
+  matchedFcText?: string;   // b4Map에서 매칭된 MAIN시트 FC 텍스트
 }
 
 // ── 최종 결과 ──
@@ -193,6 +201,10 @@ export interface StepBMasterChain {
   fmId?: string;
   feId?: string;
   fcId?: string;
+  // ★★★ 2026-03-17: flatData ID 직접 참조 (결정론적 매핑) ★★★
+  fmFlatId?: string;
+  fcFlatId?: string;
+  feFlatId?: string;
 }
 
 export interface StepBStatistics {

@@ -617,8 +617,11 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
   const oldLinks = oldData.failureLinks || [];
   let linkIdx = 0; // Link 항목 인덱스
   oldLinks.forEach((oldLink: any, linkLocalIdx: number) => {
-    // FM 찾기
-    let fm = db.failureModes.find(m => m.id === oldLink.fmId || m.mode === oldLink.fmText);
+    // FM 찾기 — ★★★ 2026-03-17: ID 우선 매칭 (텍스트 fallback 분리) ★★★
+    // 이전: find(m => m.id === fmId || m.mode === fmText) → 동일 텍스트의 다른 공정 FM이 먼저 매칭
+    // 수정: ID 매칭 우선, 실패 시에만 텍스트 fallback (동명 FM 충돌 방지)
+    let fm = db.failureModes.find(m => m.id === oldLink.fmId)
+      || (oldLink.fmText ? db.failureModes.find(m => m.mode === oldLink.fmText) : undefined);
     if (!fm) {
       // FM 자동 생성 (누락 금지)
       if (oldLink.fmText && db.l2Functions.length > 0) {

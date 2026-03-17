@@ -23,6 +23,7 @@ import type { MasterFailureChain } from '../types/masterFailureChain';
 import type {
   WorksheetState,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
+import type { FlatToEntityMap } from './buildWorksheetState';
 
 // ─── 정규화 함수 (NFKC 강화) ───
 
@@ -52,17 +53,37 @@ function normalizeProcessNo(pNo: string | undefined): string {
 }
 
 /**
- * chain에 엔티티 UUID FK 직접 할당
+ * chain에 엔티티 UUID FK 할당
  *
- * buildWorksheetState가 생성한 FM/FC/FE 엔티티는 같은 flatData에서 생성됨.
- * 정규화된 텍스트 키로 Map.get() 1회 조회하면 100% 매칭 가능.
+ * ★★★ 2026-03-17: flatId 기반 결정론적 매핑 우선 ★★★
+ * 1차: chain.fmFlatId/fcFlatId/feFlatId → flatMap → entityId (100% 결정론적)
+ * 2차: 텍스트 매칭 fallback (flatId 없는 레거시 chain 대응)
  *
  * 이 함수 실행 후 chain.fmId / chain.fcId / chain.feId가 설정됨.
  */
 export function assignEntityUUIDsToChains(
   state: WorksheetState,
   chains: MasterFailureChain[],
+  flatMap?: FlatToEntityMap,
 ): void {
+  // ★★★ 2026-03-17: UUID 사전할당된 chain은 텍스트 매칭 스킵 ★★★
+  // convertToImportFormat에서 genXxx() 결정론적 UUID를 직접 할당한 경우,
+  // 텍스트 매칭이 불필요 — 100% 결정론적 FK 연결 보장
+  const preAssignedCount = chains.filter(c => c.fmId && c.fcId && c.feId).length;
+  if (preAssignedCount === chains.length && chains.length > 0) {
+    console.info(
+      `[assignChainUUIDs] ${chains.length}/${chains.length} chain UUID 사전할당 완료 — 텍스트 매칭 스킵`
+    );
+    return;
+  }
+
+  // 부분 할당: 할당된 chain은 스킵, 미할당만 텍스트 매칭
+  if (preAssignedCount > 0) {
+    console.info(
+      `[assignChainUUIDs] ${preAssignedCount}/${chains.length} chain 사전할당됨 — 미할당 ${chains.length - preAssignedCount}건만 텍스트 매칭`
+    );
+  }
+
   // ─── FE 인덱스: normalizedText → FE.id ───
   const feIdByText = new Map<string, string>();
   const feIdByNoSpace = new Map<string, string>();
@@ -127,7 +148,29 @@ export function assignEntityUUIDsToChains(
     }
   }
 
-  // ─── chain에 UUID 할당 ───
+  // ─── 0단계: flatId 기반 결정론적 매핑 (텍스트 매칭 불필요) ───
+  let flatMapped = 0;
+  if (flatMap) {
+    for (const chain of chains) {
+      if (!chain.fmId && chain.fmFlatId) {
+        const entityId = flatMap.fm.get(chain.fmFlatId);
+        if (entityId) { chain.fmId = entityId; flatMapped++; }
+      }
+      if (!chain.fcId && chain.fcFlatId) {
+        const entityId = flatMap.fc.get(chain.fcFlatId);
+        if (entityId) { chain.fcId = entityId; flatMapped++; }
+      }
+      if (!chain.feId && chain.feFlatId) {
+        const entityId = flatMap.fe.get(chain.feFlatId);
+        if (entityId) { chain.feId = entityId; flatMapped++; }
+      }
+    }
+    if (flatMapped > 0) {
+      console.info(`[assignChainUUIDs] 0단계 flatId 매핑: ${flatMapped}건 결정론적 할당`);
+    }
+  }
+
+  // ─── 1단계: 텍스트 매칭 fallback (flatId 없는 레거시 chain 대응) ───
   let assignedFM = 0, assignedFC = 0, assignedFE = 0;
   for (const chain of chains) {
     const npNo = normalizeProcessNo(chain.processNo);
@@ -347,48 +390,54 @@ export function supplementOrphanChains(
       addedFM++;
     }
 
-    // ── 고아 FC 보충 ──
-    for (const we of (proc.l3 || [])) {
-      for (const fc of (we.failureCauses || [])) {
-        if (matchedFcIds.has(fc.id)) continue;
+    // ── 고아 FC 보충 — 원본 체인이 없는 공정에서만 ──
+    // 원본 chains에 이 공정의 chain이 이미 있으면 고아 FC 보충 스킵
+    const procHasChains = chains.some(c =>
+      c.processNo === proc.no && !c.id?.startsWith('auto-')
+    );
+    if (!procHasChains) {
+      for (const we of (proc.l3 || [])) {
+        for (const fc of (we.failureCauses || [])) {
+          if (matchedFcIds.has(fc.id)) continue;
 
-        // 같은 공정의 첫 번째 FM을 짝으로 사용
+          // 같은 공정의 첫 번째 FM을 짝으로 사용
+          const pairedFm = (proc.failureModes || [])[0];
+          if (!pairedFm) continue;
+
+          const synthetic: MasterFailureChain = {
+            id: `auto-fc-${fc.id}`,
+            processNo: proc.no,
+            m4: we.m4 || undefined,
+            fcValue: fc.name,
+            fcId: fc.id,
+            fmValue: pairedFm.name,
+            fmId: pairedFm.id,
+            feValue: '',
+            // feId will be assigned by round-robin
+          };
+          chains.push(synthetic);
+          matchedFcIds.add(fc.id);
+          addedFC++;
+        }
+      }
+      // process-level FCs
+      for (const fc of (proc.failureCauses || [])) {
+        if (matchedFcIds.has(fc.id)) continue;
         const pairedFm = (proc.failureModes || [])[0];
         if (!pairedFm) continue;
-
         const synthetic: MasterFailureChain = {
           id: `auto-fc-${fc.id}`,
           processNo: proc.no,
-          m4: we.m4 || undefined,
           fcValue: fc.name,
           fcId: fc.id,
           fmValue: pairedFm.name,
           fmId: pairedFm.id,
           feValue: '',
-          // feId will be assigned by round-robin
         };
         chains.push(synthetic);
         matchedFcIds.add(fc.id);
         addedFC++;
       }
-    }
-    // process-level FCs
-    for (const fc of (proc.failureCauses || [])) {
-      if (matchedFcIds.has(fc.id)) continue;
-      const pairedFm = (proc.failureModes || [])[0];
-      if (!pairedFm) continue;
-      const synthetic: MasterFailureChain = {
-        id: `auto-fc-${fc.id}`,
-        processNo: proc.no,
-        fcValue: fc.name,
-        fcId: fc.id,
-        fmValue: pairedFm.name,
-        fmId: pairedFm.id,
-        feValue: '',
-      };
-      chains.push(synthetic);
-      matchedFcIds.add(fc.id);
-      addedFC++;
     }
   }
 

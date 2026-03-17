@@ -313,7 +313,7 @@ describe('C3→C2 UUID FK 꽂아넣기 전체 파이프라인', () => {
   // ════════════════════════════════════════
 
   describe('4. parentItemId 없는 기존 데이터 폴백', () => {
-    it('4-1. C3 parentItemId 전부 undefined → 첫 C2에 전부 + 나머지 placeholder', () => {
+    it('4-1. C3 parentItemId 전부 undefined → C2에 균등 배분 (isAllOrphan)', () => {
       const now = new Date();
       const flat: ImportedFlatData[] = [
         { id: 'C1-YP', processNo: 'YP', category: 'C', itemCode: 'C1', value: 'YP', createdAt: now },
@@ -330,11 +330,9 @@ describe('C3→C2 UUID FK 꽂아넣기 전체 파이프라인', () => {
       const result = buildWorksheetState(flat, { fmeaId: 'test', l1Name: '' });
       const ypType = result.state.l1.types.find(t => t.name === 'YP');
       expect(ypType).toBeDefined();
-      // 고아 C3 → 마지막 C2(기능2)에 전부 배정
-      expect(ypType!.functions[1].requirements.filter(r => r.name).length).toBe(2);
-      // 기능1: placeholder (빈 name) — C3가 하나도 없어서
-      expect(ypType!.functions[0].requirements.length).toBe(1);
-      expect(ypType!.functions[0].requirements[0].name).toBe('');
+      // 모든 C3가 orphan → C2 2건에 균등 배분 (각 1건씩)
+      expect(ypType!.functions[0].requirements.filter(r => r.name).length).toBe(1);
+      expect(ypType!.functions[1].requirements.filter(r => r.name).length).toBe(1);
     });
   });
 });

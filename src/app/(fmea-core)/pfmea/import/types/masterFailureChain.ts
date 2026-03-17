@@ -82,9 +82,15 @@ export interface MasterFailureChain {
   // ★★★ 2026-03-13: 수정본 적색 표기 ★★★
   isRevised?: boolean;       // true = 엑셀에서 적색으로 표기된 수정 항목
 
-  // ★★★ 2026-03-15: UUID FK 직접 참조 (텍스트 매칭 제거) ★★★
-  // buildWorksheetState Phase 2→3 사이에서 엔티티 UUID를 할당
-  // 이후 모든 링크 생성은 UUID FK만 사용 (텍스트 유사도 매칭 금지)
+  // ★★★ 2026-03-17: flatData ID 직접 참조 (텍스트 매칭 제거) ★★★
+  // convertToImportFormat에서 A5/B4/C4 flatData ID를 직접 할당
+  // buildWorksheetState에서 flatId→entityId 결정론적 매핑
+  fmFlatId?: string;         // A5 flatData.id → fillL2Data에서 entityId로 매핑
+  fcFlatId?: string;         // B4 flatData.id → fillL3Data에서 entityId로 매핑
+  feFlatId?: string;         // C4 flatData.id → fillL1Data에서 entityId로 매핑
+
+  // ★★★ 2026-03-15: UUID FK 직접 참조 (최종 엔티티 ID) ★★★
+  // flatId→entityId 매핑 완료 후 여기에 최종 UUID가 설정됨
   fmId?: string;             // FailureMode(A5) UUID → L2FailureMode.id
   fcId?: string;             // FailureCause(B4) UUID → L3FailureCauseExtended.id
   feId?: string;             // FailureEffect(C4) UUID → L1FailureScope.id
@@ -139,7 +145,8 @@ export function buildFailureChainsFromFlat(
   for (const d of flatData) {
     // ★★★ 2026-03-01: processNo 정규화 — 파싱 단계와 동일 포맷 보장 ★★★
     const pNo = normalizeProcessNo(d.processNo);
-    if (!pNo || pNo === '00' || pNo === '공통') continue;
+    // ★★★ 2026-03-17 FIX: 공통공정(01→1) 스킵 추가 — FC 비교에서 공통공정 제외
+    if (!pNo || pNo === '00' || pNo === '0' || pNo === '1' || pNo === '01' || pNo === '공통') continue;
     if (!d.value?.trim()) continue;
 
     if (!processInfo.has(pNo)) processInfo.set(pNo, { A2: '', A3: '', A4: '' });

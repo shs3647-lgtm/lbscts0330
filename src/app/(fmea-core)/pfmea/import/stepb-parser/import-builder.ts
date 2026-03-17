@@ -23,6 +23,11 @@ import { stripPrefix } from './prefix-utils';
 import { inferC2C3, inferChar, inferPC, inferDC, getDefaultRuleSet, enhancePCFormat, enhanceDCFormat } from './pc-dc-inference';
 // 업종별 규칙 셋 자동 등록 (사이드이펙트 import)
 import './industry-rules';
+import {
+  genA1, genA3, genA4, genA5, genA6,
+  genB1, genB2, genB3, genB4,
+  genC1, genC2, genC3, genC4,
+} from '@/lib/uuid-generator';
 
 /** 유효한 4M 코드 */
 const VALID_4M = new Set(['MN', 'MC', 'IM', 'EN']);
@@ -37,6 +42,23 @@ function safeM4(raw: string): string {
 function sortKey(pno: string): number {
   const n = parseInt(pno, 10);
   return isNaN(n) ? 9999 : n;
+}
+
+/** 텍스트 정규화 (UUID 매칭 키 생성용) */
+function normalizeText(s: string | undefined): string {
+  return (s || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** 공백 완전 제거 정규화 — MAIN시트/FC시트 공백 차이 흡수 */
+function normalizeNoSpace(s: string | undefined): string {
+  return normalizeText(s).replace(/\s/g, '');
+}
+
+/** B1 결정론적 ID에서 m4/b1seq 파싱: PF-L3-040-MC-001 → { m4:'MC', b1seq:1 } */
+function parseB1seq(b1Id: string): { m4: string; b1seq: number } {
+  const match = b1Id.match(/^[A-Z]+-L3-\d+-([A-Z]+)-(\d+)$/);
+  if (match) return { m4: match[1], b1seq: parseInt(match[2]) };
+  return { m4: '', b1seq: 1 };
 }
 
 /**
@@ -55,6 +77,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
   const a3Map = new Map<string, { func: string; auto: boolean }>();
   const a4Map = new Map<string, StepBA4Item[]>();
   const a5Map = new Map<string, string[]>();
+  const a5ParentA4 = new Map<string, string>(); // `pno|fm` → a4char (A5→A4 부모 매핑)
   const b1Map = new Map<string, StepBB1Item[]>();
   const b2Map = new Map<string, StepBB2Item[]>();
   const b3Map = new Map<string, StepBB3Item[]>();
@@ -126,6 +149,10 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
         const list = a5Map.get(pno) || [];
         list.push(fm);
         a5Map.set(pno, list);
+        // ★ A5→A4 부모 매핑: 같은 행의 l2Func(제품특성)을 부모로 기록
+        let char = r.l2Func.trim();
+        char = char.replace(new RegExp(`^${pno}번[-\\s]*`), '').trim();
+        if (char) a5ParentA4.set(key, char);
       }
     }
 
@@ -320,8 +347,38 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     }
   }
 
+  // ★★★ 4차 fallback: C2/C3 모두 비어있으면 C4(고장영향)에서 C3 직접 생성 ★★★
+  // C4의 scope별로 FE 텍스트에서 요구사항을 도출
+  if (c3Map.size === 0 && c4.length > 0) {
+    // C2도 비어있으면 C4에서 C2도 함께 생성
+    if (c2Map.size === 0) {
+      for (const item of c4) {
+        if (!item.scope) continue;
+        const list = c2Map.get(item.scope) || [];
+        const func = `${item.fe} 방지 기능`;
+        if (!list.includes(func)) {
+          list.push(func);
+          c2Map.set(item.scope, list);
+        }
+      }
+      if (c2Map.size > 0) {
+        warn.info('C2_FROM_C4', `C2: C4(고장영향)에서 ${c2Map.size}개 scope C2 자동생성`);
+      }
+    }
+    // C3 = C2 기반 요구사항 생성
+    for (const [scope, funcs] of c2Map) {
+      c3Map.set(scope, funcs.map(f => `${f} 충족`));
+    }
+    if (c3Map.size > 0) {
+      warn.info('C3_FROM_C4', `C3: C4(고장영향) 기반 ${[...c3Map.values()].flat().length}건 자동생성`);
+    }
+  }
+
   // 01번 공통 공정 자동 삽입
-  if (!procMaster.has('01')) {
+  // ★★★ 2026-03-17 FIX: 정규화된 '1'도 체크 (STEP B 파서가 '01번' → '1'로 정규화)
+  const hasCommonProcess = procMaster.has('01') || procMaster.has('1') || procMaster.has('0')
+    || [...procMaster.keys()].some(k => k.toLowerCase() === '공통' || k === '00');
+  if (!hasCommonProcess) {
     // 앞에 삽입 (Map 순서 보존)
     const newPM = new Map<string, string>([['01', '공통']]);
     for (const [k, v] of procMaster) newPM.set(k, v);
@@ -418,12 +475,28 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     const key = `${r.procNo}|${r.feNorm}|${r.fmNorm}|${r.fcNorm}|${chainM4}`;
     if (!seenFC.has(key)) {
       seenFC.add(key);
+      // ★★★ 2026-03-17 FIX: FM 비어있으면 같은 공정의 A5(FM) 첫 번째 값 자동 할당 ★★★
+      // L3 통합 시트에는 FM 컬럼이 없어 fm='' → FailureLink 생성 불가 → 3L 누락 원인
+      // 같은 공정의 A5 FM을 할당하여 FM-FC 관계 보장
+      let chainFm = r.fmNorm;
+      if (!chainFm) {
+        const procFMs = a5Map.get(r.procNo) || [];
+        if (procFMs.length > 0) {
+          chainFm = procFMs[0];
+          // FM이 여러개면 라운드로빈 할당 (1:N FM-FC 관계)
+        }
+      }
+      // ★ FE 비어있으면 C4(고장영향) 첫 번째 값 자동 할당
+      let chainFe = r.feNorm;
+      if (!chainFe && c4.length > 0) {
+        chainFe = c4[0].fe;
+      }
       fcChains.push({
         procNo: r.procNo,
         m4: chainM4,
         we: chainWe,
-        fe: r.feNorm,
-        fm: r.fmNorm,
+        fe: chainFe,
+        fm: chainFm,
         fc: r.fcNorm,
         pc: r.pc,
         dc: r.dc,
@@ -460,6 +533,50 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
   for (const ch of fcChains) {
     if (ch.pc) ch.pc = enhancePCFormat(ch.pc, ch.m4);
     if (ch.dc) ch.dc = enhanceDCFormat(ch.dc);
+  }
+
+  // ★★★ 2026-03-17: FC시트 텍스트 → MAIN시트 텍스트 사전 매칭 ★★★
+  // 같은 공정번호 내에서 FM/FC 텍스트를 MAIN시트 기준으로 정규화하여 매칭
+  // 이 매칭 결과를 convertToImportFormat에서 UUID Map 조회에 사용 → 100% 결정론적 FK 보장
+  {
+    let fmMatched = 0;
+    let fcMatched = 0;
+    for (const ch of fcChains) {
+      // FM 매칭: FC시트 ch.fm → a5Map MAIN시트 FM
+      const a5Items = a5Map.get(ch.procNo) || [];
+      if (a5Items.length > 0 && ch.fm) {
+        let matchIdx = a5Items.findIndex(a5 => a5 === ch.fm);
+        if (matchIdx < 0) matchIdx = a5Items.findIndex(a5 => normalizeText(a5) === normalizeText(ch.fm));
+        if (matchIdx < 0) matchIdx = a5Items.findIndex(a5 => normalizeNoSpace(a5) === normalizeNoSpace(ch.fm));
+        if (matchIdx < 0) {
+          const nfm = normalizeNoSpace(ch.fm);
+          matchIdx = a5Items.findIndex(a5 => {
+            const na5 = normalizeNoSpace(a5);
+            return na5.length > 2 && nfm.length > 2 && (na5.includes(nfm) || nfm.includes(na5));
+          });
+        }
+        if (matchIdx >= 0) { ch.matchedFmText = a5Items[matchIdx]; fmMatched++; }
+      }
+
+      // FC 매칭: FC시트 ch.fc → b4Map MAIN시트 FC
+      const b4Items = b4Map.get(ch.procNo) || [];
+      if (b4Items.length > 0 && ch.fc) {
+        let matchIdx = b4Items.findIndex(b4 => b4.fc === ch.fc);
+        if (matchIdx < 0) matchIdx = b4Items.findIndex(b4 => normalizeText(b4.fc) === normalizeText(ch.fc));
+        if (matchIdx < 0) matchIdx = b4Items.findIndex(b4 => normalizeNoSpace(b4.fc) === normalizeNoSpace(ch.fc));
+        if (matchIdx < 0) {
+          const nfc = normalizeNoSpace(ch.fc);
+          matchIdx = b4Items.findIndex(b4 => {
+            const nb4 = normalizeNoSpace(b4.fc);
+            return nb4.length > 2 && nfc.length > 2 && (nb4.includes(nfc) || nfc.includes(nb4));
+          });
+        }
+        if (matchIdx >= 0) { ch.matchedFcText = b4Items[matchIdx].fc; fcMatched++; }
+      }
+    }
+    if (fcChains.length > 0) {
+      console.info(`[buildImportData] 사전 매칭: FM=${fmMatched}/${fcChains.length}, FC=${fcMatched}/${fcChains.length}`);
+    }
   }
 
   // A6 검출관리 + B5 예방관리 — fcChains에서 추출 + b4/a5 기반 보충
@@ -521,7 +638,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
 
   return {
     procMaster, c1, c2: c2Map, c3: c3Map, c4, a3: a3Map,
-    a4: a4Map, a5: a5Map, a6: a6Map,
+    a4: a4Map, a5: a5Map, a5ParentA4, a6: a6Map,
     b1: b1Map, b2: b2Map, b3: b3Map, b4: b4Map, b5: b5Map,
     fcChains,
   };
@@ -542,71 +659,116 @@ export function convertToImportFormat(
   const flatData: ImportedFlatData[] = [];
   const now = new Date();
 
+  // ★ chain UUID 직접 할당용 Map (텍스트 매칭 완전 제거 목표)
+  const a5IdByKey = new Map<string, string>();
+  const b4IdByKey = new Map<string, string>();
+  const c4IdByKey = new Map<string, string>();
+
   const sortedProcNos = [...data.procMaster.keys()].sort((a, b) => sortKey(a) - sortKey(b));
 
   // A1 공정번호 + A2 공정명
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const name = data.procMaster.get(pno) || '';
     flatData.push({
-      id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A1',
+      id: genA1('PF', pnoNum), processNo: pno, category: 'A', itemCode: 'A1',
       value: pno, createdAt: now,
     });
     flatData.push({
-      id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A2',
+      id: genA1('PF', pnoNum) + '-N', processNo: pno, category: 'A', itemCode: 'A2',
       value: name, createdAt: now,
     });
   }
 
   // A3 공정기능
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const info = data.a3.get(pno);
     if (info) {
       flatData.push({
-        id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A3',
+        id: genA3('PF', pnoNum, 1), processNo: pno, category: 'A', itemCode: 'A3',
         value: info.func, inherited: info.auto, createdAt: now,
       });
     }
   }
 
-  // A4 제품특성
+  // A4 제품특성 — ID를 기록하여 A5에서 parentItemId로 참조
+  const a4IdLookup = new Map<string, string>(); // `pno|char` → A4 id
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const items = data.a4.get(pno) || [];
+    let a4seq = 0;
     for (const item of items) {
+      a4seq++;
+      const a4Id = genA4('PF', pnoNum, a4seq);
+      a4IdLookup.set(`${pno}|${item.char}`, a4Id);
       flatData.push({
-        id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A4',
+        id: a4Id, processNo: pno, category: 'A', itemCode: 'A4',
         value: item.char, specialChar: item.sc || undefined, createdAt: now,
       });
     }
   }
 
-  // A5 고장형태
+  // A5 고장형태 — ★ parentItemId로 A4(제품특성) 원자성 연결
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const fms = data.a5.get(pno) || [];
-    for (const fm of fms) {
+    const a4Items = data.a4.get(pno) || [];
+    let a5seq = 0;
+    for (let i = 0; i < fms.length; i++) {
+      a5seq++;
+      const fm = fms[i];
+      const a5Id = genA5('PF', pnoNum, a5seq);
+      // ★ chain flatId FK 직접 할당용 기록 (exact + normalized + noSpace)
+      a5IdByKey.set(`${pno}|${fm}`, a5Id);
+      a5IdByKey.set(`${pno}|${normalizeText(fm)}`, a5Id);
+      a5IdByKey.set(`${pno}|NS|${normalizeNoSpace(fm)}`, a5Id);
+      // 1차: a5ParentA4 매핑 (같은 Excel 행의 A4 텍스트)
+      const parentChar = data.a5ParentA4?.get(`${pno}|${fm}`);
+      let parentId: string | undefined;
+      if (parentChar) {
+        parentId = a4IdLookup.get(`${pno}|${parentChar}`);
+      }
+      // 2차: 위치 기반 1:1 매핑 (A4 수 == A5 수일 때)
+      if (!parentId && a4Items.length > 0 && a4Items.length === fms.length) {
+        parentId = a4IdLookup.get(`${pno}|${a4Items[i].char}`);
+      }
+      // 3차: 첫 번째 A4 fallback
+      if (!parentId && a4Items.length > 0) {
+        parentId = a4IdLookup.get(`${pno}|${a4Items[0].char}`);
+      }
       flatData.push({
-        id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A5',
-        value: fm, createdAt: now,
+        id: a5Id, processNo: pno, category: 'A', itemCode: 'A5',
+        value: fm, parentItemId: parentId, createdAt: now,
       });
     }
   }
 
   // A6 검출관리
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const items = data.a6.get(pno) || [];
+    let a6seq = 0;
     for (const dc of items) {
+      a6seq++;
       flatData.push({
-        id: uuidv4(), processNo: pno, category: 'A', itemCode: 'A6',
+        id: genA6('PF', pnoNum, a6seq), processNo: pno, category: 'A', itemCode: 'A6',
         value: dc, createdAt: now,
       });
     }
   }
 
-  // B1 작업요소 — ID를 기록하여 B2/B3에서 parentItemId로 원자성 연결
+  // B1 작업요소 — ID를 기록하여 B2/B3/B4에서 parentItemId로 원자성 연결
   const b1IdMap = new Map<string, string>(); // `pno|m4|we` → B1 id
+  const b1seqByM4 = new Map<string, number>(); // `pno|m4` → 현재 seq
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const items = data.b1.get(pno) || [];
     for (const item of items) {
-      const b1Id = uuidv4();
+      const m4Key = `${pno}|${item.m4}`;
+      const b1seq = (b1seqByM4.get(m4Key) || 0) + 1;
+      b1seqByM4.set(m4Key, b1seq);
+      const b1Id = genB1('PF', pnoNum, item.m4, b1seq);
       const weKey = `${pno}|${item.m4}|${item.we}`;
       b1IdMap.set(weKey, b1Id);
       flatData.push({
@@ -618,13 +780,17 @@ export function convertToImportFormat(
 
   // B2 요소기능 — parentItemId(B1 ID)로 원자성 매칭
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const items = data.b2.get(pno) || [];
     for (const item of items) {
       const weKey = `${pno}|${item.m4}|${item.we}`;
       // ★ P3: parentItemId undefined 가드 — B1 미연결 시 자동 생성
       let b2ParentId = b1IdMap.get(weKey);
       if (!b2ParentId) {
-        b2ParentId = uuidv4();
+        const m4Key = `${pno}|${item.m4}`;
+        const b1seq = (b1seqByM4.get(m4Key) || 0) + 1;
+        b1seqByM4.set(m4Key, b1seq);
+        b2ParentId = genB1('PF', pnoNum, item.m4, b1seq);
         b1IdMap.set(weKey, b2ParentId);
         flatData.push({
           id: b2ParentId, processNo: pno, category: 'B', itemCode: 'B1',
@@ -632,8 +798,9 @@ export function convertToImportFormat(
         });
         warn.warn('B2_ORPHAN', `공정${pno} B2 "${item.func}" B1 자동생성 (key=${weKey})`);
       }
+      const parsed = parseB1seq(b2ParentId);
       flatData.push({
-        id: uuidv4(), processNo: pno, category: 'B', itemCode: 'B2',
+        id: genB2('PF', pnoNum, parsed.m4 || item.m4, parsed.b1seq), processNo: pno, category: 'B', itemCode: 'B2',
         value: item.func, m4: item.m4,
         belongsTo: item.we, parentItemId: b2ParentId,
         createdAt: now,
@@ -642,14 +809,19 @@ export function convertToImportFormat(
   }
 
   // B3 공정특성 — parentItemId(B1 UUID)로 원자성 매칭
+  const cseqByB1 = new Map<string, number>(); // B1 ID → 현재 cseq
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const items = data.b3.get(pno) || [];
     for (const item of items) {
       const weKey = `${pno}|${item.m4}|${item.we}`;
       // ★★★ 2026-03-10: B3도 B2와 동일하게 B1 자동생성 (orphan 방지) ★★★
       let b3ParentId = b1IdMap.get(weKey);
       if (!b3ParentId) {
-        b3ParentId = uuidv4();
+        const m4Key = `${pno}|${item.m4}`;
+        const b1seq = (b1seqByM4.get(m4Key) || 0) + 1;
+        b1seqByM4.set(m4Key, b1seq);
+        b3ParentId = genB1('PF', pnoNum, item.m4, b1seq);
         b1IdMap.set(weKey, b3ParentId);
         flatData.push({
           id: b3ParentId, processNo: pno, category: 'B', itemCode: 'B1',
@@ -657,8 +829,11 @@ export function convertToImportFormat(
         });
         warn.warn('B3_ORPHAN', `공정${pno} B3 "${item.char}" B1 자동생성 (key=${weKey})`);
       }
+      const parsed = parseB1seq(b3ParentId);
+      const cseq = (cseqByB1.get(b3ParentId) || 0) + 1;
+      cseqByB1.set(b3ParentId, cseq);
       flatData.push({
-        id: uuidv4(), processNo: pno, category: 'B', itemCode: 'B3',
+        id: genB3('PF', pnoNum, parsed.m4 || item.m4, parsed.b1seq, cseq), processNo: pno, category: 'B', itemCode: 'B3',
         value: item.char, m4: item.m4, specialChar: item.sc || undefined,
         belongsTo: item.we, parentItemId: b3ParentId,
         createdAt: now,
@@ -667,7 +842,9 @@ export function convertToImportFormat(
   }
 
   // B4 고장원인 — ★★★ 2026-03-10: parentItemId(B1 UUID) 원자성 연결 추가 ★★★
+  const kseqByB1 = new Map<string, number>(); // B1 ID → 현재 kseq
   for (const pno of sortedProcNos) {
+    const pnoNum = parseInt(pno) || 0;
     const items = data.b4.get(pno) || [];
     for (const item of items) {
       const weKey = `${pno}|${item.m4}|${(item as any).we || ''}`;
@@ -678,8 +855,16 @@ export function convertToImportFormat(
           if (k.startsWith(`${pno}|${item.m4}|`)) { b4ParentId = v; break; }
         }
       }
+      const parsed = b4ParentId ? parseB1seq(b4ParentId) : { m4: item.m4, b1seq: 1 };
+      const kseq = (kseqByB1.get(b4ParentId || '') || 0) + 1;
+      kseqByB1.set(b4ParentId || '', kseq);
+      const b4Id = genB4('PF', pnoNum, parsed.m4 || item.m4, parsed.b1seq, kseq);
+      // ★ chain flatId FK 직접 할당용 기록 (exact + normalized + noSpace)
+      b4IdByKey.set(`${pno}|${item.m4}|${item.fc}`, b4Id);
+      b4IdByKey.set(`${pno}|${item.m4}|${normalizeText(item.fc)}`, b4Id);
+      b4IdByKey.set(`${pno}|${item.m4}|NS|${normalizeNoSpace(item.fc)}`, b4Id);
       flatData.push({
-        id: uuidv4(), processNo: pno, category: 'B', itemCode: 'B4',
+        id: b4Id, processNo: pno, category: 'B', itemCode: 'B4',
         value: item.fc, m4: item.m4,
         parentItemId: b4ParentId || undefined,
         createdAt: now,
@@ -687,7 +872,7 @@ export function convertToImportFormat(
     }
   }
 
-  // B5 예방관리
+  // B5 예방관리 — uuidv4 유지 (아직 FK 연결 대상 아님)
   for (const pno of sortedProcNos) {
     const items = data.b5.get(pno) || [];
     for (const item of items) {
@@ -701,17 +886,20 @@ export function convertToImportFormat(
   // C1 구분
   for (const scope of data.c1) {
     flatData.push({
-      id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C1',
+      id: genC1('PF', scope), processNo: scope, category: 'C', itemCode: 'C1',
       value: scope, createdAt: now,
     });
   }
 
   // C2 제품기능
+  const c2seqByScope = new Map<string, number>(); // scope → 현재 c2seq
   for (const scope of data.c1) {
     const funcs = data.c2.get(scope) || [];
     for (const func of funcs) {
+      const c2seq = (c2seqByScope.get(scope) || 0) + 1;
+      c2seqByScope.set(scope, c2seq);
       flatData.push({
-        id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C2',
+        id: genC2('PF', scope, c2seq), processNo: scope, category: 'C', itemCode: 'C2',
         value: func, createdAt: now,
       });
     }
@@ -719,19 +907,33 @@ export function convertToImportFormat(
 
   // C3 요구사항
   for (const scope of data.c1) {
+    const c2seq = c2seqByScope.get(scope) || 1;
     const reqs = data.c3.get(scope) || [];
+    let c3seq = 0;
     for (const req of reqs) {
+      c3seq++;
       flatData.push({
-        id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C3',
+        id: genC3('PF', scope, c2seq, c3seq), processNo: scope, category: 'C', itemCode: 'C3',
         value: req, inherited: true, createdAt: now,
       });
     }
   }
 
   // C4 고장영향 — processNo는 scope(YP/SP/USER) 유지 (buildWorksheetState C1 필터 호환)
+  const c4seqByScope = new Map<string, number>(); // scope → 현재 c4seq
   for (const item of data.c4) {
+    const div = item.scope === 'USER' ? 'US' : (item.scope || 'YP');
+    const c2seq = c2seqByScope.get(item.scope) || 1;
+    const c3seqVal = 1; // C4는 첫 번째 C3 하위
+    const c4seq = (c4seqByScope.get(item.scope) || 0) + 1;
+    c4seqByScope.set(item.scope, c4seq);
+    const c4Id = genC4('PF', div, c2seq, c3seqVal, c4seq);
+    // ★ chain flatId FK 직접 할당용 기록 (exact + normalized + noSpace)
+    c4IdByKey.set(`${item.scope}|${item.fe}`, c4Id);
+    c4IdByKey.set(`${item.scope}|${normalizeText(item.fe)}`, c4Id);
+    c4IdByKey.set(`${item.scope}|NS|${normalizeNoSpace(item.fe)}`, c4Id);
     flatData.push({
-      id: uuidv4(), processNo: item.scope, category: 'C', itemCode: 'C4',
+      id: c4Id, processNo: item.scope, category: 'C', itemCode: 'C4',
       value: item.fe, createdAt: now,
     });
   }
@@ -766,6 +968,94 @@ export function convertToImportFormat(
       processChar: b3Match?.char || undefined,
     };
   });
+
+  // ★★★ 2026-03-17: flatData ID 직접 할당 — 8단계 결정론적 매칭 ★★★
+  // 사전매칭(matchedFmText) 우선 → exact → normalized → noSpace fallback
+  // buildWorksheetState에서 flatId→entityId 매핑으로 최종 확정
+
+  // Side-channel: buildImportData 사전매칭 결과 (index 기반)
+  const srcChains = data.fcChains;
+
+  let fmAssigned = 0;
+  let fcAssigned = 0;
+  let feAssigned = 0;
+  for (let i = 0; i < failureChains.length; i++) {
+    const ch = failureChains[i];
+    const npNo = String(parseInt(ch.processNo) || 0);
+    const src = i < srcChains.length ? srcChains[i] : undefined;
+
+    // FM: 8단계 매칭 (사전매칭 → exact → normalized → noSpace)
+    if (!ch.fmId && ch.fmValue) {
+      let fmId: string | undefined;
+      // 0차: 사전매칭 결과 (MAIN시트 원본 텍스트 — exact hit 보장)
+      if (!fmId && src?.matchedFmText) {
+        fmId = a5IdByKey.get(`${ch.processNo}|${src.matchedFmText}`)
+          || a5IdByKey.get(`${npNo}|${src.matchedFmText}`);
+      }
+      // 1~4차: FC시트 원본 텍스트 매칭
+      if (!fmId) {
+        fmId = a5IdByKey.get(`${ch.processNo}|${ch.fmValue}`)
+          || a5IdByKey.get(`${npNo}|${ch.fmValue}`)
+          || a5IdByKey.get(`${ch.processNo}|${normalizeText(ch.fmValue)}`)
+          || a5IdByKey.get(`${npNo}|${normalizeText(ch.fmValue)}`);
+      }
+      // 5~6차: noSpace fallback (공백 차이 흡수)
+      if (!fmId) {
+        fmId = a5IdByKey.get(`${ch.processNo}|NS|${normalizeNoSpace(ch.fmValue)}`)
+          || a5IdByKey.get(`${npNo}|NS|${normalizeNoSpace(ch.fmValue)}`);
+      }
+      if (fmId) { ch.fmId = fmId; ch.fmFlatId = fmId; fmAssigned++; }
+    }
+
+    // FC: 8단계 매칭 (사전매칭 → exact → normalized → noSpace)
+    if (!ch.fcId && ch.fcValue) {
+      let fcId: string | undefined;
+      // 0차: 사전매칭 결과
+      if (!fcId && src?.matchedFcText) {
+        fcId = b4IdByKey.get(`${ch.processNo}|${ch.m4}|${src.matchedFcText}`)
+          || b4IdByKey.get(`${npNo}|${ch.m4}|${src.matchedFcText}`);
+      }
+      // 1~4차: FC시트 원본 텍스트 매칭
+      if (!fcId) {
+        fcId = b4IdByKey.get(`${ch.processNo}|${ch.m4}|${ch.fcValue}`)
+          || b4IdByKey.get(`${npNo}|${ch.m4}|${ch.fcValue}`)
+          || b4IdByKey.get(`${ch.processNo}|${ch.m4}|${normalizeText(ch.fcValue)}`)
+          || b4IdByKey.get(`${npNo}|${ch.m4}|${normalizeText(ch.fcValue)}`);
+      }
+      // 5~6차: noSpace fallback
+      if (!fcId) {
+        fcId = b4IdByKey.get(`${ch.processNo}|${ch.m4}|NS|${normalizeNoSpace(ch.fcValue)}`)
+          || b4IdByKey.get(`${npNo}|${ch.m4}|NS|${normalizeNoSpace(ch.fcValue)}`);
+      }
+      if (fcId) { ch.fcId = fcId; ch.fcFlatId = fcId; fcAssigned++; }
+    }
+
+    // FE: 4단계 매칭 (exact → normalized → noSpace)
+    if (!ch.feId && ch.feValue) {
+      const scope = ch.feScope || 'YP';
+      const feId = c4IdByKey.get(`${scope}|${ch.feValue}`)
+        || c4IdByKey.get(`${scope}|${normalizeText(ch.feValue)}`)
+        || c4IdByKey.get(`${scope}|NS|${normalizeNoSpace(ch.feValue)}`);
+      if (feId) { ch.feId = feId; ch.feFlatId = feId; feAssigned++; }
+    }
+  }
+  const totalChains = failureChains.length;
+  console.info(`[import-builder] flatId FK 직접 할당: FM=${fmAssigned}/${totalChains}, FC=${fcAssigned}/${totalChains}, FE=${feAssigned}/${totalChains}`);
+  warn.info('UUID_FK_ASSIGN', `flatId FK 직접 할당: FM=${fmAssigned}/${totalChains}, FC=${fcAssigned}/${totalChains}, FE=${feAssigned}/${totalChains}`);
+
+  // ★ 미매칭 chain 진단 로그 (0건이어야 정상)
+  const unmatched = failureChains.filter(c => !c.fmId || !c.fcId || !c.feId);
+  if (unmatched.length > 0) {
+    console.warn(`[import-builder] ⚠️ ${unmatched.length}건 미매칭 chain 존재:`);
+    for (const c of unmatched.slice(0, 10)) {
+      const parts: string[] = [];
+      if (!c.fmId) parts.push(`FM="${(c.fmValue || '').slice(0, 30)}"`);
+      if (!c.fcId) parts.push(`FC="${(c.fcValue || '').slice(0, 30)}"`);
+      if (!c.feId) parts.push(`FE="${(c.feValue || '').slice(0, 30)}"`);
+      console.warn(`  proc=${c.processNo} m4=${c.m4 || '-'} ${parts.join(' ')}`);
+    }
+    warn.warn('UUID_FK_UNMATCHED', `${unmatched.length}건 chain UUID 미매칭 — 텍스트 차이 확인 필요`);
+  }
 
   // 자동생성 항목 수 기록
   const autoCount = flatData.filter(d => d.inherited).length;
