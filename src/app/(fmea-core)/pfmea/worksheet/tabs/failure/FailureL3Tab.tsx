@@ -163,13 +163,9 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
 
             if (uniqueLinked.length === 0) {
               count++;
-              if (typeof window !== 'undefined') console.warn(`[FC누락] NO_FC: 공정${proc.no}(${proc.name}) WE="${we.name}" PC="${charName}" ids=[${[...ids]}] allCauses=${allCauses.length}`);
             } else {
               uniqueLinked.forEach(c => {
-                if (isMissing(c.name)) {
-                  count++;
-                  if (typeof window !== 'undefined') console.warn(`[FC누락] PLACEHOLDER: 공정${proc.no}(${proc.name}) PC="${charName}" FC="${c.name}"`);
-                }
+                if (isMissing(c.name)) count++;
               });
             }
           });
@@ -177,11 +173,9 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
 
         if (hasMeaningfulFunc && !weHasAnyMeaningfulChar) {
           count++;
-          if (typeof window !== 'undefined') console.warn(`[FC누락] NO_PC: 공정${proc.no}(${proc.name}) WE="${we.name}"`);
         }
       });
     });
-    if (count > 0 && typeof window !== 'undefined') console.warn(`[FC누락] Total missingCount=${count}`);
     return count;
   }, [state.l2]);
 

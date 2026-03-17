@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
     const migrationLinkCount = atomicDB?.failureLinks?.length ?? 0;
     const originalLinkCount = injectedLinks.length;
     if (!useReversePath && atomicDB && migrationLinkCount < originalLinkCount && originalLinkCount > 0) {
-      console.log(`[save-from-import] Links 복구 시작: migration=${migrationLinkCount}, original=${originalLinkCount}`);
+      console.info(`[save-from-import] Links 복구: migration=${migrationLinkCount}/${originalLinkCount}`);
 
       // atomicDB에 이미 있는 link의 FM-FE-FC 조합 추적 (중복 방지)
       type AtomicLink = { fmId: string; feId: string; fcId: string };
@@ -382,9 +382,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (recoveredCount > 0) {
-        console.log(`[save-from-import] ✅ Links 복구 완료: ${recoveredCount}건 (총 ${atomicDB.failureLinks?.length}건)`);
-      } else if (migrationLinkCount === 0) {
-        console.warn(`[save-from-import] ⚠️ Links 복구 실패: FM/FE/FC 텍스트 매칭 불가`);
+        console.info(`[save-from-import] Links 복구: +${recoveredCount}건`);
       }
     }
 
@@ -505,7 +503,6 @@ export async function POST(request: NextRequest) {
 
     const savedL2Len = Array.isArray((legacyDataForSave as LegacyRecord).l2)
       ? (legacyDataForSave as LegacyRecord).l2!.length : 0;
-    console.log(`[save-from-import] 8-B. legacyData 저장 완료 l2=${savedL2Len}`);
 
     // 8-C. public 스키마에도 백업 저장 (비치명적 — 실패해도 Import 성공)
     const publicPrisma = getPrisma();
@@ -531,11 +528,7 @@ export async function POST(request: NextRequest) {
 
       if (!rebuildRes.ok || (!rebuildResult.ok && !rebuildResult.success)) {
         console.error('[save-from-import] rebuild-atomic 실패:', rebuildResult);
-      } else {
-        console.log('[save-from-import] 8-D. rebuild-atomic 완료:', JSON.stringify(rebuildResult.rebuilt));
       }
-    } else {
-      console.info('[save-from-import] 8-D. 리버스 경로 → rebuild-atomic 스킵 (atomic 데이터 이미 정확)');
     }
 
     // ★★★ 9. Verify Loop — FM/FC/FE/Links 종합 검증 + legacyData 무결성 보호 ★★★
@@ -556,10 +549,6 @@ export async function POST(request: NextRequest) {
     const expectedL1Funcs = Array.isArray(legacyL1?.types)
       ? legacyL1.types.reduce((sum: number, t: any) => sum + (Array.isArray(t.functions) ? t.functions.length : 0), 0)
       : 0;
-
-    console.log(
-      `[save-from-import] 기대값: l1Funcs=${expectedL1Funcs} l2=${expectedL2} FM=${expectedFM} FC=${expectedFC} Links=${expectedLinks}`
-    );
 
     const MAX_VERIFY_RETRIES = 3;
     let verifyPassed = false;
@@ -591,22 +580,13 @@ export async function POST(request: NextRequest) {
 
       if (gaps.length === 0) {
         verifyPassed = true;
-        console.log(
-          `[save-from-import] ✅ 검증 통과 (attempt ${attempt}): ` +
-          `L1Funcs=${l1FuncCount}/${expectedL1Funcs} l2=${l2Count}/${expectedL2} FM=${fmCount}/${expectedFM} FC=${fcCount}/${expectedFC} ` +
-          `FE=${feCount} Links=${linkCount}/${expectedLinks}`
-        );
         break;
       }
 
       if (attempt >= MAX_VERIFY_RETRIES) {
-        console.warn(
-          `[save-from-import] ⚠️ 검증 ${MAX_VERIFY_RETRIES}회 재시도 초과 — 잔여 GAP: ${gaps.join(', ')}`
-        );
+        console.warn(`[save-from-import] 검증 ${MAX_VERIFY_RETRIES}회 초과: ${gaps.join(', ')}`);
         break;
       }
-
-      console.warn(`[save-from-import] 검증 실패 (attempt ${attempt}): ${gaps.join(', ')} — 재시도`);
 
       // 9-B. legacyData 무결성 검증 — 덮어쓰기 방어
       const currentLegacy = await prisma.fmeaLegacyData.findUnique({
@@ -618,9 +598,6 @@ export async function POST(request: NextRequest) {
       );
 
       if (currentRich.total < savedRich.total) {
-        console.warn(
-          `[save-from-import] legacyData 손상 감지: FM=${currentRich.fm}+FC=${currentRich.fc} < saved FM=${savedRich.fm}+FC=${savedRich.fc} → 복원`
-        );
         await prisma.$transaction(async (tx) => {
           await tx.fmeaLegacyData.update({
             where: { fmeaId: normalizedFmeaId },
@@ -645,7 +622,6 @@ export async function POST(request: NextRequest) {
           ? (finalLegacy?.data as LegacyRecord).l2 as any[] : []
       );
       if (finalRich.total < savedRich.total) {
-        console.warn(`[save-from-import] 최종 legacyData 보호: FM+FC=${finalRich.total}→${savedRich.total} 강제 복원`);
         await prisma.$transaction(async (tx) => {
           await tx.fmeaLegacyData.update({
             where: { fmeaId: normalizedFmeaId },
