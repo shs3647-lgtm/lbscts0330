@@ -34,6 +34,9 @@ const PROJECT_TABLES = [
   'fmea_legacy_data',
   'unified_process_items',  // ★ 2026-02-05: CP/PFD 연동용 테이블 추가
   'process_product_chars',  // ★ 2026-03-14: ProcessProductChar 독립 엔티티 (A4 공유)
+  'import_jobs',            // ★ 2026-03-17: Import 추적
+  'import_mappings',        // ★ 2026-03-17: Import 매핑 (flatData→entity)
+  'import_validations',     // ★ 2026-03-17: Import 검증 결과
 ] as const;
 
 export function getProjectSchemaName(fmeaId: string): string {

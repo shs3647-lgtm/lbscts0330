@@ -91,8 +91,8 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
   return (
     <div
       ref={panelRef}
-      className="absolute top-8 right-0 w-[680px] bg-gray-900 border border-gray-600 rounded-lg shadow-2xl"
-      style={{ maxHeight: '80vh', overflowY: 'auto', zIndex: 100002 }}
+      className="fixed right-[120px] w-[680px] bg-gray-900 border border-gray-600 rounded-lg shadow-2xl"
+      style={{ top: '38px', maxHeight: '80vh', overflowY: 'auto', zIndex: 100002 }}
       data-testid="pipeline-verify-panel"
     >
       {/* 헤더 */}

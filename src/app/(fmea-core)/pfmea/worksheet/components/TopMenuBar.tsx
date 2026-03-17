@@ -17,12 +17,9 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/locale';
 import { WorksheetState } from '../constants';
-
-const PipelineVerifyPanel = dynamic(() => import('./PipelineVerifyPanel'), { ssr: false });
 
 interface TopMenuBarProps {
   fmeaList: any[];
@@ -86,7 +83,6 @@ export default function TopMenuBar({
   const { t } = useLocale();
   const [showImportMenu, setShowImportMenu] = React.useState(false);
   const [showSyncMenu, setShowSyncMenu] = React.useState(false);
-  const [showVerify, setShowVerify] = React.useState(false);
   const [syncMenuPos, setSyncMenuPos] = React.useState({ top: 0, left: 0 });
   const cpSyncBtnRef = React.useRef<HTMLButtonElement>(null);
   const syncMenuRef = React.useRef<HTMLDivElement>(null);
@@ -340,19 +336,6 @@ export default function TopMenuBar({
         >
           →PFD
         </button>
-        <div className="relative">
-          <button
-            onClick={() => setShowVerify(prev => !prev)}
-            className={`px-1 py-0.5 rounded text-[9px] font-bold transition-all whitespace-nowrap ${showVerify ? 'bg-orange-500 border border-orange-300 text-white' : 'bg-transparent border border-yellow-400/60 text-yellow-300 hover:bg-yellow-500/30 hover:text-white'}`}
-            title="파이프라인 5단계 검증 + 자동수정"
-            data-testid="verify-pipeline-button"
-          >
-            Verify
-          </button>
-          {showVerify && selectedFmeaId && (
-            <PipelineVerifyPanel fmeaId={selectedFmeaId} onClose={() => setShowVerify(false)} />
-          )}
-        </div>
         <button
           onClick={onConfirm}
           className="px-1 py-0.5 rounded bg-green-700 border border-green-400 text-white text-[9px] font-bold hover:bg-green-600 transition-all whitespace-nowrap"

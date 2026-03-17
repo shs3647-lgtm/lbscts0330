@@ -501,8 +501,92 @@ export async function POST(request: NextRequest) {
     if (!prisma) return NextResponse.json({ success: false, error: 'Prisma 실패' }, { status: 500 });
 
     const result = await runPipelineVerify(prisma, fmeaId, true);
-    return NextResponse.json({ success: true, ...result });
+
+    // ★ ImportValidation 저장: pipeline 검증 결과를 ImportValidation 테이블에 기록
+    let validationJobId: string | null = null;
+    try {
+      validationJobId = await savePipelineResultAsValidation(prisma, fmeaId, result);
+    } catch (valErr) {
+      console.error('[pipeline-verify] ImportValidation 저장 실패 (비치명적):', valErr);
+    }
+
+    return NextResponse.json({ success: true, ...result, validationJobId });
   } catch (e) {
     return NextResponse.json({ success: false, error: safeErrorMessage(e) }, { status: 500 });
   }
+}
+
+// ─── Pipeline 검증 결과 → ImportValidation 저장 ───
+
+async function savePipelineResultAsValidation(
+  prisma: any,
+  fmeaId: string,
+  result: PipelineResult,
+): Promise<string | null> {
+  // ImportJob 찾거나 생성
+  let job = await prisma.importJob.findFirst({
+    where: { fmeaId },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  }).catch(() => null);
+
+  if (!job) {
+    const { randomUUID } = await import('crypto');
+    job = await prisma.importJob.create({
+      data: {
+        id: randomUUID(),
+        fmeaId,
+        status: 'verifying',
+        flatDataCount: 0,
+        chainCount: 0,
+      },
+    });
+  }
+
+  const jobId = job.id;
+
+  // 기존 validation 삭제 후 새로 저장
+  await prisma.importValidation.deleteMany({ where: { jobId } });
+
+  interface ValidationData {
+    jobId: string;
+    ruleId: string;
+    target: string;
+    level: string;
+    message: string;
+    autoFixed: boolean;
+  }
+  const records: ValidationData[] = [];
+
+  for (const step of result.steps) {
+    const rulePrefix = `PIPELINE_S${step.step}`;
+
+    for (const issue of step.issues) {
+      records.push({
+        jobId,
+        ruleId: `${rulePrefix}_${step.name}`,
+        target: `step${step.step}`,
+        level: step.status === 'error' ? 'ERROR' : 'WARN',
+        message: issue,
+        autoFixed: false,
+      });
+    }
+
+    for (const fix of step.fixed) {
+      records.push({
+        jobId,
+        ruleId: `${rulePrefix}_FIX`,
+        target: `step${step.step}`,
+        level: 'INFO',
+        message: fix,
+        autoFixed: true,
+      });
+    }
+  }
+
+  if (records.length > 0) {
+    await prisma.importValidation.createMany({ data: records });
+  }
+
+  return jobId;
 }

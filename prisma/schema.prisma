@@ -2668,10 +2668,30 @@ model ImportJob {
   createdAt       DateTime        @default(now())
   completedAt     DateTime?
   mappings        ImportMapping[]
+  validations     ImportValidation[]
 
   @@index([fmeaId])
   @@index([status])
   @@map("import_jobs")
+}
+
+// ★★★ Import 검증 결과 테이블 (2026-03-17) ★★★
+// 각 Import Job의 검증 규칙별 결과를 기록
+model ImportValidation {
+  id        String   @id @default(uuid())
+  jobId     String
+  ruleId    String   // MATCH_B1_WE, MIX_B5_A6, DUP_A5, EMPTY_A4, ...
+  target    String   // FC_row_15, B5_row_22, A4_proc_30, ...
+  level     String   // ERROR | WARN | INFO
+  message   String
+  autoFixed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  job       ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([ruleId])
+  @@index([level])
+  @@map("import_validations")
 }
 
 model ImportMapping {

@@ -1,11 +1,17 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useLocale } from '@/lib/locale';
 import { MENU_DICT } from '@/lib/locale-dict';
 import HelpSearchModal from '@/components/modals/HelpSearchModal';
 import HelpChatbot from '@/components/help/HelpChatbot';
+
+const PipelineVerifyPanel = dynamic(
+  () => import('@/app/(fmea-core)/pfmea/worksheet/components/PipelineVerifyPanel'),
+  { ssr: false }
+);
 
 /**
  * @file CommonTopNav.tsx
@@ -71,9 +77,14 @@ export default function CommonTopNav({
   openNavInNewTab = false,
 }: CommonTopNavProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { locale, setLocale, t } = useLocale();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [showHelpSearch, setShowHelpSearch] = useState(false);
+  const [showVerify, setShowVerify] = useState(false);
+
+  const fmeaId = searchParams.get('fmeaId') || searchParams.get('id') || '';
+  const isFmeaPage = pathname?.includes('/pfmea') || pathname?.includes('/dfmea') || false;
 
   // 사용자 정보 로드
   useEffect(() => {
@@ -227,6 +238,24 @@ export default function CommonTopNav({
           <span className="text-[9px] hidden sm:inline">Help</span>
         </button>
       )} />
+
+      {/* Pipeline Verify — FMEA 페이지에서만 표시 */}
+      {isFmeaPage && fmeaId && (
+        <div className="relative">
+          <button
+            onClick={() => setShowVerify(prev => !prev)}
+            className={`h-9 flex items-center gap-1 px-1.5 border-l border-white/30 transition-colors ${showVerify ? 'bg-orange-500/80 text-white' : 'text-yellow-300/90 hover:text-white hover:bg-white/10'}`}
+            title="Pipeline Verify (5단계 파이프라인 검증)"
+            data-testid="verify-pipeline-button"
+          >
+            <span className="text-[10px]">🔍</span>
+            <span className="text-[9px] font-bold hidden sm:inline">Verify</span>
+          </button>
+          {showVerify && (
+            <PipelineVerifyPanel fmeaId={fmeaId} onClose={() => setShowVerify(false)} />
+          )}
+        </div>
+      )}
 
       {/* 한/영 토글 버튼 */}
       <button
