@@ -143,3 +143,6 @@ tests/.auth/user.json
 # 설계 문서 (로컬 전용)
 스키마/
 스키마.zip
+
+# 임시 SQL 쿼리 파일
+tmp_query*.sql
