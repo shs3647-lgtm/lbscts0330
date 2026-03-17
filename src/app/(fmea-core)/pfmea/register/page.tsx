@@ -738,8 +738,10 @@ function PFMEARegisterPageContent() {
             flatData={flatData}
             onDownloadSample={async () => {
               const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
-              if (flatData.length > 0) downloadDataTemplate(flatData);
-              else downloadSampleTemplate(undefined, templateGen.templateMode === 'manual');
+              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
+              const masterName = subject ? `PFMEA_Master_${subject}` : undefined;
+              if (flatData.length > 0) downloadDataTemplate(flatData, masterName);
+              else downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
             }}
             onDownloadEmpty={async () => {
               const { downloadEmptyTemplate } = await getExcelTemplate();

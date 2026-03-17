@@ -525,7 +525,7 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
   addVerifySheet(workbook, sheetData);
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const fileName = customFileName || `PFMEA_기초정보_데이터_${TEMPLATE_VERSION}`;
+  const fileName = customFileName || `PFMEA_Master_${TEMPLATE_VERSION}`;
   await downloadExcelBuffer(buffer, fileName);
 }
 
