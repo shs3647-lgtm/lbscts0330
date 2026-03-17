@@ -487,7 +487,7 @@ export default function DataSelectModal({
       >
         {/* ===== 헤더 (주황색 + 빨간 닫기) ===== */}
         <div
-          className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white cursor-move select-none"
+          className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white cursor-move select-none"
           onMouseDown={handleMouseDown}
         >
           <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ export default function DataSelectModal({
         </div>
 
         {/* ===== 상위 항목 고정 표시 ===== */}
-        <div className="px-3 py-2 border-b bg-gradient-to-r from-red-50 to-orange-50 border-red-200">
+        <div className="px-2 py-1 border-b bg-gradient-to-r from-red-50 to-orange-50 border-red-200">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-bold text-red-700 shrink-0">★ 상위항목:</span>
 
@@ -570,7 +570,7 @@ export default function DataSelectModal({
         </div>
 
         {/* ===== 검색 영역 ===== */}
-        <div className="px-3 py-2 border-b bg-gray-50">
+        <div className="px-2 py-1 border-b bg-gray-50">
           {/* 검색/입력 통합 (엔터 치면 추가) */}
           <input
             type="text"
@@ -618,7 +618,7 @@ export default function DataSelectModal({
               }
             }}
             placeholder={`🔍 ${itemInfo.label} 검색 또는 입력 후 Enter...`}
-            className="w-full px-2 py-1.5 text-[11px] border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
             autoFocus
           />
         </div>
