@@ -458,7 +458,7 @@ export async function POST(request: NextRequest) {
 
     if (useNewData) {
       legacyDataForSave = JSON.parse(JSON.stringify(legacyData));
-      console.log(`[save-from-import] 새 데이터 사용: FM=${newRich.fm} FC=${newRich.fc}`);
+      console.info(`[save-from-import] 데이터 선택: FM=${newRich.fm} FC=${newRich.fc}`);
     } else {
       console.warn(`[save-from-import] l2 보호: 빌드 ${newRich.total} < 기존 ${existingRich.total}`);
       legacyDataForSave = {
