@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
 
     const normalizedFmeaId = fmeaId.toLowerCase();
 
+    // ★★★ ImportMapping: ImportJob 생성 (status: pending) ★★★
+    const { createImportJobData, serializeFlatMap } = await import('@/lib/import/importJobManager');
+    const importJobData = createImportJobData(normalizedFmeaId, {
+      flatDataCount: flatData.length,
+      chainCount: Array.isArray(failureChains) ? failureChains.length : 0,
+    });
+
     // 1.5. ★ 누락 항목 보충 — buildWorksheetState 전에 B1 등 누락 보충
     const { supplementMissingItems } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/supplementMissingItems'
@@ -44,13 +51,8 @@ export async function POST(request: NextRequest) {
       ? failureChains : undefined;
     const supplements = supplementMissingItems(flatData, chainsArray || []);
     const enrichedFlatData = supplements.length > 0 ? [...flatData, ...supplements] : flatData;
-    // ★ DEBUG: A6/B5 flatData 카운트
-    const a6cnt = flatData.filter((d: any) => d.itemCode === 'A6').length;
-    const b5cnt = flatData.filter((d: any) => d.itemCode === 'B5').length;
-    if (a6cnt > 0 || b5cnt > 0) console.log(`[save-from-import] flatData A6=${a6cnt} B5=${b5cnt}`);
-    else console.warn(`[save-from-import] ⚠️ flatData에 A6/B5 없음! total=${flatData.length}`);
     if (supplements.length > 0) {
-      console.info(`[save-from-import] 누락 보충: ${supplements.length}건 (${supplements.map((s: { itemCode?: string }) => s.itemCode).filter((v: string | undefined, i: number, a: (string | undefined)[]) => a.indexOf(v) === i).join(',')})`);
+      console.info(`[save-from-import] 누락 보충: ${supplements.length}건`);
     }
 
     // 2. buildWorksheetState (엔티티 생성)
@@ -133,23 +135,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ★★★ ImportMapping: flatMap → ImportMappingRecord[] 직렬화 ★★★
+    const importMappingRecords = buildResult.flatMap
+      ? serializeFlatMap(buildResult.flatMap)
+      : [];
+    importJobData.usedReversePath = useReversePath;
+
     // 3. Phase 3 결과 추출 (buildWorksheetState 내부에서 이미 실행됨)
     const injectedLinks: unknown[] = (buildResult.state.failureLinks || []) as unknown[];
     const injectedRisk: Record<string, number | string> =
       (buildResult.state.riskData || {}) as Record<string, number | string>;
     if (buildResult.diagnostics.linkStats) {
       const ls = buildResult.diagnostics.linkStats;
-      console.info(
-        `[save-from-import] DB중심 링크: injected=${ls.injectedCount} skipped=${ls.skippedCount} ` +
-        `(noProc=${ls.skipReasons.noProc} noFE=${ls.skipReasons.noFE} ` +
-        `noFM=${ls.skipReasons.noFM} noFC=${ls.skipReasons.noFC})`
-      );
+      console.info(`[save-from-import] 링크: injected=${ls.injectedCount} skipped=${ls.skippedCount}`);
     }
 
-    // 3.5. ★★★ Phase 4 안전망: A6/B5 riskData 보충 ★★★
-    // buildWorksheetState Phase 4에서 이미 처리되지만,
-    // 전용시트 A6/B5가 flatData에만 있고 enrichedFlatData에 누락될 경우 대비
-    // (if (!existing) 가드로 중복 방지)
+    // 3.5. A6/B5 riskData 보충 (Phase 4 안전망)
     {
       const a6Items = flatData.filter((d: { itemCode?: string; value?: string }) =>
         d.itemCode === 'A6' && d.value?.trim()
@@ -459,14 +460,9 @@ export async function POST(request: NextRequest) {
 
     if (useNewData) {
       legacyDataForSave = JSON.parse(JSON.stringify(legacyData));
-      console.log(
-        `[save-from-import] 새 데이터 사용: 빌드 FM=${newRich.fm} FC=${newRich.fc} (기존 FM=${existingRich.fm} FC=${existingRich.fc})`
-      );
+      console.log(`[save-from-import] 새 데이터 사용: FM=${newRich.fm} FC=${newRich.fc}`);
     } else {
-      // 기존 l2가 더 풍부 → 기존 구조 보존 + 새 데이터(l1, riskData, confirmations) 머지
-      console.warn(
-        `[save-from-import] l2 보호: 빌드 FM=${newRich.fm}+FC=${newRich.fc}=${newRich.total} < 기존 FM=${existingRich.fm}+FC=${existingRich.fc}=${existingRich.total} → 기존 구조 보존`
-      );
+      console.warn(`[save-from-import] l2 보호: 빌드 ${newRich.total} < 기존 ${existingRich.total}`);
       legacyDataForSave = {
         ...existingData,
         fmeaId: normalizedFmeaId,
@@ -497,6 +493,14 @@ export async function POST(request: NextRequest) {
         create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
         update: { data: legacyDataForSave },
       });
+
+      // ★★★ ImportMapping: ImportJob + 매핑 레코드 DB 저장 ★★★
+      if (importMappingRecords.length > 0) {
+        const { createImportJob, saveAllMappings } = await import('@/lib/import/importJobDb');
+        await createImportJob(tx, importJobData);
+        const savedCount = await saveAllMappings(tx, importJobData.id, importMappingRecords);
+        console.info(`[save-from-import] ImportMapping 저장: job=${importJobData.id} mappings=${savedCount}`);
+      }
     }, { timeout: 30000, isolationLevel: 'Serializable' });
 
     const savedL2Len = Array.isArray((legacyDataForSave as LegacyRecord).l2)
@@ -651,6 +655,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ★★★ ImportMapping: verifyRoundTrip ★★★
+    let importJobResult: { id: string; mappingCount: number; roundTrip?: { total: number; verified: number; missingCount: number } } | undefined;
+    if (importMappingRecords.length > 0) {
+      try {
+        const { verifyRoundTrip: vrTrip, updateJobStatus: ujStatus } = await import('@/lib/import/importJobDb');
+        const rt = await vrTrip(prisma, importJobData.id);
+        await ujStatus(prisma, importJobData.id, 'completed');
+        importJobResult = { id: importJobData.id, mappingCount: importMappingRecords.length, roundTrip: { total: rt.total, verified: rt.verified, missingCount: rt.missing.length } };
+      } catch (e) { importJobResult = { id: importJobData.id, mappingCount: importMappingRecords.length }; }
+    }
+
     // 10. 성공 응답
     return NextResponse.json({
       success: true,
@@ -671,6 +686,7 @@ export async function POST(request: NextRequest) {
       verified: verifyPassed,
       verifyGaps: gaps.length > 0 ? gaps : undefined,
       expected: { l2: expectedL2, fm: expectedFM, fc: expectedFC, links: expectedLinks },
+      importJob: importJobResult,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

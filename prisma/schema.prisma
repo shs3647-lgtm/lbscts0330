@@ -2651,3 +2651,45 @@ enum WorkStatus {
   APPROVED
   REJECTED
 }
+
+// ============================================================
+// Import 매핑 영구저장 — flatData.id → entityId 추적
+// ============================================================
+
+model ImportJob {
+  id              String          @id @default(uuid())
+  fmeaId          String
+  fileName        String?
+  flatDataCount   Int             @default(0)
+  chainCount      Int             @default(0)
+  status          String          @default("pending") // pending|building|saving|verifying|completed|failed
+  errorMessage    String?
+  usedReversePath Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  completedAt     DateTime?
+  mappings        ImportMapping[]
+
+  @@index([fmeaId])
+  @@index([status])
+  @@map("import_jobs")
+}
+
+model ImportMapping {
+  id           String   @id @default(uuid())
+  jobId        String
+  flatDataId   String
+  entityId     String
+  entityType   String   // FM|FC|FE
+  processNo    String?
+  itemCode     String?  // A5|B4|C4
+  entityText   String?
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  job          ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([flatDataId])
+  @@index([entityId])
+  @@unique([jobId, flatDataId, entityType])
+  @@map("import_mappings")
+}
