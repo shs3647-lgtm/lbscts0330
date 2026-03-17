@@ -506,9 +506,7 @@ export function useImportFileHandlers({
           if (mapping.size === 0) return;
           for (const item of flat) {
             if (item.itemCode === childCode && mapping.has(item.id)) {
-              // ★★★ 2026-03-17 FIX: C3→C2 rowSpan이 다른 물리 시트 좌표를 혼동하는 문제
-              // L1_UNIFIED 텍스트 매핑(itemMeta)으로 이미 설정된 parentItemId는 보존
-              // 개별 시트(L1-2/L1-3)의 rowSpan은 보완 용도(NULL일 때만)
+              // C3→C2: 통합시트 텍스트 매핑으로 이미 설정된 parentItemId는 보존
               if (childCode === 'C3' && item.parentItemId) continue;
               item.parentItemId = mapping.get(item.id)!;
             }

@@ -189,189 +189,10 @@ function normalizeProcessNo(pNo: string | undefined): string {
   return n;
 }
 
-/**
- * ★ 균등 배분 유틸리티 (매칭원칙 #3) — 앞쪽 슬롯 우선
- *
- * M개 아이템을 N개 슬롯에 균등 배분
- * 앞쪽 extra개 슬롯: base+1개, 나머지: base개
- *
- * 예: distribute(4items, 2slots) → [[0,1], [2,3]]  (2:2 균등)
- * 예: distribute(5items, 2slots) → [[0,1,2], [3,4]] (3:2 나머지→처음)
- * 예: distribute(1item, 2slots)  → [[0], []]        (1:0 앞쪽 우선)
- * 예: distribute(3items, 3slots) → [[0], [1], [2]]  (1:1:1)
- */
-function distribute<T>(items: T[], slots: number): T[][] {
-  if (slots <= 0) return [];
-  if (items.length === 0) return Array.from({ length: slots }, () => []);
-  const result: T[][] = Array.from({ length: slots }, () => []);
-  const base = Math.floor(items.length / slots);
-  const extra = items.length % slots;
-  let idx = 0;
-  for (let s = 0; s < slots; s++) {
-    // 앞쪽 extra개 슬롯이 1개씩 더 받음
-    const count = s < extra ? base + 1 : base;
-    for (let i = 0; i < count && idx < items.length; i++) {
-      result[s].push(items[idx++]);
-    }
-  }
-  return result;
-}
-
-/**
- * ★★★ 2026-02-23: 4단계 매칭 배분 (교차매핑 근본 해결) ★★★
- *
- * 교차매핑 근본 원인:
- *   파서가 B3를 공정번호별 배열로 수집 → B1↔B3 행 대응 소멸
- *   인덱스 기반 distribute() → 개수 불일치 시 전체 밀림
- *
- * 4단계 매칭 전략:
- *   1단계) belongsTo 확정 매칭 — Excel에서 파싱된 소속 WE 이름 (가장 정확)
- *   2단계) 이름 접두사 매칭 — B2/B3 값이 WE 이름으로 시작하는 경우
- *   3단계) 퍼지 매칭 — "XX번-장비명-특성" 패턴에서 장비명 추출 → WE와 부분/오타 매칭
- *   4단계) 폴백 — 빈 슬롯에 distribute() 균등 배분
- */
-
-// ── 퍼지 매칭 유틸리티 (교차매핑 방지) ──
-
-/** 문자열 정규화: 공백/구두점 제거 + 소문자 */
-const normalizeStr = (s: string) => s.replace(/[\s,.\-_()·]/g, '').toLowerCase();
-
-/** "XX번-장비명-특성명" 패턴에서 장비명 추출 */
-function extractEquipRef(val: string): string | null {
-  // "XX번-장비명-특성명" → 장비명
-  const m1 = val.match(/^\d+번[-\s]?(.+?)-[^-]+$/);
-  if (m1) return m1[1];
-  // "XX번-장비명" (하이픈 없는 끝) → 첫 세그먼트
-  const m2 = val.match(/^\d+번[-\s]?(.+?)$/);
-  if (m2) {
-    const parts = m2[1].split('-');
-    if (parts.length >= 2) return parts[0];
-  }
-  return null;
-}
-
-/** "XX번-장비명" 패턴에서 장비명 추출 */
-function extractEquipName(weName: string): string {
-  const m1 = weName.match(/^\d+번[-\s]?(.+)$/);
-  if (m1) return m1[1];
-  return weName;
-}
-
-/** 알려진 오타/이표기 매핑 */
-const TYPO_MAP: Record<string, string> = {
-  '램핑기': '랩핑기',
-  '랩핑기': '램핑기',
-};
-
-/** 두 장비명이 같은 장비를 가리키는지 퍼지 비교 */
-function isSameEquip(ref: string, weName: string): boolean {
-  if (!ref || !weName) return false;
-  const nRef = normalizeStr(ref);
-  const nWe = normalizeStr(weName);
-  if (nRef === nWe) return true;
-  if (nRef.includes(nWe) || nWe.includes(nRef)) return true;
-  // 오타 매핑
-  const refTypo = TYPO_MAP[ref] || TYPO_MAP[nRef];
-  if (refTypo && (normalizeStr(refTypo) === nWe || nWe.includes(normalizeStr(refTypo)))) return true;
-  const weTypo = TYPO_MAP[weName] || TYPO_MAP[nWe];
-  if (weTypo && (nRef === normalizeStr(weTypo) || nRef.includes(normalizeStr(weTypo)))) return true;
-  return false;
-}
-
-function nameMatchDistribute(
-  items: ImportedFlatData[],
-  wes: WorkElement[]
-): ImportedFlatData[][] {
-  const result: ImportedFlatData[][] = Array.from({ length: wes.length }, () => []);
-
-  // ── 1단계: belongsTo 확정 매칭 (파서가 제공한 소속 WE 이름) ──
-  const afterStage1: ImportedFlatData[] = [];
-  for (const item of items) {
-    if (item.belongsTo) {
-      const normBT = normalizeStr(item.belongsTo);
-      let matched = false;
-      if (normBT) {
-        for (let i = 0; i < wes.length; i++) {
-          const normWE = normalizeStr(wes[i].name);
-          if (!normWE) continue;
-          if (normBT === normWE || normWE.includes(normBT) || normBT.includes(normWE)) {
-            result[i].push(item);
-            matched = true;
-            break;
-          }
-        }
-      }
-      if (!matched) afterStage1.push(item);
-    } else {
-      afterStage1.push(item);
-    }
-  }
-
-  // ── 2단계: 이름 접두사 매칭 ──
-  const afterStage2: ImportedFlatData[] = [];
-  for (const item of afterStage1) {
-    const itemVal = normalizeStr(item.value);
-    let matched = false;
-    for (let i = 0; i < wes.length; i++) {
-      const weName = normalizeStr(wes[i].name);
-      if (!weName) continue;
-      if (itemVal.startsWith(weName)) {
-        result[i].push(item);
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) afterStage2.push(item);
-  }
-
-  // ── 3단계: 퍼지 매칭 (장비명 추출 → WE 이름 비교) ──
-  const unmatched: ImportedFlatData[] = [];
-  for (const item of afterStage2) {
-    const equipRef = extractEquipRef(item.value);
-    if (equipRef) {
-      let matched = false;
-      for (let i = 0; i < wes.length; i++) {
-        const weEquipName = extractEquipName(wes[i].name);
-        if (isSameEquip(equipRef, weEquipName)) {
-          result[i].push(item);
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) unmatched.push(item);
-    } else {
-      unmatched.push(item);
-    }
-  }
-
-  // ── 4단계: 폴백 — 빈 슬롯에 꽂아넣기 (첫 빈 슬롯에 전부) ──
-  if (unmatched.length > 0) {
-    const emptySlots = result.map((arr, idx) => ({ idx, empty: arr.length === 0 }))
-      .filter(s => s.empty);
-
-    if (emptySlots.length > 0) {
-      // ★★★ 2026-03-16 FIX: distribute → 첫 빈 슬롯에 전부 꽂아넣기
-      // 배분하면 데이터 없는 WE에도 강제 할당 → 거짓 누락행 발생
-      result[emptySlots[0].idx] = unmatched;
-    } else {
-      // ★★★ FIX: 마지막 WE 몰아넣기 → 전체 WE에 균등 재배분 ★★★
-      // 이전: result[result.length-1].push(...unmatched) → 교차매핑 근본원인!
-      // 수정: 최소 항목 WE 우선 배분 (부하 균등화) + 경고 로그
-      const sortedByCount = wes.map((_, idx) => idx)
-        .sort((a, b) => result[a].length - result[b].length);
-
-      for (let i = 0; i < unmatched.length; i++) {
-        const targetIdx = sortedByCount[i % sortedByCount.length];
-        result[targetIdx].push(unmatched[i]);
-      }
-
-      for (const um of unmatched) {
-      }
-    }
-  }
-
-  return result;
-}
+// ★★★ 2026-03-17: distribute/nameMatchDistribute 전면 제거 ★★★
+// 균등배분(distribute)과 퍼지매칭(nameMatchDistribute)은 레거시 개별시트 시절 코드.
+// 통합시트에서는 모든 B2/B3가 parentItemId로 소속 WE가 확정되어 있으므로
+// parentItemId 기반 직접 꽂기(insertion)만 사용.
 
 // ════════════════════════════════════════════
 // Phase 1: 구조 빌드
@@ -875,66 +696,45 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
   // WE별 B4 seq 카운터
   const weKseqMap = new Map<string, number>();
 
-  // ★★★ 2026-03-05: parentItemId 기반 원자성 매칭 (이름 매칭 → 폴백으로 강등) ★★★
-  // import-builder가 B1 UUID를 B2/B3의 parentItemId에 기록 → buildL3ForProcess가 B1 UUID→WE ID 매핑
-  // parentItemId가 있으면 정확한 WE에 직접 배치, 없으면 레거시 nameMatchDistribute 폴백
+  // ★★★ 2026-03-17: parentItemId 기반 직접 꽂기 (distribute/nameMatchDistribute 제거) ★★★
+  // 통합시트에서 파싱된 B2/B3는 모두 parentItemId로 소속 WE가 확정되어 있음
+  // parentItemId → B1 UUID → WE ID 매핑으로 정확한 WE에 직접 배치
 
-  // WE ID → index 룩업 (parentItemId 기반 직접 매칭용)
   const weIdToIdx = new Map<string, number>();
   process.l3.forEach((we, idx) => weIdToIdx.set(we.id, idx));
 
-  // parentItemId 기반 B2/B3 분류: 매칭 가능한 것 vs 레거시(매칭 불가)
-  function splitByParentId(dataItems: ImportedFlatData[]): { matched: Map<number, ImportedFlatData[]>; unmatched: ImportedFlatData[] } {
-    const matched = new Map<number, ImportedFlatData[]>();
-    const unmatched: ImportedFlatData[] = [];
+  // parentItemId → WE index 매핑
+  function mapToWeIdx(dataItems: ImportedFlatData[]): Map<number, ImportedFlatData[]> {
+    const byWe = new Map<number, ImportedFlatData[]>();
     for (const item of dataItems) {
+      let weIdx = -1;
       if (item.parentItemId && b1IdToWeId) {
         const weId = b1IdToWeId.get(item.parentItemId);
         if (weId) {
-          const weIdx = weIdToIdx.get(weId);
-          if (weIdx !== undefined) {
-            if (!matched.has(weIdx)) matched.set(weIdx, []);
-            matched.get(weIdx)!.push(item);
-            continue;
-          }
+          const idx = weIdToIdx.get(weId);
+          if (idx !== undefined) weIdx = idx;
         }
       }
-      unmatched.push(item);
+      if (weIdx < 0) {
+        // parentItemId 매칭 실패 → m4 기준으로 첫 WE에 꽂기
+        const itemM4 = item.m4 || '';
+        for (let i = 0; i < process.l3.length; i++) {
+          if ((process.l3[i].m4 || '') === itemM4) { weIdx = i; break; }
+        }
+        if (weIdx < 0) weIdx = 0;
+      }
+      if (!byWe.has(weIdx)) byWe.set(weIdx, []);
+      byWe.get(weIdx)!.push(item);
     }
-    return { matched, unmatched };
+    return byWe;
   }
 
-  const b2Split = splitByParentId(b2Items);
-  const b3Split = splitByParentId(b3Items);
+  const b2ByWe = mapToWeIdx(b2Items);
+  const b3ByWe = mapToWeIdx(b3Items);
 
-  // ★ WE를 m4별로 그룹핑 (레거시 폴백용)
-  const weByM4 = new Map<string, WorkElement[]>();
-  for (const we of process.l3) {
-    const key = we.m4 || '';
-    if (!weByM4.has(key)) weByM4.set(key, []);
-    weByM4.get(key)!.push(we);
-  }
-
-  // ★★★ parentItemId 매칭된 B2/B3를 WE에 직접 배치 ★★★
-  // 레거시(unmatched)는 기존 nameMatchDistribute 폴백
-  const b2ByM4Unmatched = groupByM4(b2Split.unmatched);
-  const b3ByM4Unmatched = groupByM4(b3Split.unmatched);
-
-  for (const [m4Key, wes] of weByM4) {
-    const m4B2Unmatched = b2ByM4Unmatched.get(m4Key) || [];
-    const m4B3Unmatched = b3ByM4Unmatched.get(m4Key) || [];
-
-    // 레거시 데이터만 nameMatchDistribute 폴백
-    const b2Dist = m4B2Unmatched.length > 0 ? nameMatchDistribute(m4B2Unmatched, wes) : Array.from({ length: wes.length }, () => [] as ImportedFlatData[]);
-    const b3Dist = m4B3Unmatched.length > 0 ? nameMatchDistribute(m4B3Unmatched, wes) : Array.from({ length: wes.length }, () => [] as ImportedFlatData[]);
-
-    wes.forEach((we, weIdx) => {
-      // parentItemId 매칭 + nameMatchDistribute 폴백 병합
-      const globalWeIdx = process.l3.indexOf(we);
-      const parentB2 = globalWeIdx >= 0 ? (b2Split.matched.get(globalWeIdx) || []) : [];
-      const parentB3 = globalWeIdx >= 0 ? (b3Split.matched.get(globalWeIdx) || []) : [];
-      const myB2 = [...parentB2, ...b2Dist[weIdx]];
-      const myB3 = [...parentB3, ...b3Dist[weIdx]];
+  process.l3.forEach((we, weIdx) => {
+      const myB2 = b2ByWe.get(weIdx) || [];
+      const myB3 = b3ByWe.get(weIdx) || [];
 
       // ★★★ 2026-03-01: B3 부족 시 복제 금지 → 빈 processChar 유지 ★★★
       // 이전: m4 그룹 마지막 B3 재사용 → Import(129) < DB(130), +1 불일치
@@ -981,147 +781,13 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         we.functions = [{ id: genB2('PF', pnoNum, weM4, weB1seq), name: '', processChars: [] }];
       }
 
-      // ★★★ 2026-03-16 FIX: B3 자동 생성 제거 — Import 원본만 저장 (통계 일치 원칙)
-      // 이전: B3 없는 WE에 "{WE명} 관리 특성" placeholder 자동 생성 → Import 77건 → DB 102건 (+25 불일치)
-      // 수정: 자동 생성 제거. 빈 B3는 워크시트에서 수동 입력
-    });
-  }
-
-  // ★★★ 2026-02-22: m4 불일치 B2/B3 보정 — 빈 WE에 남은 데이터 재분배 ★★★
-  // 원인: 단일시트에서 func4M이 비어있으면 B2의 m4=''이 되어 WE의 m4와 불일치
-  // 파서에서 fallback 처리하지만, 멀티시트/레거시 데이터 대비 빌더에서도 보정
-  {
-    // 전체 B2/B3를 m4별로 재그룹핑 (parentItemId 매칭 후 남은 미매칭 + 원래 미배분)
-    const allB2ByM4 = groupByM4(b2Items);
-    const allB3ByM4 = groupByM4(b3Items);
-
-    // 1. WE m4 그룹에 매칭되지 않은 B2 수집
-    const weM4Keys = new Set(weByM4.keys());
-    const unmatchedB2Fallback: ImportedFlatData[] = [];
-    for (const [key, groupItems] of allB2ByM4) {
-      if (!weM4Keys.has(key)) {
-        unmatchedB2Fallback.push(...groupItems);
-      }
-    }
-
-    // 2. 빈 WE(functions 없는) 수집
-    const emptyWEs = process.l3.filter(we => we.functions.length === 0);
-
-    // 3. 남은 B2를 빈 WE에 균등 배분
-    if (unmatchedB2Fallback.length > 0 && emptyWEs.length > 0) {
-      // 미매칭 B3도 수집
-      const unmatchedB3Fallback: ImportedFlatData[] = [];
-      for (const [key, groupItems] of allB3ByM4) {
-        if (!weM4Keys.has(key)) {
-          unmatchedB3Fallback.push(...groupItems);
-        }
-      }
-
-      // ★★★ 2026-03-16 FIX: distribute 제거 → parentItemId 기반 꽂아넣기 ★★★
-      // 미매칭 B2/B3를 WE에 parentItemId 기반으로 꽂아넣기, 없으면 첫 번째 빈 WE에 전부
-      const b2ByWE = new Map<number, ImportedFlatData[]>();
-      const b3ByWE = new Map<number, ImportedFlatData[]>();
-      for (const b2 of unmatchedB2Fallback) {
-        let weIdx = 0;
-        if (b2.parentItemId) {
-          const found = emptyWEs.findIndex(we => we.id === b2.parentItemId);
-          if (found >= 0) weIdx = found;
-        }
-        if (!b2ByWE.has(weIdx)) b2ByWE.set(weIdx, []);
-        b2ByWE.get(weIdx)!.push(b2);
-      }
-      for (const b3 of unmatchedB3Fallback) {
-        let weIdx = 0;
-        if (b3.parentItemId) {
-          const found = emptyWEs.findIndex(we => we.id === b3.parentItemId);
-          if (found >= 0) weIdx = found;
-        }
-        if (!b3ByWE.has(weIdx)) b3ByWE.set(weIdx, []);
-        b3ByWE.get(weIdx)!.push(b3);
-      }
-
-      emptyWEs.forEach((we, weIdx) => {
-        const { m4: weM4, b1seq: weB1seq } = parseWeId(we.id);
-        const myB2 = b2ByWE.get(weIdx) || [];
-        const myB3 = b3ByWE.get(weIdx) || [];
-        if (myB2.length > 0) {
-          if (myB2.length === 1) {
-            we.functions = [{
-              id: myB2[0].id?.startsWith('PF-') ? myB2[0].id : genB2('PF', pnoNum, weM4, weB1seq),
-              name: myB2[0].value,
-              ...rev(myB2[0]),
-              processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
-            }];
-          } else {
-            we.functions = myB2.map((b2, fIdx) => ({
-              id: fIdx === 0
-                ? (b2.id?.startsWith('PF-') ? b2.id : genB2('PF', pnoNum, weM4, weB1seq))
-                : (b2.id?.startsWith('PF-') ? b2.id : `${genB1('PF', pnoNum, weM4, weB1seq)}-G-${String(fIdx + 1).padStart(3, '0')}`),
-              name: b2.value,
-              ...rev(b2),
-              processChars: fIdx === 0 ? myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }) : [],
-            }));
-          }
-        } else if (myB3.length > 0) {
-          we.functions = [{
-            id: genB2('PF', pnoNum, weM4, weB1seq),
-            name: '',
-            processChars: myB3.map(b3 => { const cs = (weCharSeqMap.get(we.id) || 0) + 1; weCharSeqMap.set(we.id, cs); return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, weM4, weB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' }; }),
-          }];
-        }
-      });
-    }
-  }
-
-  // ★★★ 2026-02-23: 크로스-m4 이름 기반 보정 — 빈 WE에 다른 그룹 B2 재배치 ★★★
-  // 원인: B2의 m4가 B1과 다를 때 (예: B1 "120번-EOL검사기" m4=MC, B2 m4=MN)
-  //        → B2가 잘못된 m4 그룹에 배치 → 올바른 WE가 빈 채로 남음
-  // 해결: 빈 WE의 이름으로 전체 WE 함수를 검색, 이름 매칭 시 교정
-  {
-    const normalize = (s: string) => s.replace(/[\s,.\-_()]/g, '').toLowerCase();
-    const emptyAfterAll = process.l3.filter(we => {
-      const meaningful = we.functions.filter(f => f.name && f.name.trim() && !f.name.includes('선택') && !f.name.includes('클릭'));
-      return meaningful.length === 0;
     });
 
-    for (const emptyWe of emptyAfterAll) {
-      const emptyName = normalize(emptyWe.name);
-      if (!emptyName) continue;
+  // ★★★ 2026-03-17: m4 불일치 / 크로스-m4 보정 블록 제거 ★★★
+  // 통합시트에서 parentItemId로 모든 B2/B3가 정확한 WE에 배치되므로
+  // 기존 m4 불일치 재분배, 크로스-m4 이름 매칭 보정 코드 불필요
 
-      // 다른 WE에서 이 빈 WE 이름으로 시작하는 B2를 찾아 이동
-      // ⚠️ 단, 소스 WE에 함수가 1개뿐이면 빼앗지 않음 (소스도 비워짐 방지)
-      for (const otherWe of process.l3) {
-        if (otherWe === emptyWe) continue;
-        if (otherWe.functions.length <= 1) continue; // ★ 1개뿐이면 스킵 (빼앗으면 소스가 빈다)
-
-        const matchIdx = otherWe.functions.findIndex(f =>
-          f.name && normalize(f.name).startsWith(emptyName)
-        );
-
-        if (matchIdx >= 0) {
-          // 해당 function을 빈 WE로 이동 (★ 2026-03-14 H-4: 불변성 — splice 대신 filter)
-          const movedFunc = otherWe.functions[matchIdx];
-          otherWe.functions = otherWe.functions.filter((_, idx) => idx !== matchIdx);
-          emptyWe.functions = [movedFunc];
-
-          // B3도 이름 매칭으로 교정
-          const allB3 = byCode(items, 'B3');
-          const matchedB3 = allB3.filter(b3 => normalize(b3.value).startsWith(emptyName));
-          if (matchedB3.length > 0 && movedFunc.processChars.length === 0) {
-            const { m4: emM4, b1seq: emB1seq } = parseWeId(emptyWe.id);
-            movedFunc.processChars = matchedB3.map(b3 => {
-              const cs = (weCharSeqMap.get(emptyWe.id) || 0) + 1; weCharSeqMap.set(emptyWe.id, cs);
-              return { id: b3.id?.startsWith('PF-') ? b3.id : genB3('PF', pnoNum, emM4, emB1seq, cs), name: b3.value, ...rev(b3), specialChar: b3.specialChar || '' };
-            });
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  // ★ B4: 고장원인 → Process.failureCauses (processCharId 연결)
-  // L2의 A5→A4 productCharId 패턴과 동일: m4별로 B4를 processChars에 균등 배분
+  // ★ B4: 고장원인 → Process.failureCauses (processCharId FK 기반 꽂아넣기)
   const b4ByM4 = groupByM4(b4Items);
   const causes: L3FailureCauseExtended[] = [];
 
@@ -1174,9 +840,7 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     }
   }
 
-  // ★★★ 2026-03-03: m4 불일치 B4를 전체 processChars에 재배분 ★★★
-  // 이전: processCharId 없이 생성 → 워크시트에서 "고장원인 선택" 표시 (누락)
-  // 수정: 전체 processChars에 균등 배분 → processCharId 연결 → 정상 표시
+  // m4 불일치 B4 → 첫 PC에 꽂아넣기 (fallback)
   if (unmatchedB4.length > 0 && allProcessChars.length > 0) {
     // ★★★ 2026-03-16 FIX: distribute → 첫 PC에 전부 꽂아넣기 (m4 불일치 fallback)
     // 배분하면 데이터 없는 PC에도 강제 할당 → 거짓 누락행 발생

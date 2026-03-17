@@ -268,7 +268,11 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       errors.push(`⚠️ 인식되지 않은 시트: ${unmappedSheets.join(', ')} (예상 시트명: L2-1~L2-6, L3-1~L3-5, L1-1~L1-4)`);
     }
 
-    // ★★★ 2026-03-16: L1 통합시트 C3→C2 텍스트 매핑 (개별시트 우선 정책 시 parentItemId 보정용)
+    // ★★★ 2026-03-17 FIX: 통합시트 우선 정책 (unified-first)
+    // 통합시트가 파싱한 코드를 기록 → 나중에 개별시트가 나오면 스킵
+    const unifiedFilledCodes = new Set<string>();
+
+    // L1 통합시트 C3→C2 텍스트 매핑 (parentItemId 보정용)
     // key: `${c1}|${c3_value}`, value: c2_value
     const l1UnifiedC3ToC2 = new Map<string, string>();
 
@@ -305,7 +309,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         { keywords: ['공정명', '공정기능', '고장형태'], code: 'L2_UNIFIED', multiMatch: true },
         { keywords: ['작업요소', '고장원인', '예방관리'], code: 'L3_UNIFIED', multiMatch: true },
         { keywords: ['구분', '제품기능', '요구사항', '고장영향'], code: 'L1_UNIFIED', multiMatch: true },
-        // 기존 개별시트 감지 (단일 키워드 매칭)
+        // 폴백: 개별시트 감지 (통합시트 없는 레거시 양식 호환용)
         { keywords: ['공정명', 'l2-2'], code: 'A2' },
         { keywords: ['공정기능', 'l2-3'], code: 'A3' },
         { keywords: ['제품특성', 'l2-4'], code: 'A4' },
@@ -339,7 +343,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           }
         }
 
-        // 통합시트 미감지 시 → 기존 개별시트 감지 로직
+        // 통합시트 미감지 시 → 폴백 개별시트 감지
         if (!finalSheetName) {
           if (secondColumnHeader.includes('4m') || secondColumnHeader.includes('m4')) {
             // B 시트 계열: 2열=4M → 3열 키워드로 구체 분류
@@ -362,7 +366,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         }
       }
 
-      // 3차 폴백: 전체 헤더 텍스트에서 재시도 (통합시트 이미 처리됨 → 개별시트만)
+      // 3차 폴백: 전체 헤더 텍스트에서 재시도 (통합시트 미감지 시 폴백)
       if (!finalSheetName) {
         const headerText = headers.join(' ').toLowerCase();
         for (const { keywords, code, multiMatch } of headerKeywordMap) {
@@ -487,86 +491,11 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       // ★ v5.5: 통합시트 → 개별 시트 코드로 분배 (기존 processMap 로직 재활용)
       const isUnified = sheetCode === 'L1_UNIFIED' || sheetCode === 'L2_UNIFIED' || sheetCode === 'L3_UNIFIED';
       if (isUnified) {
-        // ★★★ 2026-03-16 FIX: 개별 시트가 이미 존재하면 통합 시트 건너뛰기 ★★★
-        // 개별 시트(C2, C3 등)와 통합 시트(L1 통합)가 공존하면
-        // 같은 sheetDataMap에 중복 push → C3 4× 중복 발생
-        // 개별 시트 우선 정책: 개별 시트가 이미 파싱되었으면 통합 시트 스킵
-        const unifiedCodes = sheetCode === 'L1_UNIFIED' ? ['C1', 'C2', 'C3', 'C4']
-          : sheetCode === 'L2_UNIFIED' ? ['A2', 'A3', 'A4', 'A5']
-          : ['B1', 'B2', 'B3', 'B4'];
-        const hasIndividualSheets = unifiedCodes.some(code => sheetDataMap[code]?.rows?.length > 0);
-        if (hasIndividualSheets) {
-          // ★★★ 2026-03-16 FIX: L1_UNIFIED 스킵 시에도 C3→C2 텍스트 매핑 추출
-          // 이 매핑을 이용해 아래에서 C3 itemMeta.parentItemId를 보정함
-          if (sheetCode === 'L1_UNIFIED') {
-            let c1Col = -1, c2Col = -1, c3Col = -1;
-            for (let ci = 0; ci < headers.length; ci++) {
-              const h = (headers[ci] || '').replace(/\s/g, '').toLowerCase();
-              if (h.includes('구분') && c1Col < 0) c1Col = headerColMap[ci];
-              else if (h.includes('제품기능') && c2Col < 0) c2Col = headerColMap[ci];
-              else if (h.includes('요구사항') && c3Col < 0) c3Col = headerColMap[ci];
-            }
-            if (c1Col > 0 && c2Col > 0 && c3Col > 0) {
-              // ★★★ 2026-03-17 FIX: 병합 셀 carry-forward
-              // L1_UNIFIED 시트에서 C1/C2가 병합 셀이면 비-마스터 행은 빈 값 반환
-              // → lastC1/lastC2 carry-forward로 병합 범위 전체에 올바른 부모 값 유지
-              let lastC1 = '', lastC2 = '';
-              for (let ri = startRow; ri <= sheet.rowCount; ri++) {
-                const uRow = sheet.getRow(ri);
-                const c1Raw = cellValueToString(uRow.getCell(c1Col).value).trim();
-                const c2Raw = cellValueToString(uRow.getCell(c2Col).value).trim();
-                const c3Val = cellValueToString(uRow.getCell(c3Col).value).trim();
-                if (c1Raw) lastC1 = c1Raw;
-                if (c2Raw) lastC2 = c2Raw;
-                if (lastC1 && lastC2 && c3Val) {
-                  l1UnifiedC3ToC2.set(`${lastC1}|${c3Val}`, lastC2);
-                }
-              }
-            }
-          }
-          // ★★★ 2026-03-17 FIX: 개별시트 스킵 시에도 A6/B5 추출 ★★★
-          // L2_UNIFIED 스킵 → A6(검출관리, G컬럼) 데이터 소실 방지
-          // L3_UNIFIED 스킵 → B5(예방관리, H컬럼) 데이터 소실 방지
-          const extraCodes = sheetCode === 'L2_UNIFIED' ? ['A6'] : sheetCode === 'L3_UNIFIED' ? ['B5'] : [];
-          const needsExtraExtract = extraCodes.some(c => !(sheetDataMap[c]?.rows?.length > 0));
-          if (needsExtraExtract && extraCodes.length > 0) {
-            let keyCol = -1;
-            const extraColMap: Array<{ col: number; targetCode: string }> = [];
-            let m4Col = -1;
-            for (let ci = 0; ci < headers.length; ci++) {
-              const h = (headers[ci] || '').replace(/\s/g, '').toLowerCase();
-              if (h.includes('공정번호')) keyCol = headerColMap[ci];
-              if (sheetCode === 'L2_UNIFIED' && h.includes('검출관리')) extraColMap.push({ col: headerColMap[ci], targetCode: 'A6' });
-              if (sheetCode === 'L3_UNIFIED' && h.includes('예방관리')) extraColMap.push({ col: headerColMap[ci], targetCode: 'B5' });
-              if (sheetCode === 'L3_UNIFIED' && (h.includes('4m') || h.includes('m4'))) m4Col = headerColMap[ci];
-            }
-            if (keyCol > 0 && extraColMap.length > 0) {
-              let lastKey = '';
-              let lastM4 = '';
-              for (let ri = startRow; ri <= Math.min(sheet.rowCount, startRow + MAX_DATA_ROWS - 1); ri++) {
-                const uRow = sheet.getRow(ri);
-                const rawKey = cellValueToString(uRow.getCell(keyCol).value).trim();
-                if (rawKey) lastKey = rawKey;
-                const pKey = lastKey;
-                if (!pKey) continue;
-                const m4Val = m4Col > 0 ? cellValueToString(uRow.getCell(m4Col).value).trim().toUpperCase() : '';
-                if (m4Val && ['MN', 'MC', 'IM', 'EN'].includes(m4Val)) lastM4 = m4Val;
-                for (const ec of extraColMap) {
-                  const val = cellValueToString(uRow.getCell(ec.col).value).trim();
-                  if (val && val !== 'null') {
-                    if (!sheetDataMap[ec.targetCode]) sheetDataMap[ec.targetCode] = { sheetName: ec.targetCode, headers: [], rows: [] };
-                    sheetDataMap[ec.targetCode].rows.push({ key: pKey, value: val, m4: lastM4 || undefined, excelRow: ri, rowSpan: 1 });
-                  }
-                }
-              }
-              for (const ec of extraCodes) {
-                const cnt = sheetDataMap[ec]?.rows?.length || 0;
-                if (cnt > 0) console.info(`[excel-parser] 통합시트 스킵 후 ${ec} 추출: ${cnt}건`);
-              }
-            }
-          }
-          return; // 개별 시트가 이미 존재 → 나머지 통합 시트 데이터 스킵
-        }
+        // ★★★ 2026-03-17: 통합시트 우선 정책 (unified-first) ★★★
+        // 통합시트는 항상 파싱. 파싱 완료 후 해당 코드를 unifiedFilledCodes에 기록.
+        // 나중에 개별시트가 나오면 이미 통합시트에서 채운 코드는 스킵.
+        // (이전 "개별시트 우선" 80줄 패치워크 제거 — A6/B5 부분추출, C3→C2 이중매핑 불필요)
+
         // 통합시트: 행 하나에서 여러 필드를 추출하여 개별 sheetDataMap 항목으로 분배
         // 헤더 인덱스 → 필드 매핑 (헤더 키워드 기반)
         const colFieldMap: Array<{ col: number; targetCode: string; fieldHint: string }> = [];
@@ -601,10 +530,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         const m4Mapping = colFieldMap.find(m => m.targetCode === '_4M');
         const scMapping = colFieldMap.find(m => m.targetCode === '_SC');
 
-        // ★★★ 2026-03-17 FIX: 통합시트 전용 파일 — L1_UNIFIED에서 직접 C3→C2 매핑 추출
-        // hasIndividualSheets=false인 경우 l1UnifiedC3ToC2 맵이 비어있어
-        // lines 1193-1244의 C3 parentItemId 설정이 동작하지 않는 문제 해결.
-        // carry-forward로 병합 셀(C1/C2 merged) 대응.
+        // L1_UNIFIED에서 C3→C2 매핑 추출 (parentItemId 보정용)
+        // carry-forward로 병합 셀(C1/C2 merged) 대응
         if (sheetCode === 'L1_UNIFIED' && keyMapping) {
           const c2Entry = colFieldMap.find(m => m.targetCode === 'C2');
           const c3Entry = colFieldMap.find(m => m.targetCode === 'C3');
@@ -700,8 +627,22 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           }
         }
 
-        // 통합시트 자체는 sheetDataMap에 저장하지 않음 (이미 개별 코드로 분배)
+        // 통합시트 파싱 완료 — 해당 코드들을 기록하여 개별시트 중복 방지
+        const filledCodes = sheetCode === 'L1_UNIFIED' ? ['C1', 'C2', 'C3', 'C4']
+          : sheetCode === 'L2_UNIFIED' ? ['A1', 'A2', 'A3', 'A4', 'A5', 'A6']
+          : ['B1', 'B2', 'B3', 'B4', 'B5'];
+        filledCodes.forEach(c => {
+          if (sheetDataMap[c]?.rows?.length > 0) unifiedFilledCodes.add(c);
+        });
+        console.info(`[excel-parser] ${sheetCode} 통합시트 파싱 완료: ${filledCodes.filter(c => unifiedFilledCodes.has(c)).join(',')} (${filledCodes.filter(c => unifiedFilledCodes.has(c)).length}개 코드)`);
+
         return; // eachSheet callback — 다음 시트로
+      }
+
+      // ★★★ 2026-03-17: 통합시트에서 이미 파싱된 코드의 개별시트 → 스킵 ★★★
+      if (sheetCode && unifiedFilledCodes.has(sheetCode)) {
+        console.info(`[excel-parser] ${sheetCode} 개별시트 스킵: 통합시트에서 이미 파싱됨`);
+        return;
       }
 
       let lastKey = '';
@@ -1230,10 +1171,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
       }
     });
 
-    // ★★★ 2026-03-16 FIX: L1 통합시트 매핑으로 C3 itemMeta.parentItemId 보정
-    // 개별시트(L1-2/L1-3)만 있을 때 C3→C2 상하관계가 누락되는 문제 해결
-    // 2026-03-17: 정규화 비교로 변경 — L1_UNIFIED 텍스트와 개별시트 텍스트 불일치 대응
-    // 2026-03-17 FIX2: C1 구분 전체명↔약어 정규화 — "YOUR PLANT"↔"YP" 불일치 해소
+    // L1 통합시트 매핑으로 C3 itemMeta.parentItemId 보정
+    // C1 구분 전체명↔약어 정규화 — "YOUR PLANT"↔"YP" 불일치 해소
     const normText = (s: string) => s.trim().replace(/\s+/g, ' ');
     // C1 카테고리 전체명 → 약어 매핑 (useImportFileHandlers.ts C1_CATEGORY_MAP와 동일)
     const C1_ABBREV_MAP: Record<string, string> = {
