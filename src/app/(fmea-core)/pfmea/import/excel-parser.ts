@@ -554,21 +554,40 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           }
         }
 
+        // ★ v6.3 옵션3 안전장치: 전체 통합시트 carry-forward — 빈 셀 시 이전 값 사용
+        // L1: C1(key), C2, C3, C4 | L2: 공정번호(key), A2, A3, A4, A5, A6 | L3: 공정번호(key), 4M, B1~B5
+        let cfKey = '';
+        let cfM4 = '';
+        const cfParents = new Map<string, string>();
+        const parentCodes = new Set<string>();
+        if (sheetCode === 'L1_UNIFIED') { parentCodes.add('C2'); parentCodes.add('C3'); parentCodes.add('C4'); }
+        if (sheetCode === 'L2_UNIFIED') { parentCodes.add('A2'); parentCodes.add('A3'); parentCodes.add('A4'); parentCodes.add('A5'); parentCodes.add('A6'); }
+        if (sheetCode === 'L3_UNIFIED') { parentCodes.add('B1'); parentCodes.add('B2'); parentCodes.add('B3'); parentCodes.add('B4'); parentCodes.add('B5'); }
+
         for (let ri = startRow; ri <= sheet.rowCount; ri++) {
           const uRow = sheet.getRow(ri);
           if (!uRow || uRow.cellCount === 0) continue;
 
-          const keyVal = keyMapping
+          let keyVal = keyMapping
             ? cellValueToString(uRow.getCell(keyMapping.col).value).trim()
             : '';
+          if (!keyVal) keyVal = cfKey;
           if (!keyVal) continue;
+          cfKey = keyVal;
 
-          const m4Val = m4Mapping ? cellValueToString(uRow.getCell(m4Mapping.col).value).trim().toUpperCase() : '';
+          let m4Val = m4Mapping ? cellValueToString(uRow.getCell(m4Mapping.col).value).trim().toUpperCase() : '';
+          if (!m4Val && sheetCode === 'L3_UNIFIED') m4Val = cfM4;
+          if (m4Val && sheetCode === 'L3_UNIFIED') cfM4 = m4Val;
           const scVal = scMapping ? cellValueToString(uRow.getCell(scMapping.col).value).trim() : '';
 
           for (const mapping of colFieldMap) {
             if (mapping.targetCode === '_KEY' || mapping.targetCode === '_4M' || mapping.targetCode === '_SC') continue;
-            const val = cellValueToString(uRow.getCell(mapping.col).value).trim();
+            let val = cellValueToString(uRow.getCell(mapping.col).value).trim();
+            // ★ 부모 컬럼 carry-forward: 빈칸이면 이전 값으로 채움
+            if (parentCodes.has(mapping.targetCode)) {
+              if (val) cfParents.set(mapping.targetCode, val);
+              else val = cfParents.get(mapping.targetCode) || '';
+            }
             if (!val || val === 'null' || val === 'undefined') continue;
 
             if (!sheetDataMap[mapping.targetCode]) {
@@ -614,11 +633,11 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             }
 
             // B2/B3/B4/B5에 소속 workElement 추가 (extra 필드)
-            // ★★★ 2026-03-15 FIX: B4도 WE 정보 저장 — WE별 FC 배분/dedup에 필수 ★★★
+            // ★ carry-forward된 B1 값도 활용 — 빈 B1 셀에서도 WE 정보 유지
             if ((mapping.targetCode === 'B2' || mapping.targetCode === 'B3' || mapping.targetCode === 'B4' || mapping.targetCode === 'B5') && sheetCode === 'L3_UNIFIED') {
               const b1Mapping = colFieldMap.find(m => m.targetCode === 'B1');
               if (b1Mapping) {
-                const weVal = cellValueToString(uRow.getCell(b1Mapping.col).value).trim();
+                const weVal = cellValueToString(uRow.getCell(b1Mapping.col).value).trim() || cfParents.get('B1') || '';
                 if (weVal) rowEntry.extra = weVal;
               }
             }

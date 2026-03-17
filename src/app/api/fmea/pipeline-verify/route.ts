@@ -1,11 +1,11 @@
 /**
  * @file pipeline-verify/route.ts
- * @description 5단계 파이프라인 검증 + 자동수정 루프 API
+ * @description 6단계 파이프라인 검증 + 자동수정 루프 API
  *
  * GET  /api/fmea/pipeline-verify?fmeaId=xxx  → 현재 상태 조회
  * POST /api/fmea/pipeline-verify             → 검증 + 자동수정 루프 실행
  *
- * 5단계: IMPORT → 파싱 → UUID → FK → WS
+ * 6단계: SAMPLE(0) → IMPORT(1) → 파싱(2) → UUID(3) → FK(4) → WS(5)
  * 빨간불 → 자동수정 → 재검증 → 초록불 될 때까지 반복 (최대 3회)
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -32,6 +32,73 @@ interface PipelineResult {
   allGreen: boolean;
   loopCount: number;
   timestamp: string;
+}
+
+// ─── STEP 0: SAMPLE 완전성 (Master 데이터 빈행 검증) ───
+async function verifySample(prisma: any, fmeaId: string): Promise<StepResult> {
+  const result: StepResult = { step: 0, name: 'SAMPLE', status: 'ok', details: {}, issues: [], fixed: [] };
+
+  try {
+    const basePrisma = (await import('@/lib/prisma')).getPrisma();
+    if (!basePrisma) { result.status = 'warn'; result.issues.push('Base Prisma 미사용'); return result; }
+
+    const ds = await basePrisma.pfmeaMasterDataset.findUnique({
+      where: { fmeaId },
+      include: { flatItems: { select: { itemCode: true, processNo: true, value: true, m4: true }, orderBy: { orderIndex: 'asc' } } },
+    });
+    if (!ds) { result.details = { flatItems: 0, chains: 0 }; return result; }
+
+    const flatItems = ds.flatItems || [];
+    const chains = (ds.failureChains || []) as any[];
+    const codeCounts: Record<string, number> = {};
+    const emptyValues: Record<string, number> = {};
+    for (const item of flatItems) {
+      const code = item.itemCode;
+      codeCounts[code] = (codeCounts[code] || 0) + 1;
+      if (!item.value?.trim()) emptyValues[code] = (emptyValues[code] || 0) + 1;
+    }
+
+    // 고장사슬 검증
+    const uniqueFMs = new Set(chains.map((c: any) => `${c.processNo}|${c.fmValue}`)).size;
+    let chainsEmptyFM = 0, chainsEmptyFC = 0, chainsEmptyFE = 0;
+    for (const ch of chains) {
+      if (!ch.fmValue?.trim()) chainsEmptyFM++;
+      if (!ch.fcValue?.trim()) chainsEmptyFC++;
+      if (!ch.feValue?.trim()) chainsEmptyFE++;
+    }
+
+    result.details = {
+      flatItems: flatItems.length,
+      chains: chains.length,
+      uniqueFMs,
+      ...codeCounts,
+      chainsEmptyFM, chainsEmptyFC, chainsEmptyFE,
+    };
+
+    // 빈 값 검증 — 특별특성 제외 모든 코드에서 빈값 감지
+    const criticalCodes = ['A1','A2','A3','A4','A5','A6','B1','B2','B3','B4','B5','C1','C2','C3','C4'];
+    for (const code of criticalCodes) {
+      const empty = emptyValues[code] || 0;
+      if (empty > 0) {
+        result.status = result.status === 'error' ? 'error' : 'warn';
+        result.issues.push(`${code} 빈값 ${empty}건`);
+      }
+    }
+
+    // 고장사슬 빈값 검증
+    if (chainsEmptyFM > 0) { result.status = 'error'; result.issues.push(`FC 고장사슬 FM 빈값 ${chainsEmptyFM}건`); }
+    if (chainsEmptyFC > 0) { result.status = 'error'; result.issues.push(`FC 고장사슬 FC 빈값 ${chainsEmptyFC}건`); }
+    if (chainsEmptyFE > 0) { result.status = result.status === 'error' ? 'error' : 'warn'; result.issues.push(`FC 고장사슬 FE 빈값 ${chainsEmptyFE}건`); }
+
+    // 최소 카운트 검증
+    if (flatItems.length === 0) { result.status = 'warn'; result.issues.push('Master 데이터 없음'); }
+    if (chains.length === 0) { result.status = result.status === 'error' ? 'error' : 'warn'; result.issues.push('고장사슬 없음'); }
+
+  } catch (err) {
+    result.status = 'warn';
+    result.issues.push('Master 검증 스킵 (비치명적)');
+  }
+  return result;
 }
 
 // ─── STEP 1: IMPORT ───
@@ -106,26 +173,42 @@ async function verifyParsing(prisma: any, fmeaId: string): Promise<StepResult> {
     if (key.startsWith('prevention-') && String(riskData[key]).trim()) b5++;
   }
 
-  // C계열: L1
+  // C계열: Legacy l1.functions가 있으면 사용, 없으면 Atomic DB fallback
   const fes = data.l1?.failureScopes || [];
   c4 = fes.length;
   const l1Funcs = data.l1?.functions || [];
-  const catSet = new Set<string>();
-  const funcSet = new Set<string>();
-  for (const fn of l1Funcs) {
-    if (fn.category?.trim()) catSet.add(fn.category);
-    if (fn.name?.trim()) funcSet.add(fn.name);
-    c3++; // 요구사항 (각 L1Function = 1 requirement)
+  if (l1Funcs.length > 0) {
+    const catSet = new Set<string>();
+    const funcSet = new Set<string>();
+    for (const fn of l1Funcs) {
+      if (fn.category?.trim()) catSet.add(fn.category);
+      if (fn.name?.trim()) funcSet.add(fn.name);
+      c3++;
+    }
+    c1 = catSet.size;
+    c2 = funcSet.size;
+  } else {
+    // Atomic DB fallback — L1Function이 SSoT
+    try {
+      const atomicL1Funcs = await prisma.l1Function.findMany({ where: { fmeaId } });
+      const catSet = new Set<string>();
+      const funcSet = new Set<string>();
+      for (const fn of atomicL1Funcs) {
+        if ((fn as any).category?.trim()) catSet.add((fn as any).category);
+        if ((fn as any).functionName?.trim()) funcSet.add((fn as any).functionName);
+        c3++;
+      }
+      c1 = catSet.size;
+      c2 = funcSet.size;
+    } catch { /* Atomic DB에 L1Function 테이블 없을 수 있음 */ }
   }
-  c1 = catSet.size;
-  c2 = funcSet.size;
 
-  // 상세 통계 — Import 페이지 SA 시스템분석과 동일한 정보
   result.details = {
     A1: a1, A2: a2, A3: a3, A4: a4, A5: a5, A6: a6,
     B1: b1, B2: b2, B3: b3, B4: b4, B5: b5,
     C1: c1, C2: c2, C3: c3, C4: c4,
     emptyPC: emptyPc,
+    c_source: l1Funcs.length > 0 ? 'legacy' : 'atomic',
   };
 
   // 이슈 판정
@@ -133,6 +216,14 @@ async function verifyParsing(prisma: any, fmeaId: string): Promise<StepResult> {
   if (a5 === 0) { result.status = 'error'; result.issues.push('A5(고장형태) 0건'); }
   if (b4 === 0) { result.status = 'error'; result.issues.push('B4(고장원인) 0건'); }
   if (c4 === 0) { result.status = 'error'; result.issues.push('C4(고장영향) 0건'); }
+  if (c1 === 0) { result.status = 'error'; result.issues.push('C1(구분) 0건 — Legacy l1.functions 미동기화'); }
+  if (c2 === 0) { result.status = 'error'; result.issues.push('C2(완제품기능) 0건 — Legacy l1.functions 미동기화'); }
+  if (c3 === 0) { result.status = 'error'; result.issues.push('C3(요구사항) 0건 — Legacy l1.functions 미동기화'); }
+  // Legacy에 l1.functions 없고 Atomic DB fallback으로 카운트한 경우 → 동기화 필요
+  if (l1Funcs.length === 0 && c1 > 0) {
+    result.status = result.status === 'error' ? 'error' : 'warn';
+    result.issues.push(`C계열 Legacy 미동기화 — Atomic DB fallback 사용 중 (C1=${c1},C2=${c2},C3=${c3})`);
+  }
   if (b3 === 0) { result.status = result.status === 'error' ? 'error' : 'warn'; result.issues.push('B3(공정특성) 0건'); }
   if (emptyPc > 0) { result.status = result.status === 'error' ? 'error' : 'warn'; result.issues.push(`빈 공정특성 ${emptyPc}건`); }
   if (a6 === 0) { result.status = result.status === 'error' ? 'error' : 'warn'; result.issues.push('A6(검출관리) 0건 — 파싱 누락'); }
@@ -250,6 +341,60 @@ async function verifyWs(prisma: any, fmeaId: string): Promise<StepResult> {
 }
 
 // ─── 자동수정 함수들 ───
+
+async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
+  const fixed: string[] = [];
+
+  const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
+  if (!legacy) return fixed;
+
+  const data = JSON.parse(JSON.stringify(legacy.data)) as any;
+  let changed = false;
+
+  // C계열: Atomic DB L1Function → Legacy l1.functions 동기화
+  const l1Funcs = data.l1?.functions || [];
+  if (l1Funcs.length === 0) {
+    try {
+      const atomicL1Funcs = await prisma.l1Function.findMany({ where: { fmeaId } });
+      if (atomicL1Funcs.length > 0) {
+        if (!data.l1) data.l1 = {};
+        data.l1.functions = atomicL1Funcs.map((fn: any) => ({
+          id: fn.id,
+          category: fn.category || '',
+          name: fn.functionName || '',
+          requirement: fn.requirement || '',
+        }));
+        fixed.push(`L1Function ${atomicL1Funcs.length}건 Legacy 동기화`);
+        changed = true;
+      }
+    } catch { /* L1Function 테이블 없으면 무시 */ }
+  }
+
+  // C4: Atomic DB FailureEffect → Legacy l1.failureScopes 동기화
+  const fes = data.l1?.failureScopes || [];
+  if (fes.length === 0) {
+    try {
+      const atomicFEs = await prisma.failureEffect.findMany({ where: { fmeaId } });
+      if (atomicFEs.length > 0) {
+        if (!data.l1) data.l1 = {};
+        data.l1.failureScopes = atomicFEs.map((fe: any) => ({
+          id: fe.id,
+          name: fe.effectName || fe.effect || '',
+          severity: (fe as any).severity || 0,
+          scope: (fe as any).scope || '',
+        }));
+        fixed.push(`FailureEffect ${atomicFEs.length}건 Legacy 동기화`);
+        changed = true;
+      }
+    } catch { /* FailureEffect 테이블 없으면 무시 */ }
+  }
+
+  if (changed) {
+    await prisma.fmeaLegacyData.update({ where: { fmeaId }, data: { data } });
+  }
+
+  return fixed;
+}
 
 async function fixStep3Uuid(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
@@ -398,6 +543,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
     loopCount = i + 1;
 
     const steps: StepResult[] = [
+      await verifySample(prisma, fmeaId),
       await verifyImport(prisma, fmeaId),
       await verifyParsing(prisma, fmeaId),
       await verifyUuid(prisma, fmeaId),
@@ -413,6 +559,13 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
     // STEP 1 (IMPORT) 에러면 → 사용자 개입 필요 (자동수정 불가)
     if (steps[0].status === 'error') {
       return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
+    }
+
+    // STEP 2 (파싱) 수정 — C계열 Legacy 미동기화 자동수정
+    if (steps[1].status !== 'ok') {
+      const fixes = await fixStep2Parsing(prisma, fmeaId);
+      steps[1].fixed = fixes;
+      if (fixes.length > 0) steps[1].status = 'fixed';
     }
 
     // STEP 3 (UUID) 수정
@@ -444,6 +597,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
 
   // 최종 검증
   const finalSteps: StepResult[] = [
+    await verifySample(prisma, fmeaId),
     await verifyImport(prisma, fmeaId),
     await verifyParsing(prisma, fmeaId),
     await verifyUuid(prisma, fmeaId),

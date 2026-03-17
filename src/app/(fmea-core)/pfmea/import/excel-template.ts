@@ -83,33 +83,31 @@ const MANUAL_MODE_EXCLUDE = new Set([
 /** 시트 정의 - 헤더 색상은 디자인 표준에 따라 네이비 (#00587A) 통일 */
 const HEADER_COLOR = '00587A';  // 디자인 표준 네이비 색상
 
+// ★ v6.0: 통합시트 우선 — 개별 14시트는 하위호환용(legacy=true), 다운로드 시 제외
 const SHEET_DEFINITIONS = [
-  { name: 'L2-1(A1) 공정번호', headers: ['L2-1.공정번호', 'L2-2.공정명', '공정유형코드(선택)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'A1', guide: '' },
-  { name: 'L2-2(A2) 공정명', headers: ['L2-1.공정번호', 'L2-2.공정명'], color: HEADER_COLOR, required: [true, true], legacyName: 'A2', guide: '' },
-  { name: 'L2-3(A3) 공정기능', headers: ['L2-1.공정번호', 'L2-3.공정기능(설명)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A3', guide: '작성: [대상물]을 [처리방법]으로 [처리]하여 [결과]를 확보한다 | 금지: 파라미터 수치, 검사절차, 불량방지 문구' },
-  { name: 'L2-4(A4) 제품특성', headers: ['L2-1.공정번호', 'L2-4.제품특성(Wafer 결과값 명사)', '특별특성'], color: HEADER_COLOR, required: [true, false, false], legacyName: 'A4', guide: '제품(Wafer)에서 측정하는 품질특성 명사 | 금지: 온도·농도·에너지 등 공정파라미터(→B3), Check·Inspection 동사형' },
-  { name: 'L2-5(A5) 고장형태', headers: ['L2-1.공정번호', 'L2-5.고장형태(A4이탈 현상)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A5', guide: '[A4특성명]+[이탈유형]: 규격이탈/미달/초과/미형성/부재/잔류 | 금지: 원인(→B4), 공정특성이탈(→B4)' },
-  // v5.4: A6(검출관리) 전용 시트 복원 — FC 시트 carry-forward 불안정 해소
-  { name: 'L2-6(A6) 검출관리', headers: ['L2-1.공정번호', 'L2-6.검출관리(발생 후 검출 방법)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A6', guide: '발생 후 출하 전 검출하는 장비+방법+빈도 (예: MES Interlock, 육안 검사, AVI)' },
-  { name: 'L3-1(B1) 작업요소', headers: ['L2-1.공정번호', '4M', 'L3-1.작업요소(설비·재료·인원 고유명)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B1', guide: 'MC=설비고유명, MN=직무역할명, IM=약품고유명 | B2★작업요소·FC(WE)와 완전 동일 표기 필수' },
-  { name: 'L3-2(B2) 요소기능', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-2.요소기능'], color: HEADER_COLOR, required: [true, true, false, false], legacyName: 'B2', guide: '[B1]이 [행위]하여 [결과]를 제공한다 | 주어=B1명칭, 결과 명시 필수' },
-  { name: 'L3-3(B3) 공정특성', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-3.공정특성(설비·약품 파라미터)', '특별특성'], color: HEADER_COLOR, required: [true, true, false, false, false], legacyName: 'B3', guide: '설비·약품에서 설정·모니터링하는 입력 파라미터 명사+(단위) | 금지: A4 제품특성, B2 요소기능 내용' },
-  { name: 'L3-4(B4) 고장원인', headers: ['L2-1.공정번호', '4M', 'L3-4.고장원인(B3이탈 원인)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B4', guide: 'B3파라미터 이탈의 직접 원인 | 금지: 고장형태(A5) 현상, 대책·행동 기술' },
-  // v5.4: B5(예방관리) 전용 시트 복원 — FC 시트 carry-forward 불안정 해소
-  { name: 'L3-5(B5) 예방관리', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-5.예방관리(발생 전 방지)'], color: HEADER_COLOR, required: [true, false, false, false], legacyName: 'B5', guide: '고장원인 발생 전 방지하는 장치·시스템·절차 (예: SPC 관리, 일상점검, PM)' },
-  { name: 'L1-1(C1) 구분', headers: ['L1-1.구분'], color: HEADER_COLOR, required: [true], legacyName: 'C1', guide: 'YP(Your Plant), SP(Ship to Plant), USER 중 택1' },
-  { name: 'L1-2(C2) 제품기능', headers: ['L1-1.구분', 'L1-2.제품(반)기능'], color: HEADER_COLOR, required: [true, false], legacyName: 'C2', guide: '' },
-  { name: 'L1-3(C3) 요구사항', headers: ['L1-1.구분', 'L1-3.제품(반)요구사항'], color: HEADER_COLOR, required: [true, false], legacyName: 'C3', guide: '' },
-  { name: 'L1-4(C4) 고장영향', headers: ['L1-1.구분', 'L1-4.고장영향'], color: HEADER_COLOR, required: [true, false], legacyName: 'C4', guide: '' },
-  // ★ v5.5: 통합시트 (15시트 → L1/L2/L3 통합, 중복기입 방식)
-  { name: 'L1 통합(C1-C4)', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '고장영향(C4)'], color: HEADER_COLOR, required: [true, false, false, false], legacyName: 'L1_UNIFIED', guide: '구분: YP/SP/USER | 제품기능·요구사항·고장영향을 한 행에 기입 | 1:N 관계는 상위값을 중복 기입 (Ctrl+D)' },
-  { name: 'L2 통합(A1-A6)', headers: ['A1.공정번호', 'A2.공정명', 'A3.공정기능', 'A4.제품특성', '특별특성', 'A5.고장형태', 'A6.검출관리'], color: HEADER_COLOR, required: [true, true, false, false, false, false, false], legacyName: 'L2_UNIFIED', guide: '공정번호+공정명 필수 | 제품특성·고장형태가 여러 건이면 공정번호·공정명 중복 기입 (Ctrl+D)' },
-  { name: 'L3 통합(B1-B5)', headers: ['공정번호', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성', '고장원인(B4)', '예방관리(B5)'], color: HEADER_COLOR, required: [true, true, false, false, false, false, false, false], legacyName: 'L3_UNIFIED', guide: '4M: MC/MN/IM/EN | 작업요소별 기능·공정특성·고장원인·예방관리를 한 행에 기입 | 1:N은 상위값 중복 기입' },
-  // ★ FC 고장사슬 (v5.1: 12열 N:1:N — S 컬럼 삭제, Process-first 정렬)
-  { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'O', 'D', 'AP'], color: 'B91C1C', required: [false, false, true, true, false, false, false, false, false, false, false, false], legacyName: 'FC', guide: 'B5=원인 발생 전 방지 장치·시스템·절차 | A6=발생 후 출하 전 검출 장비+방법+빈도' },
-  // ★ 16번째: FA 통합분석 (ALL — v2.7.3: 26→28열, O추천/D추천 추가)
-  // v3.1.1: FA 통합분석 26열 유지 (PC/DC는 FC 시트에서 별도 관리)
-  { name: 'FA 통합분석', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '공정No(A1)', '공정명(A2)', '공정기능(A3)', '제품특성(A4)', '특별특성(A4)', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'DC추천1', 'DC추천2', 'PC추천1', 'PC추천2', 'O추천', 'D추천'], color: '1E40AF', required: [false, false, false, true, false, false, false, false, true, false, false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false], legacyName: 'FA', guide: '' },
+  // ★★★ 통합시트 (메인) ★★★
+  { name: 'L1 통합(C1-C4)', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '고장영향(C4)'], color: HEADER_COLOR, required: [true, false, false, false], legacyName: 'L1_UNIFIED', guide: '구분: YP/SP/USER | 제품기능·요구사항·고장영향을 한 행에 기입 | 1:N 관계는 상위값을 중복 기입 (Ctrl+D)', legacy: false },
+  { name: 'L2 통합(A1-A6)', headers: ['A1.공정번호', 'A2.공정명', 'A3.공정기능', 'A4.제품특성', '특별특성', 'A5.고장형태', 'A6.검출관리'], color: HEADER_COLOR, required: [true, true, false, false, false, false, false], legacyName: 'L2_UNIFIED', guide: '공정번호+공정명 필수 | 제품특성·고장형태가 여러 건이면 공정번호·공정명 중복 기입 (Ctrl+D)', legacy: false },
+  { name: 'L3 통합(B1-B5)', headers: ['공정번호', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성', '고장원인(B4)', '예방관리(B5)'], color: HEADER_COLOR, required: [true, true, false, false, false, false, false, false], legacyName: 'L3_UNIFIED', guide: '4M: MC/MN/IM/EN | 작업요소별 기능·공정특성·고장원인·예방관리를 한 행에 기입 | 1:N은 상위값 중복 기입', legacy: false },
+  // ★★★ FC 고장사슬 + FA 통합분석 ★★★
+  { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'O', 'D', 'AP'], color: 'B91C1C', required: [false, false, true, true, false, false, false, false, false, false, false, false], legacyName: 'FC', guide: 'B5=원인 발생 전 방지 장치·시스템·절차 | A6=발생 후 출하 전 검출 장비+방법+빈도', legacy: false },
+  { name: 'FA 통합분석', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '공정No(A1)', '공정명(A2)', '공정기능(A3)', '제품특성(A4)', '특별특성(A4)', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'DC추천1', 'DC추천2', 'PC추천1', 'PC추천2', 'O추천', 'D추천'], color: '1E40AF', required: [false, false, false, true, false, false, false, false, true, false, false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false], legacyName: 'FA', guide: '', legacy: false },
+  // ★★★ 개별시트 (하위호환 — Import 파서에서 참조, 다운로드 시 제외) ★★★
+  { name: 'L2-1(A1) 공정번호', headers: ['L2-1.공정번호', 'L2-2.공정명', '공정유형코드(선택)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'A1', guide: '', legacy: true },
+  { name: 'L2-2(A2) 공정명', headers: ['L2-1.공정번호', 'L2-2.공정명'], color: HEADER_COLOR, required: [true, true], legacyName: 'A2', guide: '', legacy: true },
+  { name: 'L2-3(A3) 공정기능', headers: ['L2-1.공정번호', 'L2-3.공정기능(설명)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A3', guide: '', legacy: true },
+  { name: 'L2-4(A4) 제품특성', headers: ['L2-1.공정번호', 'L2-4.제품특성(Wafer 결과값 명사)', '특별특성'], color: HEADER_COLOR, required: [true, false, false], legacyName: 'A4', guide: '', legacy: true },
+  { name: 'L2-5(A5) 고장형태', headers: ['L2-1.공정번호', 'L2-5.고장형태(A4이탈 현상)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A5', guide: '', legacy: true },
+  { name: 'L2-6(A6) 검출관리', headers: ['L2-1.공정번호', 'L2-6.검출관리(발생 후 검출 방법)'], color: HEADER_COLOR, required: [true, false], legacyName: 'A6', guide: '', legacy: true },
+  { name: 'L3-1(B1) 작업요소', headers: ['L2-1.공정번호', '4M', 'L3-1.작업요소(설비·재료·인원 고유명)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B1', guide: '', legacy: true },
+  { name: 'L3-2(B2) 요소기능', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-2.요소기능'], color: HEADER_COLOR, required: [true, true, false, false], legacyName: 'B2', guide: '', legacy: true },
+  { name: 'L3-3(B3) 공정특성', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-3.공정특성(설비·약품 파라미터)', '특별특성'], color: HEADER_COLOR, required: [true, true, false, false, false], legacyName: 'B3', guide: '', legacy: true },
+  { name: 'L3-4(B4) 고장원인', headers: ['L2-1.공정번호', '4M', 'L3-4.고장원인(B3이탈 원인)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'B4', guide: '', legacy: true },
+  { name: 'L3-5(B5) 예방관리', headers: ['L2-1.공정번호', '4M', '★작업요소(B1)', 'L3-5.예방관리(발생 전 방지)'], color: HEADER_COLOR, required: [true, false, false, false], legacyName: 'B5', guide: '', legacy: true },
+  { name: 'L1-1(C1) 구분', headers: ['L1-1.구분'], color: HEADER_COLOR, required: [true], legacyName: 'C1', guide: '', legacy: true },
+  { name: 'L1-2(C2) 제품기능', headers: ['L1-1.구분', 'L1-2.제품(반)기능'], color: HEADER_COLOR, required: [true, false], legacyName: 'C2', guide: '', legacy: true },
+  { name: 'L1-3(C3) 요구사항', headers: ['L1-1.구분', 'L1-3.제품(반)요구사항'], color: HEADER_COLOR, required: [true, false], legacyName: 'C3', guide: '', legacy: true },
+  { name: 'L1-4(C4) 고장영향', headers: ['L1-1.구분', 'L1-4.고장영향'], color: HEADER_COLOR, required: [true, false], legacyName: 'C4', guide: '', legacy: true },
 ];
 
 /** 텍스트 너비 계산 (한글=2, 영문/숫자=1.1, 기타=1) */
@@ -183,21 +181,19 @@ export async function downloadEmptyTemplate(customFileName?: string) {
   workbook.creator = `FMEA Smart System ${TEMPLATE_VERSION}`;
   workbook.created = new Date();
 
-  // 각 시트 생성
-  SHEET_DEFINITIONS.forEach((def) => {
+  // ★ v6.0: 통합시트만 생성 (legacy 개별시트 제외)
+  SHEET_DEFINITIONS.filter(def => !(def as any).legacy).forEach((def) => {
     const worksheet = workbook.addWorksheet(def.name, {
       properties: { tabColor: { argb: def.color } },
     });
 
-    // 빈 양식: 헤더 기반 적정 너비
     const emptyWidths: Record<string, number> = {
       'L2-1.공정번호': 14, 'L2-2.공정명': 20, '공정유형코드(선택)': 16,
-      'L2-3.공정기능(설명)': 40, 'L2-4.제품특성': 22, '특별특성': 10, 'L2-5.고장형태': 25,
-      'L2-6.검출관리(발생 후 검출 방법)': 40, 'L3-5.예방관리(발생 전 방지)': 40,
-      '4M': 8,
-      'L3-1.작업요소(설비)': 28, 'L3-2.요소기능': 35, 'L3-3.공정특성': 22,
-      'L3-4.고장원인': 30,
-      'L1-1.구분': 14, 'L1-2.제품(반)기능': 40, 'L1-3.제품(반)요구사항': 25, 'L1-4.고장영향': 30,
+      'A1.공정번호': 14, 'A2.공정명': 20, 'A3.공정기능': 40, 'A4.제품특성': 22,
+      '특별특성': 10, 'A5.고장형태': 25, 'A6.검출관리': 40,
+      '구분(C1)': 14, '제품기능(C2)': 40, '요구사항(C3)': 25, '고장영향(C4)': 30,
+      '작업요소(B1)': 28, '요소기능(B2)': 35, '공정특성(B3)': 22, '고장원인(B4)': 30,
+      '예방관리(B5)': 40, '4M': 8,
       'DC추천1': 25, 'DC추천2': 25, 'PC추천1': 25, 'PC추천2': 25, 'O추천': 8, 'D추천': 8,
     };
     worksheet.columns = def.headers.map((header, i) => ({
@@ -364,6 +360,7 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
   // ★★★ v5.5: 통합시트 (L1/L2/L3) 데이터 집계 — 개별시트 데이터를 합산 ★★★
   {
     // --- L2 통합(A1-A6): 공정번호 | 공정명 | 공정기능 | 제품특성 | 특별특성 | 고장형태 | 검출관리 ---
+    // ★ v6.3 옵션3: 모든 컬럼 carry-forward — 빈행 0건 보장
     const l2SheetName = 'L2 통합(A1-A6)';
     const procNos = [...new Set(flatData.filter(d => d.itemCode === 'A1').map(d => d.processNo))];
     const l2Rows: string[][] = [];
@@ -374,49 +371,60 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
       const a5Items = flatData.filter(d => d.itemCode === 'A5' && d.processNo === pNo);
       const a6Items = flatData.filter(d => d.itemCode === 'A6' && d.processNo === pNo);
       const maxLen = Math.max(1, a3Items.length, a4Items.length, a5Items.length, a6Items.length);
+      let lastA3 = '', lastA4 = '', lastA4Sp = '', lastA5 = '', lastA6 = '';
       for (let i = 0; i < maxLen; i++) {
+        if (a3Items[i]?.value) lastA3 = a3Items[i].value;
+        if (a4Items[i]?.value) { lastA4 = a4Items[i].value; lastA4Sp = a4Items[i].specialChar || ''; }
+        if (a5Items[i]?.value) lastA5 = a5Items[i].value;
+        if (a6Items[i]?.value) lastA6 = a6Items[i].value;
         l2Rows.push([
           pNo,
           a2Val,
-          a3Items[i]?.value || a3Items[0]?.value || '',
-          a4Items[i]?.value || '',
-          a4Items[i]?.specialChar || '',
-          a5Items[i]?.value || '',
-          a6Items[i]?.value || a6Items[0]?.value || '',
+          a3Items[i]?.value || lastA3,
+          a4Items[i]?.value || lastA4,
+          a4Items[i]?.specialChar ?? lastA4Sp,
+          a5Items[i]?.value || lastA5,
+          a6Items[i]?.value || lastA6,
         ]);
       }
     }
     if (l2Rows.length > 0) sheetData[l2SheetName] = l2Rows;
 
     // --- L3 통합(B1-B5): 공정번호 | 4M | 작업요소 | 요소기능 | 공정특성 | 특별특성 | 고장원인 | 예방관리 ---
+    // ★ v6.3 옵션3: 모든 컬럼 carry-forward — 빈행 0건 보장
     const l3SheetName = 'L3 통합(B1-B5)';
     const l3Rows: string[][] = [];
     const b1Items = flatData.filter(d => d.itemCode === 'B1');
     for (const b1 of b1Items) {
       const pNo = b1.processNo;
       const m4 = b1.m4 || '';
-      const weKey = `${pNo}|${m4}`;
       const b2Items = flatData.filter(d => d.itemCode === 'B2' && d.processNo === pNo && (d.m4 || '') === m4);
       const b3Items = flatData.filter(d => d.itemCode === 'B3' && d.processNo === pNo && (d.m4 || '') === m4);
       const b4Items = flatData.filter(d => d.itemCode === 'B4' && d.processNo === pNo && (d.m4 || '') === m4);
       const b5Items = flatData.filter(d => d.itemCode === 'B5' && d.processNo === pNo && (d.m4 || '') === m4);
       const maxLen = Math.max(1, b2Items.length, b3Items.length, b4Items.length, b5Items.length);
+      let lastB2 = '', lastB3 = '', lastB3Sp = '', lastB4 = '', lastB5 = '';
       for (let i = 0; i < maxLen; i++) {
+        if (b2Items[i]?.value) lastB2 = b2Items[i].value;
+        if (b3Items[i]?.value) { lastB3 = b3Items[i].value; lastB3Sp = b3Items[i].specialChar || ''; }
+        if (b4Items[i]?.value) lastB4 = b4Items[i].value;
+        if (b5Items[i]?.value) lastB5 = b5Items[i].value;
         l3Rows.push([
           pNo,
           m4,
           b1.value || '',
-          b2Items[i]?.value || '',
-          b3Items[i]?.value || '',
-          b3Items[i]?.specialChar || '',
-          b4Items[i]?.value || '',
-          b5Items[i]?.value || b5Items[0]?.value || '',
+          b2Items[i]?.value || lastB2,
+          b3Items[i]?.value || lastB3,
+          b3Items[i]?.specialChar ?? lastB3Sp,
+          b4Items[i]?.value || lastB4,
+          b5Items[i]?.value || lastB5,
         ]);
       }
     }
     if (l3Rows.length > 0) sheetData[l3SheetName] = l3Rows;
 
     // --- L1 통합(C1-C4): 구분 | 제품기능 | 요구사항 | 고장영향 ---
+    // ★ v6.3 옵션3: C1/C2/C3 모든 행에 carry-forward — 빈행 0건 보장
     const l1SheetName = 'L1 통합(C1-C4)';
     const l1Rows: string[][] = [];
     const c1Items = flatData.filter(d => d.itemCode === 'C1');
@@ -426,12 +434,16 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
       const c3Items = flatData.filter(d => d.itemCode === 'C3' && d.processNo === scope);
       const c4Items = flatData.filter(d => d.itemCode === 'C4' && d.processNo === scope);
       const maxLen = Math.max(1, c2Items.length, c3Items.length, c4Items.length);
+      let lastC2 = '', lastC3 = '', lastC4 = '';
       for (let i = 0; i < maxLen; i++) {
+        if (c2Items[i]?.value) lastC2 = c2Items[i].value;
+        if (c3Items[i]?.value) lastC3 = c3Items[i].value;
+        if (c4Items[i]?.value) lastC4 = c4Items[i].value;
         l1Rows.push([
           scope,
-          c2Items[i]?.value || '',
-          c3Items[i]?.value || '',
-          c4Items[i]?.value || '',
+          c2Items[i]?.value || lastC2,
+          c3Items[i]?.value || lastC3,
+          c4Items[i]?.value || lastC4,
         ]);
       }
     }
@@ -440,7 +452,6 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
 
   // ★ FC 고장사슬 시트 데이터 (v5.1: 12컬럼 N:1:N — S 삭제, Process-first 정렬)
   if (failureChains && failureChains.length > 0) {
-    // ★ Process-first 정렬 (N:1:N — FM 중심축): processNo → fmText → feScope → feText
     const sortedChains = [...failureChains].sort((a, b) => {
       const pCmp = (a.processNo || '').localeCompare(b.processNo || '', undefined, { numeric: true });
       if (pCmp !== 0) return pCmp;
@@ -451,19 +462,69 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
       return (a.feValue || '').localeCompare(b.feValue || '');
     });
     sheetData['FC 고장사슬'] = sortedChains.map(fc => [
-      fc.feScope || '',                                // FE구분 (YP/SP/USER)
-      fc.feValue || '',                                // FE(고장영향)
-      fc.processNo,                                    // L2-1.공정번호
-      fc.fmValue,                                      // FM(고장형태)
-      fc.m4 || '',                                     // 4M
-      fc.workElement || '',                            // 작업요소(WE)
-      fc.fcValue,                                      // FC(고장원인)
-      fc.pcValue || '',                                // B5.예방관리
-      fc.dcValue || '',                                // A6.검출관리
-      fc.occurrence ? String(fc.occurrence) : '',      // O
-      fc.detection ? String(fc.detection) : '',        // D
-      fc.ap || '',                                     // AP
+      fc.feScope || '',
+      fc.feValue || '',
+      fc.processNo,
+      fc.fmValue,
+      fc.m4 || '',
+      fc.workElement || '',
+      fc.fcValue,
+      fc.pcValue || '',
+      fc.dcValue || '',
+      fc.occurrence ? String(fc.occurrence) : '',
+      fc.detection ? String(fc.detection) : '',
+      fc.ap || '',
     ]);
+
+    // ★ v6.1: FA 통합분석 시트 동적 생성 — failureChains + flatData 조합
+    const a2Map: Record<string, string> = {};
+    const a3Map: Record<string, string> = {};
+    const a4Map: Record<string, string> = {};
+    const a4SpMap: Record<string, string> = {};
+    const b2Map: Record<string, string> = {};
+    const b3Map: Record<string, string> = {};
+    const b3SpMap: Record<string, string> = {};
+    const c2Map: Record<string, string> = {};
+    const c3Map: Record<string, string> = {};
+    flatData.forEach(d => {
+      if (d.itemCode === 'A2') a2Map[d.processNo] = d.value || '';
+      if (d.itemCode === 'A3' && !a3Map[d.processNo]) a3Map[d.processNo] = d.value || '';
+      if (d.itemCode === 'A4' && !a4Map[d.processNo]) { a4Map[d.processNo] = d.value || ''; a4SpMap[d.processNo] = d.specialChar || ''; }
+      if (d.itemCode === 'B2') { const k = `${d.processNo}|${d.m4 || ''}`; if (!b2Map[k]) b2Map[k] = d.value || ''; }
+      if (d.itemCode === 'B3') { const k = `${d.processNo}|${d.m4 || ''}`; if (!b3Map[k]) { b3Map[k] = d.value || ''; b3SpMap[k] = d.specialChar || ''; } }
+      if (d.itemCode === 'C2') { if (!c2Map[d.processNo]) c2Map[d.processNo] = d.value || ''; }
+      if (d.itemCode === 'C3') { if (!c3Map[d.processNo]) c3Map[d.processNo] = d.value || ''; }
+    });
+    sheetData['FA 통합분석'] = sortedChains.map(fc => {
+      const pNo = fc.processNo || '';
+      const m4k = `${pNo}|${fc.m4 || ''}`;
+      const scope = fc.feScope || '';
+      return [
+        scope,
+        c2Map[scope] || '',
+        c3Map[scope] || '',
+        pNo,
+        a2Map[pNo] || '',
+        a3Map[pNo] || '',
+        a4Map[pNo] || '',
+        a4SpMap[pNo] || '',
+        fc.m4 || '',
+        fc.workElement || '',
+        b2Map[m4k] || '',
+        b3Map[m4k] || '',
+        b3SpMap[m4k] || '',
+        fc.feValue || '',
+        fc.fmValue || '',
+        fc.fcValue || '',
+        fc.severity ? String(fc.severity) : '',
+        fc.occurrence ? String(fc.occurrence) : '',
+        fc.detection ? String(fc.detection) : '',
+        fc.ap || '',
+        fc.dcValue || '', '', // DC추천1, DC추천2
+        fc.pcValue || '', '', // PC추천1, PC추천2
+        '', '',               // O추천, D추천
+      ];
+    });
   }
 
   // 엑셀 생성
@@ -472,13 +533,13 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
   workbook.creator = `FMEA Smart System ${TEMPLATE_VERSION}`;
   workbook.created = new Date();
 
-  SHEET_DEFINITIONS.forEach((def) => {
+  // ★ v6.0: 통합시트만 생성 (legacy 개별시트 제외)
+  SHEET_DEFINITIONS.filter(def => !(def as any).legacy).forEach((def) => {
     const worksheet = workbook.addWorksheet(def.name, {
       properties: { tabColor: { argb: def.color } },
     });
 
     const rows = sheetData[def.name] || [];
-    // 최소 너비: 첫 컬럼(공정번호/구분)=12, 4M=8, 기타=12
     const minWidths = def.headers.map((h, i) => {
       if (h === '4M') return 8;
       if (i === 0) return 12;
@@ -513,7 +574,6 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
       }
     }
 
-    // ★★★ 2026-02-28: FC 시트 병합셀 적용 (v2.8.0) ★★★
     if (def.name === 'FC 고장사슬' && rows.length > 1) {
       applyFCSheetMergeCells(worksheet, rows);
     }
@@ -1749,19 +1809,62 @@ function applyFCSheetMergeCells(
   mergeCol(calcSpans(r => `${r[2] || ''}|${r[3] || ''}|${r[0] || ''}|${r[1] || ''}`), 2);
 }
 
-/** 샘플 데이터 템플릿 다운로드 (다중 시트) */
-export async function downloadSampleTemplate(customFileName?: string, manualMode = false) {
+/**
+ * ★ v6.0: Master DB 실시간 샘플 다운로드
+ * masterFmeaId 지정 시 → Master DB에서 flatItems + failureChains 가져와 생성 (100% 일치 보장)
+ * masterFmeaId 미지정 시 → 하드코딩 SAMPLE_DATA fallback
+ */
+export async function downloadSampleTemplate(customFileName?: string, manualMode = false, masterFmeaId?: string) {
+  // ★ Master DB에서 실시간 데이터 fetch
+  if (masterFmeaId) {
+    try {
+      const res = await fetch(`/api/pfmea/master?fmeaId=${masterFmeaId}&includeItems=true`);
+      if (res.ok) {
+        const data = await res.json();
+        const ds = data.dataset;
+        if (ds?.flatItems?.length > 0) {
+          const flatData = ds.flatItems.map((item: any) => ({
+            processNo: item.processNo || '',
+            itemCode: item.itemCode || '',
+            value: item.value || '',
+            m4: item.m4 || undefined,
+            specialChar: item.specialChar || undefined,
+            belongsTo: item.belongsTo || undefined,
+          }));
+          const chains = (ds.failureChains || []).map((ch: any) => ({
+            processNo: ch.processNo || '',
+            m4: ch.m4 || undefined,
+            fcValue: ch.fcValue || '',
+            fmValue: ch.fmValue || '',
+            feValue: ch.feValue || '',
+            feScope: ch.feScope || undefined,
+            workElement: ch.workElement || undefined,
+            pcValue: ch.pcValue || undefined,
+            dcValue: ch.dcValue || undefined,
+            severity: ch.severity || undefined,
+            occurrence: ch.occurrence || undefined,
+            detection: ch.detection || undefined,
+          }));
+          const fileName = customFileName || `PFMEA_Master_Sample_${masterFmeaId}_${TEMPLATE_VERSION}`;
+          await downloadDataTemplate(flatData, fileName, chains);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('[downloadSampleTemplate] Master DB fetch failed, falling back to static data:', e);
+    }
+  }
+
+  // fallback: 하드코딩 SAMPLE_DATA
   const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = `FMEA Smart System ${TEMPLATE_VERSION}`;
   workbook.created = new Date();
 
-  // 수동모드: 구조+기능+고장영향까지만 (A4/A5/B3/B4/FC/FA 제외)
-  const defs = manualMode
-    ? SHEET_DEFINITIONS.filter(d => !MANUAL_MODE_EXCLUDE.has(d.name))
-    : SHEET_DEFINITIONS;
+  const defs = SHEET_DEFINITIONS
+    .filter(d => !(d as any).legacy)
+    .filter(d => !manualMode || !MANUAL_MODE_EXCLUDE.has(d.name));
 
-  // 각 시트 생성
   defs.forEach((def) => {
     const worksheet = workbook.addWorksheet(def.name, {
       properties: { tabColor: { argb: def.color } },
@@ -1795,7 +1898,6 @@ export async function downloadSampleTemplate(customFileName?: string, manualMode
       });
     });
 
-    // ★★★ 2026-02-28: FC 시트 병합셀 적용 (v2.8.0) ★★★
     if (def.name === 'FC 고장사슬' && sampleRows.length > 1) {
       applyFCSheetMergeCells(worksheet, sampleRows);
     }
@@ -1803,7 +1905,6 @@ export async function downloadSampleTemplate(customFileName?: string, manualMode
     worksheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }];
   });
 
-  // 파일 다운로드
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = customFileName || `PFMEA_Master_Sample_${TEMPLATE_VERSION}`;
   await downloadExcelBuffer(buffer, fileName);

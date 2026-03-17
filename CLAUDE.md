@@ -654,3 +654,105 @@ Protected paths are enforced via git hooks:
   ```
 - 사용자가 직접 캡처 → `docs/images/`에 저장 → 마크다운에서 자동 표시
 - 매뉴얼은 **업무 순서 기반** 구성 (등록→Import→워크시트→연동→관리)
+
+---
+
+## 파이프라인 검증 매뉴얼 (2026-03-17)
+
+### 개요
+
+5단계 파이프라인 검증 + 자동수정 루프. 빨간불 → 자동수정 → 재검증 → 초록불 반복 (최대 3회).
+
+**API**: `/api/fmea/pipeline-verify`
+- `GET ?fmeaId=xxx` → 현재 상태 조회 (읽기 전용)
+- `POST { fmeaId }` → 검증 + 자동수정 루프 실행
+
+### 5단계 검증 항목
+
+| 단계 | 이름 | 검증 대상 | 자동수정 |
+|------|------|----------|---------|
+| STEP 1 | IMPORT | Legacy 데이터 존재, L2 공정 수 | ❌ (사용자 개입 필요) |
+| STEP 2 | 파싱 | A1~A6, B1~B5, C1~C4 카운트 | ✅ `fixStep2Parsing` |
+| STEP 3 | UUID | Atomic DB L2/L3/FM/FE/FC 카운트, orphan L3Func | ✅ `fixStep3Uuid` |
+| STEP 4 | FK | FailureLink FK 정합성, unlinked FC | ✅ `fixStep4Fk` |
+| STEP 5 | WS | Legacy 워크시트 PC 빈칸, orphan PC | ✅ `fixStep5Ws` |
+
+### STEP 2 파싱 상세
+
+| 코드 | 항목 | 소스 | 0건 시 |
+|------|------|------|--------|
+| A1 | 공정번호 | Legacy `l2[]` | error |
+| A2 | 공정명 | Legacy `l2[].name` | - |
+| A3 | 공정기능 | Legacy `l2[].functions[]` | - |
+| A4 | 제품특성 | Legacy `l2[].functions[].productChars[]` | - |
+| A5 | 고장형태 | Legacy `l2[].failureModes[]` | error |
+| A6 | 검출관리 | Legacy `riskData.detection-*` | warn |
+| B1 | 작업요소 | Legacy `l2[].l3[]` | - |
+| B2 | 요소기능 | Legacy `l2[].l3[].functions[]` | - |
+| B3 | 공정특성 | Legacy `l2[].l3[].functions[].processChars[]` | warn |
+| B4 | 고장원인 | Legacy `l2[].l3[].failureCauses[]` + `l2[].failureCauses[]` | error |
+| B5 | 예방관리 | Legacy `riskData.prevention-*` | warn |
+| C1 | 구분 | Legacy `l1.functions[].category` → **Atomic DB fallback** | error |
+| C2 | 완제품기능 | Legacy `l1.functions[].name` → **Atomic DB fallback** | error |
+| C3 | 요구사항 | Legacy `l1.functions[]` count → **Atomic DB fallback** | error |
+| C4 | 고장영향 | Legacy `l1.failureScopes[]` | error |
+
+### 자동수정 루프 흐름
+
+```
+POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m066" }
+│
+├── Loop 1: 5단계 검증 실행
+│   ├── 모든 단계 ok → allGreen=true → 종료
+│   ├── STEP 1 error → 사용자 개입 필요 → 종료
+│   └── STEP 2~5 에러/경고 →
+│       ├── fixStep2Parsing: Atomic DB L1Function → Legacy l1.functions 동기화
+│       ├── fixStep3Uuid: orphan L3Function에 FC 자동생성
+│       ├── fixStep4Fk: 깨진 FailureLink 삭제 + unlinked FC 연결
+│       └── fixStep5Ws: 빈 PC 이름 복원 + orphan PC에 FC 보충
+│
+├── Loop 2: 재검증 (수정 반영 확인)
+│   └── allGreen=true → 종료 또는 추가 수정
+│
+└── Loop 3: 최종 검증 (최대 3회)
+```
+
+### 마스터 고장사슬 표준화
+
+**`master-chain-sync.ts`**: 워크시트 저장 시 자동 동기화
+- Atomic DB FailureLink 기반 (SSoT)
+- FM 26개 × FC 104건 = 104 chains
+- SOD (심각도/발생도/검출도) + PC/DC 포함
+- `syncMasterChainsInTx()` → `upsertActiveMasterFromWorksheetTx()` 내에서 호출
+
+### 검증 명령어
+
+```bash
+# 현재 상태 조회 (읽기 전용)
+curl "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066"
+
+# 자동수정 루프 실행
+curl -X POST http://localhost:3000/api/fmea/pipeline-verify \
+  -H "Content-Type: application/json" \
+  -d '{"fmeaId":"pfm26-m066"}'
+
+# PowerShell
+$body = @{fmeaId="pfm26-m066"} | ConvertTo-Json
+Invoke-WebRequest -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body $body -ContentType "application/json"
+```
+
+### 기대 결과 (pfm26-m066 Au Bump 기준)
+
+| 항목 | 기대값 |
+|------|--------|
+| A1 (공정번호) | 21 |
+| A5 (고장형태) | 26 |
+| B3 (공정특성) | 103 |
+| B4 (고장원인) | 104~105 |
+| C1 (구분) | 3 (YP/SP/USER) |
+| C2 (완제품기능) | 7 |
+| C3 (요구사항) | 17 |
+| C4 (고장영향) | 20 |
+| FM (Atomic) | 26 |
+| FailureLink | 104 |
+| RiskAnalysis | 104 |

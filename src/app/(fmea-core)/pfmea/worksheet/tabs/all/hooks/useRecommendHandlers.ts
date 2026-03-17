@@ -134,7 +134,16 @@ export function useRecommendHandlers({
 
   // ★ 개선추천 — 모달 열기 (데이터 준비 + 모달 표시)
   const handleRecommendImprovement = useCallback(async () => {
-    if (!state || !setState) return;
+    if (!state || !setState) {
+      console.info('[Recommend] state/setState 미준비 — 모달 열기 스킵');
+      return;
+    }
+    if (processedFMGroups.length === 0) {
+      alert('고장연결 데이터가 없습니다. 4단계 고장연결을 먼저 완료해주세요.');
+      return;
+    }
+
+    try {
     const riskData = state.riskData || {};
 
     // CFT 리더(FMEA 책임자) 이름 가져오기
@@ -328,6 +337,7 @@ export function useRecommendHandlers({
         apLCount,
       },
     });
+    } catch (err) { console.error('[Recommend] 추천 처리 실패:', err); }
   }, [state, setState, processedFMGroups]);
 
   // ★ 선택적용 핸들러 (모달에서 호출) — checkedKeys로 체크된 행만 적용

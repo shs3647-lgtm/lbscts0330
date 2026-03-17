@@ -408,7 +408,7 @@ export default function LegacyImportPage() {
         updateWorkElement={templateGen.updateWorkElement}
         flatData={flatData}
         onDownloadSample={() => {
-          downloadSampleTemplate(undefined, templateGen.templateMode === 'manual');
+          downloadSampleTemplate(undefined, templateGen.templateMode === 'manual', selectedFmeaId || undefined);
         }}
         onDownloadEmpty={downloadEmptyTemplate}
         onImportFile={() => fileInputRef.current?.click()}

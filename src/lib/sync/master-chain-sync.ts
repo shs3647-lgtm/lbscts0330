@@ -95,18 +95,91 @@ export function extractChainsFromWorksheet(db: FMEAWorksheetDB): ChainEntry[] {
 }
 
 /**
+ * Atomic DB FailureLink 기반으로 chains 추출 (SSoT)
+ * 워크시트 DB에 없는 FailureLink 텍스트 필드도 Prisma에서 직접 로드
+ */
+export async function extractChainsFromAtomicDB(tx: any, fmeaId: string): Promise<ChainEntry[]> {
+  try {
+    const [links, fms, fes, fcs, l2s, l3s, l2Funcs, l3Funcs, risks] = await Promise.all([
+      tx.failureLink.findMany({ where: { fmeaId } }),
+      tx.failureMode.findMany({ where: { fmeaId } }),
+      tx.failureEffect.findMany({ where: { fmeaId } }),
+      tx.failureCause.findMany({ where: { fmeaId } }),
+      tx.l2Structure.findMany({ where: { fmeaId } }),
+      tx.l3Structure.findMany({ where: { fmeaId } }),
+      tx.l2Function.findMany({ where: { fmeaId } }),
+      tx.l3Function.findMany({ where: { fmeaId } }),
+      tx.riskAnalysis.findMany({ where: { fmeaId } }),
+    ]);
+
+    const fmById = new Map<string, any>(fms.map((f: any) => [f.id, f]));
+    const feById = new Map<string, any>(fes.map((f: any) => [f.id, f]));
+    const fcById = new Map<string, any>(fcs.map((f: any) => [f.id, f]));
+    const l2ById = new Map<string, any>(l2s.map((l: any) => [l.id, l]));
+    const l3ById = new Map<string, any>(l3s.map((l: any) => [l.id, l]));
+    const l2FuncById = new Map<string, any>(l2Funcs.map((f: any) => [f.id, f]));
+    const l3FuncById = new Map<string, any>(l3Funcs.map((f: any) => [f.id, f]));
+    const riskByLink = new Map<string, any>(risks.map((r: any) => [r.failureLinkId, r]));
+
+    const chains: ChainEntry[] = [];
+    for (const lk of links) {
+      const fm = fmById.get(lk.fmId);
+      const fe = feById.get(lk.feId);
+      const fc = fcById.get(lk.fcId);
+      if (!fm || !fe || !fc) continue;
+
+      const l2 = l2ById.get(fm.l2StructId);
+      const l3 = l3ById.get(fc.l3StructId);
+      const risk = riskByLink.get(lk.id);
+      const l2Func = l2FuncById.get(fm.l2FuncId);
+      const l3Func = l3FuncById.get(fc.l3FuncId);
+
+      chains.push({
+        id: lk.id,
+        processNo: l2?.processNo || l2?.no || '',
+        m4: l3?.m4 || undefined,
+        workElement: l3?.name || undefined,
+        fmValue: fm.mode,
+        fcValue: fc.cause,
+        feValue: fe.effect,
+        feSeverity: fe.severity,
+        feScope: fe.category,
+        severity: risk?.severity ?? lk.severity ?? 0,
+        occurrence: risk?.occurrence ?? 0,
+        detection: risk?.detection ?? 0,
+        pcValue: risk?.preventionControl || undefined,
+        dcValue: risk?.detectionControl || undefined,
+        l2Function: l2Func?.functionName || undefined,
+        productChar: l2Func?.productChar || undefined,
+        l3Function: l3Func?.functionName || undefined,
+        processChar: l3Func?.processChar || undefined,
+        specialChar: l2Func?.specialChar || l3Func?.specialChar || undefined,
+      });
+    }
+    return chains;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * PfmeaMasterDataset.failureChains를 최신 SOD로 업데이트
  * upsertActiveMasterFromWorksheetTx 내에서 호출 (같은 트랜잭션)
+ * 1차: Atomic DB FailureLink 기반 (SSoT), fallback: 워크시트 DB
  */
 export async function syncMasterChainsInTx(
   tx: any,
   db: FMEAWorksheetDB,
 ): Promise<number> {
-  const chains = extractChainsFromWorksheet(db);
-  if (chains.length === 0) return 0;
-
   const fmeaId = db.fmeaId || '';
   if (!fmeaId) return 0;
+
+  // Atomic DB 기반 추출 (SSoT) → fallback: 워크시트 DB
+  let chains = await extractChainsFromAtomicDB(tx, fmeaId);
+  if (chains.length === 0) {
+    chains = extractChainsFromWorksheet(db);
+  }
+  if (chains.length === 0) return 0;
 
   try {
     const ds = await tx.pfmeaMasterDataset.findFirst({
