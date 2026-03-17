@@ -21,7 +21,7 @@
  * ★★★ 2026-02-18: 매칭원칙 적용 ★★★
  *   1. 키 매칭: L1=구분, L2=공정번호, L3=공정번호+m4
  *   2. 순서 매칭: 같은 키 그룹 내 인덱스 기반
- *   3. 배분: M/N 균등, 나머지 마지막 슬롯
+ *   3. 꽂기: parentItemId FK 기반 직접 배치
  *   4. rowSpan: max(기능, 특성, 원인, 예방, 1)
  *   5. L2/L3 독립: 건수 불일치 허용
  *   6. 공통공정(00/0/공통) → 01 공통공정으로 강제 매핑 (제외하지 않음)
@@ -523,15 +523,11 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[], flatMap?: FlatToEnti
 }
 
 /**
- * L2 데이터 채움: A3+A4(1:N), A5(고장형태 = A4에 균등 배분)
+ * L2 데이터 채움: A3+A4(1:N), A5(고장형태 → A4 FK 기반 꽂아넣기)
  *
  * 2L 기능 화면: A3(공정기능) 병합 + A4(제품특성) N개
- * → 각 A3 function에 모든 A4를 productChars로 복사
- *
- * ★ A5 고장형태: A4 제품특성에 균등 배분 (매칭원칙 #3)
- *   A4=3, A5=3 → 1:1 인덱스 매칭 (PC[0]↔FM[0], PC[1]↔FM[1], PC[2]↔FM[2])
- *   A4=3, A5=6 → 2:2:2 균등 배분
- *   FailureL2Tab 렌더링: m.productCharId === pc.id 필터
+ * → 각 A3 function이 같은 UUID의 A4를 참조 (카테시안 아님)
+ * → A5: parentItemId FK로 A4에 직접 매핑, 없으면 위치 기반 fallback
  */
 function fillL2Data(process: Process, items: ImportedFlatData[], flatMap?: FlatToEntityMap): void {
   const a3Items = byCode(items, 'A3');
@@ -666,18 +662,11 @@ function fillL2Data(process: Process, items: ImportedFlatData[], flatMap?: FlatT
 }
 
 /**
- * L3 데이터 채움: B2+B3(WE별 균등 배분), B4(고장원인 with m4)
+ * L3 데이터 채움: B2+B3+B4 → parentItemId FK 기반 WE 직접 꽂아넣기
  *
- * ★ 핵심 변경: 카르테시안 → WE별 균등 배분 (매칭원칙 #3)
- *
- * 같은 processNo+m4 그룹 내에서:
- *   B2(요소기능)를 WE 수로 균등 배분 → 각 WE에 할당된 B2만 함수로
- *   B3(공정특성)를 WE 수로 균등 배분 → 각 WE에 할당된 B3만 특성으로
- *   WE 내에서 B2가 여러 개면 B3를 B2 함수별로 추가 배분
- *
- * 예: 20/MC — WE 2개(지그, 프레스), B2 2개, B3 4개
- *   지그   → B2[0] 1함수 → B3[0..1] 2특성
- *   프레스 → B2[1] 1함수 → B3[2..3] 2특성
+ * 통합시트에서 파싱된 B2/B3는 parentItemId로 소속 B1(WE)이 확정됨.
+ * parentItemId → B1 UUID → WE ID 매핑으로 정확한 WE에 직접 배치.
+ * B4(고장원인)는 processCharId FK로 B3에 직접 연결.
  */
 function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1IdMapping, flatMap?: FlatToEntityMap): void {
   const b2Items = byCode(items, 'B2');
