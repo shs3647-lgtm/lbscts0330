@@ -84,20 +84,22 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, modal, setModal, specialCharModal, setSpecialCharModal, isConfirmed, fmeaId, showAlert,
   });
 
-  // ✅ 누락 건수 계산 (작업요소에 기능도 공정특성도 없으면 누락)
+  // ✅ 누락 건수 계산 (기능 없거나 공정특성 없으면 누락)
   const missingCounts = useMemo(() => {
     let functionCount = 0;
     const meaningfulProcs = (state.l2 || []).filter((p: any) => isMeaningfulL3(p.name));
     meaningfulProcs.forEach((proc: any) => {
       const meaningfulL3 = filterMeaningfulWorkElements(proc.l3 || []);
       meaningfulL3.forEach((we: any) => {
-        const meaningfulFuncs = filterMeaningfulFunctionsL3(we.functions || []);
-        if (meaningfulFuncs.length === 0) {
-          // ★ 기능명이 없어도 공정특성(processChars)이 있으면 누락 아님 (B3 fallback 케이스)
-          const hasProcessChars = (we.functions || []).some((f: any) =>
-            (f.processChars || []).some((c: any) => isMeaningfulL3(c?.name))
-          );
-          if (!hasProcessChars) functionCount++;
+        const allFuncs = we.functions || [];
+        const hasProcessChars = allFuncs.some((f: any) =>
+          (f.processChars || []).some((c: any) => isMeaningfulL3(c?.name))
+        );
+        const meaningfulFuncs = filterMeaningfulFunctionsL3(allFuncs);
+        if (meaningfulFuncs.length === 0 && !hasProcessChars) {
+          functionCount++;
+        } else if (meaningfulFuncs.length > 0 && !hasProcessChars) {
+          functionCount++;
         }
       });
     });
@@ -113,14 +115,11 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     meaningfulProcs.forEach((proc: any) => {
       const meaningfulL3 = filterMeaningfulWorkElements(proc.l3 || []);
       meaningfulL3.forEach((we: any) => {
-        const meaningfulFuncs = filterMeaningfulFunctionsL3(we.functions || []);
-        if (meaningfulFuncs.length === 0) {
-          // ★ 기능명이 없어도 공정특성이 있으면 누락 아님
-          const hasProcessChars = (we.functions || []).some((f: any) =>
-            (f.processChars || []).some((c: any) => isMeaningfulL3(c?.name))
-          );
-          if (!hasProcessChars) ids.add(we.id);
-        }
+        const allFuncs = we.functions || [];
+        const hasProcessChars = allFuncs.some((f: any) =>
+          (f.processChars || []).some((c: any) => isMeaningfulL3(c?.name))
+        );
+        if (!hasProcessChars) ids.add(we.id);
       });
     });
     return ids;
