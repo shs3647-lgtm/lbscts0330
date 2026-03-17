@@ -1993,6 +1993,48 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // ★★★ 2026-03-17 FIX: legacy failureScopes/failureLinks에 atomic FE severity 주입 ★★★
+      // legacy 데이터가 FE severity 설정 전에 저장되었을 수 있으므로, DB FE severity로 보강
+      try {
+        const dbFEs = await prisma.failureEffect.findMany({
+          where: { fmeaId },
+          select: { id: true, severity: true },
+        });
+        if (dbFEs.length > 0) {
+          const feSevMap = new Map(dbFEs.filter(fe => fe.severity > 0).map(fe => [fe.id, fe.severity]));
+          if (feSevMap.size > 0) {
+            // failureScopes에 severity 주입
+            const scopes = cleanedLegacyData.l1?.failureScopes || [];
+            let scopePatched = 0;
+            scopes.forEach((scope: any) => {
+              if (scope.id && (!scope.severity || scope.severity === 0)) {
+                const dbSev = feSevMap.get(scope.id);
+                if (dbSev && dbSev > 0) {
+                  scope.severity = dbSev;
+                  scopePatched++;
+                }
+              }
+            });
+            // failureLinks에 severity/feSeverity 주입
+            const links = cleanedLegacyData.failureLinks || [];
+            let linkPatched = 0;
+            links.forEach((link: any) => {
+              if (link.feId && (!link.severity || link.severity === 0)) {
+                const dbSev = feSevMap.get(link.feId);
+                if (dbSev && dbSev > 0) {
+                  link.severity = dbSev;
+                  link.feSeverity = dbSev;
+                  linkPatched++;
+                }
+              }
+            });
+            if (scopePatched > 0 || linkPatched > 0) {
+              console.log(`[FMEA GET] FE severity 보강: scopes ${scopePatched}건, links ${linkPatched}건`);
+            }
+          }
+        }
+      } catch { /* severity 보강 실패해도 기존 데이터 반환 */ }
+
       // 레거시 데이터에 confirmed 상태 추가
       const legacyWithConfirmed = {
         ...cleanedLegacyData,

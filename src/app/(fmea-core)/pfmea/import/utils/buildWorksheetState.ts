@@ -1238,10 +1238,11 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       }
     }
   }
-  // ★★★ 2026-03-16 FIX: orphan processChar → placeholder FC는 B4가 0건일 때만 생성
-  // B4 항목이 존재하나 parentItemId 미설정으로 첫 PC에 몰린 경우,
-  // 나머지 PC에 거짓 placeholder FC 생성하면 안 됨 (거짓 누락행 원인)
-  if (b4Items.length === 0) {
+  // ★★★ 2026-03-17 FIX: orphan processChar → placeholder FC 자동 생성 (B4 유무 관계없이)
+  // 근본원인: 엑셀에 B4가 processChar보다 적으면 남은 PC가 FC 없이 "고장원인 선택"으로 표시됨.
+  // 이전: b4Items.length === 0 일 때만 placeholder 생성 → B4가 1건이라도 있으면 나머지 PC 방치
+  // 수정: B4 배분 완료 후, FC가 없는 모든 processChar에 "{PC이름} 부적합" placeholder 생성
+  {
     const linkedProcessCharIds = new Set(
       causes.map(fc => (fc as { processCharId?: string }).processCharId).filter(Boolean)
     );

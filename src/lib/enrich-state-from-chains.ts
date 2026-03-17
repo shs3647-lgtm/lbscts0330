@@ -177,7 +177,7 @@ export function enrichStateFromChains(
       const nfe = normalize(feValue);
       if (!existingFE.has(nfe)) {
         const newFE: L1FailureScope = {
-          id: uid(),
+          id: (chain as { feId?: string }).feId || uid(),
           name: feValue.trim(),
           scope: feScope || 'Your Plant',
           effect: feValue.trim(),
@@ -202,7 +202,7 @@ export function enrichStateFromChains(
       const fmKey = `${proc.no}|${nfm}`;
       if (!existingFM.has(fmKey)) {
         const newFM: L2FailureMode = {
-          id: uid(),
+          id: (chain as { fmId?: string }).fmId || uid(),
           name: fmValue.trim(),
         };
         if (!proc.failureModes) proc.failureModes = [];
@@ -218,7 +218,7 @@ export function enrichStateFromChains(
       const fcKey = `${proc.no}|${nfc}`;
       if (!existingFC.has(fcKey)) {
         const newFC: L3FailureCauseExtended = {
-          id: uid(),
+          id: (chain as { fcId?: string }).fcId || uid(),
           name: fcValue.trim(),
         };
         // Add to matching L3 work element or first available

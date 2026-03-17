@@ -204,7 +204,10 @@ export function getMaxSeverity(fmId: string, state?: WorksheetState): number {
       }
     });
 
-    // failureScopes에서 fmId별 심각도 보강 (전역 적용 X → fmId 연결된 것만)
+    // failureScopes에서 fmId별 심각도 보강
+    // ★★★ 2026-03-17 FIX: fmId 없는 scope도 feId 기반으로 severity 전파 ★★★
+    // scope.id = FE.id. failureLinks.feId가 동일한 FE를 참조하므로 feId→fmId 역매핑 가능
+    const scopeSevById = new Map<string, number>();
     failureScopes.forEach((scope: FailureScopeWithFmId) => {
       if (scope.fmId) {
         const sev = typeof scope.severity === 'string' ? Number(scope.severity) : scope.severity;
@@ -213,7 +216,28 @@ export function getMaxSeverity(fmId: string, state?: WorksheetState): number {
           if (sev > prev) _maxSevCache!.set(scope.fmId, sev);
         }
       }
+      // scope.id = feId 기반으로 severity 캐시
+      const scopeId = scope.id || (scope as any).feId;
+      if (scopeId) {
+        const sev = typeof scope.severity === 'string' ? Number(scope.severity) : scope.severity;
+        if (typeof sev === 'number' && !isNaN(sev) && sev > 0) {
+          scopeSevById.set(scopeId, sev);
+        }
+      }
     });
+
+    // feId→fmId 역매핑: link.feId의 severity를 link.fmId로 전파
+    if (scopeSevById.size > 0) {
+      failureLinks.forEach((link: WorksheetFailureLink) => {
+        if (link.fmId && link.feId) {
+          const feSev = scopeSevById.get(link.feId);
+          if (feSev && feSev > 0) {
+            const prev = _maxSevCache!.get(link.fmId) || 0;
+            if (feSev > prev) _maxSevCache!.set(link.fmId, feSev);
+          }
+        }
+      });
+    }
   }
 
   return _maxSevCache.get(fmId) || 0;

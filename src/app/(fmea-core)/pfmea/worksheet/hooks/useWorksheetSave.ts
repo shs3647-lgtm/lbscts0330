@@ -237,7 +237,29 @@ function syncFailureLinksFromState(
       };
     });
 
-  return { ...db, failureLinks: syncedLinks };
+  // ★★★ 2026-03-17 FIX: FE severity → FL severity 전파 ★★★
+  // FE에 심각도가 설정되어 있으면 해당 FE를 참조하는 모든 FL에 전파
+  const feById = new Map((db.failureEffects || []).map((fe: any) => [fe.id, fe]));
+  const feSevByScope = new Map<string, number>();
+  for (const scope of ((state as any).l1?.failureScopes || []) as Array<{ id?: string; severity?: number }>) {
+    if (scope.id && scope.severity && scope.severity > 0) {
+      feSevByScope.set(scope.id, scope.severity);
+    }
+  }
+
+  const linksWithSeverity = syncedLinks.map((link: any) => {
+    if (link.severity && link.severity > 0) return link;
+    // DB FE → state failureScope 순서로 severity 조회
+    const feId = link.feId;
+    if (!feId) return link;
+    const feSev = feById.get(feId)?.severity || feSevByScope.get(feId) || 0;
+    if (feSev > 0) {
+      return { ...link, severity: feSev };
+    }
+    return link;
+  });
+
+  return { ...db, failureLinks: linksWithSeverity };
 }
 
 /**
@@ -403,6 +425,121 @@ function syncFailureModesFromState(
   return { ...db, failureModes: mergedFMs as any[] };
 }
 
+/**
+ * ★★★ 2026-03-17 FIX: riskData(state) ↔ riskAnalyses(atomicDB) 동기화 ★★★
+ *
+ * 근본 원인: Atomic Path에서 riskData S/O/D 변경이 atomicDB.riskAnalyses에 반영되지 않아
+ * DB에 severity=0으로 저장됨. 특히 FE.severity가 설정되어도 RiskAnalysis에 전파되지 않음.
+ *
+ * 동작:
+ * 1. 기존 riskAnalyses 보존 (ID 유지)
+ * 2. riskData에서 S/O/D 값 → riskAnalyses에 반영
+ * 3. riskAnalyses 없는 link → FE severity 기반으로 신규 생성
+ */
+function syncRiskAnalysesFromState(
+  db: FMEAWorksheetDB,
+  state: WorksheetState,
+): FMEAWorksheetDB {
+  const riskData: Record<string, unknown> = (state as any).riskData || {};
+  const links = db.failureLinks || [];
+  if (links.length === 0) return db;
+
+  // FE severity 맵: feId → severity
+  const feById = new Map((db.failureEffects || []).map((fe: any) => [fe.id, fe.severity as number || 0]));
+  // state의 failureScopes에서도 수집
+  for (const scope of ((state as any).l1?.failureScopes || []) as Array<{ id?: string; severity?: number }>) {
+    if (scope.id && scope.severity && scope.severity > 0) {
+      if (!feById.has(scope.id) || feById.get(scope.id) === 0) {
+        feById.set(scope.id, scope.severity);
+      }
+    }
+  }
+  // state failureLinks에서도 severity 수집 (auto-recommend가 여기에 설정)
+  const linkSevMap = new Map<string, number>();
+  for (const sl of ((state as any).failureLinks || []) as Array<{ fmId?: string; feId?: string; fcId?: string; severity?: number; feSeverity?: number }>) {
+    if (sl.fmId && sl.fcId) {
+      const sev = sl.severity || sl.feSeverity || 0;
+      if (sev > 0) linkSevMap.set(`${sl.fmId}-${sl.fcId}`, sev);
+    }
+  }
+
+  // 기존 riskAnalyses를 linkId 기준으로 맵핑
+  const existingByLinkId = new Map<string, any>();
+  for (const ra of (db.riskAnalyses || [])) {
+    existingByLinkId.set((ra as any).linkId, ra);
+  }
+
+  const syncedRisks: any[] = [];
+
+  for (const link of links as any[]) {
+    const uniqueKey = `${link.fmId}-${link.fcId}`;
+    const sFromRiskData = Number(riskData[`risk-${uniqueKey}-S`]) || 0;
+    const oFromRiskData = Number(riskData[`risk-${uniqueKey}-O`]) || 0;
+    const dFromRiskData = Number(riskData[`risk-${uniqueKey}-D`]) || 0;
+    const pcFromRiskData = (riskData[`prevention-${uniqueKey}`] as string) || '';
+    const dcFromRiskData = (riskData[`detection-${uniqueKey}`] as string) || '';
+
+    // severity 결정: riskData 우선 → link.severity → FE severity
+    const feSev = feById.get(link.feId) || 0;
+    const linkSev = linkSevMap.get(uniqueKey) || link.severity || 0;
+    const severity = sFromRiskData || linkSev || feSev;
+
+    const existing = existingByLinkId.get(link.id);
+    if (existing) {
+      // 기존 RiskAnalysis 업데이트
+      const updatedS = severity || existing.severity || 0;
+      const updatedO = oFromRiskData || existing.occurrence || 0;
+      const updatedD = dFromRiskData || existing.detection || 0;
+      syncedRisks.push({
+        ...existing,
+        linkId: link.id,
+        severity: updatedS,
+        occurrence: updatedO,
+        detection: updatedD,
+        ap: _calcSimpleAP(updatedS, updatedO, updatedD),
+        preventionControl: pcFromRiskData || existing.preventionControl || null,
+        detectionControl: dcFromRiskData || existing.detectionControl || null,
+      });
+    } else if (severity > 0 || oFromRiskData > 0 || dFromRiskData > 0) {
+      // 신규 RiskAnalysis 생성 (FE severity 또는 riskData 값이 있을 때만)
+      syncedRisks.push({
+        id: uid(),
+        fmeaId: db.fmeaId,
+        linkId: link.id,
+        severity,
+        occurrence: oFromRiskData,
+        detection: dFromRiskData,
+        ap: _calcSimpleAP(severity, oFromRiskData, dFromRiskData),
+        preventionControl: pcFromRiskData || null,
+        detectionControl: dcFromRiskData || null,
+      });
+    }
+  }
+
+  return { ...db, riskAnalyses: syncedRisks };
+}
+
+function _calcSimpleAP(s: number, o: number, d: number): 'H' | 'M' | 'L' {
+  if (s <= 0 || o <= 0 || d <= 0) return 'L';
+  if (s === 1) return 'L';
+  if (s >= 9 || s >= 10) {
+    if (o >= 4 || d >= 7) return 'H';
+    if (o >= 2 || d >= 5) return 'M';
+    return 'L';
+  }
+  if (s >= 7) {
+    if (o >= 4) return 'H';
+    if (o >= 2 || d >= 5) return 'M';
+    return 'L';
+  }
+  if (s >= 4) {
+    if (o >= 4 && d >= 5) return 'H';
+    if (o >= 2) return 'M';
+    return 'L';
+  }
+  return 'L';
+}
+
 export function useWorksheetSave({
   selectedFmeaId,
   currentFmea,
@@ -459,6 +596,8 @@ export function useWorksheetSave({
         dbToSave = syncFailureModesFromState(dbToSave, stateRef.current);
         // ★ FC 동기화: 3L고장분석에서 추가/수정된 FC를 atomicDB.failureCauses에 반영
         dbToSave = syncFailureCausesFromState(dbToSave, stateRef.current);
+        // ★ RiskAnalyses 동기화: riskData S/O/D + FE severity → riskAnalyses 반영
+        dbToSave = syncRiskAnalysesFromState(dbToSave, stateRef.current);
 
         // force 모드(확정) 시 forceOverwrite 전달
         if (force) {
@@ -593,6 +732,8 @@ export function useWorksheetSave({
         dbToSave = syncFailureModesFromState(dbToSave, currentState);
         // ★ FC 동기화
         dbToSave = syncFailureCausesFromState(dbToSave, currentState);
+        // ★ RiskAnalyses 동기화
+        dbToSave = syncRiskAnalysesFromState(dbToSave, currentState);
         if (force) {
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }
