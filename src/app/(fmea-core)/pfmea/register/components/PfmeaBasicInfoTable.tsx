@@ -40,18 +40,14 @@ interface PfmeaBasicInfoTableProps {
     isEditMode: boolean;
     duplicateWarning: string | null;
     selectedBaseFmea: string | null;
-    selectedParentApqp: string | null;
     cftNames: string;
     // 업데이트 핸들러
     updateField: (field: keyof FMEAInfo, value: string) => void;
     setFmeaId: (id: string) => void;
     setSelectedBaseFmea: (id: string | null) => void;
-    setSelectedParentApqp: (id: string | null) => void;
     handleFmeaNameChange: (value: string) => void;
     // 모달 핸들러
     openFmeaSelectModal: (type: 'M' | 'F' | 'P' | 'ALL' | 'LOAD') => void;
-    loadApqpList: () => void;
-    setApqpModalOpen: (v: boolean) => void;
     loadFmeaNameList: () => void;
     setFmeaNameModalOpen: (v: boolean) => void;
     setBizInfoModalOpen: (v: boolean) => void;
@@ -83,7 +79,6 @@ export default function PfmeaBasicInfoTable({
     isEditMode,
     duplicateWarning,
     selectedBaseFmea,
-    selectedParentApqp,
     cftNames,
     updateField,
     setFmeaId,
@@ -91,8 +86,6 @@ export default function PfmeaBasicInfoTable({
     setSelectedParentApqp,
     handleFmeaNameChange,
     openFmeaSelectModal,
-    loadApqpList,
-    setApqpModalOpen,
     loadFmeaNameList,
     setFmeaNameModalOpen,
     setBizInfoModalOpen,

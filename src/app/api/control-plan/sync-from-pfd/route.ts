@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
                     partName: pfdInfo?.partName || '',
                     revNo: 'A',
                     status: 'draft',
-                    // ★★★ APQP에서 저장된 연동 ID 가져오기 ★★★
+                    // ★★★ 연동 ID 가져오기 ★★★
                     linkedPfmeaNo: pfdInfo?.linkedPfmeaNo || null,
                     linkedPfdNo: pfdNo,
                 },

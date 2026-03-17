@@ -314,7 +314,7 @@ export default function BaseSelectModal({
       >
         {/* ===== 헤더 (주황색 고정 + 빨간 닫기) ===== */}
         <div
-          className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white cursor-move select-none"
+          className="flex items-center justify-between px-3 py-1.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white cursor-move select-none"
           onMouseDown={handleMouseDown}
         >
           <div className="flex items-center gap-2">

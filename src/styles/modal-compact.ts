@@ -42,8 +42,8 @@ export interface ModalStyles {
 export const MODAL_COMPACT: ModalStyles = {
   // 헤더: 타이틀 + 닫기 버튼
   header: {
-    padding: 'px-3 py-1',       // 상하 패딩 최소화 (py-1)
-    fontSize: 'text-xs',
+    padding: 'px-3 py-1.5',     // 상하 패딩 통일 (py-1.5)
+    fontSize: 'text-[11px]',
     gap: 'gap-2',
   },
   

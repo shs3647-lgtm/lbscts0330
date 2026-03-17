@@ -27,8 +27,6 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     fmeaSelectType, setFmeaSelectType,
     availableFmeas, setAvailableFmeas,
     selectedBaseFmea, setSelectedBaseFmea,
-    selectedParentApqp, setSelectedParentApqp,
-    apqpList, setApqpList, setApqpModalOpen,
     linkedPfdList, setLinkedPfdList,
     linkedCpList, setLinkedCpList,
     fmeaNameList, setFmeaNameList,
@@ -135,76 +133,6 @@ export function useRegisterPageHandlers(core: CoreReturn) {
       setSelectedBaseFmea(normalizedId);
     }
   }, [fmeaSelectType, router, setFmeaSelectModalOpen, setSelectedBaseFmea]);
-
-  // =====================================================
-  // APQP 핸들러
-  // =====================================================
-  const loadApqpList = useCallback(async () => {
-    try {
-      const res = await fetch('/api/apqp');
-      const data = await res.json();
-      if (data.success && data.apqps) {
-        setApqpList(data.apqps.map((p: any) => ({
-          apqpNo: p.apqpNo, subject: p.subject || p.productName || '', customerName: p.customerName || '',
-        })));
-      } else { setApqpList([]); }
-    } catch (e) { console.error('[APQP 목록 로드] 오류:', e); setApqpList([]); toast.error('APQP 목록을 불러오는데 실패했습니다.'); }
-  }, [setApqpList]);
-
-  const handleApqpSelect = useCallback(async (apqpNo: string) => {
-    if (!apqpNo) return;
-    setSelectedParentApqp(apqpNo);
-    setApqpModalOpen(false);
-
-    // 1. ProjectLinkage에서 먼저 시도
-    try {
-      const res = await fetch(`/api/project-linkage?apqpNo=${apqpNo.toLowerCase()}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.data?.[0]) {
-          const linkage = data.data[0];
-          setFmeaInfo(prev => ({
-            ...prev,
-            companyName: linkage.companyName || prev.companyName || '',
-            customerName: linkage.customerName || prev.customerName || '',
-            modelYear: linkage.modelYear || prev.modelYear || '',
-            subject: linkage.subject || prev.subject || '',
-            engineeringLocation: linkage.engineeringLocation || prev.engineeringLocation || '',
-            fmeaStartDate: linkage.startDate || prev.fmeaStartDate || '',
-            fmeaRevisionDate: linkage.revisionDate || prev.fmeaRevisionDate || '',
-            designResponsibility: linkage.processResponsibility || prev.designResponsibility || '',
-            confidentialityLevel: linkage.confidentialityLevel || prev.confidentialityLevel || '',
-            fmeaResponsibleName: linkage.responsibleName || prev.fmeaResponsibleName || '',
-          }));
-          return;
-        }
-      }
-    } catch (e) { console.error('[APQP 연동정보 조회] 오류:', e); }
-
-    // 2. APQP에서 직접 조회 (폴백)
-    try {
-      const apqpRes = await fetch(`/api/apqp?apqpNo=${apqpNo.toLowerCase()}`);
-      if (apqpRes.ok) {
-        const apqpData = await apqpRes.json();
-        const apqp = apqpData.apqp || apqpData.apqps?.[0];
-        if (apqp) {
-          setFmeaInfo(prev => ({
-            ...prev,
-            companyName: apqp.companyName || prev.companyName || '',
-            customerName: apqp.customerName || prev.customerName || '',
-            modelYear: apqp.modelYear || prev.modelYear || '',
-            subject: apqp.subject || apqp.productName || prev.subject || '',
-            engineeringLocation: apqp.engineeringLocation || prev.engineeringLocation || '',
-            fmeaStartDate: apqp.apqpStartDate || prev.fmeaStartDate || '',
-            fmeaRevisionDate: apqp.apqpRevisionDate || prev.fmeaRevisionDate || '',
-            designResponsibility: apqp.processResponsibility || prev.designResponsibility || '',
-            confidentialityLevel: apqp.confidentialityLevel || prev.confidentialityLevel || '',
-            fmeaResponsibleName: apqp.apqpResponsibleName || prev.fmeaResponsibleName || '',
-          }));
-        }
-      }
-    } catch (e) { console.error('[APQP 정보 조회] 오류:', e); }
-  }, [setSelectedParentApqp, setApqpModalOpen, setFmeaInfo]);
 
   // =====================================================
   // FMEA명 검증
@@ -328,7 +256,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
           project: { projectName: updatedFmeaInfo.subject, customer: updatedFmeaInfo.customerName, productName: updatedFmeaInfo.subject },
           fmeaInfo: { ...updatedFmeaInfo, fmeaId: finalId },
           cftMembers: cftMembers.filter(m => m.name?.trim()),
-          parentApqpNo: selectedParentApqp, parentFmeaId: selectedBaseFmea,
+          parentFmeaId: selectedBaseFmea,
           ...(revParam ? { revisionNo: revParam } : {}),
         }),
       });
@@ -342,7 +270,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
       if (originalData) recordChangeHistory(finalId);
 
       setFmeaInfo(prev => ({ ...prev, linkedCpNo: updatedFmeaInfo.linkedCpNo, linkedPfdNo: updatedFmeaInfo.linkedPfdNo }));
-      syncToLocalStorage(finalId, updatedFmeaInfo, cftMembers, selectedBaseFmea, selectedParentApqp);
+      syncToLocalStorage(finalId, updatedFmeaInfo, cftMembers, selectedBaseFmea);
       localStorage.setItem('pfmea-last-edited', finalId);
       setOriginalData({ ...updatedFmeaInfo });
 
@@ -352,7 +280,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            pfmeaId: finalId, apqpNo: selectedParentApqp || null,
+            pfmeaId: finalId,
             cpNo: updatedFmeaInfo.linkedCpNo || null, pfdNo: updatedFmeaInfo.linkedPfdNo || null,
             dfmeaId: updatedFmeaInfo.linkedDfmeaNo || null,
             projectName: fmeaInfo.subject || '', subject: fmeaInfo.subject || '',
@@ -404,7 +332,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
       alert('저장 실패: ' + (e.message || '알 수 없는 오류'));
       setSaveStatus('idle');
     }
-  }, [fmeaId, fmeaInfo, cftMembers, isEditMode, isRevisionMode, selectedBaseFmea, selectedParentApqp,
+  }, [fmeaId, fmeaInfo, cftMembers, isEditMode, isRevisionMode, selectedBaseFmea,
     linkedCpList, linkedPfdList, fmeaNameList, originalData, revParam,
     setSaveStatus, setOriginalData, setIsCreateModalOpen, setShowMasterReview,
     loadFmeaNameList, checkDuplicateName, recordChangeHistory, recordAccessLog, router]);
@@ -464,7 +392,6 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     updateField, handlePartNameChange,
     handleAddLinkedDoc, handleRemoveLinkedDoc, handleToggleLinkage,
     openFmeaSelectModal, handleFmeaSelect,
-    loadApqpList, handleApqpSelect,
     loadFmeaNameList, checkDuplicateName, handleFmeaNameChange,
     recordChangeHistory,
     handleSave, handleNewRegister, handleUserSelect,

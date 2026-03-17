@@ -27,7 +27,7 @@ const CONFIG = {
 
 const PAGE_SIZE = 50;
 
-const COLUMN_WIDTHS = ['35px', '70px', '85px', '35px', '50px', '130px', '60px', '55px', '50px', '75px', '80px', '80px', '40px', '60px', '60px', '35px', '45px'];
+const COLUMN_WIDTHS = ['35px', '70px', '85px', '35px', '50px', '130px', '60px', '55px', '50px', '80px', '80px', '40px', '60px', '60px', '35px', '45px'];
 
 interface PFDProject {
   id: string;
@@ -41,7 +41,6 @@ interface PFDProject {
   parentFmeaId?: string;
   linkedCpNo?: string;
   linkedCpNos?: string[];
-  parentApqpNo?: string;
   step?: number;
   revisionNo?: string;
   confidentialityLevel?: string;
@@ -105,16 +104,6 @@ const PFDListRow = React.memo(function PFDListRow({
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.customerName || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.processResponsibility || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.pfdResponsibleName || renderEmptyFn(p.id)}</td>
-      <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap">
-        {p.parentApqpNo ? (
-          <a href={`/apqp/register?id=${p.parentApqpNo}`} className="text-blue-600 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()}>
-            <span className="flex items-center justify-center gap-0.5">
-              <span className="px-1 py-0 rounded text-[8px] font-bold text-white bg-blue-500">APQP</span>
-              <span className="text-[8px]">{p.parentApqpNo}</span>
-            </span>
-          </a>
-        ) : renderEmptyFn(p.id)}
-      </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap">
         {p.parentFmeaId ? (
           <a href={`/pfmea/register?id=${p.parentFmeaId.toLowerCase()}`} className="text-yellow-600 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()}>
@@ -219,7 +208,6 @@ export default function PFDListPage() {
           parentFmeaId: p.fmeaId || p.parentFmeaId,
           linkedCpNo: p.cpNo || p.linkedCpNo,
           linkedCpNos: p.linkedCpNos || (p.cpNo ? [p.cpNo] : []),
-          parentApqpNo: p.apqpProjectId || p.parentApqpNo,
           step: p.step || 1,
           revisionNo: p.revisionNo || '1.0',
           confidentialityLevel: p.confidentialityLevel || (p.pfdType === 'pre-launch' ? 'Pre-Launch' : 'Production'),
@@ -446,7 +434,6 @@ export default function PFDListPage() {
                   { label: '고객사(Customer)', field: 'customerName' },
                   { label: '공정책임(Owner)', field: 'processResponsibility' },
                   { label: '담당자(Person)', field: 'pfdResponsibleName' },
-                  { label: '상위 APQP(Parent)', field: 'parentApqpNo' },
                   { label: '상위 PFMEA(Parent)', field: 'parentFmeaId' },
                   { label: '연동 CP(Linked)', field: 'linkedCpNo' },
                   { label: '현황(Status)', field: '' },
@@ -488,7 +475,7 @@ export default function PFDListPage() {
               {projects.length === 0 && !isLoading && (
                 <tr style={{ height: '28px' }} className="bg-slate-50/50">
                   <td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" disabled className="w-3.5 h-3.5 opacity-30" /></td>
-                  {Array.from({ length: 17 }).map((_, i) => <td key={i} className="px-2 py-1 text-center align-middle text-gray-300">-</td>)}
+                  {Array.from({ length: 16 }).map((_, i) => <td key={i} className="px-2 py-1 text-center align-middle text-gray-300">-</td>)}
                 </tr>
               )}
             </tbody>

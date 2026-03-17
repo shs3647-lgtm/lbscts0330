@@ -29,7 +29,7 @@ const CONFIG = {
 
 const PAGE_SIZE = 50;
 
-const COLUMN_WIDTHS = ['35px', '70px', '80px', '35px', '70px', '120px', '60px', '55px', '50px', '75px', '75px', '75px', '40px', '60px', '60px', '35px', '50px'];
+const COLUMN_WIDTHS = ['35px', '70px', '80px', '35px', '70px', '120px', '60px', '55px', '50px', '75px', '75px', '40px', '60px', '60px', '35px', '50px'];
 
 interface CPProject {
   id: string;
@@ -45,7 +45,6 @@ interface CPProject {
     updatedAt?: string;
   };
   parentCpId?: string;
-  parentApqpNo?: string;
   parentFmeaId?: string;
   linkedPfdNo?: string;
   step?: number;
@@ -151,16 +150,6 @@ const CPListRow = React.memo(function CPListRow({
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.cpInfo?.processResponsibility || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.cpInfo?.cpResponsibleName || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap">
-        {p.parentApqpNo ? (
-          <a href={`/apqp/register?id=${p.parentApqpNo}`} className="text-blue-600 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()}>
-            <span className="flex items-center justify-center gap-0.5">
-              <span className="px-1 py-0 rounded text-[8px] font-bold text-white bg-blue-500">APQP</span>
-              <span className="text-[8px]">{p.parentApqpNo}</span>
-            </span>
-          </a>
-        ) : renderEmptyFn(p.id)}
-      </td>
-      <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap">
         {p.parentFmeaId ? (
           <a href={`/pfmea/register?id=${p.parentFmeaId.toLowerCase()}`} className="text-yellow-600 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()}>
             <span className="flex items-center justify-center gap-0.5">
@@ -264,7 +253,6 @@ export default function CPListPage() {
             confidentialityLevel: cp.confidentialityLevel,
           },
           parentCpId: cp.parentCpId,
-          parentApqpNo: cp.parentApqpNo,
           parentFmeaId: cp.fmeaId,
           linkedPfdNo: cp.linkedPfdNo,
           step: cp.step || 1,
@@ -280,7 +268,7 @@ export default function CPListPage() {
           const linkageRes = await fetch('/api/project-linkage');
           const linkageData = await linkageRes.json();
           if (linkageData.success && linkageData.data?.length > 0) {
-            const linkageMap = new Map<string, { pfmeaId?: string; pfdNo?: string; apqpNo?: string }>();
+            const linkageMap = new Map<string, { pfmeaId?: string; pfdNo?: string }>();
             for (const link of linkageData.data) {
               if (link.cpNo) {
                 const cpNoLower = link.cpNo.toLowerCase();
@@ -288,7 +276,6 @@ export default function CPListPage() {
                 linkageMap.set(cpNoLower, {
                   pfmeaId: link.pfmeaId || existing?.pfmeaId,
                   pfdNo: link.pfdNo || existing?.pfdNo,
-                  apqpNo: link.apqpNo || existing?.apqpNo,
                 });
               }
             }
@@ -299,7 +286,6 @@ export default function CPListPage() {
                   ...projectList[i],
                   parentFmeaId: linkage.pfmeaId || projectList[i].parentFmeaId,
                   linkedPfdNo: linkage.pfdNo || projectList[i].linkedPfdNo,
-                  parentApqpNo: linkage.apqpNo || projectList[i].parentApqpNo,
                 };
               }
             }
@@ -538,7 +524,6 @@ export default function CPListPage() {
                   { label: '고객사(Customer)', field: 'customerName' },
                   { label: '공정책임(Resp.)', field: 'processResponsibility' },
                   { label: '담당자(Owner)', field: 'cpResponsibleName' },
-                  { label: '상위 APQP(Parent)', field: '' },
                   { label: '상위 FMEA(Parent)', field: '' },
                   { label: '연동 PFD(Linked)', field: '' },
                   { label: '현황(Status)', field: '' },
@@ -567,7 +552,7 @@ export default function CPListPage() {
                     renderEmptyFn={renderEmpty} />
                 );
               })}
-              {projects.length === 0 && <tr style={{ height: '28px' }} className="bg-blue-50/50"><td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" disabled className="w-3.5 h-3.5 opacity-30" /></td>{Array.from({ length: 16 }).map((_, i) => <td key={i} className="px-2 py-1 text-center align-middle text-gray-300">-</td>)}</tr>}
+              {projects.length === 0 && <tr style={{ height: '28px' }} className="bg-blue-50/50"><td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" disabled className="w-3.5 h-3.5 opacity-30" /></td>{Array.from({ length: 15 }).map((_, i) => <td key={i} className="px-2 py-1 text-center align-middle text-gray-300">-</td>)}</tr>}
             </tbody>
           </table>
         </div>

@@ -752,7 +752,7 @@ function FMEAWorksheetPageContent() {
         {/* ✅ 상속 모드 배너 */}
         {inheritInfo && (
           <div
-            className="fixed top-16 left-[53px] right-0 h-7 z-[99] bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 border-b border-blue-800 flex items-center justify-center gap-4 text-white text-xs"
+            className="fixed top-[72px] left-[53px] right-0 h-7 z-[99] bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 border-b border-blue-800 flex items-center justify-center gap-4 text-white text-xs"
           >
             <span className="font-bold">
               🔵 상속 모드
@@ -780,9 +780,9 @@ function FMEAWorksheetPageContent() {
           </div>
         )}
 
-        {/* ===== 탭 메뉴 (고정, top-16 = 64px) ===== */}
+        {/* ===== 탭 메뉴 (고정, top-[72px] = TopNav 36 + TopMenuBar 36) ===== */}
         <div
-          className={`fixed ${inheritInfo ? 'top-[92px]' : 'top-16'} left-[53px] right-0 h-8 z-[100] bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 border-b-[2px] border-[#1a237e]`}
+          className={`fixed ${inheritInfo ? 'top-[100px]' : 'top-[72px]'} left-[53px] right-0 h-9 z-[100] bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 border-b-[2px] border-[#1a237e]`}
         >
           <TabMenu
             state={state}
@@ -814,7 +814,7 @@ function FMEAWorksheetPageContent() {
 
         {/* ========== 메인 레이아웃 (메뉴 아래, 상속 배너 고려) ========== */}
         {/* ✅ All 탭: overflow-auto로 브라우저 스크롤 허용 */}
-        <div className={`fixed ${inheritInfo ? 'top-[124px]' : 'top-[96px]'} left-[53px] right-0 bottom-0 flex flex-row overflow-hidden`}>
+        <div className={`fixed ${inheritInfo ? 'top-[136px]' : 'top-[108px]'} left-[53px] right-0 bottom-0 flex flex-row overflow-hidden`}>
 
           {/* ===== 좌측: 워크시트 영역 ===== */}
           <div id="fmea-worksheet-container" className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
@@ -960,7 +960,7 @@ function FMEAWorksheetPageContent() {
 
         {/* ★★★ 전체화면 오버레이 — PDF 등 전체화면 필요 패널용 ★★★ */}
         {panelFullscreen && !!activePanelId && activePanelId === 'pdf' && (
-          <div className="fixed top-16 left-[53px] right-0 bottom-0 z-[200] bg-white flex flex-col">
+          <div className="fixed top-[72px] left-[53px] right-0 bottom-0 z-[200] bg-white flex flex-col">
             <div className="h-8 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 text-white flex items-center justify-between px-3 shrink-0 shadow-md">
               <span className="text-[11px] font-bold">
                 📄 PDF 뷰어

@@ -624,11 +624,11 @@ export default function DataSelectModal({
         </div>
 
         {/* ===== 버튼 영역 (검색 아래, 가로 배치) ===== */}
-        <div className="px-3 py-2 border-b bg-white flex items-center gap-2">
-          <button onClick={selectAll} className="px-4 py-1.5 text-[13px] font-bold bg-blue-500 text-white rounded hover:bg-blue-600">전체</button>
-          <button onClick={deselectAll} className="px-4 py-1.5 text-[13px] font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400">해제</button>
-          <button onClick={handleApply} className="px-4 py-1.5 text-[13px] font-bold bg-green-600 text-white rounded hover:bg-green-700">적용</button>
-          <button onClick={handleDeleteSelected} className="px-4 py-1.5 text-[13px] font-bold bg-red-500 text-white rounded hover:bg-red-600">삭제</button>
+        <div className="px-2 py-1 border-b bg-white flex items-center gap-1">
+          <button onClick={selectAll} className="px-2 py-0.5 text-[10px] font-bold bg-blue-500 text-white rounded hover:bg-blue-600">전체</button>
+          <button onClick={deselectAll} className="px-2 py-0.5 text-[10px] font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400">해제</button>
+          <button onClick={handleApply} className="px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded hover:bg-green-700">적용</button>
+          <button onClick={handleDeleteSelected} className="px-2 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded hover:bg-red-600">삭제</button>
         </div>
 
         {/* ===== 하위항목 라벨 ===== */}
@@ -666,7 +666,7 @@ export default function DataSelectModal({
         </div>
 
         {/* ===== 리스트 (고정 높이, 2열 그리드) ===== */}
-        <div className="overflow-auto p-2 h-[280px] min-h-[280px]">
+        <div className="overflow-auto p-1.5 flex-1 min-h-[200px]">
           <div className="grid grid-cols-2 gap-1">
             {filteredItems.map(item => {
               const isSelected = selectedIds.has(item.id);
@@ -679,7 +679,7 @@ export default function DataSelectModal({
                   key={item.id}
                   onClick={() => !isEditing && toggleSelect(item.id)}
                   onDoubleClick={() => handleDoubleClick(item)}
-                  className={`flex items-start gap-2 px-2 py-1.5 rounded border cursor-pointer transition-all min-h-[32px] ${isEditing
+                  className={`flex items-start gap-1.5 px-1.5 py-1 rounded border cursor-pointer transition-all ${isEditing
                     ? 'bg-yellow-50 border-yellow-400'
                     : isSelected
                       ? isCurrent ? 'bg-green-50 border-green-400' : 'bg-blue-50 border-blue-400'
@@ -742,7 +742,7 @@ export default function DataSelectModal({
             {Array.from({ length: Math.max(0, minRows - filteredItems.length) }).map((_, idx) => (
               <div
                 key={`empty-${idx}`}
-                className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-100 bg-gray-50/50"
+                className="flex items-center gap-1.5 px-1.5 py-1 rounded border border-gray-100 bg-gray-50/50"
               >
                 <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
                 <span className="text-[9px] text-gray-300">--</span>
@@ -753,8 +753,8 @@ export default function DataSelectModal({
         </div>
 
         {/* ===== 푸터: 선택 개수 표시 ===== */}
-        <div className="px-3 py-2 border-t bg-gray-50 flex items-center justify-center">
-          <span className="text-xs font-bold text-blue-600">✓ {selectedIds.size}개 선택</span>
+        <div className="px-2 py-0.5 border-t bg-gray-50 flex items-center justify-center">
+          <span className="text-[10px] font-bold text-blue-600">✓ {selectedIds.size}개 선택</span>
         </div>
       </div>
     </>

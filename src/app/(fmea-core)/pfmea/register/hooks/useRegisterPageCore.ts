@@ -13,7 +13,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { createInitialCFTMembers, CFTMember, ensureRequiredRoles } from '@/components/tables/CFTRegistrationTable';
 import { CFTAccessLog } from '@/types/project-cft';
 import { FmeaItem } from '@/components/modals/FmeaSelectModal';
-import { ApqpItem } from '@/components/modals/ApqpSelectModal';
 import { LinkedDocItem } from '@/components/linkage/types';
 import { FMEAInfo, FMEAType, FMEASelectType, INITIAL_FMEA, SaveStatus } from '../types';
 import { syncToLocalStorage } from '../utils';
@@ -55,10 +54,6 @@ export function useRegisterPageCore() {
   const [availableFmeas, setAvailableFmeas] = useState<FmeaItem[]>([]);
   const [selectedBaseFmea, setSelectedBaseFmea] = useState<string | null>(null);
   const [masterDataCount, setMasterDataCount] = useState<number | null>(null);
-  const [apqpModalOpen, setApqpModalOpen] = useState(false);
-  const [apqpList, setApqpList] = useState<ApqpItem[]>([]);
-  const [selectedParentApqp, setSelectedParentApqp] = useState<string | null>(null);
-
   // FMEA명 선택/중복 방지
   const [fmeaNameModalOpen, setFmeaNameModalOpen] = useState(false);
   const [fmeaNameList, setFmeaNameList] = useState<{ id: string, name: string, type: string }[]>([]);
@@ -170,7 +165,7 @@ export function useRegisterPageCore() {
     const autoSave = () => {
       if (!targetId || targetId === 'new') return;
       try {
-        syncToLocalStorage(targetId, fmeaInfo, cftMembers, selectedBaseFmea || null, selectedParentApqp || null);
+        syncToLocalStorage(targetId, fmeaInfo, cftMembers, selectedBaseFmea || null);
       } catch (e) { console.error('[자동저장] 오류:', e); }
 
       // ★★★ 2026-03-01: DB에도 자동저장 (sendBeacon) ★★★
@@ -215,7 +210,7 @@ export function useRegisterPageCore() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user, fmeaId, editId, fmeaInfo, cftMembers, selectedBaseFmea, selectedParentApqp]);
+  }, [user, fmeaId, editId, fmeaInfo, cftMembers, selectedBaseFmea]);
 
   // editId 변경 시 dataLoadedRef reset
   useEffect(() => { dataLoadedRef.current = false; }, [editId]);
@@ -301,8 +296,6 @@ export function useRegisterPageCore() {
         } else if (project.parentFmeaId) {
           setSelectedBaseFmea(project.parentFmeaId.toLowerCase());
         }
-        if (project.parentApqpNo) setSelectedParentApqp(project.parentApqpNo);
-
         // 연동 문서 반영
         if (ldResult?.success) {
           if (ldResult.cps?.length > 0) {
@@ -339,7 +332,7 @@ export function useRegisterPageCore() {
           localStorage.removeItem('pfmea-last-viewed');
           localStorage.removeItem('pfmea-last-edited');
           setFmeaInfo(INITIAL_FMEA); setCftMembers(createInitialCFTMembers());
-          setFmeaId(''); setSelectedBaseFmea(null); setSelectedParentApqp(null);
+          setFmeaId(''); setSelectedBaseFmea(null);
           return;
         }
 
@@ -388,7 +381,7 @@ export function useRegisterPageCore() {
           localStorage.removeItem('pfmea-last-viewed');
           localStorage.removeItem('pfmea-last-edited');
           setFmeaInfo(INITIAL_FMEA); setCftMembers(createInitialCFTMembers());
-          setFmeaId(''); setSelectedBaseFmea(null); setSelectedParentApqp(null);
+          setFmeaId(''); setSelectedBaseFmea(null);
         }
         return;
       }
@@ -419,7 +412,7 @@ export function useRegisterPageCore() {
           } catch (e) { console.error('[localStorage 파싱] 오류:', e); }
         }
         setFmeaInfo(INITIAL_FMEA); setCftMembers(createInitialCFTMembers());
-        setFmeaId(''); setSelectedBaseFmea(null); setSelectedParentApqp(null);
+        setFmeaId(''); setSelectedBaseFmea(null);
         return;
       }
 
@@ -440,11 +433,11 @@ export function useRegisterPageCore() {
   useEffect(() => {
     if (!(fmeaInfo.subject || fmeaId)) return;
     const timer = setTimeout(() => {
-      const tempData = { fmeaInfo, cftMembers, fmeaId, selectedBaseFmea, selectedParentApqp, savedAt: new Date().toISOString() };
+      const tempData = { fmeaInfo, cftMembers, fmeaId, selectedBaseFmea, savedAt: new Date().toISOString() };
       localStorage.setItem('pfmea-temp-data', JSON.stringify(tempData));
     }, 1000);
     return () => clearTimeout(timer);
-  }, [fmeaInfo, cftMembers, fmeaId, selectedBaseFmea, selectedParentApqp]);
+  }, [fmeaInfo, cftMembers, fmeaId, selectedBaseFmea]);
 
   // 신규 모드 임시 데이터 초기화
   useEffect(() => {
@@ -548,9 +541,6 @@ export function useRegisterPageCore() {
     availableFmeas, setAvailableFmeas,
     selectedBaseFmea, setSelectedBaseFmea,
     masterDataCount, setMasterDataCount,
-    apqpModalOpen, setApqpModalOpen,
-    apqpList, setApqpList,
-    selectedParentApqp, setSelectedParentApqp,
     // FMEA name
     fmeaNameModalOpen, setFmeaNameModalOpen,
     fmeaNameList, setFmeaNameList,

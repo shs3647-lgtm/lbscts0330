@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
         causes: [] as any[],
       },
       failureLinks: [] as any[],
+      riskAnalyses: [] as any[],
     };
     
     let stats = {
@@ -100,10 +101,22 @@ export async function GET(req: NextRequest) {
       failureModes: 0,
       failureCauses: 0,
       failureLinks: 0,
+      riskAnalyses: 0,
     };
     
+    // SOD 데이터 로드 (RiskAnalysis — Atomic DB에서 직접)
+    let sourceRiskAnalyses: any[] = [];
+    try {
+      const raResult = await pool.query(`
+        SELECT * FROM "${sourceSchema}"."RiskAnalysis"
+        WHERE "fmeaId" = $1
+      `, [sourceId]);
+      sourceRiskAnalyses = raResult.rows;
+    } catch (e: any) {
+      // RiskAnalysis 테이블이 없을 수 있음 (마이그레이션 전)
+    }
+
     if (legacyData) {
-      // 레거시 데이터 사용
       inherited = {
         l1: legacyData.l1 || null,
         l2: legacyData.l2 || [],
@@ -118,6 +131,7 @@ export async function GET(req: NextRequest) {
           causes: (legacyData.l2 || []).flatMap((p: any) => p.failureCauses || []),
         },
         failureLinks: legacyData.failureLinks || [],
+        riskAnalyses: sourceRiskAnalyses,
       };
       
       stats = {
@@ -135,6 +149,7 @@ export async function GET(req: NextRequest) {
         failureCauses: (legacyData.l2 || []).reduce((sum: number, p: any) => 
           sum + (p.failureCauses?.length || 0), 0),
         failureLinks: legacyData.failureLinks?.length || 0,
+        riskAnalyses: sourceRiskAnalyses.length,
       };
     } else {
       // 원자성 테이블에서 조회
@@ -194,6 +209,8 @@ export async function GET(req: NextRequest) {
       } catch (e: any) {
         console.error(`[상속 API] 원자성 테이블 조회 오류:`, e.message);
       }
+      inherited.riskAnalyses = sourceRiskAnalyses;
+      stats.riskAnalyses = sourceRiskAnalyses.length;
     }
     
     // 4. 원본 FMEA 정보 조회
@@ -339,11 +356,28 @@ export async function POST(req: NextRequest) {
       })),
     }));
     
+    // SOD 데이터: riskAnalyses를 riskData 형식으로 변환
+    const sourceRisks = inherited.riskAnalyses || [];
+    const riskData: Record<string, any> = {};
+    for (const ra of sourceRisks) {
+      const linkId = ra.linkId || ra.link_id;
+      if (!linkId) continue;
+      riskData[linkId] = {
+        severity: ra.severity ?? 0,
+        occurrence: ra.occurrence ?? 0,
+        detection: ra.detection ?? 0,
+        ap: ra.ap || '',
+        preventionControl: ra.preventionControl || ra.prevention_control || '',
+        detectionControl: ra.detectionControl || ra.detection_control || '',
+      };
+    }
+
     const legacyData = {
       fmeaId: targetId,
       l1: newL1,
       l2: newL2,
       failureLinks: inherited.failureLinks || [],
+      riskData,
       structureConfirmed: false,
       l1Confirmed: false,
       l2Confirmed: false,
@@ -352,7 +386,6 @@ export async function POST(req: NextRequest) {
       failureL2Confirmed: false,
       failureL3Confirmed: false,
       failureLinkConfirmed: false,
-      // 상속 메타데이터
       _inherited: true,
       _inheritedFrom: sourceId,
       _inheritedAt: new Date().toISOString(),
@@ -366,13 +399,56 @@ export async function POST(req: NextRequest) {
         "legacyData" = $3,
         "updatedAt" = NOW()
     `, [`legacy-${targetId}`, targetId, JSON.stringify(legacyData)]);
-    
+
+    // RiskAnalysis Atomic DB 복사 (target 스키마)
+    if (sourceRisks.length > 0) {
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS "${targetSchema}"."RiskAnalysis" (
+            id TEXT PRIMARY KEY,
+            "fmeaId" TEXT NOT NULL,
+            "linkId" TEXT NOT NULL,
+            severity INTEGER DEFAULT 0,
+            occurrence INTEGER DEFAULT 0,
+            detection INTEGER DEFAULT 0,
+            ap TEXT DEFAULT 'L',
+            "preventionControl" TEXT,
+            "detectionControl" TEXT,
+            "createdAt" TIMESTAMP DEFAULT NOW(),
+            "updatedAt" TIMESTAMP DEFAULT NOW()
+          )
+        `);
+
+        for (const ra of sourceRisks) {
+          const raId = `ra-${targetId}-${(ra.linkId || ra.link_id || '').split('-').pop() || Math.random().toString(36).substring(2, 9)}`;
+          const linkId = ra.linkId || ra.link_id || '';
+          await pool.query(`
+            INSERT INTO "${targetSchema}"."RiskAnalysis"
+            (id, "fmeaId", "linkId", severity, occurrence, detection, ap, "preventionControl", "detectionControl")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (id) DO UPDATE SET
+              severity = $4, occurrence = $5, detection = $6,
+              ap = $7, "preventionControl" = $8, "detectionControl" = $9,
+              "updatedAt" = NOW()
+          `, [
+            raId, targetId, linkId,
+            ra.severity ?? 0, ra.occurrence ?? 0, ra.detection ?? 0,
+            ra.ap || 'L',
+            ra.preventionControl || ra.prevention_control || '',
+            ra.detectionControl || ra.detection_control || '',
+          ]);
+        }
+      } catch (e: any) {
+        console.error('[상속 API] RiskAnalysis 복사 오류 (무시):', e.message);
+      }
+    }
     
     return NextResponse.json({
       success: true,
       targetId,
       parentFmeaId: sourceId,
-      message: `${sourceId}에서 ${targetId}로 상속이 완료되었습니다.`,
+      riskCopied: sourceRisks.length,
+      message: `${sourceId}에서 ${targetId}로 상속이 완료되었습니다 (SOD ${sourceRisks.length}건 포함).`,
     });
     
   } catch (error: unknown) {

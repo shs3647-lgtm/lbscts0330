@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { cpNo, cpInfo, cftMembers, parentFmeaId, baseCpId, parentApqpNo, linkedPfdNo } = body;
+    const { cpNo, cpInfo, cftMembers, parentFmeaId, baseCpId, linkedPfdNo } = body;
 
     if (!cpNo) {
       return NextResponse.json(
@@ -39,16 +39,9 @@ export async function POST(request: NextRequest) {
     // 디버그: 저장 전 데이터 확인
 
     // 1. CP 등록 정보 저장 (CpRegistration)
-    // ★ parentApqpNo 정규화 (빈 문자열, null, undefined 처리)
-    const normalizedParentApqpNo = (parentApqpNo || body.parentApqpNo);
-    const finalParentApqpNo = normalizedParentApqpNo && normalizedParentApqpNo.trim() !== ''
-      ? normalizedParentApqpNo.trim()
-      : null;
-
     const registrationData = {
       cpNo: cpNoLower,
-      // 상위 연결 (3개)
-      parentApqpNo: finalParentApqpNo,  // ★ 상위 APQP (최상위) - 정규화된 값
+      // 상위 연결
       fmeaId: parentFmeaId?.toLowerCase() || null,         // 상위 FMEA (소문자)
       fmeaNo: parentFmeaId?.toLowerCase() || null,
       parentCpId: baseCpId?.toLowerCase() || body.baseCpId?.toLowerCase() || null,    // 상위 CP (소문자)
@@ -172,15 +165,8 @@ export async function POST(request: NextRequest) {
       const partNameValue = cpInfo?.partName || '품명';
       const unifiedSubject = `${partNameValue}+생산공정`;
 
-      // 1차: apqpNo로 기존 레코드 찾기 (APQP에서 생성한 연동)
+      // 1차: cpNo로 기존 레코드 찾기
       let existingLinkage = null;
-      if (finalParentApqpNo) {
-        existingLinkage = await (prisma as any).projectLinkage.findFirst({
-          where: { apqpNo: finalParentApqpNo.toLowerCase(), status: 'active' }
-        });
-      }
-
-      // 2차: cpNo로 기존 레코드 찾기
       if (!existingLinkage) {
         existingLinkage = await (prisma as any).projectLinkage.findFirst({
           where: { cpNo: cpNoLower, status: 'active' }
@@ -214,12 +200,11 @@ export async function POST(request: NextRequest) {
       };
 
       if (existingLinkage) {
-        // 기존 레코드 업데이트 (APQP 연동 정보는 유지)
+        // 기존 레코드 업데이트
         await (prisma as any).projectLinkage.update({
           where: { id: existingLinkage.id },
           data: {
             ...commonData,
-            // apqpNo는 건드리지 않음 (APQP에서 설정한 값 유지)
           },
         });
       } else {
@@ -227,7 +212,6 @@ export async function POST(request: NextRequest) {
         await (prisma as any).projectLinkage.create({
           data: {
             ...commonData,
-            apqpNo: finalParentApqpNo || null,
             linkType: 'auto',
             status: 'active',
           },
@@ -257,7 +241,6 @@ export async function POST(request: NextRequest) {
             data: {
               fmeaId: fmeaIdLower,
               fmeaType: 'P',
-              parentApqpNo: finalParentApqpNo || null,
               status: 'active',
             },
           });
@@ -282,7 +265,6 @@ export async function POST(request: NextRequest) {
             companyName: cpInfo?.companyName || 'AMPSYSTEM',
             engineeringLocation: cpInfo?.engineeringLocation || '',
             linkedCpNo: cpNoLower,
-            parentApqpNo: finalParentApqpNo || null,
           },
           update: {
             subject: fmeaSubject,
@@ -450,7 +432,6 @@ export async function GET(request: NextRequest) {
       cpNo: true,
       fmeaId: true,
       fmeaNo: true,
-      parentApqpNo: true,  // ★ 상위 APQP
       parentCpId: true,    // ★ 상위 CP
       linkedPfdNo: true,   // ★★★ 연동 PFD (DB 필드 직접 조회)
       customerName: true,

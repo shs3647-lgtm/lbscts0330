@@ -60,7 +60,7 @@ export default function TabMenu({ state, setState, setDirty, saveToLocalStorage,
   const analysisTabs = ANALYSIS_TABS;
 
   return (
-    <div className="flex-shrink-0 h-8 px-1 sm:px-2 flex items-center justify-between overflow-hidden">
+    <div className="flex-shrink-0 h-9 px-1 sm:px-2 flex items-center justify-between overflow-hidden z-[98]">
       {/* 좌측: 탭 버튼들 - 스크롤 가능 */}
       <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide flex-1">
         {/* 기초정보 바로가기 */}

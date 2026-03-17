@@ -124,7 +124,7 @@ export default function TopMenuBar({
 
   return (
     <div
-      className="flex items-center gap-0.5 fixed top-9 left-[53px] right-0 h-8 px-1 z-[99] border-t border-b border-white/30 overflow-x-auto scrollbar-hide"
+      className="flex items-center gap-0.5 fixed top-9 left-[53px] right-0 h-9 px-1 z-[99] border-t border-b border-white/30 overflow-x-auto scrollbar-hide"
       style={{ background: 'linear-gradient(to right, #1a237e, #283593, #1a237e)' }}
     >
       {/* FMEA명 */}

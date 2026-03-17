@@ -47,7 +47,6 @@ interface ProjectData {
     };
     linkedCpNo?: string;
     linkedPfdNo?: string;
-    parentApqpNo?: string;
 }
 
 interface StepProgress {
@@ -159,12 +158,10 @@ export default function PFMEADashboardPage() {
     // 연동 현황 계산
     const linkedToCp = projects.filter(p => p.linkedCpNo).length;
     const linkedToPfd = projects.filter(p => p.linkedPfdNo).length;
-    const linkedToApqp = projects.filter(p => p.parentApqpNo).length;
 
     const linkageData = [
         { name: 'CP 연동', value: linkedToCp, max: totalProjects },
         { name: 'PFD 연동', value: linkedToPfd, max: totalProjects },
-        { name: 'APQP 연동', value: linkedToApqp, max: totalProjects },
     ];
 
     if (!isMounted) {

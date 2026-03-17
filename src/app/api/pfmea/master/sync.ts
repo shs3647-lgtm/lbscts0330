@@ -10,6 +10,7 @@
  * - itemCode+value 기준 중복 체크 (processNo 무관)
  */
 import type { FMEAWorksheetDB } from '@/app/(fmea-core)/pfmea/worksheet/schema';
+import { syncMasterChainsInTx } from '@/lib/sync/master-chain-sync';
 
 type FlatItemInput = {
   processNo: string;
@@ -234,34 +235,34 @@ export async function upsertActiveMasterFromWorksheetTx(tx: any, db: FMEAWorkshe
       return !existingValueKeys.has(key);
     });
 
-    if (newItems.length === 0) {
-      return;
+    if (newItems.length > 0) {
+      await tx.pfmeaMasterFlatItem.createMany({
+        data: newItems.map(i => ({
+          datasetId: ds.id,
+          processNo: i.processNo,
+          category: i.category,
+          itemCode: i.itemCode,
+          value: i.value,
+          m4: i.m4 || undefined,
+          sourceId: i.sourceFmeaId || undefined,
+          excelRow: (i as any).excelRow ?? undefined,
+          excelCol: (i as any).excelCol ?? undefined,
+          orderIndex: (i as any).orderIndex ?? undefined,
+          parentItemId: (i as any).parentItemId || undefined,
+          mergeGroupId: (i as any).mergeGroupId || undefined,
+          rowSpan: (i as any).rowSpan ?? undefined,
+          belongsTo: (i as any).belongsTo || undefined,
+        })),
+        skipDuplicates: true,
+      });
     }
 
-    await tx.pfmeaMasterFlatItem.createMany({
-      data: newItems.map(i => ({
-        datasetId: ds.id,
-        processNo: i.processNo,
-        category: i.category,
-        itemCode: i.itemCode,
-        value: i.value,
-        m4: i.m4 || undefined,
-        sourceId: i.sourceFmeaId || undefined,
-        excelRow: (i as any).excelRow ?? undefined,
-        excelCol: (i as any).excelCol ?? undefined,
-        orderIndex: (i as any).orderIndex ?? undefined,
-        parentItemId: (i as any).parentItemId || undefined,
-        mergeGroupId: (i as any).mergeGroupId || undefined,
-        rowSpan: (i as any).rowSpan ?? undefined,
-        belongsTo: (i as any).belongsTo || undefined,
-      })),
-      skipDuplicates: true,
-    });
+    // ★ SOD 포함 failureChains 자동 동기화 (2026-03-17)
+    await syncMasterChainsInTx(tx, db);
   } catch (err: any) {
-    // 테이블이 없는 경우 (마이그레이션 전) 에러 무시
     if (err?.code === 'P2021' || err?.message?.includes('does not exist')) {
       return;
     }
-    throw err; // 다른 에러는 그대로 throw
+    throw err;
   }
 }

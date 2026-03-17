@@ -59,8 +59,7 @@ export function syncToLocalStorage(
   id: string,
   info: FMEAInfo,
   cft: CFTMember[],
-  selectedBaseFmea: string | null,
-  selectedParentApqp: string | null
+  selectedBaseFmea: string | null
 ): void {
   try {
     const normalizedId = id.toLowerCase();
@@ -87,7 +86,6 @@ export function syncToLocalStorage(
       },
       cftMembers: cft,
       parentFmeaId: selectedBaseFmea || null,
-      parentApqpNo: selectedParentApqp || null,
       updatedAt: new Date().toISOString(),
     };
 
