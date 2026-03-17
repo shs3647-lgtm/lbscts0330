@@ -278,6 +278,8 @@ export async function POST(request: NextRequest) {
             l3FuncId: fc.l3FuncId,
             l3StructId: fc.l3StructId,
             l2StructId: fc.l2StructId,
+            // ★★★ 2026-03-17 FIX: processCharId 복사 (88건 전원 NULL → 정상 복원) ★★★
+            processCharId: fc.processCharId || null,
             cause: fc.cause,
             occurrence: fc.occurrence || null,
           })),
@@ -286,26 +288,102 @@ export async function POST(request: NextRequest) {
       }
 
       // FailureLinks 재생성 (상단 명시적 삭제로 이미 purge됨)
+      // ★★★ 2026-03-17 FIX: FK 유효성 검증 후 저장 (깨진 FK 링크 필터링 + 로깅)
       if (atomic.failureLinks.length) {
-        await tx.failureLink.createMany({
-          data: atomic.failureLinks.map((l: any) => ({
-            id: l.id,
-            fmeaId,
-            fmId: l.fmId,
-            feId: l.feId,
-            fcId: l.fcId,
-            // ★★★ 2026-03-17: l.cache.* 우선 (migration.ts/save-from-import 모두 cache에 저장)
-            fmText: l.cache?.fmText || l.fmText || l.originalFmText || null,
-            fmProcess: l.cache?.fmProcess || l.fmProcess || l.processName || null,
-            feText: l.cache?.feText || l.feText || l.originalFeText || null,
-            feScope: l.cache?.feCategory || l.feScope || l.scope || null,
-            fcText: l.cache?.fcText || l.fcText || l.originalFcText || null,
-            fcWorkElem: l.cache?.fcWorkElem || l.fcWorkElem || l.workElementName || null,
-            fcM4: l.fcM4 || l.m4 || null,
-            severity: l.cache?.feSeverity || l.severity || null,
-          })),
-          skipDuplicates: true,
-        });
+        const fmIdSet = new Set(atomic.failureModes.map((fm: any) => fm.id));
+        const feIdSet = new Set(atomic.failureEffects.map((fe: any) => fe.id));
+        const fcIdSet = new Set(atomic.failureCauses.map((fc: any) => fc.id));
+
+        const validLinks: any[] = [];
+        const invalidLinks: any[] = [];
+        for (const l of atomic.failureLinks) {
+          const hasFm = fmIdSet.has(l.fmId);
+          const hasFe = feIdSet.has(l.feId);
+          const hasFc = fcIdSet.has(l.fcId);
+          if (hasFm && hasFe && hasFc) {
+            validLinks.push(l);
+          } else {
+            invalidLinks.push({ id: l.id, fmId: l.fmId, feId: l.feId, fcId: l.fcId, missingFm: !hasFm, missingFe: !hasFe, missingFc: !hasFc });
+          }
+        }
+        if (invalidLinks.length > 0) {
+          console.warn(`[rebuild-atomic] FailureLink FK 검증: ${invalidLinks.length}건 무효 (저장 스킵)`);
+          for (const il of invalidLinks.slice(0, 5)) {
+            console.warn(`  - id=${il.id} missingFm=${il.missingFm} missingFe=${il.missingFe} missingFc=${il.missingFc}`);
+          }
+        }
+
+        if (validLinks.length > 0) {
+          await tx.failureLink.createMany({
+            data: validLinks.map((l: any) => ({
+              id: l.id,
+              fmeaId,
+              fmId: l.fmId,
+              feId: l.feId,
+              fcId: l.fcId,
+              fmText: l.cache?.fmText || l.fmText || l.originalFmText || null,
+              fmProcess: l.cache?.fmProcess || l.fmProcess || l.processName || null,
+              feText: l.cache?.feText || l.feText || l.originalFeText || null,
+              feScope: l.cache?.feCategory || l.feScope || l.scope || null,
+              fcText: l.cache?.fcText || l.fcText || l.originalFcText || null,
+              fcWorkElem: l.cache?.fcWorkElem || l.fcWorkElem || l.workElementName || null,
+              fcM4: l.fcM4 || l.m4 || null,
+              severity: l.cache?.feSeverity || l.severity || null,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+      // ★★★ 2026-03-17 FIX: 미연결 FC 보충 링크 생성 (MN/IM/EN 50건 누락 해결) ★★★
+      // Legacy failureLinks에 없는 FC들 → 같은 공정의 FM+FE와 합성 링크 생성
+      {
+        const linkedFcIds = new Set(
+          (await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } }))
+            .map((l: any) => l.fcId)
+        );
+        const allFcs = atomic.failureCauses as any[];
+        const unlinkedFcs = allFcs.filter((fc: any) => !linkedFcIds.has(fc.id));
+
+        if (unlinkedFcs.length > 0) {
+          // l2StructId → FM/FE 인덱스
+          const fmByL2 = new Map<string, any>();
+          for (const fm of atomic.failureModes) {
+            if (!fmByL2.has((fm as any).l2StructId)) fmByL2.set((fm as any).l2StructId, fm);
+          }
+          // 이미 존재하는 link에서 FM→FE 매핑 수집 (같은 FM은 같은 FE)
+          const fmToFe = new Map<string, string>();
+          const existingLinks = await tx.failureLink.findMany({ where: { fmeaId }, select: { fmId: true, feId: true } });
+          for (const el of existingLinks) {
+            if (!fmToFe.has((el as any).fmId)) fmToFe.set((el as any).fmId, (el as any).feId);
+          }
+          // fallback FE
+          const firstFeId = atomic.failureEffects.length > 0 ? (atomic.failureEffects[0] as any).id : null;
+
+          const synthLinks: any[] = [];
+          for (const fc of unlinkedFcs) {
+            const fm = fmByL2.get(fc.l2StructId);
+            if (!fm) continue;
+            const feId = fmToFe.get(fm.id) || firstFeId;
+            if (!feId) continue;
+
+            synthLinks.push({
+              id: `auto-${fc.id}`,
+              fmeaId,
+              fmId: fm.id,
+              feId,
+              fcId: fc.id,
+              fmText: fm.mode || null,
+              fcText: fc.cause || null,
+              fcM4: null,
+              severity: null,
+            });
+          }
+
+          if (synthLinks.length > 0) {
+            await tx.failureLink.createMany({ data: synthLinks, skipDuplicates: true });
+            console.info(`[rebuild-atomic] 미연결 FC 보충 링크: ${synthLinks.length}건 생성`);
+          }
+        }
       }
     }, { timeout: 30000, isolationLevel: 'Serializable' });
 

@@ -390,54 +390,50 @@ export function supplementOrphanChains(
       addedFM++;
     }
 
-    // ── 고아 FC 보충 — 원본 체인이 없는 공정에서만 ──
-    // 원본 chains에 이 공정의 chain이 이미 있으면 고아 FC 보충 스킵
-    const procHasChains = chains.some(c =>
-      c.processNo === proc.no && !c.id?.startsWith('auto-')
-    );
-    if (!procHasChains) {
-      for (const we of (proc.l3 || [])) {
-        for (const fc of (we.failureCauses || [])) {
-          if (matchedFcIds.has(fc.id)) continue;
-
-          // 같은 공정의 첫 번째 FM을 짝으로 사용
-          const pairedFm = (proc.failureModes || [])[0];
-          if (!pairedFm) continue;
-
-          const synthetic: MasterFailureChain = {
-            id: `auto-fc-${fc.id}`,
-            processNo: proc.no,
-            m4: we.m4 || undefined,
-            fcValue: fc.name,
-            fcId: fc.id,
-            fmValue: pairedFm.name,
-            fmId: pairedFm.id,
-            feValue: '',
-            // feId will be assigned by round-robin
-          };
-          chains.push(synthetic);
-          matchedFcIds.add(fc.id);
-          addedFC++;
-        }
-      }
-      // process-level FCs
-      for (const fc of (proc.failureCauses || [])) {
+    // ── 고아 FC 보충 — 모든 공정에서 미연결 FC 보충 ──
+    // ★★★ 2026-03-17 FIX: procHasChains 조건 제거 — MC chain 있는 공정에서도
+    // MN/IM/EN m4의 미연결 FC를 보충 (50건 누락 해결)
+    for (const we of (proc.l3 || [])) {
+      for (const fc of (we.failureCauses || [])) {
         if (matchedFcIds.has(fc.id)) continue;
+
+        // 같은 공정의 첫 번째 FM을 짝으로 사용
         const pairedFm = (proc.failureModes || [])[0];
         if (!pairedFm) continue;
+
         const synthetic: MasterFailureChain = {
           id: `auto-fc-${fc.id}`,
           processNo: proc.no,
+          m4: we.m4 || undefined,
           fcValue: fc.name,
           fcId: fc.id,
           fmValue: pairedFm.name,
           fmId: pairedFm.id,
           feValue: '',
+          // feId will be assigned by round-robin in buildFailureLinksDBCentric
         };
         chains.push(synthetic);
         matchedFcIds.add(fc.id);
         addedFC++;
       }
+    }
+    // process-level FCs
+    for (const fc of (proc.failureCauses || [])) {
+      if (matchedFcIds.has(fc.id)) continue;
+      const pairedFm = (proc.failureModes || [])[0];
+      if (!pairedFm) continue;
+      const synthetic: MasterFailureChain = {
+        id: `auto-fc-${fc.id}`,
+        processNo: proc.no,
+        fcValue: fc.name,
+        fcId: fc.id,
+        fmValue: pairedFm.name,
+        fmId: pairedFm.id,
+        feValue: '',
+      };
+      chains.push(synthetic);
+      matchedFcIds.add(fc.id);
+      addedFC++;
     }
   }
 
