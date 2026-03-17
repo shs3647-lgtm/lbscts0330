@@ -136,26 +136,23 @@ export function useControlModalSave({
         delete newRiskData[importedFlagKey];
       }
 
-      // ★ v2.7.3→v2.8: 사용자 직접 입력 시 D 자동 추천 (비어있을 때만)
-      // ★ 2026-02-28: [FM]/[FC] 마커별 허용 등급 적용 — 전체 라인에서 bestD 산출
+      // ★ v2.8.1: DC 변경 시 D값 항상 재평가 (기존 D값 있어도 재산출)
+      // 사용자가 DC를 모달에서 선택 = DC 변경 의도 → D값도 반드시 갱신
       if (saveType === 'detection' || saveType === 'detection-opt') {
         const dKey = `risk-${uniqueKey}-D`;
-        const existingD = newRiskData[dKey] ?? prev.riskData?.[dKey];
-        if (!existingD || !String(existingD).toString().trim()) {
-          let bestD = 0;
-          const lines = selectedValue.split('\n').filter(Boolean);
-          for (const line of lines) {
-            const isFm = line.startsWith('[FM]');
-            const isFc = line.startsWith('[FC]');
-            const target: 'fm' | 'fc' | undefined = isFm ? 'fm' : isFc ? 'fc' : undefined;
-            const plainText = stripTypePrefix(line).trim();
-            if (plainText) {
-              const recD = recommendDetection(plainText, target);
-              if (recD > 0 && (bestD === 0 || recD < bestD)) bestD = recD;
-            }
+        let bestD = 0;
+        const lines = selectedValue.split('\n').filter(Boolean);
+        for (const line of lines) {
+          const isFm = line.startsWith('[FM]');
+          const isFc = line.startsWith('[FC]');
+          const target: 'fm' | 'fc' | undefined = isFm ? 'fm' : isFc ? 'fc' : undefined;
+          const plainText = stripTypePrefix(line).trim();
+          if (plainText) {
+            const recD = recommendDetection(plainText, target);
+            if (recD > 0 && (bestD === 0 || recD < bestD)) bestD = recD;
           }
-          if (bestD > 0 && bestD <= 10) newRiskData[dKey] = bestD;
         }
+        if (bestD > 0 && bestD <= 10) newRiskData[dKey] = bestD;
       }
 
       // 검출관리 선택 시 검출도 자동 적용 (현재 행 + 동일 FM 내)
