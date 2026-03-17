@@ -465,7 +465,26 @@ export function useWorksheetSave({
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }
 
-        const result = await saveAtomicDBDirect(dbToSave);
+        // ★★★ 2026-03-17 FIX: legacyState 동시 전송 — FmeaLegacyData 동기화 ★★★
+        const currentStateForLegacy = stateRef.current;
+        const legacyStateForSync: Record<string, unknown> = {
+          fmeaId: targetFmeaId,
+          l1: currentStateForLegacy.l1,
+          l2: currentStateForLegacy.l2,
+          failureLinks: (currentStateForLegacy as any).failureLinks || [],
+          riskData: currentStateForLegacy.riskData || {},
+          fmea4Rows: (currentStateForLegacy as any).fmea4Rows || [],
+          structureConfirmed: (currentStateForLegacy as any).structureConfirmed || false,
+          l1Confirmed: (currentStateForLegacy as any).l1Confirmed || false,
+          l2Confirmed: (currentStateForLegacy as any).l2Confirmed || false,
+          l3Confirmed: (currentStateForLegacy as any).l3Confirmed || false,
+          failureL1Confirmed: (currentStateForLegacy as any).failureL1Confirmed || false,
+          failureL2Confirmed: (currentStateForLegacy as any).failureL2Confirmed || false,
+          failureL3Confirmed: (currentStateForLegacy as any).failureL3Confirmed || false,
+          failureLinkConfirmed: (currentStateForLegacy as any).failureLinkConfirmed || false,
+        };
+
+        const result = await saveAtomicDBDirect(dbToSave, false, legacyStateForSync);
         if (result.success) {
           setAtomicDB(dbToSave);
           setDirty(false);
@@ -577,7 +596,24 @@ export function useWorksheetSave({
         if (force) {
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }
-        saveAtomicDBDirect(dbToSave).then(result => {
+        // ★★★ 2026-03-17 FIX: saveTemp에서도 legacyState 동시 전송 ★★★
+        const legacySyncData: Record<string, unknown> = {
+          fmeaId: targetId,
+          l1: currentState.l1,
+          l2: currentState.l2,
+          failureLinks: (currentState as any).failureLinks || [],
+          riskData: currentState.riskData || {},
+          fmea4Rows: (currentState as any).fmea4Rows || [],
+          structureConfirmed: (currentState as any).structureConfirmed || false,
+          l1Confirmed: (currentState as any).l1Confirmed || false,
+          l2Confirmed: (currentState as any).l2Confirmed || false,
+          l3Confirmed: (currentState as any).l3Confirmed || false,
+          failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
+          failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
+          failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
+          failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
+        };
+        saveAtomicDBDirect(dbToSave, false, legacySyncData).then(result => {
           if (result.success) {
             setAtomicDB(dbToSave);
           }

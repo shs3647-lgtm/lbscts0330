@@ -35,6 +35,7 @@ const MAX_CONSECUTIVE_FAILURES = 3;
 
 let _saveInProgress = false;
 let _pendingSave: FMEAWorksheetDB | null = null;
+let _pendingLegacyState: Record<string, unknown> | undefined;
 let _consecutiveFailures = 0;
 
 // ── 에러 콜백 ──
@@ -127,15 +128,18 @@ async function _resolveFailureAnalyses(db: FMEAWorksheetDB): Promise<FailureAnal
 
 // ── 실제 저장 ──
 
-async function _doSave(db: FMEAWorksheetDB): Promise<SaveResult> {
+async function _doSave(db: FMEAWorksheetDB, legacyState?: Record<string, unknown>): Promise<SaveResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
+    const requestBody = legacyState
+      ? { ...db, legacyData: legacyState }
+      : db;
     const response = await fetch('/api/fmea', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(db),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -188,12 +192,20 @@ async function _doSave(db: FMEAWorksheetDB): Promise<SaveResult> {
 // ── 공개 API ──
 
 /**
- * Atomic DB 직접 저장 — UUID 보존, legacyData 불필요
+ * Atomic DB 직접 저장 — UUID 보존 + legacyData 동기화
+ *
+ * ★★★ 2026-03-17 FIX: legacyState 동시 전송 — 새로고침 후 링크 소실 방지 ★★★
+ * 근본 원인: ATOMIC PATH에서 legacyData를 전송하지 않아 FmeaLegacyData 미갱신
+ * → 새로고침 시 이전 legacyData 로드 → 최신 링크 소실
  *
  * 큐 패턴: 동시 저장 시 최신 데이터만 보존
  * 연속 실패 시 최대 3회 재시도 + 지수 백오프
  */
-export async function saveAtomicDB(db: FMEAWorksheetDB): Promise<SaveResult> {
+export async function saveAtomicDB(
+  db: FMEAWorksheetDB,
+  _force?: boolean,
+  legacyState?: Record<string, unknown>,
+): Promise<SaveResult> {
   // fmeaId 사전 검증
   if (!db.fmeaId || typeof db.fmeaId !== 'string' || db.fmeaId.trim() === '') {
     const msg = 'fmeaId가 없어 저장할 수 없습니다. 프로젝트를 다시 선택하세요.';
@@ -201,10 +213,14 @@ export async function saveAtomicDB(db: FMEAWorksheetDB): Promise<SaveResult> {
     return { success: false, error: msg };
   }
 
+  // legacyState 보존 (큐에서도 사용)
+  const capturedLegacyState = legacyState;
+
   // 저장 진행 중이면 큐에 최신 데이터 보관
   if (_saveInProgress) {
     _pendingSave = db;
-    return { success: true }; // 큐에 등록됨 — 나중에 처리
+    _pendingLegacyState = capturedLegacyState;
+    return { success: true };
   }
   _saveInProgress = true;
 
@@ -218,7 +234,7 @@ export async function saveAtomicDB(db: FMEAWorksheetDB): Promise<SaveResult> {
       savedAt: new Date().toISOString(),
     };
 
-    result = await _doSave(dbToSave);
+    result = await _doSave(dbToSave, capturedLegacyState);
     if (result.success) {
       _consecutiveFailures = 0;
       // ✅ 심각도 개선루프: 저장 성공 후 FE-S 쌍 DB 동기화 (fire-and-forget)
@@ -245,7 +261,9 @@ export async function saveAtomicDB(db: FMEAWorksheetDB): Promise<SaveResult> {
     // 큐에 대기 중인 저장 처리
     if (_pendingSave) {
       const pending = _pendingSave;
+      const pendingLegacy = _pendingLegacyState;
       _pendingSave = null;
+      _pendingLegacyState = undefined;
 
       if (_consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
         _notifyError(
@@ -258,7 +276,7 @@ export async function saveAtomicDB(db: FMEAWorksheetDB): Promise<SaveResult> {
           : Math.min(1000 * Math.pow(2, _consecutiveFailures - 1), 8000);
 
         setTimeout(() => {
-          saveAtomicDB(pending).catch((e) =>
+          saveAtomicDB(pending, false, pendingLegacy).catch((e) =>
             console.error('[atomicDbSaver] 큐 처리 오류:', e)
           );
         }, delay);
