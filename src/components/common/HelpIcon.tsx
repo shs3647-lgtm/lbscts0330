@@ -127,8 +127,8 @@ export default function HelpIcon({
           onClick={handleOpen}
           title={title}
           style={{
-            padding: '2px 8px',
-            borderRadius: 3,
+            padding: '4px 10px',
+            borderRadius: 4,
             border: '1px solid #d97706',
             backgroundColor: open ? '#d97706' : '#fbbf24',
             color: open ? '#fff' : '#78350f',
