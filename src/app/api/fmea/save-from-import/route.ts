@@ -58,9 +58,67 @@ export async function POST(request: NextRequest) {
       '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState'
     );
 
-    // ★★★ Chain-Driven 통합: chains를 buildWorksheetState에 직접 전달 ★★★
-    // 이전: build → enrich → link 3단계 분리 → 타이밍 버그 원인
-    // 변경: buildWorksheetState Phase 3 내부에서 enrich + link 순서 보장 실행
+    // ★★★ 2026-03-17 FIX: 리버스 경로 — DB 데이터가 있으면 convertToLegacyFormat 직접 사용 ★★★
+    // 이전: atomicToFlatData → buildWorksheetState → migrateToAtomicDB (손실 라운드트립)
+    //   → processCharId genB3↔hybridId 불일치로 FC 매칭 실패 → FC 6건 재발
+    // 수정: convertToLegacyFormat(existingDB)로 직접 legacyData 구성 → 라운드트립 제거
+    let useReversePath = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let reverseExistingDB: any = undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let reverseLegacyData: any = undefined;
+    try {
+      const baseUrl = getBaseDatabaseUrl();
+      if (baseUrl) {
+        const schema = getProjectSchemaName(normalizedFmeaId);
+        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+        const checkPrisma = getPrismaForSchema(schema);
+        if (checkPrisma) {
+          const existingLinkCount = await checkPrisma.failureLink.count({
+            where: { fmeaId: normalizedFmeaId },
+          });
+          if (existingLinkCount > 0) {
+            const [l2s, l3s, l1Funcs, l2Funcs, l3Funcs, fes, fms, fcs, links, risks] = await Promise.all([
+              checkPrisma.l2Structure.findMany({ where: { fmeaId: normalizedFmeaId }, orderBy: { order: 'asc' } }),
+              checkPrisma.l3Structure.findMany({ where: { fmeaId: normalizedFmeaId }, orderBy: { order: 'asc' } }),
+              checkPrisma.l1Function.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.l2Function.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.l3Function.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.failureEffect.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.failureMode.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.failureCause.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.failureLink.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.riskAnalysis.findMany({ where: { fmeaId: normalizedFmeaId } }),
+            ]);
+            reverseExistingDB = {
+              fmeaId: normalizedFmeaId, savedAt: new Date().toISOString(),
+              l1Structure: null, l2Structures: l2s, l3Structures: l3s,
+              l1Functions: l1Funcs, l2Functions: l2Funcs, l3Functions: l3Funcs,
+              failureEffects: fes, failureModes: fms, failureCauses: fcs,
+              failureLinks: links, failureAnalyses: [], riskAnalyses: risks, optimizations: [],
+              confirmed: { structure: true, l1Function: true, l2Function: true, l3Function: true, l1Failure: true, l2Failure: true, l3Failure: true, failureLink: true, risk: true, optimization: true },
+            };
+            // ★ 핵심: convertToLegacyFormat으로 직접 변환 (손실 라운드트립 제거)
+            const { convertToLegacyFormat } = await import(
+              '@/app/(fmea-core)/pfmea/worksheet/migration'
+            );
+            reverseLegacyData = convertToLegacyFormat(reverseExistingDB);
+            useReversePath = Array.isArray(reverseLegacyData?.l2) && reverseLegacyData.l2.length > 0;
+            if (useReversePath) {
+              const rlFc = reverseLegacyData.l2.reduce((a: number, p: { failureCauses?: unknown[] }) =>
+                a + (Array.isArray(p.failureCauses) ? p.failureCauses.length : 0), 0);
+              console.info(`[save-from-import] ★ 리버스 경로(직접변환) 활성화: l2=${reverseLegacyData.l2.length} FC=${rlFc} links=${existingLinkCount}`);
+            }
+          }
+        }
+      }
+    } catch (reverseErr) {
+      console.warn('[save-from-import] 리버스 경로 실패 (기존 경로로 fallback):', reverseErr instanceof Error ? reverseErr.message : String(reverseErr));
+    }
+
+    // ★★★ Chain-Driven 통합 ★★★
+    // 리버스 경로 성공 시 → buildWorksheetState는 riskData 추출용으로만 실행
+    // 리버스 경로 실패 시 → 기존 forward path (flatData + chains)
     const buildResult = buildWorksheetState(enrichedFlatData, {
       fmeaId: normalizedFmeaId,
       l1Name,
@@ -184,7 +242,26 @@ export async function POST(request: NextRequest) {
     const feedback = applyFmGapFeedback(buildResult.state, flatData);
 
     // 5. legacyData 구성
-    const legacyData = {
+    // ★★★ 리버스 경로: convertToLegacyFormat 결과 직접 사용 (FC processCharId 보존) ★★★
+    // forward 경로: buildWorksheetState 결과 사용 (기존 방식)
+    const legacyData = useReversePath && reverseLegacyData ? {
+      fmeaId: normalizedFmeaId,
+      l1: reverseLegacyData.l1,
+      l2: reverseLegacyData.l2,
+      failureLinks: reverseLegacyData.failureLinks || [],
+      riskData: injectedRisk,
+      forceOverwrite: true,
+      structureConfirmed: reverseLegacyData.structureConfirmed ?? false,
+      l1Confirmed: reverseLegacyData.l1Confirmed ?? false,
+      l2Confirmed: reverseLegacyData.l2Confirmed ?? false,
+      l3Confirmed: reverseLegacyData.l3Confirmed ?? false,
+      failureL1Confirmed: reverseLegacyData.failureL1Confirmed ?? false,
+      failureL2Confirmed: reverseLegacyData.failureL2Confirmed ?? false,
+      failureL3Confirmed: reverseLegacyData.failureL3Confirmed ?? false,
+      failureLinkConfirmed: reverseLegacyData.failureLinkConfirmed ?? true,
+      riskConfirmed: false,
+      optimizationConfirmed: false,
+    } : {
       fmeaId: normalizedFmeaId,
       l1: buildResult.state.l1,
       l2: buildResult.state.l2,
@@ -211,14 +288,18 @@ export async function POST(request: NextRequest) {
       '@/app/(fmea-core)/pfmea/worksheet/constants'
     );
     const { genFC } = await import('@/lib/uuid-generator');
+
+    // ★★★ 리버스 경로: atomic DB가 이미 정확 → migrateToAtomicDB 스킵 ★★★
+    // forward 경로만 migrateToAtomicDB 실행 (기존 방식)
     const legacyCopy = JSON.parse(JSON.stringify(legacyData));
-    const atomicDB = migrateToAtomicDB(legacyCopy);
-    Object.assign(atomicDB, { forceOverwrite: true });
+    const atomicDB = useReversePath ? null : migrateToAtomicDB(legacyCopy);
+    if (atomicDB) Object.assign(atomicDB, { forceOverwrite: true });
 
     // ★★★ 6-B. failureLinks 복구: migrateToAtomicDB가 ID 매칭 실패로 drop한 links를 텍스트 매칭으로 복구
-    const migrationLinkCount = atomicDB.failureLinks?.length ?? 0;
+    // 리버스 경로: atomic DB 이미 정확 → 복구 불필요
+    const migrationLinkCount = atomicDB?.failureLinks?.length ?? 0;
     const originalLinkCount = injectedLinks.length;
-    if (migrationLinkCount < originalLinkCount && originalLinkCount > 0) {
+    if (!useReversePath && atomicDB && migrationLinkCount < originalLinkCount && originalLinkCount > 0) {
       console.log(`[save-from-import] Links 복구 시작: migration=${migrationLinkCount}, original=${originalLinkCount}`);
 
       // atomicDB에 이미 있는 link의 FM-FE-FC 조합 추적 (중복 방지)
@@ -437,15 +518,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 8-D. rebuild-atomic API로 atomic 테이블 생성 (FK validation 우회)
+    // ★★★ 리버스 경로: atomic DB 이미 정확 → rebuild 스킵 (FC 손실 방지) ★★★
     const origin = request.nextUrl.origin;
     const rebuildUrl = `${origin}/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(normalizedFmeaId)}`;
-    const rebuildRes = await fetch(rebuildUrl, { method: 'POST' });
-    const rebuildResult = await rebuildRes.json();
+    if (!useReversePath) {
+      const rebuildRes = await fetch(rebuildUrl, { method: 'POST' });
+      const rebuildResult = await rebuildRes.json();
 
-    if (!rebuildRes.ok || (!rebuildResult.ok && !rebuildResult.success)) {
-      console.error('[save-from-import] rebuild-atomic 실패:', rebuildResult);
+      if (!rebuildRes.ok || (!rebuildResult.ok && !rebuildResult.success)) {
+        console.error('[save-from-import] rebuild-atomic 실패:', rebuildResult);
+      } else {
+        console.log('[save-from-import] 8-D. rebuild-atomic 완료:', JSON.stringify(rebuildResult.rebuilt));
+      }
     } else {
-      console.log('[save-from-import] 8-D. rebuild-atomic 완료:', JSON.stringify(rebuildResult.rebuilt));
+      console.info('[save-from-import] 8-D. 리버스 경로 → rebuild-atomic 스킵 (atomic 데이터 이미 정확)');
     }
 
     // ★★★ 9. Verify Loop — FM/FC/FE/Links 종합 검증 + legacyData 무결성 보호 ★★★
@@ -539,8 +625,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 9-C. rebuild-atomic 재시도
-      await fetch(rebuildUrl, { method: 'POST' });
+      // 9-C. rebuild-atomic 재시도 (리버스 경로에서는 스킵)
+      if (!useReversePath) {
+        await fetch(rebuildUrl, { method: 'POST' });
+      }
     }
 
     // ★★★ 9-D. 최종 legacyData 보호 — 어떤 이유로든 풍부도가 축소되었으면 원본 복원 ★★★
