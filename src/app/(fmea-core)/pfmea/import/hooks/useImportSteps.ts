@@ -343,17 +343,6 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
                 { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ failureChains: chainsToSave }) },
               );
             }
-            // 2) verify-counts 재조회 → DBINPUT 즉시 반영
-            const vcRes = await fetch(`/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId)}`);
-            if (vcRes.ok) {
-              const vcJson = await vcRes.json();
-              if (vcJson.success) {
-                setStepState(prev => ({
-                  ...prev,
-                  dbVerifyCounts: { import: vcJson.import, db: vcJson.db },
-                }));
-              }
-            }
           } catch (err) {
             console.error('[SA 확정] failureChains PATCH/검증 실패:', err);
           }
@@ -610,78 +599,10 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
       if (wsResult.success) {
         const dd = wsResult.buildResult.diagnostics;
 
-        // ★★★ 2026-03-10: verify-counts 100% 일치 루프 (최대 3회 재시도) ★★★
-        const VERIFY_CODES = ['A2', 'B1', 'C1', 'C2', 'C3', 'A3', 'A4', 'B2', 'B3', 'C4', 'A5', 'B4'];
-        const TOLERANCE = 2;
-        const MAX_RETRIES = 3;
-
-        let verifyCounts: { import: Record<string, number>; db: Record<string, number> } | null = null;
-        let mismatchItems: string[] = [];
-
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-          try {
-            // ★ 재시도 시 약간의 딜레이 (DB 커밋 완료 대기)
-            if (attempt > 1) {
-              await new Promise(r => setTimeout(r, 1000 * attempt));
-              console.info(`[FA 확정] verify-counts 재시도 ${attempt}/${MAX_RETRIES}...`);
-            }
-
-            const vcRes = await fetch(`/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId)}`);
-            if (vcRes.ok) {
-              const vcJson = await vcRes.json();
-              if (vcJson.success) {
-                verifyCounts = { import: vcJson.import, db: vcJson.db };
-              }
-            }
-          } catch (vcErr) {
-            console.error(`[FA 확정] verify-counts 조회 실패 (attempt ${attempt}):`, vcErr);
-          }
-
-          // 불일치 체크
-          mismatchItems = [];
-          if (verifyCounts) {
-            for (const code of VERIFY_CODES) {
-              const imp = verifyCounts.import[code] ?? 0;
-              const db = verifyCounts.db[code] ?? 0;
-              if (imp > 0 && db < imp - TOLERANCE) {
-                mismatchItems.push(`${code}: Import=${imp}, DB=${db} (${imp - db}건 손실)`);
-              }
-            }
-          }
-
-          // ★ DB 전부 0인 경우 명확한 경고 (워크시트 저장 자체 실패)
-          if (verifyCounts) {
-            const dbTotal = Object.values(verifyCounts.db).reduce((s, v) => s + (v || 0), 0);
-            if (dbTotal === 0) {
-              console.error(`[FA 확정] DB 카운트 전부 0 — 워크시트 저장이 실패했을 가능성 (attempt ${attempt})`);
-            }
-          }
-
-          // 100% 일치 → 루프 탈출
-          if (mismatchItems.length === 0) {
-            if (attempt > 1) {
-              console.info(`[FA 확정] verify-counts 100% 일치 (${attempt}차 시도)`);
-            }
-            break;
-          }
-
-          // 마지막 시도가 아니면 재저장 시도
-          if (attempt < MAX_RETRIES) {
-            console.warn(`[FA 확정] I→D 불일치 ${mismatchItems.length}건 — 재저장 시도 ${attempt + 1}/${MAX_RETRIES}`);
-            try {
-              const { saveWorksheetFromImport: retrySave } = await import('../utils/saveWorksheetFromImport');
-              await retrySave({ fmeaId, flatData, l1Name, failureChains: usedChains });
-            } catch (retryErr) {
-              console.error(`[FA 확정] 재저장 실패 (attempt ${attempt}):`, retryErr);
-            }
-          }
-        }
-
         setIsAnalysisComplete(true);
 
         setStepState(prev => ({
           ...markFAConfirmed(prev),
-          dbVerifyCounts: verifyCounts,
         }));
 
         const missingParts: string[] = [];
@@ -692,10 +613,6 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         const missingWarning = missingParts.length > 0
           ? `\n\n⚠️ 주의: ${missingParts.join(', ')} 데이터가 0건입니다!\n엑셀 A5/B4/C4 시트를 확인하고 다시 Import 하세요.`
           : '';
-
-        const dbMismatchWarning = mismatchItems.length > 0
-          ? `\n\n⚠️ Import→DB 데이터 손실 감지 (${MAX_RETRIES}회 시도 후):\n${mismatchItems.join('\n')}`
-          : '\n\n✓ Import→DB 100% 일치 확인';
 
         // ★ FM 갭 피드백 알림
         const feedbackInfo = wsResult.feedback && wsResult.feedback.totalAdded > 0
@@ -709,8 +626,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
           `L2기능: ${dd.l2FuncCount}개, L3기능: ${dd.l3FuncCount}개\n` +
           `고장형태: ${dd.fmCount}개, 고장원인: ${dd.fcCount}개, 고장영향: ${dd.feCount}개` +
           feedbackInfo +
-          missingWarning +
-          dbMismatchWarning
+          missingWarning
         );
 
         // ★ 2026-03-10: FA 완료 후 자동 이동 제거 — "FMEA 작성 →" 버튼으로 수동 이동

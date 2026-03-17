@@ -27,10 +27,8 @@ import { useWorksheetState, useCpSync, useExcelHandlers, useProcessHandlers } fr
 import { useAuth } from '@/hooks/useAuth';
 import { useSpecialCharVerify } from './hooks/useSpecialCharVerify';
 import { useImportVerify } from './hooks/useImportVerify';
-import { useFailureLinkVerify, type RepairableLink } from './hooks/useFailureLinkVerify';
 import { useAutoTabAdvance } from './hooks/useAutoTabAdvance';
 import { useArrayGuard } from './hooks/useArrayGuard';
-import { buildFailureChainsFromFlat } from '@/app/(fmea-core)/pfmea/import/types/masterFailureChain';
 import {
   StructureTab, StructureColgroup, StructureHeader, StructureRow,
   FunctionTab, FunctionColgroup, FunctionHeader, FunctionRow,
@@ -75,8 +73,6 @@ const CpSyncWizard = dynamic(() => import('./components/CpSyncWizard'), { ssr: f
 const BackupPanel = dynamic(() => import('./components/BackupPanel'), { ssr: false });
 const Fmea4Tab = dynamic(() => import('./tabs/fmea4').then(mod => mod.Fmea4Tab), { ssr: false });
 const CPTab = dynamic(() => import('./tabs/cp').then(mod => mod.CPTab), { ssr: false });
-const FailureLinkVerifyBar = dynamic(() => import('./components/FailureLinkVerifyBar'), { ssr: false });
-const FCChainVerifyBar = dynamic(() => import('./components/FCChainVerifyBar'), { ssr: false });
 
 /**
  * FMEA 워크시트 메인 페이지 컨텐츠
@@ -143,75 +139,9 @@ function FMEAWorksheetPageContent() {
   }, []);
 
   // ★ Import 데이터 기준 검증
-  const { importCounts, flatItems: importFlatItems, chains: importChains, rawChainInfo } = useImportVerify(selectedFmeaId);
+  const { importCounts } = useImportVerify(selectedFmeaId);
 
-  // ★ 파이프라인 검증 토글
-  const [showVerification, setShowVerification] = useState(false);
-  const [showFcVerification, setShowFcVerification] = useState(false);
 
-  // ★ importChains가 비어있으면 flatItems에서 자동 도출
-  const effectiveChains = useMemo(() => {
-    if (importChains.length > 0) return importChains;
-    if (importFlatItems.length === 0) return importChains; // 빈 배열 그대로
-    // flatItems → ImportChain 간이 변환 (FM별 체인 생성)
-    const dummyCrossTab = { aRows: [] as never[], bRows: [] as never[], cRows: [] as never[], total: 0 };
-    const derived = buildFailureChainsFromFlat(importFlatItems as never[], dummyCrossTab);
-    return derived.map((c) => ({
-      id: String(c.id || ''),
-      processNo: String(c.processNo || ''),
-      m4: String(c.m4 || ''),
-      fmValue: String(c.fmValue || ''),
-      fcValue: String(c.fcValue || ''),
-      feValue: String(c.feValue || ''),
-      feScope: String(c.feScope || ''),
-    }));
-  }, [importChains, importFlatItems]);
-
-  // ★ 고장연결 파이프라인 검증
-  const linkVerifyResult = useFailureLinkVerify({
-    chains: effectiveChains,
-    flatItems: importFlatItems,
-    state: state as unknown as Record<string, unknown>,
-    savedLinks: ((state as any).failureLinks || []) as Array<{ fmText?: string; fcText?: string; feText?: string; fmId?: string; feId?: string; fcId?: string; fmProcess?: string; fmProcessNo?: string; fmPath?: string }>,
-  });
-
-  // ★ 누락 자동 복구 핸들러
-  const handleLinkRepair = useCallback((repairLinks: RepairableLink[]) => {
-    if (repairLinks.length === 0) return;
-    const existingLinks = ((state as any).failureLinks || []) as Array<Record<string, unknown>>;
-    const existingKeySet = new Set(existingLinks.map(l => `${l.fmId}|${l.feId}|${l.fcId}`));
-
-    const newLinks = repairLinks
-      .filter(rl => !existingKeySet.has(`${rl.fmId}|${rl.feId}|${rl.fcId}`))
-      .map(rl => ({
-        id: uid(),
-        fmId: rl.fmId,
-        feId: rl.feId,
-        fcId: rl.fcId,
-        fmText: rl.fmText,
-        feText: rl.feText,
-        fcText: rl.fcText,
-        fmProcess: rl.fmProcess,
-        fmProcessNo: rl.fmProcessNo,
-        feScope: rl.feScope,
-        severity: rl.severity,
-        fcM4: rl.fcM4,
-        fcWorkElem: rl.fcWorkElem,
-        fcProcess: rl.fmProcess,
-        rowSpan: 1,
-        colSpan: 1,
-      }));
-
-    if (newLinks.length === 0) return;
-
-    setState(prev => ({
-      ...prev,
-      failureLinks: [...((prev as any).failureLinks || []), ...newLinks],
-    }));
-
-    // DB 저장
-    setTimeout(() => { if (saveAtomicDB) saveAtomicDB(); }, 100);
-  }, [state, setState, saveAtomicDB]);
 
   // ★ CP/PFD 동기화 훅 (모듈화)
   const {
@@ -877,50 +807,10 @@ function FMEAWorksheetPageContent() {
               setActivePanelId('');
               setPanelFullscreen(false);
             }}
-            showVerification={showVerification}
-            onToggleVerification={() => { setShowVerification(v => !v); setShowFcVerification(false); }}
-            showFcVerification={showFcVerification}
-            onToggleFcVerification={() => { setShowFcVerification(v => !v); setShowVerification(false); }}
           />
         </div>
 
-        {/* ★ 고장연결 파이프라인 검증 바 (토글 ON 시) */}
-        {showVerification && (
-          <div
-            className={`fixed ${inheritInfo ? 'top-[124px]' : 'top-[96px]'} left-[53px] right-0 z-[99] bg-white border-b border-gray-300 shadow-sm`}
-            style={{ maxHeight: 320, overflowY: 'auto' }}
-          >
-            {linkVerifyResult ? (
-              <FailureLinkVerifyBar result={linkVerifyResult} onRepair={handleLinkRepair} />
-            ) : (
-              <div className="px-4 py-3 text-sm text-gray-500">
-                검증 데이터 없음 — Import 기초정보(Master DB)에 고장사슬 데이터가 없습니다. Import에서 FA 확정 후 다시 시도하세요.
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* ★ FC 고장사슬 검증 바 (토글 ON 시) */}
-        {showFcVerification && (
-          <div
-            className={`fixed ${inheritInfo ? 'top-[124px]' : 'top-[96px]'} left-[53px] right-0 z-[98] bg-white border-b border-gray-300 shadow-sm`}
-            style={{ maxHeight: 360, overflowY: 'auto' }}
-          >
-            {rawChainInfo ? (
-              <FCChainVerifyBar
-                rawChainInfo={rawChainInfo}
-                chains={effectiveChains}
-                flatItems={importFlatItems}
-                state={state as unknown as Record<string, unknown>}
-                savedLinks={((state as unknown as Record<string, unknown>).failureLinks || []) as Array<{ fmText?: string; fcText?: string; feText?: string; fmId?: string; feId?: string; fcId?: string }>}
-              />
-            ) : (
-              <div className="px-4 py-3 text-sm text-gray-500">
-                FC검증 데이터 없음 — Import에서 FA 확정 후 다시 시도하세요. (기존 Import 데이터는 재-Import 필요)
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ========== 메인 레이아웃 (메뉴 아래, 상속 배너 고려) ========== */}
         {/* ✅ All 탭: overflow-auto로 브라우저 스크롤 허용 */}
@@ -929,23 +819,6 @@ function FMEAWorksheetPageContent() {
           {/* ===== 좌측: 워크시트 영역 ===== */}
           <div id="fmea-worksheet-container" className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
 
-            {/* ★ 검증 뷰에서 분석 탭으로 이동한 경우: 돌아가기 배너 */}
-            {state.previousTab === 'all' && state.previousVerificationMode && (
-              <div
-                className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-[11px] font-bold cursor-pointer hover:bg-blue-700"
-                onClick={() => {
-                  saveAtomicDB?.();
-                  setState(prev => ({ ...prev, tab: 'all' }));
-                  try {
-                    const stateId = selectedFmeaId || 'default';
-                    localStorage.setItem(`pfmea_tab_${stateId}`, 'all');
-                  } catch (e) { console.error(e); }
-                }}
-              >
-                <span style={{ fontSize: '14px' }}>←</span>
-                검증화면으로 돌아가기 ({state.previousVerificationMode} 검증)
-              </div>
-            )}
 
             {/* 구조분석 제목 바는 StructureTab 내부 헤더로 이동됨 (표준화 완료) */}
 

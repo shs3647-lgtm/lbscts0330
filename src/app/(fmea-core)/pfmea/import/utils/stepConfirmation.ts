@@ -26,12 +26,6 @@ export interface BuildDiagnostics {
   warnings: string[];
 }
 
-/** verify-counts API 응답 타입 */
-export interface DbVerifyCounts {
-  import: Record<string, number>;
-  db: Record<string, number>;  // 'link' 키 포함
-}
-
 /** 3단계 상태 */
 export interface ImportStepState {
   saConfirmed: boolean;
@@ -40,7 +34,6 @@ export interface ImportStepState {
   activeStep: 'SA' | 'FC' | 'FA';
   buildResult: { success: boolean; diagnostics: BuildDiagnostics } | null;
   fcComparison: FCComparisonResult | null;
-  dbVerifyCounts: DbVerifyCounts | null;
 }
 
 // ─── 초기 상태 ───
@@ -53,7 +46,6 @@ export function getInitialStepState(): ImportStepState {
     activeStep: 'SA',
     buildResult: null,
     fcComparison: null,
-    dbVerifyCounts: null,
   };
 }
 

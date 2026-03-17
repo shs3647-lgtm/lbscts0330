@@ -266,15 +266,6 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       code: postResult.code,
     };
 
-    // 11. Verify counts after save
-    const verifyRes = await fetch(`${origin}/api/fmea/verify-counts?fmeaId=${fmeaId}`);
-    const verifyData = await verifyRes.json();
-    diag['10_verify'] = {
-      import: verifyData.import,
-      db: verifyData.db,
-      linkDiag: verifyData.linkDiag,
-    };
-
     return NextResponse.json({
       success: postResult.success,
       mode: 'saved',
