@@ -2,14 +2,16 @@
 
 /**
  * @file PipelineVerifyPanel.tsx
- * @description 5단계 파이프라인 검증 + 자동수정 패널
+ * @description 6단계 파이프라인 검증 + 자동수정 패널
  *
- * IMPORT → 파싱 → UUID → FK → WS
+ * SAMPLE(0) → IMPORT(1) → 파싱(2) → UUID(3) → FK(4) → WS(5)
  * 빨간불 감지 → 자동수정 루프 → 초록불 될 때까지 반복
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import PipelineStep0Detail from './PipelineStep0Detail';
+import PipelineStepDetailView from './PipelineStepDetailView';
 
 interface StepResult {
   step: number;
@@ -41,7 +43,7 @@ const STATUS_COLORS: Record<string, { bg: string; border: string; text: string; 
   pending: { bg: 'bg-gray-800/80', border: 'border-gray-600', text: 'text-gray-400', icon: '⏳' },
 };
 
-const STEP_LABELS = ['IMPORT', '파싱', 'UUID', 'FK', 'WS'];
+const STEP_LABELS = ['SAMPLE', 'IMPORT', '파싱', 'UUID', 'FK', 'WS'];
 
 export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyPanelProps) {
   const [result, setResult] = useState<PipelineResult | null>(null);
@@ -92,8 +94,8 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
   return ReactDOM.createPortal(
     <div
       ref={panelRef}
-      className="fixed left-0 right-0 mx-auto w-[720px] bg-gray-900 border border-gray-600 rounded-b-lg shadow-2xl"
-      style={{ top: 0, maxHeight: '60vh', overflowY: 'auto', zIndex: 100002 }}
+      className="fixed left-0 right-0 mx-auto w-[900px] bg-gray-900 border border-gray-600 rounded-b-lg shadow-2xl"
+      style={{ top: 0, maxHeight: '70vh', overflowY: 'auto', zIndex: 100002 }}
       data-testid="pipeline-verify-panel"
     >
       {/* 헤더 */}
@@ -132,7 +134,7 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
       <div className="px-3 py-2">
         <div className="flex items-center justify-between gap-1">
           {STEP_LABELS.map((label, i) => {
-            const step = steps[i];
+            const step = steps.find(s => s.step === i);
             const status = step?.status || 'pending';
             const colors = STATUS_COLORS[status];
 
@@ -143,10 +145,10 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
                   className={`flex-1 flex flex-col items-center py-1.5 px-1 rounded border ${colors.border} ${colors.bg} cursor-pointer hover:brightness-125 transition-all ${expandedStep === i ? 'ring-2 ring-white/50' : ''}`}
                 >
                   <span className="text-[14px]">{colors.icon}</span>
-                  <span className={`text-[10px] font-bold ${colors.text}`}>STEP {i + 1}</span>
+                  <span className={`text-[10px] font-bold ${colors.text}`}>STEP {i}</span>
                   <span className="text-[9px] text-gray-300">{label}</span>
                 </button>
-                {i < 4 && <span className="text-gray-500 text-[12px] shrink-0">→</span>}
+                {i < STEP_LABELS.length - 1 && <span className="text-gray-500 text-[12px] shrink-0">→</span>}
               </React.Fragment>
             );
           })}
@@ -154,9 +156,20 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
       </div>
 
       {/* 선택된 STEP 세부 정보 */}
-      {expandedStep !== null && steps[expandedStep] && (
+      {expandedStep !== null && steps.find(s => s.step === expandedStep) && (
         <div className="px-3 pb-2">
-          <StepDetail step={steps[expandedStep]} />
+          {expandedStep === 0 ? (
+            <PipelineStep0Detail
+              step={steps.find(s => s.step === 0)!}
+              fmeaId={fmeaId}
+              onImportComplete={() => {
+                runVerify();
+                window.location.reload();
+              }}
+            />
+          ) : (
+            <StepDetail step={steps.find(s => s.step === expandedStep)!} fmeaId={fmeaId} />
+          )}
         </div>
       )}
 
@@ -238,15 +251,22 @@ function ParsingStatsTable({ details }: { details: Record<string, number | strin
   );
 }
 
-function StepDetail({ step }: { step: StepResult }) {
+function StepDetail({ step, fmeaId }: { step: StepResult; fmeaId: string }) {
+  const [showDetail, setShowDetail] = useState(false);
   const colors = STATUS_COLORS[step.status];
-  const isParsing = step.step === 2;
+  const isParsing = step.name === '파싱';
 
   return (
     <div className={`border ${colors.border} rounded p-2 ${colors.bg}`}>
       <div className="flex items-center gap-2 mb-1">
         <span className="text-[14px]">{colors.icon}</span>
         <span className={`text-[12px] font-bold ${colors.text}`}>STEP {step.step}: {step.name}</span>
+        <button
+          onClick={() => setShowDetail(!showDetail)}
+          className={`ml-auto px-2 py-0.5 text-[9px] rounded border ${showDetail ? 'bg-blue-700 text-white border-blue-500' : 'bg-gray-800 text-gray-300 border-gray-600 hover:bg-gray-700'}`}
+        >
+          {showDetail ? '상세 접기 ▲' : '상세 보기 ▼'}
+        </button>
       </div>
 
       {isParsing ? (
@@ -275,6 +295,13 @@ function StepDetail({ step }: { step: StepResult }) {
           {step.fixed.map((fix, i) => (
             <div key={i} className="text-[10px] text-blue-300">✔ {fix}</div>
           ))}
+        </div>
+      )}
+
+      {/* 실제 DB/파싱 데이터 상세 뷰 */}
+      {showDetail && (
+        <div className="mt-2 border-t border-gray-600 pt-2">
+          <PipelineStepDetailView fmeaId={fmeaId} step={step.step} stepName={step.name} />
         </div>
       )}
     </div>
