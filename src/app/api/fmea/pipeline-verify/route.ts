@@ -490,6 +490,40 @@ async function fixStep3Uuid(prisma: any, fmeaId: string): Promise<string[]> {
   const l2ById = new Map(l2s.map((l: any) => [l.id, l]));
   const l3ById = new Map(l3s.map((l: any) => [l.id, l]));
 
+  // ★★★ 2026-03-18 FIX: L3Function이 0건인 L3Structure에 폴백 L3Function 자동생성 ★★★
+  const l3FuncByL3 = new Map<string, any[]>();
+  for (const f of l3Funcs) {
+    if (!l3FuncByL3.has(f.l3StructId)) l3FuncByL3.set(f.l3StructId, []);
+    l3FuncByL3.get(f.l3StructId)!.push(f);
+  }
+
+  const missingL3FuncData: Array<{ id: string; fmeaId: string; l3StructId: string; l2StructId: string; functionName: string; processChar: string }> = [];
+  for (const l3 of l3s) {
+    const name = ((l3 as any).name || '').trim();
+    if (!name || name.includes('공정 선택 후')) continue;
+    const children = l3FuncByL3.get(l3.id) || [];
+    if (children.length === 0) {
+      missingL3FuncData.push({
+        id: `${l3.id}-L3F`,
+        fmeaId,
+        l3StructId: l3.id,
+        l2StructId: (l3 as any).l2Id || '',
+        functionName: name,
+        processChar: '',
+      });
+    }
+  }
+  if (missingL3FuncData.length > 0) {
+    try {
+      await prisma.l3Function.createMany({ data: missingL3FuncData, skipDuplicates: true });
+      fixed.push(`L3Function 폴백 생성 ${missingL3FuncData.length}건 (L3Structure명 사용)`);
+      // 새로 생성된 L3Function을 메모리에도 반영 (이후 orphan 로직에서 사용)
+      l3Funcs.push(...missingL3FuncData);
+    } catch (err) {
+      console.error('[fixStep3Uuid] L3Function 폴백 생성 오류:', err);
+    }
+  }
+
   const orphans = l3Funcs.filter((f: any) => !fcPcIds.has(f.id) && !fcL3Ids.has(f.id));
 
   // ★ createMany로 일괄 생성 (개별 create 루프 금지 — Rule 0.6)
@@ -839,6 +873,70 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
     return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
   };
 
+  // ★★★ 2026-03-18 FIX: RA 없는 FailureLink에 RiskAnalysis 자동생성 (STEP 6 근본 수정) ★★★
+  const linkedRaLinkIds = new Set(ras.map((r: any) => r.linkId));
+  const unlinkedFls = fls.filter((fl: any) => !linkedRaLinkIds.has(fl.id));
+
+  if (unlinkedFls.length > 0) {
+    const newRaData: Array<{ id: string; fmeaId: string; linkId: string; severity: number; occurrence: number; detection: number; ap: string; preventionControl: string | null; detectionControl: string | null }> = [];
+    for (const fl of unlinkedFls) {
+      const uk = `${fl.fmId}-${fl.fcId}`;
+      // riskData에서 SOD/PC/DC 추출 시도
+      const wsS = Number(riskData[`risk-${uk}-S`]) || 0;
+      const wsO = Number(riskData[`risk-${uk}-O`]) || 0;
+      const wsD = Number(riskData[`risk-${uk}-D`]) || 0;
+      const wsPrev = typeof riskData[`prevention-${uk}`] === 'string' ? riskData[`prevention-${uk}`] : null;
+      const wsDet = typeof riskData[`detection-${uk}`] === 'string' ? riskData[`detection-${uk}`] : null;
+
+      const s = wsS > 0 ? wsS : 0;
+      const o = wsO > 0 ? wsO : 0;
+      const d = wsD > 0 ? wsD : 0;
+      const ap = (s > 0 && o > 0 && d > 0) ? (calcAPServer(s, o, d) || 'L') : 'L';
+
+      newRaData.push({
+        id: `ra-${fl.id}`,
+        fmeaId,
+        linkId: fl.id,
+        severity: s,
+        occurrence: o,
+        detection: d,
+        ap,
+        preventionControl: wsPrev,
+        detectionControl: wsDet,
+      });
+    }
+
+    try {
+      await prisma.riskAnalysis.createMany({ data: newRaData, skipDuplicates: true });
+      fixed.push(`누락 RA 자동생성 ${newRaData.length}건 (FailureLink 1:1 보장)`);
+      // 새로 생성된 RA를 메모리에 반영 (이후 SOD/PC/DC 피어 채움에서 활용)
+      ras.push(...newRaData);
+      // 피어 맵 갱신
+      for (const ra of newRaData) {
+        const fl = flById.get(ra.linkId);
+        if (!fl) continue;
+        if (ra.occurrence > 0) {
+          if (!fmPeerO.has(fl.fmId)) fmPeerO.set(fl.fmId, []);
+          fmPeerO.get(fl.fmId)!.push(ra.occurrence);
+        }
+        if (ra.detection > 0) {
+          if (!fmPeerD.has(fl.fmId)) fmPeerD.set(fl.fmId, []);
+          fmPeerD.get(fl.fmId)!.push(ra.detection);
+        }
+        if (ra.detectionControl?.trim()) {
+          if (!fmPeerDC.has(fl.fmId)) fmPeerDC.set(fl.fmId, []);
+          fmPeerDC.get(fl.fmId)!.push(ra.detectionControl.trim());
+        }
+        if (ra.preventionControl?.trim()) {
+          if (!fmPeerPC.has(fl.fmId)) fmPeerPC.set(fl.fmId, []);
+          fmPeerPC.get(fl.fmId)!.push(ra.preventionControl.trim());
+        }
+      }
+    } catch (err) {
+      console.error('[fixStep6Opt] 누락 RA 자동생성 오류:', err);
+    }
+  }
+
   let sodSynced = 0;
   let apRecalced = 0;
   let oFilled = 0;
@@ -961,10 +1059,26 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   if (pcFilled > 0) fixed.push(`PC 미입력 자동채움 ${pcFilled}건 (동일FM 피어최빈값)`);
   if (apRecalced > 0) fixed.push(`AP 재계산 ${apRecalced}건`);
 
+  // ★★★ 2026-03-18 FIX: Opt→RA FK 고아 정리 (rebuild-atomic 후 RA ID 변경으로 발생) ★★★
+  const validRaIds = new Set(ras.map((r: any) => r.id));
+  const orphanOpts = opts.filter((o: { riskId: string }) => !validRaIds.has(o.riskId));
+  if (orphanOpts.length > 0) {
+    const orphanOptIds = orphanOpts.map((o: { id: string }) => o.id);
+    try {
+      await prisma.optimization.deleteMany({ where: { id: { in: orphanOptIds } } });
+      fixed.push(`Opt→RA FK 고아 삭제 ${orphanOptIds.length}건 (rebuild 후 RA ID 변경)`);
+      const orphanIdSet = new Set(orphanOptIds);
+      const remainingOpts = opts.filter((o: { id: string }) => !orphanIdSet.has(o.id));
+      opts.length = 0;
+      opts.push(...remainingOpts);
+    } catch (err) {
+      console.error('[fixStep6Opt] 고아 Optimization 삭제 오류:', err);
+    }
+  }
+
   // ── WS(riskData) → DB 개선안 동기화 ──
   const raByLink = new Map<string, { id: string; ap: string; severity: number; occurrence: number; detection: number; linkId: string }>();
   for (const ra of ras) raByLink.set(ra.linkId, { ...ra, linkId: ra.linkId });
-
   const existingOptRiskIds = new Set<string>(opts.map((o: { riskId: string }) => o.riskId));
 
   let wsSynced = 0;
