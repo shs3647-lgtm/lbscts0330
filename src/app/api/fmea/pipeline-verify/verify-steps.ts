@@ -599,7 +599,7 @@ const AP_TABLE_SERVER = [
   { sMin: 2, sMax: 3,  oMin: 1, oMax: 1,  d: ['M','L','L','L'] as const },
 ];
 
-function calcAPServer(s: number, o: number, d: number): 'H' | 'M' | 'L' | null {
+export function calcAPServer(s: number, o: number, d: number): 'H' | 'M' | 'L' | null {
   if (s <= 0 || o <= 0 || d <= 0) return null;
   if (s === 1) return 'L';
   const dIdx = d >= 7 ? 0 : d >= 5 ? 1 : d >= 2 ? 2 : 3;

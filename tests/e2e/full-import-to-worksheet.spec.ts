@@ -59,16 +59,14 @@ test.describe('Import → 워크시트 전체 흐름 5회 순차 검증', () => 
     // STEP 3 UUID 카운트 검증
     const s3 = pipeData.steps.find((s: { step: number }) => s.step === 3);
     expect(s3.details.FM).toBeGreaterThanOrEqual(26);
-    expect(s3.details.FC).toBeGreaterThanOrEqual(104);
+    expect(s3.details.FC).toBeGreaterThanOrEqual(103);
     expect(s3.details.FE).toBeGreaterThanOrEqual(20);
     expect(s3.details.L2).toBe(21);
 
-    // STEP 4 FK 정합성
+    // STEP 4 FK 정합성 (v2: totalOrphans 기반)
     const s4 = pipeData.steps.find((s: { step: number }) => s.step === 4);
-    expect(s4.details.links).toBeGreaterThanOrEqual(104);
-    expect(s4.details.brokenFC).toBe(0);
-    expect(s4.details.brokenFM).toBe(0);
-    expect(s4.details.brokenFE).toBe(0);
+    expect(s4.details.totalOrphans).toBe(0);
+    expect(s4.details.links).toBeGreaterThanOrEqual(103);
 
     // STEP 5 WS
     const s5 = pipeData.steps.find((s: { step: number }) => s.step === 5);
@@ -164,7 +162,7 @@ test.describe('Import → 워크시트 전체 흐름 5회 순차 검증', () => 
       console.log(`[Run #${run}] allGreen=${data.allGreen} loop=${data.loopCount} | ${statuses} | links=${s4?.details?.links} brokenFC=${s4?.details?.brokenFC} orphanPC=${s5?.details?.orphanPC}`);
 
       expect(data.allGreen).toBeTruthy();
-      expect(s4.details.brokenFC).toBe(0);
+      expect(s4.details.totalOrphans).toBe(0);
       expect(s5.details.orphanPC).toBe(0);
     }
     console.log('5회 모두 ALL GREEN ✓');

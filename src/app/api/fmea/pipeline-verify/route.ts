@@ -15,6 +15,7 @@ import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-sc
 import {
   type StepResult, type PipelineResult, type StepStatus,
   verifyImport, verifyParsing, verifyUuid, verifyFk, verifyWs, verifyOptimization,
+  calcAPServer,
 } from './verify-steps';
 
 export const runtime = 'nodejs';
@@ -741,6 +742,75 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
   return fixed;
 }
 
+// ─── STEP 6: OPT 자동수정 — SOD riskData→DB 동기화 + AP 재계산 ───
+
+async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
+  const fixed: string[] = [];
+
+  const [fls, ras, legacy] = await Promise.all([
+    prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } }),
+    prisma.riskAnalysis.findMany({ where: { fmeaId } }),
+    prisma.fmeaLegacyData.findUnique({ where: { fmeaId } }),
+  ]);
+
+  const riskData = (legacy?.data as any)?.riskData || {};
+  const flById = new Map<string, { fmId: string; fcId: string }>();
+  for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId });
+
+  let sodSynced = 0;
+  let apRecalced = 0;
+
+  for (const ra of ras) {
+    const fl = flById.get(ra.linkId);
+    if (!fl) continue;
+    const uk = `${fl.fmId}-${fl.fcId}`;
+
+    const wsS = Number(riskData[`risk-${uk}-S`]) || 0;
+    const wsO = Number(riskData[`risk-${uk}-O`]) || 0;
+    const wsD = Number(riskData[`risk-${uk}-D`]) || 0;
+
+    let needsUpdate = false;
+    let newS = ra.severity;
+    let newO = ra.occurrence;
+    let newD = ra.detection;
+
+    // SOD 동기화: riskData에 값이 있고 DB가 0인 경우 → riskData 값 사용
+    if ((!ra.severity || ra.severity <= 0) && wsS > 0) { newS = wsS; needsUpdate = true; }
+    if ((!ra.occurrence || ra.occurrence <= 0) && wsO > 0) { newO = wsO; needsUpdate = true; }
+    if ((!ra.detection || ra.detection <= 0) && wsD > 0) { newD = wsD; needsUpdate = true; }
+
+    // AP 재계산
+    const currentAP = ra.ap || '';
+    const expectedAP = calcAPServer(newS, newO, newD);
+    if (expectedAP && expectedAP !== currentAP) {
+      needsUpdate = true;
+      apRecalced++;
+    }
+
+    if (needsUpdate) {
+      try {
+        await prisma.riskAnalysis.update({
+          where: { id: ra.id },
+          data: {
+            severity: newS,
+            occurrence: newO,
+            detection: newD,
+            ap: expectedAP || currentAP,
+          },
+        });
+        sodSynced++;
+      } catch (err) {
+        console.error(`[fixStep6Opt] RA update 실패: ${ra.id}`, err instanceof Error ? err.message : '');
+      }
+    }
+  }
+
+  if (sodSynced > 0) fixed.push(`SOD riskData→DB 동기화 ${sodSynced}건`);
+  if (apRecalced > 0) fixed.push(`AP 재계산 ${apRecalced}건`);
+
+  return fixed;
+}
+
 // ─── 메인 검증+수정 루프 ───
 
 async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean): Promise<PipelineResult> {
@@ -784,8 +854,8 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
         } else if (stepImport.status === 'error') {
           return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
         }
-      } else if (stepImport.status === 'warn' || stepImport.status === 'error') {
-        // ★ Atomic↔Legacy 교차검증 불일치 → rebuild-atomic으로 재동기화
+      } else if (i === 0 && (stepImport.status === 'warn' || stepImport.status === 'error')) {
+        // ★ 첫 루프에서만 rebuild-atomic 실행 (반복 방지)
         try {
           const rebuildRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(fmeaId)}`, {
             method: 'POST',
@@ -833,6 +903,14 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       const fixes = await fixStep5Ws(prisma, fmeaId);
       stepWs.fixed = fixes;
       if (fixes.length > 0) stepWs.status = 'fixed';
+    }
+
+    // STEP 6 (OPT) — SOD riskData→DB 동기화 + AP 재계산
+    const stepOpt = steps.find(s => s.name === 'OPT');
+    if (stepOpt && stepOpt.status !== 'ok') {
+      const fixes = await fixStep6Opt(prisma, fmeaId);
+      stepOpt.fixed = fixes;
+      if (fixes.length > 0) stepOpt.status = 'fixed';
     }
 
     const anyFixed = steps.some(s => s.fixed.length > 0);
