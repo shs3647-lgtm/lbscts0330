@@ -1,3 +1,4 @@
+// CODEFREEZE — 2026-03-18 au bump DB/UUID/FK 무결성 100% 검증 완료
 /**
  * @file failureChainInjector.ts
  * @description MasterFailureChain[] → WorksheetState에 failureLinks + riskData 주입

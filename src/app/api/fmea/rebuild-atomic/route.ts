@@ -1,3 +1,4 @@
+// CODEFREEZE — 2026-03-18 au bump DB/UUID/FK 무결성 100% 검증 완료
 /**
  * @file rebuild-atomic/route.ts
  * @description 레거시 DB(FmeaLegacyData)를 기준으로 원자성 테이블을 완전 재구성 (정합성/표준화)

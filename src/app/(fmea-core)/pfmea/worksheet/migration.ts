@@ -1014,7 +1014,7 @@ export function convertToLegacyFormat(db: FMEAWorksheetDB): OldWorksheetData {
         name: l3.name,
         order: l3.order,
         functions: [],
-        failureCauses: [], // ⚠️ 빈 배열로 유지 (실제로는 proc.failureCauses에 저장됨)
+        failureCauses: [],
       };
       
       // L3 기능 그룹화

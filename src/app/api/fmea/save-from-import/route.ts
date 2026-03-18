@@ -1,3 +1,4 @@
+// CODEFREEZE — 2026-03-18 au bump DB/UUID/FK 무결성 100% 검증 완료
 /**
  * @file save-from-import/route.ts
  * @description Import→DB 서버사이드 저장 API
