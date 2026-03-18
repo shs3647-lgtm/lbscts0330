@@ -939,32 +939,15 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       return { fmeaId, steps, allGreen: allOk, loopCount, timestamp: new Date().toISOString() };
     }
 
-    // ★ Step 6 (OPT) 자동수정을 먼저 실행 — Steps 0-5 ok 여부와 무관
-    const stepOptEarly = steps.find(s => s.name === 'OPT');
-    if (stepOptEarly && stepOptEarly.status !== 'ok') {
-      const fixes = await fixStep6Opt(prisma, fmeaId);
-      stepOptEarly.fixed = fixes;
-      if (fixes.length > 0) stepOptEarly.status = 'fixed';
-    }
-
-    // 전체 단계(0~6) allGreen 판정
-    const allOk = steps.every(s => s.status === 'ok' || s.status === 'fixed');
-    if (allOk) {
+    // 전체 단계(0~6) allGreen 사전 판정
+    const allOkBefore = steps.every(s => s.status === 'ok');
+    if (allOkBefore) {
       return { fmeaId, steps, allGreen: true, loopCount, timestamp: new Date().toISOString() };
     }
 
-    // Steps 0-5 중 수정 가능한 것이 있는지 확인
-    const coreSteps = steps.filter(s => s.step <= 5);
-    const coreAllOk = coreSteps.every(s => s.status === 'ok' || s.status === 'fixed');
-    if (coreAllOk) {
-      // Steps 0-5는 ok인데 Step 6만 남은 경우 — Step 6는 이미 위에서 fix 시도함
-      const finalAllGreen = steps.every(s => s.status === 'ok' || s.status === 'fixed');
-      return { fmeaId, steps, allGreen: finalAllGreen, loopCount, timestamp: new Date().toISOString() };
-    }
+    // ── Steps 0-5 자동수정 (먼저 실행 — rebuild-atomic이 RA를 재생성할 수 있으므로) ──
 
-    // ★ warn도 자동수정 대상 — error + warn 모두 fix 시도
-
-    // STEP 1 (IMPORT) — 교차검증 불일치 시 rebuild-atomic으로 동기화
+    // STEP 1 (IMPORT)
     const stepImport = steps.find(s => s.name === 'IMPORT');
     if (stepImport && stepImport.status !== 'ok') {
       const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
@@ -980,7 +963,6 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
           return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
         }
       } else if (i === 0 && (stepImport.status === 'warn' || stepImport.status === 'error')) {
-        // ★ 첫 루프에서만 rebuild-atomic 실행 (반복 방지)
         try {
           const rebuildRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(fmeaId)}`, {
             method: 'POST',
@@ -998,7 +980,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       }
     }
 
-    // STEP 2 (파싱) — C계열 미동기화 + 빈 공정특성 자동수정
+    // STEP 2 (파싱)
     const stepParsing = steps.find(s => s.name === '파싱');
     if (stepParsing && stepParsing.status !== 'ok') {
       const fixes = await fixStep2Parsing(prisma, fmeaId);
@@ -1022,12 +1004,20 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       if (fixes.length > 0) stepFk.status = 'fixed';
     }
 
-    // STEP 5 (WS) — 빈 공정특성 자동수정 (Master + Atomic DB 조회)
+    // STEP 5 (WS)
     const stepWs = steps.find(s => s.name === 'WS');
     if (stepWs && stepWs.status !== 'ok') {
       const fixes = await fixStep5Ws(prisma, fmeaId);
       stepWs.fixed = fixes;
       if (fixes.length > 0) stepWs.status = 'fixed';
+    }
+
+    // ── Step 6 (OPT) 자동수정 — Steps 0-5 fix 이후 실행 (rebuild-atomic 영향 반영) ──
+    const stepOpt = steps.find(s => s.name === 'OPT');
+    if (stepOpt && stepOpt.status !== 'ok') {
+      const fixes = await fixStep6Opt(prisma, fmeaId);
+      stepOpt.fixed = fixes;
+      if (fixes.length > 0) stepOpt.status = 'fixed';
     }
 
     const anyFixed = steps.some(s => s.fixed.length > 0);

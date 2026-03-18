@@ -189,7 +189,6 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
               fmeaId={fmeaId}
               onImportComplete={() => {
                 runVerify();
-                window.location.reload();
               }}
             />
           ) : (
