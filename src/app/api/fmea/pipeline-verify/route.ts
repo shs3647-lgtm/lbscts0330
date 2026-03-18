@@ -1060,10 +1060,10 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   if (apRecalced > 0) fixed.push(`AP 재계산 ${apRecalced}건`);
 
   // ★★★ 2026-03-18 FIX: Opt→RA FK 고아 정리 (rebuild-atomic 후 RA ID 변경으로 발생) ★★★
-  const validRaIds = new Set(ras.map((r: any) => r.id));
-  const orphanOpts = opts.filter((o: { riskId: string }) => !validRaIds.has(o.riskId));
-  if (orphanOpts.length > 0) {
-    const orphanOptIds = orphanOpts.map((o: { id: string }) => o.id);
+  const validRaIds2 = new Set(ras.map((r: any) => r.id));
+  const orphanOpts2 = opts.filter((o: { riskId: string }) => !validRaIds2.has(o.riskId));
+  if (orphanOpts2.length > 0) {
+    const orphanOptIds = orphanOpts2.map((o: { id: string }) => o.id);
     try {
       await prisma.optimization.deleteMany({ where: { id: { in: orphanOptIds } } });
       fixed.push(`Opt→RA FK 고아 삭제 ${orphanOptIds.length}건 (rebuild 후 RA ID 변경)`);

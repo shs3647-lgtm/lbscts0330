@@ -1,7 +1,7 @@
 # FMEA OnPremise 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-07 07:10
-> **총 테스트**: 71파일 / 1235테스트 ALL PASS | **빌드**: 233페이지 성공 | **tsc**: 에러 0개
+> **최종 업데이트**: 2026-03-18 19:30
+> **총 테스트**: 255파일 (172 E2E + 81 Unit + 2 기타) / 122 Unit PASS | **빌드**: 200페이지 성공 | **tsc**: 에러 0개
 
 ---
 
@@ -13,6 +13,7 @@
 | 2026-03-07 | 05:45 | 테스트 커버리지 현황 섹션 추가 (212개 테스트 모듈별 분류) | Claude |
 | 2026-03-07 | 06:30 | CRITICAL 4건 + HIGH 2건 수정, 테스트 1235개 전체 통과 확인 | Claude |
 | 2026-03-07 | 07:10 | 03-04~03-07 전체 커밋 81건 분석 → 체크리스트/트러블슈팅/이력 대폭 보강 | Claude |
+| 2026-03-18 | 19:30 | 03-07~03-18 전체 커밋 219건 분석 → 6대 신규 기능/파이프라인 6단계/모듈 정리 반영 | Claude |
 
 ---
 
@@ -21,9 +22,9 @@
 1. [PFMEA 워크시트 탭별 동작 체크리스트](#1-pfmea-워크시트-탭별-동작-체크리스트)
 2. [CP (관리계획서) 동작 체크리스트](#2-cp-관리계획서-동작-체크리스트)
 3. [PFD (공정흐름도) 동작 체크리스트](#3-pfd-공정흐름도-동작-체크리스트)
-4. [DFMEA 동작 체크리스트](#4-dfmea-동작-체크리스트)
-5. [등록/개정/결재 동작 체크리스트](#5-등록개정결재-동작-체크리스트)
-6. [모듈간 연동 체크리스트](#6-모듈간-연동-체크리스트)
+4. [등록/개정/결재 동작 체크리스트](#4-등록개정결재-동작-체크리스트)
+5. [모듈간 연동 체크리스트](#5-모듈간-연동-체크리스트)
+6. [파이프라인 검증 6단계](#6-파이프라인-검증-6단계)
 7. [트러블슈팅 가이드](#7-트러블슈팅-가이드)
 8. [회귀 테스트 명령어 모음](#8-회귀-테스트-명령어-모음)
 9. [테스트 커버리지 현황](#9-테스트-커버리지-현황)
@@ -129,6 +130,11 @@
 | OP-02 | 발생도(O) 자동 | 교육=5, 육안=7 | AIAG-VDA v3.0 기준 | |
 | OP-03 | 검출도(D) 자동 | 비전=3 | AIAG-VDA v3.0 기준 | |
 | OP-04 | specialChar 매칭 | 3-tier lookup | riskData→master→l2 (097580f6) | |
+| OP-05 | D값 자동매칭 재평가 | DC 변경 시 | DC 변경 시 항상 재계산 (0465a51) | |
+| OP-06 | Step 6 OPT autofix | AP=H/M 자동 | Optimization 자동생성 + AP recalc (d9610fa) | |
+| OP-07 | DC/PC 피어 자동채움 | 동일FM 피어값 | 최빈값 기반 빈 DC/PC 채움 (c1ebf7b) | |
+| OP-08 | O/D 누락 자동채움 | 피어 중앙값 | 모두 NULL 시 default=1 (6cbd49a) | |
+| OP-09 | SOD riskData 동기화 | Atomic↔riskData | 양방향 sync (8c6c8fc) | |
 
 ### 1.9 Import
 
@@ -150,6 +156,17 @@
 | IM-14 | C2/C3 업종별 DB 추론 | 전기전자 업종 | C2≤C4 계층 보장 (1bef26ad) | |
 | IM-15 | A6 검출관리 + B5 예방관리 | fcChains 추출 | 누락 근본 해결 (a01c5c97) | |
 | IM-16 | 완제품명 자동추출 | subject → partName | 누락 재발 방지 (b4986c45) | |
+| IM-17 | UUID 결정론적 매칭 | uid()→genXxx() | 텍스트 역매칭 제거 (47d77c9) | |
+| IM-18 | FC 100% 매칭 | 104건 전수 | 마스터 FMEA FC 100% 일치 (85f3fb2) | |
+| IM-19 | C3→C2 parentItemId | rowSpan 기반 | UUID FK 매핑 (3799d42) | |
+| IM-20 | L1Requirement 테이블 분리 | C3 데이터 | 별도 테이블 + 스키마 (aa994e4) | |
+| IM-21 | ImportMapping DB 영구저장 | 매핑 결과 | 영구 파이프라인 (c553a2c) | |
+| IM-22 | ImportValidation 16규칙 | 정합성 검증 | SSoT/PK/FK/orphan 16규칙 (5470d8b) | |
+| IM-23 | 마스터 FMEA Export | JSON+Excel | data/master-fmea/ 저장 (5470d8b) | |
+| IM-24 | 카테시안 복제 방지 | A4 공유생성 | ProcessProductChar 1회 생성 (fb143df) | |
+| IM-25 | A6/B5 riskData 중복검사 | exact match | substring→exact line match (9d71cf5) | |
+| IM-26 | processNo 정규화 | 01 vs 1 통일 | B1 작업요소 16건 누락 해소 (b50761e) | |
+| IM-27 | 수동/자동 모드 분리 | 탭 복원 | 모드별 검증 범위 분리 (85fb736) | |
 
 ---
 
@@ -211,25 +228,11 @@
 
 ---
 
-## 4. DFMEA 동작 체크리스트
+> **DFMEA 모듈**: 2026-03-08 전면 삭제 (커밋 `a2f9a4d`, `32264a0`). PFMEA/CP/PFD 전용 앱으로 전환.
 
-| # | 테스트 항목 | 동작 | 확인 방법 | 상태 |
-|---|-----------|------|----------|------|
-| DF-01 | 등록 화면 | 신규 DFMEA 등록 | 폼 입력 + DB 저장 | |
-| DF-02 | Import | 엑셀 업로드 | 파싱 성공 | |
-| DF-03 | 워크시트 탭 전환 | 구조→기능→고장→ALL | 데이터 유지 | |
-| DF-04 | CP 연동 | syncDfmeaCP | 동기화 정상 (1b930d22) | |
-| DF-05 | 리스트 표시 | modulePrefix | 'dfm' 접두사 정상 (77ebf8e7) | |
-| DF-06 | SOD 데이터 | 정오표 반영 | 엑셀 기준 정밀 (762fb7ee) | |
-| DF-07 | setStateSynced | 상태 동기화 | setState→setStateSynced 전환 (b0e6405e) | |
-| DF-08 | ALL 탭 Export | 엑셀 내보내기 | PFMEA+DFMEA 전체 (41bf3b70) | |
-| DF-09 | 사이드바 | FMEA4판 | 비활성화 상태 (9a7af940) | |
+## 4. 등록/개정/결재 동작 체크리스트
 
----
-
-## 5. 등록/개정/결재 동작 체크리스트
-
-### 5.1 등록 (Register)
+### 4.1 등록 (Register)
 
 | # | 테스트 항목 | 동작 | 확인 방법 | 상태 |
 |---|-----------|------|----------|------|
@@ -245,8 +248,13 @@
 | RG-10 | 기초정보 접힘/펼침 | 등록 화면 | 아코디언 UX (24616d6a) | |
 | RG-11 | API 병렬화 | 등록 화면 로드 | 로딩 속도 개선 (24616d6a) | |
 | RG-12 | Help 버튼 위치 | TopNav EN 좌측 | 위치 이동 (3ec9b200) | |
+| RG-13 | Triplet M/F/P 연동 | TripletGroup 생성 | Master→Family→Part 연동 (f596d0e) | |
+| RG-14 | CP/PFD Lazy Creation | 등록 시 자동생성 | Family CP/PFD Lazy API (344b299) | |
+| RG-15 | LBS 특별특성 | CC/SC→★/◇ | SpecialCharBadge 전면 전환 (8824f29) | |
+| RG-16 | 서버사이드 페이지네이션 | 등록 리스트 | 대량 데이터 성능 개선 (f30bc12) | |
+| RG-17 | 휴지통 기능 | soft-delete 복원 | 삭제/복원 정상 (f30bc12) | |
 
-### 5.2 개정 (Revision)
+### 4.2 개정 (Revision)
 
 | # | 테스트 항목 | 동작 | 확인 방법 | 상태 |
 |---|-----------|------|----------|------|
@@ -256,7 +264,7 @@
 | RV-04 | 개정 저장 후 배지 | 기초정보 확인 | 수정(Import)/사용(워크시트) 선택 (22d7a00b) | |
 | RV-05 | CFT Leader 연동 | 자동 | 부서/직급 자동 채움 (636d06db) | |
 
-### 5.3 결재 (Approval)
+### 4.3 결재 (Approval)
 
 | # | 테스트 항목 | 동작 | 확인 방법 | 상태 |
 |---|-----------|------|----------|------|
@@ -267,7 +275,7 @@
 
 ---
 
-## 6. 모듈간 연동 체크리스트
+## 5. 모듈간 연동 체크리스트
 
 | # | 테스트 항목 | 동작 | 확인 방법 | 상태 |
 |---|-----------|------|----------|------|
@@ -279,11 +287,107 @@
 | LN-06 | 연동 CP/PFD 클릭 | 리스트 이동 | 갯수 선택 모든 타입 (fe2b8c92) | |
 | LN-07 | processChar 교차매핑 | CP 재생성 | 52/55건 정상 (0132a69a) | |
 | LN-08 | FM 갭 피드백 루프 | Import↔WS | 양방향 동기화 (d9021a5a) | |
-| LN-09 | DFMEA→CP 연동 | syncDfmeaCP | 동기화 정상 | |
+| LN-09 | Triplet 수평배포 | CP/PFD 동시생성 | 3앱 공유 생성 로직 (344b299) | |
+| LN-10 | 특별특성 동기화 | SC매핑 sync API | special-char sync (290d80d) | |
+
+---
+
+## 6. 파이프라인 검증 6단계
+
+> **API**: `/api/fmea/pipeline-verify` (GET=조회, POST=자동수정 루프)
+> **골든 베이스라인**: pfm26-m066 (12inch Au Bump)
+
+### 6.1 6단계 검증 항목
+
+| 단계 | 이름 | 검증 대상 | 자동수정 | 관련 커밋 |
+|------|------|----------|---------|----------|
+| STEP 0 | SAMPLE | 원본 엑셀 데이터 카운트 | ❌ | 15051c5 |
+| STEP 1 | IMPORT | Legacy 데이터 존재, L2 공정 수 | ❌ (사용자 개입) | 926be6e |
+| STEP 2 | 파싱 | A1~A6, B1~B5, C1~C4 카운트 | ✅ fixStep2Parsing | 9ae0e2e |
+| STEP 3 | UUID | Atomic DB L2/L3/FM/FE/FC, orphan L3Func | ✅ fixStep3Uuid | bc43038 |
+| STEP 4 | FK | FailureLink FK 정합성, unlinked FC | ✅ fixStep4Fk | d66d6e2 |
+| STEP 5 | WS | Legacy 워크시트 PC 빈칸, orphan PC | ✅ fixStep5Ws | 926be6e |
+| STEP 6 | OPT | AP=H/M Optimization, DC/PC peer fill, SOD sync | ✅ fixStep6Opt | d9610fa |
+
+### 6.2 골든 베이스라인 (pfm26-m066)
+
+| 항목 | 기대값 | PASS 기준 |
+|------|--------|-----------|
+| L2 (공정) | 21 | = 21 |
+| L3 (작업요소) | 91 | = 91 |
+| FM (고장형태) | 26 | = 26 |
+| FE (고장영향) | 20 | = 20 |
+| FC (고장원인) | 104 | = 104 |
+| FailureLink | 104 | = 104 |
+| RiskAnalysis | 104 | = 104 |
+| DC (검출관리) | 104 | NULL 0건 |
+| PC (예방관리) | 104 | NULL 0건 |
+
+### 6.3 Step 6 OPT 자동수정 상세
+
+| # | 자동수정 항목 | 방법 | 검증 |
+|---|-------------|------|------|
+| OPT-01 | AP=H/M Optimization 자동생성 | 미존재 시 신규 생성 + AP recalc | 72건 불일치 해소 (d9610fa) |
+| OPT-02 | DC/PC 피어 자동채움 | 동일FM 그룹 최빈값 | 빈 DC/PC 0건 (c1ebf7b) |
+| OPT-03 | O/D 누락 자동채움 | 피어 중앙값, 모두 NULL→default=1 | O/D NULL 0건 (6cbd49a) |
+| OPT-04 | SOD riskData 동기화 | Atomic DB↔riskData 양방향 | SOD 불일치 0건 (8c6c8fc) |
+| OPT-05 | AP 재계산 | S×O×D→RPN→AP | 전체 104건 재계산 (d9610fa) |
+
+### 6.4 자동수정 루프 흐름
+
+```
+POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m066" }
+│
+├── Loop 1: 6단계 검증 실행
+│   ├── 모든 단계 ok → allGreen=true → 종료
+│   └── STEP 2~6 에러/경고 → 자동수정 실행
+│       ├── fixStep2Parsing → Atomic DB L1Function → Legacy 동기화
+│       ├── fixStep3Uuid → orphan L3Function에 FC 자동생성
+│       ├── fixStep4Fk → 깨진 FailureLink 삭제 + unlinked FC 연결
+│       ├── fixStep5Ws → 빈 PC 이름 복원 + orphan PC에 FC 보충
+│       └── fixStep6Opt → DC/PC peer fill + O/D default + AP recalc
+│
+├── Loop 2: 재검증 (수정 반영 확인)
+├── Loop 3: 최종 검증 (최대 3회)
+└── allGreen=true → 완료
+```
+
+### 6.5 마스터 FMEA 생성 표준
+
+| 항목 | 내용 |
+|------|------|
+| API | `POST /api/fmea/export-master { fmeaId }` |
+| JSON 출력 | `data/master-fmea/{fmeaId}.json` |
+| Excel 출력 | `PFMEA_Master_{subject}.xlsx` |
+| FC 검증 | 26 FM × 104 FC = 104 chains |
+| DC/PC 포함 | 104/104 (NULL 0건) |
 
 ---
 
 ## 7. 트러블슈팅 가이드
+
+### 7.0 신규 — 파이프라인/Import/마스터 (2026-03-07~18)
+
+| # | 증상 | 원인 | 해결 | 관련 커밋 |
+|---|------|------|------|----------|
+| T-32 | Master FMEA FC 2배 (200건) | A3마다 A4 복제 → 카테시안 곱 | ProcessProductChar 공정 단위 1회 생성 | `fb143df` |
+| T-33 | FC 미연결 50건 | procHasChains 조건 필터 | 조건 제거 + rebuild-atomic FK 검증 | `5a60a49` |
+| T-34 | FC 103건 누락 | syncFailureCausesFromState 누락 + fcIdx 이중증가 | sync 추가 + fcIdx 단일 증가 | `a2d3e68` |
+| T-35 | FC processCharId NULL 1574건 | GET 응답에 l3FuncId 폴백 없음 | l3FuncId 폴백 추가 + DB 일괄 수정 | `6802de0` |
+| T-36 | O/D 값 100% NULL | 피어 데이터 없음 | 피어 중앙값 + default=1 | `6cbd49a` |
+| T-37 | Step 2 C1/C2/C3=0 재발 | l1.types 이중 읽기 | 단일 패스 읽기 + 캐싱 | `bf0b2f5` |
+| T-38 | Step 6 autofix 루프 bypass | fix 전 allOk 체크 | fix→allOk 순서 변경 | `183e8c8` |
+| T-39 | C3 parentItemId 누락 4건 | C2 역순/중복drop/빈요구사항 | 3가지 수정 + L1Requirement 분리 | `089c466`, `aa994e4` |
+| T-40 | Hydration mismatch (register) | Date.now() 동적 값 | input name에서 동적 접미사 제거 | `27d747a` |
+| T-41 | HelpChatbot hydration 불일치 | typeof window 가드 | 가드 삭제 (SSR 호환) | `288fa5d` |
+| T-42 | D값 자동매칭 미재평가 | DC 변경 시 재계산 안 함 | 항상 재평가 로직 추가 | `0465a51` |
+| T-43 | B1 작업요소 16건 누락 | processNo 01 vs 1 불일치 | processNo NFKC 정규화 | `b50761e` |
+| T-44 | A6/B5 riskData 중복 | substring 매칭 오판 | exact line match 전환 | `9d71cf5` |
+| T-45 | FailureLink 저장 손실 | MERGE 방식 충돌 | DELETE-THEN-INSERT 전환 | `cdf0858` |
+| T-46 | 고장연결 미저장 (reload 시) | Atomic Path legacyData 미동기 | legacyData sync 추가 | `91c88c1` |
+| T-47 | distribute 균등배분 오류 | 잔존 distribute 패턴 | 전면 제거 → parentItemId FK 꽂아넣기 | `6edc6f2` |
+| T-48 | C4 고장영향 0건 | enrichStateFromChains FE 위치 | FE 위치 수정 + supplement C4 폴백 | `89c8af3` |
+| T-49 | Dashboard 데이터 로드 실패 | API 응답 에러 무시 | SRP 분리 + 에러 핸들링 개선 | `c67c798` |
 
 ### 7.1 PFMEA 워크시트
 
@@ -323,13 +427,7 @@
 | T-18 | 4M 빈 행에서 B1/B2/B3 누락 | rowM4 폴백 미처리 | MC로 통일 폴백 | `0d1beda1` |
 | T-19 | FMEA→PFD 연동 시 빈행 렌더링 | 빈행 처리 로직 | 근본 3건 수정 | `977f0a5a` |
 
-### 7.4 DFMEA 모듈
-
-| # | 증상 | 원인 | 해결 | 관련 커밋 |
-|---|------|------|------|----------|
-| T-20 | DFMEA 리스트 미표시 | modulePrefix 'pfm' 잘못 사용 | 'dfm'으로 수정 | `77ebf8e7` |
-| T-21 | DFMEA 타입 모듈 경로 오류 | import 경로 잘못된 참조 | 경로 보정 | `9a7af940` |
-| T-22 | setState 비동기 이슈 | setState로 상태 갱신 | setStateSynced로 전환 | `b0e6405e` |
+### 7.4 (삭제됨 — DFMEA 모듈 제거, 커밋 `a2f9a4d`)
 
 ### 7.5 연동/인증
 
@@ -349,6 +447,10 @@
 | T-29 | 연동 CP/PFD +N 뱃지 과다 표시 | 뱃지 집계 오류 | 모든 ID 개별 표시 | `6c5b507a` |
 | T-30 | MyJob DFMEA 표시 | 비활성화 모듈 노출 | DFMEA 제외 필터 | `c59496c1` |
 | T-31 | 비밀번호 해싱 불일치 | 로그인 실패 | 해싱 로직 수정 | `c59496c1` |
+| T-50 | tsc 에러 15건 | PipelineVerifyPanel 포탈 렌더링 등 | 전면 수정 | `e4623ee` |
+| T-51 | Playwright integration 폴더 오로드 | vitest 파일 오인식 | testIgnore 추가 | `bc376d1` |
+| T-52 | 결재 localStorage 버그 | 상태 영속화 실패 | DB 기반 전환 | `2b04b0a` |
+| T-53 | 연쇄삭제 경고 반복 | failureAnalyses 캐시 linkId 미감지 | 변경 감지 추가 | `9c4d54f` |
 
 ---
 
@@ -365,12 +467,25 @@ npx vitest run
 
 # 3단계: 프로덕션 빌드 (주요 변경 시)
 npm run build
+
+# 4단계: 파이프라인 검증 (FMEA 수정 시 필수)
+# PowerShell
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5
+
+# 5단계: 파이프라인 자동수정 + 재검증
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
+
+# 6단계: rebuild-atomic (RiskAnalysis DC/PC 최신화)
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m066" -Method POST | ConvertTo-Json -Depth 3
+
+# 7단계: 마스터 FMEA 재생성 + DC/PC 104/104 확인
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
 ```
 
 ### 8.2 모듈별 단위 테스트
 
 ```bash
-# PFMEA Import 관련 (18개 파일)
+# PFMEA Import 관련
 npx vitest run src/__tests__/import/
 
 # PFMEA 고장연결
@@ -399,6 +514,25 @@ npx vitest run src/__tests__/pfd-context-menu-handlers.test.ts
 
 # 연동 테스트
 npx vitest run src/__tests__/sync/
+```
+
+### 8.2a 파이프라인 검증 테스트 (신규)
+
+```bash
+# 파이프라인 6단계 E2E (3x pass 검증)
+npx playwright test tests/e2e/pipeline-verify.spec.ts
+
+# 마스터 FMEA FC 100% 검증
+npx playwright test tests/e2e/master-fmea.spec.ts
+
+# Import→워크시트 전체 흐름 (5회 회귀)
+npx playwright test tests/e2e/import-flow.spec.ts
+
+# LBS 특별특성 렌더링 + 동기화
+npx playwright test tests/e2e/special-char.spec.ts
+
+# Triplet M/F/P 배포 (19/19 PASS)
+npx playwright test tests/e2e/triplet-deployment.spec.ts
 ```
 
 ### 8.3 Playwright E2E (주요)
@@ -437,6 +571,12 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 | sortOrder 관련 | 해당 모듈 컨텍스트 메뉴 테스트 전체 |
 | DB 저장 큐 | `npx vitest run` (전체) |
 | SOD/RPN 데이터 | `npx vitest run src/__tests__/auto-fill-occurrence.test.ts` |
+| pipeline-verify | `npx playwright test tests/e2e/pipeline-verify.spec.ts` |
+| 마스터 FMEA 생성 | `npx playwright test tests/e2e/master-fmea.spec.ts` |
+| Import 파이프라인 | `npx playwright test tests/e2e/import-flow.spec.ts` |
+| 특별특성 (SC/CC) | `npx playwright test tests/e2e/special-char.spec.ts` |
+| Triplet/연동 | `npx playwright test tests/e2e/triplet-deployment.spec.ts` |
+| Step 6 OPT | pipeline-verify POST → Step 6 allGreen 확인 |
 
 ---
 
@@ -447,17 +587,18 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 | 모듈 | Unit | E2E | 합계 | 핵심 검증 영역 |
 |------|------|-----|------|---------------|
 | PFMEA 워크시트 | 15 | 35+ | 50+ | 구조/기능(L1~L3)/고장/ALL탭/모달 |
-| PFMEA Import | 20 | 4+ | 24+ | 엑셀 파싱, v3 마이그레이션, FC 파싱 |
+| PFMEA Import | 20 | 15+ | 35+ | 엑셀 파싱, UUID 결정론적 매칭, FC 100% |
+| 파이프라인 검증 | 5 | 25+ | 30+ | 6단계 파이프라인, 자동수정, 마스터 FMEA |
 | Control Plan | 4 | 20+ | 24+ | 컨텍스트 메뉴, 마스터, 동기화, Import |
 | PFD | 2 | 5+ | 7+ | 컨텍스트 메뉴, 동기화, 장비 |
-| DFMEA | 0 | 12+ | 12+ | 등록, 구조, 연동 |
-| 연동/통합 | 0 | 15+ | 15+ | 모듈간 동기화, 데이터 정합성 |
+| Triplet/연동 | 0 | 20+ | 20+ | M/F/P 배포, 모듈간 동기화 |
 | 상태/영속성 | 8 | 15+ | 23+ | DB 저장/로드, 카운트 일관성 |
+| 특별특성 LBS | 2 | 6+ | 8+ | ★/◇ 렌더링, 마스터 추천 |
 | 회귀/가드 | 3 | 10+ | 13+ | CODEFREEZE 보호, 회귀 방지 |
 | 레이아웃/렌더링 | 0 | 8+ | 8+ | 스크롤, 시각 검증 |
-| 특수기능 | 2 | 8+ | 10+ | 문서링크, 특수문자, 장비 |
+| 결재/인증 | 2 | 10+ | 12+ | 결재 흐름, 비밀번호, 역할 |
 | 디버그/진단 | 0 | 20+ | 20+ | 콘솔, DB 검증 |
-| **합계** | **54** | **158** | **212** | |
+| **합계** | **81** | **172** | **255** | |
 
 ### 9.2 핵심 회귀 방지 테스트 (수정 시 반드시 실행)
 
@@ -470,8 +611,12 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 | `b2b3-completeness-guard.test.ts` | B2/B3 완전성 | Import B2/B3 로직 수정 |
 | `failure-chain-injector-completeness.test.ts` | 고장사슬 완전성 | FM-FC 매칭 수정 |
 | `isPlaceholder-length-guard.test.ts` | Placeholder 길이 | 등록/저장 로직 수정 |
+| `pipeline-verify.spec.ts` | 6단계 파이프라인 | pipeline-verify API 수정 |
+| `master-fmea.spec.ts` | 마스터 FMEA FC 104건 | export-master API 수정 |
+| `import-flow.spec.ts` | Import→WS 전체 흐름 | Import 파이프라인 수정 |
+| `triplet-deployment.spec.ts` | M/F/P Triplet 연동 | TripletGroup/연동 수정 |
 
-### 9.3 최근 추가된 테스트 (2026-03-04 ~ 03-07)
+### 9.3 최근 추가된 테스트 (2026-03-04 ~ 03-18)
 
 | 테스트 | 모듈 | 검증 내용 |
 |--------|------|----------|
@@ -483,12 +628,55 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 | `pfd-context-menu-db.spec.ts` | PFD | DB 라운드트립 |
 | `pfd-context-menu-render.spec.ts` | PFD | 렌더링 검증 |
 | `context-menu-all-tabs.spec.ts` | PFMEA | 전탭 컨텍스트 메뉴 동작 |
+| `pipeline-verify.spec.ts` | 파이프라인 | 6단계 검증 + 자동수정 루프 (3x pass) |
+| `master-fmea.spec.ts` | 마스터 | JSON export + FC 100% 검증 |
+| `import-flow.spec.ts` | Import | Import→워크시트 전체 흐름 (5회 회귀) |
+| `special-char.spec.ts` | 특별특성 | LBS ★/◇ 렌더링 + sync |
+| `triplet-deployment.spec.ts` | Triplet | CP/PFD M/F/P 생성 (19/19 PASS) |
+| `accuracy-validation.spec.ts` | Import | 정확도 검증 6규칙 + 가이드라인 v2.0 |
 
 ---
 
 ## 10. 버그 수정 이력
 
-### 최근 수정 (2026-03-07 기준, 최신순)
+### 최근 수정 (2026-03-18 기준, 최신순)
+
+| 날짜 | 커밋 | 모듈 | 수정 내용 |
+|------|------|------|----------|
+| 03-18 | `fb48ef4` | 매뉴얼 | MAINTENANCE_MANUAL.md FORGE 검증 + SSR 호환성 개선 |
+| 03-17 | `fb143df` | 마스터 | Master FMEA 엑셀 카테시안 버그 수정 + FC/FA/A6/B5 복원 |
+| 03-16 | `d9610fa` | Step 6 | OPT autofix — AP=H/M Optimization 자동생성 + AP recalc |
+| 03-16 | `bf0b2f5` | 파이프라인 | Step 2 C1/C2/C3=0 재발 근본 수정 — l1.types 이중 읽기 |
+| 03-16 | `c1ebf7b` | Step 6 | DC/PC peer fill — 동일FM 피어 최빈값 자동채움 |
+| 03-16 | `6cbd49a` | Step 6 | O/D missing — peer median + default 1 |
+| 03-15 | `9ae0e2e` | 파이프라인 | STEP 2 교차검증 카운트 기준 통일 |
+| 03-15 | `8c6c8fc` | Step 6 | SOD riskData sync + AP recalc |
+| 03-14 | `68cde18` | 마스터 | Master FMEA v2 — C4 심각도 분리 + FC 104건 전수 |
+| 03-14 | `85f3fb2` | Import | 마스터 FMEA Import 완전 파이프라인 + FC 100% |
+| 03-13 | `ff9938a` | 파이프라인 | pipeline-verify CRITICAL 4건 수정 + CODEFREEZE |
+| 03-12 | `290d80d` | Import | Import 페이지 간소화 + PipelineStep0Detail + special-char sync |
+| 03-12 | `0465a51` | 최적화 | D값 자동매칭 — DC 변경 시 항상 재평가 |
+| 03-11 | `926be6e` | 파이프라인 | 5-stage pipeline verify — 통합 파이프라인 |
+| 03-11 | `c553a2c` | Import | ImportMapping DB 영구저장 파이프라인 |
+| 03-11 | `47d77c9` | Import | UUID 100% 결정론적 매칭 — 텍스트 역매칭 제거 |
+| 03-10 | `cdf0858` | 고장연결 | FC 저장/동기화 — DELETE-THEN-INSERT + 3단계 매칭 |
+| 03-10 | `5a60a49` | 고장연결 | FC 미연결 50건 — procHasChains 조건 제거 |
+| 03-10 | `a2d3e68` | 고장연결 | FC 103건 누락 — sync 추가 + fcIdx 이중증가 수정 |
+| 03-10 | `6802de0` | 고장연결 | FC processCharId NULL → l3FuncId 폴백 |
+| 03-09 | `aa994e4` | Import | L1Requirement 별도 테이블 분리 |
+| 03-09 | `089c466` | Import | L1 누락 4건 — C2 역순/중복drop/빈요구사항 수정 |
+| 03-09 | `27d747a` | 등록 | Hydration 불일치 — Date.now() 제거 |
+| 03-08 | `dc48e26` | Import | UUID 결정론적 리팩토링 — uid()→genXxx() |
+| 03-08 | `344b299` | Triplet | CP/PFD Triplet horizontal deploy |
+| 03-08 | `f596d0e` | Triplet | M/F/P Triplet 연동 시스템 구현 |
+| 03-08 | `8824f29` | 특별특성 | LBS CC/SC→★/◇ 전면 전환 |
+| 03-08 | `a2f9a4d` | 정리 | DFMEA/PM/WS/APQP 4개 모듈 삭제 |
+| 03-08 | `b50761e` | Import | processNo 정규화 B1 16건 누락 해소 |
+| 03-08 | `89c8af3` | Import | C4 고장영향 0건 — enrichStateFromChains FE 위치 수정 |
+| 03-08 | `2b04b0a` | 결재 | approval/revision 전면 수리 — localStorage 버그 |
+| 03-07 | `f661dab` | UI | 워크시트 PFD 버튼 삭제 + 5AP/6AP 닫기 버튼 |
+
+### 이전 수정 (2026-03-04~07 기준)
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|

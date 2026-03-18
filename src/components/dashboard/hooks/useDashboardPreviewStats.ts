@@ -48,7 +48,10 @@ export function useDashboardPreviewStats() {
       .then(r => r.json())
       .then(d => {
         if (!isMounted.current) return;
-        if (d.success) setStats(d.stats);
+        if (d.success) {
+          setStats(d.stats);
+          setError(false);
+        }
       })
       .catch((err) => {
         // ★ cleanup abort일 경우 상태 업데이트 하지 않음
