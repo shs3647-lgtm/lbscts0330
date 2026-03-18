@@ -757,8 +757,33 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   const flById = new Map<string, { fmId: string; fcId: string }>();
   for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId });
 
+  // 동일 FM(공정) 그룹별 유효 O/D 수집 — 피어 값 참조용
+  const fmPeerO = new Map<string, number[]>();
+  const fmPeerD = new Map<string, number[]>();
+  for (const ra of ras) {
+    const fl = flById.get(ra.linkId);
+    if (!fl) continue;
+    if (ra.occurrence > 0) {
+      if (!fmPeerO.has(fl.fmId)) fmPeerO.set(fl.fmId, []);
+      fmPeerO.get(fl.fmId)!.push(ra.occurrence);
+    }
+    if (ra.detection > 0) {
+      if (!fmPeerD.has(fl.fmId)) fmPeerD.set(fl.fmId, []);
+      fmPeerD.get(fl.fmId)!.push(ra.detection);
+    }
+  }
+  const median = (arr: number[]) => {
+    if (arr.length === 0) return 0;
+    const sorted = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+  };
+
   let sodSynced = 0;
   let apRecalced = 0;
+  let oFilled = 0;
+  let dFilled = 0;
+  const riskDataUpdates: Record<string, number> = {};
 
   for (const ra of ras) {
     const fl = flById.get(ra.linkId);
@@ -774,10 +799,34 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
     let newO = ra.occurrence;
     let newD = ra.detection;
 
-    // SOD 동기화: riskData에 값이 있고 DB가 0인 경우 → riskData 값 사용
+    // S 동기화: riskData 우선
     if ((!ra.severity || ra.severity <= 0) && wsS > 0) { newS = wsS; needsUpdate = true; }
-    if ((!ra.occurrence || ra.occurrence <= 0) && wsO > 0) { newO = wsO; needsUpdate = true; }
-    if ((!ra.detection || ra.detection <= 0) && wsD > 0) { newD = wsD; needsUpdate = true; }
+
+    // O 동기화: riskData → 동일 FM 피어 중앙값 → 기본값 1
+    if (!ra.occurrence || ra.occurrence <= 0) {
+      if (wsO > 0) {
+        newO = wsO; needsUpdate = true;
+      } else {
+        const peerO = median(fmPeerO.get(fl.fmId) || []);
+        newO = peerO > 0 ? peerO : 1;
+        needsUpdate = true;
+        riskDataUpdates[`risk-${uk}-O`] = newO;
+      }
+      oFilled++;
+    }
+
+    // D 동기화: riskData → 동일 FM 피어 중앙값 → 기본값 1
+    if (!ra.detection || ra.detection <= 0) {
+      if (wsD > 0) {
+        newD = wsD; needsUpdate = true;
+      } else {
+        const peerD = median(fmPeerD.get(fl.fmId) || []);
+        newD = peerD > 0 ? peerD : 1;
+        needsUpdate = true;
+        riskDataUpdates[`risk-${uk}-D`] = newD;
+      }
+      dFilled++;
+    }
 
     // AP 재계산
     const currentAP = ra.ap || '';
@@ -805,7 +854,24 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
     }
   }
 
-  if (sodSynced > 0) fixed.push(`SOD riskData→DB 동기화 ${sodSynced}건`);
+  // riskData 역동기화 — 자동채움 값을 WS에도 반영
+  if (Object.keys(riskDataUpdates).length > 0 && legacy) {
+    try {
+      const data = JSON.parse(JSON.stringify(legacy.data));
+      if (!data.riskData) data.riskData = {};
+      for (const [key, val] of Object.entries(riskDataUpdates)) {
+        data.riskData[key] = val;
+      }
+      await prisma.fmeaLegacyData.update({ where: { fmeaId }, data: { data } });
+      fixed.push(`riskData 역동기화 ${Object.keys(riskDataUpdates).length}건`);
+    } catch (err) {
+      console.error('[fixStep6Opt] riskData 역동기화 실패:', err instanceof Error ? err.message : '');
+    }
+  }
+
+  if (sodSynced > 0) fixed.push(`SOD DB 동기화 ${sodSynced}건`);
+  if (oFilled > 0) fixed.push(`O 미입력 자동채움 ${oFilled}건 (피어중앙값/기본1)`);
+  if (dFilled > 0) fixed.push(`D 미입력 자동채움 ${dFilled}건 (피어중앙값/기본1)`);
   if (apRecalced > 0) fixed.push(`AP 재계산 ${apRecalced}건`);
 
   return fixed;

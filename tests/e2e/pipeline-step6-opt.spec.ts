@@ -82,7 +82,9 @@ test.describe('Step 6 OPT 파이프라인 검증 + 자동수정', () => {
     // AP 불일치가 0이 되었는지 확인
     expect(s6After.details.apMismatch).toBe(0);
 
-    // O/D 미입력이 감소했는지 확인 (riskData에 값이 있는 것만 동기화)
+    // O/D 미입력이 0이 되었는지 확인 (피어중앙값/기본값 자동채움)
+    expect(s6After.details.missingO).toBe(0);
+    expect(s6After.details.missingD).toBe(0);
     console.log(`  missingO: ${s6After.details.missingO}, missingD: ${s6After.details.missingD}`);
   });
 
