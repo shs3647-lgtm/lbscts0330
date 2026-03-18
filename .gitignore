@@ -175,3 +175,4 @@ tests/e2e/screenshots/full-verify-*.png
 tests/e2e/import-regression-*.spec.ts
 tests/e2e/import-sa-fa-fc-verify.spec.ts
 tests/e2e/pipeline-full-verify.spec.ts
+scripts/db-counts.js
