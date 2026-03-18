@@ -1,15 +1,15 @@
 /**
- * Master FMEA 샘플 Excel 생성 스크립트 (v3 — chains 기반 완전 복원)
+ * Master FMEA 샘플 Excel 생성 스크립트 (v4 — chains-driven L3 + AIAG-VDA AP)
  *
  * 데이터 소스: data/master-fmea/{fmeaId}.json (JSON 우선, API fallback)
  *
- * 진단 보고서(2026-03-18) 지적 사항 전수 반영:
+ * v4 변경 (2026-03-18):
+ *   - L3 통합: chains-driven 방식 (각 chain=1행, B3-B4 정확 매칭)
+ *     기존 carry-forward B4 → 잘못된 B3-B4 연결 → FC 누락 원인 해결
+ *   - AP 계산: AIAG-VDA FMEA 1st Edition 공식 20행 테이블 적용
+ *     (기존 RPN 방식 → 시스템 apCalculator.ts와 동일한 테이블)
  *   - FC 고장사슬: chains 전수 매핑 (FC/DC/PC/SOD 완전 채움)
- *   - FA 통합분석: chains의 l2Function/productChar/l3Function/processChar 직접 사용
- *   - A6/B5: D:/P: 접두사 스트리핑 + chains에서 누락분 보충
- *   - L3: parentItemId 기반 그룹핑 (카테시안 버그 제거)
- *   - B4: chains에서 누락된 B4 자동 보충
- *   - 특별특성(★/◇): chains.specialChar 반영
+ *   - FA 통합분석: chains 직접 사용
  *
  * Usage: node scripts/generate-master-sample.mjs [fmeaId]
  */
@@ -32,6 +32,7 @@ const SHEET_DEFS = [
   { name: 'L2 통합(A1-A6)', headers: ['A1.공정번호', 'A2.공정명', 'A3.공정기능', 'A4.제품특성', '특별특성', 'A5.고장형태', 'A6.검출관리'] },
   { name: 'L3 통합(B1-B5)', headers: ['공정번호', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성', '고장원인(B4)', '예방관리(B5)'] },
   { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'S', 'O', 'D', 'AP'] },
+  { name: 'P-FMEA 고장분석', headers: ['고장영향(FE)', 'S', '고장형태(FM)', '고장원인(FC)'] },
   { name: 'FA 통합분석', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '공정No(A1)', '공정명(A2)', '공정기능(A3)', '제품특성(A4)', '특별특성(A4)', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'B5.예방관리', 'A6.검출관리'] },
   { name: 'VERIFY', headers: ['검증항목', '값', '설명'] },
 ];
@@ -133,19 +134,49 @@ function sortChains(chains) {
   });
 }
 
-// ─── AP 계산 ───
+// ─── AP 계산 (AIAG-VDA FMEA 1st Edition 공식 20행 테이블) ───
+
+const AP_TABLE = [
+  { s: '9-10', o: '8-10', d: ['H', 'H', 'H', 'H'] },
+  { s: '9-10', o: '6-7', d: ['H', 'H', 'H', 'H'] },
+  { s: '9-10', o: '4-5', d: ['H', 'H', 'H', 'M'] },
+  { s: '9-10', o: '2-3', d: ['H', 'M', 'L', 'L'] },
+  { s: '9-10', o: '1', d: ['L', 'L', 'L', 'L'] },
+  { s: '7-8', o: '8-10', d: ['H', 'H', 'H', 'H'] },
+  { s: '7-8', o: '6-7', d: ['H', 'H', 'H', 'M'] },
+  { s: '7-8', o: '4-5', d: ['H', 'M', 'M', 'M'] },
+  { s: '7-8', o: '2-3', d: ['M', 'M', 'L', 'L'] },
+  { s: '7-8', o: '1', d: ['L', 'L', 'L', 'L'] },
+  { s: '4-6', o: '8-10', d: ['H', 'H', 'M', 'M'] },
+  { s: '4-6', o: '6-7', d: ['M', 'M', 'M', 'L'] },
+  { s: '4-6', o: '4-5', d: ['M', 'L', 'L', 'L'] },
+  { s: '4-6', o: '2-3', d: ['L', 'L', 'L', 'L'] },
+  { s: '4-6', o: '1', d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3', o: '8-10', d: ['M', 'M', 'L', 'L'] },
+  { s: '2-3', o: '6-7', d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3', o: '4-5', d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3', o: '2-3', d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3', o: '1', d: ['L', 'L', 'L', 'L'] },
+];
 
 function calcAP(s, o, d) {
   const sv = Number(s) || 0, ov = Number(o) || 0, dv = Number(d) || 0;
-  if (sv >= 9 || (sv >= 7 && ov >= 4) || (sv * ov * dv >= 200)) return 'H';
-  if (sv >= 5 || (sv >= 3 && ov >= 3) || (sv * ov * dv >= 80)) return 'M';
-  return 'L';
+  if (sv === 0 || ov === 0 || dv === 0) return '';
+
+  const sRange = sv >= 9 ? '9-10' : sv >= 7 ? '7-8' : sv >= 4 ? '4-6' : sv >= 2 ? '2-3' : null;
+  if (!sRange) return 'L';
+
+  const oRange = ov >= 8 ? '8-10' : ov >= 6 ? '6-7' : ov >= 4 ? '4-5' : ov >= 2 ? '2-3' : '1';
+  const dIdx = dv >= 7 ? 0 : dv >= 5 ? 1 : dv >= 2 ? 2 : 3;
+
+  const row = AP_TABLE.find(r => r.s === sRange && r.o === oRange);
+  return row ? row.d[dIdx] : 'L';
 }
 
 // ─── 메인 ───
 
 async function main() {
-  console.log(`\n=== Master FMEA 샘플 생성 (v3): ${FMEA_ID} ===`);
+  console.log(`\n=== Master FMEA 샘플 생성 (v4 — chains-driven): ${FMEA_ID} ===`);
 
   const { flatData, chains, stats } = await loadData();
 
@@ -220,116 +251,116 @@ async function main() {
   }
 
   // ═══════════════════════════════════════════════════════
-  // L3 통합(B1-B5) — parentItemId 기반 그룹핑 (카테시안 버그 제거)
+  // L3 통합(B1-B5) — CHAIN-DRIVEN (정확한 B3-B4-B5 연결 보장)
+  // ★ v4 FIX: chains 기반으로 각 행의 B3-B4 페어를 정확히 매칭
+  //   기존 carry-forward 방식은 B3≠B4 오연결 발생 → FC 누락 원인
   // ═══════════════════════════════════════════════════════
+
+  // chains를 B1 키(processNo|m4|workElement)로 그룹핑
+  const chainsByB1Key = new Map();
+  for (const ch of chains) {
+    const key = `${ch.processNo || ''}|${ch.m4 || ''}|${ch.workElement || ''}`;
+    if (!chainsByB1Key.has(key)) chainsByB1Key.set(key, []);
+    chainsByB1Key.get(key).push(ch);
+  }
+
   const b1Items = flatData.filter(d => d.itemCode === 'B1');
+  const processedB1Keys = new Set();
   let skippedB1 = 0;
+
+  // 1단계: flatData B1 순서 유지 + chains 기반 행 생성
   for (const b1 of b1Items) {
     const pNo = b1.processNo;
     const m4 = b1.m4 || '';
-    const b1Id = b1.id;
+    const key = `${pNo}|${m4}|${b1.value || ''}`;
 
-    const b2Items = flatData.filter(d => d.itemCode === 'B2' && d.parentItemId === b1Id);
-    const b3Items = flatData.filter(d => d.itemCode === 'B3' && d.parentItemId === b1Id);
+    if (processedB1Keys.has(key)) continue;
+    processedB1Keys.add(key);
 
-    const b3IdSet = new Set(b3Items.map(x => x.id));
-    const b4Items = flatData.filter(d => d.itemCode === 'B4' && b3IdSet.has(d.parentItemId));
+    const b1Chains = chainsByB1Key.get(key) || [];
 
-    let b5Items = flatData.filter(d => d.itemCode === 'B5' && d.id.startsWith(b1Id));
-    if (b5Items.length === 0) {
-      const chainPC = chains.find(c => c.processNo === pNo && (c.m4 || '') === m4 && c.workElement === b1.value && c.pcValue?.trim());
-      if (chainPC) {
-        b5Items = [{ value: chainPC.pcValue, id: `${b1Id}-V-1` }];
+    if (b1Chains.length > 0) {
+      // ★ CHAIN-DRIVEN: 각 chain이 하나의 L3 행 (B3-B4 정확 매칭)
+      for (const ch of b1Chains) {
+        sheetData['L3 통합(B1-B5)'].push([
+          pNo,
+          m4,
+          b1.value || ch.workElement || '',
+          ch.l3Function || '',
+          ch.processChar || '',
+          ch.specialChar || '',
+          ch.fcValue || '',
+          stripPrefix(ch.pcValue || ''),
+        ]);
       }
-    }
+    } else {
+      // chains 없는 B1 → flatData fallback + processChar 기반 chain 보정
+      const b1Id = b1.id;
+      const b2Items = flatData.filter(d => d.itemCode === 'B2' && d.parentItemId === b1Id);
+      const b3Items = flatData.filter(d => d.itemCode === 'B3' && d.parentItemId === b1Id);
+      const b3IdSet = new Set(b3Items.map(x => x.id));
+      const b4Items = flatData.filter(d => d.itemCode === 'B4' && b3IdSet.has(d.parentItemId));
+      const b5Items = flatData.filter(d => d.itemCode === 'B5' && d.id.startsWith(b1Id));
 
-    // 고아 B1 스킵: B2/B3/B4 모두 없고 chains에도 없는 WE는 제외
-    if (b2Items.length === 0 && b3Items.length === 0 && b4Items.length === 0) {
-      const hasChain = chains.some(c => c.processNo === pNo && (c.m4 || '') === m4 && c.workElement === b1.value);
-      if (!hasChain) {
+      // ★ B4 빈값 보정: processChar(B3) 기반으로 chains에서 FC 매칭
+      if (b3Items.length > 0 && b4Items.length === 0) {
+        for (const b3 of b3Items) {
+          const matchChain = chains.find(c =>
+            c.processNo === pNo && (c.m4 || '') === m4 && c.processChar === b3.value
+          );
+          if (matchChain) {
+            b4Items.push({ value: matchChain.fcValue });
+            if (b5Items.length === 0 && matchChain.pcValue) {
+              b5Items.push({ value: matchChain.pcValue });
+            }
+          }
+        }
+      }
+
+      if (b2Items.length === 0 && b3Items.length === 0 && b4Items.length === 0) {
         skippedB1++;
         continue;
       }
-    }
 
-    // B4 보충: B3가 있지만 B4가 없으면 같은 processChar을 가진 chains에서 fcValue 복사
-    if (b3Items.length > 0 && b4Items.length === 0) {
-      for (const b3 of b3Items) {
-        // 1순위: chains에서 같은 processChar의 FC 찾기
-        const matchChain = chains.find(c =>
-          c.processNo === pNo && (c.m4 || '') === m4 && c.processChar === b3.value
-        );
-        if (matchChain) {
-          b4Items.push({ value: matchChain.fcValue, id: `${b3.id}-K-C`, parentItemId: b3.id });
-          continue;
-        }
-        // 2순위: 같은 processNo의 sibling B3에서 B4 복사
-        const siblingB3 = flatData.find(d =>
-          d.itemCode === 'B3' && d.id !== b3.id && d.value === b3.value && d.processNo === pNo
-        );
-        if (siblingB3) {
-          const siblingB4s = flatData.filter(d => d.itemCode === 'B4' && d.parentItemId === siblingB3.id);
-          for (const sb4 of siblingB4s) {
-            b4Items.push({ ...sb4, id: `${b3.id}-K-S`, parentItemId: b3.id });
-          }
-        }
+      const maxLen = Math.max(1, b2Items.length, b3Items.length, b4Items.length, b5Items.length);
+      for (let i = 0; i < maxLen; i++) {
+        sheetData['L3 통합(B1-B5)'].push([
+          pNo,
+          m4,
+          b1.value || '',
+          b2Items[i]?.value || '',
+          b3Items[i]?.value || '',
+          b3Items[i]?.specialChar || '',
+          b4Items[i]?.value || '',
+          b5Items[i] ? stripPrefix(b5Items[i].value) : '',
+        ]);
       }
     }
+  }
 
-    // B5 보충: chains pcValue에서 WE명 포함 줄 추출
-    if (b5Items.length === 0 && b3Items.length > 0) {
-      const weName = b1.value || '';
-      // 같은 (processNo, m4, processChar)의 chains에서 pcValue 검색
-      for (const b3 of b3Items) {
-        const matchChains = chains.filter(c =>
-          c.processNo === pNo && (c.m4 || '') === m4 && c.processChar === b3.value && c.pcValue?.trim()
-        );
-        for (const mc of matchChains) {
-          const lines = (mc.pcValue || '').split('\n');
-          const weLine = lines.find(l => l.includes(weName));
-          if (weLine) {
-            b5Items = [{ value: weLine.trim(), id: `${b1Id}-V-C` }];
-            break;
-          }
-        }
-        if (b5Items.length > 0) break;
-      }
-      // 여전히 없으면 sibling B1에서 복사
-      if (b5Items.length === 0) {
-        const siblingB1 = b1Items.find(sb =>
-          sb.id !== b1Id && sb.processNo === pNo && (sb.m4 || '') === m4
-        );
-        if (siblingB1) {
-          const sibB5 = flatData.filter(d => d.itemCode === 'B5' && d.id.startsWith(siblingB1.id));
-          if (sibB5.length > 0) {
-            b5Items = sibB5.map(s => ({ ...s, id: `${b1Id}-V-S` }));
-          }
-        }
-      }
-    }
-
-    const maxLen = Math.max(1, b2Items.length, b3Items.length, b4Items.length, b5Items.length);
-    let lastB2 = '', lastB3 = '', lastB3Sp = '', lastB4 = '', lastB5 = '';
-
-    for (let i = 0; i < maxLen; i++) {
-      if (b2Items[i]?.value) lastB2 = b2Items[i].value;
-      if (b3Items[i]?.value) { lastB3 = b3Items[i].value; lastB3Sp = b3Items[i].specialChar || ''; }
-      if (b4Items[i]?.value) lastB4 = b4Items[i].value;
-      if (b5Items[i]?.value) lastB5 = stripPrefix(b5Items[i].value);
-
+  // 2단계: chains에는 있지만 flatData B1에는 없는 항목 추가
+  for (const [key, chArr] of chainsByB1Key) {
+    if (processedB1Keys.has(key)) continue;
+    processedB1Keys.add(key);
+    for (const ch of chArr) {
       sheetData['L3 통합(B1-B5)'].push([
-        pNo, m4, b1.value || '',
-        b2Items[i]?.value || lastB2,
-        b3Items[i]?.value || lastB3,
-        b3Items[i]?.specialChar ?? lastB3Sp,
-        b4Items[i]?.value || lastB4,
-        b5Items[i] ? stripPrefix(b5Items[i].value) : lastB5,
+        ch.processNo || '',
+        ch.m4 || '',
+        ch.workElement || '',
+        ch.l3Function || '',
+        ch.processChar || '',
+        ch.specialChar || '',
+        ch.fcValue || '',
+        stripPrefix(ch.pcValue || ''),
       ]);
     }
   }
+
   if (skippedB1 > 0) {
-    console.log(`  [L3] 고아 B1 ${skippedB1}건 스킵 (B2/B3/B4/chains 없음)`);
+    console.log(`  [L3] 고아 B1 ${skippedB1}건 스킵 (chains 없음, B2/B3/B4 없음)`);
   }
+  console.log(`  [L3] chain-driven: ${sheetData['L3 통합(B1-B5)'].length}행 생성 (chains=${chains.length})`);
+
 
   // ═══════════════════════════════════════════════════════
   // FC 고장사슬 — chains 전수 매핑 + S/O/D/AP + DC/PC 스트리핑
@@ -350,6 +381,16 @@ async function main() {
     ch.occurrence ? String(ch.occurrence) : '',
     ch.detection ? String(ch.detection) : '',
     calcAP(ch.severity, ch.occurrence, ch.detection),
+  ]);
+
+  // ═══════════════════════════════════════════════════════
+  // P-FMEA 고장분석 — FE-S-FM-FC 4열 간결 포맷 (사용자 확인용)
+  // ═══════════════════════════════════════════════════════
+  sheetData['P-FMEA 고장분석'] = sortedChains.map(ch => [
+    ch.feValue || '',
+    ch.severity ? String(ch.severity) : '',
+    ch.fmValue || '',
+    ch.fcValue || '',
   ]);
 
   // ═══════════════════════════════════════════════════════
@@ -424,6 +465,12 @@ async function main() {
   const faPcMiss = faRows.filter(r => !(r[20] || '').toString().trim()).length;
   const faDcMiss = faRows.filter(r => !(r[21] || '').toString().trim()).length;
 
+  // P-FMEA 고장분석 시트 검증
+  const anaRows = sheetData['P-FMEA 고장분석'];
+  const anaFcMiss = anaRows.filter(r => !(r[3] || '').toString().trim()).length;
+  const anaFmMiss = anaRows.filter(r => !(r[2] || '').toString().trim()).length;
+  const anaFeMiss = anaRows.filter(r => !(r[0] || '').toString().trim()).length;
+
   sheetData['VERIFY'] = [
     ['FMEA_ID', FMEA_ID, '대상 프로젝트'],
     ['FM_COUNT', fmCount, 'A5 고장형태 건수'],
@@ -435,6 +482,7 @@ async function main() {
     ['L2_ROW_COUNT', l2Rows.length, 'L2 통합 행 수'],
     ['L3_ROW_COUNT', l3Rows.length, 'L3 통합 행 수'],
     ['FA_ROW_COUNT', faRows.length, 'FA 통합분석 행 수'],
+    ['P-FMEA_ROW_COUNT', anaRows.length, 'P-FMEA 고장분석 행 수'],
     ['', '', ''],
     ['A6_MISS', a6Miss, 'L2 통합 A6 빈칸 수 (0이 이상적)'],
     ['B3_MISS', b3Miss, 'L3 통합 B3 빈칸 수 (0이 이상적)'],
@@ -442,10 +490,14 @@ async function main() {
     ['B5_MISS', b5Miss, 'L3 통합 B5 빈칸 수 (0이 이상적)'],
     ['GHOST_ROWS', ghostRows, '유령 행 수 (B2->B3 혼입, 0이 정상)'],
     ['', '', ''],
-    ['FC_FC_MISS', fcFcMiss, 'FC시트 FC열 빈칸'],
+    ['FC_FC_MISS', fcFcMiss, 'FC시트 FC열 빈칸 (병합셀 없음)'],
     ['FC_PC_MISS', fcPcMiss, 'FC시트 PC열 빈칸'],
     ['FC_DC_MISS', fcDcMiss, 'FC시트 DC열 빈칸'],
     ['FC_S_MISS', fcSMiss, 'FC시트 S열 빈칸'],
+    ['', '', ''],
+    ['ANA_FE_MISS', anaFeMiss, '고장분석 FE 빈칸'],
+    ['ANA_FM_MISS', anaFmMiss, '고장분석 FM 빈칸'],
+    ['ANA_FC_MISS', anaFcMiss, '고장분석 FC 빈칸'],
     ['', '', ''],
     ['FA_FC_MISS', faFcMiss, 'FA시트 FC열 빈칸'],
     ['FA_PC_MISS', faPcMiss, 'FA시트 PC열 빈칸'],
@@ -456,7 +508,7 @@ async function main() {
   // Excel 생성
   // ═══════════════════════════════════════════════════════
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'FMEA Smart System Master Sample Generator v3';
+  workbook.creator = 'FMEA Smart System Master Sample Generator v4';
   workbook.created = new Date();
 
   for (const def of SHEET_DEFS) {
@@ -470,7 +522,7 @@ async function main() {
     const headerRow = ws.getRow(1);
     headerRow.height = 26;
     headerRow.eachCell(cell => {
-      const color = def.name.includes('FC') ? 'B91C1C'
+      const color = def.name.includes('FC') || def.name.includes('고장분석') ? 'B91C1C'
         : def.name.includes('FA') ? '1E40AF'
           : def.name === 'VERIFY' ? '6B21A8'
             : HEADER_COLOR;
@@ -491,8 +543,10 @@ async function main() {
       });
     });
 
-    if (def.name === 'FC 고장사슬' && rows.length > 1) {
-      applyMergeCells(ws, rows, [0, 1, 2, 3]);
+    // ★ v4: FC 고장사슬 병합 제거 — import 파서가 모든 행에서 값을 직접 읽도록 보장
+    // 기존 병합셀 → getMergedCellValue 의존 → 파서 미구현 시 값 누락
+    if (def.name === 'P-FMEA 고장분석' && rows.length > 1) {
+      applyMergeCells(ws, rows, [0, 1, 2]);
     }
     if (def.name === 'FA 통합분석' && rows.length > 1) {
       applyMergeCells(ws, rows, [0, 1, 2]);
@@ -527,6 +581,7 @@ async function main() {
     { name: 'FC시트 FC빈칸', actual: fcFcMiss, expect: 0, op: '=' },
     { name: 'FC시트 PC빈칸', actual: fcPcMiss, expect: 0, op: '=' },
     { name: 'FC시트 DC빈칸', actual: fcDcMiss, expect: 0, op: '=' },
+    { name: '고장분석 FC빈칸', actual: anaFcMiss, expect: 0, op: '=' },
     { name: 'FA시트 FC빈칸', actual: faFcMiss, expect: 0, op: '=' },
   ];
 
