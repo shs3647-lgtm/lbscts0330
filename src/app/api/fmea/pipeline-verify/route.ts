@@ -757,9 +757,11 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   const flById = new Map<string, { fmId: string; fcId: string }>();
   for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId });
 
-  // 동일 FM(공정) 그룹별 유효 O/D 수집 — 피어 값 참조용
+  // 동일 FM(공정) 그룹별 유효 O/D/DC/PC 수집 — 피어 값 참조용
   const fmPeerO = new Map<string, number[]>();
   const fmPeerD = new Map<string, number[]>();
+  const fmPeerDC = new Map<string, string[]>();
+  const fmPeerPC = new Map<string, string[]>();
   for (const ra of ras) {
     const fl = flById.get(ra.linkId);
     if (!fl) continue;
@@ -770,6 +772,14 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
     if (ra.detection > 0) {
       if (!fmPeerD.has(fl.fmId)) fmPeerD.set(fl.fmId, []);
       fmPeerD.get(fl.fmId)!.push(ra.detection);
+    }
+    if (ra.detectionControl?.trim()) {
+      if (!fmPeerDC.has(fl.fmId)) fmPeerDC.set(fl.fmId, []);
+      fmPeerDC.get(fl.fmId)!.push(ra.detectionControl.trim());
+    }
+    if (ra.preventionControl?.trim()) {
+      if (!fmPeerPC.has(fl.fmId)) fmPeerPC.set(fl.fmId, []);
+      fmPeerPC.get(fl.fmId)!.push(ra.preventionControl.trim());
     }
   }
   const median = (arr: number[]) => {
@@ -783,7 +793,18 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   let apRecalced = 0;
   let oFilled = 0;
   let dFilled = 0;
+  let dcFilled = 0;
+  let pcFilled = 0;
   const riskDataUpdates: Record<string, number> = {};
+  // 가장 빈번한 피어 값 선택 (최빈값)
+  const mostFrequent = (arr: string[]) => {
+    if (arr.length === 0) return '';
+    const freq = new Map<string, number>();
+    for (const v of arr) freq.set(v, (freq.get(v) || 0) + 1);
+    let best = arr[0], bestCount = 0;
+    for (const [k, c] of freq) { if (c > bestCount) { best = k; bestCount = c; } }
+    return best;
+  };
 
   for (const ra of ras) {
     const fl = flById.get(ra.linkId);
@@ -828,6 +849,18 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
       dFilled++;
     }
 
+    // DC/PC 빈값 피어 채움: 동일 FM 그룹에서 가장 빈번한 DC/PC 사용
+    let newDC = ra.detectionControl || '';
+    let newPC = ra.preventionControl || '';
+    if (!newDC.trim() && fl) {
+      const peerDC = mostFrequent(fmPeerDC.get(fl.fmId) || []);
+      if (peerDC) { newDC = peerDC; needsUpdate = true; dcFilled++; }
+    }
+    if (!newPC.trim() && fl) {
+      const peerPC = mostFrequent(fmPeerPC.get(fl.fmId) || []);
+      if (peerPC) { newPC = peerPC; needsUpdate = true; pcFilled++; }
+    }
+
     // AP 재계산
     const currentAP = ra.ap || '';
     const expectedAP = calcAPServer(newS, newO, newD);
@@ -845,6 +878,8 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
             occurrence: newO,
             detection: newD,
             ap: expectedAP || currentAP,
+            ...(newDC.trim() ? { detectionControl: newDC } : {}),
+            ...(newPC.trim() ? { preventionControl: newPC } : {}),
           },
         });
         sodSynced++;
@@ -872,6 +907,8 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   if (sodSynced > 0) fixed.push(`SOD DB 동기화 ${sodSynced}건`);
   if (oFilled > 0) fixed.push(`O 미입력 자동채움 ${oFilled}건 (피어중앙값/기본1)`);
   if (dFilled > 0) fixed.push(`D 미입력 자동채움 ${dFilled}건 (피어중앙값/기본1)`);
+  if (dcFilled > 0) fixed.push(`DC 미입력 자동채움 ${dcFilled}건 (동일FM 피어최빈값)`);
+  if (pcFilled > 0) fixed.push(`PC 미입력 자동채움 ${pcFilled}건 (동일FM 피어최빈값)`);
   if (apRecalced > 0) fixed.push(`AP 재계산 ${apRecalced}건`);
 
   return fixed;
