@@ -292,16 +292,18 @@ function buildRiskData(
         riskData[`opt-rows-${uniqueKey}`] = opts.length;
       }
       opts.forEach((opt, idx) => {
-        const suffix = idx === 0 ? '' : `-${idx}`;
-        if (opt.newSeverity != null) riskData[`opt-${uniqueKey}-S${suffix}`] = opt.newSeverity;
-        if (opt.newOccurrence != null) riskData[`opt-${uniqueKey}-O${suffix}`] = opt.newOccurrence;
-        if (opt.newDetection != null) riskData[`opt-${uniqueKey}-D${suffix}`] = opt.newDetection;
-        if (opt.newAP) riskData[`opt-${uniqueKey}-AP${suffix}`] = opt.newAP;
+        const suffix = idx === 0 ? '' : `#${idx}`;
+        const sodSuffix = idx === 0 ? '' : `#${idx}`;
+        if (opt.newSeverity != null) riskData[`opt-${uniqueKey}${sodSuffix}-S`] = opt.newSeverity;
+        if (opt.newOccurrence != null) riskData[`opt-${uniqueKey}${sodSuffix}-O`] = opt.newOccurrence;
+        if (opt.newDetection != null) riskData[`opt-${uniqueKey}${sodSuffix}-D`] = opt.newDetection;
+        if (opt.newAP) riskData[`opt-${uniqueKey}${sodSuffix}-AP`] = opt.newAP;
         if (opt.recommendedAction) riskData[`prevention-opt-${uniqueKey}${suffix}`] = opt.recommendedAction;
         if (opt.responsible) riskData[`person-opt-${uniqueKey}${suffix}`] = opt.responsible;
         if (opt.targetDate) riskData[`targetDate-opt-${uniqueKey}${suffix}`] = opt.targetDate;
         if (opt.completedDate) riskData[`completeDate-opt-${uniqueKey}${suffix}`] = opt.completedDate;
         if (opt.status) riskData[`status-opt-${uniqueKey}${suffix}`] = opt.status;
+        if (opt.remarks) riskData[`note-opt-${uniqueKey}${suffix}`] = opt.remarks;
       });
     }
   }

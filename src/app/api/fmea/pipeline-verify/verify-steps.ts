@@ -261,8 +261,9 @@ export async function verifyParsing(prisma: any, fmeaId: string): Promise<StepRe
   }
   const riskData = data.riskData || {};
   for (const key of Object.keys(riskData)) {
-    if (key.startsWith('detection-') && String(riskData[key]).trim()) leg.A6++;
-    if (key.startsWith('prevention-') && String(riskData[key]).trim()) leg.B5++;
+    // ★ 2026-03-18 FIX: opt 키 제외 — detection-opt-/prevention-opt-는 6ST 개선안이므로 A6/B5가 아님
+    if (key.startsWith('detection-') && !key.startsWith('detection-opt-') && String(riskData[key]).trim()) leg.A6++;
+    if (key.startsWith('prevention-') && !key.startsWith('prevention-opt-') && String(riskData[key]).trim()) leg.B5++;
   }
   const fes = data.failureEffects || data.l1?.failureScopes || [];
   leg.C4 = fes.length;

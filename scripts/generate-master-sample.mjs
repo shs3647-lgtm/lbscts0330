@@ -252,9 +252,18 @@ async function main() {
       }
     }
 
-    // B4 보충: B3가 있지만 B4가 없으면 같은 (processNo, processChar) sibling에서 복사
+    // B4 보충: B3가 있지만 B4가 없으면 같은 processChar을 가진 chains에서 fcValue 복사
     if (b3Items.length > 0 && b4Items.length === 0) {
       for (const b3 of b3Items) {
+        // 1순위: chains에서 같은 processChar의 FC 찾기
+        const matchChain = chains.find(c =>
+          c.processNo === pNo && (c.m4 || '') === m4 && c.processChar === b3.value
+        );
+        if (matchChain) {
+          b4Items.push({ value: matchChain.fcValue, id: `${b3.id}-K-C`, parentItemId: b3.id });
+          continue;
+        }
+        // 2순위: 같은 processNo의 sibling B3에서 B4 복사
         const siblingB3 = flatData.find(d =>
           d.itemCode === 'B3' && d.id !== b3.id && d.value === b3.value && d.processNo === pNo
         );
@@ -267,15 +276,34 @@ async function main() {
       }
     }
 
-    // B5 보충: sibling B1에서 복사 (같은 processNo, m4)
+    // B5 보충: chains pcValue에서 WE명 포함 줄 추출
     if (b5Items.length === 0 && b3Items.length > 0) {
-      const siblingB1 = b1Items.find(sb =>
-        sb.id !== b1Id && sb.processNo === pNo && (sb.m4 || '') === m4
-      );
-      if (siblingB1) {
-        const sibB5 = flatData.filter(d => d.itemCode === 'B5' && d.id.startsWith(siblingB1.id));
-        if (sibB5.length > 0) {
-          b5Items = sibB5.map(s => ({ ...s, id: `${b1Id}-V-S` }));
+      const weName = b1.value || '';
+      // 같은 (processNo, m4, processChar)의 chains에서 pcValue 검색
+      for (const b3 of b3Items) {
+        const matchChains = chains.filter(c =>
+          c.processNo === pNo && (c.m4 || '') === m4 && c.processChar === b3.value && c.pcValue?.trim()
+        );
+        for (const mc of matchChains) {
+          const lines = (mc.pcValue || '').split('\n');
+          const weLine = lines.find(l => l.includes(weName));
+          if (weLine) {
+            b5Items = [{ value: weLine.trim(), id: `${b1Id}-V-C` }];
+            break;
+          }
+        }
+        if (b5Items.length > 0) break;
+      }
+      // 여전히 없으면 sibling B1에서 복사
+      if (b5Items.length === 0) {
+        const siblingB1 = b1Items.find(sb =>
+          sb.id !== b1Id && sb.processNo === pNo && (sb.m4 || '') === m4
+        );
+        if (siblingB1) {
+          const sibB5 = flatData.filter(d => d.itemCode === 'B5' && d.id.startsWith(siblingB1.id));
+          if (sibB5.length > 0) {
+            b5Items = sibB5.map(s => ({ ...s, id: `${b1Id}-V-S` }));
+          }
         }
       }
     }

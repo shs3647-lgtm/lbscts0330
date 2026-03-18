@@ -322,8 +322,9 @@ export interface Optimization extends AtomicRecord {
   newAP?: 'H' | 'M' | 'L';
   
   // 완료 상태
-  status: 'planned' | 'in_progress' | 'completed';
+  status: 'planned' | 'in_progress' | 'completed' | string;
   completedDate?: string;
+  remarks?: string;
 }
 
 // ============ 워크시트 전체 상태 (통합) ============

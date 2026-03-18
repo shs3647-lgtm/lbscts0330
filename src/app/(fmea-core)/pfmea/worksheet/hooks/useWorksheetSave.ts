@@ -540,6 +540,107 @@ function _calcSimpleAP(s: number, o: number, d: number): 'H' | 'M' | 'L' {
   return 'L';
 }
 
+/**
+ * ★★★ 2026-03-18 FIX: riskData opt 키 → atomicDB.optimizations 동기화 ★★★
+ *
+ * 근본 원인: 워크시트에서 6ST 최적화 데이터를 편집하면 riskData에만 저장되고
+ * atomicDB.optimizations에 반영되지 않아 DB에 0건이 저장됨.
+ *
+ * riskData 키 매핑:
+ *   prevention-opt-{uk}[#N] → recommendedAction
+ *   person-opt-{uk}[#N]     → responsible
+ *   targetDate-opt-{uk}[#N] → targetDate
+ *   completeDate-opt-{uk}[#N] 또는 completionDate-opt-{uk}[#N] → completedDate
+ *   status-opt-{uk}[#N]     → status
+ *   note-opt-{uk}[#N]       → remarks
+ *   opt-{uk}[#N]-S          → newSeverity
+ *   opt-{uk}[#N]-O          → newOccurrence
+ *   opt-{uk}[#N]-D          → newDetection
+ *   opt-{uk}[#N]-AP         → newAP
+ */
+function syncOptimizationsFromState(
+  db: FMEAWorksheetDB,
+  state: WorksheetState,
+): FMEAWorksheetDB {
+  const riskData: Record<string, unknown> = (state as any).riskData || {};
+  const links = db.failureLinks || [];
+  const risks = db.riskAnalyses || [];
+  if (links.length === 0 || risks.length === 0) return db;
+
+  const riskByLinkId = new Map<string, any>();
+  for (const ra of risks) {
+    riskByLinkId.set((ra as any).linkId, ra);
+  }
+
+  const existingOptsById = new Map<string, any>();
+  for (const opt of (db.optimizations || [])) {
+    existingOptsById.set(opt.id, opt);
+  }
+
+  const syncedOpts: any[] = [];
+
+  for (const link of links as any[]) {
+    const uniqueKey = `${link.fmId}-${link.fcId}`;
+    const ra = riskByLinkId.get(link.id);
+    if (!ra) continue;
+    const riskId = (ra as any).id;
+
+    const rowCountVal = riskData[`opt-rows-${uniqueKey}`];
+    let rowCount = 1;
+    if (typeof rowCountVal === 'number' && rowCountVal >= 1) rowCount = Math.floor(rowCountVal);
+    else if (typeof rowCountVal === 'string' && !isNaN(Number(rowCountVal)) && Number(rowCountVal) >= 1) rowCount = Math.floor(Number(rowCountVal));
+
+    for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
+      const suffix = rowIdx === 0 ? '' : `#${rowIdx}`;
+
+      const recAction = String(riskData[`prevention-opt-${uniqueKey}${suffix}`] || '').trim();
+      const responsible = String(riskData[`person-opt-${uniqueKey}${suffix}`] || '').trim();
+      const targetDate = String(riskData[`targetDate-opt-${uniqueKey}${suffix}`] || '').trim();
+      const completedDate = String(
+        riskData[`completeDate-opt-${uniqueKey}${suffix}`] ||
+        riskData[`completionDate-opt-${uniqueKey}${suffix}`] || ''
+      ).trim();
+      const status = String(riskData[`status-opt-${uniqueKey}${suffix}`] || '').trim();
+      const remarks = String(riskData[`note-opt-${uniqueKey}${suffix}`] || '').trim();
+
+      const sodSuffix = rowIdx === 0 ? '' : `#${rowIdx}`;
+      const newS = Number(riskData[`opt-${uniqueKey}${sodSuffix}-S`]) || null;
+      const newO = Number(riskData[`opt-${uniqueKey}${sodSuffix}-O`]) || null;
+      const newD = Number(riskData[`opt-${uniqueKey}${sodSuffix}-D`]) || null;
+      const newAP = String(riskData[`opt-${uniqueKey}${sodSuffix}-AP`] || '').trim() || null;
+
+      if (!recAction && !responsible && !targetDate && !status && !newS && !newO && !newD) {
+        continue;
+      }
+
+      const existingOpt = (db.optimizations || []).find((o: any) =>
+        o.riskId === riskId && (
+          (rowIdx === 0 && !o._rowIdx) ||
+          o._rowIdx === rowIdx
+        )
+      );
+
+      syncedOpts.push({
+        id: existingOpt?.id || uid(),
+        fmeaId: db.fmeaId,
+        riskId,
+        recommendedAction: recAction || '',
+        responsible: responsible || '',
+        targetDate: targetDate || '',
+        completedDate: completedDate || null,
+        status: status || 'open',
+        remarks: remarks || null,
+        newSeverity: newS,
+        newOccurrence: newO,
+        newDetection: newD,
+        newAP: newAP || (newS && newO && newD ? _calcSimpleAP(newS, newO, newD) : null),
+      });
+    }
+  }
+
+  return { ...db, optimizations: syncedOpts };
+}
+
 export function useWorksheetSave({
   selectedFmeaId,
   currentFmea,
@@ -598,6 +699,8 @@ export function useWorksheetSave({
         dbToSave = syncFailureCausesFromState(dbToSave, stateRef.current);
         // ★ RiskAnalyses 동기화: riskData S/O/D + FE severity → riskAnalyses 반영
         dbToSave = syncRiskAnalysesFromState(dbToSave, stateRef.current);
+        // ★ Optimizations 동기화: riskData opt 키 → optimizations 반영
+        dbToSave = syncOptimizationsFromState(dbToSave, stateRef.current);
 
         // force 모드(확정) 시 forceOverwrite 전달
         if (force) {

@@ -794,6 +794,19 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   const flById = new Map<string, { fmId: string; fcId: string }>();
   for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId });
 
+  // ★ 2026-03-18: FK 고아 Optimization 정리 — riskId가 존재하지 않는 RA를 가리키는 Opt 삭제
+  const validRaIds = new Set(ras.map((ra: any) => ra.id));
+  const orphanOpts = opts.filter((o: any) => !validRaIds.has(o.riskId));
+  if (orphanOpts.length > 0) {
+    const orphanIds = orphanOpts.map((o: any) => o.id);
+    try {
+      await prisma.optimization.deleteMany({ where: { id: { in: orphanIds } } });
+      fixed.push(`FK 고아 Optimization 삭제 ${orphanOpts.length}건`);
+    } catch (err) {
+      console.error('[fixStep6Opt] 고아 Opt 삭제 실패:', err instanceof Error ? err.message : '');
+    }
+  }
+
   // 동일 FM(공정) 그룹별 유효 O/D/DC/PC 수집 — 피어 값 참조용
   const fmPeerO = new Map<string, number[]>();
   const fmPeerD = new Map<string, number[]>();
@@ -948,10 +961,70 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   if (pcFilled > 0) fixed.push(`PC 미입력 자동채움 ${pcFilled}건 (동일FM 피어최빈값)`);
   if (apRecalced > 0) fixed.push(`AP 재계산 ${apRecalced}건`);
 
-  // ── AP=H/M 개선안(Optimization) 자동생성 ──
+  // ── WS(riskData) → DB 개선안 동기화 ──
+  const raByLink = new Map<string, { id: string; ap: string; severity: number; occurrence: number; detection: number; linkId: string }>();
+  for (const ra of ras) raByLink.set(ra.linkId, { ...ra, linkId: ra.linkId });
+
   const existingOptRiskIds = new Set<string>(opts.map((o: { riskId: string }) => o.riskId));
-  const raByLink = new Map<string, { id: string; ap: string; severity: number; occurrence: number; detection: number }>();
-  for (const ra of ras) raByLink.set(ra.linkId, ra);
+
+  let wsSynced = 0;
+  for (const fl of fls) {
+    const ra = raByLink.get(fl.id);
+    if (!ra) continue;
+    const uk = `${fl.fmId}-${fl.fcId}`;
+
+    const rowCountVal = riskData[`opt-rows-${uk}`];
+    let rowCount = 1;
+    if (typeof rowCountVal === 'number' && rowCountVal >= 1) rowCount = Math.floor(rowCountVal);
+    else if (typeof rowCountVal === 'string' && !isNaN(Number(rowCountVal)) && Number(rowCountVal) >= 1) rowCount = Math.floor(Number(rowCountVal));
+
+    for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
+      const suffix = rowIdx === 0 ? '' : `#${rowIdx}`;
+      const recAction = String(riskData[`prevention-opt-${uk}${suffix}`] || '').trim();
+      const responsible = String(riskData[`person-opt-${uk}${suffix}`] || '').trim();
+      const targetDate = String(riskData[`targetDate-opt-${uk}${suffix}`] || '').trim();
+      const completedDate = String(riskData[`completeDate-opt-${uk}${suffix}`] || riskData[`completionDate-opt-${uk}${suffix}`] || '').trim();
+      const status = String(riskData[`status-opt-${uk}${suffix}`] || '').trim();
+      const remarks = String(riskData[`note-opt-${uk}${suffix}`] || '').trim();
+
+      const sodSuffix = rowIdx === 0 ? '' : `#${rowIdx}`;
+      const newS = Number(riskData[`opt-${uk}${sodSuffix}-S`]) || undefined;
+      const newO = Number(riskData[`opt-${uk}${sodSuffix}-O`]) || undefined;
+      const newD = Number(riskData[`opt-${uk}${sodSuffix}-D`]) || undefined;
+      const newAP = String(riskData[`opt-${uk}${sodSuffix}-AP`] || '').trim() || undefined;
+
+      if (!recAction && !responsible && !targetDate && !status) continue;
+      if (existingOptRiskIds.has(ra.id) && rowIdx === 0) continue;
+
+      try {
+        await prisma.optimization.create({
+          data: {
+            fmeaId,
+            riskId: ra.id,
+            recommendedAction: recAction,
+            responsible,
+            targetDate,
+            completedDate: completedDate || null,
+            status: status || 'open',
+            remarks: remarks || null,
+            newSeverity: newS ?? null,
+            newOccurrence: newO ?? null,
+            newDetection: newD ?? null,
+            newAP: newAP ?? null,
+          },
+        });
+        existingOptRiskIds.add(ra.id);
+        wsSynced++;
+      } catch (err) {
+        console.error(`[fixStep6Opt] WS→DB Opt sync 실패: RA=${ra.id} row=${rowIdx}`, err instanceof Error ? err.message : '');
+      }
+    }
+  }
+  if (wsSynced > 0) fixed.push(`WS→DB 개선안 동기화 ${wsSynced}건`);
+
+  // ── AP=H/M 개선안(Optimization) 자동생성 (아직 없는 것만) ──
+  const refreshedOpts = await prisma.optimization.findMany({ where: { fmeaId }, select: { riskId: true } });
+  const refreshedOptRiskIds = new Set<string>(refreshedOpts.map((o: { riskId: string }) => o.riskId));
 
   let hCreated = 0;
   let mCreated = 0;
@@ -959,7 +1032,7 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
     const ra = raByLink.get(fl.id);
     if (!ra) continue;
     const ap = ra.ap || calcAPServer(ra.severity, ra.occurrence, ra.detection) || '';
-    if ((ap !== 'H' && ap !== 'M') || existingOptRiskIds.has(ra.id)) continue;
+    if ((ap !== 'H' && ap !== 'M') || refreshedOptRiskIds.has(ra.id)) continue;
 
     try {
       await prisma.optimization.create({
@@ -973,7 +1046,7 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
           remarks: `AP=${ap} 자동생성`,
         },
       });
-      existingOptRiskIds.add(ra.id);
+      refreshedOptRiskIds.add(ra.id);
       if (ap === 'H') hCreated++;
       else mCreated++;
     } catch (err) {
