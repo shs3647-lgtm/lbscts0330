@@ -266,10 +266,25 @@ export async function verifyParsing(prisma: any, fmeaId: string): Promise<StepRe
   }
   const fes = data.failureEffects || data.l1?.failureScopes || [];
   leg.C4 = fes.length;
+  // C1/C2/C3: l1.functions[] (플랫) 또는 l1.types[].functions[].requirements[] (계층) 이중 읽기
+  // 근본 수정: 워크시트 저장 시 l1.types 구조만 남고 l1.functions가 사라져도 정상 카운트
   const l1Funcs = data.l1?.functions || [];
+  const l1Types = data.l1?.types || [];
   if (l1Funcs.length > 0) {
+    // 플랫 배열 우선 (fixStep2에서 주입된 경우)
     const cats = new Set<string>(), fns = new Set<string>();
     for (const fn of l1Funcs) { if (fn.category?.trim()) cats.add(fn.category); if (fn.name?.trim()) fns.add(fn.name); leg.C3++; }
+    leg.C1 = cats.size; leg.C2 = fns.size;
+  } else if (l1Types.length > 0) {
+    // 계층 구조에서 파생 (워크시트 저장 후 l1.functions 없을 때)
+    const cats = new Set<string>(), fns = new Set<string>();
+    for (const t of l1Types) {
+      if (t.name?.trim()) cats.add(t.name); // type.name = 카테고리 (YP/SP/USER)
+      for (const fn of (t.functions || [])) {
+        if (fn.name?.trim()) fns.add(fn.name); // fn.name = 완제품기능명
+        leg.C3 += (fn.requirements || []).length; // 요구사항 수
+      }
+    }
     leg.C1 = cats.size; leg.C2 = fns.size;
   }
 

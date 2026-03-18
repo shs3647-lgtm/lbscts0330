@@ -181,23 +181,59 @@ async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
     }
   }
 
-  // C계열: Atomic DB L1Function → Legacy l1.functions 동기화
+  // C계열: Legacy l1.functions 보충 — types 구조 또는 Atomic DB에서 파생
   const l1Funcs = data.l1?.functions || [];
   if (l1Funcs.length === 0) {
-    try {
-      const atomicL1Funcs = await prisma.l1Function.findMany({ where: { fmeaId } });
-      if (atomicL1Funcs.length > 0) {
-        if (!data.l1) data.l1 = {};
-        data.l1.functions = atomicL1Funcs.map((fn: any) => ({
-          id: fn.id,
-          category: fn.category || '',
-          name: fn.functionName || '',
-          requirement: fn.requirement || '',
-        }));
-        fixed.push(`L1Function ${atomicL1Funcs.length}건 Legacy 동기화`);
+    if (!data.l1) data.l1 = {};
+
+    // 1차: l1.types[] 계층 구조에서 플랫 배열 생성 (워크시트 저장 후 types만 남은 경우)
+    const l1Types = data.l1?.types || [];
+    if (l1Types.length > 0) {
+      const derived: { id: string; category: string; name: string; requirement: string }[] = [];
+      for (const t of l1Types) {
+        for (const fn of (t.functions || [])) {
+          for (const req of (fn.requirements || [])) {
+            derived.push({
+              id: req.id || fn.id || '',
+              category: t.name || '',
+              name: fn.name || '',
+              requirement: req.name || '',
+            });
+          }
+          // functions에 requirements가 없으면 function 자체를 1건으로
+          if (!fn.requirements || fn.requirements.length === 0) {
+            derived.push({
+              id: fn.id || '',
+              category: t.name || '',
+              name: fn.name || '',
+              requirement: '',
+            });
+          }
+        }
+      }
+      if (derived.length > 0) {
+        data.l1.functions = derived;
+        fixed.push(`L1 types→functions 변환 ${derived.length}건`);
         changed = true;
       }
-    } catch { /* L1Function 테이블 없으면 무시 */ }
+    }
+
+    // 2차: types도 없으면 Atomic DB에서 로드
+    if (!data.l1.functions || data.l1.functions.length === 0) {
+      try {
+        const atomicL1Funcs = await prisma.l1Function.findMany({ where: { fmeaId } });
+        if (atomicL1Funcs.length > 0) {
+          data.l1.functions = atomicL1Funcs.map((fn: any) => ({
+            id: fn.id,
+            category: fn.category || '',
+            name: fn.functionName || '',
+            requirement: fn.requirement || '',
+          }));
+          fixed.push(`L1Function ${atomicL1Funcs.length}건 Atomic→Legacy 동기화`);
+          changed = true;
+        }
+      } catch { /* L1Function 테이블 없으면 무시 */ }
+    }
   }
 
   // C4: Atomic DB FailureEffect → Legacy l1.failureScopes 동기화
@@ -742,14 +778,15 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
   return fixed;
 }
 
-// ─── STEP 6: OPT 자동수정 — SOD riskData→DB 동기화 + AP 재계산 ───
+// ─── STEP 6: OPT 자동수정 — SOD 동기화 + AP 재계산 + 개선안 자동생성 ───
 
 async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
 
-  const [fls, ras, legacy] = await Promise.all([
+  const [fls, ras, opts, legacy] = await Promise.all([
     prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } }),
     prisma.riskAnalysis.findMany({ where: { fmeaId } }),
+    prisma.optimization.findMany({ where: { fmeaId }, select: { id: true, riskId: true } }),
     prisma.fmeaLegacyData.findUnique({ where: { fmeaId } }),
   ]);
 
@@ -910,6 +947,41 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   if (dcFilled > 0) fixed.push(`DC 미입력 자동채움 ${dcFilled}건 (동일FM 피어최빈값)`);
   if (pcFilled > 0) fixed.push(`PC 미입력 자동채움 ${pcFilled}건 (동일FM 피어최빈값)`);
   if (apRecalced > 0) fixed.push(`AP 재계산 ${apRecalced}건`);
+
+  // ── AP=H/M 개선안(Optimization) 자동생성 ──
+  const existingOptRiskIds = new Set<string>(opts.map((o: { riskId: string }) => o.riskId));
+  const raByLink = new Map<string, { id: string; ap: string; severity: number; occurrence: number; detection: number }>();
+  for (const ra of ras) raByLink.set(ra.linkId, ra);
+
+  let hCreated = 0;
+  let mCreated = 0;
+  for (const fl of fls) {
+    const ra = raByLink.get(fl.id);
+    if (!ra) continue;
+    const ap = ra.ap || calcAPServer(ra.severity, ra.occurrence, ra.detection) || '';
+    if ((ap !== 'H' && ap !== 'M') || existingOptRiskIds.has(ra.id)) continue;
+
+    try {
+      await prisma.optimization.create({
+        data: {
+          fmeaId,
+          riskId: ra.id,
+          recommendedAction: '',
+          responsible: '',
+          targetDate: '',
+          status: '대기',
+          remarks: `AP=${ap} 자동생성`,
+        },
+      });
+      existingOptRiskIds.add(ra.id);
+      if (ap === 'H') hCreated++;
+      else mCreated++;
+    } catch (err) {
+      console.error(`[fixStep6Opt] Opt create 실패: RA=${ra.id}`, err instanceof Error ? err.message : '');
+    }
+  }
+  if (hCreated > 0) fixed.push(`AP=H 개선안 자동생성 ${hCreated}건`);
+  if (mCreated > 0) fixed.push(`AP=M 개선안 자동생성 ${mCreated}건`);
 
   return fixed;
 }
