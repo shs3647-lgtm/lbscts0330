@@ -187,26 +187,42 @@ async function getStep4Detail(prisma: any, fmeaId: string) {
     const fc = fcMap.get(lk.fcId);
     const l2 = fm ? l2Map.get(fm.l2StructId) : null;
     return {
-      id: lk.id.substring(0, 8),
+      id: lk.id,
       processNo: l2?.no || '',
       processName: l2?.name || '',
-      fmId: lk.fmId.substring(0, 8),
+      fmId: lk.fmId,
       fmName: fm?.mode || '❌ BROKEN',
-      feId: lk.feId.substring(0, 8),
+      feId: lk.feId,
       feName: fe?.effect || '❌ BROKEN',
-      fcId: lk.fcId.substring(0, 8),
+      fcId: lk.fcId,
       fcName: fc?.cause || '❌ BROKEN',
       broken: !fm || !fe || !fc,
     };
   });
 
   const linkedFcIds = new Set(links.map((l: any) => l.fcId));
-  const unlinked = fcs.filter((fc: any) => !linkedFcIds.has(fc.id)).map((fc: any) => ({
-    id: fc.id.substring(0, 8),
-    cause: fc.cause,
+  const linkedFmIds = new Set(links.map((l: any) => l.fmId));
+  const linkedFeIds = new Set(links.map((l: any) => l.feId));
+  const unlinkedFCList = fcs.filter((fc: any) => !linkedFcIds.has(fc.id)).map((fc: any) => ({
+    id: fc.id, cause: fc.cause,
+  }));
+  const unlinkedFMList = fms.filter((fm: any) => !linkedFmIds.has(fm.id)).map((fm: any) => ({
+    id: fm.id, mode: fm.mode,
+  }));
+  const unlinkedFEList = fes.filter((fe: any) => !linkedFeIds.has(fe.id)).map((fe: any) => ({
+    id: fe.id, effect: fe.effect,
   }));
 
-  return { links: rows, unlinkedFCs: unlinked, totalLinks: links.length, totalFCs: fcs.length };
+  return {
+    links: rows,
+    unlinkedFCs: unlinkedFCList,
+    unlinkedFMs: unlinkedFMList,
+    unlinkedFEs: unlinkedFEList,
+    totalLinks: links.length,
+    totalFMs: fms.length,
+    totalFCs: fcs.length,
+    totalFEs: fes.length,
+  };
 }
 
 // STEP 5: WS — 워크시트 구조 검증 상세

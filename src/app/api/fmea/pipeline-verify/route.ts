@@ -273,8 +273,8 @@ async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult> {
 
   const [links, fcs, fms, fes] = await Promise.all([
     prisma.failureLink.findMany({ where: { fmeaId }, select: { fcId: true, fmId: true, feId: true } }),
-    prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true } }),
-    prisma.failureMode.findMany({ where: { fmeaId }, select: { id: true } }),
+    prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, l2StructId: true } }),
+    prisma.failureMode.findMany({ where: { fmeaId }, select: { id: true, l2StructId: true } }),
     prisma.failureEffect.findMany({ where: { fmeaId }, select: { id: true } }),
   ]);
 
@@ -282,6 +282,8 @@ async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult> {
   const fmSet = new Set(fms.map((f: any) => f.id));
   const feSet = new Set(fes.map((f: any) => f.id));
   const linkedFcIds = new Set(links.map((l: any) => l.fcId));
+  const linkedFmIds = new Set(links.map((l: any) => l.fmId));
+  const linkedFeIds = new Set(links.map((l: any) => l.feId));
 
   let brokenFc = 0, brokenFm = 0, brokenFe = 0;
   for (const lk of links) {
@@ -291,13 +293,21 @@ async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult> {
   }
 
   const unlinkedFcs = fcs.filter((fc: any) => !linkedFcIds.has(fc.id)).length;
+  const unlinkedFms = fms.filter((fm: any) => !linkedFmIds.has(fm.id)).length;
+  const unlinkedFes = fes.filter((fe: any) => !linkedFeIds.has(fe.id)).length;
 
-  result.details = { links: links.length, brokenFC: brokenFc, brokenFM: brokenFm, brokenFE: brokenFe, unlinkedFC: unlinkedFcs };
+  result.details = {
+    links: links.length,
+    brokenFC: brokenFc, brokenFM: brokenFm, brokenFE: brokenFe,
+    unlinkedFC: unlinkedFcs, unlinkedFM: unlinkedFms, unlinkedFE: unlinkedFes,
+    totalFM: fms.length, totalFC: fcs.length, totalFE: fes.length,
+  };
 
   if (brokenFc > 0) { result.status = 'error'; result.issues.push(`깨진 FC FK ${brokenFc}건`); }
   if (brokenFm > 0) { result.status = 'error'; result.issues.push(`깨진 FM FK ${brokenFm}건`); }
   if (brokenFe > 0) { result.status = 'error'; result.issues.push(`깨진 FE FK ${brokenFe}건`); }
   if (unlinkedFcs > 0) { result.status = 'warn'; result.issues.push(`FailureLink 없는 FC ${unlinkedFcs}건`); }
+  if (unlinkedFms > 0) { result.status = 'warn'; result.issues.push(`FailureLink 없는 FM ${unlinkedFms}건`); }
   if (links.length === 0 && fcs.length > 0) { result.status = 'error'; result.issues.push('FailureLink 0건 — FK 연결 필요'); }
 
   return result;
@@ -470,15 +480,16 @@ async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
     } catch { /* FailureEffect 테이블 없으면 무시 */ }
   }
 
-  // ★ 빈 공정특성 자동채움 — Master B3 데이터 또는 작업요소명 기반
+  // ★ 빈 공정특성 자동채움 — Master B3 + 작업요소명 + Atomic DB 동시 업데이트
   let emptyPcFixed = 0;
+  const atomicPcUpdates: Array<{ id: string; processChar: string }> = [];
   for (const proc of l2arr) {
     for (const we of (proc.l3 || [])) {
       for (const fn of (we.functions || [])) {
         for (const pc of (fn.processChars || [])) {
           if (!pc.name?.trim()) {
-            // 1) Atomic DB L3Function.processChar 조회
             let pcName = '';
+            // 1) Atomic DB L3Function.processChar 조회
             try {
               const l3Func = await prisma.l3Function.findFirst({
                 where: { fmeaId, id: pc.id },
@@ -488,10 +499,10 @@ async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
               else if (l3Func?.functionName?.trim()) pcName = l3Func.functionName;
             } catch { /* ignore */ }
 
-            // 2) 작업요소명 기반 fallback
+            // 2) 작업요소명/기능명 fallback
             if (!pcName) {
-              const weName = we.name?.trim() || we.m4Name?.trim() || '';
               const fnName = fn.name?.trim() || fn.functionName?.trim() || '';
+              const weName = we.name?.trim() || we.m4Name?.trim() || '';
               if (fnName) pcName = fnName;
               else if (weName) pcName = `${weName} 관리`;
             }
@@ -514,14 +525,124 @@ async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
               pc.name = pcName;
               emptyPcFixed++;
               changed = true;
+              // ★ Atomic DB L3Function.processChar도 동시 업데이트 (재발 방지)
+              if (pc.id) atomicPcUpdates.push({ id: pc.id, processChar: pcName });
             }
           }
         }
       }
     }
   }
+  // ★ Atomic DB L3Function.processChar 일괄 업데이트
+  for (const upd of atomicPcUpdates) {
+    try {
+      await prisma.l3Function.updateMany({
+        where: { fmeaId, id: upd.id },
+        data: { processChar: upd.processChar },
+      });
+    } catch { /* L3Function이 없으면 무시 */ }
+  }
   if (emptyPcFixed > 0) {
-    fixed.push(`빈 공정특성 ${emptyPcFixed}건 자동채움`);
+    fixed.push(`빈 공정특성 ${emptyPcFixed}건 자동채움 (Legacy+Atomic DB)`);
+  }
+
+  // ★★ Atomic DB L3Function.processChar 직접 수정 (Legacy와 독립)
+  // Legacy가 이미 채워져 있어도, Atomic DB가 비어있으면 브라우저 로드 시 다시 빈값이 됨
+  try {
+    const emptyL3Funcs = await prisma.l3Function.findMany({
+      where: { fmeaId, OR: [{ processChar: '' }, { processChar: null }] },
+      select: { id: true, functionName: true, l3StructId: true },
+    });
+    if (emptyL3Funcs.length > 0) {
+      // ★ 마스터 FMEA DB에서 동일 functionName으로 processChar 매칭 (핵심!)
+      let masterL3FuncMap = new Map<string, string>();
+      try {
+        const fmeaIdPrefix = fmeaId.replace(/\d+$/, '');
+        const basePrisma = (await import('@/lib/prisma')).getPrisma();
+        if (basePrisma) {
+          const masterFmeas = await basePrisma.fmeaProject.findMany({
+            where: { id: { startsWith: fmeaIdPrefix } },
+            select: { id: true },
+            take: 10,
+          });
+          for (const mf of masterFmeas) {
+            if (mf.id === fmeaId) continue;
+            try {
+              const mSchema = (await import('@/lib/project-schema')).getProjectSchemaName(mf.id);
+              const mBaseUrl = getBaseDatabaseUrl();
+              if (mBaseUrl) {
+                await (await import('@/lib/project-schema')).ensureProjectSchemaReady({ baseDatabaseUrl: mBaseUrl, schema: mSchema });
+                const mPrisma = getPrismaForSchema(mSchema);
+                if (mPrisma) {
+                  const mFuncs = await mPrisma.l3Function.findMany({
+                    where: { fmeaId: mf.id, processChar: { not: '' } },
+                    select: { functionName: true, processChar: true },
+                  });
+                  for (const mf2 of mFuncs) {
+                    if (mf2.functionName?.trim() && mf2.processChar?.trim()) {
+                      masterL3FuncMap.set(mf2.functionName.trim(), mf2.processChar);
+                    }
+                  }
+                }
+              }
+            } catch { /* 마스터 스키마 접근 실패 무시 */ }
+          }
+        }
+      } catch { /* 마스터 DB 접근 실패 무시 */ }
+
+      let atomicFixed = 0;
+      for (const func of emptyL3Funcs) {
+        let pcName = '';
+        // 1) 마스터 FMEA DB에서 동일 functionName 매칭 (SSoT)
+        if (func.functionName?.trim()) {
+          pcName = masterL3FuncMap.get(func.functionName.trim()) || '';
+        }
+        // 2) Legacy 데이터에서 해당 PC 이름 찾기
+        if (!pcName) {
+          for (const proc of l2arr) {
+            for (const we of (proc.l3 || [])) {
+              for (const fn of (we.functions || [])) {
+                for (const pc of (fn.processChars || [])) {
+                  if (pc.id === func.id && pc.name?.trim()) pcName = pc.name;
+                }
+              }
+            }
+            if (pcName) break;
+          }
+        }
+        // 3) functionName fallback (최후 수단)
+        if (!pcName && func.functionName?.trim()) {
+          pcName = func.functionName;
+        }
+
+        if (pcName) {
+          await prisma.l3Function.updateMany({
+            where: { fmeaId, id: func.id },
+            data: { processChar: pcName },
+          }).catch(() => {});
+          // Legacy 동기화
+          for (const proc of l2arr) {
+            for (const we of (proc.l3 || [])) {
+              for (const fn of (we.functions || [])) {
+                for (const pc of (fn.processChars || [])) {
+                  if (pc.id === func.id && !pc.name?.trim()) {
+                    pc.name = pcName;
+                    changed = true;
+                  }
+                }
+              }
+            }
+          }
+          atomicFixed++;
+        }
+      }
+      if (atomicFixed > 0) {
+        fixed.push(`Master DB 매칭으로 L3Function.processChar ${atomicFixed}건 꽂아넣기`);
+        changed = true;
+      }
+    }
+  } catch (err) {
+    console.error('[fixStep2Parsing] Atomic DB L3Function 직접 수정 오류:', err);
   }
 
   if (changed) {
@@ -683,6 +804,7 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
     }
   } catch { /* ignore */ }
 
+  const atomicPcUpdatesWs: Array<{ id: string; processChar: string }> = [];
   for (const proc of (data.l2 || [])) {
     let pcSeq = 0;
     for (const we of (proc.l3 || [])) {
@@ -719,6 +841,7 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
               pc.name = pcName;
               fixed.push(`PC 이름 복원: "${pcName}"`);
               changed = true;
+              if (pc.id) atomicPcUpdatesWs.push({ id: pc.id, processChar: pcName });
             }
           }
         }
@@ -741,6 +864,16 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
       }
     }
     if (changed) proc.failureCauses = procFcs;
+  }
+
+  // ★ Atomic DB L3Function.processChar 일괄 업데이트 (재발 방지)
+  for (const upd of atomicPcUpdatesWs) {
+    try {
+      await prisma.l3Function.updateMany({
+        where: { fmeaId, id: upd.id },
+        data: { processChar: upd.processChar },
+      });
+    } catch { /* ignore */ }
   }
 
   if (changed) {
