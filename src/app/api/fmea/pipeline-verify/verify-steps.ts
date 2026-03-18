@@ -605,30 +605,52 @@ export async function verifyWs(prisma: any, fmeaId: string): Promise<StepResult>
   return r;
 }
 
-// ─── AP 계산 서버용 (riskOptUtils.ts의 calcAP 복제 — 서버에서 React import 불가) ───
-const AP_TABLE_SERVER = [
-  { sMin: 9, sMax: 10, oMin: 4, oMax: 10, d: ['H','H','H','H'] as const },
-  { sMin: 9, sMax: 10, oMin: 2, oMax: 3,  d: ['H','H','H','M'] as const },
-  { sMin: 9, sMax: 10, oMin: 1, oMax: 1,  d: ['H','H','M','L'] as const },
-  { sMin: 7, sMax: 8,  oMin: 4, oMax: 10, d: ['H','H','H','M'] as const },
-  { sMin: 7, sMax: 8,  oMin: 2, oMax: 3,  d: ['H','H','M','L'] as const },
-  { sMin: 7, sMax: 8,  oMin: 1, oMax: 1,  d: ['H','M','M','L'] as const },
-  { sMin: 4, sMax: 6,  oMin: 4, oMax: 10, d: ['H','H','M','L'] as const },
-  { sMin: 4, sMax: 6,  oMin: 2, oMax: 3,  d: ['H','M','M','L'] as const },
-  { sMin: 4, sMax: 6,  oMin: 1, oMax: 1,  d: ['M','M','L','L'] as const },
-  { sMin: 2, sMax: 3,  oMin: 4, oMax: 10, d: ['H','M','M','L'] as const },
-  { sMin: 2, sMax: 3,  oMin: 2, oMax: 3,  d: ['M','M','L','L'] as const },
-  { sMin: 2, sMax: 3,  oMin: 1, oMax: 1,  d: ['M','L','L','L'] as const },
+// ─── AP 계산 서버용 — AIAG-VDA FMEA 1st Edition 공식 20행 테이블 ───
+// ★ 2026-03-18 FIX: apCalculator.ts의 AP_TABLE_DATA와 100% 동일한 테이블
+// O 범위를 5그룹(8-10, 6-7, 4-5, 2-3, 1)으로 세분화하여 UI와 동일한 결과 보장
+const AP_TABLE_SERVER: { s: string; o: string; d: readonly ('H'|'M'|'L')[] }[] = [
+  { s: '9-10', o: '8-10', d: ['H', 'H', 'H', 'H'] },
+  { s: '9-10', o: '6-7',  d: ['H', 'H', 'H', 'H'] },
+  { s: '9-10', o: '4-5',  d: ['H', 'H', 'H', 'M'] },
+  { s: '9-10', o: '2-3',  d: ['H', 'M', 'L', 'L'] },
+  { s: '9-10', o: '1',    d: ['L', 'L', 'L', 'L'] },
+  { s: '7-8',  o: '8-10', d: ['H', 'H', 'H', 'H'] },
+  { s: '7-8',  o: '6-7',  d: ['H', 'H', 'H', 'M'] },
+  { s: '7-8',  o: '4-5',  d: ['H', 'M', 'M', 'M'] },
+  { s: '7-8',  o: '2-3',  d: ['M', 'M', 'L', 'L'] },
+  { s: '7-8',  o: '1',    d: ['L', 'L', 'L', 'L'] },
+  { s: '4-6',  o: '8-10', d: ['H', 'H', 'M', 'M'] },
+  { s: '4-6',  o: '6-7',  d: ['M', 'M', 'M', 'L'] },
+  { s: '4-6',  o: '4-5',  d: ['M', 'L', 'L', 'L'] },
+  { s: '4-6',  o: '2-3',  d: ['L', 'L', 'L', 'L'] },
+  { s: '4-6',  o: '1',    d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3',  o: '8-10', d: ['M', 'M', 'L', 'L'] },
+  { s: '2-3',  o: '6-7',  d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3',  o: '4-5',  d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3',  o: '2-3',  d: ['L', 'L', 'L', 'L'] },
+  { s: '2-3',  o: '1',    d: ['L', 'L', 'L', 'L'] },
 ];
 
 export function calcAPServer(s: number, o: number, d: number): 'H' | 'M' | 'L' | null {
   if (s <= 0 || o <= 0 || d <= 0) return null;
   if (s === 1) return 'L';
+
+  let sRange: string;
+  if (s >= 9) sRange = '9-10';
+  else if (s >= 7) sRange = '7-8';
+  else if (s >= 4) sRange = '4-6';
+  else sRange = '2-3';
+
+  let oRange: string;
+  if (o >= 8) oRange = '8-10';
+  else if (o >= 6) oRange = '6-7';
+  else if (o >= 4) oRange = '4-5';
+  else if (o >= 2) oRange = '2-3';
+  else oRange = '1';
+
   const dIdx = d >= 7 ? 0 : d >= 5 ? 1 : d >= 2 ? 2 : 3;
-  for (const row of AP_TABLE_SERVER) {
-    if (s >= row.sMin && s <= row.sMax && o >= row.oMin && o <= row.oMax) return row.d[dIdx];
-  }
-  return 'L';
+  const row = AP_TABLE_SERVER.find(r => r.s === sRange && r.o === oRange);
+  return row ? row.d[dIdx] : 'L';
 }
 
 // ─── STEP 6: OPT — 6ST 최적화 종합 검증 (12개 항목) ───
