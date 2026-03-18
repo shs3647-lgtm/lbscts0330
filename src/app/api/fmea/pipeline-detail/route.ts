@@ -156,9 +156,9 @@ async function getStep3Detail(prisma: any, fmeaId: string) {
     l3: l3s.map((l: any) => ({ id: l.id.substring(0, 8), name: l.name, m4: l.m4 || '', processNo: l2Map.get(l.l2Id) || '' })),
     l2Functions: l2Funcs.map((f: any) => ({ id: f.id.substring(0, 8), name: f.functionName, productChar: f.productChar || '', processNo: l2Map.get(f.l2StructId) || '' })),
     l3Functions: l3Funcs.map((f: any) => ({ id: f.id.substring(0, 8), name: f.functionName, processChar: f.processChar || '' })),
-    failureModes: fms.map((f: any) => ({ id: f.id.substring(0, 8), name: f.mode, processNo: l2Map.get(f.l2StructId) || '' })),
-    failureEffects: fes.map((f: any) => ({ id: f.id.substring(0, 8), name: f.effect, severity: f.severity, category: f.category || '' })),
-    failureCauses: fcs.map((f: any) => ({ id: f.id.substring(0, 8), cause: f.cause, processNo: l2Map.get(f.l2StructId) || '' })),
+    failureModes: fms.map((f: any) => ({ id: f.id, name: f.mode, l2StructureId: f.l2StructId, processNo: l2Map.get(f.l2StructId) || '' })),
+    failureEffects: fes.map((f: any) => ({ id: f.id, name: f.effect, severity: f.severity, category: f.category || '' })),
+    failureCauses: fcs.map((f: any) => ({ id: f.id, cause: f.cause, l2StructureId: f.l2StructId, processNo: l2Map.get(f.l2StructId) || '' })),
   };
 }
 
