@@ -896,11 +896,33 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       await verifyOptimization(prisma, fmeaId),
     ];
 
-    // STEP 6 (OPT)는 allGreen 판정에서 제외 — 최적화 미입력은 정상 상태
-    const coreSteps = steps.filter(s => s.step <= 5);
-    const allOk = coreSteps.every(s => s.status === 'ok');
-    if (allOk || !autoFix) {
+    // autoFix 아닌 경우 (GET 조회) → 즉시 반환
+    if (!autoFix) {
+      const allOk = steps.every(s => s.status === 'ok');
       return { fmeaId, steps, allGreen: allOk, loopCount, timestamp: new Date().toISOString() };
+    }
+
+    // ★ Step 6 (OPT) 자동수정을 먼저 실행 — Steps 0-5 ok 여부와 무관
+    const stepOptEarly = steps.find(s => s.name === 'OPT');
+    if (stepOptEarly && stepOptEarly.status !== 'ok') {
+      const fixes = await fixStep6Opt(prisma, fmeaId);
+      stepOptEarly.fixed = fixes;
+      if (fixes.length > 0) stepOptEarly.status = 'fixed';
+    }
+
+    // 전체 단계(0~6) allGreen 판정
+    const allOk = steps.every(s => s.status === 'ok' || s.status === 'fixed');
+    if (allOk) {
+      return { fmeaId, steps, allGreen: true, loopCount, timestamp: new Date().toISOString() };
+    }
+
+    // Steps 0-5 중 수정 가능한 것이 있는지 확인
+    const coreSteps = steps.filter(s => s.step <= 5);
+    const coreAllOk = coreSteps.every(s => s.status === 'ok' || s.status === 'fixed');
+    if (coreAllOk) {
+      // Steps 0-5는 ok인데 Step 6만 남은 경우 — Step 6는 이미 위에서 fix 시도함
+      const finalAllGreen = steps.every(s => s.status === 'ok' || s.status === 'fixed');
+      return { fmeaId, steps, allGreen: finalAllGreen, loopCount, timestamp: new Date().toISOString() };
     }
 
     // ★ warn도 자동수정 대상 — error + warn 모두 fix 시도
@@ -971,19 +993,10 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       if (fixes.length > 0) stepWs.status = 'fixed';
     }
 
-    // STEP 6 (OPT) — SOD riskData→DB 동기화 + AP 재계산
-    const stepOpt = steps.find(s => s.name === 'OPT');
-    if (stepOpt && stepOpt.status !== 'ok') {
-      const fixes = await fixStep6Opt(prisma, fmeaId);
-      stepOpt.fixed = fixes;
-      if (fixes.length > 0) stepOpt.status = 'fixed';
-    }
-
     const anyFixed = steps.some(s => s.fixed.length > 0);
     if (!anyFixed) {
-      // 더 이상 수정 불가 — STEP 0~5만 판정 (STEP 6 OPT 제외)
-      const coreAcceptable = steps.filter(s => s.step <= 5).every(s => s.status === 'ok' || s.status === 'warn');
-      return { fmeaId, steps, allGreen: coreAcceptable, loopCount, timestamp: new Date().toISOString() };
+      const acceptable = steps.every(s => s.status === 'ok' || s.status === 'warn');
+      return { fmeaId, steps, allGreen: acceptable, loopCount, timestamp: new Date().toISOString() };
     }
   }
 
@@ -1001,7 +1014,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
   return {
     fmeaId,
     steps: finalSteps,
-    allGreen: finalSteps.filter(s => s.step <= 5).every(s => s.status === 'ok'),
+    allGreen: finalSteps.every(s => s.status === 'ok'),
     loopCount,
     timestamp: new Date().toISOString(),
   };
