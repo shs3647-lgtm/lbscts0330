@@ -271,15 +271,10 @@ export function atomicToFlatData(
       idRemap.fm.set(fm.id, a5Id);
 
       // parentItemId: FM → A4(ProductChar) 매핑
+      // fm.productCharId === L2Function.id → idRemap.pc에서 직접 조회
       let parentA4Id: string | undefined;
       if (fm.productCharId) {
-        // productCharId가 있으면 해당 L2Function을 찾아 A4 ID 매핑
-        for (const l2Func of l2Funcs) {
-          if (idRemap.pc.has(l2Func.id) && l2Func.productChar) {
-            parentA4Id = idRemap.pc.get(l2Func.id);
-            break;
-          }
-        }
+        parentA4Id = idRemap.pc.get(fm.productCharId);
       }
 
       result.push(makeFlatItem({

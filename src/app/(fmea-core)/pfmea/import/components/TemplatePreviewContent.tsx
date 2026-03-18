@@ -801,17 +801,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           {/* FMEA 작성 — ★ 2026-03-10: FA 완료 후에만 활성화 */}
 
           {/* ─── 원클릭 Import→워크시트 (SA/FC/FA 자동 확정) ─── */}
-          {hasStepProcess && fmeaId && (
+          {hasStepProcess && fmeaId && quickCreateWorksheet && (
             <button
-              onClick={async () => {
-                if (!canSA) return;
-                confirmSA();
-                if (canFC) confirmFC();
-                confirmFA();
-              }}
-              disabled={!canSA}
+              onClick={quickCreateWorksheet}
+              disabled={!canSA || isAnalysisImporting || isAnalysisComplete}
               className={`px-3 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                canSA
+                isAnalysisComplete ? BTN_CONFIRMED
+                : canSA && !isAnalysisImporting
                   ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 cursor-pointer'
                   : BTN_DISABLED
               }`}>

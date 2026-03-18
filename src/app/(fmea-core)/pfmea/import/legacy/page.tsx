@@ -33,6 +33,7 @@ import {
 import { BdStatusTable } from '../components/BdStatusTable';
 import { useTemplateGenerator } from '../hooks/useTemplateGenerator';
 import FailureChainPopup from '../FailureChainPopup';
+import ImportStepBar from '../components/ImportStepBar';
 
 export default function LegacyImportPage() {
   const { isAdmin } = useAuth();
@@ -447,6 +448,25 @@ export default function LegacyImportPage() {
           </div>
         </div>
       </div>
+
+      {/* SA+FC+FA 통합 자동확정 + 파이프라인 검증 */}
+      {selectedFmeaId && flatData.length > 0 && (
+        <div className="mb-2">
+          <ImportStepBar
+            flatData={flatData}
+            fmeaId={selectedFmeaId}
+            failureChains={masterChains}
+            l1Name={l1Name}
+            fmeaInfo={selectedFmea ? {
+              subject: selectedFmea.fmeaInfo?.subject || '',
+              companyName: selectedFmea.fmeaInfo?.companyName || '',
+              customerName: selectedFmea.fmeaInfo?.customerName || '',
+              modelYear: selectedFmea.fmeaInfo?.modelYear || '',
+              fmeaType: selectedFmea.fmeaType || 'P',
+            } : undefined}
+          />
+        </div>
+      )}
 
       {/* 기초정보 상세 (기본 접힘 — 클릭 시 펼침) */}
       <TemplateGeneratorPanel

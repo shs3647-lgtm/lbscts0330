@@ -75,11 +75,11 @@ async function getStep1Detail(prisma: any, fmeaId: string) {
   };
 }
 
-// STEP 2: 파싱 — 실제 파싱 데이터 공정별 상세
+// STEP 2: 파싱 — 실제 파싱 데이터 공정별 상세 + 교차검증 매트릭스
 async function getStep2Detail(prisma: any, fmeaId: string) {
   const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
   const d = legacy?.data as any;
-  if (!d?.l2) return { processes: [], l1Functions: [], failureEffects: [] };
+  if (!d?.l2) return { processes: [], l1Functions: [], failureEffects: [], crossCheckMatrix: [] };
 
   const processes = (d.l2 || []).map((p: any) => {
     const funcs = p.functions || [];
@@ -121,13 +121,71 @@ async function getStep2Detail(prisma: any, fmeaId: string) {
     requirement: fn.requirement || '',
   }));
 
-  const fes = (d.l1?.failureScopes || []).map((fe: any) => ({
+  const fes = (d.l1?.failureScopes || d.failureEffects || []).map((fe: any) => ({
     name: fe.name || '',
     scope: fe.scope || '',
     severity: fe.severity || 0,
   }));
 
-  return { processes, l1Functions: l1Funcs, failureEffects: fes };
+  // 교차검증 매트릭스: Atomic vs Legacy 수량 비교 (A1~C4)
+  const crossCheckMatrix = await buildCrossCheckMatrix(prisma, fmeaId, d);
+
+  return { processes, l1Functions: l1Funcs, failureEffects: fes, crossCheckMatrix };
+}
+
+async function buildCrossCheckMatrix(prisma: any, fmeaId: string, legacyData: any) {
+  const l2arr = legacyData.l2 || [];
+  const leg: Record<string, number> = { A1: 0, A2: 0, A3: 0, A4: 0, A5: 0, B1: 0, B2: 0, B3: 0, B4: 0, C1: 0, C2: 0, C3: 0, C4: 0 };
+  for (const proc of l2arr) {
+    leg.A1++;
+    if (proc.name?.trim()) leg.A2++;
+    leg.A3 += (proc.functions || []).length;
+    for (const fn of (proc.functions || [])) { leg.A4 += (fn.processChars || fn.productChars || []).length; }
+    leg.A5 += (proc.failureModes || []).length;
+    for (const we of (proc.l3 || [])) {
+      leg.B1++;
+      for (const fn of (we.functions || [])) { if (fn.name?.trim() || fn.functionName?.trim()) leg.B2++; leg.B3 += (fn.processChars || []).length; }
+      leg.B4 += (we.failureCauses || []).length;
+    }
+    leg.B4 += (proc.failureCauses || []).length;
+  }
+  leg.C4 = (legacyData.failureEffects || legacyData.l1?.failureScopes || []).length;
+  const l1Funcs = legacyData.l1?.functions || [];
+  const cats = new Set<string>(), fns = new Set<string>();
+  for (const fn of l1Funcs) { if (fn.category?.trim()) cats.add(fn.category); if (fn.name?.trim()) fns.add(fn.name); }
+  leg.C1 = cats.size; leg.C2 = fns.size; leg.C3 = l1Funcs.length;
+
+  const atm: Record<string, number> = {};
+  atm.A1 = await prisma.l2Structure.count({ where: { fmeaId } });
+  atm.A2 = await prisma.l2Structure.count({ where: { fmeaId, name: { not: '' } } });
+  atm.A3 = await prisma.l2Function.count({ where: { fmeaId } });
+  atm.A4 = await prisma.l2Function.count({ where: { fmeaId, productChar: { not: '' } } });
+  atm.A5 = await prisma.failureMode.count({ where: { fmeaId } });
+  atm.B1 = await prisma.l3Structure.count({ where: { fmeaId } });
+  const l3fs = await prisma.l3Function.findMany({ where: { fmeaId }, select: { functionName: true, processChar: true } });
+  atm.B2 = new Set(l3fs.map((f: any) => f.functionName).filter((n: string) => n?.trim())).size;
+  atm.B3 = l3fs.filter((f: any) => f.processChar?.trim()).length;
+  atm.B4 = await prisma.failureCause.count({ where: { fmeaId } });
+  const aL1 = await prisma.l1Function.findMany({ where: { fmeaId } }).catch(() => []);
+  const ac = new Set<string>(), af = new Set<string>();
+  for (const fn of aL1) { if ((fn as any).category?.trim()) ac.add((fn as any).category); if ((fn as any).functionName?.trim()) af.add((fn as any).functionName); }
+  atm.C1 = ac.size; atm.C2 = af.size; atm.C3 = aL1.length;
+  atm.C4 = await prisma.failureEffect.count({ where: { fmeaId } });
+
+  const labels: Record<string, string> = {
+    A1: '공정번호', A2: '공정명', A3: '공정기능', A4: '제품특성', A5: '고장형태',
+    B1: '작업요소', B2: '요소기능', B3: '공정특성', B4: '고장원인',
+    C1: '구분', C2: '완제품기능', C3: '요구사항', C4: '고장영향',
+  };
+
+  return Object.keys(labels).map(code => ({
+    code,
+    label: labels[code],
+    atomicCount: atm[code] ?? 0,
+    legacyCount: leg[code] ?? 0,
+    match: (atm[code] ?? 0) === (leg[code] ?? 0),
+    diff: Math.abs((atm[code] ?? 0) - (leg[code] ?? 0)),
+  }));
 }
 
 // STEP 3: UUID — 실제 Atomic DB 엔티티 목록
@@ -162,18 +220,23 @@ async function getStep3Detail(prisma: any, fmeaId: string) {
   };
 }
 
-// STEP 4: FK — FailureLink 상세 (FM↔FE↔FC 관계)
+// STEP 4: FK — FailureLink 상세 (FM↔FE↔FC 관계) + 14개 FK 무결성
 async function getStep4Detail(prisma: any, fmeaId: string) {
   const safeQuery = async (fn: () => Promise<any[]>) => {
     try { return await fn(); } catch { return []; }
   };
 
-  const [links, fms, fes, fcs, l2s] = await Promise.all([
+  const [links, fms, fes, fcs, l2s, l3s, l3Funcs, l2Funcs, l1Funcs, ras] = await Promise.all([
     safeQuery(() => prisma.failureLink.findMany({ where: { fmeaId, deletedAt: null }, take: 300 })),
-    safeQuery(() => prisma.failureMode.findMany({ where: { fmeaId }, select: { id: true, mode: true, l2StructId: true } })),
-    safeQuery(() => prisma.failureEffect.findMany({ where: { fmeaId }, select: { id: true, effect: true } })),
-    safeQuery(() => prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, cause: true } })),
+    safeQuery(() => prisma.failureMode.findMany({ where: { fmeaId }, select: { id: true, mode: true, l2StructId: true, productCharId: true } })),
+    safeQuery(() => prisma.failureEffect.findMany({ where: { fmeaId }, select: { id: true, effect: true, l1FuncId: true } })),
+    safeQuery(() => prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, cause: true, l2StructId: true, l3StructId: true, l3FuncId: true } })),
     safeQuery(() => prisma.l2Structure.findMany({ where: { fmeaId }, select: { id: true, no: true, name: true } })),
+    safeQuery(() => prisma.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } })),
+    safeQuery(() => prisma.l3Function.findMany({ where: { fmeaId }, select: { id: true, functionName: true, l3StructId: true, l2StructId: true } })),
+    safeQuery(() => prisma.l2Function.findMany({ where: { fmeaId }, select: { id: true, functionName: true, l2StructId: true } })),
+    safeQuery(() => prisma.l1Function.findMany({ where: { fmeaId }, select: { id: true } })),
+    safeQuery(() => prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true, linkId: true } })),
   ]);
 
   const fmMap = new Map<string, any>(fms.map((f: any) => [f.id, f]));
@@ -191,11 +254,11 @@ async function getStep4Detail(prisma: any, fmeaId: string) {
       processNo: l2?.no || '',
       processName: l2?.name || '',
       fmId: lk.fmId,
-      fmName: fm?.mode || '❌ BROKEN',
+      fmName: fm?.mode || '\u274C BROKEN',
       feId: lk.feId,
-      feName: fe?.effect || '❌ BROKEN',
+      feName: fe?.effect || '\u274C BROKEN',
       fcId: lk.fcId,
-      fcName: fc?.cause || '❌ BROKEN',
+      fcName: fc?.cause || '\u274C BROKEN',
       broken: !fm || !fe || !fc,
     };
   });
@@ -203,15 +266,39 @@ async function getStep4Detail(prisma: any, fmeaId: string) {
   const linkedFcIds = new Set(links.map((l: any) => l.fcId));
   const linkedFmIds = new Set(links.map((l: any) => l.fmId));
   const linkedFeIds = new Set(links.map((l: any) => l.feId));
-  const unlinkedFCList = fcs.filter((fc: any) => !linkedFcIds.has(fc.id)).map((fc: any) => ({
-    id: fc.id, cause: fc.cause,
-  }));
-  const unlinkedFMList = fms.filter((fm: any) => !linkedFmIds.has(fm.id)).map((fm: any) => ({
-    id: fm.id, mode: fm.mode,
-  }));
-  const unlinkedFEList = fes.filter((fe: any) => !linkedFeIds.has(fe.id)).map((fe: any) => ({
-    id: fe.id, effect: fe.effect,
-  }));
+  const unlinkedFCList = fcs.filter((fc: any) => !linkedFcIds.has(fc.id)).map((fc: any) => ({ id: fc.id, cause: fc.cause }));
+  const unlinkedFMList = fms.filter((fm: any) => !linkedFmIds.has(fm.id)).map((fm: any) => ({ id: fm.id, mode: fm.mode }));
+  const unlinkedFEList = fes.filter((fe: any) => !linkedFeIds.has(fe.id)).map((fe: any) => ({ id: fe.id, effect: fe.effect }));
+
+  // 14개 FK 무결성 검증 요약
+  const idSet = {
+    l1F: new Set(l1Funcs.map((r: any) => r.id)),
+    l2: new Set(l2s.map((r: any) => r.id)),
+    l2F: new Set(l2Funcs.map((r: any) => r.id)),
+    l3: new Set(l3s.map((r: any) => r.id)),
+    l3F: new Set(l3Funcs.map((r: any) => r.id)),
+    fm: new Set(fms.map((r: any) => r.id)),
+    fe: new Set(fes.map((r: any) => r.id)),
+    fc: new Set(fcs.map((r: any) => r.id)),
+    fl: new Set(links.map((r: any) => r.id)),
+  };
+
+  const fkSummary = [
+    checkFk('L3.l2Id→L2', l3s, 'l2Id', idSet.l2),
+    checkFk('L2F.l2StructId→L2', l2Funcs, 'l2StructId', idSet.l2),
+    checkFk('L3F.l3StructId→L3', l3Funcs, 'l3StructId', idSet.l3),
+    checkFk('L3F.l2StructId→L2', l3Funcs, 'l2StructId', idSet.l2),
+    checkFk('FM.l2StructId→L2', fms, 'l2StructId', idSet.l2),
+    checkFk('FM.productCharId→L2F', fms, 'productCharId', idSet.l2F, true),
+    checkFk('FC.l3StructId→L3', fcs, 'l3StructId', idSet.l3),
+    checkFk('FC.l2StructId→L2', fcs, 'l2StructId', idSet.l2),
+    checkFk('FC.l3FuncId→L3F', fcs, 'l3FuncId', idSet.l3F),
+    checkFk('FL.fmId→FM', links, 'fmId', idSet.fm),
+    checkFk('FL.feId→FE', links, 'feId', idSet.fe),
+    checkFk('FL.fcId→FC', links, 'fcId', idSet.fc),
+    checkFk('RA.linkId→FL', ras, 'linkId', idSet.fl),
+    checkFk('FE.l1FuncId→L1F', fes, 'l1FuncId', idSet.l1F, true),
+  ];
 
   return {
     links: rows,
@@ -222,19 +309,34 @@ async function getStep4Detail(prisma: any, fmeaId: string) {
     totalFMs: fms.length,
     totalFCs: fcs.length,
     totalFEs: fes.length,
+    fkSummary,
   };
 }
 
-// STEP 5: WS — 워크시트 구조 검증 상세
+function checkFk(label: string, rows: any[], fkField: string, targetSet: Set<string>, nullable = false) {
+  let valid = 0, orphans = 0;
+  for (const row of rows) {
+    const fkVal = row[fkField];
+    if (!fkVal && nullable) { valid++; continue; }
+    if (!fkVal || !targetSet.has(fkVal)) orphans++;
+    else valid++;
+  }
+  return { relation: label, total: rows.length, valid, orphans, ok: orphans === 0 };
+}
+
+// STEP 5: WS — 워크시트 구조 검증 상세 + Atomic↔Legacy 동기화 비교
 async function getStep5Detail(prisma: any, fmeaId: string) {
   const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
   const d = legacy?.data as any;
-  if (!d?.l2) return { processes: [] };
+  if (!d?.l2) return { processes: [], syncSummary: [] };
 
   const processes = (d.l2 || []).map((p: any) => {
     const procFcs = p.failureCauses || [];
     const fcPcIds = new Set(procFcs.map((fc: any) => fc.processCharId).filter(Boolean));
-    const pcItems: { id: string; name: string; hasFC: boolean }[] = [];
+    for (const we of (p.l3 || [])) {
+      for (const fc of (we.failureCauses || [])) { if (fc.processCharId) fcPcIds.add(fc.processCharId); }
+    }
+    const pcItems: { id: string; name: string; hasFC: boolean; inAtomic: boolean }[] = [];
 
     for (const we of (p.l3 || [])) {
       for (const fn of (we.functions || [])) {
@@ -243,6 +345,7 @@ async function getStep5Detail(prisma: any, fmeaId: string) {
             id: (pc.id || '').substring(0, 8),
             name: pc.name || '(빈값)',
             hasFC: fcPcIds.has(pc.id),
+            inAtomic: true,
           });
         }
       }
@@ -259,5 +362,27 @@ async function getStep5Detail(prisma: any, fmeaId: string) {
     };
   });
 
-  return { processes };
+  // Atomic↔Legacy 동기화 요약
+  const safeCount = async (model: string) => {
+    try { return await (prisma as any)[model].count({ where: { fmeaId } }); } catch { return -1; }
+  };
+  const legCounts = {
+    FM: d.l2.reduce((s: number, p: any) => s + (p.failureModes || []).length, 0),
+    FC: d.l2.reduce((s: number, p: any) => {
+      let c = (p.failureCauses || []).length;
+      for (const we of (p.l3 || [])) c += (we.failureCauses || []).length;
+      return s + c;
+    }, 0),
+    FE: (d.failureEffects || d.l1?.failureScopes || []).length,
+    FL: (d.failureLinks || []).length,
+  };
+  const syncSummary = [
+    { entity: 'FM', atomic: await safeCount('failureMode'), legacy: legCounts.FM },
+    { entity: 'FC', atomic: await safeCount('failureCause'), legacy: legCounts.FC },
+    { entity: 'FE', atomic: await safeCount('failureEffect'), legacy: legCounts.FE },
+    { entity: 'FL', atomic: await safeCount('failureLink'), legacy: legCounts.FL },
+    { entity: 'L3F', atomic: await safeCount('l3Function'), legacy: processes.reduce((s: number, p: any) => s + (p.processChars?.length || 0), 0) },
+  ].map(s => ({ ...s, match: s.atomic === s.legacy }));
+
+  return { processes, syncSummary };
 }

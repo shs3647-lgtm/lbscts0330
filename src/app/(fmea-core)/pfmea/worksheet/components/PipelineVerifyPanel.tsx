@@ -13,6 +13,28 @@ import ReactDOM from 'react-dom';
 import PipelineStep0Detail from './PipelineStep0Detail';
 import PipelineStepDetailView from './PipelineStepDetailView';
 
+interface CrossCheckEntry {
+  entity: string;
+  atomicCount: number;
+  legacyCount: number;
+  match: boolean;
+  missingInAtomic: string[];
+  missingInLegacy: string[];
+}
+
+interface FkIntegrityEntry {
+  relation: string;
+  total: number;
+  valid: number;
+  orphans: { id: string; fkValue: string; name?: string }[];
+}
+
+interface ParentChildEntry {
+  parent: string;
+  child: string;
+  missingChildren: { parentId: string; parentName: string }[];
+}
+
 interface StepResult {
   step: number;
   name: string;
@@ -20,6 +42,9 @@ interface StepResult {
   details: Record<string, number | string>;
   issues: string[];
   fixed: string[];
+  crossCheck?: CrossCheckEntry[];
+  fkIntegrity?: FkIntegrityEntry[];
+  parentChild?: ParentChildEntry[];
 }
 
 interface PipelineResult {
@@ -251,10 +276,140 @@ function ParsingStatsTable({ details }: { details: Record<string, number | strin
   );
 }
 
+function CrossCheckMatrix({ entries }: { entries: CrossCheckEntry[] }) {
+  if (!entries || entries.length === 0) return null;
+  return (
+    <div className="mt-1 mb-1">
+      <div className="text-[10px] text-cyan-300 font-bold mb-0.5">교차검증 매트릭스 (Atomic vs Legacy)</div>
+      <table className="w-full border-collapse text-[9px]">
+        <thead>
+          <tr className="border-b border-gray-600">
+            <th className="px-1 py-0.5 text-gray-500 text-left">항목</th>
+            <th className="px-1 py-0.5 text-gray-500 text-right w-14">Atomic</th>
+            <th className="px-1 py-0.5 text-gray-500 text-right w-14">Legacy</th>
+            <th className="px-1 py-0.5 text-gray-500 text-center w-10">일치</th>
+            <th className="px-1 py-0.5 text-gray-500 text-left">diff</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e, i) => (
+            <tr key={i} className={`border-t border-gray-800 ${!e.match ? 'bg-red-900/30' : ''}`}>
+              <td className="px-1 py-0.5 text-white">{e.entity}</td>
+              <td className="px-1 py-0.5 text-right text-blue-300 font-bold">{e.atomicCount}</td>
+              <td className="px-1 py-0.5 text-right text-yellow-300 font-bold">{e.legacyCount}</td>
+              <td className="px-1 py-0.5 text-center">{e.match ? '✅' : '❌'}</td>
+              <td className="px-1 py-0.5 text-[8px]">
+                {e.missingInAtomic.length > 0 && (
+                  <span className="text-red-400">Atomic에 없음: {e.missingInAtomic.length}건 </span>
+                )}
+                {e.missingInLegacy.length > 0 && (
+                  <span className="text-orange-400">Legacy에 없음: {e.missingInLegacy.length}건</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FkIntegrityTable({ entries }: { entries: FkIntegrityEntry[] }) {
+  if (!entries || entries.length === 0) return null;
+  const hasOrphans = entries.some(e => e.orphans.length > 0);
+  return (
+    <div className="mt-1 mb-1">
+      <div className="text-[10px] text-orange-300 font-bold mb-0.5">FK 무결성 검증 ({entries.length}개 관계)</div>
+      <table className="w-full border-collapse text-[9px]">
+        <thead>
+          <tr className="border-b border-gray-600">
+            <th className="px-1 py-0.5 text-gray-500 text-left">FK 관계</th>
+            <th className="px-1 py-0.5 text-gray-500 text-right w-10">전체</th>
+            <th className="px-1 py-0.5 text-gray-500 text-right w-10">유효</th>
+            <th className="px-1 py-0.5 text-gray-500 text-right w-10">고아</th>
+            <th className="px-1 py-0.5 text-gray-500 text-center w-8">상태</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e, i) => (
+            <tr key={i} className={`border-t border-gray-800 ${e.orphans.length > 0 ? 'bg-red-900/30' : ''}`}>
+              <td className="px-1 py-0.5 text-white text-[8px]">{e.relation}</td>
+              <td className="px-1 py-0.5 text-right text-gray-300">{e.total}</td>
+              <td className="px-1 py-0.5 text-right text-green-300">{e.valid}</td>
+              <td className="px-1 py-0.5 text-right text-red-400 font-bold">{e.orphans.length}</td>
+              <td className="px-1 py-0.5 text-center">{e.orphans.length === 0 ? '✅' : '❌'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {hasOrphans && (
+        <details className="mt-1">
+          <summary className="text-[9px] text-red-400 cursor-pointer">고아 레코드 상세 펼치기</summary>
+          <div className="ml-2 mt-0.5">
+            {entries.filter(e => e.orphans.length > 0).map((e, i) => (
+              <div key={i} className="mb-1">
+                <div className="text-[9px] text-orange-300">{e.relation}</div>
+                {e.orphans.map((o, j) => (
+                  <div key={j} className="text-[8px] text-red-300 font-mono ml-2">
+                    ID: {o.id} FK: {o.fkValue} {o.name ? `(${o.name})` : ''}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function ParentChildTree({ entries }: { entries: ParentChildEntry[] }) {
+  if (!entries || entries.length === 0) return null;
+  const hasMissing = entries.some(e => e.missingChildren.length > 0);
+  if (!hasMissing) return (
+    <div className="mt-1 text-[10px] text-green-300">모자관계 검증: ✅ 모든 부모-자식 관계 정상</div>
+  );
+  return (
+    <div className="mt-1 mb-1">
+      <div className="text-[10px] text-purple-300 font-bold mb-0.5">모자관계 검증</div>
+      {entries.map((e, i) => (
+        <div key={i} className="mb-1">
+          <div className="text-[9px]">
+            <span className="text-cyan-300">{e.parent}</span>
+            <span className="text-gray-500"> → </span>
+            <span className="text-blue-300">{e.child}</span>
+            {e.missingChildren.length === 0 ? (
+              <span className="text-green-400 ml-1">✅</span>
+            ) : (
+              <span className="text-red-400 ml-1">❌ {e.missingChildren.length}건 누락</span>
+            )}
+          </div>
+          {e.missingChildren.length > 0 && (
+            <div className="ml-3">
+              {e.missingChildren.slice(0, 10).map((m, j) => (
+                <div key={j} className="text-[8px] text-red-300">
+                  <span className="font-mono text-yellow-400 mr-1">{m.parentId.substring(0, 12)}</span>
+                  {m.parentName}
+                </div>
+              ))}
+              {e.missingChildren.length > 10 && (
+                <div className="text-[8px] text-gray-500">...외 {e.missingChildren.length - 10}건</div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StepDetail({ step, fmeaId }: { step: StepResult; fmeaId: string }) {
   const [showDetail, setShowDetail] = useState(false);
   const colors = STATUS_COLORS[step.status];
   const isParsing = step.name === '파싱';
+  const hasCrossCheck = step.crossCheck && step.crossCheck.length > 0;
+  const hasFkIntegrity = step.fkIntegrity && step.fkIntegrity.length > 0;
+  const hasParentChild = step.parentChild && step.parentChild.length > 0;
 
   return (
     <div className={`border ${colors.border} rounded p-2 ${colors.bg}`}>
@@ -282,10 +437,14 @@ function StepDetail({ step, fmeaId }: { step: StepResult; fmeaId: string }) {
         </div>
       )}
 
+      {hasCrossCheck && <CrossCheckMatrix entries={step.crossCheck!} />}
+      {hasFkIntegrity && <FkIntegrityTable entries={step.fkIntegrity!} />}
+      {hasParentChild && <ParentChildTree entries={step.parentChild!} />}
+
       {step.issues.length > 0 && (
         <div className="mt-1">
           {step.issues.map((issue, i) => (
-            <div key={i} className="text-[10px] text-red-300">• {issue}</div>
+            <div key={i} className="text-[10px] text-red-300">{'\u2022'} {issue}</div>
           ))}
         </div>
       )}
@@ -293,15 +452,14 @@ function StepDetail({ step, fmeaId }: { step: StepResult; fmeaId: string }) {
       {step.fixed.length > 0 && (
         <div className="mt-1">
           {step.fixed.map((fix, i) => (
-            <div key={i} className="text-[10px] text-blue-300">✔ {fix}</div>
+            <div key={i} className="text-[10px] text-blue-300">{'\u2714'} {fix}</div>
           ))}
         </div>
       )}
 
-      {/* 실제 DB/파싱 데이터 상세 뷰 */}
       {showDetail && (
         <div className="mt-2 border-t border-gray-600 pt-2">
-          <PipelineStepDetailView fmeaId={fmeaId} step={step.step} stepName={step.name} />
+          <PipelineStepDetailView fmeaId={fmeaId} step={step.step} stepName={step.name} stepResult={step} />
         </div>
       )}
     </div>
