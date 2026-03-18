@@ -643,7 +643,6 @@ function FMEAWorksheetPageContent() {
           fileInputRef={fileInputRef}
           onFmeaChange={handleFmeaChange}
           onSave={() => {
-            saveToLocalStorage();
             saveAtomicDB(true);
           }}
           onNavigateToList={() => router.push('/pfmea/list')}
@@ -941,6 +940,16 @@ function FMEAWorksheetPageContent() {
             <>
               <div className="w-[2px] bg-[#1a237e] shrink-0" />
               <div className="w-[350px] shrink-0 flex flex-col bg-[#f0f4f8] overflow-hidden h-full">
+                {/* 패널 헤더: 닫기 버튼 */}
+                <div className="h-7 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 text-white flex items-center justify-between px-2 shrink-0">
+                  <span className="text-[10px] font-bold uppercase">{activePanelId}</span>
+                  <button
+                    onClick={() => setActivePanelId('')}
+                    className="px-2 py-0.5 text-[10px] bg-red-600 hover:bg-red-500 rounded font-semibold cursor-pointer transition-colors"
+                  >
+                    닫기
+                  </button>
+                </div>
                 <Suspense fallback={
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', fontSize: '14px', color: '#666' }}>
                     로딩 중...

@@ -83,6 +83,13 @@ export default function TopMenuBar({
   const { t } = useLocale();
   const [showImportMenu, setShowImportMenu] = React.useState(false);
   const [showSyncMenu, setShowSyncMenu] = React.useState(false);
+  const [saveFlash, setSaveFlash] = React.useState(false);
+
+  const handleSaveClick = React.useCallback(() => {
+    onSave();
+    setSaveFlash(true);
+    setTimeout(() => setSaveFlash(false), 1200);
+  }, [onSave]);
   const [syncMenuPos, setSyncMenuPos] = React.useState({ top: 0, left: 0 });
   const cpSyncBtnRef = React.useRef<HTMLButtonElement>(null);
   const syncMenuRef = React.useRef<HTMLDivElement>(null);
@@ -161,12 +168,14 @@ export default function TopMenuBar({
       {/* 저장/Import/Export */}
       <div className="flex items-center gap-0.5 shrink-0 relative">
         <button
-          onClick={onSave}
+          onClick={handleSaveClick}
           disabled={isSaving}
-          className={`px-1 py-0.5 rounded transition-all text-white text-[9px] font-semibold whitespace-nowrap ${isSaving ? 'bg-orange-500' : dirty ? 'bg-green-600' : 'bg-white/15'
-            }`}
+          className={`px-1 py-0.5 rounded transition-all text-white text-[9px] font-semibold whitespace-nowrap cursor-pointer ${
+            isSaving ? 'bg-orange-500' : saveFlash ? 'bg-green-500' : dirty ? 'bg-green-600' : 'bg-blue-600/50 hover:bg-blue-500/70'
+          }`}
+          title={dirty ? '변경사항 저장' : '수동 저장 (클릭하면 현재 상태 저장)'}
         >
-          {isSaving ? t('저장중') : dirty ? t('저장') : t('Saved')}
+          {isSaving ? t('저장중...') : saveFlash ? '✓ Saved' : dirty ? t('저장') : t('Saved')}
         </button>
 
         {/* Import 드롭다운 */}
@@ -256,14 +265,6 @@ export default function TopMenuBar({
             {isSyncing ? 'CP⏳' : 'FMEA→CP'}
           </button>
         )}
-        <button
-          onClick={onCreatePfd}
-          disabled={isSyncing}
-          className="px-1 py-0.5 rounded bg-transparent border border-white/30 text-white/70 text-[9px] font-medium hover:bg-white/15 hover:text-white transition-all whitespace-nowrap"
-          title={t('현재 FMEA 데이터로 PFD 생성')}
-        >
-          PFD
-        </button>
 
       {/* CP 연동 드롭다운 - Portal로 body에 렌더링 (관리자만 표시) */}
       {isAdmin && showSyncMenu && ReactDOM.createPortal(
@@ -328,13 +329,6 @@ export default function TopMenuBar({
           title={cpNo ? `CP 워크시트로 이동 (${cpNo})` : 'CP 워크시트로 이동'}
         >
           →CP
-        </button>
-        <button
-          onClick={() => router.push(linkedPfdNo ? `/pfd/worksheet?pfdNo=${encodeURIComponent(linkedPfdNo)}` : '/pfd/worksheet')}
-          className="px-1 py-0.5 rounded bg-transparent border border-white/30 text-white/70 text-[9px] font-medium hover:bg-white/15 hover:text-white transition-all whitespace-nowrap"
-          title={linkedPfdNo ? `PFD 워크시트로 이동 (${linkedPfdNo})` : 'PFD 워크시트로 이동'}
-        >
-          →PFD
         </button>
         <button
           onClick={onConfirm}
