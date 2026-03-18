@@ -46,17 +46,17 @@ export const createDefaultRevisions = (
     revisionDate: index === 0 ? new Date().toISOString().split('T')[0] : '',
     revisionHistory: index === 0 ? '신규 프로젝트 등록' : '',
     // 작성 (FMEA 등록정보에서 자동 채움)
-    createPosition: index === 0 ? (fmeaInfo?.fmeaResponsiblePosition || '') : '',
+    createPosition: index === 0 ? (fmeaInfo?.fmeaResponsiblePosition || '리더') : '',
     createName: index === 0 ? (fmeaInfo?.fmeaResponsibleName || '') : '',
     createDate: index === 0 ? new Date().toISOString().split('T')[0] : '',
     createStatus: index === 0 ? '진행' : '',
     // 검토
-    reviewPosition: index === 0 ? (fmeaInfo?.reviewResponsiblePosition || '') : '',
+    reviewPosition: index === 0 ? (fmeaInfo?.reviewResponsiblePosition || 'te') : '',
     reviewName: index === 0 ? (fmeaInfo?.reviewResponsibleName || '') : '',
     reviewDate: '',
     reviewStatus: '',
     // 승인
-    approvePosition: index === 0 ? (fmeaInfo?.approvalResponsiblePosition || '') : '',
+    approvePosition: index === 0 ? (fmeaInfo?.approvalResponsiblePosition || 'champion') : '',
     approveName: index === 0 ? (fmeaInfo?.approvalResponsibleName || '') : '',
     approveDate: '',
     approveStatus: '',

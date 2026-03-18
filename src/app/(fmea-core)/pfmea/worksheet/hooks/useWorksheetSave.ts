@@ -478,6 +478,7 @@ function syncRiskAnalysesFromState(
     const dFromRiskData = Number(riskData[`risk-${uniqueKey}-D`]) || 0;
     const pcFromRiskData = (riskData[`prevention-${uniqueKey}`] as string) || '';
     const dcFromRiskData = (riskData[`detection-${uniqueKey}`] as string) || '';
+    const lldRefFromRiskData = (riskData[`lesson-${uniqueKey}`] as string) || '';
 
     // severity 결정: riskData 우선 → link.severity → FE severity
     const feSev = feById.get(link.feId) || 0;
@@ -499,6 +500,7 @@ function syncRiskAnalysesFromState(
         ap: _calcSimpleAP(updatedS, updatedO, updatedD),
         preventionControl: pcFromRiskData || existing.preventionControl || null,
         detectionControl: dcFromRiskData || existing.detectionControl || null,
+        lldReference: lldRefFromRiskData || existing.lldReference || null,
       });
     } else if (severity > 0 || oFromRiskData > 0 || dFromRiskData > 0) {
       // 신규 RiskAnalysis 생성 (FE severity 또는 riskData 값이 있을 때만)
@@ -512,6 +514,7 @@ function syncRiskAnalysesFromState(
         ap: _calcSimpleAP(severity, oFromRiskData, dFromRiskData),
         preventionControl: pcFromRiskData || null,
         detectionControl: dcFromRiskData || null,
+        lldReference: lldRefFromRiskData || null,
       });
     }
   }
@@ -600,6 +603,7 @@ function syncOptimizationsFromState(
       const suffix = rowIdx === 0 ? '' : `#${rowIdx}`;
 
       const recAction = String(riskData[`prevention-opt-${uniqueKey}${suffix}`] || '').trim();
+      const detAction = String(riskData[`detection-opt-${uniqueKey}${suffix}`] || '').trim();
       const responsible = String(riskData[`person-opt-${uniqueKey}${suffix}`] || '').trim();
       const targetDate = String(riskData[`targetDate-opt-${uniqueKey}${suffix}`] || '').trim();
       const completedDate = String(
@@ -608,6 +612,7 @@ function syncOptimizationsFromState(
       ).trim();
       const status = String(riskData[`status-opt-${uniqueKey}${suffix}`] || '').trim();
       const remarks = String(riskData[`note-opt-${uniqueKey}${suffix}`] || '').trim();
+      const lldOptRef = String(riskData[`lesson-opt-${uniqueKey}${suffix}`] || '').trim();
 
       const sodSuffix = rowIdx === 0 ? '' : `#${rowIdx}`;
       const newS = Number(riskData[`opt-${uniqueKey}${sodSuffix}-S`]) || null;
@@ -615,7 +620,7 @@ function syncOptimizationsFromState(
       const newD = Number(riskData[`opt-${uniqueKey}${sodSuffix}-D`]) || null;
       const newAP = String(riskData[`opt-${uniqueKey}${sodSuffix}-AP`] || '').trim() || null;
 
-      if (!recAction && !responsible && !targetDate && !status && !newS && !newO && !newD) {
+      if (!recAction && !detAction && !responsible && !targetDate && !status && !newS && !newO && !newD) {
         continue;
       }
 
@@ -636,6 +641,8 @@ function syncOptimizationsFromState(
         completedDate: completedDate || null,
         status: status || 'open',
         remarks: remarks || null,
+        detectionAction: detAction || null,
+        lldOptReference: lldOptRef || null,
         newSeverity: newS,
         newOccurrence: newO,
         newDetection: newD,

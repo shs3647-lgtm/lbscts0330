@@ -160,6 +160,7 @@ export interface RiskAnalysis extends AtomicRecord {
   ap: 'H' | 'M' | 'L';    // Action Priority
   preventionControl?: string;
   detectionControl?: string;
+  lldReference?: string;
 }
 
 /**
@@ -177,6 +178,9 @@ export interface Optimization extends AtomicRecord {
   newAP?: 'H' | 'M' | 'L';
   status: 'planned' | 'in_progress' | 'completed';
   completedDate?: string;
+  remarks?: string;
+  detectionAction?: string;
+  lldOptReference?: string;
 }
 
 // ============ 워크시트 전체 상태 (통합) ============

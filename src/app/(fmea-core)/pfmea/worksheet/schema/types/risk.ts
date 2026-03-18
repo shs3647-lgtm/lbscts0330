@@ -22,6 +22,7 @@ export interface RiskAnalysis extends AtomicRecord {
 
     preventionControl?: string;
     detectionControl?: string;
+    lldReference?: string;
 }
 
 /**
@@ -42,4 +43,7 @@ export interface Optimization extends AtomicRecord {
 
     status: 'planned' | 'in_progress' | 'completed';
     completedDate?: string;
+    remarks?: string;
+    detectionAction?: string;
+    lldOptReference?: string;
 }
