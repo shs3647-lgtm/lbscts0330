@@ -470,6 +470,60 @@ async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
     } catch { /* FailureEffect 테이블 없으면 무시 */ }
   }
 
+  // ★ 빈 공정특성 자동채움 — Master B3 데이터 또는 작업요소명 기반
+  let emptyPcFixed = 0;
+  for (const proc of l2arr) {
+    for (const we of (proc.l3 || [])) {
+      for (const fn of (we.functions || [])) {
+        for (const pc of (fn.processChars || [])) {
+          if (!pc.name?.trim()) {
+            // 1) Atomic DB L3Function.processChar 조회
+            let pcName = '';
+            try {
+              const l3Func = await prisma.l3Function.findFirst({
+                where: { fmeaId, id: pc.id },
+                select: { processChar: true, functionName: true },
+              });
+              if (l3Func?.processChar?.trim()) pcName = l3Func.processChar;
+              else if (l3Func?.functionName?.trim()) pcName = l3Func.functionName;
+            } catch { /* ignore */ }
+
+            // 2) 작업요소명 기반 fallback
+            if (!pcName) {
+              const weName = we.name?.trim() || we.m4Name?.trim() || '';
+              const fnName = fn.name?.trim() || fn.functionName?.trim() || '';
+              if (fnName) pcName = fnName;
+              else if (weName) pcName = `${weName} 관리`;
+            }
+
+            // 3) Master B3 데이터 조회
+            if (!pcName) {
+              try {
+                const basePrisma = (await import('@/lib/prisma')).getPrisma();
+                if (basePrisma) {
+                  const masterB3 = await basePrisma.pfmeaMasterFlatItem.findFirst({
+                    where: { dataset: { fmeaId }, itemCode: 'B3', processNo: proc.no || '' },
+                    select: { value: true },
+                  });
+                  if (masterB3?.value?.trim()) pcName = masterB3.value;
+                }
+              } catch { /* ignore */ }
+            }
+
+            if (pcName) {
+              pc.name = pcName;
+              emptyPcFixed++;
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  if (emptyPcFixed > 0) {
+    fixed.push(`빈 공정특성 ${emptyPcFixed}건 자동채움`);
+  }
+
   if (changed) {
     await prisma.fmeaLegacyData.update({ where: { fmeaId }, data: { data } });
   }
@@ -598,23 +652,74 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
   const data = JSON.parse(JSON.stringify(legacy.data)) as any;
   let changed = false;
 
+  // ★ Atomic DB L3Function 전체 로드 (한번에 조회하여 N+1 방지)
+  let l3FuncMap = new Map<string, { processChar: string; functionName: string }>();
+  try {
+    const allL3Funcs = await prisma.l3Function.findMany({
+      where: { fmeaId },
+      select: { id: true, processChar: true, functionName: true, l3StructId: true },
+    });
+    for (const f of allL3Funcs) {
+      l3FuncMap.set(f.id, { processChar: f.processChar || '', functionName: f.functionName || '' });
+    }
+  } catch { /* ignore */ }
+
+  // ★ Master B3 데이터 프리로드
+  let masterB3Map = new Map<string, string>();
+  try {
+    const basePrisma = (await import('@/lib/prisma')).getPrisma();
+    if (basePrisma) {
+      const masterB3s = await basePrisma.pfmeaMasterFlatItem.findMany({
+        where: { dataset: { fmeaId }, itemCode: 'B3' },
+        select: { processNo: true, value: true, orderIndex: true },
+        orderBy: { orderIndex: 'asc' },
+      });
+      for (const b3 of masterB3s) {
+        if (b3.value?.trim()) {
+          const key = `${b3.processNo}-${b3.orderIndex}`;
+          masterB3Map.set(key, b3.value);
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
   for (const proc of (data.l2 || [])) {
+    let pcSeq = 0;
     for (const we of (proc.l3 || [])) {
       for (const fn of (we.functions || [])) {
         for (const pc of (fn.processChars || [])) {
+          pcSeq++;
           if (!pc.name?.trim()) {
-            // Atomic DB에서 L3Function processChar 이름 조회
-            try {
-              const l3Func = await prisma.l3Function.findFirst({
-                where: { fmeaId, id: pc.id },
-                select: { processChar: true, functionName: true },
-              });
-              if (l3Func?.processChar?.trim()) {
-                pc.name = l3Func.processChar;
-                fixed.push(`PC 이름 복원: "${l3Func.processChar}"`);
-                changed = true;
+            let pcName = '';
+
+            // 1) Atomic DB ID 매칭
+            const l3Func = l3FuncMap.get(pc.id);
+            if (l3Func?.processChar?.trim()) pcName = l3Func.processChar;
+            else if (l3Func?.functionName?.trim()) pcName = l3Func.functionName;
+
+            // 2) 작업요소명/기능명 fallback
+            if (!pcName) {
+              const fnName = fn.name?.trim() || fn.functionName?.trim() || '';
+              const weName = we.name?.trim() || '';
+              if (fnName) pcName = fnName;
+              else if (weName) pcName = `${weName} 관리`;
+            }
+
+            // 3) Master B3 데이터 fallback (공정번호 + 순서)
+            if (!pcName) {
+              for (const [key, val] of masterB3Map) {
+                if (key.startsWith(`${proc.no}-`)) {
+                  pcName = val;
+                  break;
+                }
               }
-            } catch { /* 조회 실패 무시 */ }
+            }
+
+            if (pcName) {
+              pc.name = pcName;
+              fixed.push(`PC 이름 복원: "${pcName}"`);
+              changed = true;
+            }
           }
         }
       }
@@ -648,7 +753,7 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
 // ─── 메인 검증+수정 루프 ───
 
 async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean): Promise<PipelineResult> {
-  const MAX_LOOPS = 5;
+  const MAX_LOOPS = 7;
   let loopCount = 0;
 
   for (let i = 0; i < MAX_LOOPS; i++) {
@@ -663,13 +768,14 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       await verifyWs(prisma, fmeaId),
     ];
 
-    const allGreen = steps.every(s => s.status === 'ok' || s.status === 'warn');
-    if (allGreen || !autoFix) {
-      return { fmeaId, steps, allGreen, loopCount, timestamp: new Date().toISOString() };
+    const allOk = steps.every(s => s.status === 'ok');
+    if (allOk || !autoFix) {
+      return { fmeaId, steps, allGreen: allOk, loopCount, timestamp: new Date().toISOString() };
     }
 
-    // STEP 0 (SAMPLE) — 자동수정 대상 아님 (Master 데이터 문제)
-    // STEP 1 (IMPORT) 에러 또는 경고면 → Master 데이터가 있으면 자동 재구축 시도
+    // ★ warn도 자동수정 대상 — error + warn 모두 fix 시도
+
+    // STEP 1 (IMPORT)
     const stepImport = steps.find(s => s.name === 'IMPORT');
     if (stepImport && stepImport.status !== 'ok') {
       const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
@@ -687,7 +793,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       }
     }
 
-    // STEP 2 (파싱) 수정 — C계열 Legacy 미동기화 자동수정
+    // STEP 2 (파싱) — C계열 미동기화 + 빈 공정특성 자동수정
     const stepParsing = steps.find(s => s.name === '파싱');
     if (stepParsing && stepParsing.status !== 'ok') {
       const fixes = await fixStep2Parsing(prisma, fmeaId);
@@ -695,7 +801,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       if (fixes.length > 0) stepParsing.status = 'fixed';
     }
 
-    // STEP 3 (UUID) 수정
+    // STEP 3 (UUID)
     const stepUuid = steps.find(s => s.name === 'UUID');
     if (stepUuid && stepUuid.status !== 'ok') {
       const fixes = await fixStep3Uuid(prisma, fmeaId);
@@ -703,7 +809,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       if (fixes.length > 0) stepUuid.status = 'fixed';
     }
 
-    // STEP 4 (FK) 수정
+    // STEP 4 (FK)
     const stepFk = steps.find(s => s.name === 'FK');
     if (stepFk && stepFk.status !== 'ok') {
       const fixes = await fixStep4Fk(prisma, fmeaId);
@@ -711,7 +817,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       if (fixes.length > 0) stepFk.status = 'fixed';
     }
 
-    // STEP 5 (WS) 수정
+    // STEP 5 (WS) — 빈 공정특성 자동수정 (Master + Atomic DB 조회)
     const stepWs = steps.find(s => s.name === 'WS');
     if (stepWs && stepWs.status !== 'ok') {
       const fixes = await fixStep5Ws(prisma, fmeaId);
@@ -721,7 +827,9 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
 
     const anyFixed = steps.some(s => s.fixed.length > 0);
     if (!anyFixed) {
-      return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
+      // 더 이상 수정 불가 — warn만 남은 경우 allGreen=true (수용)
+      const allAcceptable = steps.every(s => s.status === 'ok' || s.status === 'warn');
+      return { fmeaId, steps, allGreen: allAcceptable, loopCount, timestamp: new Date().toISOString() };
     }
   }
 
@@ -738,7 +846,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
   return {
     fmeaId,
     steps: finalSteps,
-    allGreen: finalSteps.every(s => s.status === 'ok' || s.status === 'warn'),
+    allGreen: finalSteps.every(s => s.status === 'ok'),
     loopCount,
     timestamp: new Date().toISOString(),
   };

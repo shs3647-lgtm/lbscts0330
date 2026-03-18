@@ -51,8 +51,8 @@ export default function ImportStepBar({
   }, [router, fmeaId]);
 
   const {
-    canSA, canFC,
-    confirmSA, confirmFC, confirmFA,
+    canSA,
+    quickCreateWorksheet,
     isAnalysisImporting, isAnalysisComplete,
   } = useImportSteps({
     flatData,
@@ -66,32 +66,71 @@ export default function ImportStepBar({
     onWorksheetSaved,
   });
 
+  const [pipelineStatus, setPipelineStatus] = React.useState<string>('');
+  const [isPipelineRunning, setIsPipelineRunning] = React.useState(false);
+
+  const handleAutoConfirmAndVerify = React.useCallback(async () => {
+    setPipelineStatus('SA+FC+FA 확정 중...');
+    setIsPipelineRunning(true);
+
+    try {
+      await quickCreateWorksheet();
+
+      setPipelineStatus('파이프라인 자동수정 루프 실행 중...');
+      const pipeRes = await fetch('/api/fmea/pipeline-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fmeaId }),
+      });
+
+      if (pipeRes.ok) {
+        const data = await pipeRes.json();
+        const statuses = (data.steps || []).map((s: { step: number; name: string; status: string }) =>
+          `S${s.step}:${s.status}`).join(' ');
+        const fixedCount = (data.steps || []).reduce((sum: number, s: { fixed?: string[] }) =>
+          sum + (s.fixed?.length || 0), 0);
+
+        if (data.allGreen) {
+          setPipelineStatus(`ALL GREEN (Loop ${data.loopCount}) ${statuses}${fixedCount > 0 ? ` | 자동수정 ${fixedCount}건` : ''}`);
+        } else {
+          const issues = (data.steps || [])
+            .filter((s: { status: string }) => s.status !== 'ok')
+            .map((s: { name: string; issues?: string[] }) => `${s.name}: ${(s.issues || []).join(', ')}`)
+            .join(' | ');
+          setPipelineStatus(`수정필요 (Loop ${data.loopCount}) ${issues}`);
+        }
+      } else {
+        setPipelineStatus('파이프라인 검증 실패');
+      }
+    } catch (err) {
+      setPipelineStatus('오류: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsPipelineRunning(false);
+    }
+  }, [quickCreateWorksheet, fmeaId]);
+
   if (flatData.length === 0) return null;
+
+  const isRunning = isAnalysisImporting || isPipelineRunning;
 
   return (
     <div className="bg-white border border-blue-100 rounded-lg p-2 space-y-2">
-      {/* 간소화된 Import 바 */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] text-gray-500">
           데이터: <b className="text-blue-700">{flatData.length}</b>건
           {failureChains.length > 0 && <> | 고장사슬: <b className="text-orange-600">{failureChains.length}</b>건</>}
         </span>
 
-        {/* 원클릭 자동확정 */}
+        {/* 원클릭 자동확정 + 파이프라인 자동수정 */}
         <button
-          onClick={async () => {
-            if (!canSA) return;
-            confirmSA();
-            if (canFC) confirmFC();
-            confirmFA();
-          }}
-          disabled={!canSA || isAnalysisImporting || isAnalysisComplete}
+          onClick={handleAutoConfirmAndVerify}
+          disabled={!canSA || isRunning || isAnalysisComplete}
           className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
             isAnalysisComplete ? BTN_CONFIRMED
-            : canSA && !isAnalysisImporting ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 cursor-pointer'
+            : canSA && !isRunning ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 cursor-pointer'
             : BTN_DISABLED
           }`}>
-          {isAnalysisImporting ? '처리중...' : isAnalysisComplete ? '✓ 확정완료' : 'SA+FC+FA 자동확정'}
+          {isRunning ? '처리중...' : isAnalysisComplete ? '✓ 확정완료' : 'SA+FC+FA 자동확정'}
         </button>
 
         {/* 워크시트 이동 */}
@@ -101,8 +140,19 @@ export default function ImportStepBar({
           워크시트 →
         </button>
 
-        {isAnalysisComplete && (
-          <span className="text-[10px] text-green-600 font-bold">✓ 검증 완료</span>
+        {isAnalysisComplete && !pipelineStatus && (
+          <span className="text-[10px] text-green-600 font-bold">✓ 확정 완료</span>
+        )}
+
+        {pipelineStatus && (
+          <span className={`text-[10px] font-bold ${
+            pipelineStatus.includes('ALL GREEN') ? 'text-green-600'
+            : pipelineStatus.includes('수정필요') ? 'text-orange-600'
+            : pipelineStatus.includes('오류') ? 'text-red-600'
+            : 'text-blue-600'
+          }`}>
+            {pipelineStatus}
+          </span>
         )}
 
         <span className="ml-auto text-[9px] text-gray-400">
