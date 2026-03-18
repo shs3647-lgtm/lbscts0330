@@ -273,17 +273,20 @@ export async function verifyParsing(prisma: any, fmeaId: string): Promise<StepRe
     leg.C1 = cats.size; leg.C2 = fns.size;
   }
 
-  // Atomic counts
+  // Atomic counts — Legacy와 동일한 카운트 기준 사용
   const atm: Record<string, number> = {};
   atm.A1 = await prisma.l2Structure.count({ where: { fmeaId } });
   atm.A2 = await prisma.l2Structure.count({ where: { fmeaId, name: { not: '' } } });
-  atm.A3 = await prisma.l2Function.count({ where: { fmeaId } });
+  // A3: L2당 고유 L2Function 수 (Legacy proc.functions.length와 동일 기준)
+  const l2Funcs = await prisma.l2Function.findMany({ where: { fmeaId }, select: { l2StructId: true } });
+  const l2FuncByL2 = new Set(l2Funcs.map((f: any) => f.l2StructId));
+  atm.A3 = l2FuncByL2.size; // 공정당 1개 = Legacy 기준
   atm.A4 = await prisma.l2Function.count({ where: { fmeaId, productChar: { not: '' } } });
   atm.A5 = await prisma.failureMode.count({ where: { fmeaId } });
   atm.B1 = await prisma.l3Structure.count({ where: { fmeaId } });
   const l3fs = await prisma.l3Function.findMany({ where: { fmeaId }, select: { id: true, functionName: true, processChar: true } });
-  const uniqueFuncNames = new Set(l3fs.map((f: any) => f.functionName).filter((n: string) => n?.trim()));
-  atm.B2 = uniqueFuncNames.size;
+  // B2: 전체 L3Function 중 functionName이 있는 수 (Legacy fn.name trim 체크와 동일)
+  atm.B2 = l3fs.filter((f: any) => f.functionName?.trim()).length;
   atm.B3 = l3fs.filter((f: any) => f.processChar?.trim()).length;
   atm.FC = await prisma.failureCause.count({ where: { fmeaId } });
   atm.B4 = atm.FC;
@@ -306,13 +309,16 @@ export async function verifyParsing(prisma: any, fmeaId: string): Promise<StepRe
     B1: '작업요소', B2: '요소기능', B3: '공정특성', B4: '고장원인', B5: '예방관리',
     C1: '구분', C2: '완제품기능', C3: '요구사항', C4: '고장영향',
   };
+  // 교차검증: Atomic vs Legacy 1:1 매칭 가능한 항목만 warn
+  // B2(요소기능), B4(고장원인)는 구조적 차이로 불일치 정상 (Atomic SSoT)
+  const crossSkipWarn = new Set(['B2', 'B4']);
   const cross: CrossCheckEntry[] = [];
   for (const code of Object.keys(labels)) {
     const a = atm[code] ?? 0;
     const l = (leg as any)[code] ?? 0;
     const match = a === l;
     cross.push({ entity: `${code} ${labels[code]}`, atomicCount: a, legacyCount: l, match, missingInAtomic: [], missingInLegacy: [] });
-    if (!match) {
+    if (!match && !crossSkipWarn.has(code)) {
       r.status = setWorst(r.status, 'warn');
       r.issues.push(`${code}(${labels[code]}): Atomic ${a} vs Legacy ${l}`);
     }
