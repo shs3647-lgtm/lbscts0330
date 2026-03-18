@@ -5,7 +5,7 @@
  * GET  /api/fmea/pipeline-verify?fmeaId=xxx  → 현재 상태 조회
  * POST /api/fmea/pipeline-verify             → 검증 + 자동수정 루프 실행
  *
- * 6단계: SAMPLE(0) → IMPORT(1) → 파싱(2) → UUID(3) → FK(4) → WS(5)
+ * 7단계: SAMPLE(0) → IMPORT(1) → 파싱(2) → UUID(3) → FK(4) → WS(5) → OPT(6)
  * v2: 단순 count → ID-level 교차검증, 14개 FK 전수 검증, 모자관계 무결성
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,7 +14,7 @@ import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import {
   type StepResult, type PipelineResult, type StepStatus,
-  verifyImport, verifyParsing, verifyUuid, verifyFk, verifyWs,
+  verifyImport, verifyParsing, verifyUuid, verifyFk, verifyWs, verifyOptimization,
 } from './verify-steps';
 
 export const runtime = 'nodejs';
@@ -660,28 +660,65 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
     if (changed) proc.failureCauses = procFcs;
   }
 
-  // ★ Atomic DB orphan FC 일괄 저장 (createMany — Rule 0.6)
-  const allOrphanFcCreates: Array<{ id: string; fmeaId: string; l2StructId: string; cause: string; processCharId: string }> = [];
+  // ★ Legacy FC 중 Atomic DB에 없는 것 전수 동기화 (교차검증 error 해소)
+  const atomicFcIds = new Set<string>();
+  try {
+    const atomicFCs = await prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true } });
+    for (const fc of atomicFCs) atomicFcIds.add(fc.id);
+  } catch { /* ignore */ }
+
+  // L2Structure ID 매핑 (공정번호 → Atomic L2 ID)
+  const l2IdByNo = new Map<string, string>();
+  try {
+    const l2s = await prisma.l2Structure.findMany({ where: { fmeaId }, select: { id: true, no: true } });
+    for (const l2 of l2s) l2IdByNo.set(l2.no, l2.id);
+  } catch { /* ignore */ }
+
+  const missingFcCreates: Array<{ id: string; fmeaId: string; l2StructId: string; cause: string; processCharId: string }> = [];
   for (const proc of (data.l2 || [])) {
-    // orphanFcCreates는 위 루프에서 procFcs에 push된 것만 해당
-    // 여기서는 모든 공정의 새로 추가된 FC를 재수집
+    // proc.id가 빈 경우 공정번호로 Atomic L2 ID 조회
+    const procL2Id = proc.id || l2IdByNo.get(proc.no) || l2IdByNo.get(String(proc.no)) || '';
+    // L2 수준 FC
     for (const fc of (proc.failureCauses || [])) {
-      if (fc.id?.endsWith('-FC') && fc.processCharId) {
-        allOrphanFcCreates.push({
-          id: fc.id, fmeaId, l2StructId: proc.id || '',
-          cause: fc.name || `${fc.processCharId} 부적합`, processCharId: fc.processCharId,
+      if (fc.id && !atomicFcIds.has(fc.id)) {
+        missingFcCreates.push({
+          id: fc.id, fmeaId, l2StructId: procL2Id,
+          cause: fc.name || fc.cause || `${fc.processCharId || 'unknown'} 부적합`,
+          processCharId: fc.processCharId || '',
         });
       }
     }
+    // L3(WE) 수준 FC
+    for (const we of (proc.l3 || [])) {
+      for (const fc of (we.failureCauses || [])) {
+        if (fc.id && !atomicFcIds.has(fc.id)) {
+          missingFcCreates.push({
+            id: fc.id, fmeaId, l2StructId: procL2Id,
+            cause: fc.name || fc.cause || `${fc.processCharId || 'unknown'} 부적합`,
+            processCharId: fc.processCharId || '',
+          });
+        }
+      }
+    }
   }
-  if (allOrphanFcCreates.length > 0) {
-    try {
-      await prisma.failureCause.createMany({
-        data: allOrphanFcCreates,
-        skipDuplicates: true,
-      });
-    } catch (err) {
-      console.error('[fixStep5Ws] Atomic DB orphan FC 저장 오류:', err);
+  if (missingFcCreates.length > 0) {
+    // 개별 upsert로 안전하게 저장 (createMany FK 실패 방지)
+    let syncCount = 0;
+    for (const fc of missingFcCreates) {
+      try {
+        await prisma.failureCause.upsert({
+          where: { id: fc.id },
+          create: fc,
+          update: { cause: fc.cause, processCharId: fc.processCharId },
+        });
+        syncCount++;
+      } catch (err) {
+        console.error(`[fixStep5Ws] FC upsert 실패: ${fc.id}`, err instanceof Error ? err.message : '');
+      }
+    }
+    if (syncCount > 0) {
+      fixed.push(`Legacy→Atomic FC 동기화 ${syncCount}건`);
+      changed = true;
     }
   }
 
@@ -720,16 +757,19 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       await verifyUuid(prisma, fmeaId),
       await verifyFk(prisma, fmeaId),
       await verifyWs(prisma, fmeaId),
+      await verifyOptimization(prisma, fmeaId),
     ];
 
-    const allOk = steps.every(s => s.status === 'ok');
+    // STEP 6 (OPT)는 allGreen 판정에서 제외 — 최적화 미입력은 정상 상태
+    const coreSteps = steps.filter(s => s.step <= 5);
+    const allOk = coreSteps.every(s => s.status === 'ok');
     if (allOk || !autoFix) {
       return { fmeaId, steps, allGreen: allOk, loopCount, timestamp: new Date().toISOString() };
     }
 
     // ★ warn도 자동수정 대상 — error + warn 모두 fix 시도
 
-    // STEP 1 (IMPORT)
+    // STEP 1 (IMPORT) — 교차검증 불일치 시 rebuild-atomic으로 동기화
     const stepImport = steps.find(s => s.name === 'IMPORT');
     if (stepImport && stepImport.status !== 'ok') {
       const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
@@ -743,6 +783,22 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
           stepImport.status = 'fixed';
         } else if (stepImport.status === 'error') {
           return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
+        }
+      } else if (stepImport.status === 'warn' || stepImport.status === 'error') {
+        // ★ Atomic↔Legacy 교차검증 불일치 → rebuild-atomic으로 재동기화
+        try {
+          const rebuildRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(fmeaId)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId }),
+          });
+          if (rebuildRes.ok) {
+            const result = await rebuildRes.json();
+            stepImport.fixed.push(`rebuild-atomic 재동기화: L2=${result.counts?.l2 || '?'} FM=${result.counts?.fm || '?'} FC=${result.counts?.fc || '?'}`);
+            stepImport.status = 'fixed';
+          }
+        } catch (err) {
+          console.error('[fixStep1] rebuild-atomic 호출 오류:', err);
         }
       }
     }
@@ -781,9 +837,9 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
 
     const anyFixed = steps.some(s => s.fixed.length > 0);
     if (!anyFixed) {
-      // 더 이상 수정 불가 — warn만 남은 경우 allGreen=true (수용)
-      const allAcceptable = steps.every(s => s.status === 'ok' || s.status === 'warn');
-      return { fmeaId, steps, allGreen: allAcceptable, loopCount, timestamp: new Date().toISOString() };
+      // 더 이상 수정 불가 — STEP 0~5만 판정 (STEP 6 OPT 제외)
+      const coreAcceptable = steps.filter(s => s.step <= 5).every(s => s.status === 'ok' || s.status === 'warn');
+      return { fmeaId, steps, allGreen: coreAcceptable, loopCount, timestamp: new Date().toISOString() };
     }
   }
 
@@ -795,12 +851,13 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
     await verifyUuid(prisma, fmeaId),
     await verifyFk(prisma, fmeaId),
     await verifyWs(prisma, fmeaId),
+    await verifyOptimization(prisma, fmeaId),
   ];
 
   return {
     fmeaId,
     steps: finalSteps,
-    allGreen: finalSteps.every(s => s.status === 'ok'),
+    allGreen: finalSteps.filter(s => s.step <= 5).every(s => s.status === 'ok'),
     loopCount,
     timestamp: new Date().toISOString(),
   };

@@ -2,9 +2,9 @@
 
 /**
  * @file PipelineVerifyPanel.tsx
- * @description 6단계 파이프라인 검증 + 자동수정 패널
+ * @description 7단계 파이프라인 검증 + 자동수정 패널
  *
- * SAMPLE(0) → IMPORT(1) → 파싱(2) → UUID(3) → FK(4) → WS(5)
+ * SAMPLE(0) → IMPORT(1) → 파싱(2) → UUID(3) → FK(4) → WS(5) → OPT(6)
  * 빨간불 감지 → 자동수정 루프 → 초록불 될 때까지 반복
  */
 
@@ -68,7 +68,7 @@ const STATUS_COLORS: Record<string, { bg: string; border: string; text: string; 
   pending: { bg: 'bg-gray-800/80', border: 'border-gray-600', text: 'text-gray-400', icon: '⏳' },
 };
 
-const STEP_LABELS = ['SAMPLE', 'IMPORT', '파싱', 'UUID', 'FK', 'WS'];
+const STEP_LABELS = ['SAMPLE', 'IMPORT', '파싱', 'UUID', 'FK', 'WS', 'OPT'];
 
 export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyPanelProps) {
   const [result, setResult] = useState<PipelineResult | null>(null);

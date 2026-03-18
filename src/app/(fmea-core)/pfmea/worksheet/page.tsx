@@ -644,7 +644,7 @@ function FMEAWorksheetPageContent() {
           onFmeaChange={handleFmeaChange}
           onSave={() => {
             saveToLocalStorage();
-            saveAtomicDB();
+            saveAtomicDB(true);
           }}
           onNavigateToList={() => router.push('/pfmea/list')}
           onExport={async () => {
@@ -842,7 +842,7 @@ function FMEAWorksheetPageContent() {
                   tab={state.tab}
                   rows={rows}
                   state={state}
-                  setState={setState}
+                  setState={setStateSynced || setState}
                   setDirty={setDirty}
                   saveAtomicDB={saveAtomicDB}
                   l1Spans={l1Spans}

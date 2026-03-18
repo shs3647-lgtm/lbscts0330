@@ -540,9 +540,8 @@ export async function verifyWs(prisma: any, fmeaId: string): Promise<StepResult>
   }
   for (const fl of (data.failureLinks || [])) {
     if (fl.id) legIds.fl.push(fl.id);
-    if (fl.fmId) legIds.fm.push(fl.fmId);
-    if (fl.fcId) legIds.fc.push(fl.fcId);
-    if (fl.feId) legIds.fe.push(fl.feId);
+    // ★ failureLinks의 fmId/fcId/feId는 FK 참조이므로 엔티티 목록에 추가하지 않음
+    // 엔티티는 proc.failureCauses/failureModes/failureEffects에서만 수집
   }
 
   // 교차검증
@@ -581,5 +580,190 @@ export async function verifyWs(prisma: any, fmeaId: string): Promise<StepResult>
   if (orphanPc > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`FC 없는 공정특성 ${orphanPc}건`); }
 
   r.crossCheck = cross;
+  return r;
+}
+
+// ─── AP 계산 서버용 (riskOptUtils.ts의 calcAP 복제 — 서버에서 React import 불가) ───
+const AP_TABLE_SERVER = [
+  { sMin: 9, sMax: 10, oMin: 4, oMax: 10, d: ['H','H','H','H'] as const },
+  { sMin: 9, sMax: 10, oMin: 2, oMax: 3,  d: ['H','H','H','M'] as const },
+  { sMin: 9, sMax: 10, oMin: 1, oMax: 1,  d: ['H','H','M','L'] as const },
+  { sMin: 7, sMax: 8,  oMin: 4, oMax: 10, d: ['H','H','H','M'] as const },
+  { sMin: 7, sMax: 8,  oMin: 2, oMax: 3,  d: ['H','H','M','L'] as const },
+  { sMin: 7, sMax: 8,  oMin: 1, oMax: 1,  d: ['H','M','M','L'] as const },
+  { sMin: 4, sMax: 6,  oMin: 4, oMax: 10, d: ['H','H','M','L'] as const },
+  { sMin: 4, sMax: 6,  oMin: 2, oMax: 3,  d: ['H','M','M','L'] as const },
+  { sMin: 4, sMax: 6,  oMin: 1, oMax: 1,  d: ['M','M','L','L'] as const },
+  { sMin: 2, sMax: 3,  oMin: 4, oMax: 10, d: ['H','M','M','L'] as const },
+  { sMin: 2, sMax: 3,  oMin: 2, oMax: 3,  d: ['M','M','L','L'] as const },
+  { sMin: 2, sMax: 3,  oMin: 1, oMax: 1,  d: ['M','L','L','L'] as const },
+];
+
+function calcAPServer(s: number, o: number, d: number): 'H' | 'M' | 'L' | null {
+  if (s <= 0 || o <= 0 || d <= 0) return null;
+  if (s === 1) return 'L';
+  const dIdx = d >= 7 ? 0 : d >= 5 ? 1 : d >= 2 ? 2 : 3;
+  for (const row of AP_TABLE_SERVER) {
+    if (s >= row.sMin && s <= row.sMax && o >= row.oMin && o <= row.oMax) return row.d[dIdx];
+  }
+  return 'L';
+}
+
+// ─── STEP 6: OPT — 6ST 최적화 종합 검증 (12개 항목) ───
+export async function verifyOptimization(prisma: any, fmeaId: string): Promise<StepResult> {
+  const r: StepResult = { step: 6, name: 'OPT', status: 'ok', details: {}, issues: [], fixed: [], crossCheck: [], fkIntegrity: [] };
+
+  const [fls, ras, opts, legacy] = await Promise.all([
+    prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } }),
+    prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true, fmeaId: true, linkId: true, severity: true, occurrence: true, detection: true, ap: true, preventionControl: true, detectionControl: true } }),
+    prisma.optimization.findMany({ where: { fmeaId }, select: { id: true, fmeaId: true, riskId: true, recommendedAction: true, responsible: true, targetDate: true, status: true, remarks: true, newSeverity: true, newOccurrence: true, newDetection: true, newAP: true } }),
+    prisma.fmeaLegacyData.findUnique({ where: { fmeaId } }),
+  ]);
+
+  const riskData = (legacy?.data as any)?.riskData || {};
+  const flSet = new Set<string>(fls.map((f: any) => f.id));
+  const raSet = new Set<string>(ras.map((ra: any) => ra.id));
+
+  r.details = { failureLinks: fls.length, riskAnalyses: ras.length, optimizations: opts.length };
+
+  // ── 1. fmeaId 일관성 ──
+  const wrongRA = ras.filter((ra: any) => ra.fmeaId !== fmeaId).length;
+  const wrongOpt = opts.filter((o: any) => o.fmeaId !== fmeaId).length;
+  if (wrongRA > 0) { r.status = setWorst(r.status, 'error'); r.issues.push(`RiskAnalysis fmeaId 불일치 ${wrongRA}건`); }
+  if (wrongOpt > 0) { r.status = setWorst(r.status, 'error'); r.issues.push(`Optimization fmeaId 불일치 ${wrongOpt}건`); }
+
+  // ── 2. UUID 유일성 ──
+  const optIds = new Set<string>();
+  let dupOpt = 0;
+  for (const o of opts) { if (optIds.has(o.id)) dupOpt++; optIds.add(o.id); }
+  if (dupOpt > 0) { r.status = setWorst(r.status, 'error'); r.issues.push(`Optimization ID 중복 ${dupOpt}건`); }
+
+  // ── 3. FK: Opt.riskId → RiskAnalysis ──
+  const orphanOptRA: FkIntegrityEntry['orphans'] = [];
+  let validOptRA = 0;
+  for (const o of opts) {
+    if (raSet.has(o.riskId)) validOptRA++;
+    else orphanOptRA.push({ id: o.id?.substring(0, 16), fkValue: (o.riskId || 'NULL')?.substring(0, 16), name: o.recommendedAction?.substring(0, 30) });
+  }
+  r.fkIntegrity!.push({ relation: 'Opt.riskId → RiskAnalysis', total: opts.length, valid: validOptRA, orphans: orphanOptRA.slice(0, 10) });
+  if (orphanOptRA.length > 0) { r.status = setWorst(r.status, 'error'); r.issues.push(`Opt→RA FK 고아 ${orphanOptRA.length}건`); }
+
+  // ── 4. FK: RA.linkId → FailureLink ──
+  const orphanRAFL: FkIntegrityEntry['orphans'] = [];
+  let validRAFL = 0;
+  for (const ra of ras) {
+    if (flSet.has(ra.linkId)) validRAFL++;
+    else orphanRAFL.push({ id: ra.id?.substring(0, 16), fkValue: (ra.linkId || 'NULL')?.substring(0, 16) });
+  }
+  r.fkIntegrity!.push({ relation: 'RA.linkId → FailureLink', total: ras.length, valid: validRAFL, orphans: orphanRAFL.slice(0, 10) });
+  if (orphanRAFL.length > 0) { r.status = setWorst(r.status, 'error'); r.issues.push(`RA→FL FK 고아 ${orphanRAFL.length}건`); }
+
+  // ── 5. WS↔DB 동기화: riskData *-opt-* ↔ Optimization ──
+  const wsOptUKs = new Set<string>();
+  for (const key of Object.keys(riskData)) {
+    if (key.startsWith('prevention-opt-') && String(riskData[key]).trim()) {
+      wsOptUKs.add(key.replace('prevention-opt-', '').replace(/#\d+$/, ''));
+    }
+  }
+  const dbOptUKs = new Set<string>();
+  for (const o of opts) {
+    const ra = ras.find((x: any) => x.id === o.riskId);
+    if (!ra) continue;
+    const fl = fls.find((x: any) => x.id === ra.linkId);
+    if (fl) dbOptUKs.add(`${fl.fmId}-${fl.fcId}`);
+  }
+  const wsOnly = [...wsOptUKs].filter(k => !dbOptUKs.has(k));
+  const dbOnly = [...dbOptUKs].filter(k => !wsOptUKs.has(k));
+  r.crossCheck!.push({
+    entity: 'Optimization (WS↔DB)', atomicCount: dbOptUKs.size, legacyCount: wsOptUKs.size,
+    match: wsOnly.length === 0 && dbOnly.length === 0,
+    missingInAtomic: wsOnly.slice(0, 10), missingInLegacy: dbOnly.slice(0, 10),
+  });
+  if (wsOnly.length > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`WS에만 있는 개선안 ${wsOnly.length}건 (DB 미저장)`); }
+  if (dbOnly.length > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`DB에만 있는 개선안 ${dbOnly.length}건 (WS 미반영)`); }
+
+  // ── 6. RA↔FL 1:1 커버리지 ──
+  const flWithRA = new Set(ras.map((ra: any) => ra.linkId));
+  const flNoRA = fls.filter((fl: any) => !flWithRA.has(fl.id)).length;
+  r.details.flWithoutRA = flNoRA;
+  if (flNoRA > 0) { r.status = setWorst(r.status, 'error'); r.issues.push(`RA 없는 FailureLink ${flNoRA}건`); }
+  if (ras.length > fls.length) {
+    r.details.duplicateRA = ras.length - fls.length;
+    r.status = setWorst(r.status, 'warn'); r.issues.push(`중복 RA ${ras.length - fls.length}건`);
+  }
+
+  // ── 7. H/M 개선 커버리지 ──
+  const raByLink = new Map<string, any>();
+  for (const ra of ras) raByLink.set(ra.linkId, ra);
+  const optCount = new Map<string, number>();
+  for (const o of opts) optCount.set(o.riskId, (optCount.get(o.riskId) || 0) + 1);
+  let hNoOpt = 0, mNoOpt = 0;
+  for (const fl of fls) {
+    const ra = raByLink.get(fl.id);
+    if (!ra || (optCount.get(ra.id) || 0) > 0) continue;
+    if (ra.ap === 'H') hNoOpt++;
+    else if (ra.ap === 'M') mNoOpt++;
+  }
+  r.details.hWithoutOpt = hNoOpt; r.details.mWithoutOpt = mNoOpt;
+  if (hNoOpt > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`AP=H 개선안 누락 ${hNoOpt}건`); }
+  if (mNoOpt > 0) { r.issues.push(`AP=M 개선안 누락 ${mNoOpt}건 (참고)`); }
+
+  // ── 8. SOD 완전성 ──
+  let mS = 0, mO = 0, mD = 0;
+  for (const ra of ras) {
+    if (!ra.severity || ra.severity <= 0) mS++;
+    if (!ra.occurrence || ra.occurrence <= 0) mO++;
+    if (!ra.detection || ra.detection <= 0) mD++;
+  }
+  r.details.missingS = mS; r.details.missingO = mO; r.details.missingD = mD;
+  if (mS > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`S 미입력 ${mS}건`); }
+  if (mO > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`O 미입력 ${mO}건`); }
+  if (mD > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`D 미입력 ${mD}건`); }
+
+  // ── 9. 개선안 데이터 완전성 ──
+  let emptyAction = 0, emptyPerson = 0;
+  for (const o of opts) {
+    if (!o.recommendedAction?.trim()) emptyAction++;
+    if (!o.responsible?.trim()) emptyPerson++;
+  }
+  if (emptyAction > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`개선조치 빈값 ${emptyAction}건`); }
+  if (emptyPerson > 0) { r.issues.push(`책임자 미지정 ${emptyPerson}건 (참고)`); }
+
+  // ── 10. AP 계산 정합성 ──
+  let apMis = 0;
+  for (const ra of ras) {
+    if (ra.severity > 0 && ra.occurrence > 0 && ra.detection > 0) {
+      const expected = calcAPServer(ra.severity, ra.occurrence, ra.detection);
+      if (expected && ra.ap && expected !== ra.ap) apMis++;
+    }
+  }
+  r.details.apMismatch = apMis;
+  if (apMis > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`AP 계산 불일치 ${apMis}건`); }
+
+  // ── 11. riskData 고아키 (FL 없는 uniqueKey) ──
+  const flUKs = new Set(fls.map((fl: any) => `${fl.fmId}-${fl.fcId}`));
+  const rdUKs = new Set<string>();
+  for (const key of Object.keys(riskData)) {
+    const m = key.match(/^risk-(.+)-(S|O|D)$/);
+    if (m) rdUKs.add(m[1]);
+  }
+  const orphanKeys = [...rdUKs].filter(uk => !flUKs.has(uk));
+  r.details.orphanRiskDataKeys = orphanKeys.length;
+  if (orphanKeys.length > 0) { r.status = setWorst(r.status, 'warn'); r.issues.push(`riskData 고아키 ${orphanKeys.length}건`); }
+
+  // ── 12. PC/DC WS↔DB 동기화 ──
+  let pcMis = 0, dcMis = 0;
+  for (const ra of ras) {
+    const fl = fls.find((f: any) => f.id === ra.linkId);
+    if (!fl) continue;
+    const uk = `${fl.fmId}-${fl.fcId}`;
+    const wsPrev = String(riskData[`prevention-${uk}`] || '').trim();
+    const wsDet = String(riskData[`detection-${uk}`] || '').trim();
+    if (wsPrev && ra.preventionControl?.trim() && wsPrev !== ra.preventionControl.trim()) pcMis++;
+    if (wsDet && ra.detectionControl?.trim() && wsDet !== ra.detectionControl.trim()) dcMis++;
+  }
+  if (pcMis > 0) { r.issues.push(`PC WS↔DB 불일치 ${pcMis}건 (참고)`); }
+  if (dcMis > 0) { r.issues.push(`DC WS↔DB 불일치 ${dcMis}건 (참고)`); }
+
   return r;
 }
