@@ -810,12 +810,12 @@ export function convertToImportFormat(
 
   // B3 공정특성 — parentItemId(B1 UUID)로 원자성 매칭
   const cseqByB1 = new Map<string, number>(); // B1 ID → 현재 cseq
+  const b3IdsByPnoM4 = new Map<string, string[]>(); // `pno|m4` → B3 ID 순서 목록 (B4→B3 매핑용)
   for (const pno of sortedProcNos) {
     const pnoNum = parseInt(pno) || 0;
     const items = data.b3.get(pno) || [];
     for (const item of items) {
       const weKey = `${pno}|${item.m4}|${item.we}`;
-      // ★★★ 2026-03-10: B3도 B2와 동일하게 B1 자동생성 (orphan 방지) ★★★
       let b3ParentId = b1IdMap.get(weKey);
       if (!b3ParentId) {
         const m4Key = `${pno}|${item.m4}`;
@@ -832,41 +832,58 @@ export function convertToImportFormat(
       const parsed = parseB1seq(b3ParentId);
       const cseq = (cseqByB1.get(b3ParentId) || 0) + 1;
       cseqByB1.set(b3ParentId, cseq);
+      const b3Id = genB3('PF', pnoNum, parsed.m4 || item.m4, parsed.b1seq, cseq);
       flatData.push({
-        id: genB3('PF', pnoNum, parsed.m4 || item.m4, parsed.b1seq, cseq), processNo: pno, category: 'B', itemCode: 'B3',
+        id: b3Id, processNo: pno, category: 'B', itemCode: 'B3',
         value: item.char, m4: item.m4, specialChar: item.sc || undefined,
         belongsTo: item.we, parentItemId: b3ParentId,
         createdAt: now,
       });
+      // ★★★ 2026-03-19: B3 ID를 pno+m4별로 수집 (B4→B3 FK 매핑용) ★★★
+      const b3m4Key = `${pno}|${item.m4}`;
+      if (!b3IdsByPnoM4.has(b3m4Key)) b3IdsByPnoM4.set(b3m4Key, []);
+      b3IdsByPnoM4.get(b3m4Key)!.push(b3Id);
     }
   }
 
-  // B4 고장원인 — ★★★ 2026-03-10: parentItemId(B1 UUID) 원자성 연결 추가 ★★★
+  // ★★★ 2026-03-19 파이프라인 재설계: B4.parentItemId → B3 ID (B1 아님) ★★★
+  // 근본원인: B4.parentItemId=B1 → buildWorksheetState에서 pcIdSet.has(parentItemId)=false → 순차폴백 → orphanPC
+  // 수정: B4.parentItemId를 동일 pno+m4 그룹의 B3 ID로 설정 (순차 매칭, 초과분은 마지막 B3)
   const kseqByB1 = new Map<string, number>(); // B1 ID → 현재 kseq
+  const b4SeqByPnoM4 = new Map<string, number>(); // B4→B3 순차 매핑용 카운터
   for (const pno of sortedProcNos) {
     const pnoNum = parseInt(pno) || 0;
     const items = data.b4.get(pno) || [];
     for (const item of items) {
       const weKey = `${pno}|${item.m4}|${(item as any).we || ''}`;
-      let b4ParentId = b1IdMap.get(weKey);
-      // B4에 we 정보 없으면 같은 pno+m4의 첫 번째 B1 폴백
-      if (!b4ParentId) {
+      let b4B1Id = b1IdMap.get(weKey);
+      if (!b4B1Id) {
         for (const [k, v] of b1IdMap) {
-          if (k.startsWith(`${pno}|${item.m4}|`)) { b4ParentId = v; break; }
+          if (k.startsWith(`${pno}|${item.m4}|`)) { b4B1Id = v; break; }
         }
       }
-      const parsed = b4ParentId ? parseB1seq(b4ParentId) : { m4: item.m4, b1seq: 1 };
-      const kseq = (kseqByB1.get(b4ParentId || '') || 0) + 1;
-      kseqByB1.set(b4ParentId || '', kseq);
+      const parsed = b4B1Id ? parseB1seq(b4B1Id) : { m4: item.m4, b1seq: 1 };
+      const kseq = (kseqByB1.get(b4B1Id || '') || 0) + 1;
+      kseqByB1.set(b4B1Id || '', kseq);
       const b4Id = genB4('PF', pnoNum, parsed.m4 || item.m4, parsed.b1seq, kseq);
       // ★ chain flatId FK 직접 할당용 기록 (exact + normalized + noSpace)
       b4IdByKey.set(`${pno}|${item.m4}|${item.fc}`, b4Id);
       b4IdByKey.set(`${pno}|${item.m4}|${normalizeText(item.fc)}`, b4Id);
       b4IdByKey.set(`${pno}|${item.m4}|NS|${normalizeNoSpace(item.fc)}`, b4Id);
+
+      // ★ B4→B3 FK: 동일 pno+m4 그룹의 B3 ID에 순차 매핑
+      const b3m4Key = `${pno}|${item.m4}`;
+      const b3Ids = b3IdsByPnoM4.get(b3m4Key) || [];
+      const b4Seq = b4SeqByPnoM4.get(b3m4Key) || 0;
+      b4SeqByPnoM4.set(b3m4Key, b4Seq + 1);
+      const b3ParentId = b3Ids.length > 0
+        ? b3Ids[Math.min(b4Seq, b3Ids.length - 1)]
+        : undefined;
+
       flatData.push({
         id: b4Id, processNo: pno, category: 'B', itemCode: 'B4',
         value: item.fc, m4: item.m4,
-        parentItemId: b4ParentId || undefined,
+        parentItemId: b3ParentId || b4B1Id || undefined,
         createdAt: now,
       });
     }

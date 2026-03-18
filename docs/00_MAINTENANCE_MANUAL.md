@@ -374,6 +374,9 @@
 | T-42 | 프로젝트 스키마 테이블명 불일치 | 레거시 `"FmeaInfo"` vs 신규 `fmea_projects` | 자동 감지 패턴 + snake_case 우선 | 5 |
 | T-43 | LLD추천/개선추천 저장 후 사라짐 (1차) | ATOMIC DIRECT 로드 경로에서 legacy riskData 6ST 키 미병합 | `useWorksheetDataLoader.ts` ATOMIC DIRECT 경로에 OPT_PREFIXES 병합 추가 | 1 |
 | T-44 | LLD추천/개선추천 재발 — 프로젝트 스키마 riskData 0건 (2차) | API POST에서 optimizations → riskData 역매핑 누락 → 프로젝트 스키마 `fmea_legacy_data`에 `lesson-opt-*`/`detection-opt-*` 키 0건 | `route.ts` step 13.5: optimizations → legacy riskData 자동 역매핑 추가 | 1 |
+| T-45 | m071 마스터JSON 없음 + orphanPC 8건 | export-master 미실행 + placeholder FC 누락 | `pipeline-verify` auto-fix + `export-master` 실행 | 1 |
+| T-46 | PfmeaMasterFlatItem rowSpan NULL 2765건 | 생성 시 rowSpan 미설정 → deep 검증 FAIL | DB `UPDATE rowSpan=1 WHERE NULL` | 1 |
+| T-47 | m069 Public↔Project riskData 불일치 (keys 12 vs 1638) | Public `fmea_legacy_data.riskData` 미동기화 | Project → Public riskData 병합 스크립트 | 1 |
 
 ---
 
@@ -518,10 +521,12 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 
 ## 10. 버그 수정 이력
 
-### 최근 수정 (2026-03-08 기준, 최신순)
+### 최근 수정 (2026-03-19 기준, 최신순)
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|
+| 03-19 | - | 파이프라인 | **자동수정 비활성화**: fixStep3/4/5에서 placeholder FC/FL 자동생성 → 경고만 표시 (부작용: Atomic↔Legacy 불일치 악화 차단) |
+| 03-19 | - | Import | **orphanPC 근본수정**: import-builder.ts B4.parentItemId를 B1→B3 ID로 변경 → buildWorksheetState B4→B3 FK 매칭 정상화 |
 | 03-08 | `c5010535` | 보안/품질 | 배포 전 전체 진단: 하드코딩 비밀번호→환경변수, 시크릿키 보호, empty catch 16건→console.error, console.log 8건 제거, Operations error.tsx 추가, API error.message 노출 차단 |
 | 03-07 | `e2a9bd2b` | MyJob/테스트 | Suspense boundary 빌드 해결 + FM 기대값 107→136 업데이트 |
 | 03-07 | `9bff8255` | PFMEA | 배열 깨짐 방어 코드 3종 추가 (필드테스트 안전망) |

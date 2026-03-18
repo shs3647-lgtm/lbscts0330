@@ -792,13 +792,13 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     }
   }
 
-  // m4별 B4→processChar 꽂아넣기 (parentItemId FK 기반, 폴백: 순차 할당)
-  const unmatchedB4: ImportedFlatData[] = []; // ★ m4 불일치 B4 수집
+  // m4별 B4→processChar 꽂아넣기 (parentItemId=B3 ID FK 기반)
+  // ★★★ 2026-03-19: import-builder에서 B4.parentItemId를 B3 ID로 설정하므로
+  // pcIdSet.has(parentItemId) 매칭이 정상 동작 → orphanPC 근본 해결 ★★★
+  const unmatchedB4: ImportedFlatData[] = [];
   for (const [m4Key, m4B4] of b4ByM4) {
     const m4PCs = pcByM4.get(m4Key) || [];
     if (m4PCs.length > 0 && m4B4.length > 0) {
-      // ★★★ 2026-03-16 FIX: distribute → parentItemId FK 기반 꽂아넣기
-      // parentItemId 없으면 순차 할당 (i번째 B4 → i번째 PC, 초과분은 마지막 PC)
       const pcIdSet = new Set(m4PCs.map(pc => pc.id));
       for (let bi = 0; bi < m4B4.length; bi++) {
         const b4 = m4B4[bi];

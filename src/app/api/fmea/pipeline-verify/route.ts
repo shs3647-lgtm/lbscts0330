@@ -526,30 +526,12 @@ async function fixStep3Uuid(prisma: any, fmeaId: string): Promise<string[]> {
 
   const orphans = l3Funcs.filter((f: any) => !fcPcIds.has(f.id) && !fcL3Ids.has(f.id));
 
-  // ★ createMany로 일괄 생성 (개별 create 루프 금지 — Rule 0.6)
-  const orphanFcData: Array<{ id: string; fmeaId: string; l2StructId: string; l3StructId: string; l3FuncId: string; processCharId: string; cause: string }> = [];
-  for (const func of orphans) {
-    const l3 = l3ById.get(func.l3StructId);
-    const l2 = l3 ? l2ById.get((l3 as any).l2Id) : null;
-    if (!l2) continue;
-
-    const pcName = func.processChar?.trim() || func.functionName?.trim() || (l3 as any)?.name || '';
-    const fcName = pcName ? `${pcName} 부적합` : `${(l3 as any)?.name || 'Unknown'} 부적합`;
-    const fcId = `${func.id}-FC`;
-
-    orphanFcData.push({
-      id: fcId, fmeaId, l2StructId: (l2 as any).id,
-      l3StructId: func.l3StructId, l3FuncId: func.id,
-      processCharId: func.id, cause: fcName,
-    });
-    fixed.push(`FC 생성: "${fcName}"`);
-  }
-  if (orphanFcData.length > 0) {
-    try {
-      await prisma.failureCause.createMany({ data: orphanFcData, skipDuplicates: true });
-    } catch (err) {
-      console.error('[fixStep3Uuid] orphan FC 일괄 생성 오류:', err);
-    }
+  // ★★★ 2026-03-19 파이프라인 재설계: placeholder FC 자동생성 비활성화 ★★★
+  // 근본원인: B4.parentItemId=B1(작업요소)이지 B3(공정특성)가 아님 → 순차할당 폴백 → orphanPC 발생
+  // 자동수정 부작용: +FC → +FL → +RA(S=0) → Atomic↔Legacy 불일치 악화
+  // 올바른 해결: Import 파이프라인에서 B4→B3 매핑 수정 또는 사용자가 워크시트에서 FC 지정
+  if (orphans.length > 0) {
+    fixed.push(`[경고] FC 없는 공정특성 ${orphans.length}건 — 워크시트에서 수동 지정 필요`);
   }
 
   return fixed;
@@ -579,37 +561,13 @@ async function fixStep4Fk(prisma: any, fmeaId: string): Promise<string[]> {
     }
   }
 
-  // FC에 FailureLink 없으면 생성 — 결정론적 매칭만 사용 (Rule 0.4)
-  // ★ 같은 L2 공정의 기존 Link에서 FM→FE 매핑을 추출
-  const fmToFeMap = new Map<string, string>();
-  for (const lk of links) {
-    if (fmSet.has(lk.fmId) && feSet.has(lk.feId)) {
-      fmToFeMap.set(lk.fmId, lk.feId);
-    }
-  }
-  const newLinks: Array<{ fmeaId: string; fcId: string; fmId: string; feId: string }> = [];
-  for (const fc of fcs) {
-    if (linkedFcIds.has(fc.id)) continue;
-
-    const procFms = fms.filter((fm: any) => fm.l2StructId === fc.l2StructId);
-    if (procFms.length === 0) continue; // ★ FM 없으면 Link 생성 불가 — warn 유지
-
-    // ★ 기존 Link가 있는 FM 우선 선택 (결정론적)
-    const linkedFm = procFms.find((fm: any) => fmToFeMap.has(fm.id));
-    const selectedFm = linkedFm || procFms[0];
-    const selectedFe = fmToFeMap.get(selectedFm.id);
-    if (!selectedFe) continue; // ★ FE 매핑 없으면 생성 불가 — fes[0] fallback 금지
-
-    newLinks.push({ fmeaId, fcId: fc.id, fmId: selectedFm.id, feId: selectedFe });
-    fixed.push(`Link 생성: FC=${(fc as any).cause?.substring(0, 20)}`);
-  }
-  // ★ createMany로 일괄 저장 (개별 create 루프 금지 — Rule 0.6)
-  if (newLinks.length > 0) {
-    try {
-      await prisma.failureLink.createMany({ data: newLinks, skipDuplicates: true });
-    } catch (err) {
-      console.error('[fixStep4Fk] FailureLink 일괄 생성 오류:', err);
-    }
+  // ★★★ 2026-03-19 파이프라인 재설계: unlinked FC → FailureLink 자동생성 비활성화 ★★★
+  // 자동수정 부작용: Atomic에만 FL 생성 → Legacy 미갱신 → FL Atomic≠Legacy 불일치
+  // 올바른 해결: Import 파이프라인에서 FC 시트 기반으로 정확한 FE-FM-FC 사슬 생성
+  // 깨진 FK 삭제(위)는 안전하므로 유지, 새 Link 생성은 경고만 표시
+  const unlinkedFcs = fcs.filter((fc: any) => !linkedFcIds.has(fc.id));
+  if (unlinkedFcs.length > 0) {
+    fixed.push(`[경고] 미연결 FC ${unlinkedFcs.length}건 — FC 시트 기반 Import 또는 워크시트에서 수동 연결 필요`);
   }
 
   return fixed;
@@ -708,27 +666,23 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
         if (fc.processCharId) fcPcIds.add(fc.processCharId);
       }
     }
-    const orphanFcCreates: Array<{ id: string; fmeaId: string; l2StructId: string; cause: string; processCharId: string }> = [];
+    // ★★★ 2026-03-19 파이프라인 재설계: orphan PC → placeholder FC 자동생성 비활성화 ★★★
+    // 근본원인: B4→B3 매핑이 순차 폴백에 의존 → m4그룹 내 B3>B4이면 orphanPC 발생
+    // 자동수정 부작용: Legacy에 FC 추가 → fixStep3/4/6 cascade → Atomic↔Legacy 불일치
+    // 올바른 해결: Import 파이프라인에서 B4.parentItemId를 B3 ID로 설정
+    let orphanPcCount = 0;
     for (const we of (proc.l3 || [])) {
       for (const fn of (we.functions || [])) {
         for (const pc of (fn.processChars || [])) {
           if (pc.name?.trim() && !fcPcIds.has(pc.id)) {
-            const fcId = `${pc.id}-FC`;
-            const fcName = `${pc.name} 부적합`;
-            procFcs.push({ id: fcId, name: fcName, processCharId: pc.id });
-            fcPcIds.add(pc.id);
-            // ★ Atomic DB에도 FailureCause 생성 (Legacy만 수정 금지 — Rule 0)
-            orphanFcCreates.push({
-              id: fcId, fmeaId, l2StructId: proc.id || '',
-              cause: fcName, processCharId: pc.id,
-            });
-            fixed.push(`FC 보충: "${fcName}"`);
-            changed = true;
+            orphanPcCount++;
           }
         }
       }
     }
-    if (changed) proc.failureCauses = procFcs;
+    if (orphanPcCount > 0) {
+      fixed.push(`[경고] 공정 ${proc.no || proc.name}: FC 없는 공정특성 ${orphanPcCount}건 — 수동 지정 필요`);
+    }
   }
 
   // ★ Legacy FC 중 Atomic DB에 없는 것 전수 동기화 (교차검증 error 해소)
@@ -873,7 +827,8 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
     return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
   };
 
-  // ★★★ 2026-03-18 FIX: RA 없는 FailureLink에 RiskAnalysis 자동생성 (STEP 6 근본 수정) ★★★
+  // RA 없는 FailureLink에 RiskAnalysis 자동생성 (Import-origin FL만 대상)
+  // ★ fixStep4Fk 자동 FL 생성 비활성화(2026-03-19) → 여기에 도달하는 unlinked FL은 Import에서 생성된 정상 FL만
   const linkedRaLinkIds = new Set(ras.map((r: any) => r.linkId));
   const unlinkedFls = fls.filter((fl: any) => !linkedRaLinkIds.has(fl.id));
 

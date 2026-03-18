@@ -431,6 +431,11 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-17 | rebuild-atomic에서 RiskAnalysis 미저장 | upsert 로직 누락 | `rebuild-atomic/route.ts` L408-443 | ✅ riskAnalyses=104 |
 | 2026-03-18 | LLD추천/개선추천 저장 후 사라짐 (1차) | ATOMIC DIRECT 로드에서 legacy 6ST 키 미병합 | `useWorksheetDataLoader.ts` OPT_PREFIXES 병합 | ✅ lld=64 |
 | 2026-03-19 | LLD추천/개선추천 재발 (2차) | API POST에서 optimizations→riskData 역매핑 누락 → 프로젝트 스키마 `lesson-opt-*` 0건 | `route.ts` step 13.5 역매핑 추가 | ✅ lesson-opt=64, detection-opt=104 |
+| 2026-03-19 | m071 마스터JSON 없음 + orphanPC 8건 | export-master 미실행 + placeholder FC 누락 | pipeline-verify auto-fix + export-master | ✅ chains=126, orphanPC=0 |
+| 2026-03-19 | rowSpan NULL 2765건 (전체 FlatItem) | PfmeaMasterFlatItem 생성 시 rowSpan 미설정 | DB UPDATE rowSpan=1 WHERE NULL | ✅ bad rowSpan=0 |
+| 2026-03-19 | m069 Public↔Project riskData 불일치 | Public fmea_legacy_data.riskData 키 12개만 (Project 1638개) | sync-public-legacy 스크립트 실행 | ✅ Public keys=1650 |
+| 2026-03-19 | 자동수정(fixStep3/4/5)이 orphanPC 악화 | placeholder FC/FL/RA 생성 → Atomic↔Legacy 불일치 확대 (FL 126 vs 118) | `pipeline-verify/route.ts` 자동생성 비활성화 → 경고만 표시 | ✅ 데이터 손상 차단 |
+| 2026-03-19 | orphanPC 근본원인: B4.parentItemId=B1 | import-builder에서 B4→B1 연결 → buildWorksheetState에서 B4→B3 매칭 실패 → 순차폴백 → orphanPC | `import-builder.ts` B4.parentItemId → B3 ID로 변경 | ✅ m066 orphanPC=0, m069 orphanPC=0 |
 
 ### 🔴 Rule 2: 기존 UI 변경 금지
 기존 UI는 절대 변경하지 않습니다. 사용자가 명시적으로 UI 변경을 요청한 경우에만 수정합니다.
