@@ -6,9 +6,10 @@
 
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
-import { Database, RefreshCw, BarChart3 } from 'lucide-react';
-import { FixedLayout, AdminTopNav } from '@/components/layout';
+import { RefreshCw, BarChart3 } from 'lucide-react';
 import { useLocale } from '@/lib/locale';
 
 interface TableStat {
@@ -49,8 +50,7 @@ export default function DBStatsPage() {
     };
 
     return (
-        <FixedLayout topNav={<AdminTopNav />} showSidebar={true}>
-            <div className="p-6">
+        <div className="p-6">
                 {/* 헤더 */}
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -137,7 +137,6 @@ export default function DBStatsPage() {
                         </table>
                     </div>
                 </div>
-            </div>
-        </FixedLayout>
+        </div>
     );
 }

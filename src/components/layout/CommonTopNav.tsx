@@ -77,13 +77,18 @@ export default function CommonTopNav({
   openNavInNewTab = false,
 }: CommonTopNavProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  let searchParams: any = null;
+  try {
+    searchParams = useSearchParams();
+  } catch (e) {
+    // SSR에서는 useSearchParams 사용 불가
+  }
   const { locale, setLocale, t } = useLocale();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [showHelpSearch, setShowHelpSearch] = useState(false);
   const [showVerify, setShowVerify] = useState(false);
 
-  const fmeaId = searchParams.get('fmeaId') || searchParams.get('id') || '';
+  const fmeaId = searchParams ? (searchParams.get('fmeaId') || searchParams.get('id') || '') : '';
   const isFmeaPage = pathname?.includes('/pfmea') || pathname?.includes('/dfmea') || false;
 
   // 사용자 정보 로드
