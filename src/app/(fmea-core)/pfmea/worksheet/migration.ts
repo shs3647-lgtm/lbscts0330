@@ -1,4 +1,4 @@
-// CODEFREEZE
+// CODEFREEZE 해제 — 2026-03-18 FM/FC strict 매칭 추가 (사용자 승인)
 /**
  * @file migration.ts
  * @description 기존 중첩 구조 → 원자성 DB 구조 마이그레이션
@@ -642,10 +642,13 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     // 수정: ID 매칭 우선, 실패 시에만 텍스트 fallback (동명 FM 충돌 방지)
     let fm = db.failureModes.find(m => m.id === oldLink.fmId)
       || (oldLink.fmText ? db.failureModes.find(m => m.mode === oldLink.fmText) : undefined);
+    // strict 매칭: 공백 제거 후 비교 (띄어쓰기 차이로 인한 uid() 신규 FM 생성 방지)
+    if (!fm && oldLink.fmText) {
+      const strictText = oldLink.fmText.replace(/\s+/g, '').toLowerCase();
+      fm = db.failureModes.find(m => m.mode && m.mode.replace(/\s+/g, '').toLowerCase() === strictText);
+    }
     if (!fm) {
-      // FM 자동 생성 (누락 금지)
       if (oldLink.fmText && db.l2Functions.length > 0) {
-        // ★ P7: uid()로 통일 — 충돌 위험 제거
         const tempFmId = uid();
         fm = {
           id: tempFmId,
@@ -683,10 +686,14 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       db.failureEffects.push(fe);
     }
     
-    // FC 찾기 (ID 또는 텍스트로)
+    // FC 찾기 (ID → 텍스트 → strict 매칭)
     let fc = db.failureCauses.find(c => c.id === oldLink.fcId);
     if (!fc && oldLink.fcText) {
       fc = db.failureCauses.find(c => c.cause === oldLink.fcText);
+    }
+    if (!fc && oldLink.fcText) {
+      const strictFc = oldLink.fcText.replace(/\s+/g, '').toLowerCase();
+      fc = db.failureCauses.find(c => c.cause && c.cause.replace(/\s+/g, '').toLowerCase() === strictFc);
     }
     // FC 자동 생성 (누락 금지) — ★ P7: uid()로 통일 (배열길이 기반 충돌 제거)
     if (!fc && oldLink.fcId && db.l3Functions.length > 0) {

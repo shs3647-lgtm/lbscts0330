@@ -47,6 +47,11 @@ function normalize(s: string | undefined): string {
   return (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/** 공백 완전 제거 정규화 — 미세 차이(띄어쓰기, 전각/반각) 흡수 */
+function normalizeStrict(s: string | undefined): string {
+  return (s || '').trim().replace(/\s+/g, '').toLowerCase();
+}
+
 /** processNo 정규화 — buildWorksheetState.ts와 동일 로직 */
 function normalizeProcessNo(pNo: string | undefined): string {
   if (!pNo) return '';
@@ -93,24 +98,29 @@ export function enrichStateFromChains(
     if (text) existingFE.add(text);
   }
 
-  // Existing FM index per process (processNo|normalizedName → true)
+  // Existing FM index — dual-key: normal + strict(공백제거) 매칭으로 중복 FM 추가 방지
   const existingFM = new Set<string>();
+  const existingFMStrict = new Set<string>();
   for (const proc of (state.l2 || [])) {
     for (const fm of (proc.failureModes || [])) {
       existingFM.add(`${proc.no}|${normalize(fm.name)}`);
+      existingFMStrict.add(`${proc.no}|${normalizeStrict(fm.name)}`);
     }
   }
 
-  // Existing FC index per process
+  // Existing FC index — dual-key
   const existingFC = new Set<string>();
+  const existingFCStrict = new Set<string>();
   for (const proc of (state.l2 || [])) {
     for (const we of (proc.l3 || [])) {
       for (const fc of (we.failureCauses || [])) {
         existingFC.add(`${proc.no}|${normalize(fc.name)}`);
+        existingFCStrict.add(`${proc.no}|${normalizeStrict(fc.name)}`);
       }
     }
     for (const fc of (proc.failureCauses || [])) {
       existingFC.add(`${proc.no}|${normalize(fc.name)}`);
+      existingFCStrict.add(`${proc.no}|${normalizeStrict(fc.name)}`);
     }
   }
 
@@ -196,11 +206,12 @@ export function enrichStateFromChains(
       continue;
     }
 
-    // Add FM if not exists
+    // Add FM if not exists — strict(공백제거) 매칭으로 "Au Bump 높이 부적합" ≈ "Au Bump 높이부적합" 중복 방지
     if (fmValue?.trim()) {
       const nfm = normalize(fmValue);
       const fmKey = `${proc.no}|${nfm}`;
-      if (!existingFM.has(fmKey)) {
+      const fmKeyStrict = `${proc.no}|${normalizeStrict(fmValue)}`;
+      if (!existingFM.has(fmKey) && !existingFMStrict.has(fmKeyStrict)) {
         const newFM: L2FailureMode = {
           id: (chain as { fmId?: string }).fmId || uid(),
           name: fmValue.trim(),
@@ -208,20 +219,21 @@ export function enrichStateFromChains(
         if (!proc.failureModes) proc.failureModes = [];
         proc.failureModes.push(newFM);
         existingFM.add(fmKey);
+        existingFMStrict.add(fmKeyStrict);
         stats.addedFM++;
       }
     }
 
-    // Add FC if not exists
+    // Add FC if not exists — strict 매칭 적용
     if (fcValue?.trim()) {
       const nfc = normalize(fcValue);
       const fcKey = `${proc.no}|${nfc}`;
-      if (!existingFC.has(fcKey)) {
+      const fcKeyStrict = `${proc.no}|${normalizeStrict(fcValue)}`;
+      if (!existingFC.has(fcKey) && !existingFCStrict.has(fcKeyStrict)) {
         const newFC: L3FailureCauseExtended = {
           id: (chain as { fcId?: string }).fcId || uid(),
           name: fcValue.trim(),
         };
-        // Add to matching L3 work element or first available
         if (proc.l3 && proc.l3.length > 0) {
           const targetWe = m4
             ? proc.l3.find(we => we.m4 === m4) || proc.l3[0]
@@ -233,6 +245,7 @@ export function enrichStateFromChains(
           proc.failureCauses.push(newFC);
         }
         existingFC.add(fcKey);
+        existingFCStrict.add(fcKeyStrict);
         stats.addedFC++;
       }
     }

@@ -1,4 +1,4 @@
-// CODEFREEZE — 2026-03-18 au bump DB/UUID/FK 무결성 100% 검증 완료
+// CODEFREEZE 해제 — 2026-03-18 RA=0 fallback + Opt FK 수복 추가 (사용자 승인)
 /**
  * @file rebuild-atomic/route.ts
  * @description 레거시 DB(FmeaLegacyData)를 기준으로 원자성 테이블을 완전 재구성 (정합성/표준화)
@@ -17,6 +17,28 @@ import { migrateToAtomicDB } from '@/app/(fmea-core)/pfmea/worksheet/migration';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
+
+const AP_TABLE_LOCAL = [
+  { s: '9-10', o: '8-10', d: ['H','H','H','H'] }, { s: '9-10', o: '6-7', d: ['H','H','H','H'] },
+  { s: '9-10', o: '4-5', d: ['H','H','H','M'] }, { s: '9-10', o: '2-3', d: ['H','M','L','L'] },
+  { s: '9-10', o: '1', d: ['L','L','L','L'] }, { s: '7-8', o: '8-10', d: ['H','H','H','H'] },
+  { s: '7-8', o: '6-7', d: ['H','H','H','M'] }, { s: '7-8', o: '4-5', d: ['H','M','M','M'] },
+  { s: '7-8', o: '2-3', d: ['M','M','L','L'] }, { s: '7-8', o: '1', d: ['L','L','L','L'] },
+  { s: '4-6', o: '8-10', d: ['H','H','M','M'] }, { s: '4-6', o: '6-7', d: ['M','M','M','L'] },
+  { s: '4-6', o: '4-5', d: ['M','L','L','L'] }, { s: '4-6', o: '2-3', d: ['L','L','L','L'] },
+  { s: '4-6', o: '1', d: ['L','L','L','L'] }, { s: '2-3', o: '8-10', d: ['M','M','L','L'] },
+  { s: '2-3', o: '6-7', d: ['L','L','L','L'] }, { s: '2-3', o: '4-5', d: ['L','L','L','L'] },
+  { s: '2-3', o: '2-3', d: ['L','L','L','L'] }, { s: '2-3', o: '1', d: ['L','L','L','L'] },
+];
+function calculateAPLocal(s: number, o: number, d: number): string {
+  if (s <= 0 || o <= 0 || d <= 0) return 'L';
+  const sR = s >= 9 ? '9-10' : s >= 7 ? '7-8' : s >= 4 ? '4-6' : s >= 2 ? '2-3' : null;
+  if (!sR) return 'L';
+  const oR = o >= 8 ? '8-10' : o >= 6 ? '6-7' : o >= 4 ? '4-5' : o >= 2 ? '2-3' : '1';
+  const dI = d >= 7 ? 0 : d >= 5 ? 1 : d >= 2 ? 2 : 3;
+  const row = AP_TABLE_LOCAL.find(r => r.s === sR && r.o === oR);
+  return row ? row.d[dI] : 'L';
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -407,12 +429,14 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-      // ★★★ 2026-03-17 FIX: RiskAnalysis 저장 (preventionControl/detectionControl 포함) ★★★
+      // ★★★ RiskAnalysis 저장 (preventionControl/detectionControl 포함) ★★★
+      const savedLinks = await tx.failureLink.findMany({
+        where: { fmeaId },
+        select: { id: true, fmId: true, feId: true, fcId: true, severity: true },
+      });
+      const savedLinkIds = new Set(savedLinks.map((l: any) => l.id));
+
       if (atomic.riskAnalyses && (atomic.riskAnalyses as any[]).length > 0) {
-        const savedLinkIds = new Set(
-          (await tx.failureLink.findMany({ where: { fmeaId }, select: { id: true } }))
-            .map((l: any) => l.id)
-        );
         const validRisks = (atomic.riskAnalyses as any[]).filter((r: any) =>
           r.linkId && savedLinkIds.has(r.linkId)
         );
@@ -442,6 +466,58 @@ export async function POST(request: NextRequest) {
             });
           }
           console.info(`[rebuild-atomic] RiskAnalysis 저장: ${validRisks.length}건 (PC/DC 포함)`);
+        }
+      }
+
+      // ★★★ 2026-03-18 FIX: RA=0 FALLBACK — riskAnalyses 빈 경우 riskData에서 직접 생성 ★★★
+      const raCount = await tx.riskAnalysis.count({ where: { fmeaId } });
+      if (raCount === 0 && savedLinks.length > 0) {
+        const rd: Record<string, unknown> = (legacyData as any).riskData || {};
+        const feMap = new Map<string, any>();
+        for (const fe of atomic.failureEffects) feMap.set((fe as any).id, fe);
+
+        let created = 0;
+        for (const link of savedLinks) {
+          const uk = `${(link as any).fmId}-${(link as any).fcId}`;
+          const s = Number(rd[`risk-${uk}-S`]) || (link as any).severity || 0;
+          const o = Number(rd[`risk-${uk}-O`]) || 0;
+          const d = Number(rd[`risk-${uk}-D`]) || 0;
+          const pc = String(rd[`prevention-${uk}`] || '').trim() || null;
+          const dc = String(rd[`detection-${uk}`] || '').trim() || null;
+          const sev = s > 0 ? s : (feMap.get((link as any).feId)?.severity || 1);
+
+          const ap = (sev > 0 && o > 0 && d > 0) ? calculateAPLocal(sev, o, d) : 'L';
+          await tx.riskAnalysis.create({
+            data: {
+              id: `ra-${(link as any).id}`,
+              fmeaId,
+              linkId: (link as any).id,
+              severity: sev,
+              occurrence: o || 1,
+              detection: d || 1,
+              ap,
+              preventionControl: pc,
+              detectionControl: dc,
+            },
+          });
+          created++;
+        }
+        console.info(`[rebuild-atomic] RA FALLBACK: ${created}건 생성 (riskData + FE severity)`);
+      }
+
+      // ★★★ 2026-03-18 FIX: Opt FK 수복 — riskId가 유효하지 않은 Optimization 삭제 ★★★
+      {
+        const validRAIds = new Set(
+          (await tx.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true } }))
+            .map((r: any) => r.id)
+        );
+        const allOpts = await tx.optimization.findMany({ where: { fmeaId }, select: { id: true, riskId: true } });
+        const orphanOpts = allOpts.filter((o: any) => !validRAIds.has(o.riskId));
+        if (orphanOpts.length > 0) {
+          await tx.optimization.deleteMany({
+            where: { id: { in: orphanOpts.map((o: any) => o.id) } },
+          });
+          console.info(`[rebuild-atomic] Opt FK 고아 삭제: ${orphanOpts.length}건`);
         }
       }
     }, { timeout: 30000, isolationLevel: 'Serializable' });
