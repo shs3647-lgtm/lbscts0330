@@ -519,25 +519,31 @@ function syncRiskAnalysesFromState(
   return { ...db, riskAnalyses: syncedRisks };
 }
 
+// ★ 2026-03-18 FIX: AIAG-VDA FMEA 1st Edition 공식 20행 테이블 (apCalculator.ts와 동일)
+// 기존 _calcSimpleAP 휴리스틱 → 테이블 기반으로 교체하여 AP 불일치 재발 방지
+const _AP_TABLE: { s: string; o: string; d: readonly ('H'|'M'|'L')[] }[] = [
+  { s: '9-10', o: '8-10', d: ['H','H','H','H'] }, { s: '9-10', o: '6-7', d: ['H','H','H','H'] },
+  { s: '9-10', o: '4-5', d: ['H','H','H','M'] }, { s: '9-10', o: '2-3', d: ['H','M','L','L'] },
+  { s: '9-10', o: '1', d: ['L','L','L','L'] },
+  { s: '7-8', o: '8-10', d: ['H','H','H','H'] }, { s: '7-8', o: '6-7', d: ['H','H','H','M'] },
+  { s: '7-8', o: '4-5', d: ['H','M','M','M'] }, { s: '7-8', o: '2-3', d: ['M','M','L','L'] },
+  { s: '7-8', o: '1', d: ['L','L','L','L'] },
+  { s: '4-6', o: '8-10', d: ['H','H','M','M'] }, { s: '4-6', o: '6-7', d: ['M','M','M','L'] },
+  { s: '4-6', o: '4-5', d: ['M','L','L','L'] }, { s: '4-6', o: '2-3', d: ['L','L','L','L'] },
+  { s: '4-6', o: '1', d: ['L','L','L','L'] },
+  { s: '2-3', o: '8-10', d: ['M','M','L','L'] }, { s: '2-3', o: '6-7', d: ['L','L','L','L'] },
+  { s: '2-3', o: '4-5', d: ['L','L','L','L'] }, { s: '2-3', o: '2-3', d: ['L','L','L','L'] },
+  { s: '2-3', o: '1', d: ['L','L','L','L'] },
+];
+
 function _calcSimpleAP(s: number, o: number, d: number): 'H' | 'M' | 'L' {
   if (s <= 0 || o <= 0 || d <= 0) return 'L';
   if (s === 1) return 'L';
-  if (s >= 9 || s >= 10) {
-    if (o >= 4 || d >= 7) return 'H';
-    if (o >= 2 || d >= 5) return 'M';
-    return 'L';
-  }
-  if (s >= 7) {
-    if (o >= 4) return 'H';
-    if (o >= 2 || d >= 5) return 'M';
-    return 'L';
-  }
-  if (s >= 4) {
-    if (o >= 4 && d >= 5) return 'H';
-    if (o >= 2) return 'M';
-    return 'L';
-  }
-  return 'L';
+  const sR = s >= 9 ? '9-10' : s >= 7 ? '7-8' : s >= 4 ? '4-6' : '2-3';
+  const oR = o >= 8 ? '8-10' : o >= 6 ? '6-7' : o >= 4 ? '4-5' : o >= 2 ? '2-3' : '1';
+  const dI = d >= 7 ? 0 : d >= 5 ? 1 : d >= 2 ? 2 : 3;
+  const row = _AP_TABLE.find(r => r.s === sR && r.o === oR);
+  return row ? row.d[dI] : 'L';
 }
 
 /**
