@@ -1306,6 +1306,7 @@ export async function POST(request: NextRequest) {
                 ap: risk.ap,
                 preventionControl: risk.preventionControl || null,
                 detectionControl: risk.detectionControl || null,
+                lldReference: risk.lldReference || null,
               },
               update: {
                 linkId: risk.linkId,
@@ -1315,6 +1316,7 @@ export async function POST(request: NextRequest) {
                 ap: risk.ap,
                 preventionControl: risk.preventionControl || null,
                 detectionControl: risk.detectionControl || null,
+                lldReference: risk.lldReference || null,
               },
             })
           )
@@ -1352,6 +1354,9 @@ export async function POST(request: NextRequest) {
                 newAP: opt.newAP || null,
                 status: opt.status,
                 completedDate: opt.completedDate || null,
+                remarks: opt.remarks || null,
+                detectionAction: opt.detectionAction || null,
+                lldOptReference: opt.lldOptReference || null,
               },
               update: {
                 riskId: opt.riskId,
@@ -1364,6 +1369,9 @@ export async function POST(request: NextRequest) {
                 newAP: opt.newAP || null,
                 status: opt.status,
                 completedDate: opt.completedDate || null,
+                remarks: opt.remarks || null,
+                detectionAction: opt.detectionAction || null,
+                lldOptReference: opt.lldOptReference || null,
               },
             })
           )
@@ -1523,12 +1531,12 @@ export async function POST(request: NextRequest) {
       isolationLevel: 'Serializable',
     });
 
-    // ★ P0-4: FmeaInfo 업데이트 - 트랜잭션 밖으로 이동 (트랜잭션 롤백 시 불일치 방지)
+    // ★ P0-4: 확정 상태 업데이트 - 트랜잭션 밖으로 이동 (트랜잭션 롤백 시 불일치 방지)
     if (db.confirmed) {
       try {
         const pool = new Pool({ connectionString: baseUrl });
         await pool.query(`
-          UPDATE "${schema}"."FmeaInfo"
+          UPDATE "${schema}".fmea_confirmed_states
           SET "structureConfirmed" = $1, "updatedAt" = NOW()
           WHERE "fmeaId" = $2
         `, [db.confirmed.structure || false, db.fmeaId]);
@@ -2305,6 +2313,7 @@ export async function GET(request: NextRequest) {
         ap: risk.ap as any,
         preventionControl: risk.preventionControl || undefined,
         detectionControl: risk.detectionControl || undefined,
+        lldReference: risk.lldReference || undefined,
         createdAt: risk.createdAt.toISOString(),
         updatedAt: risk.updatedAt.toISOString(),
       })),
@@ -2321,6 +2330,9 @@ export async function GET(request: NextRequest) {
         newAP: opt.newAP as any || undefined,
         status: opt.status as any,
         completedDate: opt.completedDate || undefined,
+        remarks: opt.remarks || undefined,
+        detectionAction: opt.detectionAction || undefined,
+        lldOptReference: opt.lldOptReference || undefined,
         createdAt: opt.createdAt.toISOString(),
         updatedAt: opt.updatedAt.toISOString(),
       })),

@@ -1,8 +1,9 @@
 /**
  * @file route.ts
  * @description FMEA 상속 API - Master/Family FMEA 데이터를 Part FMEA로 복사
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-10
+ * @updated 2026-03-18 — 테이블명을 Prisma @@map 기준 소문자로 통일
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,7 +12,6 @@ import { isValidFmeaId, isValidIdentifier, safeErrorMessage } from '@/lib/securi
 
 export const runtime = 'nodejs';
 
-// DB 연결
 function getPool() {
   return new Pool({ connectionString: process.env.DATABASE_URL });
 }
@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const { searchParams } = new URL(req.url);
-    // ✅ FMEA ID는 항상 소문자로 정규화 (DB 정규화)
     const sourceId = searchParams.get('sourceId')?.toLowerCase();
     const targetId = searchParams.get('targetId')?.toLowerCase();
 
@@ -36,14 +35,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'sourceId is required' }, { status: 400 });
     }
 
-    // SQL Injection 방지: ID 검증
     if (!isValidFmeaId(sourceId) || (targetId && !isValidFmeaId(targetId))) {
       return NextResponse.json({ success: false, error: 'Invalid ID format' }, { status: 400 });
     }
     
-    // 원본 스키마 이름 생성: PFM26-M001 → pfmea_pfm26_m001
     const sourceSchema = `pfmea_${sourceId.replace(/-/g, '_').toLowerCase()}`;
-    
     
     // 1. 원본 스키마 존재 확인
     const schemaCheck = await pool.query(`
@@ -62,15 +58,16 @@ export async function GET(req: NextRequest) {
     let legacyData = null;
     try {
       const legacyResult = await pool.query(`
-        SELECT "legacyData" FROM "${sourceSchema}"."FmeaLegacyData" 
+        SELECT data FROM "${sourceSchema}".fmea_legacy_data 
         WHERE id = $1
         LIMIT 1
       `, [`legacy-${sourceId}`]);
       
-      if (legacyResult.rows.length > 0 && legacyResult.rows[0].legacyData) {
-        legacyData = legacyResult.rows[0].legacyData;
+      if (legacyResult.rows.length > 0 && legacyResult.rows[0].data) {
+        legacyData = legacyResult.rows[0].data;
       }
-    } catch (e: any) {
+    } catch {
+      // fmea_legacy_data 테이블이 없을 수 있음
     }
     
     // 3. 레거시 데이터가 없으면 원자성 테이블에서 조회
@@ -104,16 +101,16 @@ export async function GET(req: NextRequest) {
       riskAnalyses: 0,
     };
     
-    // SOD 데이터 로드 (RiskAnalysis — Atomic DB에서 직접)
+    // SOD 데이터 로드 (risk_analyses — Atomic DB)
     let sourceRiskAnalyses: any[] = [];
     try {
       const raResult = await pool.query(`
-        SELECT * FROM "${sourceSchema}"."RiskAnalysis"
+        SELECT * FROM "${sourceSchema}".risk_analyses
         WHERE "fmeaId" = $1
       `, [sourceId]);
       sourceRiskAnalyses = raResult.rows;
-    } catch (e: any) {
-      // RiskAnalysis 테이블이 없을 수 있음 (마이그레이션 전)
+    } catch {
+      // risk_analyses 테이블이 없을 수 있음 (마이그레이션 전)
     }
 
     if (legacyData) {
@@ -154,33 +151,30 @@ export async function GET(req: NextRequest) {
     } else {
       // 원자성 테이블에서 조회
       try {
-        // L1 구조
         const l1Result = await pool.query(`
-          SELECT * FROM "${sourceSchema}"."L1Structure" 
+          SELECT * FROM "${sourceSchema}".l1_structures 
           WHERE "fmeaId" = $1 LIMIT 1
         `, [sourceId]);
         
         if (l1Result.rows.length > 0) {
           inherited.l1 = {
             id: l1Result.rows[0].id,
-            name: l1Result.rows[0].processName || l1Result.rows[0].name || '',
+            name: l1Result.rows[0].name || '',
             types: [],
           };
         }
         
-        // L2 구조 (공정)
         const l2Result = await pool.query(`
-          SELECT * FROM "${sourceSchema}"."L2Structure" 
+          SELECT * FROM "${sourceSchema}".l2_structures 
           WHERE "fmeaId" = $1 
-          ORDER BY "order", "processNo"
+          ORDER BY "order", no
         `, [sourceId]);
         
         stats.processes = l2Result.rows.length;
         
         for (const l2Row of l2Result.rows) {
-          // L3 구조 (작업요소)
           const l3Result = await pool.query(`
-            SELECT * FROM "${sourceSchema}"."L3Structure" 
+            SELECT * FROM "${sourceSchema}".l3_structures 
             WHERE "l2Id" = $1 
             ORDER BY "order"
           `, [l2Row.id]);
@@ -189,8 +183,8 @@ export async function GET(req: NextRequest) {
           
           inherited.l2.push({
             id: l2Row.id,
-            no: l2Row.processNo || l2Row.no || '',
-            name: l2Row.processName || l2Row.name || '',
+            no: l2Row.no || '',
+            name: l2Row.name || '',
             order: l2Row.order || 10,
             functions: [],
             productChars: [],
@@ -198,8 +192,8 @@ export async function GET(req: NextRequest) {
             failureCauses: [],
             l3: l3Result.rows.map((l3Row: any) => ({
               id: l3Row.id,
-              m4: l3Row.fourM || l3Row.m4 || '',
-              name: l3Row.workElementName || l3Row.name || '',
+              m4: l3Row.m4 || '',
+              name: l3Row.name || '',
               order: l3Row.order || 10,
               functions: [],
               processChars: [],
@@ -222,18 +216,17 @@ export async function GET(req: NextRequest) {
     
     try {
       const infoResult = await pool.query(`
-        SELECT "fmeaInfo", "fmeaType" FROM "${sourceSchema}"."FmeaInfo" 
+        SELECT * FROM "${sourceSchema}".fmea_projects 
         WHERE "fmeaId" = $1 LIMIT 1
       `, [sourceId]);
       
       if (infoResult.rows.length > 0) {
         const info = infoResult.rows[0];
         sourceInfo.fmeaType = info.fmeaType || sourceInfo.fmeaType;
-        if (info.fmeaInfo) {
-          sourceInfo.subject = info.fmeaInfo.subject || sourceId;
-        }
+        sourceInfo.subject = info.subject || sourceId;
       }
-    } catch (e: any) {
+    } catch {
+      // fmea_projects 테이블이 없을 수 있음
     }
     
     
@@ -246,7 +239,7 @@ export async function GET(req: NextRequest) {
     });
     
   } catch (error: unknown) {
-    console.error('❌ 상속 API 오류:', error instanceof Error ? error.message : error);
+    console.error('[상속 API] 조회 오류:', error instanceof Error ? error.message : error);
     return NextResponse.json({
       success: false,
       error: safeErrorMessage(error)
@@ -264,7 +257,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    // ✅ FMEA ID는 항상 소문자로 정규화 (DB 정규화)
     const sourceId = body.sourceId?.toLowerCase();
     const targetId = body.targetId?.toLowerCase();
     const { inherited } = body;
@@ -276,72 +268,44 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // SQL Injection 방지: ID 검증
     if (!isValidFmeaId(sourceId) || !isValidFmeaId(targetId)) {
       return NextResponse.json({ success: false, error: 'Invalid ID format' }, { status: 400 });
     }
 
-    // 대상 스키마 이름 생성 (PFM26-M001 → pfmea_pfm26_m001)
     const targetSchema = `pfmea_${targetId.replace(/-/g, '_').toLowerCase()}`;
     if (!isValidIdentifier(targetSchema)) {
       return NextResponse.json({ success: false, error: 'Invalid schema name' }, { status: 400 });
     }
     
-    
     // 1. 대상 스키마 생성
     await pool.query(`CREATE SCHEMA IF NOT EXISTS "${targetSchema}"`);
     
-    // 2. FmeaInfo 테이블 생성 및 저장 (parentFmeaId 포함)
+    // 2. fmea_projects 테이블에 상속 정보 저장
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS "${targetSchema}"."FmeaInfo" (
-        id TEXT PRIMARY KEY,
-        "fmeaId" TEXT NOT NULL,
-        "fmeaType" TEXT,
-        "parentFmeaId" TEXT,
-        "parentFmeaType" TEXT,
-        "inheritedAt" TIMESTAMP,
-        project JSONB,
-        "fmeaInfo" JSONB,
-        "structureConfirmed" BOOLEAN DEFAULT FALSE,
-        "createdAt" TIMESTAMP DEFAULT NOW(),
-        "updatedAt" TIMESTAMP DEFAULT NOW()
-      )
+      CREATE TABLE IF NOT EXISTS "${targetSchema}".fmea_projects (LIKE public.fmea_projects INCLUDING ALL)
     `);
     
-    // 원본 유형 추출
     const sourceType = sourceId.match(/pfm\d{2}-([MFP])/i)?.[1]?.toUpperCase() || 'P';
     
-    // FmeaInfo 저장 (상속 정보 포함)
     await pool.query(`
-      INSERT INTO "${targetSchema}"."FmeaInfo" 
-      (id, "fmeaId", "fmeaType", "parentFmeaId", "parentFmeaType", "inheritedAt")
-      VALUES ($1, $2, 'P', $3, $4, NOW())
+      INSERT INTO "${targetSchema}".fmea_projects 
+      (id, "fmeaId", "fmeaType", "parentFmeaId", "createdAt", "updatedAt")
+      VALUES ($1, $2, 'P', $3, NOW(), NOW())
       ON CONFLICT (id) DO UPDATE SET
         "parentFmeaId" = $3,
-        "parentFmeaType" = $4,
-        "inheritedAt" = NOW(),
         "updatedAt" = NOW()
-    `, [`info-${targetId}`, targetId, sourceId, sourceType]);
+    `, [`info-${targetId}`, targetId, sourceId]);
     
     // 3. 레거시 데이터 저장 (상속된 데이터)
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS "${targetSchema}"."FmeaLegacyData" (
-        id TEXT PRIMARY KEY,
-        "fmeaId" TEXT NOT NULL,
-        "legacyData" JSONB,
-        "legacyVersion" TEXT DEFAULT '2.0',
-        "createdAt" TIMESTAMP DEFAULT NOW(),
-        "updatedAt" TIMESTAMP DEFAULT NOW()
-      )
+      CREATE TABLE IF NOT EXISTS "${targetSchema}".fmea_legacy_data (LIKE public.fmea_legacy_data INCLUDING ALL)
     `);
     
-    // ID 재생성 함수 (원본 ID → 대상 ID)
     const regenerateId = (oldId: string, prefix: string) => {
       const suffix = oldId.split('-').pop() || Math.random().toString(36).substr(2, 9);
       return `${prefix}-${targetId}-${suffix}`;
     };
     
-    // 상속 데이터의 ID 재생성
     const newL1 = inherited.l1 ? {
       ...inherited.l1,
       id: regenerateId(inherited.l1.id, 'l1'),
@@ -369,6 +333,7 @@ export async function POST(req: NextRequest) {
         ap: ra.ap || '',
         preventionControl: ra.preventionControl || ra.prevention_control || '',
         detectionControl: ra.detectionControl || ra.detection_control || '',
+        lldReference: ra.lldReference || ra.lld_reference || '',
       };
     }
 
@@ -392,43 +357,32 @@ export async function POST(req: NextRequest) {
     };
     
     await pool.query(`
-      INSERT INTO "${targetSchema}"."FmeaLegacyData" 
-      (id, "fmeaId", "legacyData", "legacyVersion")
-      VALUES ($1, $2, $3, '2.0')
+      INSERT INTO "${targetSchema}".fmea_legacy_data 
+      (id, "fmeaId", data)
+      VALUES ($1, $2, $3)
       ON CONFLICT (id) DO UPDATE SET
-        "legacyData" = $3,
+        data = $3,
         "updatedAt" = NOW()
     `, [`legacy-${targetId}`, targetId, JSON.stringify(legacyData)]);
 
-    // RiskAnalysis Atomic DB 복사 (target 스키마)
+    // 4. RiskAnalysis Atomic DB 복사 (target 스키마)
     if (sourceRisks.length > 0) {
       try {
         await pool.query(`
-          CREATE TABLE IF NOT EXISTS "${targetSchema}"."RiskAnalysis" (
-            id TEXT PRIMARY KEY,
-            "fmeaId" TEXT NOT NULL,
-            "linkId" TEXT NOT NULL,
-            severity INTEGER DEFAULT 0,
-            occurrence INTEGER DEFAULT 0,
-            detection INTEGER DEFAULT 0,
-            ap TEXT DEFAULT 'L',
-            "preventionControl" TEXT,
-            "detectionControl" TEXT,
-            "createdAt" TIMESTAMP DEFAULT NOW(),
-            "updatedAt" TIMESTAMP DEFAULT NOW()
-          )
+          CREATE TABLE IF NOT EXISTS "${targetSchema}".risk_analyses (LIKE public.risk_analyses INCLUDING ALL)
         `);
 
         for (const ra of sourceRisks) {
           const raId = `ra-${targetId}-${(ra.linkId || ra.link_id || '').split('-').pop() || Math.random().toString(36).substring(2, 9)}`;
           const linkId = ra.linkId || ra.link_id || '';
           await pool.query(`
-            INSERT INTO "${targetSchema}"."RiskAnalysis"
-            (id, "fmeaId", "linkId", severity, occurrence, detection, ap, "preventionControl", "detectionControl")
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO "${targetSchema}".risk_analyses
+            (id, "fmeaId", "linkId", severity, occurrence, detection, ap, "preventionControl", "detectionControl", "lldReference")
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             ON CONFLICT (id) DO UPDATE SET
               severity = $4, occurrence = $5, detection = $6,
               ap = $7, "preventionControl" = $8, "detectionControl" = $9,
+              "lldReference" = $10,
               "updatedAt" = NOW()
           `, [
             raId, targetId, linkId,
@@ -436,10 +390,11 @@ export async function POST(req: NextRequest) {
             ra.ap || 'L',
             ra.preventionControl || ra.prevention_control || '',
             ra.detectionControl || ra.detection_control || '',
+            ra.lldReference || ra.lld_reference || '',
           ]);
         }
       } catch (e: any) {
-        console.error('[상속 API] RiskAnalysis 복사 오류 (무시):', e.message);
+        console.error('[상속 API] risk_analyses 복사 오류:', e.message);
       }
     }
     
@@ -452,7 +407,7 @@ export async function POST(req: NextRequest) {
     });
     
   } catch (error: unknown) {
-    console.error('❌ 상속 저장 오류:', error instanceof Error ? error.message : error);
+    console.error('[상속 API] 저장 오류:', error instanceof Error ? error.message : error);
     return NextResponse.json({
       success: false,
       error: safeErrorMessage(error)
@@ -461,5 +416,3 @@ export async function POST(req: NextRequest) {
     await pool.end();
   }
 }
-
-

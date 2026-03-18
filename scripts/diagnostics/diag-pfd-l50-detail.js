@@ -56,20 +56,20 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:postgres@localh
       console.log(`  [${i}] no=${r.processNo} name=${r.processName} desc="${r.processDesc}" part="${r.partName}" equip="${r.equipment}" | prodSC="${r.productSC}" prodChar="${r.productChar}" procSC="${r.processSC}" procChar="${r.processChar}"`);
     });
 
-    // 4. legacyData 확인 (FMEA에 데이터가 legacyData에만 있는 경우)
+    // 4. fmea_legacy_data 확인
     const r4 = await pool.query(
-      `SELECT "legacyData" IS NOT NULL as has_legacy,
-              LENGTH("legacyData"::text) as legacy_len
-       FROM fmea_registrations WHERE "fmeaId" = $1`,
+      `SELECT data IS NOT NULL as has_legacy,
+              LENGTH(data::text) as legacy_len
+       FROM fmea_legacy_data WHERE "fmeaId" = $1`,
       [fmeaId]
     );
-    console.log('\n=== FMEA Registration legacyData ===');
+    console.log('\n=== fmea_legacy_data ===');
     r4.rows.forEach(r => console.log(`  has_legacy=${r.has_legacy} len=${r.legacy_len}`));
 
-    // 5. legacyData에서 productChar 검색
+    // 5. legacy data에서 productChar 검색
     const r5 = await pool.query(
-      `SELECT substring("legacyData"::text from 1 for 500) as preview
-       FROM fmea_registrations WHERE "fmeaId" = $1`,
+      `SELECT substring(data::text from 1 for 500) as preview
+       FROM fmea_legacy_data WHERE "fmeaId" = $1`,
       [fmeaId]
     );
     if (r5.rows[0]?.preview) {

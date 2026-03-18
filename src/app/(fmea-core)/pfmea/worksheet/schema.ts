@@ -301,6 +301,7 @@ export interface RiskAnalysis extends AtomicRecord {
   // 현재 예방/검출 조치
   preventionControl?: string;
   detectionControl?: string;
+  lldReference?: string;
 }
 
 /**
@@ -325,6 +326,8 @@ export interface Optimization extends AtomicRecord {
   status: 'planned' | 'in_progress' | 'completed' | string;
   completedDate?: string;
   remarks?: string;
+  detectionAction?: string;
+  lldOptReference?: string;
 }
 
 // ============ 워크시트 전체 상태 (통합) ============

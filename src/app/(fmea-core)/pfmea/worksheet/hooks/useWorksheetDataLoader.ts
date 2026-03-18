@@ -146,6 +146,24 @@ export function useWorksheetDataLoader({
         // atomic 데이터가 존재하면 직접 사용 — legacy 변환은 렌더링용
         const legacyFromAtomic = atomicToLegacy(atomicData);
 
+        // ★★★ 2026-03-18 FIX: 6ST 최적화 키 병합 — legacy riskData에서 OPT_PREFIXES 보충 ★★★
+        // atomicToLegacy는 DB에 저장된 값만 복원하므로, detectionAction/lldOptReference가 NULL이면
+        // detection-opt-*/lesson-opt-* 키가 누락됨 → legacy riskData에서 보충
+        try {
+          const legacyDB = await loadWorksheetDB(normalizedFmeaId);
+          const dbRiskData: Record<string, unknown> = (legacyDB as any)?.riskData || {};
+          if (Object.keys(dbRiskData).length > 0 && legacyFromAtomic.riskData) {
+            const OPT_PREFIXES = ['prevention-opt-', 'detection-opt-', 'improvement-opt-', 'person-opt-', 'targetDate-opt-', 'completeDate-opt-', 'completionDate-opt-', 'status-opt-', 'lesson-opt-', 'result-opt-', 'note-opt-', 'opt-', 'opt6-', 'specialChar-opt-', 'S-fe-', 'imported-'];
+            for (const [k, v] of Object.entries(dbRiskData)) {
+              if (!(k in legacyFromAtomic.riskData) && OPT_PREFIXES.some(p => k.startsWith(p))) {
+                (legacyFromAtomic.riskData as Record<string, unknown>)[k] = v;
+              }
+            }
+          }
+        } catch (_e) {
+          console.error('[WorksheetDataLoader] legacy riskData 병합 오류:', _e);
+        }
+
         // 탭 결정: URL > localStorage > DB > 'structure'
         const atomicUrlTab = typeof window !== 'undefined'
           ? new URLSearchParams(window.location.search).get('tab')
@@ -291,7 +309,7 @@ export function useWorksheetDataLoader({
           // convertToLegacyFormat은 riskAnalyses 기반 5단계 키만 복원하므로,
           // dbRiskData에서 6단계 최적화 키(person-opt-, prevention-opt-, detection-opt- 등)를 병합
           if (Object.keys(dbRiskData).length > 0 && atomicAsLegacy.riskData) {
-            const OPT_PREFIXES = ['prevention-opt-', 'detection-opt-', 'person-opt-', 'targetDate-opt-', 'completeDate-opt-', 'status-opt-', 'lesson-opt-', 'result-opt-', 'note-opt-', 'opt-', 'opt6-', 'specialChar-opt-', 'S-fe-'];
+            const OPT_PREFIXES = ['prevention-opt-', 'detection-opt-', 'improvement-opt-', 'person-opt-', 'targetDate-opt-', 'completeDate-opt-', 'completionDate-opt-', 'status-opt-', 'lesson-opt-', 'result-opt-', 'note-opt-', 'opt-', 'opt6-', 'specialChar-opt-', 'S-fe-'];
             for (const [k, v] of Object.entries(dbRiskData)) {
               if (!(k in atomicAsLegacy.riskData) && OPT_PREFIXES.some(p => k.startsWith(p))) {
                 atomicAsLegacy.riskData[k] = v;

@@ -437,6 +437,7 @@ export async function cloneAtomicData(
           ap: promoted.ap,
           preventionControl: promoted.preventionControl,
           detectionControl: promoted.detectionControl,
+          lldReference: (risk as any).lldReference || null,
         },
       });
 

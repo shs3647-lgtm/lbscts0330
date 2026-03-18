@@ -272,6 +272,7 @@ function buildRiskData(
     if (risk.detection > 0) riskData[`risk-${uniqueKey}-D`] = risk.detection;
     if (risk.preventionControl) riskData[`prevention-${uniqueKey}`] = risk.preventionControl;
     if (risk.detectionControl) riskData[`detection-${uniqueKey}`] = risk.detectionControl;
+    if ((risk as any).lldReference) riskData[`lesson-${uniqueKey}`] = (risk as any).lldReference;
   }
 
   // Optimizations (6단계)
@@ -299,11 +300,13 @@ function buildRiskData(
         if (opt.newDetection != null) riskData[`opt-${uniqueKey}${sodSuffix}-D`] = opt.newDetection;
         if (opt.newAP) riskData[`opt-${uniqueKey}${sodSuffix}-AP`] = opt.newAP;
         if (opt.recommendedAction) riskData[`prevention-opt-${uniqueKey}${suffix}`] = opt.recommendedAction;
+        if (opt.detectionAction) riskData[`detection-opt-${uniqueKey}${suffix}`] = opt.detectionAction;
         if (opt.responsible) riskData[`person-opt-${uniqueKey}${suffix}`] = opt.responsible;
         if (opt.targetDate) riskData[`targetDate-opt-${uniqueKey}${suffix}`] = opt.targetDate;
         if (opt.completedDate) riskData[`completeDate-opt-${uniqueKey}${suffix}`] = opt.completedDate;
         if (opt.status) riskData[`status-opt-${uniqueKey}${suffix}`] = opt.status;
         if (opt.remarks) riskData[`note-opt-${uniqueKey}${suffix}`] = opt.remarks;
+        if (opt.lldOptReference) riskData[`lesson-opt-${uniqueKey}${suffix}`] = opt.lldOptReference;
       });
     }
   }

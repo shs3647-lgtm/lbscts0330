@@ -17,11 +17,11 @@ const pool = new Pool({
   console.log('Schema:', schemaName);
   
   try {
-    // DB에서 FmeaInfo 조회
-    const infoResult = await pool.query(`SELECT * FROM ${schemaName}."FmeaInfo" LIMIT 1`);
+    // DB에서 fmea_projects 조회
+    const infoResult = await pool.query(`SELECT * FROM "${schemaName}".fmea_projects LIMIT 1`);
     
     if (infoResult.rows.length === 0) {
-      console.log('❌ DB에 FmeaInfo 데이터 없음');
+      console.log('❌ DB에 fmea_projects 데이터 없음');
       await pool.end();
       return;
     }

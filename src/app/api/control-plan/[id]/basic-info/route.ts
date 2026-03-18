@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 
-// GET: CP 기초정보 조회 (cp_master_flat_items 테이블)
+// GET: CP 기초정보 조회 (Prisma ORM)
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -24,21 +24,16 @@ export async function GET(
         const { id } = await params;
         const cpNo = id.trim();
 
-
-        // cp_master_flat_items 테이블에서 조회
-        const flatItems = await prisma.$queryRawUnsafe<Array<{
-            id: number;
-            cpNo: string;
-            processNo: string;
-            processName: string | null;
-            category: string;
-            itemCode: string;
-            value: string | null;
-            sortOrder: number | null;
-        }>>(
-            `SELECT * FROM cp_master_flat_items WHERE "cpNo" = $1 ORDER BY "sortOrder" ASC, "processNo" ASC, "itemCode" ASC`,
-            cpNo
-        );
+        // Prisma ORM: cp_master_flat_items → dataset(cpNo) 관계 활용
+        const flatItems = await prisma.cpMasterFlatItem.findMany({
+            where: {
+                dataset: { cpNo },
+            },
+            orderBy: [
+                { processNo: 'asc' },
+                { itemCode: 'asc' },
+            ],
+        });
 
         if (flatItems.length === 0) {
             return NextResponse.json({
@@ -69,7 +64,6 @@ export async function GET(
         // flatData 형식으로 변환
         const flatData = flatItems.map(item => ({
             processNo: item.processNo || '',
-            processName: item.processName || '',
             category: item.category || '',
             itemCode: item.itemCode || '',
             value: item.value || '',
@@ -95,7 +89,6 @@ export async function GET(
             return acc;
         }, {} as Record<string, number>);
 
-
         return NextResponse.json({
             success: true,
             flatData,
@@ -106,7 +99,6 @@ export async function GET(
     } catch (error: any) {
         console.error('❌ [CP Basic Info] 조회 오류:', error);
 
-        // 테이블 없음 에러
         if (error.code === '42P01') {
             return NextResponse.json({
                 success: true,

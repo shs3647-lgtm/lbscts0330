@@ -1107,7 +1107,10 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
       const newD = Number(riskData[`opt-${uk}${sodSuffix}-D`]) || undefined;
       const newAP = String(riskData[`opt-${uk}${sodSuffix}-AP`] || '').trim() || undefined;
 
-      if (!recAction && !responsible && !targetDate && !status) continue;
+      const detAction = String(riskData[`detection-opt-${uk}${suffix}`] || '').trim();
+      const lldOptRef = String(riskData[`lesson-opt-${uk}${suffix}`] || '').trim();
+
+      if (!recAction && !detAction && !responsible && !targetDate && !status) continue;
       if (existingOptRiskIds.has(ra.id) && rowIdx === 0) continue;
 
       try {
@@ -1121,6 +1124,8 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
             completedDate: completedDate || null,
             status: status || 'open',
             remarks: remarks || null,
+            detectionAction: detAction || null,
+            lldOptReference: lldOptRef || null,
             newSeverity: newS ?? null,
             newOccurrence: newO ?? null,
             newDetection: newD ?? null,

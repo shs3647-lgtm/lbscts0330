@@ -27,7 +27,7 @@ async function main() {
   const links = d.failureLinks || [];
   const uniqueFeIds = new Set(links.map((l: any) => l.feId).filter(Boolean));
   console.log(`failureLinks: ${links.length}`);
-  console.log(`고유 feId 수: ${uniqueFeIds.size}`);  // 이게 1이면 마이그레이션이 덮어씌워진 것!
+  console.log(`고유 feId 수: ${uniqueFeIds.size}`);
   console.log(`feId 있음: ${links.filter((l: any) => !!l.feId).length}`);
   console.log(`feId 없음: ${links.filter((l: any) => !l.feId).length}`);
 
@@ -52,40 +52,40 @@ async function main() {
   console.log(`\n=== 프로젝트 스키마: ${schemaName} ===`);
   try {
     const result = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) as cnt FROM "${schemaName}"."FailureLink" WHERE "fmeaId" = $1 AND "deletedAt" IS NULL`,
+      `SELECT COUNT(*) as cnt FROM "${schemaName}".failure_links WHERE "fmeaId" = $1 AND "deletedAt" IS NULL`,
       fmeaId
     ) as any[];
     console.log(`DB Links (project schema): ${result[0]?.cnt}`);
 
     const faResult = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) as cnt FROM "${schemaName}"."FailureAnalysis" WHERE "fmeaId" = $1`,
+      `SELECT COUNT(*) as cnt FROM "${schemaName}".failure_analyses WHERE "fmeaId" = $1`,
       fmeaId
     ) as any[];
-    console.log(`DB FailureAnalysis: ${faResult[0]?.cnt}`);
+    console.log(`DB failure_analyses: ${faResult[0]?.cnt}`);
 
     const raResult = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) as cnt FROM "${schemaName}"."RiskAnalysis" WHERE "fmeaId" = $1`,
+      `SELECT COUNT(*) as cnt FROM "${schemaName}".risk_analyses WHERE "fmeaId" = $1`,
       fmeaId
     ) as any[];
-    console.log(`DB RiskAnalysis: ${raResult[0]?.cnt}`);
+    console.log(`DB risk_analyses: ${raResult[0]?.cnt}`);
 
     const feResult = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) as cnt FROM "${schemaName}"."FailureEffect" WHERE "fmeaId" = $1`,
+      `SELECT COUNT(*) as cnt FROM "${schemaName}".failure_effects WHERE "fmeaId" = $1`,
       fmeaId
     ) as any[];
-    console.log(`DB FailureEffect: ${feResult[0]?.cnt}`);
+    console.log(`DB failure_effects: ${feResult[0]?.cnt}`);
 
     const l1fResult = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) as cnt FROM "${schemaName}"."L1Function" WHERE "fmeaId" = $1`,
+      `SELECT COUNT(*) as cnt FROM "${schemaName}".l1_functions WHERE "fmeaId" = $1`,
       fmeaId
     ) as any[];
-    console.log(`DB L1Function: ${l1fResult[0]?.cnt}`);
+    console.log(`DB l1_functions: ${l1fResult[0]?.cnt}`);
 
     // FE l1FuncId 유효성 체크
     const feCheck = await prisma.$queryRawUnsafe(`
       SELECT fe.id, fe."l1FuncId", fe.effect
-      FROM "${schemaName}"."FailureEffect" fe
-      LEFT JOIN "${schemaName}"."L1Function" l1f ON fe."l1FuncId" = l1f.id
+      FROM "${schemaName}".failure_effects fe
+      LEFT JOIN "${schemaName}".l1_functions l1f ON fe."l1FuncId" = l1f.id
       WHERE fe."fmeaId" = $1 AND l1f.id IS NULL
     `, fmeaId) as any[];
     console.log(`\nFE with invalid l1FuncId: ${feCheck.length}`);
@@ -98,10 +98,10 @@ async function main() {
     // Link FK 유효성 체크
     const linkCheck = await prisma.$queryRawUnsafe(`
       SELECT fl.id, fl."fmId", fl."feId", fl."fcId",
-        (SELECT COUNT(*) FROM "${schemaName}"."FailureMode" fm WHERE fm.id = fl."fmId") as fm_exists,
-        (SELECT COUNT(*) FROM "${schemaName}"."FailureEffect" fe WHERE fe.id = fl."feId") as fe_exists,
-        (SELECT COUNT(*) FROM "${schemaName}"."FailureCause" fc WHERE fc.id = fl."fcId") as fc_exists
-      FROM "${schemaName}"."FailureLink" fl
+        (SELECT COUNT(*) FROM "${schemaName}".failure_modes fm WHERE fm.id = fl."fmId") as fm_exists,
+        (SELECT COUNT(*) FROM "${schemaName}".failure_effects fe WHERE fe.id = fl."feId") as fe_exists,
+        (SELECT COUNT(*) FROM "${schemaName}".failure_causes fc WHERE fc.id = fl."fcId") as fc_exists
+      FROM "${schemaName}".failure_links fl
       WHERE fl."fmeaId" = $1 AND fl."deletedAt" IS NULL
       LIMIT 5
     `, fmeaId) as any[];
@@ -110,11 +110,11 @@ async function main() {
       console.log(`  fm=${l.fm_exists} fe=${l.fe_exists} fc=${l.fc_exists}`);
     });
 
-    // FailureAnalysis linkId 유효성
+    // failure_analyses linkId 유효성
     const faCheck = await prisma.$queryRawUnsafe(`
       SELECT fa."linkId",
-        (SELECT COUNT(*) FROM "${schemaName}"."FailureLink" fl WHERE fl.id = fa."linkId" AND fl."deletedAt" IS NULL) as link_exists
-      FROM "${schemaName}"."FailureAnalysis" fa
+        (SELECT COUNT(*) FROM "${schemaName}".failure_links fl WHERE fl.id = fa."linkId" AND fl."deletedAt" IS NULL) as link_exists
+      FROM "${schemaName}".failure_analyses fa
       WHERE fa."fmeaId" = $1
       LIMIT 5
     `, fmeaId) as any[];

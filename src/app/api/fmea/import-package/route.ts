@@ -275,7 +275,8 @@ export async function POST(req: NextRequest) {
               detection: item.detection,
               ap: item.ap,
               preventionControl: item.preventionControl,
-              detectionControl: item.detectionControl
+              detectionControl: item.detectionControl,
+              lldReference: item.lldReference || null,
             }
           });
         }
@@ -299,7 +300,9 @@ export async function POST(req: NextRequest) {
               newAP: item.newAP,
               status: item.status,
               completedDate: item.completedDate,
-              remarks: item.remarks
+              remarks: item.remarks,
+              detectionAction: item.detectionAction || null,
+              lldOptReference: item.lldOptReference || null,
             }
           });
         }

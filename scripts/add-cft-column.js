@@ -1,5 +1,5 @@
 /**
- * FmeaInfo 테이블에 cftMembers 컬럼 추가
+ * fmea_projects 테이블에 cftMembers 컬럼 추가 (legacy FmeaInfo 호환)
  */
 const { Pool } = require('pg');
 
@@ -8,7 +8,7 @@ const pool = new Pool({
 });
 
 (async () => {
-  console.log('=== FmeaInfo 테이블에 cftMembers 컬럼 추가 ===');
+  console.log('=== fmea_projects 테이블에 cftMembers 컬럼 추가 ===');
   console.log('');
   
   try {
@@ -24,16 +24,29 @@ const pool = new Pool({
       const schemaName = row.schema_name;
       console.log(`처리 중: ${schemaName}`);
       
+      // fmea_projects 또는 legacy FmeaInfo 테이블 자동 감지
+      const tableCheck = await pool.query(`
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = $1 AND table_name IN ('fmea_projects', 'FmeaInfo')
+        ORDER BY table_name
+      `, [schemaName]);
+      const tableName = tableCheck.rows.find(r => r.table_name === 'fmea_projects')?.table_name
+                     || tableCheck.rows.find(r => r.table_name === 'FmeaInfo')?.table_name;
+
+      if (!tableName) {
+        console.log(`  ⚠️  ${schemaName}: fmea_projects/FmeaInfo 테이블 없음`);
+        continue;
+      }
+
       try {
-        // cftMembers 컬럼 추가
         await pool.query(`
-          ALTER TABLE "${schemaName}"."FmeaInfo" 
+          ALTER TABLE "${schemaName}"."${tableName}" 
           ADD COLUMN IF NOT EXISTS "cftMembers" JSONB
         `);
-        console.log(`  ✅ ${schemaName}.FmeaInfo에 cftMembers 컬럼 추가 완료`);
+        console.log(`  ✅ ${schemaName}.${tableName}에 cftMembers 컬럼 추가 완료`);
       } catch (e) {
         if (e.message.includes('already exists')) {
-          console.log(`  ℹ️  ${schemaName}.FmeaInfo에 cftMembers 컬럼 이미 존재`);
+          console.log(`  ℹ️  ${schemaName}.${tableName}에 cftMembers 컬럼 이미 존재`);
         } else {
           console.error(`  ❌ ${schemaName} 오류:`, e.message);
         }
@@ -50,14 +63,3 @@ const pool = new Pool({
     await pool.end();
   }
 })();
-
-
-
-
-
-
-
-
-
-
-

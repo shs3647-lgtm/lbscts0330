@@ -454,6 +454,7 @@ export async function POST(request: NextRequest) {
                 ap: risk.ap ?? 'L',
                 preventionControl: risk.preventionControl || null,
                 detectionControl: risk.detectionControl || null,
+                lldReference: risk.lldReference || null,
               },
               update: {
                 severity: risk.severity ?? 0,
@@ -462,6 +463,7 @@ export async function POST(request: NextRequest) {
                 ap: risk.ap ?? 'L',
                 preventionControl: risk.preventionControl || null,
                 detectionControl: risk.detectionControl || null,
+                lldReference: risk.lldReference || null,
               },
             });
           }
@@ -484,6 +486,7 @@ export async function POST(request: NextRequest) {
           const d = Number(rd[`risk-${uk}-D`]) || 0;
           const pc = String(rd[`prevention-${uk}`] || '').trim() || null;
           const dc = String(rd[`detection-${uk}`] || '').trim() || null;
+          const lldRef = String(rd[`lesson-${uk}`] || '').trim() || null;
           const sev = s > 0 ? s : (feMap.get((link as any).feId)?.severity || 1);
 
           const ap = (sev > 0 && o > 0 && d > 0) ? calculateAPLocal(sev, o, d) : 'L';
@@ -498,6 +501,7 @@ export async function POST(request: NextRequest) {
               ap,
               preventionControl: pc,
               detectionControl: dc,
+              lldReference: lldRef,
             },
           });
           created++;

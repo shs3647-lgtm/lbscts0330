@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-17
+> **최종 업데이트**: 2026-03-18
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -176,6 +176,21 @@ FC 링크:
 **해결**: countRichness() FM+FC 비교 → 더 풍부한 쪽 보존
 **검증**: save-from-import Verify Loop (3회 재시도)
 
+### 5.5 LLD추천/개선추천 저장 후 사라짐 (2026-03-18)
+
+**근본원인**: `useWorksheetDataLoader.ts`의 ATOMIC DIRECT 로드 경로가 legacy riskData의 6ST 최적화 키를 병합하지 않음
+- atomicToLegacy()는 DB 값이 NULL이면 `detection-opt-*`/`lesson-opt-*` 키를 생성하지 않음
+- FALLBACK 경로에만 OPT_PREFIXES 병합이 있고, ATOMIC DIRECT 경로에는 없었음
+- 결과: state.riskData에 6ST 키 없음 → syncOptimizationsFromState에서 detectionAction/lldOptReference = null 저장
+
+**해결**: ATOMIC DIRECT 경로(line 145-234)에서 `loadWorksheetDB()`로 legacy riskData를 로드하여 OPT_PREFIXES 병합 추가
+**검증**: `scripts/sync-lld-to-atomic.mjs` 실행 → lldOptReference=64, detectionAction=104 확인
+
+**예방 체크리스트**:
+- [ ] ATOMIC DIRECT 경로와 FALLBACK 경로의 riskData 처리가 일관적인지 확인
+- [ ] 새 riskData 키 패턴 추가 시 양쪽 경로 모두 업데이트
+- [ ] `atomicToLegacyAdapter.ts`에 새 필드 추가 시 양방향(저장/로드) 모두 구현
+
 ---
 
 ## 6. placeholder 판정 로직
@@ -268,17 +283,83 @@ rebuild-atomic 후 3회까지 재시도. 각 시도마다:
 
 ---
 
-## 10. 최적화 체크리스트
+## 10. Raw SQL 테이블/컬럼명 규칙 (2026-03-18 확정)
 
-### 10.1 Production 배포 전
+> **Prisma @@map 기준 snake_case 테이블명만 사용. PascalCase 절대 금지.**
+
+### 10.1 Prisma 모델 → PostgreSQL 테이블명 매핑
+
+| Prisma 모델 (코드용) | PostgreSQL 테이블명 (SQL용) |
+|----------------------|---------------------------|
+| `FmeaProject` | `fmea_projects` |
+| `FmeaRegistration` | `fmea_registrations` |
+| `FmeaLegacyData` | `fmea_legacy_data` |
+| `FmeaConfirmedState` | `fmea_confirmed_states` |
+| `L1Structure` / `L2Structure` / `L3Structure` | `l1_structures` / `l2_structures` / `l3_structures` |
+| `L1Function` / `L2Function` / `L3Function` | `l1_functions` / `l2_functions` / `l3_functions` |
+| `FailureMode` / `FailureEffect` / `FailureCause` | `failure_modes` / `failure_effects` / `failure_causes` |
+| `FailureLink` / `FailureAnalysis` | `failure_links` / `failure_analyses` |
+| `RiskAnalysis` / `Optimization` | `risk_analyses` / `optimizations` |
+| `ControlPlan` / `ControlPlanItem` | `control_plans` / `control_plan_items` |
+| `CpMasterDataset` / `CpMasterFlatItem` | `cp_master_datasets` / `cp_master_flat_items` |
+| `PfdRegistration` / `PfdItem` | `pfd_registrations` / `pfd_items` |
+| `TripletGroup` / `UnifiedProcessItem` | `triplet_groups` / `unified_process_items` |
+| `ProcessProductChar` | `process_product_chars` |
+
+### 10.2 컬럼명 주의사항
+
+| 테이블 | 잘못된 컬럼명 | 올바른 컬럼명 |
+|--------|-------------|-------------|
+| `fmea_legacy_data` | `legacyData`, `legacyVersion` | `data`, `version` |
+| `failure_modes` | `name` | `mode` |
+| `l2_structures` | `processNo`, `processName` | `no`, `name` |
+| `l3_structures` | `fourM`, `workElementName` | `m4`, `name` |
+
+### 10.3 raw SQL 사용 규칙
+
+1. **Prisma ORM 우선**: `prisma.model.findMany()` 등 ORM API를 우선 사용
+2. **raw SQL 허용 조건**: 동적 스키마(`SET search_path`, `"${schema}".table`), `information_schema` 조회 등 Prisma가 지원하지 않는 경우에만 사용
+3. **테이블명**: 반드시 `@@map` snake_case 사용 (`fmea_projects`, NOT `"FmeaProject"`)
+4. **컬럼명**: Prisma 필드명 그대로 사용 (`"fmeaId"`, `"deletedAt"` 등 camelCase를 쌍따옴표로 감싸기)
+5. **CREATE TABLE**: `LIKE public.{table} INCLUDING ALL` 패턴 사용 (미래 컬럼 자동 상속)
+6. **레거시 호환**: 기존 프로젝트 스키마에 `FmeaInfo` 등 PascalCase 테이블이 남아있을 수 있으므로, 스크립트에서는 자동 감지 패턴 사용
+
+```typescript
+// ✅ 올바른 raw SQL
+await pool.query(`SELECT data FROM "${schema}".fmea_legacy_data WHERE "fmeaId" = $1`, [id]);
+await pool.query(`CREATE TABLE IF NOT EXISTS "${schema}".risk_analyses (LIKE public.risk_analyses INCLUDING ALL)`);
+
+// ⛔ 금지 패턴
+await pool.query(`SELECT "legacyData" FROM "${schema}"."FmeaLegacyData" WHERE "fmeaId" = $1`, [id]);
+```
+
+### 10.4 위반 사례 (2026-03-18 전수 수정 완료)
+
+| 파일 | 이전 (잘못됨) | 이후 (수정됨) |
+|------|-------------|-------------|
+| `fmea/route.ts` | `"FmeaInfo"` | `fmea_confirmed_states` |
+| `inherit/route.ts` | `"RiskAnalysis"`, `"FmeaLegacyData"` 등 | `risk_analyses`, `fmea_legacy_data` 등 |
+| `control-plan/*/basic-info` | `WHERE "cpNo" = $1` (없는 컬럼) | Prisma ORM `findMany` |
+| `control-plan/*/stats` | `$queryRawUnsafe` × 7 | Prisma ORM `count` × 6 `Promise.all` |
+| `scripts/audit-cp-pfd-fk.js` | `"PfdRegistration"`, `"ControlPlan"` 등 | `pfd_registrations`, `control_plans` 등 |
+| `scripts/restore-*.js` | `"FmeaLegacyData"`, `"legacyData"` | `fmea_legacy_data`, `data` |
+| `scripts/temp-*.ts` | 전체 PascalCase | 전체 snake_case |
+| `scripts/diagnostics/*.js` | `fm.name`, `"legacyData"` | `fm.mode`, `data` |
+
+---
+
+## 11. 최적화 체크리스트
+
+### 11.1 Production 배포 전
 
 - [ ] console.log 디버그 로깅 제거 (console.error는 유지)
 - [ ] `as any` 타입 캐스팅 최소화
 - [ ] 700줄 초과 파일 분리 계획 수립
 - [ ] 진단 스크립트 정리 (scripts/diagnostics/ 이동)
 - [ ] CODEFREEZE 파일 변경 이력 감사
+- [ ] raw SQL에 PascalCase 테이블명 없는지 전수 검사
 
-### 10.2 Import 수정 시
+### 11.2 Import 수정 시
 
 - [ ] flatMap 3개 Map (fm/fc/fe) 모두 정상 채워지는지 확인
 - [ ] processNo 정규화 (선행 0 제거) 적용 여부 확인
@@ -286,9 +367,17 @@ rebuild-atomic 후 3회까지 재시도. 각 시도마다:
 - [ ] verifyRoundTrip missing 0건 확인
 - [ ] 카테시안 복제 탐지 스크립트 실행
 
-### 10.3 워크시트 수정 시
+### 11.3 워크시트 수정 시
 
 - [ ] useWorksheetDataLoader.ts 로드 경로 불변 원칙 준수
 - [ ] syncFailureLinksFromState 3단계 매칭 로직 유지
 - [ ] saveAtomicDB() 사용 (migrateToAtomicDB 아님)
 - [ ] React.memo 해제하지 않기 (SelectableCell, AllViewRow 등)
+
+### 11.4 모든 코드 변경 후 (필수)
+
+- [ ] `CLAUDE.md` 룰/아키텍처 갱신 필요 여부 확인 → 해당 시 반영
+- [ ] `docs/MAINTENANCE_MANUAL.md` 핵심 파일맵/데이터 흐름/버그 패턴 갱신
+- [ ] `docs/00_MAINTENANCE_MANUAL.md` 트러블슈팅/버그 이력/테스트 커버리지 갱신
+- [ ] 문서 `최종 업데이트` 날짜 갱신
+- [ ] `00_MAINTENANCE_MANUAL.md` 업데이트 이력 테이블에 한 줄 추가

@@ -95,8 +95,59 @@ export async function ensureProjectSchemaReady(params: {
         }
       }
     }
+
+    // public 스키마에 있지만 프로젝트 스키마에 없는 컬럼을 자동 추가
+    await syncMissingColumns(client, schema);
   } finally {
     await client.end().catch(() => {});
+  }
+}
+
+/**
+ * public 스키마의 컬럼 구조를 프로젝트 스키마에 동기화.
+ * public에 존재하지만 프로젝트 스키마에 없는 컬럼을 ALTER TABLE ADD COLUMN으로 추가.
+ */
+async function syncMissingColumns(client: Client, schema: string): Promise<void> {
+  for (const table of PROJECT_TABLES) {
+    const pubCols = await client.query(`
+      SELECT column_name, data_type, character_maximum_length, column_default, is_nullable
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = $1
+      ORDER BY ordinal_position
+    `, [table]);
+
+    const projCols = await client.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = $1 AND table_name = $2
+    `, [schema, table]);
+
+    if (pubCols.rows.length === 0 || projCols.rows.length === 0) continue;
+
+    const projColSet = new Set(projCols.rows.map((r: { column_name: string }) => r.column_name));
+
+    for (const col of pubCols.rows) {
+      if (projColSet.has(col.column_name)) continue;
+
+      let colType = col.data_type.toUpperCase();
+      if (colType === 'CHARACTER VARYING') {
+        colType = col.character_maximum_length ? `VARCHAR(${col.character_maximum_length})` : 'TEXT';
+      } else if (colType === 'TIMESTAMP WITHOUT TIME ZONE') {
+        colType = 'TIMESTAMP';
+      } else if (colType === 'TIMESTAMP WITH TIME ZONE') {
+        colType = 'TIMESTAMPTZ';
+      }
+
+      const nullable = col.is_nullable === 'YES' ? '' : ' NOT NULL';
+      const defaultVal = col.column_default ? ` DEFAULT ${col.column_default}` : '';
+
+      try {
+        await client.query(
+          `ALTER TABLE ${quoteIdent(schema)}.${quoteIdent(table)} ADD COLUMN IF NOT EXISTS ${quoteIdent(col.column_name)} ${colType}${nullable}${defaultVal}`
+        );
+      } catch {
+        // 컬럼 추가 실패 시 무시 (이미 존재하거나 호환 불가)
+      }
+    }
   }
 }
 

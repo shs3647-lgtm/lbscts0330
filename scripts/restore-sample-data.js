@@ -19,30 +19,41 @@ async function restoreSampleData() {
     // 스키마 생성
     await pool.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
     
-    // FmeaInfo 테이블 생성
+    // fmea_projects 테이블 생성 (public 스키마 구조 복제)
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS "${schemaName}"."FmeaInfo" (
-        "fmeaId" TEXT PRIMARY KEY,
-        "fmeaType" TEXT,
-        project JSONB,
-        "fmeaInfo" JSONB,
-        "parentFmeaId" TEXT,
-        status TEXT DEFAULT 'active',
-        "createdAt" TIMESTAMP DEFAULT NOW(),
-        "updatedAt" TIMESTAMP DEFAULT NOW()
-      )
-    `);
+      CREATE TABLE IF NOT EXISTS "${schemaName}".fmea_projects (LIKE public.fmea_projects INCLUDING ALL)
+    `).catch(async () => {
+      // public에 fmea_projects가 없으면 직접 생성
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "${schemaName}".fmea_projects (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          "fmeaId" TEXT NOT NULL,
+          "fmeaType" TEXT,
+          project JSONB,
+          "fmeaInfo" JSONB,
+          "parentFmeaId" TEXT,
+          status TEXT DEFAULT 'active',
+          "createdAt" TIMESTAMP DEFAULT NOW(),
+          "updatedAt" TIMESTAMP DEFAULT NOW()
+        )
+      `);
+    });
     
-    // FmeaLegacyData 테이블 생성
+    // fmea_legacy_data 테이블 생성 (public 스키마 구조 복제)
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS "${schemaName}"."FmeaLegacyData" (
-        "fmeaId" TEXT PRIMARY KEY,
-        data JSONB,
-        version INTEGER DEFAULT 1,
-        "createdAt" TIMESTAMP DEFAULT NOW(),
-        "updatedAt" TIMESTAMP DEFAULT NOW()
-      )
-    `);
+      CREATE TABLE IF NOT EXISTS "${schemaName}".fmea_legacy_data (LIKE public.fmea_legacy_data INCLUDING ALL)
+    `).catch(async () => {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "${schemaName}".fmea_legacy_data (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          "fmeaId" TEXT NOT NULL,
+          data JSONB,
+          version INTEGER DEFAULT 1,
+          "createdAt" TIMESTAMP DEFAULT NOW(),
+          "updatedAt" TIMESTAMP DEFAULT NOW()
+        )
+      `);
+    });
     
     // 샘플 데이터
     const worksheetData = {
@@ -81,30 +92,30 @@ async function restoreSampleData() {
     // 테이블 구조 확인
     const columnsResult = await pool.query(`
       SELECT column_name FROM information_schema.columns 
-      WHERE table_schema = $1 AND table_name = 'FmeaInfo'
+      WHERE table_schema = $1 AND table_name = 'fmea_projects'
     `, [schemaName]);
-    console.log('FmeaInfo 컬럼:', columnsResult.rows.map(r => r.column_name).join(', '));
+    console.log('fmea_projects 컬럼:', columnsResult.rows.map(r => r.column_name).join(', '));
     
     // 기존 데이터 삭제 후 삽입 (id 포함)
-    await pool.query(`DELETE FROM "${schemaName}"."FmeaInfo" WHERE "fmeaId" = $1`, [fmeaId]);
+    await pool.query(`DELETE FROM "${schemaName}".fmea_projects WHERE "fmeaId" = $1`, [fmeaId]);
     await pool.query(`
-      INSERT INTO "${schemaName}"."FmeaInfo" (id, "fmeaId", "fmeaType", project, "fmeaInfo")
+      INSERT INTO "${schemaName}".fmea_projects (id, "fmeaId", "fmeaType", project, "fmeaInfo")
       VALUES ($1, $2, $3, $4, $5)
     `, ['info-001', fmeaId, 'M', JSON.stringify(projectData), JSON.stringify(fmeaInfoData)]);
     
-    // FmeaLegacyData 테이블 구조 확인
+    // fmea_legacy_data 테이블 구조 확인
     const legacyColumnsResult = await pool.query(`
       SELECT column_name FROM information_schema.columns 
-      WHERE table_schema = $1 AND table_name = 'FmeaLegacyData'
+      WHERE table_schema = $1 AND table_name = 'fmea_legacy_data'
     `, [schemaName]);
-    console.log('FmeaLegacyData 컬럼:', legacyColumnsResult.rows.map(r => r.column_name).join(', '));
+    console.log('fmea_legacy_data 컬럼:', legacyColumnsResult.rows.map(r => r.column_name).join(', '));
     
-    // FmeaLegacyData 저장 (id 컬럼 포함)
-    await pool.query(`DELETE FROM "${schemaName}"."FmeaLegacyData" WHERE "fmeaId" = $1`, [fmeaId]);
+    // fmea_legacy_data 저장 (id 컬럼 포함)
+    await pool.query(`DELETE FROM "${schemaName}".fmea_legacy_data WHERE "fmeaId" = $1`, [fmeaId]);
     await pool.query(`
-      INSERT INTO "${schemaName}"."FmeaLegacyData" (id, "fmeaId", "legacyData", "legacyVersion")
-      VALUES ($1, $2, $3, $4)
-    `, ['legacy-001', fmeaId, JSON.stringify(worksheetData), 1]);
+      INSERT INTO "${schemaName}".fmea_legacy_data (id, "fmeaId", data)
+      VALUES ($1, $2, $3)
+    `, ['legacy-001', fmeaId, JSON.stringify(worksheetData)]);
     
     console.log('✅ 샘플 데이터 복구 완료!');
     console.log('');

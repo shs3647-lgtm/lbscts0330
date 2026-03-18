@@ -12,17 +12,6 @@ FROM information_schema.tables
 WHERE table_schema = 'pfmea_pfm26_m001'
 ORDER BY table_name;
 
--- 3. FmeaInfo 테이블 데이터 조회
+-- 3. fmea_projects 테이블 데이터 조회
 SET search_path TO pfmea_pfm26_m001;
-SELECT * FROM "FmeaInfo";
-
-
-
-
-
-
-
-
-
-
-
+SELECT * FROM fmea_projects;

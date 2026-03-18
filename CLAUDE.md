@@ -521,6 +521,52 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 - ❌ **단순 tsc 통과만으로 완료 금지** — tsc는 타입만 확인, 데이터 정합성은 파이프라인 검증으로만 확인 가능
 - ✅ **검증 결과 표 포함 보고 필수** — STEP별 상태(OK/WARN/ERROR), 교차검증 일치 여부, FK 고아 건수
 
+### 🔴 Rule 16: Raw SQL 테이블/컬럼명 — Prisma @@map 기준 snake_case 필수 (2026-03-18)
+
+> **Raw SQL에서 PascalCase 테이블명 사용 절대 금지. Prisma `@@map`으로 매핑된 snake_case 이름만 사용한다.**
+
+1. **Prisma ORM 우선**: `$queryRawUnsafe`/`$executeRawUnsafe` 대신 Prisma ORM API(`findMany`, `count`, `create` 등)를 우선 사용
+2. **raw SQL 허용 조건**: 동적 스키마 관리(`SET search_path`, `"${schema}".table`), `information_schema` 조회 등 Prisma가 지원하지 않는 경우에만
+3. **테이블명 규칙**: `@@map` snake_case만 사용 — `fmea_projects` (O), `"FmeaProject"` (X)
+4. **컬럼명 규칙**: Prisma `@map` 또는 필드명 그대로 쌍따옴표 — `"fmeaId"` (O), `fmea_id` (X)
+5. **CREATE TABLE 패턴**: `LIKE public.{snake_case_table} INCLUDING ALL` 사용 (미래 컬럼 자동 상속)
+6. **CP/PFD 라우트**: `cpNo`는 `cp_master_datasets`에만 존재 → `cp_master_flat_items` 조회 시 반드시 관계(`dataset: { cpNo }`) 사용
+
+**주요 매핑 참조** (`prisma/schema.prisma` 기준):
+
+| 코드 모델명 | SQL 테이블명 | 주의 컬럼 |
+|-------------|-------------|----------|
+| `FmeaLegacyData` | `fmea_legacy_data` | `data` (not `legacyData`) |
+| `FailureMode` | `failure_modes` | `mode` (not `name`) |
+| `RiskAnalysis` | `risk_analyses` | |
+| `FmeaConfirmedState` | `fmea_confirmed_states` | |
+| `CpMasterFlatItem` | `cp_master_flat_items` | `cpNo` 없음 (datasets에) |
+
+- ❌ `await pool.query('SELECT "legacyData" FROM "FmeaLegacyData"')` — 테이블명+컬럼명 모두 틀림
+- ✅ `await pool.query('SELECT data FROM fmea_legacy_data WHERE "fmeaId" = $1', [id])`
+
+### 🔴 Rule 17: 코드 변경 시 CLAUDE.md + Maintenance 매뉴얼 동기화 필수 (2026-03-18)
+
+> **모든 코드 변경은 반드시 `CLAUDE.md`와 Maintenance 매뉴얼에 동시 반영한다.**
+
+1. **동기화 대상 문서** (3개):
+   - `CLAUDE.md` — 룰/아키텍처/검증 기준
+   - `docs/MAINTENANCE_MANUAL.md` — Import 파이프라인 유지보수 (핵심 파일맵, 데이터 흐름, 버그 패턴, 체크리스트)
+   - `docs/00_MAINTENANCE_MANUAL.md` — 전체 모듈 동작 체크리스트, 트러블슈팅, 테스트 커버리지, 버그 수정 이력
+
+2. **반영 시점**: 코드 수정 완료 + 검증 통과 후, 커밋 전에 문서 동기화
+3. **반영 범위**:
+   - 새 룰/아키텍처 변경 → `CLAUDE.md` Rule 추가/수정
+   - 새 버그 수정 → `00_MAINTENANCE_MANUAL.md` 트러블슈팅 + 버그 수정 이력 추가
+   - 파이프라인/Import/DB 변경 → `docs/MAINTENANCE_MANUAL.md` 핵심 파일맵/데이터 흐름 수정
+   - 새 테스트 추가 → `00_MAINTENANCE_MANUAL.md` 테스트 커버리지 + 회귀 테스트 명령어 추가
+   - CODEFREEZE 변경 → 양쪽 매뉴얼 CODEFREEZE 목록 갱신
+4. **날짜 갱신**: 수정한 문서의 `최종 업데이트` 날짜를 당일로 변경
+5. **이력 추가**: `00_MAINTENANCE_MANUAL.md` 업데이트 이력 테이블에 한 줄 추가
+
+- ❌ 코드만 수정하고 문서 미갱신 → **금지** (다음 세션에서 정보 불일치 발생)
+- ✅ 코드 수정 → 검증 → 문서 3개 동기화 → 커밋
+
 ### 🔵 Rule 11: UI 슬림화 및 패딩 최소화 (2026-01-23)
 1. 모든 테이블 셀 내의 불필요한 아이콘(드롭다운 꺽쇄, 날짜 아이콘 등)은 기본적으로 감춥니다.
 2. 행 높이 및 패딩을 최소화하여 100% 배율에서 더 많은 정보가 보이도록 최적화합니다. (LLD No 등 주요 컬럼 패딩 0~2px)

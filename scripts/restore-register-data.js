@@ -14,12 +14,12 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgresq
   console.log('Schema:', schemaName);
   
   try {
-    // FmeaLegacyData 조회
-    const legacy = await pool.query(`SELECT "fmeaId", "legacyData" FROM ${schemaName}."FmeaLegacyData" LIMIT 1`);
+    // fmea_legacy_data 조회
+    const legacy = await pool.query(`SELECT "fmeaId", data FROM "${schemaName}".fmea_legacy_data LIMIT 1`);
     
     if (legacy.rows.length > 0) {
-      const data = legacy.rows[0].legacyData;
-      console.log('\n=== FmeaLegacyData ===');
+      const data = legacy.rows[0].data;
+      console.log('\n=== fmea_legacy_data ===');
       console.log('l1.name:', data.l1?.name);
       console.log('l2 count:', data.l2?.length);
       if (data.l2) {

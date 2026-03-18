@@ -28,23 +28,36 @@ const pool = new Pool({
     });
     console.log('');
     
-    // 2. 각 스키마의 FmeaInfo 데이터 조회
+    // 2. 각 스키마의 FMEA 프로젝트 데이터 조회
     for (const row of schemasResult.rows) {
       const schemaName = row.schema_name;
-      console.log(`\n=== [${schemaName}] FmeaInfo 데이터 ===`);
       
+      // fmea_projects 또는 legacy FmeaInfo 테이블 자동 감지
+      const tableCheck = await pool.query(`
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = $1 AND table_name IN ('fmea_projects', 'FmeaInfo')
+        ORDER BY table_name
+      `, [schemaName]);
+      const tableName = tableCheck.rows.find(r => r.table_name === 'fmea_projects')?.table_name
+                     || tableCheck.rows.find(r => r.table_name === 'FmeaInfo')?.table_name;
+
+      console.log(`\n=== [${schemaName}] ${tableName || '(테이블 없음)'} ===`);
+      
+      if (!tableName) {
+        console.log('테이블 없음');
+        continue;
+      }
+
       try {
-        // 먼저 테이블 구조 확인
         const tableInfo = await pool.query(`
           SELECT column_name, data_type 
           FROM information_schema.columns 
-          WHERE table_schema = $1 AND table_name = 'FmeaInfo'
+          WHERE table_schema = $1 AND table_name = $2
           ORDER BY ordinal_position
-        `, [schemaName]);
+        `, [schemaName, tableName]);
         
         console.log('테이블 컬럼:', tableInfo.rows.map(r => r.column_name).join(', '));
         
-        // cftMembers 컬럼 존재 여부 확인
         const hasCftMembers = tableInfo.rows.some(r => r.column_name === 'cftMembers');
         
         const infoResult = await pool.query(`
@@ -56,7 +69,7 @@ const pool = new Pool({
             ${hasCftMembers ? '"cftMembers",' : 'NULL as "cftMembers",'}
             "createdAt",
             "updatedAt"
-          FROM "${schemaName}"."FmeaInfo"
+          FROM "${schemaName}"."${tableName}"
           ORDER BY "updatedAt" DESC
           LIMIT 1
         `);
@@ -75,7 +88,6 @@ const pool = new Pool({
           console.log('Created:', data.createdAt);
           console.log('Updated:', data.updatedAt);
           
-          // 핵심 필드 확인
           console.log('\n--- 핵심 필드 ---');
           console.log('엔지니어링위치:', fmeaInfo?.engineeringLocation || '(없음)');
           console.log('공정책임:', fmeaInfo?.designResponsibility || '(없음)');
@@ -96,4 +108,3 @@ const pool = new Pool({
     await pool.end();
   }
 })();
-

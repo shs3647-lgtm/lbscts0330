@@ -60,9 +60,10 @@ const pool = new Pool({
       });
       console.log('');
       
-      // FmeaInfo 테이블 상세 조회
-      if (tablesResult.rows.some(r => r.table_name === 'FmeaInfo')) {
-        console.log('--- FmeaInfo 테이블 컬럼 구조 ---');
+      // fmea_projects 테이블 상세 조회 (legacy: FmeaInfo)
+      const fmeaTableName = tablesResult.rows.some(r => r.table_name === 'fmea_projects') ? 'fmea_projects' : 'FmeaInfo';
+      if (tablesResult.rows.some(r => r.table_name === fmeaTableName)) {
+        console.log(`--- ${fmeaTableName} 테이블 컬럼 구조 ---`);
         const columnsResult = await pool.query(`
           SELECT 
             column_name, 
@@ -70,9 +71,9 @@ const pool = new Pool({
             is_nullable,
             column_default
           FROM information_schema.columns 
-          WHERE table_schema = $1 AND table_name = 'FmeaInfo'
+          WHERE table_schema = $1 AND table_name = $2
           ORDER BY ordinal_position
-        `, [schemaName]);
+        `, [schemaName, fmeaTableName]);
         
         columnsResult.rows.forEach(col => {
           console.log(`  - ${col.column_name}: ${col.data_type} ${col.is_nullable === 'YES' ? '(NULL 가능)' : '(NOT NULL)'} ${col.column_default ? `DEFAULT: ${col.column_default}` : ''}`);
@@ -82,7 +83,7 @@ const pool = new Pool({
         // 실제 데이터 조회
         try {
           const dataResult = await pool.query(`
-            SELECT * FROM "${schemaName}"."FmeaInfo" 
+            SELECT * FROM "${schemaName}"."${fmeaTableName}" 
             ORDER BY "updatedAt" DESC
             LIMIT 1
           `);
@@ -163,7 +164,7 @@ const pool = new Pool({
           console.error(`데이터 조회 실패: ${e.message}`);
         }
       } else {
-        console.log('FmeaInfo 테이블이 없습니다.');
+        console.log('fmea_projects/FmeaInfo 테이블이 없습니다.');
       }
     }
     

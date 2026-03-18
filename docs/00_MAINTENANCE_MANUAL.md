@@ -1,6 +1,6 @@
 # FMEA OnPremise 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-08 20:05
+> **최종 업데이트**: 2026-03-18
 > **총 테스트**: 78파일 / 1343테스트 ALL PASS | **빌드**: 240페이지 성공 | **tsc**: 에러 0개
 
 ---
@@ -14,6 +14,7 @@
 | 2026-03-07 | 06:30 | CRITICAL 4건 + HIGH 2건 수정, 테스트 1235개 전체 통과 확인 | Claude |
 | 2026-03-07 | 07:10 | 03-04~03-07 전체 커밋 81건 분석 → 체크리스트/트러블슈팅/이력 대폭 보강 | Claude |
 | 2026-03-08 | 20:05 | 배포 전 전체 진단 — 보안(하드코딩 비밀번호/시크릿 제거) + empty catch 16건 수정 + console.log 8건 제거 + Operations error.tsx 추가 | Claude |
+| 2026-03-18 | - | Raw SQL PascalCase 테이블명 전수 제거 (15개 파일) + CP 라우트 Prisma ORM 전환 + 트러블슈팅 T-38~T-42 추가 | Claude |
 
 ---
 
@@ -362,6 +363,17 @@
 | T-36 | API console.log 디버그 잔류 | useAutoLldFilter, usePfdData, API 3파일 | 8건 console.log 제거 | `c5010535` |
 | T-37 | Operations 화이트 스크린 | pm/, ws/ 라우트에 error.tsx 없음 | error.tsx 추가 (에러 바운더리) | `c5010535` |
 
+### 7.8 Raw SQL 테이블/컬럼명 불일치 (2026-03-18 추가)
+
+| # | 증상 | 원인 | 해결 | 수정 파일 수 |
+|---|------|------|------|------------|
+| T-38 | raw SQL `42P01` 테이블 없음 에러 | Prisma 모델명(PascalCase)을 SQL에 직접 사용 | PascalCase → @@map snake_case 전수 변환 | 15 |
+| T-39 | CP 기초정보/통계 API 빈 결과 | `cp_master_flat_items`에 없는 `cpNo` 컬럼 사용 | Prisma ORM으로 전환 (dataset 관계 활용) | 2 |
+| T-40 | FM 조회 `name` 빈값 | `failure_modes` 컬럼은 `mode` (not `name`) | `fm.name` → `fm.mode` 수정 | 1 |
+| T-41 | fmea_legacy_data 컬럼 에러 | `"legacyData"` 사용 (실제: `data`) | 전수 수정 | 3 |
+| T-42 | 프로젝트 스키마 테이블명 불일치 | 레거시 `"FmeaInfo"` vs 신규 `fmea_projects` | 자동 감지 패턴 + snake_case 우선 | 5 |
+| T-43 | LLD추천/개선추천 저장 후 사라짐 | ATOMIC DIRECT 로드 경로에서 legacy riskData 6ST 키 미병합 → state.riskData에 `lesson-opt-*`/`detection-opt-*` 없음 → 저장 시 NULL | `useWorksheetDataLoader.ts` ATOMIC DIRECT 경로에 OPT_PREFIXES 병합 추가 | 1 |
+
 ---
 
 ## 8. 회귀 테스트 명령어 모음
@@ -377,6 +389,11 @@ npx vitest run
 
 # 3단계: 프로덕션 빌드 (주요 변경 시)
 npm run build
+
+# 4단계: 문서 동기화 (Rule 17 — 모든 코드 변경 후 필수)
+# - CLAUDE.md 룰/아키텍처 반영
+# - docs/MAINTENANCE_MANUAL.md 파일맵/데이터흐름/버그패턴 반영
+# - docs/00_MAINTENANCE_MANUAL.md 트러블슈팅/이력/테스트커버리지 반영
 ```
 
 ### 8.2 모듈별 단위 테스트

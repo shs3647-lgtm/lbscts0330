@@ -17,7 +17,7 @@ async function main() {
 
   // Check tables in public schema
   const pubTables = await prisma.$queryRawUnsafe(
-    `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('FailureLink','FailureEffect','FailureMode','FailureCause','L1Function','FailureAnalysis','RiskAnalysis') ORDER BY table_name`
+    `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('failure_links','failure_effects','failure_modes','failure_causes','l1_functions','failure_analyses','risk_analyses') ORDER BY table_name`
   ) as any[];
   console.log(`\npublic schema tables:`, pubTables.map((t: any) => t.table_name));
 

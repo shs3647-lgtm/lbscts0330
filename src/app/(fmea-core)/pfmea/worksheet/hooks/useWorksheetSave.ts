@@ -574,6 +574,7 @@ function syncOptimizationsFromState(
   const riskData: Record<string, unknown> = (state as any).riskData || {};
   const links = db.failureLinks || [];
   const risks = db.riskAnalyses || [];
+
   if (links.length === 0 || risks.length === 0) return db;
 
   const riskByLinkId = new Map<string, any>();
@@ -602,8 +603,9 @@ function syncOptimizationsFromState(
     for (let rowIdx = 0; rowIdx < rowCount; rowIdx++) {
       const suffix = rowIdx === 0 ? '' : `#${rowIdx}`;
 
-      const recAction = String(riskData[`prevention-opt-${uniqueKey}${suffix}`] || '').trim();
-      const detAction = String(riskData[`detection-opt-${uniqueKey}${suffix}`] || '').trim();
+      // ★ APTable6 호환: improvement-opt-{uk}-O/D 키 폴백 (rowIdx=0 only)
+      const recAction = String(riskData[`prevention-opt-${uniqueKey}${suffix}`] || (rowIdx === 0 ? riskData[`improvement-opt-${uniqueKey}-O`] : '') || '').trim();
+      const detAction = String(riskData[`detection-opt-${uniqueKey}${suffix}`] || (rowIdx === 0 ? riskData[`improvement-opt-${uniqueKey}-D`] : '') || '').trim();
       const responsible = String(riskData[`person-opt-${uniqueKey}${suffix}`] || '').trim();
       const targetDate = String(riskData[`targetDate-opt-${uniqueKey}${suffix}`] || '').trim();
       const completedDate = String(
@@ -620,7 +622,7 @@ function syncOptimizationsFromState(
       const newD = Number(riskData[`opt-${uniqueKey}${sodSuffix}-D`]) || null;
       const newAP = String(riskData[`opt-${uniqueKey}${sodSuffix}-AP`] || '').trim() || null;
 
-      if (!recAction && !detAction && !responsible && !targetDate && !status && !newS && !newO && !newD) {
+      if (!recAction && !detAction && !responsible && !targetDate && !status && !remarks && !completedDate && !lldOptRef && !newS && !newO && !newD) {
         continue;
       }
 
@@ -850,6 +852,8 @@ export function useWorksheetSave({
         dbToSave = syncFailureCausesFromState(dbToSave, currentState);
         // ★ RiskAnalyses 동기화
         dbToSave = syncRiskAnalysesFromState(dbToSave, currentState);
+        // ★ Optimizations 동기화 (6ST LLD/개선추천 포함)
+        dbToSave = syncOptimizationsFromState(dbToSave, currentState);
         if (force) {
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }

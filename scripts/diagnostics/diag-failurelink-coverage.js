@@ -32,30 +32,30 @@ async function run() {
 
     // 2. p010의 FM 중 링크 없는 FM 샘플
     const r2 = await c.query(`
-      SELECT fm.id, fm.name, l2.no as "processNo", l2.name as "processName"
+      SELECT fm.id, fm.mode, l2.no as "processNo", l2.name as "processName"
       FROM failure_modes fm
       JOIN l2_structures l2 ON fm."l2StructId" = l2.id
       WHERE fm."fmeaId" = 'pfm26-p010-l11'
       AND fm.id NOT IN (SELECT "fmId" FROM failure_links WHERE "fmeaId" = 'pfm26-p010-l11')
-      ORDER BY l2.no, fm.name
+      ORDER BY l2.no, fm.mode
       LIMIT 15
     `);
     console.log(`\n=== p010: 링크 없는 FM (${r2.rows.length}건 중 15건) ===`);
-    r2.rows.forEach(r => console.log(`  [${r.processNo}] ${r.name}`));
+    r2.rows.forEach(r => console.log(`  [${r.processNo}] ${r.mode}`));
 
     // 3. p010의 링크 있는 FM 샘플
     const r3 = await c.query(`
-      SELECT fm.id, fm.name, l2.no as "processNo", COUNT(fl.id) as link_count
+      SELECT fm.id, fm.mode, l2.no as "processNo", COUNT(fl.id) as link_count
       FROM failure_modes fm
       JOIN l2_structures l2 ON fm."l2StructId" = l2.id
       JOIN failure_links fl ON fl."fmId" = fm.id AND fl."fmeaId" = fm."fmeaId"
       WHERE fm."fmeaId" = 'pfm26-p010-l11'
-      GROUP BY fm.id, fm.name, l2.no
-      ORDER BY l2.no, fm.name
+      GROUP BY fm.id, fm.mode, l2.no
+      ORDER BY l2.no, fm.mode
       LIMIT 10
     `);
     console.log(`\n=== p010: 링크 있는 FM (상위 10건) ===`);
-    r3.rows.forEach(r => console.log(`  [${r.processNo}] ${r.name} -> ${r.link_count}개 링크`));
+    r3.rows.forEach(r => console.log(`  [${r.processNo}] ${r.mode} -> ${r.link_count}개 링크`));
 
     // 4. atomic FM ID vs legacyData FM ID 교차 확인
     const r4 = await c.query(`SELECT data FROM fmea_legacy_data WHERE "fmeaId" = 'pfm26-p010-l11'`);

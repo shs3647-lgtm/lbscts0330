@@ -823,6 +823,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
 
       const preventionControl = typeof riskData[preventionKey] === 'string' ? riskData[preventionKey] : undefined;
       const detectionControl = typeof riskData[detectionKey] === 'string' ? riskData[detectionKey] : undefined;
+      const lldReference = typeof riskData[`lesson-${uniqueKey}`] === 'string' ? (riskData[`lesson-${uniqueKey}`] as string) : undefined;
 
       const apValue = (severity > 0 && occurrence > 0 && detection > 0)
         ? calculateAP(severity, occurrence, detection)
@@ -838,6 +839,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         ap: apValue as 'H' | 'M' | 'L',
         preventionControl,
         detectionControl,
+        lldReference,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });

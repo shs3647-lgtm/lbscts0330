@@ -18,21 +18,21 @@ async function main() {
   console.log(`=== ${S} 스키마 진단 ===\n`);
 
   const counts = {
-    L1Function: (await q(`SELECT COUNT(*)::int as c FROM "${S}"."L1Function" WHERE "fmeaId"=$1`))[0]?.c,
-    FailureEffect: (await q(`SELECT COUNT(*)::int as c FROM "${S}"."FailureEffect" WHERE "fmeaId"=$1`))[0]?.c,
-    FailureMode: (await q(`SELECT COUNT(*)::int as c FROM "${S}"."FailureMode" WHERE "fmeaId"=$1`))[0]?.c,
-    FailureCause: (await q(`SELECT COUNT(*)::int as c FROM "${S}"."FailureCause" WHERE "fmeaId"=$1`))[0]?.c,
-    FailureLink: (await q(`SELECT COUNT(*)::int as c FROM "${S}"."FailureLink" WHERE "fmeaId"=$1 AND "deletedAt" IS NULL`))[0]?.c,
-    FailureAnalysis: (await q(`SELECT COUNT(*)::int as c FROM "${S}"."FailureAnalysis" WHERE "fmeaId"=$1`))[0]?.c,
-    RiskAnalysis: (await q(`SELECT COUNT(*)::int as c FROM "${S}"."RiskAnalysis" WHERE "fmeaId"=$1`))[0]?.c,
+    l1_functions: (await q(`SELECT COUNT(*)::int as c FROM "${S}".l1_functions WHERE "fmeaId"=$1`))[0]?.c,
+    failure_effects: (await q(`SELECT COUNT(*)::int as c FROM "${S}".failure_effects WHERE "fmeaId"=$1`))[0]?.c,
+    failure_modes: (await q(`SELECT COUNT(*)::int as c FROM "${S}".failure_modes WHERE "fmeaId"=$1`))[0]?.c,
+    failure_causes: (await q(`SELECT COUNT(*)::int as c FROM "${S}".failure_causes WHERE "fmeaId"=$1`))[0]?.c,
+    failure_links: (await q(`SELECT COUNT(*)::int as c FROM "${S}".failure_links WHERE "fmeaId"=$1 AND "deletedAt" IS NULL`))[0]?.c,
+    failure_analyses: (await q(`SELECT COUNT(*)::int as c FROM "${S}".failure_analyses WHERE "fmeaId"=$1`))[0]?.c,
+    risk_analyses: (await q(`SELECT COUNT(*)::int as c FROM "${S}".risk_analyses WHERE "fmeaId"=$1`))[0]?.c,
   };
   console.log('DB Counts:', counts);
 
   // FE l1FuncId 유효성
   const badFEs = await q(`
     SELECT fe.id, fe."l1FuncId"
-    FROM "${S}"."FailureEffect" fe
-    LEFT JOIN "${S}"."L1Function" l1f ON fe."l1FuncId" = l1f.id AND l1f."fmeaId"=$1
+    FROM "${S}".failure_effects fe
+    LEFT JOIN "${S}".l1_functions l1f ON fe."l1FuncId" = l1f.id AND l1f."fmeaId"=$1
     WHERE fe."fmeaId"=$1 AND l1f.id IS NULL
   `);
   console.log(`\nFE with BAD l1FuncId: ${badFEs.length}`);
@@ -43,10 +43,10 @@ async function main() {
       CASE WHEN fm.id IS NULL THEN 'FM_MISS' ELSE 'OK' END as fm_status,
       CASE WHEN fe.id IS NULL THEN 'FE_MISS' ELSE 'OK' END as fe_status,
       CASE WHEN fc.id IS NULL THEN 'FC_MISS' ELSE 'OK' END as fc_status
-    FROM "${S}"."FailureLink" fl
-    LEFT JOIN "${S}"."FailureMode" fm ON fm.id = fl."fmId"
-    LEFT JOIN "${S}"."FailureEffect" fe ON fe.id = fl."feId"
-    LEFT JOIN "${S}"."FailureCause" fc ON fc.id = fl."fcId"
+    FROM "${S}".failure_links fl
+    LEFT JOIN "${S}".failure_modes fm ON fm.id = fl."fmId"
+    LEFT JOIN "${S}".failure_effects fe ON fe.id = fl."feId"
+    LEFT JOIN "${S}".failure_causes fc ON fc.id = fl."fcId"
     WHERE fl."fmeaId"=$1 AND fl."deletedAt" IS NULL
       AND (fm.id IS NULL OR fe.id IS NULL OR fc.id IS NULL)
   `);
@@ -56,30 +56,30 @@ async function main() {
   }
 
   // FA linkId 유효성
-  if (counts.FailureAnalysis > 0) {
+  if (counts.failure_analyses > 0) {
     const badFAs = await q(`
       SELECT fa."linkId"
-      FROM "${S}"."FailureAnalysis" fa
-      LEFT JOIN "${S}"."FailureLink" fl ON fl.id = fa."linkId" AND fl."deletedAt" IS NULL
+      FROM "${S}".failure_analyses fa
+      LEFT JOIN "${S}".failure_links fl ON fl.id = fa."linkId" AND fl."deletedAt" IS NULL
       WHERE fa."fmeaId"=$1 AND fl.id IS NULL
     `);
-    console.log(`FA with BAD linkId: ${badFAs.length}/${counts.FailureAnalysis}`);
+    console.log(`FA with BAD linkId: ${badFAs.length}/${counts.failure_analyses}`);
   }
 
   // RA linkId 유효성
-  if (counts.RiskAnalysis > 0) {
+  if (counts.risk_analyses > 0) {
     const badRAs = await q(`
       SELECT ra."linkId"
-      FROM "${S}"."RiskAnalysis" ra
-      LEFT JOIN "${S}"."FailureLink" fl ON fl.id = ra."linkId" AND fl."deletedAt" IS NULL
+      FROM "${S}".risk_analyses ra
+      LEFT JOIN "${S}".failure_links fl ON fl.id = ra."linkId" AND fl."deletedAt" IS NULL
       WHERE ra."fmeaId"=$1 AND fl.id IS NULL
     `);
-    console.log(`RA with BAD linkId: ${badRAs.length}/${counts.RiskAnalysis}`);
+    console.log(`RA with BAD linkId: ${badRAs.length}/${counts.risk_analyses}`);
   }
 
   // Soft-deleted links
   const softDeleted = await q(`
-    SELECT COUNT(*)::int as c FROM "${S}"."FailureLink"
+    SELECT COUNT(*)::int as c FROM "${S}".failure_links
     WHERE "fmeaId"=$1 AND "deletedAt" IS NOT NULL
   `);
   console.log(`\nSoft-deleted links: ${softDeleted[0]?.c}`);

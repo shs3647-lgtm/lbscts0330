@@ -1,5 +1,5 @@
 /**
- * FmeaInfo 테이블의 중복 ID 정리
+ * fmea_projects 테이블의 중복 ID 정리 (legacy FmeaInfo 호환)
  * - 각 fmeaId별로 최신 행만 남기고 이전 행 삭제
  */
 const { Pool } = require('pg');
@@ -12,11 +12,26 @@ const pool = new Pool({
   const fmeaId = process.argv[2] || 'pfm26-M001';
   const schemaName = `pfmea_${fmeaId.toLowerCase().replace(/-/g, '_')}`;
   
-  console.log('=== FmeaInfo 테이블 중복 ID 정리 ===');
+  console.log('=== fmea_projects 테이블 중복 ID 정리 ===');
   console.log('Schema:', schemaName);
   console.log('');
   
   try {
+    // fmea_projects 또는 legacy FmeaInfo 테이블 자동 감지
+    const tableCheck = await pool.query(`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = $1 AND table_name IN ('fmea_projects', 'FmeaInfo')
+      ORDER BY table_name
+    `, [schemaName]);
+    const tableName = tableCheck.rows.find(r => r.table_name === 'fmea_projects')?.table_name
+                   || tableCheck.rows.find(r => r.table_name === 'FmeaInfo')?.table_name;
+
+    if (!tableName) {
+      console.log('❌ fmea_projects/FmeaInfo 테이블 없음');
+      await pool.end();
+      return;
+    }
+
     // 모든 행 조회
     const result = await pool.query(`
       SELECT 
@@ -24,7 +39,7 @@ const pool = new Pool({
         "fmeaId",
         "createdAt",
         "updatedAt"
-      FROM "${schemaName}"."FmeaInfo"
+      FROM "${schemaName}"."${tableName}"
       ORDER BY "updatedAt" DESC
     `);
     
@@ -37,7 +52,6 @@ const pool = new Pool({
     console.log(`총 ${result.rows.length}개 행 발견`);
     console.log('');
     
-    // 최신 행 확인 (updatedAt 기준)
     const latest = result.rows[0];
     const oldRows = result.rows.slice(1);
     
@@ -52,7 +66,6 @@ const pool = new Pool({
     });
     console.log('');
     
-    // 사용자 확인 (스크립트 실행 시 자동으로 삭제)
     const deleteOld = process.argv[3] === '--delete';
     
     if (!deleteOld) {
@@ -61,11 +74,10 @@ const pool = new Pool({
       return;
     }
     
-    // 이전 행 삭제
     for (const oldRow of oldRows) {
       try {
         await pool.query(`
-          DELETE FROM "${schemaName}"."FmeaInfo"
+          DELETE FROM "${schemaName}"."${tableName}"
           WHERE id = $1
         `, [oldRow.id]);
         console.log(`✅ 삭제 완료: ${oldRow.id}`);
@@ -86,4 +98,3 @@ const pool = new Pool({
     await pool.end();
   }
 })();
-
