@@ -372,7 +372,8 @@
 | T-40 | FM 조회 `name` 빈값 | `failure_modes` 컬럼은 `mode` (not `name`) | `fm.name` → `fm.mode` 수정 | 1 |
 | T-41 | fmea_legacy_data 컬럼 에러 | `"legacyData"` 사용 (실제: `data`) | 전수 수정 | 3 |
 | T-42 | 프로젝트 스키마 테이블명 불일치 | 레거시 `"FmeaInfo"` vs 신규 `fmea_projects` | 자동 감지 패턴 + snake_case 우선 | 5 |
-| T-43 | LLD추천/개선추천 저장 후 사라짐 | ATOMIC DIRECT 로드 경로에서 legacy riskData 6ST 키 미병합 → state.riskData에 `lesson-opt-*`/`detection-opt-*` 없음 → 저장 시 NULL | `useWorksheetDataLoader.ts` ATOMIC DIRECT 경로에 OPT_PREFIXES 병합 추가 | 1 |
+| T-43 | LLD추천/개선추천 저장 후 사라짐 (1차) | ATOMIC DIRECT 로드 경로에서 legacy riskData 6ST 키 미병합 | `useWorksheetDataLoader.ts` ATOMIC DIRECT 경로에 OPT_PREFIXES 병합 추가 | 1 |
+| T-44 | LLD추천/개선추천 재발 — 프로젝트 스키마 riskData 0건 (2차) | API POST에서 optimizations → riskData 역매핑 누락 → 프로젝트 스키마 `fmea_legacy_data`에 `lesson-opt-*`/`detection-opt-*` 키 0건 | `route.ts` step 13.5: optimizations → legacy riskData 자동 역매핑 추가 | 1 |
 
 ---
 

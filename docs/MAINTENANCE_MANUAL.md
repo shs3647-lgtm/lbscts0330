@@ -183,13 +183,23 @@ FC 링크:
 - FALLBACK 경로에만 OPT_PREFIXES 병합이 있고, ATOMIC DIRECT 경로에는 없었음
 - 결과: state.riskData에 6ST 키 없음 → syncOptimizationsFromState에서 detectionAction/lldOptReference = null 저장
 
-**해결**: ATOMIC DIRECT 경로(line 145-234)에서 `loadWorksheetDB()`로 legacy riskData를 로드하여 OPT_PREFIXES 병합 추가
-**검증**: `scripts/sync-lld-to-atomic.mjs` 실행 → lldOptReference=64, detectionAction=104 확인
+**해결 (1차 — 2026-03-18)**: ATOMIC DIRECT 경로(line 145-234)에서 `loadWorksheetDB()`로 legacy riskData를 로드하여 OPT_PREFIXES 병합 추가
+
+**해결 (2차 — 2026-03-19, 근본 수정)**: 1차 수정만으로는 프로젝트 스키마 `fmea_legacy_data.riskData`에 `lesson-opt-*` / `detection-opt-*` 키가 여전히 0건이어서 재발
+- **2차 근본 원인**: API POST에서 optimizations 테이블은 업데이트하지만, `fmea_legacy_data.riskData`에 최적화 키를 역매핑하지 않아 프로젝트 스키마 legacy 데이터가 항상 빈 상태
+- **수정 파일**: `src/app/api/fmea/route.ts` — LEGACY_DATA 저장 직전(step 13.5)에 optimizations → riskData 자동 역매핑 로직 추가
+  - `lesson-opt-${uk}` ← `opt.lldOptReference`
+  - `detection-opt-${uk}` ← `opt.detectionAction`
+  - `prevention-opt-${uk}` ← `opt.recommendedAction`
+  - 기타: `person-opt-`, `targetDate-opt-`, `completeDate-opt-`, `status-opt-`, `note-opt-`
+- **데이터 동기화**: 3개 프로젝트 스키마(m066/m069/m071) legacy riskData 즉시 갱신
+- **검증**: m066 프로젝트 스키마 `lesson-opt-*: 64, detection-opt-*: 104` 확인
 
 **예방 체크리스트**:
 - [ ] ATOMIC DIRECT 경로와 FALLBACK 경로의 riskData 처리가 일관적인지 확인
 - [ ] 새 riskData 키 패턴 추가 시 양쪽 경로 모두 업데이트
 - [ ] `atomicToLegacyAdapter.ts`에 새 필드 추가 시 양방향(저장/로드) 모두 구현
+- [ ] **API POST LEGACY_DATA 저장 시 optimizations → riskData 역매핑 누락 여부 확인**
 
 ---
 

@@ -429,6 +429,8 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-17 | RiskAnalysis DC/PC NULL → 마스터에 DC/PC 없음 | rebuild-atomic에서 riskAnalysis.deleteMany 누락 → 중복 208건 (NULL 우선 선택) | `rebuild-atomic/route.ts` L76 | ✅ DC=104 PC=104 |
 | 2026-03-17 | 통합시트 A6/B5 파싱 누락 | excel-parser가 개별시트 존재 시 통합시트 전체 스킵 | `excel-parser.ts` L527-567 | ✅ A6>0 B5>0 |
 | 2026-03-17 | rebuild-atomic에서 RiskAnalysis 미저장 | upsert 로직 누락 | `rebuild-atomic/route.ts` L408-443 | ✅ riskAnalyses=104 |
+| 2026-03-18 | LLD추천/개선추천 저장 후 사라짐 (1차) | ATOMIC DIRECT 로드에서 legacy 6ST 키 미병합 | `useWorksheetDataLoader.ts` OPT_PREFIXES 병합 | ✅ lld=64 |
+| 2026-03-19 | LLD추천/개선추천 재발 (2차) | API POST에서 optimizations→riskData 역매핑 누락 → 프로젝트 스키마 `lesson-opt-*` 0건 | `route.ts` step 13.5 역매핑 추가 | ✅ lesson-opt=64, detection-opt=104 |
 
 ### 🔴 Rule 2: 기존 UI 변경 금지
 기존 UI는 절대 변경하지 않습니다. 사용자가 명시적으로 UI 변경을 요청한 경우에만 수정합니다.

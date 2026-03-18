@@ -1432,6 +1432,37 @@ export async function POST(request: NextRequest) {
 
       // ★ P0-4: FmeaInfo Pool 업데이트는 트랜잭션 밖으로 이동 (아래 참조)
 
+      // ★★★ 13.5 legacy riskData에 optimization 키 자동 병합 ★★★
+      // 근본 원인: 프로젝트 스키마 fmea_legacy_data.riskData에 lesson-opt-*/detection-opt-* 키가
+      // 누락되면 다음 로드 시 사라짐. optimizations 테이블이 SSoT이므로 여기서 역매핑하여 보충.
+      if (legacyData && db.optimizations.length > 0 && db.failureLinks.length > 0) {
+        const optRiskData: Record<string, unknown> = {};
+        const linkById = new Map(db.failureLinks.map((l: any) => [l.id, l]));
+        const riskByLinkId = new Map(validRisks.map((r: any) => [r.linkId, r]));
+
+        for (const opt of db.optimizations) {
+          const risk = riskByLinkId.get((opt as any).riskId);
+          if (!risk) continue;
+          const link = linkById.get(risk.linkId);
+          if (!link) continue;
+          const uk = `${link.fmId}-${link.fcId}`;
+
+          if ((opt as any).lldOptReference) optRiskData[`lesson-opt-${uk}`] = (opt as any).lldOptReference;
+          if ((opt as any).detectionAction) optRiskData[`detection-opt-${uk}`] = (opt as any).detectionAction;
+          if ((opt as any).recommendedAction) optRiskData[`prevention-opt-${uk}`] = (opt as any).recommendedAction;
+          if ((opt as any).responsible) optRiskData[`person-opt-${uk}`] = (opt as any).responsible;
+          if ((opt as any).targetDate) optRiskData[`targetDate-opt-${uk}`] = (opt as any).targetDate;
+          if ((opt as any).completedDate) optRiskData[`completeDate-opt-${uk}`] = (opt as any).completedDate;
+          if ((opt as any).status && (opt as any).status !== 'open') optRiskData[`status-opt-${uk}`] = (opt as any).status;
+          if ((opt as any).remarks) optRiskData[`note-opt-${uk}`] = (opt as any).remarks;
+        }
+
+        if (Object.keys(optRiskData).length > 0) {
+          const existingRiskData = (legacyData as any).riskData || {};
+          (legacyData as any).riskData = { ...existingRiskData, ...optRiskData };
+        }
+      }
+
       // ★★★ 14. FmeaLegacyData 저장 (Single Source of Truth) ★★★
       txStep = 'LEGACY_DATA';
       // 레거시 데이터를 JSON으로 직접 저장하여 원자성 DB ↔ 레거시 변환 문제 방지
