@@ -146,3 +146,13 @@ tests/.auth/user.json
 
 # 임시 SQL 쿼리 파일
 tmp_query*.sql
+
+# 임시 분석/진단 스크립트
+scripts/analyze-*.js
+scripts/check-*.js
+scripts/establish-*.js
+scripts/gen-import-*.js
+scripts/gen-master-excel.js
+scripts/gen-merged-*.js
+scripts/verify-fc-*.js
+scripts/trace-*.mjs
