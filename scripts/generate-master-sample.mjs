@@ -1,3 +1,4 @@
+/* CODEFREEZE — 2026-03-18 커밋 2f475aa */
 /**
  * Master FMEA 샘플 Excel 생성 스크립트 (v4 — chains-driven L3 + AIAG-VDA AP)
  *
