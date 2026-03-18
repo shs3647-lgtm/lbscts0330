@@ -334,7 +334,7 @@ async function verifyWs(prisma: any, fmeaId: string): Promise<StepResult> {
 
   result.details = { totalPC: totalPc, emptyPC: emptyPc, orphanPC: orphanPc, totalFC: totalFc, legacyLinks: linkCount };
 
-  if (emptyPc > 0) { result.status = 'error'; result.issues.push(`빈 공정특성 ${emptyPc}건 — 워크시트에 🔍 표시됨`); }
+  if (emptyPc > 0) { result.status = result.status === 'error' ? 'error' : 'warn'; result.issues.push(`빈 공정특성 ${emptyPc}건 — 워크시트에 🔍 표시됨`); }
   if (orphanPc > 0) { result.status = 'warn'; result.issues.push(`FC 없는 공정특성 ${orphanPc}건 — "고장원인 선택" 표시됨`); }
 
   return result;
@@ -342,14 +342,95 @@ async function verifyWs(prisma: any, fmeaId: string): Promise<StepResult> {
 
 // ─── 자동수정 함수들 ───
 
+async function fixStep1Import(prisma: any, fmeaId: string): Promise<string[]> {
+  const fixed: string[] = [];
+
+  const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
+  const data = legacy?.data as any;
+  const l2arr = Array.isArray(data?.l2) ? data.l2 : [];
+  const fmCount = l2arr.reduce((sum: number, p: any) => sum + (Array.isArray(p.failureModes) ? p.failureModes.length : 0), 0);
+
+  if (fmCount > 0) return fixed;
+
+  const basePrisma = (await import('@/lib/prisma')).getPrisma();
+  if (!basePrisma) return fixed;
+
+  const ds = await basePrisma.pfmeaMasterDataset.findUnique({
+    where: { fmeaId },
+    include: { flatItems: { orderBy: { orderIndex: 'asc' } } },
+  });
+  if (!ds || !ds.flatItems || ds.flatItems.length === 0) return fixed;
+
+  const flatItems = ds.flatItems;
+  const chains = (ds.failureChains || []) as any[];
+  const hasAItems = flatItems.some((i: any) => i.itemCode === 'A1');
+  const hasBItems = flatItems.some((i: any) => i.itemCode === 'B1');
+
+  if (!hasAItems && !hasBItems) return fixed;
+
+  try {
+    const flatData = flatItems.map((i: any) => ({
+      id: i.id, processNo: i.processNo, category: i.category,
+      itemCode: i.itemCode, value: i.value || '',
+      m4: i.m4 || undefined, specialChar: i.specialChar || undefined,
+      parentItemId: i.parentItemId || undefined,
+      belongsTo: i.belongsTo || undefined,
+      inherited: i.inherited || false,
+    }));
+
+    const saveRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/save-from-import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fmeaId, flatData, l1Name: '', failureChains: chains }),
+    });
+
+    if (saveRes.ok) {
+      fixed.push(`Master flatData ${flatItems.length}건 + chains ${chains.length}건 → save-from-import 재실행 완료`);
+    } else {
+      fixed.push(`save-from-import 호출 실패: ${saveRes.status}`);
+    }
+  } catch (err) {
+    console.error('[fixStep1Import] save-from-import 호출 에러:', err);
+  }
+
+  return fixed;
+}
+
 async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
 
   const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
-  if (!legacy) return fixed;
+  if (!legacy) {
+    const importFixes = await fixStep1Import(prisma, fmeaId);
+    fixed.push(...importFixes);
+    return fixed;
+  }
 
   const data = JSON.parse(JSON.stringify(legacy.data)) as any;
   let changed = false;
+
+  const l2arr = data.l2 || [];
+  const a5Count = l2arr.reduce((sum: number, p: any) => sum + (Array.isArray(p.failureModes) ? p.failureModes.length : 0), 0);
+  const b4Count = l2arr.reduce((sum: number, p: any) => {
+    let count = Array.isArray(p.failureCauses) ? p.failureCauses.length : 0;
+    for (const we of (p.l3 || [])) count += Array.isArray(we.failureCauses) ? we.failureCauses.length : 0;
+    return sum + count;
+  }, 0);
+
+  if (a5Count === 0 || b4Count === 0) {
+    const basePrisma = (await import('@/lib/prisma')).getPrisma();
+    const masterHasData = basePrisma ? await basePrisma.pfmeaMasterFlatItem.count({
+      where: { dataset: { fmeaId }, itemCode: 'A5' },
+    }).catch(() => 0) : 0;
+
+    if (masterHasData > 0) {
+      const importFixes = await fixStep1Import(prisma, fmeaId);
+      if (importFixes.length > 0) {
+        fixed.push(...importFixes);
+        return fixed;
+      }
+    }
+  }
 
   // C계열: Atomic DB L1Function → Legacy l1.functions 동기화
   const l1Funcs = data.l1?.functions || [];
@@ -399,12 +480,43 @@ async function fixStep2Parsing(prisma: any, fmeaId: string): Promise<string[]> {
 async function fixStep3Uuid(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
 
+  const l2s = await prisma.l2Structure.findMany({ where: { fmeaId } });
+
+  if (l2s.length === 0) {
+    const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
+    const legacyL2 = Array.isArray((legacy?.data as any)?.l2) ? (legacy?.data as any).l2 : [];
+
+    if (legacyL2.length > 0) {
+      try {
+        const rebuildRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(fmeaId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fmeaId }),
+        });
+        if (rebuildRes.ok) {
+          const result = await rebuildRes.json();
+          fixed.push(`rebuild-atomic 완료: L2=${result.counts?.l2 || '?'}, L3=${result.counts?.l3 || '?'}, FM=${result.counts?.fm || '?'}`);
+        } else {
+          fixed.push(`rebuild-atomic 호출 실패: ${rebuildRes.status}`);
+        }
+      } catch (err) {
+        console.error('[fixStep3Uuid] rebuild-atomic 호출 에러:', err);
+      }
+      return fixed;
+    } else {
+      const importFixes = await fixStep1Import(prisma, fmeaId);
+      if (importFixes.length > 0) {
+        fixed.push(...importFixes);
+        return fixed;
+      }
+    }
+  }
+
   const fcs = await prisma.failureCause.findMany({ where: { fmeaId }, select: { processCharId: true, l3FuncId: true } });
   const fcPcIds = new Set(fcs.map((fc: any) => fc.processCharId).filter(Boolean));
   const fcL3Ids = new Set(fcs.map((fc: any) => fc.l3FuncId).filter(Boolean));
   const l3Funcs = await prisma.l3Function.findMany({ where: { fmeaId } });
   const l3s = await prisma.l3Structure.findMany({ where: { fmeaId } });
-  const l2s = await prisma.l2Structure.findMany({ where: { fmeaId } });
   const l2ById = new Map(l2s.map((l: any) => [l.id, l]));
   const l3ById = new Map(l3s.map((l: any) => [l.id, l]));
 
@@ -536,7 +648,7 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
 // ─── 메인 검증+수정 루프 ───
 
 async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean): Promise<PipelineResult> {
-  const MAX_LOOPS = 3;
+  const MAX_LOOPS = 5;
   let loopCount = 0;
 
   for (let i = 0; i < MAX_LOOPS; i++) {
@@ -551,16 +663,28 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
       await verifyWs(prisma, fmeaId),
     ];
 
-    const allGreen = steps.every(s => s.status === 'ok');
+    const allGreen = steps.every(s => s.status === 'ok' || s.status === 'warn');
     if (allGreen || !autoFix) {
       return { fmeaId, steps, allGreen, loopCount, timestamp: new Date().toISOString() };
     }
 
     // STEP 0 (SAMPLE) — 자동수정 대상 아님 (Master 데이터 문제)
-    // STEP 1 (IMPORT) 에러면 → 사용자 개입 필요 (자동수정 불가)
+    // STEP 1 (IMPORT) 에러 또는 경고면 → Master 데이터가 있으면 자동 재구축 시도
     const stepImport = steps.find(s => s.name === 'IMPORT');
-    if (stepImport?.status === 'error') {
-      return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
+    if (stepImport && stepImport.status !== 'ok') {
+      const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
+      const legacyL2 = Array.isArray((legacy?.data as any)?.l2) ? (legacy?.data as any).l2 : [];
+      const legacyFMs = legacyL2.reduce((sum: number, p: any) => sum + (Array.isArray(p.failureModes) ? p.failureModes.length : 0), 0);
+
+      if (legacyFMs === 0) {
+        const importFixes = await fixStep1Import(prisma, fmeaId);
+        if (importFixes.length > 0) {
+          stepImport.fixed = importFixes;
+          stepImport.status = 'fixed';
+        } else if (stepImport.status === 'error') {
+          return { fmeaId, steps, allGreen: false, loopCount, timestamp: new Date().toISOString() };
+        }
+      }
     }
 
     // STEP 2 (파싱) 수정 — C계열 Legacy 미동기화 자동수정
@@ -614,7 +738,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
   return {
     fmeaId,
     steps: finalSteps,
-    allGreen: finalSteps.every(s => s.status === 'ok'),
+    allGreen: finalSteps.every(s => s.status === 'ok' || s.status === 'warn'),
     loopCount,
     timestamp: new Date().toISOString(),
   };

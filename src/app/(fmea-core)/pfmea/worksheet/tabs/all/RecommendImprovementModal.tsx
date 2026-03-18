@@ -9,7 +9,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 import IndustryImproveModal from '@/components/modals/IndustryImproveModal';
@@ -74,12 +74,16 @@ const AP_COLORS: Record<string, { bg: string; text: string }> = {
 export default function RecommendImprovementModal({
   isOpen, onClose, candidates, onApplyAll, onApplySingle, cftLeaderName, diagnostics,
 }: RecommendImprovementModalProps) {
-  // 행별 체크 상태
-  const [checkedRows, setCheckedRows] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    candidates.forEach(c => { init[c.uniqueKey] = true; });
-    return init;
-  });
+  // 행별 체크 상태 — candidates 변경 시 자동 초기화 (전체 체크)
+  const [checkedRows, setCheckedRows] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (candidates.length > 0) {
+      const init: Record<string, boolean> = {};
+      candidates.forEach(c => { init[c.uniqueKey] = true; });
+      setCheckedRows(init);
+    }
+  }, [candidates]);
 
   // 전체 선택/해제
   const allChecked = candidates.length > 0 && candidates.every(c => checkedRows[c.uniqueKey]);

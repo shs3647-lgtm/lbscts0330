@@ -250,6 +250,7 @@ export function useRecommendHandlers({
             : undefined;
 
           if (!hasPrev) {
+            // Import PC 직접매칭 우선
             if (directPcList && directPcList.length > 0) {
               prevRecommend = `${RECOMMEND_PREFIX} ${directPcList[0]}`;
             } else if (effectiveRec) {
@@ -267,19 +268,20 @@ export function useRecommendHandlers({
           }
 
           if (!hasDet) {
-            if (effectiveRec) {
+            // Import DC 직접매칭 우선 (PC와 동일 우선순위)
+            if (directDcList && directDcList.length > 0) {
+              detRecommend = `${RECOMMEND_PREFIX} ${directDcList[0]}`;
+            } else if (effectiveRec) {
               const pathData = effectiveRec === 'O_ONLY' ? paths.oOnly : effectiveRec === 'D_ONLY' ? paths.dOnly : paths.both;
               const needsD = effectiveRec === 'D_ONLY' || effectiveRec === 'BOTH';
               if (needsD) {
-                const dDesc = D_SCORE_DESCRIPTION[pathData.targetD] || `검출도 D=${pathData.targetD} 수준 개선`;
-                detRecommend = `${RECOMMEND_PREFIX} ${dDesc}`;
+                const best = findBestDC(scoredDCs, pathData.targetD);
+                detRecommend = best
+                  ? `${RECOMMEND_PREFIX} 검출도 ${d}→${pathData.targetD} ${best.method}`
+                  : `${RECOMMEND_PREFIX} 검출도 ${d}→${pathData.targetD} 개선 필요`;
               } else {
                 detRecommend = PLACEHOLDER_NA;
               }
-            } else if (directDcList && directDcList.length > 0) {
-              const importD = recommendDetection(directDcList[0]);
-              const dDesc = importD > 0 ? D_SCORE_DESCRIPTION[importD] : null;
-              detRecommend = dDesc ? `${RECOMMEND_PREFIX} ${dDesc}` : `${RECOMMEND_PREFIX} ${directDcList[0]}`;
             }
           }
         } else {
