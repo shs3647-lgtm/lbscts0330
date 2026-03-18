@@ -86,6 +86,11 @@ test.describe('Step 6 OPT 파이프라인 검증 + 자동수정', () => {
     expect(s6After.details.missingO).toBe(0);
     expect(s6After.details.missingD).toBe(0);
     console.log(`  missingO: ${s6After.details.missingO}, missingD: ${s6After.details.missingD}`);
+
+    // AP=H/M 개선안 누락이 0이 되었는지 확인 (Optimization 자동생성)
+    expect(s6After.details.hWithoutOpt).toBe(0);
+    expect(s6After.details.mWithoutOpt).toBe(0);
+    console.log(`  hWithoutOpt: ${s6After.details.hWithoutOpt}, mWithoutOpt: ${s6After.details.mWithoutOpt}`);
   });
 
   test('UI: 파이프라인 패널 STEP 6 OPT + 자동수정 확인', async ({ page }) => {
