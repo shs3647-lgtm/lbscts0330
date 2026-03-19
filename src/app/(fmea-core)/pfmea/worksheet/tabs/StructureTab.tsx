@@ -1575,8 +1575,8 @@ export default function StructureTab(props: StructureTabProps) {
         onClose={closeContextMenu}
         onInsertAbove={() => handleInsertAbove()}
         onInsertBelow={() => handleInsertBelow()}
-        onAddMergedAbove={() => handleAddMergedAbove()}
-        onAddMergedBelow={() => handleAddMergedBelow()}
+        onAddMergedAbove={contextMenu.columnType !== 'l2' ? () => handleAddMergedAbove() : undefined}
+        onAddMergedBelow={contextMenu.columnType !== 'l2' ? () => handleAddMergedBelow() : undefined}
         onDeleteRow={() => handleDeleteRow()}
       />
 

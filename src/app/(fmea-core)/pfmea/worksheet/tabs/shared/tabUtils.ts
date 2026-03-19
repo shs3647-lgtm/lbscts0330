@@ -14,15 +14,7 @@ export const isMissing = (name: string | undefined | null): boolean => {
   if (name === null || name === undefined) return true;
   if (!name) return true;
   const trimmed = String(name).trim();
-  if (trimmed === '' || trimmed === '-') return true;
-  const PLACEHOLDERS = [
-    '고장원인 선택', '클릭하여 추가', '여기를 클릭하여 추가',
-    '고장원인을 입력하세요', '고장원인 추가', '선택하세요',
-    '입력하세요', '추가하세요', '클릭하여 선택',
-    '고장형태 선택', '고장영향 선택', '요구사항 선택',
-    '(기능분석에서 입력)', '기능 입력 필요',
-  ];
-  return PLACEHOLDERS.includes(trimmed);
+  return trimmed === '' || trimmed === '-';
 };
 
 /**
@@ -33,11 +25,7 @@ export const isMissing = (name: string | undefined | null): boolean => {
 export const isMeaningful = (name: unknown): name is string => {
   if (typeof name !== 'string') return false;
   const n = name.trim();
-  if (!n) return false;
-  if (n.includes('클릭하여')) return false;
-  if (n === '요구사항 선택') return false;
-  if (n.startsWith('(기능분석에서')) return false;
-  return true;
+  return n.length > 0;
 };
 
 /**

@@ -139,21 +139,12 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
 
   // ★ buildFlatRows와 동일 필터 (의미 있는 공정 = 클릭 placeholder 제외)
   const allL2 = state.l2 || [];
-  const meaningfulProcs = allL2.filter(p => p.name && !p.name.includes('클릭'));
+  const meaningfulProcs = allL2.filter(p => p.name && p.name.trim() !== '');
   const processes = meaningfulProcs.length > 0 ? meaningfulProcs : allL2;
 
-  // ★ buildFlatRows와 동일한 isMeaningful 함수
-  // ★ FIX: 20자 초과 = 실제 데이터 (키워드 포함해도 placeholder 아님)
   const isMeaningful = (name: string | undefined | null) => {
     if (!name) return false;
-    const trimmed = String(name).trim();
-    if (trimmed === '') return false;
-    if (trimmed.length > 20) return true; // 20자 초과는 항상 실제 데이터
-    if (trimmed.includes('클릭')) return false;
-    if (trimmed.includes('선택')) return false;
-    if (trimmed.includes('입력')) return false;
-    if (trimmed.includes('필요')) return false;
-    return true;
+    return String(name).trim() !== '';
   };
 
   // ★ missingCount, confirmedCount, handleConfirm → buildFlatRows 이후에 선언 (아래 참조)
