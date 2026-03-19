@@ -214,6 +214,22 @@ export async function POST(request: NextRequest) {
     db.riskAnalyses = db.riskAnalyses || [];
     (db as any).optimizations = (db as any).optimizations || [];
 
+    // ★★★ DEBUG: 저장 payload 확인 ★★★
+    console.log('[API SAVE DEBUG]', {
+      fmeaId: db.fmeaId,
+      l1Structure: !!db.l1Structure,
+      l2Structures: db.l2Structures.length,
+      l3Structures: db.l3Structures.length,
+      l1Functions: db.l1Functions.length,
+      l2Functions: db.l2Functions.length,
+      l3Functions: db.l3Functions.length,
+      failureModes: db.failureModes.length,
+      failureEffects: db.failureEffects.length,
+      failureCauses: db.failureCauses.length,
+      failureLinks: db.failureLinks.length,
+      hasLegacyData: !!legacyData,
+    });
+
     // ★★★ FailureLinks 감사 추적 변수 ★★★
     const incomingLinkCount = db.failureLinks.length;
     let preservedLinkCount = 0;      // 빈 배열 POST 시 DB에서 복원한 건수
@@ -340,6 +356,10 @@ export async function POST(request: NextRequest) {
     txStep = 'TX_START';
     await prisma.$transaction(async (tx: any) => {
       // ✅ 강력한 스키마 강제: 트랜잭션 시작 시 search_path 명시적 설정
+      // ★★★ 2026-03-19: deadlock 방지를 위한 advisory lock (fmeaId 기반) ★★★
+      const lockKey = Math.abs(db.fmeaId.split('').reduce((a: number, c: string) => a * 31 + c.charCodeAt(0), 0) % 2147483647);
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${lockKey})`);
+
       // schema는 getProjectSchemaName()으로 [a-z0-9_] 산타이즈됨 — 추가 검증
       if (!/^[a-z][a-z0-9_]*$/.test(schema)) throw new Error(`Invalid schema: ${schema}`);
       await tx.$executeRawUnsafe(`SET search_path TO ${schema}, public`);
@@ -1665,6 +1685,15 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    // ★★★ 2026-03-19: deadlock(P2034) → 409 Conflict로 응답 (클라이언트가 재시도) ★★★
+    if (error.code === 'P2034') {
+      console.warn('[API] 트랜잭션 충돌 (P2034) — 클라이언트 재시도 유도');
+      return NextResponse.json(
+        { success: false, error: 'Transaction conflict', message: '동시 저장 충돌. 자동 재시도합니다.', retryable: true },
+        { status: 409 }
+      );
+    }
+
     // ★★★ 2026-02-19: 에러 상세 로깅 강화 (클라이언트에서도 확인 가능) ★★★
     const errorInfo = {
       step: txStep, // ★ 어느 단계에서 에러가 났는지

@@ -77,10 +77,17 @@ export async function ensureProjectSchemaReady(params: {
       `, [table]);
       
       if (publicTableExists.rows[0].exists) {
-        // Copy table structure from public if exists
-        await client.query(
-          `CREATE TABLE IF NOT EXISTS ${quoteIdent(schema)}.${quoteIdent(table)} (LIKE public.${quoteIdent(table)} INCLUDING ALL)`
-        );
+        // ★ 2026-03-19: INCLUDING ALL → INCLUDING DEFAULTS INDEXES CONSTRAINTS
+        // INCLUDING ALL copies types too → pg_type_typname_nsp_index conflict on concurrent requests
+        // try-catch handles race condition between EXISTS check and CREATE
+        try {
+          await client.query(
+            `CREATE TABLE IF NOT EXISTS ${quoteIdent(schema)}.${quoteIdent(table)} (LIKE public.${quoteIdent(table)} INCLUDING DEFAULTS INCLUDING INDEXES INCLUDING CONSTRAINTS)`
+          );
+        } catch (e: any) {
+          // 42P07 = relation already exists, 23505 = duplicate key (type conflict) — safe to ignore
+          if (e.code !== '42P07' && e.code !== '23505') throw e;
+        }
       } else {
         // If table doesn't exist in public, check if it exists in project schema
         const projectTableExists = await client.query(`

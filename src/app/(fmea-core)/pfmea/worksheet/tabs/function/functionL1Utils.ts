@@ -13,16 +13,7 @@
 /** 플레이스홀더 값 체크 (빈 값, 클릭하여, 선택, 자동생성 등) */
 export const isPlaceholder = (value: string | undefined | null): boolean => {
   if (!value) return true;
-  const trimmed = value.trim();
-  if (trimmed === '') return true;
-  // ★ FIX: 20자 초과 = 실제 데이터 (키워드 포함해도 placeholder 아님)
-  if (trimmed.length > 20) return false;
-  if (trimmed.includes('클릭하여')) return true;
-  if (trimmed.includes('선택')) return true;
-  if (trimmed.includes('자동생성')) return true;
-  if (trimmed.includes('입력)')) return true;
-  if (trimmed === '(필수)' || trimmed === '(선택)') return true;
-  return false;
+  return value.trim() === '';
 };
 
 /** 의미 있는 값인지 체크 (플레이스홀더가 아닌 값) */
