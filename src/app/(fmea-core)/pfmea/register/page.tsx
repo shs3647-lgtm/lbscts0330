@@ -184,6 +184,14 @@ function PFMEARegisterPageContent() {
   // ★ BD 유형 필터 + 선택 모달
   const [bdTypeFilter, setBdTypeFilter] = useState<'ALL' | 'M' | 'F' | 'P'>('ALL');
   const [bdSelectModal, setBdSelectModal] = useState<{ open: boolean; type: 'M' | 'F' | 'P'; candidates: BdStatusItem[] }>({ open: false, type: 'P', candidates: [] });
+  const [masterBdCount, setMasterBdCount] = useState(0);
+
+  // ★ Master FMEA BD 카운트 로드
+  useEffect(() => {
+    fetch('/api/master-fmea/bd-list').then(r => r.json()).then(d => {
+      setMasterBdCount((d.masters || []).length);
+    }).catch(() => {});
+  }, []);
 
   // ★ 2026-02-20: BD 현황 데이터 로드 (★ 성능 개선: hook 캐시 재사용, 중복 API 제거)
   useEffect(() => {
@@ -253,9 +261,33 @@ function PFMEARegisterPageContent() {
       return;
     }
 
-    // Master/Family: BD 목록에서 해당 유형 후보 검색
+    // Master: 새 MasterFmea 시스템에서 조회
+    if (type === 'M') {
+      try {
+        const res = await fetch('/api/master-fmea/bd-list');
+        const data = await res.json();
+        const masters = data.masters || [];
+        if (masters.length === 0) {
+          alert('Master FMEA가 등록되어 있지 않습니다.\nFamily FMEA → Master-00에서 먼저 등록하세요.');
+          return;
+        }
+        if (masters.length === 1) {
+          const m = masters[0];
+          await loadBdById(m.fmeaId, m.name);
+          return;
+        }
+        // 2개 이상이면 선택 모달 표시
+        setBdSelectModal({
+          open: true, type: 'M',
+          candidates: masters.map((m: any) => ({ fmeaId: m.fmeaId, fmeaName: m.name, fmeaType: 'M' })),
+        });
+      } catch (e) { console.error('[Master BD 로드] 오류:', e); }
+      return;
+    }
+
+    // Family: BD 목록에서 해당 유형 후보 검색
     const candidates = bdStatusList.filter(bd => bd.fmeaType === type);
-    const typeLabel = type === 'M' ? 'Master' : 'Family';
+    const typeLabel = 'Family';
 
     if (candidates.length === 0) {
       alert(`${typeLabel} BD가 등록되어 있지 않습니다.\nImport 페이지에서 ${typeLabel} FMEA를 먼저 생성하세요.`);
@@ -263,12 +295,10 @@ function PFMEARegisterPageContent() {
     }
 
     if (candidates.length === 1) {
-      // 1개면 즉시 로드
       await loadBdById(candidates[0].fmeaId, candidates[0].fmeaName);
       return;
     }
 
-    // 2개 이상이면 선택 모달 표시
     setBdSelectModal({ open: true, type, candidates });
   };
 
@@ -660,7 +690,7 @@ function PFMEARegisterPageContent() {
                   <button onClick={(e) => { e.stopPropagation(); openHelp('mfp'); }} className="ml-1 px-1.5 py-0.5 bg-yellow-400 text-[#00587a] text-[9px] font-bold rounded hover:bg-yellow-300 transition-colors" title="M/F/P 구조 도움말">도움말(Help)</button>
                 </td>
                 {([
-                  { type: 'M' as const, label: 'Master', count: bdStatusList.filter(b => b.fmeaType === 'M').length,
+                  { type: 'M' as const, label: 'Master', count: masterBdCount,
                     loaded: 'bg-blue-700 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
                   { type: 'F' as const, label: 'Family', count: bdStatusList.filter(b => b.fmeaType === 'F').length,
                     loaded: 'bg-blue-600 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-[#e3f2fd] text-blue-700 hover:bg-blue-200' },
