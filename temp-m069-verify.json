@@ -1,0 +1,686 @@
+﻿{
+    "success":  true,
+    "fmeaId":  "pfm26-m069",
+    "steps":  [
+                  {
+                      "step":  0,
+                      "name":  "SAMPLE",
+                      "status":  "ok",
+                      "details":  {
+                                      "flatItems":  745,
+                                      "chains":  118,
+                                      "uniqueFMs":  26,
+                                      "C1":  3,
+                                      "C2":  7,
+                                      "C3":  17,
+                                      "C4":  20,
+                                      "A1":  21,
+                                      "A2":  21,
+                                      "A3":  21,
+                                      "A4":  26,
+                                      "A5":  26,
+                                      "A6":  48,
+                                      "B1":  91,
+                                      "B2":  98,
+                                      "B3":  117,
+                                      "B4":  117,
+                                      "B5":  112,
+                                      "chainsEmptyFM":  0,
+                                      "chainsEmptyFC":  0,
+                                      "chainsEmptyFE":  0
+                                  },
+                      "issues":  [
+
+                                 ],
+                      "fixed":  [
+
+                                ]
+                  },
+                  {
+                      "step":  1,
+                      "name":  "IMPORT",
+                      "status":  "ok",
+                      "details":  {
+                                      "fmeaIdTables":  10,
+                                      "atomicL2":  21,
+                                      "atomicL3":  91,
+                                      "atomicL3F":  117,
+                                      "atomicL2F":  26,
+                                      "atomicL1F":  17,
+                                      "atomicFM":  26,
+                                      "atomicFC":  117,
+                                      "atomicFE":  20,
+                                      "atomicFL":  118,
+                                      "atomicRA":  118,
+                                      "legacyL2":  21,
+                                      "legacyL3":  91,
+                                      "legacyL3F":  98,
+                                      "legacyFM":  26,
+                                      "legacyFC":  117,
+                                      "legacyFE":  20,
+                                      "legacyFL":  118
+                                  },
+                      "issues":  [
+
+                                 ],
+                      "fixed":  [
+
+                                ],
+                      "crossCheck":  [
+                                         {
+                                             "entity":  "L2 ê³µì ",
+                                             "atomicCount":  21,
+                                             "legacyCount":  21,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "L3 ìì\u0085ìì",
+                                             "atomicCount":  91,
+                                             "legacyCount":  91,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "FM ê³ ì¥íí",
+                                             "atomicCount":  26,
+                                             "legacyCount":  26,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "FC ê³ ì¥ìì¸",
+                                             "atomicCount":  117,
+                                             "legacyCount":  117,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "FE ê³ ì¥ìí¥",
+                                             "atomicCount":  20,
+                                             "legacyCount":  20,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "FL ê³ ì¥ì°ê²°",
+                                             "atomicCount":  118,
+                                             "legacyCount":  118,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "L3F ê³µì í¹ì±(rows)",
+                                             "atomicCount":  117,
+                                             "legacyCount":  117,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         }
+                                     ]
+                  },
+                  {
+                      "step":  2,
+                      "name":  "íì±",
+                      "status":  "ok",
+                      "details":  {
+                                      "atm_A1":  21,
+                                      "atm_A2":  21,
+                                      "atm_A3":  21,
+                                      "atm_A4":  26,
+                                      "atm_A5":  26,
+                                      "atm_A6":  118,
+                                      "atm_B1":  91,
+                                      "atm_B2":  117,
+                                      "atm_B3":  117,
+                                      "atm_B4":  117,
+                                      "atm_B5":  118,
+                                      "atm_C1":  3,
+                                      "atm_C2":  7,
+                                      "atm_C3":  17,
+                                      "atm_C4":  20,
+                                      "leg_A1":  21,
+                                      "leg_A2":  21,
+                                      "leg_A3":  21,
+                                      "leg_A4":  26,
+                                      "leg_A5":  26,
+                                      "leg_A6":  118,
+                                      "leg_B1":  91,
+                                      "leg_B2":  98,
+                                      "leg_B3":  117,
+                                      "leg_B4":  117,
+                                      "leg_B5":  118,
+                                      "leg_C1":  3,
+                                      "leg_C2":  7,
+                                      "leg_C3":  17,
+                                      "leg_C4":  20
+                                  },
+                      "issues":  [
+
+                                 ],
+                      "fixed":  [
+
+                                ],
+                      "crossCheck":  [
+                                         {
+                                             "entity":  "A1 ê³µì ë²í¸",
+                                             "atomicCount":  21,
+                                             "legacyCount":  21,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "A2 ê³µì ëª\u0085",
+                                             "atomicCount":  21,
+                                             "legacyCount":  21,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "A3 ê³µì ê¸°ë¥",
+                                             "atomicCount":  21,
+                                             "legacyCount":  21,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "A4 ì íí¹ì±",
+                                             "atomicCount":  26,
+                                             "legacyCount":  26,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "A5 ê³ ì¥íí",
+                                             "atomicCount":  26,
+                                             "legacyCount":  26,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "A6 ê²ì¶ê´ë¦¬",
+                                             "atomicCount":  118,
+                                             "legacyCount":  118,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "B1 ìì\u0085ìì",
+                                             "atomicCount":  91,
+                                             "legacyCount":  91,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "B2 ììê¸°ë¥",
+                                             "atomicCount":  117,
+                                             "legacyCount":  98,
+                                             "match":  false,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "B3 ê³µì í¹ì±",
+                                             "atomicCount":  117,
+                                             "legacyCount":  117,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "B4 ê³ ì¥ìì¸",
+                                             "atomicCount":  117,
+                                             "legacyCount":  117,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "B5 ìë°©ê´ë¦¬",
+                                             "atomicCount":  118,
+                                             "legacyCount":  118,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "C1 êµ¬ë¶",
+                                             "atomicCount":  3,
+                                             "legacyCount":  3,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "C2 ìì íê¸°ë¥",
+                                             "atomicCount":  7,
+                                             "legacyCount":  7,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "C3 ìêµ¬ì¬í­",
+                                             "atomicCount":  17,
+                                             "legacyCount":  17,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "C4 ê³ ì¥ìí¥",
+                                             "atomicCount":  20,
+                                             "legacyCount":  20,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         }
+                                     ]
+                  },
+                  {
+                      "step":  3,
+                      "name":  "UUID",
+                      "status":  "ok",
+                      "details":  {
+                                      "L1F":  17,
+                                      "L2":  21,
+                                      "L3":  91,
+                                      "L3F":  117,
+                                      "L2F":  26,
+                                      "FM":  26,
+                                      "FE":  20,
+                                      "FC":  117,
+                                      "FL":  118,
+                                      "RA":  118
+                                  },
+                      "issues":  [
+
+                                 ],
+                      "fixed":  [
+
+                                ],
+                      "parentChild":  [
+                                          {
+                                              "parent":  "L2Structure",
+                                              "child":  "L3Structure",
+                                              "missingChildren":  [
+
+                                                                  ]
+                                          },
+                                          {
+                                              "parent":  "L3Structure",
+                                              "child":  "L3Function",
+                                              "missingChildren":  [
+
+                                                                  ]
+                                          }
+                                      ]
+                  },
+                  {
+                      "step":  4,
+                      "name":  "FK",
+                      "status":  "ok",
+                      "details":  {
+                                      "fkRelations":  14,
+                                      "totalOrphans":  0,
+                                      "links":  118,
+                                      "unlinkedFC":  0,
+                                      "unlinkedFM":  0,
+                                      "totalFM":  26,
+                                      "totalFC":  117,
+                                      "totalFE":  20
+                                  },
+                      "issues":  [
+
+                                 ],
+                      "fixed":  [
+
+                                ],
+                      "fkIntegrity":  [
+                                          {
+                                              "relation":  "L3Structure.l2Id â L2Structure",
+                                              "total":  91,
+                                              "valid":  91,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "L2Function.l2StructId â L2Structure",
+                                              "total":  26,
+                                              "valid":  26,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "L3Function.l3StructId â L3Structure",
+                                              "total":  117,
+                                              "valid":  117,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "L3Function.l2StructId â L2Structure",
+                                              "total":  117,
+                                              "valid":  117,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FM.l2StructId â L2Structure",
+                                              "total":  26,
+                                              "valid":  26,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FM.productCharId â L2Function",
+                                              "total":  26,
+                                              "valid":  26,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FC.l3StructId â L3Structure",
+                                              "total":  117,
+                                              "valid":  117,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FC.l2StructId â L2Structure",
+                                              "total":  117,
+                                              "valid":  117,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FC.l3FuncId â L3Function",
+                                              "total":  117,
+                                              "valid":  117,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FL.fmId â FailureMode",
+                                              "total":  118,
+                                              "valid":  118,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FL.feId â FailureEffect",
+                                              "total":  118,
+                                              "valid":  118,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FL.fcId â FailureCause",
+                                              "total":  118,
+                                              "valid":  118,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "RA.linkId â FailureLink",
+                                              "total":  118,
+                                              "valid":  118,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "FE.l1FuncId â L1Function",
+                                              "total":  20,
+                                              "valid":  20,
+                                              "orphans":  [
+
+                                                          ]
+                                          }
+                                      ]
+                  },
+                  {
+                      "step":  5,
+                      "name":  "WS",
+                      "status":  "ok",
+                      "details":  {
+                                      "totalPC":  117,
+                                      "emptyPC":  0,
+                                      "orphanPC":  0,
+                                      "legacyFLCount":  118,
+                                      "atomicFLCount":  118
+                                  },
+                      "issues":  [
+
+                                 ],
+                      "fixed":  [
+
+                                ],
+                      "crossCheck":  [
+                                         {
+                                             "entity":  "L3Function (PC)",
+                                             "atomicCount":  117,
+                                             "legacyCount":  117,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "FailureMode",
+                                             "atomicCount":  26,
+                                             "legacyCount":  26,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "FailureCause",
+                                             "atomicCount":  117,
+                                             "legacyCount":  117,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         },
+                                         {
+                                             "entity":  "FailureEffect",
+                                             "atomicCount":  20,
+                                             "legacyCount":  20,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         }
+                                     ],
+                      "parentChild":  [
+
+                                      ]
+                  },
+                  {
+                      "step":  6,
+                      "name":  "OPT",
+                      "status":  "ok",
+                      "details":  {
+                                      "failureLinks":  118,
+                                      "riskAnalyses":  118,
+                                      "optimizations":  118,
+                                      "flWithoutRA":  0,
+                                      "hWithoutOpt":  0,
+                                      "mWithoutOpt":  0,
+                                      "missingS":  0,
+                                      "missingO":  0,
+                                      "missingD":  0,
+                                      "apMismatch":  0,
+                                      "orphanRiskDataKeys":  0
+                                  },
+                      "issues":  [
+
+                                 ],
+                      "fixed":  [
+
+                                ],
+                      "crossCheck":  [
+                                         {
+                                             "entity":  "Optimization (WSâDB)",
+                                             "atomicCount":  118,
+                                             "legacyCount":  118,
+                                             "match":  true,
+                                             "missingInAtomic":  [
+
+                                                                 ],
+                                             "missingInLegacy":  [
+
+                                                                 ]
+                                         }
+                                     ],
+                      "fkIntegrity":  [
+                                          {
+                                              "relation":  "Opt.riskId â RiskAnalysis",
+                                              "total":  118,
+                                              "valid":  118,
+                                              "orphans":  [
+
+                                                          ]
+                                          },
+                                          {
+                                              "relation":  "RA.linkId â FailureLink",
+                                              "total":  118,
+                                              "valid":  118,
+                                              "orphans":  [
+
+                                                          ]
+                                          }
+                                      ]
+                  }
+              ],
+    "allGreen":  true,
+    "loopCount":  1,
+    "timestamp":  "2026-03-18T21:50:18.440Z"
+}

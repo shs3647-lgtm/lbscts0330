@@ -7,4 +7,5 @@ export { ImportRelationPanel } from './ImportRelationPanel';
 export { BackupModal } from './BackupModal';
 export { TemplateConfigModal } from './TemplateConfigModal';
 export { TemplateGeneratorPanel } from './TemplateGeneratorPanel';
+export { MasterBasicDataPanel } from './MasterBasicDataPanel';
 export * from './ImportPageTypes';

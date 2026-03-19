@@ -594,8 +594,9 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
     }
   } catch { /* ignore */ }
 
-  // ★ Master B3 데이터 프리로드
+  // ★ Master B3 + chains 데이터 프리로드
   let masterB3Map = new Map<string, string>();
+  let chainPcByFcId = new Map<string, string>();
   try {
     const basePrisma = (await import('@/lib/prisma')).getPrisma();
     if (basePrisma) {
@@ -608,6 +609,23 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
         if (b3.value?.trim()) {
           const key = `${b3.processNo}-${b3.orderIndex}`;
           masterB3Map.set(key, b3.value);
+        }
+      }
+      // chains processChar → FailureCause ID 매핑
+      const dataset = await basePrisma.pfmeaMasterDataset.findFirst({
+        where: { fmeaId, isActive: true },
+        select: { failureChains: true },
+      });
+      const chains = (dataset?.failureChains as any[]) || [];
+      if (chains.length > 0) {
+        const fcCauses = await prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, cause: true, l3FuncId: true } });
+        const fcIdByCause = new Map<string, { id: string; l3FuncId: string }>();
+        for (const fc of fcCauses) { if (fc.cause?.trim()) fcIdByCause.set(fc.cause.trim(), { id: fc.id, l3FuncId: fc.l3FuncId || '' }); }
+        for (const ch of chains) {
+          const fc = fcIdByCause.get(ch.fcValue?.trim() || '');
+          if (fc?.l3FuncId && ch.processChar?.trim()) {
+            chainPcByFcId.set(fc.l3FuncId, ch.processChar.trim());
+          }
         }
       }
     }
@@ -626,9 +644,17 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
             // 1) Atomic DB ID 매칭
             const l3Func = l3FuncMap.get(pc.id);
             if (l3Func?.processChar?.trim()) pcName = l3Func.processChar;
-            else if (l3Func?.functionName?.trim()) pcName = l3Func.functionName;
 
-            // 2) 작업요소명/기능명 fallback
+            // 2) chains processChar (FC의 l3FuncId로 매칭)
+            if (!pcName && pc.id) {
+              const chainPc = chainPcByFcId.get(pc.id);
+              if (chainPc) pcName = chainPc;
+            }
+
+            // 3) Atomic functionName fallback
+            if (!pcName && l3Func?.functionName?.trim()) pcName = l3Func.functionName;
+
+            // 4) 작업요소명/기능명 fallback
             if (!pcName) {
               const fnName = fn.name?.trim() || fn.functionName?.trim() || '';
               const weName = we.name?.trim() || '';
@@ -636,7 +662,7 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
               else if (weName) pcName = `${weName} 관리`;
             }
 
-            // 3) Master B3 데이터 fallback (공정번호 + 순서)
+            // 5) Master B3 데이터 fallback (공정번호 + 순서)
             if (!pcName) {
               for (const [key, val] of masterB3Map) {
                 if (key.startsWith(`${proc.no}-`)) {
@@ -666,22 +692,34 @@ async function fixStep5Ws(prisma: any, fmeaId: string): Promise<string[]> {
         if (fc.processCharId) fcPcIds.add(fc.processCharId);
       }
     }
-    // ★★★ 2026-03-19 파이프라인 재설계: orphan PC → placeholder FC 자동생성 비활성화 ★★★
-    // 근본원인: B4→B3 매핑이 순차 폴백에 의존 → m4그룹 내 B3>B4이면 orphanPC 발생
-    // 자동수정 부작용: Legacy에 FC 추가 → fixStep3/4/6 cascade → Atomic↔Legacy 불일치
-    // 올바른 해결: Import 파이프라인에서 B4.parentItemId를 B3 ID로 설정
-    let orphanPcCount = 0;
+    // ★★★ 2026-03-19 FIX: orphan PC → 가장 가까운 미연결 FC를 processCharId로 연결 ★★★
     for (const we of (proc.l3 || [])) {
       for (const fn of (we.functions || [])) {
         for (const pc of (fn.processChars || [])) {
           if (pc.name?.trim() && !fcPcIds.has(pc.id)) {
-            orphanPcCount++;
+            // orphan PC 발견 — 같은 WE의 FC 중 processCharId가 없는 것을 연결
+            const weFcs = Array.isArray(we.failureCauses) ? we.failureCauses : [];
+            const unlinkedFc = weFcs.find((fc: any) => !fc.processCharId || !fcPcIds.has(fc.processCharId) === false);
+            const procUnlinkedFc = procFcs.find((fc: any) => !fc.processCharId);
+            const targetFc = unlinkedFc || procUnlinkedFc;
+            if (targetFc) {
+              targetFc.processCharId = pc.id;
+              fcPcIds.add(pc.id);
+              fixed.push(`orphan PC "${pc.name}" → FC "${targetFc.name || targetFc.cause}" 자동연결`);
+              changed = true;
+            } else {
+              // 미연결 FC 없음 → PC명 기반 placeholder FC 생성
+              const newFcId = `fc-autofix-${pc.id}`;
+              const newFc = { id: newFcId, name: `${pc.name} 부적합`, cause: `${pc.name} 부적합`, processCharId: pc.id };
+              if (!we.failureCauses) we.failureCauses = [];
+              we.failureCauses.push(newFc);
+              fcPcIds.add(pc.id);
+              fixed.push(`orphan PC "${pc.name}" → FC "${newFc.name}" 자동생성`);
+              changed = true;
+            }
           }
         }
       }
-    }
-    if (orphanPcCount > 0) {
-      fixed.push(`[경고] 공정 ${proc.no || proc.name}: FC 없는 공정특성 ${orphanPcCount}건 — 수동 지정 필요`);
     }
   }
 
@@ -781,6 +819,35 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
   const riskData = (legacy?.data as any)?.riskData || {};
   const flById = new Map<string, { fmId: string; fcId: string }>();
   for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId });
+
+  // ★★★ 2026-03-19: Master chains에서 SOD 로드 (RiskAnalysis 동기화 소스) ★★★
+  const chainSodByFc = new Map<string, { s: number; o: number; d: number; pc: string; dc: string }>();
+  try {
+    const basePrisma = (await import('@/lib/prisma')).getPrisma();
+    if (basePrisma) {
+      const dataset = await basePrisma.pfmeaMasterDataset.findFirst({
+        where: { fmeaId, isActive: true },
+        select: { failureChains: true },
+      });
+      const chains = (dataset?.failureChains as any[]) || [];
+      // FC cause → Atomic FailureCause 매핑
+      const fcCauses = await prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, cause: true } });
+      const fcIdByCause = new Map<string, string>();
+      for (const fc of fcCauses) { if (fc.cause?.trim()) fcIdByCause.set(fc.cause.trim(), fc.id); }
+      for (const ch of chains) {
+        const fcId = fcIdByCause.get(ch.fcValue?.trim() || '');
+        if (fcId) {
+          chainSodByFc.set(fcId, {
+            s: Number(ch.severity) || 0,
+            o: Number(ch.occurrence) || 0,
+            d: Number(ch.detection) || 0,
+            pc: ch.pcValue?.trim() || '',
+            dc: ch.dcValue?.trim() || '',
+          });
+        }
+      }
+    }
+  } catch { /* ignore */ }
 
   // ★ 2026-03-18: FK 고아 Optimization 정리 — riskId가 존재하지 않는 RA를 가리키는 Opt 삭제
   const validRaIds = new Set(ras.map((ra: any) => ra.id));
@@ -923,13 +990,27 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
     let newO = ra.occurrence;
     let newD = ra.detection;
 
-    // S 동기화: riskData 우선
-    if ((!ra.severity || ra.severity <= 0) && wsS > 0) { newS = wsS; needsUpdate = true; }
+    // chains SOD 참조
+    const chainSod = chainSodByFc.get(fl.fcId);
 
-    // O 동기화: riskData → 동일 FM 피어 중앙값 → 기본값 1
+    // S 동기화: riskData → chains → 피어 FE 심각도 → 기본값 1
+    if (!ra.severity || ra.severity <= 0) {
+      if (wsS > 0) { newS = wsS; needsUpdate = true; }
+      else if (chainSod && chainSod.s > 0) { newS = chainSod.s; needsUpdate = true; riskDataUpdates[`risk-${uk}-S`] = newS; }
+      else {
+        const peerS = median(fmPeerO.get(fl.fmId) || []); // FE 기반 S는 FM 그룹 공유
+        newS = peerS > 0 ? peerS : 1;
+        needsUpdate = true;
+        riskDataUpdates[`risk-${uk}-S`] = newS;
+      }
+    }
+
+    // O 동기화: riskData → chains → 동일 FM 피어 중앙값 → 기본값 1
     if (!ra.occurrence || ra.occurrence <= 0) {
       if (wsO > 0) {
         newO = wsO; needsUpdate = true;
+      } else if (chainSod && chainSod.o > 0) {
+        newO = chainSod.o; needsUpdate = true; riskDataUpdates[`risk-${uk}-O`] = newO;
       } else {
         const peerO = median(fmPeerO.get(fl.fmId) || []);
         newO = peerO > 0 ? peerO : 1;
@@ -939,10 +1020,12 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
       oFilled++;
     }
 
-    // D 동기화: riskData → 동일 FM 피어 중앙값 → 기본값 1
+    // D 동기화: riskData → chains → 동일 FM 피어 중앙값 → 기본값 1
     if (!ra.detection || ra.detection <= 0) {
       if (wsD > 0) {
         newD = wsD; needsUpdate = true;
+      } else if (chainSod && chainSod.d > 0) {
+        newD = chainSod.d; needsUpdate = true; riskDataUpdates[`risk-${uk}-D`] = newD;
       } else {
         const peerD = median(fmPeerD.get(fl.fmId) || []);
         newD = peerD > 0 ? peerD : 1;
@@ -952,16 +1035,22 @@ async function fixStep6Opt(prisma: any, fmeaId: string): Promise<string[]> {
       dFilled++;
     }
 
-    // DC/PC 빈값 피어 채움: 동일 FM 그룹에서 가장 빈번한 DC/PC 사용
+    // DC/PC 빈값 채움: chains → 피어 최빈값
     let newDC = ra.detectionControl || '';
     let newPC = ra.preventionControl || '';
-    if (!newDC.trim() && fl) {
-      const peerDC = mostFrequent(fmPeerDC.get(fl.fmId) || []);
-      if (peerDC) { newDC = peerDC; needsUpdate = true; dcFilled++; }
+    if (!newDC.trim()) {
+      if (chainSod?.dc) { newDC = chainSod.dc; needsUpdate = true; dcFilled++; }
+      else if (fl) {
+        const peerDC = mostFrequent(fmPeerDC.get(fl.fmId) || []);
+        if (peerDC) { newDC = peerDC; needsUpdate = true; dcFilled++; }
+      }
     }
-    if (!newPC.trim() && fl) {
-      const peerPC = mostFrequent(fmPeerPC.get(fl.fmId) || []);
-      if (peerPC) { newPC = peerPC; needsUpdate = true; pcFilled++; }
+    if (!newPC.trim()) {
+      if (chainSod?.pc) { newPC = chainSod.pc; needsUpdate = true; pcFilled++; }
+      else if (fl) {
+        const peerPC = mostFrequent(fmPeerPC.get(fl.fmId) || []);
+        if (peerPC) { newPC = peerPC; needsUpdate = true; pcFilled++; }
+      }
     }
 
     // AP 재계산

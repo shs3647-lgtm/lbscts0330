@@ -28,6 +28,7 @@ import {
   DataCompareModal,
   TemplateConfigModal,
   TemplateGeneratorPanel,
+  MasterBasicDataPanel,
   FMEAProject,
 } from '../components';
 import { BdStatusTable } from '../components/BdStatusTable';
@@ -105,6 +106,43 @@ export default function LegacyImportPage() {
   });
 
   const selectedFmea = fmeaList.find(f => f.id === selectedFmeaId);
+
+  // ── Master 기초정보 사용 핸들러 ──
+  const handleApplyMasterData = useCallback(async (data: {
+    flatData: ImportedFlatData[];
+    failureChains: MasterFailureChain[];
+    sourceFmeaId: string;
+    sourceName: string;
+  }) => {
+    setFlatData(data.flatData);
+    if (data.failureChains.length > 0) {
+      setMasterChains(data.failureChains);
+    }
+    setDirty(true);
+    setIsSaved(false);
+    setFileName(`Master: ${data.sourceName}`);
+
+    if (selectedFmeaId) {
+      try {
+        const res = await saveMasterDataset({
+          fmeaId: selectedFmeaId,
+          fmeaType: selectedFmea?.fmeaType || 'P',
+          datasetId: masterDatasetId,
+          name: masterDatasetName || 'MASTER',
+          replace: true,
+          flatData: data.flatData,
+          failureChains: data.failureChains.length > 0 ? data.failureChains : undefined,
+        });
+        if (res.ok) {
+          if (res.datasetId) setMasterDatasetId(res.datasetId);
+          setIsSaved(true);
+          setDirty(false);
+        }
+      } catch (error) {
+        console.error('Master 기초정보 저장 오류:', error);
+      }
+    }
+  }, [selectedFmeaId, selectedFmea, masterDatasetId, masterDatasetName]);
 
   const dataCompare = useDataCompare({
     flatData, setFlatData, previewColumn, masterDatasetId, masterDatasetName,
@@ -577,6 +615,18 @@ export default function LegacyImportPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Master 기초정보 사용 */}
+      {selectedFmeaId && (
+        <MasterBasicDataPanel
+          selectedFmeaId={selectedFmeaId}
+          selectedFmeaType={selectedFmea?.fmeaType}
+          fmeaList={fmeaList}
+          bdStatusList={bdStatusList}
+          flatData={flatData}
+          onApplyMasterData={handleApplyMasterData}
+        />
       )}
 
       {/* BD 현황 테이블 */}

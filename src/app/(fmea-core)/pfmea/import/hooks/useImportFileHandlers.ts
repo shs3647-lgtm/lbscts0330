@@ -15,6 +15,7 @@ import { validateHierarchy } from '../utils/hierarchy-validation';
 import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '../utils/excel-color-detector';
 import { inferDC, inferPC, getDefaultRuleSet } from '../stepb-parser/pc-dc-inference';
 import { assignParentsByRowSpan } from '../utils/parentItemId-mapper';
+import { runParsingCriteriaValidation } from '../utils/parsing-criteria-validator';
 import { v4 as uuidv4 } from 'uuid';
 
 interface UseImportFileHandlersProps {
@@ -316,49 +317,49 @@ export function useImportFileHandlers({
       }
 
       if (chains && chains.length > 0) {
-        // ★★★ 2026-03-02 FIX: B2(요소기능) — B2 시트 데이터 없으면 FC시트 l3Function에서 추출 ★★★
-        const existingB2Count = flat.filter(d => d.itemCode === 'B2').length;
-        if (existingB2Count === 0) {
-          const b2Seen = new Set<string>();
+        // ★★★ 2026-03-19 FIX: B2(요소기능) — 공정+WE별 갭 보충 (chain 기반) ★★★
+        {
+          const b2Keys = new Set(flat.filter(d => d.itemCode === 'B2').map(d => `${d.processNo}|${d.m4 || ''}|${(d.value || '').trim()}`));
           let b2Idx = 0;
           for (const ch of chains) {
             if (!ch.l3Function?.trim() || !ch.processNo) continue;
             const key = `${ch.processNo}|${ch.m4 || ''}|${ch.l3Function.trim()}`;
-            if (b2Seen.has(key)) continue;
-            b2Seen.add(key);
+            if (b2Keys.has(key)) continue;
+            b2Keys.add(key);
             flat.push({ id: `${ch.processNo}-B2-fc-${b2Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B2', value: ch.l3Function.trim(), m4: ch.m4 || '', belongsTo: ch.workElement || undefined, parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
             b2Idx++;
           }
+          if (b2Idx > 0) console.log(`[B2 gap-fill] chain에서 ${b2Idx}건 보충`);
         }
 
-        // ★★★ 2026-03-02 FIX: A3(공정기능) — A3 시트 데이터 없으면 FC시트 l2Function에서 추출 ★★★
-        const existingA3Count = flat.filter(d => d.itemCode === 'A3').length;
-        if (existingA3Count === 0) {
-          const a3Seen = new Set<string>();
+        // ★★★ 2026-03-19 FIX: A3(공정기능) — 공정별 갭 보충 (chain 기반) ★★★
+        {
+          const a3Keys = new Set(flat.filter(d => d.itemCode === 'A3').map(d => `${d.processNo}|${(d.value || '').trim()}`));
           let a3Idx = 0;
           for (const ch of chains) {
             if (!ch.l2Function?.trim() || !ch.processNo) continue;
             const key = `${ch.processNo}|${ch.l2Function.trim()}`;
-            if (a3Seen.has(key)) continue;
-            a3Seen.add(key);
+            if (a3Keys.has(key)) continue;
+            a3Keys.add(key);
             flat.push({ id: `${ch.processNo}-A3-fc-${a3Idx}`, processNo: ch.processNo, category: 'A', itemCode: 'A3', value: ch.l2Function.trim(), parentItemId: `${ch.processNo}-A1`, createdAt: new Date() });
             a3Idx++;
           }
+          if (a3Idx > 0) console.log(`[A3 gap-fill] chain에서 ${a3Idx}건 보충`);
         }
 
-        // ★★★ 2026-03-02 FIX: B3(공정특성) — B3 시트 데이터 없으면 FC시트 processChar에서 추출 ★★★
-        const existingB3Count = flat.filter(d => d.itemCode === 'B3').length;
-        if (existingB3Count === 0) {
-          const b3Seen = new Set<string>();
+        // ★★★ 2026-03-19 FIX: B3(공정특성) — 공정+WE별 갭 보충 (chain 기반) ★★★
+        {
+          const b3Keys = new Set(flat.filter(d => d.itemCode === 'B3').map(d => `${d.processNo}|${d.m4 || ''}|${d.belongsTo || ''}|${(d.value || '').trim()}`));
           let b3Idx = 0;
           for (const ch of chains) {
             if (!ch.processChar?.trim() || !ch.processNo) continue;
-            const key = `${ch.processNo}|${ch.m4 || ''}|${ch.processChar.trim()}`;
-            if (b3Seen.has(key)) continue;
-            b3Seen.add(key);
-            flat.push({ id: `${ch.processNo}-B3-fc-${b3Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B3', value: ch.processChar.trim(), m4: ch.m4 || '', parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
+            const key = `${ch.processNo}|${ch.m4 || ''}|${ch.workElement || ''}|${ch.processChar.trim()}`;
+            if (b3Keys.has(key)) continue;
+            b3Keys.add(key);
+            flat.push({ id: `${ch.processNo}-B3-fc-${b3Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B3', value: ch.processChar.trim(), m4: ch.m4 || '', specialChar: ch.specialChar || undefined, belongsTo: ch.workElement || undefined, parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
             b3Idx++;
           }
+          if (b3Idx > 0) console.log(`[B3 gap-fill] chain에서 ${b3Idx}건 보충`);
         }
 
         // ★★★ 2026-03-15 FIX: A4(제품특성) — 공정별 A4 갭 보충 (전역→공정별 조건) ★★★
@@ -381,6 +382,20 @@ export function useImportFileHandlers({
           }
         }
 
+        // ★★★ 2026-03-19 FIX: B4(고장원인) — 공정+WE별 갭 보충 (chain 기반) ★★★
+        {
+          const b4Keys = new Set(flat.filter(d => d.itemCode === 'B4').map(d => `${d.processNo}|${d.m4 || ''}|${d.belongsTo || ''}|${(d.value || '').trim()}`));
+          let b4Idx = 0;
+          for (const ch of chains) {
+            if (!ch.fcValue?.trim() || !ch.processNo) continue;
+            const key = `${ch.processNo}|${ch.m4 || ''}|${ch.workElement || ''}|${ch.fcValue.trim()}`;
+            if (b4Keys.has(key)) continue;
+            b4Keys.add(key);
+            flat.push({ id: `${ch.processNo}-B4-fc-${b4Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B4', value: ch.fcValue.trim(), m4: ch.m4 || '', belongsTo: ch.workElement || undefined, parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
+            b4Idx++;
+          }
+          if (b4Idx > 0) console.log(`[B4 gap-fill] chain에서 ${b4Idx}건 보충`);
+        }
       }
 
       // ★★★ 2026-03-17 FIX: B3 중복 제거 — processNo+m4+WE+value 기준 ★★★
@@ -524,6 +539,32 @@ export function useImportFileHandlers({
         // C-level: C3→C2, C4→C3
         mapAndApply('C2', 'C3');
         mapAndApply('C3', 'C4');
+      }
+
+      // ★★★ 2026-03-19: 파싱 검증 기준표 + 자동수정 루프 (최대 3회) ★★★
+      {
+        const MAX_FIX_LOOPS = 3;
+        for (let loop = 0; loop < MAX_FIX_LOOPS; loop++) {
+          const report = runParsingCriteriaValidation(flat, chains || []);
+          if (report.failCount === 0 && report.warnCount === 0) {
+            console.log(`[파싱검증] Loop ${loop + 1}: ALL PASS (${report.passCount}/${report.criteriaResults.length})`);
+            break;
+          }
+          if (report.autoFixes.length === 0) {
+            console.log(`[파싱검증] Loop ${loop + 1}: ${report.failCount} FAIL, ${report.warnCount} WARN — 자동수정 불가`);
+            const failMsgs = report.criteriaResults.filter(r => r.status === 'FAIL').map(r => `  ❌ [${r.ruleId}] ${r.message}`);
+            const warnMsgs = report.criteriaResults.filter(r => r.status === 'WARN').map(r => `  ⚠️ [${r.ruleId}] ${r.message}`);
+            if (failMsgs.length > 0 || warnMsgs.length > 0) {
+              const msg = `🔍 파싱 기준표 검증 (${report.failCount} FAIL, ${report.warnCount} WARN):\n${[...failMsgs, ...warnMsgs].join('\n')}`;
+              setValidationMessage?.(msg);
+            }
+            break;
+          }
+          console.log(`[파싱검증] Loop ${loop + 1}: ${report.autoFixes.length}건 자동수정 적용 → 재검증`);
+          for (const fix of report.autoFixes) {
+            console.log(`  ✅ [${fix.ruleId}] ${fix.description}`);
+          }
+        }
       }
 
       // ⚠️ 파싱 결과가 비어있으면 경고 (Item Import 파일 형식 안내 포함)

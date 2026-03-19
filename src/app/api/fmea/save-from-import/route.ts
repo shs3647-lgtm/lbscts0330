@@ -56,6 +56,20 @@ export async function POST(request: NextRequest) {
       console.info(`[save-from-import] 누락 보충: ${supplements.length}건`);
     }
 
+    // 1.7. ★ 파싱 검증→자동수정→피드백 파이프라인 실행
+    const { runParseValidationPipeline, formatValidationReport } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/parseValidationPipeline'
+    );
+    const parseValidation = runParseValidationPipeline(
+      enrichedFlatData,
+      chainsArray || [],
+      normalizedFmeaId,
+      { autoFix: true },
+    );
+    if (parseValidation.fixes.length > 0 || parseValidation.summary.failed > 0) {
+      console.info(formatValidationReport(parseValidation));
+    }
+
     // 2. buildWorksheetState (엔티티 생성)
     const { buildWorksheetState, buildFailureLinksDBCentric } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState'
@@ -652,6 +666,13 @@ export async function POST(request: NextRequest) {
         diagnostics: buildResult.diagnostics,
       },
       feedback: feedback.totalAdded > 0 ? { summary: feedback.summary, totalAdded: feedback.totalAdded } : undefined,
+      parseValidation: {
+        summary: parseValidation.summary,
+        itemCodeCounts: parseValidation.itemCodeCounts,
+        criteria: parseValidation.criteria.filter(c => !c.pass || c.fixApplied),
+        fixes: parseValidation.fixes.slice(0, 30),
+        issues: parseValidation.issues,
+      },
       atomicCounts: {
         l2Structures: actualCounts.l2,
         l3Structures: actualCounts.l3,
