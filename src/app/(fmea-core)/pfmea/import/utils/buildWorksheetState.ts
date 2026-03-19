@@ -723,10 +723,45 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       const myB2 = b2ByWe.get(weIdx) || [];
       const myB3 = b3ByWe.get(weIdx) || [];
 
-      // ★★★ 2026-03-01: B3 부족 시 복제 금지 → 빈 processChar 유지 ★★★
-      // 이전: m4 그룹 마지막 B3 재사용 → Import(129) < DB(130), +1 불일치
-      // 수정: B3 없는 WE는 빈 processChar로 유지 (Import=DB 일치)
-      const effectiveB3 = myB3;
+      // ★★★ 2026-03-19 ROOT FIX: B3 없는 WE → B4(FC)로부터 processChar 역생성 ★★★
+      // 근본원인: B3가 없는 function → processChar='' → L3Function.processChar='' → orphanPC
+      // 대책: 해당 WE의 B4에서 FC명 → processChar명 자동 역추론 (FK 무결성 보장)
+      let effectiveB3 = myB3;
+      if (myB3.length === 0 && myB2.length > 0) {
+        const weB4 = b4Items.filter(b4 => {
+          if (!b4.parentItemId || !b1IdToWeId) return false;
+          const weId = b1IdToWeId.get(b4.parentItemId);
+          return weId ? weIdToIdx.get(weId) === weIdx : false;
+        });
+        // B4가 직접 매칭 안 되면 m4 기반으로 시도
+        const weB4Effective = weB4.length > 0 ? weB4 : b4Items.filter(b4 => (b4.m4 || '') === (we.m4 || ''));
+        if (weB4Effective.length > 0) {
+          const seen = new Set<string>();
+          const derived: ImportedFlatData[] = [];
+          for (const b4 of weB4Effective) {
+            const fcName = (b4.value || '').trim();
+            if (!fcName) continue;
+            const pcName = fcName.replace(/\s*부적합$/, '').trim() || fcName;
+            const pcFull = pcName.includes('관리') ? pcName : `${pcName} 관리 특성`;
+            if (seen.has(pcFull)) continue;
+            seen.add(pcFull);
+            const cs = (weCharSeqMap.get(we.id) || 0) + 1;
+            weCharSeqMap.set(we.id, cs);
+            const { m4: _m4, b1seq: _b1seq } = parseWeId(we.id);
+            derived.push({
+              id: genB3('PF', pnoNum, _m4, _b1seq, cs),
+              processNo: String(pnoNum),
+              category: 'B' as const,
+              itemCode: 'B3',
+              value: pcFull,
+              m4: we.m4,
+              parentItemId: myB2[0]?.id,
+              createdAt: new Date(),
+            });
+          }
+          if (derived.length > 0) effectiveB3 = derived;
+        }
+      }
 
       const { m4: weM4, b1seq: weB1seq } = parseWeId(we.id);
       if (myB2.length > 0) {

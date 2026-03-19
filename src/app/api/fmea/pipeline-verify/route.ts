@@ -561,13 +561,45 @@ async function fixStep4Fk(prisma: any, fmeaId: string): Promise<string[]> {
     }
   }
 
-  // ★★★ 2026-03-19 파이프라인 재설계: unlinked FC → FailureLink 자동생성 비활성화 ★★★
-  // 자동수정 부작용: Atomic에만 FL 생성 → Legacy 미갱신 → FL Atomic≠Legacy 불일치
-  // 올바른 해결: Import 파이프라인에서 FC 시트 기반으로 정확한 FE-FM-FC 사슬 생성
-  // 깨진 FK 삭제(위)는 안전하므로 유지, 새 Link 생성은 경고만 표시
+  // ★★★ 2026-03-19 FIX: unlinked FC → FailureLink 자동생성 (Atomic + Legacy 동시 동기화) ★★★
   const unlinkedFcs = fcs.filter((fc: any) => !linkedFcIds.has(fc.id));
   if (unlinkedFcs.length > 0) {
-    fixed.push(`[경고] 미연결 FC ${unlinkedFcs.length}건 — FC 시트 기반 Import 또는 워크시트에서 수동 연결 필요`);
+    // FC의 l2StructId → 해당 L2의 FM/FE 찾기
+    const fmByL2 = new Map<string, any>();
+    for (const fm of fms) { if (!fmByL2.has(fm.l2StructId)) fmByL2.set(fm.l2StructId, fm); }
+    const feDefault = fes.length > 0 ? fes[0] : null;
+
+    // Legacy도 동시 업데이트
+    const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
+    const legData = legacy ? JSON.parse(JSON.stringify(legacy.data)) : null;
+    let legChanged = false;
+
+    let flCreated = 0;
+    for (const fc of unlinkedFcs) {
+      const fm = fmByL2.get(fc.l2StructId);
+      if (!fm || !feDefault) continue;
+      const flId = `fl-autofix-${fc.id}`;
+      try {
+        await prisma.failureLink.create({
+          data: { id: flId, fmeaId, fmId: fm.id, feId: feDefault.id, fcId: fc.id,
+            fmText: fm.mode || '', fcText: fc.cause || '', feText: feDefault.effect || '' },
+        });
+        flCreated++;
+        // Legacy failureLinks에도 추가
+        if (legData) {
+          if (!legData.failureLinks) legData.failureLinks = [];
+          legData.failureLinks.push({ id: flId, fmId: fm.id, feId: feDefault.id, fcId: fc.id });
+          legChanged = true;
+        }
+      } catch { /* duplicate 등 무시 */ }
+    }
+    if (legChanged) {
+      await prisma.fmeaLegacyData.update({ where: { fmeaId }, data: { data: legData } }).catch(() => {});
+    }
+    if (flCreated > 0) fixed.push(`미연결 FC→FL 자동생성 ${flCreated}건 (Atomic+Legacy 동기화)`);
+    if (unlinkedFcs.length > flCreated) {
+      fixed.push(`[경고] FL 생성 불가 FC ${unlinkedFcs.length - flCreated}건 (FM/FE 매칭 실패)`);
+    }
   }
 
   return fixed;

@@ -374,8 +374,9 @@ export async function POST(request: NextRequest) {
           });
         }
       }
-      // ★★★ 2026-03-17 FIX: 미연결 FC 보충 링크 생성 (MN/IM/EN 50건 누락 해결) ★★★
-      // Legacy failureLinks에 없는 FC들 → 같은 공정의 FM+FE와 합성 링크 생성
+      // ★★★ 2026-03-19 ROOT FIX: 미연결 FC → FL + RA 동시 생성 + Legacy 동기화 ★★★
+      // 근본원인: rebuild-atomic이 FC를 생성하면서 FL/RA를 누락 → FK 불일치
+      // 대책: 3단계 FM 매칭(l2StructId→l3FuncId→전체 FM) + FL→RA 동시 생성 + Legacy 동기화
       {
         const linkedFcIds = new Set(
           (await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } }))
@@ -385,28 +386,38 @@ export async function POST(request: NextRequest) {
         const unlinkedFcs = allFcs.filter((fc: any) => !linkedFcIds.has(fc.id));
 
         if (unlinkedFcs.length > 0) {
-          // l2StructId → FM/FE 인덱스
+          // 1단계: l2StructId → FM 인덱스
           const fmByL2 = new Map<string, any>();
           for (const fm of atomic.failureModes) {
             if (!fmByL2.has((fm as any).l2StructId)) fmByL2.set((fm as any).l2StructId, fm);
           }
-          // 이미 존재하는 link에서 FM→FE 매핑 수집 (같은 FM은 같은 FE)
+          // 2단계: l3FuncId → L3Function → l2StructId → FM (FC에서 L3Function 추적)
+          const l3FuncById = new Map<string, any>();
+          for (const lf of atomic.l3Functions) {
+            l3FuncById.set((lf as any).id, lf);
+          }
+          // 기존 FM→FE 매핑 + FE severity 수집
           const fmToFe = new Map<string, string>();
+          const feMap = new Map<string, any>();
           const existingLinks = await tx.failureLink.findMany({ where: { fmeaId }, select: { fmId: true, feId: true } });
           for (const el of existingLinks) {
             if (!fmToFe.has((el as any).fmId)) fmToFe.set((el as any).fmId, (el as any).feId);
           }
-          // fallback FE
+          for (const fe of atomic.failureEffects) feMap.set((fe as any).id, fe);
           const firstFeId = atomic.failureEffects.length > 0 ? (atomic.failureEffects[0] as any).id : null;
 
           const synthLinks: any[] = [];
           const allFms = atomic.failureModes as any[];
           for (const fc of unlinkedFcs) {
+            // 3단계 FM 매칭: l2StructId → l3FuncId.l2StructId → 첫 FM
             let fm = fmByL2.get(fc.l2StructId);
-            if (!fm && allFms.length > 0) {
-              fm = allFms[0];
+            if (!fm && fc.l3FuncId) {
+              const l3f = l3FuncById.get(fc.l3FuncId);
+              if (l3f) fm = fmByL2.get(l3f.l2StructId);
             }
+            if (!fm && allFms.length > 0) fm = allFms[0];
             if (!fm) continue;
+
             const feId = fmToFe.get(fm.id) || firstFeId;
             if (!feId) continue;
 
@@ -417,15 +428,61 @@ export async function POST(request: NextRequest) {
               feId,
               fcId: fc.id,
               fmText: fm.mode || null,
+              feText: feMap.get(feId)?.effect || null,
               fcText: fc.cause || null,
-              fcM4: null,
-              severity: null,
+              fcM4: fc.m4 || null,
+              severity: feMap.get(feId)?.severity || null,
             });
           }
 
           if (synthLinks.length > 0) {
             await tx.failureLink.createMany({ data: synthLinks, skipDuplicates: true });
-            console.info(`[rebuild-atomic] 미연결 FC 보충 링크: ${synthLinks.length}건 생성`);
+
+            // FL→RA 동시 생성: 보충 FL에 대한 RiskAnalysis도 즉시 생성
+            const rd: Record<string, unknown> = (legacyData as any).riskData || {};
+            for (const sl of synthLinks) {
+              const uk = `${sl.fmId}-${sl.fcId}`;
+              const s = Number(rd[`risk-${uk}-S`]) || sl.severity || 1;
+              const o = Number(rd[`risk-${uk}-O`]) || 1;
+              const d = Number(rd[`risk-${uk}-D`]) || 1;
+              const pc = String(rd[`prevention-${uk}`] || '').trim() || null;
+              const dc = String(rd[`detection-${uk}`] || '').trim() || null;
+              await tx.riskAnalysis.upsert({
+                where: { id: `ra-${sl.id}` },
+                create: {
+                  id: `ra-${sl.id}`, fmeaId, linkId: sl.id,
+                  severity: s, occurrence: o, detection: d,
+                  ap: calculateAPLocal(s, o, d),
+                  preventionControl: pc, detectionControl: dc,
+                },
+                update: {
+                  severity: s, occurrence: o, detection: d,
+                  ap: calculateAPLocal(s, o, d),
+                  preventionControl: pc, detectionControl: dc,
+                },
+              });
+            }
+
+            // Legacy failureLinks 동기화
+            try {
+              const legacyRecord = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
+              if (legacyRecord) {
+                const ld = JSON.parse(JSON.stringify(legacyRecord.data));
+                if (!ld.failureLinks) ld.failureLinks = [];
+                for (const sl of synthLinks) {
+                  const exists = ld.failureLinks.some((ll: any) => ll.id === sl.id);
+                  if (!exists) {
+                    ld.failureLinks.push({
+                      id: sl.id, fmId: sl.fmId, feId: sl.feId, fcId: sl.fcId,
+                      fmText: sl.fmText, feText: sl.feText, fcText: sl.fcText,
+                    });
+                  }
+                }
+                await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
+              }
+            } catch { /* Legacy 동기화 실패는 비치명적 */ }
+
+            console.info(`[rebuild-atomic] 미연결 FC 보충: FL=${synthLinks.length} + RA=${synthLinks.length} + Legacy 동기화`);
           }
         }
       }
@@ -471,42 +528,164 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // ★★★ 2026-03-18 FIX: RA=0 FALLBACK — riskAnalyses 빈 경우 riskData에서 직접 생성 ★★★
+      // ★★★ 2026-03-19 ROOT FIX: RA 부족 시 FL 기반 보충 (FL 1개 = RA 1개 원칙) ★★★
       const raCount = await tx.riskAnalysis.count({ where: { fmeaId } });
-      if (raCount === 0 && savedLinks.length > 0) {
-        const rd: Record<string, unknown> = (legacyData as any).riskData || {};
-        const feMap = new Map<string, any>();
-        for (const fe of atomic.failureEffects) feMap.set((fe as any).id, fe);
+      if (raCount < savedLinks.length && savedLinks.length > 0) {
+        // RA가 있는 linkId 집합
+        const raLinkIds = new Set(
+          (await tx.riskAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } }))
+            .map((r: any) => r.linkId)
+        );
+        // RA가 없는 FL만 대상
+        const missingRaLinks = savedLinks.filter((l: any) => !raLinkIds.has(l.id));
+        if (missingRaLinks.length > 0) {
+          const rd: Record<string, unknown> = (legacyData as any).riskData || {};
+          const feMapRa = new Map<string, any>();
+          for (const fe of atomic.failureEffects) feMapRa.set((fe as any).id, fe);
 
-        let created = 0;
-        for (const link of savedLinks) {
-          const uk = `${(link as any).fmId}-${(link as any).fcId}`;
-          const s = Number(rd[`risk-${uk}-S`]) || (link as any).severity || 0;
-          const o = Number(rd[`risk-${uk}-O`]) || 0;
-          const d = Number(rd[`risk-${uk}-D`]) || 0;
-          const pc = String(rd[`prevention-${uk}`] || '').trim() || null;
-          const dc = String(rd[`detection-${uk}`] || '').trim() || null;
-          const lldRef = String(rd[`lesson-${uk}`] || '').trim() || null;
-          const sev = s > 0 ? s : (feMap.get((link as any).feId)?.severity || 1);
+          let created = 0;
+          for (const link of missingRaLinks) {
+            const uk = `${(link as any).fmId}-${(link as any).fcId}`;
+            const s = Number(rd[`risk-${uk}-S`]) || (link as any).severity || 0;
+            const o = Number(rd[`risk-${uk}-O`]) || 0;
+            const d = Number(rd[`risk-${uk}-D`]) || 0;
+            const pc = String(rd[`prevention-${uk}`] || '').trim() || null;
+            const dc = String(rd[`detection-${uk}`] || '').trim() || null;
+            const lldRef = String(rd[`lesson-${uk}`] || '').trim() || null;
+            const sev = s > 0 ? s : (feMapRa.get((link as any).feId)?.severity || 1);
 
-          const ap = (sev > 0 && o > 0 && d > 0) ? calculateAPLocal(sev, o, d) : 'L';
-          await tx.riskAnalysis.create({
-            data: {
-              id: `ra-${(link as any).id}`,
-              fmeaId,
-              linkId: (link as any).id,
-              severity: sev,
-              occurrence: o || 1,
-              detection: d || 1,
-              ap,
-              preventionControl: pc,
-              detectionControl: dc,
-              lldReference: lldRef,
-            },
-          });
-          created++;
+            const ap = (sev > 0 && o > 0 && d > 0) ? calculateAPLocal(sev, o, d) : 'L';
+            await tx.riskAnalysis.upsert({
+              where: { id: `ra-${(link as any).id}` },
+              create: {
+                id: `ra-${(link as any).id}`,
+                fmeaId,
+                linkId: (link as any).id,
+                severity: sev,
+                occurrence: o || 1,
+                detection: d || 1,
+                ap,
+                preventionControl: pc,
+                detectionControl: dc,
+                lldReference: lldRef,
+              },
+              update: {},
+            });
+            created++;
+          }
+          console.info(`[rebuild-atomic] RA 보충: ${created}건 (FL 1:1 원칙)`);
         }
-        console.info(`[rebuild-atomic] RA FALLBACK: ${created}건 생성 (riskData + FE severity)`);
+      }
+
+      // ★★★ 2026-03-19 ROOT FIX: Atomic→Legacy processChar 양방향 동기화 ★★★
+      // 근본원인: migrateToAtomicDB가 processChar을 FC/functionName에서 역추론 → Atomic DB 정확
+      //   but Legacy processChars[].name은 여전히 빈값 → emptyPC 발생
+      // 대책: Atomic L3Function.processChar → Legacy processChars[].name 동기화 (SSoT→Cache)
+      {
+        const allL3Funcs = await tx.l3Function.findMany({
+          where: { fmeaId },
+          select: { id: true, processChar: true },
+        });
+        const pcNameById = new Map<string, string>();
+        for (const f of allL3Funcs) {
+          if (f.processChar?.trim()) pcNameById.set(f.id, f.processChar);
+        }
+
+        if (pcNameById.size > 0) {
+          const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
+          if (legRec) {
+            const ld = JSON.parse(JSON.stringify(legRec.data));
+            let syncCount = 0;
+            for (const proc of (ld.l2 || [])) {
+              for (const we of (proc.l3 || [])) {
+                for (const fn of (we.functions || [])) {
+                  for (const pc of (fn.processChars || [])) {
+                    if (!pc.name?.trim() && pc.id && pcNameById.has(pc.id)) {
+                      pc.name = pcNameById.get(pc.id)!;
+                      syncCount++;
+                    }
+                  }
+                }
+              }
+            }
+            if (syncCount > 0) {
+              await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
+              console.info(`[rebuild-atomic] Atomic→Legacy processChar 동기화: ${syncCount}건`);
+            }
+          }
+        }
+      }
+
+      // ★★★ 2026-03-19 ROOT FIX: Atomic→Legacy FC + failureLinks 양방향 동기화 ★★★
+      // 근본원인: migration.ts에서 orphan L3Function용 FC 구조적 생성 → Atomic에만 존재
+      // 대책: Atomic FC/FL를 Legacy data에 동기화 (SSoT→Cache 완전성)
+      {
+        const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
+        if (legRec) {
+          const ld = JSON.parse(JSON.stringify(legRec.data));
+          const allAtomicFcs = await tx.failureCause.findMany({
+            where: { fmeaId },
+            select: { id: true, cause: true, l2StructId: true, l3StructId: true, l3FuncId: true, processCharId: true },
+          });
+          const allAtomicFls = await tx.failureLink.findMany({
+            where: { fmeaId },
+            select: { id: true, fmId: true, feId: true, fcId: true, fmText: true, feText: true, fcText: true },
+          });
+
+          // Legacy FC ID 집합
+          const legacyFcIds = new Set<string>();
+          for (const proc of (ld.l2 || [])) {
+            for (const fc of (proc.failureCauses || [])) legacyFcIds.add(fc.id);
+            for (const we of (proc.l3 || [])) {
+              for (const fc of (we.failureCauses || [])) legacyFcIds.add(fc.id);
+            }
+          }
+
+          // L2 ID→proc index 매핑
+          const l2IdxById = new Map<string, number>();
+          const atomicL2s = await tx.l2Structure.findMany({ where: { fmeaId }, select: { id: true, no: true }, orderBy: { order: 'asc' } });
+          for (let i = 0; i < atomicL2s.length; i++) {
+            l2IdxById.set(atomicL2s[i].id, i);
+          }
+
+          let fcSyncCount = 0;
+          for (const afc of allAtomicFcs) {
+            if (legacyFcIds.has(afc.id)) continue;
+            const procIdx = l2IdxById.get(afc.l2StructId);
+            if (procIdx === undefined || !ld.l2?.[procIdx]) continue;
+            const proc = ld.l2[procIdx];
+            if (!proc.failureCauses) proc.failureCauses = [];
+            proc.failureCauses.push({
+              id: afc.id, name: afc.cause, cause: afc.cause,
+              processCharId: afc.processCharId || afc.l3FuncId,
+            });
+            fcSyncCount++;
+          }
+
+          // Legacy failureLinks 동기화 (ID + FM-FE-FC 조합 중복 방지)
+          const legacyFlIds = new Set((ld.failureLinks || []).map((fl: any) => fl.id));
+          const legacyFlCombos = new Set(
+            (ld.failureLinks || []).map((fl: any) => `${fl.fmId}|${fl.feId}|${fl.fcId}`)
+          );
+          let flSyncCount = 0;
+          if (!ld.failureLinks) ld.failureLinks = [];
+          for (const afl of allAtomicFls) {
+            if (legacyFlIds.has(afl.id)) continue;
+            const combo = `${afl.fmId}|${afl.feId}|${afl.fcId}`;
+            if (legacyFlCombos.has(combo)) continue;
+            legacyFlCombos.add(combo);
+            ld.failureLinks.push({
+              id: afl.id, fmId: afl.fmId, feId: afl.feId, fcId: afl.fcId,
+              fmText: afl.fmText, feText: afl.feText, fcText: afl.fcText,
+            });
+            flSyncCount++;
+          }
+
+          if (fcSyncCount > 0 || flSyncCount > 0) {
+            await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
+            console.info(`[rebuild-atomic] Atomic→Legacy 동기화: FC=${fcSyncCount} FL=${flSyncCount}`);
+          }
+        }
       }
 
       // ★★★ 2026-03-18 FIX: Opt FK 수복 — riskId가 유효하지 않은 Optimization 삭제 ★★★

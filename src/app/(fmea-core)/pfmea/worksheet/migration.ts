@@ -465,18 +465,39 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         }
       });
 
-      // ★★★ 2026-03-18 FIX: L3Function이 0건인 L3Structure에 폴백 생성 (STEP 3 근본 수정) ★★★
-      // L3Structure(작업요소)에 L3Function이 하나도 없으면 워크시트에서 빈 행이 되고,
-      // FC 연결도 불가능해진다. L3Structure.name을 functionName으로 사용하여 최소 1건 보장.
+      // ★★★ 2026-03-19 ROOT FIX: processChar 빈값 L3Function → FC에서 역추론 ★★★
+      // 근본원인: processChars[].name='' → L3Function.processChar='' → Atomic↔Legacy B3 불일치
+      // 대책: 해당 L3Structure의 FC(failureCauses)에서 processChar 역추론
+      const weFcs = (we.failureCauses || []) as any[];
+      const procFcs = (proc.failureCauses || []) as any[];
+      for (const l3f of db.l3Functions) {
+        if (l3f.l3StructId === l3Struct.id && !l3f.processChar?.trim()) {
+          // 이 L3Function을 참조하는 FC 찾기 (processCharId === l3f.id)
+          const linkedFc = [...weFcs, ...procFcs].find((fc: any) => fc.processCharId === l3f.id);
+          if (linkedFc) {
+            const fcName = (linkedFc.name || linkedFc.cause || '').trim();
+            l3f.processChar = fcName.replace(/\s*부적합$/, '').trim() || fcName;
+          } else if (l3f.functionName?.trim()) {
+            l3f.processChar = l3f.functionName;
+          }
+        }
+      }
+
+      // L3Function이 0건인 L3Structure에 폴백 생성
       const hasL3Func = db.l3Functions.some(f => f.l3StructId === l3Struct.id);
       if (!hasL3Func) {
+        // FC에서 processChar 역추론하여 생성
+        const weFcFirst = weFcs[0] as any;
+        const derivedPc = weFcFirst
+          ? (weFcFirst.name || weFcFirst.cause || '').replace(/\s*부적합$/, '').trim()
+          : '';
         db.l3Functions.push({
           id: `${l3Struct.id}-L3F`,
           fmeaId: oldData.fmeaId,
           l3StructId: l3Struct.id,
           l2StructId: l2Struct.id,
           functionName: we.name || '',
-          processChar: '',
+          processChar: derivedPc || we.name || '',
         });
       }
     });
@@ -624,8 +645,38 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       }
     });
     
+    // ★★★ 2026-03-19 ROOT FIX: FC 없는 L3Function → FC 구조적 생성 (FK 완전성 보장) ★★★
+    // 근본원인: B2 function이 있지만 B4(FC)가 없는 경우 L3Function만 존재 → orphanPC
+    // 대책: 공정 처리 완료 시점에서 FC가 없는 L3Function에 FC 생성 (L3Function 1:N FC 원칙)
+    {
+      const l2StructId = l2Struct.id;
+      const linkedL3FuncIds = new Set(
+        db.failureCauses.filter(fc => fc.l2StructId === l2StructId).map(fc => fc.l3FuncId)
+      );
+      const orphanL3Funcs = db.l3Functions.filter(f =>
+        f.l2StructId === l2StructId && !linkedL3FuncIds.has(f.id) && f.processChar?.trim()
+      );
+      for (const l3f of orphanL3Funcs) {
+        fcIdx++;
+        // 결정적 ID: L3Function.id 기반 (매 실행 동일한 ID 생성 → 누적 방지)
+        const autoFcId = `fc-orphan-${l3f.id}`;
+        db.failureCauses.push({
+          id: autoFcId,
+          fmeaId: oldData.fmeaId,
+          l3FuncId: l3f.id,
+          l3StructId: l3f.l3StructId,
+          l2StructId,
+          processCharId: l3f.id,
+          cause: `${l3f.processChar} 부적합`,
+          occurrence: undefined,
+          parentId: l3f.id,
+          mergeGroupId: `mg-fc-orphan-${l3f.id}`,
+          rowSpan: 1,
+        });
+      }
+    }
+
     // ★★★ 2026-02-05: 공정 처리 완료 후 globalRowIndex 업데이트 ★★★
-    // 해당 공정이 차지하는 행 수 = max(1, L3 작업요소 수)
     const l3CountForProc = l3Data.filter((we: any) => 
       we.name && !we.name.includes('클릭') && !we.name.includes('추가')
     ).length;
