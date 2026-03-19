@@ -1,4 +1,4 @@
-// CODEFREEZE — 2026-03-18 au bump DB/UUID/FK 무결성 100% 검증 완료
+// CODEFREEZE — 2026-03-19 Legacy 경유 제거, Atomic DB 직접 저장 방식으로 전환
 /**
  * @file save-from-import/route.ts
  * @description Import→DB 서버사이드 저장 API
@@ -11,7 +11,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
-import { getBaseDatabaseUrl, getPrismaForSchema, getPrisma } from '@/lib/prisma';
+import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
@@ -300,9 +300,6 @@ export async function POST(request: NextRequest) {
     const { migrateToAtomicDB } = await import(
       '@/app/(fmea-core)/pfmea/worksheet/migration'
     );
-    const { uid } = await import(
-      '@/app/(fmea-core)/pfmea/worksheet/constants'
-    );
     const { genFC } = await import('@/lib/uuid-generator');
 
     // ★★★ 리버스 경로: atomic DB가 이미 정확 → migrateToAtomicDB 스킵 ★★★
@@ -421,230 +418,147 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ★★★ 8. legacyData 직접 저장 + rebuild-atomic (POST /api/fmea FK 검증 우회) ★★★
-    // 이전 방식: POST /api/fmea → FK validation이 FM/FC/Link를 drop → 데이터 손실
-    // 새 방식: legacyData를 먼저 저장 → rebuild-atomic으로 atomic 테이블 생성
-
-    // 8-A. 기존 legacyData 로드하여 "더 나은 쪽" 선택 (덮어쓰기 방어)
-    const existingLegacy = await prisma.fmeaLegacyData.findUnique({
-      where: { fmeaId: normalizedFmeaId },
-    }).catch(() => null);
-
-    const newL2 = Array.isArray(legacyData.l2) ? legacyData.l2 : [];
-    const newL2Valid = newL2.filter((p: { name?: string }) =>
-      p.name && !p.name.includes('클릭') && !p.name.includes('선택')
-    );
-
-    type LegacyRecord = { l2?: Array<{ name?: string }>; l1?: unknown; failureLinks?: unknown[]; riskData?: unknown; [key: string]: unknown };
-    const existingData = (existingLegacy?.data ?? {}) as LegacyRecord;
-    const existingL2 = Array.isArray(existingData.l2) ? existingData.l2 : [];
-    const existingL2Valid = existingL2.filter((p: { name?: string }) =>
-      p.name && !p.name.includes('클릭') && !p.name.includes('선택')
-    );
-
-    // ★ 핵심: 빌드 vs 기존 데이터 "풍부도" 비교 (FM+FC 총합 기준, 공정 수만 비교하면 FM 누락 발생)
+    // ★★★ 8. Atomic DB 직접 저장 (Legacy 경유 제거 — 2026-03-19) ★★★
+    // 설계: flatData → buildWorksheetState → migrateToAtomicDB → Atomic DB 직접 INSERT
+    // Legacy는 Atomic 저장 후 캐시로만 생성 (SSoT = Atomic DB)
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    const countRichness = (l2Arr: Array<Record<string, unknown>>) => {
-      let fm = 0, fc = 0;
-      for (const proc of l2Arr) {
-        const fms = proc.failureModes as unknown[] | undefined;
-        const fcs = proc.failureCauses as unknown[] | undefined;
-        fm += Array.isArray(fms) ? fms.length : 0;
-        fc += Array.isArray(fcs) ? fcs.length : 0;
-        // l3 내부 FC도 카운트
-        const l3s = proc.l3 as Array<Record<string, unknown>> | undefined;
-        if (Array.isArray(l3s)) {
-          for (const we of l3s) {
-            const weFcs = we.failureCauses as unknown[] | undefined;
-            fc += Array.isArray(weFcs) ? weFcs.length : 0;
-          }
-        }
-      }
-      return { fm, fc, total: fm + fc };
-    };
-
-    const newRich = countRichness(newL2 as any[]);
-    const existingRich = countRichness(existingL2 as any[]);
-
-    let legacyDataForSave: any;
-    // 빌드 결과가 풍부하거나, 기존이 비어있으면 → 새 데이터 사용
-    // 빌드 결과가 완전히 비어있고 기존이 풍부하면 → 기존 보존 (빌드 실패 방어)
-    const useNewData = newRich.total >= existingRich.total || newL2Valid.length >= existingL2Valid.length || existingRich.total === 0;
-
-    if (useNewData) {
-      legacyDataForSave = JSON.parse(JSON.stringify(legacyData));
-      console.info(`[save-from-import] 데이터 선택: FM=${newRich.fm} FC=${newRich.fc}`);
-    } else {
-      console.warn(`[save-from-import] l2 보호: 빌드 ${newRich.total} < 기존 ${existingRich.total}`);
-      legacyDataForSave = {
-        ...existingData,
-        fmeaId: normalizedFmeaId,
-        l1: legacyData.l1 ?? existingData.l1,
-        // l2는 기존 유지 (더 풍부)
-        riskData: legacyData.riskData ?? existingData.riskData,
-        // failureLinks: 기존 것이 더 많으면 기존 유지
-        failureLinks: (injectedLinks.length >= (existingData.failureLinks?.length ?? 0))
-          ? injectedLinks
-          : existingData.failureLinks,
-        forceOverwrite: true,
-        structureConfirmed: legacyData.structureConfirmed,
-        l1Confirmed: legacyData.l1Confirmed,
-        l2Confirmed: legacyData.l2Confirmed,
-        l3Confirmed: legacyData.l3Confirmed,
-        failureL1Confirmed: legacyData.failureL1Confirmed,
-        failureL2Confirmed: legacyData.failureL2Confirmed,
-        failureL3Confirmed: legacyData.failureL3Confirmed,
-        failureLinkConfirmed: legacyData.failureLinkConfirmed,
-      };
+    const atomicSource = useReversePath ? reverseExistingDB : atomicDB;
+    if (!atomicSource && !useReversePath) {
+      return NextResponse.json({ success: false, error: 'Atomic DB 변환 실패' }, { status: 500 });
     }
 
-    // ★★★ 8-B/C. legacyData 저장 — 프로젝트 + public 스키마 트랜잭션 ★★★
-    // 프로젝트 스키마 저장은 반드시 성공해야 하므로 트랜잭션으로 보호
-    await prisma.$transaction(async (tx) => {
-      await tx.fmeaLegacyData.upsert({
-        where: { fmeaId: normalizedFmeaId },
-        create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
-        update: { data: legacyDataForSave },
-      });
-
-      // ★★★ ImportMapping: ImportJob + 매핑 레코드 DB 저장 ★★★
-      if (importMappingRecords.length > 0) {
-        const { createImportJob, saveAllMappings } = await import('@/lib/import/importJobDb');
-        await createImportJob(tx, importJobData);
-        const savedCount = await saveAllMappings(tx, importJobData.id, importMappingRecords);
-        console.info(`[save-from-import] ImportMapping 저장: job=${importJobData.id} mappings=${savedCount}`);
-      }
-    }, { timeout: 30000, isolationLevel: 'Serializable' });
-
-    const savedL2Len = Array.isArray((legacyDataForSave as LegacyRecord).l2)
-      ? (legacyDataForSave as LegacyRecord).l2!.length : 0;
-
-    // 8-C. public 스키마에도 백업 저장 (비치명적 — 실패해도 Import 성공)
-    const publicPrisma = getPrisma();
-    if (publicPrisma) {
-      await publicPrisma.$transaction(async (tx) => {
-        await tx.fmeaLegacyData.upsert({
-          where: { fmeaId: normalizedFmeaId },
-          create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
-          update: { data: legacyDataForSave },
-        });
-      }).catch((e: unknown) => {
-        console.error('[save-from-import] public 백업 실패 (비치명적):', e instanceof Error ? e.message : String(e));
-      });
-    }
-
-    // 8-D. rebuild-atomic API로 atomic 테이블 생성 (FK validation 우회)
-    // ★★★ 리버스 경로: atomic DB 이미 정확 → rebuild 스킵 (FC 손실 방지) ★★★
-    const origin = request.nextUrl.origin;
-    const rebuildUrl = `${origin}/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(normalizedFmeaId)}`;
-    if (!useReversePath) {
-      const rebuildRes = await fetch(rebuildUrl, { method: 'POST' });
-      const rebuildResult = await rebuildRes.json();
-
-      if (!rebuildRes.ok || (!rebuildResult.ok && !rebuildResult.success)) {
-        console.error('[save-from-import] rebuild-atomic 실패:', rebuildResult);
-      }
-    }
-
-    // ★★★ 9. Verify Loop — FM/FC/FE/Links 종합 검증 + legacyData 무결성 보호 ★★★
-    const savedRich = countRichness(
-      Array.isArray((legacyDataForSave as LegacyRecord).l2) ? (legacyDataForSave as LegacyRecord).l2 as any[] : []
-    );
-    const savedL2Valid = Array.isArray((legacyDataForSave as LegacyRecord).l2)
-      ? (legacyDataForSave as LegacyRecord).l2!.filter((p: { name?: string }) =>
-          p.name && !p.name.includes('클릭') && !p.name.includes('선택')
-        ).length
-      : 0;
-    const expectedL2 = savedL2Valid;
-    const expectedFM = savedRich.fm;
-    const expectedFC = savedRich.fc;
-    const expectedLinks = Array.isArray((legacyDataForSave as LegacyRecord).failureLinks)
-      ? (legacyDataForSave as LegacyRecord).failureLinks!.length : 0;
-    const legacyL1 = (legacyDataForSave as LegacyRecord).l1 as any;
-    const expectedL1Funcs = Array.isArray(legacyL1?.types)
-      ? legacyL1.types.reduce((sum: number, t: any) => sum + (Array.isArray(t.functions) ? t.functions.length : 0), 0)
-      : 0;
-
-    const MAX_VERIFY_RETRIES = 3;
-    let verifyPassed = false;
     let actualCounts = { l1Funcs: 0, l2: 0, l3: 0, fm: 0, fc: 0, fe: 0, links: 0 };
     const gaps: string[] = [];
+    let verifyPassed = false;
 
-    for (let attempt = 0; attempt <= MAX_VERIFY_RETRIES; attempt++) {
-      // 9-A. atomic 카운트 검증
-      const [l1FuncCount, l2Count, l3Count, fmCount, fcCount, feCount, linkCount] = await Promise.all([
-        prisma.l1Function.count({ where: { fmeaId: normalizedFmeaId } }),
-        prisma.l2Structure.count({ where: { fmeaId: normalizedFmeaId } }),
-        prisma.l3Structure.count({ where: { fmeaId: normalizedFmeaId } }),
-        prisma.failureMode.count({ where: { fmeaId: normalizedFmeaId } }),
-        prisma.failureCause.count({ where: { fmeaId: normalizedFmeaId } }),
-        prisma.failureEffect.count({ where: { fmeaId: normalizedFmeaId } }),
-        prisma.failureLink.count({ where: { fmeaId: normalizedFmeaId } }),
-      ]);
-      actualCounts = { l1Funcs: l1FuncCount, l2: l2Count, l3: l3Count, fm: fmCount, fc: fcCount, fe: feCount, links: linkCount };
+    if (!useReversePath && atomicSource) {
+      const fId = normalizedFmeaId;
+      await prisma.$transaction(async (tx: any) => {
+        // 자식→부모 순서 삭제
+        await tx.riskAnalysis.deleteMany({ where: { fmeaId: fId } }).catch(() => {});
+        await tx.failureLink.deleteMany({ where: { fmeaId: fId } });
+        try { if (tx.failureAnalysis) await tx.failureAnalysis.deleteMany({ where: { fmeaId: fId } }); } catch {}
+        await tx.failureEffect.deleteMany({ where: { fmeaId: fId } });
+        await tx.failureMode.deleteMany({ where: { fmeaId: fId } });
+        await tx.failureCause.deleteMany({ where: { fmeaId: fId } });
+        try { if (tx.l1Requirement) await tx.l1Requirement.deleteMany({ where: { fmeaId: fId } }); } catch {}
+        await tx.l1Function.deleteMany({ where: { fmeaId: fId } });
+        try { if (tx.processProductChar) await tx.processProductChar.deleteMany({ where: { fmeaId: fId } }); } catch {}
+        await tx.l2Function.deleteMany({ where: { fmeaId: fId } });
+        await tx.l3Function.deleteMany({ where: { fmeaId: fId } });
+        await tx.l1Structure.deleteMany({ where: { fmeaId: fId } });
+        await tx.l2Structure.deleteMany({ where: { fmeaId: fId } });
+        await tx.l3Structure.deleteMany({ where: { fmeaId: fId } });
 
-      // FM/FC/Links 종합 검증 (migration skip 조건 때문에 약간의 차이 허용: 90% 이상이면 통과)
-      gaps.length = 0;
-      if (expectedL1Funcs > 0 && l1FuncCount < expectedL1Funcs) gaps.push(`L1Funcs: ${l1FuncCount}/${expectedL1Funcs}`);
-      if (expectedL2 > 0 && l2Count < expectedL2) gaps.push(`l2: ${l2Count}/${expectedL2}`);
-      // migration.ts는 '클릭'/'추가' 포함 FM을 skip하므로, atomic FM은 legacy FM보다 적을 수 있음
-      // 90% 이상이면 정상 (migration skip 허용)
-      if (expectedFM > 0 && fmCount < Math.ceil(expectedFM * 0.9)) gaps.push(`FM: ${fmCount}/${expectedFM}`);
-      if (expectedFC > 0 && fcCount < Math.ceil(expectedFC * 0.9)) gaps.push(`FC: ${fcCount}/${expectedFC}`);
-      if (expectedLinks > 0 && linkCount < Math.ceil(expectedLinks * 0.5)) gaps.push(`Links: ${linkCount}/${expectedLinks}`);
+        const a = atomicSource;
+        if (a.l1Structure) {
+          await tx.l1Structure.create({ data: { id: a.l1Structure.id, fmeaId: fId, name: a.l1Structure.name, confirmed: a.l1Structure.confirmed ?? false } });
+        }
+        if (a.l2Structures?.length) {
+          await tx.l2Structure.createMany({ data: a.l2Structures.map((s: any) => ({ id: s.id, fmeaId: fId, l1Id: s.l1Id, no: s.no, name: s.name, order: s.order })), skipDuplicates: true });
+        }
+        if (a.l3Structures?.length) {
+          await tx.l3Structure.createMany({ data: a.l3Structures.map((s: any) => ({ id: s.id, fmeaId: fId, l1Id: s.l1Id, l2Id: s.l2Id, m4: s.m4 || null, name: s.name, order: s.order })), skipDuplicates: true });
+        }
+        if (a.l1Functions?.length) {
+          await tx.l1Function.createMany({ data: a.l1Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l1StructId: f.l1StructId, category: f.category, functionName: f.functionName, requirement: f.requirement })), skipDuplicates: true });
+        }
+        if (a.l2Functions?.length) {
+          await tx.l2Function.createMany({ data: a.l2Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l2StructId: f.l2StructId, functionName: f.functionName, productChar: f.productChar, specialChar: f.specialChar || null })), skipDuplicates: true });
+        }
+        if (a.l3Functions?.length) {
+          await tx.l3Function.createMany({ data: a.l3Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l3StructId: f.l3StructId, l2StructId: f.l2StructId, functionName: f.functionName, processChar: f.processChar, specialChar: f.specialChar || null })), skipDuplicates: true });
+        }
+        if (a.failureEffects?.length) {
+          await tx.failureEffect.createMany({ data: a.failureEffects.map((fe: any) => ({ id: fe.id, fmeaId: fId, l1FuncId: fe.l1FuncId, category: fe.category, effect: fe.effect, severity: fe.severity })), skipDuplicates: true });
+        }
+        if (a.failureModes?.length) {
+          await tx.failureMode.createMany({ data: a.failureModes.map((fm: any) => ({ id: fm.id, fmeaId: fId, l2FuncId: fm.l2FuncId, l2StructId: fm.l2StructId, productCharId: fm.productCharId || null, mode: fm.mode, specialChar: fm.specialChar ?? false })), skipDuplicates: true });
+        }
+        if (a.failureCauses?.length) {
+          await tx.failureCause.createMany({ data: a.failureCauses.map((fc: any) => ({ id: fc.id, fmeaId: fId, l3FuncId: fc.l3FuncId, l3StructId: fc.l3StructId, l2StructId: fc.l2StructId, processCharId: fc.processCharId || null, cause: fc.cause, occurrence: fc.occurrence || null })), skipDuplicates: true });
+        }
+        if (a.failureLinks?.length) {
+          const fmIdSet = new Set((a.failureModes || []).map((fm: any) => fm.id));
+          const feIdSet = new Set((a.failureEffects || []).map((fe: any) => fe.id));
+          const fcIdSet = new Set((a.failureCauses || []).map((fc: any) => fc.id));
+          const validLinks = a.failureLinks.filter((l: any) => fmIdSet.has(l.fmId) && feIdSet.has(l.feId) && fcIdSet.has(l.fcId));
+          if (validLinks.length > 0) {
+            await tx.failureLink.createMany({ data: validLinks.map((l: any) => ({
+              id: l.id, fmeaId: fId, fmId: l.fmId, feId: l.feId, fcId: l.fcId,
+              fmText: l.cache?.fmText || l.fmText || null,
+              fmProcess: l.cache?.fmProcess || l.fmProcess || null,
+              feText: l.cache?.feText || l.feText || null,
+              feScope: l.cache?.feCategory || l.feScope || null,
+              fcText: l.cache?.fcText || l.fcText || null,
+              fcWorkElem: l.cache?.fcWorkElem || l.fcWorkElem || null,
+              fcM4: l.fcM4 || l.m4 || null,
+              severity: l.cache?.feSeverity || l.severity || null,
+            })), skipDuplicates: true });
+          }
+        }
 
-      if (gaps.length === 0) {
-        verifyPassed = true;
-        break;
-      }
-
-      if (attempt >= MAX_VERIFY_RETRIES) {
-        console.warn(`[save-from-import] 검증 ${MAX_VERIFY_RETRIES}회 초과: ${gaps.join(', ')}`);
-        break;
-      }
-
-      // 9-B. legacyData 무결성 검증 — 덮어쓰기 방어
-      const currentLegacy = await prisma.fmeaLegacyData.findUnique({
-        where: { fmeaId: normalizedFmeaId },
-      });
-      const currentRich = countRichness(
-        Array.isArray((currentLegacy?.data as LegacyRecord)?.l2)
-          ? (currentLegacy?.data as LegacyRecord).l2 as any[] : []
-      );
-
-      if (currentRich.total < savedRich.total) {
-        await prisma.$transaction(async (tx) => {
-          await tx.fmeaLegacyData.update({
-            where: { fmeaId: normalizedFmeaId },
-            data: { data: legacyDataForSave },
+        // RiskAnalysis 직접 생성 (riskData에서 SOD/DC/PC 추출)
+        const riskData = injectedRisk || {};
+        const savedFLs = a.failureLinks?.filter((l: any) => {
+          const fmIdSet = new Set((a.failureModes || []).map((fm: any) => fm.id));
+          const feIdSet = new Set((a.failureEffects || []).map((fe: any) => fe.id));
+          const fcIdSet = new Set((a.failureCauses || []).map((fc: any) => fc.id));
+          return fmIdSet.has(l.fmId) && feIdSet.has(l.feId) && fcIdSet.has(l.fcId);
+        }) || [];
+        if (savedFLs.length > 0) {
+          const feMap = new Map((a.failureEffects || []).map((fe: any) => [fe.id, fe]));
+          const calculateAP = (s: number, o: number, d: number): string => {
+            if (s >= 9 || (s >= 6 && o >= 4) || (s >= 4 && o >= 4 && d >= 4)) return 'H';
+            if (s >= 6 || (s >= 4 && o >= 3) || (d >= 5 && o >= 3)) return 'M';
+            return 'L';
+          };
+          const raRows = savedFLs.map((fl: any) => {
+            const uk = `${fl.fmId}-${fl.fcId}`;
+            const s = Number(riskData[`risk-${uk}-S`]) || fl.severity || (feMap.get(fl.feId) as any)?.severity || 1;
+            const o = Number(riskData[`risk-${uk}-O`]) || 1;
+            const d = Number(riskData[`risk-${uk}-D`]) || 1;
+            const pc = String(riskData[`prevention-${uk}`] || '').trim() || null;
+            const dc = String(riskData[`detection-${uk}`] || '').trim() || null;
+            return { id: `ra-${fl.id}`, fmeaId: fId, linkId: fl.id, severity: s, occurrence: o, detection: d, ap: calculateAP(s, o, d), preventionControl: pc, detectionControl: dc };
           });
-        });
-      }
+          await tx.riskAnalysis.createMany({ data: raRows, skipDuplicates: true });
+        }
 
-      // 9-C. rebuild-atomic 재시도 (리버스 경로에서는 스킵)
-      if (!useReversePath) {
-        await fetch(rebuildUrl, { method: 'POST' });
-      }
+        // ImportMapping 저장
+        if (importMappingRecords.length > 0) {
+          const { createImportJob, saveAllMappings } = await import('@/lib/import/importJobDb');
+          await createImportJob(tx, importJobData);
+          await saveAllMappings(tx, importJobData.id, importMappingRecords);
+        }
+      }, { timeout: 60000 });
+
+      console.info(`[save-from-import] Atomic DB 직접 저장 완료 (Legacy 경유 없음)`);
     }
 
-    // ★★★ 9-D. 최종 legacyData 보호 — 어떤 이유로든 풍부도가 축소되었으면 원본 복원 ★★★
-    if (savedRich.total > 0) {
-      const finalLegacy = await prisma.fmeaLegacyData.findUnique({
-        where: { fmeaId: normalizedFmeaId },
-      });
-      const finalRich = countRichness(
-        Array.isArray((finalLegacy?.data as LegacyRecord)?.l2)
-          ? (finalLegacy?.data as LegacyRecord).l2 as any[] : []
-      );
-      if (finalRich.total < savedRich.total) {
-        await prisma.$transaction(async (tx) => {
-          await tx.fmeaLegacyData.update({
-            where: { fmeaId: normalizedFmeaId },
-            data: { data: legacyDataForSave },
-          });
-        });
-      }
-    }
+    // 8-B. Legacy 캐시 저장 (Atomic 저장 후 — SSoT는 Atomic DB)
+    const legacyDataForSave = JSON.parse(JSON.stringify(legacyData));
+    await prisma.fmeaLegacyData.upsert({
+      where: { fmeaId: normalizedFmeaId },
+      create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
+      update: { data: legacyDataForSave },
+    }).catch((e: unknown) => {
+      console.warn('[save-from-import] Legacy 캐시 저장 실패 (비치명적):', e instanceof Error ? e.message : String(e));
+    });
+
+    // 9. Atomic 카운트 검증 (단순 — Legacy 무관)
+    const [l1FuncCount, l2Count, l3Count, fmCount, fcCount, feCount, linkCount] = await Promise.all([
+      prisma.l1Function.count({ where: { fmeaId: normalizedFmeaId } }),
+      prisma.l2Structure.count({ where: { fmeaId: normalizedFmeaId } }),
+      prisma.l3Structure.count({ where: { fmeaId: normalizedFmeaId } }),
+      prisma.failureMode.count({ where: { fmeaId: normalizedFmeaId } }),
+      prisma.failureCause.count({ where: { fmeaId: normalizedFmeaId } }),
+      prisma.failureEffect.count({ where: { fmeaId: normalizedFmeaId } }),
+      prisma.failureLink.count({ where: { fmeaId: normalizedFmeaId } }),
+    ]);
+    actualCounts = { l1Funcs: l1FuncCount, l2: l2Count, l3: l3Count, fm: fmCount, fc: fcCount, fe: feCount, links: linkCount };
+    if (l2Count > 0 && fmCount > 0 && fcCount > 0 && linkCount > 0) verifyPassed = true;
+    else gaps.push(`l2=${l2Count} fm=${fmCount} fc=${fcCount} fl=${linkCount}`);
 
     // ★★★ ImportMapping: verifyRoundTrip ★★★
     let importJobResult: { id: string; mappingCount: number; roundTrip?: { total: number; verified: number; missingCount: number } } | undefined;
@@ -683,7 +597,7 @@ export async function POST(request: NextRequest) {
       },
       verified: verifyPassed,
       verifyGaps: gaps.length > 0 ? gaps : undefined,
-      expected: { l2: expectedL2, fm: expectedFM, fc: expectedFC, links: expectedLinks },
+      directAtomic: true,
       importJob: importJobResult,
     });
   } catch (e: unknown) {
