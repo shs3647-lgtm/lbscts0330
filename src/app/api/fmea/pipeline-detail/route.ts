@@ -35,12 +35,12 @@ export async function GET(request: NextRequest) {
     let data: unknown = null;
 
     switch (step) {
-      case 1: data = await getStep1Detail(prisma, fmeaId); break;
+      case 0: data = await getStep1Detail(prisma, fmeaId); break;
+      case 1: data = await getStep3Detail(prisma, fmeaId); break;
       case 2: data = await getStep2Detail(prisma, fmeaId); break;
-      case 3: data = await getStep3Detail(prisma, fmeaId); break;
-      case 4: data = await getStep4Detail(prisma, fmeaId); break;
-      case 5: data = await getStep5Detail(prisma, fmeaId); break;
-      default: data = { message: 'STEP 0은 PipelineStep0Detail에서 처리' };
+      case 3: data = await getStep4Detail(prisma, fmeaId); break;
+      case 4: data = await getStep5Detail(prisma, fmeaId); break;
+      default: data = { message: '지원하지 않는 STEP' };
     }
 
     return NextResponse.json({ success: true, step, data });

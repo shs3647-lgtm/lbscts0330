@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 대상 PFD 번호 결정 (소문자 정규화)
-        const targetPfdNo = (pfdNo || `pfd-${cpNo.replace(/^cp-?/i, '')}`).toLowerCase();
+        const targetPfdNo = (pfdNo || cpNo.replace(/^cp/i, 'pfd')).toLowerCase();
 
         // ★★★ 기존 PFD 확인 ★★★
         let existingPfd = await prisma.pfdRegistration.findUnique({

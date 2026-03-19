@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 대상 CP 번호 결정
-        const targetCpNo = cpNo || `cp-${fmeaId.replace(/^pfm-?/i, '')}`.toLowerCase();
+        const targetCpNo = cpNo || fmeaId.replace(/^pfm/i, 'cp').toLowerCase();
 
         // 1. CP 등록정보 생성 또는 조회
         let existingCp = await prisma.controlPlan.findUnique({

@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
       // fmeaId가 있으면 해당 프로젝트용 데이터셋 자동 생성
       if (fmeaId) {
         const newDataset = await prisma.pfmeaMasterDataset.create({
-          data: { fmeaId, isActive: true },
+          data: { fmeaId, isActive: true, name: `Master-${fmeaId}`, fmeaType: 'PFMEA' },
         });
         // 아래에서 newDataset 사용
         (body as any)._datasetId = newDataset.id;

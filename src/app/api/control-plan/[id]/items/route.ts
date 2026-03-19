@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 import { syncCPItemToUnified } from '@/lib/unified-sync';
 
 // GET: CP Items 조회

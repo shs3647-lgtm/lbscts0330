@@ -1059,6 +1059,9 @@ model ControlPlanItem {
   unifiedItemId   String?
   // ★★★ 2026-03-14: 제품특성 FK (FMEA→CP 원자성 연동) ★★★
   productCharId   String?             // ProcessProductChar.id 참조 (동일 제품특성 추적)
+  // ★★★ 2026-03-19: FK 꽂아넣기 — 고장사슬 + 공정특성 연결 ★★★
+  linkId          String?             // FailureLink.id 참조 (고장사슬 FK)
+  processCharId   String?             // L3Function.id 참조 (공정특성 FK)
   controlPlan     ControlPlan         @relation(fields: [cpId], references: [id], onDelete: Cascade)
   unifiedItem     UnifiedProcessItem? @relation(fields: [unifiedItemId], references: [id])
 
@@ -1067,6 +1070,8 @@ model ControlPlanItem {
   @@index([pfmeaProcessId])
   @@index([unifiedItemId])
   @@index([productCharId])
+  @@index([linkId])
+  @@index([processCharId])
   @@map("control_plan_items")
 }
 

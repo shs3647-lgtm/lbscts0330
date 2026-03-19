@@ -1,4 +1,4 @@
-
+// HMR trigger: 2026-03-19 schema update (linkId, processCharId)
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';

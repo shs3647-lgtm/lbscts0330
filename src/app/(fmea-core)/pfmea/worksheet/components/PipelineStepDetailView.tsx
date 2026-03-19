@@ -2,14 +2,13 @@
 
 /**
  * @file PipelineStepDetailView.tsx
- * @description STEP 1~5 상세 데이터 뷰 — 교차검증 매트릭스 + 실제 DB 레코드 테이블
+ * @description STEP 0~4 상세 데이터 뷰
  *
- * v2: crossCheck/fkIntegrity/parentChild 데이터를 stepResult에서 받아 표시
- * STEP 1: Import Legacy 구조 + Atomic↔Legacy 교차검증
- * STEP 2: 파싱 A1~C4 교차대조 매트릭스
- * STEP 3: UUID — Atomic DB 엔티티 목록 + 모자관계
- * STEP 4: FK — 14개 관계 전수검증 + 고아 레코드
- * STEP 5: WS — Legacy↔Atomic 동기화 검증
+ * STEP 0: 구조 완전성
+ * STEP 1: UUID + 모자관계
+ * STEP 2: fmeaId 격리 검증
+ * STEP 3: FK — 14개 관계 전수검증 + 고아 레코드
+ * STEP 4: 누락 — DC/PC/SOD + emptyPC/orphanPC
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -74,11 +73,11 @@ export default function PipelineStepDetailView({ fmeaId, step, stepName, stepRes
   if (!data) return <div className="text-red-400 text-[10px] py-4 text-center">데이터 로드 실패</div>;
 
   switch (step) {
-    case 1: return <Step1Detail data={data} crossCheck={stepResult?.crossCheck} />;
+    case 0: return <Step1Detail data={data} crossCheck={stepResult?.crossCheck} />;
+    case 1: return <Step3Detail data={data} subTab={subTab} setSubTab={setSubTab} parentChild={stepResult?.parentChild} />;
     case 2: return <Step2Detail data={data} subTab={subTab} setSubTab={setSubTab} crossCheck={stepResult?.crossCheck} />;
-    case 3: return <Step3Detail data={data} subTab={subTab} setSubTab={setSubTab} parentChild={stepResult?.parentChild} />;
-    case 4: return <Step4Detail data={data} fkIntegrity={stepResult?.fkIntegrity} />;
-    case 5: return <Step5Detail data={data} crossCheck={stepResult?.crossCheck} />;
+    case 3: return <Step4Detail data={data} fkIntegrity={stepResult?.fkIntegrity} />;
+    case 4: return <Step5Detail data={data} crossCheck={stepResult?.crossCheck} />;
     default: return <div className="text-gray-400 text-[10px]">STEP {step} 상세 미지원</div>;
   }
 }

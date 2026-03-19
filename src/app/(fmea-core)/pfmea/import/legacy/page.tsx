@@ -29,6 +29,7 @@ import {
   TemplateConfigModal,
   TemplateGeneratorPanel,
   MasterBasicDataPanel,
+  ReverseImportPanel,
   FMEAProject,
 } from '../components';
 import { BdStatusTable } from '../components/BdStatusTable';
@@ -626,6 +627,14 @@ export default function LegacyImportPage() {
           bdStatusList={bdStatusList}
           flatData={flatData}
           onApplyMasterData={handleApplyMasterData}
+        />
+      )}
+
+      {/* 기존 데이터 활용 (역설계 Import) */}
+      {selectedFmeaId && (
+        <ReverseImportPanel
+          selectedFmeaId={selectedFmeaId}
+          fmeaList={fmeaList}
         />
       )}
 

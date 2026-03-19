@@ -374,9 +374,35 @@ export async function POST(request: NextRequest) {
           });
         }
       }
-      // ★★★ 2026-03-19 ROOT FIX: 미연결 FC → FL + RA 동시 생성 + Legacy 동기화 ★★★
-      // 근본원인: rebuild-atomic이 FC를 생성하면서 FL/RA를 누락 → FK 불일치
-      // 대책: 3단계 FM 매칭(l2StructId→l3FuncId→전체 FM) + FL→RA 동시 생성 + Legacy 동기화
+      // ★★★ 2026-03-19 ROOT FIX: 동일공정 동일원인 중복 FC 정리 ★★★
+      {
+        const fcsByKey = new Map<string, string[]>();
+        const allFcsForDedup = await tx.failureCause.findMany({
+          where: { fmeaId },
+          select: { id: true, cause: true, l2StructId: true },
+        });
+        for (const fc of allFcsForDedup) {
+          const key = `${(fc as any).l2StructId}|${(fc as any).cause}`;
+          if (!fcsByKey.has(key)) fcsByKey.set(key, []);
+          fcsByKey.get(key)!.push((fc as any).id);
+        }
+        const dupFcIds: string[] = [];
+        for (const [, ids] of fcsByKey) {
+          if (ids.length > 1) {
+            dupFcIds.push(...ids.slice(1));
+          }
+        }
+        if (dupFcIds.length > 0) {
+          await tx.riskAnalysis.deleteMany({
+            where: { fmeaId, linkId: { in: (await tx.failureLink.findMany({ where: { fmeaId, fcId: { in: dupFcIds } }, select: { id: true } })).map((l: any) => l.id) } },
+          });
+          await tx.failureLink.deleteMany({ where: { fmeaId, fcId: { in: dupFcIds } } });
+          await tx.failureCause.deleteMany({ where: { id: { in: dupFcIds } } });
+          console.log(`[rebuild-atomic] 동일공정 동일원인 중복 FC ${dupFcIds.length}건 정리`);
+        }
+      }
+
+      // ★★★ 미연결 FC → FL + RA 동시 생성 + Legacy 동기화 ★★★
       {
         const linkedFcIds = new Set(
           (await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } }))
@@ -577,6 +603,180 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // ★★★ 2026-03-19 RA 중복 제거: 1 FL = 1 RA 원칙 강제 ★★★
+      // 동일 linkId에 2개 이상의 RA가 생성될 수 있는 경로 차단
+      // (migration RA + supplement RA ID 충돌, 또는 동일 FC가 다중 FL에 연결된 경우)
+      {
+        const allRAs = await tx.riskAnalysis.findMany({
+          where: { fmeaId },
+          select: { id: true, linkId: true, severity: true, occurrence: true, detection: true },
+        });
+        const raByLinkId = new Map<string, typeof allRAs>();
+        for (const ra of allRAs) {
+          const arr = raByLinkId.get(ra.linkId) || [];
+          arr.push(ra);
+          raByLinkId.set(ra.linkId, arr);
+        }
+        const dupRaIds: string[] = [];
+        for (const [, ras] of raByLinkId) {
+          if (ras.length <= 1) continue;
+          ras.sort((a: any, b: any) =>
+            ((b.severity || 0) + (b.occurrence || 0) + (b.detection || 0)) -
+            ((a.severity || 0) + (a.occurrence || 0) + (a.detection || 0))
+          );
+          for (let i = 1; i < ras.length; i++) dupRaIds.push(ras[i].id);
+        }
+        if (dupRaIds.length > 0) {
+          await tx.riskAnalysis.deleteMany({ where: { id: { in: dupRaIds } } });
+          console.info(`[rebuild-atomic] RA 중복 제거: ${dupRaIds.length}건 (1 FL = 1 RA 원칙)`);
+        }
+
+        // RA가 어떤 FL에도 속하지 않는 고아 RA 제거
+        const flIds = new Set(savedLinks.map((l: any) => l.id));
+        const orphanRaIds = allRAs
+          .filter((ra: any) => !flIds.has(ra.linkId) && !dupRaIds.includes(ra.id))
+          .map((ra: any) => ra.id);
+        if (orphanRaIds.length > 0) {
+          await tx.riskAnalysis.deleteMany({ where: { id: { in: orphanRaIds } } });
+          console.info(`[rebuild-atomic] 고아 RA 제거: ${orphanRaIds.length}건 (linkId가 FL에 없음)`);
+        }
+
+        // ★ SOD/DC/PC 빈값 RA 보충: (1) 동일 fcId 형제 RA → (2) 동일 fmId 피어 RA → (3) FE severity
+        const emptyRAs = await tx.riskAnalysis.findMany({
+          where: {
+            fmeaId,
+            OR: [
+              { severity: { lte: 0 } },
+              { occurrence: { lte: 0 } },
+              { detection: { lte: 0 } },
+              { preventionControl: null },
+              { detectionControl: null },
+            ],
+          },
+          include: { failureLink: { select: { fmId: true, fcId: true, feId: true } } },
+        });
+        if (emptyRAs.length > 0) {
+          // (1) fcId 형제 RA 조회
+          const fcIdsToCheck = [...new Set(emptyRAs.map((r: any) => r.failureLink?.fcId).filter(Boolean))];
+          const siblingFLs = await tx.failureLink.findMany({
+            where: { fmeaId, fcId: { in: fcIdsToCheck } },
+            select: { id: true, fcId: true, feId: true },
+          });
+          const siblingRAMap = new Map<string, any>();
+          for (const sfl of siblingFLs) {
+            const sra = await tx.riskAnalysis.findFirst({
+              where: { linkId: sfl.id, fmeaId },
+            });
+            if (sra && ((sra.severity || 0) > 0 || (sra.occurrence || 0) > 0)) {
+              siblingRAMap.set(sfl.fcId, sra);
+            }
+          }
+
+          // (2) fmId 피어 RA 조회 — 같은 FM의 다른 RA들에서 DC/PC/SOD 복사
+          const fmIdsToCheck = [...new Set(emptyRAs.map((r: any) => r.failureLink?.fmId).filter(Boolean))];
+          const peerFLs = await tx.failureLink.findMany({
+            where: { fmeaId, fmId: { in: fmIdsToCheck } },
+            select: { id: true, fmId: true },
+          });
+          const fmPeerDC = new Map<string, string[]>();
+          const fmPeerPC = new Map<string, string[]>();
+          const fmPeerSOD = new Map<string, { s: number; o: number; d: number }[]>();
+          for (const pfl of peerFLs) {
+            const pra = await tx.riskAnalysis.findFirst({ where: { linkId: pfl.id, fmeaId } });
+            if (!pra) continue;
+            const fm = pfl.fmId;
+            if (pra.detectionControl?.trim()) {
+              if (!fmPeerDC.has(fm)) fmPeerDC.set(fm, []);
+              fmPeerDC.get(fm)!.push(pra.detectionControl.trim());
+            }
+            if (pra.preventionControl?.trim()) {
+              if (!fmPeerPC.has(fm)) fmPeerPC.set(fm, []);
+              fmPeerPC.get(fm)!.push(pra.preventionControl.trim());
+            }
+            if ((pra.severity || 0) > 0 && (pra.occurrence || 0) > 0 && (pra.detection || 0) > 0) {
+              if (!fmPeerSOD.has(fm)) fmPeerSOD.set(fm, []);
+              fmPeerSOD.get(fm)!.push({ s: pra.severity, o: pra.occurrence, d: pra.detection });
+            }
+          }
+          const mostFreq = (arr: string[]) => {
+            if (!arr || arr.length === 0) return '';
+            const freq = new Map<string, number>();
+            for (const v of arr) freq.set(v, (freq.get(v) || 0) + 1);
+            let best = arr[0], bestC = 0;
+            for (const [k, c] of freq) { if (c > bestC) { best = k; bestC = c; } }
+            return best;
+          };
+          const medianSOD = (arr: { s: number; o: number; d: number }[]) => {
+            if (!arr || arr.length === 0) return { s: 0, o: 0, d: 0 };
+            const sorted = [...arr].sort((a, b) => (a.s + a.o + a.d) - (b.s + b.o + b.d));
+            return sorted[Math.floor(sorted.length / 2)];
+          };
+
+          const feMapEnrich = new Map<string, any>();
+          for (const fe of atomic.failureEffects) feMapEnrich.set((fe as any).id, fe);
+
+          let enriched = 0;
+          for (const ra of emptyRAs) {
+            const fmId = (ra as any).failureLink?.fmId;
+            const fcId = (ra as any).failureLink?.fcId;
+            const feId = (ra as any).failureLink?.feId;
+
+            // (1) fcId 형제 RA에서 복사
+            const donor = fcId ? siblingRAMap.get(fcId) : undefined;
+            if (donor) {
+              const sev = (ra.severity || 0) > 0 ? ra.severity : donor.severity;
+              const occ = (ra.occurrence || 0) > 0 ? ra.occurrence : donor.occurrence;
+              const det = (ra.detection || 0) > 0 ? ra.detection : donor.detection;
+              const pc = ra.preventionControl || donor.preventionControl || null;
+              const dc = ra.detectionControl || donor.detectionControl || null;
+              const ap = (sev > 0 && occ > 0 && det > 0) ? calculateAPLocal(sev, occ, det) : 'L';
+              await tx.riskAnalysis.update({
+                where: { id: ra.id },
+                data: { severity: sev, occurrence: occ, detection: det, ap, preventionControl: pc, detectionControl: dc },
+              });
+              enriched++;
+              continue;
+            }
+
+            // (2) fmId 피어 RA에서 복사 (동일 FM의 최빈 DC/PC, 중간 SOD)
+            if (fmId) {
+              const peerDC = mostFreq(fmPeerDC.get(fmId) || []);
+              const peerPC = mostFreq(fmPeerPC.get(fmId) || []);
+              const peerS = medianSOD(fmPeerSOD.get(fmId) || []);
+              const sev = (ra.severity || 0) > 0 ? ra.severity : (peerS.s || (feMapEnrich.get(feId)?.severity || 1));
+              const occ = (ra.occurrence || 0) > 0 ? ra.occurrence : (peerS.o || 1);
+              const det = (ra.detection || 0) > 0 ? ra.detection : (peerS.d || 1);
+              const pc = ra.preventionControl || peerPC || null;
+              const dc = ra.detectionControl || peerDC || null;
+              if (sev > 0 || occ > 0 || det > 0 || pc || dc) {
+                const ap = (sev > 0 && occ > 0 && det > 0) ? calculateAPLocal(sev, occ, det) : 'L';
+                await tx.riskAnalysis.update({
+                  where: { id: ra.id },
+                  data: { severity: sev, occurrence: occ, detection: det, ap, preventionControl: pc, detectionControl: dc },
+                });
+                enriched++;
+                continue;
+              }
+            }
+
+            // (3) FE severity fallback
+            if (feId && (ra.severity || 0) <= 0) {
+              const feSev = feMapEnrich.get(feId)?.severity || 0;
+              if (feSev > 0) {
+                await tx.riskAnalysis.update({
+                  where: { id: ra.id },
+                  data: { severity: feSev },
+                });
+                enriched++;
+              }
+            }
+          }
+          if (enriched > 0) {
+            console.info(`[rebuild-atomic] RA SOD/DC/PC 보충: ${enriched}건 (형제/피어 RA에서 복사)`);
+          }
+        }
+      }
+
       // ★★★ 2026-03-19 ROOT FIX: Atomic→Legacy processChar 양방향 동기화 ★★★
       // 근본원인: migrateToAtomicDB가 processChar을 FC/functionName에서 역추론 → Atomic DB 정확
       //   but Legacy processChars[].name은 여전히 빈값 → emptyPC 발생
@@ -611,6 +811,59 @@ export async function POST(request: NextRequest) {
             if (syncCount > 0) {
               await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
               console.info(`[rebuild-atomic] Atomic→Legacy processChar 동기화: ${syncCount}건`);
+            }
+          }
+        }
+      }
+
+      // ★★★ 2026-03-19 ROOT FIX: FC processCharId = l3FuncId 동기화 ★★★
+      // orphanPC 근본원인: FC.processCharId ≠ FC.l3FuncId → verify에서 매칭 안 됨
+      {
+        const mismatchFcs = await tx.failureCause.findMany({
+          where: { fmeaId },
+          select: { id: true, l3FuncId: true, processCharId: true },
+        });
+        let fixedCount = 0;
+        for (const fc of mismatchFcs) {
+          if (fc.l3FuncId && fc.processCharId !== fc.l3FuncId) {
+            await tx.failureCause.update({
+              where: { id: fc.id },
+              data: { processCharId: fc.l3FuncId },
+            });
+            fixedCount++;
+          }
+        }
+        if (fixedCount > 0) {
+          console.info(`[rebuild-atomic] FC processCharId 동기화: ${fixedCount}건`);
+        }
+        // Legacy FC의 processCharId도 동기화
+        if (fixedCount > 0) {
+          const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
+          if (legRec) {
+            const ld = JSON.parse(JSON.stringify(legRec.data));
+            const fcMap = new Map(mismatchFcs.map((fc: { id: string; l3FuncId: string }) => [fc.id, fc.l3FuncId]));
+            let legFixed = 0;
+            for (const proc of (ld.l2 || [])) {
+              for (const fc of (proc.failureCauses || [])) {
+                const correctId = fcMap.get(fc.id);
+                if (correctId && fc.processCharId !== correctId) {
+                  fc.processCharId = correctId;
+                  legFixed++;
+                }
+              }
+              for (const we of (proc.l3 || [])) {
+                for (const fc of (we.failureCauses || [])) {
+                  const correctId = fcMap.get(fc.id);
+                  if (correctId && fc.processCharId !== correctId) {
+                    fc.processCharId = correctId;
+                    legFixed++;
+                  }
+                }
+              }
+            }
+            if (legFixed > 0) {
+              await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
+              console.info(`[rebuild-atomic] Legacy FC processCharId 동기화: ${legFixed}건`);
             }
           }
         }
@@ -684,6 +937,139 @@ export async function POST(request: NextRequest) {
           if (fcSyncCount > 0 || flSyncCount > 0) {
             await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
             console.info(`[rebuild-atomic] Atomic→Legacy 동기화: FC=${fcSyncCount} FL=${flSyncCount}`);
+          }
+        }
+      }
+
+      // ★★★ 2026-03-19 ROOT FIX: 이전 자동생성 FC(fc-orphan-*) 정리 + orphan L3Function 삭제 ★★★
+      {
+        // 1단계: 이전 실행에서 자동생성된 fc-orphan-* FC/FL/RA 삭제
+        const autoFcs = await tx.failureCause.findMany({
+          where: { fmeaId, id: { startsWith: 'fc-orphan-' } },
+          select: { id: true },
+        });
+        if (autoFcs.length > 0) {
+          const autoFcIds = autoFcs.map((f: { id: string }) => f.id);
+          await tx.riskAnalysis.deleteMany({ where: { failureLink: { fcId: { in: autoFcIds }, fmeaId } } });
+          await tx.failureLink.deleteMany({ where: { fcId: { in: autoFcIds }, fmeaId } });
+          await tx.failureCause.deleteMany({ where: { id: { in: autoFcIds } } });
+          console.info(`[rebuild-atomic] 자동생성 FC 정리: ${autoFcIds.length}건`);
+        }
+
+        // 2단계: FC.l3FuncId → FC.l3StructId 정합성 교정 + orphan L3Function 삭제
+        const allL3Funcs = await tx.l3Function.findMany({
+          where: { fmeaId },
+          select: { id: true, l3StructId: true },
+        });
+        const allFcsForOrphan = await tx.failureCause.findMany({
+          where: { fmeaId },
+          select: { id: true, l3FuncId: true, l3StructId: true },
+        });
+
+        // 2-A: FC.l3FuncId가 FC.l3StructId의 L3Function을 가리키지 않는 경우 재배정
+        const l3FuncsByStruct = new Map<string, string[]>();
+        for (const f of allL3Funcs) {
+          const arr = l3FuncsByStruct.get(f.l3StructId) || [];
+          arr.push(f.id);
+          l3FuncsByStruct.set(f.l3StructId, arr);
+        }
+        const l3FuncToStruct = new Map(allL3Funcs.map((f: any) => [f.id, f.l3StructId]));
+
+        let reassigned = 0;
+        for (const fc of allFcsForOrphan) {
+          if (!fc.l3FuncId || !fc.l3StructId) continue;
+          const funcStruct = l3FuncToStruct.get(fc.l3FuncId);
+          if (funcStruct === fc.l3StructId) continue;
+          const correctFuncs = l3FuncsByStruct.get(fc.l3StructId);
+          if (correctFuncs && correctFuncs.length > 0) {
+            await tx.failureCause.update({
+              where: { id: fc.id },
+              data: { l3FuncId: correctFuncs[0] },
+            });
+            reassigned++;
+          }
+        }
+        if (reassigned > 0) {
+          console.info(`[rebuild-atomic] FC→L3Function 재배정: ${reassigned}건 (l3StructId 정합성 교정)`);
+        }
+
+        // 2-B: orphan L3Function 삭제 (재배정 후 재계산)
+        const allFcsAfter = await tx.failureCause.findMany({
+          where: { fmeaId },
+          select: { l3FuncId: true },
+        });
+        const linkedL3FuncIds = new Set(allFcsAfter.map((fc: { l3FuncId: string }) => fc.l3FuncId));
+
+        const orphanIds: string[] = [];
+        for (const f of allL3Funcs) {
+          if (linkedL3FuncIds.has(f.id)) continue;
+          orphanIds.push(f.id);
+        }
+
+        if (orphanIds.length > 0) {
+          await tx.l3Function.deleteMany({ where: { id: { in: orphanIds } } });
+          console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건`);
+        }
+
+        // 3단계: Legacy를 Atomic SSoT 기준으로 완전 동기화
+        {
+          // Atomic에 존재하는 L3Function ID 집합 (삭제 후 최종 상태)
+          const remainingL3Funcs = await tx.l3Function.findMany({
+            where: { fmeaId },
+            select: { id: true },
+          });
+          const validL3FIds = new Set(remainingL3Funcs.map((f: { id: string }) => f.id));
+          // Atomic에 존재하는 FC ID 집합
+          const remainingFcs = await tx.failureCause.findMany({
+            where: { fmeaId },
+            select: { id: true },
+          });
+          const validFcIds = new Set(remainingFcs.map((f: { id: string }) => f.id));
+          // Atomic에 존재하는 FL fcId 집합
+          const remainingFls = await tx.failureLink.findMany({
+            where: { fmeaId },
+            select: { fcId: true },
+          });
+          const validFlFcIds = new Set(remainingFls.map((f: { fcId: string }) => f.fcId));
+
+          const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
+          if (legRec) {
+            const ld = JSON.parse(JSON.stringify(legRec.data));
+            let pcRemoved = 0;
+            let fcRemoved = 0;
+            let flRemoved = 0;
+            for (const proc of (ld.l2 || [])) {
+              for (const we of (proc.l3 || [])) {
+                for (const fn of (we.functions || [])) {
+                  if (fn.processChars) {
+                    const before = fn.processChars.length;
+                    fn.processChars = fn.processChars.filter((pc: any) => validL3FIds.has(pc.id));
+                    pcRemoved += before - fn.processChars.length;
+                  }
+                }
+              }
+              if (proc.failureCauses) {
+                const before = proc.failureCauses.length;
+                proc.failureCauses = proc.failureCauses.filter((fc: any) => validFcIds.has(fc.id));
+                fcRemoved += before - proc.failureCauses.length;
+              }
+              for (const we of (proc.l3 || [])) {
+                if (we.failureCauses) {
+                  const before = we.failureCauses.length;
+                  we.failureCauses = we.failureCauses.filter((fc: any) => validFcIds.has(fc.id));
+                  fcRemoved += before - we.failureCauses.length;
+                }
+              }
+            }
+            if (ld.failureLinks) {
+              const before = ld.failureLinks.length;
+              ld.failureLinks = ld.failureLinks.filter((fl: any) => validFlFcIds.has(fl.fcId));
+              flRemoved += before - ld.failureLinks.length;
+            }
+            if (pcRemoved > 0 || fcRemoved > 0 || flRemoved > 0) {
+              await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
+              console.info(`[rebuild-atomic] Legacy→Atomic 동기화: PC삭제=${pcRemoved} FC삭제=${fcRemoved} FL삭제=${flRemoved}`);
+            }
           }
         }
       }

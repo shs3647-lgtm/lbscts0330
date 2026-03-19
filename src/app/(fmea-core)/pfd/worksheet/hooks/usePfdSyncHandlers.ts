@@ -111,7 +111,7 @@ export function usePfdSyncHandlers(options: UsePfdSyncHandlersOptions): UsePfdSy
             return;
         }
 
-        const targetCpNo = cpNo || `cp-${pfdNo.replace(/^pfd-?/i, '')}`.toLowerCase();
+        const targetCpNo = cpNo || pfdNo.replace(/^pfd/i, 'cp').toLowerCase();
 
         const confirmed = confirm(
             `PFD 데이터를 CP로 연동하시겠습니까?(Sync PFD data to CP?)\n\n` +

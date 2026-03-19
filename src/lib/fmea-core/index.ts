@@ -15,5 +15,10 @@ export * from './styles';
 // Utils
 export * from './utils';
 
-
-
+// Reverse-Import (역설계 시스템)
+export * from './guards';
+export * from './reverse-extract';
+export * from './remap-fmeaid';
+export * from './save-atomic';
+export * from './compare-atomic';
+export * from './generate-import-excel';

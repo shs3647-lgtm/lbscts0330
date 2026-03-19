@@ -2,15 +2,14 @@
 
 /**
  * @file PipelineVerifyPanel.tsx
- * @description 7단계 파이프라인 검증 + 자동수정 패널
+ * @description 5단계 파이프라인 검증 + 자동수정 패널
  *
- * SAMPLE(0) → IMPORT(1) → 파싱(2) → UUID(3) → FK(4) → WS(5) → OPT(6)
- * 빨간불 감지 → 자동수정 루프 → 초록불 될 때까지 반복
+ * 구조(0) → UUID(1) → fmeaId(2) → FK(3) → 누락(4)
+ * 엑셀 Import + 역설계 Import 공통 검증 구조
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import PipelineStep0Detail from './PipelineStep0Detail';
 import PipelineStepDetailView from './PipelineStepDetailView';
 
 interface CrossCheckEntry {
@@ -68,7 +67,7 @@ const STATUS_COLORS: Record<string, { bg: string; border: string; text: string; 
   pending: { bg: 'bg-gray-800/80', border: 'border-gray-600', text: 'text-gray-400', icon: '⏳' },
 };
 
-const STEP_LABELS = ['SAMPLE', 'IMPORT', '파싱', 'UUID', 'FK', 'WS', 'OPT'];
+const STEP_LABELS = ['구조', 'UUID', 'fmeaId', 'FK', '누락'];
 
 export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyPanelProps) {
   const [result, setResult] = useState<PipelineResult | null>(null);
@@ -183,17 +182,7 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
       {/* 선택된 STEP 세부 정보 */}
       {expandedStep !== null && steps.find(s => s.step === expandedStep) && (
         <div className="px-3 pb-2">
-          {expandedStep === 0 ? (
-            <PipelineStep0Detail
-              step={steps.find(s => s.step === 0)!}
-              fmeaId={fmeaId}
-              onImportComplete={() => {
-                runVerify();
-              }}
-            />
-          ) : (
-            <StepDetail step={steps.find(s => s.step === expandedStep)!} fmeaId={fmeaId} />
-          )}
+          <StepDetail step={steps.find(s => s.step === expandedStep)!} fmeaId={fmeaId} />
         </div>
       )}
 

@@ -103,7 +103,7 @@ export function useSyncHandlers(options: UseSyncHandlersOptions): UseSyncHandler
         try {
 
             // 1. 기존 PFD 데이터 확인
-            const targetPfdNo = `pfd-${cpNo.replace(/^cp-?/i, '')}`.toLowerCase();
+            const targetPfdNo = cpNo.replace(/^cp/i, 'pfd').toLowerCase();
             const existingRes = await fetch(`/api/pfd/${targetPfdNo}/items`);
 
             if (existingRes.ok) {

@@ -41,7 +41,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-
         // ★★★ PFD 정보 먼저 조회 (linkedCpNos 가져오기) ★★★
         const pfdInfo = await prisma.pfdRegistration.findUnique({
             where: { pfdNo },
@@ -76,7 +75,7 @@ export async function POST(request: NextRequest) {
                 data: {
                     cpNo: targetCpNo,
                     fmeaId: fmeaId,
-                    fmeaNo: pfdInfo?.fmeaId ? `pfm-${pfdNo.replace(/^pfd-?/i, '')}` : null,
+                    fmeaNo: pfdInfo?.fmeaId || pfdNo.replace(/^pfd/i, 'pfm'),
                     partNo: pfdInfo?.partNo || '',
                     partName: pfdInfo?.partName || '',
                     revNo: 'A',

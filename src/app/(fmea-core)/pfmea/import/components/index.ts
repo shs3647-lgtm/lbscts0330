@@ -9,3 +9,4 @@ export { TemplateConfigModal } from './TemplateConfigModal';
 export { TemplateGeneratorPanel } from './TemplateGeneratorPanel';
 export { MasterBasicDataPanel } from './MasterBasicDataPanel';
 export * from './ImportPageTypes';
+export { default as ReverseImportPanel } from './ReverseImportPanel';

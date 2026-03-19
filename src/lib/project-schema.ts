@@ -12,6 +12,7 @@ import { Client } from 'pg';
 
 // PFMEA에서 프로젝트별로 분리 저장할 테이블들 (prisma @@map 기준)
 const PROJECT_TABLES = [
+  // ── FMEA Atomic DB ──
   'fmea_projects',
   'fmea_registrations',
   'fmea_cft_members',
@@ -37,6 +38,42 @@ const PROJECT_TABLES = [
   'import_jobs',            // ★ 2026-03-17: Import 추적
   'import_mappings',        // ★ 2026-03-17: Import 매핑 (flatData→entity)
   'import_validations',     // ★ 2026-03-17: Import 검증 결과
+  // ── PFD (공정흐름도) ── ★ 2026-03-19: 프로젝트별 고유 스키마
+  'pfd_registrations',
+  'pfd_items',
+  'pfd_revisions',
+  'pfd_master_datasets',
+  'pfd_master_flat_items',
+  // ── CP (관리계획서) ── ★ 2026-03-19: 프로젝트별 고유 스키마
+  'control_plans',
+  'control_plan_items',
+  'cp_registrations',
+  'cp_cft_members',
+  'cp_revisions',
+  'cp_processes',
+  'cp_detectors',
+  'cp_control_items',
+  'cp_control_methods',
+  'cp_reaction_plans',
+  'cp_atomic_processes',
+  'cp_atomic_detectors',
+  'cp_atomic_control_items',
+  'cp_atomic_control_methods',
+  'cp_atomic_reaction_plans',
+  'cp_confirmed_states',
+  'cp_master_datasets',
+  'cp_master_flat_items',
+  'cp_master_processes',
+  'cp_master_detectors',
+  'cp_master_control_items',
+  'cp_master_control_methods',
+  'cp_master_reaction_plans',
+  // ── FMEA↔CP↔PFD 매핑 ──
+  'pfmea_cp_mappings',
+  'pfmea_pfd_mappings',
+  // ── 공통 ──
+  'document_links',
+  'sync_logs',
 ] as const;
 
 export function getProjectSchemaName(fmeaId: string): string {
@@ -158,4 +195,62 @@ async function syncMissingColumns(client: Client, schema: string): Promise<void>
   }
 }
 
+// ═══════════════════════════════════════════════════
+// 유틸: pfdNo/cpNo → 프로젝트 Prisma 클라이언트 자동 결정
+// ═══════════════════════════════════════════════════
 
+import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
+
+/**
+ * pfdNo에서 fmeaId를 찾아 프로젝트 스키마 Prisma 클라이언트를 반환.
+ * public 스키마에서 pfd_registrations.fmeaId 조회 → 프로젝트 스키마 결정.
+ * 조회 실패 시 public Prisma 폴백.
+ */
+export async function getPrismaForPfd(pfdNo: string) {
+  const publicPrisma = getPrisma();
+  if (!publicPrisma) return null;
+
+  try {
+    const pfd = await publicPrisma.pfdRegistration.findFirst({
+      where: { OR: [{ pfdNo }, { id: pfdNo }] },
+      select: { fmeaId: true, linkedPfmeaNo: true },
+    });
+    const fmeaId = pfd?.fmeaId || pfd?.linkedPfmeaNo;
+    if (fmeaId) {
+      const baseUrl = getBaseDatabaseUrl();
+      const schema = getProjectSchemaName(fmeaId);
+      await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+      return getPrismaForSchema(schema) || publicPrisma;
+    }
+  } catch {
+    // 조회 실패 → public 폴백
+  }
+  return publicPrisma;
+}
+
+/**
+ * cpNo에서 fmeaId를 찾아 프로젝트 스키마 Prisma 클라이언트를 반환.
+ * public 스키마에서 control_plans.fmeaId 조회 → 프로젝트 스키마 결정.
+ * 조회 실패 시 public Prisma 폴백.
+ */
+export async function getPrismaForCp(cpNo: string) {
+  const publicPrisma = getPrisma();
+  if (!publicPrisma) return null;
+
+  try {
+    const cp = await publicPrisma.controlPlan.findFirst({
+      where: { OR: [{ cpNo }, { id: cpNo }] },
+      select: { fmeaId: true, linkedPfmeaNo: true },
+    });
+    const fmeaId = cp?.fmeaId || cp?.linkedPfmeaNo;
+    if (fmeaId) {
+      const baseUrl = getBaseDatabaseUrl();
+      const schema = getProjectSchemaName(fmeaId);
+      await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+      return getPrismaForSchema(schema) || publicPrisma;
+    }
+  } catch {
+    // 조회 실패 → public 폴백
+  }
+  return publicPrisma;
+}

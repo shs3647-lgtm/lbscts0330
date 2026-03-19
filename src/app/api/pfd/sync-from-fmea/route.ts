@@ -46,21 +46,21 @@ export async function POST(request: NextRequest) {
         }
 
 
-        // ★ 2026-03-14 PFD-5: 프로젝트 스키마 사용 (getPrisma → getPrismaForSchema)
-        // fmea/route.ts와 동일한 스키마 사용 — 프로젝트별 DB 분리 환경에서 데이터 격리 보장
+        // ★ 듀얼 Prisma: FMEA Atomic = 프로젝트 스키마, PFD 저장 = public
         const baseUrl = getBaseDatabaseUrl();
         const schema = getProjectSchemaName(fmeaId);
         await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
-        const prisma = getPrismaForSchema(schema) || getPrisma();
-        if (!prisma) {
+        const projectPrisma = getPrismaForSchema(schema) || getPrisma();
+        const prisma = getPrisma(); // PFD 저장용 (public)
+        if (!prisma || !projectPrisma) {
             return NextResponse.json(
                 { success: false, error: 'Database connection failed' },
                 { status: 500 }
             );
         }
 
-        // ★ 서버에서 FMEA 구조 데이터 조회 (sync-from-cp와의 핵심 차이점)
-        const l2Structures = await prisma.l2Structure.findMany({
+        // ★ 서버에서 FMEA 구조 데이터 조회 (프로젝트 스키마)
+        const l2Structures = await projectPrisma.l2Structure.findMany({
             where: { fmeaId },
             include: {
                 l3Structures: {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
         if (!targetPfdNo) {
             try {
-                const reg = await prisma.fmeaRegistration.findUnique({
+                const reg = await projectPrisma.fmeaRegistration.findUnique({
                     where: { fmeaId },
                     select: { linkedPfdNo: true },
                 });
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
             designResponsibility?: string | null; engineeringLocation?: string | null;
         } | null = null;
         try {
-            fmeaRegData = await prisma.fmeaRegistration.findUnique({
+            fmeaRegData = await projectPrisma.fmeaRegistration.findUnique({
                 where: { fmeaId },
                 select: {
                     subject: true, partName: true, partNo: true,
@@ -358,16 +358,17 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // FmeaRegistration.linkedPfdNo 업데이트
-            try {
-                await tx.fmeaRegistration.updateMany({
-                    where: { fmeaId },
-                    data: { linkedPfdNo: targetPfdNo },
-                });
-            } catch (regUpdateErr) {
-                console.error('[sync-from-fmea] 역링크 업데이트 실패:', regUpdateErr);
-            }
         });
+
+        // FmeaRegistration.linkedPfdNo 업데이트 (프로젝트 스키마)
+        try {
+            await projectPrisma.fmeaRegistration.updateMany({
+                where: { fmeaId },
+                data: { linkedPfdNo: targetPfdNo },
+            });
+        } catch (regUpdateErr) {
+            console.error('[sync-from-fmea] 역링크 업데이트 실패:', regUpdateErr);
+        }
 
         // ★★★ ProjectLinkage에 pfdNo 등록 (삭제 연쇄를 위해 필수) ★★★
         try {

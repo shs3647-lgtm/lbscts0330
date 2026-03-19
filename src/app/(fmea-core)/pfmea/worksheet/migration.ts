@@ -600,6 +600,12 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         seq: fcIdx,
       });
       
+      // ★★★ 동일공정 동일원인 중복 방지 (2026-03-19) ★★★
+      const dupFc = db.failureCauses.find(
+        c => c.l2StructId === l2Struct.id && c.cause === fc.name
+      );
+      if (dupFc) return;
+
       // ★★★ 병합 그룹: 같은 공정+작업요소+특성은 같은 그룹 ★★★
       const fcMergeGroupId = createMergeGroupId(fmeaSeq, 'FC', fcPath);
       
@@ -623,13 +629,17 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     // ✅ 하위 호환: we.failureCauses도 확인 (기존 데이터 마이그레이션용)
     l3Data.forEach((we: any) => {
       if (we.failureCauses && we.failureCauses.length > 0) {
-        // l3Struct 찾기
         const l3Struct = db.l3Structures.find(s => s.id === we.id);
         if (l3Struct) {
           we.failureCauses.forEach((fc: any) => {
-            // 가장 최근 L3Function을 상위로 연결
             const relatedL3Func = db.l3Functions.find(f => f.l3StructId === l3Struct.id);
             if (relatedL3Func) {
+              // ★★★ 동일공정 동일원인 중복 방지 (2026-03-19) ★★★
+              const dupFc = db.failureCauses.find(
+                c => c.l2StructId === relatedL3Func.l2StructId && c.cause === fc.name
+              );
+              if (dupFc) return;
+
               db.failureCauses.push({
                 id: fc.id || uid(),
                 fmeaId: oldData.fmeaId,
@@ -645,35 +655,17 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       }
     });
     
-    // ★★★ 2026-03-19 ROOT FIX: FC 없는 L3Function → FC 구조적 생성 (FK 완전성 보장) ★★★
-    // 근본원인: B2 function이 있지만 B4(FC)가 없는 경우 L3Function만 존재 → orphanPC
-    // 대책: 공정 처리 완료 시점에서 FC가 없는 L3Function에 FC 생성 (L3Function 1:N FC 원칙)
+    // ★★★ 2026-03-19 ROOT FIX: Import 데이터에 없는 orphan L3Function 삭제 ★★★
+    // Import B4(고장원인)가 없는 processChar = 의미 없는 데이터 → 삭제
     {
       const l2StructId = l2Struct.id;
       const linkedL3FuncIds = new Set(
         db.failureCauses.filter(fc => fc.l2StructId === l2StructId).map(fc => fc.l3FuncId)
       );
-      const orphanL3Funcs = db.l3Functions.filter(f =>
-        f.l2StructId === l2StructId && !linkedL3FuncIds.has(f.id) && f.processChar?.trim()
-      );
-      for (const l3f of orphanL3Funcs) {
-        fcIdx++;
-        // 결정적 ID: L3Function.id 기반 (매 실행 동일한 ID 생성 → 누적 방지)
-        const autoFcId = `fc-orphan-${l3f.id}`;
-        db.failureCauses.push({
-          id: autoFcId,
-          fmeaId: oldData.fmeaId,
-          l3FuncId: l3f.id,
-          l3StructId: l3f.l3StructId,
-          l2StructId,
-          processCharId: l3f.id,
-          cause: `${l3f.processChar} 부적합`,
-          occurrence: undefined,
-          parentId: l3f.id,
-          mergeGroupId: `mg-fc-orphan-${l3f.id}`,
-          rowSpan: 1,
-        });
-      }
+      db.l3Functions = db.l3Functions.filter(f => {
+        if (f.l2StructId !== l2StructId) return true;
+        return linkedL3FuncIds.has(f.id);
+      });
     }
 
     // ★★★ 2026-02-05: 공정 처리 완료 후 globalRowIndex 업데이트 ★★★
@@ -764,6 +756,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     
     // ★★★ 핵심: FM, FE, FC 모두 유효해야 저장 ★★★
     if (fm && fe && fc) {
+      // ★★★ 동일 fcId FL 중복 방지 (2026-03-19) — 동일공정 동일원인 dedup 연계 ★★★
+      if (db.failureLinks.some(l => l.fcId === fc!.id)) return;
+
       linkIdx++;
       
       // ★★★ 2026-03-16: 기존 link.id 보존 (genFC() 계층 UUID가 Legacy JSON에 저장됨) ★★★
