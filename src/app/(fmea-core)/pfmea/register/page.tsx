@@ -185,11 +185,19 @@ function PFMEARegisterPageContent() {
   const [bdTypeFilter, setBdTypeFilter] = useState<'ALL' | 'M' | 'F' | 'P'>('ALL');
   const [bdSelectModal, setBdSelectModal] = useState<{ open: boolean; type: 'M' | 'F' | 'P'; candidates: BdStatusItem[] }>({ open: false, type: 'P', candidates: [] });
   const [masterBdCount, setMasterBdCount] = useState(0);
+  const [familyBdCount, setFamilyBdCount] = useState(0);
+  const [partBdCount, setPartBdCount] = useState(0);
 
-  // ★ Master FMEA BD 카운트 로드
+  // ★ Master/Family/Part FMEA BD 카운트 로드
   useEffect(() => {
     fetch('/api/master-fmea/bd-list').then(r => r.json()).then(d => {
       setMasterBdCount((d.masters || []).length);
+    }).catch(() => {});
+    fetch('/api/family-fmea/bd-list').then(r => r.json()).then(d => {
+      setFamilyBdCount((d.items || []).length);
+    }).catch(() => {});
+    fetch('/api/part-fmea/bd-list').then(r => r.json()).then(d => {
+      setPartBdCount((d.items || []).length);
     }).catch(() => {});
   }, []);
 
@@ -285,21 +293,60 @@ function PFMEARegisterPageContent() {
       return;
     }
 
-    // Family: BD 목록에서 해당 유형 후보 검색
-    const candidates = bdStatusList.filter(bd => bd.fmeaType === type);
-    const typeLabel = 'Family';
-
-    if (candidates.length === 0) {
-      alert(`${typeLabel} BD가 등록되어 있지 않습니다.\nImport 페이지에서 ${typeLabel} FMEA를 먼저 생성하세요.`);
+    // Family: 새 FamilyFmea 시스템에서 조회
+    if (type === 'F') {
+      try {
+        const res = await fetch('/api/family-fmea/bd-list');
+        const data = await res.json();
+        const items = data.items || [];
+        if (items.length === 0) {
+          alert('Family FMEA가 등록되어 있지 않습니다.\nFamily FMEA 메뉴에서 먼저 생성하세요.');
+          return;
+        }
+        if (items.length === 1) {
+          await loadBdById(items[0].sourceFmeaId || items[0].fmeaId, items[0].name);
+          return;
+        }
+        setBdSelectModal({
+          open: true, type: 'F',
+          candidates: items.map((f: any) => ({ fmeaId: f.sourceFmeaId || f.fmeaId, fmeaName: f.name, fmeaType: 'F' })),
+        });
+      } catch (e) { console.error('[Family BD 로드] 오류:', e); }
       return;
     }
 
-    if (candidates.length === 1) {
-      await loadBdById(candidates[0].fmeaId, candidates[0].fmeaName);
-      return;
-    }
-
-    setBdSelectModal({ open: true, type, candidates });
+    // Part: 새 PartFmea 시스템에서 조회
+    try {
+      const res = await fetch('/api/part-fmea/bd-list');
+      const data = await res.json();
+      const items = data.items || [];
+      if (items.length === 0) {
+        // 기존 Part BD 로드 (현재 fmeaId 기반)
+        const targetId = fmeaId || null;
+        if (!targetId) { alert('Part FMEA가 선택되지 않았습니다.'); return; }
+        try {
+          const { loadDatasetByFmeaId } = await getMasterApi();
+          const bdRes = await loadDatasetByFmeaId(targetId);
+          if (bdRes.flatData.length > 0) {
+            setFlatData(bdRes.flatData);
+            setBdIsSaved(true); setBdDirty(false);
+            setBdLoadedFmeaId(targetId);
+            setBdLoadedFmeaName(fmeaInfo.subject || fmeaId || '');
+            templateGen.setTemplateMode('download');
+            setBdExpandTrigger(prev => prev + 1);
+          }
+        } catch (e2) { console.error('[Part BD 폴백 로드] 오류:', e2); }
+        return;
+      }
+      if (items.length === 1) {
+        await loadBdById(items[0].sourceFmeaId || items[0].fmeaId, items[0].name);
+        return;
+      }
+      setBdSelectModal({
+        open: true, type: 'P',
+        candidates: items.map((p: any) => ({ fmeaId: p.sourceFmeaId || p.fmeaId, fmeaName: p.name, fmeaType: 'P' })),
+      });
+    } catch (e) { console.error('[Part BD 로드] 오류:', e); }
   };
 
   // BD 선택 모달에서 선택 후 로드
@@ -692,9 +739,9 @@ function PFMEARegisterPageContent() {
                 {([
                   { type: 'M' as const, label: 'Master', count: masterBdCount,
                     loaded: 'bg-blue-700 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                  { type: 'F' as const, label: 'Family', count: bdStatusList.filter(b => b.fmeaType === 'F').length,
+                  { type: 'F' as const, label: 'Family', count: familyBdCount,
                     loaded: 'bg-blue-600 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-[#e3f2fd] text-blue-700 hover:bg-blue-200' },
-                  { type: 'P' as const, label: 'Part', count: bdStatusList.filter(b => b.fmeaType === 'P').length,
+                  { type: 'P' as const, label: 'Part', count: partBdCount || bdStatusList.filter(b => b.fmeaType === 'P').length,
                     loaded: 'bg-green-700 text-white', filtered: 'bg-green-100 text-green-800 ring-2 ring-green-400 ring-inset', idle: 'bg-[#e8f5e9] text-green-700 hover:bg-green-200' },
                 ]).map(({ type, label, count, loaded, filtered, idle }) => {
                   const isLoaded = type === 'P'
