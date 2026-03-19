@@ -7,7 +7,7 @@ import ExcelJS from 'exceljs';
 const BASE = 'http://localhost:3000';
 const SOURCE_FMEA = 'pfm26-m066';
 const TARGET_FMEA = 'pfm26-m081';
-const EXCEL_PATH = 'data/test-import-m066-v4.xlsx';
+const EXCEL_PATH = process.argv[2] || 'data/import-excel-m066-fixed.xlsx';
 
 async function main() {
   console.log('=== 역설계 Import Excel 검증 테스트 (v2) ===');
@@ -150,10 +150,10 @@ async function main() {
     });
   });
 
-  // 중복 FC 제거: 동일 공정+FC이름이면 1개만 유지
+  // 중복 FC 제거: 동일 공정+FM+FC이면 1개만 유지 (같은 FC가 다른 FM에 연결은 정상)
   const chainSeen = new Set();
   const dedupedChains = failureChains.filter(c => {
-    const key = `${c.processNo}|${c.fcValue}`;
+    const key = `${c.processNo}|${c.fmValue}|${c.fcValue}`;
     if (chainSeen.has(key)) return false;
     chainSeen.add(key);
     return true;
