@@ -1428,6 +1428,7 @@ export default function StructureTab(props: StructureTabProps) {
         existingProcesses={state.l2.map(p => ({ id: p.id, no: p.no || '', name: p.name || '' }))}
         existingProcessesInfo={state.l2.map(p => ({ name: p.name, l3Count: p.l3?.length || 0 }))}
         productLineName={formatL1Name(state.l1?.name)}
+        fmeaId={fmeaId}
         onDelete={(processNos) => {
           // ★ 모달 X 버튼 삭제: 공정번호 기준으로 워크시트에서 제거
           const deleteNos = new Set(processNos);

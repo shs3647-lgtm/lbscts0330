@@ -11,7 +11,7 @@ services:
   # --------------------------------------------
   postgres:
     image: postgres:15-alpine
-    container_name: fmea-postgres
+    container_name: autom-fmea-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -44,13 +44,13 @@ services:
   # --------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: fmea-redis
+    container_name: autom-fmea-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
     volumes:
       - redis_data:/data
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT:-6381}:6379"
     networks:
       - fmea-network
     healthcheck:
@@ -73,7 +73,7 @@ services:
       context: .
       dockerfile: Dockerfile.migrate
     image: fmea-migrate:latest
-    container_name: fmea-migrate
+    container_name: autom-fmea-migrate
     environment:
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-fmea_db}?schema=public&connect_timeout=10
       NODE_ENV: production
@@ -94,14 +94,11 @@ services:
   # Next.js 애플리케이션
   # --------------------------------------------
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-    image: fmea-app:latest
-    container_name: fmea-app
+    image: node:20-alpine
+    container_name: autom-fmea-app
     restart: unless-stopped
+    working_dir: /app
+    command: sh -c "npm install --legacy-peer-deps && npx prisma generate && npm run dev"
     environment:
       # 데이터베이스
       DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-fmea_db}?schema=public&connect_timeout=10
@@ -109,7 +106,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123}@redis:6379
       # 애플리케이션
       NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost:3001}
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3000
       # SMTP (옵션)
       SMTP_HOST: ${SMTP_HOST:-}
@@ -121,6 +118,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change_this_jwt_secret_in_production}
       SESSION_SECRET: ${SESSION_SECRET:-change_this_session_secret_in_production}
     volumes:
+      - .:/app
+      - /app/node_modules
       - uploads:/app/uploads
       - logs:/app/logs
     ports:
@@ -132,12 +131,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "healthcheck.js"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
     logging:
       driver: "json-file"
       options:
@@ -208,7 +201,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.25.0.0/16
+        - subnet: 172.26.0.0/16
 
 # --------------------------------------------
 # 볼륨 설정 (데이터 영속성)

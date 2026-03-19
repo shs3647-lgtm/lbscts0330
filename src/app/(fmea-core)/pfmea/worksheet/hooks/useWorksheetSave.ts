@@ -704,7 +704,32 @@ export function useWorksheetSave({
       // ★★★ 2026-03-15: DUAL PATH — atomicDB 존재하면 직접 저장, 없으면 legacy 변환 ★★★
       if (atomicDB && Array.isArray(atomicDB.l2Structures)) {
         // ── ATOMIC PATH: UUID 보존, migrateToAtomicDB 호출 없음 ──
-        let dbToSave = syncConfirmedFlags(atomicDB, stateRef.current);
+        // ★★★ 2026-03-19 FIX: 구조/기능을 legacy state에서 재변환하여 동기화 ★★★
+        // ATOMIC PATH에서 구조(L2/L3) 추가/삭제가 반영되지 않는 버그 수정
+        const currentState = stateRef.current;
+        const legacyForMigrate = {
+          fmeaId: targetFmeaId,
+          l1: currentState.l1,
+          l2: currentState.l2,
+          failureLinks: (currentState as any).failureLinks || [],
+          riskData: currentState.riskData || {},
+          fmea4Rows: (currentState as any).fmea4Rows || [],
+          structureConfirmed: (currentState as any).structureConfirmed || false,
+          l1Confirmed: (currentState as any).l1Confirmed || false,
+          l2Confirmed: (currentState as any).l2Confirmed || false,
+          l3Confirmed: (currentState as any).l3Confirmed || false,
+          failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
+          failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
+          failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
+          failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
+        };
+        const freshAtomicDB = migrateToAtomicDB(legacyForMigrate);
+        // 기존 atomicDB의 riskAnalyses/optimizations/failureAnalyses 보존
+        freshAtomicDB.riskAnalyses = atomicDB.riskAnalyses || [];
+        freshAtomicDB.optimizations = atomicDB.optimizations || [];
+        freshAtomicDB.failureAnalyses = atomicDB.failureAnalyses || [];
+
+        let dbToSave = syncConfirmedFlags(freshAtomicDB, stateRef.current);
         dbToSave = syncFailureLinksFromState(dbToSave, stateRef.current);
         // ★ FE 동기화: 1L고장분석에서 추가/수정된 FE를 atomicDB.failureEffects에 반영
         dbToSave = syncFailureEffectsFromState(dbToSave, stateRef.current);

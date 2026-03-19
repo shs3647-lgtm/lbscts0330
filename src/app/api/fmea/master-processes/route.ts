@@ -39,9 +39,13 @@ export async function GET(req: NextRequest) {
   }
   
   try {
-    // 1. 활성화된 Master Dataset 조회
+    // 1. 활성화된 Master Dataset 조회 — ★ 2026-03-19: fmeaId별 분리
+    const fmeaId = req.nextUrl.searchParams.get('fmeaId') || '';
     const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(fmeaId ? { fmeaId } : {}),
+      },
       orderBy: { updatedAt: 'desc' }
     });
     
@@ -150,25 +154,40 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { processNo, processName } = body;
+    const { processNo, processName, fmeaId } = body;
 
     if (!processNo || !processName) {
       return NextResponse.json({ success: false, error: '공정번호와 공정명이 필요합니다.' });
     }
 
+    // ★ 2026-03-19: fmeaId별 마스터 데이터셋 분리
     const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(fmeaId ? { fmeaId } : {}),
+      },
       orderBy: { updatedAt: 'desc' }
     });
 
     if (!activeDataset) {
-      return NextResponse.json({ success: false, error: 'Master Dataset이 없습니다.' });
+      // fmeaId가 있으면 해당 프로젝트용 데이터셋 자동 생성
+      if (fmeaId) {
+        const newDataset = await prisma.pfmeaMasterDataset.create({
+          data: { fmeaId, isActive: true },
+        });
+        // 아래에서 newDataset 사용
+        (body as any)._datasetId = newDataset.id;
+      } else {
+        return NextResponse.json({ success: false, error: 'Master Dataset이 없습니다.' });
+      }
     }
+
+    const datasetId = activeDataset?.id || (body as any)._datasetId;
 
     // 중복 확인
     const existing = await prisma.pfmeaMasterFlatItem.findFirst({
       where: {
-        datasetId: activeDataset.id,
+        datasetId,
         processNo,
         itemCode: 'A2',
       },
@@ -181,8 +200,8 @@ export async function POST(req: NextRequest) {
     // A1(공정번호) + A2(공정명) 생성
     await prisma.pfmeaMasterFlatItem.createMany({
       data: [
-        { datasetId: activeDataset.id, processNo, category: 'A', itemCode: 'A1', value: processNo },
-        { datasetId: activeDataset.id, processNo, category: 'A', itemCode: 'A2', value: processName },
+        { datasetId, processNo, category: 'A', itemCode: 'A1', value: processNo },
+        { datasetId, processNo, category: 'A', itemCode: 'A2', value: processName },
       ],
     });
 
@@ -206,13 +225,18 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
     const updates: { processNo: string; name: string }[] = body.updates;
+    const fmeaId = body.fmeaId || '';
 
     if (!updates || updates.length === 0) {
       return NextResponse.json({ success: false, error: '수정할 데이터가 없습니다.' });
     }
 
+    // ★ 2026-03-19: fmeaId별 마스터 데이터셋 분리
     const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(fmeaId ? { fmeaId } : {}),
+      },
       orderBy: { updatedAt: 'desc' }
     });
 

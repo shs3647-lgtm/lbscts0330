@@ -452,11 +452,11 @@ export function useWorksheetDataLoader({
         // ★ src에도 fmeaId 보장 (saveWorksheetDB legacyData 인자)
         const srcWithFmeaId = src.fmeaId === normalizedFmeaId ? src : { ...src, fmeaId: normalizedFmeaId };
 
-        // ★ 2026-03-04: requestAnimationFrame 사용 (50ms 임의 타이밍 → 렌더 사이클 후 안전 해제)
-        requestAnimationFrame(() => {
+        // ★ 2026-03-19: 500ms 지연 후 저장 — FMEA 전환 시 이전 프로젝트 저장과 deadlock 방지
+        setTimeout(() => {
           suppressAutoSaveRef.current = false;
           saveWorksheetDB(derivedAtomic, srcWithFmeaId).catch(e => console.error('[복구] DB 동기화 오류:', e));
-        });
+        }, 500);
 
         return;
       }

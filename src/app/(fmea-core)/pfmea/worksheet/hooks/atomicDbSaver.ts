@@ -145,6 +145,22 @@ async function _doSave(db: FMEAWorksheetDB, legacyState?: Record<string, unknown
 
     const result = await response.json();
 
+    // ★★★ 2026-03-19: 409 Conflict (deadlock) → 300ms 후 1회 재시도 ★★★
+    if (response.status === 409 && result.retryable) {
+      console.warn('[atomicDbSaver] 트랜잭션 충돌, 300ms 후 재시도...');
+      await new Promise(r => setTimeout(r, 300));
+      const retryResp = await fetch('/api/fmea', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      const retryResult = await retryResp.json();
+      if (retryResp.ok && retryResult.success) {
+        return { success: true, linkStats: retryResult.linkStats };
+      }
+      // 재시도도 실패하면 아래로 진행
+    }
+
     if (!response.ok || result.fallback || !result.success) {
       const errorMsg = result.message || result.error || '알 수 없는 저장 오류';
       _notifyError(`DB 저장 실패: ${errorMsg}`);

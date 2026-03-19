@@ -34,15 +34,17 @@ interface ProcessSelectModalProps {
   /** ★ 워크시트 현재 공정 목록 (no 기준 매칭 + 수정된 이름 반영) */
   existingProcesses?: ProcessItem[];
   productLineName?: string;  // 완제품공정명 (상위항목)
+  fmeaId?: string;  // ★ 2026-03-19: 프로젝트별 마스터 분리
   // ✅ 연속입력 모드: 저장 시 워크시트에 즉시 반영 + 새 행 추가
   onContinuousAdd?: (process: ProcessItem, addNewRow: boolean) => void;
 }
 
 // DB에서 마스터 FMEA 공정 로드
-const loadMasterProcessesFromDB = async (): Promise<ProcessItem[]> => {
+const loadMasterProcessesFromDB = async (fmeaId?: string): Promise<ProcessItem[]> => {
   try {
-    // 마스터 FMEA (pfm26-M001) 공정 데이터 조회
-    const res = await fetch('/api/fmea/master-processes');
+    // ★ 2026-03-19: fmeaId별 마스터 데이터 분리
+    const url = fmeaId ? `/api/fmea/master-processes?fmeaId=${fmeaId}` : '/api/fmea/master-processes';
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (data.processes && data.processes.length > 0) {
@@ -66,6 +68,7 @@ export default function ProcessSelectModal({
   existingProcessNames = [],
   existingProcessesInfo = [],
   productLineName = '완제품 제조라인',
+  fmeaId,
   onContinuousAdd,
   existingProcesses = [],
 }: ProcessSelectModalProps) {
@@ -103,7 +106,7 @@ export default function ProcessSelectModal({
     const loadData = async () => {
       try {
         // ★★★ 2026-02-16: DB Only 정책 - localStorage 폴백 제거 ★★★
-        let loaded = await loadMasterProcessesFromDB();
+        let loaded = await loadMasterProcessesFromDB(fmeaId);
 
         if (loaded.length > 0) {
           setDataSource('Master FMEA (DB)');
@@ -280,7 +283,7 @@ export default function ProcessSelectModal({
       const res = await fetch('/api/fmea/master-processes', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates }),
+        body: JSON.stringify({ updates, fmeaId }),
       });
       const data = await res.json();
 
@@ -353,7 +356,7 @@ export default function ProcessSelectModal({
     fetch('/api/fmea/master-processes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ processNo: procNo, processName: newProc.name }),
+      body: JSON.stringify({ processNo: procNo, processName: newProc.name, fmeaId }),
     }).then(res => res.json()).then(data => {
       if (!data.success) {
         console.error('DB 저장 실패, localStorage 폴백:', data.error);
