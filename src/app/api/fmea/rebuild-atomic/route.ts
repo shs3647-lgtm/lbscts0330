@@ -69,6 +69,43 @@ export async function POST(request: NextRequest) {
         legacyRec = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } }).catch(() => null);
       }
     }
+    // ★★★ 2026-03-19: Legacy 없으면 Atomic DB → Legacy 역생성 폴백 ★★★
+    if (!legacyRec?.data) {
+      const l2Count = await prisma.l2Structure.count({ where: { fmeaId } }).catch(() => 0);
+      if (l2Count > 0) {
+        const [l2s, l3s, l1Funcs, l2Funcs, l3Funcs, fes, fms, fcs, links, risks] = await Promise.all([
+          prisma.l2Structure.findMany({ where: { fmeaId }, orderBy: { order: 'asc' } }),
+          prisma.l3Structure.findMany({ where: { fmeaId }, orderBy: { order: 'asc' } }),
+          prisma.l1Function.findMany({ where: { fmeaId } }),
+          prisma.l2Function.findMany({ where: { fmeaId } }),
+          prisma.l3Function.findMany({ where: { fmeaId } }),
+          prisma.failureEffect.findMany({ where: { fmeaId } }),
+          prisma.failureMode.findMany({ where: { fmeaId } }),
+          prisma.failureCause.findMany({ where: { fmeaId } }),
+          prisma.failureLink.findMany({ where: { fmeaId } }),
+          prisma.riskAnalysis.findMany({ where: { fmeaId } }),
+        ]);
+        const l1s = await prisma.l1Structure.findFirst({ where: { fmeaId } });
+        const existingDB: any = {
+          fmeaId, savedAt: new Date().toISOString(),
+          l1Structure: l1s, l2Structures: l2s, l3Structures: l3s,
+          l1Functions: l1Funcs, l2Functions: l2Funcs, l3Functions: l3Funcs,
+          failureEffects: fes, failureModes: fms, failureCauses: fcs,
+          failureLinks: links, failureAnalyses: [], riskAnalyses: risks, optimizations: [],
+          confirmed: { structure: true, l1Function: true, l2Function: true, l3Function: true, l1Failure: true, l2Failure: true, l3Failure: true, failureLink: true, risk: true, optimization: true },
+        };
+        const { convertToLegacyFormat } = await import('@/app/(fmea-core)/pfmea/worksheet/migration');
+        const generatedLegacy = convertToLegacyFormat(existingDB);
+        const legacyJson = JSON.parse(JSON.stringify(generatedLegacy));
+        await prisma.fmeaLegacyData.upsert({
+          where: { fmeaId },
+          create: { fmeaId, data: legacyJson, version: '1.0.0' },
+          update: { data: legacyJson },
+        });
+        legacyRec = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
+        console.info(`[rebuild-atomic] Legacy 역생성 완료: L2=${l2Count} FM=${fms.length} FC=${fcs.length}`);
+      }
+    }
     if (!legacyRec?.data) {
       return NextResponse.json({ success: false, error: 'No legacy data found for this fmeaId' }, { status: 404 });
     }
