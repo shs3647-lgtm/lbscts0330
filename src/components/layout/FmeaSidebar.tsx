@@ -48,11 +48,28 @@ const pfmeaSubItems = [
   { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement', multiline: true },
 ];
 
+const familyFmeaSubItems = [
+  { label: '📊 대시보드', href: '/pfmea/family' },
+  { label: '🏭 공정별 F/F', href: '/pfmea/family/list' },
+  { label: '📋 Master-00', href: '/pfmea/family/master' },
+  { label: '➕ 새 F/F 생성', href: '/pfmea/family/create' },
+];
+
+const partFmeaSubItems = [
+  { label: '📊 대시보드', href: '/part-fmea' },
+  { label: '📋 P/F 목록', href: '/part-fmea/list' },
+  { label: '➕ 새 P/F 생성', href: '/part-fmea/create' },
+];
+
 const mainMenuItems: MenuItem[] = [
   myJobItem,
   {
     id: 'pfmea', label: 'PFMEA', shortLabel: 'P',
     Icon: ColorIcons.List, href: '/pfmea', subItems: pfmeaSubItems,
+  },
+  {
+    id: 'family-fmea', label: 'Family FMEA', shortLabel: 'FF',
+    Icon: ColorIcons.List, href: '/pfmea/family', subItems: familyFmeaSubItems,
   },
   {
     id: 'cp', label: 'Control Plan', shortLabel: 'C',
@@ -61,6 +78,10 @@ const mainMenuItems: MenuItem[] = [
   {
     id: 'pfd', label: 'PFD', shortLabel: 'F',
     Icon: ColorIcons.Revision, href: '/pfd', subItems: createSubItems('/pfd'),
+  },
+  {
+    id: 'part-fmea', label: 'Part FMEA', shortLabel: 'PF',
+    Icon: ColorIcons.List, href: '/part-fmea', subItems: partFmeaSubItems,
   },
 ];
 

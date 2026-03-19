@@ -2655,6 +2655,18 @@ enum WorkStatus {
   REJECTED
 }
 
+enum FmeaSourceType {
+  FAMILY_REF
+  INDEPENDENT
+}
+
+enum FmeaDocStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  SUPERSEDED
+}
+
 // ============================================================
 // Import 매핑 영구저장 — flatData.id → entityId 추적
 // ============================================================
@@ -2715,4 +2727,368 @@ model ImportMapping {
   @@index([entityId])
   @@unique([jobId, flatDataId, entityType])
   @@map("import_mappings")
+}
+
+// ============================================================
+// Family FMEA 관리시스템 — Master / Family / Part 3계층
+// ============================================================
+
+// Master FMEA — 모든 FMEA의 기초정보 원천
+model MasterFmea {
+  id          String   @id @default(uuid())
+  code        String   @unique       // MF-12AU
+  name        String                 // "12inch AU BUMP Master FMEA"
+  productName String?
+  version     String   @default("1.0")
+  status      String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  processes      MasterFmeaProcess[]
+  familyMaster   FamilyMaster?
+  revisionHistory MasterFmeaRevision[]
+
+  @@index([status])
+  @@map("master_fmeas")
+}
+
+// Master FMEA 공정 목록 — 전 공정(001~200) 관리
+model MasterFmeaProcess {
+  id            String   @id @default(uuid())
+  masterFmeaId  String
+  processNo     String                // "010", "020", ... "200"
+  processName   String
+  category      String?               // 전처리, 증착, 식각, 검사
+  orderIndex    Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  masterFmea    MasterFmea           @relation(fields: [masterFmeaId], references: [id], onDelete: Cascade)
+  structures    MasterFmeaStructure[]
+  failureModes  MasterFmeaFailureMode[]
+  controls      MasterFmeaControl[]
+  familyFmeas   FamilyFmea[]
+
+  @@unique([masterFmeaId, processNo])
+  @@index([masterFmeaId])
+  @@index([processNo])
+  @@map("master_fmea_processes")
+}
+
+// Master FMEA 기초 구조 (1L/2L/3L 기초 데이터)
+model MasterFmeaStructure {
+  id              String   @id @default(uuid())
+  masterProcessId String
+  level           String              // L1 | L2 | L3
+  name            String
+  parentId        String?
+  orderIndex      Int      @default(0)
+  metadata        Json?               // 추가 속성
+  createdAt       DateTime @default(now())
+
+  masterProcess   MasterFmeaProcess @relation(fields: [masterProcessId], references: [id], onDelete: Cascade)
+
+  @@index([masterProcessId])
+  @@index([level])
+  @@map("master_fmea_structures")
+}
+
+// Master FMEA 기초 고장모드
+model MasterFmeaFailureMode {
+  id              String   @id @default(uuid())
+  masterProcessId String
+  modeName        String
+  category        String?             // 기능적, 구조적 등
+  severity        Int?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  masterProcess   MasterFmeaProcess @relation(fields: [masterProcessId], references: [id], onDelete: Cascade)
+
+  @@index([masterProcessId])
+  @@map("master_fmea_failure_modes")
+}
+
+// Master FMEA 기초 관리방법
+model MasterFmeaControl {
+  id              String   @id @default(uuid())
+  masterProcessId String
+  controlType     String              // PREVENTION | DETECTION
+  controlName     String
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  masterProcess   MasterFmeaProcess @relation(fields: [masterProcessId], references: [id], onDelete: Cascade)
+
+  @@index([masterProcessId])
+  @@map("master_fmea_controls")
+}
+
+// Master FMEA 개정이력
+model MasterFmeaRevision {
+  id            String   @id @default(uuid())
+  masterFmeaId  String
+  revNo         String
+  revDate       DateTime @default(now())
+  changeDesc    String?
+  changedBy     String?
+  createdAt     DateTime @default(now())
+
+  masterFmea    MasterFmea @relation(fields: [masterFmeaId], references: [id], onDelete: Cascade)
+
+  @@index([masterFmeaId])
+  @@map("master_fmea_revisions")
+}
+
+// Family Master (Master-00) — 전체 공정 통합본
+model FamilyMaster {
+  id            String   @id @default(uuid())
+  masterFmeaId  String   @unique
+  code          String   @unique       // FM-12AU-00
+  name          String                 // "12inch AU BUMP Family FMEA Master-00"
+  version       String   @default("1.0")
+  status        String   @default("ACTIVE")
+  fmeaId        String?  @unique       // 통합 FMEA 워크시트용 fmeaId
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  masterFmea    MasterFmea         @relation(fields: [masterFmeaId], references: [id], onDelete: Cascade)
+  familyFmeas   FamilyFmea[]
+  revisionLogs  MasterRevisionLog[]
+  partFmeas     PartFmea[]          // FAMILY_REF 모드 Part FMEA 참조
+
+  @@index([masterFmeaId])
+  @@map("family_masters")
+}
+
+// Master-00 개정 반영 로그 (하위 F/F 승인 시 기록)
+model MasterRevisionLog {
+  id              String   @id @default(uuid())
+  familyMasterId  String
+  familyFmeaId    String
+  familyCode      String
+  fromVersion     String
+  toVersion       String
+  changeDesc      String?
+  approvedAt      DateTime
+  propagatedAt    DateTime @default(now())
+
+  familyMaster    FamilyMaster @relation(fields: [familyMasterId], references: [id], onDelete: Cascade)
+  familyFmea      FamilyFmea   @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
+
+  @@index([familyMasterId])
+  @@index([familyFmeaId])
+  @@map("master_revision_logs")
+}
+
+// 공정별 Family FMEA (F/F)
+model FamilyFmea {
+  id               String        @id @default(uuid())
+  familyMasterId   String
+  masterProcessId  String
+  familyCode       String        @unique  // FF-010-001
+  processNo        String
+  processName      String
+  version          String        @default("1.0")
+  status           FmeaDocStatus @default(DRAFT)
+  fmeaId           String?       @unique  // 실제 Atomic DB fmeaId (FK 참조용)
+  description      String?
+
+  // 담당자
+  authorId         String?
+  authorName       String?
+  authorDate       DateTime?
+  reviewerId       String?
+  reviewerName     String?
+  reviewDate       DateTime?
+  approverId       String?
+  approverName     String?
+  approvalDate     DateTime?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  familyMaster     FamilyMaster       @relation(fields: [familyMasterId], references: [id], onDelete: Cascade)
+  masterProcess    MasterFmeaProcess  @relation(fields: [masterProcessId], references: [id], onDelete: Cascade)
+  controlPlans     FamilyControlPlan[]
+  processFlows     FamilyPfd[]
+  revisionHistory  FamilyFmeaRevision[]
+  revisionLogs     MasterRevisionLog[]
+
+  @@index([familyMasterId])
+  @@index([masterProcessId])
+  @@index([status])
+  @@index([fmeaId])
+  @@map("family_fmeas")
+}
+
+// F/F 개정이력
+model FamilyFmeaRevision {
+  id             String   @id @default(uuid())
+  familyFmeaId   String
+  revNo          String
+  revDate        DateTime @default(now())
+  changeDesc     String?
+  changedBy      String?
+  createdAt      DateTime @default(now())
+
+  familyFmea     FamilyFmea @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
+
+  @@index([familyFmeaId])
+  @@map("family_fmea_revisions")
+}
+
+// F/F의 CP (복수 가능)
+model FamilyControlPlan {
+  id             String   @id @default(uuid())
+  familyFmeaId   String
+  cpCode         String   @unique      // CP-010-A
+  cpName         String?
+  cpNo           String?  @unique      // 기존 ControlPlan.cpNo와 연결 (nullable)
+  isPrimary      Boolean  @default(false)
+  version        String   @default("1.0")
+  status         String   @default("draft")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  familyFmea     FamilyFmea @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
+
+  @@index([familyFmeaId])
+  @@index([isPrimary])
+  @@map("family_control_plans")
+}
+
+// F/F의 PFD (복수 가능)
+model FamilyPfd {
+  id             String   @id @default(uuid())
+  familyFmeaId   String
+  pfdCode        String   @unique      // PFD-010-A
+  pfdName        String?
+  pfdNo          String?  @unique      // 기존 PfdRegistration.pfdNo와 연결 (nullable)
+  isPrimary      Boolean  @default(false)
+  version        String   @default("1.0")
+  status         String   @default("draft")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  familyFmea     FamilyFmea @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
+
+  @@index([familyFmeaId])
+  @@index([isPrimary])
+  @@map("family_pfds")
+}
+
+// Part FMEA (별도 계층 — 고객/제품별)
+model PartFmea {
+  id                    String         @id @default(uuid())
+  partCode              String         @unique  // PF-SEC-HBM3E-001
+  customerName          String
+  productName           String
+  version               String         @default("1.0")
+  status                FmeaDocStatus  @default(DRAFT)
+  fmeaId                String?        @unique  // 실제 Atomic DB fmeaId
+  description           String?
+
+  // 데이터 소스 모드
+  sourceType            FmeaSourceType @default(INDEPENDENT)
+  sourceFamilyMasterId  String?        // FAMILY_REF 모드일 때
+  sourceProcessNos      Json?          // 참조 공정번호 목록 ["010","020"]
+
+  // 담당자
+  authorId              String?
+  authorName            String?
+  authorDate            DateTime?
+  reviewerId            String?
+  reviewerName          String?
+  reviewDate            DateTime?
+  approverId            String?
+  approverName          String?
+  approvalDate          DateTime?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  sourceFamilyMaster    FamilyMaster? @relation(fields: [sourceFamilyMasterId], references: [id])
+  controlPlan           PartControlPlan?
+  processFlow           PartPfd?
+  revisionHistory       PartFmeaRevision[]
+
+  @@index([customerName])
+  @@index([sourceType])
+  @@index([sourceFamilyMasterId])
+  @@index([status])
+  @@index([fmeaId])
+  @@map("part_fmeas")
+}
+
+// P/F 개정이력
+model PartFmeaRevision {
+  id           String   @id @default(uuid())
+  partFmeaId   String
+  revNo        String
+  revDate      DateTime @default(now())
+  changeDesc   String?
+  changedBy    String?
+  createdAt    DateTime @default(now())
+
+  partFmea     PartFmea @relation(fields: [partFmeaId], references: [id], onDelete: Cascade)
+
+  @@index([partFmeaId])
+  @@map("part_fmea_revisions")
+}
+
+// P/F의 CP (1개 고정)
+model PartControlPlan {
+  id           String   @id @default(uuid())
+  partFmeaId   String   @unique       // 1:1 관계
+  cpCode       String   @unique       // CP-PF-SEC-HBM3E-001
+  cpName       String?
+  cpNo         String?  @unique       // 기존 ControlPlan.cpNo 연결
+  version      String   @default("1.0")
+  status       String   @default("draft")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  partFmea     PartFmea @relation(fields: [partFmeaId], references: [id], onDelete: Cascade)
+
+  @@map("part_control_plans")
+}
+
+// P/F의 PFD (1개 고정)
+model PartPfd {
+  id           String   @id @default(uuid())
+  partFmeaId   String   @unique       // 1:1 관계
+  pfdCode      String   @unique       // PFD-PF-SEC-HBM3E-001
+  pfdName      String?
+  pfdNo        String?  @unique       // 기존 PfdRegistration.pfdNo 연결
+  version      String   @default("1.0")
+  status       String   @default("draft")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  partFmea     PartFmea @relation(fields: [partFmeaId], references: [id], onDelete: Cascade)
+
+  @@map("part_pfds")
+}
+
+// 알림 테이블 (개정 전파, F/F 승인 → P/F 알림)
+model FmeaNotification {
+  id            String   @id @default(uuid())
+  recipientId   String?               // User ID
+  recipientName String?
+  type          String                // REVISION_PROPAGATED | MASTER_UPDATED | REVIEW_REQUEST | APPROVED | REJECTED
+  title         String
+  message       String
+  sourceType    String?               // FAMILY_FMEA | PART_FMEA | MASTER_FMEA
+  sourceId      String?               // 관련 엔티티 ID
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([recipientId])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("fmea_notifications")
 }
