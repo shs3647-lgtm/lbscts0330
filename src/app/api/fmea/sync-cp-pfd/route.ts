@@ -101,11 +101,13 @@ export async function POST(request: NextRequest) {
       select: { linkedCpNo: true, linkedPfdNo: true },
     }).catch(() => null);
 
+    // TODO: FMEA 등록 시 CP/PFD 동시 생성(FIX-SSI-01/04)으로 폴백 자체가 불필요해지면 폴백 분기 제거 예정
     let targetCpNo = cpNo;
     if (!targetCpNo) {
       if (reg?.linkedCpNo) {
         targetCpNo = reg.linkedCpNo;
       } else {
+        console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: linkedCpNo 없음, TripletGroup/findFirst 폴백 사용`);
         const tg = await publicPrisma.tripletGroup.findFirst({
           where: { pfmeaId: fmeaId },
           select: { cpId: true },
@@ -113,6 +115,7 @@ export async function POST(request: NextRequest) {
         }).catch(() => null);
         if (tg?.cpId) {
           targetCpNo = tg.cpId;
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: TripletGroup 폴백으로 cpId=${tg.cpId} 사용`);
         } else {
           const existingCp = await publicPrisma.controlPlan.findFirst({
             where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
@@ -120,6 +123,7 @@ export async function POST(request: NextRequest) {
             orderBy: { createdAt: 'desc' },
           }).catch(() => null);
           targetCpNo = existingCp?.cpNo || fmeaId.replace(/^pfm/i, 'cp');
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: findFirst 폴백으로 cpNo=${targetCpNo} 사용 (비결정론 위험)`);
         }
       }
     }
@@ -129,6 +133,7 @@ export async function POST(request: NextRequest) {
       if (reg?.linkedPfdNo) {
         targetPfdNo = reg.linkedPfdNo;
       } else {
+        console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: linkedPfdNo 없음, TripletGroup/findFirst 폴백 사용`);
         const tg = await publicPrisma.tripletGroup.findFirst({
           where: { pfmeaId: fmeaId },
           select: { pfdId: true },
@@ -136,6 +141,7 @@ export async function POST(request: NextRequest) {
         }).catch(() => null);
         if (tg?.pfdId) {
           targetPfdNo = tg.pfdId;
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: TripletGroup 폴백으로 pfdId=${tg.pfdId} 사용`);
         } else {
           const existingPfd = await publicPrisma.pfdRegistration.findFirst({
             where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
@@ -143,6 +149,7 @@ export async function POST(request: NextRequest) {
             orderBy: { createdAt: 'desc' },
           }).catch(() => null);
           targetPfdNo = existingPfd?.pfdNo || fmeaId.replace(/^pfm/i, 'pfd');
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: findFirst 폴백으로 pfdNo=${targetPfdNo} 사용 (비결정론 위험)`);
         }
       }
     }
@@ -419,7 +426,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // CP/PFD 조회: FmeaRegistration(SSoT, public 스키마) 우선 → TripletGroup → findFirst(orderBy)
+    // TODO: FMEA 등록 시 CP/PFD 동시 생성으로 폴백 제거 예정
     const regGet = await publicPrisma.fmeaRegistration.findUnique({
       where: { fmeaId },
       select: { linkedCpNo: true, linkedPfdNo: true },
@@ -429,6 +436,9 @@ export async function GET(request: NextRequest) {
       ? await publicPrisma.controlPlan.findFirst({ where: { cpNo: regGet.linkedCpNo } })
       : null;
     if (!cp) {
+      if (!regGet?.linkedCpNo) {
+        console.warn(`[sync-cp-pfd GET] fmeaId=${fmeaId}: linkedCpNo 없음, findFirst 폴백 사용`);
+      }
       cp = await publicPrisma.controlPlan.findFirst({
         where: { fmeaId },
         orderBy: { createdAt: 'desc' },
@@ -439,6 +449,9 @@ export async function GET(request: NextRequest) {
       ? await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: regGet.linkedPfdNo } })
       : null;
     if (!pfd) {
+      if (!regGet?.linkedPfdNo) {
+        console.warn(`[sync-cp-pfd GET] fmeaId=${fmeaId}: linkedPfdNo 없음, findFirst 폴백 사용`);
+      }
       pfd = await publicPrisma.pfdRegistration.findFirst({
         where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
         orderBy: { createdAt: 'desc' },

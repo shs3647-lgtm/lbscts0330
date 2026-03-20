@@ -34,7 +34,7 @@ async function verifyCpPfdFk(fmeaPrisma: any, publicPrisma: any, fmeaId: string)
     fmeaPrisma.processProductChar.count({ where: { fmeaId } }),
   ]);
 
-  // 2. FmeaRegistration에서 결정론적 CP/PFD 번호 확인 (SSoT — public 스키마)
+  // TODO: FMEA 등록 시 CP/PFD 동시 생성으로 폴백 제거 예정
   const reg = await publicPrisma.fmeaRegistration.findUnique({
     where: { fmeaId },
     select: { linkedCpNo: true, linkedPfdNo: true },
@@ -44,6 +44,9 @@ async function verifyCpPfdFk(fmeaPrisma: any, publicPrisma: any, fmeaId: string)
     ? await publicPrisma.controlPlan.findFirst({ where: { cpNo: reg.linkedCpNo } })
     : null;
   if (!cp) {
+    if (!reg?.linkedCpNo) {
+      console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: linkedCpNo 없음, findFirst 폴백 사용`);
+    }
     cp = await publicPrisma.controlPlan.findFirst({
       where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
       orderBy: { createdAt: 'desc' },
@@ -54,6 +57,9 @@ async function verifyCpPfdFk(fmeaPrisma: any, publicPrisma: any, fmeaId: string)
     ? await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: reg.linkedPfdNo } })
     : null;
   if (!pfd) {
+    if (!reg?.linkedPfdNo) {
+      console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: linkedPfdNo 없음, findFirst 폴백 사용`);
+    }
     pfd = await publicPrisma.pfdRegistration.findFirst({
       where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
       orderBy: { createdAt: 'desc' },
