@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
           });
           await tx.failureLink.deleteMany({ where: { fmeaId, fcId: { in: dupFcIds } } });
           await tx.failureCause.deleteMany({ where: { id: { in: dupFcIds } } });
-          console.log(`[rebuild-atomic] 동일공정 동일원인 중복 FC ${dupFcIds.length}건 정리`);
+          console.warn(`[rebuild-atomic] FC dedup: ${dupFcIds.length} duplicates removed`);
         }
       }
 
@@ -182,7 +182,11 @@ export async function POST(request: NextRequest) {
             let fm = fmByL2.get(fc.l2StructId);
             if (!fm && fc.l3FuncId) {
               const l3f = l3FuncById.get(fc.l3FuncId);
-              if (l3f) fm = fmByL2.get((l3f as any).l2StructId);
+              if (l3f) {
+                fm = fmByL2.get((l3f as any).l2StructId);
+              } else {
+                console.warn(`[rebuild-atomic] l3FuncById miss: l3FuncId=${fc.l3FuncId} not found, skipping l2StructId lookup`);
+              }
             }
             if (!fm && allFms.length > 0) fm = allFms[0];
             if (!fm) continue;

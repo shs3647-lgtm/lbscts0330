@@ -460,6 +460,11 @@ export async function POST(request: NextRequest) {
           const feIdSet = new Set((a.failureEffects || []).map((fe: any) => fe.id));
           const fcIdSet = new Set((a.failureCauses || []).map((fc: any) => fc.id));
           const validLinks = a.failureLinks.filter((l: any) => fmIdSet.has(l.fmId) && feIdSet.has(l.feId) && fcIdSet.has(l.fcId));
+          const droppedCount = a.failureLinks.length - validLinks.length;
+          if (droppedCount > 0) {
+            console.warn(`[save-from-import] ${droppedCount} links dropped: invalid fmId/feId/fcId`);
+            gaps.push(`${droppedCount} links dropped due to invalid FK`);
+          }
           if (validLinks.length > 0) {
             await tx.failureLink.createMany({ data: validLinks.map((l: any) => ({
               id: l.id, fmeaId: fId, fmId: l.fmId, feId: l.feId, fcId: l.fcId,

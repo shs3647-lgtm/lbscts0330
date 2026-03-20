@@ -207,6 +207,9 @@ function buildLegacyFailureLinks(
     const analysis = analysisByLinkId.get(link.id);
     const fm = fmById.get(link.fmId);
     const fe = feById.get(link.feId);
+    if (!fe) {
+      console.warn(`[atomicToLegacy] FE not found for feId=${link.feId}`);
+    }
     const fc = fcById.get(link.fcId);
     const fmL2 = fm?.l2StructId ? l2ById.get(fm.l2StructId) : undefined;
     const fcL3 = fc?.l3StructId ? l3ById.get(fc.l3StructId) : undefined;

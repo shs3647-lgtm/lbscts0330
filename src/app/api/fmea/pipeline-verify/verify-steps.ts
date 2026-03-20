@@ -65,6 +65,21 @@ export async function verifyStructure(prisma: any, fmeaId: string): Promise<Step
   if (l2Count === 0) { r.status = 'error'; r.issues.push('L2Structure(공정) 0건 — Import 필요'); }
   if (l3Count === 0 && l2Count > 0) { r.status = worst(r.status, 'warn'); r.issues.push('L3Structure(작업요소) 0건'); }
 
+  // 모자관계: 모든 L2에 최소 1개 L3 존재
+  if (l2Count > 0) {
+    const l3ByL2 = new Map<string, number>();
+    const allL3 = await prisma.l3Structure.findMany({ where: { fmeaId }, select: { l2Id: true } });
+    for (const l3 of allL3) {
+      l3ByL2.set(l3.l2Id, (l3ByL2.get(l3.l2Id) || 0) + 1);
+    }
+    const l2WithoutL3 = l2Count - l3ByL2.size;
+    if (l2WithoutL3 > 0) {
+      r.status = worst(r.status, 'warn');
+      r.issues.push(`L3 없는 L2 공정 ${l2WithoutL3}건`);
+    }
+    r.details.l2WithoutL3 = l2WithoutL3;
+  }
+
   return r;
 }
 
@@ -75,12 +90,12 @@ export async function verifyUuid(prisma: any, fmeaId: string): Promise<StepResul
   const [l2s, l3s, l3Funcs, l2Funcs, l1Funcs, fms, fes, fcs, fls, ras] = await Promise.all([
     prisma.l2Structure.findMany({ where: { fmeaId }, select: { id: true, no: true, name: true } }),
     prisma.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } }),
-    prisma.l3Function.findMany({ where: { fmeaId }, select: { id: true, l3StructId: true, functionName: true } }),
+    prisma.l3Function.findMany({ where: { fmeaId }, select: { id: true, l3StructId: true, functionName: true, processChar: true } }),
     prisma.l2Function.findMany({ where: { fmeaId }, select: { id: true } }),
     prisma.l1Function.findMany({ where: { fmeaId }, select: { id: true } }),
     prisma.failureMode.findMany({ where: { fmeaId }, select: { id: true } }),
     prisma.failureEffect.findMany({ where: { fmeaId }, select: { id: true } }),
-    prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true } }),
+    prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, l3FuncId: true } }),
     prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } }),
     prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true } }),
   ]);
@@ -141,6 +156,22 @@ export async function verifyUuid(prisma: any, fmeaId: string): Promise<StepResul
     { parent: 'L2Structure', child: 'L3Structure', missingChildren: missingL2Children },
     { parent: 'L3Structure', child: 'L3Function', missingChildren: missingL3Children },
   ];
+
+  // processChar 빈값 검증
+  const emptyProcessChar = l3Funcs.filter((f: any) => !f.processChar?.trim()).length;
+  if (emptyProcessChar > 0) {
+    r.status = worst(r.status, 'warn');
+    r.issues.push(`L3Function processChar 빈값 ${emptyProcessChar}건`);
+  }
+  r.details.emptyProcessChar = emptyProcessChar;
+
+  // FC.l3FuncId null 검증
+  const nullL3FuncId = fcs.filter((fc: any) => !fc.l3FuncId).length;
+  if (nullL3FuncId > 0) {
+    r.status = worst(r.status, 'warn');
+    r.issues.push(`FC.l3FuncId NULL ${nullL3FuncId}건`);
+  }
+  r.details.nullL3FuncId = nullL3FuncId;
 
   return r;
 }
@@ -270,6 +301,28 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   if (fls.length === 0 && fcs.length > 0) { r.status = 'error'; r.issues.push('FailureLink 0건 — FK 연결 필요'); }
   if (flNoRA > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`RA 없는 FL ${flNoRA}건`); }
 
+  // FL.feId null 검증
+  const nullFeIdLinks = fls.filter((fl: any) => !fl.feId).length;
+  if (nullFeIdLinks > 0) {
+    r.status = worst(r.status, 'error');
+    r.issues.push(`FailureLink feId NULL ${nullFeIdLinks}건`);
+  }
+  r.details.nullFeIdLinks = nullFeIdLinks;
+
+  // FC 중복 검증 (same l2StructId + cause)
+  const fcDupKey = new Set<string>();
+  let fcDuplicates = 0;
+  for (const fc of fcs) {
+    const key = `${(fc as any).l2StructId}|${(fc as any).cause}`;
+    if (fcDupKey.has(key)) fcDuplicates++;
+    fcDupKey.add(key);
+  }
+  if (fcDuplicates > 0) {
+    r.status = worst(r.status, 'warn');
+    r.issues.push(`FC 중복 (l2+cause) ${fcDuplicates}건`);
+  }
+  r.details.fcDuplicates = fcDuplicates;
+
   r.fkIntegrity = integrity;
   return r;
 }
@@ -338,6 +391,18 @@ export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepRe
   if (missD > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`D(검출도) 미입력 ${missD}건`); }
   if (missRA > 0) { r.status = worst(r.status, 'error'); r.issues.push(`RA 누락 ${missRA}건 (FL 대비)`); }
   if (orphanOpt > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`Opt→RA FK 고아 ${orphanOpt}건`); }
+
+  // RA 중복 검증 (same linkId)
+  const raByLinkId = new Map<string, number>();
+  for (const ra of ras) {
+    raByLinkId.set((ra as any).linkId, (raByLinkId.get((ra as any).linkId) || 0) + 1);
+  }
+  const raDuplicates = [...raByLinkId.values()].filter(c => c > 1).length;
+  if (raDuplicates > 0) {
+    r.status = worst(r.status, 'warn');
+    r.issues.push(`RA 중복 (linkId) ${raDuplicates}건`);
+  }
+  r.details.raDuplicates = raDuplicates;
 
   return r;
 }

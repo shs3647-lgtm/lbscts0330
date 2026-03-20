@@ -612,8 +612,8 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       db.failureCauses.push({
         id: fcId,
         fmeaId: oldData.fmeaId,
-        l3FuncId: relatedL3Func.id, // ★ 항상 유효한 ID
-        l3StructId: relatedL3Func.l3StructId, // ★ 항상 유효한 ID
+        l3FuncId: relatedL3Func?.id || db.l3Functions.find(f => f.l2StructId === l2Struct.id)?.id || '', // ★ null safety fallback
+        l3StructId: relatedL3Func?.l3StructId || db.l3Structures.find(s => s.l2Id === l2Struct.id)?.id || '', // ★ null safety fallback
         l2StructId: l2Struct.id,
         processCharId: fc.processCharId || null,
         cause: fc.name,
@@ -744,6 +744,11 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       fe = db.failureEffects.find(e => e.effect === oldLink.feText);
     }
     // FE 자동 생성 (누락 금지) — ★ P7: uid()로 통일 (배열길이 기반 충돌 제거)
+    // ★ Fix B: feId NULL 방어 — oldLink.feId가 없어도 기존 FE fallback 사용
+    if (!fe && !oldLink.feId && db.failureEffects.length > 0) {
+      fe = db.failureEffects[0];
+      console.warn(`[마이그레이션] feId NULL — fallback FE 사용: feId=${fe.id}, link=${oldLink.id || linkLocalIdx}`);
+    }
     if (!fe && oldLink.feId && db.l1Functions.length > 0) {
       const tempFeId = uid();
       fe = {
