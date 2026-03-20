@@ -58,7 +58,8 @@ export function autoFillMissingOccurrence(
     const existingO = updated[oKey];
     if (existingO !== undefined && existingO !== null && existingO !== '' && existingO !== 0) {
       const num = Number(existingO);
-      if (num >= 1 && num <= 10) continue;
+      // O=1은 import 기본값일 가능성 → 재평가 대상
+      if (num >= 2 && num <= 10) continue;
     }
 
     const pcKey = `prevention-${uniqueKey}`;

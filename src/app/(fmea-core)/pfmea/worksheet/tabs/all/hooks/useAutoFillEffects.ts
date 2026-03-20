@@ -9,7 +9,8 @@
 import { useRef, useEffect } from 'react';
 import type { WorksheetState, WorksheetFailureLink } from '../../../constants';
 import type { ProcessedFMGroup } from '../processFailureLinks';
-// ★ O 자동채움 비활성화 (2026-03-02) — autoFillMissingOccurrence, correctOccurrence 미사용
+import { autoFillMissingOccurrence } from '../../../utils/autoFillOccurrence';
+import { autoFillMissingDetection } from '../../../utils/autoFillDetection';
 import { fillPCDCFromImport } from '../../../utils/fillPCDCFromImport';
 import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 
@@ -24,53 +25,37 @@ export function useAutoFillEffects({
   state, setState, setDirty, processedFMGroups,
 }: UseAutoFillEffectsParams) {
 
-  // ★ 발생도(O) 자동채움 비활성화 — 사용자가 직접 선택 (2026-03-02)
-  // correctOccurrence()가 잘못된 O값을 추천하는 문제 → 사용자 수동 입력으로 전환
-  const oAutoFillRef = useRef(false);
-  void oAutoFillRef; // lint suppress
-
-  // ★ 발생도(O) 재평가 비활성화 — 사용자가 직접 선택 (2026-03-02)
-  // 비-import PC 삭제 로직만 유지
-  const oReEvalRef = useRef(false);
+  // ★ 발생도(O) + 검출도(D) 자동채움 — PC/DC 텍스트 기반 AIAG-VDA 키워드 매칭
+  const odAutoFillRef = useRef(false);
   useEffect(() => {
-    if (oReEvalRef.current || !state?.riskData || !setState) return;
+    if (odAutoFillRef.current || !state?.riskData || !setState) return;
     if (processedFMGroups.length === 0) return;
-    const rd = state.riskData;
-    let removedCount = 0;
-    const updates: Record<string, string | number> = {};
+    odAutoFillRef.current = true;
 
-    const NON_IMPORT_PC = ['수입검사 강화', '수입검사'];
+    const fls = processedFMGroups.flatMap(g =>
+      g.rows.map(r => ({ fmId: g.fmId, fcId: r.fcId }))
+    );
+    if (fls.length === 0) return;
 
-    for (const g of processedFMGroups) {
-      for (const r of g.rows) {
-        const uk = `${g.fmId}-${r.fcId}`;
-        const pcKey = `prevention-${uk}`;
-        const oKey = `risk-${uk}-O`;
-        const pcVal = rd[pcKey];
-        if (!pcVal || !String(pcVal).trim()) continue;
+    const oResult = autoFillMissingOccurrence(state.riskData || {}, fls);
+    const dResult = autoFillMissingDetection(
+      oResult.filledCount > 0 ? oResult.updatedRiskData : (state.riskData || {}),
+      fls,
+    );
 
-        const pcStr = String(pcVal).trim();
-        const pcPlain = pcStr.split('\n')
-          .map(l => l.replace(/^P[: ]\s*/, '').trim()).filter(Boolean).join(' ');
+    const totalFilled = oResult.filledCount + dResult.filledCount;
+    if (totalFilled === 0) return;
 
-        // 비-import PC 삭제
-        if (NON_IMPORT_PC.some(kw => pcPlain.includes(kw))) {
-          updates[pcKey] = '';
-          updates[oKey] = '';
-          removedCount++;
-        }
-        // ★ O값 재평가 제거 — 사용자 수동 선택
-      }
-    }
+    const mergedRiskData = dResult.filledCount > 0
+      ? dResult.updatedRiskData
+      : oResult.updatedRiskData;
 
-    if (removedCount > 0) {
-      oReEvalRef.current = true;
-      setState((prev: WorksheetState) => {
-        const newRD = { ...(prev.riskData || {}), ...updates };
-        return { ...prev, riskData: newRD as { [key: string]: string | number } };
-      });
-      setDirty?.(true);
-    }
+    setState((prev: WorksheetState) => ({
+      ...prev,
+      riskData: { ...(prev.riskData || {}), ...mergedRiskData } as { [key: string]: string | number },
+    }));
+    setDirty?.(true);
+    console.log(`[O/D 자동채움] O=${oResult.filledCount}건, D=${dResult.filledCount}건 자동평가 완료`);
   }, [state?.riskData, processedFMGroups, setState, setDirty]);
 
   // ★ PC1/DC1 import 데이터 자동채움 — 마스터 B5/A6 원본 직접 반영

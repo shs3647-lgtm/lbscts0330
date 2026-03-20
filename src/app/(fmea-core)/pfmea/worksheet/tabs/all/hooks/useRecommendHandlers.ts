@@ -16,6 +16,7 @@ import { getAllPaths } from '../APImproveModal';
 import { correctOccurrence } from './pcOccurrenceMap';
 import { recommendDetection, D_SCORE_DESCRIPTION } from './detectionRatingMap';
 import { autoFillMissingOccurrence } from '../../../utils/autoFillOccurrence';
+import { autoFillMissingDetection } from '../../../utils/autoFillDetection';
 import { PLACEHOLDER_NA, PLACEHOLDER_DASH, RECOMMEND_PREFIX } from '../allTabConstants';
 
 interface ScoredPC { method: string; o: number | null }
@@ -431,10 +432,29 @@ export function useRecommendHandlers({
     alert(`발생도(O) ${result.filledCount}건 자동추천 완료\n\n${result.details.slice(0, 5).map(d => `• ${d.reason}`).join('\n')}${result.details.length > 5 ? `\n... 외 ${result.details.length - 5}건` : ''}`);
   }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB]);
 
+  // ★ 검출도(D) 자동추천 — DC 텍스트 기반 AIAG-VDA 키워드 매칭
+  const autoRecommendD = useCallback(() => {
+    if (!state?.riskData || !setState) return;
+    const fls = (state.failureLinks || []).map((fl) => ({
+      fmId: String(fl.fmId || ''),
+      fcId: String(fl.fcId || ''),
+    }));
+    const result = autoFillMissingDetection(state.riskData || {}, fls);
+    if (result.filledCount === 0) {
+      alert('검출도(D) 누락이 없습니다.');
+      return;
+    }
+    setState((prev: WorksheetState) => ({ ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } }));
+    setDirty?.(true);
+    saveAtomicDB?.(true);
+    alert(`검출도(D) ${result.filledCount}건 자동추천 완료\n\n${result.details.slice(0, 5).map(d => `• ${d.reason}`).join('\n')}${result.details.length > 5 ? `\n... 외 ${result.details.length - 5}건` : ''}`);
+  }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB]);
+
   return {
     handleAPImprove,
     handleRecommendImprovement,
     autoRecommendO,
+    autoRecommendD,
     // ★ 모달 관련
     recommendModal,
     closeRecommendModal,

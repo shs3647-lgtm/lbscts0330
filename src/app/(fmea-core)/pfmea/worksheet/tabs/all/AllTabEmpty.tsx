@@ -374,8 +374,9 @@ export default function AllTabEmpty({
             : `${fmGroup.fmId}-r${rowIdx}`;
           const o = Number(riskData[`risk-${uniqueKey}-O`]) || 0;
           const d = Number(riskData[`risk-${uniqueKey}-D`]) || 0;
-          if (o === 0) missingOCount++;
-          if (d === 0) missingDCount++;
+          // O=1, D=1은 import 기본값 → 미평가로 간주
+          if (o <= 1) missingOCount++;
+          if (d <= 1) missingDCount++;
         }
       });
     });
@@ -476,7 +477,7 @@ export default function AllTabEmpty({
 
   // ★ 추천/개선 핸들러 (useRecommendHandlers.ts로 분리)
   const {
-    handleAPImprove, handleRecommendImprovement, autoRecommendO,
+    handleAPImprove, handleRecommendImprovement, autoRecommendO, autoRecommendD,
     recommendModal, closeRecommendModal, applyRecommendations, applySingleRecommendation,
   } = useRecommendHandlers({
     state, setState, setDirty, saveAtomicDB, processedFMGroups, globalMaxSeverity,
@@ -720,6 +721,8 @@ export default function AllTabEmpty({
           apStats6={apStats6}
           saveAtomicDB={saveAtomicDB}
           autoRecommendS={autoRecommendS}
+          autoRecommendO={autoRecommendO}
+          autoRecommendD={autoRecommendD}
           handleRecommendImprovement={handleRecommendImprovement}
           handleAutoLldFilter={handleAutoLldFilter}
           handleClearOptLld={handleClearOptLld}
