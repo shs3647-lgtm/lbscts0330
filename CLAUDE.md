@@ -285,14 +285,14 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 | L3Function | 103 | = 103 |
 | FM (고장형태) | 26 | = 26 |
 | FE (고장영향) | 20 | = 20 |
-| FC (고장원인) | 104 | = 104 |
-| FailureLink | 104 | = 104 |
-| RiskAnalysis | 104 | = 104 |
-| DC (검출관리) in RiskAnalysis | 104 | = 104 (NULL 0건) |
-| PC (예방관리) in RiskAnalysis | 104 | = 104 (NULL 0건) |
-| Chains with DC | 104 | = 104 |
-| Chains with PC | 104 | = 104 |
-| flatData 합계 | 670 | ≥ 660 |
+| FC (고장원인) | 103 | = 103 |
+| FailureLink | 103 | = 103 |
+| RiskAnalysis | 103 | = 103 |
+| DC (검출관리) in RiskAnalysis | 103 | = 103 (NULL 0건) |
+| PC (예방관리) in RiskAnalysis | 103 | = 103 (NULL 0건) |
+| Chains with DC | 103 | = 103 |
+| Chains with PC | 103 | = 103 |
+| flatData 합계 | 668 | ≥ 660 |
 
 ##### flatData 항목별 기대값
 
@@ -307,8 +307,8 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 | B1 | 작업요소 | 91 | = 91 |
 | B2 | 요소기능 | 91 | ≥ 90 |
 | B3 | 공정특성 | 103 | ≥ 100 |
-| B4 | 고장원인 | 104 | = 104 |
-| B5 | 예방관리 | 98 | ≥ 90 (L3별 중복제거) |
+| B4 | 고장원인 | 103 | = 103 |
+| B5 | 예방관리 | 97 | ≥ 90 (L3별 중복제거) |
 | C1 | L1 범주 | 3 | ≥ 3 |
 | C2 | L1 기능 | 7 | ≥ 7 |
 | C3 | L1 요구사항 | 17 | ≥ 17 |
@@ -389,7 +389,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 [ ] 1. dev 서버 기동 확인 (npm run dev, localhost:3000 응답)
 [ ] 2. tsc --noEmit 에러 0건
 [ ] 3. pipeline-verify GET → allGreen=true 확인
-[ ] 4. 마스터 JSON DC/PC 104/104 확인
+[ ] 4. 마스터 JSON DC/PC 103/103 확인
 [ ] 5. 코드 수정 시작
 ```
 
@@ -399,7 +399,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 [ ] 1. tsc --noEmit 에러 0건
 [ ] 2. pipeline-verify POST → allGreen=true
 [ ] 3. rebuild-atomic 실행 → riskAnalyses=104
-[ ] 4. export-master 실행 → DC=104, PC=104
+[ ] 4. export-master 실행 → DC=103, PC=103
 [ ] 5. import-validation 실행 → 신규 ERROR 0건
 [ ] 6. (Import 관련 수정 시) 원본 엑셀 re-import → pipeline ALL GREEN
 ```
@@ -412,11 +412,11 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 ## [날짜] 파이프라인 테스트 결과
 - tsc: ✅ 에러 0건
 - STEP1 IMPORT: ✅ L2=21
-- STEP2 파싱: ✅ A6=104 B5=104
+- STEP2 파싱: ✅ A6=103 B5=103
 - STEP3 UUID: ✅ FM=26 FC=104
 - STEP4 FK: ✅ links=104 broken=0
 - STEP5 WS: ✅ emptyPC=0 orphanPC=0
-- Master DC/PC: ✅ 104/104
+- Master DC/PC: ✅ 103/103
 - allGreen: ✅
 - 수정사항: (해당 세션에서 변경한 내용)
 - 발견된 이슈: (있으면 기록)
@@ -436,6 +436,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-19 | m069 Public↔Project riskData 불일치 | Public fmea_legacy_data.riskData 키 12개만 (Project 1638개) | sync-public-legacy 스크립트 실행 | ✅ Public keys=1650 |
 | 2026-03-19 | 자동수정(fixStep3/4/5)이 orphanPC 악화 | placeholder FC/FL/RA 생성 → Atomic↔Legacy 불일치 확대 (FL 126 vs 118) | `pipeline-verify/route.ts` 자동생성 비활성화 → 경고만 표시 | ✅ 데이터 손상 차단 |
 | 2026-03-19 | orphanPC 근본원인: B4.parentItemId=B1 | import-builder에서 B4→B1 연결 → buildWorksheetState에서 B4→B3 매칭 실패 → 순차폴백 → orphanPC | `import-builder.ts` B4.parentItemId → B3 ID로 변경 | ✅ m066 orphanPC=0, m069 orphanPC=0 |
+| 2026-03-20 | emptyPC=1 재발 (Cu Target L3Function) | B4 dedup key={pno\|m4\|fc}에 WE 미포함 → Cu Target+Ti Target 동일 FC명 공유 → 1건 합침 → FC 미연결 → orphan L3F 삭제 | `import-builder.ts` B4 key에 WE 추가, `types.ts` StepBB4Item.we 필드 추가 | ✅ allGreen, emptyPC=0, 베이스라인 FC=103 갱신 |
 
 ### 🔴 Rule 2: 기존 UI 변경 금지
 기존 UI는 절대 변경하지 않습니다. 사용자가 명시적으로 UI 변경을 요청한 경우에만 수정합니다.
@@ -797,7 +798,7 @@ POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m066" }
 
 **`master-chain-sync.ts`**: 워크시트 저장 시 자동 동기화
 - Atomic DB FailureLink 기반 (SSoT)
-- FM 26개 × FC 104건 = 104 chains
+- FM 26개 × FC 103건 = 103 chains
 - SOD (심각도/발생도/검출도) + PC/DC 포함
 - `syncMasterChainsInTx()` → `upsertActiveMasterFromWorksheetTx()` 내에서 호출
 
@@ -824,11 +825,11 @@ Invoke-WebRequest -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method 
 | A1 (공정번호) | 21 |
 | A5 (고장형태) | 26 |
 | B3 (공정특성) | 103 |
-| B4 (고장원인) | 104~105 |
+| B4 (고장원인) | 103~104 |
 | C1 (구분) | 3 (YP/SP/USER) |
 | C2 (완제품기능) | 7 |
 | C3 (요구사항) | 17 |
 | C4 (고장영향) | 20 |
 | FM (Atomic) | 26 |
-| FailureLink | 104 |
-| RiskAnalysis | 104 |
+| FailureLink | 103 |
+| RiskAnalysis | 103 |

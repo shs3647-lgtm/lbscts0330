@@ -15,6 +15,7 @@
 | 2026-03-07 | 07:10 | 03-04~03-07 전체 커밋 81건 분석 → 체크리스트/트러블슈팅/이력 대폭 보강 | Claude |
 | 2026-03-08 | 20:05 | 배포 전 전체 진단 — 보안(하드코딩 비밀번호/시크릿 제거) + empty catch 16건 수정 + console.log 8건 제거 + Operations error.tsx 추가 | Claude |
 | 2026-03-18 | - | Raw SQL PascalCase 테이블명 전수 제거 (15개 파일) + CP 라우트 Prisma ORM 전환 + 트러블슈팅 T-38~T-42 추가 | Claude |
+| 2026-03-20 | - | B4 dedup key WE 추가 (emptyPC 근본수정) + 골든 베이스라인 FC/FL/RA/B4: 104→103 갱신 + 방어코드 4건 추가 | Claude |
 
 ---
 
@@ -521,10 +522,12 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 
 ## 10. 버그 수정 이력
 
-### 최근 수정 (2026-03-19 기준, 최신순)
+### 최근 수정 (2026-03-20 기준, 최신순)
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|
+| 03-20 | `458f2a7` | Import | **emptyPC 근본수정**: B4 dedup key에 WE 추가 (`{pno\|m4\|fc}`→`{pno\|m4\|we\|fc}`). Cu Target+Ti Target 동일 FC명 공유 시 1건으로 합쳐져 FC 미연결 → orphan L3F 삭제 → emptyPC 재발. StepBB4Item.we 필드 추가. 골든 베이스라인 FC/FL/RA/B4: 104→103 갱신 |
+| 03-20 | `4d64805` | 파이프라인 | **emptyPC 방어코드**: migration.ts orphan 삭제 후 폴백 L3F 재생성, rebuild-atomic emptyPC 보정, auto-fix emptyPC 자동수정, verify-steps 폴백 L3F orphanPC 제외 |
 | 03-19 | - | 파이프라인 | **자동수정 비활성화**: fixStep3/4/5에서 placeholder FC/FL 자동생성 → 경고만 표시 (부작용: Atomic↔Legacy 불일치 악화 차단) |
 | 03-19 | - | Import | **orphanPC 근본수정**: import-builder.ts B4.parentItemId를 B1→B3 ID로 변경 → buildWorksheetState B4→B3 FK 매칭 정상화 |
 | 03-08 | `c5010535` | 보안/품질 | 배포 전 전체 진단: 하드코딩 비밀번호→환경변수, 시크릿키 보호, empty catch 16건→console.error, console.log 8건 제거, Operations error.tsx 추가, API error.message 노출 차단 |
