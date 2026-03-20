@@ -207,16 +207,12 @@ async function _doSave(db: FMEAWorksheetDB): Promise<SaveResult> {
 /**
  * Atomic DB 직접 저장 — UUID 보존
  *
- * ★★★ 2026-03-20: Legacy data 이중저장 제거 — Atomic DB만 저장 ★★★
- * legacyState 파라미터는 하위 호환성을 위해 유지하지만 무시됨.
- *
  * 큐 패턴: 동시 저장 시 최신 데이터만 보존
  * 연속 실패 시 최대 3회 재시도 + 지수 백오프
  */
 export async function saveAtomicDB(
   db: FMEAWorksheetDB,
   _force?: boolean,
-  _legacyState?: Record<string, unknown>,
 ): Promise<SaveResult> {
   // fmeaId 사전 검증
   if (!db.fmeaId || typeof db.fmeaId !== 'string' || db.fmeaId.trim() === '') {

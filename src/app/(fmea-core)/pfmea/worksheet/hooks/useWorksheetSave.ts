@@ -802,7 +802,7 @@ export function useWorksheetSave({
         }
 
         const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
-        await saveWorksheetDB(dbToSave as any, legacyData);
+        await saveWorksheetDB(dbToSave as any);
         setAtomicDB(newAtomicDB);
         setDirty(false);
         setLastSaved(new Date().toLocaleTimeString('ko-KR'));
@@ -894,7 +894,7 @@ export function useWorksheetSave({
 
         const newAtomicDB = migrateToAtomicDB(worksheetData);
         const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
-        saveWorksheetDB(dbToSave as any, worksheetData).catch(e => console.error('[저장] DB 저장 오류:', e));
+        saveWorksheetDB(dbToSave as any).catch(e => console.error('[저장] DB 저장 오류:', e));
         setAtomicDB(newAtomicDB);
       }
 

@@ -244,7 +244,6 @@ async function handleResave(request: NextRequest, doSave: boolean) {
     // 10. Actually save via POST /api/fmea
     const requestBody = {
       ...atomicDB,
-      legacyData: legacyData || null,
     };
 
     const origin = request.nextUrl.origin;

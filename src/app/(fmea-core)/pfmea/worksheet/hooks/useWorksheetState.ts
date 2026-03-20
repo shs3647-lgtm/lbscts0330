@@ -430,7 +430,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
         newAtomicDB.fmeaId = selectedFmeaId;
         setAtomicDB(newAtomicDB);
 
-        await saveWorksheetDB(newAtomicDB, { ...baseLegacy, fmeaId: selectedFmeaId });
+        await saveWorksheetDB(newAtomicDB);
 
         setTimeout(() => {
           suppressAutoSaveRef.current = false;

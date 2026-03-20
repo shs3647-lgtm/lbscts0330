@@ -536,16 +536,6 @@ export async function POST(request: NextRequest) {
       console.info(`[save-from-import] Atomic DB 직접 저장 완료 (Legacy 경유 없음)`);
     }
 
-    // 8-B. Legacy 캐시 저장 (Atomic 저장 후 — SSoT는 Atomic DB)
-    const legacyDataForSave = JSON.parse(JSON.stringify(legacyData));
-    await prisma.fmeaLegacyData.upsert({
-      where: { fmeaId: normalizedFmeaId },
-      create: { fmeaId: normalizedFmeaId, data: legacyDataForSave, version: '1.0.0' },
-      update: { data: legacyDataForSave },
-    }).catch((e: unknown) => {
-      console.warn('[save-from-import] Legacy 캐시 저장 실패 (비치명적):', e instanceof Error ? e.message : String(e));
-    });
-
     // 9. Atomic 카운트 검증 (단순 — Legacy 무관)
     const [l1FuncCount, l2Count, l3Count, fmCount, fcCount, feCount, linkCount] = await Promise.all([
       prisma.l1Function.count({ where: { fmeaId: normalizedFmeaId } }),

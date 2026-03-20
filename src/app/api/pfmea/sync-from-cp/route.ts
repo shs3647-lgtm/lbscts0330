@@ -261,29 +261,13 @@ export async function POST(request: NextRequest) {
         let dbSaveSuccess = false;
         try {
             await prisma.$transaction(async (tx: any) => {
-                // 1. FmeaLegacyData 저장
-                await tx.fmeaLegacyData.upsert({
-                    where: { fmeaId: targetFmeaId },
-                    create: {
-                        fmeaId: targetFmeaId,
-                        version: '1.0.0',
-                        data: JSON.parse(JSON.stringify(worksheetState)),
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                    },
-                    update: {
-                        data: JSON.parse(JSON.stringify(worksheetState)),
-                        updatedAt: new Date(),
-                    },
-                });
-
-                // 2. ControlPlan.linkedPfmeaNo 역링크 저장 (C4: 트랜잭션 내부)
+                // 1. ControlPlan.linkedPfmeaNo 역링크 저장 (C4: 트랜잭션 내부)
                 await tx.controlPlan.updateMany({
                     where: { cpNo },
                     data: { linkedPfmeaNo: targetFmeaId, fmeaId: targetFmeaId },
                 });
 
-                // 3. FmeaRegistration.linkedCpNo 역링크 저장 (C4: 트랜잭션 내부)
+                // 2. FmeaRegistration.linkedCpNo 역링크 저장 (C4: 트랜잭션 내부)
                 await tx.fmeaRegistration.updateMany({
                     where: { fmeaId: targetFmeaId },
                     data: { linkedCpNo: cpNo },

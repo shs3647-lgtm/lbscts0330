@@ -55,18 +55,13 @@ export async function POST(request: NextRequest) {
     const prisma = getPrismaForSchema(schema);
     if (!prisma) return NextResponse.json({ success: false, error: 'Prisma not configured' }, { status: 200 });
 
-    // 프로젝트 스키마에 레거시가 없으면 public에서 가져와 1회 마이그레이션
+    // 프로젝트 스키마에서 레거시 읽기 (없으면 public에서 읽기 — 쓰기 없음)
     let legacyRec = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } }).catch(() => null);
     if (!legacyRec?.data) {
       const publicPrisma = getPrisma(); // public (기존 저장소)
       const fromPublic = await publicPrisma?.fmeaLegacyData.findUnique({ where: { fmeaId } }).catch(() => null);
       if (fromPublic?.data) {
-        await prisma.fmeaLegacyData.upsert({
-          where: { fmeaId },
-          create: { fmeaId, data: fromPublic.data, version: fromPublic.version || '1.0.0' },
-          update: { data: fromPublic.data, version: fromPublic.version || '1.0.0' },
-        });
-        legacyRec = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } }).catch(() => null);
+        legacyRec = fromPublic;
       }
     }
     if (!legacyRec?.data) {
@@ -489,26 +484,7 @@ export async function POST(request: NextRequest) {
               });
             }
 
-            // Legacy failureLinks 동기화
-            try {
-              const legacyRecord = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
-              if (legacyRecord) {
-                const ld = JSON.parse(JSON.stringify(legacyRecord.data));
-                if (!ld.failureLinks) ld.failureLinks = [];
-                for (const sl of synthLinks) {
-                  const exists = ld.failureLinks.some((ll: any) => ll.id === sl.id);
-                  if (!exists) {
-                    ld.failureLinks.push({
-                      id: sl.id, fmId: sl.fmId, feId: sl.feId, fcId: sl.fcId,
-                      fmText: sl.fmText, feText: sl.feText, fcText: sl.fcText,
-                    });
-                  }
-                }
-                await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
-              }
-            } catch { /* Legacy 동기화 실패는 비치명적 */ }
-
-            console.info(`[rebuild-atomic] 미연결 FC 보충: FL=${synthLinks.length} + RA=${synthLinks.length} + Legacy 동기화`);
+            console.info(`[rebuild-atomic] 미연결 FC 보충: FL=${synthLinks.length} + RA=${synthLinks.length}`);
           }
         }
       }
@@ -777,45 +753,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // ★★★ 2026-03-19 ROOT FIX: Atomic→Legacy processChar 양방향 동기화 ★★★
-      // 근본원인: migrateToAtomicDB가 processChar을 FC/functionName에서 역추론 → Atomic DB 정확
-      //   but Legacy processChars[].name은 여전히 빈값 → emptyPC 발생
-      // 대책: Atomic L3Function.processChar → Legacy processChars[].name 동기화 (SSoT→Cache)
-      {
-        const allL3Funcs = await tx.l3Function.findMany({
-          where: { fmeaId },
-          select: { id: true, processChar: true },
-        });
-        const pcNameById = new Map<string, string>();
-        for (const f of allL3Funcs) {
-          if (f.processChar?.trim()) pcNameById.set(f.id, f.processChar);
-        }
-
-        if (pcNameById.size > 0) {
-          const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
-          if (legRec) {
-            const ld = JSON.parse(JSON.stringify(legRec.data));
-            let syncCount = 0;
-            for (const proc of (ld.l2 || [])) {
-              for (const we of (proc.l3 || [])) {
-                for (const fn of (we.functions || [])) {
-                  for (const pc of (fn.processChars || [])) {
-                    if (!pc.name?.trim() && pc.id && pcNameById.has(pc.id)) {
-                      pc.name = pcNameById.get(pc.id)!;
-                      syncCount++;
-                    }
-                  }
-                }
-              }
-            }
-            if (syncCount > 0) {
-              await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
-              console.info(`[rebuild-atomic] Atomic→Legacy processChar 동기화: ${syncCount}건`);
-            }
-          }
-        }
-      }
-
       // ★★★ 2026-03-19 ROOT FIX: FC processCharId = l3FuncId 동기화 ★★★
       // orphanPC 근본원인: FC.processCharId ≠ FC.l3FuncId → verify에서 매칭 안 됨
       {
@@ -835,109 +772,6 @@ export async function POST(request: NextRequest) {
         }
         if (fixedCount > 0) {
           console.info(`[rebuild-atomic] FC processCharId 동기화: ${fixedCount}건`);
-        }
-        // Legacy FC의 processCharId도 동기화
-        if (fixedCount > 0) {
-          const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
-          if (legRec) {
-            const ld = JSON.parse(JSON.stringify(legRec.data));
-            const fcMap = new Map(mismatchFcs.map((fc: { id: string; l3FuncId: string }) => [fc.id, fc.l3FuncId]));
-            let legFixed = 0;
-            for (const proc of (ld.l2 || [])) {
-              for (const fc of (proc.failureCauses || [])) {
-                const correctId = fcMap.get(fc.id);
-                if (correctId && fc.processCharId !== correctId) {
-                  fc.processCharId = correctId;
-                  legFixed++;
-                }
-              }
-              for (const we of (proc.l3 || [])) {
-                for (const fc of (we.failureCauses || [])) {
-                  const correctId = fcMap.get(fc.id);
-                  if (correctId && fc.processCharId !== correctId) {
-                    fc.processCharId = correctId;
-                    legFixed++;
-                  }
-                }
-              }
-            }
-            if (legFixed > 0) {
-              await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
-              console.info(`[rebuild-atomic] Legacy FC processCharId 동기화: ${legFixed}건`);
-            }
-          }
-        }
-      }
-
-      // ★★★ 2026-03-19 ROOT FIX: Atomic→Legacy FC + failureLinks 양방향 동기화 ★★★
-      // 근본원인: migration.ts에서 orphan L3Function용 FC 구조적 생성 → Atomic에만 존재
-      // 대책: Atomic FC/FL를 Legacy data에 동기화 (SSoT→Cache 완전성)
-      {
-        const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
-        if (legRec) {
-          const ld = JSON.parse(JSON.stringify(legRec.data));
-          const allAtomicFcs = await tx.failureCause.findMany({
-            where: { fmeaId },
-            select: { id: true, cause: true, l2StructId: true, l3StructId: true, l3FuncId: true, processCharId: true },
-          });
-          const allAtomicFls = await tx.failureLink.findMany({
-            where: { fmeaId },
-            select: { id: true, fmId: true, feId: true, fcId: true, fmText: true, feText: true, fcText: true },
-          });
-
-          // Legacy FC ID 집합
-          const legacyFcIds = new Set<string>();
-          for (const proc of (ld.l2 || [])) {
-            for (const fc of (proc.failureCauses || [])) legacyFcIds.add(fc.id);
-            for (const we of (proc.l3 || [])) {
-              for (const fc of (we.failureCauses || [])) legacyFcIds.add(fc.id);
-            }
-          }
-
-          // L2 ID→proc index 매핑
-          const l2IdxById = new Map<string, number>();
-          const atomicL2s = await tx.l2Structure.findMany({ where: { fmeaId }, select: { id: true, no: true }, orderBy: { order: 'asc' } });
-          for (let i = 0; i < atomicL2s.length; i++) {
-            l2IdxById.set(atomicL2s[i].id, i);
-          }
-
-          let fcSyncCount = 0;
-          for (const afc of allAtomicFcs) {
-            if (legacyFcIds.has(afc.id)) continue;
-            const procIdx = l2IdxById.get(afc.l2StructId);
-            if (procIdx === undefined || !ld.l2?.[procIdx]) continue;
-            const proc = ld.l2[procIdx];
-            if (!proc.failureCauses) proc.failureCauses = [];
-            proc.failureCauses.push({
-              id: afc.id, name: afc.cause, cause: afc.cause,
-              processCharId: afc.processCharId || afc.l3FuncId,
-            });
-            fcSyncCount++;
-          }
-
-          // Legacy failureLinks 동기화 (ID + FM-FE-FC 조합 중복 방지)
-          const legacyFlIds = new Set((ld.failureLinks || []).map((fl: any) => fl.id));
-          const legacyFlCombos = new Set(
-            (ld.failureLinks || []).map((fl: any) => `${fl.fmId}|${fl.feId}|${fl.fcId}`)
-          );
-          let flSyncCount = 0;
-          if (!ld.failureLinks) ld.failureLinks = [];
-          for (const afl of allAtomicFls) {
-            if (legacyFlIds.has(afl.id)) continue;
-            const combo = `${afl.fmId}|${afl.feId}|${afl.fcId}`;
-            if (legacyFlCombos.has(combo)) continue;
-            legacyFlCombos.add(combo);
-            ld.failureLinks.push({
-              id: afl.id, fmId: afl.fmId, feId: afl.feId, fcId: afl.fcId,
-              fmText: afl.fmText, feText: afl.feText, fcText: afl.fcText,
-            });
-            flSyncCount++;
-          }
-
-          if (fcSyncCount > 0 || flSyncCount > 0) {
-            await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
-            console.info(`[rebuild-atomic] Atomic→Legacy 동기화: FC=${fcSyncCount} FL=${flSyncCount}`);
-          }
         }
       }
 
@@ -1051,67 +885,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 3단계: Legacy를 Atomic SSoT 기준으로 완전 동기화
-        {
-          // Atomic에 존재하는 L3Function ID 집합 (삭제 후 최종 상태)
-          const remainingL3Funcs = await tx.l3Function.findMany({
-            where: { fmeaId },
-            select: { id: true },
-          });
-          const validL3FIds = new Set(remainingL3Funcs.map((f: { id: string }) => f.id));
-          // Atomic에 존재하는 FC ID 집합
-          const remainingFcs = await tx.failureCause.findMany({
-            where: { fmeaId },
-            select: { id: true },
-          });
-          const validFcIds = new Set(remainingFcs.map((f: { id: string }) => f.id));
-          // Atomic에 존재하는 FL fcId 집합
-          const remainingFls = await tx.failureLink.findMany({
-            where: { fmeaId },
-            select: { fcId: true },
-          });
-          const validFlFcIds = new Set(remainingFls.map((f: { fcId: string }) => f.fcId));
-
-          const legRec = await tx.fmeaLegacyData.findUnique({ where: { fmeaId } });
-          if (legRec) {
-            const ld = JSON.parse(JSON.stringify(legRec.data));
-            let pcRemoved = 0;
-            let fcRemoved = 0;
-            let flRemoved = 0;
-            for (const proc of (ld.l2 || [])) {
-              for (const we of (proc.l3 || [])) {
-                for (const fn of (we.functions || [])) {
-                  if (fn.processChars) {
-                    const before = fn.processChars.length;
-                    fn.processChars = fn.processChars.filter((pc: any) => validL3FIds.has(pc.id));
-                    pcRemoved += before - fn.processChars.length;
-                  }
-                }
-              }
-              if (proc.failureCauses) {
-                const before = proc.failureCauses.length;
-                proc.failureCauses = proc.failureCauses.filter((fc: any) => validFcIds.has(fc.id));
-                fcRemoved += before - proc.failureCauses.length;
-              }
-              for (const we of (proc.l3 || [])) {
-                if (we.failureCauses) {
-                  const before = we.failureCauses.length;
-                  we.failureCauses = we.failureCauses.filter((fc: any) => validFcIds.has(fc.id));
-                  fcRemoved += before - we.failureCauses.length;
-                }
-              }
-            }
-            if (ld.failureLinks) {
-              const before = ld.failureLinks.length;
-              ld.failureLinks = ld.failureLinks.filter((fl: any) => validFlFcIds.has(fl.fcId));
-              flRemoved += before - ld.failureLinks.length;
-            }
-            if (pcRemoved > 0 || fcRemoved > 0 || flRemoved > 0) {
-              await tx.fmeaLegacyData.update({ where: { fmeaId }, data: { data: ld } });
-              console.info(`[rebuild-atomic] Legacy→Atomic 동기화: PC삭제=${pcRemoved} FC삭제=${fcRemoved} FL삭제=${flRemoved}`);
-            }
-          }
-        }
+        // Legacy sync removed — no longer writing to fmeaLegacyData
       }
 
       // ★★★ 2026-03-18 FIX: Opt FK 수복 — riskId가 유효하지 않은 Optimization 삭제 ★★★

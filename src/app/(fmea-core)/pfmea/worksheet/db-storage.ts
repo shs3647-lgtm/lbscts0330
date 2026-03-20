@@ -3,8 +3,7 @@
  * @file db-storage.ts
  * @description PostgreSQL DB 저장/로드 함수
  *
- * ★★★ 2026-03-20: Legacy data 이중저장 제거 — Atomic DB만 저장 ★★★
- * - 저장 시: Atomic DB만 저장 (legacyData 파라미터는 하위호환용으로 유지하되 무시)
+ * - 저장 시: Atomic DB만 저장
  * - 로드 시: API가 Atomic DB에서 조립하여 반환
  *
  * ★★★ 2026-02-16: localStorage 폴백 완전 제거 (DB Only 정책) ★★★
@@ -153,12 +152,11 @@ async function _doSave(db: FMEAWorksheetDB): Promise<void> {
  * PostgreSQL DB에 원자성 DB 저장
  * ★ 2026-03-04: 큐 방식 — 동시 저장 시 최신 데이터 보존
  * ★ 2026-03-07: fmeaId 검증 + 재시도 제한 + 지수 백오프
- * ★ 2026-03-20: legacyData 이중저장 제거 — Atomic DB만 저장
+ * Atomic DB만 저장
  *
  * @param db - 원자성 DB 데이터
- * @param _legacyData - @deprecated 하위호환용으로 유지하되 무시됨
  */
-export async function saveWorksheetDB(db: FMEAWorksheetDB, _legacyData?: any): Promise<void> {
+export async function saveWorksheetDB(db: FMEAWorksheetDB): Promise<void> {
   // ★ fmeaId 사전 검증 — 잘못된 프로젝트에 저장하는 것을 원천 차단
   if (!db.fmeaId || typeof db.fmeaId !== 'string' || db.fmeaId.trim() === '') {
     _notifyError('fmeaId가 없어 저장할 수 없습니다. 프로젝트를 다시 선택하세요.');

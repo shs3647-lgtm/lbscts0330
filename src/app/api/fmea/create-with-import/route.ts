@@ -17,15 +17,14 @@
  *   2. sourceFmeaId에서 Atomic DB 전체 추출 (Guard 검증 포함)
  *   3. fmeaId 리매핑 (UUID 보존)
  *   4. 대상 스키마에 원자적 저장 ($transaction)
- *   5. Atomic → Legacy 동기화 (pipeline-verify 호환)
- *   6. 수량 검증 (V04 counts)
+ *   5. 수량 검증 (V04 counts)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { assertFmeaId, getIsolatedPrisma } from '@/lib/fmea-core/guards';
 import { reverseExtract } from '@/lib/fmea-core/reverse-extract';
 import { remapFmeaId } from '@/lib/fmea-core/remap-fmeaid';
-import { saveAtomicDBInTransaction, syncAtomicToLegacy } from '@/lib/fmea-core/save-atomic';
+import { saveAtomicDBInTransaction } from '@/lib/fmea-core/save-atomic';
 import { compareAtomicDBCounts } from '@/lib/fmea-core/compare-atomic';
 import { createOrUpdateProject } from '@/lib/services/fmea-project-service';
 import { safeErrorMessage } from '@/lib/security';
@@ -89,10 +88,7 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // ── STEP 5: Atomic → Legacy 동기화 ──
-    await syncAtomicToLegacy(targetPrisma, targetFmeaId);
-
-    // ── STEP 6: 검증 (수량 비교) ──
+    // ── STEP 5: 검증 (수량 비교) ──
     const targetDataReload = await reverseExtract(targetPrisma, targetFmeaId);
     const compareResult = compareAtomicDBCounts(sourceData, targetDataReload);
 
@@ -107,7 +103,6 @@ export async function POST(req: NextRequest) {
       steps: {
         project: true,
         atomicDB: true,
-        legacySync: true,
         verification: compareResult.allMatch,
       },
       counts,

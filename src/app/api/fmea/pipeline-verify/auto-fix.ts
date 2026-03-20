@@ -33,18 +33,6 @@ export async function fixStructure(prisma: any, fmeaId: string): Promise<string[
     console.error('[fixStructure] rebuild-atomic 실패:', err);
   }
 
-  // Legacy 동기화 확인
-  const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId }, select: { fmeaId: true } }).catch(() => null);
-  if (!legacy) {
-    try {
-      const { syncAtomicToLegacy } = await import('@/lib/fmea-core/save-atomic');
-      await syncAtomicToLegacy(prisma, fmeaId);
-      fixed.push('Atomic → Legacy 동기화 완료');
-    } catch (err) {
-      console.error('[fixStructure] Legacy 동기화 실패:', err);
-    }
-  }
-
   return fixed;
 }
 

@@ -336,7 +336,7 @@ export function useWorksheetDB(options: UseWorksheetDBOptions): UseWorksheetDBRe
 
       // 원자성 DB로도 저장
       const newAtomicDB = migrateToAtomicDB(worksheetData);
-      saveWorksheetDB(newAtomicDB, worksheetData).catch(e => console.error(`[${fmeaType}] DB 저장 오류:`, e));
+      saveWorksheetDB(newAtomicDB).catch(e => console.error(`[${fmeaType}] DB 저장 오류:`, e));
       setAtomicDB(newAtomicDB);
 
       setDirty(false);
@@ -400,7 +400,7 @@ export function useWorksheetDB(options: UseWorksheetDBOptions): UseWorksheetDBRe
         newAtomicDB.failureAnalyses = [];
       }
 
-      await saveWorksheetDB(newAtomicDB, legacyData);
+      await saveWorksheetDB(newAtomicDB);
       setAtomicDB(newAtomicDB);
 
 

@@ -341,28 +341,6 @@ export async function POST(request: NextRequest) {
             _createdAt: new Date().toISOString(),
         };
 
-        // ★★★ DB에 직접 저장 (영구 저장) ★★★
-        let dbSaveSuccess = false;
-        try {
-            await prisma.fmeaLegacyData.upsert({
-                where: { fmeaId: targetFmeaId },
-                create: {
-                    fmeaId: targetFmeaId,
-                    version: '1.0.0',
-                    data: JSON.parse(JSON.stringify(worksheetState)),
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                },
-                update: {
-                    data: JSON.parse(JSON.stringify(worksheetState)),
-                    updatedAt: new Date(),
-                },
-            });
-            dbSaveSuccess = true;
-        } catch (dbError: any) {
-            console.error('[CP→FMEA 생성] FmeaLegacyData 저장 실패:', dbError.message);
-        }
-
         // ★★★ ControlPlan.linkedPfmeaNo 역링크 저장 ★★★
         try {
             await prisma.controlPlan.updateMany({
@@ -398,7 +376,6 @@ export async function POST(request: NextRequest) {
                 localStorageKey,
                 redirectUrl: `/pfmea/worksheet?id=${targetFmeaId}&tab=structure&fromCp=${cpNo}`,
                 createdAt: new Date().toISOString(),
-                dbSaveSuccess,  // ★ DB 저장 성공 여부 반환
             }
         });
 

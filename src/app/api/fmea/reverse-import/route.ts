@@ -4,7 +4,6 @@
  * 설계서: docs/# 역설계 기반 FMEA Import 시스템 설계서.md
  *
  * 워크시트: Atomic DB → atomicToLegacy() → 렌더링
- * 파이프라인 검증: Legacy(fmea_legacy_data)도 필요 → syncAtomicToLegacy() 포함
  *
  * POST /api/fmea/reverse-import
  * Body: { sourceFmeaId, targetFmeaId, options? }
@@ -14,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { assertFmeaId, getIsolatedPrisma } from '@/lib/fmea-core/guards';
 import { reverseExtract } from '@/lib/fmea-core/reverse-extract';
 import { remapFmeaId } from '@/lib/fmea-core/remap-fmeaid';
-import { saveAtomicDBInTransaction, syncAtomicToLegacy } from '@/lib/fmea-core/save-atomic';
+import { saveAtomicDBInTransaction } from '@/lib/fmea-core/save-atomic';
 import { safeErrorMessage } from '@/lib/security';
 
 export const runtime = 'nodejs';
@@ -52,10 +51,6 @@ export async function POST(req: NextRequest) {
       targetData,
       options || {}
     );
-
-    // STEP 6: Atomic → Legacy 동기화 (pipeline-verify + WS 폴백 호환)
-    await syncAtomicToLegacy(targetPrisma, targetFmeaId);
-    console.info(`[reverse-import] Legacy 동기화 완료: ${targetFmeaId}`);
 
     return NextResponse.json({
       ok: true,

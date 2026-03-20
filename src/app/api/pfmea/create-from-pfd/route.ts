@@ -13,8 +13,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
-import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 
 interface PfdItem {
   processNo: string;
@@ -186,38 +184,6 @@ export async function POST(request: NextRequest) {
       _createdAt: new Date().toISOString(),
     };
 
-    // ★★★ DB에 직접 저장 (영구 저장) ★★★
-    let dbSaveSuccess = false;
-    try {
-      const baseUrl = getBaseDatabaseUrl();
-      if (baseUrl) {
-        const schema = getProjectSchemaName(targetFmeaId);
-        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
-        const prisma = getPrismaForSchema(schema);
-
-        if (prisma) {
-          // FmeaLegacyData 테이블에 레거시 데이터 저장 (Single Source of Truth)
-          await prisma.fmeaLegacyData.upsert({
-            where: { fmeaId: targetFmeaId },
-            create: {
-              fmeaId: targetFmeaId,
-              version: '1.0.0',
-              data: JSON.parse(JSON.stringify(worksheetState)),
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-            update: {
-              data: JSON.parse(JSON.stringify(worksheetState)),
-              updatedAt: new Date(),
-            },
-          });
-
-          dbSaveSuccess = true;
-        }
-      }
-    } catch (dbError: any) {
-    }
-
     // localStorage 저장 키 (클라이언트에서 처리 - 임시 저장용)
     const localStorageKey = `pfmea_worksheet_${targetFmeaId}`;
 
@@ -233,7 +199,6 @@ export async function POST(request: NextRequest) {
         localStorageKey,
         redirectUrl: `/pfmea/worksheet?id=${targetFmeaId}&tab=structure&fromPfd=${pfdNo}`,
         createdAt: new Date().toISOString(),
-        dbSaveSuccess,  // ★ DB 저장 성공 여부 반환
       }
     });
 

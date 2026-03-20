@@ -296,76 +296,8 @@ export async function POST(req: NextRequest) {
         "updatedAt" = NOW()
     `, [`info-${targetId}`, targetId, sourceId]);
     
-    // 3. 레거시 데이터 저장 (상속된 데이터)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS "${targetSchema}".fmea_legacy_data (LIKE public.fmea_legacy_data INCLUDING ALL)
-    `);
-    
-    const regenerateId = (oldId: string, prefix: string) => {
-      const suffix = oldId.split('-').pop() || Math.random().toString(36).substr(2, 9);
-      return `${prefix}-${targetId}-${suffix}`;
-    };
-    
-    const newL1 = inherited.l1 ? {
-      ...inherited.l1,
-      id: regenerateId(inherited.l1.id, 'l1'),
-    } : null;
-    
-    const newL2 = (inherited.l2 || []).map((proc: any, idx: number) => ({
-      ...proc,
-      id: regenerateId(proc.id || `proc-${idx}`, 'l2'),
-      l3: (proc.l3 || []).map((we: any, weIdx: number) => ({
-        ...we,
-        id: regenerateId(we.id || `we-${idx}-${weIdx}`, 'l3'),
-      })),
-    }));
-    
-    // SOD 데이터: riskAnalyses를 riskData 형식으로 변환
+    // 3. RiskAnalysis Atomic DB 복사 (target 스키마)
     const sourceRisks = inherited.riskAnalyses || [];
-    const riskData: Record<string, any> = {};
-    for (const ra of sourceRisks) {
-      const linkId = ra.linkId || ra.link_id;
-      if (!linkId) continue;
-      riskData[linkId] = {
-        severity: ra.severity ?? 0,
-        occurrence: ra.occurrence ?? 0,
-        detection: ra.detection ?? 0,
-        ap: ra.ap || '',
-        preventionControl: ra.preventionControl || ra.prevention_control || '',
-        detectionControl: ra.detectionControl || ra.detection_control || '',
-        lldReference: ra.lldReference || ra.lld_reference || '',
-      };
-    }
-
-    const legacyData = {
-      fmeaId: targetId,
-      l1: newL1,
-      l2: newL2,
-      failureLinks: inherited.failureLinks || [],
-      riskData,
-      structureConfirmed: false,
-      l1Confirmed: false,
-      l2Confirmed: false,
-      l3Confirmed: false,
-      failureL1Confirmed: false,
-      failureL2Confirmed: false,
-      failureL3Confirmed: false,
-      failureLinkConfirmed: false,
-      _inherited: true,
-      _inheritedFrom: sourceId,
-      _inheritedAt: new Date().toISOString(),
-    };
-    
-    await pool.query(`
-      INSERT INTO "${targetSchema}".fmea_legacy_data 
-      (id, "fmeaId", data)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (id) DO UPDATE SET
-        data = $3,
-        "updatedAt" = NOW()
-    `, [`legacy-${targetId}`, targetId, JSON.stringify(legacyData)]);
-
-    // 4. RiskAnalysis Atomic DB 복사 (target 스키마)
     if (sourceRisks.length > 0) {
       try {
         await pool.query(`

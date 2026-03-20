@@ -119,22 +119,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 6c. FmeaLegacyData 복사
-      const sourceLegacy = await tx.fmeaLegacyData.findUnique({
-        where: { fmeaId: sourceFmeaId },
-      });
-      if (sourceLegacy) {
-        const legacyData =
-          typeof sourceLegacy.data === 'object' ? sourceLegacy.data : {};
-        await tx.fmeaLegacyData.create({
-          data: {
-            fmeaId: newFmeaId,
-            data: { ...legacyData, fmeaId: newFmeaId },
-            version: 'master-copy-v1',
-          },
-        });
-      }
-
       return { newFmeaId };
     }, { timeout: 30000 });
 

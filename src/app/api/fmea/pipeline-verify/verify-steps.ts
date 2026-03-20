@@ -65,14 +65,6 @@ export async function verifyStructure(prisma: any, fmeaId: string): Promise<Step
   if (l2Count === 0) { r.status = 'error'; r.issues.push('L2Structure(공정) 0건 — Import 필요'); }
   if (l3Count === 0 && l2Count > 0) { r.status = worst(r.status, 'warn'); r.issues.push('L3Structure(작업요소) 0건'); }
 
-  // Legacy 존재 확인 (엑셀 Import 호환)
-  const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId }, select: { fmeaId: true } }).catch(() => null);
-  r.details.hasLegacy = legacy ? 1 : 0;
-  if (!legacy && l2Count > 0) {
-    r.status = worst(r.status, 'warn');
-    r.issues.push('Legacy 캐시 없음 — syncAtomicToLegacy 필요');
-  }
-
   return r;
 }
 

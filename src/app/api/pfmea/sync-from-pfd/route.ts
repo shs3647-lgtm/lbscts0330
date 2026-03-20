@@ -159,23 +159,7 @@ export async function POST(request: NextRequest) {
 
                 if (schemaPrisma) {
                     await schemaPrisma.$transaction(async (tx: any) => {
-                        // 1. FmeaLegacyData 저장
-                        await tx.fmeaLegacyData.upsert({
-                            where: { fmeaId: targetFmeaId },
-                            create: {
-                                fmeaId: targetFmeaId,
-                                version: '1.0.0',
-                                data: JSON.parse(JSON.stringify(worksheetState)),
-                                createdAt: new Date(),
-                                updatedAt: new Date(),
-                            },
-                            update: {
-                                data: JSON.parse(JSON.stringify(worksheetState)),
-                                updatedAt: new Date(),
-                            },
-                        });
-
-                        // 2. FmeaRegistration.linkedPfdNo 역링크 저장 (C4: 트랜잭션 내부)
+                        // FmeaRegistration.linkedPfdNo 역링크 저장 (C4: 트랜잭션 내부)
                         // H3: 기존 linkedPfdNo가 이미 동일한 PFD이면 스킵, 다르면 업데이트
                         const existingReg = await tx.fmeaRegistration.findFirst({
                             where: { fmeaId: targetFmeaId },
