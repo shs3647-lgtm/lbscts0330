@@ -127,6 +127,7 @@ export interface StepBB3Item {
 
 export interface StepBB4Item {
   m4: string;
+  we: string;
   fc: string;
 }
 

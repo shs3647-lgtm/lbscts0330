@@ -204,13 +204,16 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     }
 
     // B4 고장원인
+    // ★★★ 2026-03-20 ROOT FIX: dedup key에 we 포함 — 동일 FC명이라도 다른 WE면 별도 B4 ★★★
+    // 근본원인: key={pno|m4|fc}에 we 없음 → Cu Target + Ti Target이 "Target 소진" 공유 → 1건으로 합침
+    // → B4.parentItemId 없음 → L3Function에 FC 미연결 → orphan 삭제 → emptyPC 재발
     {
       const fc = r.fcNorm;
-      const key = `${pno}|${rowM4}|${fc}`;
+      const key = `${pno}|${rowM4}|${rowWe}|${fc}`;
       if (rowM4 && fc && !seen.b4.has(key)) {
         seen.b4.add(key);
         const list = b4Map.get(pno) || [];
-        list.push({ m4: rowM4, fc });
+        list.push({ m4: rowM4, we: rowWe, fc });
         b4Map.set(pno, list);
       }
     }
@@ -419,7 +422,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
 
     // ★ 2026-03-05: B4(고장원인) 자동 삽입 — B3 공정특성 기반 (B3≤B4 계층 체인 충족)
     b4Map.set('01', commonWE.map(([m4, we]) => ({
-      m4, fc: `${we} 관리 부적합`,
+      m4, we, fc: `${we} 관리 부적합`,
     })));
 
     warn.info('COMMON_01', '01번 공통 공정 자동 삽입');
@@ -452,7 +455,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     if (!b4Map.has(pno) || (b4Map.get(pno) || []).length === 0) {
       const b3Items = b3Map.get(pno) || [];
       if (b3Items.length > 0) {
-        b4Map.set(pno, b3Items.map(b3 => ({ m4: b3.m4, fc: `${b3.char} 부적합` })));
+        b4Map.set(pno, b3Items.map(b3 => ({ m4: b3.m4, we: b3.we, fc: `${b3.char} 부적합` })));
         warn.info('B4_AUTO', `공정 ${pno}번 B4 자동생성 (B3 기반 ${b3Items.length}건)`);
       }
     }
