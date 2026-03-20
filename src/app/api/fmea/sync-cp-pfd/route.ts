@@ -95,41 +95,55 @@ export async function POST(request: NextRequest) {
 
     // ══ STEP 3: 꽂아넣기 ══
 
-    // CP 번호 결정 (기존 CP 우선 → fmeaRegistration → 자동생성)
+    // CP/PFD 번호 결정: FmeaRegistration(SSoT, public 스키마) 우선 → TripletGroup → findFirst(orderBy)
+    const reg = await publicPrisma.fmeaRegistration.findUnique({
+      where: { fmeaId },
+      select: { linkedCpNo: true, linkedPfdNo: true },
+    }).catch(() => null);
+
     let targetCpNo = cpNo;
     if (!targetCpNo) {
-      // 1. public에서 기존 CP 조회
-      const existingCp = await publicPrisma.controlPlan.findFirst({
-        where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
-        select: { cpNo: true },
-      }).catch(() => null);
-      if (existingCp) {
-        targetCpNo = existingCp.cpNo;
+      if (reg?.linkedCpNo) {
+        targetCpNo = reg.linkedCpNo;
       } else {
-        // 2. fmeaRegistration에서 linkedCpNo
-        const reg = await projectPrisma.fmeaRegistration.findUnique({
-          where: { fmeaId },
-          select: { linkedCpNo: true },
+        const tg = await publicPrisma.tripletGroup.findFirst({
+          where: { pfmeaId: fmeaId },
+          select: { cpId: true },
+          orderBy: { createdAt: 'desc' },
         }).catch(() => null);
-        targetCpNo = reg?.linkedCpNo || fmeaId.replace(/^pfm/i, 'cp');
+        if (tg?.cpId) {
+          targetCpNo = tg.cpId;
+        } else {
+          const existingCp = await publicPrisma.controlPlan.findFirst({
+            where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+            select: { cpNo: true },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => null);
+          targetCpNo = existingCp?.cpNo || fmeaId.replace(/^pfm/i, 'cp');
+        }
       }
     }
 
-    // PFD 번호 결정 (기존 PFD 우선)
     let targetPfdNo = pfdNo;
     if (!targetPfdNo) {
-      const existingPfd = await publicPrisma.pfdRegistration.findFirst({
-        where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
-        select: { pfdNo: true },
-      }).catch(() => null);
-      if (existingPfd) {
-        targetPfdNo = existingPfd.pfdNo;
+      if (reg?.linkedPfdNo) {
+        targetPfdNo = reg.linkedPfdNo;
       } else {
-        const reg = await projectPrisma.fmeaRegistration.findUnique({
-          where: { fmeaId },
-          select: { linkedPfdNo: true },
+        const tg = await publicPrisma.tripletGroup.findFirst({
+          where: { pfmeaId: fmeaId },
+          select: { pfdId: true },
+          orderBy: { createdAt: 'desc' },
         }).catch(() => null);
-        targetPfdNo = reg?.linkedPfdNo || fmeaId.replace(/^pfm/i, 'pfd');
+        if (tg?.pfdId) {
+          targetPfdNo = tg.pfdId;
+        } else {
+          const existingPfd = await publicPrisma.pfdRegistration.findFirst({
+            where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+            select: { pfdNo: true },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => null);
+          targetPfdNo = existingPfd?.pfdNo || fmeaId.replace(/^pfm/i, 'pfd');
+        }
       }
     }
 
@@ -405,12 +419,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // CP 조회
-    const cp = await publicPrisma.controlPlan.findFirst({ where: { fmeaId } });
-    // PFD 조회
-    const pfd = await publicPrisma.pfdRegistration.findFirst({
-      where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
-    });
+    // CP/PFD 조회: FmeaRegistration(SSoT, public 스키마) 우선 → TripletGroup → findFirst(orderBy)
+    const regGet = await publicPrisma.fmeaRegistration.findUnique({
+      where: { fmeaId },
+      select: { linkedCpNo: true, linkedPfdNo: true },
+    }).catch(() => null);
+
+    let cp = regGet?.linkedCpNo
+      ? await publicPrisma.controlPlan.findFirst({ where: { cpNo: regGet.linkedCpNo } })
+      : null;
+    if (!cp) {
+      cp = await publicPrisma.controlPlan.findFirst({
+        where: { fmeaId },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    let pfd = regGet?.linkedPfdNo
+      ? await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: regGet.linkedPfdNo } })
+      : null;
+    if (!pfd) {
+      pfd = await publicPrisma.pfdRegistration.findFirst({
+        where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
     if (inspect === 'cp' && cp) {
       const items = await publicPrisma.controlPlanItem.findMany({

@@ -210,6 +210,8 @@ async function createMasterTriplet(
             companyName: headerData.companyName,
             partNo: headerData.partNo,
             fmeaResponsibleName: headerData.responsibleName,
+            linkedCpNo: ids.cpId,
+            linkedPfdNo: ids.pfdId,
           },
         },
       },
@@ -247,6 +249,21 @@ async function createMasterTriplet(
         },
       });
     }
+
+    await tx.projectLinkage.create({
+      data: {
+        pfmeaId: ids.pfmeaId,
+        cpNo: ids.cpId,
+        pfdNo: ids.pfdId,
+        subject: headerData.subject,
+        companyName: headerData.companyName,
+        customerName: headerData.customerName,
+        partNo: headerData.partNo,
+        responsibleName: headerData.responsibleName,
+        linkType: 'triplet',
+        status: 'active',
+      },
+    });
   });
 
   // 하위 Family Triplet 생성 (familyCount > 0 시)
@@ -388,6 +405,21 @@ async function createFamilyTriplet(
         },
       });
     }
+
+    await tx.projectLinkage.create({
+      data: {
+        pfmeaId: ids.pfmeaId,
+        cpNo: cpId,
+        pfdNo: pfdId,
+        subject: headerData.subject,
+        companyName: headerData.companyName,
+        customerName: headerData.customerName,
+        partNo: headerData.partNo,
+        responsibleName: headerData.responsibleName,
+        linkType: 'triplet',
+        status: 'active',
+      },
+    });
   });
 
   // 하위 Part 생성
@@ -517,6 +549,21 @@ async function createPartTriplet(
         },
       });
     }
+
+    await tx.projectLinkage.create({
+      data: {
+        pfmeaId: ids.pfmeaId,
+        cpNo: ids.cpId,
+        pfdNo: ids.pfdId,
+        subject: headerData.subject,
+        companyName: headerData.companyName,
+        customerName: headerData.customerName,
+        partNo: headerData.partNo,
+        responsibleName: headerData.responsibleName,
+        linkType: 'triplet',
+        status: 'active',
+      },
+    });
   });
 
   return NextResponse.json({
@@ -615,6 +662,21 @@ async function createFamilyTripletShell(
         },
       });
     }
+
+    await tx.projectLinkage.create({
+      data: {
+        pfmeaId: ids.pfmeaId,
+        cpNo: ids.cpId,
+        pfdNo: ids.pfdId,
+        subject: `${headerData.subject} F#${index}`,
+        companyName: headerData.companyName,
+        customerName: headerData.customerName,
+        partNo: headerData.partNo,
+        responsibleName: headerData.responsibleName,
+        linkType: 'triplet',
+        status: 'active',
+      },
+    });
   });
 }
 
@@ -713,5 +775,20 @@ async function createPartTripletShell(
         },
       });
     }
+
+    await tx.projectLinkage.create({
+      data: {
+        pfmeaId: ids.pfmeaId,
+        cpNo: ids.cpId,
+        pfdNo: ids.pfdId,
+        subject: subjectName,
+        companyName: headerData.companyName,
+        customerName: headerData.customerName,
+        partNo: headerData.partNo,
+        responsibleName: headerData.responsibleName,
+        linkType: 'triplet',
+        status: 'active',
+      },
+    });
   });
 }

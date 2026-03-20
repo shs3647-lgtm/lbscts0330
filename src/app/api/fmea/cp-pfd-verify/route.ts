@@ -34,15 +34,31 @@ async function verifyCpPfdFk(fmeaPrisma: any, publicPrisma: any, fmeaId: string)
     fmeaPrisma.processProductChar.count({ where: { fmeaId } }),
   ]);
 
-  // 2. CP 조회 (public 스키마)
-  const cp = await publicPrisma.controlPlan.findFirst({
-    where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
-  });
+  // 2. FmeaRegistration에서 결정론적 CP/PFD 번호 확인 (SSoT — public 스키마)
+  const reg = await publicPrisma.fmeaRegistration.findUnique({
+    where: { fmeaId },
+    select: { linkedCpNo: true, linkedPfdNo: true },
+  }).catch(() => null);
 
-  // 3. PFD 조회 (public 스키마)
-  const pfd = await publicPrisma.pfdRegistration.findFirst({
-    where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
-  });
+  let cp = reg?.linkedCpNo
+    ? await publicPrisma.controlPlan.findFirst({ where: { cpNo: reg.linkedCpNo } })
+    : null;
+  if (!cp) {
+    cp = await publicPrisma.controlPlan.findFirst({
+      where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  let pfd = reg?.linkedPfdNo
+    ? await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: reg.linkedPfdNo } })
+    : null;
+  if (!pfd) {
+    pfd = await publicPrisma.pfdRegistration.findFirst({
+      where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 
   const cpItems = cp
     ? await publicPrisma.controlPlanItem.findMany({ where: { cpId: cp.id } })
