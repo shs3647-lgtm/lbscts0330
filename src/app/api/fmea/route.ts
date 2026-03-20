@@ -923,38 +923,29 @@ export async function POST(request: NextRequest) {
         // 근본원인: confirmLink에서 FE 미선택 시 feId='' → DB FK(NOT NULL)로 저장 불가 → 고장연결 소실
         // 해결: 4단계 FE 탐색으로 반드시 feId를 할당하여 수작업 연결 100% 저장
         //
-        // 비유: 식당에서 메뉴(FM)를 주문했는데 음료(FE)를 안 골랐을 때,
-        //       "같은 메뉴 주문자의 음료" → "같은 공정의 음료" → "아무 음료" 순으로 자동 배정
-        const fmToFeId = new Map<string, string>();
+        // FE:FM:FC = N:1:N — "같은 FM = 같은 FE" 강제 제거
+        // 같은 FM이라도 각 link가 자신의 FE를 독립 결정
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const procToFeId = new Map<string, string>(); // fmProcessNo → feId
         for (const vl of validLinks) {
           const vlAny = vl as any;
           if (vlAny.feId && feIdSet.has(vlAny.feId)) {
-            // 1단계 소스: 같은 FM의 FE
-            if (!fmToFeId.has(vlAny.fmId)) fmToFeId.set(vlAny.fmId, vlAny.feId);
-            // 2단계 소스: 같은 공정의 FE
             const pNo = vlAny.fmProcessNo || vlAny.fmProcess || vlAny.cache?.fmProcess || '';
             if (pNo && !procToFeId.has(pNo)) procToFeId.set(pNo, vlAny.feId);
           }
         }
-        // 3단계 소스: DB에 실제 존재하는 첫 번째 FE
         const firstFeId = [...feIdSet][0] || null;
 
         let feAutoAssignCount = 0;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const dbSavableLinks = validLinks.map((l: any) => {
           if (l.feId && feIdSet.has(l.feId)) return l;
-          // 1순위: 같은 FM의 기존 링크에서 FE
-          const fromFm = fmToFeId.get(l.fmId);
-          if (fromFm) { feAutoAssignCount++; return { ...l, feId: fromFm }; }
-          // 2순위: 같은 공정의 기존 링크에서 FE
+          // 1순위: 같은 공정의 기존 링크에서 FE (N:1:N — FM 무관)
           const pNo = l.fmProcessNo || l.fmProcess || l.cache?.fmProcess || '';
           const fromProc = pNo ? procToFeId.get(pNo) : undefined;
           if (fromProc) { feAutoAssignCount++; return { ...l, feId: fromProc }; }
-          // 3순위: DB의 첫 번째 FE (최후의 수단 — 누락보다 나음)
+          // 2순위: DB의 첫 번째 FE (최후의 수단)
           if (firstFeId) { feAutoAssignCount++; return { ...l, feId: firstFeId }; }
-          // 4순위: feIdSet의 아무 값 (DB에 FE가 반드시 1개 이상 존재하므로 여기까지 오지 않음)
           return l;
         }).filter((l: any) => !!l.feId && feIdSet.has(l.feId));
 

@@ -147,40 +147,31 @@ export function injectFailureChains(
     }
   }
 
-  // ─── FM→FE 매핑: chain의 feId가 1종류뿐이면 FM 순서 기반 FE 할당 ───
+  // ─── FE:FM:FC = N:1:N — chain별 개별 FE 할당 ───
+  // 각 chain이 자신의 feId를 독립적으로 결정 (같은 FM이라도 다른 FE 가능)
   const enrichedChains: MasterFailureChain[] = chains.map(c => ({ ...c }));
   const allFEs = state.l1?.failureScopes || [];
-  const uniqueFeIds = new Set(enrichedChains.filter(c => c.feId).map(c => c.feId));
 
-  if (uniqueFeIds.size <= 1 && allFEs.length > 1) {
-    // ★ FE가 1종류 이하 → FM 순서 기반 FE 순환 할당
-    const fmIds = [...new Set(enrichedChains.filter(c => c.fmId).map(c => c.fmId!))];
-    const fmToFeId = new Map<string, string>();
-    fmIds.forEach((fmId, i) => {
-      fmToFeId.set(fmId, allFEs[i % allFEs.length].id);
-    });
+  if (allFEs.length > 0) {
+    // feId 미할당 chain에 공정별 carry-forward → 순차 할당
+    const procToFeId = new Map<string, string>();
     for (const c of enrichedChains) {
-      if (c.fmId) {
-        const mapped = fmToFeId.get(c.fmId);
-        if (mapped) c.feId = mapped;
+      if (c.feId && c.fmId) {
+        const pNo = c.processNo || '';
+        if (pNo && !procToFeId.has(pNo)) procToFeId.set(pNo, c.feId);
       }
     }
-  } else {
-    // ★ 기존 FE carry-forward
-    const fmIdToFeId = new Map<string, string>();
+    let feRoundIdx = 0;
     for (const c of enrichedChains) {
-      if (c.feId && c.fmId && !fmIdToFeId.has(c.fmId)) {
-        fmIdToFeId.set(c.fmId, c.feId);
-      }
-    }
-    // Same-FM FE 복구만 허용, Cross-FM carry-forward 제거 (의미적 오류 방지)
-    for (const c of enrichedChains) {
-      if (!c.feId && c.fmId) {
-        const fromFm = fmIdToFeId.get(c.fmId);
-        if (fromFm) {
-          c.feId = fromFm;
-        }
-      }
+      if (c.feId) continue;
+      // 1순위: 같은 공정의 기존 FE
+      const pNo = c.processNo || '';
+      const fromProc = pNo ? procToFeId.get(pNo) : undefined;
+      if (fromProc) { c.feId = fromProc; continue; }
+      // 2순위: 순차 FE 할당 (N:1:N 분산)
+      c.feId = allFEs[feRoundIdx % allFEs.length].id;
+      if (pNo) procToFeId.set(pNo, c.feId);
+      feRoundIdx++;
     }
   }
 

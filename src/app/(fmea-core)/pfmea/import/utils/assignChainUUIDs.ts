@@ -223,29 +223,13 @@ export function assignEntityUUIDsToChains(
   }
 
   // ══════════════════════════════════════════════════════════════
-  // 2단계: 같은 FM의 다른 chain에서 feId 복사
+  // 2단계: FE:FM:FC = N:1:N — "같은 FM = 같은 FE" 규칙 제거
   //
-  // PFMEA 규칙: 동일 고장형태(FM)는 동일 고장영향(FE)을 유발.
-  // 비유: "엔진 과열"이라는 고장(FM)은 언제나 "차량 정지"라는 피해(FE)를 유발.
-  //       FM이 같으면 FE도 같다.
+  // 하나의 FM에 복수의 FE가 연결될 수 있음 (N:1:N 고장사슬).
+  // 각 chain은 자신의 feValue/feScope로 독립적으로 FE를 결정.
+  // FM이 같아도 FE가 다를 수 있다.
   // ══════════════════════════════════════════════════════════════
-  const fmToFeId = new Map<string, string>();
-
-  // 1단계에서 매칭된 chain들의 FM→FE 관계 수집
-  for (const chain of chains) {
-    if (chain.fmId && chain.feId && !fmToFeId.has(chain.fmId)) {
-      fmToFeId.set(chain.fmId, chain.feId);
-    }
-  }
-
-  let feFromFM = 0;
-  for (const chain of chains) {
-    if (chain.feId) continue;
-    if (chain.fmId && fmToFeId.has(chain.fmId)) {
-      chain.feId = fmToFeId.get(chain.fmId)!;
-      feFromFM++;
-    }
-  }
+  const feFromFM = 0; // legacy 호환: 로깅용 (0 고정)
 
   // ══════════════════════════════════════════════════════════════
   // 3단계: scope 기반 FE 할당 + 공정별 carry-forward
