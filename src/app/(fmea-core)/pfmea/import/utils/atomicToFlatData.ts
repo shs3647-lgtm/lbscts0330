@@ -336,13 +336,15 @@ export function atomicToFlatData(
         createdAt: now,
       }));
 
-      // B2: 요소기능 — genB2 재계산
+      // B2: 요소기능 — genB2 재계산 (funcIdx로 동일 L3 내 복수 기능 구분)
       const l3Funcs = l3FuncsByL3.get(l3.id) || [];
       const seenL3FuncNames = new Set<string>();
+      let funcIdx = 0;
       for (const l3Func of l3Funcs) {
         if (seenL3FuncNames.has(l3Func.functionName)) continue;
         seenL3FuncNames.add(l3Func.functionName);
-        const b2Id = genB2(doc, pnoNum, m4, b1seq);
+        funcIdx++;
+        const b2Id = genB2(doc, pnoNum, m4, b1seq, funcIdx);
         idRemap.l3Func.set(l3Func.id, b2Id);
 
         result.push(makeFlatItem({

@@ -72,9 +72,11 @@ export const genA6 = (doc: string, pno: number, seq: number): string =>
 export const genB1 = (doc: string, pno: number, m4: string, b1seq: number): string =>
   `${doc}-L3-${pad(pno)}-${m4}-${pad(b1seq)}`;
 
-/** B2 — 요소기능: PF-L3-040-MC-001-G (B1 하위 단일) */
-export const genB2 = (doc: string, pno: number, m4: string, b1seq: number): string =>
-  `${genB1(doc, pno, m4, b1seq)}-G`;
+/** B2 — 요소기능: PF-L3-040-MC-001-G (funcIdx=1) / PF-L3-040-MC-001-G-002 (funcIdx≥2) */
+export const genB2 = (doc: string, pno: number, m4: string, b1seq: number, funcIdx: number = 1): string =>
+  funcIdx <= 1
+    ? `${genB1(doc, pno, m4, b1seq)}-G`
+    : `${genB1(doc, pno, m4, b1seq)}-G-${pad(funcIdx)}`;
 
 /** B3 — 공정특성: PF-L3-040-MC-001-C-001 */
 export const genB3 = (doc: string, pno: number, m4: string, b1seq: number, cseq: number): string =>

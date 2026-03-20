@@ -201,7 +201,7 @@ export async function generateImportExcel(
   // ═══ L2 시트 데이터 (A1~A6) — 구조 기반, carry-forward ═══
   const l2Rows: string[][] = [];
 
-  // DC: FM별 개별 DC 매핑 (RiskAnalysis에서 직접 조회)
+  // DC는 FM 단위 (AIAG-VDA 설계). FM당 1개이므로 dedup이 아닌 정상 동작
   const dcByFmId = new Map<string, string>();
   for (const link of data.failureLinks) {
     const risk = data.riskAnalyses.find((r: any) => r.linkId === link.id);

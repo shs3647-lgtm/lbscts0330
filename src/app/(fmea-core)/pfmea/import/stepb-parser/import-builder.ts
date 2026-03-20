@@ -650,7 +650,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
       }
     }
     if (ch.pc) {
-      const pcKey = `${ch.procNo}|${ch.m4}|${ch.pc}`;
+      // FC 단위 dedup: 같은 PC 텍스트라도 다른 FC면 별도 B5 항목 유지
+      const pcKey = `${ch.procNo}|${ch.m4}|${ch.we}|${ch.fc}|${ch.pc}`;
       if (!seenB5.has(pcKey)) {
         seenB5.add(pcKey);
         const list = b5Map.get(ch.procNo) || [];
@@ -680,8 +681,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
       const pcList: StepBB5Item[] = [];
       for (const b4 of b4Items) {
         const pc = inferPC(b4.fc, b4.m4, ruleSet);
-        if (pc && !seenB5.has(`${pno}|${b4.m4}|${pc}`)) {
-          seenB5.add(`${pno}|${b4.m4}|${pc}`);
+        if (pc && !seenB5.has(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`)) {
+          seenB5.add(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`);
           pcList.push({ m4: b4.m4, pc });
         }
       }
