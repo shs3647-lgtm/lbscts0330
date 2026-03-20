@@ -204,16 +204,19 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     }
 
     // B4 고장원인
-    // ★★★ 2026-03-20 ROOT FIX: dedup key에 we 포함 — 동일 FC명이라도 다른 WE면 별도 B4 ★★★
-    // 근본원인: key={pno|m4|fc}에 we 없음 → Cu Target + Ti Target이 "Target 소진" 공유 → 1건으로 합침
-    // → B4.parentItemId 없음 → L3Function에 FC 미연결 → orphan 삭제 → emptyPC 재발
+    // ★★★ 2026-03-20 ROOT FIX: dedup key에 we+fm 포함 ★★★
+    // we 포함: 동일 FC명이라도 다른 WE면 별도 B4 (Cu Target + Ti Target 구분)
+    // fm 포함: 동일 FC가 여러 FM에 연결될 때 별도 B4 (1 FC → N FM 패턴 지원)
+    //   예: IQA 공정에서 "자재 품질 부적합" FC가 M1, M2 두 FM에 연결 → 2개 B4 생성
+    //   FailureCause 엔티티는 migration에서 텍스트 기준 중복제거, B4는 FailureLink 단위
     {
       const fc = r.fcNorm;
-      const key = `${pno}|${rowM4}|${rowWe}|${fc}`;
+      const rowFm = r.fmNorm;
+      const key = `${pno}|${rowM4}|${rowWe}|${rowFm}|${fc}`;
       if (rowM4 && rowWe && fc && !seen.b4.has(key)) {
         seen.b4.add(key);
         const list = b4Map.get(pno) || [];
-        list.push({ m4: rowM4, we: rowWe, fc });
+        list.push({ m4: rowM4, we: rowWe, fc, fm: rowFm });
         b4Map.set(pno, list);
       }
     }
@@ -422,7 +425,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
 
     // ★ 2026-03-05: B4(고장원인) 자동 삽입 — B3 공정특성 기반 (B3≤B4 계층 체인 충족)
     b4Map.set('01', commonWE.map(([m4, we]) => ({
-      m4, we, fc: `${we} 관리 부적합`,
+      m4, we, fc: `${we} 관리 부적합`, fm: '',
     })));
 
     warn.info('COMMON_01', '01번 공통 공정 자동 삽입');
@@ -455,7 +458,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     if (!b4Map.has(pno) || (b4Map.get(pno) || []).length === 0) {
       const b3Items = b3Map.get(pno) || [];
       if (b3Items.length > 0) {
-        b4Map.set(pno, b3Items.map(b3 => ({ m4: b3.m4, we: b3.we, fc: `${b3.char} 부적합` })));
+        b4Map.set(pno, b3Items.map(b3 => ({ m4: b3.m4, we: b3.we, fc: `${b3.char} 부적합`, fm: '' })));
         warn.info('B4_AUTO', `공정 ${pno}번 B4 자동생성 (B3 기반 ${b3Items.length}건)`);
       }
     }
@@ -500,6 +503,10 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
   }
 
   // FC 고장사슬 (중복제거)
+  // ★★★ 2026-03-20: 1 FC → N FM 패턴 지원 ★★★
+  // 동일 FC가 여러 FM에 연결되는 경우 (예: IQA "자재 품질 부적합" → M1, M2):
+  //   - FM 있는 행: FM별로 별도 체인 생성 (dedup key에 FM 포함)
+  //   - FM 없는 행: 해당 공정의 모든 A5(FM)에 대해 체인 확장
   const fcChains: StepBFCChain[] = [];
   const seenFC = new Set<string>();
   for (const r of rows) {
@@ -513,40 +520,44 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
       warn.warn('FC_EMPTY', `공정${r.procNo} FC 비어있음 - 체인 생성 스킵`, undefined, `FM="${r.fmNorm}"`);
       continue;
     }
-    const key = `${r.procNo}|${r.feNorm}|${r.fmNorm}|${r.fcNorm}|${chainM4}`;
-    if (!seenFC.has(key)) {
-      seenFC.add(key);
-      // ★★★ 2026-03-17 FIX: FM 비어있으면 같은 공정의 A5(FM) 첫 번째 값 자동 할당 ★★★
-      // L3 통합 시트에는 FM 컬럼이 없어 fm='' → FailureLink 생성 불가 → 3L 누락 원인
-      // 같은 공정의 A5 FM을 할당하여 FM-FC 관계 보장
-      let chainFm = r.fmNorm;
-      if (!chainFm) {
-        const procFMs = a5Map.get(r.procNo) || [];
-        if (procFMs.length > 0) {
-          chainFm = procFMs[0];
-          // FM이 여러개면 라운드로빈 할당 (1:N FM-FC 관계)
+
+    // FE 기본값 결정 (FM과 무관하게 공통)
+    let chainFe = r.feNorm;
+    if (!chainFe && c4.length > 0) {
+      const scopedFE = c4.find(f => f.scope === r.feScopeNorm);
+      chainFe = (scopedFE || c4[0])?.fe || '';
+    }
+
+    // FM이 있는 경우: 해당 FM으로 1개 체인 생성
+    if (r.fmNorm) {
+      const key = `${r.procNo}|${r.feNorm}|${r.fmNorm}|${r.fcNorm}|${chainM4}`;
+      if (!seenFC.has(key)) {
+        seenFC.add(key);
+        fcChains.push({
+          procNo: r.procNo, m4: chainM4, we: chainWe,
+          fe: chainFe, fm: r.fmNorm, fc: r.fcNorm,
+          pc: r.pc, dc: r.dc, s: r.sInt, o: r.oInt, d: r.dInt, ap: r.ap,
+        });
+      }
+    } else {
+      // FM이 비어있는 경우: 해당 공정의 모든 A5(FM)에 대해 체인 확장
+      // L3 통합 시트에는 FM 컬럼이 없어 fm='' → 모든 FM에 연결하여 누락 방지
+      const procFMs = a5Map.get(r.procNo) || [];
+      const fmsToLink = procFMs.length > 0 ? procFMs : [''];
+      for (const fm of fmsToLink) {
+        const key = `${r.procNo}|${r.feNorm}|${fm}|${r.fcNorm}|${chainM4}`;
+        if (!seenFC.has(key)) {
+          seenFC.add(key);
+          fcChains.push({
+            procNo: r.procNo, m4: chainM4, we: chainWe,
+            fe: chainFe, fm, fc: r.fcNorm,
+            pc: r.pc, dc: r.dc, s: r.sInt, o: r.oInt, d: r.dInt, ap: r.ap,
+          });
         }
       }
-      // ★ FE 비어있으면 C4(고장영향) 첫 번째 값 자동 할당
-      let chainFe = r.feNorm;
-      if (!chainFe && c4.length > 0) {
-        const scopedFE = c4.find(f => f.scope === r.feScopeNorm);
-        chainFe = (scopedFE || c4[0])?.fe || '';
+      if (procFMs.length > 1) {
+        warn.info('FC_MULTI_FM', `공정${r.procNo} FC "${r.fcNorm}" → ${procFMs.length}개 FM에 연결 확장`);
       }
-      fcChains.push({
-        procNo: r.procNo,
-        m4: chainM4,
-        we: chainWe,
-        fe: chainFe,
-        fm: chainFm,
-        fc: r.fcNorm,
-        pc: r.pc,
-        dc: r.dc,
-        s: r.sInt,
-        o: r.oInt,
-        d: r.dInt,
-        ap: r.ap,
-      });
     }
   }
 

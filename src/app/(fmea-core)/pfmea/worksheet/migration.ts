@@ -677,8 +677,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     
     // ★★★ 핵심: FM, FE, FC 모두 유효해야 저장 ★★★
     if (fm && fe && fc) {
-      // ★★★ 동일 FM+FC 조합 FL 중복 방지 (2026-03-19) ★★★
-      if (db.failureLinks.some(l => l.fmId === fm!.id && l.fcId === fc!.id)) return;
+      // ★★★ 동일 FM+FE+FC 트리플 FL 중복 방지 (2026-03-20) ★★★
+      // Prisma @@unique([fmeaId, fmId, feId, fcId]) 기준 — 동일 FC가 다른 FM에 연결 허용
+      if (db.failureLinks.some(l => l.fmId === fm!.id && l.feId === fe!.id && l.fcId === fc!.id)) return;
 
       linkIdx++;
       

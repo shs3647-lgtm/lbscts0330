@@ -5,8 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
-import { getPrismaForPfd } from '@/lib/project-schema';
+import { getPrisma, getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
+import { getPrismaForPfd, ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import { pickFields, safeErrorMessage } from '@/lib/security';
 import { isValidPfdFormat, derivePfdNoFromFmeaId } from '@/lib/utils/derivePfdNo';
 
@@ -87,6 +87,9 @@ export async function GET(
       },
     });
 
+    // ★ processDesc 자동보충: FMEA 연결된 PFD의 빈 공정설명을 FMEA 함수명으로 채움
+    const enrichedItems = await enrichProcessDesc(pfd.items, pfd.fmeaId, prisma);
+
     // 요청 ID와 실제 pfdNo가 다르면 교정 정보 포함
     const needsRedirect = pfd.pfdNo !== id && id !== pfd.id;
 
@@ -94,6 +97,7 @@ export async function GET(
       success: true,
       data: {
         ...pfd,
+        items: enrichedItems,
         links,
         ...(needsRedirect ? { correctedPfdNo: pfd.pfdNo } : {}),
       },
@@ -260,5 +264,101 @@ export async function DELETE(
       { success: false, error: safeErrorMessage(error) },
       { status: 500 }
     );
+  }
+}
+
+// ============================================================================
+// processDesc 자동보충 — FMEA 함수명으로 빈 공정설명 채움
+// ============================================================================
+
+async function enrichProcessDesc(
+  items: any[],
+  fmeaId: string | null | undefined,
+  publicPrisma: any,
+): Promise<any[]> {
+  if (!items || items.length === 0) return items;
+
+  const emptyDescItems = items.filter(
+    (it: any) => !it.processDesc?.trim() && (it.fmeaL2Id || it.fmeaL3Id),
+  );
+  if (emptyDescItems.length === 0 || !fmeaId) return items;
+
+  try {
+    const baseUrl = getBaseDatabaseUrl();
+    const schema = getProjectSchemaName(fmeaId);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+    const projectPrisma = getPrismaForSchema(schema);
+    if (!projectPrisma) return items;
+
+    const l2Ids = [...new Set(emptyDescItems.map((it: any) => it.fmeaL2Id).filter(Boolean))];
+    const l3Ids = [...new Set(emptyDescItems.map((it: any) => it.fmeaL3Id).filter(Boolean))];
+
+    const [l2Functions, l3Functions] = await Promise.all([
+      l2Ids.length > 0
+        ? projectPrisma.l2Function.findMany({
+            where: { fmeaId, l2StructId: { in: l2Ids } },
+            select: { l2StructId: true, functionName: true, productChar: true },
+          })
+        : [],
+      l3Ids.length > 0
+        ? projectPrisma.l3Function.findMany({
+            where: { fmeaId, l3StructId: { in: l3Ids } },
+            select: { l3StructId: true, functionName: true, processChar: true },
+          })
+        : [],
+    ]);
+
+    const l2FnMap = new Map<string, string>();
+    for (const fn of l2Functions) {
+      if (fn.functionName?.trim() && !l2FnMap.has(fn.l2StructId)) {
+        l2FnMap.set(fn.l2StructId, fn.functionName.trim());
+      }
+    }
+
+    const l3FnMap = new Map<string, string>();
+    for (const fn of l3Functions) {
+      if (fn.functionName?.trim() && !l3FnMap.has(fn.l3StructId)) {
+        l3FnMap.set(fn.l3StructId, fn.functionName.trim());
+      }
+    }
+
+    const updateIds: { id: string; processDesc: string }[] = [];
+
+    const enriched = items.map((item: any) => {
+      if (item.processDesc?.trim()) return item;
+
+      let desc = '';
+      if (item.fmeaL3Id && l3FnMap.has(item.fmeaL3Id)) {
+        desc = l3FnMap.get(item.fmeaL3Id)!;
+      } else if (item.fmeaL2Id && l2FnMap.has(item.fmeaL2Id)) {
+        desc = l2FnMap.get(item.fmeaL2Id)!;
+      }
+
+      if (desc) {
+        updateIds.push({ id: item.id, processDesc: desc });
+        return { ...item, processDesc: desc };
+      }
+      return item;
+    });
+
+    if (updateIds.length > 0) {
+      try {
+        await Promise.all(
+          updateIds.map((u) =>
+            publicPrisma.pfdItem.update({
+              where: { id: u.id },
+              data: { processDesc: u.processDesc },
+            }),
+          ),
+        );
+      } catch {
+        // DB 업데이트 실패해도 응답에는 보충된 값 반환
+      }
+    }
+
+    return enriched;
+  } catch (err) {
+    console.error('[PFD] processDesc 자동보충 실패:', err);
+    return items;
   }
 }

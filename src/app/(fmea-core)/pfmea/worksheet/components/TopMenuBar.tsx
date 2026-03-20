@@ -331,6 +331,18 @@ export default function TopMenuBar({
           →CP
         </button>
         <button
+          onClick={() => {
+            const pfdUrl = linkedPfdNo
+              ? `/pfd/worksheet?pfdNo=${encodeURIComponent(linkedPfdNo)}`
+              : '/pfd/worksheet';
+            router.push(pfdUrl);
+          }}
+          className="px-1 py-0.5 rounded bg-transparent border border-white/30 text-white/70 text-[9px] font-medium hover:bg-white/15 hover:text-white transition-all whitespace-nowrap"
+          title={linkedPfdNo ? `PFD 워크시트로 이동 (${linkedPfdNo})` : 'PFD 워크시트로 이동'}
+        >
+          →PFD
+        </button>
+        <button
           onClick={onConfirm}
           className="px-1 py-0.5 rounded bg-green-700 border border-green-400 text-white text-[9px] font-bold hover:bg-green-600 transition-all whitespace-nowrap"
           title={t('확정 후 개정관리 현황으로 이동')}

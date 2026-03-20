@@ -82,7 +82,7 @@ function makeBuildData(overrides: Partial<StepBBuildData> = {}): StepBBuildData 
     b1: new Map([['10', [{ m4: 'MC', we: '조립기' }]]]),
     b2: new Map([['10', [{ m4: 'MC', we: '조립기', func: '조립 기능' }]]]),
     b3: new Map([['10', [{ m4: 'MC', we: '조립기', char: '토크', sc: '' }]]]),
-    b4: new Map([['10', [{ m4: 'MC', we: '조립기', fc: '토크 부족' }]]]),
+    b4: new Map([['10', [{ m4: 'MC', we: '조립기', fc: '토크 부족', fm: '미조립' }]]]),
     b5: new Map(),
     fcChains: [{
       procNo: '10', m4: 'MC', we: '조립기', fe: '안전 위험',
@@ -465,7 +465,7 @@ describe('M-4: 빈 FMEA 감지 (B4=0 AND FC=0 동시 통과 차단)', () => {
   it('B4=2 AND FC=1 (불일치) → V3.ok = false (V3_EMPTY 아님)', () => {
     const warn = new WarningCollector();
     const data = makeBuildData({
-      b4: new Map([['10', [{ m4: 'MC', we: '조립기', fc: '토크 부족' }, { m4: 'MN', we: '작업자', fc: '교육 부족' }]]]),
+      b4: new Map([['10', [{ m4: 'MC', we: '조립기', fc: '토크 부족', fm: 'FM1' }, { m4: 'MN', we: '작업자', fc: '교육 부족', fm: '' }]]]),
       fcChains: [{
         procNo: '10', m4: 'MC', we: '조립기', fe: 'FE1',
         fm: 'FM1', fc: '토크 부족', pc: '', dc: '', s: 8, o: 4, d: 6, ap: 'M',

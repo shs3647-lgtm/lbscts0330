@@ -246,6 +246,17 @@ function syncFailureLinksFromState(
     return link;
   });
 
+  // ★★★ 2026-03-20 FIX: DB-only 링크 보존 (1 FC → 다중 FM 패턴 지원) ★★★
+  // state에 없지만 DB에 존재하는 FailureLink를 보존하여 multi-FM 연결이 손실되지 않도록 한다.
+  // 비유: state는 "현재 열린 페이지"이고 DB는 "전체 장부"다.
+  //       페이지에 없다고 장부에서 삭제하면 다른 페이지의 데이터가 사라진다.
+  const syncedLinkIds = new Set(finalLinks.map((link: any) => link.id));
+  const dbOnlyLinks = (db.failureLinks || []).filter((dbLink: any) => !syncedLinkIds.has(dbLink.id));
+  if (dbOnlyLinks.length > 0) {
+    console.info(`[syncFL] DB-only 링크 ${dbOnlyLinks.length}건 보존 (multi-FM 패턴)`);
+  }
+  const mergedLinks = [...finalLinks, ...dbOnlyLinks];
+
   // ★★★ 2026-03-17 FIX: FE severity → FL severity 전파 ★★★
   // FE에 심각도가 설정되어 있으면 해당 FE를 참조하는 모든 FL에 전파
   const feById = new Map((db.failureEffects || []).map((fe: any) => [fe.id, fe]));
@@ -256,7 +267,7 @@ function syncFailureLinksFromState(
     }
   }
 
-  const linksWithSeverity = finalLinks.map((link: any) => {
+  const linksWithSeverity = mergedLinks.map((link: any) => {
     if (link.severity && link.severity > 0) return link;
     // DB FE → state failureScope 순서로 severity 조회
     const feId = link.feId;

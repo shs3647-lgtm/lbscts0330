@@ -129,6 +129,8 @@ export interface StepBB4Item {
   m4: string;
   we: string;
   fc: string;
+  /** 연결된 FM 텍스트 (1 FC → N FM 패턴 지원: 동일 FC가 여러 FM에 연결될 때 구분) */
+  fm: string;
 }
 
 export interface StepBB5Item {

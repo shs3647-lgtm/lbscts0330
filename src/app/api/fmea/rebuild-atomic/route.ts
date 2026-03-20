@@ -134,20 +134,20 @@ export async function POST(request: NextRequest) {
           fcsByKey.get(key)!.push((fc as any).id);
         }
         const dupFcIds: string[] = [];
-        const flFcIds = new Set((await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } })).map((fl: any) => fl.fcId));
+        // ★★★ 2026-03-20: FC별 FailureLink 수 카운트 — 가장 많이 참조된 FC를 보존 ★★★
+        // 비유: 여러 부서(FM)와 연결된 핵심 인재(FC)를 해고하면 안 된다. 가장 많이 연결된 FC를 보존.
+        const allFlsForCount = await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } });
+        const fcLinkCount = new Map<string, number>();
+        for (const fl of allFlsForCount) {
+          fcLinkCount.set(fl.fcId, (fcLinkCount.get(fl.fcId) || 0) + 1);
+        }
 
         for (const [, ids] of fcsByKey) {
           if (ids.length > 1) {
-            // Keep the FC that's referenced by a FailureLink, delete the rest
-            const referenced = ids.filter(id => flFcIds.has(id));
-            const unreferenced = ids.filter(id => !flFcIds.has(id));
-            if (referenced.length > 0) {
-              // Keep first referenced, delete all unreferenced + extra referenced
-              dupFcIds.push(...unreferenced, ...referenced.slice(1));
-            } else {
-              // None referenced — keep first, delete rest
-              dupFcIds.push(...ids.slice(1));
-            }
+            // Sort by link count descending — keep the FC with the most FailureLinks
+            const sorted = [...ids].sort((a, b) => (fcLinkCount.get(b) || 0) - (fcLinkCount.get(a) || 0));
+            // Keep the first (most-linked), delete the rest
+            dupFcIds.push(...sorted.slice(1));
           }
         }
         if (dupFcIds.length > 0) {
@@ -232,7 +232,9 @@ export async function POST(request: NextRequest) {
               { occurrence: { lte: 0 } },
               { detection: { lte: 0 } },
               { preventionControl: null },
+              { preventionControl: '' },
               { detectionControl: null },
+              { detectionControl: '' },
             ],
           },
           include: { failureLink: { select: { fmId: true, fcId: true, feId: true } } },
@@ -245,11 +247,19 @@ export async function POST(request: NextRequest) {
             select: { id: true, fcId: true, feId: true },
           });
           const siblingRAMap = new Map<string, any>();
+          const emptyRALinkIds = new Set(emptyRAs.map((r: any) => r.linkId));
           for (const sfl of siblingFLs) {
+            // 자기 자신(emptyRA)의 FL은 제외
+            if (emptyRALinkIds.has(sfl.id)) continue;
             const sra = await tx.riskAnalysis.findFirst({
               where: { linkId: sfl.id, fmeaId },
             });
-            if (sra && ((sra.severity || 0) > 0 || (sra.occurrence || 0) > 0)) {
+            if (!sra) continue;
+            const existing = siblingRAMap.get(sfl.fcId);
+            // DC/PC 있는 형제를 우선 선택
+            const hasGoodData = !!(sra.detectionControl?.trim() && sra.preventionControl?.trim());
+            const existingHasGood = existing ? !!(existing.detectionControl?.trim() && existing.preventionControl?.trim()) : false;
+            if (!existing || (hasGoodData && !existingHasGood) || ((sra.severity || 0) > 0 && !(existing.severity > 0))) {
               siblingRAMap.set(sfl.fcId, sra);
             }
           }
@@ -380,6 +390,19 @@ export async function POST(request: NextRequest) {
         }
         if (fixedCount > 0) {
           console.info(`[rebuild-atomic] FC processCharId 동기화: ${fixedCount}건`);
+        }
+      }
+
+      // ★ 고아 FC 정리: FL에 참조되지 않는 FC 삭제
+      {
+        const allFcIds = (await tx.failureCause.findMany({ where: { fmeaId }, select: { id: true } })).map((f: { id: string }) => f.id);
+        const linkedFcIds = new Set(
+          (await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } })).map((f: { fcId: string }) => f.fcId)
+        );
+        const orphanFcIds = allFcIds.filter((id: string) => !linkedFcIds.has(id));
+        if (orphanFcIds.length > 0) {
+          await tx.failureCause.deleteMany({ where: { id: { in: orphanFcIds } } });
+          console.info(`[rebuild-atomic] 고아 FC 삭제: ${orphanFcIds.length}건 (FL에 미참조)`);
         }
       }
 
