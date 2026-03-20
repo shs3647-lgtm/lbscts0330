@@ -101,8 +101,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     // WE 값: 간소화 포맷(!has4mColumn)에서는 l1We(작업요소명) 직접 사용
     // (fc_we가 잘못된 컬럼에 매핑될 수 있으므로 weNorm 무시)
     const rowWe = has4mColumn
-      ? (r.weNorm || '')
-      : (r.l1We.trim() || r.weNorm);
+      ? (r.weNorm || '').trim()
+      : (r.l1We.trim() || r.weNorm).trim();
 
     // A1/A2 공정마스터
     if (!procMaster.has(pno)) {
@@ -210,7 +210,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     {
       const fc = r.fcNorm;
       const key = `${pno}|${rowM4}|${rowWe}|${fc}`;
-      if (rowM4 && fc && !seen.b4.has(key)) {
+      if (rowM4 && rowWe && fc && !seen.b4.has(key)) {
         seen.b4.add(key);
         const list = b4Map.get(pno) || [];
         list.push({ m4: rowM4, we: rowWe, fc });
@@ -530,7 +530,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
       // ★ FE 비어있으면 C4(고장영향) 첫 번째 값 자동 할당
       let chainFe = r.feNorm;
       if (!chainFe && c4.length > 0) {
-        chainFe = c4[0].fe;
+        const scopedFE = c4.find(f => f.scope === r.feScopeNorm);
+        chainFe = (scopedFE || c4[0])?.fe || '';
       }
       fcChains.push({
         procNo: r.procNo,

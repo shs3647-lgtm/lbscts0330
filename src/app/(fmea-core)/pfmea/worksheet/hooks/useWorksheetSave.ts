@@ -95,12 +95,13 @@ function syncFailureEffectsFromState(
         };
       }
 
-      // 수정 2: 새 FE — l1FuncId를 못 찾아도 drop하지 않고 API에 전달
-      // (API의 LAST RESORT 로직이 l1FuncId를 복구함)
+      // 수정 2: 새 FE — l1FuncId를 category 매칭 후 폴백으로 결정
       const l1FuncId = (fs.reqId && l1FuncIdSet.has(fs.reqId))
         ? fs.reqId
-        : db.l1Functions?.length > 0 ? (db.l1Functions[0] as any).id : (fs.reqId || '');
-      // l1FuncId가 비어있어도 drop 금지 — API LAST RESORT가 복구
+        : (db.l1Functions as any[])?.find((f: any) => f.category === (fs.scope || (f as any).category))?.id
+          || (db.l1Functions?.length > 0 ? (db.l1Functions[0] as any).id : (fs.reqId || ''));
+      // GUARD: if still empty, skip this FE rather than create with invalid FK
+      if (!l1FuncId) return null;
 
       const l1Func = (db.l1Functions || []).find((f: any) => f.id === l1FuncId);
       const category = (fs.scope as any) || (l1Func as any)?.category || 'Your Plant';
@@ -236,6 +237,15 @@ function syncFailureLinksFromState(
       };
     });
 
+  // ★★★ Fix 5: feId null 방지 — 3단계 매칭 후 feId가 비어있으면 첫 번째 FE로 채움 ★★★
+  const firstFeId = (db.failureEffects || [])[0]?.id || '';
+  const finalLinks = syncedLinks.map((link: any) => {
+    if (!link.feId && firstFeId) {
+      return { ...link, feId: firstFeId };
+    }
+    return link;
+  });
+
   // ★★★ 2026-03-17 FIX: FE severity → FL severity 전파 ★★★
   // FE에 심각도가 설정되어 있으면 해당 FE를 참조하는 모든 FL에 전파
   const feById = new Map((db.failureEffects || []).map((fe: any) => [fe.id, fe]));
@@ -246,7 +256,7 @@ function syncFailureLinksFromState(
     }
   }
 
-  const linksWithSeverity = syncedLinks.map((link: any) => {
+  const linksWithSeverity = finalLinks.map((link: any) => {
     if (link.severity && link.severity > 0) return link;
     // DB FE → state failureScope 순서로 severity 조회
     const feId = link.feId;
@@ -328,7 +338,10 @@ function syncFailureCausesFromState(
   for (const [id, sfc] of stateFcById) {
     if (processedIds.has(id)) continue;
     const resolved = structToL3FuncMap.get(sfc.l2StructId);
-    const resolvedL3FuncId = resolved?.id || sfc.processCharId || '';
+    const resolvedL3FuncId = resolved?.id
+      || sfc.processCharId
+      || (db.l3Functions as any[])?.find((f: any) => f.l2StructId === sfc.l2StructId)?.id
+      || '';
     const resolvedL3StructId = resolved?.l3StructId || '';
     mergedFCs.push({
       id: sfc.id,

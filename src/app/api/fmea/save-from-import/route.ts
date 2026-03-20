@@ -310,15 +310,26 @@ export async function POST(request: NextRequest) {
       const fcById = new Map<string, FC>();
 
       for (const fm of (atomicDB.failureModes || []) as FM[]) {
-        if (fm.mode) fmByText.set(fm.mode, fm);
+        if (fm.mode) {
+          // Process-scoped key for precise matching
+          fmByText.set(`${(fm as any).l2StructId || ''}|${fm.mode}`, fm);
+          // Global fallback (first-wins)
+          if (!fmByText.has(fm.mode)) fmByText.set(fm.mode, fm);
+        }
         fmById.set(fm.id, fm);
       }
       for (const fe of (atomicDB.failureEffects || []) as FE[]) {
-        if (fe.effect) feByText.set(fe.effect, fe);
+        if (fe.effect) {
+          feByText.set(`${(fe as any).l1FuncId || ''}|${fe.effect}`, fe);
+          if (!feByText.has(fe.effect)) feByText.set(fe.effect, fe);
+        }
         feById.set(fe.id, fe);
       }
       for (const fc of (atomicDB.failureCauses || []) as FC[]) {
-        if (fc.cause) fcByText.set(fc.cause, fc);
+        if (fc.cause) {
+          fcByText.set(`${(fc as any).l2StructId || ''}|${fc.cause}`, fc);
+          if (!fcByText.has(fc.cause)) fcByText.set(fc.cause, fc);
+        }
         fcById.set(fc.id, fc);
       }
 
@@ -326,9 +337,12 @@ export async function POST(request: NextRequest) {
       type InjectedLink = { fmId?: string; feId?: string; fcId?: string; fmText?: string; feText?: string; fcText?: string; severity?: number; fmMergeSpan?: number };
       for (const link of injectedLinks as InjectedLink[]) {
         // ID로 먼저 매칭, 실패하면 텍스트로 매칭
-        const fm = fmById.get(link.fmId || '') || (link.fmText ? fmByText.get(link.fmText) : undefined);
-        const fe = feById.get(link.feId || '') || (link.feText ? feByText.get(link.feText) : undefined);
-        const fc = fcById.get(link.fcId || '') || (link.fcText ? fcByText.get(link.fcText) : undefined);
+        const fm = fmById.get(link.fmId || '')
+          || (link.fmText ? (fmByText.get(`${(link as any).l2StructId || ''}|${link.fmText}`) || fmByText.get(link.fmText)) : undefined);
+        const fe = feById.get(link.feId || '')
+          || (link.feText ? (feByText.get(`${(link as any).l1FuncId || ''}|${link.feText}`) || feByText.get(link.feText)) : undefined);
+        const fc = fcById.get(link.fcId || '')
+          || (link.fcText ? (fcByText.get(`${(link as any).l2StructId || ''}|${link.fcText}`) || fcByText.get(link.fcText)) : undefined);
 
         if (fm && fe && fc) {
           const combo = `${fm.id}|${fe.id}|${fc.id}`;
@@ -432,28 +446,48 @@ export async function POST(request: NextRequest) {
           await tx.l1Structure.create({ data: { id: a.l1Structure.id, fmeaId: fId, name: a.l1Structure.name, confirmed: a.l1Structure.confirmed ?? false } });
         }
         if (a.l2Structures?.length) {
-          await tx.l2Structure.createMany({ data: a.l2Structures.map((s: any) => ({ id: s.id, fmeaId: fId, l1Id: s.l1Id, no: s.no, name: s.name, order: s.order })), skipDuplicates: true });
+          const l2Data = a.l2Structures.map((s: any) => ({ id: s.id, fmeaId: fId, l1Id: s.l1Id, no: (s.no ?? '').toString().trim() || String(s.order ?? 0), name: (s.name || '').trim() || `L2-${s.order ?? 0}`, order: s.order ?? 0 }));
+          const l2Result = await tx.l2Structure.createMany({ data: l2Data, skipDuplicates: true });
+          if (l2Result.count < l2Data.length) console.warn(`[save] L2Structure: expected ${l2Data.length}, created ${l2Result.count} (${l2Data.length - l2Result.count} skipped)`);
         }
         if (a.l3Structures?.length) {
-          await tx.l3Structure.createMany({ data: a.l3Structures.map((s: any) => ({ id: s.id, fmeaId: fId, l1Id: s.l1Id, l2Id: s.l2Id, m4: s.m4 || null, name: s.name, order: s.order })), skipDuplicates: true });
+          const l3Data = a.l3Structures.map((s: any) => ({ id: s.id, fmeaId: fId, l1Id: s.l1Id, l2Id: s.l2Id, m4: s.m4 || null, name: (s.name || '').trim() || 'N/A', order: s.order ?? 0 }));
+          const l3Result = await tx.l3Structure.createMany({ data: l3Data, skipDuplicates: true });
+          if (l3Result.count < l3Data.length) console.warn(`[save] L3Structure: expected ${l3Data.length}, created ${l3Result.count} (${l3Data.length - l3Result.count} skipped)`);
         }
         if (a.l1Functions?.length) {
-          await tx.l1Function.createMany({ data: a.l1Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l1StructId: f.l1StructId, category: f.category, functionName: f.functionName, requirement: f.requirement })), skipDuplicates: true });
+          const l1fData = a.l1Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l1StructId: f.l1StructId, category: (f.category || '').trim() || 'USER', functionName: (f.functionName || '').trim() || 'N/A', requirement: (f.requirement || '').trim() }));
+          const l1fResult = await tx.l1Function.createMany({ data: l1fData, skipDuplicates: true });
+          if (l1fResult.count < l1fData.length) console.warn(`[save] L1Function: expected ${l1fData.length}, created ${l1fResult.count} (${l1fData.length - l1fResult.count} skipped)`);
         }
         if (a.l2Functions?.length) {
-          await tx.l2Function.createMany({ data: a.l2Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l2StructId: f.l2StructId, functionName: f.functionName, productChar: f.productChar, specialChar: f.specialChar || null })), skipDuplicates: true });
+          const l2fData = a.l2Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l2StructId: f.l2StructId, functionName: (f.functionName || '').trim() || 'N/A', productChar: (f.productChar || '').trim() || 'N/A', specialChar: f.specialChar || null }));
+          const l2fResult = await tx.l2Function.createMany({ data: l2fData, skipDuplicates: true });
+          if (l2fResult.count < l2fData.length) console.warn(`[save] L2Function: expected ${l2fData.length}, created ${l2fResult.count} (${l2fData.length - l2fResult.count} skipped)`);
         }
         if (a.l3Functions?.length) {
-          await tx.l3Function.createMany({ data: a.l3Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l3StructId: f.l3StructId, l2StructId: f.l2StructId, functionName: f.functionName, processChar: f.processChar, specialChar: f.specialChar || null })), skipDuplicates: true });
+          const l3fData = a.l3Functions.map((f: any) => {
+            const pc = (f.processChar || '').trim();
+            const fn = (f.functionName || '').trim();
+            return { id: f.id, fmeaId: fId, l3StructId: f.l3StructId, l2StructId: f.l2StructId, functionName: fn || 'N/A', processChar: pc || fn || 'N/A', specialChar: f.specialChar || null };
+          });
+          const l3fResult = await tx.l3Function.createMany({ data: l3fData, skipDuplicates: true });
+          if (l3fResult.count < l3fData.length) console.warn(`[save] L3Function: expected ${l3fData.length}, created ${l3fResult.count} (${l3fData.length - l3fResult.count} skipped)`);
         }
         if (a.failureEffects?.length) {
-          await tx.failureEffect.createMany({ data: a.failureEffects.map((fe: any) => ({ id: fe.id, fmeaId: fId, l1FuncId: fe.l1FuncId, category: fe.category, effect: fe.effect, severity: fe.severity })), skipDuplicates: true });
+          const feData = a.failureEffects.map((fe: any) => ({ id: fe.id, fmeaId: fId, l1FuncId: fe.l1FuncId, category: (fe.category || '').trim() || 'USER', effect: (fe.effect || '').trim() || 'N/A', severity: Math.max(1, Math.min(10, Number(fe.severity) || 1)) }));
+          const feResult = await tx.failureEffect.createMany({ data: feData, skipDuplicates: true });
+          if (feResult.count < feData.length) console.warn(`[save] FailureEffect: expected ${feData.length}, created ${feResult.count} (${feData.length - feResult.count} skipped)`);
         }
         if (a.failureModes?.length) {
-          await tx.failureMode.createMany({ data: a.failureModes.map((fm: any) => ({ id: fm.id, fmeaId: fId, l2FuncId: fm.l2FuncId, l2StructId: fm.l2StructId, productCharId: fm.productCharId || null, mode: fm.mode, specialChar: fm.specialChar ?? false })), skipDuplicates: true });
+          const fmData = a.failureModes.map((fm: any) => ({ id: fm.id, fmeaId: fId, l2FuncId: fm.l2FuncId, l2StructId: fm.l2StructId, productCharId: fm.productCharId || null, mode: (fm.mode || '').trim() || 'N/A', specialChar: fm.specialChar ?? false }));
+          const fmResult = await tx.failureMode.createMany({ data: fmData, skipDuplicates: true });
+          if (fmResult.count < fmData.length) console.warn(`[save] FailureMode: expected ${fmData.length}, created ${fmResult.count} (${fmData.length - fmResult.count} skipped)`);
         }
         if (a.failureCauses?.length) {
-          await tx.failureCause.createMany({ data: a.failureCauses.map((fc: any) => ({ id: fc.id, fmeaId: fId, l3FuncId: fc.l3FuncId, l3StructId: fc.l3StructId, l2StructId: fc.l2StructId, processCharId: fc.processCharId || null, cause: fc.cause, occurrence: fc.occurrence || null })), skipDuplicates: true });
+          const fcData = a.failureCauses.map((fc: any) => ({ id: fc.id, fmeaId: fId, l3FuncId: fc.l3FuncId, l3StructId: fc.l3StructId, l2StructId: fc.l2StructId, processCharId: fc.processCharId || null, cause: (fc.cause || '').trim() || 'N/A', occurrence: fc.occurrence || null }));
+          const fcResult = await tx.failureCause.createMany({ data: fcData, skipDuplicates: true });
+          if (fcResult.count < fcData.length) console.warn(`[save] FailureCause: expected ${fcData.length}, created ${fcResult.count} (${fcData.length - fcResult.count} skipped)`);
         }
         // ★★★ 2026-03-20 FLAW-3 FIX: FK 불일치 시 DROP 대신 AUTO-FIX ★★★
         // 비유: 기존 로직은 "신분증 불일치면 문전 박대" → FC는 입장했는데 FL은 거부 → 고아 FC 발생
@@ -504,7 +538,7 @@ export async function POST(request: NextRequest) {
             gaps.push(`${droppedCount} links dropped (FC missing)`);
           }
           if (fixedLinks.length > 0) {
-            await tx.failureLink.createMany({ data: fixedLinks.map((l: any) => ({
+            const flData = fixedLinks.map((l: any) => ({
               id: l.id, fmeaId: fId, fmId: l.fmId, feId: l.feId, fcId: l.fcId,
               fmText: l.cache?.fmText || l.fmText || null,
               fmProcess: l.cache?.fmProcess || l.fmProcess || null,
@@ -514,7 +548,9 @@ export async function POST(request: NextRequest) {
               fcWorkElem: l.cache?.fcWorkElem || l.fcWorkElem || null,
               fcM4: l.fcM4 || l.m4 || null,
               severity: l.cache?.feSeverity || l.severity || null,
-            })), skipDuplicates: true });
+            }));
+            const flResult = await tx.failureLink.createMany({ data: flData, skipDuplicates: true });
+            if (flResult.count < flData.length) console.warn(`[save] FailureLink: expected ${flData.length}, created ${flResult.count} (${flData.length - flResult.count} skipped)`);
           }
         }
 
@@ -538,7 +574,8 @@ export async function POST(request: NextRequest) {
             const dc = String(riskData[`detection-${uk}`] || '').trim() || null;
             return { id: `ra-${fl.id}`, fmeaId: fId, linkId: fl.id, severity: s, occurrence: o, detection: d, ap: calculateAP(s, o, d), preventionControl: pc, detectionControl: dc };
           });
-          await tx.riskAnalysis.createMany({ data: raRows, skipDuplicates: true });
+          const raResult = await tx.riskAnalysis.createMany({ data: raRows, skipDuplicates: true });
+          if (raResult.count < raRows.length) console.warn(`[save] RiskAnalysis: expected ${raRows.length}, created ${raResult.count} (${raRows.length - raResult.count} skipped)`);
         }
 
         // ImportMapping 저장

@@ -231,7 +231,7 @@ function buildLegacyFailureLinks(
       feText: analysis?.feText || fe?.effect || '',
       feFunctionName: analysis?.l1FuncName || '',
       feRequirement: analysis?.l1Requirement || '',
-      severity: analysis?.feSeverity ?? fe?.severity ?? 0,
+      severity: analysis?.feSeverity ?? fe?.severity ?? 1,
       fcId: link.fcId,
       fcText: analysis?.fcText || fc?.cause || '',
       fcWorkFunction: analysis?.l3FuncName || '',
@@ -336,7 +336,10 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
   const fcById = indexById(db.failureCauses);
   const l2ById = indexById(db.l2Structures);
   const l3ById = indexById(db.l3Structures);
-  const analysisByLinkId = indexById(db.failureAnalyses);
+  const analysisByLinkId = new Map<string, (typeof db.failureAnalyses)[number]>();
+  for (const fa of db.failureAnalyses) {
+    if (fa.linkId) analysisByLinkId.set(fa.linkId, fa);
+  }
 
   // FK 기반 그룹핑
   const l2FuncsByL2Id = groupBy(db.l2Functions, f => f.l2StructId);

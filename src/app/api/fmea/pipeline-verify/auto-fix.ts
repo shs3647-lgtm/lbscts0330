@@ -64,8 +64,11 @@ export async function fixUuid(prisma: any, fmeaId: string): Promise<string[]> {
 
   if (missingData.length > 0) {
     try {
-      await prisma.l3Function.createMany({ data: missingData, skipDuplicates: true });
-      fixed.push(`L3Function 폴백 생성 ${missingData.length}건`);
+      const result = await prisma.l3Function.createMany({ data: missingData, skipDuplicates: true });
+      if (result.count < missingData.length) {
+        console.warn(`[fixUuid] L3Function: expected ${missingData.length}, created ${result.count} (${missingData.length - result.count} skipped)`);
+      }
+      fixed.push(`L3Function 폴백 생성 ${result.count}/${missingData.length}건`);
     } catch (err) {
       console.error('[fixUuid] L3Function 폴백 생성 오류:', err);
     }
@@ -138,8 +141,11 @@ export async function fixFk(prisma: any, fmeaId: string): Promise<string[]> {
       preventionControl: null, detectionControl: null,
     }));
     try {
-      await prisma.riskAnalysis.createMany({ data: raData, skipDuplicates: true });
-      fixed.push(`누락 RA 자동생성 ${raData.length}건`);
+      const raResult = await prisma.riskAnalysis.createMany({ data: raData, skipDuplicates: true });
+      if (raResult.count < raData.length) {
+        console.warn(`[fixFk] RiskAnalysis: expected ${raData.length}, created ${raResult.count} (${raData.length - raResult.count} skipped)`);
+      }
+      fixed.push(`누락 RA 자동생성 ${raResult.count}/${raData.length}건`);
     } catch (err) {
       console.error('[fixFk] RA 자동생성 오류:', err);
     }

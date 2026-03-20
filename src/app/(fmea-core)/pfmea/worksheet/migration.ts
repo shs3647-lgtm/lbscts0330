@@ -307,17 +307,17 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
           id: func.id || uid(),
           fmeaId: oldData.fmeaId,
           l2StructId: l2Struct.id,
-          functionName: func.name,
-          productChar: '',
+          functionName: (func.name ?? '').trim() || 'N/A',
+          productChar: (func.name ?? '').trim() || 'N/A',
         });
       } else {
         productChars.forEach((pc: any) => {
           const l2Func: L2Function = {
-            id: pc.id || uid(),  // 제품특성 ID 유지 (FM과 연결용)
+            id: pc.id || uid(),
             fmeaId: oldData.fmeaId,
             l2StructId: l2Struct.id,
-            functionName: func.name,
-            productChar: pc.name,
+            functionName: (func.name ?? '').trim() || 'N/A',
+            productChar: (pc.name ?? '').trim() || (func.name ?? '').trim() || 'N/A',
             specialChar: pc.specialChar,
           };
           db.l2Functions.push(l2Func);
@@ -354,14 +354,15 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         const tempL2FuncId = createHybridId({ 
           fmeaSeq, type: 'L2F', path: tempPath, seq: 1 
         });
+        const tempFuncName = (fm.name || '').replace(/\s*부적합$/, '').trim() || l2Struct.name || 'N/A';
         const tempL2Func = {
           id: tempL2FuncId,
           fmeaId: oldData.fmeaId,
           l1FuncId: db.l1Functions[0]?.id || '',
           l2StructId: l2Struct.id,
-          parentId: l2Struct.id, // ★ 모자관계
-          functionName: '',
-          productChar: '',
+          parentId: l2Struct.id,
+          functionName: tempFuncName,
+          productChar: tempFuncName,
           specialChar: '',
         };
         db.l2Functions.push(tempL2Func);
@@ -435,16 +436,14 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         const processChars = func.processChars || [];
 
         if (processChars.length === 0) {
-          // 이름 없는 함수 + 공정특성 없음 → DB 저장 불필요 (스킵)
           if (!funcName.trim()) return;
-          // ★ 2026-03-17: func.id (genB2) 보존 — uid() 대신 원본 ID 유지
           db.l3Functions.push({
             id: func.id || uid(),
             fmeaId: oldData.fmeaId,
             l3StructId: l3Struct.id,
             l2StructId: l2Struct.id,
             functionName: funcName,
-            processChar: '',
+            processChar: funcName,
           });
         } else {
           processChars.forEach((pc: any) => {
@@ -561,9 +560,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
             fmeaId: oldData.fmeaId,
             l1Id: db.l1Structure?.id || '',
             l2Id: l2Struct.id,
-            parentId: l2Struct.id, // ★ 모자관계
+            parentId: l2Struct.id,
             m4: '',
-            name: '',
+            name: (fc.name || '').replace(/\s*부적합$/, '').trim() || l2Struct.name || 'N/A',
             order: 0,
           };
           db.l3Structures.push(targetL3Struct);
@@ -573,14 +572,15 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         const tempL3FuncId = createHybridId({
           fmeaSeq, type: 'L3F', path: tempL3FuncPath, seq: 1
         });
+        const derivedName = (fc.name || '').replace(/\s*부적합$/, '').trim() || targetL3Struct.name || l2Struct.name || 'N/A';
         relatedL3Func = {
           id: tempL3FuncId,
           fmeaId: oldData.fmeaId,
           l3StructId: targetL3Struct.id,
           l2StructId: l2Struct.id,
-          parentId: targetL3Struct.id, // ★ 모자관계
-          functionName: '',
-          processChar: '',
+          parentId: targetL3Struct.id,
+          functionName: derivedName,
+          processChar: derivedName,
           specialChar: '',
         };
         db.l3Functions.push(relatedL3Func);
@@ -629,21 +629,22 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
             l2Id: l2Struct.id,
             parentId: l2Struct.id,
             m4: '',
-            name: '',
+            name: (fc.name || '').replace(/\s*부적합$/, '').trim() || l2Struct.name || 'N/A',
             order: 0,
           };
           db.l3Structures.push(safeL3Struct);
         }
         if (!guaranteedL3FuncId) {
           const safeFuncPath = createL3Path(pIdx + 1, 0, 0, 0);
+          const safePcName = (fc.name || '').replace(/\s*부적합$/, '').trim() || safeL3Struct.name || l2Struct.name || 'N/A';
           const safeFunc = {
             id: createHybridId({ fmeaSeq, type: 'L3F', path: safeFuncPath, seq: 999 }),
             fmeaId: oldData.fmeaId,
             l3StructId: safeL3Struct.id,
             l2StructId: l2Struct.id,
             parentId: safeL3Struct.id,
-            functionName: '',
-            processChar: '',
+            functionName: safePcName,
+            processChar: safePcName,
             specialChar: '',
           };
           db.l3Functions.push(safeFunc);
@@ -699,15 +700,19 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     });
     
     // ★★★ 2026-03-20 ROOT FIX: orphan L3Function 삭제 + L3Structure 폴백 보장 ★★★
+    // Manual mode guard: FC가 0건이면 삭제하지 않음 (수동모드에서 placeholder 보존)
     {
       const l2StructId = l2Struct.id;
-      const linkedL3FuncIds = new Set(
-        db.failureCauses.filter(fc => fc.l2StructId === l2StructId).map(fc => fc.l3FuncId)
-      );
-      db.l3Functions = db.l3Functions.filter(f => {
-        if (f.l2StructId !== l2StructId) return true;
-        return linkedL3FuncIds.has(f.id);
-      });
+      const procFcCount = db.failureCauses.filter(fc => fc.l2StructId === l2StructId).length;
+      if (procFcCount > 0) {
+        const linkedL3FuncIds = new Set(
+          db.failureCauses.filter(fc => fc.l2StructId === l2StructId).map(fc => fc.l3FuncId)
+        );
+        db.l3Functions = db.l3Functions.filter(f => {
+          if (f.l2StructId !== l2StructId) return true;
+          return linkedL3FuncIds.has(f.id);
+        });
+      }
 
       // 삭제 후 L3Function이 없는 L3Structure에 폴백 재생성 (processChar 빈값 방지)
       const l3StructsInProc = db.l3Structures.filter(s => s.l2Id === l2StructId);

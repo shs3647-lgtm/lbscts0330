@@ -134,9 +134,20 @@ export async function POST(request: NextRequest) {
           fcsByKey.get(key)!.push((fc as any).id);
         }
         const dupFcIds: string[] = [];
+        const flFcIds = new Set((await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } })).map((fl: any) => fl.fcId));
+
         for (const [, ids] of fcsByKey) {
           if (ids.length > 1) {
-            dupFcIds.push(...ids.slice(1));
+            // Keep the FC that's referenced by a FailureLink, delete the rest
+            const referenced = ids.filter(id => flFcIds.has(id));
+            const unreferenced = ids.filter(id => !flFcIds.has(id));
+            if (referenced.length > 0) {
+              // Keep first referenced, delete all unreferenced + extra referenced
+              dupFcIds.push(...unreferenced, ...referenced.slice(1));
+            } else {
+              // None referenced — keep first, delete rest
+              dupFcIds.push(...ids.slice(1));
+            }
           }
         }
         if (dupFcIds.length > 0) {
@@ -376,8 +387,10 @@ export async function POST(request: NextRequest) {
             return best;
           };
           const medianSOD = (arr: { s: number; o: number; d: number }[]) => {
-            if (!arr || arr.length === 0) return { s: 0, o: 0, d: 0 };
-            const sorted = [...arr].sort((a, b) => (a.s + a.o + a.d) - (b.s + b.o + b.d));
+            if (!arr || arr.length === 0) return { s: 1, o: 1, d: 1 };
+            const valid = arr.filter(x => x.s > 0 && x.o > 0 && x.d > 0);
+            if (valid.length === 0) return { s: 1, o: 1, d: 1 };
+            const sorted = [...valid].sort((a, b) => (a.s + a.o + a.d) - (b.s + b.o + b.d));
             return sorted[Math.floor(sorted.length / 2)];
           };
 
@@ -412,9 +425,9 @@ export async function POST(request: NextRequest) {
               const peerDC = mostFreq(fmPeerDC.get(fmId) || []);
               const peerPC = mostFreq(fmPeerPC.get(fmId) || []);
               const peerS = medianSOD(fmPeerSOD.get(fmId) || []);
-              const sev = (ra.severity || 0) > 0 ? ra.severity : (peerS.s || (feMapEnrich.get(feId)?.severity || 1));
-              const occ = (ra.occurrence || 0) > 0 ? ra.occurrence : (peerS.o || 1);
-              const det = (ra.detection || 0) > 0 ? ra.detection : (peerS.d || 1);
+              const sev = ra.severity > 0 ? ra.severity : Math.max(1, peerS.s || (feMapEnrich.get(feId)?.severity ?? 1));
+              const occ = ra.occurrence > 0 ? ra.occurrence : Math.max(1, peerS.o);
+              const det = ra.detection > 0 ? ra.detection : Math.max(1, peerS.d);
               const pc = ra.preventionControl || peerPC || null;
               const dc = ra.detectionControl || peerDC || null;
               if (sev > 0 || occ > 0 || det > 0 || pc || dc) {
@@ -430,7 +443,7 @@ export async function POST(request: NextRequest) {
 
             // (3) FE severity fallback
             if (feId && (ra.severity || 0) <= 0) {
-              const feSev = feMapEnrich.get(feId)?.severity || 0;
+              const feSev = feMapEnrich.get(feId)?.severity || 1;
               if (feSev > 0) {
                 await tx.riskAnalysis.update({
                   where: { id: ra.id },

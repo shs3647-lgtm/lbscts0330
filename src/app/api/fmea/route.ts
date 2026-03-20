@@ -1022,7 +1022,10 @@ export async function POST(request: NextRequest) {
               colSpan: link.colSpan || 1,
               deletedAt: null,
             }));
-            await tx.failureLink.createMany({ data: linkData, skipDuplicates: true });
+            const flResult = await tx.failureLink.createMany({ data: linkData, skipDuplicates: true });
+            if (flResult.count !== linkData.length) {
+              console.warn(`[route POST] FL: expected ${linkData.length}, created ${flResult.count}`);
+            }
           }
         }
       }
