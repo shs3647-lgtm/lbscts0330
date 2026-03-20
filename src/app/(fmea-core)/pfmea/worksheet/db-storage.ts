@@ -3,10 +3,9 @@
  * @file db-storage.ts
  * @description PostgreSQL DB 저장/로드 함수
  *
- * ★★★ 근본적인 해결책: 레거시 데이터 = Single Source of Truth ★★★
- * - 저장 시: 원자성 DB + 레거시 데이터 JSON 동시 저장
- * - 로드 시: API가 레거시 데이터 우선 반환 (역변환 없음!)
- * - 이를 통해 원자성 DB ↔ 레거시 변환 과정에서의 데이터 손실 문제 해결
+ * ★★★ 2026-03-20: Legacy data 이중저장 제거 — Atomic DB만 저장 ★★★
+ * - 저장 시: Atomic DB만 저장 (legacyData 파라미터는 하위호환용으로 유지하되 무시)
+ * - 로드 시: API가 Atomic DB에서 조립하여 반환
  *
  * ★★★ 2026-02-16: localStorage 폴백 완전 제거 (DB Only 정책) ★★★
  * - DB 저장 실패 시 에러만 로깅 (localStorage 쓰기 금지)
@@ -33,7 +32,7 @@ const MAX_CONSECUTIVE_FAILURES = 3;
 
 // ── 큐 기반 동시 저장 방지 ──
 let _saveInProgress = false;
-let _pendingSave: { db: FMEAWorksheetDB; legacyData?: any } | null = null;
+let _pendingSave: { db: FMEAWorksheetDB } | null = null;
 let _consecutiveFailures = 0;
 
 /** 저장 실패 시 호출되는 콜백 (UI 알림용) */
@@ -79,12 +78,10 @@ function _notifyError(message: string): void {
 
 /**
  * 실제 저장 실행 (내부용)
+ * ★★★ 2026-03-20: legacyData 제거 — Atomic DB만 전송 ★★★
  */
-async function _doSave(db: FMEAWorksheetDB, legacyData?: any): Promise<void> {
-  const requestBody = {
-    ...db,
-    legacyData: legacyData || null,
-  };
+async function _doSave(db: FMEAWorksheetDB): Promise<void> {
+  const requestBody = db;
 
   // ★ AbortController: 서버 응답 없으면 35초 후 자동 취소
   const controller = new AbortController();
@@ -145,7 +142,7 @@ async function _doSave(db: FMEAWorksheetDB, legacyData?: any): Promise<void> {
 
     // ★ P3: feId 미지정 링크 경고
     if (result.linkStats?.feIdEmpty > 0) {
-      console.warn(`[db-storage] ${result.linkStats.feIdEmpty}건 feId 미지정 — DB 미저장 (legacyData에만 보존)`);
+      console.warn(`[db-storage] ${result.linkStats.feIdEmpty}건 feId 미지정 — DB 미저장`);
     }
   } finally {
     clearTimeout(timeoutId);
@@ -153,14 +150,15 @@ async function _doSave(db: FMEAWorksheetDB, legacyData?: any): Promise<void> {
 }
 
 /**
- * PostgreSQL DB에 원자성 DB 저장 (레거시 데이터 포함)
+ * PostgreSQL DB에 원자성 DB 저장
  * ★ 2026-03-04: 큐 방식 — 동시 저장 시 최신 데이터 보존
  * ★ 2026-03-07: fmeaId 검증 + 재시도 제한 + 지수 백오프
+ * ★ 2026-03-20: legacyData 이중저장 제거 — Atomic DB만 저장
  *
  * @param db - 원자성 DB 데이터
- * @param legacyData - 레거시 WorksheetState 데이터 (Single Source of Truth)
+ * @param _legacyData - @deprecated 하위호환용으로 유지하되 무시됨
  */
-export async function saveWorksheetDB(db: FMEAWorksheetDB, legacyData?: any): Promise<void> {
+export async function saveWorksheetDB(db: FMEAWorksheetDB, _legacyData?: any): Promise<void> {
   // ★ fmeaId 사전 검증 — 잘못된 프로젝트에 저장하는 것을 원천 차단
   if (!db.fmeaId || typeof db.fmeaId !== 'string' || db.fmeaId.trim() === '') {
     _notifyError('fmeaId가 없어 저장할 수 없습니다. 프로젝트를 다시 선택하세요.');
@@ -169,14 +167,14 @@ export async function saveWorksheetDB(db: FMEAWorksheetDB, legacyData?: any): Pr
 
   // 저장 진행 중이면 큐에 최신 데이터 보관 (이전 pending 덮어쓰기 = 항상 최신만 유지)
   if (_saveInProgress) {
-    _pendingSave = { db, legacyData };
+    _pendingSave = { db };
     return;
   }
   _saveInProgress = true;
 
   let saveSucceeded = false;
   try {
-    await _doSave(db, legacyData);
+    await _doSave(db);
     saveSucceeded = true;
     _consecutiveFailures = 0;
   } catch (error: any) {
@@ -208,7 +206,7 @@ export async function saveWorksheetDB(db: FMEAWorksheetDB, legacyData?: any): Pr
         : Math.min(1000 * Math.pow(2, _consecutiveFailures - 1), 8000);
 
       setTimeout(() => {
-        saveWorksheetDB(pending.db, pending.legacyData).catch(e =>
+        saveWorksheetDB(pending.db).catch(e =>
           console.error('[DB 저장] 큐 처리 오류:', e)
         );
       }, delay);
@@ -217,6 +215,7 @@ export async function saveWorksheetDB(db: FMEAWorksheetDB, legacyData?: any): Pr
 }
 
 /**
+ * @deprecated 2026-03-20: Legacy 로드 경로. loadWorksheetDBAtomic() 사용 권장.
  * PostgreSQL DB에서 데이터 로드 (폴백 포함)
  */
 export async function loadWorksheetDB(fmeaId: string): Promise<FMEAWorksheetDB | null> {
