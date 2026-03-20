@@ -142,7 +142,7 @@ export const diagramMainStyle: CSSProperties = {
 /** 다이어그램 라벨 행 - 컴팩트 */
 export const diagramLabelRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '90px 1fr 80px 1fr 90px',
+  gridTemplateColumns: '90px 30px 120px 30px 90px',
   width: '100%',
   marginBottom: '6px',
 };
@@ -172,7 +172,7 @@ export const diagramLabelStyle = (type?: 'FE' | 'FM' | 'FC'): CSSProperties => {
 /** 다이어그램 카드 그리드 - 컴팩트 */
 export const diagramGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '90px 1fr 80px 1fr 90px',
+  gridTemplateColumns: '90px 30px 120px 30px 90px',
   width: '100%',
   flex: 1,
   gap: 0,
@@ -216,16 +216,15 @@ export const cardHeaderStyle = (type?: 'FE' | 'FM' | 'FC', options?: { borderBot
   };
 };
 
-/** 카드 본문 - 컴팩트 */
+/** 카드 본문 - 멀티라인 허용 */
 export const cardBodyStyle = (options?: { fontWeight?: number }): CSSProperties => ({
-  padding: '2px 4px',
-  lineHeight: 1.2,
+  padding: '3px 4px',
+  lineHeight: 1.3,
   fontSize: '9px',
   color: '#333',
   textAlign: 'center',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  wordBreak: 'break-word',
+  whiteSpace: 'normal',
   ...(options?.fontWeight && { fontWeight: options.fontWeight }),
 });
 

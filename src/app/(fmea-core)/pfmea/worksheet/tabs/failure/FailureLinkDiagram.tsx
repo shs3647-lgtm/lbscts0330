@@ -104,25 +104,25 @@ export default function FailureLinkDiagram({
                 disabled={!hasPrevFM}
                 style={{
                   width: '100%',
-                  padding: '4px 8px',
+                  padding: '2px 4px',
                   backgroundColor: hasPrevFM ? '#f57c00' : '#e0e0e0',
                   color: hasPrevFM ? '#fff' : '#999',
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: '3px',
                   cursor: hasPrevFM ? 'pointer' : 'not-allowed',
-                  fontSize: '12px',
+                  fontSize: '10px',
                   fontWeight: 'bold',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '4px'
+                  gap: '2px'
                 }}
               >
-                ▲ 이전 FM
+                ▲ Prev
               </button>
 
-              {/* FM 카드 */}
-              <div ref={fmNodeRef} style={diagramCardStyle('80px', 'FM')}>
+              {/* FM 카드 — 가로 120px, 높이 auto (전체 텍스트 표시) */}
+              <div ref={fmNodeRef} style={diagramCardStyle('120px', 'FM')}>
                 <div style={cardHeaderStyle('FM')}>{currentFM.fmNo}</div>
                 <div style={cardBodyStyle({ fontWeight: 600 })}>{currentFM.text}</div>
               </div>
@@ -133,21 +133,21 @@ export default function FailureLinkDiagram({
                 disabled={!hasNextFM}
                 style={{
                   width: '100%',
-                  padding: '4px 8px',
+                  padding: '2px 4px',
                   backgroundColor: hasNextFM ? '#f57c00' : '#e0e0e0',
                   color: hasNextFM ? '#fff' : '#999',
                   border: 'none',
-                  borderRadius: '4px',
+                  borderRadius: '3px',
                   cursor: hasNextFM ? 'pointer' : 'not-allowed',
-                  fontSize: '12px',
+                  fontSize: '10px',
                   fontWeight: 'bold',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '4px'
+                  gap: '2px'
                 }}
               >
-                ▼ 다음 FM
+                ▼ Next
               </button>
             </div>
 
