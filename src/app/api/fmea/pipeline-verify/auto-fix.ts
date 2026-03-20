@@ -164,6 +164,47 @@ export async function fixFk(prisma: any, fmeaId: string): Promise<string[]> {
 export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
 
+  // ★★★ 2026-03-20: emptyPC 자동수정 — processChar 빈값 → functionName 또는 L3 name ★★★
+  {
+    const emptyPcFuncs = await prisma.l3Function.findMany({
+      where: { fmeaId, processChar: '' },
+      select: { id: true, functionName: true, l3StructId: true },
+    });
+    for (const f of emptyPcFuncs) {
+      const l3s = await prisma.l3Structure.findUnique({ where: { id: f.l3StructId }, select: { name: true } }).catch(() => null);
+      await prisma.l3Function.update({
+        where: { id: f.id },
+        data: { processChar: f.functionName?.trim() || l3s?.name || 'N/A' },
+      }).catch(() => {});
+    }
+    if (emptyPcFuncs.length > 0) {
+      fixed.push(`emptyPC 보정 ${emptyPcFuncs.length}건`);
+    }
+
+    // L3Structure에 L3Function이 없는 경우 폴백 생성
+    const allL3s = await prisma.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } });
+    const coveredL3s = new Set(
+      (await prisma.l3Function.findMany({ where: { fmeaId }, select: { l3StructId: true } }))
+        .map((f: any) => f.l3StructId)
+    );
+    const missingL3s = allL3s.filter((s: any) => !coveredL3s.has(s.id));
+    if (missingL3s.length > 0) {
+      for (const s of missingL3s) {
+        await prisma.l3Function.create({
+          data: {
+            id: `${s.id}-L3F`,
+            fmeaId,
+            l3StructId: s.id,
+            l2StructId: s.l2Id,
+            functionName: s.name || '',
+            processChar: s.name || 'N/A',
+          },
+        }).catch(() => {});
+      }
+      fixed.push(`L3Function 폴백 생성 ${missingL3s.length}건`);
+    }
+  }
+
   const [ras, fls, opts] = await Promise.all([
     prisma.riskAnalysis.findMany({ where: { fmeaId } }),
     prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } }),

@@ -655,8 +655,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       }
     });
     
-    // ★★★ 2026-03-19 ROOT FIX: Import 데이터에 없는 orphan L3Function 삭제 ★★★
-    // Import B4(고장원인)가 없는 processChar = 의미 없는 데이터 → 삭제
+    // ★★★ 2026-03-20 ROOT FIX: orphan L3Function 삭제 + L3Structure 폴백 보장 ★★★
     {
       const l2StructId = l2Struct.id;
       const linkedL3FuncIds = new Set(
@@ -666,6 +665,36 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         if (f.l2StructId !== l2StructId) return true;
         return linkedL3FuncIds.has(f.id);
       });
+
+      // 삭제 후 L3Function이 없는 L3Structure에 폴백 재생성 (processChar 빈값 방지)
+      const l3StructsInProc = db.l3Structures.filter(s => s.l2Id === l2StructId);
+      for (const l3s of l3StructsInProc) {
+        const hasFunc = db.l3Functions.some(f => f.l3StructId === l3s.id);
+        if (!hasFunc) {
+          // FC에서 역추론, 없으면 L3Structure name 사용
+          const relatedFc = db.failureCauses.find(fc => fc.l3StructId === l3s.id);
+          const derivedPc = relatedFc
+            ? (relatedFc.cause || '').replace(/\s*부적합$/, '').trim()
+            : '';
+          db.l3Functions.push({
+            id: `${l3s.id}-L3F`,
+            fmeaId: oldData.fmeaId,
+            l3StructId: l3s.id,
+            l2StructId,
+            functionName: l3s.name || '',
+            processChar: derivedPc || l3s.name || 'N/A',
+          });
+        }
+      }
+    }
+
+    // 최종 보정: processChar 빈값 L3Function → functionName 또는 L3Structure name 사용
+    for (const l3f of db.l3Functions) {
+      if (l3f.l2StructId !== l2Struct.id) continue;
+      if (!l3f.processChar?.trim()) {
+        const l3s = db.l3Structures.find(s => s.id === l3f.l3StructId);
+        l3f.processChar = l3f.functionName?.trim() || l3s?.name || 'N/A';
+      }
     }
 
     // ★★★ 2026-02-05: 공정 처리 완료 후 globalRowIndex 업데이트 ★★★

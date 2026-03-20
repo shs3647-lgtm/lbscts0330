@@ -1011,6 +1011,46 @@ export async function POST(request: NextRequest) {
           console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건`);
         }
 
+        // ★★★ 2026-03-20 ROOT FIX: 삭제 후 L3Function 없는 L3Structure에 폴백 재생성 ★★★
+        {
+          const remainL3Fs = await tx.l3Function.findMany({ where: { fmeaId }, select: { l3StructId: true } });
+          const coveredL3s = new Set(remainL3Fs.map((f: { l3StructId: string }) => f.l3StructId));
+          const allL3Structs = await tx.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } });
+          const missingL3s = allL3Structs.filter((s: any) => !coveredL3s.has(s.id));
+          if (missingL3s.length > 0) {
+            await tx.l3Function.createMany({
+              data: missingL3s.map((s: any) => ({
+                id: `${s.id}-L3F`,
+                fmeaId,
+                l3StructId: s.id,
+                l2StructId: s.l2Id,
+                functionName: s.name || '',
+                processChar: s.name || 'N/A',
+              })),
+              skipDuplicates: true,
+            });
+            console.info(`[rebuild-atomic] L3Function 폴백 재생성: ${missingL3s.length}건`);
+          }
+        }
+
+        // ★★★ 2026-03-20 ROOT FIX: emptyPC 최종 보정 — processChar 빈값 → functionName 또는 L3 name ★★★
+        {
+          const emptyPcFuncs = await tx.l3Function.findMany({
+            where: { fmeaId, processChar: '' },
+            select: { id: true, functionName: true, l3StructId: true },
+          });
+          for (const f of emptyPcFuncs) {
+            const l3s = await tx.l3Structure.findUnique({ where: { id: f.l3StructId }, select: { name: true } });
+            await tx.l3Function.update({
+              where: { id: f.id },
+              data: { processChar: f.functionName?.trim() || l3s?.name || 'N/A' },
+            });
+          }
+          if (emptyPcFuncs.length > 0) {
+            console.info(`[rebuild-atomic] emptyPC 보정: ${emptyPcFuncs.length}건`);
+          }
+        }
+
         // 3단계: Legacy를 Atomic SSoT 기준으로 완전 동기화
         {
           // Atomic에 존재하는 L3Function ID 집합 (삭제 후 최종 상태)

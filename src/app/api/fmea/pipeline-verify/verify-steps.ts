@@ -296,10 +296,15 @@ export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepRe
 
   // 공정특성 빈값
   const emptyPC = l3Funcs.filter((f: any) => !f.processChar?.trim()).length;
-  // orphan PC: FC에서 참조하지 않는 L3Function
+  // orphan PC: FC에서 참조하지 않는 L3Function (폴백 L3F 제외 — FC 없는 WE는 정상)
   const fcL3FuncIds = new Set(fcs.map((fc: any) => fc.l3FuncId).filter(Boolean));
   const fcPcIds = new Set(fcs.map((fc: any) => fc.processCharId).filter(Boolean));
-  const orphanPC = l3Funcs.filter((f: any) => f.processChar?.trim() && !fcL3FuncIds.has(f.id) && !fcPcIds.has(f.id)).length;
+  const orphanPC = l3Funcs.filter((f: any) =>
+    f.processChar?.trim() &&
+    !fcL3FuncIds.has(f.id) &&
+    !fcPcIds.has(f.id) &&
+    !f.id.endsWith('-L3F')  // 폴백 L3Function은 orphan 카운트에서 제외
+  ).length;
 
   // DC/PC null
   const nullDC = ras.filter((ra: any) => !ra.detectionControl?.trim()).length;
@@ -327,7 +332,12 @@ export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepRe
     totalFL: fls.length, totalFC: fcs.length,
   };
 
-  if (emptyPC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`빈 공정특성 ${emptyPC}건`); }
+  if (emptyPC > 0) {
+    r.status = worst(r.status, 'warn');
+    const emptyIds = l3Funcs.filter((f: any) => !f.processChar?.trim()).map((f: any) => ({ id: f.id, functionName: f.functionName }));
+    r.issues.push(`빈 공정특성 ${emptyPC}건`);
+    (r.details as any).emptyPCDetails = emptyIds;
+  }
   if (orphanPC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`FC 없는 공정특성 ${orphanPC}건`); }
   if (nullDC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`DC(검출관리) 빈값 ${nullDC}건`); }
   if (nullPC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`PC(예방관리) 빈값 ${nullPC}건`); }
