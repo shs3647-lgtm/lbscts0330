@@ -200,17 +200,26 @@ export async function PUT(
     const createdItems: any[] = [];
 
     await prisma.$transaction(async (tx: any) => {
-      // 기존 아이템 삭제 후 새로 생성 (간단한 방식)
+      // 기존 UPI ID 수집 (고아 방지용)
+      const oldItems = await tx.controlPlanItem.findMany({
+        where: { cpId: cp.id },
+        select: { unifiedItemId: true },
+      });
+      const oldUpiIds = oldItems
+        .map((i: any) => i.unifiedItemId)
+        .filter(Boolean) as string[];
+
+      // 기존 아이템 삭제 후 새로 생성
       await tx.controlPlanItem.deleteMany({
         where: { cpId: cp.id },
       });
 
-      // 새 아이템 생성 (원자성 데이터: charIndex 포함)
-      // ★★★ 종합 DB + CP Item 동시 생성 ★★★
+      const newUpiIds: string[] = [];
+
       for (let idx = 0; idx < items.length; idx++) {
         const item = items[idx];
 
-        // 1단계: UnifiedProcessItem (종합 DB)에 저장
+        // 1단계: UnifiedProcessItem (종합 DB) — FMEA FK 포함
         const unifiedItem = await tx.unifiedProcessItem.create({
           data: {
             apqpNo: cp.fmeaId || null,
@@ -224,24 +233,28 @@ export async function PUT(
             productChar: item.productChar || '',
             processChar: item.processChar || '',
             specialChar: item.specialChar || '',
+            fmeaL2Id: item.pfmeaProcessId || null,
+            fmeaL3Id: item.pfmeaWorkElemId || null,
             parentId: item.parentId || null,
             mergeGroupId: item.mergeGroupId || null,
             rowSpan: item.rowSpan || 1,
             sortOrder: idx,
           },
         });
+        newUpiIds.push(unifiedItem.id);
 
-        // 2단계: ControlPlanItem 생성 (UnifiedItem 참조)
+        // 2단계: ControlPlanItem — FMEA FK 보존 (INV-INT-01)
         const cpItem = await tx.controlPlanItem.create({
           data: {
             cpId: cp.id,
-            unifiedItemId: unifiedItem.id,  // ★ 종합 DB 연결
+            unifiedItemId: unifiedItem.id,
             processNo: item.processNo || '',
             processName: item.processName || '',
             processLevel: item.processLevel || 'Main',
             processDesc: item.processDesc || '',
             partName: item.partName || '',
             equipment: item.equipment || '',
+            equipmentM4: item.equipmentM4 || null,
             workElement: item.workElement || '',
             detectorNo: item.detectorNo || false,
             detectorEp: item.detectorEp || false,
@@ -260,6 +273,7 @@ export async function PUT(
             owner1: item.owner1 || '',
             owner2: item.owner2 || '',
             reactionPlan: item.reactionPlan || '',
+            rowType: item.rowType || null,
             refSeverity: item.refSeverity || null,
             refOccurrence: item.refOccurrence || null,
             refDetection: item.refDetection || null,
@@ -269,10 +283,25 @@ export async function PUT(
             pfmeaRowUid: item.pfmeaRowUid || null,
             pfmeaProcessId: item.pfmeaProcessId || null,
             pfmeaWorkElemId: item.pfmeaWorkElemId || null,
+            productCharId: item.productCharId || null,
+            processCharId: item.processCharId || null,
+            linkId: item.linkId || null,
           },
         });
 
         createdItems.push(cpItem);
+      }
+
+      // 고아 UPI 삭제 (이전 저장의 UPI 중 새 저장에서 사용되지 않는 것)
+      const orphanUpiIds = oldUpiIds.filter(id => !newUpiIds.includes(id));
+      if (orphanUpiIds.length > 0) {
+        // PFD에서 참조하지 않는 UPI만 삭제
+        for (const upiId of orphanUpiIds) {
+          const pfdRef = await tx.pfdItem.count({ where: { unifiedItemId: upiId } });
+          if (pfdRef === 0) {
+            await tx.unifiedProcessItem.delete({ where: { id: upiId } }).catch(() => {});
+          }
+        }
       }
 
       // CP 업데이트 시간 갱신

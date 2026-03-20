@@ -25,6 +25,13 @@ export interface PfdItem {
   flowTransport?: boolean; // ◁ 운반
   flowStorage?: boolean;  // △ 저장
   flowInspect?: boolean;  // □ 검사
+  // FMEA FK 연동 필드 (sync-cp-pfd에서 설정, 워크시트 저장 시 반드시 보존)
+  fmeaL2Id?: string | null;        // L2Structure.id (공정)
+  fmeaL3Id?: string | null;        // L3Structure.id (작업요소)
+  productCharId?: string | null;   // ProcessProductChar.id (제품특성)
+  cpItemId?: string | null;        // ControlPlanItem.id (CP 행 참조)
+  unifiedItemId?: string | null;   // UnifiedProcessItem.id (공유 공정 행)
+  equipmentM4?: string | null;     // 4M 원본 코드
   // PFMEA 연동 필드
   fmeaId?: string | null;
   cpNo?: string | null;

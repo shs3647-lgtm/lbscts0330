@@ -33,7 +33,16 @@ export interface CPItem {
   owner2: string;
   reactionPlan: string;
   sortOrder: number;
-  // FMEA 연동 필드
+  // FMEA FK 연동 필드 (sync-cp-pfd에서 설정, 워크시트 저장 시 반드시 보존)
+  productCharId?: string | null;   // ProcessProductChar.id
+  processCharId?: string | null;   // L3Function.id
+  linkId?: string | null;          // FailureLink.id
+  pfmeaProcessId?: string | null;  // L2Structure.id
+  pfmeaWorkElemId?: string | null; // L3Structure.id
+  unifiedItemId?: string | null;   // UnifiedProcessItem.id
+  equipmentM4?: string | null;     // 4M 원본 코드
+  rowType?: string | null;         // product | process | structure
+  // FMEA 위험분석 참조 필드
   refSeverity?: number | null;
   refOccurrence?: number | null;
   refDetection?: number | null;
