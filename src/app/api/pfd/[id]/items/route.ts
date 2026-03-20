@@ -46,15 +46,33 @@ export async function POST(
       },
     });
 
-    // ★★★ PFD가 없으면 자동 생성 (Import 시 필요) ★★★
     if (!pfd) {
-      pfd = await prisma.pfdRegistration.create({
-        data: {
-          pfdNo: id,
-          subject: `PFD Import - ${id}`,
-          status: 'draft',
-        },
-      });
+      // TripletGroup에 소속된 PFD만 자동생성 허용 (SSI-01 불변량)
+      const tg = await prisma.tripletGroup.findFirst({
+        where: { pfdId: id },
+        select: { id: true, pfmeaId: true },
+        orderBy: { createdAt: 'desc' },
+      }).catch(() => null);
+
+      if (tg) {
+        pfd = await prisma.pfdRegistration.create({
+          data: {
+            pfdNo: id,
+            fmeaId: tg.pfmeaId || undefined,
+            linkedPfmeaNo: tg.pfmeaId || undefined,
+            tripletGroupId: tg.id,
+            subject: `PFD - ${id}`,
+            status: 'draft',
+          },
+        });
+        console.warn(`[pfd/items] pfdNo=${id}: TripletGroup(${tg.id}) 기반 자동생성`);
+      } else {
+        console.warn(`[pfd/items] pfdNo=${id}: TripletGroup 미소속 — PFD 자동생성 거부`);
+        return NextResponse.json(
+          { success: false, error: `PFD '${id}'를 찾을 수 없습니다. TripletGroup 등록 후 시도해주세요.` },
+          { status: 404 }
+        );
+      }
     }
 
     // 트랜잭션으로 처리 (기존 항목 삭제 후 새로 생성)

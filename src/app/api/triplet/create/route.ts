@@ -233,6 +233,14 @@ async function createMasterTriplet(
           cpResponsibleName: headerData.responsibleName,
         },
       });
+
+      await tx.controlPlan.create({
+        data: {
+          cpNo: ids.cpId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+        },
+      });
     }
 
     if (ids.pfdId) {
@@ -389,6 +397,14 @@ async function createFamilyTriplet(
           partNo: headerData.partNo,
         },
       });
+
+      await tx.controlPlan.create({
+        data: {
+          cpNo: cpId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+        },
+      });
     }
 
     if (pfdId) {
@@ -533,6 +549,14 @@ async function createPartTriplet(
           partNo: headerData.partNo,
         },
       });
+
+      await tx.controlPlan.create({
+        data: {
+          cpNo: ids.cpId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+        },
+      });
     }
 
     if (ids.pfdId) {
@@ -646,6 +670,14 @@ async function createFamilyTripletShell(
           partNo: headerData.partNo,
         },
       });
+
+      await tx.controlPlan.create({
+        data: {
+          cpNo: ids.cpId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
+        },
+      });
     }
 
     if (ids.pfdId) {
@@ -757,6 +789,14 @@ async function createPartTripletShell(
           customerName: headerData.customerName,
           companyName: headerData.companyName,
           partNo: headerData.partNo,
+        },
+      });
+
+      await tx.controlPlan.create({
+        data: {
+          cpNo: ids.cpId,
+          fmeaId: ids.pfmeaId,
+          linkedPfmeaNo: ids.pfmeaId,
         },
       });
     }

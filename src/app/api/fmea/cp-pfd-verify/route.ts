@@ -34,32 +34,47 @@ async function verifyCpPfdFk(fmeaPrisma: any, publicPrisma: any, fmeaId: string)
     fmeaPrisma.processProductChar.count({ where: { fmeaId } }),
   ]);
 
-  // TODO: FMEA 등록 시 CP/PFD 동시 생성으로 폴백 제거 예정
+  // CP/PFD 결정론적 조회: FmeaRegistration → TripletGroup → findFirst(최후 폴백)
   const reg = await publicPrisma.fmeaRegistration.findUnique({
     where: { fmeaId },
     select: { linkedCpNo: true, linkedPfdNo: true },
   }).catch(() => null);
 
-  let cp = reg?.linkedCpNo
-    ? await publicPrisma.controlPlan.findFirst({ where: { cpNo: reg.linkedCpNo } })
+  let targetCpNo = reg?.linkedCpNo || null;
+  let targetPfdNo = reg?.linkedPfdNo || null;
+
+  if (!targetCpNo || !targetPfdNo) {
+    const tg = await publicPrisma.tripletGroup.findFirst({
+      where: { pfmeaId: fmeaId },
+      select: { cpId: true, pfdId: true },
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => null);
+    if (!targetCpNo && tg?.cpId) {
+      targetCpNo = tg.cpId;
+      console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: TripletGroup 경유 cpId=${tg.cpId}`);
+    }
+    if (!targetPfdNo && tg?.pfdId) {
+      targetPfdNo = tg.pfdId;
+      console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: TripletGroup 경유 pfdId=${tg.pfdId}`);
+    }
+  }
+
+  let cp = targetCpNo
+    ? await publicPrisma.controlPlan.findFirst({ where: { cpNo: targetCpNo } })
     : null;
   if (!cp) {
-    if (!reg?.linkedCpNo) {
-      console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: linkedCpNo 없음, findFirst 폴백 사용`);
-    }
+    console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: cpNo=${targetCpNo} 미발견, findFirst 폴백 (비결정론 위험)`);
     cp = await publicPrisma.controlPlan.findFirst({
       where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  let pfd = reg?.linkedPfdNo
-    ? await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: reg.linkedPfdNo } })
+  let pfd = targetPfdNo
+    ? await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: targetPfdNo } })
     : null;
   if (!pfd) {
-    if (!reg?.linkedPfdNo) {
-      console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: linkedPfdNo 없음, findFirst 폴백 사용`);
-    }
+    console.warn(`[cp-pfd-verify] fmeaId=${fmeaId}: pfdNo=${targetPfdNo} 미발견, findFirst 폴백 (비결정론 위험)`);
     pfd = await publicPrisma.pfdRegistration.findFirst({
       where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
       orderBy: { createdAt: 'desc' },
