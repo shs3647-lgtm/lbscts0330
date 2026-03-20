@@ -162,7 +162,7 @@ function FMEAWorksheetPageContent() {
     quickSyncAndNavigate,  // ★ 일반사용자용 원클릭 연동+이동
   } = useCpSync(selectedFmeaId);
 
-  // ★ 특별특성 불일치 검증 (경고만, 데이터 수정 없음 — Single Source of Truth: legacyData)
+  // ★ 특별특성 불일치 검증 (경고만, 데이터 수정 없음 — SSoT: Atomic DB)
   useSpecialCharVerify({
     fmeaId: selectedFmeaId || undefined,
     stateL2: state.l2,

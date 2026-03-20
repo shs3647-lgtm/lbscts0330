@@ -119,7 +119,6 @@ export async function POST(request: NextRequest) {
     let optDroppedCount = 0;         // Optimization 연쇄 드롭 건수
     let feEmptyLinkCount = 0;        // feId 미지정 링크 건수
     let droppedLinkReasons: Array<{ fmId: string; feId: string; fcId: string; fmOK: boolean; feOK: boolean; fcOK: boolean; fmText: string; fcText: string }> = [];
-    let legacyLinksPreserved = false; // (unused — kept for linkStats response compat)
 
 
     // 고장 데이터 요약 (info 레벨)
@@ -177,8 +176,6 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     }
-
-    // Atomic DB only — no legacy overwrite guard needed
 
     // Atomic DB 트랜잭션 저장 (SSoT)
 
@@ -1430,12 +1427,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * FMEA 데이터 로드
- * 
- * ★★★ 근본적인 해결책: 레거시 데이터 우선 로드 ★★★
- * 1. FmeaLegacyData 테이블에서 레거시 데이터 로드 (Single Source of Truth)
- * 2. 레거시 데이터가 있으면 그것을 직접 사용 (역변환 과정 없음!)
- * 3. 레거시 데이터가 없으면 원자성 DB에서 역변환 (하위 호환성)
+ * FMEA 데이터 로드 — Atomic DB SSoT
  */
 export async function GET(request: NextRequest) {
   try {

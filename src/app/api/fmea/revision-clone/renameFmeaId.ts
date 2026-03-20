@@ -33,7 +33,6 @@ const FMEA_ID_TABLES = [
   'failure_analyses',
   'risk_analyses',
   'optimizations',
-  'fmea_legacy_data',
   'fmea_confirmed_states',
   'fmea_revision_history',
   'pfmea_master_datasets',

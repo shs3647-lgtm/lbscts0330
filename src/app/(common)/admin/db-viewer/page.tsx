@@ -48,7 +48,6 @@ const MODULE_TABLES: Record<string, { label: string; value: string; description:
     { label: '확정 상태', value: 'fmea_confirmed_states', description: '단계별 확정 상태', hasFmeaId: true },
     { label: '개정 이력', value: 'fmea_revision_history', description: '개정관리 이력', hasFmeaId: true },
     { label: '회의록', value: 'fmea_meeting_minutes', description: '개정관리 회의록', hasFmeaId: true },
-    // fmea_legacy_data: deprecated (2026-03-20) — Atomic DB가 SSoT
   ],
   'APQP': [
     { label: 'APQP 프로젝트', value: 'apqp_projects', description: 'APQP 프로젝트 기본정보 (레거시)' },

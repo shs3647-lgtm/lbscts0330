@@ -32,7 +32,6 @@ const PROJECT_TABLES = [
   'risk_analyses',
   'optimizations',
   'fmea_confirmed_states',
-  'fmea_legacy_data',
   'unified_process_items',  // ★ 2026-02-05: CP/PFD 연동용 테이블 추가
   'process_product_chars',  // ★ 2026-03-14: ProcessProductChar 독립 엔티티 (A4 공유)
   'import_jobs',            // ★ 2026-03-17: Import 추적

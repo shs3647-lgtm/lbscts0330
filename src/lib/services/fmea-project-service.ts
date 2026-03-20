@@ -997,7 +997,7 @@ async function hardDeleteRevision(prisma: any, fmeaId: string): Promise<void> {
     'l1_functions', 'l2_functions', 'l3_functions',
     'failure_effects', 'failure_modes', 'failure_causes',
     'failure_links', 'failure_analyses', 'risk_analyses', 'optimizations',
-    'fmea_legacy_data', 'fmea_confirmed_states', 'fmea_revision_history',
+    'fmea_confirmed_states', 'fmea_revision_history',
     'pfmea_master_datasets', 'fmea_meeting_minutes', 'fmea_sod_history',
     'fmea_official_revisions', 'fmea_version_backups', 'fmea_approvals',
     'fmea_confirm_histories', 'fmea_register_change_histories',

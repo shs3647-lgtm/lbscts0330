@@ -338,8 +338,6 @@ async function syncFmeaToCp(
       }
     }
 
-    // ★ 2026-01-17: 레거시 데이터 조회 제거 - 상위 FMEA가 없으면 데이터 누락 처리
-    // 레거시 데이터(fmea_legacy_data, fmea_worksheet_data)에서는 절대 데이터를 가져오지 않음
     if (!l2Structures || l2Structures.length === 0) {
 
       return NextResponse.json({

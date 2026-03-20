@@ -13,7 +13,6 @@ import { getPrisma } from '@/lib/prisma';
 import { safeErrorMessage } from '@/lib/security';
 import { renameFmeaId } from './renameFmeaId';
 import { cloneAtomicData } from './cloneAtomicData';
-import { cloneLegacyData } from './cloneLegacyData';
 
 // ── 개정번호 증가 ──
 function incrementRevisionNo(revNo: string): string {
@@ -287,10 +286,7 @@ export async function POST(req: NextRequest) {
       // ── 3h. 원자성 테이블 복제 + 최적화 승격 ──
       const cloneResult = await cloneAtomicData(tx, renamedSourceId, newFmeaId);
 
-      // ── 3i. LegacyData 복제 (JSON 변환 + 승격) ──
-      await cloneLegacyData(tx, renamedSourceId, newFmeaId, cloneResult.idMap, cloneResult.promotionMap);
-
-      // ── 3j. FmeaConfirmedState 생성 (모든 confirmed = false, step 1 시작) ──
+      // ── 3i. FmeaConfirmedState 생성 (모든 confirmed = false, step 1 시작) ──
       try {
         await tx.fmeaConfirmedState.create({
           data: {

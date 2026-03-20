@@ -694,18 +694,6 @@ model FmeaWorksheetData {
   @@map("fmea_worksheet_data")
 }
 
-model FmeaLegacyData {
-  id        String   @id @default(uuid())
-  fmeaId    String   @unique
-  data      Json
-  version   String   @default("1.0.0")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([fmeaId])
-  @@map("fmea_legacy_data")
-}
-
 model FmeaConfirmedState {
   id                    String   @id @default(uuid())
   fmeaId                String   @unique
