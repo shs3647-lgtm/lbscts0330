@@ -11,7 +11,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Note: any 타입은 레거시 데이터 구조 호환성을 위해 의도적으로 사용됨
+// Note: any 타입은 Atomic DB 데이터 구조 호환성을 위해 의도적으로 사용됨
 
 'use client';
 
@@ -34,8 +34,7 @@ interface UseWorksheetDBOptions {
   setAtomicDB: React.Dispatch<React.SetStateAction<any | null>>;
   // DB 함수들 (외부 주입)
   migrateToAtomicDB: (data: any) => any;
-  saveWorksheetDB: (db: any, legacy?: any) => Promise<void>;
-  loadWorksheetDB: (fmeaId: string) => Promise<any>;
+  saveWorksheetDB: (db: any) => Promise<void>;
   loadWorksheetDBAtomic: (fmeaId: string) => Promise<any>;
   createEmptyDB: (fmeaId: string) => any;
 }
@@ -64,7 +63,6 @@ export function useWorksheetDB(options: UseWorksheetDBOptions): UseWorksheetDBRe
     setAtomicDB,
     migrateToAtomicDB,
     saveWorksheetDB,
-    loadWorksheetDB,
     loadWorksheetDBAtomic,
     createEmptyDB,
   } = options;
@@ -281,7 +279,7 @@ export function useWorksheetDB(options: UseWorksheetDBOptions): UseWorksheetDBRe
   }, [selectedFmeaId, currentFmeaId, stateRef, suppressAutoSaveRef, setIsSaving, setLastSaved, setDirty, normalizeFailureLinks, prefix, fmeaType]);
 
   /**
-   * 기본 저장 함수 (레거시 + 원자성 동시 저장)
+   * 기본 저장 함수 (Atomic DB 저장)
    */
   const saveToLocalStorage = useCallback(() => {
     const targetId = selectedFmeaId || currentFmeaId;
@@ -371,7 +369,7 @@ export function useWorksheetDB(options: UseWorksheetDBOptions): UseWorksheetDBRe
       const currentState = stateRef.current;
 
       const normalizedFailureLinks = normalizeFailureLinks((currentState as any).failureLinks || [], currentState);
-      const legacyData = {
+      const stateInput = {
         fmeaId: targetFmeaId,
         l1: currentState.l1,
         l2: currentState.l2,
@@ -386,7 +384,7 @@ export function useWorksheetDB(options: UseWorksheetDBOptions): UseWorksheetDBRe
         failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
       };
 
-      const newAtomicDB = migrateToAtomicDB(legacyData);
+      const newAtomicDB = migrateToAtomicDB(stateInput);
 
       // 고장연결 확정 시 고장분석 통합 데이터 생성
       if (newAtomicDB.failureLinks.length > 0 && newAtomicDB.confirmed.failureLink) {

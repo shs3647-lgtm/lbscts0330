@@ -124,7 +124,7 @@ export const WORKSHEET_ITEMS_KO: ManualItem[] = [
   {
     category: '편집 기능',
     title: '데이터 저장 방식',
-    content: '워크시트 데이터 저장 체계입니다.\n\n■ 자동 저장\n• 30초 간격 localStorage 자동 보존\n• suppressAutoSaveRef로 로드 중 자동저장 방지\n\n■ 수동 저장\n• "저장" 버튼 → DB에 원자적 저장\n• legacyData = Single Source of Truth\n• 원자성 DB = PFD/CP/WS/PM 연동용\n\n■ 장애 대응\n• 브라우저 종료: localStorage에서 복원\n• DB 트랜잭션 실패: legacyData 독립 저장 보장\n• 네트워크 끊김: localStorage 유지, 재접속 시 동기화',
+    content: '워크시트 데이터 저장 체계입니다.\n\n■ 자동 저장\n• 30초 간격 localStorage 자동 보존\n• suppressAutoSaveRef로 로드 중 자동저장 방지\n\n■ 수동 저장\n• "저장" 버튼 → Atomic DB에 원자적 저장\n• Atomic DB = Single Source of Truth (SSoT)\n• PFD/CP/WS/PM FK 연동\n\n■ 장애 대응\n• 브라우저 종료: localStorage에서 복원\n• DB 트랜잭션 실패: 전체 롤백 (원자성 보장)\n• 네트워크 끊김: localStorage 유지, 재접속 시 동기화',
     keywords: ['저장', 'save', '자동', 'localStorage', 'DB', '원자적', '복원'],
   },
 ];

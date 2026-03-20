@@ -31,7 +31,7 @@ import {
   flattenDB,
 } from '../schema';
 import { migrateToAtomicDB, convertToLegacyFormat } from '../migration';
-import { loadWorksheetDB, saveWorksheetDB, loadWorksheetDBAtomic } from '../db-storage';
+import { saveWorksheetDB, loadWorksheetDBAtomic } from '../db-storage';
 import { normalizeConfirmedFlags } from '@/shared/types/worksheet';
 import { calculateFlatRows, calculateSpans, calculateL1Spans } from './useRowsCalculation';
 import { useWorksheetSave } from './useWorksheetSave';
@@ -376,24 +376,15 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     (async () => {
       suppressAutoSaveRef.current = true;
 
-      const baseDB = await loadWorksheetDB(baseId);
       const baseAtomicDB = await loadWorksheetDBAtomic(baseId);
 
-      if (!baseDB && !baseAtomicDB) {
+      if (!baseAtomicDB) {
         console.error('[상속 모드] 원본 FMEA 데이터를 찾을 수 없습니다:', baseId);
         suppressAutoSaveRef.current = false;
         return;
       }
 
-      let baseLegacy: any = null;
-
-      if (baseDB && (baseDB as any)._isLegacyDirect) {
-        baseLegacy = baseDB;
-      } else if (baseAtomicDB) {
-        baseLegacy = convertToLegacyFormat(baseAtomicDB as any);
-      } else if (baseDB) {
-        baseLegacy = convertToLegacyFormat(baseDB);
-      }
+      const baseLegacy: any = convertToLegacyFormat(baseAtomicDB as any);
 
       if (baseLegacy) {
         const confirmedFlags = normalizeConfirmedFlags({

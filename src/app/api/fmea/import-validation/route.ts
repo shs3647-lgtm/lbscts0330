@@ -34,18 +34,26 @@ async function runValidationRules(
 ): Promise<ValidationRecord[]> {
   const records: ValidationRecord[] = [];
 
-  const legacy = await prisma.fmeaLegacyData.findUnique({ where: { fmeaId } });
-  const data = legacy?.data as Record<string, unknown> | null;
-  const l2arr: PrismaAny[] = Array.isArray((data as PrismaAny)?.l2) ? (data as PrismaAny).l2 : [];
+  // ── Atomic DB 기반 규칙 (Legacy 제거 — 2026-03-20) ──
 
-  // ── Legacy 기반 규칙 (EMPTY_*, DUP_*, MATCH_*, MIX_*) ──
+  const [l2arr, l3Structs, l2Funcs, l3Funcs, atomicFmsAll, atomicFesAll, atomicFcsAll, l1Funcs, raAll] = await Promise.all([
+    prisma.l2Structure.findMany({ where: { fmeaId }, orderBy: { order: 'asc' } }),
+    prisma.l3Structure.findMany({ where: { fmeaId } }),
+    prisma.l2Function.findMany({ where: { fmeaId } }),
+    prisma.l3Function.findMany({ where: { fmeaId } }),
+    prisma.failureMode.findMany({ where: { fmeaId } }),
+    prisma.failureEffect.findMany({ where: { fmeaId } }),
+    prisma.failureCause.findMany({ where: { fmeaId } }),
+    prisma.l1Function.findMany({ where: { fmeaId } }),
+    prisma.riskAnalysis.findMany({ where: { fmeaId } }),
+  ]);
 
   for (let pi = 0; pi < l2arr.length; pi++) {
     const proc = l2arr[pi];
-    const procLabel = `L2_${pi}_${proc.processNo || proc.name || ''}`;
+    const procLabel = `L2_${pi}_${proc.no || proc.name || ''}`;
 
     // EMPTY_A1: 공정번호 빈값
-    if (!proc.processNo?.toString().trim()) {
+    if (!proc.no?.toString().trim()) {
       records.push({ ruleId: 'EMPTY_A1', target: procLabel, level: 'ERROR', message: `공정번호 빈값 (index ${pi})`, autoFixed: false });
     }
 
@@ -55,146 +63,105 @@ async function runValidationRules(
     }
 
     // EMPTY_A5: 고장형태 빈값
-    const fms: PrismaAny[] = Array.isArray(proc.failureModes) ? proc.failureModes : [];
-    if (fms.length === 0) {
+    const procFms = atomicFmsAll.filter((fm: PrismaAny) => fm.l2StructId === proc.id);
+    if (procFms.length === 0) {
       records.push({ ruleId: 'EMPTY_A5', target: procLabel, level: 'ERROR', message: `고장형태 0건`, autoFixed: false });
     }
-    for (let fi = 0; fi < fms.length; fi++) {
-      if (!fms[fi].name?.trim() && !fms[fi].mode?.trim()) {
+    for (let fi = 0; fi < procFms.length; fi++) {
+      if (!procFms[fi].mode?.trim()) {
         records.push({ ruleId: 'EMPTY_A5', target: `${procLabel}_FM${fi}`, level: 'ERROR', message: `고장형태 빈값`, autoFixed: false });
       }
     }
 
     // EMPTY_A4: 제품특성 빈값
-    const procFuncs: PrismaAny[] = Array.isArray(proc.functions) ? proc.functions : [];
-    for (const fn of procFuncs) {
-      const pcs: PrismaAny[] = Array.isArray(fn.processChars || fn.productChars) ? (fn.processChars || fn.productChars) : [];
-      if (pcs.length === 0) {
-        records.push({ ruleId: 'EMPTY_A4', target: procLabel, level: 'WARN', message: `제품특성 0건`, autoFixed: false });
-      }
-      for (const pc of pcs) {
-        if (!pc.name?.trim()) {
-          records.push({ ruleId: 'EMPTY_A4', target: `${procLabel}_A4_${pc.id || ''}`, level: 'WARN', message: `제품특성 빈값`, autoFixed: false });
-        }
+    const procL2Funcs = l2Funcs.filter((f: PrismaAny) => f.l2StructId === proc.id);
+    const pcsWithValue = procL2Funcs.filter((f: PrismaAny) => f.productChar?.trim());
+    if (pcsWithValue.length === 0 && procL2Funcs.length > 0) {
+      records.push({ ruleId: 'EMPTY_A4', target: procLabel, level: 'WARN', message: `제품특성 0건`, autoFixed: false });
+    }
+    for (const f of procL2Funcs) {
+      if (!f.productChar?.trim()) {
+        records.push({ ruleId: 'EMPTY_A4', target: `${procLabel}_A4_${f.id || ''}`, level: 'WARN', message: `제품특성 빈값`, autoFixed: false });
       }
     }
 
     // DUP_A5: 같은 공정에 중복 고장형태
-    const fmNames = fms.map((fm: PrismaAny) => (fm.name || fm.mode || '').trim()).filter(Boolean);
+    const fmNames = procFms.map((fm: PrismaAny) => (fm.mode || '').trim()).filter(Boolean);
     const fmDups = findDuplicates(fmNames);
     for (const dup of fmDups) {
       records.push({ ruleId: 'DUP_A5', target: procLabel, level: 'WARN', message: `중복 고장형태: "${dup}"`, autoFixed: false });
     }
 
     // L3 (작업요소) 검증
-    const l3arr: PrismaAny[] = Array.isArray(proc.l3) ? proc.l3 : [];
-    for (let wi = 0; wi < l3arr.length; wi++) {
-      const we = l3arr[wi];
+    const procL3s = l3Structs.filter((l3: PrismaAny) => l3.l2Id === proc.id);
+    for (let wi = 0; wi < procL3s.length; wi++) {
+      const we = procL3s[wi];
       const weLabel = `${procLabel}_L3_${wi}_${we.name || ''}`;
 
       // EMPTY_B4: 고장원인 빈값
-      const fcs: PrismaAny[] = Array.isArray(we.failureCauses) ? we.failureCauses : [];
-      if (fcs.length === 0) {
+      const weFcs = atomicFcsAll.filter((fc: PrismaAny) => fc.l3StructId === we.id);
+      if (weFcs.length === 0) {
         records.push({ ruleId: 'EMPTY_B4', target: weLabel, level: 'ERROR', message: `고장원인 0건`, autoFixed: false });
       }
-      for (let ci = 0; ci < fcs.length; ci++) {
-        if (!fcs[ci].name?.trim() && !fcs[ci].cause?.trim()) {
+      for (let ci = 0; ci < weFcs.length; ci++) {
+        if (!weFcs[ci].cause?.trim()) {
           records.push({ ruleId: 'EMPTY_B4', target: `${weLabel}_FC${ci}`, level: 'ERROR', message: `고장원인 빈값`, autoFixed: false });
         }
       }
 
       // EMPTY_B3: 공정특성 빈값
-      const weFuncs: PrismaAny[] = Array.isArray(we.functions) ? we.functions : [];
-      for (const fn of weFuncs) {
-        const pcs: PrismaAny[] = Array.isArray(fn.processChars) ? fn.processChars : [];
-        for (const pc of pcs) {
-          if (!pc.name?.trim()) {
-            records.push({ ruleId: 'EMPTY_B3', target: `${weLabel}_B3_${pc.id || ''}`, level: 'WARN', message: `공정특성 빈값`, autoFixed: false });
-          }
+      const weL3Funcs = l3Funcs.filter((f: PrismaAny) => f.l3StructId === we.id);
+      for (const f of weL3Funcs) {
+        if (!f.processChar?.trim()) {
+          records.push({ ruleId: 'EMPTY_B3', target: `${weLabel}_B3_${f.id || ''}`, level: 'WARN', message: `공정특성 빈값`, autoFixed: false });
         }
       }
 
       // DUP_B4: 같은 작업요소에 중복 고장원인
-      const fcNames = fcs.map((fc: PrismaAny) => (fc.name || fc.cause || '').trim()).filter(Boolean);
+      const fcNames = weFcs.map((fc: PrismaAny) => (fc.cause || '').trim()).filter(Boolean);
       const fcDups = findDuplicates(fcNames);
       for (const dup of fcDups) {
         records.push({ ruleId: 'DUP_B4', target: weLabel, level: 'WARN', message: `중복 고장원인: "${dup}"`, autoFixed: false });
       }
     }
-
-    // L2 직속 FC도 검사
-    const procFcs: PrismaAny[] = Array.isArray(proc.failureCauses) ? proc.failureCauses : [];
-    for (let ci = 0; ci < procFcs.length; ci++) {
-      if (!procFcs[ci].name?.trim() && !procFcs[ci].cause?.trim()) {
-        records.push({ ruleId: 'EMPTY_B4', target: `${procLabel}_FC${ci}`, level: 'ERROR', message: `고장원인 빈값 (L2 직속)`, autoFixed: false });
-      }
-    }
   }
 
   // EMPTY_C4: 고장영향 빈값
-  const l1 = (data as PrismaAny)?.l1;
-  const fes: PrismaAny[] = Array.isArray(l1?.failureScopes) ? l1.failureScopes : [];
-  if (fes.length === 0 && l2arr.length > 0) {
+  if (atomicFesAll.length === 0 && l2arr.length > 0) {
     records.push({ ruleId: 'EMPTY_C4', target: 'L1', level: 'ERROR', message: `고장영향 0건`, autoFixed: false });
   }
-  for (let i = 0; i < fes.length; i++) {
-    if (!fes[i].name?.trim() && !fes[i].effect?.trim()) {
+  for (let i = 0; i < atomicFesAll.length; i++) {
+    if (!atomicFesAll[i].effect?.trim()) {
       records.push({ ruleId: 'EMPTY_C4', target: `L1_FE${i}`, level: 'ERROR', message: `고장영향 빈값`, autoFixed: false });
     }
   }
 
-  // MATCH_B1_WE: B1 작업요소와 L3 이름 불일치
-  const l3Structs = await prisma.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } });
-  if (l3Structs.length > 0) {
-    const l3NameMap = new Map<string, string>();
-    for (const s of l3Structs) {
-      l3NameMap.set(s.id, (s.name || '').trim());
-    }
-
-    for (const proc of l2arr) {
-      const l3s: PrismaAny[] = Array.isArray(proc.l3) ? proc.l3 : [];
-      for (const we of l3s) {
-        const legacyName = (we.name || '').trim();
-        if (we.id && l3NameMap.has(we.id)) {
-          const atomicName = l3NameMap.get(we.id)!;
-          if (legacyName && atomicName && legacyName !== atomicName) {
-            records.push({
-              ruleId: 'MATCH_B1_WE', target: `L3_${we.id}`, level: 'ERROR',
-              message: `Legacy="${legacyName}" ≠ Atomic="${atomicName}"`, autoFixed: false,
-            });
-          }
-        }
-      }
-    }
-  }
-
-  // MIX_B5_A6: 예방관리/검출관리 혼입 가능성
-  const riskData = (data as PrismaAny)?.riskData as Record<string, string | number> | undefined;
-  if (riskData) {
+  // MIX_B5_A6: 예방관리/검출관리 혼입 가능성 (RiskAnalysis 기반)
+  {
     const detectionKeywords = ['예방', 'prevention', '방지', '대책'];
     const preventionKeywords = ['검출', 'detection', '측정', '검사', '시험'];
 
-    for (const [key, val] of Object.entries(riskData)) {
-      const text = String(val || '').trim();
-      if (!text) continue;
+    for (const ra of raAll) {
+      const dcText = ((ra as PrismaAny).detectionControl || '').trim();
+      const pcText = ((ra as PrismaAny).preventionControl || '').trim();
 
-      if (key.startsWith('detection-')) {
+      if (dcText) {
         for (const kw of detectionKeywords) {
-          if (text.includes(kw)) {
+          if (dcText.includes(kw)) {
             records.push({
-              ruleId: 'MIX_B5_A6', target: key, level: 'WARN',
-              message: `검출관리(A6)에 예방 키워드("${kw}") 포함: "${text.substring(0, 40)}"`, autoFixed: false,
+              ruleId: 'MIX_B5_A6', target: `RA_${(ra as PrismaAny).id}_DC`, level: 'WARN',
+              message: `검출관리(A6)에 예방 키워드("${kw}") 포함: "${dcText.substring(0, 40)}"`, autoFixed: false,
             });
             break;
           }
         }
       }
-      if (key.startsWith('prevention-')) {
+      if (pcText) {
         for (const kw of preventionKeywords) {
-          if (text.includes(kw)) {
+          if (pcText.includes(kw)) {
             records.push({
-              ruleId: 'MIX_B5_A6', target: key, level: 'WARN',
-              message: `예방관리(B5)에 검출 키워드("${kw}") 포함: "${text.substring(0, 40)}"`, autoFixed: false,
+              ruleId: 'MIX_B5_A6', target: `RA_${(ra as PrismaAny).id}_PC`, level: 'WARN',
+              message: `예방관리(B5)에 검출 키워드("${kw}") 포함: "${pcText.substring(0, 40)}"`, autoFixed: false,
             });
             break;
           }
@@ -205,30 +172,24 @@ async function runValidationRules(
 
   // ── Atomic DB 기반 규칙 (ORPHAN_*, BROKEN_LINK, MISSING_RISK, COUNT_MISMATCH) ──
 
-  const [links, atomicFcs, atomicFms, atomicFes, riskAnalyses] = await Promise.all([
-    prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fcId: true, fmId: true, feId: true } }),
-    prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true } }),
-    prisma.failureMode.findMany({ where: { fmeaId }, select: { id: true } }),
-    prisma.failureEffect.findMany({ where: { fmeaId }, select: { id: true } }),
-    prisma.failureAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } }),
-  ]);
+  const links = await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fcId: true, fmId: true, feId: true } });
 
   const linkedFcIds = new Set(links.map((l: PrismaAny) => l.fcId));
   const linkedFmIds = new Set(links.map((l: PrismaAny) => l.fmId));
-  const fcIdSet = new Set(atomicFcs.map((f: PrismaAny) => f.id));
-  const fmIdSet = new Set(atomicFms.map((f: PrismaAny) => f.id));
-  const feIdSet = new Set(atomicFes.map((f: PrismaAny) => f.id));
-  const riskLinkIds = new Set(riskAnalyses.map((r: PrismaAny) => r.linkId));
+  const fcIdSet = new Set(atomicFcsAll.map((f: PrismaAny) => f.id));
+  const fmIdSet = new Set(atomicFmsAll.map((f: PrismaAny) => f.id));
+  const feIdSet = new Set(atomicFesAll.map((f: PrismaAny) => f.id));
+  const riskLinkIds = new Set(raAll.map((r: PrismaAny) => r.linkId));
 
   // ORPHAN_FC: FailureLink 없는 FC
-  for (const fc of atomicFcs) {
+  for (const fc of atomicFcsAll) {
     if (!linkedFcIds.has(fc.id)) {
       records.push({ ruleId: 'ORPHAN_FC', target: `FC_${fc.id}`, level: 'ERROR', message: `FailureLink 없는 FC`, autoFixed: false });
     }
   }
 
   // ORPHAN_FM: FailureLink 없는 FM
-  for (const fm of atomicFms) {
+  for (const fm of atomicFmsAll) {
     if (!linkedFmIds.has(fm.id)) {
       records.push({ ruleId: 'ORPHAN_FM', target: `FM_${fm.id}`, level: 'ERROR', message: `FailureLink 없는 FM`, autoFixed: false });
     }
@@ -263,12 +224,12 @@ async function runValidationRules(
 
   if (latestJob && latestJob.flatDataCount > 0) {
     const mappingCount = await prisma.importMapping.count({ where: { jobId: latestJob.id } }).catch(() => 0);
-    const atomicTotal = atomicFms.length + atomicFcs.length + atomicFes.length;
+    const atomicTotal = atomicFmsAll.length + atomicFcsAll.length + atomicFesAll.length;
 
     if (mappingCount > 0 && Math.abs(mappingCount - atomicTotal) > 0) {
       records.push({
         ruleId: 'COUNT_MISMATCH', target: 'global', level: 'WARN',
-        message: `매핑 ${mappingCount}건 ≠ Atomic 엔티티 ${atomicTotal}건 (FM=${atomicFms.length} FC=${atomicFcs.length} FE=${atomicFes.length})`,
+        message: `매핑 ${mappingCount}건 ≠ Atomic 엔티티 ${atomicTotal}건 (FM=${atomicFmsAll.length} FC=${atomicFcsAll.length} FE=${atomicFesAll.length})`,
         autoFixed: false,
       });
     }

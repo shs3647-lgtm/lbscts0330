@@ -76,8 +76,7 @@ function _notifyError(message: string): void {
 }
 
 /**
- * 실제 저장 실행 (내부용)
- * ★★★ 2026-03-20: legacyData 제거 — Atomic DB만 전송 ★★★
+ * 실제 저장 실행 (내부용) — Atomic DB만 전송
  */
 async function _doSave(db: FMEAWorksheetDB): Promise<void> {
   const requestBody = db;
@@ -209,34 +208,6 @@ export async function saveWorksheetDB(db: FMEAWorksheetDB): Promise<void> {
         );
       }, delay);
     }
-  }
-}
-
-/**
- * @deprecated 2026-03-20: Legacy 로드 경로. loadWorksheetDBAtomic() 사용 권장.
- * PostgreSQL DB에서 데이터 로드 (폴백 포함)
- */
-export async function loadWorksheetDB(fmeaId: string): Promise<FMEAWorksheetDB | null> {
-  if (!fmeaId || typeof fmeaId !== 'string' || fmeaId.trim() === '') {
-    console.error('[DB 로드] fmeaId 누락');
-    return null;
-  }
-
-  try {
-    const response = await fetch(`/api/fmea?fmeaId=${encodeURIComponent(fmeaId)}`);
-
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to load FMEA data');
-    }
-
-    const db = await response.json();
-    if (!db) return null;
-    return db as FMEAWorksheetDB;
-  } catch (error: any) {
-    console.error('[DB 로드] 오류:', error.message || error);
-    return null;
   }
 }
 

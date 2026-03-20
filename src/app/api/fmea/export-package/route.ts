@@ -34,7 +34,6 @@ interface ExportPackage {
     riskAnalyses: any[];
     optimizations: any[];
     confirmedStates: any;
-    legacyData: any;
   };
 }
 
@@ -70,7 +69,6 @@ export async function POST(req: NextRequest) {
       riskAnalyses,
       optimizations,
       confirmedStates,
-      legacyData
     ] = await Promise.all([
       prisma.l1Structure.findFirst({ where: { fmeaId } }),
       prisma.l2Structure.findMany({ where: { fmeaId }, orderBy: { order: 'asc' } }),
@@ -85,7 +83,6 @@ export async function POST(req: NextRequest) {
       prisma.riskAnalysis.findMany({ where: { fmeaId } }),
       prisma.optimization.findMany({ where: { fmeaId } }),
       prisma.fmeaConfirmedState.findFirst({ where: { fmeaId } }),
-      prisma.fmeaLegacyData.findFirst({ where: { fmeaId } })
     ]);
     
     // 2. 패키지 구성
@@ -114,7 +111,6 @@ export async function POST(req: NextRequest) {
         riskAnalyses,
         optimizations,
         confirmedStates,
-        legacyData
       }
     };
     

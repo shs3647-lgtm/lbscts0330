@@ -664,30 +664,7 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
       await saveCftMembers(tx, fmeaId, cftMembers || []);
     }
 
-    // 4. fmea_legacy_data에도 저장 (하위호환)
-    const existingLegacy = await tx.fmeaLegacyData.findUnique({
-      where: { fmeaId }
-    });
-    const existingData = (existingLegacy?.data as any) || {};
-
-    // ★ FIX: sendBeacon 부분저장 시 undefined 필드는 기존값 유지
-    const legacyUpdate: Record<string, any> = {
-      ...existingData,
-      fmeaType: fmeaType || (fmeaId.includes('-M') ? 'M' : fmeaId.includes('-F') ? 'F' : 'P'),
-      savedAt: new Date().toISOString(),
-    };
-    if (fmeaInfo !== undefined) legacyUpdate.fmeaInfo = fmeaInfo;
-    if (project !== undefined) legacyUpdate.project = project;
-    if (cftMembers !== undefined) legacyUpdate.cftMembers = cftMembers;
-    if (parentFmeaId !== undefined) legacyUpdate.parentFmeaId = parentId;
-    if (parentFmeaType !== undefined) legacyUpdate.parentFmeaType = parentType;
-
-    await tx.fmeaLegacyData.upsert({
-      where: { fmeaId },
-      create: { fmeaId, data: legacyUpdate },
-      update: { data: legacyUpdate },
-    });
-    // ★ 5. ProjectLinkage 통합 DB 저장/업데이트 (2026-02-01 추가)
+    // ★ 4. ProjectLinkage 통합 DB 저장/업데이트 (2026-02-01 추가)
     try {
       if (fmeaInfo) {
         const idLower = fmeaId.toLowerCase();

@@ -54,23 +54,7 @@ export async function GET(req: NextRequest) {
       }, { status: 404 });
     }
     
-    // 2. 원본 데이터 조회 (레거시 데이터 우선)
-    let legacyData = null;
-    try {
-      const legacyResult = await pool.query(`
-        SELECT data FROM "${sourceSchema}".fmea_legacy_data 
-        WHERE id = $1
-        LIMIT 1
-      `, [`legacy-${sourceId}`]);
-      
-      if (legacyResult.rows.length > 0 && legacyResult.rows[0].data) {
-        legacyData = legacyResult.rows[0].data;
-      }
-    } catch {
-      // fmea_legacy_data 테이블이 없을 수 있음
-    }
-    
-    // 3. 레거시 데이터가 없으면 원자성 테이블에서 조회
+    // 2-3. 원자성 테이블에서 조회 (Legacy 제거 — Atomic DB SSoT)
     let inherited = {
       l1: null as any,
       l2: [] as any[],
@@ -113,43 +97,8 @@ export async function GET(req: NextRequest) {
       // risk_analyses 테이블이 없을 수 있음 (마이그레이션 전)
     }
 
-    if (legacyData) {
-      inherited = {
-        l1: legacyData.l1 || null,
-        l2: legacyData.l2 || [],
-        functions: {
-          l1: [],
-          l2: [],
-          l3: [],
-        },
-        failures: {
-          effects: (legacyData.l1?.failureScopes || []),
-          modes: (legacyData.l2 || []).flatMap((p: any) => p.failureModes || []),
-          causes: (legacyData.l2 || []).flatMap((p: any) => p.failureCauses || []),
-        },
-        failureLinks: legacyData.failureLinks || [],
-        riskAnalyses: sourceRiskAnalyses,
-      };
-      
-      stats = {
-        processes: legacyData.l2?.length || 0,
-        workElements: (legacyData.l2 || []).reduce((sum: number, p: any) => sum + (p.l3?.length || 0), 0),
-        l1Functions: (legacyData.l1?.types || []).reduce((sum: number, t: any) => 
-          sum + (t.functions?.length || 0), 0),
-        l2Functions: (legacyData.l2 || []).reduce((sum: number, p: any) => 
-          sum + (p.functions?.length || 0), 0),
-        l3Functions: (legacyData.l2 || []).reduce((sum: number, p: any) => 
-          sum + (p.l3 || []).reduce((s2: number, w: any) => s2 + (w.functions?.length || 0), 0), 0),
-        failureEffects: (legacyData.l1?.failureScopes || []).length,
-        failureModes: (legacyData.l2 || []).reduce((sum: number, p: any) => 
-          sum + (p.failureModes?.length || 0), 0),
-        failureCauses: (legacyData.l2 || []).reduce((sum: number, p: any) => 
-          sum + (p.failureCauses?.length || 0), 0),
-        failureLinks: legacyData.failureLinks?.length || 0,
-        riskAnalyses: sourceRiskAnalyses.length,
-      };
-    } else {
-      // 원자성 테이블에서 조회
+    {
+      // 원자성 테이블에서 조회 (Atomic DB SSoT)
       try {
         const l1Result = await pool.query(`
           SELECT * FROM "${sourceSchema}".l1_structures 

@@ -31,7 +31,6 @@ interface ImportPackage {
     riskAnalyses: any[];
     optimizations: any[];
     confirmedStates: any;
-    legacyData: any;
   };
 }
 
@@ -75,7 +74,6 @@ export async function POST(req: NextRequest) {
         await tx.l2Structure.deleteMany({ where: { fmeaId: targetFmeaId } });
         await tx.l1Structure.deleteMany({ where: { fmeaId: targetFmeaId } });
         await tx.fmeaConfirmedState.deleteMany({ where: { fmeaId: targetFmeaId } });
-        await tx.fmeaLegacyData.deleteMany({ where: { fmeaId: targetFmeaId } });
       }
       
       const stats = {
@@ -324,17 +322,6 @@ export async function POST(req: NextRequest) {
             failureLinkConfirmed: pkg.data.confirmedStates.failureLinkConfirmed || false,
             riskConfirmed: pkg.data.confirmedStates.riskConfirmed || false,
             optimizationConfirmed: pkg.data.confirmedStates.optimizationConfirmed || false
-          }
-        });
-      }
-      
-      // Legacy Data
-      if (pkg.data.legacyData) {
-        await tx.fmeaLegacyData.create({
-          data: {
-            fmeaId: targetFmeaId,
-            data: pkg.data.legacyData.data,
-            version: pkg.data.legacyData.version || '1.0.0'
           }
         });
       }

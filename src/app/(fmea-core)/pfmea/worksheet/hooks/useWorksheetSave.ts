@@ -2,13 +2,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @file useWorksheetSave.ts
- * @description 워크시트 저장 로직 — atomicDB가 있으면 직접 저장, 없으면 legacy 변환 폴백
+ * @description 워크시트 저장 로직 — Atomic DB 직접 저장 (legacy 경로 제거 완료)
  *
  * 핵심 변경 (2026-03-15):
  * - atomicDB가 이미 존재하면 migrateToAtomicDB를 호출하지 않음
  * - UUID가 매번 재생성되어 FailureAnalysis 187건 연쇄 삭제되던 버그 해결
  * - atomicDbSaver.saveAtomicDB()를 사용하여 기존 link ID 보존
- * - legacy-only 상태(atomicDB 미존재)에서는 기존 migrateToAtomicDB 경로 유지
+ *
+ * 2026-03-20: Legacy fallback 경로 완전 제거 — Atomic DB만 사용
  */
 
 'use client';
@@ -17,9 +18,7 @@ import { useCallback, useRef, useEffect } from 'react';
 import { WorksheetState, FMEAProject, uid } from '../constants';
 import { FMEAWorksheetDB } from '../schema';
 import { migrateToAtomicDB } from '../migration';
-import { saveWorksheetDB } from '../db-storage';
 import { saveAtomicDB as saveAtomicDBDirect } from './atomicDbSaver';
-import { normalizeFailureLinks } from './useFailureLinkUtils';
 
 interface UseWorksheetSaveParams {
   selectedFmeaId: string | null;
@@ -670,9 +669,6 @@ export function useWorksheetSave({
 
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastAutoSaveHashRef = useRef<string>('');
-  // ★ Legacy fallback 전용 캐시 (atomic 경로는 atomicDbSaver 내부에서 캐시)
-  const lastStructuralHashRef = useRef<string>('');
-  const cachedFailureAnalysesRef = useRef<any[]>([]);
 
   // ── 원자성 DB 저장 ──
   const saveAtomicDBCallback = useCallback(async (force?: boolean) => {
@@ -754,58 +750,6 @@ export function useWorksheetSave({
           setDirty(false);
           setLastSaved(new Date().toLocaleTimeString('ko-KR'));
         }
-      } else {
-        // ── LEGACY FALLBACK: atomicDB가 아직 없는 경우 (첫 로드 직후 등) ──
-        const currentState = stateRef.current;
-        const normalizedFailureLinks = normalizeFailureLinks((currentState as any).failureLinks || [], currentState);
-        const legacyData = {
-          fmeaId: targetFmeaId,
-          l1: currentState.l1,
-          l2: currentState.l2,
-          failureLinks: normalizedFailureLinks,
-          riskData: currentState.riskData || {},
-          fmea4Rows: (currentState as any).fmea4Rows || [],
-          structureConfirmed: (currentState as any).structureConfirmed || false,
-          l1Confirmed: (currentState as any).l1Confirmed || false,
-          l2Confirmed: (currentState as any).l2Confirmed || false,
-          l3Confirmed: (currentState as any).l3Confirmed || false,
-          failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
-          failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
-          failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
-          failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
-        };
-
-        const newAtomicDB = migrateToAtomicDB(legacyData);
-
-        // failureAnalyses 캐시 (legacy path만 — atomic path는 atomicDbSaver 내부 캐시)
-        if (newAtomicDB.failureLinks.length > 0 && newAtomicDB.confirmed.failureLink) {
-          const structuralHash = JSON.stringify({
-            fl: newAtomicDB.failureLinks.length,
-            fe: newAtomicDB.failureEffects.length,
-            fm: newAtomicDB.failureModes.length,
-            fc: newAtomicDB.failureCauses.length,
-            l2: newAtomicDB.l2Structures.length,
-            l3: newAtomicDB.l3Structures.length,
-            flc: (newAtomicDB as any).confirmed?.failureLink,
-            lk0: newAtomicDB.failureLinks[0]?.id || '',
-          });
-          if (structuralHash !== lastStructuralHashRef.current || cachedFailureAnalysesRef.current.length === 0) {
-            const { buildFailureAnalyses } = await import('../utils/failure-analysis-builder');
-            newAtomicDB.failureAnalyses = buildFailureAnalyses(newAtomicDB);
-            lastStructuralHashRef.current = structuralHash;
-            cachedFailureAnalysesRef.current = newAtomicDB.failureAnalyses;
-          } else {
-            newAtomicDB.failureAnalyses = cachedFailureAnalysesRef.current;
-          }
-        } else {
-          newAtomicDB.failureAnalyses = [];
-        }
-
-        const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
-        await saveWorksheetDB(dbToSave as any);
-        setAtomicDB(newAtomicDB);
-        setDirty(false);
-        setLastSaved(new Date().toLocaleTimeString('ko-KR'));
       }
     } catch (e) {
       console.error('[원자성 DB 저장] 오류:', e);
@@ -870,32 +814,6 @@ export function useWorksheetSave({
             setAtomicDB(dbToSave);
           }
         }).catch(e => console.error('[저장] DB 저장 오류:', e));
-      } else {
-        // ── LEGACY FALLBACK ──
-        const normalizedFailureLinks = normalizeFailureLinks((currentState as any).failureLinks || [], currentState);
-        const worksheetData = {
-          fmeaId: targetId,
-          l1: currentState.l1,
-          l2: currentState.l2,
-          tab: currentState.tab,
-          structureConfirmed: (currentState as any).structureConfirmed || false,
-          l1Confirmed: (currentState as any).l1Confirmed || false,
-          l2Confirmed: (currentState as any).l2Confirmed || false,
-          l3Confirmed: (currentState as any).l3Confirmed || false,
-          failureL1Confirmed: (currentState as any).failureL1Confirmed || false,
-          failureL2Confirmed: (currentState as any).failureL2Confirmed || false,
-          failureL3Confirmed: (currentState as any).failureL3Confirmed || false,
-          failureLinkConfirmed: (currentState as any).failureLinkConfirmed || false,
-          failureLinks: normalizedFailureLinks,
-          riskData: currentState.riskData || {},
-          fmea4Rows: (currentState as any).fmea4Rows || [],
-          savedAt: new Date().toISOString(),
-        };
-
-        const newAtomicDB = migrateToAtomicDB(worksheetData);
-        const dbToSave = force ? { ...newAtomicDB, forceOverwrite: true } : newAtomicDB;
-        saveWorksheetDB(dbToSave as any).catch(e => console.error('[저장] DB 저장 오류:', e));
-        setAtomicDB(newAtomicDB);
       }
 
       setDirty(false);

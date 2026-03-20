@@ -3,9 +3,8 @@
  * @description FMEA 데이터 저장/로드 API 라우트
  * 
  * ★★★ Atomic DB SSoT 아키텍처 (2026-03-20) ★★★
- * - 저장 시: Atomic DB (SSoT) + legacyData (캐시, 선택적)
- * - 로드 시: 항상 Atomic DB에서 직접 조회 (Legacy 우선 로드 제거)
- * - legacyData는 POST body에서 선택적 — 없어도 Atomic DB만으로 저장 가능
+ * - 저장/로드 모두 Atomic DB만 사용 (Legacy 완전 제거)
+ * - Atomic DB가 유일한 진실의 원천 (SSoT)
  * 
  * POST /api/fmea - FMEA 데이터 저장
  * GET /api/fmea?fmeaId=xxx - FMEA 데이터 로드
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest) {
     let optDroppedCount = 0;         // Optimization 연쇄 드롭 건수
     let feEmptyLinkCount = 0;        // feId 미지정 링크 건수
     let droppedLinkReasons: Array<{ fmId: string; feId: string; fcId: string; fmOK: boolean; feOK: boolean; fcOK: boolean; fmText: string; fcText: string }> = [];
-    let legacyLinksPreserved = false; // (unused — kept for linkStats response)
+    let legacyLinksPreserved = false; // (unused — kept for linkStats response compat)
 
 
     // 고장 데이터 요약 (info 레벨)
@@ -128,7 +127,7 @@ export async function POST(request: NextRequest) {
       console.info(`[FMEA API] FM=${db.failureModes?.length || 0} FC=${db.failureCauses?.length || 0} FE=${db.failureEffects?.length || 0}`);
     }
 
-    // ★★★ 2026-03-20: legacyData 로깅 제거 (Legacy data 이중저장 제거) ★★★
+    // Legacy data references removed — Atomic DB is SSoT
 
     // ✅ FMEA ID는 항상 소문자로 정규화 (DB 일관성 보장)
     // ★ 원본 fmeaId 보존 (DELETE 시 대소문자 무관 삭제용)
@@ -179,13 +178,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ★★★ 2026-03-20: Legacy overwrite guard 제거 — Atomic DB만 저장하므로 불필요 ★★★
+    // Atomic DB only — no legacy overwrite guard needed
 
-    // ★★★ 2026-03-07: legacyData 사전 저장 제거 (트랜잭션 내부에서만 저장)
-    // 이전: 트랜잭션 실패 시에도 legacyData 보존 목적으로 사전 저장
-    // 문제: 트랜잭션 실패 시 atomic DB는 없고 legacyData만 존재 → 데이터 불일치
-    // 해결: legacyData도 트랜잭션 내부(14단계)에서만 저장 → 원자성 보장
-    // → 트랜잭션 성공 = 둘 다 저장, 트랜잭션 실패 = 둘 다 롤백
+    // Atomic DB 트랜잭션 저장 (SSoT)
 
     // 트랜잭션으로 모든 데이터 저장 (배치 처리)
     txStep = 'TX_START';
@@ -235,7 +230,7 @@ export async function POST(request: NextRequest) {
           db.l3Functions = preserved;
         }
       }
-      // ★★★ 2026-03-20: legacyData 참조 제거 — Atomic DB 기반으로만 판단 ★★★
+      // Atomic DB 기반 빈 데이터 복원
       if (db.failureEffects.length === 0) {
         const existing = await tx.failureEffect.findMany(deleteCondition);
         if (existing.length > 0) {
@@ -552,8 +547,7 @@ export async function POST(request: NextRequest) {
             });
           }
         }
-        // ★★★ 2026-03-16: PC fallback — l2Functions에 productChars가 없으면 FM.productCharId에서 복원
-        // ★★★ 2026-03-20: legacyData 방법1 제거 — Atomic DB만 사용 ★★★
+        // PC fallback — l2Functions에 productChars가 없으면 FM.productCharId에서 복원
         if (pcRows.length === 0) {
           const seenIds = new Set<string>();
           // FM.productCharId에서 id만 수집 (이름은 L2Function.productChar에서)
@@ -1834,7 +1828,6 @@ export async function DELETE(request: NextRequest) {
       await tx.l3Structure.deleteMany({ where: { fmeaId } });
       await tx.l2Structure.deleteMany({ where: { fmeaId } });
       await tx.l1Structure.deleteMany({ where: { fmeaId } });
-      await tx.fmeaLegacyData.deleteMany({ where: { fmeaId } });
       await tx.fmeaConfirmedState.deleteMany({ where: { fmeaId } });
 
     });

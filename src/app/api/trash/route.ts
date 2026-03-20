@@ -232,12 +232,6 @@ async function permanentDelete(
         break;
 
       case 'PFMEA':
-        // 레거시 데이터 삭제
-        try {
-          await tx.fmeaLegacyData.deleteMany({
-            where: { fmeaId: { in: [actualDocNo, actualDocNo.toLowerCase()] } },
-          });
-        } catch { /* 무시 */ }
         // ProjectLinkage 정리 (pfmeaId)
         try {
           await tx.projectLinkage.deleteMany({

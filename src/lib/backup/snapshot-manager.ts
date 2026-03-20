@@ -1,7 +1,7 @@
 /**
  * @file snapshot-manager.ts
  * @description FMEA 프로젝트별 스냅샷 백업/복원 관리자
- * - legacyData 기반 경량 스냅샷 (50~200KB)
+ * - Atomic DB 기반 경량 스냅샷 (50~200KB)
  * - 자동(AUTO_CONFIRM, AUTO_PERIODIC) + 수동(MANUAL) 백업
  * - 보존 정책: 자동 20개, 수동 10개
  * @created 2026-02-23
@@ -120,7 +120,7 @@ export async function createSnapshot(
     const prefix = triggerType === 'MANUAL' ? 'M' : 'A';
     const version = getNextVersion(existing, prefix);
 
-    // backupData: legacyData 전체 state + stats
+    // backupData: 전체 state + stats
     const backupData = {
       state: {
         l1: state.l1,

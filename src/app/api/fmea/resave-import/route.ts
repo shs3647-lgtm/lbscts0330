@@ -190,8 +190,11 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       summary: feedback.summary,
     };
 
-    // 8. Build legacyData
-    const legacyData = {
+    // 8-9. migrateToAtomicDB (Legacy 구성 제거 — 직접 Atomic 변환)
+    const { migrateToAtomicDB } = await import(
+      '@/app/(fmea-core)/pfmea/worksheet/migration'
+    );
+    const atomicInput = {
       fmeaId,
       l1: buildResult.state.l1,
       l2: buildResult.state.l2,
@@ -209,13 +212,7 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       riskConfirmed: false,
       optimizationConfirmed: false,
     };
-
-    // 9. migrateToAtomicDB
-    const { migrateToAtomicDB } = await import(
-      '@/app/(fmea-core)/pfmea/worksheet/migration'
-    );
-    const legacyCopy = JSON.parse(JSON.stringify(legacyData));
-    const atomicDB = migrateToAtomicDB(legacyCopy);
+    const atomicDB = migrateToAtomicDB(JSON.parse(JSON.stringify(atomicInput)));
     Object.assign(atomicDB, { forceOverwrite: true });
 
     diag['8_atomicDB'] = {

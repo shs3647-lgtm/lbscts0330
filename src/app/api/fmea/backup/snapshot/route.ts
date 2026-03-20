@@ -3,7 +3,7 @@
  * @description FMEA 프로젝트별 스냅샷 백업/복원 API
  * - POST: 스냅샷 생성 + retention 자동 정리
  * - GET: 스냅샷 목록 조회
- * - PUT: 실제 복원 (FmeaLegacyData 덮어쓰기)
+ * - PUT: 백업 데이터 조회 (Atomic DB 기반 복원)
  * - DELETE: 스냅샷 삭제
  * @created 2026-02-23
  */
@@ -11,7 +11,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
-import { getProjectSchemaName } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
 
@@ -138,7 +137,7 @@ export async function GET(req: NextRequest) {
 }
 
 // ============================================================================
-// PUT — 실제 복원 (FmeaLegacyData 덮어쓰기)
+// PUT — 실제 복원 (Atomic DB 기반 — Legacy 제거)
 // ============================================================================
 
 export async function PUT(req: NextRequest) {
@@ -173,66 +172,14 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: '백업 데이터 파싱 실패' }, { status: 500 });
     }
 
-    // 2. 현재 legacyData 조회 → pre-restore 스냅샷 생성
-    const currentLegacy = await prisma.fmeaLegacyData.findFirst({
-      where: { fmeaId: normalizedId },
-    });
-
-    if (currentLegacy) {
-      // pre-restore 스냅샷 (복원 전 안전망)
-      const preRestoreVersion = `R.${Date.now()}`;
-      const currentJsonStr = JSON.stringify(currentLegacy.data);
-      await prisma.fmeaVersionBackup.create({
-        data: {
-          fmeaId: normalizedId,
-          version: preRestoreVersion,
-          revMajor: 9,
-          revMinor: 0,
-          versionType: 'RESTORE',
-          backupData: currentJsonStr,
-          dataSize: Buffer.byteLength(currentJsonStr, 'utf-8'),
-          compressed: false,
-          changeNote: `복원 전 자동백업 (v${version} 복원)`,
-          triggerType: 'RESTORE',
-          createdBy: 'system',
-        },
-      }).catch(() => {});
-    }
-
-    // 3. backupData에서 legacyData 추출
-    // 스냅샷 구조: { state: { l1, l2, ... }, stats, triggerContext }
+    // 2. 스냅샷 데이터 반환 (복원은 클라이언트에서 POST /api/fmea로 수행)
     const stateData = (backupData.state as Record<string, unknown>) || backupData;
-
-    // 기존 legacyData와 병합 (스냅샷 state를 legacyData.data에 넣기)
-    const currentData = (currentLegacy?.data as Record<string, unknown>) || {};
-    const mergedData = { ...currentData, ...stateData };
-
-    // 4. FmeaLegacyData 덮어쓰기 (public schema)
-    await prisma.fmeaLegacyData.upsert({
-      where: { fmeaId: normalizedId },
-      create: { fmeaId: normalizedId, data: mergedData as object, version: '1.0.0' },
-      update: { data: mergedData as object, updatedAt: new Date() },
-    });
-
-    // 5. 프로젝트 스키마에도 동기화
-    try {
-      const schema = getProjectSchemaName(normalizedId);
-      const jsonStr = JSON.stringify(mergedData);
-      await prisma.$executeRawUnsafe(
-        `UPDATE "${schema}".fmea_legacy_data SET data = $1::jsonb, "updatedAt" = NOW() WHERE "fmeaId" = $2`,
-        jsonStr,
-        normalizedId,
-      );
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-    }
-
 
     return NextResponse.json({
       success: true,
-      message: `v${version} 복원 완료`,
+      message: `v${version} 복원 데이터 조회 완료 — POST /api/fmea로 저장하세요`,
       restoredVersion: version,
-      restoredData: mergedData,
+      restoredData: stateData,
     });
   } catch (error) {
     console.error('[스냅샷 API] PUT 오류:', error);

@@ -252,28 +252,19 @@ export default function DBViewerPage() {
         const legacyRes = await fetch(`/api/fmea?fmeaId=${fmeaId}`);
         const legacyResult = await legacyRes.json();
 
-        if (legacyResult.success && legacyResult.legacyData?.failureLinks) {
-          const links = legacyResult.legacyData.failureLinks;
-          // 텍스트 정보가 포함된 컬럼으로 변환
-          const columns = ['no', 'fmProcess', 'fmText', 'feScope', 'feText', 'severity', 'fcText', 'fcM4', 'fcWorkElem', 'fmId', 'feId', 'fcId'];
+        if (legacyResult.failureLinks) {
+          const links = legacyResult.failureLinks;
+          const columns = ['no', 'fmId', 'feId', 'fcId'];
           const data = links.map((link: any, idx: number) => ({
             no: idx + 1,
-            fmProcess: link.fmProcess || '-',
-            fmText: link.fmText || '-',
-            feScope: link.feScope || '-',
-            feText: link.feText || '-',
-            severity: link.severity || 0,
-            fcText: link.fcText || '-',
-            fcM4: link.fcM4 || '-',
-            fcWorkElem: link.fcWorkElem || '-',
             fmId: link.fmId || '-',
             feId: link.feId || '-',
             fcId: link.fcId || '-',
           }));
 
           setTableData({
-            schema: 'legacyData',
-            table: 'failure_links (상세)',
+            schema: 'atomicDB',
+            table: 'failure_links (Atomic)',
             columns,
             data,
           });

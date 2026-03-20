@@ -1,8 +1,8 @@
 /**
  * @file useSpecialCharVerify.ts
- * @description 워크시트 로드 후 legacyData와 Master DB 간 specialChar 불일치 검증
+ * @description 워크시트 로드 후 Atomic DB와 Master DB 간 specialChar 불일치 검증
  *
- * ★ Single Source of Truth: legacyData의 specialChar
+ * ★ Single Source of Truth: Atomic DB의 specialChar
  * ★ 이 훅은 데이터를 수정하지 않음 — 불일치 시 console.warn만 출력
  * ★ 마이그레이션 스크립트(scripts/migrate-specialchar.ts)로 일괄 보충 후
  *   런타임에는 검증/경고 역할만 수행
@@ -50,9 +50,9 @@ export function useSpecialCharVerify({ fmeaId, stateL2 }: SpecialCharVerifyOptio
               if (!c.name?.trim()) continue;
               const masterSC = masterMap.get(`${procNo}|A4|${c.name}`);
               if (masterSC && !c.specialChar) {
-                mismatches.push(`A4 [${procNo}] "${c.name}": legacy=없음, master="${masterSC}"`);
+                mismatches.push(`A4 [${procNo}] "${c.name}": atomicDB=없음, master="${masterSC}"`);
               } else if (masterSC && c.specialChar && masterSC !== c.specialChar) {
-                mismatches.push(`A4 [${procNo}] "${c.name}": legacy="${c.specialChar}", master="${masterSC}"`);
+                mismatches.push(`A4 [${procNo}] "${c.name}": atomicDB="${c.specialChar}", master="${masterSC}"`);
               }
             }
           }
@@ -63,9 +63,9 @@ export function useSpecialCharVerify({ fmeaId, stateL2 }: SpecialCharVerifyOptio
                 if (!c.name?.trim()) continue;
                 const masterSC = masterMap.get(`${procNo}|B3|${c.name}`);
                 if (masterSC && !c.specialChar) {
-                  mismatches.push(`B3 [${procNo}] "${c.name}": legacy=없음, master="${masterSC}"`);
+                  mismatches.push(`B3 [${procNo}] "${c.name}": atomicDB=없음, master="${masterSC}"`);
                 } else if (masterSC && c.specialChar && masterSC !== c.specialChar) {
-                  mismatches.push(`B3 [${procNo}] "${c.name}": legacy="${c.specialChar}", master="${masterSC}"`);
+                  mismatches.push(`B3 [${procNo}] "${c.name}": atomicDB="${c.specialChar}", master="${masterSC}"`);
                 }
               }
             }

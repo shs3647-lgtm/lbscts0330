@@ -257,27 +257,15 @@ export async function POST(request: NextRequest) {
     );
     const feedback = applyFmGapFeedback(buildResult.state, flatData);
 
-    // 5. legacyData 구성
-    // ★★★ 리버스 경로: convertToLegacyFormat 결과 직접 사용 (FC processCharId 보존) ★★★
-    // forward 경로: buildWorksheetState 결과 사용 (기존 방식)
-    const legacyData = useReversePath && reverseLegacyData ? {
-      fmeaId: normalizedFmeaId,
-      l1: reverseLegacyData.l1,
-      l2: reverseLegacyData.l2,
-      failureLinks: reverseLegacyData.failureLinks || [],
-      riskData: injectedRisk,
-      forceOverwrite: true,
-      structureConfirmed: reverseLegacyData.structureConfirmed ?? false,
-      l1Confirmed: reverseLegacyData.l1Confirmed ?? false,
-      l2Confirmed: reverseLegacyData.l2Confirmed ?? false,
-      l3Confirmed: reverseLegacyData.l3Confirmed ?? false,
-      failureL1Confirmed: reverseLegacyData.failureL1Confirmed ?? false,
-      failureL2Confirmed: reverseLegacyData.failureL2Confirmed ?? false,
-      failureL3Confirmed: reverseLegacyData.failureL3Confirmed ?? false,
-      failureLinkConfirmed: reverseLegacyData.failureLinkConfirmed ?? true,
-      riskConfirmed: false,
-      optimizationConfirmed: false,
-    } : {
+    // 6. migrateToAtomicDB (Legacy 구성 제거 — Atomic DB 직접 저장)
+    const { migrateToAtomicDB } = await import(
+      '@/app/(fmea-core)/pfmea/worksheet/migration'
+    );
+    const { genFC } = await import('@/lib/uuid-generator');
+
+    // ★★★ 리버스 경로: atomic DB가 이미 정확 → migrateToAtomicDB 스킵 ★★★
+    // forward 경로: buildWorksheetState 결과에서 직접 atomicDB 생성
+    const atomicDB = useReversePath ? null : migrateToAtomicDB({
       fmeaId: normalizedFmeaId,
       l1: buildResult.state.l1,
       l2: buildResult.state.l2,
@@ -294,18 +282,7 @@ export async function POST(request: NextRequest) {
       failureLinkConfirmed: injectedLinks.length > 0,
       riskConfirmed: false,
       optimizationConfirmed: false,
-    };
-
-    // 6. migrateToAtomicDB
-    const { migrateToAtomicDB } = await import(
-      '@/app/(fmea-core)/pfmea/worksheet/migration'
-    );
-    const { genFC } = await import('@/lib/uuid-generator');
-
-    // ★★★ 리버스 경로: atomic DB가 이미 정확 → migrateToAtomicDB 스킵 ★★★
-    // forward 경로만 migrateToAtomicDB 실행 (기존 방식)
-    const legacyCopy = JSON.parse(JSON.stringify(legacyData));
-    const atomicDB = useReversePath ? null : migrateToAtomicDB(legacyCopy);
+    } as any);
     if (atomicDB) Object.assign(atomicDB, { forceOverwrite: true });
 
     // ★★★ 6-B. failureLinks 복구: migrateToAtomicDB가 ID 매칭 실패로 drop한 links를 텍스트 매칭으로 복구
