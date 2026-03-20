@@ -455,18 +455,56 @@ export async function POST(request: NextRequest) {
         if (a.failureCauses?.length) {
           await tx.failureCause.createMany({ data: a.failureCauses.map((fc: any) => ({ id: fc.id, fmeaId: fId, l3FuncId: fc.l3FuncId, l3StructId: fc.l3StructId, l2StructId: fc.l2StructId, processCharId: fc.processCharId || null, cause: fc.cause, occurrence: fc.occurrence || null })), skipDuplicates: true });
         }
+        // ★★★ 2026-03-20 FLAW-3 FIX: FK 불일치 시 DROP 대신 AUTO-FIX ★★★
+        // 비유: 기존 로직은 "신분증 불일치면 문전 박대" → FC는 입장했는데 FL은 거부 → 고아 FC 발생
+        // 수정: "신분증 불일치면 가장 가까운 유효 신분증으로 재발급" → FC↔FL↔RA 체인 보존
+        let fixedLinks: any[] = [];
         if (a.failureLinks?.length) {
           const fmIdSet = new Set((a.failureModes || []).map((fm: any) => fm.id));
           const feIdSet = new Set((a.failureEffects || []).map((fe: any) => fe.id));
           const fcIdSet = new Set((a.failureCauses || []).map((fc: any) => fc.id));
-          const validLinks = a.failureLinks.filter((l: any) => fmIdSet.has(l.fmId) && feIdSet.has(l.feId) && fcIdSet.has(l.fcId));
-          const droppedCount = a.failureLinks.length - validLinks.length;
-          if (droppedCount > 0) {
-            console.warn(`[save-from-import] ${droppedCount} links dropped: invalid fmId/feId/fcId`);
-            gaps.push(`${droppedCount} links dropped due to invalid FK`);
+
+          let fixedCount = 0;
+          fixedLinks = a.failureLinks.map((l: any) => {
+            let { fmId, feId, fcId } = l;
+            let fixed = false;
+
+            // Auto-fix fmId: FC의 l2StructId와 같은 공정의 FM 찾기, 없으면 첫 번째 FM
+            if (!fmIdSet.has(fmId)) {
+              const fc = (a.failureCauses || []).find((c: any) => c.id === fcId);
+              const processMatch = fc?.l2StructId
+                ? (a.failureModes || []).find((m: any) => m.l2StructId === fc.l2StructId)
+                : undefined;
+              fmId = processMatch?.id || (a.failureModes || [])[0]?.id || fmId;
+              fixed = true;
+            }
+
+            // Auto-fix feId: 첫 번째 FE fallback
+            if (!feIdSet.has(feId)) {
+              feId = (a.failureEffects || [])[0]?.id || feId;
+              fixed = true;
+            }
+
+            // fcId: FC가 존재하지 않으면 link를 drop (FC 없는 link는 의미 없음)
+            if (!fcIdSet.has(fcId)) {
+              console.warn(`[save-from-import] fcId ${fcId} not found — link dropped`);
+              return null;
+            }
+
+            if (fixed) fixedCount++;
+            return { ...l, fmId, feId, fcId };
+          }).filter(Boolean);
+
+          const droppedCount = a.failureLinks.length - fixedLinks.length;
+          if (fixedCount > 0) {
+            console.info(`[save-from-import] ${fixedCount} links auto-fixed (FK re-mapped)`);
           }
-          if (validLinks.length > 0) {
-            await tx.failureLink.createMany({ data: validLinks.map((l: any) => ({
+          if (droppedCount > 0) {
+            console.warn(`[save-from-import] ${droppedCount} links dropped: fcId not found`);
+            gaps.push(`${droppedCount} links dropped (FC missing)`);
+          }
+          if (fixedLinks.length > 0) {
+            await tx.failureLink.createMany({ data: fixedLinks.map((l: any) => ({
               id: l.id, fmeaId: fId, fmId: l.fmId, feId: l.feId, fcId: l.fcId,
               fmText: l.cache?.fmText || l.fmText || null,
               fmProcess: l.cache?.fmProcess || l.fmProcess || null,
@@ -481,13 +519,9 @@ export async function POST(request: NextRequest) {
         }
 
         // RiskAnalysis 직접 생성 (riskData에서 SOD/DC/PC 추출)
+        // ★ 2026-03-20: fixedLinks 사용 — 위에서 FK 자동수정된 links 기준으로 RA 생성
         const riskData = injectedRisk || {};
-        const savedFLs = a.failureLinks?.filter((l: any) => {
-          const fmIdSet = new Set((a.failureModes || []).map((fm: any) => fm.id));
-          const feIdSet = new Set((a.failureEffects || []).map((fe: any) => fe.id));
-          const fcIdSet = new Set((a.failureCauses || []).map((fc: any) => fc.id));
-          return fmIdSet.has(l.fmId) && feIdSet.has(l.feId) && fcIdSet.has(l.fcId);
-        }) || [];
+        const savedFLs = fixedLinks;
         if (savedFLs.length > 0) {
           const feMap = new Map((a.failureEffects || []).map((fe: any) => [fe.id, fe]));
           const calculateAP = (s: number, o: number, d: number): string => {

@@ -461,6 +461,44 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     }
   }
 
+  // ★★★ 2026-03-20 FLAW-1 FIX: B4→B3 정합성 보장 — B4가 있지만 B3가 없는 m4+we 조합에 B3 자동생성 ★★★
+  // 비유: B4(고장원인)는 "증상 목록", B3(공정특성)는 "검사 항목". 증상이 있는데 검사 항목이 없으면
+  //       parentItemId=undefined → orphanPC 발생. 증상 기반으로 검사 항목을 자동 보충한다.
+  for (const [pno, b4Items] of b4Map) {
+    const b3Items = b3Map.get(pno) || [];
+    const b3Keys = new Set(b3Items.map(b => `${b.m4}|${b.we}`));
+    let added = 0;
+    for (const b4 of b4Items) {
+      const key = `${b4.m4}|${(b4 as any).we || ''}`;
+      if (!b3Keys.has(key)) {
+        // B4 exists but B3 missing for this m4+we → auto-create B3 from FC name
+        const list = b3Map.get(pno) || [];
+        const derivedChar = b4.fc.replace(/\s*부적합$/, '').trim() || (b4 as any).we || 'N/A';
+        list.push({ m4: b4.m4, we: (b4 as any).we || '', char: derivedChar, sc: '' });
+        b3Map.set(pno, list);
+        b3Keys.add(key);
+        added++;
+      }
+    }
+    if (added > 0) {
+      warn.info('B3_FROM_B4', `공정 ${pno} B3 자동생성 ${added}건 (B4에만 존재하는 m4+we 보충)`);
+    }
+  }
+
+  // ★★★ 2026-03-20 FLAW-1 FIX: B4→A5 정합성 보장 — B4가 있지만 A5가 없는 공정에 A5 자동생성 ★★★
+  for (const [pno, b4Items] of b4Map) {
+    if (!a5Map.has(pno) || (a5Map.get(pno) || []).length === 0) {
+      const a4Items = a4Map.get(pno) || [];
+      const procName = procMaster.get(pno) || pno;
+      if (a4Items.length > 0) {
+        a5Map.set(pno, a4Items.map(a4 => a4.char + ' 불량'));
+      } else {
+        a5Map.set(pno, [`${procName} 불량`]);
+      }
+      warn.info('A5_FROM_B4', `공정 ${pno} A5 자동생성: B4 ${b4Items.length}건 있지만 A5 없음`);
+    }
+  }
+
   // FC 고장사슬 (중복제거)
   const fcChains: StepBFCChain[] = [];
   const seenFC = new Set<string>();
@@ -879,14 +917,34 @@ export function convertToImportFormat(
       const b3Ids = b3IdsByPnoM4.get(b3m4Key) || [];
       const b4Seq = b4SeqByPnoM4.get(b3m4Key) || 0;
       b4SeqByPnoM4.set(b3m4Key, b4Seq + 1);
-      const b3ParentId = b3Ids.length > 0
+      let b3ParentId = b3Ids.length > 0
         ? b3Ids[Math.min(b4Seq, b3Ids.length - 1)]
         : undefined;
+
+      // ★★★ 2026-03-20 FLAW-1 FIX: b3ParentId GUARANTEE — undefined 불가 (by construction) ★★★
+      // B4→B3 정합성이 buildImportData에서 보장되므로 이 분기는 방어 코드.
+      // 만약 b3Ids가 비어있으면 B3를 즉시 생성하여 parentItemId를 확정한다.
+      if (!b3ParentId && !b4B1Id) {
+        const autoB3Id = genB3('PF', pnoNum, item.m4, 1, 1);
+        // 이미 같은 ID의 B3가 있는지 확인
+        if (!flatData.some(d => d.id === autoB3Id)) {
+          const derivedChar = item.fc.replace(/\s*부적합$/, '').trim() || 'N/A';
+          flatData.push({
+            id: autoB3Id, processNo: pno, category: 'B', itemCode: 'B3',
+            value: derivedChar, m4: item.m4, createdAt: now,
+          });
+          // b3IdsByPnoM4에도 등록하여 후속 B4가 같은 B3 참조
+          if (!b3IdsByPnoM4.has(b3m4Key)) b3IdsByPnoM4.set(b3m4Key, []);
+          b3IdsByPnoM4.get(b3m4Key)!.push(autoB3Id);
+          warn.warn('B4_B3_AUTO', `공정${pno} B4 "${item.fc}" → B3 자동생성 (parentItemId 보장)`);
+        }
+        b3ParentId = autoB3Id;
+      }
 
       flatData.push({
         id: b4Id, processNo: pno, category: 'B', itemCode: 'B4',
         value: item.fc, m4: item.m4,
-        parentItemId: b3ParentId || b4B1Id || undefined,
+        parentItemId: b3ParentId || b4B1Id,
         createdAt: now,
       });
     }

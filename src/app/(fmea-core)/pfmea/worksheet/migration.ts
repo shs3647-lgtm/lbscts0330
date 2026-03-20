@@ -609,11 +609,54 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       // ★★★ 병합 그룹: 같은 공정+작업요소+특성은 같은 그룹 ★★★
       const fcMergeGroupId = createMergeGroupId(fmeaSeq, 'FC', fcPath);
       
+      // ★★★ 2026-03-20 FLAW-2 FIX: l3FuncId GUARANTEE — 빈 문자열 불가 (by construction) ★★★
+      // relatedL3Func은 위 550행에서 자동 생성되므로 여기서 null일 수 없지만,
+      // 방어 코드로 최종 fallback 시에도 유효한 L3Function을 반드시 확보한다.
+      const guaranteedL3FuncId = relatedL3Func?.id
+        || db.l3Functions.find(f => f.l2StructId === l2Struct.id)?.id;
+      const guaranteedL3StructId = relatedL3Func?.l3StructId
+        || db.l3Structures.find(s => s.l2Id === l2Struct.id)?.id;
+
+      if (!guaranteedL3FuncId || !guaranteedL3StructId) {
+        // 극한 방어: L3Function이 전혀 없으면 생성 (정상 흐름에서는 발생하지 않음)
+        let safeL3Struct = db.l3Structures.find(s => s.l2Id === l2Struct.id);
+        if (!safeL3Struct) {
+          const safePath = createL3Path(pIdx + 1, 0);
+          safeL3Struct = {
+            id: createHybridId({ fmeaSeq, type: 'L3S', path: safePath, seq: 999 }),
+            fmeaId: oldData.fmeaId,
+            l1Id: db.l1Structure?.id || '',
+            l2Id: l2Struct.id,
+            parentId: l2Struct.id,
+            m4: '',
+            name: '',
+            order: 0,
+          };
+          db.l3Structures.push(safeL3Struct);
+        }
+        if (!guaranteedL3FuncId) {
+          const safeFuncPath = createL3Path(pIdx + 1, 0, 0, 0);
+          const safeFunc = {
+            id: createHybridId({ fmeaSeq, type: 'L3F', path: safeFuncPath, seq: 999 }),
+            fmeaId: oldData.fmeaId,
+            l3StructId: safeL3Struct.id,
+            l2StructId: l2Struct.id,
+            parentId: safeL3Struct.id,
+            functionName: '',
+            processChar: '',
+            specialChar: '',
+          };
+          db.l3Functions.push(safeFunc);
+          relatedL3Func = safeFunc;
+          console.warn(`[migration] FLAW-2 방어: 공정 ${l2Struct.name} FC "${fcNameTrimmed}" — L3Function 최종 자동생성`);
+        }
+      }
+
       db.failureCauses.push({
         id: fcId,
         fmeaId: oldData.fmeaId,
-        l3FuncId: relatedL3Func?.id || db.l3Functions.find(f => f.l2StructId === l2Struct.id)?.id || '', // ★ null safety fallback
-        l3StructId: relatedL3Func?.l3StructId || db.l3Structures.find(s => s.l2Id === l2Struct.id)?.id || '', // ★ null safety fallback
+        l3FuncId: relatedL3Func!.id,
+        l3StructId: relatedL3Func!.l3StructId,
         l2StructId: l2Struct.id,
         processCharId: fc.processCharId || null,
         cause: fc.name,
@@ -743,24 +786,27 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     if (!fe && oldLink.feText) {
       fe = db.failureEffects.find(e => e.effect === oldLink.feText);
     }
-    // FE 자동 생성 (누락 금지) — ★ P7: uid()로 통일 (배열길이 기반 충돌 제거)
-    // ★ Fix B: feId NULL 방어 — oldLink.feId가 없어도 기존 FE fallback 사용
-    if (!fe && !oldLink.feId && db.failureEffects.length > 0) {
+    // ★★★ 2026-03-20 FLAW-2 FIX: FE GUARANTEE — fe 미발견 시 단계적 복구 ★★★
+    // 1단계: 기존 FE fallback (feId 없거나 ID 불일치 모두 포함)
+    if (!fe && db.failureEffects.length > 0) {
       fe = db.failureEffects[0];
-      console.warn(`[마이그레이션] feId NULL — fallback FE 사용: feId=${fe.id}, link=${oldLink.id || linkLocalIdx}`);
+      console.warn(`[마이그레이션] FE fallback 사용: feId=${fe.id}, link=${oldLink.id || linkLocalIdx}`);
     }
-    if (!fe && oldLink.feId && db.l1Functions.length > 0) {
+    // 2단계: FE가 전혀 없으면 자동 생성 (극한 방어)
+    if (!fe) {
+      const l1FuncId = db.l1Functions[0]?.id || '';
       const tempFeId = uid();
       fe = {
         id: tempFeId,
         fmeaId: oldData.fmeaId,
-        l1FuncId: db.l1Functions[0].id,
+        l1FuncId,
         category: oldLink.feScope || 'Your Plant',
-        effect: oldLink.feText || '',
-        severity: oldLink.severity || 0,
-        parentId: db.l1Functions[0].id, // ★ 모자관계
+        effect: oldLink.feText || '영향 미정',
+        severity: oldLink.severity || 1,
+        parentId: l1FuncId, // ★ 모자관계
       };
       db.failureEffects.push(fe);
+      console.warn(`[마이그레이션] FE 자동생성: ${tempFeId}, link=${oldLink.id || linkLocalIdx}`);
     }
     
     // FC 찾기 (ID → 텍스트 → strict 매칭)
