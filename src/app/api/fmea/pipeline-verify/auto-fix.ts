@@ -27,7 +27,8 @@ export async function fixStructure(prisma: any, fmeaId: string): Promise<string[
     });
     if (rebuildRes.ok) {
       const result = await rebuildRes.json();
-      fixed.push(`rebuild-atomic: L2=${result.counts?.l2 || '?'} FM=${result.counts?.fm || '?'} FC=${result.counts?.fc || '?'}`);
+      const r = result.rebuilt || result.counts || {};
+      fixed.push(`rebuild-atomic: L2=${r.l2Structures ?? r.l2 ?? '?'} FM=${r.failureModes ?? r.fm ?? '?'} FC=${r.failureCauses ?? r.fc ?? '?'}`);
     }
   } catch (err) {
     console.error('[fixStructure] rebuild-atomic 실패:', err);
@@ -36,45 +37,9 @@ export async function fixStructure(prisma: any, fmeaId: string): Promise<string[
   return fixed;
 }
 
-// ─── STEP 1: UUID 수정 (폴백 L3Function 생성) ───────────────
-export async function fixUuid(prisma: any, fmeaId: string): Promise<string[]> {
-  const fixed: string[] = [];
-
-  const l3s = await prisma.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } });
-  const l3Funcs = await prisma.l3Function.findMany({ where: { fmeaId }, select: { id: true, l3StructId: true } });
-
-  const l3FuncByL3 = new Map<string, number>();
-  for (const f of l3Funcs) l3FuncByL3.set(f.l3StructId, (l3FuncByL3.get(f.l3StructId) || 0) + 1);
-
-  const missingData: Array<{ id: string; fmeaId: string; l3StructId: string; l2StructId: string; functionName: string; processChar: string }> = [];
-  for (const l3 of l3s) {
-    const name = ((l3 as any).name || '').trim();
-    if (!name || name.includes('공정 선택 후')) continue;
-    if ((l3FuncByL3.get(l3.id) || 0) === 0) {
-      missingData.push({
-        id: `${l3.id}-L3F`,
-        fmeaId,
-        l3StructId: l3.id,
-        l2StructId: (l3 as any).l2Id || '',
-        functionName: name,
-        processChar: '',
-      });
-    }
-  }
-
-  if (missingData.length > 0) {
-    try {
-      const result = await prisma.l3Function.createMany({ data: missingData, skipDuplicates: true });
-      if (result.count < missingData.length) {
-        console.warn(`[fixUuid] L3Function: expected ${missingData.length}, created ${result.count} (${missingData.length - result.count} skipped)`);
-      }
-      fixed.push(`L3Function 폴백 생성 ${result.count}/${missingData.length}건`);
-    } catch (err) {
-      console.error('[fixUuid] L3Function 폴백 생성 오류:', err);
-    }
-  }
-
-  return fixed;
+// ─── STEP 1: UUID 검증 (폴백 생성 제거 — DB 원본 유지) ───────────────
+export async function fixUuid(_prisma: any, _fmeaId: string): Promise<string[]> {
+  return [];
 }
 
 // ─── STEP 3: FK 수정 ─────────────────────────────────────────
@@ -96,60 +61,13 @@ export async function fixFk(prisma: any, fmeaId: string): Promise<string[]> {
   let brokenDeleted = 0;
   for (const lk of links) {
     if (!fcSet.has(lk.fcId) || !fmSet.has(lk.fmId) || !feSet.has(lk.feId)) {
-      await prisma.failureLink.delete({ where: { id: lk.id } }).catch(() => {});
+      await prisma.failureLink.delete({ where: { id: lk.id } }).catch((e: unknown) => console.error(`[fixFk] FL 삭제 실패 id=${lk.id}:`, e));
       brokenDeleted++;
     }
   }
   if (brokenDeleted > 0) fixed.push(`깨진 FL 삭제 ${brokenDeleted}건`);
 
-  // 미연결 FC → FL 자동생성
-  const linkedFcIds = new Set(links.filter((lk: any) =>
-    fcSet.has(lk.fcId) && fmSet.has(lk.fmId) && feSet.has(lk.feId)
-  ).map((lk: any) => lk.fcId));
-
-  const unlinkedFcs = fcs.filter((fc: any) => !linkedFcIds.has(fc.id));
-  if (unlinkedFcs.length > 0) {
-    const fmByL2 = new Map<string, any>();
-    for (const fm of fms) { if (!fmByL2.has(fm.l2StructId)) fmByL2.set(fm.l2StructId, fm); }
-    const feDefault = fes.length > 0 ? fes[0] : null;
-
-    let created = 0;
-    for (const fc of unlinkedFcs) {
-      const fm = fmByL2.get(fc.l2StructId);
-      if (!fm || !feDefault) continue;
-      try {
-        await prisma.failureLink.create({
-          data: { id: `fl-autofix-${fc.id}`, fmeaId, fmId: fm.id, feId: feDefault.id, fcId: fc.id,
-            fmText: fm.mode || '', fcText: fc.cause || '', feText: feDefault.effect || '' },
-        });
-        created++;
-      } catch { /* duplicate */ }
-    }
-    if (created > 0) fixed.push(`미연결 FC→FL 자동생성 ${created}건`);
-  }
-
-  // RA 없는 FL에 RiskAnalysis 자동생성
-  const ras = await prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } });
-  const raLinkIds = new Set(ras.map((ra: any) => ra.linkId));
-  const currentLinks = await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } });
-  const missingRaLinks = currentLinks.filter((fl: any) => !raLinkIds.has(fl.id));
-
-  if (missingRaLinks.length > 0) {
-    const raData = missingRaLinks.map((fl: any) => ({
-      id: `ra-${fl.id}`, fmeaId, linkId: fl.id,
-      severity: 0, occurrence: 0, detection: 0, ap: 'L',
-      preventionControl: null, detectionControl: null,
-    }));
-    try {
-      const raResult = await prisma.riskAnalysis.createMany({ data: raData, skipDuplicates: true });
-      if (raResult.count < raData.length) {
-        console.warn(`[fixFk] RiskAnalysis: expected ${raData.length}, created ${raResult.count} (${raData.length - raResult.count} skipped)`);
-      }
-      fixed.push(`누락 RA 자동생성 ${raResult.count}/${raData.length}건`);
-    } catch (err) {
-      console.error('[fixFk] RA 자동생성 오류:', err);
-    }
-  }
+  // ★ 2026-03-20: 미연결 FC→FL 자동생성 / RA 자동생성 제거 — no-fallback 원칙
 
   return fixed;
 }
@@ -158,46 +76,7 @@ export async function fixFk(prisma: any, fmeaId: string): Promise<string[]> {
 export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
 
-  // ★★★ 2026-03-20: emptyPC 자동수정 — processChar 빈값 → functionName 또는 L3 name ★★★
-  {
-    const emptyPcFuncs = await prisma.l3Function.findMany({
-      where: { fmeaId, processChar: '' },
-      select: { id: true, functionName: true, l3StructId: true },
-    });
-    for (const f of emptyPcFuncs) {
-      const l3s = await prisma.l3Structure.findUnique({ where: { id: f.l3StructId }, select: { name: true } }).catch(() => null);
-      await prisma.l3Function.update({
-        where: { id: f.id },
-        data: { processChar: f.functionName?.trim() || l3s?.name || 'N/A' },
-      }).catch(() => {});
-    }
-    if (emptyPcFuncs.length > 0) {
-      fixed.push(`emptyPC 보정 ${emptyPcFuncs.length}건`);
-    }
-
-    // L3Structure에 L3Function이 없는 경우 폴백 생성
-    const allL3s = await prisma.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } });
-    const coveredL3s = new Set(
-      (await prisma.l3Function.findMany({ where: { fmeaId }, select: { l3StructId: true } }))
-        .map((f: any) => f.l3StructId)
-    );
-    const missingL3s = allL3s.filter((s: any) => !coveredL3s.has(s.id));
-    if (missingL3s.length > 0) {
-      for (const s of missingL3s) {
-        await prisma.l3Function.create({
-          data: {
-            id: `${s.id}-L3F`,
-            fmeaId,
-            l3StructId: s.id,
-            l2StructId: s.l2Id,
-            functionName: s.name || '',
-            processChar: s.name || 'N/A',
-          },
-        }).catch(() => {});
-      }
-      fixed.push(`L3Function 폴백 생성 ${missingL3s.length}건`);
-    }
-  }
+  // ★ 2026-03-20: emptyPC 보정/L3Function 폴백 생성 제거 — DB 원본 유지
 
   const [ras, fls, opts] = await Promise.all([
     prisma.riskAnalysis.findMany({ where: { fmeaId } }),
@@ -213,7 +92,7 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
   const orphanOpts = opts.filter((o: any) => !raSet.has(o.riskId));
   if (orphanOpts.length > 0) {
     const ids = orphanOpts.map((o: any) => o.id);
-    await prisma.optimization.deleteMany({ where: { id: { in: ids } } }).catch(() => {});
+    await prisma.optimization.deleteMany({ where: { id: { in: ids } } }).catch((e: unknown) => console.error(`[fixMissing] Opt 고아 삭제 실패:`, e));
     fixed.push(`Opt FK 고아 삭제 ${orphanOpts.length}건`);
   }
 
@@ -301,7 +180,7 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
           ...(newDC.trim() ? { detectionControl: newDC } : {}),
           ...(newPC.trim() ? { preventionControl: newPC } : {}),
         },
-      }).catch(() => {});
+      }).catch((e: unknown) => console.error(`[fixMissing] RA 업데이트 실패 id=${ra.id}:`, e));
     }
   }
 

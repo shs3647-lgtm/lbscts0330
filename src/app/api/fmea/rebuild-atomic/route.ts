@@ -160,127 +160,29 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // ★★★ 미연결 FC → FL + RA 동시 생성 (Atomic DB 자체 참조) ★★★
+      // ★ 2026-03-20: 미연결 FC→FL, RA 부족 시 보충 로직 제거 (no-fallback 원칙)
+      // Import 파이프라인에서 정확하게 생성된 데이터만 유지한다.
+      // 미연결 FC가 있으면 경고만 출력한다.
       {
         const linkedFcIds = new Set(
           (await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } }))
             .map((l: any) => l.fcId)
         );
-        const allFcsNow = await tx.failureCause.findMany({ where: { fmeaId } });
+        const allFcsNow = await tx.failureCause.findMany({ where: { fmeaId }, select: { id: true, cause: true } });
         const unlinkedFcs = allFcsNow.filter((fc: any) => !linkedFcIds.has(fc.id));
-
         if (unlinkedFcs.length > 0) {
-          const fmByL2 = new Map<string, any>();
-          for (const fm of atomic.failureModes) {
-            if (!fmByL2.has((fm as any).l2StructId)) fmByL2.set((fm as any).l2StructId, fm);
-          }
-          const l3FuncById = new Map<string, any>();
-          for (const lf of atomic.l3Functions) {
-            l3FuncById.set((lf as any).id, lf);
-          }
-          const fmToFe = new Map<string, string>();
-          const feMap = new Map<string, any>();
-          const currentLinks = await tx.failureLink.findMany({ where: { fmeaId }, select: { fmId: true, feId: true } });
-          for (const el of currentLinks) {
-            if (!fmToFe.has((el as any).fmId)) fmToFe.set((el as any).fmId, (el as any).feId);
-          }
-          for (const fe of atomic.failureEffects) feMap.set((fe as any).id, fe);
-          const firstFeId = atomic.failureEffects.length > 0 ? (atomic.failureEffects[0] as any).id : null;
-
-          const synthLinks: any[] = [];
-          const allFms = atomic.failureModes as any[];
-          for (const fc of unlinkedFcs) {
-            let fm = fmByL2.get(fc.l2StructId);
-            if (!fm && fc.l3FuncId) {
-              const l3f = l3FuncById.get(fc.l3FuncId);
-              if (l3f) {
-                fm = fmByL2.get((l3f as any).l2StructId);
-              } else {
-                console.warn(`[rebuild-atomic] l3FuncById miss: l3FuncId=${fc.l3FuncId} not found, skipping l2StructId lookup`);
-              }
-            }
-            if (!fm && allFms.length > 0) fm = allFms[0];
-            if (!fm) continue;
-
-            const feId = fmToFe.get(fm.id) || firstFeId;
-            if (!feId) continue;
-
-            synthLinks.push({
-              id: `auto-${fc.id}`,
-              fmeaId,
-              fmId: fm.id,
-              feId,
-              fcId: fc.id,
-              fmText: (fm as any).mode || null,
-              feText: feMap.get(feId)?.effect || null,
-              fcText: fc.cause || null,
-              fcM4: null,
-              severity: feMap.get(feId)?.severity || null,
-            });
-          }
-
-          if (synthLinks.length > 0) {
-            await tx.failureLink.createMany({ data: synthLinks, skipDuplicates: true });
-
-            // FL→RA 동시 생성: SOD는 FE severity 기반 초기값 사용
-            for (const sl of synthLinks) {
-              const s = sl.severity || 1;
-              await tx.riskAnalysis.upsert({
-                where: { id: `ra-${sl.id}` },
-                create: {
-                  id: `ra-${sl.id}`, fmeaId, linkId: sl.id,
-                  severity: s, occurrence: 1, detection: 1,
-                  ap: calculateAPLocal(s, 1, 1),
-                  preventionControl: null, detectionControl: null,
-                },
-                update: {},
-              });
-            }
-
-            console.info(`[rebuild-atomic] 미연결 FC 보충: FL=${synthLinks.length} + RA=${synthLinks.length}`);
-          }
+          console.warn(`[rebuild-atomic] 미연결 FC ${unlinkedFcs.length}건 감지 (자동생성 없음 — Import 데이터 점검 필요)`);
         }
       }
-      // ★★★ RA 부족 시 FL 기반 보충 (FL 1개 = RA 1개 원칙, Atomic DB 자체 참조) ★★★
+
+      // RA 부족 여부 경고 (자동 보충 없음)
       const savedLinks = await tx.failureLink.findMany({
         where: { fmeaId },
-        select: { id: true, fmId: true, feId: true, fcId: true, severity: true },
+        select: { id: true },
       });
-
       const raCount = await tx.riskAnalysis.count({ where: { fmeaId } });
       if (raCount < savedLinks.length && savedLinks.length > 0) {
-        const raLinkIds = new Set(
-          (await tx.riskAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } }))
-            .map((r: any) => r.linkId)
-        );
-        const missingRaLinks = savedLinks.filter((l: any) => !raLinkIds.has(l.id));
-        if (missingRaLinks.length > 0) {
-          const feMapRa = new Map<string, any>();
-          for (const fe of atomic.failureEffects) feMapRa.set((fe as any).id, fe);
-
-          let created = 0;
-          for (const link of missingRaLinks) {
-            const sev = (link as any).severity || feMapRa.get((link as any).feId)?.severity || 1;
-
-            await tx.riskAnalysis.upsert({
-              where: { id: `ra-${(link as any).id}` },
-              create: {
-                id: `ra-${(link as any).id}`,
-                fmeaId,
-                linkId: (link as any).id,
-                severity: sev,
-                occurrence: 1,
-                detection: 1,
-                ap: calculateAPLocal(sev, 1, 1),
-                preventionControl: null,
-                detectionControl: null,
-              },
-              update: {},
-            });
-            created++;
-          }
-          console.info(`[rebuild-atomic] RA 보충: ${created}건 (FL 1:1 원칙)`);
-        }
+        console.warn(`[rebuild-atomic] RA 부족: FL=${savedLinks.length} RA=${raCount} (자동 보충 없음)`);
       }
 
       // ★★★ 2026-03-19 RA 중복 제거: 1 FL = 1 RA 원칙 강제 ★★★
@@ -481,20 +383,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // ★★★ 2026-03-19 ROOT FIX: 이전 자동생성 FC(fc-orphan-*) 정리 + orphan L3Function 삭제 ★★★
+      // FK 정합성 교정 (자동생성 없이 기존 데이터만 교정)
       {
-        // 1단계: 이전 실행에서 자동생성된 fc-orphan-* FC/FL/RA 삭제
-        const autoFcs = await tx.failureCause.findMany({
-          where: { fmeaId, id: { startsWith: 'fc-orphan-' } },
-          select: { id: true },
-        });
-        if (autoFcs.length > 0) {
-          const autoFcIds = autoFcs.map((f: { id: string }) => f.id);
-          await tx.riskAnalysis.deleteMany({ where: { failureLink: { fcId: { in: autoFcIds }, fmeaId } } });
-          await tx.failureLink.deleteMany({ where: { fcId: { in: autoFcIds }, fmeaId } });
-          await tx.failureCause.deleteMany({ where: { id: { in: autoFcIds } } });
-          console.info(`[rebuild-atomic] 자동생성 FC 정리: ${autoFcIds.length}건`);
-        }
 
         // 2단계: FC.l3FuncId → FC.l3StructId 정합성 교정 + orphan L3Function 삭제
         const allL3Funcs = await tx.l3Function.findMany({
@@ -551,45 +441,7 @@ export async function POST(request: NextRequest) {
           console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건`);
         }
 
-        // ★★★ 2026-03-20 ROOT FIX: 삭제 후 L3Function 없는 L3Structure에 폴백 재생성 ★★★
-        {
-          const remainL3Fs = await tx.l3Function.findMany({ where: { fmeaId }, select: { l3StructId: true } });
-          const coveredL3s = new Set(remainL3Fs.map((f: { l3StructId: string }) => f.l3StructId));
-          const allL3Structs = await tx.l3Structure.findMany({ where: { fmeaId }, select: { id: true, name: true, l2Id: true } });
-          const missingL3s = allL3Structs.filter((s: any) => !coveredL3s.has(s.id));
-          if (missingL3s.length > 0) {
-            await tx.l3Function.createMany({
-              data: missingL3s.map((s: any) => ({
-                id: `${s.id}-L3F`,
-                fmeaId,
-                l3StructId: s.id,
-                l2StructId: s.l2Id,
-                functionName: s.name || '',
-                processChar: s.name || 'N/A',
-              })),
-              skipDuplicates: true,
-            });
-            console.info(`[rebuild-atomic] L3Function 폴백 재생성: ${missingL3s.length}건`);
-          }
-        }
-
-        // ★★★ 2026-03-20 ROOT FIX: emptyPC 최종 보정 — processChar 빈값 → functionName 또는 L3 name ★★★
-        {
-          const emptyPcFuncs = await tx.l3Function.findMany({
-            where: { fmeaId, processChar: '' },
-            select: { id: true, functionName: true, l3StructId: true },
-          });
-          for (const f of emptyPcFuncs) {
-            const l3s = await tx.l3Structure.findUnique({ where: { id: f.l3StructId }, select: { name: true } });
-            await tx.l3Function.update({
-              where: { id: f.id },
-              data: { processChar: f.functionName?.trim() || l3s?.name || 'N/A' },
-            });
-          }
-          if (emptyPcFuncs.length > 0) {
-            console.info(`[rebuild-atomic] emptyPC 보정: ${emptyPcFuncs.length}건`);
-          }
-        }
+        // ★ 2026-03-20: L3Function 폴백 재생성/emptyPC 보정 제거 — Atomic DB 원본 유지
 
         // Legacy sync removed — Atomic DB is SSoT
       }

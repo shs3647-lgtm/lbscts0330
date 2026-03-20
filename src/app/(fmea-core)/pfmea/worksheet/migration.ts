@@ -302,7 +302,6 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       const productChars = func.productChars || [];
       
       if (productChars.length === 0) {
-        // ★ 2026-03-17: func.id (genA3) 보존 — uid() 대신 원본 ID 유지
         db.l2Functions.push({
           id: func.id || uid(),
           fmeaId: oldData.fmeaId,
@@ -324,6 +323,16 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         });
       }
     });
+    // INV-01: L2Structure에 L2Function이 하나도 없으면 공정명으로 기본 1건 생성
+    if (!db.l2Functions.some(f => f.l2StructId === l2Struct.id)) {
+      db.l2Functions.push({
+        id: uid(),
+        fmeaId: oldData.fmeaId,
+        l2StructId: l2Struct.id,
+        functionName: l2Struct.name || 'N/A',
+        productChar: l2Struct.name || 'N/A',
+      });
+    }
     
     // L2 고장형태 (FM) - ✅ productCharId 보존
     // ★★★ 하이브리드 ID + 모자관계 + 병합그룹 ★★★
@@ -358,7 +367,6 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         const tempL2Func = {
           id: tempL2FuncId,
           fmeaId: oldData.fmeaId,
-          l1FuncId: db.l1Functions[0]?.id || '',
           l2StructId: l2Struct.id,
           parentId: l2Struct.id,
           functionName: tempFuncName,
@@ -431,74 +439,52 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       // L3 기능분석 (작업요소 기능 → 공정특성)
       // ★★★ 2026-03-01: 빈 functionName/processChar 안전 처리 (500 에러 방지) ★★★
       const weFuncs = we.functions || [];
+      const weName = (we.name || '').trim();
       weFuncs.forEach((func: any) => {
-        const funcName = func.name ?? '';
+        const funcName = (func.name ?? '').trim();
         const processChars = func.processChars || [];
+        const effectiveFuncName = funcName || weName;
 
         if (processChars.length === 0) {
-          if (!funcName.trim()) return;
+          if (!effectiveFuncName) return;
           db.l3Functions.push({
             id: func.id || uid(),
             fmeaId: oldData.fmeaId,
             l3StructId: l3Struct.id,
             l2StructId: l2Struct.id,
-            functionName: funcName,
-            processChar: funcName,
+            functionName: effectiveFuncName,
+            processChar: effectiveFuncName,
           });
         } else {
           processChars.forEach((pc: any) => {
-            const pcName = pc.name ?? '';
-            // 이름 없는 함수 + 이름 없는 공정특성 → 스킵
-            if (!funcName.trim() && !pcName.trim()) return;
+            const pcName = (pc.name ?? '').trim();
+            if (!effectiveFuncName && !pcName) return;
             const l3Func: L3Function = {
-              id: pc.id || uid(),  // 공정특성 ID 유지 (FC와 연결용)
+              id: pc.id || uid(),
               fmeaId: oldData.fmeaId,
               l3StructId: l3Struct.id,
               l2StructId: l2Struct.id,
-              functionName: funcName,
-              processChar: pcName,
+              functionName: effectiveFuncName,
+              processChar: pcName || effectiveFuncName,
               specialChar: pc.specialChar,
             };
             db.l3Functions.push(l3Func);
           });
         }
       });
-
-      // ★★★ 2026-03-19 ROOT FIX: processChar 빈값 L3Function → FC에서 역추론 ★★★
-      // 근본원인: processChars[].name='' → L3Function.processChar='' → Atomic↔Legacy B3 불일치
-      // 대책: 해당 L3Structure의 FC(failureCauses)에서 processChar 역추론
-      const weFcs = (we.failureCauses || []) as any[];
-      const procFcs = (proc.failureCauses || []) as any[];
-      for (const l3f of db.l3Functions) {
-        if (l3f.l3StructId === l3Struct.id && !l3f.processChar?.trim()) {
-          // 이 L3Function을 참조하는 FC 찾기 (processCharId === l3f.id)
-          const linkedFc = [...weFcs, ...procFcs].find((fc: any) => fc.processCharId === l3f.id);
-          if (linkedFc) {
-            const fcName = (linkedFc.name || linkedFc.cause || '').trim();
-            l3f.processChar = fcName.replace(/\s*부적합$/, '').trim() || fcName;
-          } else if (l3f.functionName?.trim()) {
-            l3f.processChar = l3f.functionName;
-          }
-        }
-      }
-
-      // L3Function이 0건인 L3Structure에 폴백 생성
-      const hasL3Func = db.l3Functions.some(f => f.l3StructId === l3Struct.id);
-      if (!hasL3Func) {
-        // FC에서 processChar 역추론하여 생성
-        const weFcFirst = weFcs[0] as any;
-        const derivedPc = weFcFirst
-          ? (weFcFirst.name || weFcFirst.cause || '').replace(/\s*부적합$/, '').trim()
-          : '';
+      // WE에 function이 없거나 모두 스킵된 경우 → WE 이름으로 L3Function 1건 보장
+      if (weName && !db.l3Functions.some(f => f.l3StructId === l3Struct.id)) {
         db.l3Functions.push({
           id: `${l3Struct.id}-L3F`,
           fmeaId: oldData.fmeaId,
           l3StructId: l3Struct.id,
           l2StructId: l2Struct.id,
-          functionName: we.name || '',
-          processChar: derivedPc || we.name || '',
+          functionName: weName,
+          processChar: weName,
         });
       }
+
+      // ★ 2026-03-20: 폴백 생성 제거 — Excel 원본 데이터만 사용 (Atomic DB SSoT)
     });
 
     // ✅ L3 고장원인 (FC) - proc.failureCauses에서 읽기
@@ -541,49 +527,14 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
           relatedL3Func = db.l3Functions.find(f => l3StructIds.has(f.l3StructId));
         }
       }
-      // 4순위(최종 fallback): 해당 공정의 첫 번째 L3Function
+      // 4순위: 해당 공정의 첫 번째 L3Function
       if (!relatedL3Func) {
         relatedL3Func = db.l3Functions.find(f => f.l2StructId === l2Struct.id);
       }
-      // ★★★ 핵심: L3Function이 없으면 자동 생성 (누락 금지) ★★★
+      // ★ 2026-03-20: L3Function 매칭 실패 시 해당 FC 스킵 (폴백 생성 제거)
       if (!relatedL3Func) {
-        // 먼저 L3Structure가 있는지 확인
-        let targetL3Struct = db.l3Structures.find(s => s.l2Id === l2Struct.id);
-        if (!targetL3Struct) {
-          // L3Structure 자동 생성 (하이브리드 ID)
-          const tempL3Path = createL3Path(pIdx + 1, 0);
-          const tempL3StructId = createHybridId({
-            fmeaSeq, type: 'L3S', path: tempL3Path, seq: 1
-          });
-          targetL3Struct = {
-            id: tempL3StructId,
-            fmeaId: oldData.fmeaId,
-            l1Id: db.l1Structure?.id || '',
-            l2Id: l2Struct.id,
-            parentId: l2Struct.id,
-            m4: '',
-            name: (fc.name || '').replace(/\s*부적합$/, '').trim() || l2Struct.name || 'N/A',
-            order: 0,
-          };
-          db.l3Structures.push(targetL3Struct);
-        }
-        // L3Function 자동 생성 (하이브리드 ID)
-        const tempL3FuncPath = createL3Path(pIdx + 1, 0, 0, 0);
-        const tempL3FuncId = createHybridId({
-          fmeaSeq, type: 'L3F', path: tempL3FuncPath, seq: 1
-        });
-        const derivedName = (fc.name || '').replace(/\s*부적합$/, '').trim() || targetL3Struct.name || l2Struct.name || 'N/A';
-        relatedL3Func = {
-          id: tempL3FuncId,
-          fmeaId: oldData.fmeaId,
-          l3StructId: targetL3Struct.id,
-          l2StructId: l2Struct.id,
-          parentId: targetL3Struct.id,
-          functionName: derivedName,
-          processChar: derivedName,
-          specialChar: '',
-        };
-        db.l3Functions.push(relatedL3Func);
+        console.warn(`[migration] FC "${fc.name}" 매칭 실패 — L3Function 없음 (공정: ${l2Struct.name}). 스킵.`);
+        return;
       }
       
       fcIdx++;
@@ -609,50 +560,6 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       // ★★★ 병합 그룹: 같은 공정+작업요소+특성은 같은 그룹 ★★★
       const fcMergeGroupId = createMergeGroupId(fmeaSeq, 'FC', fcPath);
       
-      // ★★★ 2026-03-20 FLAW-2 FIX: l3FuncId GUARANTEE — 빈 문자열 불가 (by construction) ★★★
-      // relatedL3Func은 위 550행에서 자동 생성되므로 여기서 null일 수 없지만,
-      // 방어 코드로 최종 fallback 시에도 유효한 L3Function을 반드시 확보한다.
-      const guaranteedL3FuncId = relatedL3Func?.id
-        || db.l3Functions.find(f => f.l2StructId === l2Struct.id)?.id;
-      const guaranteedL3StructId = relatedL3Func?.l3StructId
-        || db.l3Structures.find(s => s.l2Id === l2Struct.id)?.id;
-
-      if (!guaranteedL3FuncId || !guaranteedL3StructId) {
-        // 극한 방어: L3Function이 전혀 없으면 생성 (정상 흐름에서는 발생하지 않음)
-        let safeL3Struct = db.l3Structures.find(s => s.l2Id === l2Struct.id);
-        if (!safeL3Struct) {
-          const safePath = createL3Path(pIdx + 1, 0);
-          safeL3Struct = {
-            id: createHybridId({ fmeaSeq, type: 'L3S', path: safePath, seq: 999 }),
-            fmeaId: oldData.fmeaId,
-            l1Id: db.l1Structure?.id || '',
-            l2Id: l2Struct.id,
-            parentId: l2Struct.id,
-            m4: '',
-            name: (fc.name || '').replace(/\s*부적합$/, '').trim() || l2Struct.name || 'N/A',
-            order: 0,
-          };
-          db.l3Structures.push(safeL3Struct);
-        }
-        if (!guaranteedL3FuncId) {
-          const safeFuncPath = createL3Path(pIdx + 1, 0, 0, 0);
-          const safePcName = (fc.name || '').replace(/\s*부적합$/, '').trim() || safeL3Struct.name || l2Struct.name || 'N/A';
-          const safeFunc = {
-            id: createHybridId({ fmeaSeq, type: 'L3F', path: safeFuncPath, seq: 999 }),
-            fmeaId: oldData.fmeaId,
-            l3StructId: safeL3Struct.id,
-            l2StructId: l2Struct.id,
-            parentId: safeL3Struct.id,
-            functionName: safePcName,
-            processChar: safePcName,
-            specialChar: '',
-          };
-          db.l3Functions.push(safeFunc);
-          relatedL3Func = safeFunc;
-          console.warn(`[migration] FLAW-2 방어: 공정 ${l2Struct.name} FC "${fcNameTrimmed}" — L3Function 최종 자동생성`);
-        }
-      }
-
       db.failureCauses.push({
         id: fcId,
         fmeaId: oldData.fmeaId,
@@ -699,51 +606,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       }
     });
     
-    // ★★★ 2026-03-20 ROOT FIX: orphan L3Function 삭제 + L3Structure 폴백 보장 ★★★
-    // Manual mode guard: FC가 0건이면 삭제하지 않음 (수동모드에서 placeholder 보존)
-    {
-      const l2StructId = l2Struct.id;
-      const procFcCount = db.failureCauses.filter(fc => fc.l2StructId === l2StructId).length;
-      if (procFcCount > 0) {
-        const linkedL3FuncIds = new Set(
-          db.failureCauses.filter(fc => fc.l2StructId === l2StructId).map(fc => fc.l3FuncId)
-        );
-        db.l3Functions = db.l3Functions.filter(f => {
-          if (f.l2StructId !== l2StructId) return true;
-          return linkedL3FuncIds.has(f.id);
-        });
-      }
-
-      // 삭제 후 L3Function이 없는 L3Structure에 폴백 재생성 (processChar 빈값 방지)
-      const l3StructsInProc = db.l3Structures.filter(s => s.l2Id === l2StructId);
-      for (const l3s of l3StructsInProc) {
-        const hasFunc = db.l3Functions.some(f => f.l3StructId === l3s.id);
-        if (!hasFunc) {
-          // FC에서 역추론, 없으면 L3Structure name 사용
-          const relatedFc = db.failureCauses.find(fc => fc.l3StructId === l3s.id);
-          const derivedPc = relatedFc
-            ? (relatedFc.cause || '').replace(/\s*부적합$/, '').trim()
-            : '';
-          db.l3Functions.push({
-            id: `${l3s.id}-L3F`,
-            fmeaId: oldData.fmeaId,
-            l3StructId: l3s.id,
-            l2StructId,
-            functionName: l3s.name || '',
-            processChar: derivedPc || l3s.name || 'N/A',
-          });
-        }
-      }
-    }
-
-    // 최종 보정: processChar 빈값 L3Function → functionName 또는 L3Structure name 사용
-    for (const l3f of db.l3Functions) {
-      if (l3f.l2StructId !== l2Struct.id) continue;
-      if (!l3f.processChar?.trim()) {
-        const l3s = db.l3Structures.find(s => s.id === l3f.l3StructId);
-        l3f.processChar = l3f.functionName?.trim() || l3s?.name || 'N/A';
-      }
-    }
+    // ★ 2026-03-20: 폴백 재생성/보정 전부 제거 — Excel 원본 데이터만 사용
 
     // ★★★ 2026-02-05: 공정 처리 완료 후 globalRowIndex 업데이트 ★★★
     const l3CountForProc = l3Data.filter((we: any) => 
@@ -791,27 +654,10 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     if (!fe && oldLink.feText) {
       fe = db.failureEffects.find(e => e.effect === oldLink.feText);
     }
-    // ★★★ 2026-03-20 FLAW-2 FIX: FE GUARANTEE — fe 미발견 시 단계적 복구 ★★★
-    // 1단계: 기존 FE fallback (feId 없거나 ID 불일치 모두 포함)
-    if (!fe && db.failureEffects.length > 0) {
-      fe = db.failureEffects[0];
-      console.warn(`[마이그레이션] FE fallback 사용: feId=${fe.id}, link=${oldLink.id || linkLocalIdx}`);
-    }
-    // 2단계: FE가 전혀 없으면 자동 생성 (극한 방어)
+    // ★ FE 매칭 실패 시 해당 FailureLink 스킵 (폴백 생성 제거)
     if (!fe) {
-      const l1FuncId = db.l1Functions[0]?.id || '';
-      const tempFeId = uid();
-      fe = {
-        id: tempFeId,
-        fmeaId: oldData.fmeaId,
-        l1FuncId,
-        category: oldLink.feScope || 'Your Plant',
-        effect: oldLink.feText || '영향 미정',
-        severity: oldLink.severity || 1,
-        parentId: l1FuncId, // ★ 모자관계
-      };
-      db.failureEffects.push(fe);
-      console.warn(`[마이그레이션] FE 자동생성: ${tempFeId}, link=${oldLink.id || linkLocalIdx}`);
+      console.warn(`[migration] FailureLink 스킵 — FE 매칭 실패: feId=${oldLink.feId}, link=${oldLink.id || linkLocalIdx}`);
+      return;
     }
     
     // FC 찾기 (ID → 텍스트 → strict 매칭)
@@ -823,20 +669,10 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       const strictFc = oldLink.fcText.replace(/\s+/g, '').toLowerCase();
       fc = db.failureCauses.find(c => c.cause && c.cause.replace(/\s+/g, '').toLowerCase() === strictFc);
     }
-    // FC 자동 생성 (누락 금지) — ★ P7: uid()로 통일 (배열길이 기반 충돌 제거)
-    if (!fc && oldLink.fcId && db.l3Functions.length > 0) {
-      const tempFcId = uid();
-      fc = {
-        id: tempFcId,
-        fmeaId: oldData.fmeaId,
-        l3FuncId: db.l3Functions[0].id,
-        l3StructId: db.l3Functions[0].l3StructId,
-        l2StructId: db.l3Functions[0].l2StructId,
-        cause: oldLink.fcText || '',
-        occurrence: undefined,
-        parentId: db.l3Functions[0].id, // ★ 모자관계
-      };
-      db.failureCauses.push(fc);
+    // ★ 2026-03-20: FC 자동생성 폴백 제거 — FC 매칭 실패 시 해당 FailureLink 스킵
+    if (!fc) {
+      console.warn(`[migration] FailureLink 스킵 — FC 매칭 실패: fcId=${oldLink.fcId}, fcText=${oldLink.fcText}`);
+      return;
     }
     
     // ★★★ 핵심: FM, FE, FC 모두 유효해야 저장 ★★★
@@ -998,14 +834,14 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
 
         if (occurrence > 0 || detection > 0) {
           const matchingLink = db.failureLinks[rowIdx];
-          const linkId = matchingLink?.id || `row-${rowIdx}`;
+          if (!matchingLink) return; // 유효한 FailureLink 없으면 스킵 (무효 linkId 방지)
 
-          const alreadyExists = db.riskAnalyses.some(r => r.linkId === linkId);
+          const alreadyExists = db.riskAnalyses.some(r => r.linkId === matchingLink.id);
           if (!alreadyExists) {
             db.riskAnalyses.push({
               id: uid(),
               fmeaId: db.fmeaId,
-              linkId,
+              linkId: matchingLink.id,
               severity: 0,
               occurrence,
               detection,

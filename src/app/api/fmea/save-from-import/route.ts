@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
             where: { fmeaId: normalizedFmeaId },
           });
           if (existingLinkCount > 0) {
-            const [l2s, l3s, l1Funcs, l2Funcs, l3Funcs, fes, fms, fcs, links, risks] = await Promise.all([
+            const [l2s, l3s, l1Funcs, l2Funcs, l3Funcs, fes, fms, fcs, links, risks, pcs] = await Promise.all([
               checkPrisma.l2Structure.findMany({ where: { fmeaId: normalizedFmeaId }, orderBy: { order: 'asc' } }),
               checkPrisma.l3Structure.findMany({ where: { fmeaId: normalizedFmeaId }, orderBy: { order: 'asc' } }),
               checkPrisma.l1Function.findMany({ where: { fmeaId: normalizedFmeaId } }),
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
               checkPrisma.failureCause.findMany({ where: { fmeaId: normalizedFmeaId } }),
               checkPrisma.failureLink.findMany({ where: { fmeaId: normalizedFmeaId } }),
               checkPrisma.riskAnalysis.findMany({ where: { fmeaId: normalizedFmeaId } }),
+              checkPrisma.processProductChar.findMany({ where: { fmeaId: normalizedFmeaId } }),
             ]);
             reverseExistingDB = {
               fmeaId: normalizedFmeaId, savedAt: new Date().toISOString(),
@@ -113,6 +114,7 @@ export async function POST(request: NextRequest) {
               l1Functions: l1Funcs, l2Functions: l2Funcs, l3Functions: l3Funcs,
               failureEffects: fes, failureModes: fms, failureCauses: fcs,
               failureLinks: links, failureAnalyses: [], riskAnalyses: risks, optimizations: [],
+              processProductChars: pcs,
               confirmed: { structure: true, l1Function: true, l2Function: true, l3Function: true, l1Failure: true, l2Failure: true, l3Failure: true, failureLink: true, risk: true, optimization: true },
             };
             // ★ 핵심: convertToLegacyFormat으로 직접 변환 (손실 라운드트립 제거)
@@ -426,9 +428,9 @@ export async function POST(request: NextRequest) {
       const fId = normalizedFmeaId;
       await prisma.$transaction(async (tx: any) => {
         // 자식→부모 순서 삭제
-        await tx.riskAnalysis.deleteMany({ where: { fmeaId: fId } }).catch(() => {});
+        await tx.riskAnalysis.deleteMany({ where: { fmeaId: fId } }).catch((e: unknown) => console.error('[save] RA delete error:', e));
         await tx.failureLink.deleteMany({ where: { fmeaId: fId } });
-        try { if (tx.failureAnalysis) await tx.failureAnalysis.deleteMany({ where: { fmeaId: fId } }); } catch {}
+        try { if (tx.failureAnalysis) await tx.failureAnalysis.deleteMany({ where: { fmeaId: fId } }); } catch (e: unknown) { console.warn('[save] FailureAnalysis delete skipped:', e instanceof Error ? e.message : String(e)); }
         await tx.failureEffect.deleteMany({ where: { fmeaId: fId } });
         await tx.failureMode.deleteMany({ where: { fmeaId: fId } });
         await tx.failureCause.deleteMany({ where: { fmeaId: fId } });
@@ -464,6 +466,32 @@ export async function POST(request: NextRequest) {
           const l2fData = a.l2Functions.map((f: any) => ({ id: f.id, fmeaId: fId, l2StructId: f.l2StructId, functionName: (f.functionName || '').trim() || 'N/A', productChar: (f.productChar || '').trim() || 'N/A', specialChar: f.specialChar || null }));
           const l2fResult = await tx.l2Function.createMany({ data: l2fData, skipDuplicates: true });
           if (l2fResult.count < l2fData.length) console.warn(`[save] L2Function: expected ${l2fData.length}, created ${l2fResult.count} (${l2fData.length - l2fResult.count} skipped)`);
+        }
+        // ProcessProductChar 생성 (FM.productCharId FK 대상)
+        {
+          const pcRows: { id: string; fmeaId: string; l2StructId: string; name: string; specialChar: string | null; orderIndex: number }[] = [];
+          const seenPcIds = new Set<string>();
+          const funcByL2Struct = new Map<string, string>();
+          for (const f of (a.l2Functions || []) as any[]) {
+            if (f.l2StructId && f.productChar) funcByL2Struct.set(f.l2StructId, f.productChar);
+          }
+          for (const fm of (a.failureModes || []) as any[]) {
+            if (fm.productCharId && !seenPcIds.has(fm.productCharId)) {
+              seenPcIds.add(fm.productCharId);
+              pcRows.push({
+                id: fm.productCharId,
+                fmeaId: fId,
+                l2StructId: fm.l2StructId || '',
+                name: funcByL2Struct.get(fm.l2StructId || '') || 'N/A',
+                specialChar: fm.specialChar ? String(fm.specialChar) : null,
+                orderIndex: pcRows.length,
+              });
+            }
+          }
+          if (pcRows.length > 0) {
+            await tx.processProductChar.createMany({ data: pcRows, skipDuplicates: true });
+            console.info(`[save-from-import] ProcessProductChar: ${pcRows.length}건 생성`);
+          }
         }
         if (a.l3Functions?.length) {
           const l3fData = a.l3Functions.map((f: any) => {
