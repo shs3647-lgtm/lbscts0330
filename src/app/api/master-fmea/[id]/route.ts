@@ -23,17 +23,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       where: { id },
       include: {
         processes: { orderBy: { orderIndex: 'asc' } },
-        familyMaster: {
-          include: {
-            familyFmeas: {
-              orderBy: { processNo: 'asc' },
-              include: {
-                _count: { select: { controlPlans: true, processFlows: true } },
-              },
-            },
-            revisionLogs: { orderBy: { propagatedAt: 'desc' }, take: 10 },
-          },
-        },
+        familyMaster: true,
         revisionHistory: { orderBy: { revDate: 'desc' }, take: 10 },
       },
     });

@@ -2774,8 +2774,6 @@ model MasterFmeaProcess {
   structures    MasterFmeaStructure[]
   failureModes  MasterFmeaFailureMode[]
   controls      MasterFmeaControl[]
-  familyFmeas   FamilyFmea[]
-
   @@unique([masterFmeaId, processNo])
   @@index([masterFmeaId])
   @@index([processNo])
@@ -2860,129 +2858,10 @@ model FamilyMaster {
   updatedAt     DateTime @updatedAt
 
   masterFmea    MasterFmea         @relation(fields: [masterFmeaId], references: [id], onDelete: Cascade)
-  familyFmeas   FamilyFmea[]
-  revisionLogs  MasterRevisionLog[]
-  partFmeas     PartFmea[]          // FAMILY_REF 모드 Part FMEA 참조
+  partFmeas     PartFmea[]
 
   @@index([masterFmeaId])
   @@map("family_masters")
-}
-
-// Master-00 개정 반영 로그 (하위 F/F 승인 시 기록)
-model MasterRevisionLog {
-  id              String   @id @default(uuid())
-  familyMasterId  String
-  familyFmeaId    String
-  familyCode      String
-  fromVersion     String
-  toVersion       String
-  changeDesc      String?
-  approvedAt      DateTime
-  propagatedAt    DateTime @default(now())
-
-  familyMaster    FamilyMaster @relation(fields: [familyMasterId], references: [id], onDelete: Cascade)
-  familyFmea      FamilyFmea   @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
-
-  @@index([familyMasterId])
-  @@index([familyFmeaId])
-  @@map("master_revision_logs")
-}
-
-// 공정별 Family FMEA (F/F)
-model FamilyFmea {
-  id               String        @id @default(uuid())
-  familyMasterId   String
-  masterProcessId  String
-  familyCode       String        @unique  // FF-010-001
-  processNo        String
-  processName      String
-  version          String        @default("1.0")
-  status           FmeaDocStatus @default(DRAFT)
-  fmeaId           String?       @unique  // 실제 Atomic DB fmeaId (FK 참조용)
-  description      String?
-
-  // 담당자
-  authorId         String?
-  authorName       String?
-  authorDate       DateTime?
-  reviewerId       String?
-  reviewerName     String?
-  reviewDate       DateTime?
-  approverId       String?
-  approverName     String?
-  approvalDate     DateTime?
-
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  familyMaster     FamilyMaster       @relation(fields: [familyMasterId], references: [id], onDelete: Cascade)
-  masterProcess    MasterFmeaProcess  @relation(fields: [masterProcessId], references: [id], onDelete: Cascade)
-  controlPlans     FamilyControlPlan[]
-  processFlows     FamilyPfd[]
-  revisionHistory  FamilyFmeaRevision[]
-  revisionLogs     MasterRevisionLog[]
-
-  @@index([familyMasterId])
-  @@index([masterProcessId])
-  @@index([status])
-  @@index([fmeaId])
-  @@map("family_fmeas")
-}
-
-// F/F 개정이력
-model FamilyFmeaRevision {
-  id             String   @id @default(uuid())
-  familyFmeaId   String
-  revNo          String
-  revDate        DateTime @default(now())
-  changeDesc     String?
-  changedBy      String?
-  createdAt      DateTime @default(now())
-
-  familyFmea     FamilyFmea @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
-
-  @@index([familyFmeaId])
-  @@map("family_fmea_revisions")
-}
-
-// F/F의 CP (복수 가능)
-model FamilyControlPlan {
-  id             String   @id @default(uuid())
-  familyFmeaId   String
-  cpCode         String   @unique      // CP-010-A
-  cpName         String?
-  cpNo           String?  @unique      // 기존 ControlPlan.cpNo와 연결 (nullable)
-  isPrimary      Boolean  @default(false)
-  version        String   @default("1.0")
-  status         String   @default("draft")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  familyFmea     FamilyFmea @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
-
-  @@index([familyFmeaId])
-  @@index([isPrimary])
-  @@map("family_control_plans")
-}
-
-// F/F의 PFD (복수 가능)
-model FamilyPfd {
-  id             String   @id @default(uuid())
-  familyFmeaId   String
-  pfdCode        String   @unique      // PFD-010-A
-  pfdName        String?
-  pfdNo          String?  @unique      // 기존 PfdRegistration.pfdNo와 연결 (nullable)
-  isPrimary      Boolean  @default(false)
-  version        String   @default("1.0")
-  status         String   @default("draft")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  familyFmea     FamilyFmea @relation(fields: [familyFmeaId], references: [id], onDelete: Cascade)
-
-  @@index([familyFmeaId])
-  @@index([isPrimary])
-  @@map("family_pfds")
 }
 
 // Part FMEA (별도 계층 — 고객/제품별)

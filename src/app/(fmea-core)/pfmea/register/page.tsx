@@ -71,12 +71,6 @@ const BdStatusTable = dynamic(
   { ssr: false, loading: () => <div className="p-4 text-xs text-gray-400">BD 현황 로딩 중...</div> }
 );
 
-// ★ Family CP 섹션 (fmeaType === 'F' 일 때만 표시)
-const FamilyCPSection = dynamic(
-  () => import('./components/FamilyCPSection').then(mod => ({ default: mod.FamilyCPSection })),
-  { ssr: false }
-);
-
 // ★ Heavy utility functions → lazy import helpers
 const getMasterApi = () => import('@/app/(fmea-core)/pfmea/import/utils/master-api');
 const getExcelTemplate = () => import('@/app/(fmea-core)/pfmea/import/excel-template');
@@ -126,38 +120,6 @@ function PFMEARegisterPageContent() {
     cftAlertRoles, setCftAlertRoles,
   } = handlers;
 
-  // ★ Family CP 개수 (fmeaType='F' 일 때 등록 시점에 지정)
-  const [familyCpCount, setFamilyCpCount] = useState(3);
-  const familyCpCreatedRef = useRef(false);
-
-  // ★ 저장 + Family CP 자동 생성 wrapper
-  const handleSaveWithFamilyCp = async () => {
-    await handleSave();
-    // Family FMEA 신규 등록 시 → 하위 CP 자동 생성
-    if (fmeaInfo.fmeaType === 'F' && fmeaId && !familyCpCreatedRef.current) {
-      try {
-        // 이미 CP가 있는지 확인
-        const checkRes = await fetch(`/api/control-plan/family?fmeaId=${encodeURIComponent(fmeaId.toLowerCase())}`);
-        const checkData = await checkRes.json();
-        if (checkData.success && (checkData.baseCp || (checkData.variants && checkData.variants.length > 0))) {
-          return; // 이미 CP가 존재하면 스킵
-        }
-        // 자동 생성
-        const res = await fetch('/api/control-plan/family/batch-create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), count: familyCpCount }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          familyCpCreatedRef.current = true;
-          alert(`하위 관리계획서 ${data.totalCount}건 자동 생성 완료!\n\n${data.created.map((c: { cpNo: string }) => c.cpNo).join('\n')}`);
-        }
-      } catch (err) {
-        console.error('[Family CP 자동생성] 오류:', err);
-      }
-    }
-  };
 
   // AI 상태 & 도움말
   const [aiStatus, setAiStatus] = useState<any>(null);
@@ -185,16 +147,12 @@ function PFMEARegisterPageContent() {
   const [bdTypeFilter, setBdTypeFilter] = useState<'ALL' | 'M' | 'F' | 'P'>('ALL');
   const [bdSelectModal, setBdSelectModal] = useState<{ open: boolean; type: 'M' | 'F' | 'P'; candidates: BdStatusItem[] }>({ open: false, type: 'P', candidates: [] });
   const [masterBdCount, setMasterBdCount] = useState(0);
-  const [familyBdCount, setFamilyBdCount] = useState(0);
   const [partBdCount, setPartBdCount] = useState(0);
 
-  // ★ Master/Family/Part FMEA BD 카운트 로드
+  // ★ Master/Part FMEA BD 카운트 로드
   useEffect(() => {
     fetch('/api/master-fmea/bd-list').then(r => r.json()).then(d => {
       setMasterBdCount((d.masters || []).length);
-    }).catch(() => {});
-    fetch('/api/family-fmea/bd-list').then(r => r.json()).then(d => {
-      setFamilyBdCount((d.items || []).length);
     }).catch(() => {});
     fetch('/api/part-fmea/bd-list').then(r => r.json()).then(d => {
       setPartBdCount((d.items || []).length);
@@ -276,7 +234,7 @@ function PFMEARegisterPageContent() {
         const data = await res.json();
         const masters = data.masters || [];
         if (masters.length === 0) {
-          alert('Master FMEA가 등록되어 있지 않습니다.\nFamily FMEA → Master-00에서 먼저 등록하세요.');
+          alert('Master FMEA가 등록되어 있지 않습니다.\n먼저 Master FMEA를 등록하세요.');
           return;
         }
         if (masters.length === 1) {
@@ -293,23 +251,23 @@ function PFMEARegisterPageContent() {
       return;
     }
 
-    // Family: 새 FamilyFmea 시스템에서 조회
+    // Family: Master와 동일한 방식으로 BD 로드 (모든 공정 통합)
     if (type === 'F') {
       try {
-        const res = await fetch('/api/family-fmea/bd-list');
+        const res = await fetch('/api/master-fmea/bd-list');
         const data = await res.json();
-        const items = data.items || [];
-        if (items.length === 0) {
-          alert('Family FMEA가 등록되어 있지 않습니다.\nFamily FMEA 메뉴에서 먼저 생성하세요.');
+        const masters = data.masters || [];
+        if (masters.length === 0) {
+          alert('Master FMEA가 등록되어 있지 않습니다.\n먼저 Master FMEA를 등록하세요.');
           return;
         }
-        if (items.length === 1) {
-          await loadBdById(items[0].sourceFmeaId || items[0].fmeaId, items[0].name);
+        if (masters.length === 1) {
+          await loadBdById(masters[0].fmeaId, masters[0].name);
           return;
         }
         setBdSelectModal({
           open: true, type: 'F',
-          candidates: items.map((f: any) => ({ fmeaId: f.sourceFmeaId || f.fmeaId, fmeaName: f.name, fmeaType: 'F' })),
+          candidates: masters.map((m: any) => ({ fmeaId: m.fmeaId, fmeaName: m.name, fmeaType: 'F' })),
         });
       } catch (e) { console.error('[Family BD 로드] 오류:', e); }
       return;
@@ -486,7 +444,7 @@ function PFMEARegisterPageContent() {
               else if (fmeaId) { router.push(`/pfmea/register?id=${fmeaId}`); }
               else { openFmeaSelectModal('LOAD'); }
             }} className={`px-3 py-1.5 text-white text-xs rounded font-semibold ${isEditMode ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-amber-500 hover:bg-amber-600'}`}>✏️ 편집(Edit)</button>
-            <button onClick={handleSaveWithFamilyCp} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 text-xs font-bold rounded ${saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' : saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+            <button onClick={handleSave} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 text-xs font-bold rounded ${saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' : saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
               {saveStatus === 'saving' ? '⏳ 저장 중...(Saving)' : saveStatus === 'saved' ? '✓ 저장됨(Saved)' : '💾 저장(Save)'}
             </button>
           </div>
@@ -739,7 +697,7 @@ function PFMEARegisterPageContent() {
                 {([
                   { type: 'M' as const, label: 'Master', count: masterBdCount,
                     loaded: 'bg-blue-700 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                  { type: 'F' as const, label: 'Family', count: familyBdCount,
+                  { type: 'F' as const, label: 'Family', count: masterBdCount,
                     loaded: 'bg-blue-600 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-[#e3f2fd] text-blue-700 hover:bg-blue-200' },
                   { type: 'P' as const, label: 'Part', count: partBdCount || bdStatusList.filter(b => b.fmeaType === 'P').length,
                     loaded: 'bg-green-700 text-white', filtered: 'bg-green-100 text-green-800 ring-2 ring-green-400 ring-inset', idle: 'bg-[#e8f5e9] text-green-700 hover:bg-green-200' },
@@ -915,7 +873,7 @@ function PFMEARegisterPageContent() {
             }}
             onUserSearch={(index) => { setSelectedMemberIndex(index); setUserModalTarget('cft'); setRoleSearchTerm(''); setUserModalOpen(true); }}
             onRoleChange={(index, role) => { setSelectedMemberIndex(index); setUserModalTarget('cft'); setRoleSearchTerm(role); setUserModalOpen(true); }}
-            onSave={handleSaveWithFamilyCp} onReset={() => { if (confirm('CFT 목록을 초기화하시겠습니까?')) setCftMembers(createInitialCFTMembers()); }}
+            onSave={handleSave} onReset={() => { if (confirm('CFT 목록을 초기화하시겠습니까?')) setCftMembers(createInitialCFTMembers()); }}
             onNavigateWorksheet={fmeaId ? () => router.push(`/pfmea/worksheet?id=${fmeaId}`) : undefined}
             saveStatus={saveStatus} minRows={6} extraHeaderContent={
               <button onClick={() => openHelp('cft')} className="px-1.5 py-0.5 bg-yellow-400 text-[#00587a] text-[9px] font-bold rounded hover:bg-yellow-300 transition-colors" title="CFT 구성 도움말">도움말(Help)</button>

@@ -57,57 +57,6 @@ export async function createNotification(data: CreateNotificationInput): Promise
 }
 
 /**
- * Family FMEA 승인 시 관련 Part FMEA 담당자들에게 알림을 보낸다.
- *
- * Family FMEA가 승인되면 이를 참조하는 모든 Part FMEA의 작성자에게
- * "Family FMEA가 승인되었으니 Part FMEA를 갱신하세요" 알림을 전달한다.
- */
-export async function notifyFamilyFmeaApproved(params: {
-  familyFmeaId: string;
-  familyCode: string;
-  processName: string;
-  approverName: string;
-}): Promise<void> {
-  const prisma = getPrisma();
-  if (!prisma) {
-    console.error('[notification-service] Database not configured');
-    return;
-  }
-
-  try {
-    // sourceType=FAMILY_REF 이고 sourceFamilyMasterId가 동일한 Family Master를
-    // 가리키는 Part FMEA들을 찾아 담당자에게 알림 전송
-    const partFmeas = await prisma.partFmea.findMany({
-      where: {
-        sourceType: 'FAMILY_REF',
-        sourceFamilyMasterId: params.familyFmeaId,
-      },
-      select: {
-        partCode: true,
-        authorName: true,
-      },
-    });
-
-    const notifications = partFmeas
-      .filter((pf) => pf.authorName)
-      .map((pf) => ({
-        recipientName: pf.authorName!,
-        type: 'APPROVED' as const,
-        title: `Family FMEA 승인: ${params.familyCode}`,
-        message: `${params.approverName}님이 Family FMEA "${params.processName}" (${params.familyCode})을 승인했습니다. Part FMEA(${pf.partCode}) 갱신을 검토해주세요.`,
-        sourceType: 'FAMILY_FMEA',
-        sourceId: params.familyFmeaId,
-      }));
-
-    if (notifications.length > 0) {
-      await prisma.fmeaNotification.createMany({ data: notifications });
-    }
-  } catch (error: unknown) {
-    console.error('[notification-service] notifyFamilyFmeaApproved failed:', error);
-  }
-}
-
-/**
  * 리뷰 요청 알림을 보낸다.
  *
  * FMEA 작성자가 리뷰어에게 검토를 요청할 때 호출된다.

@@ -979,238 +979,186 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
           </div>
         )}
 
-        {/* 헤더 */}
-        <div style={rightHeaderStyle}>
-          {/* 연결확정 버튼 (이미 확정된 경우 비활성) */}
+        {/* 헤더 — 한 줄 간소화 (영어만) */}
+        <div style={{ ...rightHeaderStyle, flexWrap: 'nowrap', gap: 3 }}>
+          {/* Confirm / Re-Confirm */}
           <button
             onClick={confirmLink}
             disabled={!currentFMId || (linkedFEs.size === 0 && linkedFCs.size === 0)}
             className={currentFMId && (linkedFEs.size > 0 || linkedFCs.size > 0) ? 'blink-orange' : ''}
-            title={isCurrentFMLinked ? 'Re-Confirm: 현재 FM의 FE/FC 연결을 재확정' : 'Confirm: 현재 FM의 FE/FC 연결을 확정'}
+            title={isCurrentFMLinked ? 'Re-confirm current FM links' : 'Confirm current FM links'}
             style={{
               ...actionButtonStyle({
                 bg: isCurrentFMLinked ? '#1565c0' : '#ef6c00',
                 color: '#fff',
                 opacity: (!currentFMId || (linkedFEs.size === 0 && linkedFCs.size === 0)) ? 0.5 : 1
               }),
-              whiteSpace: 'nowrap',
-              minWidth: '65px'
+              whiteSpace: 'nowrap', minWidth: 'fit-content', fontSize: 10, padding: '3px 6px',
             }}
           >
-            {isCurrentFMLinked ? '🔄 재확정(Re-Confirm)' : '연결확정(Confirm)'}
+            {isCurrentFMLinked ? 'Re-Confirm' : 'Confirm'}
           </button>
 
+          {/* Result (FE/FM/FC counts) */}
           <button
             onClick={() => setViewMode('result')}
             style={{
-              flex: 1,
-              padding: '4px 6px',
-              fontSize: '11px',
-              fontWeight: 600,
-              border: '1px solid #0d47a1',
-              borderRadius: '3px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              minWidth: 'fit-content',
-              background: viewMode === 'result' ? '#0d47a1' : '#ffffff',
-              color: viewMode === 'result' ? '#ffffff' : '#0d47a1',
+              padding: '3px 6px', fontSize: 10, fontWeight: 600,
+              border: '1px solid #0d47a1', borderRadius: 3, cursor: 'pointer',
+              whiteSpace: 'nowrap', minWidth: 'fit-content',
+              background: viewMode === 'result' ? '#0d47a1' : '#fff',
+              color: viewMode === 'result' ? '#fff' : '#0d47a1',
             }}
           >
-            분석결과(Result)(<span style={{ color: viewMode === 'result' ? '#90caf9' : '#1976d2', fontWeight: 700 }}>FE:{linkStats.feLinkedCount}</span>,<span style={{ color: viewMode === 'result' ? '#ffab91' : '#e65100', fontWeight: 700 }}>FM:{linkStats.fmLinkedCount}</span>,<span style={{ color: viewMode === 'result' ? '#a5d6a7' : '#388e3c', fontWeight: 700 }}>FC:{linkStats.fcLinkedCount}</span>{totalMissingCount > 0 && <span style={{ color: viewMode === 'result' ? '#ff8a80' : '#d32f2f', fontWeight: 700 }}>,누락:{totalMissingCount}</span>})
+            Result(<span style={{ color: viewMode === 'result' ? '#90caf9' : '#1976d2', fontWeight: 700 }}>FE:{linkStats.feLinkedCount}</span>,<span style={{ color: viewMode === 'result' ? '#ffab91' : '#e65100', fontWeight: 700 }}>FM:{linkStats.fmLinkedCount}</span>,<span style={{ color: viewMode === 'result' ? '#a5d6a7' : '#388e3c', fontWeight: 700 }}>FC:{linkStats.fcLinkedCount}</span>{totalMissingCount > 0 && <span style={{ color: viewMode === 'result' ? '#ff8a80' : '#d32f2f', fontWeight: 700 }}>,Miss:{totalMissingCount}</span>})
           </button>
 
-          <div style={actionButtonGroupStyle}>
-            <button onClick={() => setViewMode('result')} style={modeButtonStyle(viewMode === 'result')} title="Link Table: FE↔FM↔FC 연결 결과 테이블">
-              연결표(Link Table)
-            </button>
-            <button onClick={() => setViewMode('diagram')} style={modeButtonStyle(viewMode === 'diagram')} title="Failure Chain: FE→FM→FC 고장사슬 다이어그램">
-              고장사슬(FC)
-            </button>
+          {/* Link Table */}
+          <button onClick={() => setViewMode('result')} style={modeButtonStyle(viewMode === 'result')} title="FE↔FM↔FC link table">
+            Table
+          </button>
 
-            {/* ✅ 2026-02-03: 확정됨 상태일 때 완료버튼 안내 + 클릭 시 ALL 고장분석 이동 */}
-            {isCurrentFMLinked && (
-              <span
-                onClick={() => {
-                  // ALL 탭의 고장분석 섹션으로 이동 + visibleSteps에 4(고장분석) 포함 보장
-                  setState((prev: any) => {
-                    let newVisibleSteps = prev.visibleSteps;
-                    if (Array.isArray(prev.visibleSteps)) {
-                      if (!prev.visibleSteps.includes(4)) {
-                        newVisibleSteps = [...prev.visibleSteps, 4].sort((a: number, b: number) => a - b);
-                      }
-                    } else {
-                      newVisibleSteps = [2, 3, 4, 5, 6];
-                    }
-                    return { ...prev, tab: 'all', allViewSection: 'failure', visibleSteps: newVisibleSteps };
-                  });
-                  try {
-                    const stateId = (state as any)?.fmeaId || 'default';
-                    localStorage.setItem(`pfmea_tab_${stateId}`, 'all');
-                  } catch (e) { /* ignore */ }
-                  setTimeout(() => {
-                    const allTabContainer = document.getElementById('all-tab-scroll-wrapper');
-                    if (allTabContainer) {
-                      allTabContainer.scrollLeft = 1000;
-                      // ALL 탭 고장분석 영역으로 스크롤 이동
-                    }
-                  }, 300);
-                }}
-                title="Failure Analysis: ALL탭 고장분석 섹션으로 이동"
-                style={{
-                  fontSize: 10,
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  marginLeft: 4,
-                  padding: '2px 6px',
-                  background: 'linear-gradient(135deg, #ff9800, #f57c00)',
-                  border: '2px solid #e65100',
-                  borderRadius: 4,
-                  whiteSpace: 'nowrap',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  boxShadow: '0 2px 8px rgba(255, 152, 0, 0.6)',
-                  animation: 'pulse 1.5s infinite',
-                  cursor: 'pointer',
-                }}>
-                🎯 고장분석(FA)
-                {isConfirmed && totalMissingCount === 0 && (
-                  <span style={{ color: '#ffffff', fontWeight: 900, fontSize: 11 }}>✓</span>
-                )}
-              </span>
-            )}
+          {/* Chain Diagram */}
+          <button onClick={() => setViewMode('diagram')} style={modeButtonStyle(viewMode === 'diagram')} title="FE→FM→FC chain diagram">
+            Chain
+          </button>
 
-            {/* 앞공정 고장연결 토글 */}
-            <label
-              title="앞공정 FC 포함: 해당공정 FC + 앞공정(upstream) FC를 함께 표시/연결"
+          {/* FA → ALL tab */}
+          {isCurrentFMLinked && (
+            <button
+              onClick={() => {
+                setState((prev: any) => {
+                  let newVisibleSteps = prev.visibleSteps;
+                  if (Array.isArray(prev.visibleSteps)) {
+                    if (!prev.visibleSteps.includes(4)) {
+                      newVisibleSteps = [...prev.visibleSteps, 4].sort((a: number, b: number) => a - b);
+                    }
+                  } else {
+                    newVisibleSteps = [2, 3, 4, 5, 6];
+                  }
+                  return { ...prev, tab: 'all', allViewSection: 'failure', visibleSteps: newVisibleSteps };
+                });
+                try {
+                  const stateId = (state as any)?.fmeaId || 'default';
+                  localStorage.setItem(`pfmea_tab_${stateId}`, 'all');
+                } catch (e) { /* ignore */ }
+                setTimeout(() => {
+                  const el = document.getElementById('all-tab-scroll-wrapper');
+                  if (el) el.scrollLeft = 1000;
+                }, 300);
+              }}
+              title="Go to Failure Analysis in ALL tab"
               style={{
-                display: 'flex', alignItems: 'center', gap: 3,
-                fontSize: 10, fontWeight: 600,
-                color: includeUpstream ? '#1565c0' : '#666',
-                padding: '2px 6px',
-                background: includeUpstream ? '#e3f2fd' : '#f5f5f5',
-                border: `1px solid ${includeUpstream ? '#1565c0' : '#ccc'}`,
-                borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap',
+                ...actionButtonStyle({ bg: '#f57c00', color: '#fff', opacity: 1 }),
+                whiteSpace: 'nowrap', minWidth: 'fit-content', fontSize: 10, padding: '3px 6px',
               }}
             >
-              <input
-                type="checkbox"
-                checked={includeUpstream}
-                onChange={e => setIncludeUpstream(e.target.checked)}
-                style={{ width: 12, height: 12, cursor: 'pointer' }}
-              />
-              앞공정 연결
-            </label>
+              FA{isConfirmed && totalMissingCount === 0 ? ' ✓' : ''}
+            </button>
+          )}
 
-            {/* 연결해제 버튼 (확정된 경우만 표시) */}
-            {isCurrentFMLinked && (
-              <button
-                onClick={unlinkCurrentFM}
-                title="Unlink: 현재 FM의 FE/FC 연결을 해제"
-                style={{
-                  ...actionButtonStyle({
-                    bg: '#ff5722',
-                    color: '#fff',
-                    opacity: 1
-                  }),
-                  whiteSpace: 'nowrap',
-                  minWidth: '55px'
-                }}
-              >
-                연결해제(Unlink)
-              </button>
-            )}
+          {/* Upstream toggle */}
+          <label
+            title="Include upstream FC"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 2,
+              fontSize: 10, fontWeight: 600,
+              color: includeUpstream ? '#1565c0' : '#666',
+              padding: '2px 4px',
+              background: includeUpstream ? '#e3f2fd' : '#f5f5f5',
+              border: `1px solid ${includeUpstream ? '#1565c0' : '#ccc'}`,
+              borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={includeUpstream}
+              onChange={e => setIncludeUpstream(e.target.checked)}
+              style={{ width: 11, height: 11, cursor: 'pointer' }}
+            />
+            Upstream
+          </label>
 
-            {/* 전체 확정/수정 버튼 */}
-            {!isConfirmed ? (
-              // 미확정 상태: 전체확정 버튼 표시
-              <button
-                onClick={handleConfirmAll}
-                disabled={savedLinks.length === 0}
-                title="Confirm All: 모든 FM의 FE/FC 연결을 일괄 확정"
-                style={{
-                  ...actionButtonStyle({
-                    bg: totalMissingCount === 0 && savedLinks.length > 0 ? '#2e7d32' : '#4caf50',
-                    color: '#fff',
-                    opacity: savedLinks.length === 0 ? 0.5 : 1
-                  }),
-                  // ✅ 완료 시 강조 애니메이션
-                  ...(totalMissingCount === 0 && savedLinks.length > 0 ? {
-                    boxShadow: '0 0 12px rgba(46, 125, 50, 0.8)',
-                    animation: 'pulse 1.5s infinite',
-                    fontWeight: 700,
-                  } : {})
-                }}
-              >
-                {totalMissingCount === 0 && savedLinks.length > 0 ? '🎉 전체확정(Confirm All)' : '전체확정(Confirm All)'}
-              </button>
-            ) : totalMissingCount === 0 ? (
-              // 확정 + 모든 FM 연결됨: 완료 상태 표시 + 클릭 시 고장분석 이동
-              <button
-                onClick={() => {
-                  // ALL 탭의 고장분석 섹션으로 이동 + visibleSteps에 4(고장분석) 포함 보장
-                  setState((prev: any) => {
-                    // visibleSteps가 배열이면 4를 추가, 아니면 기본값 사용
-                    let newVisibleSteps = prev.visibleSteps;
-                    if (Array.isArray(prev.visibleSteps)) {
-                      if (!prev.visibleSteps.includes(4)) {
-                        newVisibleSteps = [...prev.visibleSteps, 4].sort((a, b) => a - b);
-                      }
-                    } else {
-                      // 기본값: 전체 표시 (2, 3, 4, 5, 6)
-                      newVisibleSteps = [2, 3, 4, 5, 6];
-                    }
-                    return {
-                      ...prev,
-                      tab: 'all',
-                      allViewSection: 'failure',
-                      visibleSteps: newVisibleSteps
-                    };
-                  });
-                  try {
-                    const stateId = (state as any)?.fmeaId || 'default';
-                    localStorage.setItem(`pfmea_tab_${stateId}`, 'all');
-                  } catch (e) { /* ignore */ }
+          {/* Unlink */}
+          {isCurrentFMLinked && (
+            <button
+              onClick={unlinkCurrentFM}
+              title="Unlink current FM"
+              style={{
+                ...actionButtonStyle({ bg: '#ff5722', color: '#fff', opacity: 1 }),
+                whiteSpace: 'nowrap', minWidth: 'fit-content', fontSize: 10, padding: '3px 6px',
+              }}
+            >
+              Unlink
+            </button>
+          )}
 
-                  // ★ ALL 탭 로드 후 고장분석 컬럼으로 스크롤
-                  setTimeout(() => {
-                    const allTabContainer = document.getElementById('all-tab-scroll-wrapper');
-                    if (allTabContainer) {
-                      // 고장분석 컬럼은 대략 14번째 컬럼부터 시작 (구조분석 4열 + 기능분석 10열 이후)
-                      // 각 컬럼 약 80px 기준, 약 1120px 위치로 스크롤
-                      allTabContainer.scrollLeft = 1000;
-                      // ALL 탭 고장분석 영역으로 스크롤
-                    }
-                  }, 300);
-                }}
-                title="Done: 고장연결 완료 → ALL탭 고장분석으로 이동"
-                style={{
-                  ...actionButtonStyle({
-                    bg: '#1b5e20',
-                    color: '#fff',
-                    opacity: 1
-                  }),
-                  boxShadow: '0 0 12px rgba(27, 94, 32, 0.8)',
+          {/* Confirm All / Done / Edit */}
+          {!isConfirmed ? (
+            <button
+              onClick={handleConfirmAll}
+              disabled={savedLinks.length === 0}
+              title="Confirm all FM links"
+              style={{
+                ...actionButtonStyle({
+                  bg: totalMissingCount === 0 && savedLinks.length > 0 ? '#2e7d32' : '#4caf50',
+                  color: '#fff',
+                  opacity: savedLinks.length === 0 ? 0.5 : 1
+                }),
+                whiteSpace: 'nowrap', minWidth: 'fit-content', fontSize: 10, padding: '3px 6px',
+                ...(totalMissingCount === 0 && savedLinks.length > 0 ? {
+                  boxShadow: '0 0 8px rgba(46,125,50,0.7)',
+                  animation: 'pulse 1.5s infinite',
                   fontWeight: 700,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  minWidth: '55px'
-                }}
-              >
-                ✅ 완료(Done)
-              </button>
-            ) : (
-              // 확정 + 일부 FM 미연결: 수정 버튼 표시
-              <button
-                onClick={handleEditMode}
-                style={actionButtonStyle({
-                  bg: '#ff9800', color: '#fff'
-                })}
-              >
-                수정
-              </button>
-            )}
-          </div>
+                } : {})
+              }}
+            >
+              Confirm All
+            </button>
+          ) : totalMissingCount === 0 ? (
+            <button
+              onClick={() => {
+                setState((prev: any) => {
+                  let newVisibleSteps = prev.visibleSteps;
+                  if (Array.isArray(prev.visibleSteps)) {
+                    if (!prev.visibleSteps.includes(4)) {
+                      newVisibleSteps = [...prev.visibleSteps, 4].sort((a: number, b: number) => a - b);
+                    }
+                  } else {
+                    newVisibleSteps = [2, 3, 4, 5, 6];
+                  }
+                  return { ...prev, tab: 'all', allViewSection: 'failure', visibleSteps: newVisibleSteps };
+                });
+                try {
+                  const stateId = (state as any)?.fmeaId || 'default';
+                  localStorage.setItem(`pfmea_tab_${stateId}`, 'all');
+                } catch (e) { /* ignore */ }
+                setTimeout(() => {
+                  const el = document.getElementById('all-tab-scroll-wrapper');
+                  if (el) el.scrollLeft = 1000;
+                }, 300);
+              }}
+              title="All linked — go to Failure Analysis"
+              style={{
+                ...actionButtonStyle({ bg: '#1b5e20', color: '#fff', opacity: 1 }),
+                boxShadow: '0 0 8px rgba(27,94,32,0.7)',
+                fontWeight: 700, whiteSpace: 'nowrap', minWidth: 'fit-content',
+                fontSize: 10, padding: '3px 6px',
+              }}
+            >
+              Done ✓
+            </button>
+          ) : (
+            <button
+              onClick={handleEditMode}
+              style={{
+                ...actionButtonStyle({ bg: '#ff9800', color: '#fff' }),
+                whiteSpace: 'nowrap', minWidth: 'fit-content', fontSize: 10, padding: '3px 6px',
+              }}
+            >
+              Edit
+            </button>
+          )}
         </div>
 
         {/* 콘텐츠 */}

@@ -65,9 +65,6 @@ interface PfmeaBasicInfoTableProps {
     router: ReturnType<typeof useRouter>;
     // ★ 연동 모달 열기
     onOpenLinkageModal: () => void;
-    // ★ Family CP 개수
-    familyCpCount?: number;
-    onFamilyCpCountChange?: (count: number) => void;
 }
 
 // 스타일
@@ -103,8 +100,6 @@ export default function PfmeaBasicInfoTable({
     generateFMEAId,
     router,
     onOpenLinkageModal,
-    familyCpCount,
-    onFamilyCpCountChange,
 }: PfmeaBasicInfoTableProps) {
     // ★★★ FMEA ID 기반으로 상위 APQP ID 자동 계산 ★★★
     const derivedParentApqp = selectedParentApqp || (fmeaId ? `pj${fmeaId.replace(/^pfm/i, '')}` : null);
@@ -147,25 +142,11 @@ export default function PfmeaBasicInfoTable({
                                     } else if (newType !== 'M') {
                                         setSelectedBaseFmea(null);
                                     }
-                                }} className={`${fmeaInfo.fmeaType === 'F' ? 'w-[60%]' : 'w-full'} h-7 px-2 text-xs border border-gray-300 bg-white rounded font-semibold cursor-pointer`}>
+                                }} className="w-full h-7 px-2 text-xs border border-gray-300 bg-white rounded font-semibold cursor-pointer">
                                     <option value="M">M - Master FMEA</option>
                                     <option value="F">F - Family FMEA</option>
                                     <option value="P">P - Part FMEA</option>
                                 </select>
-                                {fmeaInfo.fmeaType === 'F' && onFamilyCpCountChange && (
-                                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                                        <span className="text-[9px] text-gray-500 whitespace-nowrap">CP</span>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            max={10}
-                                            value={familyCpCount ?? 3}
-                                            onChange={e => onFamilyCpCountChange(Math.min(10, Math.max(1, parseInt(e.target.value) || 1)))}
-                                            className="w-8 h-6 px-1 text-[10px] text-center border border-gray-300 rounded bg-white"
-                                        />
-                                        <span className="text-[9px] text-gray-500">건</span>
-                                    </div>
-                                )}
                             </div>
                         </td>
                         <td className={headerCell} title="FMEA Name">FMEA명(Name)</td>
