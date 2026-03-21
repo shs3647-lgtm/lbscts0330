@@ -689,6 +689,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 5-0. ★ 골든 체인 기반 B4 가지치기 — 미참조 FC 항목 제거
+    // 골든 체인에 없는 B4(고장원인)는 고아 엔티티 → 제거하여 FC=104 달성
+    if (masterChains.length > 0) {
+      // 체인이 참조하는 FC값 집합: processNo|fcValue (m4 무관 — 동일 공정 동일 FC)
+      const chainFcKeys = new Set<string>();
+      for (const ch of masterChains) {
+        const fc = (ch.fcValue || '').trim();
+        chainFcKeys.add(`${ch.processNo}|${fc}`);
+        // 정규화 (01→1)
+        chainFcKeys.add(`${String(parseInt(ch.processNo, 10) || 0)}|${fc}`);
+      }
+
+      const beforeB4 = flatData.filter(d => d.itemCode === 'B4').length;
+      let removed = 0;
+      for (let i = flatData.length - 1; i >= 0; i--) {
+        const d = flatData[i];
+        if (d.itemCode !== 'B4') continue;
+        const val = (d.value || '').trim();
+        const key1 = `${d.processNo}|${val}`;
+        const key2 = `${String(parseInt(d.processNo, 10) || 0)}|${val}`;
+        if (!chainFcKeys.has(key1) && !chainFcKeys.has(key2)) {
+          flatData.splice(i, 1);
+          removed++;
+        }
+      }
+      if (removed > 0) {
+        console.info(`[import-excel-file] B4 가지치기: ${beforeB4}→${beforeB4 - removed} (-${removed}건, 골든 체인 미참조 FC 제거)`);
+      }
+    }
+
     // 항목별 카운트
     const itemCounts: Record<string, number> = {};
     for (const item of flatData) {
