@@ -91,6 +91,7 @@ async function main() {
     fmeaId: FMEA_ID,
     filePath: EXCEL_PATH,
     l1Name: 'au bump',
+    masterJsonPath: `data/master-fmea/${FMEA_ID}-golden.json`,
   });
 
   if (!importResult.success) {
