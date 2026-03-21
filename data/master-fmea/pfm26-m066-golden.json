@@ -1913,13 +1913,16 @@
         "l1StructId": "PF-L1-YP",
         "category": "Your Plant",
         "functionName": "Wafer 청정도(파티클 수)가 공정 기준을 충족하여 공정 중 오염 없는 환경을 제공한다",
-        "requirement": "",
+        "requirement": "Au Bump 외관 결함 기준 (Visual Defect Acceptance Criteria)",
         "createdAt": "2026-03-21T13:04:09.139Z",
         "updatedAt": "2026-03-21T13:04:09.139Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
-        "colSpan": 1
+        "colSpan": 1,
+        "requirements": [
+          "Au Bump 외관 결함 기준 (Visual Defect Acceptance Criteria)"
+        ]
       },
       {
         "id": "PF-L1-YP-002",
@@ -1927,13 +1930,21 @@
         "l1StructId": "PF-L1-YP",
         "category": "Your Plant",
         "functionName": "UBM·PR·Etch 공정특성이 규격을 충족하여 Bump 형성 안정성을 확보한다",
-        "requirement": "",
+        "requirement": "파티클 수 허용 기준 (Max Particle Count, ea)",
         "createdAt": "2026-03-21T13:04:09.139Z",
         "updatedAt": "2026-03-21T13:04:09.139Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
-        "colSpan": 1
+        "colSpan": 1,
+        "requirements": [
+          "파티클 수 허용 기준 (Max Particle Count, ea)",
+          "UBM 두께 규격 (UBM Thickness Spec, Å)",
+          "CD 규격 (Critical Dimension Spec, μm)",
+          "PR 두께 규격 (PR Thickness Spec, μm)",
+          "PR 잔사 허용 기준 (PR Residue Acceptance Criteria)",
+          "Seed 잔류물 허용 기준 (Seed Residue Acceptance Criteria)"
+        ]
       },
       {
         "id": "PF-L1-YP-003",
@@ -1941,13 +1952,16 @@
         "l1StructId": "PF-L1-YP",
         "category": "Your Plant",
         "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
-        "requirement": "",
+        "requirement": "Au Bump 높이 규격 (Bump Height Spec, μm)",
         "createdAt": "2026-03-21T13:04:09.139Z",
         "updatedAt": "2026-03-21T13:04:09.139Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
-        "colSpan": 1
+        "colSpan": 1,
+        "requirements": [
+          "Au Bump 높이 규격 (Bump Height Spec, μm)"
+        ]
       },
       {
         "id": "PF-L1-SP-001",
@@ -1955,13 +1969,20 @@
         "l1StructId": "PF-L1-YP",
         "category": "Ship to Plant",
         "functionName": "고객 기능 안정성을 위한 Au 순도 및 IMC 두께 기준을 충족한다",
-        "requirement": "",
+        "requirement": "Au Bump 외관 고객 기준 (Customer Visual Defect Criteria)",
         "createdAt": "2026-03-21T13:04:09.139Z",
         "updatedAt": "2026-03-21T13:04:09.139Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
-        "colSpan": 1
+        "colSpan": 1,
+        "requirements": [
+          "Au Bump 외관 고객 기준 (Customer Visual Defect Criteria)",
+          "고객 납품 파티클 기준 (Customer Particle Criteria, ea)",
+          "포장 기준 적합성 (Packaging Compliance)",
+          "Au 순도 고객 규격 (Au Purity Spec, %)",
+          "IMC 두께 고객 규격 (IMC Thickness Spec, μm)"
+        ]
       },
       {
         "id": "PF-L1-SP-002",
@@ -1969,13 +1990,16 @@
         "l1StructId": "PF-L1-YP",
         "category": "Ship to Plant",
         "functionName": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
-        "requirement": "",
+        "requirement": "Au Bump 높이 고객 출하 규격 (Customer Bump Height Spec, μm)",
         "createdAt": "2026-03-21T13:04:09.139Z",
         "updatedAt": "2026-03-21T13:04:09.139Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
-        "colSpan": 1
+        "colSpan": 1,
+        "requirements": [
+          "Au Bump 높이 고객 출하 규격 (Customer Bump Height Spec, μm)"
+        ]
       },
       {
         "id": "PF-L1-US-001",
@@ -1983,13 +2007,16 @@
         "l1StructId": "PF-L1-YP",
         "category": "User",
         "functionName": "최종 사용자 전기적·기계적 신뢰성 기준을 충족하는 Au Bump를 제공한다",
-        "requirement": "",
+        "requirement": "Au Bump 전기적 신뢰성 기준 (Electrical Reliability Spec)",
         "createdAt": "2026-03-21T13:04:09.139Z",
         "updatedAt": "2026-03-21T13:04:09.139Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
-        "colSpan": 1
+        "colSpan": 1,
+        "requirements": [
+          "Au Bump 전기적 신뢰성 기준 (Electrical Reliability Spec)"
+        ]
       },
       {
         "id": "PF-L1-US-002",
@@ -1997,13 +2024,17 @@
         "l1StructId": "PF-L1-YP",
         "category": "User",
         "functionName": "RoHS 등 환경·안전 규제 기준을 준수하는 제품을 제공한다",
-        "requirement": "",
+        "requirement": "ESD 민감도 기준 (ESD Sensitivity Class)",
         "createdAt": "2026-03-21T13:04:09.139Z",
         "updatedAt": "2026-03-21T13:04:09.139Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
-        "colSpan": 1
+        "colSpan": 1,
+        "requirements": [
+          "ESD 민감도 기준 (ESD Sensitivity Class)",
+          "RoHS 유해물질 기준 적합성 (RoHS Compliance)"
+        ]
       }
     ],
     "l2Functions": [
@@ -11244,15 +11275,6 @@
       "createdAt": "2026-03-21T13:04:10.745Z"
     },
     {
-      "id": "PF-L1-YP-001-001",
-      "processNo": "Your Plant",
-      "category": "C",
-      "itemCode": "C3",
-      "value": "",
-      "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T13:04:10.745Z"
-    },
-    {
       "id": "PF-L1-YP-002",
       "processNo": "Your Plant",
       "category": "C",
@@ -11261,29 +11283,11 @@
       "createdAt": "2026-03-21T13:04:10.745Z"
     },
     {
-      "id": "PF-L1-YP-002-001",
-      "processNo": "Your Plant",
-      "category": "C",
-      "itemCode": "C3",
-      "value": "",
-      "parentItemId": "PF-L1-YP-002",
-      "createdAt": "2026-03-21T13:04:10.745Z"
-    },
-    {
       "id": "PF-L1-YP-003",
       "processNo": "Your Plant",
       "category": "C",
       "itemCode": "C2",
       "value": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
-      "createdAt": "2026-03-21T13:04:10.745Z"
-    },
-    {
-      "id": "PF-L1-YP-003-001",
-      "processNo": "Your Plant",
-      "category": "C",
-      "itemCode": "C3",
-      "value": "",
-      "parentItemId": "PF-L1-YP-003",
       "createdAt": "2026-03-21T13:04:10.745Z"
     },
     {
@@ -11303,29 +11307,11 @@
       "createdAt": "2026-03-21T13:04:10.745Z"
     },
     {
-      "id": "PF-L1-SP-001-001",
-      "processNo": "Ship to Plant",
-      "category": "C",
-      "itemCode": "C3",
-      "value": "",
-      "parentItemId": "PF-L1-SP-001",
-      "createdAt": "2026-03-21T13:04:10.745Z"
-    },
-    {
       "id": "PF-L1-SP-002",
       "processNo": "Ship to Plant",
       "category": "C",
       "itemCode": "C2",
       "value": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
-      "createdAt": "2026-03-21T13:04:10.745Z"
-    },
-    {
-      "id": "PF-L1-SP-002-001",
-      "processNo": "Ship to Plant",
-      "category": "C",
-      "itemCode": "C3",
-      "value": "",
-      "parentItemId": "PF-L1-SP-002",
       "createdAt": "2026-03-21T13:04:10.745Z"
     },
     {
@@ -11345,29 +11331,11 @@
       "createdAt": "2026-03-21T13:04:10.745Z"
     },
     {
-      "id": "PF-L1-US-001-001",
-      "processNo": "User",
-      "category": "C",
-      "itemCode": "C3",
-      "value": "",
-      "parentItemId": "PF-L1-US-001",
-      "createdAt": "2026-03-21T13:04:10.745Z"
-    },
-    {
       "id": "PF-L1-US-002",
       "processNo": "User",
       "category": "C",
       "itemCode": "C2",
       "value": "RoHS 등 환경·안전 규제 기준을 준수하는 제품을 제공한다",
-      "createdAt": "2026-03-21T13:04:10.745Z"
-    },
-    {
-      "id": "PF-L1-US-002-001",
-      "processNo": "User",
-      "category": "C",
-      "itemCode": "C3",
-      "value": "",
-      "parentItemId": "PF-L1-US-002",
       "createdAt": "2026-03-21T13:04:10.745Z"
     },
     {
@@ -17377,6 +17345,125 @@
       "value": "P:포장 작업영역 청정도 및 ESD 정기 점검",
       "m4": "EN",
       "createdAt": "2026-03-21T13:04:10.745Z"
+    },
+    {
+      "id": "C3-YP-0",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "Au Bump 높이 규격 (Bump Height Spec, μm)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-YP-1",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "Au Bump 외관 결함 기준 (Visual Defect Acceptance Criteria)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-YP-2",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "파티클 수 허용 기준 (Max Particle Count, ea)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-YP-3",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "UBM 두께 규격 (UBM Thickness Spec, Å)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-YP-4",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "CD 규격 (Critical Dimension Spec, μm)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-YP-5",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "PR 두께 규격 (PR Thickness Spec, μm)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-YP-6",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "PR 잔사 허용 기준 (PR Residue Acceptance Criteria)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-YP-7",
+      "itemCode": "C3",
+      "processNo": "YP",
+      "value": "Seed 잔류물 허용 기준 (Seed Residue Acceptance Criteria)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-SP-8",
+      "itemCode": "C3",
+      "processNo": "SP",
+      "value": "Au Bump 높이 고객 출하 규격 (Customer Bump Height Spec, μm)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-SP-9",
+      "itemCode": "C3",
+      "processNo": "SP",
+      "value": "Au Bump 외관 고객 기준 (Customer Visual Defect Criteria)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-SP-10",
+      "itemCode": "C3",
+      "processNo": "SP",
+      "value": "고객 납품 파티클 기준 (Customer Particle Criteria, ea)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-SP-11",
+      "itemCode": "C3",
+      "processNo": "SP",
+      "value": "포장 기준 적합성 (Packaging Compliance)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-SP-12",
+      "itemCode": "C3",
+      "processNo": "SP",
+      "value": "Au 순도 고객 규격 (Au Purity Spec, %)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-SP-13",
+      "itemCode": "C3",
+      "processNo": "SP",
+      "value": "IMC 두께 고객 규격 (IMC Thickness Spec, μm)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-USER-14",
+      "itemCode": "C3",
+      "processNo": "USER",
+      "value": "Au Bump 전기적 신뢰성 기준 (Electrical Reliability Spec)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-USER-15",
+      "itemCode": "C3",
+      "processNo": "USER",
+      "value": "ESD 민감도 기준 (ESD Sensitivity Class)",
+      "rowSpan": 1
+    },
+    {
+      "id": "C3-USER-16",
+      "itemCode": "C3",
+      "processNo": "USER",
+      "value": "RoHS 유해물질 기준 적합성 (RoHS Compliance)",
+      "rowSpan": 1
     }
   ],
   "chains": [
@@ -20425,7 +20512,7 @@
       "B5": 99,
       "C1": 3,
       "C2": 7,
-      "C3": 7,
+      "C3": 17,
       "C4": 20
     }
   }

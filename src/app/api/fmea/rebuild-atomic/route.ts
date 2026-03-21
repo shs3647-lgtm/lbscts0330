@@ -197,6 +197,33 @@ export async function POST(request: NextRequest) {
                 console.info(`[rebuild-atomic] L1Functions 생성: ${valid.length}`);
               }
             }
+            // ── 1b. 기존 L1Function requirement 갱신 (마스터 JSON에 값이 있고 DB가 비어있는 경우) ──
+            for (const mf of (master.l1Functions || [])) {
+              if (mf.requirement && existingIds.has(mf.id)) {
+                const existing = atomic.l1Functions.find((f: any) => f.id === mf.id);
+                if (existing && !(existing as any).requirement) {
+                  await tx.l1Function.update({
+                    where: { id: mf.id },
+                    data: { requirement: mf.requirement },
+                  });
+                }
+              }
+            }
+            // ── 1c. L1Requirement 동기화 (마스터 JSON requirements 배열) ──
+            if (l1Id) {
+              for (const mf of (master.l1Functions || [])) {
+                const reqs: string[] = mf.requirements || (mf.requirement ? [mf.requirement] : []);
+                for (let i = 0; i < reqs.length; i++) {
+                  const reqId = `${mf.id}-R-${String(i).padStart(3, '0')}`;
+                  await tx.l1Requirement.upsert({
+                    where: { id: reqId },
+                    create: { id: reqId, fmeaId, l1StructId: l1Id, l1FuncId: mf.id, requirement: reqs[i], orderIndex: i },
+                    update: { requirement: reqs[i], orderIndex: i },
+                  });
+                }
+              }
+              console.info(`[rebuild-atomic] L1Requirements 동기화 완료`);
+            }
           }
 
           // ── 2. L2Functions (결정론적 ID → 직접 사용) ──
