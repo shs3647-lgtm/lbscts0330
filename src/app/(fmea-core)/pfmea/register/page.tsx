@@ -772,11 +772,32 @@ function PFMEARegisterPageContent() {
             updateWorkElement={templateGen.updateWorkElement}
             flatData={flatData}
             onDownloadSample={async () => {
+              if (fmeaId) {
+                try {
+                  const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
+                  if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const cd = res.headers.get('content-disposition');
+                    const fnMatch = cd?.match(/filename="?([^"]+)"?/);
+                    const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
+                    a.download = fnMatch?.[1] || `PFMEA_Master_${subject || fmeaId}.xlsx`;
+                    a.href = url;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    return;
+                  }
+                } catch (_e) { /* server-side 실패 시 client-side fallback */ }
+              }
               const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
               const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
               const masterName = subject ? `PFMEA_Master_${subject}` : undefined;
-              if (flatData.length > 0) downloadDataTemplate(flatData, masterName);
-              else downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
+              if (flatData.length > 0) {
+                downloadDataTemplate(flatData, masterName);
+              } else {
+                downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
+              }
             }}
             onDownloadEmpty={async () => {
               const { downloadEmptyTemplate } = await getExcelTemplate();

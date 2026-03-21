@@ -521,7 +521,24 @@ export default function LegacyImportPage() {
         removeWorkElement={templateGen.removeWorkElement}
         updateWorkElement={templateGen.updateWorkElement}
         flatData={flatData}
-        onDownloadSample={() => {
+        onDownloadSample={async () => {
+          if (selectedFmeaId) {
+            try {
+              const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
+              if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const cd = res.headers.get('content-disposition');
+                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
+                a.download = fnMatch?.[1] || `PFMEA_Sample_${selectedFmeaId}.xlsx`;
+                a.href = url;
+                a.click();
+                URL.revokeObjectURL(url);
+                return;
+              }
+            } catch (_e) { /* server-side 실패 시 client-side fallback */ }
+          }
           downloadSampleTemplate(undefined, templateGen.templateMode === 'manual', selectedFmeaId || undefined);
         }}
         onDownloadEmpty={downloadEmptyTemplate}
