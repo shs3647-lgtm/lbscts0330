@@ -65,6 +65,8 @@ debug-*.png
 temp_*.json
 temp_*.sql
 *_temp.json
+pv*.json
+adb_*.json
 
 # debug/analysis output
 *-분석.txt

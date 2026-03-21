@@ -677,6 +677,28 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 - ❌ **UUID v4로 B1/B4 ID 생성 금지** — `genB1()`/`genB4()` 결정론적 함수만 사용
 - ✅ **모든 ID는 `uuid-generator.ts`의 genXxx() 함수로 생성**
 
+#### 1.7.6 FK 중심 꽂아넣기 시스템 — 13개 보호 레이어 (2026-03-21)
+
+> **UUID 누락, 중복 ID 생성, 다른 공정 ID 혼입을 근본 차단하는 13개 시스템**
+
+| # | 시스템 | 파일 | 용도 |
+|---|--------|------|------|
+| 1 | **UUID 검증 유틸리티** | `src/lib/uuid-rules.ts` | parseUuid, validateParentChild, validateDedupKey, validateNoCartesian |
+| 2 | **FK 무결성 검증 API** | `src/app/api/fmea/validate-fk/route.ts` | 8개 FK 검증 (orphan FL/RA/PC, cross-process, duplicate UUID) |
+| 3 | **Import 사전검증** | `src/lib/fmea-core/validate-import.ts` | 10개 규칙 (processNo, parentItemId chain, dedup key, autoGen 텍스트) |
+| 4 | **CP UUID 생성기** | `src/lib/uuid-generator.ts` (genCpItem 등 6개) | CP 결정론적 UUID (CP-P-{pno}-I-{seq}) |
+| 5 | **PFD FK 검증** | `src/lib/fmea-core/validate-pfd-fk.ts` | PFD↔FMEA FK 교차 검증 (L2/L3/PC orphan, cross-process) |
+| 6 | **Export 전 검증** | `src/lib/fmea-core/validate-export.ts` | 7개 체크 (FL FK, RA 1:1, orphan L3F/FC, DC/PC null) |
+| 7 | **Optimistic Locking** | `src/lib/fmea-core/optimistic-lock.ts` | 동시편집 충돌 방지 (version 기반) |
+| 8 | **Audit Trail** | `src/lib/fmea-core/audit-trail.ts` | DB 변경 감사 추적 (who/what/when) |
+| 9 | **Atomic Cell Save** | `src/lib/fmea-core/atomic-cell-save.ts` | 셀 편집 → DB 즉시 반영 (500ms 큐) |
+| 10 | **Atomic Risk Map** | `src/lib/fmea-core/atomic-risk-map.ts` | 레거시 riskData 교체 (Map<flId, RiskEntry>) |
+| 11 | **Project Clone** | `src/lib/fmea-core/project-clone.ts` | 프로젝트 복제 + UUID 재생성 + FK 재매핑 |
+| 12 | **Undo/Redo** | `src/lib/fmea-core/undo-redo.ts` | DB 기반 변경 스택 (Ctrl+Z/Y) |
+| 13 | **DC/PC FK 추적** | `src/lib/fmea-core/dc-pc-source-tracker.ts` | DC/PC 소스 FK 검증 (산업DB/LLD/Master) |
+
+> **명세서**: `docs/UUID_FK_SPECIFICATION.md` 참조
+
 ---
 
 ### 🔴 Rule 2: 기존 UI 변경 금지

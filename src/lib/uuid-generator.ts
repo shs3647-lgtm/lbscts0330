@@ -102,6 +102,46 @@ export const genFC = (
   `${doc}-FC-${pad(pno)}-M${pad(mseq)}-${m4}${pad(b1seq)}-K${pad(kseq)}`;
 
 // ══════════════════════════════════════════════
+// CP (Control Plan) 관리계획서
+// ══════════════════════════════════════════════
+
+/** CP 공정: CP-P-040 */
+export const genCpProcess = (cpNo: string, pno: number): string =>
+  `CP-P-${pad(pno)}`;
+
+/** CP 항목: CP-P-040-I-001 */
+export const genCpItem = (cpNo: string, pno: number, seq: number): string =>
+  `CP-P-${pad(pno)}-I-${pad(seq)}`;
+
+/** CP 검출기: CP-P-040-DT-001 */
+export const genCpDetector = (cpNo: string, pno: number, seq: number): string =>
+  `CP-P-${pad(pno)}-DT-${pad(seq)}`;
+
+/** CP 관리항목: CP-P-040-CT-001 */
+export const genCpControl = (cpNo: string, pno: number, seq: number): string =>
+  `CP-P-${pad(pno)}-CT-${pad(seq)}`;
+
+/** CP 관리방법: CP-P-040-MT-001 */
+export const genCpMethod = (cpNo: string, pno: number, seq: number): string =>
+  `CP-P-${pad(pno)}-MT-${pad(seq)}`;
+
+/** CP 이상조치: CP-P-040-RT-001 */
+export const genCpReaction = (cpNo: string, pno: number, seq: number): string =>
+  `CP-P-${pad(pno)}-RT-${pad(seq)}`;
+
+// ══════════════════════════════════════════════
+// PFD (Process Flow Diagram) 공정흐름도
+// ══════════════════════════════════════════════
+
+/** PFD 공정단계: PD-S-040 */
+export const genPfdStep = (pfdNo: string, pno: number): string =>
+  `PD-S-${pad(pno)}`;
+
+/** PFD 항목: PD-S-040-I-001 */
+export const genPfdItem = (pfdNo: string, pno: number, seq: number): string =>
+  `PD-S-${pad(pno)}-I-${pad(seq)}`;
+
+// ══════════════════════════════════════════════
 // 유틸리티
 // ══════════════════════════════════════════════
 
