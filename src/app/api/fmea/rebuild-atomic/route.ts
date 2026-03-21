@@ -1,4 +1,31 @@
-// CODEFREEZE 해제 — 2026-03-20 Legacy 의존성 완전 제거, Atomic DB 자체 정합성 재구성
+// ██████████████████████████████████████████████████████████████████████████████
+// ██  CODEFREEZE — 중복제거(dedup) 규칙 영구 보호 (2026-03-21)                  ██
+// ██                                                                            ██
+// ██  이 파일의 dedup 로직을 수정하려면 사용자에게 아래 문구로 허락을 받아야 합니다: ██
+// ██  "rebuild-atomic dedup 공정번호 기반 중복제거 CODEFREEZE 해제를 허락합니다"   ██
+// ██                                                                            ██
+// ██  ═══ 중복제거 핵심 원칙 (절대 위반 금지) ═══                                ██
+// ██                                                                            ██
+// ██  1. 모든 dedup key에 공정번호(l2StructId) 필수 포함                          ██
+// ██     - 공정이 다르면 동일 이름의 FC/FM/FE/L3F도 별개 엔티티                   ██
+// ██     - 예: 공정10 "작업숙련도부족" ≠ 공정20 "작업숙련도부족"                   ██
+// ██                                                                            ██
+// ██  2. FC dedup key = l2StructId + l3StructId + cause                          ██
+// ██     - 같은 공정이라도 다른 WE의 동일 원인은 별개                              ██
+// ██     - MN(작업자)은 모든 공정에 배치 → 모든 공정별 독립 FC                     ██
+// ██                                                                            ██
+// ██  3. FailureLink dedup key = fmId + fcId + feId (3요소 완전일치)              ██
+// ██     - 같은 FM+FC라도 다른 FE에 연결되면 별개 FailureLink                     ██
+// ██     - feId 누락 시 유효한 고장사슬 삭제 → 워크시트 빈칸 발생                  ██
+// ██                                                                            ██
+// ██  4. L1 dedup key에 구분(C1 category) 필수 포함                              ██
+// ██     - 구분+요구사항, 구분+완제품기능, 구분+고장영향으로 중복 검증              ██
+// ██                                                                            ██
+// ██  5. 단어만 보고 중복삭제 절대 금지                                           ██
+// ██     - 모든 중복 판단은 공정번호/구분과 매칭해서 검증                          ██
+// ██     - 이 원칙 위반이 마스터 데이터 Import 시 반복적 누락의 근본 원인          ██
+// ██                                                                            ██
+// ██████████████████████████████████████████████████████████████████████████████
 /**
  * @file rebuild-atomic/route.ts
  * @description Atomic DB 자체 정합성 재구성 (Legacy 의존성 제거)
@@ -131,24 +158,38 @@ export async function POST(request: NextRequest) {
           console.warn(`[rebuild-atomic] FailureLink FK 검증: ${invalidLinkIds.length}건 무효 삭제 (Opt/RA 연쇄 정리)`);
         }
       }
-      // ★★★ 2026-03-21: FM-FC 쌍 중복 FL 정리 (같은 FM+FC에 다른 FE로 확장된 FL 제거) ★★★
+      // ██████████████████████████████████████████████████████████████████████████
+      // ██  CODEFREEZE — FL 중복제거 규칙 (2026-03-21)                          ██
+      // ██  이 블록을 수정하려면 사용자에게 다음 문구로 허락을 받아야 합니다:       ██
+      // ██  "FL dedup 공정번호 기반 중복제거 CODEFREEZE 해제를 허락합니다"         ██
+      // ██                                                                      ██
+      // ██  핵심 원칙:                                                           ██
+      // ██  1. FL dedup key = fmId|fcId|feId (3요소 모두 포함)                    ██
+      // ██  2. 같은 FM+FC라도 다른 FE에 연결되면 별개 FL (N:1:N 관계)             ██
+      // ██  3. 공정이 다르면 동일 이름의 FM/FC/FE도 별개 엔티티                   ██
+      // ██  4. MN(작업자) 등 모든 공정 공통 요소도 공정별 독립 유지                ██
+      // ██                                                                      ██
+      // ██  위반 시: 고장사슬 누락 → 워크시트 렌더링 빈칸 → 사용자 데이터 손실     ██
+      // ██████████████████████████████████████████████████████████████████████████
       {
         const allFLsForDedup = await tx.failureLink.findMany({
           where: { fmeaId },
           select: { id: true, fmId: true, feId: true, fcId: true },
         });
-        const fmFcGroups = new Map<string, Array<{ id: string; feId: string }>>();
+        // ★ dedup key = fmId|fcId|feId — 3요소 모두 동일해야만 진정한 중복
+        // ★ fmId|fcId만으로 dedup하면 다른 FE에 연결된 유효한 체인이 삭제됨
+        const flGroups = new Map<string, string[]>();
         for (const fl of allFLsForDedup) {
-          const key = `${fl.fmId}|${fl.fcId}`;
-          if (!fmFcGroups.has(key)) fmFcGroups.set(key, []);
-          fmFcGroups.get(key)!.push({ id: fl.id, feId: fl.feId });
+          const key = `${fl.fmId}|${fl.fcId}|${fl.feId}`;
+          if (!flGroups.has(key)) flGroups.set(key, []);
+          flGroups.get(key)!.push(fl.id);
         }
         const dupFlIds: string[] = [];
-        for (const [, group] of fmFcGroups) {
-          if (group.length <= 1) continue;
-          // 첫 번째만 유지, 나머지 제거
-          for (let i = 1; i < group.length; i++) {
-            dupFlIds.push(group[i].id);
+        for (const [, ids] of flGroups) {
+          if (ids.length <= 1) continue;
+          // 완전 동일 FL(fmId+fcId+feId 모두 같음)만 중복 — 첫 번째 보존
+          for (let i = 1; i < ids.length; i++) {
+            dupFlIds.push(ids[i]);
           }
         }
         if (dupFlIds.length > 0) {
@@ -163,11 +204,23 @@ export async function POST(request: NextRequest) {
           }
           await tx.riskAnalysis.deleteMany({ where: { fmeaId, linkId: { in: dupFlIds } } });
           await tx.failureLink.deleteMany({ where: { id: { in: dupFlIds } } });
-          console.warn(`[rebuild-atomic] FM-FC 중복 FL 정리: ${dupFlIds.length}건 제거 (Opt/RA 연쇄 정리)`);
+          console.warn(`[rebuild-atomic] FL dedup (fmId+fcId+feId 완전일치): ${dupFlIds.length}건 제거`);
         }
       }
 
-      // ★★★ 2026-03-19 ROOT FIX: 동일공정 동일원인 중복 FC 정리 ★★★
+      // ██████████████████████████████████████████████████████████████████████████
+      // ██  CODEFREEZE — FC 중복제거 규칙 (2026-03-21)                          ██
+      // ██  이 블록을 수정하려면 사용자에게 다음 문구로 허락을 받아야 합니다:       ██
+      // ██  "FC dedup 공정번호 기반 중복제거 CODEFREEZE 해제를 허락합니다"         ██
+      // ██                                                                      ██
+      // ██  핵심 원칙:                                                           ██
+      // ██  1. FC dedup key = l2StructId(공정) + l3StructId(WE) + cause(원인)    ██
+      // ██  2. 공정이 다르면 동일 원인명도 별개 FC (예: 모든 공정의 "작업숙련도부족") ██
+      // ██  3. 같은 공정이라도 다른 WE의 동일 원인은 별개 FC                       ██
+      // ██  4. 단어만 보고 중복삭제 절대 금지 — 반드시 공정번호+WE 포함            ██
+      // ██                                                                      ██
+      // ██  위반 시: FC 누락 → FailureLink 끊김 → 워크시트 고장원인 빈칸          ██
+      // ██████████████████████████████████████████████████████████████████████████
       {
         const fcsByKey = new Map<string, string[]>();
         const allFcsForDedup = await tx.failureCause.findMany({
@@ -175,7 +228,9 @@ export async function POST(request: NextRequest) {
           select: { id: true, cause: true, l2StructId: true, l3StructId: true },
         });
         for (const fc of allFcsForDedup) {
-          // l3StructId 포함: 같은 공정이라도 다른 WE의 동일 cause는 별개
+          // ★ key = l2StructId(공정번호) + l3StructId(WE) + cause(원인명)
+          // ★ 공정번호 없이 cause만으로 dedup하면 다른 공정의 동일 원인이 삭제됨
+          // ★ 예: 공정10 "작업숙련도부족" ≠ 공정20 "작업숙련도부족" (별개 FC)
           const key = `${(fc as any).l2StructId}|${(fc as any).l3StructId || ''}|${(fc as any).cause}`;
           if (!fcsByKey.has(key)) fcsByKey.set(key, []);
           fcsByKey.get(key)!.push((fc as any).id);

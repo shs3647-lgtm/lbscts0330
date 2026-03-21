@@ -551,9 +551,12 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         seq: fcIdx,
       });
       
-      // ★★★ 2026-03-21 FIX-2: FC dedup에 l3StructId 포함 — WE 단위 dedup ★★★
-      // 이전: l2StructId + cause → 같은 공정 다른 WE의 동일 원인 DROP
-      // 수정: l2StructId + l3StructId + cause → 다른 WE는 별개 (rebuild-atomic과 동일 기준)
+      // ██████████████████████████████████████████████████████████████████████████
+      // ██  CODEFREEZE — FC dedup (migration) (2026-03-21)                      ██
+      // ██  수정 시 "FC dedup 공정번호 기반 중복제거 CODEFREEZE 해제를 허락합니다"  ██
+      // ██  key = l2StructId(공정) + l3StructId(WE) + cause(원인)               ██
+      // ██  공정이 다르면 동일 원인명도 별개 FC. 단어만 보고 중복삭제 절대 금지.    ██
+      // ██████████████████████████████████████████████████████████████████████████
       const dupFc = db.failureCauses.find(
         c => c.l2StructId === l2Struct.id && c.l3StructId === relatedL3Func!.l3StructId && c.cause === fc.name
       );

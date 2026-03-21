@@ -2,6 +2,10 @@
  * @file pc-dc-inference.ts
  * @description STEP B 전처리 — PC/DC 자동추론 엔진 (추상화 아키텍처)
  *
+ * ⚠️ 주의: 이 파일의 추론 결과는 Import Stage 1 (임시 참고용)에서만 사용
+ * ⚠️ FK 확정(Stage 3)에서는 절대 사용하지 않음 (Rule 1.6, Rule 1.7)
+ * ⚠️ inferChar(), inferC2() 등의 fallback 자동생성은 Rule 1.5.2 위반 — 향후 Master DB 조회로 교체 필요
+ *
  * 설계 원칙: "플러그인 규칙 셋"
  *   비유: 번역기와 사전. 번역기(추론 엔진)는 하나이고,
  *         사전(IndustryRuleSet)만 교체하면 어떤 언어(업종)든 번역 가능.
@@ -224,6 +228,8 @@ export function inferChar(fc: string, fm: string, m4: string, we: string, rules:
   }
 
   // 4차: WE(작업요소) 기반 fallback
+  // ⚠️ Rule 1.5.2 위반 — 자동생성 텍스트. 향후 Master DB 조회로 교체 필요
+  // ⚠️ 이 값은 Import Stage 1 임시 참고용. FK 확정(Stage 3)에서 사용 금지
   return we ? `${we} 관리 특성` : '공정 관리 특성';
 }
 

@@ -5,9 +5,23 @@
  *
  * ── 데이터 생성 목적 ──
  * CP 전처리/STEP B Import = "완전한 데이터" 생성이 목표.
- * 부족한 데이터(B3 공정특성 등)를 WE명 기반으로 자동 보충하여,
+ * 부족한 데이터(B3 공정특성 등)를 Master DB 기반으로 보충하여,
  * 엔지니어가 사실에 근거한 완벽한 FMEA를 작성할 수 있는 기초자료를 제공한다.
  * ↔ 기존 자료 Import(STEP A)는 원본 사실 데이터를 그대로 보존 (보충/변환 없음)
+ *
+ * ★★★ CODEFREEZE v2.0.0 (2026-03-21) ★★★
+ * ★ UUID/FK 설계 원칙 — 영구 CODEFREEZE ★
+ * ★ 수정 시 반드시 다음 문구로 허락 요청: ★
+ * ★ "import-builder.ts의 dedup key를 수정해도 될까요? ★
+ * ★  수정 사유: ___ / 영향 범위: ___" ★
+ * ★ ★
+ * ★ DEDUP KEY 5대 원칙: ★
+ * ★ 1. 모든 dedup key에 공정번호(pno) 필수 포함 ★
+ * ★ 2. L1 레벨은 구분(scope/category) 필수 포함 ★
+ * ★ 3. 동일 텍스트 ≠ 동일 엔티티 (공정이 다르면 별도) ★
+ * ★ 4. FK 매칭은 ID 기반만 허용 (텍스트 매칭 금지) ★
+ * ★ 5. 폴백 자동생성 금지 — Master DB 조회 or 사용자 입력 ★
+ * ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
  *
  * @created 2026-03-05
  */
@@ -129,6 +143,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
 
     // A4 제품특성
+    // ★ CODEFREEZE: dedup key = pno|char — 공정번호 필수 (Rule 1.7)
     {
       let char = r.l2Func.trim();
       char = char.replace(new RegExp(`^${pno}번[-\\s]*`), '').trim();
@@ -143,6 +158,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
 
     // A5 고장형태
+    // ★ CODEFREEZE: dedup key = pno|fm — 공정번호 필수 (Rule 1.7)
     {
       const fm = r.fmNorm;
       const key = `${pno}|${fm}`;
@@ -159,6 +175,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
 
     // B1 작업요소
+    // ★ CODEFREEZE: dedup key = pno|m4|we — 공정번호 필수 (Rule 1.7)
     {
       const key = `${pno}|${rowM4}|${rowWe}`;
       if (rowM4 && rowWe && !seen.b1.has(key)) {
@@ -169,7 +186,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
       }
     }
 
-    // B2 요소기능 — m066 꽂아넣기 (엑셀에 없을 때 실제 데이터 사용)
+    // B2 요소기능 — m066 꽂아넣기 (엑셀에 없을 때 Master DB 데이터 사용)
+    // ★ CODEFREEZE: dedup key = pno|m4|we — 공정번호 필수 (Rule 1.7)
     {
       const key = `${pno}|${rowM4}|${rowWe}`;
       if (rowM4 && rowWe && !seen.b2.has(key)) {
@@ -194,7 +212,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
       }
     }
 
-    // B3 공정특성 — m066 꽂아넣기 전용 (fallback 없음)
+    // B3 공정특성 — Master DB 꽂아넣기 전용 (fallback 자동생성 금지)
+    // ★ CODEFREEZE: dedup key = pno|m4|we — 공정번호 필수 (Rule 1.7)
     {
       const key = `${pno}|${rowM4}|${rowWe}`;
       if (rowM4 && rowWe && !seen.b3.has(key)) {
@@ -248,7 +267,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     return (order[a] ?? 9) - (order[b] ?? 9);
   });
 
-  // C4 고장영향 (S충돌 → 최대값) — 공정별 중복제거 (procNo 포함)
+  // C4 고장영향 (S충돌 → 최대값) — 공정별 중복제거
+  // ★ CODEFREEZE: dedup key = procNo|scope|fe — 공정번호+구분 필수 (Rule 1.7)
   const feMap = new Map<string, StepBC4Item>();
   for (const r of rows) {
     const procNo = r.procNo;
@@ -558,6 +578,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
 
   // FC 고장사슬 (중복제거)
   // ★★★ 2026-03-20: 1 FC → N FM 패턴 지원 ★★★
+  // ★ CODEFREEZE: FC chain dedup key = procNo|fe|fm|fc|m4 — 공정번호 필수 (Rule 1.7)
   // 동일 FC가 여러 FM에 연결되는 경우 (예: IQA "자재 품질 부적합" → M1, M2):
   //   - FM 있는 행: FM별로 별도 체인 생성 (dedup key에 FM 포함)
   //   - FM 없는 행: 해당 공정의 모든 A5(FM)에 대해 체인 확장
@@ -643,8 +664,10 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
   }
 
   // ★★★ 2026-03-17: FC시트 텍스트 → MAIN시트 텍스트 사전 매칭 ★★★
-  // 같은 공정번호 내에서 FM/FC 텍스트를 MAIN시트 기준으로 정규화하여 매칭
-  // 이 매칭 결과를 convertToImportFormat에서 UUID Map 조회에 사용 → 100% 결정론적 FK 보장
+  // ⚠️ 이 매칭은 Import Stage 1 (임시) — FK 확정에 사용 금지 (Rule 1.7.2)
+  // 목적: 같은 엑셀의 두 시트 간 텍스트 정규화 (FC시트 ↔ MAIN시트)
+  // 결과: matchedFmText/matchedFcText → convertToImportFormat에서 UUID Map key 조회용
+  // ★ Stage 3 (rebuild-atomic)에서 최종 FK는 반드시 ID 기반 Map.get()으로 확정
   {
     let fmMatched = 0;
     let fcMatched = 0;
@@ -705,6 +728,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
     if (ch.pc) {
       // FC 단위 dedup: 같은 PC 텍스트라도 다른 FC면 별도 B5 항목 유지
+      // ★ CODEFREEZE: B5 dedup key = procNo|m4|we|fc|pc — 공정번호 필수 (Rule 1.7)
       const pcKey = `${ch.procNo}|${ch.m4}|${ch.we}|${ch.fc}|${ch.pc}`;
       if (!seenB5.has(pcKey)) {
         seenB5.add(pcKey);

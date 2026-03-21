@@ -388,17 +388,17 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 | L3 (작업요소) | 91 | = 91 |
 | L1Function | 17 | = 17 |
 | L2Function | 26 | = 26 |
-| L3Function | 103 | = 103 |
+| L3Function | 101 | = 101 |
 | FM (고장형태) | 26 | = 26 |
 | FE (고장영향) | 20 | = 20 |
-| FC (고장원인) | 103 | = 103 |
-| FailureLink | 103 | = 103 |
-| RiskAnalysis | 103 | = 103 |
-| DC (검출관리) in RiskAnalysis | 103 | = 103 (NULL 0건) |
-| PC (예방관리) in RiskAnalysis | 103 | = 103 (NULL 0건) |
-| Chains with DC | 103 | = 103 |
-| Chains with PC | 103 | = 103 |
-| flatData 합계 | 668 | ≥ 660 |
+| FC (고장원인) | 104 | = 104 |
+| FailureLink | 111 | = 111 |
+| RiskAnalysis | 111 | = 111 |
+| DC (검출관리) in RiskAnalysis | 111 | = 111 (NULL 0건) |
+| PC (예방관리) in RiskAnalysis | 111 | = 111 (NULL 0건) |
+| Chains with DC | 111 | = 111 |
+| Chains with PC | 111 | = 111 |
+| flatData 합계 | 682 | ≥ 680 |
 
 ##### flatData 항목별 기대값
 
@@ -411,10 +411,10 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 | A5 | 고장형태 | 26 | = 26 |
 | A6 | 검출관리 | 21 | ≥ 20 (공정별 중복제거) |
 | B1 | 작업요소 | 91 | = 91 |
-| B2 | 요소기능 | 91 | ≥ 90 |
-| B3 | 공정특성 | 103 | ≥ 100 |
-| B4 | 고장원인 | 103 | = 103 |
-| B5 | 예방관리 | 97 | ≥ 90 (L3별 중복제거) |
+| B2 | 요소기능 | 101 | ≥ 100 |
+| B3 | 공정특성 | 101 | ≥ 100 |
+| B4 | 고장원인 | 104 | = 104 |
+| B5 | 예방관리 | 98 | ≥ 90 (L3별 중복제거) |
 | C1 | L1 범주 | 3 | ≥ 3 |
 | C2 | L1 기능 | 7 | ≥ 7 |
 | C3 | L1 요구사항 | 17 | ≥ 17 |
@@ -543,6 +543,102 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-19 | 자동수정(fixStep3/4/5)이 orphanPC 악화 | placeholder FC/FL/RA 생성 → Atomic↔Legacy 불일치 확대 (FL 126 vs 118) | `pipeline-verify/route.ts` 자동생성 비활성화 → 경고만 표시 | ✅ 데이터 손상 차단 |
 | 2026-03-19 | orphanPC 근본원인: B4.parentItemId=B1 | import-builder에서 B4→B1 연결 → buildWorksheetState에서 B4→B3 매칭 실패 → 순차폴백 → orphanPC | `import-builder.ts` B4.parentItemId → B3 ID로 변경 | ✅ m066 orphanPC=0, m069 orphanPC=0 |
 | 2026-03-20 | emptyPC=1 재발 (Cu Target L3Function) | B4 dedup key={pno\|m4\|fc}에 WE 미포함 → Cu Target+Ti Target 동일 FC명 공유 → 1건 합침 → FC 미연결 → orphan L3F 삭제 | `import-builder.ts` B4 key에 WE 추가, `types.ts` StepBB4Item.we 필드 추가 | ✅ allGreen, emptyPC=0, 베이스라인 FC=103 갱신 |
+| 2026-03-21 | FL dedup key에 feId 누락 → 유효 체인 8건 삭제 | FL key=`fmId\|fcId`로 동일 FM+FC의 다른 FE 연결 체인 삭제 → FL 103건 (실제 111건) | `rebuild-atomic/route.ts` FL key에 feId 추가 (`fmId\|fcId\|feId`) | ✅ FL=111, RA=111, DC/PC=111 |
+| 2026-03-21 | UUID/FK 설계 원칙 부재 → 반복적 누락 | 모든 dedup key에 공정번호/구분 미포함 → 동일 텍스트 다른 엔티티 삭제 | Rule 1.6(근본원인분석) + Rule 1.7(UUID/FK설계) 추가, 전체 CODEFREEZE | ✅ 영구 CODEFREEZE 적용 |
+
+### 🔴 Rule 1.6: 근본원인 분석 원칙 — UUID/FK/DB/API 설계 우선 (2026-03-21) — 영구 CODEFREEZE
+
+> **모든 데이터 문제의 근본원인은 UUID, FK, DB 스키마, API 설계, 레거시 데이터 사용에 있다.**
+> **이 5가지를 먼저 분석하지 않고 증상만 처방하면 자동채움, 폴백, 카테시안, 이름매칭 등 거짓 데이터가 생성된다.**
+
+#### 1.6.1 근본원인 분석 5대 체크리스트 (MANDATORY)
+
+> 사용자가 "근본원인 분석" 또는 데이터 누락/불일치를 보고하면, **반드시 아래 5가지를 순서대로 분석**한다.
+
+| 순서 | 분석 대상 | 점검 항목 | 위반 시 증상 |
+|------|----------|----------|-------------|
+| 1 | **UUID 설계** | dedup key에 공정번호/구분 포함 여부, 카테시안 복제 여부 | 데이터 누락, 중복 생성 |
+| 2 | **FK 설계** | FailureLink에 fmId+fcId+feId 3요소 포함 여부, 고아 레코드 | 고장연결 소실, orphanPC |
+| 3 | **DB 스키마** | 프로젝트 스키마 분리, 테이블 관계, 컬럼 매핑 | 다른 프로젝트 데이터 혼재 |
+| 4 | **API 설계** | 저장/로드 경로에 필터/변환 삽입 여부, 트랜잭션 래핑 | 데이터 소실, 부분 저장 |
+| 5 | **레거시 데이터 사용** | JSON blob을 SSoT로 사용 여부, Atomic DB 미동기화 | 렌더링 불일치, 새로고침 시 소실 |
+
+#### 1.6.2 증상 처방 절대 금지 (Anti-Pattern)
+
+```
+❌ 증상 처방 (금지):
+  데이터 누락 발견 → 자동채움/폴백으로 빈칸 메우기
+  FK 깨짐 발견 → 이름 매칭으로 재연결
+  중복 발견 → 단어만 보고 삭제
+  렌더링 빈칸 → placeholder 자동생성
+
+✅ 근본원인 치료 (필수):
+  데이터 누락 발견 → UUID dedup key 점검 → key에 공정번호 누락 → key 수정
+  FK 깨짐 발견 → FailureLink FK 3요소 점검 → feId 누락 → FL key 수정
+  중복 발견 → dedup key에 컨텍스트(공정번호/구분) 포함 → 동일 텍스트라도 별도 엔티티
+  렌더링 빈칸 → DB 조회 → Master DB 보충 → 없으면 사용자 입력 유도
+```
+
+#### 1.6.3 위반 시
+
+- 증상 처방 코드 발견 → **즉시 삭제** + 근본원인 5대 분석 수행
+- 자동채움/폴백/카테시안/이름매칭 코드 → **즉시 삭제** + DB 설계 점검
+- **이 룰은 영구 CODEFREEZE** — 수정 시 반드시 다음 문구로 허락 요청: "Rule 1.6 근본원인 분석 원칙을 수정해도 될까요? 수정 사유: ___"
+
+---
+
+### 🔴 Rule 1.7: UUID/FK 설계 원칙 — 모든 ID에 컨텍스트 정보 포함 (2026-03-21) — 영구 CODEFREEZE
+
+> **모든 엔티티의 dedup key(UUID 생성 기준)에는 해당 엔티티가 속한 컨텍스트(공정번호, 구분)를 반드시 포함한다.**
+> **FK 매칭은 ID 기반만 허용한다. 텍스트/이름 기반 매칭은 FK 연결에 절대 사용하지 않는다.**
+
+#### 1.7.1 엔티티별 dedup key 필수 구성 (영구 CODEFREEZE)
+
+| 엔티티 | dedup key 구성 | 필수 포함 | 위치 |
+|--------|---------------|----------|------|
+| **FailureLink (FL)** | `fmId\|fcId\|feId` | fmId + fcId + **feId** (3요소 필수) | rebuild-atomic |
+| **FailureCause (FC)** | `l2StructId\|l3StructId\|cause` | **l2StructId** (=공정) | rebuild-atomic, migration |
+| **A4 (ProductChar)** | `pno\|char` | **pno** (공정번호) | import-builder |
+| **A5 (FailureMode)** | `pno\|fm` | **pno** | import-builder |
+| **B1 (L3Structure)** | `pno\|m4\|we` | **pno** | import-builder |
+| **B2 (L3Function)** | `pno\|m4\|we` | **pno** | import-builder |
+| **B3 (ProcessChar)** | dedup 없음 (B4마다 독립 생성) | N/A | buildWorksheetState |
+| **B4 (FailureCause)** | `pno\|m4\|we\|fm\|fc` | **pno** + m4 + we | import-builder |
+| **B5 (PreventionCtrl)** | `pno\|m4\|we\|fc\|pc` | **pno** | import-builder |
+| **C4 (FailureEffect)** | `procNo\|scope\|fe` | **procNo** + **scope**(구분) | import-builder |
+| **L1Function** | `category\|functionName` | **category** (구분/C1) | migration |
+
+#### 1.7.2 FK 매칭 원칙 (ID-ONLY)
+
+| 구분 | 허용 | 금지 | 이유 |
+|------|------|------|------|
+| **엔티티 연결** | `Map.get(id)`, FK 직접 참조 | `.find(x => x.name === ...)` | 동음이의어 오연결 |
+| **고장사슬** | `fmId`/`fcId`/`feId` UUID FK | 텍스트 유사도 매칭 | 재현 불가 |
+| **데이터 조회** | Prisma `where: { id }` | `where: { name: ... }` | 동일 이름 다수 존재 |
+| **CP/PFD 연동** | `productCharId` FK 직접 참조 | 텍스트 재매칭 | 오타/변경 시 깨짐 |
+
+#### 1.7.3 핵심 원리: "동일 텍스트 ≠ 동일 엔티티"
+
+```
+예시: "작업숙련도부족" (FC)
+  - 공정 10 (PR Coating) → 작업숙련도부족 = FC-001 (별도 UUID)
+  - 공정 15 (Develop) → 작업숙련도부족 = FC-002 (별도 UUID)
+  - 공정 20 (Etch) → 작업숙련도부족 = FC-003 (별도 UUID)
+  → 18개 공정에 동일 텍스트 → 18개 별도 FC (공정번호가 key에 포함)
+
+예시: "표면 불량" (FM)
+  - 공정 10 (PR Coating) → FM-001
+  - 공정 25 (Au Plating) → FM-002
+  → 동일 "표면 불량"이지만 다른 공정 → 별도 FM
+```
+
+#### 1.7.4 위반 시
+
+- dedup key에서 공정번호/구분 누락 발견 → **즉시 수정** + 영향 범위 파악
+- 텍스트 매칭으로 FK 연결 → **즉시 삭제** + ID 기반으로 교체
+- **이 룰은 영구 CODEFREEZE** — 수정 시 반드시 다음 문구로 허락 요청: "Rule 1.7 UUID/FK 설계 원칙을 수정해도 될까요? 수정 사유: ___"
+
+---
 
 ### 🔴 Rule 2: 기존 UI 변경 금지
 기존 UI는 절대 변경하지 않습니다. 사용자가 명시적으로 UI 변경을 요청한 경우에만 수정합니다.
@@ -1015,12 +1111,12 @@ Invoke-WebRequest -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method 
 |------|--------|
 | A1 (공정번호) | 21 |
 | A5 (고장형태) | 26 |
-| B3 (공정특성) | 103 |
-| B4 (고장원인) | 103~104 |
+| B3 (공정특성) | 101 |
+| B4 (고장원인) | 104 |
 | C1 (구분) | 3 (YP/SP/USER) |
 | C2 (완제품기능) | 7 |
 | C3 (요구사항) | 17 |
 | C4 (고장영향) | 20 |
 | FM (Atomic) | 26 |
-| FailureLink | 103 |
-| RiskAnalysis | 103 |
+| FailureLink | 111 |
+| RiskAnalysis | 111 |
