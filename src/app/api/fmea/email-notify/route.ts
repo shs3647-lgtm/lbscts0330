@@ -19,6 +19,7 @@ interface EmailNotifyRequest {
   fromPosition: string;
   toName: string;
   toPosition: string;
+  toEmail?: string;
   reason?: string;
 }
 
@@ -43,12 +44,12 @@ export async function POST(request: NextRequest) {
       fromPosition: body.fromPosition || '',
       toName: body.toName,
       toPosition: body.toPosition || '',
+      toEmail: body.toEmail,
       reason: body.reason,
     });
 
     return NextResponse.json({
       success: result.success,
-      previewUrl: result.previewUrl,
       messageId: result.messageId,
       error: result.error,
     });
