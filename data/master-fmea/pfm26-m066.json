@@ -1,10 +1,10 @@
 {
   "version": 1,
   "fmeaId": "pfm26-m066",
-  "exportedAt": "2026-03-21T03:28:12.320Z",
+  "exportedAt": "2026-03-21T06:43:45.657Z",
   "atomicDB": {
     "fmeaId": "pfm26-m066",
-    "savedAt": "2026-03-21T03:28:12.316Z",
+    "savedAt": "2026-03-21T06:43:45.655Z",
     "l1Structure": {
       "id": "PF-L1-YP",
       "fmeaId": "pfm26-m066",
@@ -2514,30 +2514,30 @@
     ],
     "l3Functions": [
       {
-        "id": "PF-L3-040-IM-002-L3F",
+        "id": "PF-L3-130-IM-001-C-001",
         "fmeaId": "pfm26-m066",
-        "l3StructId": "PF-L3-040-IM-002",
-        "l2StructId": "PF-L2-040",
-        "functionName": "Cu Target",
-        "processChar": "Cu Target",
+        "l3StructId": "PF-L3-130-IM-001",
+        "l2StructId": "PF-L2-130",
+        "functionName": "TiW Etchant가 TiW Seed Layer를 선택적으로 식각하여 단락 방지 구조를 형성한다",
+        "processChar": "H₂O₂ 농도(Concentration, %)",
         "specialChar": null,
-        "createdAt": "2026-03-21T02:06:52.891Z",
-        "updatedAt": "2026-03-21T02:06:52.891Z",
+        "createdAt": "2026-03-21T06:14:40.948Z",
+        "updatedAt": "2026-03-21T06:14:40.948Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
         "colSpan": 1
       },
       {
-        "id": "PF-L3-130-IM-001-L3F",
+        "id": "PF-L3-040-IM-002-C-001",
         "fmeaId": "pfm26-m066",
-        "l3StructId": "PF-L3-130-IM-001",
-        "l2StructId": "PF-L2-130",
-        "functionName": "TiW Etchant",
-        "processChar": "TiW Etchant",
+        "l3StructId": "PF-L3-040-IM-002",
+        "l2StructId": "PF-L2-040",
+        "functionName": "Cu Target이 스퍼터링 소재를 공급하여 Cu 박막 형성을 지원한다",
+        "processChar": "Target 두께 잔량(Remaining Thickness, mm)",
         "specialChar": null,
-        "createdAt": "2026-03-21T02:06:52.895Z",
-        "updatedAt": "2026-03-21T02:06:52.895Z",
+        "createdAt": "2026-03-21T06:16:23.427Z",
+        "updatedAt": "2026-03-21T06:16:23.427Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
@@ -5233,32 +5233,64 @@
         "colSpan": 1
       },
       {
-        "id": "PF-L3-040-IM-002-L3F-FC-AUTO",
+        "id": "PF-L3-130-IM-001-C-001-K-001",
         "fmeaId": "pfm26-m066",
-        "l3FuncId": "PF-L3-040-IM-002-L3F",
-        "l3StructId": "PF-L3-040-IM-002",
-        "l2StructId": "PF-L2-040",
-        "processCharId": "PF-L3-040-IM-002-L3F",
-        "cause": "Cu Target 관리 부적합",
+        "l3FuncId": "PF-L3-130-IM-001-C-001",
+        "l3StructId": "PF-L3-130-IM-001",
+        "l2StructId": "PF-L2-130",
+        "processCharId": "PF-L3-130-IM-001-C-001",
+        "cause": "H₂O₂ 농도 편차에 의한 Etch Rate 이탈",
         "occurrence": null,
-        "createdAt": "2026-03-21T03:00:26.090Z",
-        "updatedAt": "2026-03-21T03:00:26.090Z",
+        "createdAt": "2026-03-21T06:14:40.950Z",
+        "updatedAt": "2026-03-21T06:14:40.950Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
         "colSpan": 1
       },
       {
-        "id": "PF-L3-130-IM-001-L3F-FC-AUTO",
+        "id": "PF-L3-130-IM-001-C-001-K-002",
         "fmeaId": "pfm26-m066",
-        "l3FuncId": "PF-L3-130-IM-001-L3F",
+        "l3FuncId": "PF-L3-130-IM-001-C-001",
         "l3StructId": "PF-L3-130-IM-001",
         "l2StructId": "PF-L2-130",
-        "processCharId": "PF-L3-130-IM-001-L3F",
-        "cause": "TiW Etchant 관리 부적합",
+        "processCharId": "PF-L3-130-IM-001-C-001",
+        "cause": "H₂O₂ 농도(Concentration, %) 부적합",
         "occurrence": null,
-        "createdAt": "2026-03-21T03:00:26.099Z",
-        "updatedAt": "2026-03-21T03:00:26.099Z",
+        "createdAt": "2026-03-21T06:14:40.954Z",
+        "updatedAt": "2026-03-21T06:14:40.954Z",
+        "parentId": null,
+        "mergeGroupId": null,
+        "rowSpan": 1,
+        "colSpan": 1
+      },
+      {
+        "id": "PF-L3-040-IM-002-C-001-K-001",
+        "fmeaId": "pfm26-m066",
+        "l3FuncId": "PF-L3-040-IM-002-C-001",
+        "l3StructId": "PF-L3-040-IM-002",
+        "l2StructId": "PF-L2-040",
+        "processCharId": "PF-L3-040-IM-002-C-001",
+        "cause": "Target 소진",
+        "occurrence": null,
+        "createdAt": "2026-03-21T06:16:23.431Z",
+        "updatedAt": "2026-03-21T06:16:23.431Z",
+        "parentId": null,
+        "mergeGroupId": null,
+        "rowSpan": 1,
+        "colSpan": 1
+      },
+      {
+        "id": "PF-L3-040-IM-002-C-001-K-002",
+        "fmeaId": "pfm26-m066",
+        "l3FuncId": "PF-L3-040-IM-002-C-001",
+        "l3StructId": "PF-L3-040-IM-002",
+        "l2StructId": "PF-L2-040",
+        "processCharId": "PF-L3-040-IM-002-C-001",
+        "cause": "Target 두께 잔량(Remaining Thickness, mm) 부적합",
+        "occurrence": null,
+        "createdAt": "2026-03-21T06:16:23.438Z",
+        "updatedAt": "2026-03-21T06:16:23.438Z",
         "parentId": null,
         "mergeGroupId": null,
         "rowSpan": 1,
@@ -6338,6 +6370,118 @@
       }
     ],
     "failureLinks": [
+      {
+        "id": "PF-L3-130-IM-001-C-001-K-001-FL",
+        "fmeaId": "pfm26-m066",
+        "fmId": "PF-L2-130-M-001",
+        "feId": "PF-L1-YP-003-001-001",
+        "fcId": "PF-L3-130-IM-001-C-001-K-001",
+        "createdAt": "2026-03-21T06:14:40.951Z",
+        "updatedAt": "2026-03-21T06:14:40.951Z",
+        "fmText": null,
+        "fmProcess": null,
+        "feText": null,
+        "feScope": null,
+        "fcText": null,
+        "fcWorkElem": null,
+        "fcM4": null,
+        "severity": null,
+        "fmSeq": null,
+        "feSeq": null,
+        "fcSeq": null,
+        "fmPath": null,
+        "fePath": null,
+        "fcPath": null,
+        "parentId": null,
+        "mergeGroupId": null,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "deletedAt": null
+      },
+      {
+        "id": "PF-L3-130-IM-001-C-001-K-002-FL",
+        "fmeaId": "pfm26-m066",
+        "fmId": "PF-L2-130-M-001",
+        "feId": "PF-L1-YP-003-001-001",
+        "fcId": "PF-L3-130-IM-001-C-001-K-002",
+        "createdAt": "2026-03-21T06:14:40.956Z",
+        "updatedAt": "2026-03-21T06:14:40.956Z",
+        "fmText": null,
+        "fmProcess": null,
+        "feText": null,
+        "feScope": null,
+        "fcText": null,
+        "fcWorkElem": null,
+        "fcM4": null,
+        "severity": null,
+        "fmSeq": null,
+        "feSeq": null,
+        "fcSeq": null,
+        "fmPath": null,
+        "fePath": null,
+        "fcPath": null,
+        "parentId": null,
+        "mergeGroupId": null,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "deletedAt": null
+      },
+      {
+        "id": "PF-L3-040-IM-002-C-001-K-001-FL",
+        "fmeaId": "pfm26-m066",
+        "fmId": "PF-L2-040-M-002",
+        "feId": "PF-L1-YP-003-001-001",
+        "fcId": "PF-L3-040-IM-002-C-001-K-001",
+        "createdAt": "2026-03-21T06:16:23.433Z",
+        "updatedAt": "2026-03-21T06:16:23.433Z",
+        "fmText": null,
+        "fmProcess": null,
+        "feText": null,
+        "feScope": null,
+        "fcText": null,
+        "fcWorkElem": null,
+        "fcM4": null,
+        "severity": null,
+        "fmSeq": null,
+        "feSeq": null,
+        "fcSeq": null,
+        "fmPath": null,
+        "fePath": null,
+        "fcPath": null,
+        "parentId": null,
+        "mergeGroupId": null,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "deletedAt": null
+      },
+      {
+        "id": "PF-L3-040-IM-002-C-001-K-002-FL",
+        "fmeaId": "pfm26-m066",
+        "fmId": "PF-L2-040-M-002",
+        "feId": "PF-L1-YP-003-001-001",
+        "fcId": "PF-L3-040-IM-002-C-001-K-002",
+        "createdAt": "2026-03-21T06:16:23.440Z",
+        "updatedAt": "2026-03-21T06:16:23.440Z",
+        "fmText": null,
+        "fmProcess": null,
+        "feText": null,
+        "feScope": null,
+        "fcText": null,
+        "fcWorkElem": null,
+        "fcM4": null,
+        "severity": null,
+        "fmSeq": null,
+        "feSeq": null,
+        "fcSeq": null,
+        "fmPath": null,
+        "fePath": null,
+        "fcPath": null,
+        "parentId": null,
+        "mergeGroupId": null,
+        "rowSpan": 1,
+        "colSpan": 1,
+        "deletedAt": null
+      },
       {
         "id": "chain-81",
         "fmeaId": "pfm26-m066",
@@ -9337,6 +9481,78 @@
     ],
     "failureAnalyses": [],
     "riskAnalyses": [
+      {
+        "id": "ra-PF-L3-130-IM-001-C-001-K-001-FL",
+        "fmeaId": "pfm26-m066",
+        "linkId": "PF-L3-130-IM-001-C-001-K-001-FL",
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 4,
+        "ap": "L",
+        "preventionControl": "Etchant 농도 정기 분석 및 자동 보충",
+        "detectionControl": "H₂O₂ 농도 실시간 모니터링",
+        "lldReference": null,
+        "dcSourceType": null,
+        "dcSourceId": null,
+        "pcSourceType": null,
+        "pcSourceId": null,
+        "createdAt": "2026-03-21T06:14:40.953Z",
+        "updatedAt": "2026-03-21T06:14:40.953Z"
+      },
+      {
+        "id": "ra-PF-L3-130-IM-001-C-001-K-002-FL",
+        "fmeaId": "pfm26-m066",
+        "linkId": "PF-L3-130-IM-001-C-001-K-002-FL",
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 4,
+        "ap": "L",
+        "preventionControl": "Etchant 교체 주기 관리",
+        "detectionControl": "Etch Rate 인라인 모니터링",
+        "lldReference": null,
+        "dcSourceType": null,
+        "dcSourceId": null,
+        "pcSourceType": null,
+        "pcSourceId": null,
+        "createdAt": "2026-03-21T06:14:40.957Z",
+        "updatedAt": "2026-03-21T06:14:40.957Z"
+      },
+      {
+        "id": "ra-PF-L3-040-IM-002-C-001-K-001-FL",
+        "fmeaId": "pfm26-m066",
+        "linkId": "PF-L3-040-IM-002-C-001-K-001-FL",
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 4,
+        "ap": "L",
+        "preventionControl": "Target 잔량 정기 점검 및 교체 기준 설정",
+        "detectionControl": "Target 수명 모니터링 시스템",
+        "lldReference": null,
+        "dcSourceType": null,
+        "dcSourceId": null,
+        "pcSourceType": null,
+        "pcSourceId": null,
+        "createdAt": "2026-03-21T06:16:23.435Z",
+        "updatedAt": "2026-03-21T06:16:23.435Z"
+      },
+      {
+        "id": "ra-PF-L3-040-IM-002-C-001-K-002-FL",
+        "fmeaId": "pfm26-m066",
+        "linkId": "PF-L3-040-IM-002-C-001-K-002-FL",
+        "severity": 5,
+        "occurrence": 3,
+        "detection": 4,
+        "ap": "L",
+        "preventionControl": "Target 두께 정기 측정",
+        "detectionControl": "Target 두께 인라인 모니터링",
+        "lldReference": null,
+        "dcSourceType": null,
+        "dcSourceId": null,
+        "pcSourceType": null,
+        "pcSourceId": null,
+        "createdAt": "2026-03-21T06:16:23.441Z",
+        "updatedAt": "2026-03-21T06:16:23.441Z"
+      },
       {
         "id": "id_b5f7d6f13292be3e94e62b8bda499ab7_19d0933cc69",
         "fmeaId": "pfm26-m066",
@@ -13175,7 +13391,7 @@
       "category": "C",
       "itemCode": "C1",
       "value": "USER",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001",
@@ -13183,7 +13399,7 @@
       "category": "C",
       "itemCode": "C2",
       "value": "최종 사용자 전기적·기계적 신뢰성 기준을 충족하는 Au Bump를 제공한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-001",
@@ -13192,7 +13408,7 @@
       "itemCode": "C3",
       "value": "Au Bump 전기적 신뢰성 기준(Electrical Reliability Spec)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-002",
@@ -13201,7 +13417,7 @@
       "itemCode": "C3",
       "value": "ESD 민감도 기준(ESD Sensitivity Class)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002",
@@ -13209,7 +13425,7 @@
       "category": "C",
       "itemCode": "C2",
       "value": "RoHS 등 환경·안전 규제 기준을 준수하는 제품을 제공한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-001",
@@ -13218,7 +13434,7 @@
       "itemCode": "C3",
       "value": "RoHS 유해물질 기준 적합성(RoHS Compliance)",
       "parentItemId": "PF-L1-YP-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP",
@@ -13226,7 +13442,7 @@
       "category": "C",
       "itemCode": "C1",
       "value": "YP",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001",
@@ -13234,7 +13450,7 @@
       "category": "C",
       "itemCode": "C2",
       "value": "Wafer 청정도(파티클 수)가 공정 기준을 충족하여 공정 중 오염 없는 환경을 제공한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-001",
@@ -13243,7 +13459,7 @@
       "itemCode": "C3",
       "value": "PR 두께 규격(PR Thickness Spec, μm)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-002",
@@ -13252,7 +13468,7 @@
       "itemCode": "C3",
       "value": "UBM 두께 규격(UBM Thickness Spec, Å)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-003",
@@ -13261,7 +13477,7 @@
       "itemCode": "C3",
       "value": "CD 규격(Critical Dimension Spec, μm)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002",
@@ -13269,7 +13485,7 @@
       "category": "C",
       "itemCode": "C2",
       "value": "UBM·PR·Etch 공정특성이 규격을 충족하여 Bump 형성 안정성을 확보한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-001",
@@ -13278,7 +13494,7 @@
       "itemCode": "C3",
       "value": "PR 잔사 허용 기준(PR Residue Acceptance Criteria)",
       "parentItemId": "PF-L1-YP-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-002",
@@ -13287,7 +13503,7 @@
       "itemCode": "C3",
       "value": "Seed 잔류물 허용 기준(Seed Residue Acceptance Criteria)",
       "parentItemId": "PF-L1-YP-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003",
@@ -13295,7 +13511,7 @@
       "category": "C",
       "itemCode": "C2",
       "value": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-001",
@@ -13304,7 +13520,7 @@
       "itemCode": "C3",
       "value": "Au Bump 높이 규격(Bump Height Spec, μm)",
       "parentItemId": "PF-L1-YP-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-002",
@@ -13313,7 +13529,7 @@
       "itemCode": "C3",
       "value": "Au Bump 외관 결함 기준(Visual Defect Acceptance Criteria)",
       "parentItemId": "PF-L1-YP-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-003",
@@ -13322,7 +13538,7 @@
       "itemCode": "C3",
       "value": "파티클 수 허용 기준(Max Particle Count, ea)",
       "parentItemId": "PF-L1-YP-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP",
@@ -13330,7 +13546,7 @@
       "category": "C",
       "itemCode": "C1",
       "value": "SP",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001",
@@ -13338,7 +13554,7 @@
       "category": "C",
       "itemCode": "C2",
       "value": "고객 기능 안정성을 위한 Au 순도 및 IMC 두께 기준을 충족한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-001",
@@ -13347,7 +13563,7 @@
       "itemCode": "C3",
       "value": "IMC 두께 고객 규격(IMC Thickness Spec, μm)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-002",
@@ -13356,7 +13572,7 @@
       "itemCode": "C3",
       "value": "포장 기준 적합성(Packaging Compliance)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-001-003",
@@ -13365,7 +13581,7 @@
       "itemCode": "C3",
       "value": "Au 순도 고객 규격(Au Purity Spec, %)",
       "parentItemId": "PF-L1-YP-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002",
@@ -13373,7 +13589,7 @@
       "category": "C",
       "itemCode": "C2",
       "value": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-001",
@@ -13382,7 +13598,7 @@
       "itemCode": "C3",
       "value": "Au Bump 높이 고객 출하 규격(Customer Bump Height Spec, μm)",
       "parentItemId": "PF-L1-YP-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-002",
@@ -13391,7 +13607,7 @@
       "itemCode": "C3",
       "value": "Au Bump 외관 고객 기준(Customer Visual Defect Criteria)",
       "parentItemId": "PF-L1-YP-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-003",
@@ -13400,7 +13616,7 @@
       "itemCode": "C3",
       "value": "고객 납품 파티클 기준(Customer Particle Criteria, ea)",
       "parentItemId": "PF-L1-YP-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-001",
@@ -13409,7 +13625,7 @@
       "itemCode": "C4",
       "value": "Particle 오염으로 인한 제품 특성 이상",
       "parentItemId": "PF-L1-YP-001-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-002",
@@ -13418,7 +13634,7 @@
       "itemCode": "C4",
       "value": "Wafer 표면 결함 미검출로 인한 후공정 유출",
       "parentItemId": "PF-L1-YP-001-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-003",
@@ -13427,7 +13643,7 @@
       "itemCode": "C4",
       "value": "Lot 혼입으로 인한 Wafer 수율 손실",
       "parentItemId": "PF-L1-YP-001-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-004",
@@ -13436,7 +13652,7 @@
       "itemCode": "C4",
       "value": "전기적 Open/Short",
       "parentItemId": "PF-L1-YP-002-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-005",
@@ -13445,7 +13661,7 @@
       "itemCode": "C4",
       "value": "Bump Lift-off",
       "parentItemId": "PF-L1-YP-002-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-006",
@@ -13454,7 +13670,7 @@
       "itemCode": "C4",
       "value": "PR 두께 Spec Out으로 인한 패턴 불량",
       "parentItemId": "PF-L1-YP-002-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-007",
@@ -13463,7 +13679,7 @@
       "itemCode": "C4",
       "value": "Bump간 Bridge",
       "parentItemId": "PF-L1-YP-003-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-008",
@@ -13472,7 +13688,7 @@
       "itemCode": "C4",
       "value": "CD Spec Out으로 인한 Bump 형성 불량",
       "parentItemId": "PF-L1-YP-003-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-009",
@@ -13481,7 +13697,7 @@
       "itemCode": "C4",
       "value": "PR Scum 잔류로 인한 Au Bump 형성 불량",
       "parentItemId": "PF-L1-YP-003-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-010",
@@ -13490,7 +13706,7 @@
       "itemCode": "C4",
       "value": "Bump Height Spec Out으로 인한 제품 특성 이상",
       "parentItemId": "PF-L1-YP-003-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-003-008-011",
@@ -13499,7 +13715,7 @@
       "itemCode": "C4",
       "value": "Plating 균일도 Spec Out으로 인한 Bump 특성 이상",
       "parentItemId": "PF-L1-YP-003-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-006-001",
@@ -13508,7 +13724,7 @@
       "itemCode": "C4",
       "value": "IMC 과성장에 의한 접합부 열화",
       "parentItemId": "PF-L1-SP-001-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-006-002",
@@ -13517,7 +13733,7 @@
       "itemCode": "C4",
       "value": "Particle 오염 불량 유출로 인한 고객 기능 이상",
       "parentItemId": "PF-L1-SP-001-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-006-003",
@@ -13526,7 +13742,7 @@
       "itemCode": "C4",
       "value": "라벨 불일치로 인한 Lot 혼입 불량 유출",
       "parentItemId": "PF-L1-SP-001-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-006-004",
@@ -13535,7 +13751,7 @@
       "itemCode": "C4",
       "value": "외관 결함 불량 유출(고객 Outgoing Defect)",
       "parentItemId": "PF-L1-SP-002-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-006-005",
@@ -13544,7 +13760,7 @@
       "itemCode": "C4",
       "value": "고객 Packing 기준 부적합으로 인한 납품 Reject",
       "parentItemId": "PF-L1-SP-002-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-006-006",
@@ -13553,7 +13769,7 @@
       "itemCode": "C4",
       "value": "IMC 두께 Spec Out으로 인한 접합부 신뢰성 저하",
       "parentItemId": "PF-L1-SP-002-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-003-001",
@@ -13562,7 +13778,7 @@
       "itemCode": "C4",
       "value": "고객 라인 정지, 클레임",
       "parentItemId": "PF-L1-US-001-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-003-002",
@@ -13571,7 +13787,7 @@
       "itemCode": "C4",
       "value": "고객 신뢰도 하락",
       "parentItemId": "PF-L1-US-001-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L1-YP-002-003-003",
@@ -13580,7 +13796,7 @@
       "itemCode": "C4",
       "value": "RoHS 부적합으로 인한 리콜·법적 조치",
       "parentItemId": "PF-L1-US-002-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-001-A1",
@@ -13588,7 +13804,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "01",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-001-A2",
@@ -13596,7 +13812,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "작업환경",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-001-F-001",
@@ -13604,7 +13820,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "클린룸 환경을 온습도·청정도 기준으로 제어하여 파티클 오염 없는 작업 환경을 확보한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-001-P-001",
@@ -13612,7 +13828,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "파티클 수",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-001-M-001",
@@ -13621,7 +13837,7 @@
       "itemCode": "A5",
       "value": "파티클 초과",
       "parentItemId": "PF-L2-001-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-001-D-1",
@@ -13629,7 +13845,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:Particle Counter 파티클 측정, 매 근무조 실시",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MN-001",
@@ -13638,7 +13854,7 @@
       "itemCode": "B1",
       "value": "클린룸 담당자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MN-001-G",
@@ -13648,7 +13864,7 @@
       "value": "클린룸 담당자가 온습도·파티클 기준을 점검하여 환경 적합성을 판정한다",
       "m4": "MN",
       "parentItemId": "PF-L3-001-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MN-001-C-001",
@@ -13658,7 +13874,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-001-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MN-001-K-001",
@@ -13668,7 +13884,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-001-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MN-001-V-1",
@@ -13677,7 +13893,7 @@
       "itemCode": "B5",
       "value": "P:클린룸 작업자 교육 및 인증, 작업표준서 게시",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MC-001",
@@ -13686,7 +13902,7 @@
       "itemCode": "B1",
       "value": "항온항습기",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MC-001-G",
@@ -13696,7 +13912,17 @@
       "value": "항온항습기가 클린룸 온습도를 지속 제어하여 기준값을 유지한다",
       "m4": "MC",
       "parentItemId": "PF-L3-001-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-001-MC-001-G-002",
+      "processNo": "01",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "항온항습기가 클린룸 온습도를 지속 제어하여 기준값을 유지한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-001-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MC-001-C-001",
@@ -13706,7 +13932,7 @@
       "value": "온도(Temperature, ℃)",
       "m4": "MC",
       "parentItemId": "PF-L3-001-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MC-001-C-002",
@@ -13716,7 +13942,7 @@
       "value": "습도(Humidity, %RH)",
       "m4": "MC",
       "parentItemId": "PF-L3-001-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MC-001-K-001",
@@ -13726,7 +13952,7 @@
       "value": "설비 가동률 저하",
       "m4": "MC",
       "parentItemId": "PF-L3-001-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MC-001-K-002",
@@ -13736,7 +13962,7 @@
       "value": "습도(Humidity, %RH) 부적합",
       "m4": "MC",
       "parentItemId": "PF-L3-001-MC-001-C-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-MC-001-V-1",
@@ -13745,7 +13971,7 @@
       "itemCode": "B5",
       "value": "P:항온항습기 정기 PM 및 교정, 온습도 실시간 모니터링",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-IM-001",
@@ -13754,7 +13980,7 @@
       "itemCode": "B1",
       "value": "HEPA 필터 소모품",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-IM-001-G",
@@ -13764,7 +13990,7 @@
       "value": "HEPA 필터가 유입 공기를 여과하여 청정 공기를 공급한다",
       "m4": "IM",
       "parentItemId": "PF-L3-001-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-IM-001-C-001",
@@ -13774,7 +14000,7 @@
       "value": "자재 규격 기준(Material Spec)",
       "m4": "IM",
       "parentItemId": "PF-L3-001-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-IM-001-K-001",
@@ -13784,7 +14010,7 @@
       "value": "HEPA 필터 성능 저하",
       "m4": "IM",
       "parentItemId": "PF-L3-001-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-IM-001-V-1",
@@ -13793,7 +14019,7 @@
       "itemCode": "B5",
       "value": "P:HEPA 필터 정기 교체 주기 관리, 차압 모니터링",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-001",
@@ -13802,7 +14028,7 @@
       "itemCode": "B1",
       "value": "클린룸",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-001-G",
@@ -13812,7 +14038,7 @@
       "value": "클린룸이 외부 오염을 차단하여 청정 작업 환경을 제공한다",
       "m4": "EN",
       "parentItemId": "PF-L3-001-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-001-C-001",
@@ -13822,7 +14048,7 @@
       "value": "청정도 등급(ISO Class)",
       "m4": "EN",
       "parentItemId": "PF-L3-001-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-001-K-001",
@@ -13832,7 +14058,7 @@
       "value": "온습도 제어 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-001-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-001-V-1",
@@ -13841,7 +14067,7 @@
       "itemCode": "B5",
       "value": "P:FFU 풍속 정기 측정 및 PM, 이상 시 알람 인터록",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-002",
@@ -13850,7 +14076,7 @@
       "itemCode": "B1",
       "value": "FFU(Fan Filter Unit)",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-002-G",
@@ -13860,7 +14086,7 @@
       "value": "FFU가 청정 공기를 순환·공급하여 클린룸 청정도를 유지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-001-EN-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-002-C-001",
@@ -13870,7 +14096,7 @@
       "value": "풍속(Air Velocity, m/s)",
       "m4": "EN",
       "parentItemId": "PF-L3-001-EN-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-002-K-001",
@@ -13880,7 +14106,7 @@
       "value": "풍속 저하",
       "m4": "EN",
       "parentItemId": "PF-L3-001-EN-002-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-001-EN-002-V-1",
@@ -13889,7 +14115,7 @@
       "itemCode": "B5",
       "value": "P:FFU 풍속 정기 측정 및 PM, 이상 시 알람 인터록",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-A1",
@@ -13897,7 +14123,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "10",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-A2",
@@ -13905,7 +14131,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "IQA(수입검사)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-F-001",
@@ -13913,7 +14139,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "IQA(입고검사)를 통해 입고 Wafer의 표면 상태 및 Lot 정보를 검증한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-P-001",
@@ -13921,7 +14147,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Wafer 두께(Wafer Thickness, μm)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-P-002",
@@ -13929,7 +14155,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Wafer TTV(Total Thickness Variation, μm)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-M-001",
@@ -13938,7 +14164,7 @@
       "itemCode": "A5",
       "value": "두께 규격 이탈",
       "parentItemId": "PF-L2-010-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-M-002",
@@ -13947,7 +14173,7 @@
       "itemCode": "A5",
       "value": "TTV 규격 초과",
       "parentItemId": "PF-L2-010-P-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-010-D-1",
@@ -13955,7 +14181,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MN-001",
@@ -13964,7 +14190,7 @@
       "itemCode": "B1",
       "value": "IQA 검사원",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MN-001-G",
@@ -13974,7 +14200,7 @@
       "value": "IQA 검사원이 입고 Wafer 외관 및 Lot 정보를 확인하여 합부를 판정한다",
       "m4": "MN",
       "parentItemId": "PF-L3-010-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MN-001-C-001",
@@ -13984,7 +14210,7 @@
       "value": "검사 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-010-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MN-001-K-001",
@@ -13994,7 +14220,7 @@
       "value": "판정 기준 오적용",
       "m4": "MN",
       "parentItemId": "PF-L3-010-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MN-001-V-1",
@@ -14003,7 +14229,7 @@
       "itemCode": "B5",
       "value": "P:검사원 인증 교육, 판정 기준서 최신화 및 게시",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-001",
@@ -14012,7 +14238,7 @@
       "itemCode": "B1",
       "value": "두께 측정기",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-001-G",
@@ -14022,7 +14248,7 @@
       "value": "두께 측정기가 Wafer 두께를 측정하여 규격 적합 데이터를 제공한다",
       "m4": "MC",
       "parentItemId": "PF-L3-010-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-001-C-001",
@@ -14032,7 +14258,7 @@
       "value": "측정 정밀도(Accuracy, μm)",
       "m4": "MC",
       "parentItemId": "PF-L3-010-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-001-K-001",
@@ -14042,7 +14268,7 @@
       "value": "측정 오차",
       "m4": "MC",
       "parentItemId": "PF-L3-010-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-001-V-1",
@@ -14051,7 +14277,7 @@
       "itemCode": "B5",
       "value": "P:두께 측정기 정기 교정(MSA), PM 일정 관리",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-002",
@@ -14060,7 +14286,7 @@
       "itemCode": "B1",
       "value": "HIGH POWER SCOPE",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-002-G",
@@ -14070,7 +14296,7 @@
       "value": "HIGH POWER SCOPE가 Wafer를 Auto Loading하여 외관 검사를 수행한다",
       "m4": "MC",
       "parentItemId": "PF-L3-010-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-002-C-001",
@@ -14080,7 +14306,7 @@
       "value": "광학 해상도(Optical Resolution, μm)",
       "m4": "MC",
       "parentItemId": "PF-L3-010-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-002-K-001",
@@ -14090,7 +14316,7 @@
       "value": "광학 해상도(Optical Resolution, μm) 부적합",
       "m4": "MC",
       "parentItemId": "PF-L3-010-MC-002-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-MC-002-V-1",
@@ -14099,7 +14325,7 @@
       "itemCode": "B5",
       "value": "P:두께 측정기 정기 교정(MSA), PM 일정 관리",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-IM-001",
@@ -14108,7 +14334,7 @@
       "itemCode": "B1",
       "value": "입고 Wafer",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-IM-001-G",
@@ -14118,7 +14344,7 @@
       "value": "입고 Wafer가 공정 투입의 원재료로서 품질 기준 적합 여부를 결정한다",
       "m4": "IM",
       "parentItemId": "PF-L3-010-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-IM-001-C-001",
@@ -14128,7 +14354,7 @@
       "value": "표면 결함 밀도(Defect Density)",
       "m4": "IM",
       "parentItemId": "PF-L3-010-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-IM-001-K-001",
@@ -14138,7 +14364,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-010-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-IM-001-V-1",
@@ -14147,7 +14373,7 @@
       "itemCode": "B5",
       "value": "P:입고 Wafer 성적서 검토, 공급업체 SQC 모니터링",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-EN-001",
@@ -14156,7 +14382,7 @@
       "itemCode": "B1",
       "value": "검사실",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-EN-001-G",
@@ -14166,7 +14392,7 @@
       "value": "검사실이 조도·청정도를 유지하여 정확한 외관 검사 환경을 제공한다",
       "m4": "EN",
       "parentItemId": "PF-L3-010-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-EN-001-C-001",
@@ -14176,7 +14402,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-010-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-EN-001-K-001",
@@ -14186,7 +14412,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-010-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-010-EN-001-V-1",
@@ -14195,7 +14421,7 @@
       "itemCode": "B5",
       "value": "P:검사실 청정도 및 조도 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-A1",
@@ -14203,7 +14429,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "20",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-A2",
@@ -14211,7 +14437,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Sorter",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-F-001",
@@ -14219,7 +14445,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Sorter 장비를 이용하여 Wafer를 공정 카세트에 정렬·투입한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-P-001",
@@ -14227,7 +14453,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "OCR ID 인식 정확도",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-P-002",
@@ -14235,7 +14461,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Wafer 정렬 정확도",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-M-001",
@@ -14244,7 +14470,7 @@
       "itemCode": "A5",
       "value": "OCR ID 오인식 또는 Lot 혼입(ID Mismatch/Lot Mix)",
       "parentItemId": "PF-L2-020-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-M-002",
@@ -14253,7 +14479,7 @@
       "itemCode": "A5",
       "value": "Wafer 정렬 불량",
       "parentItemId": "PF-L2-020-P-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-020-D-1",
@@ -14261,7 +14487,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MN-001",
@@ -14270,7 +14496,7 @@
       "itemCode": "B1",
       "value": "Sorter 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MN-001-G",
@@ -14280,7 +14506,7 @@
       "value": "Sorter 작업자가 카세트 장착 및 공정 조건을 설정하여 정렬 작업을 수행한다",
       "m4": "MN",
       "parentItemId": "PF-L3-020-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MN-001-C-001",
@@ -14290,7 +14516,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-020-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MN-001-K-001",
@@ -14300,7 +14526,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-020-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MN-001-V-1",
@@ -14309,7 +14535,7 @@
       "itemCode": "B5",
       "value": "P:Sorter 작업 표준 교육, 인증 후 투입",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-001",
@@ -14318,7 +14544,7 @@
       "itemCode": "B1",
       "value": "Sorter 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-001-G",
@@ -14328,7 +14554,7 @@
       "value": "Sorter 장비가 Wafer를 자동으로 정렬·이송하여 카세트에 적재한다",
       "m4": "MC",
       "parentItemId": "PF-L3-020-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-001-C-001",
@@ -14338,7 +14564,7 @@
       "value": "정렬 반복 정밀도(Repeatability, μm)",
       "m4": "MC",
       "parentItemId": "PF-L3-020-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-001-K-001",
@@ -14348,7 +14574,7 @@
       "value": "정렬 센서 오작동",
       "m4": "MC",
       "parentItemId": "PF-L3-020-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-001-V-1",
@@ -14357,7 +14583,7 @@
       "itemCode": "B5",
       "value": "P:Sorter 장비 정기 PM, 정렬 센서 교정",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-002",
@@ -14366,7 +14592,7 @@
       "itemCode": "B1",
       "value": "OCR Reader",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-002-G",
@@ -14376,7 +14602,7 @@
       "value": "OCR Reader가 Wafer ID를 자동 인식하여 Lot 추적성을 제공한다",
       "m4": "MC",
       "parentItemId": "PF-L3-020-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-002-C-001",
@@ -14386,7 +14612,7 @@
       "value": "인식 정확도(Recognition Rate, %)",
       "m4": "MC",
       "parentItemId": "PF-L3-020-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-002-K-001",
@@ -14396,7 +14622,7 @@
       "value": "OCR 인식 오류",
       "m4": "MC",
       "parentItemId": "PF-L3-020-MC-002-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-MC-002-V-1",
@@ -14405,7 +14631,7 @@
       "itemCode": "B5",
       "value": "P:OCR Reader 정기 교정, 인식률 일일 확인",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-IM-001",
@@ -14414,7 +14640,7 @@
       "itemCode": "B1",
       "value": "Wafer Cassette",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-IM-001-G",
@@ -14424,7 +14650,7 @@
       "value": "Wafer Cassette가 Wafer를 안전하게 수납하여 이송을 지원한다",
       "m4": "IM",
       "parentItemId": "PF-L3-020-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-IM-001-C-001",
@@ -14434,7 +14660,7 @@
       "value": "자재 규격 기준(Material Spec)",
       "m4": "IM",
       "parentItemId": "PF-L3-020-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-IM-001-K-001",
@@ -14444,7 +14670,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-020-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-IM-001-V-1",
@@ -14453,7 +14679,7 @@
       "itemCode": "B5",
       "value": "P:Wafer Cassette 이상 유무 입고 검사",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-EN-001",
@@ -14462,7 +14688,7 @@
       "itemCode": "B1",
       "value": "Sorter 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-EN-001-G",
@@ -14472,7 +14698,7 @@
       "value": "Sorter 작업영역이 ESD·파티클 환경을 유지하여 Wafer 오염을 방지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-020-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-EN-001-C-001",
@@ -14482,7 +14708,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-020-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-EN-001-K-001",
@@ -14492,7 +14718,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-020-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-020-EN-001-V-1",
@@ -14501,7 +14727,7 @@
       "itemCode": "B5",
       "value": "P:Sorter 작업영역 ESD 매트·손목 스트랩 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-030-A1",
@@ -14509,7 +14735,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "30",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-030-A2",
@@ -14517,7 +14743,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Scrubber",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-030-F-001",
@@ -14525,7 +14751,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Scrubber 장비로 Wafer 표면을 세정하여 파티클 및 이물을 제거한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-030-P-001",
@@ -14533,7 +14759,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "파티클 잔류수(Particle Count, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-030-M-001",
@@ -14542,7 +14768,7 @@
       "itemCode": "A5",
       "value": "Wafer 표면 이물 잔류(Particle 오염)",
       "parentItemId": "PF-L2-030-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-030-D-1",
@@ -14550,7 +14776,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:Particle Counter 세정 후 파티클 측정, 매 Lot",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MN-001",
@@ -14559,7 +14785,7 @@
       "itemCode": "B1",
       "value": "Scrubber 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MN-001-G",
@@ -14569,7 +14795,7 @@
       "value": "Scrubber 작업자가 세정 조건을 설정하고 공정을 감시하여 세정 품질을 확보한다",
       "m4": "MN",
       "parentItemId": "PF-L3-030-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MN-001-C-001",
@@ -14579,7 +14805,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-030-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MN-001-K-001",
@@ -14589,7 +14815,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-030-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MN-001-V-1",
@@ -14598,7 +14824,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber 작업 표준 교육, 인증 후 투입",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MC-001",
@@ -14607,7 +14833,7 @@
       "itemCode": "B1",
       "value": "Scrubber 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MC-001-G",
@@ -14617,7 +14843,7 @@
       "value": "Scrubber 장비가 DI Water를 분사하여 Wafer 표면 파티클을 제거한다",
       "m4": "MC",
       "parentItemId": "PF-L3-030-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MC-001-C-001",
@@ -14627,7 +14853,7 @@
       "value": "분사 압력(Spray Pressure, kPa)",
       "m4": "MC",
       "parentItemId": "PF-L3-030-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MC-001-K-001",
@@ -14637,7 +14863,7 @@
       "value": "노즐 막힘",
       "m4": "MC",
       "parentItemId": "PF-L3-030-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-MC-001-V-1",
@@ -14646,7 +14872,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber 장비 정기 PM, 노즐 주기 점검",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-IM-001",
@@ -14655,7 +14881,7 @@
       "itemCode": "B1",
       "value": "DI Water",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-IM-001-G",
@@ -14665,7 +14891,7 @@
       "value": "DI Water가 Wafer 표면을 세정하여 이물을 제거한다",
       "m4": "IM",
       "parentItemId": "PF-L3-030-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-IM-001-C-001",
@@ -14675,7 +14901,7 @@
       "value": "비저항(Resistivity, MΩ·cm)",
       "m4": "IM",
       "parentItemId": "PF-L3-030-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-IM-001-K-001",
@@ -14685,7 +14911,7 @@
       "value": "DI Water 비저항 저하",
       "m4": "IM",
       "parentItemId": "PF-L3-030-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-IM-001-V-1",
@@ -14694,7 +14920,7 @@
       "itemCode": "B5",
       "value": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-EN-001",
@@ -14703,7 +14929,7 @@
       "itemCode": "B1",
       "value": "Scrubber 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-EN-001-G",
@@ -14713,7 +14939,7 @@
       "value": "Scrubber 작업영역이 재오염 방지 환경을 유지하여 세정 효과를 보장한다",
       "m4": "EN",
       "parentItemId": "PF-L3-030-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-EN-001-C-001",
@@ -14723,7 +14949,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-030-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-EN-001-K-001",
@@ -14733,7 +14959,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-030-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-030-EN-001-V-1",
@@ -14742,7 +14968,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber 작업영역 청정도 정기 모니터링",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-A1",
@@ -14750,7 +14976,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "40",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-A2",
@@ -14758,7 +14984,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "UBM Sputter",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-F-001",
@@ -14766,7 +14992,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Sputter 장비로 Wafer 표면에 Ti/Cu UBM 박막을 증착하여 Bump 접합층을 형성한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-P-001",
@@ -14774,7 +15000,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "UBM 두께(UBM Thickness, Å)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-P-002",
@@ -14782,7 +15008,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "막질 균일도(Film Uniformity, %)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-M-001",
@@ -14791,7 +15017,7 @@
       "itemCode": "A5",
       "value": "UBM 두께 부족(Thickness Under Spec)",
       "parentItemId": "PF-L2-040-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-M-002",
@@ -14800,15 +15026,31 @@
       "itemCode": "A5",
       "value": "막질 불균일(Film Non-uniformity)",
       "parentItemId": "PF-L2-040-P-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-040-D-1",
       "processNo": "40",
       "category": "A",
       "itemCode": "A6",
+      "value": "Target 수명 모니터링 시스템",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L2-040-D-2",
+      "processNo": "40",
+      "category": "A",
+      "itemCode": "A6",
+      "value": "Target 두께 인라인 모니터링",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L2-040-D-3",
+      "processNo": "40",
+      "category": "A",
+      "itemCode": "A6",
       "value": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MN-001",
@@ -14817,7 +15059,7 @@
       "itemCode": "B1",
       "value": "Sputter 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MN-001-G",
@@ -14827,7 +15069,7 @@
       "value": "Sputter 작업자가 Recipe를 설정하고 공정 조건을 감시하여 증착 품질을 확보한다",
       "m4": "MN",
       "parentItemId": "PF-L3-040-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MN-001-C-001",
@@ -14837,7 +15079,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-040-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MN-001-K-001",
@@ -14847,7 +15089,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-040-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MN-001-V-1",
@@ -14856,7 +15098,7 @@
       "itemCode": "B5",
       "value": "P:Sputter Recipe 승인제도, 작업 표준 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001",
@@ -14865,7 +15107,7 @@
       "itemCode": "B1",
       "value": "Sputter 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-G",
@@ -14875,7 +15117,47 @@
       "value": "Sputter 장비가 Ti/Cu를 증착하여 Wafer 표면에 UBM층을 형성한다",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-040-MC-001-G-002",
+      "processNo": "40",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Sputter 장비가 Ti/Cu를 증착하여 Wafer 표면에 UBM층을 형성한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-040-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-040-MC-001-G-003",
+      "processNo": "40",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Sputter 장비가 Ti/Cu를 증착하여 Wafer 표면에 UBM층을 형성한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-040-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-040-MC-001-G-004",
+      "processNo": "40",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Sputter 장비가 Ti/Cu를 증착하여 Wafer 표면에 UBM층을 형성한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-040-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-040-MC-001-G-005",
+      "processNo": "40",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Sputter 장비가 Ti/Cu를 증착하여 Wafer 표면에 UBM층을 형성한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-040-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-C-001",
@@ -14886,7 +15168,7 @@
       "m4": "MC",
       "specialChar": "◇",
       "parentItemId": "PF-L3-040-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-C-002",
@@ -14897,7 +15179,7 @@
       "m4": "MC",
       "specialChar": "◇",
       "parentItemId": "PF-L3-040-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-C-003",
@@ -14907,7 +15189,7 @@
       "value": "증착 속도(Deposition Rate, Å/s)",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-C-004",
@@ -14917,7 +15199,7 @@
       "value": "DC Power(kW)",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-C-005",
@@ -14928,7 +15210,7 @@
       "m4": "MC",
       "specialChar": "◇",
       "parentItemId": "PF-L3-040-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-K-001",
@@ -14938,7 +15220,7 @@
       "value": "TiW 증착 두께 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001-C-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-K-002",
@@ -14948,7 +15230,7 @@
       "value": "Au 증착 두께 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001-C-005",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-K-003",
@@ -14958,7 +15240,7 @@
       "value": "Power 변동",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001-C-004",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-K-004",
@@ -14968,7 +15250,7 @@
       "value": "전압 변동",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001-C-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-K-005",
@@ -14978,7 +15260,7 @@
       "value": "RF Etch Amount 규격 이탈",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-V-1",
@@ -14987,7 +15269,7 @@
       "itemCode": "B5",
       "value": "P:Sputter 장비 정기 PM, Power 실시간 모니터링",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-V-2",
@@ -14996,7 +15278,7 @@
       "itemCode": "B5",
       "value": "P:DC Power Supply 전압 안정도 정기 교정",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-001-V-3",
@@ -15005,7 +15287,7 @@
       "itemCode": "B5",
       "value": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-002",
@@ -15014,7 +15296,7 @@
       "itemCode": "B1",
       "value": "DC Power Supply",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-002-G",
@@ -15024,7 +15306,7 @@
       "value": "DC Power Supply가 안정적인 전력을 공급하여 Sputter 출력을 유지한다",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-002-C-001",
@@ -15034,7 +15316,7 @@
       "value": "전압 안정도(Voltage Stability, V)",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-002-K-001",
@@ -15044,7 +15326,7 @@
       "value": "전압 안정도(Voltage Stability, V) 부적합",
       "m4": "MC",
       "parentItemId": "PF-L3-040-MC-002-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-MC-002-V-1",
@@ -15053,7 +15335,7 @@
       "itemCode": "B5",
       "value": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-001",
@@ -15062,7 +15344,7 @@
       "itemCode": "B1",
       "value": "Ti Target",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-001-G",
@@ -15072,7 +15354,7 @@
       "value": "Ti Target이 스퍼터링 소재를 공급하여 Ti 박막 형성을 지원한다",
       "m4": "IM",
       "parentItemId": "PF-L3-040-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-001-C-001",
@@ -15082,7 +15364,7 @@
       "value": "Target 두께 잔량(Remaining Thickness, mm)",
       "m4": "IM",
       "parentItemId": "PF-L3-040-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-001-K-001",
@@ -15092,7 +15374,7 @@
       "value": "Target 두께 잔량(Remaining Thickness, mm) 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-040-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-001-K-002",
@@ -15102,7 +15384,7 @@
       "value": "Target 소진",
       "m4": "IM",
       "parentItemId": "PF-L3-040-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-001-V-1",
@@ -15111,7 +15393,7 @@
       "itemCode": "B5",
       "value": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-002",
@@ -15120,37 +15402,65 @@
       "itemCode": "B1",
       "value": "Cu Target",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-002-G",
       "processNo": "40",
       "category": "B",
       "itemCode": "B2",
-      "value": "Cu Target",
+      "value": "Cu Target이 스퍼터링 소재를 공급하여 Cu 박막 형성을 지원한다",
       "m4": "IM",
       "parentItemId": "PF-L3-040-IM-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-002-C-001",
       "processNo": "40",
       "category": "B",
       "itemCode": "B3",
-      "value": "Cu Target",
+      "value": "Target 두께 잔량(Remaining Thickness, mm)",
       "m4": "IM",
       "parentItemId": "PF-L3-040-IM-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-IM-002-K-001",
       "processNo": "40",
       "category": "B",
       "itemCode": "B4",
-      "value": "Cu Target 관리 부적합",
+      "value": "Target 소진",
       "m4": "IM",
       "parentItemId": "PF-L3-040-IM-002-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-040-IM-002-K-002",
+      "processNo": "40",
+      "category": "B",
+      "itemCode": "B4",
+      "value": "Target 두께 잔량(Remaining Thickness, mm) 부적합",
+      "m4": "IM",
+      "parentItemId": "PF-L3-040-IM-002-C-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-040-IM-002-V-1",
+      "processNo": "40",
+      "category": "B",
+      "itemCode": "B5",
+      "value": "Target 잔량 정기 점검 및 교체 기준 설정",
+      "m4": "IM",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-040-IM-002-V-2",
+      "processNo": "40",
+      "category": "B",
+      "itemCode": "B5",
+      "value": "Target 두께 정기 측정",
+      "m4": "IM",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-EN-001",
@@ -15159,7 +15469,7 @@
       "itemCode": "B1",
       "value": "진공 챔버",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-EN-001-G",
@@ -15169,7 +15479,7 @@
       "value": "진공 챔버가 고진공 환경을 유지하여 Sputter 공정 순도를 보장한다",
       "m4": "EN",
       "parentItemId": "PF-L3-040-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-EN-001-C-001",
@@ -15179,7 +15489,7 @@
       "value": "진공도(Base Pressure, Pa)",
       "m4": "EN",
       "parentItemId": "PF-L3-040-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-EN-001-K-001",
@@ -15189,7 +15499,7 @@
       "value": "진공 누설",
       "m4": "EN",
       "parentItemId": "PF-L3-040-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-040-EN-001-V-1",
@@ -15198,7 +15508,7 @@
       "itemCode": "B5",
       "value": "P:진공 챔버 기밀 점검, 진공도 실시간 인터록",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-050-A1",
@@ -15206,7 +15516,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "50",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-050-A2",
@@ -15214,7 +15524,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Scrubber2",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-050-F-001",
@@ -15222,7 +15532,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "UBM Sputter 후 Wafer 표면을 세정하여 파티클 및 이물을 제거한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-050-P-001",
@@ -15230,7 +15540,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "파티클 잔류수(Particle Count, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-050-M-001",
@@ -15239,7 +15549,7 @@
       "itemCode": "A5",
       "value": "Wafer 표면 이물 잔류(Particle 오염)",
       "parentItemId": "PF-L2-050-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-050-D-1",
@@ -15247,7 +15557,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:Particle Counter 세정 후 파티클 측정, 매 Lot",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MN-001",
@@ -15256,7 +15566,7 @@
       "itemCode": "B1",
       "value": "Scrubber2 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MN-001-G",
@@ -15266,7 +15576,7 @@
       "value": "Scrubber2 작업자가 세정 조건을 설정하고 공정 완료를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-050-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MN-001-C-001",
@@ -15276,7 +15586,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-050-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MN-001-K-001",
@@ -15286,7 +15596,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-050-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MN-001-V-1",
@@ -15295,7 +15605,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber2 작업 표준 교육, 인증 후 투입",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MC-001",
@@ -15304,7 +15614,7 @@
       "itemCode": "B1",
       "value": "Scrubber 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MC-001-G",
@@ -15314,7 +15624,7 @@
       "value": "Scrubber 장비가 DI Water를 분사하여 Sputter 후 파티클을 제거한다",
       "m4": "MC",
       "parentItemId": "PF-L3-050-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MC-001-C-001",
@@ -15324,7 +15634,7 @@
       "value": "분사 압력(Spray Pressure, kPa)",
       "m4": "MC",
       "parentItemId": "PF-L3-050-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MC-001-K-001",
@@ -15334,7 +15644,7 @@
       "value": "노즐 막힘",
       "m4": "MC",
       "parentItemId": "PF-L3-050-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-MC-001-V-1",
@@ -15343,7 +15653,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber 장비 정기 PM, 노즐 주기 점검",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-IM-001",
@@ -15352,7 +15662,7 @@
       "itemCode": "B1",
       "value": "DI Water",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-IM-001-G",
@@ -15362,7 +15672,7 @@
       "value": "DI Water가 Wafer 표면을 세정하여 이물을 제거한다",
       "m4": "IM",
       "parentItemId": "PF-L3-050-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-IM-001-C-001",
@@ -15372,7 +15682,7 @@
       "value": "비저항(Resistivity, MΩ·cm)",
       "m4": "IM",
       "parentItemId": "PF-L3-050-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-IM-001-K-001",
@@ -15382,7 +15692,7 @@
       "value": "DI Water 비저항 저하",
       "m4": "IM",
       "parentItemId": "PF-L3-050-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-IM-001-V-1",
@@ -15391,7 +15701,7 @@
       "itemCode": "B5",
       "value": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-EN-001",
@@ -15400,7 +15710,7 @@
       "itemCode": "B1",
       "value": "Scrubber2 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-EN-001-G",
@@ -15410,7 +15720,7 @@
       "value": "Scrubber2 작업영역이 재오염 방지 환경을 유지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-050-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-EN-001-C-001",
@@ -15420,7 +15730,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-050-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-EN-001-K-001",
@@ -15430,7 +15740,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-050-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-050-EN-001-V-1",
@@ -15439,7 +15749,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber2 작업영역 청정도 정기 모니터링",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-060-A1",
@@ -15447,7 +15757,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "60",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-060-A2",
@@ -15455,7 +15765,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "PR Coating",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-060-F-001",
@@ -15463,7 +15773,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Coater 장비로 Wafer 표면에 Photo Resist를 균일하게 도포한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-060-P-001",
@@ -15471,7 +15781,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "PR 두께(PR Thickness, μm)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-060-M-001",
@@ -15480,7 +15790,7 @@
       "itemCode": "A5",
       "value": "PR 두께 불균일(PR Thickness Non-uniformity)",
       "parentItemId": "PF-L2-060-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-060-D-1",
@@ -15488,7 +15798,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:α-step/Ellipsometer PR 두께 측정, 매 Lot",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MN-001",
@@ -15497,7 +15807,7 @@
       "itemCode": "B1",
       "value": "Coating 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MN-001-G",
@@ -15507,7 +15817,7 @@
       "value": "Coating 작업자가 Coater Recipe를 설정하고 PR 도포 완료를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-060-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MN-001-C-001",
@@ -15517,7 +15827,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-060-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MN-001-K-001",
@@ -15527,7 +15837,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-060-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MN-001-V-1",
@@ -15536,7 +15846,7 @@
       "itemCode": "B5",
       "value": "P:Coater Recipe 승인제도, 작업 표준 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MC-001",
@@ -15545,7 +15855,7 @@
       "itemCode": "B1",
       "value": "Coater",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MC-001-G",
@@ -15555,7 +15865,7 @@
       "value": "Coater가 Wafer를 회전시켜 PR을 균일하게 도포한다",
       "m4": "MC",
       "parentItemId": "PF-L3-060-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MC-001-C-001",
@@ -15565,7 +15875,7 @@
       "value": "회전 속도(RPM)",
       "m4": "MC",
       "parentItemId": "PF-L3-060-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MC-001-K-001",
@@ -15575,7 +15885,7 @@
       "value": "RPM 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-060-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-MC-001-V-1",
@@ -15584,7 +15894,7 @@
       "itemCode": "B5",
       "value": "P:Coater 정기 PM, RPM 교정 및 모니터링",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-IM-001",
@@ -15593,7 +15903,7 @@
       "itemCode": "B1",
       "value": "PR(Photo Resist)",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-IM-001-G",
@@ -15603,7 +15913,7 @@
       "value": "PR(Photo Resist)이 감광 재료로서 패턴 형성의 기반을 제공한다",
       "m4": "IM",
       "parentItemId": "PF-L3-060-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-IM-001-C-001",
@@ -15613,7 +15923,7 @@
       "value": "점도(Viscosity, cP)",
       "m4": "IM",
       "parentItemId": "PF-L3-060-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-IM-001-K-001",
@@ -15623,7 +15933,7 @@
       "value": "PR 열화",
       "m4": "IM",
       "parentItemId": "PF-L3-060-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-IM-001-V-1",
@@ -15632,7 +15942,7 @@
       "itemCode": "B5",
       "value": "P:PR 보관 온도·유효기간 관리, 입고 검사",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-EN-001",
@@ -15641,7 +15951,7 @@
       "itemCode": "B1",
       "value": "Yellow Room",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-EN-001-G",
@@ -15651,7 +15961,7 @@
       "value": "Yellow Room이 UV 차단 환경을 유지하여 PR 노광을 방지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-060-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-EN-001-C-001",
@@ -15661,7 +15971,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-060-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-EN-001-K-001",
@@ -15671,7 +15981,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-060-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-060-EN-001-V-1",
@@ -15680,7 +15990,7 @@
       "itemCode": "B5",
       "value": "P:Yellow Room UV 조도 정기 점검, 기준 초과 시 알람",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-070-A1",
@@ -15688,7 +15998,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "70",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-070-A2",
@@ -15696,7 +16006,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Exposure",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-070-F-001",
@@ -15704,7 +16014,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Stepper/Scanner로 Mask 패턴을 Wafer에 노광하여 Bump 개구부 패턴을 형성한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-070-P-001",
@@ -15712,7 +16022,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "CD(Critical Dimension, μm)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-070-M-001",
@@ -15721,7 +16031,7 @@
       "itemCode": "A5",
       "value": "CD 규격 이탈(CD Out of Spec)",
       "parentItemId": "PF-L2-070-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-070-D-1",
@@ -15729,7 +16039,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:CD-SEM CD 측정, 매 Lot 샘플링",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MN-001",
@@ -15738,7 +16048,7 @@
       "itemCode": "B1",
       "value": "Exposure 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MN-001-G",
@@ -15748,7 +16058,7 @@
       "value": "Exposure 작업자가 Mask 정렬 및 노광 조건을 설정하여 패턴 전사를 수행한다",
       "m4": "MN",
       "parentItemId": "PF-L3-070-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MN-001-C-001",
@@ -15758,7 +16068,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-070-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MN-001-K-001",
@@ -15768,7 +16078,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-070-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MN-001-V-1",
@@ -15777,7 +16087,7 @@
       "itemCode": "B5",
       "value": "P:Exposure Recipe 승인제도, Mask 정렬 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MC-001",
@@ -15786,7 +16096,7 @@
       "itemCode": "B1",
       "value": "Stepper/Scanner",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MC-001-G",
@@ -15796,7 +16106,7 @@
       "value": "Stepper/Scanner가 UV 광원으로 Mask 패턴을 Wafer에 정밀 전사한다",
       "m4": "MC",
       "parentItemId": "PF-L3-070-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MC-001-C-001",
@@ -15806,7 +16116,7 @@
       "value": "노광 에너지(UV Energy, mJ/cm²)",
       "m4": "MC",
       "parentItemId": "PF-L3-070-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MC-001-K-001",
@@ -15816,7 +16126,7 @@
       "value": "에너지 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-070-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-MC-001-V-1",
@@ -15825,7 +16135,7 @@
       "itemCode": "B5",
       "value": "P:Stepper/Scanner 광원 에너지 정기 교정, PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-IM-001",
@@ -15834,7 +16144,7 @@
       "itemCode": "B1",
       "value": "Mask(Reticle)",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-IM-001-G",
@@ -15844,7 +16154,7 @@
       "value": "Mask(Reticle)이 Bump 패턴 정보를 제공하여 CD 형성의 기준이 된다",
       "m4": "IM",
       "parentItemId": "PF-L3-070-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-IM-001-C-001",
@@ -15854,7 +16164,7 @@
       "value": "CD 정밀도(Reticle CD Accuracy, nm)",
       "m4": "IM",
       "parentItemId": "PF-L3-070-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-IM-001-K-001",
@@ -15864,7 +16174,7 @@
       "value": "Mask 결함",
       "m4": "IM",
       "parentItemId": "PF-L3-070-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-IM-001-V-1",
@@ -15873,7 +16183,7 @@
       "itemCode": "B5",
       "value": "P:Mask 이물·손상 입고 검사, 보관 기준 관리",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-EN-001",
@@ -15882,7 +16192,7 @@
       "itemCode": "B1",
       "value": "Exposure 챔버",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-EN-001-G",
@@ -15892,7 +16202,7 @@
       "value": "Exposure 챔버가 온습도·진동 차단 환경을 유지하여 노광 정밀도를 확보한다",
       "m4": "EN",
       "parentItemId": "PF-L3-070-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-EN-001-C-001",
@@ -15902,7 +16212,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-070-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-EN-001-K-001",
@@ -15912,7 +16222,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-070-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-070-EN-001-V-1",
@@ -15921,7 +16231,7 @@
       "itemCode": "B5",
       "value": "P:Exposure 챔버 온습도·진동 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-080-A1",
@@ -15929,7 +16239,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "80",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-080-A2",
@@ -15937,7 +16247,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Develop",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-080-F-001",
@@ -15945,7 +16255,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Developer로 노광된 PR을 현상하여 Bump 형성용 Opening을 정확하게 형성한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-080-P-001",
@@ -15953,7 +16263,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Opening 정확도(Opening Accuracy, μm)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-080-M-001",
@@ -15962,7 +16272,7 @@
       "itemCode": "A5",
       "value": "Under/Over develop(Opening 불량)",
       "parentItemId": "PF-L2-080-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-080-D-1",
@@ -15970,7 +16280,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:SEM Opening 치수 측정, 매 Lot 샘플링",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MN-001",
@@ -15979,7 +16289,7 @@
       "itemCode": "B1",
       "value": "Develop 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MN-001-G",
@@ -15989,7 +16299,7 @@
       "value": "Develop 작업자가 현상 조건을 설정하고 Opening 형성 결과를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-080-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MN-001-C-001",
@@ -15999,7 +16309,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-080-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MN-001-K-001",
@@ -16009,7 +16319,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-080-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MN-001-V-1",
@@ -16018,7 +16328,7 @@
       "itemCode": "B5",
       "value": "P:Develop Recipe 승인제도, 작업 표준 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MC-001",
@@ -16027,7 +16337,7 @@
       "itemCode": "B1",
       "value": "Developer",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MC-001-G",
@@ -16037,7 +16347,7 @@
       "value": "Developer가 현상액을 공급하여 노광된 PR을 선택적으로 용해한다",
       "m4": "MC",
       "parentItemId": "PF-L3-080-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MC-001-C-001",
@@ -16047,7 +16357,7 @@
       "value": "현상 시간(Develop Time, sec)",
       "m4": "MC",
       "parentItemId": "PF-L3-080-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MC-001-K-001",
@@ -16057,7 +16367,7 @@
       "value": "현상 시간 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-080-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-MC-001-V-1",
@@ -16066,7 +16376,7 @@
       "itemCode": "B5",
       "value": "P:Developer 현상 시간 자동 제어, PM 정기 실시",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-IM-001",
@@ -16075,7 +16385,7 @@
       "itemCode": "B1",
       "value": "현상액(TMAH)",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-IM-001-G",
@@ -16085,7 +16395,7 @@
       "value": "현상액(TMAH)이 노광 PR을 용해하여 Bump Opening을 형성한다",
       "m4": "IM",
       "parentItemId": "PF-L3-080-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-IM-001-C-001",
@@ -16095,7 +16405,7 @@
       "value": "TMAH 농도(Concentration, %)",
       "m4": "IM",
       "parentItemId": "PF-L3-080-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-IM-001-K-001",
@@ -16105,7 +16415,7 @@
       "value": "농도 편차",
       "m4": "IM",
       "parentItemId": "PF-L3-080-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-IM-001-V-1",
@@ -16114,7 +16424,7 @@
       "itemCode": "B5",
       "value": "P:현상액 농도 정기 측정, 기준 이탈 시 교체",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-EN-001",
@@ -16123,7 +16433,7 @@
       "itemCode": "B1",
       "value": "Develop 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-EN-001-G",
@@ -16133,7 +16443,7 @@
       "value": "Develop 작업영역이 온도·습도를 유지하여 현상 균일성을 확보한다",
       "m4": "EN",
       "parentItemId": "PF-L3-080-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-EN-001-C-001",
@@ -16143,7 +16453,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-080-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-EN-001-K-001",
@@ -16153,7 +16463,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-080-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-080-EN-001-V-1",
@@ -16162,7 +16472,7 @@
       "itemCode": "B5",
       "value": "P:Develop 작업영역 온도·습도 모니터링",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-090-A1",
@@ -16170,7 +16480,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "90",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-090-A2",
@@ -16178,7 +16488,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Descum",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-090-F-001",
@@ -16186,7 +16496,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Descum 장비로 O₂ Plasma 처리하여 PR 개구부 내 잔류 Scum을 완전 제거한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-090-P-001",
@@ -16194,7 +16504,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "PR 잔사 수(Scum Count, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-090-M-001",
@@ -16203,7 +16513,7 @@
       "itemCode": "A5",
       "value": "PR Scum 잔류(Descum 불완전)",
       "parentItemId": "PF-L2-090-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-090-D-1",
@@ -16211,7 +16521,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:SEM Scum 유무 확인, 매 Lot 샘플링",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MN-001",
@@ -16220,7 +16530,7 @@
       "itemCode": "B1",
       "value": "Descum 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MN-001-G",
@@ -16230,7 +16540,7 @@
       "value": "Descum 작업자가 O₂ Plasma 조건을 설정하고 Scum 제거를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-090-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MN-001-C-001",
@@ -16240,7 +16550,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-090-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MN-001-K-001",
@@ -16250,7 +16560,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-090-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MN-001-V-1",
@@ -16259,7 +16569,7 @@
       "itemCode": "B5",
       "value": "P:Descum Recipe 승인제도, 작업 표준 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MC-001",
@@ -16268,7 +16578,7 @@
       "itemCode": "B1",
       "value": "Descum 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MC-001-G",
@@ -16278,7 +16588,7 @@
       "value": "Descum 장비가 O₂ Plasma를 발생시켜 PR 개구부 내 Scum을 제거한다",
       "m4": "MC",
       "parentItemId": "PF-L3-090-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MC-001-C-001",
@@ -16288,7 +16598,7 @@
       "value": "O₂ Plasma Power(W)",
       "m4": "MC",
       "parentItemId": "PF-L3-090-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MC-001-K-001",
@@ -16298,7 +16608,7 @@
       "value": "Power 불안정",
       "m4": "MC",
       "parentItemId": "PF-L3-090-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-MC-001-V-1",
@@ -16307,7 +16617,7 @@
       "itemCode": "B5",
       "value": "P:Descum 장비 Power 안정도 정기 교정, PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-IM-001",
@@ -16316,7 +16626,7 @@
       "itemCode": "B1",
       "value": "O₂ Gas",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-IM-001-G",
@@ -16326,7 +16636,7 @@
       "value": "O₂ Gas가 Plasma 반응 가스로서 Scum 산화·제거에 기여한다",
       "m4": "IM",
       "parentItemId": "PF-L3-090-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-IM-001-C-001",
@@ -16336,7 +16646,7 @@
       "value": "Gas 유량(Flow Rate, sccm)",
       "m4": "IM",
       "parentItemId": "PF-L3-090-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-IM-001-K-001",
@@ -16346,7 +16656,7 @@
       "value": "Gas 유량 편차",
       "m4": "IM",
       "parentItemId": "PF-L3-090-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-IM-001-V-1",
@@ -16355,7 +16665,7 @@
       "itemCode": "B5",
       "value": "P:O₂ Gas 유량 자동 제어, 기준 이탈 시 인터록",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-EN-001",
@@ -16364,7 +16674,7 @@
       "itemCode": "B1",
       "value": "Descum 챔버",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-EN-001-G",
@@ -16374,7 +16684,7 @@
       "value": "Descum 챔버가 균일한 Plasma 환경을 제공하여 Scum 제거 균일성을 확보한다",
       "m4": "EN",
       "parentItemId": "PF-L3-090-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-EN-001-C-001",
@@ -16384,7 +16694,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-090-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-EN-001-K-001",
@@ -16394,7 +16704,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-090-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-090-EN-001-V-1",
@@ -16403,7 +16713,7 @@
       "itemCode": "B5",
       "value": "P:Descum 챔버 기밀 및 균일도 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-A1",
@@ -16411,7 +16721,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "100",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-A2",
@@ -16419,7 +16729,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Au Plating",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-F-001",
@@ -16427,7 +16737,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Au Plating Tank에서 전기도금으로 Wafer Bump 높이 및 순도 기준을 충족하는 Au Bump를 형성한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-P-001",
@@ -16436,7 +16746,7 @@
       "itemCode": "A4",
       "value": "Au Bump 높이(Bump Height, μm)",
       "specialChar": "★",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-P-002",
@@ -16444,7 +16754,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Au 순도(Au Purity, %)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-M-001",
@@ -16453,7 +16763,7 @@
       "itemCode": "A5",
       "value": "Au 순도 저하(Purity Degradation)",
       "parentItemId": "PF-L2-100-P-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-M-002",
@@ -16462,7 +16772,7 @@
       "itemCode": "A5",
       "value": "Au Bump 높이 편차(Height Variation)",
       "parentItemId": "PF-L2-100-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-100-D-1",
@@ -16470,7 +16780,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MN-001",
@@ -16479,7 +16789,7 @@
       "itemCode": "B1",
       "value": "Plating 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MN-001-G",
@@ -16489,7 +16799,7 @@
       "value": "Plating 작업자가 전류밀도·도금 시간을 설정하고 Bump 높이를 모니터링한다",
       "m4": "MN",
       "parentItemId": "PF-L3-100-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MN-001-C-001",
@@ -16500,7 +16810,7 @@
       "m4": "MN",
       "specialChar": "★",
       "parentItemId": "PF-L3-100-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MN-001-K-001",
@@ -16510,7 +16820,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-100-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MN-001-V-1",
@@ -16519,7 +16829,7 @@
       "itemCode": "B5",
       "value": "P:도금 Recipe 승인제도, 전류밀도 설정 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001",
@@ -16528,7 +16838,7 @@
       "itemCode": "B1",
       "value": "Au Plating Tank",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-G",
@@ -16538,7 +16848,27 @@
       "value": "Au Plating Tank가 도금액을 순환·유지하여 Au Bump 전기도금 환경을 제공한다",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-100-MC-001-G-002",
+      "processNo": "100",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Au Plating Tank가 도금액을 순환·유지하여 Au Bump 전기도금 환경을 제공한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-100-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-100-MC-001-G-003",
+      "processNo": "100",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Au Plating Tank가 도금액을 순환·유지하여 Au Bump 전기도금 환경을 제공한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-100-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-C-001",
@@ -16548,7 +16878,7 @@
       "value": "도금 균일도(Plating Uniformity, %)",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-C-002",
@@ -16558,7 +16888,7 @@
       "value": "도금 시간(Plating Time, min)",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-C-003",
@@ -16569,7 +16899,7 @@
       "m4": "MC",
       "specialChar": "★",
       "parentItemId": "PF-L3-100-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-K-001",
@@ -16579,7 +16909,7 @@
       "value": "전류밀도 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-001-C-003",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-K-002",
@@ -16589,7 +16919,7 @@
       "value": "전류 변동",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-001-C-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-K-003",
@@ -16599,7 +16929,7 @@
       "value": "도금 균일도 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-V-1",
@@ -16608,7 +16938,7 @@
       "itemCode": "B5",
       "value": "P:Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-001-V-2",
@@ -16617,7 +16947,7 @@
       "itemCode": "B5",
       "value": "P:정류기(Rectifier) 정기 교정, 출력 전류 모니터링",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-002",
@@ -16626,7 +16956,7 @@
       "itemCode": "B1",
       "value": "정류기(Rectifier)",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-002-G",
@@ -16636,7 +16966,7 @@
       "value": "정류기(Rectifier)가 안정적인 직류 전류를 공급하여 도금 전류밀도를 유지한다",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-002-C-001",
@@ -16646,7 +16976,7 @@
       "value": "출력 전류(Output Current, A)",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-002-K-001",
@@ -16656,7 +16986,7 @@
       "value": "출력 전류(Output Current, A) 부적합",
       "m4": "MC",
       "parentItemId": "PF-L3-100-MC-002-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-MC-002-V-1",
@@ -16665,7 +16995,7 @@
       "itemCode": "B5",
       "value": "P:도금 균일도 SPC 관리, 정기 전류 분포 측정",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-IM-001",
@@ -16674,7 +17004,7 @@
       "itemCode": "B1",
       "value": "Au 도금액(Au Ion Solution)",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-IM-001-G",
@@ -16684,7 +17014,7 @@
       "value": "Au 도금액(Au Ion Solution)이 Au 이온을 공급하여 Bump 형성 소재를 제공한다",
       "m4": "IM",
       "parentItemId": "PF-L3-100-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-IM-001-C-001",
@@ -16695,7 +17025,7 @@
       "m4": "IM",
       "specialChar": "★",
       "parentItemId": "PF-L3-100-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-IM-001-K-001",
@@ -16705,7 +17035,7 @@
       "value": "농도 저하",
       "m4": "IM",
       "parentItemId": "PF-L3-100-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-IM-001-V-1",
@@ -16714,7 +17044,7 @@
       "itemCode": "B5",
       "value": "P:Au 도금액 Au 이온 농도 정기 분석, 기준 이탈 시 보충",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-EN-001",
@@ -16723,7 +17053,7 @@
       "itemCode": "B1",
       "value": "Plating 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-EN-001-G",
@@ -16733,7 +17063,7 @@
       "value": "Plating 작업영역이 온도·청정도를 유지하여 도금 품질을 확보한다",
       "m4": "EN",
       "parentItemId": "PF-L3-100-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-EN-001-C-001",
@@ -16744,7 +17074,7 @@
       "m4": "EN",
       "specialChar": "★",
       "parentItemId": "PF-L3-100-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-EN-001-K-001",
@@ -16754,7 +17084,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-100-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-100-EN-001-V-1",
@@ -16763,7 +17093,7 @@
       "itemCode": "B5",
       "value": "P:Plating 작업영역 온도·습도 정기 모니터링",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-110-A1",
@@ -16771,7 +17101,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "110",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-110-A2",
@@ -16779,7 +17109,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "PR Strip",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-110-F-001",
@@ -16787,7 +17117,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Strip 장비로 도금 후 잔류 PR을 완전히 제거하여 Bump 형성 영역을 노출한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-110-P-001",
@@ -16795,7 +17125,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "PR 잔사(Strip Residue, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-110-M-001",
@@ -16804,7 +17134,7 @@
       "itemCode": "A5",
       "value": "PR 잔사 잔류(Strip 불완전)",
       "parentItemId": "PF-L2-110-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-110-D-1",
@@ -16812,7 +17142,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:SEM PR 잔사 확인, 매 Lot 샘플링",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MN-001",
@@ -16821,7 +17151,7 @@
       "itemCode": "B1",
       "value": "Strip 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MN-001-G",
@@ -16831,7 +17161,7 @@
       "value": "Strip 작업자가 Strip 조건을 설정하고 PR 잔사 제거를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-110-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MN-001-C-001",
@@ -16841,7 +17171,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-110-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MN-001-K-001",
@@ -16851,7 +17181,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-110-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MN-001-V-1",
@@ -16860,7 +17190,7 @@
       "itemCode": "B5",
       "value": "P:Strip Recipe 승인제도, 온도 설정 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MC-001",
@@ -16869,7 +17199,7 @@
       "itemCode": "B1",
       "value": "Strip 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MC-001-G",
@@ -16879,7 +17209,7 @@
       "value": "Strip 장비가 용제를 공급·가열하여 잔류 PR을 완전히 제거한다",
       "m4": "MC",
       "parentItemId": "PF-L3-110-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MC-001-C-001",
@@ -16889,7 +17219,7 @@
       "value": "Strip 온도(Temperature, ℃)",
       "m4": "MC",
       "parentItemId": "PF-L3-110-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MC-001-K-001",
@@ -16899,7 +17229,7 @@
       "value": "온도 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-110-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-MC-001-V-1",
@@ -16908,7 +17238,7 @@
       "itemCode": "B5",
       "value": "P:Strip 장비 온도 교정, 정기 PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-IM-001",
@@ -16917,7 +17247,7 @@
       "itemCode": "B1",
       "value": "Strip 용제",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-IM-001-G",
@@ -16927,7 +17257,7 @@
       "value": "Strip 용제가 PR을 용해하여 잔사 없이 제거한다",
       "m4": "IM",
       "parentItemId": "PF-L3-110-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-IM-001-C-001",
@@ -16937,7 +17267,7 @@
       "value": "용제 농도(Concentration, %)",
       "m4": "IM",
       "parentItemId": "PF-L3-110-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-IM-001-K-001",
@@ -16947,7 +17277,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-110-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-IM-001-V-1",
@@ -16956,7 +17286,7 @@
       "itemCode": "B5",
       "value": "P:Strip 용제 농도 정기 측정, 기준 이탈 시 교체",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-EN-001",
@@ -16965,7 +17295,7 @@
       "itemCode": "B1",
       "value": "Strip 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-EN-001-G",
@@ -16975,7 +17305,7 @@
       "value": "Strip 작업영역이 환기·안전 환경을 유지하여 작업 안전성을 확보한다",
       "m4": "EN",
       "parentItemId": "PF-L3-110-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-EN-001-C-001",
@@ -16985,7 +17315,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-110-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-EN-001-K-001",
@@ -16995,7 +17325,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-110-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-110-EN-001-V-1",
@@ -17004,7 +17334,7 @@
       "itemCode": "B5",
       "value": "P:Strip 작업영역 환기 상태 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-120-A1",
@@ -17012,7 +17342,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "120",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-120-A2",
@@ -17020,7 +17350,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Au Etch",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-120-F-001",
@@ -17028,7 +17358,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Au Etchant를 이용하여 Bump 외부 Au Seed Layer를 선택적으로 식각·제거한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-120-P-001",
@@ -17036,7 +17366,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "에칭 잔류물(Etch Residue, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-120-M-001",
@@ -17045,7 +17375,7 @@
       "itemCode": "A5",
       "value": "에칭 부족/과다(Under/Over Etch)",
       "parentItemId": "PF-L2-120-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-120-D-1",
@@ -17053,7 +17383,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MN-001",
@@ -17062,7 +17392,7 @@
       "itemCode": "B1",
       "value": "Au Etch 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MN-001-G",
@@ -17072,7 +17402,7 @@
       "value": "Au Etch 작업자가 식각 조건을 설정하고 잔류물 제거를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-120-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MN-001-C-001",
@@ -17082,7 +17412,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-120-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MN-001-K-001",
@@ -17092,7 +17422,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-120-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MN-001-V-1",
@@ -17101,7 +17431,7 @@
       "itemCode": "B5",
       "value": "P:Au Etch Recipe 승인제도, 작업 표준 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001",
@@ -17110,7 +17440,7 @@
       "itemCode": "B1",
       "value": "Au Etch 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001-G",
@@ -17120,7 +17450,17 @@
       "value": "Au Etch 장비가 Au Etchant를 공급하여 Bump 외부 Au Seed를 선택 식각한다",
       "m4": "MC",
       "parentItemId": "PF-L3-120-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-120-MC-001-G-002",
+      "processNo": "120",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Au Etch 장비가 Au Etchant를 공급하여 Bump 외부 Au Seed를 선택 식각한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-120-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001-C-001",
@@ -17130,7 +17470,7 @@
       "value": "식각 시간(Etch Time, sec)",
       "m4": "MC",
       "parentItemId": "PF-L3-120-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001-C-002",
@@ -17141,7 +17481,7 @@
       "m4": "MC",
       "specialChar": "◇",
       "parentItemId": "PF-L3-120-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001-K-001",
@@ -17151,7 +17491,7 @@
       "value": "에칭 시간 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-120-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001-K-002",
@@ -17161,7 +17501,7 @@
       "value": "Au Etch Rate 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-120-MC-001-C-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001-V-1",
@@ -17170,7 +17510,7 @@
       "itemCode": "B5",
       "value": "P:Au Etch 장비 식각 시간 자동 제어, 정기 PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-MC-001-V-2",
@@ -17179,7 +17519,7 @@
       "itemCode": "B5",
       "value": "P:Au Etch Rate 정기 모니터링, 교정",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-IM-001",
@@ -17188,7 +17528,7 @@
       "itemCode": "B1",
       "value": "Au Etchant",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-IM-001-G",
@@ -17198,7 +17538,7 @@
       "value": "Au Etchant가 Au Seed Layer를 선택적으로 식각하여 단락 방지 구조를 형성한다",
       "m4": "IM",
       "parentItemId": "PF-L3-120-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-IM-001-C-001",
@@ -17209,7 +17549,7 @@
       "m4": "IM",
       "specialChar": "◇",
       "parentItemId": "PF-L3-120-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-IM-001-K-001",
@@ -17219,7 +17559,7 @@
       "value": "H₂O₂ 농도 편차에 의한 Etch Rate 이탈",
       "m4": "IM",
       "parentItemId": "PF-L3-120-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-IM-001-V-1",
@@ -17228,7 +17568,7 @@
       "itemCode": "B5",
       "value": "P:H₂O₂ 농도 정기 측정, 기준 이탈 시 교체",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-EN-001",
@@ -17237,7 +17577,7 @@
       "itemCode": "B1",
       "value": "Etch 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-EN-001-G",
@@ -17247,7 +17587,7 @@
       "value": "Etch 작업영역이 약액 안전 환경을 유지하여 작업 안전성을 확보한다",
       "m4": "EN",
       "parentItemId": "PF-L3-120-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-EN-001-C-001",
@@ -17257,7 +17597,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-120-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-EN-001-K-001",
@@ -17267,7 +17607,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-120-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-120-EN-001-V-1",
@@ -17276,7 +17616,7 @@
       "itemCode": "B5",
       "value": "P:Etch 작업영역 환기 및 약액 안전 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-130-A1",
@@ -17284,7 +17624,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "130",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-130-A2",
@@ -17292,7 +17632,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "TiW Etch",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-130-F-001",
@@ -17300,7 +17640,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "TiW Etchant를 이용하여 Bump 외부 TiW Seed Layer를 선택적으로 식각·제거한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-130-P-001",
@@ -17308,7 +17648,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Seed 잔류물(Seed Residue, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-130-M-001",
@@ -17317,15 +17657,31 @@
       "itemCode": "A5",
       "value": "TiW Etch 후 잔류 Film 이상(Under/Over etch)",
       "parentItemId": "PF-L2-130-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-130-D-1",
       "processNo": "130",
       "category": "A",
       "itemCode": "A6",
+      "value": "H₂O₂ 농도 실시간 모니터링",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L2-130-D-2",
+      "processNo": "130",
+      "category": "A",
+      "itemCode": "A6",
+      "value": "Etch Rate 인라인 모니터링",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L2-130-D-3",
+      "processNo": "130",
+      "category": "A",
+      "itemCode": "A6",
       "value": "D:SEM Seed 잔류물 확인, 매 Lot 샘플링",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MN-001",
@@ -17334,7 +17690,7 @@
       "itemCode": "B1",
       "value": "TiW Etch 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MN-001-G",
@@ -17344,7 +17700,7 @@
       "value": "TiW Etch 작업자가 식각 조건을 설정하고 Seed 잔류물 제거를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-130-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MN-001-C-001",
@@ -17354,7 +17710,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-130-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MN-001-K-001",
@@ -17364,7 +17720,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-130-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MN-001-V-1",
@@ -17373,7 +17729,7 @@
       "itemCode": "B5",
       "value": "P:TiW Etch Recipe 승인제도, 작업 표준 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MC-001",
@@ -17382,7 +17738,7 @@
       "itemCode": "B1",
       "value": "TiW Etch 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MC-001-G",
@@ -17392,7 +17748,7 @@
       "value": "TiW Etch 장비가 TiW Etchant를 공급하여 Bump 외부 TiW Seed를 선택 식각한다",
       "m4": "MC",
       "parentItemId": "PF-L3-130-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MC-001-C-001",
@@ -17403,7 +17759,7 @@
       "m4": "MC",
       "specialChar": "◇",
       "parentItemId": "PF-L3-130-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MC-001-K-001",
@@ -17413,7 +17769,7 @@
       "value": "Etch Rate 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-130-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-MC-001-V-1",
@@ -17422,7 +17778,7 @@
       "itemCode": "B5",
       "value": "P:TiW Etch 장비 온도 교정, 정기 PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-IM-001",
@@ -17431,37 +17787,65 @@
       "itemCode": "B1",
       "value": "TiW Etchant",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-IM-001-G",
       "processNo": "130",
       "category": "B",
       "itemCode": "B2",
-      "value": "TiW Etchant",
+      "value": "TiW Etchant가 TiW Seed Layer를 선택적으로 식각하여 단락 방지 구조를 형성한다",
       "m4": "IM",
       "parentItemId": "PF-L3-130-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-IM-001-C-001",
       "processNo": "130",
       "category": "B",
       "itemCode": "B3",
-      "value": "TiW Etchant",
+      "value": "H₂O₂ 농도(Concentration, %)",
       "m4": "IM",
       "parentItemId": "PF-L3-130-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-IM-001-K-001",
       "processNo": "130",
       "category": "B",
       "itemCode": "B4",
-      "value": "TiW Etchant 관리 부적합",
+      "value": "H₂O₂ 농도 편차에 의한 Etch Rate 이탈",
       "m4": "IM",
       "parentItemId": "PF-L3-130-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-130-IM-001-K-002",
+      "processNo": "130",
+      "category": "B",
+      "itemCode": "B4",
+      "value": "H₂O₂ 농도(Concentration, %) 부적합",
+      "m4": "IM",
+      "parentItemId": "PF-L3-130-IM-001-C-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-130-IM-001-V-1",
+      "processNo": "130",
+      "category": "B",
+      "itemCode": "B5",
+      "value": "Etchant 농도 정기 분석 및 자동 보충",
+      "m4": "IM",
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-130-IM-001-V-2",
+      "processNo": "130",
+      "category": "B",
+      "itemCode": "B5",
+      "value": "Etchant 교체 주기 관리",
+      "m4": "IM",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-EN-001",
@@ -17470,7 +17854,7 @@
       "itemCode": "B1",
       "value": "TiW Etch 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-EN-001-G",
@@ -17480,7 +17864,7 @@
       "value": "TiW Etch 작업영역이 약액 안전 환경을 유지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-130-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-EN-001-C-001",
@@ -17490,7 +17874,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-130-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-EN-001-K-001",
@@ -17500,7 +17884,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-130-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-130-EN-001-V-1",
@@ -17509,7 +17893,7 @@
       "itemCode": "B5",
       "value": "P:TiW Etch 작업영역 환기 및 약액 안전 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-140-A1",
@@ -17517,7 +17901,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "140",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-140-A2",
@@ -17525,7 +17909,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Anneal",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-140-F-001",
@@ -17533,7 +17917,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Anneal 장비로 열처리하여 Au Bump와 Al PAD 간 IMC 두께를 적정 수준으로 형성한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-140-P-001",
@@ -17541,7 +17925,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "IMC 두께(IMC Thickness, μm)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-140-M-001",
@@ -17550,7 +17934,7 @@
       "itemCode": "A5",
       "value": "IMC 과성장(IMC Overgrowth)",
       "parentItemId": "PF-L2-140-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-140-D-1",
@@ -17558,7 +17942,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:TEM/SEM IMC 두께 분석, 매 Lot 샘플링",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MN-001",
@@ -17567,7 +17951,7 @@
       "itemCode": "B1",
       "value": "Anneal 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MN-001-G",
@@ -17577,7 +17961,7 @@
       "value": "Anneal 작업자가 온도·시간 조건을 설정하고 열처리 완료를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-140-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MN-001-C-001",
@@ -17587,7 +17971,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-140-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MN-001-K-001",
@@ -17597,7 +17981,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-140-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MN-001-V-1",
@@ -17606,7 +17990,7 @@
       "itemCode": "B5",
       "value": "P:Anneal Recipe 승인제도, 온도·시간 설정 교육",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MC-001",
@@ -17615,7 +17999,7 @@
       "itemCode": "B1",
       "value": "Anneal 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MC-001-G",
@@ -17625,7 +18009,17 @@
       "value": "Anneal 장비가 설정 온도로 Wafer를 가열하여 IMC 성장을 제어한다",
       "m4": "MC",
       "parentItemId": "PF-L3-140-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-140-MC-001-G-002",
+      "processNo": "140",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "Anneal 장비가 설정 온도로 Wafer를 가열하여 IMC 성장을 제어한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-140-MC-001",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MC-001-C-001",
@@ -17635,7 +18029,7 @@
       "value": "열처리 온도(Anneal Temperature, ℃)",
       "m4": "MC",
       "parentItemId": "PF-L3-140-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MC-001-C-002",
@@ -17645,7 +18039,7 @@
       "value": "열처리 시간(Anneal Time, min)",
       "m4": "MC",
       "parentItemId": "PF-L3-140-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MC-001-K-001",
@@ -17655,7 +18049,7 @@
       "value": "온도 과다/부족",
       "m4": "MC",
       "parentItemId": "PF-L3-140-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MC-001-K-002",
@@ -17665,7 +18059,7 @@
       "value": "열처리 시간(Anneal Time, min) 부적합",
       "m4": "MC",
       "parentItemId": "PF-L3-140-MC-001-C-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-MC-001-V-1",
@@ -17674,7 +18068,7 @@
       "itemCode": "B5",
       "value": "P:Anneal 장비 온도 교정, 정기 PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-IM-001",
@@ -17683,7 +18077,7 @@
       "itemCode": "B1",
       "value": "N₂ Gas",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-IM-001-G",
@@ -17693,7 +18087,7 @@
       "value": "N₂ Gas가 불활성 분위기를 제공하여 Anneal 중 산화를 방지한다",
       "m4": "IM",
       "parentItemId": "PF-L3-140-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-IM-001-C-001",
@@ -17703,7 +18097,7 @@
       "value": "자재 규격 기준(Material Spec)",
       "m4": "IM",
       "parentItemId": "PF-L3-140-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-IM-001-K-001",
@@ -17713,7 +18107,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-140-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-IM-001-V-1",
@@ -17722,7 +18116,7 @@
       "itemCode": "B5",
       "value": "P:N₂ Gas 유량 자동 제어, 순도 정기 분석",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-EN-001",
@@ -17731,7 +18125,7 @@
       "itemCode": "B1",
       "value": "N₂ 공급장치",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-EN-001-G",
@@ -17741,7 +18135,7 @@
       "value": "N₂ 공급장치가 N₂ Gas를 안정적으로 공급하여 Anneal 분위기를 유지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-140-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-EN-001-C-001",
@@ -17751,7 +18145,7 @@
       "value": "N₂ 유량(Flow Rate, L/min)",
       "m4": "EN",
       "parentItemId": "PF-L3-140-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-EN-001-K-001",
@@ -17761,7 +18155,7 @@
       "value": "유량 부족",
       "m4": "EN",
       "parentItemId": "PF-L3-140-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-140-EN-001-V-1",
@@ -17770,7 +18164,7 @@
       "itemCode": "B5",
       "value": "P:N₂ 공급장치 유량 모니터링, 기준 이탈 시 알람",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-A1",
@@ -17778,7 +18172,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "150",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-A2",
@@ -17786,7 +18180,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Final Inspection",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-F-001",
@@ -17794,7 +18188,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "AVI 장비 및 높이 측정기로 최종 Bump 외관 및 높이 기준 적합성을 검사한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-P-001",
@@ -17803,7 +18197,7 @@
       "itemCode": "A4",
       "value": "Bump 외관 결함(Visual Defect, ea)",
       "specialChar": "★",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-P-002",
@@ -17812,7 +18206,7 @@
       "itemCode": "A4",
       "value": "Bump 높이(Bump Height, μm)",
       "specialChar": "★",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-M-001",
@@ -17821,7 +18215,7 @@
       "itemCode": "A5",
       "value": "Bump 외관 불량(Visual Defect)",
       "parentItemId": "PF-L2-150-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-M-002",
@@ -17830,7 +18224,7 @@
       "itemCode": "A5",
       "value": "Bump 높이 규격 이탈(Height Out of Spec)",
       "parentItemId": "PF-L2-150-P-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-150-D-1",
@@ -17838,7 +18232,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MN-001",
@@ -17847,7 +18241,7 @@
       "itemCode": "B1",
       "value": "Final 검사원",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MN-001-G",
@@ -17857,7 +18251,7 @@
       "value": "Final 검사원이 AVI 결과 및 높이 측정값을 확인하여 최종 합부를 판정한다",
       "m4": "MN",
       "parentItemId": "PF-L3-150-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MN-001-C-001",
@@ -17868,7 +18262,7 @@
       "m4": "MN",
       "specialChar": "★",
       "parentItemId": "PF-L3-150-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MN-001-K-001",
@@ -17878,7 +18272,7 @@
       "value": "판정 기준 오적용",
       "m4": "MN",
       "parentItemId": "PF-L3-150-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MN-001-V-1",
@@ -17887,7 +18281,7 @@
       "itemCode": "B5",
       "value": "P:검사원 인증 교육, 판정 기준서 최신화 및 게시",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-001",
@@ -17896,7 +18290,7 @@
       "itemCode": "B1",
       "value": "AVI 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-001-G",
@@ -17906,7 +18300,7 @@
       "value": "AVI 장비가 Wafer 전면을 자동 촬영하여 외관 결함을 검출한다",
       "m4": "MC",
       "parentItemId": "PF-L3-150-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-001-C-001",
@@ -17917,7 +18311,7 @@
       "m4": "MC",
       "specialChar": "★",
       "parentItemId": "PF-L3-150-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-001-K-001",
@@ -17927,7 +18321,7 @@
       "value": "해상도 저하",
       "m4": "MC",
       "parentItemId": "PF-L3-150-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-001-V-1",
@@ -17936,7 +18330,7 @@
       "itemCode": "B5",
       "value": "P:AVI 장비 해상도 정기 교정, 기준 이미지 최신화",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002",
@@ -17945,7 +18339,7 @@
       "itemCode": "B1",
       "value": "높이 측정기",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002-G",
@@ -17955,7 +18349,17 @@
       "value": "높이 측정기가 Bump 높이를 전수 측정하여 규격 적합 데이터를 제공한다",
       "m4": "MC",
       "parentItemId": "PF-L3-150-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
+    },
+    {
+      "id": "PF-L3-150-MC-002-G-002",
+      "processNo": "150",
+      "category": "B",
+      "itemCode": "B2",
+      "value": "높이 측정기가 Bump 높이를 전수 측정하여 규격 적합 데이터를 제공한다",
+      "m4": "MC",
+      "parentItemId": "PF-L3-150-MC-002",
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002-C-001",
@@ -17965,7 +18369,7 @@
       "value": "측정 정밀도(Accuracy, μm)",
       "m4": "MC",
       "parentItemId": "PF-L3-150-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002-C-002",
@@ -17975,7 +18379,7 @@
       "value": "공간적 균일도 측정 정밀도(Co-planarity Accuracy, μm)",
       "m4": "MC",
       "parentItemId": "PF-L3-150-MC-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002-K-001",
@@ -17985,7 +18389,7 @@
       "value": "측정 균일도 편차",
       "m4": "MC",
       "parentItemId": "PF-L3-150-MC-002-C-002",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002-K-002",
@@ -17995,7 +18399,7 @@
       "value": "측정 오차",
       "m4": "MC",
       "parentItemId": "PF-L3-150-MC-002-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002-V-1",
@@ -18004,7 +18408,7 @@
       "itemCode": "B5",
       "value": "P:높이 측정기 정기 교정(MSA), PM 일정 관리",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-MC-002-V-2",
@@ -18013,7 +18417,7 @@
       "itemCode": "B5",
       "value": "P:높이 측정기 Co-planarity 측정 정밀도 정기 교정(MSA)",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-IM-001",
@@ -18022,7 +18426,7 @@
       "itemCode": "B1",
       "value": "한도 견본",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-IM-001-G",
@@ -18032,7 +18436,7 @@
       "value": "한도 견본이 외관 판정 기준을 제공하여 검사원의 판정 일관성을 확보한다",
       "m4": "IM",
       "parentItemId": "PF-L3-150-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-IM-001-C-001",
@@ -18043,7 +18447,7 @@
       "m4": "IM",
       "specialChar": "★",
       "parentItemId": "PF-L3-150-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-IM-001-K-001",
@@ -18053,7 +18457,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-150-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-IM-001-V-1",
@@ -18062,7 +18466,7 @@
       "itemCode": "B5",
       "value": "P:한도 견본 정기 최신화, 승인 기준 관리",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-EN-001",
@@ -18071,7 +18475,7 @@
       "itemCode": "B1",
       "value": "검사실",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-EN-001-G",
@@ -18081,7 +18485,7 @@
       "value": "검사실이 조도·청정도를 유지하여 정확한 외관 검사 환경을 제공한다",
       "m4": "EN",
       "parentItemId": "PF-L3-150-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-EN-001-C-001",
@@ -18092,7 +18496,7 @@
       "m4": "EN",
       "specialChar": "★",
       "parentItemId": "PF-L3-150-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-EN-001-K-001",
@@ -18102,7 +18506,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-150-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-150-EN-001-V-1",
@@ -18111,7 +18515,7 @@
       "itemCode": "B5",
       "value": "P:검사실 조도·청정도 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-160-A1",
@@ -18119,7 +18523,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "160",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-160-A2",
@@ -18127,7 +18531,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Clean",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-160-F-001",
@@ -18135,7 +18539,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Clean 장비로 Wafer 표면의 잔류 이물을 세정하여 출하 전 청정도를 확보한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-160-P-001",
@@ -18143,7 +18547,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "파티클 잔류수(Particle Count, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-160-M-001",
@@ -18152,7 +18556,7 @@
       "itemCode": "A5",
       "value": "Wafer 표면 이물 잔류(Particle 오염)",
       "parentItemId": "PF-L2-160-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-160-D-1",
@@ -18160,7 +18564,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:Particle Counter 세정 후 파티클 측정, 매 Lot",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MN-001",
@@ -18169,7 +18573,7 @@
       "itemCode": "B1",
       "value": "Clean 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MN-001-G",
@@ -18179,7 +18583,7 @@
       "value": "Clean 작업자가 세정 조건을 설정하고 파티클 제거 결과를 확인한다",
       "m4": "MN",
       "parentItemId": "PF-L3-160-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MN-001-C-001",
@@ -18189,7 +18593,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-160-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MN-001-K-001",
@@ -18199,7 +18603,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-160-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MN-001-V-1",
@@ -18208,7 +18612,7 @@
       "itemCode": "B5",
       "value": "P:Clean 작업 표준 교육, 인증 후 투입",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MC-001",
@@ -18217,7 +18621,7 @@
       "itemCode": "B1",
       "value": "Clean 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MC-001-G",
@@ -18227,7 +18631,7 @@
       "value": "Clean 장비가 DI Water를 이용하여 최종 Wafer 표면 파티클을 제거한다",
       "m4": "MC",
       "parentItemId": "PF-L3-160-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MC-001-C-001",
@@ -18237,7 +18641,7 @@
       "value": "분사 압력(Spray Pressure, kPa)",
       "m4": "MC",
       "parentItemId": "PF-L3-160-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MC-001-K-001",
@@ -18247,7 +18651,7 @@
       "value": "노즐 막힘",
       "m4": "MC",
       "parentItemId": "PF-L3-160-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-MC-001-V-1",
@@ -18256,7 +18660,7 @@
       "itemCode": "B5",
       "value": "P:Clean 장비 정기 PM, 노즐 주기 점검",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-IM-001",
@@ -18265,7 +18669,7 @@
       "itemCode": "B1",
       "value": "DI Water",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-IM-001-G",
@@ -18275,7 +18679,7 @@
       "value": "DI Water가 Wafer 표면을 세정하여 이물을 제거한다",
       "m4": "IM",
       "parentItemId": "PF-L3-160-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-IM-001-C-001",
@@ -18285,7 +18689,7 @@
       "value": "비저항(Resistivity, MΩ·cm)",
       "m4": "IM",
       "parentItemId": "PF-L3-160-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-IM-001-K-001",
@@ -18295,7 +18699,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-160-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-IM-001-V-1",
@@ -18304,7 +18708,7 @@
       "itemCode": "B5",
       "value": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-EN-001",
@@ -18313,7 +18717,7 @@
       "itemCode": "B1",
       "value": "Clean 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-EN-001-G",
@@ -18323,7 +18727,7 @@
       "value": "Clean 작업영역이 재오염 방지 환경을 유지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-160-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-EN-001-C-001",
@@ -18333,7 +18737,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-160-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-EN-001-K-001",
@@ -18343,7 +18747,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-160-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-160-EN-001-V-1",
@@ -18352,7 +18756,7 @@
       "itemCode": "B5",
       "value": "P:Clean 작업영역 청정도 정기 모니터링",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-170-A1",
@@ -18360,7 +18764,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "170",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-170-A2",
@@ -18368,7 +18772,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Scrubber3",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-170-F-001",
@@ -18376,7 +18780,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Scrubber3 장비로 최종 Wafer 표면 파티클을 제거하여 출하 청정도를 확보한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-170-P-001",
@@ -18384,7 +18788,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "파티클 잔류수(Particle Count, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-170-M-001",
@@ -18393,7 +18797,7 @@
       "itemCode": "A5",
       "value": "Wafer 표면 이물 잔류(Particle 오염)",
       "parentItemId": "PF-L2-170-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-170-D-1",
@@ -18401,7 +18805,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:Particle Counter 파티클 측정, 출하 전 매 Lot",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MN-001",
@@ -18410,7 +18814,7 @@
       "itemCode": "B1",
       "value": "Scrubber3 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MN-001-G",
@@ -18420,7 +18824,7 @@
       "value": "Scrubber3 작업자가 최종 세정 조건을 확인하고 출하 전 파티클 기준을 검증한다",
       "m4": "MN",
       "parentItemId": "PF-L3-170-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MN-001-C-001",
@@ -18430,7 +18834,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-170-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MN-001-K-001",
@@ -18440,7 +18844,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-170-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MN-001-V-1",
@@ -18449,7 +18853,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber3 작업 표준 교육, 출하 기준 확인",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MC-001",
@@ -18458,7 +18862,7 @@
       "itemCode": "B1",
       "value": "Scrubber 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MC-001-G",
@@ -18468,7 +18872,7 @@
       "value": "Scrubber 장비가 DI Water를 분사하여 출하 전 최종 파티클을 제거한다",
       "m4": "MC",
       "parentItemId": "PF-L3-170-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MC-001-C-001",
@@ -18478,7 +18882,7 @@
       "value": "분사 압력(Spray Pressure, kPa)",
       "m4": "MC",
       "parentItemId": "PF-L3-170-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MC-001-K-001",
@@ -18488,7 +18892,7 @@
       "value": "노즐 막힘",
       "m4": "MC",
       "parentItemId": "PF-L3-170-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-MC-001-V-1",
@@ -18497,7 +18901,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber 장비 정기 PM, 노즐 주기 점검",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-IM-001",
@@ -18506,7 +18910,7 @@
       "itemCode": "B1",
       "value": "DI Water",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-IM-001-G",
@@ -18516,7 +18920,7 @@
       "value": "DI Water가 Wafer 표면을 세정하여 출하 전 청정도를 확보한다",
       "m4": "IM",
       "parentItemId": "PF-L3-170-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-IM-001-C-001",
@@ -18526,7 +18930,7 @@
       "value": "비저항(Resistivity, MΩ·cm)",
       "m4": "IM",
       "parentItemId": "PF-L3-170-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-IM-001-K-001",
@@ -18536,7 +18940,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-170-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-IM-001-V-1",
@@ -18545,7 +18949,7 @@
       "itemCode": "B5",
       "value": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-EN-001",
@@ -18554,7 +18958,7 @@
       "itemCode": "B1",
       "value": "Scrubber3 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-EN-001-G",
@@ -18564,7 +18968,7 @@
       "value": "Scrubber3 작업영역이 재오염 방지 환경을 유지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-170-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-EN-001-C-001",
@@ -18574,7 +18978,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-170-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-EN-001-K-001",
@@ -18584,7 +18988,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-170-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-170-EN-001-V-1",
@@ -18593,7 +18997,7 @@
       "itemCode": "B5",
       "value": "P:Scrubber3 작업영역 청정도 정기 모니터링",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-180-A1",
@@ -18601,7 +19005,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "180",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-180-A2",
@@ -18609,7 +19013,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "Sorter3",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-180-F-001",
@@ -18617,7 +19021,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "Sorter3 장비로 Wafer를 출하 카세트에 정확히 정렬·이송한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-180-P-001",
@@ -18625,7 +19029,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Wafer 정렬 정확도",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-180-M-001",
@@ -18634,7 +19038,7 @@
       "itemCode": "A5",
       "value": "Wafer 정렬 불량",
       "parentItemId": "PF-L2-180-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-180-D-1",
@@ -18642,7 +19046,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:Sorter3 정렬 센서 자동 확인, 매 Wafer",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MN-001",
@@ -18651,7 +19055,7 @@
       "itemCode": "B1",
       "value": "Sorter3 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MN-001-G",
@@ -18661,7 +19065,7 @@
       "value": "Sorter3 작업자가 카세트 장착 및 정렬 조건을 설정하여 출하 정렬을 수행한다",
       "m4": "MN",
       "parentItemId": "PF-L3-180-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MN-001-C-001",
@@ -18671,7 +19075,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-180-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MN-001-K-001",
@@ -18681,7 +19085,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-180-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MN-001-V-1",
@@ -18690,7 +19094,7 @@
       "itemCode": "B5",
       "value": "P:Sorter3 작업 표준 교육, 인증 후 투입",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MC-001",
@@ -18699,7 +19103,7 @@
       "itemCode": "B1",
       "value": "Sorter 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MC-001-G",
@@ -18709,7 +19113,7 @@
       "value": "Sorter 장비가 Wafer를 출하 카세트에 정확히 정렬·이송한다",
       "m4": "MC",
       "parentItemId": "PF-L3-180-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MC-001-C-001",
@@ -18719,7 +19123,7 @@
       "value": "정렬 반복 정밀도(Repeatability, μm)",
       "m4": "MC",
       "parentItemId": "PF-L3-180-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MC-001-K-001",
@@ -18729,7 +19133,7 @@
       "value": "정렬 센서 오작동",
       "m4": "MC",
       "parentItemId": "PF-L3-180-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-MC-001-V-1",
@@ -18738,7 +19142,7 @@
       "itemCode": "B5",
       "value": "P:Sorter 장비 정기 PM, 정렬 센서 교정",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-IM-001",
@@ -18747,7 +19151,7 @@
       "itemCode": "B1",
       "value": "Wafer Cassette",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-IM-001-G",
@@ -18757,7 +19161,7 @@
       "value": "Wafer Cassette가 Wafer를 안전하게 수납하여 출하 이송을 지원한다",
       "m4": "IM",
       "parentItemId": "PF-L3-180-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-IM-001-C-001",
@@ -18767,7 +19171,7 @@
       "value": "자재 규격 기준(Material Spec)",
       "m4": "IM",
       "parentItemId": "PF-L3-180-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-IM-001-K-001",
@@ -18777,7 +19181,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-180-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-IM-001-V-1",
@@ -18786,7 +19190,7 @@
       "itemCode": "B5",
       "value": "P:Wafer Cassette 이상 유무 입고 검사",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-EN-001",
@@ -18795,7 +19199,7 @@
       "itemCode": "B1",
       "value": "Sorter3 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-EN-001-G",
@@ -18805,7 +19209,7 @@
       "value": "Sorter3 작업영역이 ESD·파티클 환경을 유지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-180-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-EN-001-C-001",
@@ -18815,7 +19219,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-180-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-EN-001-K-001",
@@ -18825,7 +19229,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-180-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-180-EN-001-V-1",
@@ -18834,7 +19238,7 @@
       "itemCode": "B5",
       "value": "P:Sorter3 작업영역 ESD 매트·손목 스트랩 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-190-A1",
@@ -18842,7 +19246,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "190",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-190-A2",
@@ -18850,7 +19254,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "AVI",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-190-F-001",
@@ -18858,7 +19262,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "AVI 장비로 Wafer 전면 외관 결함을 자동 검사하여 불량을 검출한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-190-P-001",
@@ -18866,7 +19270,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "Defect 수(Defect Count, ea)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-190-M-001",
@@ -18875,7 +19279,7 @@
       "itemCode": "A5",
       "value": "AVI 검사 불량 미검출(Visual Defect Escape)",
       "parentItemId": "PF-L2-190-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-190-D-1",
@@ -18883,7 +19287,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:AVI 장비 전수 자동 외관검사, 매 Wafer",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MN-001",
@@ -18892,7 +19296,7 @@
       "itemCode": "B1",
       "value": "AVI 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MN-001-G",
@@ -18902,7 +19306,7 @@
       "value": "AVI 작업자가 AVI 결과를 검토하고 이상 발생 시 판정 조치를 수행한다",
       "m4": "MN",
       "parentItemId": "PF-L3-190-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MN-001-C-001",
@@ -18912,7 +19316,7 @@
       "value": "검사 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-190-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MN-001-K-001",
@@ -18922,7 +19326,7 @@
       "value": "작업 숙련도 부족",
       "m4": "MN",
       "parentItemId": "PF-L3-190-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MN-001-V-1",
@@ -18931,7 +19335,7 @@
       "itemCode": "B5",
       "value": "P:AVI 결과 검토 교육, 이상 발생 시 에스컬레이션 절차",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MC-001",
@@ -18940,7 +19344,7 @@
       "itemCode": "B1",
       "value": "AVI 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MC-001-G",
@@ -18950,7 +19354,7 @@
       "value": "AVI 장비가 Wafer 전면을 자동 촬영·분석하여 외관 결함을 검출한다",
       "m4": "MC",
       "parentItemId": "PF-L3-190-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MC-001-C-001",
@@ -18960,7 +19364,7 @@
       "value": "해상도(Resolution, μm)",
       "m4": "MC",
       "parentItemId": "PF-L3-190-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MC-001-K-001",
@@ -18970,7 +19374,7 @@
       "value": "해상도 저하",
       "m4": "MC",
       "parentItemId": "PF-L3-190-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-MC-001-V-1",
@@ -18979,7 +19383,7 @@
       "itemCode": "B5",
       "value": "P:AVI 장비 해상도 정기 교정, 기준 이미지 최신화",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-IM-001",
@@ -18988,7 +19392,7 @@
       "itemCode": "B1",
       "value": "한도 견본",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-IM-001-G",
@@ -18998,7 +19402,7 @@
       "value": "한도 견본이 AVI 기준 이미지를 제공하여 자동 판정의 정확도를 확보한다",
       "m4": "IM",
       "parentItemId": "PF-L3-190-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-IM-001-C-001",
@@ -19008,7 +19412,7 @@
       "value": "자재 규격 기준(Material Spec)",
       "m4": "IM",
       "parentItemId": "PF-L3-190-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-IM-001-K-001",
@@ -19018,7 +19422,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-190-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-IM-001-V-1",
@@ -19027,7 +19431,7 @@
       "itemCode": "B5",
       "value": "P:한도 견본 정기 최신화, 승인 기준 관리",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-EN-001",
@@ -19036,7 +19440,7 @@
       "itemCode": "B1",
       "value": "AVI 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-EN-001-G",
@@ -19046,7 +19450,7 @@
       "value": "AVI 작업영역이 조도·진동 제어 환경을 유지하여 검사 정확도를 확보한다",
       "m4": "EN",
       "parentItemId": "PF-L3-190-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-EN-001-C-001",
@@ -19056,7 +19460,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-190-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-EN-001-K-001",
@@ -19066,7 +19470,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-190-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-190-EN-001-V-1",
@@ -19075,7 +19479,7 @@
       "itemCode": "B5",
       "value": "P:AVI 작업영역 조도·진동 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-200-A1",
@@ -19083,7 +19487,7 @@
       "category": "A",
       "itemCode": "A1",
       "value": "200",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-200-A2",
@@ -19091,7 +19495,7 @@
       "category": "A",
       "itemCode": "A2",
       "value": "OGI/Packing",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-200-F-001",
@@ -19099,7 +19503,7 @@
       "category": "A",
       "itemCode": "A3",
       "value": "포장 장비 및 절차에 따라 Wafer를 고객 기준에 맞게 포장하여 출하 준비를 완료한다",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-200-P-001",
@@ -19107,7 +19511,7 @@
       "category": "A",
       "itemCode": "A4",
       "value": "포장 상태(Packaging Condition)",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-200-M-001",
@@ -19116,7 +19520,7 @@
       "itemCode": "A5",
       "value": "포장 불량(Packaging Defect)",
       "parentItemId": "PF-L2-200-P-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L2-200-D-1",
@@ -19124,7 +19528,7 @@
       "category": "A",
       "itemCode": "A6",
       "value": "D:포장 외관 전수 육안검사, 포장재 진공도 검사",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MN-001",
@@ -19133,7 +19537,7 @@
       "itemCode": "B1",
       "value": "포장 작업자",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MN-001-G",
@@ -19143,7 +19547,7 @@
       "value": "포장 작업자가 포장 기준을 확인하고 체크리스트를 완성하여 출하 준비를 완료한다",
       "m4": "MN",
       "parentItemId": "PF-L3-200-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MN-001-C-001",
@@ -19153,7 +19557,7 @@
       "value": "작업 숙련도",
       "m4": "MN",
       "parentItemId": "PF-L3-200-MN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MN-001-K-001",
@@ -19163,7 +19567,7 @@
       "value": "체크리스트 누락",
       "m4": "MN",
       "parentItemId": "PF-L3-200-MN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MN-001-V-1",
@@ -19172,7 +19576,7 @@
       "itemCode": "B5",
       "value": "P:포장 작업자 교육, 포장 체크리스트 표준화",
       "m4": "MN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MC-001",
@@ -19181,7 +19585,7 @@
       "itemCode": "B1",
       "value": "포장 장비",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MC-001-G",
@@ -19191,7 +19595,7 @@
       "value": "포장 장비가 Wafer를 진공 밀봉하여 출하 포장을 완료한다",
       "m4": "MC",
       "parentItemId": "PF-L3-200-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MC-001-C-001",
@@ -19201,7 +19605,7 @@
       "value": "진공 압력(Vacuum Pressure, kPa)",
       "m4": "MC",
       "parentItemId": "PF-L3-200-MC-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MC-001-K-001",
@@ -19211,7 +19615,7 @@
       "value": "진공 누설",
       "m4": "MC",
       "parentItemId": "PF-L3-200-MC-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-MC-001-V-1",
@@ -19220,7 +19624,7 @@
       "itemCode": "B5",
       "value": "P:포장 장비 진공 압력 정기 점검, PM",
       "m4": "MC",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-IM-001",
@@ -19229,7 +19633,7 @@
       "itemCode": "B1",
       "value": "포장재",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-IM-001-G",
@@ -19239,7 +19643,7 @@
       "value": "포장재가 Wafer를 외부 충격으로부터 보호하여 안전한 운송 환경을 제공한다",
       "m4": "IM",
       "parentItemId": "PF-L3-200-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-IM-001-C-001",
@@ -19249,7 +19653,7 @@
       "value": "자재 규격 기준(Material Spec)",
       "m4": "IM",
       "parentItemId": "PF-L3-200-IM-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-IM-001-K-001",
@@ -19259,7 +19663,7 @@
       "value": "자재 품질 부적합",
       "m4": "IM",
       "parentItemId": "PF-L3-200-IM-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-IM-001-V-1",
@@ -19268,7 +19672,7 @@
       "itemCode": "B5",
       "value": "P:포장재 입고 검사, 보관 기준 관리",
       "m4": "IM",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-EN-001",
@@ -19277,7 +19681,7 @@
       "itemCode": "B1",
       "value": "포장 작업영역",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-EN-001-G",
@@ -19287,7 +19691,7 @@
       "value": "포장 작업영역이 ESD·파티클 환경을 유지하여 포장 중 Wafer 오염을 방지한다",
       "m4": "EN",
       "parentItemId": "PF-L3-200-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-EN-001-C-001",
@@ -19297,7 +19701,7 @@
       "value": "청정도 등급(ISO Class) / 온습도(Temp·Humidity)",
       "m4": "EN",
       "parentItemId": "PF-L3-200-EN-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-EN-001-K-001",
@@ -19307,7 +19711,7 @@
       "value": "환경 조건 이탈",
       "m4": "EN",
       "parentItemId": "PF-L3-200-EN-001-C-001",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     },
     {
       "id": "PF-L3-200-EN-001-V-1",
@@ -19316,10 +19720,118 @@
       "itemCode": "B5",
       "value": "P:포장 작업영역 청정도 및 ESD 정기 점검",
       "m4": "EN",
-      "createdAt": "2026-03-21T03:28:12.316Z"
+      "createdAt": "2026-03-21T06:43:45.655Z"
     }
   ],
   "chains": [
+    {
+      "id": "PF-L3-130-IM-001-C-001-K-001-FL",
+      "processNo": "130",
+      "m4": "IM",
+      "workElement": "TiW Etchant",
+      "fmValue": "TiW Etch 후 잔류 Film 이상(Under/Over etch)",
+      "fmId": "PF-L2-130-M-001",
+      "fmFlatId": "PF-L2-130-M-001",
+      "fcValue": "H₂O₂ 농도 편차에 의한 Etch Rate 이탈",
+      "fcId": "PF-L3-130-IM-001-K-001",
+      "fcFlatId": "PF-L3-130-IM-001-K-001",
+      "feValue": "Particle 오염으로 인한 제품 특성 이상",
+      "feId": "PF-L1-YP-003-008-001",
+      "feFlatId": "PF-L1-YP-003-008-001",
+      "feSeverity": 5,
+      "feScope": "YP",
+      "severity": 5,
+      "occurrence": 3,
+      "detection": 4,
+      "pcValue": "Etchant 농도 정기 분석 및 자동 보충",
+      "dcValue": "H₂O₂ 농도 실시간 모니터링",
+      "l2Function": "TiW Etchant를 이용하여 Bump 외부 TiW Seed Layer를 선택적으로 식각·제거한다",
+      "productChar": "Seed 잔류물(Seed Residue, ea)",
+      "l3Function": "TiW Etchant가 TiW Seed Layer를 선택적으로 식각하여 단락 방지 구조를 형성한다",
+      "processChar": "H₂O₂ 농도(Concentration, %)",
+      "fmMergeSpan": 1
+    },
+    {
+      "id": "PF-L3-130-IM-001-C-001-K-002-FL",
+      "processNo": "130",
+      "m4": "IM",
+      "workElement": "TiW Etchant",
+      "fmValue": "TiW Etch 후 잔류 Film 이상(Under/Over etch)",
+      "fmId": "PF-L2-130-M-001",
+      "fmFlatId": "PF-L2-130-M-001",
+      "fcValue": "H₂O₂ 농도(Concentration, %) 부적합",
+      "fcId": "PF-L3-130-IM-001-K-002",
+      "fcFlatId": "PF-L3-130-IM-001-K-002",
+      "feValue": "Particle 오염으로 인한 제품 특성 이상",
+      "feId": "PF-L1-YP-003-008-001",
+      "feFlatId": "PF-L1-YP-003-008-001",
+      "feSeverity": 5,
+      "feScope": "YP",
+      "severity": 5,
+      "occurrence": 3,
+      "detection": 4,
+      "pcValue": "Etchant 교체 주기 관리",
+      "dcValue": "Etch Rate 인라인 모니터링",
+      "l2Function": "TiW Etchant를 이용하여 Bump 외부 TiW Seed Layer를 선택적으로 식각·제거한다",
+      "productChar": "Seed 잔류물(Seed Residue, ea)",
+      "l3Function": "TiW Etchant가 TiW Seed Layer를 선택적으로 식각하여 단락 방지 구조를 형성한다",
+      "processChar": "H₂O₂ 농도(Concentration, %)",
+      "fmMergeSpan": 1
+    },
+    {
+      "id": "PF-L3-040-IM-002-C-001-K-001-FL",
+      "processNo": "40",
+      "m4": "IM",
+      "workElement": "Cu Target",
+      "fmValue": "막질 불균일(Film Non-uniformity)",
+      "fmId": "PF-L2-040-M-002",
+      "fmFlatId": "PF-L2-040-M-002",
+      "fcValue": "Target 소진",
+      "fcId": "PF-L3-040-IM-002-K-001",
+      "fcFlatId": "PF-L3-040-IM-002-K-001",
+      "feValue": "Particle 오염으로 인한 제품 특성 이상",
+      "feId": "PF-L1-YP-003-008-001",
+      "feFlatId": "PF-L1-YP-003-008-001",
+      "feSeverity": 5,
+      "feScope": "YP",
+      "severity": 5,
+      "occurrence": 3,
+      "detection": 4,
+      "pcValue": "Target 잔량 정기 점검 및 교체 기준 설정",
+      "dcValue": "Target 수명 모니터링 시스템",
+      "l2Function": "Sputter 장비로 Wafer 표면에 Ti/Cu UBM 박막을 증착하여 Bump 접합층을 형성한다",
+      "productChar": "막질 균일도(Film Uniformity, %)",
+      "l3Function": "Cu Target이 스퍼터링 소재를 공급하여 Cu 박막 형성을 지원한다",
+      "processChar": "Target 두께 잔량(Remaining Thickness, mm)",
+      "fmMergeSpan": 1
+    },
+    {
+      "id": "PF-L3-040-IM-002-C-001-K-002-FL",
+      "processNo": "40",
+      "m4": "IM",
+      "workElement": "Cu Target",
+      "fmValue": "막질 불균일(Film Non-uniformity)",
+      "fmId": "PF-L2-040-M-002",
+      "fmFlatId": "PF-L2-040-M-002",
+      "fcValue": "Target 두께 잔량(Remaining Thickness, mm) 부적합",
+      "fcId": "PF-L3-040-IM-002-K-002",
+      "fcFlatId": "PF-L3-040-IM-002-K-002",
+      "feValue": "Particle 오염으로 인한 제품 특성 이상",
+      "feId": "PF-L1-YP-003-008-001",
+      "feFlatId": "PF-L1-YP-003-008-001",
+      "feSeverity": 5,
+      "feScope": "YP",
+      "severity": 5,
+      "occurrence": 3,
+      "detection": 4,
+      "pcValue": "Target 두께 정기 측정",
+      "dcValue": "Target 두께 인라인 모니터링",
+      "l2Function": "Sputter 장비로 Wafer 표면에 Ti/Cu UBM 박막을 증착하여 Bump 접합층을 형성한다",
+      "productChar": "막질 균일도(Film Uniformity, %)",
+      "l3Function": "Cu Target이 스퍼터링 소재를 공급하여 Cu 박막 형성을 지원한다",
+      "processChar": "Target 두께 잔량(Remaining Thickness, mm)",
+      "fmMergeSpan": 1
+    },
     {
       "id": "chain-81",
       "processNo": "10",
@@ -22230,7 +22742,7 @@
   ],
   "stats": {
     "fmeaId": "pfm26-m066",
-    "exportedAt": "2026-03-21T03:28:12.320Z",
+    "exportedAt": "2026-03-21T06:43:45.657Z",
     "l2Count": 21,
     "l3Count": 91,
     "l1FuncCount": 17,
@@ -22238,23 +22750,23 @@
     "l3FuncCount": 101,
     "fmCount": 26,
     "feCount": 20,
-    "fcCount": 102,
-    "linkCount": 107,
-    "riskCount": 107,
-    "flatDataCount": 662,
-    "chainCount": 107,
+    "fcCount": 104,
+    "linkCount": 111,
+    "riskCount": 111,
+    "flatDataCount": 682,
+    "chainCount": 111,
     "flatBreakdown": {
       "A1": 21,
       "A2": 21,
       "A3": 21,
       "A4": 26,
       "A5": 26,
-      "A6": 21,
+      "A6": 25,
       "B1": 91,
-      "B2": 91,
+      "B2": 101,
       "B3": 101,
-      "B4": 102,
-      "B5": 94,
+      "B4": 104,
+      "B5": 98,
       "C1": 3,
       "C2": 7,
       "C3": 17,

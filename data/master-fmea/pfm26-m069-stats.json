@@ -1,6 +1,6 @@
 {
   "fmeaId": "pfm26-m069",
-  "exportedAt": "2026-03-18T22:09:24.055Z",
+  "exportedAt": "2026-03-21T06:43:58.460Z",
   "l2Count": 21,
   "l3Count": 91,
   "l1FuncCount": 17,
@@ -11,7 +11,7 @@
   "fcCount": 117,
   "linkCount": 118,
   "riskCount": 118,
-  "flatDataCount": 745,
+  "flatDataCount": 764,
   "chainCount": 118,
   "flatBreakdown": {
     "A1": 21,
@@ -21,7 +21,7 @@
     "A5": 26,
     "A6": 48,
     "B1": 91,
-    "B2": 98,
+    "B2": 117,
     "B3": 117,
     "B4": 117,
     "B5": 112,
