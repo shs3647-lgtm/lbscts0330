@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { PFDInfo, PFDType } from '../../types/pfdRegister';
 import { generateLinkedPfdNo, generatePFDId } from '../../utils/pfdIdUtils';
-import { normalizeProjectId, getUrlToPfmeaRegister, getUrlToCpRegister } from '@/lib/project-navigation';
+import { getUrlToPfmeaRegister, getUrlToCpRegister } from '@/lib/project-navigation';
 
 // =====================================================
 // Style constants — PFMEA 등록화면 표준
