@@ -27,6 +27,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ToastContainer from "@/components/ui/ToastContainer";
 import { LocaleProvider } from "@/lib/locale";
+import LicenseGate from "@/components/LicenseGate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -108,7 +109,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <LocaleProvider>
-          {children}
+          <LicenseGate>
+            {children}
+          </LicenseGate>
         </LocaleProvider>
         <ToastContainer />
       </body>
