@@ -13,6 +13,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { getUrlToCpWorksheet, getUrlToPfmeaWorksheet } from '@/lib/project-navigation';
 
 interface ExtensionMergeSettings {
   all: boolean;
@@ -197,14 +198,14 @@ export default function PfdTopMenuBar({
           </button>
         )}
         <button
-          onClick={() => router.push(cpNo ? `/control-plan/worksheet?cpNo=${encodeURIComponent(cpNo)}` : '/control-plan/worksheet')}
+          onClick={() => { const nav = getUrlToCpWorksheet(cpNo); router.push(nav.url); }}
           className="px-1.5 py-0.5 rounded bg-teal-600/70 text-white text-[10px] font-medium hover:bg-teal-500 transition-all whitespace-nowrap"
           title="Go to CP Worksheet"
         >
           CP이동(Go)
         </button>
         <button
-          onClick={() => router.push(fmeaId ? `/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}` : '/pfmea/worksheet')}
+          onClick={() => { const nav = getUrlToPfmeaWorksheet(fmeaId); router.push(nav.url); }}
           className="px-1.5 py-0.5 rounded bg-indigo-700/70 text-white text-[10px] font-medium hover:bg-indigo-600 transition-all whitespace-nowrap"
           title="Go to FMEA Worksheet"
         >

@@ -134,7 +134,7 @@ export default function CpBasicInfoTable({
                 {selectedParentFmea ? (<>
                   {fmeaLocked && <span className="text-yellow-600" title="FMEA에서 연동됨 (변경 불가)">🔒</span>}
                   <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-yellow-500 shrink-0">FMEA</span>
-                  <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all" onClick={e => { e.stopPropagation(); router.push(`/pfmea/register?id=${selectedParentFmea.toLowerCase()}`); }}>{selectedParentFmea}</span>
+                  <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all" onClick={e => { e.stopPropagation(); if (!selectedParentFmea) return; router.push(`/pfmea/register?id=${selectedParentFmea.toLowerCase()}`); }}>{selectedParentFmea}</span>
                 </>) : <span className="text-[10px] text-gray-400">-</span>}
               </div>
             </td>
@@ -191,7 +191,7 @@ export default function CpBasicInfoTable({
                 {linkedPfdList.length > 0 ? (<>
                   <span
                     className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-indigo-500 cursor-pointer hover:bg-indigo-600 shrink-0"
-                    onClick={() => router.push(`/pfd/register?id=${linkedPfdList[0].id.toLowerCase()}`)}
+                    onClick={() => { const pfdId = linkedPfdList[0]?.id; if (!pfdId) return; router.push(`/pfd/register?id=${pfdId.toLowerCase()}`); }}
                     title="PFD 등록화면으로 이동"
                   >PFD</span>
                   <span
@@ -213,13 +213,13 @@ export default function CpBasicInfoTable({
             <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
               <span className="font-medium text-gray-600">PFMEA: </span>
               {tripletInfo.pfmeaId ? (
-                <span className="text-blue-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/pfmea/register?id=${tripletInfo.pfmeaId}`)}>{tripletInfo.pfmeaId}</span>
+                <span className="text-blue-700 font-semibold cursor-pointer hover:underline" onClick={() => { if (!tripletInfo.pfmeaId) return; router.push(`/pfmea/register?id=${tripletInfo.pfmeaId.toLowerCase()}`); }}>{tripletInfo.pfmeaId}</span>
               ) : <span className="text-gray-400 italic">-</span>}
             </td>
             <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
               <span className="font-medium text-gray-600">PFD: </span>
               {tripletInfo.pfdId ? (
-                <span className="text-indigo-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/pfd/register?id=${tripletInfo.pfdId}`)}>{tripletInfo.pfdId}</span>
+                <span className="text-indigo-700 font-semibold cursor-pointer hover:underline" onClick={() => { if (!tripletInfo.pfdId) return; router.push(`/pfd/register?id=${tripletInfo.pfdId.toLowerCase()}`); }}>{tripletInfo.pfdId}</span>
               ) : <span className="text-gray-400 italic">Lazy</span>}
             </td>
             <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>

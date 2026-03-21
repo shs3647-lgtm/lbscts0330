@@ -10,6 +10,7 @@ import { PfdState, PfdItem, SaveStatus } from '../types';
 import { exportPFDExcel } from '../excel-export';
 import { importPFDExcel } from '../excel-import';
 import { saveChangeMarkers } from '@/lib/change-history';
+import { normalizeProjectId, getUrlToCpWorksheet, getUrlToPfmeaWorksheet } from '@/lib/project-navigation';
 
 interface UsePfdActionsOptions {
     /** PFD 상태 */
@@ -255,9 +256,11 @@ export function usePfdActions(options: UsePfdActionsOptions): UsePfdActionsRetur
                 alert(`CP 연동 완료! ${cpItems.length}건의 공정정보를 CP로 전송했습니다.`);
 
                 if (data.data?.redirectUrl) {
-                    window.location.href = data.data.redirectUrl;
+                    router.push(data.data.redirectUrl);
                 } else if (data.data?.cpNo) {
-                    window.location.href = `/control-plan/worksheet?cpNo=${data.data.cpNo}&fromPfd=${state.pfdNo}`;
+                    const nav = getUrlToCpWorksheet(data.data.cpNo);
+                    const fromPfd = normalizeProjectId(state.pfdNo);
+                    router.push(fromPfd ? `${nav.url}&fromPfd=${encodeURIComponent(fromPfd)}` : nav.url);
                 }
             } else {
                 alert('CP 연동에 실패했습니다.');
@@ -359,7 +362,9 @@ export function usePfdActions(options: UsePfdActionsOptions): UsePfdActionsRetur
                     `PFMEA 구조분석 화면으로 이동합니다.`
                 );
 
-                const redirectUrl = `/pfmea/worksheet?id=${targetFmeaId}&tab=structure&fromPfd=${state.pfdNo}`;
+                const nav = getUrlToPfmeaWorksheet(targetFmeaId, 'structure');
+                const fromPfd = normalizeProjectId(state.pfdNo);
+                const redirectUrl = fromPfd ? `${nav.url}&fromPfd=${encodeURIComponent(fromPfd)}` : nav.url;
                 router.push(redirectUrl);
             } else {
                 const errorData = await res.json();

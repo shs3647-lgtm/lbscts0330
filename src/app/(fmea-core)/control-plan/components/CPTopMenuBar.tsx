@@ -93,7 +93,7 @@ export default function CPTopMenuBar({
         </select>
         {linkedFmeaId && (
           <button 
-            onClick={() => router.push(`/pfmea/worksheet?id=${linkedFmeaId}`)}
+            onClick={() => { if (!linkedFmeaId) return; router.push(`/pfmea/worksheet?id=${linkedFmeaId.toLowerCase()}`); }}
             className="px-2 py-1 bg-yellow-500 text-white rounded text-[10px] hover:bg-yellow-600"
           >
             FMEA열기

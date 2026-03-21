@@ -221,9 +221,9 @@ export function useWorksheetDataLoader({
         setAtomicDB(atomicData);
 
         console.log('[WorksheetDataLoader] Atomic DB 직접 로드 성공');
-        requestAnimationFrame(() => {
-          suppressAutoSaveRef.current = false;
-        });
+        // ★★★ 2026-03-21 FIX: suppress 해제를 3초 지연
+        // Import 직후 워크시트 이동 시 자동저장이 Atomic DB를 덮어쓰기 방지
+        setTimeout(() => { suppressAutoSaveRef.current = false; }, 3000);
         return;
       }
 
@@ -264,7 +264,8 @@ export function useWorksheetDataLoader({
         structureConfirmed: false
       }));
 
-      requestAnimationFrame(() => { suppressAutoSaveRef.current = false; });
+      // ★★★ 2026-03-21 FIX: suppress 해제 3초 지연
+      setTimeout(() => { suppressAutoSaveRef.current = false; }, 3000);
     })();
   }, [selectedFmeaId, baseId, mode, setStateSynced, setState, setAtomicDB, setDirty, suppressAutoSaveRef]);
 }

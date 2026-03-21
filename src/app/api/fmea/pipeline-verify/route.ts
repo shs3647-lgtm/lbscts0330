@@ -124,6 +124,10 @@ export async function GET(request: NextRequest) {
     const prisma = getPrismaForSchema(schema);
     if (!prisma) return NextResponse.json({ success: false, error: 'Prisma 실패' }, { status: 500 });
 
+    // ★★★ 2026-03-21 FIX: search_path 강제 설정 — 프로젝트 스키마 우선, public 폴백
+    if (!/^[a-z][a-z0-9_]*$/.test(schema)) throw new Error(`Invalid schema: ${schema}`);
+    await prisma.$executeRawUnsafe(`SET search_path TO ${schema}, public`);
+
     const result = await runPipelineVerify(prisma, fmeaId, false);
     return NextResponse.json({ success: true, ...result });
   } catch (e) {
@@ -146,6 +150,10 @@ export async function POST(request: NextRequest) {
     await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
     const prisma = getPrismaForSchema(schema);
     if (!prisma) return NextResponse.json({ success: false, error: 'Prisma 실패' }, { status: 500 });
+
+    // ★★★ 2026-03-21 FIX: search_path 강제 설정
+    if (!/^[a-z][a-z0-9_]*$/.test(schema)) throw new Error(`Invalid schema: ${schema}`);
+    await prisma.$executeRawUnsafe(`SET search_path TO ${schema}, public`);
 
     const result = await runPipelineVerify(prisma, fmeaId, true);
 

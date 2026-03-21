@@ -3,7 +3,8 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { PFDInfo, PFDType } from '../../types/pfdRegister';
-import { generateLinkedPfdNo, generateLinkedCpNo, generatePFDId } from '../../utils/pfdIdUtils';
+import { generateLinkedPfdNo, generatePFDId } from '../../utils/pfdIdUtils';
+import { normalizeProjectId, getUrlToPfmeaRegister, getUrlToCpRegister } from '@/lib/project-navigation';
 
 // =====================================================
 // Style constants — PFMEA 등록화면 표준
@@ -110,7 +111,7 @@ export default function PfdBasicInfoTable({
                                 {selectedParentFmea ? (<>
                                     {fmeaLocked && <span className="text-yellow-600" title="FMEA에서 연동됨 (변경 불가)">🔒</span>}
                                     <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-yellow-500 shrink-0">FMEA</span>
-                                    <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all" onClick={e => { e.stopPropagation(); router.push(`/pfmea/register?id=${selectedParentFmea.toLowerCase()}`); }}>{selectedParentFmea}</span>
+                                    <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all" onClick={e => { e.stopPropagation(); const nav = getUrlToPfmeaRegister(selectedParentFmea); router.push(nav.url); }}>{selectedParentFmea}</span>
                                 </>) : <span className="text-[10px] text-gray-400">-</span>}
                             </div>
                         </td>
@@ -138,10 +139,15 @@ export default function PfdBasicInfoTable({
                         <td className={`${headerCell} bg-teal-700`}>연동 CP<br /><span className="text-[8px] font-normal opacity-70">(Linked)</span></td>
                         <td className={inputCell}>
                             <div className="flex items-center gap-0.5 px-1 min-h-[28px]">
-                                {pfdId ? (<>
-                                    <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-teal-500 cursor-pointer hover:bg-teal-600 shrink-0" onClick={() => router.push(`/control-plan/register?id=${generateLinkedCpNo(pfdId)?.toLowerCase()}`)} title="CP 등록화면으로 이동">CP</span>
-                                    <span className="text-[10px] font-bold text-teal-700 cursor-pointer hover:underline" onClick={() => router.push(`/control-plan/register?id=${generateLinkedCpNo(pfdId)?.toLowerCase()}`)} title="CP 등록화면으로 이동">{generateLinkedCpNo(pfdId)}</span>
-                                </>) : <span className="text-[10px] text-gray-400">-</span>}
+                                {(() => {
+                                    const actualCpNo = linkedCpList?.[0]?.id || tripletInfo?.cpId || null;
+                                    if (!actualCpNo) return <span className="text-[10px] text-gray-400">-</span>;
+                                    const nav = getUrlToCpRegister(actualCpNo);
+                                    return (<>
+                                        <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-teal-500 cursor-pointer hover:bg-teal-600 shrink-0" onClick={() => router.push(nav.url)} title="CP 등록화면으로 이동">CP</span>
+                                        <span className="text-[10px] font-bold text-teal-700 cursor-pointer hover:underline" onClick={() => router.push(nav.url)} title="CP 등록화면으로 이동">{actualCpNo}</span>
+                                    </>);
+                                })()}
                             </div>
                         </td>
                     </tr>
@@ -154,13 +160,13 @@ export default function PfdBasicInfoTable({
                         <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
                             <span className="font-medium text-gray-600">PFMEA: </span>
                             {tripletInfo.pfmeaId ? (
-                                <span className="text-blue-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/pfmea/register?id=${tripletInfo.pfmeaId}`)}>{tripletInfo.pfmeaId}</span>
+                                <span className="text-blue-700 font-semibold cursor-pointer hover:underline" onClick={() => { const nav = getUrlToPfmeaRegister(tripletInfo.pfmeaId); router.push(nav.url); }}>{tripletInfo.pfmeaId}</span>
                             ) : <span className="text-gray-400 italic">-</span>}
                         </td>
                         <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
                             <span className="font-medium text-gray-600">CP: </span>
                             {tripletInfo.cpId ? (
-                                <span className="text-teal-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/control-plan/register?id=${tripletInfo.cpId}`)}>{tripletInfo.cpId}</span>
+                                <span className="text-teal-700 font-semibold cursor-pointer hover:underline" onClick={() => { const nav = getUrlToCpRegister(tripletInfo.cpId); router.push(nav.url); }}>{tripletInfo.cpId}</span>
                             ) : <span className="text-gray-400 italic">Lazy</span>}
                         </td>
                         <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>

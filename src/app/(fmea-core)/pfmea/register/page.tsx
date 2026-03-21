@@ -55,6 +55,7 @@ import { FmeaNameModal } from './components/FmeaNameModal';
 import { RegisterHelpPanel, type HelpSection } from './components/RegisterHelpPanel';
 import { generateFMEAIdFromDB } from './utils';
 import { FMEAType } from './types';
+import { getUrlToCpRegister, getUrlToPfdRegister } from '@/lib/project-navigation';
 import { useRegisterPageCore } from './hooks/useRegisterPageCore';
 import { useRegisterPageHandlers } from './hooks/useRegisterPageHandlers';
 import { useTemplateGenerator } from '@/app/(fmea-core)/pfmea/import/hooks/useTemplateGenerator';
@@ -559,7 +560,7 @@ function PFMEARegisterPageContent() {
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 px-1 min-h-[28px]">
                       {fmeaInfo.linkedCpNo ? (
-                        <div className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => router.push(`/control-plan/register?id=${fmeaInfo.linkedCpNo}`)} title="CP 등록화면으로 이동">
+                        <div className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => { const nav = getUrlToCpRegister(fmeaInfo.linkedCpNo); router.push(nav.url); }} title="CP 등록화면으로 이동">
                           <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-teal-500">CP</span>
                           <span className="text-[10px] font-semibold text-teal-700 hover:underline">{fmeaInfo.linkedCpNo}</span>
                         </div>
@@ -600,7 +601,7 @@ function PFMEARegisterPageContent() {
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 px-1 min-h-[28px]">
                       {fmeaInfo.linkedPfdNo ? (
-                        <div className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => router.push(`/pfd/register?id=${fmeaInfo.linkedPfdNo}`)} title="PFD 등록화면으로 이동">
+                        <div className="flex-1 flex items-center gap-0.5 cursor-pointer hover:opacity-80" onClick={() => { const nav = getUrlToPfdRegister(fmeaInfo.linkedPfdNo); router.push(nav.url); }} title="PFD 등록화면으로 이동">
                           <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-indigo-500">PFD</span>
                           <span className="text-[10px] font-semibold text-indigo-700 hover:underline">{fmeaInfo.linkedPfdNo}</span>
                         </div>
@@ -621,7 +622,7 @@ function PFMEARegisterPageContent() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-600">CP:</span>
                       {tripletInfo.cpId ? (
-                        <span className="text-teal-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/control-plan/register?id=${tripletInfo.cpId}`)}>{tripletInfo.cpId}</span>
+                        <span className="text-teal-700 font-semibold cursor-pointer hover:underline" onClick={() => { const nav = getUrlToCpRegister(tripletInfo.cpId); router.push(nav.url); }}>{tripletInfo.cpId}</span>
                       ) : (
                         <span className="text-gray-400 italic">Lazy (미생성)</span>
                       )}
@@ -631,7 +632,7 @@ function PFMEARegisterPageContent() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-600">PFD:</span>
                       {tripletInfo.pfdId ? (
-                        <span className="text-indigo-700 font-semibold cursor-pointer hover:underline" onClick={() => router.push(`/pfd/register?id=${tripletInfo.pfdId}`)}>{tripletInfo.pfdId}</span>
+                        <span className="text-indigo-700 font-semibold cursor-pointer hover:underline" onClick={() => { const nav = getUrlToPfdRegister(tripletInfo.pfdId); router.push(nav.url); }}>{tripletInfo.pfdId}</span>
                       ) : (
                         <span className="text-gray-400 italic">Lazy (미생성)</span>
                       )}

@@ -19,6 +19,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/locale';
+import { getUrlToCpWorksheet, getUrlToPfdWorksheet } from '@/lib/project-navigation';
 import { WorksheetState } from '../constants';
 
 interface TopMenuBarProps {
@@ -320,10 +321,9 @@ export default function TopMenuBar({
       {/* Go to CP / Go to PFD / Confirm */}
         <button
           onClick={() => {
-            const cpUrl = cpNo
-              ? `/control-plan/worksheet?cpNo=${encodeURIComponent(cpNo)}`
-              : '/control-plan/worksheet';
-            router.push(cpUrl);
+            const cpNav = getUrlToCpWorksheet(cpNo);
+            if (cpNav.warning) console.warn('[TopMenuBar]', cpNav.warning);
+            router.push(cpNav.url);
           }}
           className="px-1 py-0.5 rounded bg-transparent border border-white/30 text-white/70 text-[9px] font-medium hover:bg-white/15 hover:text-white transition-all whitespace-nowrap"
           title={cpNo ? `CP 워크시트로 이동 (${cpNo})` : 'CP 워크시트로 이동'}
@@ -332,10 +332,9 @@ export default function TopMenuBar({
         </button>
         <button
           onClick={() => {
-            const pfdUrl = linkedPfdNo
-              ? `/pfd/worksheet?pfdNo=${encodeURIComponent(linkedPfdNo)}`
-              : '/pfd/worksheet';
-            router.push(pfdUrl);
+            const pfdNav = getUrlToPfdWorksheet(linkedPfdNo);
+            if (pfdNav.warning) console.warn('[TopMenuBar]', pfdNav.warning);
+            router.push(pfdNav.url);
           }}
           className="px-1 py-0.5 rounded bg-transparent border border-white/30 text-white/70 text-[9px] font-medium hover:bg-white/15 hover:text-white transition-all whitespace-nowrap"
           title={linkedPfdNo ? `PFD 워크시트로 이동 (${linkedPfdNo})` : 'PFD 워크시트로 이동'}

@@ -460,16 +460,10 @@ function FMEAWorksheetPageContent() {
         else setState(updateFn);
         setDirty?.(true);
 
-        // ★★★ 2026-02-16: DB Only 정책 - saveToLocalStorage 제거, DB만 저장 ★★★
-        setTimeout(async () => {
-          if (saveAtomicDB) {
-            try {
-              await saveAtomicDB(true);
-            } catch (e) {
-              console.error('[autoLoad] DB 저장 오류:', e);
-            }
-          }
-        }, 100);
+        // ★★★ 2026-03-21 FIX: autoLoad 시 saveAtomicDB 제거
+        // Import에서 정상 저장한 Atomic DB(FC=104)를 워크시트 로드 시 덮어쓰기 방지
+        // atomicToLegacy 변환 과정에서 Cu Target FC 등이 손실되어 FC=102로 역행
+        // DB 저장은 사용자 편집 시에만 실행
 
         const totalWE = newL2.reduce((s: number, p: any) => s + (p.l3?.length || 0), 0);
       } catch (e) {

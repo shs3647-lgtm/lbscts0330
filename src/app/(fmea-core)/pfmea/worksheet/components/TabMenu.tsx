@@ -89,11 +89,9 @@ export default function TabMenu({ state, setState, setDirty, saveToLocalStorage,
                       localStorage.setItem(`pfmea_tab_${normalizedId}`, tab.id);
                     }
                   } catch { /* ignore */ }
-                  setTimeout(() => {
-                    if (saveAtomicDB) {
-                      saveAtomicDB();
-                    }
-                  }, 0);
+                  // ★★★ 2026-03-21 FIX: 탭 전환 시 자동 saveAtomicDB 제거
+                  // 탭 전환만으로 DB 덮어쓰기 → Import 정상 데이터(FC=104) 손실 방지
+                  // 사용자 편집(dirty) 시에만 saveAtomicDB 호출
                 }}
                 className={`
                   px-1.5 sm:px-2 py-0.5
