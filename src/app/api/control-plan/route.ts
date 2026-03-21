@@ -613,18 +613,48 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // ★ Soft Delete (deletedAt 설정)
-    const deleted = await prisma.cpRegistration.update({
-      where: { id: targetRecord.id },
-      data: { deletedAt: new Date() }
-    });
+    const actualCpNo = targetRecord.cpNo;
 
+    // ★ Hard Delete (영구삭제 — 휴지통 모드에서 호출)
+    await prisma.$transaction(async (tx: any) => {
+      // 1) ControlPlan 레거시 삭제
+      try {
+        await tx.controlPlan.delete({ where: { cpNo: actualCpNo } });
+      } catch { /* 레거시 없을 수 있음 */ }
+
+      // 2) CpMasterFlatItem 삭제 (dataset 경유)
+      try {
+        const datasets = await tx.cpMasterDataset.findMany({
+          where: { cpNo: { equals: actualCpNo, mode: 'insensitive' } },
+          select: { id: true },
+        });
+        if (datasets.length > 0) {
+          await tx.cpMasterFlatItem.deleteMany({
+            where: { datasetId: { in: datasets.map((d: { id: string }) => d.id) } },
+          });
+          await tx.cpMasterDataset.deleteMany({
+            where: { id: { in: datasets.map((d: { id: string }) => d.id) } },
+          });
+        }
+      } catch { /* 무시 */ }
+
+      // 3) ProjectLinkage에서 cpNo 참조 해제
+      try {
+        await tx.projectLinkage.updateMany({
+          where: { cpNo: { equals: actualCpNo, mode: 'insensitive' } },
+          data: { cpNo: null },
+        });
+      } catch { /* 무시 */ }
+
+      // 4) CpRegistration 영구삭제
+      await tx.cpRegistration.delete({ where: { id: targetRecord.id } });
+    });
 
     return NextResponse.json({
       success: true,
-      message: `CP ${deleted.cpNo} 삭제 완료`,
-      deletedId: deleted.id,
-      deletedCpNo: deleted.cpNo,
+      message: `CP ${actualCpNo} 영구삭제 완료`,
+      deletedId: targetRecord.id,
+      deletedCpNo: actualCpNo,
     });
   } catch (error: any) {
     console.error('[CP API] 삭제 오류:', error);
