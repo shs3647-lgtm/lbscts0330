@@ -309,11 +309,11 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   }
   r.details.nullFeIdLinks = nullFeIdLinks;
 
-  // FC 중복 검증 (same l2StructId + cause)
+  // FC 중복 검증 (same l2StructId + l3StructId + cause — 같은 WE의 동일 원인만 중복)
   const fcDupKey = new Set<string>();
   let fcDuplicates = 0;
   for (const fc of fcs) {
-    const key = `${(fc as any).l2StructId}|${(fc as any).cause}`;
+    const key = `${(fc as any).l2StructId}|${(fc as any).l3StructId || ''}|${(fc as any).cause}`;
     if (fcDupKey.has(key)) fcDuplicates++;
     fcDupKey.add(key);
   }

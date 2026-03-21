@@ -172,10 +172,11 @@ export async function POST(request: NextRequest) {
         const fcsByKey = new Map<string, string[]>();
         const allFcsForDedup = await tx.failureCause.findMany({
           where: { fmeaId },
-          select: { id: true, cause: true, l2StructId: true },
+          select: { id: true, cause: true, l2StructId: true, l3StructId: true },
         });
         for (const fc of allFcsForDedup) {
-          const key = `${(fc as any).l2StructId}|${(fc as any).cause}`;
+          // l3StructId 포함: 같은 공정이라도 다른 WE의 동일 cause는 별개
+          const key = `${(fc as any).l2StructId}|${(fc as any).l3StructId || ''}|${(fc as any).cause}`;
           if (!fcsByKey.has(key)) fcsByKey.set(key, []);
           fcsByKey.get(key)!.push((fc as any).id);
         }
