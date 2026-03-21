@@ -691,7 +691,7 @@ export async function POST(request: NextRequest) {
       parsing: {
         sheets: sheets.map(s => s.name),
         flatDataTotal: flatData.length,
-        chainsTotal: chains.length,
+        chainsTotal: masterChains.length,
         itemCounts,
       },
       saveResult: {
