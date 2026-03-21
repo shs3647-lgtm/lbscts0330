@@ -210,7 +210,13 @@ export async function generateImportExcel(
     }
   }
 
-  for (const l2 of data.l2Structures) {
+  // 공정번호순 정렬
+  const sortedL2ForSheet = [...data.l2Structures].sort((a: any, b: any) => {
+    const na = parseInt(a.no || '0', 10), nb = parseInt(b.no || '0', 10);
+    return na - nb;
+  });
+
+  for (const l2 of sortedL2ForSheet) {
     const l2Funcs = data.l2Functions.filter((f: any) => f.l2StructId === l2.id);
     const fms = data.failureModes.filter((m: any) => m.l2StructId === l2.id);
 
@@ -231,17 +237,10 @@ export async function generateImportExcel(
     }
   }
 
-  // ═══ L3 시트 데이터 (B1~B5) — 구조 기반 (WE 단위 그룹화, carry-forward) ═══
+  // ═══ L3 시트 데이터 (B1~B5) — chain-driven (v4) ═══
+  // 설계: FailureLink 기반으로 L3Function+FC를 정렬된 행으로 생성
+  // 보장: B2/B3/B4/B5가 항상 정렬됨, 공정번호 순서 보장, 빈칸 없음
   const l3Rows: string[][] = [];
-
-  // WE별 chain 인덱스
-  const chainsByWE = new Map<string, ChainRow[]>();
-  for (const ch of chains) {
-    const key = `${ch.processNo}|${ch.m4}|${ch.workElement}`;
-    const arr = chainsByWE.get(key) || [];
-    arr.push(ch);
-    chainsByWE.set(key, arr);
-  }
 
   // L3Function → L3별 그룹화
   const l3FuncsByL3 = new Map<string, any[]>();
@@ -251,43 +250,80 @@ export async function generateImportExcel(
     l3FuncsByL3.set(f.l3StructId, arr);
   }
 
-  // FC → L3별 그룹화
-  const fcsByL3 = new Map<string, any[]>();
-  for (const c of data.failureCauses) {
-    const arr = fcsByL3.get(c.l3StructId) || [];
-    arr.push(c);
-    fcsByL3.set(c.l3StructId, arr);
-  }
-
   // FC → RiskAnalysis (PC 조회용, FailureLink 경유)
   const riskByFcId = new Map<string, any>();
   for (const link of data.failureLinks) {
     const risk = data.riskAnalyses.find((r: any) => r.linkId === link.id);
-    if (risk) riskByFcId.set(link.fcId, risk);
+    if (risk && !riskByFcId.has(link.fcId)) riskByFcId.set(link.fcId, risk);
   }
 
-  for (const l3 of data.l3Structures) {
-    const l2 = data.l2Structures.find((s: any) => s.id === l3.l2Id);
-    const pNo = l2?.no || '';
-    const m4 = l3.m4 || '';
-    const funcs = l3FuncsByL3.get(l3.id) || [];
-    const fcs = fcsByL3.get(l3.id) || [];
+  // L2 공정번호순 정렬 → L3 order순 정렬
+  const sortedL2 = [...data.l2Structures].sort((a: any, b: any) => {
+    const na = parseInt(a.no || '0', 10), nb = parseInt(b.no || '0', 10);
+    return na - nb;
+  });
 
-    const rowCount = Math.max(1, funcs.length, fcs.length);
-    for (let i = 0; i < rowCount; i++) {
-      const func = funcs[i];
-      const fc = fcs[i];
-      const risk = fc ? riskByFcId.get(fc.id) : undefined;
-      l3Rows.push([
-        i === 0 ? pNo : '',
-        i === 0 ? m4 : '',
-        i === 0 ? l3.name : '',
-        func?.functionName || '',
-        func?.processChar || '',
-        func?.specialChar || '',
-        fc?.cause || '',
-        stripPrefix(risk?.preventionControl || ''),
-      ]);
+  for (const l2 of sortedL2) {
+    const pNo = l2.no || '';
+    // 해당 공정의 L3를 order순 정렬
+    const l3sForL2 = data.l3Structures
+      .filter((s: any) => s.l2Id === l2.id)
+      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+
+    for (const l3 of l3sForL2) {
+      const m4 = l3.m4 || '';
+      const funcs = l3FuncsByL3.get(l3.id) || [];
+      // FC는 l3FuncId를 통해 L3Function과 정렬
+      const fcsForL3 = data.failureCauses.filter((c: any) => c.l3StructId === l3.id);
+
+      if (funcs.length === 0 && fcsForL3.length === 0) {
+        // WE만 있고 기능/FC 없음 → 빈 행 1개
+        l3Rows.push([pNo, m4, l3.name, '', '', '', '', '']);
+        continue;
+      }
+
+      // chain-driven: L3Function별로 연결된 FC를 정렬하여 행 생성
+      const usedFcIds = new Set<string>();
+      let isFirstRow = true;
+
+      for (const func of funcs) {
+        // 이 L3Function에 연결된 FC들
+        const linkedFcs = fcsForL3.filter((fc: any) => fc.l3FuncId === func.id);
+
+        if (linkedFcs.length === 0) {
+          // 기능은 있지만 FC 없음 → 기능/특성만 표시
+          l3Rows.push([
+            isFirstRow ? pNo : '', isFirstRow ? m4 : '', isFirstRow ? l3.name : '',
+            func.functionName || '', func.processChar || '', func.specialChar || '',
+            '', '',
+          ]);
+          isFirstRow = false;
+        } else {
+          for (const fc of linkedFcs) {
+            usedFcIds.add(fc.id);
+            const risk = riskByFcId.get(fc.id);
+            l3Rows.push([
+              isFirstRow ? pNo : '', isFirstRow ? m4 : '', isFirstRow ? l3.name : '',
+              func.functionName || '', func.processChar || '', func.specialChar || '',
+              fc.cause || '', stripPrefix(risk?.preventionControl || ''),
+            ]);
+            isFirstRow = false;
+          }
+        }
+      }
+
+      // L3Function에 연결되지 않은 잔여 FC (안전망)
+      const remainingFcs = fcsForL3.filter((fc: any) => !usedFcIds.has(fc.id));
+      for (const fc of remainingFcs) {
+        const risk = riskByFcId.get(fc.id);
+        const lastFunc = funcs[funcs.length - 1];
+        l3Rows.push([
+          isFirstRow ? pNo : '', isFirstRow ? m4 : '', isFirstRow ? l3.name : '',
+          lastFunc?.functionName || '', lastFunc?.processChar || '', lastFunc?.specialChar || '',
+          fc.cause || '', stripPrefix(risk?.preventionControl || ''),
+        ]);
+        isFirstRow = false;
+      }
     }
   }
 
