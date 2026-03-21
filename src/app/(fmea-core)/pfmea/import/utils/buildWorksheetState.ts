@@ -680,21 +680,60 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
   const weIdToIdx = new Map<string, number>();
   process.l3.forEach((we, idx) => weIdToIdx.set(we.id, idx));
 
-  // parentItemId → WE index 매핑
+  // ★★★ 2026-03-21 FIX: parentItemId → WE index 매핑 (FK-only, 4경로) ★★★
+  // B2/B3의 parentItemId = B1 ID (PF-L3 또는 legacy UUID)
+  // B4의 parentItemId = B3 ID (PF-L3 또는 legacy UUID)
+  // 경로1: b1IdToWeId(PF-L3 형식 B1 ID → WE ID)
+  // 경로2: parentItemId가 PF-L3 형식이면 직접 weIdToIdx 조회
+  // 경로3: parentItemId에서 WE prefix 파싱 (PF-L3-040-IM-001-C-001 → PF-L3-040-IM-001)
+  // 경로4: m4 + 같은 공정의 WE 중 m4 일치 (UUID형 parentItemId용 — FK 기반 최종 fallback)
+
+  // m4별 WE 인덱스 맵 빌드 (경로4용)
+  const weIdxByM4 = new Map<string, number[]>();
+  process.l3.forEach((we, idx) => {
+    const m4 = we.m4 || '';
+    if (!weIdxByM4.has(m4)) weIdxByM4.set(m4, []);
+    weIdxByM4.get(m4)!.push(idx);
+  });
+
   function mapToWeIdx(dataItems: ImportedFlatData[]): Map<number, ImportedFlatData[]> {
     const byWe = new Map<number, ImportedFlatData[]>();
     for (const item of dataItems) {
       let weIdx = -1;
-      if (item.parentItemId && b1IdToWeId) {
-        const weId = b1IdToWeId.get(item.parentItemId);
-        if (weId) {
-          const idx = weIdToIdx.get(weId);
-          if (idx !== undefined) weIdx = idx;
+      const pid = item.parentItemId;
+      if (pid) {
+        // 경로1: b1IdToWeId 매핑 (import-builder genB1 ID 기준)
+        if (b1IdToWeId) {
+          const weId = b1IdToWeId.get(pid);
+          if (weId) {
+            const idx = weIdToIdx.get(weId);
+            if (idx !== undefined) weIdx = idx;
+          }
+        }
+        // 경로2: parentItemId가 WE ID 형식이면 직접 조회
+        if (weIdx < 0 && pid.startsWith('PF-L3-')) {
+          const directIdx = weIdToIdx.get(pid);
+          if (directIdx !== undefined) weIdx = directIdx;
+        }
+        // 경로3: parentItemId에서 WE prefix 파싱 (B3/B2 ID → WE ID)
+        if (weIdx < 0 && pid.startsWith('PF-L3-')) {
+          const wePrefix = pid.match(/^(PF-L3-\d+-[A-Z]+-\d+)/)?.[1];
+          if (wePrefix) {
+            const idx = weIdToIdx.get(wePrefix);
+            if (idx !== undefined) weIdx = idx;
+          }
+        }
+        // 경로4: UUID형 parentItemId → m4 기반 WE 매칭 (legacy 데이터 호환)
+        // 같은 m4의 WE가 1개뿐이면 결정론적 매칭 가능
+        if (weIdx < 0 && item.m4) {
+          const candidates = weIdxByM4.get(item.m4) || [];
+          if (candidates.length === 1) {
+            weIdx = candidates[0];
+          }
+          // m4의 WE가 2개 이상이면 ambiguous → 스킵 (Cu Target vs Ti Target 구분 불가)
         }
       }
-      // ★★★ 2026-03-21 FIX: FK-only — parentItemId FK 실패 시 경고 + 스킵 (m4 텍스트매칭/index-0 fallback 삭제)
       if (weIdx < 0) {
-        console.warn(`[buildWorksheetState] 공정 ${process.no}: ${item.itemCode} parentItemId FK 매칭 실패 (id=${item.id}, parentItemId=${item.parentItemId}) — 스킵`);
         continue;
       }
       if (!byWe.has(weIdx)) byWe.set(weIdx, []);
