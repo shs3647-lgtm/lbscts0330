@@ -336,13 +336,16 @@ export function atomicToFlatData(
         createdAt: now,
       }));
 
-      // B2: 요소기능 — genB2 재계산 (funcIdx로 동일 L3 내 복수 기능 구분)
+      // B2: 요소기능 — L3Function마다 독립 B2 생성
+      // ★ 2026-03-21 FIX: functionName dedup 제거
+      // 같은 WE 내에서 동일 functionName이지만 다른 processChar를 가진
+      // L3Function이 존재할 수 있음 (IM/MN 카테고리). ID 기준 dedup만 유지.
       const l3Funcs = l3FuncsByL3.get(l3.id) || [];
-      const seenL3FuncNames = new Set<string>();
+      const seenL3FuncIds = new Set<string>();
       let funcIdx = 0;
       for (const l3Func of l3Funcs) {
-        if (seenL3FuncNames.has(l3Func.functionName)) continue;
-        seenL3FuncNames.add(l3Func.functionName);
+        if (seenL3FuncIds.has(l3Func.id)) continue;
+        seenL3FuncIds.add(l3Func.id);
         funcIdx++;
         const b2Id = genB2(doc, pnoNum, m4, b1seq, funcIdx);
         idRemap.l3Func.set(l3Func.id, b2Id);
@@ -359,22 +362,18 @@ export function atomicToFlatData(
         }));
       }
 
-      // B3: 공정특성 — L3Function.processChar → B3 genB3 ID 매핑도 구축
-      const seenProcessChar = new Set<string>();
-      const processCharToB3Id = new Map<string, string>();
+      // B3: 공정특성 — L3Function 1:1 매핑 (동일 processChar도 별도 B3 생성)
+      // ★ 2026-03-21 FIX: seenProcessChar dedup 제거
+      // 근본원인: 같은 processChar를 가진 서로 다른 L3Function(다른 functionName)이
+      // IM(소재)/MN(작업자) 카테고리에서 자주 발생. dedup이 두 번째 것을 드롭하여
+      // B2(요소기능)/B4(고장원인) 연결이 끊어지는 반복 버그 유발.
+      // 수정: L3Function마다 독립 B3 행 생성 (processChar 중복 허용)
       const l3FuncIdToB3Id = new Map<string, string>();
       let cseq = 0;
       for (const l3Func of l3Funcs) {
         if (!l3Func.processChar) continue;
-        if (seenProcessChar.has(l3Func.processChar)) {
-          const existingB3 = processCharToB3Id.get(l3Func.processChar);
-          if (existingB3) l3FuncIdToB3Id.set(l3Func.id, existingB3);
-          continue;
-        }
-        seenProcessChar.add(l3Func.processChar);
         cseq++;
         const b3Id = genB3(doc, pnoNum, m4, b1seq, cseq);
-        processCharToB3Id.set(l3Func.processChar, b3Id);
         l3FuncIdToB3Id.set(l3Func.id, b3Id);
 
         result.push(makeFlatItem({
@@ -399,7 +398,7 @@ export function atomicToFlatData(
         idRemap.fc.set(fc.id, b4Id);
 
         const parentB3Id = l3FuncIdToB3Id.get(fc.l3FuncId)
-          || (processCharToB3Id.size > 0 ? [...processCharToB3Id.values()][0] : undefined);
+          || (l3FuncIdToB3Id.size > 0 ? [...l3FuncIdToB3Id.values()][0] : undefined);
 
         result.push(makeFlatItem({
           id: b4Id,
