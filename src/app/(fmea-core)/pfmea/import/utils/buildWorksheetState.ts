@@ -643,19 +643,9 @@ function fillL2Data(process: Process, items: ImportedFlatData[], flatMap?: FlatT
     });
   }
 
-  // ★★★ 2026-03-16 FIX: FM 없는 PC → placeholder는 A5가 0건일 때만 생성
+  // ★★★ 2026-03-21 FIX: FK-only — FM 자동생성("부적합") 삭제, 경고만 출력
   if (a5Items.length === 0) {
-    let phSeq = 0;
-    for (const pc of uniquePCs) {
-      if (pc.name) {
-        phSeq++;
-        process.failureModes.push({
-          id: genA5('PF', pnoNum, phSeq),
-          name: `${pc.name} 부적합`,
-          productCharId: pc.id,
-        });
-      }
-    }
+    console.warn(`[buildWorksheetState] 공정 ${pnoNum}: A5(FM) 0건 — FM 자동생성 금지, Master DB 보충 필요`);
   }
 }
 
@@ -702,13 +692,10 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           if (idx !== undefined) weIdx = idx;
         }
       }
+      // ★★★ 2026-03-21 FIX: FK-only — parentItemId FK 실패 시 경고 + 스킵 (m4 텍스트매칭/index-0 fallback 삭제)
       if (weIdx < 0) {
-        // parentItemId 매칭 실패 → m4 기준으로 첫 WE에 꽂기
-        const itemM4 = item.m4 || '';
-        for (let i = 0; i < process.l3.length; i++) {
-          if ((process.l3[i].m4 || '') === itemM4) { weIdx = i; break; }
-        }
-        if (weIdx < 0) weIdx = 0;
+        console.warn(`[buildWorksheetState] 공정 ${process.no}: ${item.itemCode} parentItemId FK 매칭 실패 (id=${item.id}, parentItemId=${item.parentItemId}) — 스킵`);
+        continue;
       }
       if (!byWe.has(weIdx)) byWe.set(weIdx, []);
       byWe.get(weIdx)!.push(item);
@@ -723,44 +710,10 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       const myB2 = b2ByWe.get(weIdx) || [];
       const myB3 = b3ByWe.get(weIdx) || [];
 
-      // ★★★ 2026-03-19 ROOT FIX: B3 없는 WE → B4(FC)로부터 processChar 역생성 ★★★
-      // 근본원인: B3가 없는 function → processChar='' → L3Function.processChar='' → orphanPC
-      // 대책: 해당 WE의 B4에서 FC명 → processChar명 자동 역추론 (FK 무결성 보장)
+      // ★★★ 2026-03-21 FIX: FK-only — B3 자동역추론("관리 특성") 삭제, B3 없으면 경고만 출력
       let effectiveB3 = myB3;
       if (myB3.length === 0 && myB2.length > 0) {
-        const weB4 = b4Items.filter(b4 => {
-          if (!b4.parentItemId || !b1IdToWeId) return false;
-          const weId = b1IdToWeId.get(b4.parentItemId);
-          return weId ? weIdToIdx.get(weId) === weIdx : false;
-        });
-        // B4가 직접 매칭 안 되면 m4 기반으로 시도
-        const weB4Effective = weB4.length > 0 ? weB4 : b4Items.filter(b4 => (b4.m4 || '') === (we.m4 || ''));
-        if (weB4Effective.length > 0) {
-          // ★★★ 2026-03-21 FIX-1: B3 dedup 제거 — L3Function마다 독립 B3 생성 ★★★
-          // 이전: seen.has(pcFull) → continue → 같은 processChar의 두 번째 B3 DROP → FC orphan
-          // 수정: dedup 없이 B4마다 B3 생성 (processChar 중복 허용, FK 무결성 우선)
-          const derived: ImportedFlatData[] = [];
-          for (const b4 of weB4Effective) {
-            const fcName = (b4.value || '').trim();
-            if (!fcName) continue;
-            const pcName = fcName.replace(/\s*부적합$/, '').trim() || fcName;
-            const pcFull = pcName.includes('관리') ? pcName : `${pcName} 관리 특성`;
-            const cs = (weCharSeqMap.get(we.id) || 0) + 1;
-            weCharSeqMap.set(we.id, cs);
-            const { m4: _m4, b1seq: _b1seq } = parseWeId(we.id);
-            derived.push({
-              id: genB3('PF', pnoNum, _m4, _b1seq, cs),
-              processNo: String(pnoNum),
-              category: 'B' as const,
-              itemCode: 'B3',
-              value: pcFull,
-              m4: we.m4,
-              parentItemId: myB2[0]?.id,
-              createdAt: new Date(),
-            });
-          }
-          if (derived.length > 0) effectiveB3 = derived;
-        }
+        console.warn(`[buildWorksheetState] 공정 ${pnoNum}, WE ${we.id}: B3(공정특성) 0건 — 자동역추론 금지, Master DB 보충 필요`);
       }
 
       const { m4: weM4, b1seq: weB1seq } = parseWeId(we.id);
@@ -834,12 +787,18 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
   for (const [m4Key, m4B4] of b4ByM4) {
     const m4PCs = pcByM4.get(m4Key) || [];
     if (m4PCs.length > 0 && m4B4.length > 0) {
+      // ★★★ 2026-03-21 FIX: FK-only — parentItemId FK 매칭만 허용, positional fallback 삭제
       const pcIdSet = new Set(m4PCs.map(pc => pc.id));
       for (let bi = 0; bi < m4B4.length; bi++) {
         const b4 = m4B4[bi];
-        let targetPc = m4PCs[Math.min(bi, m4PCs.length - 1)];
+        let targetPc: { id: string; name: string } | undefined;
         if (b4.parentItemId && pcIdSet.has(b4.parentItemId)) {
-          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId) || targetPc;
+          targetPc = m4PCs.find(pc => pc.id === b4.parentItemId);
+        }
+        if (!targetPc) {
+          console.warn(`[buildWorksheetState] 공정 ${pnoNum}: B4 "${b4.value}" parentItemId FK 매칭 실패 (parentItemId=${b4.parentItemId}) — 경고`);
+          unmatchedB4.push(b4);
+          continue;
         }
         // B4 → genB4: targetPc.id에서 WE 파싱하여 m4/b1seq 추출
         const pcParsed = parseWeId(targetPc.id);  // B3 id에서 WE prefix 파싱
@@ -862,67 +821,9 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     }
   }
 
-  // m4 불일치 B4 → 첫 PC에 꽂아넣기 (fallback)
-  if (unmatchedB4.length > 0 && allProcessChars.length > 0) {
-    // ★★★ 2026-03-16 FIX: distribute → 첫 PC에 전부 꽂아넣기 (m4 불일치 fallback)
-    // 배분하면 데이터 없는 PC에도 강제 할당 → 거짓 누락행 발생
-    const firstPc = allProcessChars[0];
-    const fpParsed = parseWeId(firstPc.id);
-    const fpWeId = genB1('PF', pnoNum, fpParsed.m4, fpParsed.b1seq);
-    for (const b4 of unmatchedB4) {
-      const kseq = (weKseqMap.get(fpWeId) || 0) + 1;
-      weKseqMap.set(fpWeId, kseq);
-      const entityId = b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq);
-      causes.push({
-        id: entityId,
-        name: b4.value,
-        ...rev(b4),
-        m4: b4.m4,
-        processCharId: firstPc.id,
-      } as L3FailureCauseExtended);
-      if (flatMap && b4.id) flatMap.fc.set(b4.id, entityId);
-    }
-  } else if (unmatchedB4.length > 0) {
-    const lateProcessChars: { id: string; name: string }[] = [];
-    for (const we of process.l3) {
-      for (const func of we.functions) {
-        for (const pc of (func.processChars || [])) {
-          lateProcessChars.push(pc);
-        }
-      }
-    }
-
-    if (lateProcessChars.length > 0) {
-      const firstPc = lateProcessChars[0];
-      const fpParsed = parseWeId(firstPc.id);
-      const fpWeId = genB1('PF', pnoNum, fpParsed.m4, fpParsed.b1seq);
-      for (const b4 of unmatchedB4) {
-        const kseq = (weKseqMap.get(fpWeId) || 0) + 1;
-        weKseqMap.set(fpWeId, kseq);
-        const entityId = b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || fpParsed.m4, fpParsed.b1seq, kseq);
-        causes.push({
-          id: entityId,
-          name: b4.value,
-          ...rev(b4),
-          m4: b4.m4,
-          processCharId: firstPc.id,
-        } as L3FailureCauseExtended);
-        if (flatMap && b4.id) flatMap.fc.set(b4.id, entityId);
-      }
-    } else {
-      let fallbackKseq = 0;
-      for (const b4 of unmatchedB4) {
-        fallbackKseq++;
-        const entityId = b4.id?.startsWith('PF-') ? b4.id : genB4('PF', pnoNum, b4.m4 || '', 1, fallbackKseq);
-        causes.push({
-          id: entityId,
-          name: b4.value,
-          ...rev(b4),
-          m4: b4.m4,
-        } as L3FailureCauseExtended);
-        if (flatMap && b4.id) flatMap.fc.set(b4.id, entityId);
-      }
-    }
+  // ★★★ 2026-03-21 FIX: FK-only — unmatched B4 첫PC dump/fallback 삭제, 경고만 출력
+  if (unmatchedB4.length > 0) {
+    console.warn(`[buildWorksheetState] 공정 ${pnoNum}: B4 ${unmatchedB4.length}건 parentItemId FK 매칭 실패 — processCharId 없이 스킵`, unmatchedB4.map(b => b.value));
   }
   // ★★★ 2026-03-21: orphan processChar — placeholder FC 생성 제거
   // m066 꽂아넣기 방식으로 전환: Import 파이프라인(import-builder)에서 이미 m066 데이터를 보충.
@@ -953,14 +854,8 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         if (!process.l3[weIdx].failureCauses) process.l3[weIdx].failureCauses = [];
         process.l3[weIdx].failureCauses!.push(fc);
       } else {
-        // processCharId 미매칭 → m4로 fallback
-        const fcM4 = (fc as { m4?: string }).m4 || '';
-        const weByM4 = process.l3.findIndex(we => (we.m4 || '') === fcM4);
-        const targetIdx = weByM4 >= 0 ? weByM4 : 0;
-        if (process.l3[targetIdx]) {
-          if (!process.l3[targetIdx].failureCauses) process.l3[targetIdx].failureCauses = [];
-          process.l3[targetIdx].failureCauses!.push(fc);
-        }
+        // ★★★ 2026-03-21 FIX: FK-only — processCharId 실패 시 경고만 (m4 텍스트매칭/index-0 fallback 삭제)
+        console.warn(`[buildWorksheetState] 공정 ${process.no}: FC "${fc.name}" processCharId FK 매칭 실패 — WE 분배 스킵`);
       }
     }
   }
@@ -1336,13 +1231,8 @@ export function buildFailureLinksDBCentric(
     const fm = chain.fmId ? fmById.get(chain.fmId) : undefined;
     let fc = chain.fcId ? fcById.get(chain.fcId) : undefined;
 
-    // fcId 없는 체인: 같은 FM의 기존 링크에서 FC 재사용
-    if (!fc && fe && fm) {
-      const existingLink = failureLinks.find(l => l.fmId === fm.id && l.fcId);
-      if (existingLink) {
-        fc = fcById.get(existingLink.fcId);
-      }
-    }
+    // ★★★ 2026-03-21 FIX: FK-only — fcId 없으면 스킵 (같은 FM에서 FC 재사용 삭제)
+    // fcId가 없는 체인은 FK가 확정되지 않은 상태이므로 FailureLink 생성 불가
 
     // 공정 찾기
     let proc = fm?.processNo ? procByNo.get(fm.processNo) : undefined;
@@ -1411,32 +1301,9 @@ export function buildFailureLinksDBCentric(
     }
   }
 
-  // specialChar 전파 (chain → productChars/processChars)
-  for (const chain of chains) {
-    if (!chain.specialChar || !chain.processNo) continue;
-    const proc = (state.l2 || []).find(p => p.no === chain.processNo);
-    if (!proc) continue;
-    if (chain.productChar) {
-      for (const func of (proc.functions || [])) {
-        for (const pc of (func.productChars || [])) {
-          if (normalizeText(pc.name) === normalizeText(chain.productChar) && !pc.specialChar) {
-            pc.specialChar = chain.specialChar;
-          }
-        }
-      }
-    }
-    if (chain.processChar) {
-      for (const we of (proc.l3 || [])) {
-        for (const weFunc of (we.functions || [])) {
-          for (const prc of (weFunc.processChars || [])) {
-            if (normalizeText(prc.name) === normalizeText(chain.processChar) && !prc.specialChar) {
-              prc.specialChar = chain.specialChar;
-            }
-          }
-        }
-      }
-    }
-  }
+  // ★★★ 2026-03-21 FIX: FK-only — specialChar 전파: 텍스트매칭(normalizeText) 삭제
+  // chain에 productCharId/processCharId FK가 없으므로 ID 기반 전파 불가 → 스킵
+  // specialChar는 Import 단계에서 flatData에 이미 설정되어 있으므로 여기서 재전파 불필요
 
   // seq 필드 계산
   computeSeqFieldsLocal(failureLinks);

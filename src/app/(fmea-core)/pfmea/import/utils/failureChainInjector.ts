@@ -79,11 +79,6 @@ function normalizeProcessNo(pNo: string | undefined): string {
   return n;
 }
 
-/** 텍스트 정규화 (공백 통일 + 소문자) — specialChar 전파용 */
-function normalizeText(s: string | undefined): string {
-  return (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
 // ─── 메인 함수 ───
 
 /**
@@ -150,28 +145,11 @@ export function injectFailureChains(
   // ─── FE:FM:FC = N:1:N — chain별 개별 FE 할당 ───
   // 각 chain이 자신의 feId를 독립적으로 결정 (같은 FM이라도 다른 FE 가능)
   const enrichedChains: MasterFailureChain[] = chains.map(c => ({ ...c }));
-  const allFEs = state.l1?.failureScopes || [];
 
-  if (allFEs.length > 0) {
-    // feId 미할당 chain에 공정별 carry-forward → 순차 할당
-    const procToFeId = new Map<string, string>();
-    for (const c of enrichedChains) {
-      if (c.feId && c.fmId) {
-        const pNo = c.processNo || '';
-        if (pNo && !procToFeId.has(pNo)) procToFeId.set(pNo, c.feId);
-      }
-    }
-    let feRoundIdx = 0;
-    for (const c of enrichedChains) {
-      if (c.feId) continue;
-      // 1순위: 같은 공정의 기존 FE
-      const pNo = c.processNo || '';
-      const fromProc = pNo ? procToFeId.get(pNo) : undefined;
-      if (fromProc) { c.feId = fromProc; continue; }
-      // 2순위: 순차 FE 할당 (N:1:N 분산)
-      c.feId = allFEs[feRoundIdx % allFEs.length].id;
-      if (pNo) procToFeId.set(pNo, c.feId);
-      feRoundIdx++;
+  // ★★★ 2026-03-21 FIX: FK-only — feId 없는 chain은 스킵 (round-robin/carry-forward 삭제)
+  for (const c of enrichedChains) {
+    if (!c.feId) {
+      console.warn(`[failureChainInjector] feId missing — skipping chain: fmId=${c.fmId}, fcId=${c.fcId}, processNo=${c.processNo}`);
     }
   }
 
@@ -193,13 +171,7 @@ export function injectFailureChains(
     const fm = chain.fmId ? fmById.get(chain.fmId) : undefined;
     let fc = chain.fcId ? fcById.get(chain.fcId) : undefined;
 
-    // fcId 없는 체인: 같은 FM의 기존 링크에서 FC 재사용
-    if (!fc && fe && fm) {
-      const existingLink = failureLinks.find(l => l.fmId === fm.id && l.fcId);
-      if (existingLink) {
-        fc = fcById.get(existingLink.fcId);
-      }
-    }
+    // ★★★ 2026-03-21 FIX: FK-only — fcId 없으면 스킵 (FC reuse 삭제)
 
     // 공정 찾기
     let proc = fm?.processNo ? procByNo.get(fm.processNo) : undefined;
@@ -263,30 +235,25 @@ export function injectFailureChains(
     }
   }
 
-  // ─── specialChar 전파: chain → productChars/processChars ───
-  for (const chain of enrichedChains) {
-    if (!chain.specialChar || !chain.processNo) continue;
-    const proc = (state.l2 || []).find(p => p.no === chain.processNo);
-    if (!proc) continue;
-    if (chain.productChar) {
-      for (const func of (proc.functions || [])) {
-        for (const pc of (func.productChars || [])) {
-          if (normalizeText(pc.name) === normalizeText(chain.productChar) && !pc.specialChar) {
-            pc.specialChar = chain.specialChar;
-          }
-        }
+  // ★★★ 2026-03-21 FIX: FK-only — specialChar 전파는 productCharId FK 기반만 허용 (텍스트 매칭 삭제)
+  // MasterFailureChain에 productCharId/processCharId FK가 없으면 스킵
+  // FailureLinkEntry.productCharId가 있는 링크만 전파
+  const pcById = new Map<string, { specialChar?: string }>();
+  for (const proc of (state.l2 || [])) {
+    for (const func of (proc.functions || [])) {
+      for (const pc of (func.productChars || [])) {
+        if (pc.id) pcById.set(pc.id, pc);
       }
     }
-    if (chain.processChar) {
-      for (const we of (proc.l3 || [])) {
-        for (const weFunc of (we.functions || [])) {
-          for (const prc of (weFunc.processChars || [])) {
-            if (normalizeText(prc.name) === normalizeText(chain.processChar) && !prc.specialChar) {
-              prc.specialChar = chain.specialChar;
-            }
-          }
-        }
-      }
+  }
+  for (const link of failureLinks) {
+    if (!link.productCharId) continue;
+    // chain에서 specialChar 찾기
+    const chain = enrichedChains.find(c => c.fmId === link.fmId && c.fcId === link.fcId && c.specialChar);
+    if (!chain?.specialChar) continue;
+    const pc = pcById.get(link.productCharId);
+    if (pc && !pc.specialChar) {
+      pc.specialChar = chain.specialChar;
     }
   }
 

@@ -227,31 +227,11 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     // reqId로 l1Function 찾기
     let targetFunc = fs.reqId ? l1FuncMap.get(fs.reqId) : null;
     
-    // reqId 매칭 실패 시, effect 텍스트로 요구사항을 찾아보기 (fallback)
-    if (!targetFunc && fs.effect) {
-      const matchedFunc = Array.from(l1FuncMap.values()).find(f => f.requirement === fs.requirement);
-      if (matchedFunc) targetFunc = matchedFunc;
-    }
-    
-    // 여전히 못 찾으면 첫 번째 함수 사용 (최후의 수단)
-    if (!targetFunc && l1FuncMap.size > 0) {
-      targetFunc = Array.from(l1FuncMap.values())[0];
-    }
-    
-    // ★★★ targetFunc가 없으면 자동 생성 (누락 금지) ★★★
+    // ★★★ 2026-03-21 FIX: FK-only (이름매칭/자동생성 제거) ★★★
+    // reqId FK 매칭 실패 시 → 경고 + 스킵 (텍스트 매칭/첫번째 fallback/자동생성 금지)
     if (!targetFunc) {
-      // ★ 2026-03-17: fs.reqId(genC3) 보존 — 결정론적 ID (uid() 대신)
-      const tempL1FuncId = fs.reqId || uid();
-      targetFunc = {
-        id: tempL1FuncId,
-        fmeaId: oldData.fmeaId,
-        l1StructId: db.l1Structure?.id || '',
-        category: (fs.scope as any) || 'Your Plant',
-        functionName: '',
-        requirement: fs.requirement || '',
-      };
-      db.l1Functions.push(targetFunc);
-      l1FuncMap.set(targetFunc.id, targetFunc);
+      console.warn(`[migration] FE "${fs.effect}" → L1Function 매칭 실패 (reqId=${fs.reqId}). FK 없음 → FE 스킵.`);
+      return;
     }
     
     const category = (fs.scope as any) || targetFunc.category || 'Your Plant';
@@ -323,15 +303,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         });
       }
     });
-    // INV-01: L2Structure에 L2Function이 하나도 없으면 공정명으로 기본 1건 생성
+    // ★★★ 2026-03-21 FIX: INV-01 L2Function 자동생성 제거 (공정명으로 fabrication 금지) ★★★
     if (!db.l2Functions.some(f => f.l2StructId === l2Struct.id)) {
-      db.l2Functions.push({
-        id: uid(),
-        fmeaId: oldData.fmeaId,
-        l2StructId: l2Struct.id,
-        functionName: l2Struct.name || 'N/A',
-        productChar: l2Struct.name || 'N/A',
-      });
+      console.warn(`[migration] L2 "${l2Struct.name}" → L2Function 없음 (자동생성 금지). Master DB 보충 필요.`);
     }
     
     // L2 고장형태 (FM) - ✅ productCharId 보존
@@ -345,36 +319,19 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         return; // 빈 FM 스킵
       }
       
-      // productCharId가 있으면 해당 제품특성의 L2Function 연결
-      let relatedL2Func = fm.productCharId 
+      // ★★★ 2026-03-21 FIX: FK-only (논리매칭/자동생성 제거) ★★★
+      // 1순위: productCharId FK → L2Function
+      let relatedL2Func = fm.productCharId
         ? db.l2Functions.find(f => f.id === fm.productCharId)
         : null;
-      // 없으면 첫 번째 L2Function 사용
+      // 2순위: 같은 공정의 L2Function (FK: l2StructId)
       if (!relatedL2Func) {
         relatedL2Func = db.l2Functions.find(f => f.l2StructId === l2Struct.id);
       }
-      // ★★★ 핵심: L2Function이 없으면 기본 생성하여 FK 오류 방지 ★★★
-      if (!relatedL2Func && db.l2Functions.length > 0) {
-        relatedL2Func = db.l2Functions[0];
-      }
-      // L2Function이 여전히 없으면 임시 생성
+      // FK 매칭 실패 → 경고 + FM 스킵 (arbitrary fallback/자동생성 금지)
       if (!relatedL2Func) {
-        const tempPath = createL2Path(pIdx + 1, 0, 0);
-        const tempL2FuncId = createHybridId({ 
-          fmeaSeq, type: 'L2F', path: tempPath, seq: 1 
-        });
-        const tempFuncName = (fm.name || '').replace(/\s*부적합$/, '').trim() || l2Struct.name || 'N/A';
-        const tempL2Func = {
-          id: tempL2FuncId,
-          fmeaId: oldData.fmeaId,
-          l2StructId: l2Struct.id,
-          parentId: l2Struct.id,
-          functionName: tempFuncName,
-          productChar: tempFuncName,
-          specialChar: '',
-        };
-        db.l2Functions.push(tempL2Func);
-        relatedL2Func = tempL2Func;
+        console.warn(`[migration] FM "${fm.name}" → L2Function 매칭 실패 (공정: ${l2Struct.name}). FK 없음 → FM 스킵.`);
+        return;
       }
       
       fmIdx++;
@@ -472,16 +429,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
           });
         }
       });
-      // WE에 function이 없거나 모두 스킵된 경우 → WE 이름으로 L3Function 1건 보장
+      // ★★★ 2026-03-21 FIX: L3Function 자동생성 제거 (WE 이름으로 fabrication 금지) ★★★
       if (weName && !db.l3Functions.some(f => f.l3StructId === l3Struct.id)) {
-        db.l3Functions.push({
-          id: `${l3Struct.id}-L3F`,
-          fmeaId: oldData.fmeaId,
-          l3StructId: l3Struct.id,
-          l2StructId: l2Struct.id,
-          functionName: weName,
-          processChar: weName,
-        });
+        console.warn(`[migration] WE "${weName}" → L3Function 없음 (자동생성 금지). Master DB 보충 필요.`);
       }
 
       // ★ 2026-03-20: 폴백 생성 제거 — Excel 원본 데이터만 사용 (Atomic DB SSoT)
@@ -502,38 +452,14 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         return;
       }
       
-      // ★★★ 2026-03-15 FIX: processCharId → L3Function 다단계 매칭 (FC 누락 방지) ★★★
-      // 1순위: processCharId로 직접 ID 매칭 (L3Function.id === processChar.id)
+      // ★★★ 2026-03-21 FIX: FK-only (4단계 논리매칭 제거) ★★★
+      // processCharId FK → L3Function 직접 매칭만 허용
       let relatedL3Func = fc.processCharId
         ? db.l3Functions.find(f => f.id === fc.processCharId)
         : null;
-      // 2순위: processChar 이름으로 매칭 (ID 불일치 시 이름 기반 복구)
-      if (!relatedL3Func && fc.processCharId) {
-        const fcPcName = (fc.name || '').replace(/\s*부적합$/, '').trim();
-        if (fcPcName) {
-          relatedL3Func = db.l3Functions.find(f =>
-            f.l2StructId === l2Struct.id && f.processChar === fcPcName
-          );
-        }
-      }
-      // 3순위: 같은 공정의 m4 일치 L3Function
-      if (!relatedL3Func && fc.m4) {
-        const m4Key = String(fc.m4).toUpperCase();
-        const l3StructsForM4 = db.l3Structures.filter(s =>
-          s.l2Id === l2Struct.id && String(s.m4 || '').toUpperCase() === m4Key
-        );
-        if (l3StructsForM4.length > 0) {
-          const l3StructIds = new Set(l3StructsForM4.map(s => s.id));
-          relatedL3Func = db.l3Functions.find(f => l3StructIds.has(f.l3StructId));
-        }
-      }
-      // 4순위: 해당 공정의 첫 번째 L3Function
+      // FK 매칭 실패 → 경고 + FC 스킵 (이름매칭/m4매칭/첫번째fallback 전부 금지)
       if (!relatedL3Func) {
-        relatedL3Func = db.l3Functions.find(f => f.l2StructId === l2Struct.id);
-      }
-      // ★ 2026-03-20: L3Function 매칭 실패 시 해당 FC 스킵 (폴백 생성 제거)
-      if (!relatedL3Func) {
-        console.warn(`[migration] FC "${fc.name}" 매칭 실패 — L3Function 없음 (공정: ${l2Struct.name}). 스킵.`);
+        console.warn(`[migration] FC "${fc.name}" → L3Function FK 매칭 실패 (processCharId=${fc.processCharId}, 공정: ${l2Struct.name}). FK 없음 → FC 스킵.`);
         return;
       }
       
@@ -623,58 +549,25 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
   const oldLinks = oldData.failureLinks || [];
   let linkIdx = 0; // Link 항목 인덱스
   oldLinks.forEach((oldLink: any, linkLocalIdx: number) => {
-    // FM 찾기 — ★★★ 2026-03-17: ID 우선 매칭 (텍스트 fallback 분리) ★★★
-    // 이전: find(m => m.id === fmId || m.mode === fmText) → 동일 텍스트의 다른 공정 FM이 먼저 매칭
-    // 수정: ID 매칭 우선, 실패 시에만 텍스트 fallback (동명 FM 충돌 방지)
-    let fm = db.failureModes.find(m => m.id === oldLink.fmId)
-      || (oldLink.fmText ? db.failureModes.find(m => m.mode === oldLink.fmText) : undefined);
-    // strict 매칭: 공백 제거 후 비교 (띄어쓰기 차이로 인한 uid() 신규 FM 생성 방지)
-    if (!fm && oldLink.fmText) {
-      const strictText = oldLink.fmText.replace(/\s+/g, '').toLowerCase();
-      fm = db.failureModes.find(m => m.mode && m.mode.replace(/\s+/g, '').toLowerCase() === strictText);
-    }
+    // ★★★ 2026-03-21 FIX: FK-only (이름매칭/자동생성 전부 제거) ★★★
+    // FM: ID-only 매칭 (텍스트 매칭/자동생성 금지)
+    const fm = db.failureModes.find(m => m.id === oldLink.fmId);
     if (!fm) {
-      if (oldLink.fmText && db.l2Functions.length > 0) {
-        const tempFmId = uid();
-        fm = {
-          id: tempFmId,
-          fmeaId: oldData.fmeaId,
-          l2FuncId: db.l2Functions[0].id,
-          l2StructId: db.l2Structures[0]?.id || '',
-          productCharId: undefined,
-          mode: oldLink.fmText,
-          specialChar: false,
-        };
-        db.failureModes.push(fm);
-      } else {
-        console.error('[마이그레이션] FailureLink 저장 불가 (FM 생성 실패):', oldLink);
-        return;
-      }
-    }
-    
-    // FE 찾기 (ID 또는 텍스트로)
-    let fe = db.failureEffects.find(e => e.id === oldLink.feId);
-    if (!fe && oldLink.feText) {
-      fe = db.failureEffects.find(e => e.effect === oldLink.feText);
-    }
-    // ★ FE 매칭 실패 시 해당 FailureLink 스킵 (폴백 생성 제거)
-    if (!fe) {
-      console.warn(`[migration] FailureLink 스킵 — FE 매칭 실패: feId=${oldLink.feId}, link=${oldLink.id || linkLocalIdx}`);
+      console.warn(`[migration] FailureLink 스킵 — FM FK 매칭 실패: fmId=${oldLink.fmId}`);
       return;
     }
-    
-    // FC 찾기 (ID → 텍스트 → strict 매칭)
-    let fc = db.failureCauses.find(c => c.id === oldLink.fcId);
-    if (!fc && oldLink.fcText) {
-      fc = db.failureCauses.find(c => c.cause === oldLink.fcText);
+
+    // FE: ID-only 매칭
+    const fe = db.failureEffects.find(e => e.id === oldLink.feId);
+    if (!fe) {
+      console.warn(`[migration] FailureLink 스킵 — FE FK 매칭 실패: feId=${oldLink.feId}`);
+      return;
     }
-    if (!fc && oldLink.fcText) {
-      const strictFc = oldLink.fcText.replace(/\s+/g, '').toLowerCase();
-      fc = db.failureCauses.find(c => c.cause && c.cause.replace(/\s+/g, '').toLowerCase() === strictFc);
-    }
-    // ★ 2026-03-20: FC 자동생성 폴백 제거 — FC 매칭 실패 시 해당 FailureLink 스킵
+
+    // FC: ID-only 매칭
+    const fc = db.failureCauses.find(c => c.id === oldLink.fcId);
     if (!fc) {
-      console.warn(`[migration] FailureLink 스킵 — FC 매칭 실패: fcId=${oldLink.fcId}, fcText=${oldLink.fcText}`);
+      console.warn(`[migration] FailureLink 스킵 — FC FK 매칭 실패: fcId=${oldLink.fcId}`);
       return;
     }
     

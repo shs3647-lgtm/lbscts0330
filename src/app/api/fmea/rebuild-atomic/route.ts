@@ -487,8 +487,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // ★★★ 2026-03-19 ROOT FIX: FC processCharId = l3FuncId 동기화 ★★★
+      // ★★★ 2026-03-21 FIX: FK-only — 스키마 설계상 processCharId === l3FuncId 동일 ID 사용 ★★★
       // orphanPC 근본원인: FC.processCharId ≠ FC.l3FuncId → verify에서 매칭 안 됨
+      // 현행 스키마에서 processCharId와 l3FuncId는 동일 UUID를 공유하는 설계.
+      // 불일치 시 l3FuncId(FK 확정값)를 기준으로 processCharId를 동기화한다.
       {
         const mismatchFcs = await tx.failureCause.findMany({
           where: { fmeaId },
@@ -566,18 +568,26 @@ export async function POST(request: NextRequest) {
         }
         const l3FuncToStruct = new Map(allL3Funcs.map((f: any) => [f.id, f.l3StructId]));
 
+        // ★★★ 2026-03-21 FIX: FK-only — positional pick 금지, 1:1 확정만 재배정 ★★★
+        // L3Function이 1개일 때만 확정적 재배정. 2개 이상이면 자동선택 불가 → 경고만.
         let reassigned = 0;
         for (const fc of allFcsForOrphan) {
           if (!fc.l3FuncId || !fc.l3StructId) continue;
           const funcStruct = l3FuncToStruct.get(fc.l3FuncId);
           if (funcStruct === fc.l3StructId) continue;
           const correctFuncs = l3FuncsByStruct.get(fc.l3StructId);
-          if (correctFuncs && correctFuncs.length > 0) {
+          if (correctFuncs && correctFuncs.length === 1) {
+            // 해당 L3Structure에 L3Function이 정확히 1개 → 확정적 FK 재배정
             await tx.failureCause.update({
               where: { id: fc.id },
               data: { l3FuncId: correctFuncs[0] },
             });
             reassigned++;
+          } else if (correctFuncs && correctFuncs.length > 1) {
+            // 2개 이상 → positional pick(correctFuncs[0]) 금지, 경고만 표시
+            console.warn(
+              `[rebuild-atomic] FC ${fc.id} → l3Struct ${fc.l3StructId} 에 L3Function ${correctFuncs.length}개 존재. 자동 재배정 불가 — 수동 지정 필요.`
+            );
           }
         }
         if (reassigned > 0) {

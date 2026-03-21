@@ -83,9 +83,7 @@ export function buildFeToReqMap(
     if (fs.id && fs.reqId) {
       map.set(fs.id, fs.reqId);
     }
-    if (fs.effect) {
-      map.set(fs.effect, fs.reqId || '');
-    }
+    // ★★★ 2026-03-21 FIX: FK-only — text-based FE→req lookup 삭제, ID-based만 유지
   });
   return map;
 }
@@ -134,13 +132,26 @@ export function buildFcToL3Map(
       // ★ 경로2: L3-level failureCauses 직접 매칭 (processCharId 없는 FC)
       (we.failureCauses || []).forEach((fc: any) => {
         if (fc.id && !map.has(fc.id)) {
-          // 첫 번째 function/processChar를 fallback으로 사용
-          const firstFn = (we.functions || [])[0];
-          const firstPc = firstFn ? (firstFn.processChars || [])[0] : undefined;
+              // ★★★ 2026-03-21 FIX: FK-only — first-function fallback 삭제, processCharId FK 매칭만. 실패시 빈 문자열
+          // processCharId 기반 매칭 시도
+          let matchedFn = '';
+          let matchedPc = '';
+          let matchedPcSC = '';
+          if (fc.processCharId) {
+            for (const fn of (we.functions || [])) {
+              for (const pc of (fn.processChars || [])) {
+                if (pc.id === fc.processCharId) {
+                  matchedFn = fn.name || '';
+                  matchedPc = pc.name || '';
+                  matchedPcSC = pc.specialChar || '';
+                }
+              }
+            }
+          }
           map.set(fc.id, {
-            workFunction: firstFn?.name || '',
-            processChar: firstPc?.name || '',
-            processCharSC: firstPc?.specialChar || '',
+            workFunction: matchedFn,
+            processChar: matchedPc,
+            processCharSC: matchedPcSC,
             m4,
             workElem,
           });
@@ -185,15 +196,7 @@ export function buildFmToL2Map(
         });
       }
 
-      // fallback: 첫 번째 function과 productChar
-      if (!processFunction && (proc.functions || []).length > 0) {
-        const firstFunc = proc.functions[0];
-        processFunction = firstFunc.name || '';
-        if ((firstFunc.productChars || []).length > 0) {
-          productChar = firstFunc.productChars[0].name || '';
-          productCharSC = firstFunc.productChars[0].specialChar || '';
-        }
-      }
+      // ★★★ 2026-03-21 FIX: FK-only — first-function fallback 삭제, productCharId FK 매칭만. 실패시 빈 문자열
 
       map.set(fm.id, {
         processFunction,
@@ -231,20 +234,15 @@ export function enrichFailureLinks(
 
   // failureScope 조회용 Map (O(n) find → O(1) get)
   const feScopeById = new Map<string, L1FailureScope>();
-  const feScopeByText = new Map<string, L1FailureScope>();
+  // ★★★ 2026-03-21 FIX: FK-only — feScopeByText 삭제, ID-only 조회
   failureScopes.forEach((fs) => {
     if (fs.id) feScopeById.set(fs.id, fs);
-    const txt = fs.effect || fs.name || '';
-    if (txt && !feScopeByText.has(txt)) feScopeByText.set(txt, fs);
   });
 
-  // fmId/fcId/feId ↔ text 매핑 (AllTabRenderer lines 147-271)
+  // ★★★ 2026-03-21 FIX: FK-only — fmTextToIdMap/fcTextToIdMap/feTextToIdMap 텍스트→ID 역매핑 전부 삭제. ID 없으면 빈 문자열 유지
   const fmToTextMap = new Map<string, string>();
-  const fmTextToIdMap = new Map<string, string>();
   const fcToTextMap = new Map<string, string>();
-  const fcTextToIdMap = new Map<string, string>();
   const feToTextMap = new Map<string, { text: string; severity: number }>();
-  const feTextToIdMap = new Map<string, string>();
 
   (state.l2 || []).forEach((proc: any) => {
     (proc.failureModes || []).forEach((fm: any) => {
@@ -252,7 +250,6 @@ export function enrichFailureLinks(
         const modeText = fm.mode || fm.name || '';
         if (modeText) {
           fmToTextMap.set(fm.id, modeText);
-          if (!fmTextToIdMap.has(modeText)) fmTextToIdMap.set(modeText, fm.id);
         }
       }
     });
@@ -261,7 +258,6 @@ export function enrichFailureLinks(
         const causeText = fc.cause || fc.name || '';
         if (causeText) {
           fcToTextMap.set(fc.id, causeText);
-          if (!fcTextToIdMap.has(causeText)) fcTextToIdMap.set(causeText, fc.id);
         }
       }
     });
@@ -273,10 +269,6 @@ export function enrichFailureLinks(
         text: fs.effect || fs.name || '',
         severity: fs.severity ?? 0,
       });
-      const feTextValue = fs.effect || fs.name || '';
-      if (feTextValue && !feTextToIdMap.has(feTextValue)) {
-        feTextToIdMap.set(feTextValue, fs.id);
-      }
     }
   });
 
@@ -326,7 +318,7 @@ export function enrichFailureLinks(
 
     // 2순위: reqId 역추적
     if (!feFunctionName) {
-      const reqId = feToReqMap.get(feId) || feToReqMap.get(feText) || '';
+      const reqId = feToReqMap.get(feId) || ''; // ★★★ 2026-03-21 FIX: FK-only — feText 텍스트 조회 삭제
       if (reqId) {
         const funcData = reqToFuncMap.get(reqId);
         if (funcData) {
@@ -339,7 +331,7 @@ export function enrichFailureLinks(
 
     // 3순위: failureScope 직접 찾기 (Map O(1) 조회)
     if (!feCategory) {
-      const scope = feScopeById.get(feId) || feScopeByText.get(feText);
+      const scope = feScopeById.get(feId); // ★★★ 2026-03-21 FIX: FK-only — feScopeByText 삭제
       if (scope) {
         feCategory = scope.scope || '';
         feRequirement = scope.requirement || '';
@@ -366,15 +358,15 @@ export function enrichFailureLinks(
       finalFmText = fmToTextMap.get(fmId) || fmId;
     }
     if (!finalFmText) {
-      finalFmText = fmId || '(고장형태 없음)';
+      finalFmText = fmId || ''; // ★★★ 2026-03-21 FIX: FK-only — '(고장형태 없음)' placeholder 삭제, 빈 문자열
     }
 
-    // ID 보강 (텍스트 기반 역매핑)
-    const normalizedFmId = fmId || fmTextToIdMap.get(finalFmText) || '';
+    // ★★★ 2026-03-21 FIX: FK-only — 텍스트→ID 역매핑 전부 삭제. ID 없으면 빈 문자열 유지
+    const normalizedFmId = fmId;
     const finalFeText = feText || dbFeData?.text || linkFeById.get(feId)?.text || '';
-    const normalizedFeId = feId || feTextToIdMap.get(finalFeText) || '';
+    const normalizedFeId = feId;
     const finalFcText = link.fcText || link.cache?.fcText || dbFcText || linkFcById.get(link.fcId || '')?.text || '';
-    const normalizedFcId = link.fcId || fcTextToIdMap.get(finalFcText || '') || '';
+    const normalizedFcId = link.fcId || '';
 
     // FM 역전개
     const fmL2Data = fmToL2Map.get(normalizedFmId);

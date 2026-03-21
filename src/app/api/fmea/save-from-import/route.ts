@@ -287,107 +287,95 @@ export async function POST(request: NextRequest) {
     } as any);
     if (atomicDB) Object.assign(atomicDB, { forceOverwrite: true });
 
-    // ★★★ 6-B. failureLinks 복구: migrateToAtomicDB가 ID 매칭 실패로 drop한 links를 텍스트 매칭으로 복구
-    // 리버스 경로: atomic DB 이미 정확 → 복구 불필요
+    // ★★★ 2026-03-21 FIX: FK-only — 텍스트 기반 역매칭(fmByText/feByText/fcByText) 전면 삭제
+    // Rule 0/1.5/1.7 위반: 텍스트 매칭으로 FailureLink 복구는 거짓 FK 생성 위험
+    // ID 매칭만 허용. ID 매칭 실패 시 해당 link는 스킵 + 경고 로그
     const migrationLinkCount = atomicDB?.failureLinks?.length ?? 0;
     const originalLinkCount = injectedLinks.length;
     if (!useReversePath && atomicDB && migrationLinkCount < originalLinkCount && originalLinkCount > 0) {
-      console.info(`[save-from-import] Links 복구: migration=${migrationLinkCount}/${originalLinkCount}`);
+      console.info(`[save-from-import] Links 복구(ID-only): migration=${migrationLinkCount}/${originalLinkCount}`);
 
-      // atomicDB에 이미 있는 link의 FM-FE-FC 조합 추적 (중복 방지)
       type AtomicLink = { fmId: string; feId: string; fcId: string };
       const existingCombos = new Set(
         (atomicDB.failureLinks || []).map((l: AtomicLink) => `${l.fmId}|${l.feId}|${l.fcId}`)
       );
 
-      // 텍스트 기반 인덱스 생성 (mode/effect/cause → atomic ID)
+      // ★★★ ID-only 인덱스만 생성 (텍스트 인덱스 삭제됨)
       type FM = { id: string; mode?: string };
       type FE = { id: string; effect?: string };
       type FC = { id: string; cause?: string };
-      const fmByText = new Map<string, FM>();
-      const feByText = new Map<string, FE>();
-      const fcByText = new Map<string, FC>();
       const fmById = new Map<string, FM>();
       const feById = new Map<string, FE>();
       const fcById = new Map<string, FC>();
 
       for (const fm of (atomicDB.failureModes || []) as FM[]) {
-        if (fm.mode) {
-          // Process-scoped key for precise matching
-          fmByText.set(`${(fm as any).l2StructId || ''}|${fm.mode}`, fm);
-          // Global fallback (first-wins)
-          if (!fmByText.has(fm.mode)) fmByText.set(fm.mode, fm);
-        }
         fmById.set(fm.id, fm);
       }
       for (const fe of (atomicDB.failureEffects || []) as FE[]) {
-        if (fe.effect) {
-          feByText.set(`${(fe as any).l1FuncId || ''}|${fe.effect}`, fe);
-          if (!feByText.has(fe.effect)) feByText.set(fe.effect, fe);
-        }
         feById.set(fe.id, fe);
       }
       for (const fc of (atomicDB.failureCauses || []) as FC[]) {
-        if (fc.cause) {
-          fcByText.set(`${(fc as any).l2StructId || ''}|${fc.cause}`, fc);
-          if (!fcByText.has(fc.cause)) fcByText.set(fc.cause, fc);
-        }
         fcById.set(fc.id, fc);
       }
 
       let recoveredCount = 0;
+      let skippedCount = 0;
       type InjectedLink = { fmId?: string; feId?: string; fcId?: string; fmText?: string; feText?: string; fcText?: string; severity?: number; fmMergeSpan?: number };
       for (const link of injectedLinks as InjectedLink[]) {
-        // ID로 먼저 매칭, 실패하면 텍스트로 매칭
-        const fm = fmById.get(link.fmId || '')
-          || (link.fmText ? (fmByText.get(`${(link as any).l2StructId || ''}|${link.fmText}`) || fmByText.get(link.fmText)) : undefined);
-        const fe = feById.get(link.feId || '')
-          || (link.feText ? (feByText.get(`${(link as any).l1FuncId || ''}|${link.feText}`) || feByText.get(link.feText)) : undefined);
-        const fc = fcById.get(link.fcId || '')
-          || (link.fcText ? (fcByText.get(`${(link as any).l2StructId || ''}|${link.fcText}`) || fcByText.get(link.fcText)) : undefined);
+        // ★★★ 2026-03-21 FIX: FK-only — ID 매칭만 사용, 텍스트 폴백 삭제
+        const fm = fmById.get(link.fmId || '');
+        const fe = feById.get(link.feId || '');
+        const fc = fcById.get(link.fcId || '');
 
-        if (fm && fe && fc) {
-          const combo = `${fm.id}|${fe.id}|${fc.id}`;
-          if (!existingCombos.has(combo)) {
-            existingCombos.add(combo);
-            atomicDB.failureLinks = atomicDB.failureLinks || [];
-            // FM/FC id에서 seq 파싱하여 genFC 호출
-            const fmSeqMatch = fm.id.match(/M-(\d+)$/);
-            const mseq = fmSeqMatch ? parseInt(fmSeqMatch[1]) : 1;
-            const fcSeqMatch = fc.id.match(/(\w+)-(\d+)-K-(\d+)$/);
-            const fcM4 = fcSeqMatch ? fcSeqMatch[1] : '';
-            const fcB1seq = fcSeqMatch ? parseInt(fcSeqMatch[2]) : 1;
-            const fcKseq = fcSeqMatch ? parseInt(fcSeqMatch[3]) : 1;
-            const pnoMatch = fm.id.match(/L2-(\d+)/);
-            const pnoForLink = pnoMatch ? parseInt(pnoMatch[1]) : 0;
-            atomicDB.failureLinks.push({
-              id: genFC('PF', pnoForLink, mseq, fcM4, fcB1seq, fcKseq),
-              fmeaId: normalizedFmeaId,
-              fmId: fm.id,
-              feId: fe.id,
-              fcId: fc.id,
-              parentId: fm.id,
-              mergeGroupId: undefined,
-              rowSpan: link.fmMergeSpan || 1,
-              colSpan: 1,
-              cache: {
-                fmText: link.fmText || fm.mode || '',
-                fmProcess: '',
-                feText: link.feText || fe.effect || '',
-                feCategory: (fe as any).category || '',
-                feSeverity: link.severity ?? (fe as any).severity ?? 0,
-                fcText: link.fcText || fc.cause || '',
-                fcWorkElem: '',
-                fcProcess: '',
-              },
-            });
-            recoveredCount++;
-          }
+        if (!fm || !fe || !fc) {
+          // ID 매칭 실패 → 경고 + 스킵 (텍스트 폴백 금지)
+          console.warn(`[save-from-import] Link skipped (ID mismatch): fmId=${link.fmId} feId=${link.feId} fcId=${link.fcId} — fm=${!!fm} fe=${!!fe} fc=${!!fc}`);
+          skippedCount++;
+          continue;
+        }
+
+        const combo = `${fm.id}|${fe.id}|${fc.id}`;
+        if (!existingCombos.has(combo)) {
+          existingCombos.add(combo);
+          atomicDB.failureLinks = atomicDB.failureLinks || [];
+          const fmSeqMatch = fm.id.match(/M-(\d+)$/);
+          const mseq = fmSeqMatch ? parseInt(fmSeqMatch[1]) : 1;
+          const fcSeqMatch = fc.id.match(/(\w+)-(\d+)-K-(\d+)$/);
+          const fcM4 = fcSeqMatch ? fcSeqMatch[1] : '';
+          const fcB1seq = fcSeqMatch ? parseInt(fcSeqMatch[2]) : 1;
+          const fcKseq = fcSeqMatch ? parseInt(fcSeqMatch[3]) : 1;
+          const pnoMatch = fm.id.match(/L2-(\d+)/);
+          const pnoForLink = pnoMatch ? parseInt(pnoMatch[1]) : 0;
+          atomicDB.failureLinks.push({
+            id: genFC('PF', pnoForLink, mseq, fcM4, fcB1seq, fcKseq),
+            fmeaId: normalizedFmeaId,
+            fmId: fm.id,
+            feId: fe.id,
+            fcId: fc.id,
+            parentId: fm.id,
+            mergeGroupId: undefined,
+            rowSpan: link.fmMergeSpan || 1,
+            colSpan: 1,
+            cache: {
+              fmText: link.fmText || fm.mode || '',
+              fmProcess: '',
+              feText: link.feText || fe.effect || '',
+              feCategory: (fe as any).category || '',
+              feSeverity: link.severity ?? (fe as any).severity ?? 0,
+              fcText: link.fcText || fc.cause || '',
+              fcWorkElem: '',
+              fcProcess: '',
+            },
+          });
+          recoveredCount++;
         }
       }
 
       if (recoveredCount > 0) {
-        console.info(`[save-from-import] Links 복구: +${recoveredCount}건`);
+        console.info(`[save-from-import] Links 복구(ID-only): +${recoveredCount}건`);
+      }
+      if (skippedCount > 0) {
+        console.warn(`[save-from-import] Links 스킵(ID 불일치): ${skippedCount}건 — 텍스트 폴백 금지(Rule 1.7)`);
       }
     }
 
@@ -517,53 +505,44 @@ export async function POST(request: NextRequest) {
           const fcResult = await tx.failureCause.createMany({ data: fcData, skipDuplicates: true });
           if (fcResult.count < fcData.length) console.warn(`[save] FailureCause: expected ${fcData.length}, created ${fcResult.count} (${fcData.length - fcResult.count} skipped)`);
         }
-        // ★★★ 2026-03-20 FLAW-3 FIX: FK 불일치 시 DROP 대신 AUTO-FIX ★★★
-        // 비유: 기존 로직은 "신분증 불일치면 문전 박대" → FC는 입장했는데 FL은 거부 → 고아 FC 발생
-        // 수정: "신분증 불일치면 가장 가까운 유효 신분증으로 재발급" → FC↔FL↔RA 체인 보존
+        // ★★★ 2026-03-21 FIX: FK-only — arbitrary FM/FE fallback 전면 삭제
+        // Rule 0/1.5/1.7: FK 불일치 시 [0] fallback/processMatch 금지 → 경고 + 스킵
         let fixedLinks: any[] = [];
         if (a.failureLinks?.length) {
           const fmIdSet = new Set((a.failureModes || []).map((fm: any) => fm.id));
           const feIdSet = new Set((a.failureEffects || []).map((fe: any) => fe.id));
           const fcIdSet = new Set((a.failureCauses || []).map((fc: any) => fc.id));
 
-          let fixedCount = 0;
+          let skippedCount = 0;
           fixedLinks = a.failureLinks.map((l: any) => {
-            let { fmId, feId, fcId } = l;
-            let fixed = false;
+            const { fmId, feId, fcId } = l;
 
-            // Auto-fix fmId: FC의 l2StructId와 같은 공정의 FM 찾기, 없으면 첫 번째 FM
+            // ★★★ 2026-03-21 FIX: FK-only — ID가 존재하지 않으면 스킵 (fallback 금지)
             if (!fmIdSet.has(fmId)) {
-              const fc = (a.failureCauses || []).find((c: any) => c.id === fcId);
-              const processMatch = fc?.l2StructId
-                ? (a.failureModes || []).find((m: any) => m.l2StructId === fc.l2StructId)
-                : undefined;
-              fmId = processMatch?.id || (a.failureModes || [])[0]?.id || fmId;
-              fixed = true;
-            }
-
-            // Auto-fix feId: 첫 번째 FE fallback
-            if (!feIdSet.has(feId)) {
-              feId = (a.failureEffects || [])[0]?.id || feId;
-              fixed = true;
-            }
-
-            // fcId: FC가 존재하지 않으면 link를 drop (FC 없는 link는 의미 없음)
-            if (!fcIdSet.has(fcId)) {
-              console.warn(`[save-from-import] fcId ${fcId} not found — link dropped`);
+              console.warn(`[save-from-import] fmId ${fmId} not found in atomicDB — link skipped (Rule 1.7: no fallback)`);
+              skippedCount++;
               return null;
             }
 
-            if (fixed) fixedCount++;
+            if (!feIdSet.has(feId)) {
+              console.warn(`[save-from-import] feId ${feId} not found in atomicDB — link skipped (Rule 1.7: no fallback)`);
+              skippedCount++;
+              return null;
+            }
+
+            if (!fcIdSet.has(fcId)) {
+              console.warn(`[save-from-import] fcId ${fcId} not found in atomicDB — link skipped (Rule 1.7: no fallback)`);
+              skippedCount++;
+              return null;
+            }
+
             return { ...l, fmId, feId, fcId };
           }).filter(Boolean);
 
-          const droppedCount = a.failureLinks.length - fixedLinks.length;
-          if (fixedCount > 0) {
-            console.info(`[save-from-import] ${fixedCount} links auto-fixed (FK re-mapped)`);
-          }
-          if (droppedCount > 0) {
-            console.warn(`[save-from-import] ${droppedCount} links dropped: fcId not found`);
-            gaps.push(`${droppedCount} links dropped (FC missing)`);
+          // ★★★ 2026-03-21 FIX: FK-only — skipped links 로그
+          if (skippedCount > 0) {
+            console.warn(`[save-from-import] ${skippedCount} links skipped: FK ID not found in atomicDB (Rule 1.7: no fallback)`);
+            gaps.push(`${skippedCount} links skipped (FK ID mismatch — no fallback)`);
           }
           if (fixedLinks.length > 0) {
             const flData = fixedLinks.map((l: any) => ({

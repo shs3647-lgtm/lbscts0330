@@ -27,8 +27,11 @@ import { uid } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 export interface ChainRecord {
   processNo?: string;
   fmValue?: string;
+  fmId?: string;     // ★★★ 2026-03-21 FIX: FK-only — ID-based dedup용
   feValue?: string;
+  feId?: string;     // ★★★ 2026-03-21 FIX: FK-only — ID-based dedup용
   fcValue?: string;
+  fcId?: string;     // ★★★ 2026-03-21 FIX: FK-only — ID-based dedup용
   feScope?: string;
   m4?: string;
   severity?: number;
@@ -43,25 +46,7 @@ export interface EnrichStats {
   skippedNoProc: number;
 }
 
-function normalize(s: string | undefined): string {
-  return (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-/** 공백 완전 제거 정규화 — 미세 차이(띄어쓰기, 전각/반각) 흡수 */
-function normalizeStrict(s: string | undefined): string {
-  return (s || '').trim().replace(/\s+/g, '').toLowerCase();
-}
-
-/** processNo 정규화 — buildWorksheetState.ts와 동일 로직 */
-function normalizeProcessNo(pNo: string | undefined): string {
-  if (!pNo) return '';
-  let n = pNo.trim();
-  const lower = n.toLowerCase();
-  if (lower === '0' || lower === '공통공정' || lower === '공통') return '00';
-  n = n.replace(/^(공정|process|proc|p)[\s\-_]*/i, '');
-  n = n.replace(/^0+(\d)/, '$1');
-  return n;
-}
+// ★★★ 2026-03-21 FIX: FK-only — normalize/normalizeStrict/normalizeProcessNo fuzzy matching 삭제, exact matching only
 
 /**
  * 체인의 FM/FE/FC 텍스트를 워크시트 상태에 추가
@@ -79,77 +64,67 @@ export function enrichStateFromChains(
 
   if (!chains || chains.length === 0) return stats;
 
-  // Process index — 정규화된 processNo로도 조회 가능하게 dual-key 등록
+  // ★★★ 2026-03-21 FIX: FK-only — exact processNo matching only (fuzzy normalizeProcessNo 삭제)
   const procByNo = new Map<string, Process>();
   for (const proc of (state.l2 || [])) {
     if (proc.no) {
       procByNo.set(proc.no, proc);
-      const normalized = normalizeProcessNo(proc.no);
-      if (normalized && normalized !== proc.no) {
-        procByNo.set(normalized, proc);
-      }
     }
   }
 
-  // Existing FE index (normalized text → true)
+  // ★★★ 2026-03-21 FIX: FK-only — FE ID-based dedup (텍스트 dedup 삭제)
   const existingFE = new Set<string>();
   for (const fe of (state.l1?.failureScopes || [])) {
-    const text = normalize(fe.effect || fe.name);
-    if (text) existingFE.add(text);
+    if (fe.id) existingFE.add(fe.id);
   }
 
-  // Existing FM index — dual-key: normal + strict(공백제거) 매칭으로 중복 FM 추가 방지
+  // ★★★ 2026-03-21 FIX: FK-only — FM ID-based dedup (텍스트 dedup 삭제)
   const existingFM = new Set<string>();
-  const existingFMStrict = new Set<string>();
   for (const proc of (state.l2 || [])) {
     for (const fm of (proc.failureModes || [])) {
-      existingFM.add(`${proc.no}|${normalize(fm.name)}`);
-      existingFMStrict.add(`${proc.no}|${normalizeStrict(fm.name)}`);
+      if (fm.id) existingFM.add(fm.id);
     }
   }
 
-  // Existing FC index — dual-key
+  // ★★★ 2026-03-21 FIX: FK-only — FC ID-based dedup (텍스트 dedup 삭제)
   const existingFC = new Set<string>();
-  const existingFCStrict = new Set<string>();
   for (const proc of (state.l2 || [])) {
     for (const we of (proc.l3 || [])) {
       for (const fc of (we.failureCauses || [])) {
-        existingFC.add(`${proc.no}|${normalize(fc.name)}`);
-        existingFCStrict.add(`${proc.no}|${normalizeStrict(fc.name)}`);
+        if (fc.id) existingFC.add(fc.id);
       }
     }
     for (const fc of (proc.failureCauses || [])) {
-      existingFC.add(`${proc.no}|${normalize(fc.name)}`);
-      existingFCStrict.add(`${proc.no}|${normalizeStrict(fc.name)}`);
+      if (fc.id) existingFC.add(fc.id);
     }
   }
 
-  // ★★★ 2026-03-15 FIX: productChars 보충 — placeholder(name='') 교체 + 신규 추가 ★★★
+  // ★★★ 2026-03-21 FIX: FK-only — productChars ID-based dedup (텍스트 dedup 삭제)
   const existingPCByProc = new Map<string, Set<string>>();
   for (const proc of (state.l2 || [])) {
-    const pcNames = new Set<string>();
+    const pcIds = new Set<string>();
     for (const fn of (proc.functions || [])) {
       for (const pc of (fn.productChars || [])) {
-        const n = normalize(pc.name);
-        if (n) pcNames.add(n);
+        if (pc.id) pcIds.add(pc.id);
       }
     }
-    existingPCByProc.set(proc.no, pcNames);
-    const normalized = normalizeProcessNo(proc.no);
-    if (normalized && normalized !== proc.no) existingPCByProc.set(normalized, pcNames);
+    existingPCByProc.set(proc.no, pcIds);
   }
 
   let addedPC = 0;
   for (const chain of chains) {
     const pcName = (chain as Record<string, unknown>).productChar as string | undefined;
+    const pcId = (chain as Record<string, unknown>).productCharId as string | undefined;
     if (!pcName?.trim() || !chain.processNo) continue;
 
-    const proc = procByNo.get(chain.processNo) || procByNo.get(normalizeProcessNo(chain.processNo));
+    const proc = procByNo.get(chain.processNo); // ★★★ 2026-03-21 FIX: FK-only — exact processNo only
     if (!proc) continue;
 
-    const npc = normalize(pcName);
-    const existing = existingPCByProc.get(proc.no);
-    if (existing?.has(npc)) continue;
+    // ★★★ 2026-03-21 FIX: FK-only — ID-based dedup
+    if (pcId) {
+      const existing = existingPCByProc.get(proc.no);
+      if (existing?.has(pcId)) continue;
+    }
 
     // placeholder 교체: 첫 번째 빈 이름 productChar를 찾아 교체
     let replaced = false;
@@ -172,8 +147,10 @@ export function enrichStateFromChains(
       });
     }
 
-    if (!existing) existingPCByProc.set(proc.no, new Set([npc]));
-    else existing.add(npc);
+    const trackId = pcId || uid();
+    const existingSet = existingPCByProc.get(proc.no);
+    if (!existingSet) existingPCByProc.set(proc.no, new Set([trackId]));
+    else existingSet.add(trackId);
     addedPC++;
   }
 
@@ -181,13 +158,12 @@ export function enrichStateFromChains(
     const { processNo, fmValue, feValue, fcValue, feScope, m4 } = chain;
     if (!processNo) continue;
 
-    // ★ FE(고장영향)는 L1-level(scope 기반) → L2 processNo 매칭과 무관하게 추가
-    // 이전: proc 매칭 실패 시 FE까지 skip → C4=0 원인
+    // ★★★ 2026-03-21 FIX: FK-only — FE ID-based dedup (chain.feId로 중복체크)
     if (feValue?.trim()) {
-      const nfe = normalize(feValue);
-      if (!existingFE.has(nfe)) {
+      const feIdVal = chain.feId || '';
+      if (feIdVal && !existingFE.has(feIdVal)) {
         const newFE: L1FailureScope = {
-          id: (chain as { feId?: string }).feId || uid(),
+          id: feIdVal,
           name: feValue.trim(),
           scope: feScope || 'Your Plant',
           effect: feValue.trim(),
@@ -195,58 +171,65 @@ export function enrichStateFromChains(
         };
         if (!state.l1.failureScopes) state.l1.failureScopes = [];
         state.l1.failureScopes.push(newFE);
-        existingFE.add(nfe);
+        existingFE.add(feIdVal);
         stats.addedFE++;
+      } else if (!feIdVal) {
+        console.warn('[enrich-state] FE skipped — no feId for feValue:', feValue);
       }
     }
 
-    const proc = procByNo.get(processNo) || procByNo.get(normalizeProcessNo(processNo));
+    const proc = procByNo.get(processNo); // ★★★ 2026-03-21 FIX: FK-only — exact processNo only
     if (!proc) {
       stats.skippedNoProc++;
       continue;
     }
 
-    // Add FM if not exists — strict(공백제거) 매칭으로 "Au Bump 높이 부적합" ≈ "Au Bump 높이부적합" 중복 방지
+    // ★★★ 2026-03-21 FIX: FK-only — FM ID-based dedup (chain.fmId로 중복체크)
     if (fmValue?.trim()) {
-      const nfm = normalize(fmValue);
-      const fmKey = `${proc.no}|${nfm}`;
-      const fmKeyStrict = `${proc.no}|${normalizeStrict(fmValue)}`;
-      if (!existingFM.has(fmKey) && !existingFMStrict.has(fmKeyStrict)) {
+      const fmIdVal = chain.fmId || '';
+      if (fmIdVal && !existingFM.has(fmIdVal)) {
         const newFM: L2FailureMode = {
-          id: (chain as { fmId?: string }).fmId || uid(),
+          id: fmIdVal,
           name: fmValue.trim(),
         };
         if (!proc.failureModes) proc.failureModes = [];
         proc.failureModes.push(newFM);
-        existingFM.add(fmKey);
-        existingFMStrict.add(fmKeyStrict);
+        existingFM.add(fmIdVal);
         stats.addedFM++;
+      } else if (!fmIdVal) {
+        console.warn('[enrich-state] FM skipped — no fmId for fmValue:', fmValue);
       }
     }
 
-    // Add FC if not exists — strict 매칭 적용
+    // ★★★ 2026-03-21 FIX: FK-only — FC ID-based dedup (chain.fcId로 중복체크)
     if (fcValue?.trim()) {
-      const nfc = normalize(fcValue);
-      const fcKey = `${proc.no}|${nfc}`;
-      const fcKeyStrict = `${proc.no}|${normalizeStrict(fcValue)}`;
-      if (!existingFC.has(fcKey) && !existingFCStrict.has(fcKeyStrict)) {
+      const fcIdVal = chain.fcId || '';
+      if (fcIdVal && !existingFC.has(fcIdVal)) {
         const newFC: L3FailureCauseExtended = {
-          id: (chain as { fcId?: string }).fcId || uid(),
+          id: fcIdVal,
           name: fcValue.trim(),
         };
         if (proc.l3 && proc.l3.length > 0) {
           const targetWe = m4
-            ? proc.l3.find(we => we.m4 === m4) || proc.l3[0]
-            : proc.l3[0];
-          if (!targetWe.failureCauses) targetWe.failureCauses = [];
-          targetWe.failureCauses.push(newFC);
+            ? proc.l3.find(we => we.m4 === m4)
+            : undefined;
+          if (targetWe) {
+            // ★★★ 2026-03-21 FIX: FK-only — proc.l3[0] fallback 삭제, 매칭 실패시 스킵 (console.warn)
+            if (!targetWe.failureCauses) targetWe.failureCauses = [];
+            targetWe.failureCauses.push(newFC);
+          } else {
+            console.warn('[enrich-state] FC skipped — no matching L3 for m4:', m4, 'processNo:', processNo);
+            if (!proc.failureCauses) proc.failureCauses = [];
+            proc.failureCauses.push(newFC);
+          }
         } else {
           if (!proc.failureCauses) proc.failureCauses = [];
           proc.failureCauses.push(newFC);
         }
-        existingFC.add(fcKey);
-        existingFCStrict.add(fcKeyStrict);
+        existingFC.add(fcIdVal);
         stats.addedFC++;
+      } else if (!fcIdVal) {
+        console.warn('[enrich-state] FC skipped — no fcId for fcValue:', fcValue);
       }
     }
   }
