@@ -424,15 +424,36 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
     if (l3Rows.length > 0) sheetData[l3SheetName] = l3Rows;
 
     // --- L1 통합(C1-C4): 구분 | 제품기능 | 요구사항 | 고장영향 ---
-    // ★ v6.3 옵션3: C1/C2/C3 모든 행에 carry-forward — 빈행 0건 보장
+    // ★ v6.4: 스코프 정규화 + carry-forward — 빈행 0건 보장
     const l1SheetName = 'L1 통합(C1-C4)';
     const l1Rows: string[][] = [];
     const c1Items = flatData.filter(d => d.itemCode === 'C1');
+
+    // 스코프 정규화: "Your Plant"↔"YP", "Ship to Plant"↔"SP", "End User"↔"USER"↔"User"
+    const normScope = (s: string): string => {
+      const u = (s || '').trim().toUpperCase();
+      if (u === 'YP' || u === 'YOUR PLANT') return 'YP';
+      if (u === 'SP' || u === 'SHIP TO PLANT') return 'SP';
+      if (u === 'USER' || u === 'US' || u === 'END USER') return 'USER';
+      return u;
+    };
+    // C2/C3/C4를 정규화된 스코프로 그룹핑
+    const c2All = flatData.filter(d => d.itemCode === 'C2');
+    const c3All = flatData.filter(d => d.itemCode === 'C3');
+    const c4All = flatData.filter(d => d.itemCode === 'C4');
+    const c2ByScope = new Map<string, typeof c2All>();
+    const c3ByScope = new Map<string, typeof c3All>();
+    const c4ByScope = new Map<string, typeof c4All>();
+    for (const d of c2All) { const k = normScope(d.processNo); c2ByScope.set(k, [...(c2ByScope.get(k) || []), d]); }
+    for (const d of c3All) { const k = normScope(d.processNo); c3ByScope.set(k, [...(c3ByScope.get(k) || []), d]); }
+    for (const d of c4All) { const k = normScope(d.processNo); c4ByScope.set(k, [...(c4ByScope.get(k) || []), d]); }
+
     for (const c1 of c1Items) {
       const scope = c1.value || '';
-      const c2Items = flatData.filter(d => d.itemCode === 'C2' && d.processNo === scope);
-      const c3Items = flatData.filter(d => d.itemCode === 'C3' && d.processNo === scope);
-      const c4Items = flatData.filter(d => d.itemCode === 'C4' && d.processNo === scope);
+      const scopeKey = normScope(scope);
+      const c2Items = c2ByScope.get(scopeKey) || [];
+      const c3Items = c3ByScope.get(scopeKey) || [];
+      const c4Items = c4ByScope.get(scopeKey) || [];
       const maxLen = Math.max(1, c2Items.length, c3Items.length, c4Items.length);
       let lastC2 = '', lastC3 = '', lastC4 = '';
       for (let i = 0; i < maxLen; i++) {

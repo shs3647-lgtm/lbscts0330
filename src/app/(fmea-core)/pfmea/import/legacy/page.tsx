@@ -529,6 +529,23 @@ export default function LegacyImportPage() {
         flatData={flatData}
         onDownloadSample={async () => {
           if (selectedFmeaId) {
+            // 1순위: 빈칸 0건 filled Excel (서버에 생성된 파일)
+            try {
+              const filledRes = await fetch(`/api/fmea/download-filled-excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
+              if (filledRes.ok) {
+                const blob = await filledRes.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const cd = filledRes.headers.get('content-disposition');
+                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
+                a.download = fnMatch?.[1] || `PFMEA_Sample_${selectedFmeaId}.xlsx`;
+                a.href = url;
+                a.click();
+                URL.revokeObjectURL(url);
+                return;
+              }
+            } catch (_e) { /* filled 파일 없으면 다음 시도 */ }
+            // 2순위: reverse-import (서버사이드 생성)
             try {
               const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
               if (res.ok) {
