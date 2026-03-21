@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 
+
 export const runtime = 'nodejs';
 
 const AP_TABLE_LOCAL = [
@@ -116,11 +117,56 @@ export async function POST(request: NextRequest) {
           }
         }
         if (invalidLinkIds.length > 0) {
+          // Cascade: Optimization → RiskAnalysis → FailureLink
+          const invalidRAs = await tx.riskAnalysis.findMany({
+            where: { fmeaId, linkId: { in: invalidLinkIds } },
+            select: { id: true },
+          });
+          const invalidRaIds = invalidRAs.map((r: { id: string }) => r.id);
+          if (invalidRaIds.length > 0) {
+            await tx.optimization.deleteMany({ where: { fmeaId, riskId: { in: invalidRaIds } } });
+          }
           await tx.riskAnalysis.deleteMany({ where: { fmeaId, linkId: { in: invalidLinkIds } } });
           await tx.failureLink.deleteMany({ where: { id: { in: invalidLinkIds } } });
-          console.warn(`[rebuild-atomic] FailureLink FK 검증: ${invalidLinkIds.length}건 무효 삭제`);
+          console.warn(`[rebuild-atomic] FailureLink FK 검증: ${invalidLinkIds.length}건 무효 삭제 (Opt/RA 연쇄 정리)`);
         }
       }
+      // ★★★ 2026-03-21: FM-FC 쌍 중복 FL 정리 (같은 FM+FC에 다른 FE로 확장된 FL 제거) ★★★
+      {
+        const allFLsForDedup = await tx.failureLink.findMany({
+          where: { fmeaId },
+          select: { id: true, fmId: true, feId: true, fcId: true },
+        });
+        const fmFcGroups = new Map<string, Array<{ id: string; feId: string }>>();
+        for (const fl of allFLsForDedup) {
+          const key = `${fl.fmId}|${fl.fcId}`;
+          if (!fmFcGroups.has(key)) fmFcGroups.set(key, []);
+          fmFcGroups.get(key)!.push({ id: fl.id, feId: fl.feId });
+        }
+        const dupFlIds: string[] = [];
+        for (const [, group] of fmFcGroups) {
+          if (group.length <= 1) continue;
+          // 첫 번째만 유지, 나머지 제거
+          for (let i = 1; i < group.length; i++) {
+            dupFlIds.push(group[i].id);
+          }
+        }
+        if (dupFlIds.length > 0) {
+          // Cascade: Optimization → RiskAnalysis → FailureLink
+          const dupFlRAs = await tx.riskAnalysis.findMany({
+            where: { fmeaId, linkId: { in: dupFlIds } },
+            select: { id: true },
+          });
+          const dupFlRaIds = dupFlRAs.map((r: { id: string }) => r.id);
+          if (dupFlRaIds.length > 0) {
+            await tx.optimization.deleteMany({ where: { fmeaId, riskId: { in: dupFlRaIds } } });
+          }
+          await tx.riskAnalysis.deleteMany({ where: { fmeaId, linkId: { in: dupFlIds } } });
+          await tx.failureLink.deleteMany({ where: { id: { in: dupFlIds } } });
+          console.warn(`[rebuild-atomic] FM-FC 중복 FL 정리: ${dupFlIds.length}건 제거 (Opt/RA 연쇄 정리)`);
+        }
+      }
+
       // ★★★ 2026-03-19 ROOT FIX: 동일공정 동일원인 중복 FC 정리 ★★★
       {
         const fcsByKey = new Map<string, string[]>();
@@ -151,10 +197,24 @@ export async function POST(request: NextRequest) {
           }
         }
         if (dupFcIds.length > 0) {
-          await tx.riskAnalysis.deleteMany({
-            where: { fmeaId, linkId: { in: (await tx.failureLink.findMany({ where: { fmeaId, fcId: { in: dupFcIds } }, select: { id: true } })).map((l: any) => l.id) } },
+          // Cascade: Optimization → RiskAnalysis → FailureLink → FailureCause
+          const dupFcFLs = await tx.failureLink.findMany({
+            where: { fmeaId, fcId: { in: dupFcIds } },
+            select: { id: true },
           });
-          await tx.failureLink.deleteMany({ where: { fmeaId, fcId: { in: dupFcIds } } });
+          const dupFlIds = dupFcFLs.map((l: { id: string }) => l.id);
+          if (dupFlIds.length > 0) {
+            const dupRAs = await tx.riskAnalysis.findMany({
+              where: { fmeaId, linkId: { in: dupFlIds } },
+              select: { id: true },
+            });
+            const dupRaIds = dupRAs.map((r: { id: string }) => r.id);
+            if (dupRaIds.length > 0) {
+              await tx.optimization.deleteMany({ where: { fmeaId, riskId: { in: dupRaIds } } });
+            }
+            await tx.riskAnalysis.deleteMany({ where: { fmeaId, linkId: { in: dupFlIds } } });
+            await tx.failureLink.deleteMany({ where: { id: { in: dupFlIds } } });
+          }
           await tx.failureCause.deleteMany({ where: { id: { in: dupFcIds } } });
           console.warn(`[rebuild-atomic] FC dedup: ${dupFcIds.length} duplicates removed`);
         }
@@ -393,7 +453,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // ★ 고아 FC 정리: FL에 참조되지 않는 FC 삭제
+      // ★ 고아 FC 정리: FL에 참조되지 않는 FC → 연쇄 삭제 (Optimization → RA → FL → FC)
       {
         const allFcIds = (await tx.failureCause.findMany({ where: { fmeaId }, select: { id: true } })).map((f: { id: string }) => f.id);
         const linkedFcIds = new Set(
@@ -401,6 +461,28 @@ export async function POST(request: NextRequest) {
         );
         const orphanFcIds = allFcIds.filter((id: string) => !linkedFcIds.has(id));
         if (orphanFcIds.length > 0) {
+          // Cascade delete: find FLs referencing orphan FCs (safety — should be 0 by definition)
+          const orphanFcFLs = await tx.failureLink.findMany({
+            where: { fmeaId, fcId: { in: orphanFcIds } },
+            select: { id: true },
+          });
+          const orphanFlIds = orphanFcFLs.map((f: { id: string }) => f.id);
+
+          if (orphanFlIds.length > 0) {
+            // Delete Optimizations → RiskAnalyses → FailureLinks (reverse FK order)
+            const orphanRAs = await tx.riskAnalysis.findMany({
+              where: { fmeaId, linkId: { in: orphanFlIds } },
+              select: { id: true },
+            });
+            const orphanRaIds = orphanRAs.map((r: { id: string }) => r.id);
+            if (orphanRaIds.length > 0) {
+              await tx.optimization.deleteMany({ where: { fmeaId, riskId: { in: orphanRaIds } } });
+            }
+            await tx.riskAnalysis.deleteMany({ where: { fmeaId, linkId: { in: orphanFlIds } } });
+            await tx.failureLink.deleteMany({ where: { id: { in: orphanFlIds } } });
+            console.info(`[rebuild-atomic] 고아 FC 연쇄 삭제: FL=${orphanFlIds.length} RA=${orphanRaIds.length} Opt 정리 완료`);
+          }
+
           await tx.failureCause.deleteMany({ where: { id: { in: orphanFcIds } } });
           console.info(`[rebuild-atomic] 고아 FC 삭제: ${orphanFcIds.length}건 (FL에 미참조)`);
         }

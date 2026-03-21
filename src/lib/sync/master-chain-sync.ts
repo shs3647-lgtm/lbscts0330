@@ -32,6 +32,18 @@ interface ChainEntry {
   l3Function?: string;
   processChar?: string;
   specialChar?: string;
+  // ★ Living DB: 소스 추적
+  dcSourceType?: string;
+  pcSourceType?: string;
+  lldReference?: string;
+  // ★ Living DB: Optimization 동기화
+  optRecommendedAction?: string;
+  optDetectionAction?: string;
+  optStatus?: string;
+  optNewS?: number;
+  optNewO?: number;
+  optNewD?: number;
+  optLldReference?: string;
 }
 
 /**
@@ -54,6 +66,12 @@ export function extractChainsFromWorksheet(db: FMEAWorksheetDB): ChainEntry[] {
     if (!riskByLink.has(risk.linkId)) riskByLink.set(risk.linkId, risk);
   }
 
+  // ★ Optimization by riskId
+  const optByRiskId = new Map<string, (typeof db.optimizations extends (infer T)[] ? T : any)>();
+  for (const opt of (db.optimizations || [])) {
+    if (!optByRiskId.has((opt as any).riskId)) optByRiskId.set((opt as any).riskId, opt);
+  }
+
   const chains: ChainEntry[] = [];
 
   for (const link of db.failureLinks) {
@@ -67,6 +85,7 @@ export function extractChainsFromWorksheet(db: FMEAWorksheetDB): ChainEntry[] {
     const risk = riskByLink.get(link.id);
     const l2Func = l2FuncById.get(fm.l2FuncId);
     const l3Func = l3FuncById.get(fc.l3FuncId);
+    const opt = risk ? optByRiskId.get((risk as any).id) : undefined;
 
     chains.push({
       id: link.id,
@@ -88,6 +107,17 @@ export function extractChainsFromWorksheet(db: FMEAWorksheetDB): ChainEntry[] {
       l3Function: l3Func?.functionName || undefined,
       processChar: l3Func?.processChar || undefined,
       specialChar: l2Func?.specialChar || l3Func?.specialChar || undefined,
+      // ★ Living DB
+      dcSourceType: (risk as any)?.dcSourceType || undefined,
+      pcSourceType: (risk as any)?.pcSourceType || undefined,
+      lldReference: (risk as any)?.lldReference || undefined,
+      optRecommendedAction: (opt as any)?.recommendedAction || undefined,
+      optDetectionAction: (opt as any)?.detectionAction || undefined,
+      optStatus: (opt as any)?.status || undefined,
+      optNewS: (opt as any)?.newSeverity ?? undefined,
+      optNewO: (opt as any)?.newOccurrence ?? undefined,
+      optNewD: (opt as any)?.newDetection ?? undefined,
+      optLldReference: (opt as any)?.lldOptReference || undefined,
     });
   }
 
@@ -100,7 +130,7 @@ export function extractChainsFromWorksheet(db: FMEAWorksheetDB): ChainEntry[] {
  */
 export async function extractChainsFromAtomicDB(tx: any, fmeaId: string): Promise<ChainEntry[]> {
   try {
-    const [links, fms, fes, fcs, l2s, l3s, l2Funcs, l3Funcs, risks] = await Promise.all([
+    const [links, fms, fes, fcs, l2s, l3s, l2Funcs, l3Funcs, risks, opts] = await Promise.all([
       tx.failureLink.findMany({ where: { fmeaId } }),
       tx.failureMode.findMany({ where: { fmeaId } }),
       tx.failureEffect.findMany({ where: { fmeaId } }),
@@ -110,6 +140,7 @@ export async function extractChainsFromAtomicDB(tx: any, fmeaId: string): Promis
       tx.l2Function.findMany({ where: { fmeaId } }),
       tx.l3Function.findMany({ where: { fmeaId } }),
       tx.riskAnalysis.findMany({ where: { fmeaId } }),
+      tx.optimization.findMany({ where: { fmeaId } }),
     ]);
 
     const fmById = new Map<string, any>(fms.map((f: any) => [f.id, f]));
@@ -120,6 +151,11 @@ export async function extractChainsFromAtomicDB(tx: any, fmeaId: string): Promis
     const l2FuncById = new Map<string, any>(l2Funcs.map((f: any) => [f.id, f]));
     const l3FuncById = new Map<string, any>(l3Funcs.map((f: any) => [f.id, f]));
     const riskByLink = new Map<string, any>(risks.map((r: any) => [r.failureLinkId, r]));
+    // ★ Optimization by riskId (첫 번째 것만)
+    const optByRiskId = new Map<string, any>();
+    for (const o of opts) {
+      if (!optByRiskId.has((o as any).riskId)) optByRiskId.set((o as any).riskId, o);
+    }
 
     const chains: ChainEntry[] = [];
     for (const lk of links) {
@@ -133,6 +169,7 @@ export async function extractChainsFromAtomicDB(tx: any, fmeaId: string): Promis
       const risk = riskByLink.get(lk.id);
       const l2Func = l2FuncById.get(fm.l2FuncId);
       const l3Func = l3FuncById.get(fc.l3FuncId);
+      const opt = risk ? optByRiskId.get(risk.id) : undefined;
 
       chains.push({
         id: lk.id,
@@ -154,6 +191,17 @@ export async function extractChainsFromAtomicDB(tx: any, fmeaId: string): Promis
         l3Function: l3Func?.functionName || undefined,
         processChar: l3Func?.processChar || undefined,
         specialChar: l2Func?.specialChar || l3Func?.specialChar || undefined,
+        // ★ Living DB
+        dcSourceType: risk?.dcSourceType || undefined,
+        pcSourceType: risk?.pcSourceType || undefined,
+        lldReference: risk?.lldReference || undefined,
+        optRecommendedAction: opt?.recommendedAction || undefined,
+        optDetectionAction: opt?.detectionAction || undefined,
+        optStatus: opt?.status || undefined,
+        optNewS: opt?.newSeverity ?? undefined,
+        optNewO: opt?.newOccurrence ?? undefined,
+        optNewD: opt?.newDetection ?? undefined,
+        optLldReference: opt?.lldOptReference || undefined,
       });
     }
     return chains;
@@ -195,11 +243,113 @@ export async function syncMasterChainsInTx(
       },
     });
 
+    // ★ Living DB: MasterFmeaReference에 opt/SOD/DC/PC 동기화
+    await syncMasterReferenceFromChains(tx, chains, fmeaId);
+
     return chains.length;
   } catch (err: any) {
     if (err?.code === 'P2021' || err?.message?.includes('does not exist')) {
       return 0;
     }
     throw err;
+  }
+}
+
+/**
+ * ★ Living DB: chains → MasterFmeaReference 업데이트
+ * WE(작업요소) 단위로 그룹핑 후 SOD/DC/PC/Opt 최신값 반영
+ */
+async function syncMasterReferenceFromChains(
+  tx: any,
+  chains: ChainEntry[],
+  fmeaId: string,
+): Promise<void> {
+  // WE 단위 그룹핑: (m4, workElement, processNo)
+  const grouped = new Map<string, ChainEntry[]>();
+  for (const ch of chains) {
+    if (!ch.m4 || !ch.workElement) continue;
+    const key = `${ch.m4}|${ch.workElement}|${ch.processNo}`;
+    const list = grouped.get(key) || [];
+    list.push(ch);
+    grouped.set(key, list);
+  }
+
+  for (const [, entries] of grouped) {
+    const first = entries[0];
+    if (!first.m4 || !first.workElement) continue;
+
+    // DC/PC 수집 (중복제거)
+    const dcSet = new Set<string>();
+    const pcSet = new Set<string>();
+    const optActions: string[] = [];
+    const optDetActions: string[] = [];
+    let latestOptNewS: number | undefined;
+    let latestOptNewO: number | undefined;
+    let latestOptNewD: number | undefined;
+    let maxSeverity = 0;
+    let avgOccurrence = 0;
+    let avgDetection = 0;
+    let count = 0;
+
+    for (const e of entries) {
+      if (e.dcValue) dcSet.add(e.dcValue);
+      if (e.pcValue) pcSet.add(e.pcValue);
+      if (e.severity && e.severity > maxSeverity) maxSeverity = e.severity;
+      if (e.occurrence) { avgOccurrence += e.occurrence; count++; }
+      if (e.detection) avgDetection += e.detection;
+      if (e.optRecommendedAction) optActions.push(e.optRecommendedAction);
+      if (e.optDetectionAction) optDetActions.push(e.optDetectionAction);
+      if (e.optNewS !== undefined) latestOptNewS = e.optNewS;
+      if (e.optNewO !== undefined) latestOptNewO = e.optNewO;
+      if (e.optNewD !== undefined) latestOptNewD = e.optNewD;
+    }
+
+    try {
+      await tx.masterFmeaReference.upsert({
+        where: {
+          m4_weName_processNo: {
+            m4: first.m4,
+            weName: first.workElement,
+            processNo: first.processNo || '',
+          },
+        },
+        create: {
+          m4: first.m4,
+          weName: first.workElement,
+          processNo: first.processNo || '',
+          processName: '',
+          a6Controls: [...dcSet],
+          b5Controls: [...pcSet],
+          severity: maxSeverity || undefined,
+          occurrence: count > 0 ? Math.round(avgOccurrence / count) : undefined,
+          detection: count > 0 ? Math.round(avgDetection / count) : undefined,
+          optActions: [...new Set(optActions)],
+          optDetActions: [...new Set(optDetActions)],
+          optNewSeverity: latestOptNewS,
+          optNewOccurrence: latestOptNewO,
+          optNewDetection: latestOptNewD,
+          sourceProject: fmeaId,
+          sourceType: 'import',
+          usageCount: 1,
+          lastUsedAt: new Date(),
+        },
+        update: {
+          a6Controls: [...dcSet],
+          b5Controls: [...pcSet],
+          severity: maxSeverity || undefined,
+          occurrence: count > 0 ? Math.round(avgOccurrence / count) : undefined,
+          detection: count > 0 ? Math.round(avgDetection / count) : undefined,
+          optActions: [...new Set(optActions)],
+          optDetActions: [...new Set(optDetActions)],
+          optNewSeverity: latestOptNewS,
+          optNewOccurrence: latestOptNewO,
+          optNewDetection: latestOptNewD,
+          lastUsedAt: new Date(),
+          usageCount: { increment: 1 },
+        },
+      });
+    } catch {
+      // MasterFmeaReference 테이블 미존재 시 무시
+    }
   }
 }

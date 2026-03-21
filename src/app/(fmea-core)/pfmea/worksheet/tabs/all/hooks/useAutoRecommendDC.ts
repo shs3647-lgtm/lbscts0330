@@ -32,6 +32,9 @@ interface MasterA6Item {
   processNo: string;
   value: string;
   m4?: string;
+  sourceType?: 'master' | 'industry' | 'keyword';
+  sourceId?: string;
+  defaultRating?: number; // 산업DB 기본 D값 (1-10)
 }
 
 /**
@@ -104,14 +107,14 @@ export function useAutoRecommendDC({
       let krDcItems: MasterA6Item[] = [];
       if (krRes && krRes.ok) {
         const krData = await krRes.json();
-        const krDetection: { method: string; fmKeyword: string; category: string; methodType?: string }[] = krData.detection || [];
+        const krDetection: { id?: string; method: string; fmKeyword: string; category: string; methodType?: string; defaultRating?: number }[] = krData.detection || [];
         const seenMethods = new Set(flatItems.map(i => i.value));
         krDetection.forEach(entry => {
           if (entry.method && !seenMethods.has(entry.method)) {
             const mType = (entry.methodType || '').trim();
             if (mType && mType !== '자동') return;
             seenMethods.add(entry.method);
-            krDcItems.push({ processNo: '', value: entry.method, m4: '' });
+            krDcItems.push({ processNo: '', value: entry.method, m4: '', sourceType: 'industry', sourceId: entry.id || '', defaultRating: entry.defaultRating || undefined });
           }
         });
       }
@@ -231,6 +234,8 @@ export function useAutoRecommendDC({
               const recommended = `D:${bestMethod}`;
               changes[dcKey] = recommended;
               changes[`imported-detection-${uniqueKey}`] = 'auto';
+              changes[`dcSource-${uniqueKey}`] = 'keyword';
+              changes[`dcSourceId-${uniqueKey}`] = '';
               filledCount++;
               fallbackCount++;
               const evalD = recommendDetection(recommended);
@@ -301,6 +306,10 @@ export function useAutoRecommendDC({
             const oldVal = existing ? String(existing).trim() : '';
             const isChanged = oldVal !== recommended;
             changes[dcKey] = recommended;
+            // ★ 소스 추적: master/industry 구분
+            const bestItem = finalRanked[0];
+            changes[`dcSource-${uniqueKey}`] = bestItem?.sourceType || 'master';
+            changes[`dcSourceId-${uniqueKey}`] = bestItem?.sourceId || '';
             if (isChanged) {
               filledCount++;
               changes[`imported-detection-${uniqueKey}`] = 'auto';
@@ -315,7 +324,9 @@ export function useAutoRecommendDC({
               );
             }
 
-            const evalD = recommendDetection(recommended);
+            // ★ 산업DB defaultRating 우선 → fallback: recommendDetection()
+            const industryD = bestItem?.defaultRating;
+            const evalD = (industryD && industryD > 0 && industryD <= 10) ? industryD : recommendDetection(recommended);
             if (evalD > 0 && evalD <= D_CAP) {
               changes[dKey] = evalD;
               if (isChanged) changes[`imported-D-${uniqueKey}`] = 'auto';

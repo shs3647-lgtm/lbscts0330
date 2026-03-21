@@ -21,6 +21,8 @@ import type {
 } from './types';
 import { stripPrefix } from './prefix-utils';
 import { inferC2C3, inferChar, inferPC, inferDC, getDefaultRuleSet, enhancePCFormat, enhanceDCFormat } from './pc-dc-inference';
+import type { SampleWEData } from '@/lib/sample-data-loader';
+import { lookupSampleWE } from '@/lib/sample-data-loader';
 // 업종별 규칙 셋 자동 등록 (사이드이펙트 import)
 import './industry-rules';
 import {
@@ -72,7 +74,7 @@ function parseB1seq(b1Id: string): { m4: string; b1seq: number } {
  * - FC 고장사슬
  * - 01번 공통 공정 자동 삽입
  */
-export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): StepBBuildData {
+export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sampleData?: SampleWEData[]): StepBBuildData {
   const procMaster = new Map<string, string>();
   const a3Map = new Map<string, { func: string; auto: boolean }>();
   const a4Map = new Map<string, StepBA4Item[]>();
@@ -167,7 +169,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
       }
     }
 
-    // B2 요소기능 (MC/MN 기능동사 자동분리)
+    // B2 요소기능 — m066 꽂아넣기 (엑셀에 없을 때 실제 데이터 사용)
     {
       const key = `${pno}|${rowM4}|${rowWe}`;
       if (rowM4 && rowWe && !seen.b2.has(key)) {
@@ -177,10 +179,14 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
         let func: string;
         if (rawFunc) {
           func = rawFunc;
-        } else if (rowM4 === 'MC') {
-          func = `설비가 ${rowWe}을(를) 수행하여 결과를 제공한다`;
         } else {
-          func = `작업자가 ${rowWe}을(를) 확인하고 결과를 판정한다`;
+          const sample = sampleData ? lookupSampleWE(sampleData, rowM4, rowWe) : null;
+          if (sample && sample.b2.length > 0) {
+            func = sample.b2[0];
+          } else {
+            func = '';
+            warn.error('M066_MISSING_B2', `공정 ${pno} B2 누락: ${rowWe}(${rowM4}) — m066 매칭 실패, 사용자 입력 필요`);
+          }
         }
         const list = b2Map.get(pno) || [];
         list.push({ m4: rowM4, we: rowWe, func });
@@ -188,14 +194,19 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
       }
     }
 
-    // B3 공정특성 — B1/B2와 1:1 보장 (동일 dedup 키: pno|m4|we)
-    // B3는 FC/FM 기반 추론 (l2ElemFunc는 B2 기능용, B3 특성과 다름)
+    // B3 공정특성 — m066 꽂아넣기 전용 (fallback 없음)
     {
       const key = `${pno}|${rowM4}|${rowWe}`;
       if (rowM4 && rowWe && !seen.b3.has(key)) {
         seen.b3.add(key);
-        const ruleSet = getDefaultRuleSet();
-        const char = inferChar(r.fcNorm, r.fmNorm, rowM4, rowWe, ruleSet);
+        const sample = sampleData ? lookupSampleWE(sampleData, rowM4, rowWe) : null;
+        let char: string;
+        if (sample && sample.b3.length > 0) {
+          char = sample.b3[0];
+        } else {
+          char = '';
+          warn.error('M066_MISSING_B3', `공정 ${pno} B3 누락: ${rowWe}(${rowM4}) — m066 매칭 실패, 사용자 입력 필요`);
+        }
         const sc = r.scNorm;
         const list = b3Map.get(pno) || [];
         list.push({ m4: rowM4, we: rowWe, char, sc });
@@ -279,11 +290,15 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     for (const b1 of b1Items) {
       const key = `${b1.m4}|${b1.we}`;
       if (!b3Keys.has(key)) {
-        // B1에는 있지만 B3에는 없는 WE → B3 자동 보충
         const list = b3Map.get(pno) || [];
-        list.push({ m4: b1.m4, we: b1.we, char: `${b1.we} 관리 특성`, sc: '' });
+        const sample = sampleData ? lookupSampleWE(sampleData, b1.m4, b1.we) : null;
+        if (sample && sample.b3.length > 0) {
+          list.push({ m4: b1.m4, we: b1.we, char: sample.b3[0], sc: '' });
+          warn.info('B3_M066', `공정 ${pno} B3 m066 꽂아넣기: ${b1.we}(${b1.m4}) → "${sample.b3[0]}"`);
+        } else {
+          warn.error('M066_MISSING_B3_GAP', `공정 ${pno} B3 누락: ${b1.we}(${b1.m4}) — m066 매칭 실패, 하위요소 없음`);
+        }
         b3Map.set(pno, list);
-        warn.warn('B3_补充', `공정 ${pno} B3 자동보충: ${b1.we} (B1에만 존재)`);
       }
     }
   }
@@ -423,12 +438,8 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
       m4, we, char: `${we} 관리 특성`, sc: '',
     })));
 
-    // ★ 2026-03-05: B4(고장원인) 자동 삽입 — B3 공정특성 기반 (B3≤B4 계층 체인 충족)
-    b4Map.set('01', commonWE.map(([m4, we]) => ({
-      m4, we, fc: `${we} 관리 부적합`, fm: '',
-    })));
-
-    warn.info('COMMON_01', '01번 공통 공정 자동 삽입');
+    // ★ B4: 공통공정 01번은 placeholder FC 생성하지 않음 — 수동모드에서 사용자가 직접 입력
+    warn.info('COMMON_01', '01번 공통 공정 자동 삽입 (B4는 수동 입력 대기)');
   }
 
   // A3가 있지만 A4가 없는 공정 → 플레이스홀더 A4 자동생성 (계층 체인 A3≤A4 충족)
@@ -453,14 +464,57 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     }
   }
 
-  // ★ 2026-03-05: B3가 있지만 B4가 없는 공정 → B4 자동생성 (계층 체인 B3≤B4 충족)
+  // ★ 2026-03-21: B3가 있지만 B4가 없는 공정 → m066에서 실제 데이터 꽂아넣기
   for (const [pno] of b3Map) {
     if (!b4Map.has(pno) || (b4Map.get(pno) || []).length === 0) {
       const b3Items = b3Map.get(pno) || [];
       if (b3Items.length > 0) {
-        b4Map.set(pno, b3Items.map(b3 => ({ m4: b3.m4, we: b3.we, fc: `${b3.char} 부적합`, fm: '' })));
-        warn.info('B4_AUTO', `공정 ${pno}번 B4 자동생성 (B3 기반 ${b3Items.length}건)`);
+        const injected: StepBB4Item[] = [];
+        for (const b3 of b3Items) {
+          const sample = sampleData ? lookupSampleWE(sampleData, b3.m4, b3.we) : null;
+          if (sample && sample.b4.length > 0) {
+            for (const fc of sample.b4) {
+              injected.push({ m4: b3.m4, we: b3.we, fc, fm: '' });
+            }
+            warn.info('B4_M066', `공정 ${pno} B4 m066 꽂아넣기: ${b3.we}(${b3.m4}) → ${sample.b4.length}건`);
+          } else {
+            // No m066 sample match — skip placeholder FC, WE will have zero FCs (valid for manual mode)
+            warn.info('B4_SKIP', `공정 ${pno} B4 skip: ${b3.we} (m066 매칭 실패, placeholder 미생성)`);
+          }
+        }
+        if (injected.length > 0) {
+          b4Map.set(pno, injected);
+        }
       }
+    }
+  }
+
+  // ★★★ 2026-03-21: per-WE B4 m066 꽂아넣기 — B3 있지만 같은 m4+we의 B4 없는 경우 보충 ★★★
+  for (const [pno, b3Items] of b3Map) {
+    const b4Items = b4Map.get(pno) || [];
+    const b4WeKeys = new Set(b4Items.map(b => `${b.m4}|${(b as any).we || ''}`));
+    const list = b4Map.get(pno) || [];
+    let added = 0;
+    for (const b3 of b3Items) {
+      const weKey = `${b3.m4}|${b3.we}`;
+      if (b3.we && !b4WeKeys.has(weKey)) {
+        const sample = sampleData ? lookupSampleWE(sampleData, b3.m4, b3.we) : null;
+        if (sample && sample.b4.length > 0) {
+          for (const fc of sample.b4) {
+            list.push({ m4: b3.m4, we: b3.we, fc, fm: '' });
+          }
+          b4WeKeys.add(weKey);
+          added++;
+          warn.info('B4_M066_WE', `공정 ${pno} B4 m066 꽂아넣기: ${b3.we}(${b3.m4}) → ${sample.b4.length}건`);
+        } else {
+          // No m066 sample match — skip placeholder FC, WE will have zero FCs (valid for manual mode)
+          b4WeKeys.add(weKey); // Mark as seen to prevent re-processing
+          warn.info('B4_SKIP_WE', `공정 ${pno} B4 skip: ${b3.we} (m066 매칭 실패, placeholder 미생성)`);
+        }
+      }
+    }
+    if (added > 0) {
+      b4Map.set(pno, list);
     }
   }
 
@@ -661,17 +715,33 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     }
   }
 
-  // 2차: fcChains에 없는 공정 (01번 공통 등)에 대해 a5/b4 기반 추론 보충
+  // 2차: m066 꽂아넣기 → 추론 fallback (A6/B5 보충)
   {
     const ruleSet = getDefaultRuleSet();
     for (const [pno, fms] of a5Map) {
       if (a6Map.has(pno) && (a6Map.get(pno) || []).length > 0) continue;
       const dcList: string[] = [];
-      for (const fm of fms) {
-        const { dc } = inferDC(fm, ruleSet);
-        if (dc && !seenA6.has(`${pno}|${dc}`)) {
-          seenA6.add(`${pno}|${dc}`);
-          dcList.push(dc);
+      // m066에서 해당 공정 WE의 A6(DC) 가져오기
+      const b1Items = b1Map.get(pno) || [];
+      for (const b1 of b1Items) {
+        const sample = sampleData ? lookupSampleWE(sampleData, b1.m4, b1.we) : null;
+        if (sample && sample.a6.length > 0) {
+          for (const dc of sample.a6) {
+            if (!seenA6.has(`${pno}|${dc}`)) {
+              seenA6.add(`${pno}|${dc}`);
+              dcList.push(dc);
+            }
+          }
+        }
+      }
+      // m066에서 못 찾으면 추론 fallback
+      if (dcList.length === 0) {
+        for (const fm of fms) {
+          const { dc } = inferDC(fm, ruleSet);
+          if (dc && !seenA6.has(`${pno}|${dc}`)) {
+            seenA6.add(`${pno}|${dc}`);
+            dcList.push(dc);
+          }
         }
       }
       if (dcList.length > 0) a6Map.set(pno, dcList);
@@ -679,11 +749,27 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector): St
     for (const [pno, b4Items] of b4Map) {
       if (b5Map.has(pno) && (b5Map.get(pno) || []).length > 0) continue;
       const pcList: StepBB5Item[] = [];
-      for (const b4 of b4Items) {
-        const pc = inferPC(b4.fc, b4.m4, ruleSet);
-        if (pc && !seenB5.has(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`)) {
-          seenB5.add(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`);
-          pcList.push({ m4: b4.m4, pc });
+      // m066에서 해당 공정 WE의 B5(PC) 가져오기
+      const b1Items = b1Map.get(pno) || [];
+      for (const b1 of b1Items) {
+        const sample = sampleData ? lookupSampleWE(sampleData, b1.m4, b1.we) : null;
+        if (sample && sample.b5.length > 0) {
+          for (const pc of sample.b5) {
+            if (!seenB5.has(`${pno}|${b1.m4}|${b1.we}||${pc}`)) {
+              seenB5.add(`${pno}|${b1.m4}|${b1.we}||${pc}`);
+              pcList.push({ m4: b1.m4, pc });
+            }
+          }
+        }
+      }
+      // m066에서 못 찾으면 추론 fallback
+      if (pcList.length === 0) {
+        for (const b4 of b4Items) {
+          const pc = inferPC(b4.fc, b4.m4, ruleSet);
+          if (pc && !seenB5.has(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`)) {
+            seenB5.add(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`);
+            pcList.push({ m4: b4.m4, pc });
+          }
         }
       }
       if (pcList.length > 0) b5Map.set(pno, pcList);
@@ -864,7 +950,7 @@ export function convertToImportFormat(
 
   // B3 공정특성 — parentItemId(B1 UUID)로 원자성 매칭
   const cseqByB1 = new Map<string, number>(); // B1 ID → 현재 cseq
-  const b3IdsByPnoM4 = new Map<string, string[]>(); // `pno|m4` → B3 ID 순서 목록 (B4→B3 매핑용)
+  const b3IdsByPnoM4We = new Map<string, string[]>(); // `pno|m4|we` → B3 ID 순서 목록 (B4→B3 매핑용)
   for (const pno of sortedProcNos) {
     const pnoNum = parseInt(pno) || 0;
     const items = data.b3.get(pno) || [];
@@ -893,10 +979,12 @@ export function convertToImportFormat(
         belongsTo: item.we, parentItemId: b3ParentId,
         createdAt: now,
       });
-      // ★★★ 2026-03-19: B3 ID를 pno+m4별로 수집 (B4→B3 FK 매핑용) ★★★
-      const b3m4Key = `${pno}|${item.m4}`;
-      if (!b3IdsByPnoM4.has(b3m4Key)) b3IdsByPnoM4.set(b3m4Key, []);
-      b3IdsByPnoM4.get(b3m4Key)!.push(b3Id);
+      // ★★★ 2026-03-21 FIX: B3 ID를 pno+m4+we별로 수집 (B4→B3 FK 매핑 정확도 향상) ★★★
+      // 이전: pno|m4 → 같은 m4의 다른 WE B3와 혼합 → B4가 잘못된 WE의 B3에 매핑
+      // 수정: pno|m4|we → 정확한 WE의 B3에만 매핑
+      const b3m4WeKey = `${pno}|${item.m4}|${item.we}`;
+      if (!b3IdsByPnoM4We.has(b3m4WeKey)) b3IdsByPnoM4We.set(b3m4WeKey, []);
+      b3IdsByPnoM4We.get(b3m4WeKey)!.push(b3Id);
     }
   }
 
@@ -925,11 +1013,17 @@ export function convertToImportFormat(
       b4IdByKey.set(`${pno}|${item.m4}|${normalizeText(item.fc)}`, b4Id);
       b4IdByKey.set(`${pno}|${item.m4}|NS|${normalizeNoSpace(item.fc)}`, b4Id);
 
-      // ★ B4→B3 FK: 동일 pno+m4 그룹의 B3 ID에 순차 매핑
-      const b3m4Key = `${pno}|${item.m4}`;
-      const b3Ids = b3IdsByPnoM4.get(b3m4Key) || [];
-      const b4Seq = b4SeqByPnoM4.get(b3m4Key) || 0;
-      b4SeqByPnoM4.set(b3m4Key, b4Seq + 1);
+      // ★★★ 2026-03-21 FIX: B4→B3 FK: pno+m4+we 그룹 우선 → pno+m4 fallback ★★★
+      const b3m4WeKey = `${pno}|${item.m4}|${(item as any).we || ''}`;
+      let b3Ids = b3IdsByPnoM4We.get(b3m4WeKey) || [];
+      // WE 매칭 실패 시 같은 m4의 모든 WE B3로 fallback
+      if (b3Ids.length === 0) {
+        for (const [k, v] of b3IdsByPnoM4We) {
+          if (k.startsWith(`${pno}|${item.m4}|`) && v.length > 0) { b3Ids = v; break; }
+        }
+      }
+      const b4Seq = b4SeqByPnoM4.get(b3m4WeKey) || 0;
+      b4SeqByPnoM4.set(b3m4WeKey, b4Seq + 1);
       let b3ParentId = b3Ids.length > 0
         ? b3Ids[Math.min(b4Seq, b3Ids.length - 1)]
         : undefined;
@@ -946,9 +1040,9 @@ export function convertToImportFormat(
             id: autoB3Id, processNo: pno, category: 'B', itemCode: 'B3',
             value: derivedChar, m4: item.m4, createdAt: now,
           });
-          // b3IdsByPnoM4에도 등록하여 후속 B4가 같은 B3 참조
-          if (!b3IdsByPnoM4.has(b3m4Key)) b3IdsByPnoM4.set(b3m4Key, []);
-          b3IdsByPnoM4.get(b3m4Key)!.push(autoB3Id);
+          // b3IdsByPnoM4We에도 등록하여 후속 B4가 같은 B3 참조
+          if (!b3IdsByPnoM4We.has(b3m4WeKey)) b3IdsByPnoM4We.set(b3m4WeKey, []);
+          b3IdsByPnoM4We.get(b3m4WeKey)!.push(autoB3Id);
           warn.warn('B4_B3_AUTO', `공정${pno} B4 "${item.fc}" → B3 자동생성 (parentItemId 보장)`);
         }
         b3ParentId = autoB3Id;

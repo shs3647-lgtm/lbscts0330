@@ -31,6 +31,9 @@ interface MasterB5Item {
   processNo: string;
   value: string;
   m4?: string;
+  sourceType?: 'master' | 'industry';
+  sourceId?: string;
+  defaultRating?: number; // 산업DB 기본 O값 (1-10)
 }
 
 /**
@@ -159,12 +162,12 @@ export function useAutoRecommendPC({
       let krPcItems: MasterB5Item[] = [];
       if (krRes && krRes.ok) {
         const krData = await krRes.json();
-        const krPrevention: Array<{ method?: string; fmKeyword?: string }> = krData.prevention || [];
+        const krPrevention: Array<{ id?: string; method?: string; fmKeyword?: string; defaultRating?: number }> = krData.prevention || [];
         const seenMethods = new Set(b5Items.map(i => i.value));
         for (const entry of krPrevention) {
           if (entry.method && !seenMethods.has(entry.method)) {
             seenMethods.add(entry.method);
-            krPcItems.push({ processNo: '', value: entry.method, m4: '' });
+            krPcItems.push({ processNo: '', value: entry.method, m4: '', sourceType: 'industry', sourceId: entry.id || '', defaultRating: entry.defaultRating || undefined });
           }
         }
         // 산업DB 항목을 전체풀에 병합
@@ -230,6 +233,8 @@ export function useAutoRecommendPC({
             const pcValue = directPcList.map(pc => `P:${pc}`).join('\n');
             changes[pcKey] = pcValue;
             changes[`imported-prevention-${uniqueKey}`] = 'auto';
+            changes[`pcSource-${uniqueKey}`] = 'master';
+            changes[`pcSourceId-${uniqueKey}`] = '';
             filledCount++;
             directMatchCount++;
             return;
@@ -276,6 +281,17 @@ export function useAutoRecommendPC({
           if (recommended) {
             changes[pcKey] = recommended;
             changes[`imported-prevention-${uniqueKey}`] = 'auto';
+            // ★ 소스 추적: master/industry 구분
+            const bestPcItem = ranked[0];
+            changes[`pcSource-${uniqueKey}`] = bestPcItem?.sourceType || 'master';
+            changes[`pcSourceId-${uniqueKey}`] = bestPcItem?.sourceId || '';
+            // ★ 산업DB defaultRating → O값 자동 적용
+            const industryO = bestPcItem?.defaultRating;
+            if (industryO && industryO > 0 && industryO <= 10) {
+              const oKey = `risk-${uniqueKey}-O`;
+              changes[oKey] = industryO;
+              changes[`imported-O-${uniqueKey}`] = 'auto';
+            }
             filledCount++;
             if (poolId.startsWith('PM4:') || poolId.startsWith('P:')) {
               processMatchCount++;

@@ -1125,6 +1125,10 @@ export async function POST(request: NextRequest) {
                 preventionControl: risk.preventionControl || null,
                 detectionControl: risk.detectionControl || null,
                 lldReference: risk.lldReference || null,
+                dcSourceType: risk.dcSourceType || null,
+                dcSourceId: risk.dcSourceId || null,
+                pcSourceType: risk.pcSourceType || null,
+                pcSourceId: risk.pcSourceId || null,
               },
               update: {
                 linkId: risk.linkId,
@@ -1135,6 +1139,10 @@ export async function POST(request: NextRequest) {
                 preventionControl: risk.preventionControl || null,
                 detectionControl: risk.detectionControl || null,
                 lldReference: risk.lldReference || null,
+                dcSourceType: risk.dcSourceType || null,
+                dcSourceId: risk.dcSourceId || null,
+                pcSourceType: risk.pcSourceType || null,
+                pcSourceId: risk.pcSourceId || null,
               },
             })
           )

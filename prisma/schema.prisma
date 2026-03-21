@@ -560,6 +560,10 @@ model RiskAnalysis {
   preventionControl String?
   detectionControl  String?
   lldReference      String?
+  dcSourceType      String?                        // 'manual' | 'master' | 'industry' | 'lld' | 'keyword'
+  dcSourceId        String?                        // 소스 엔티티 UUID
+  pcSourceType      String?                        // 'manual' | 'master' | 'industry' | 'lld'
+  pcSourceId        String?                        // 소스 엔티티 UUID
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   optimizations     Optimization[]
@@ -568,6 +572,8 @@ model RiskAnalysis {
   @@index([fmeaId])
   @@index([linkId])
   @@index([fmeaId, linkId])
+  @@index([dcSourceType])
+  @@index([pcSourceType])
   @@map("risk_analyses")
 }
 
@@ -1267,19 +1273,81 @@ model SpecialCharacteristicCriteria {
 }
 
 // ============================================================
+// Master FMEA Reference — 골든 레퍼런스 DB (m066 기반)
+// 모든 Import에서 누락 데이터 보충 시 사용하는 SSoT
+// Living Database: 새 FMEA/SOD/LLD 데이터로 지속 업데이트
+// ============================================================
+
+model MasterFmeaReference {
+  id            String   @id @default(uuid())
+
+  // 매칭 키
+  m4            String                        // MN | MC | IM | EN
+  weName        String                        // 작업요소명 (Work Element)
+  processNo     String   @default("")         // 공정번호 (정확 매칭용)
+  processName   String   @default("")         // 공정명
+
+  // B2 요소기능
+  b2Functions   String[] @default([])         // ["설비가 xxx을(를) 수행하여..."]
+
+  // B3 공정특성
+  b3Chars       String[] @default([])         // ["Cu Target 수명", "스퍼터 조건"]
+
+  // B4 고장원인 (FC)
+  b4Causes      String[] @default([])         // ["Target 소진", "순도 불량"]
+
+  // B5 예방관리 (PC)
+  b5Controls    String[] @default([])         // ["PM 주기 관리", "레시피 확인"]
+
+  // A6 검출관리 (DC) — B6
+  a6Controls    String[] @default([])         // ["SPC 모니터링", "막두께 측정"]
+
+  // SOD 기본값 (워크시트 저장 시 업데이트)
+  severity      Int?                          // 심각도 S (1-10)
+  occurrence    Int?                          // 발생도 O (1-10)
+  detection     Int?                          // 검출도 D (1-10)
+
+  // 개선(Optimization) 이력 — Living DB 동기화
+  optActions        String[] @default([])     // 추천 개선안 이력
+  optDetActions     String[] @default([])     // 검출 개선안 이력
+  optNewSeverity    Int?                      // 최신 개선 후 S
+  optNewOccurrence  Int?                      // 최신 개선 후 O
+  optNewDetection   Int?                      // 최신 개선 후 D
+
+  // 메타
+  sourceProject String   @default("pfm26-m066") // 원본 프로젝트 ID
+  sourceType    String   @default("m066")       // m066 | import | manual | lld | industry
+  usageCount    Int      @default(0)            // 사용 횟수 (추천 우선순위)
+  lastUsedAt    DateTime?                       // 마지막 사용 시각
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([m4, weName, processNo])
+  @@index([m4])
+  @@index([weName])
+  @@index([processNo, processName])
+  @@index([sourceType])
+  @@index([usageCount])
+  @@map("master_fmea_reference")
+}
+
+// ============================================================
 // 한국 제조업 산업 공통 DB — 검출관리 / 예방관리
 // 프로젝트 독립 (공통 참조 데이터)
 // ============================================================
 
 model KrIndustryDetection {
-  id          String   @id @default(uuid())
-  category    String   // 산업 카테고리: automotive, electronics, press, coating, welding, etc.
-  fmKeyword   String   // 매칭 키워드 (고장형태)
-  method      String   // 검출방법
-  methodType  String   @default("primary") // primary | secondary
-  description String?  // 설명
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
+  id             String   @id @default(uuid())
+  category       String   // 산업 카테고리: semiconductor, plating, sputter, etc.
+  fmKeyword      String   // 매칭 키워드 (고장형태)
+  method         String   // 검출방법
+  methodType     String   @default("primary") // primary | secondary
+  defaultRating  Int?     // 기본 D값 (검출도 1-10, 낮을수록 검출 잘됨)
+  description    String?  // 설명
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1289,14 +1357,15 @@ model KrIndustryDetection {
 }
 
 model KrIndustryPrevention {
-  id          String   @id @default(uuid())
-  category    String   // 산업 카테고리: jig, mold, tool, dispenser, pressure, sensor, etc.
-  fcKeyword   String   // 매칭 키워드 (고장원인)
-  method      String   // 예방관리 방법
-  m4Category  String?  // 4M 카테고리: MN, MC, IM, EN (선택)
-  description String?  // 설명
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
+  id             String   @id @default(uuid())
+  category       String   // 산업 카테고리: equipment, material, operator, etc.
+  fcKeyword      String   // 매칭 키워드 (고장원인)
+  method         String   // 예방관리 방법
+  m4Category     String?  // 4M 카테고리: MN, MC, IM, EN (선택)
+  defaultRating  Int?     // 기본 O값 (발생도 1-10, 낮을수록 예방 잘됨)
+  description    String?  // 설명
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

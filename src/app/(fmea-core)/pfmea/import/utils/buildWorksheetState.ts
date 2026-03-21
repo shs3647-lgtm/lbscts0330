@@ -924,37 +924,46 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
       }
     }
   }
-  // ★★★ 2026-03-18 FIX: orphan processChar → placeholder FC 조건 강화
-  // 이전: 모든 미연결 PC에 placeholder FC 생성 → FC 팽창 (104→114)
-  // 수정: B4가 이미 존재하면 placeholder 생성 억제 (chains Phase3에서 보충됨)
+  // ★★★ 2026-03-21: orphan processChar — placeholder FC 생성 제거
+  // m066 꽂아넣기 방식으로 전환: Import 파이프라인(import-builder)에서 이미 m066 데이터를 보충.
+  // buildWorksheetState에서 추가 자동생성하지 않음. 데이터가 없으면 없는 상태 유지.
+  // (Import 시 m066에서 이미 B4를 채워넣으므로 이 시점에 FC 누락 없음)
+
+  process.failureCauses = causes;
+
+  // ★★★ 2026-03-21 FIX: proc.failureCauses → we.failureCauses 분배 ★★★
+  // 근본원인: 모든 FC가 proc.failureCauses에만 저장되고 we.failureCauses는 항상 빈 배열
+  //   → fcById 인덱스 빌드 시 we.failureCauses에서 m4 정보를 가져올 수 없음
+  //   → atomicToLegacyAdapter에서 L3별 FC 복원 불가
+  // 수정: processCharId → L3Function → WE 매핑으로 FC를 정확한 WE에 분배
   {
-    const linkedProcessCharIds = new Set(
-      causes.map(fc => (fc as { processCharId?: string }).processCharId).filter(Boolean)
-    );
-    // B4가 없는 경우에만 placeholder FC 생성 (B4가 있으면 chains에서 보충)
-    if (b4Items.length === 0) {
-      for (const we of process.l3) {
-        for (const func of we.functions) {
-          for (const pc of func.processChars || []) {
-            if (pc.name && !linkedProcessCharIds.has(pc.id)) {
-              const { m4: phM4, b1seq: phB1seq } = parseWeId(we.id);
-              const phWeId = genB1('PF', pnoNum, phM4, phB1seq);
-              const kseq = (weKseqMap.get(phWeId) || 0) + 1;
-              weKseqMap.set(phWeId, kseq);
-              causes.push({
-                id: genB4('PF', pnoNum, phM4, phB1seq, kseq),
-                name: `${pc.name} 부적합`,
-                m4: we.m4 || '',
-                processCharId: pc.id,
-              } as L3FailureCauseExtended);
-            }
-          }
+    const pcIdToWeIdx = new Map<string, number>();
+    process.l3.forEach((we, weIdx) => {
+      for (const func of we.functions) {
+        for (const pc of (func.processChars || [])) {
+          pcIdToWeIdx.set(pc.id, weIdx);
+        }
+      }
+    });
+
+    for (const fc of causes) {
+      const pcId = (fc as { processCharId?: string }).processCharId;
+      const weIdx = pcId ? pcIdToWeIdx.get(pcId) : undefined;
+      if (weIdx !== undefined && process.l3[weIdx]) {
+        if (!process.l3[weIdx].failureCauses) process.l3[weIdx].failureCauses = [];
+        process.l3[weIdx].failureCauses!.push(fc);
+      } else {
+        // processCharId 미매칭 → m4로 fallback
+        const fcM4 = (fc as { m4?: string }).m4 || '';
+        const weByM4 = process.l3.findIndex(we => (we.m4 || '') === fcM4);
+        const targetIdx = weByM4 >= 0 ? weByM4 : 0;
+        if (process.l3[targetIdx]) {
+          if (!process.l3[targetIdx].failureCauses) process.l3[targetIdx].failureCauses = [];
+          process.l3[targetIdx].failureCauses!.push(fc);
         }
       }
     }
   }
-
-  process.failureCauses = causes;
 }
 
 // ════════════════════════════════════════════

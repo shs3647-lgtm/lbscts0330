@@ -606,8 +606,6 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       }
     });
     
-    // ★ 2026-03-20: 폴백 재생성/보정 전부 제거 — Excel 원본 데이터만 사용
-
     // ★★★ 2026-02-05: 공정 처리 완료 후 globalRowIndex 업데이트 ★★★
     const l3CountForProc = l3Data.filter((we: any) => 
       we.name && !we.name.includes('클릭') && !we.name.includes('추가')

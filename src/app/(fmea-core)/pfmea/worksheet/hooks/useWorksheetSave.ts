@@ -502,6 +502,11 @@ function syncRiskAnalysesFromState(
     const pcFromRiskData = (riskData[`prevention-${uniqueKey}`] as string) || '';
     const dcFromRiskData = (riskData[`detection-${uniqueKey}`] as string) || '';
     const lldRefFromRiskData = (riskData[`lesson-${uniqueKey}`] as string) || '';
+    // ★ 소스 추적 필드 (Living DB)
+    const dcSrcType = (riskData[`dcSource-${uniqueKey}`] as string) || '';
+    const dcSrcId = (riskData[`dcSourceId-${uniqueKey}`] as string) || '';
+    const pcSrcType = (riskData[`pcSource-${uniqueKey}`] as string) || '';
+    const pcSrcId = (riskData[`pcSourceId-${uniqueKey}`] as string) || '';
 
     // severity 결정: riskData 우선 → link.severity → FE severity
     const feSev = feById.get(link.feId) || 0;
@@ -524,6 +529,10 @@ function syncRiskAnalysesFromState(
         preventionControl: pcFromRiskData || existing.preventionControl || null,
         detectionControl: dcFromRiskData || existing.detectionControl || null,
         lldReference: lldRefFromRiskData || existing.lldReference || null,
+        dcSourceType: dcSrcType || existing.dcSourceType || null,
+        dcSourceId: dcSrcId || existing.dcSourceId || null,
+        pcSourceType: pcSrcType || existing.pcSourceType || null,
+        pcSourceId: pcSrcId || existing.pcSourceId || null,
       });
     } else if (severity > 0 || oFromRiskData > 0 || dFromRiskData > 0) {
       // 신규 RiskAnalysis 생성 (FE severity 또는 riskData 값이 있을 때만)
@@ -538,6 +547,10 @@ function syncRiskAnalysesFromState(
         preventionControl: pcFromRiskData || null,
         detectionControl: dcFromRiskData || null,
         lldReference: lldRefFromRiskData || null,
+        dcSourceType: dcSrcType || null,
+        dcSourceId: dcSrcId || null,
+        pcSourceType: pcSrcType || null,
+        pcSourceId: pcSrcId || null,
       });
     }
   }

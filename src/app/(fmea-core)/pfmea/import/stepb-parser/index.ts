@@ -12,6 +12,7 @@ import { detectStepBColumns } from './header-detector';
 import { parseStepBRows } from './row-parser';
 import { buildImportData, convertToImportFormat } from './import-builder';
 import { validateStepBResult, computeStatistics } from './validator';
+import { fetchSampleData } from '@/lib/sample-data-loader';
 import {
   runParsingCriteriaValidation,
   type ParseValidationReport,
@@ -79,8 +80,9 @@ export async function parseStepBWorkbook(file: File): Promise<StepBConvertResult
     };
   }
 
-  // 4. Import 데이터 빌드
-  const buildData = buildImportData(parsedRows, warn);
+  // 4. Import 데이터 빌드 — m066 골든 레퍼런스 사전 로드
+  const sampleData = await fetchSampleData();
+  const buildData = buildImportData(parsedRows, warn, sampleData);
 
   // 5. ImportedFlatData[] + MasterFailureChain[] 변환
   const { flatData, failureChains } = convertToImportFormat(buildData, warn);

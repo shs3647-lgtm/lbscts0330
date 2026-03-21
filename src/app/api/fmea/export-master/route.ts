@@ -36,7 +36,7 @@ async function loadAtomicDB(prisma: any, fmeaId: string) {
     l1Structure, l2Structures, l3Structures,
     l1Functions, l2Functions, l3Functions,
     failureEffects, failureModes, failureCauses,
-    failureLinks, riskAnalyses,
+    failureLinks, riskAnalyses, optimizations,
   ] = await Promise.all([
     prisma.l1Structure.findFirst({ where: { fmeaId } }),
     prisma.l2Structure.findMany({ where: { fmeaId }, orderBy: { order: 'asc' } }),
@@ -49,6 +49,7 @@ async function loadAtomicDB(prisma: any, fmeaId: string) {
     prisma.failureCause.findMany({ where: { fmeaId } }),
     prisma.failureLink.findMany({ where: { fmeaId } }),
     prisma.riskAnalysis.findMany({ where: { fmeaId } }),
+    prisma.optimization.findMany({ where: { fmeaId } }),
   ]);
 
   return {
@@ -66,7 +67,7 @@ async function loadAtomicDB(prisma: any, fmeaId: string) {
     failureLinks,
     failureAnalyses: [] as any[],
     riskAnalyses,
-    optimizations: [] as any[],
+    optimizations,
     confirmed: {},
   };
 }

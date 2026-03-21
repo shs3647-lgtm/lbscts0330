@@ -452,6 +452,11 @@ export function useAutoLldFilter({
         const prefix = isOpt ? `${target}-opt-` : `${target}-`;
         changes[`${prefix}${uk}`] = item.autoRecommendValue;
         changes[`imported-${target}-${uk}`] = 'auto';
+        // ★ 소스 추적: tier 4 = master 기반 자동추천
+        const srcKey = target === 'detection' ? 'dcSource' : 'pcSource';
+        const srcIdKey = target === 'detection' ? 'dcSourceId' : 'pcSourceId';
+        changes[`${srcKey}-${uk}`] = 'master';
+        changes[`${srcIdKey}-${uk}`] = '';
         if (target === 'detection' && item.autoRecommendD && item.autoRecommendD > 0) {
           const dKey = isOpt ? `opt-${uk}-D` : `risk-${uk}-D`;
           changes[dKey] = item.autoRecommendD;
@@ -463,6 +468,11 @@ export function useAutoLldFilter({
 
       const lld = item.matchedLld!;
       const improvementText = `[${lld.lldNo}] ${lld.improvement}`;
+      // ★ 소스 추적: LLD 매칭
+      const srcKey = target === 'detection' ? 'dcSource' : 'pcSource';
+      const srcIdKey = target === 'detection' ? 'dcSourceId' : 'pcSourceId';
+      changes[`${srcKey}-${uk}`] = 'lld';
+      changes[`${srcIdKey}-${uk}`] = lld.id || '';
 
       if (isOpt) {
         changes[`lesson-opt-${uk}`] = lld.lldNo;
@@ -523,6 +533,11 @@ export function useAutoLldFilter({
         const prefix = isOpt ? `${target}-opt-` : `${target}-`;
         changes[`${prefix}${uk}`] = item.autoRecommendValue;
         changes[`imported-${target}-${uk}`] = 'auto';
+        // ★ 소스 추적: tier 4 = master 기반 자동추천
+        const srcKey2 = target === 'detection' ? 'dcSource' : 'pcSource';
+        const srcIdKey2 = target === 'detection' ? 'dcSourceId' : 'pcSourceId';
+        changes[`${srcKey2}-${uk}`] = 'master';
+        changes[`${srcIdKey2}-${uk}`] = '';
         if (target === 'detection' && item.autoRecommendD && item.autoRecommendD > 0) {
           const dKey = isOpt ? `opt-${uk}-D` : `risk-${uk}-D`;
           changes[dKey] = item.autoRecommendD;
@@ -534,6 +549,11 @@ export function useAutoLldFilter({
 
       const lld = item.matchedLld!;
       const improvementText = `[${lld.lldNo}] ${lld.improvement}`;
+      // ★ 소스 추적: LLD 매칭
+      const srcKey2 = target === 'detection' ? 'dcSource' : 'pcSource';
+      const srcIdKey2 = target === 'detection' ? 'dcSourceId' : 'pcSourceId';
+      changes[`${srcKey2}-${uk}`] = 'lld';
+      changes[`${srcIdKey2}-${uk}`] = lld.id || '';
       if (isOpt) {
         changes[`lesson-opt-${uk}`] = lld.lldNo;
         changes[`${target}-opt-${uk}`] = improvementText;
