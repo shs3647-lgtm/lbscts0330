@@ -41,6 +41,24 @@ const STEP_CONFIG: { key: ApprovalStep; label: string; actionLabel: string; stat
 
 const STEP_ORDER: ApprovalStep[] = ['create', 'review', 'approve'];
 
+// 사용자 이름으로 이메일 조회 (Users DB)
+async function lookupUserEmail(name: string): Promise<string | undefined> {
+  if (!name) return undefined;
+  try {
+    const res = await fetch(`/api/users?search=${encodeURIComponent(name)}`);
+    if (!res.ok) return undefined;
+    const data = await res.json();
+    const users = data.users || data;
+    if (Array.isArray(users)) {
+      const match = users.find((u: { name?: string; email?: string }) => u.name === name && u.email);
+      return match?.email || undefined;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // 이메일 알림 발송 (비동기, 실패해도 결재 진행에 영향 없음)
 async function sendEmailNotify(params: {
   type: 'submit' | 'review_approve' | 'final_approve' | 'reject';
@@ -51,8 +69,9 @@ async function sendEmailNotify(params: {
   fromPosition: string;
   toName: string;
   toPosition: string;
+  toEmail?: string;
   reason?: string;
-}): Promise<{ success: boolean; previewUrl?: string }> {
+}): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch('/api/fmea/email-notify', {
       method: 'POST',
@@ -150,6 +169,7 @@ export function ApprovalFlowBar({ revisions, updateField, onSave, onRequestSave,
 
     // 이메일 발송 (검토자에게)
     setEmailStatus('발송 중...');
+    const reviewEmail = await lookupUserEmail(reviewName);
     const emailResult = await sendEmailNotify({
       type: 'submit',
       revisionNumber: activeRevision.revisionNumber,
@@ -159,18 +179,16 @@ export function ApprovalFlowBar({ revisions, updateField, onSave, onRequestSave,
       fromPosition: activeRevision.createPosition as string || '',
       toName: reviewName,
       toPosition: activeRevision.reviewPosition as string || '',
+      toEmail: reviewEmail,
       reason: reason || undefined,
     });
 
-    if (emailResult.success && emailResult.previewUrl) {
-      setEmailStatus('');
-      if (confirm(`검토 요청 이메일 발송 완료!\n\n미리보기 URL을 열어 확인하시겠습니까?`)) {
-        window.open(emailResult.previewUrl, '_blank');
-      }
+    if (emailResult.success) {
+      setEmailStatus('이메일 발송 완료');
     } else {
-      setEmailStatus(emailResult.success ? '발송 완료' : '발송 실패');
-      setTimeout(() => setEmailStatus(''), 3000);
+      setEmailStatus(emailResult.error || '이메일 발송 실패');
     }
+    setTimeout(() => setEmailStatus(''), 3000);
   }, [activeRevision, updateField, triggerSave, today, fmeaId, fmeaName]);
 
   // ★ 회수 처리 (상신 취소 — 검토자 미처리 시에만)
@@ -254,6 +272,7 @@ export function ApprovalFlowBar({ revisions, updateField, onSave, onRequestSave,
     }
 
     if (toName) {
+      const toEmail = await lookupUserEmail(toName);
       const emailResult = await sendEmailNotify({
         type: emailType,
         revisionNumber: activeRevision.revisionNumber,
@@ -263,19 +282,17 @@ export function ApprovalFlowBar({ revisions, updateField, onSave, onRequestSave,
         fromPosition: activeRevision[config.positionField] as string || '',
         toName,
         toPosition,
+        toEmail,
         reason: reason || undefined,
       });
 
-      if (emailResult.success && emailResult.previewUrl) {
-        setEmailStatus('');
+      if (emailResult.success) {
         const label = step === 'review' ? '승인 요청' : '결재 완료 알림';
-        if (confirm(`${label} 이메일 발송 완료!\n\n미리보기 URL을 열어 확인하시겠습니까?`)) {
-          window.open(emailResult.previewUrl, '_blank');
-        }
+        setEmailStatus(`${label} 이메일 발송 완료`);
       } else {
-        setEmailStatus(emailResult.success ? '발송 완료' : '발송 실패');
-        setTimeout(() => setEmailStatus(''), 3000);
+        setEmailStatus(emailResult.error || '이메일 발송 실패');
       }
+      setTimeout(() => setEmailStatus(''), 3000);
     } else {
       setEmailStatus('');
     }
@@ -301,6 +318,7 @@ export function ApprovalFlowBar({ revisions, updateField, onSave, onRequestSave,
     const toName = activeRevision.createName as string || '';
     if (toName && name) {
       setEmailStatus('발송 중...');
+      const toEmail = await lookupUserEmail(toName);
       const emailResult = await sendEmailNotify({
         type: 'reject',
         revisionNumber: activeRevision.revisionNumber,
@@ -310,18 +328,16 @@ export function ApprovalFlowBar({ revisions, updateField, onSave, onRequestSave,
         fromPosition: activeRevision[config.positionField] as string || '',
         toName,
         toPosition: activeRevision.createPosition as string || '',
+        toEmail,
         reason,
       });
 
-      if (emailResult.success && emailResult.previewUrl) {
-        setEmailStatus('');
-        if (confirm(`반려 알림 이메일 발송 완료!\n\n미리보기 URL을 열어 확인하시겠습니까?`)) {
-          window.open(emailResult.previewUrl, '_blank');
-        }
+      if (emailResult.success) {
+        setEmailStatus('반려 알림 이메일 발송 완료');
       } else {
-        setEmailStatus(emailResult.success ? '발송 완료' : '발송 실패');
-        setTimeout(() => setEmailStatus(''), 3000);
+        setEmailStatus(emailResult.error || '이메일 발송 실패');
       }
+      setTimeout(() => setEmailStatus(''), 3000);
     }
   }, [activeRevision, updateField, triggerSave, today, fmeaId, fmeaName]);
 

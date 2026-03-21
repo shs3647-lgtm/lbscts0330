@@ -1,8 +1,8 @@
 /**
  * @file email-service.ts
  * @description FMEA 결재 이메일 알림 서비스
- * - Gmail SMTP: .env에 SMTP_USER/SMTP_PASS 설정 시 실제 발송
- * - Ethereal 폴백: Gmail 미설정 시 가상 시뮬레이션 (미리보기 URL)
+ * - SMTP: .env에 SMTP_USER/SMTP_PASS 설정 시 실제 발송
+ * - 미설정 또는 수신자 이메일 없으면 발송하지 않음
  */
 
 import nodemailer from 'nodemailer';
@@ -16,51 +16,35 @@ interface EmailNotifyParams {
   fromPosition: string;
   toName: string;
   toPosition: string;
-  toEmail?: string; // 실제 수신 이메일 (Gmail 발송 시 필요)
+  toEmail?: string;
   reason?: string;
 }
 
 interface EmailResult {
   success: boolean;
-  previewUrl: string | null;
   messageId?: string;
   error?: string;
-  mode: 'gmail' | 'ethereal';
 }
 
 // =====================================================
-// 트랜스포터 생성 (Gmail 우선, Ethereal 폴백)
+// SMTP 트랜스포터 생성
 // =====================================================
 
-let cachedEtherealAccount: { user: string; pass: string } | null = null;
-
-async function createTransporter(): Promise<{ transporter: nodemailer.Transporter; mode: 'gmail' | 'ethereal'; senderEmail: string }> {
+function createTransporter(): { transporter: nodemailer.Transporter; senderEmail: string } | null {
   const smtpUser = process.env.SMTP_USER || '';
   const smtpPass = process.env.SMTP_PASS || '';
 
-  // Gmail SMTP 사용 가능 시
-  if (smtpUser && smtpPass && smtpUser !== 'your-email@gmail.com') {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: smtpUser, pass: smtpPass },
-    });
-    return { transporter, mode: 'gmail', senderEmail: smtpUser };
+  if (!smtpUser || !smtpPass || smtpUser === 'your-email@gmail.com') {
+    return null;
   }
 
-  // Ethereal 폴백 (가상 시뮬레이션)
-  if (!cachedEtherealAccount) {
-    const account = await nodemailer.createTestAccount();
-    cachedEtherealAccount = { user: account.user, pass: account.pass };
-  }
   const transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false,
-    auth: cachedEtherealAccount,
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: { user: smtpUser, pass: smtpPass },
   });
-  return { transporter, mode: 'ethereal', senderEmail: cachedEtherealAccount.user };
+  return { transporter, senderEmail: smtpUser };
 }
 
 // =====================================================
@@ -84,12 +68,13 @@ function getSubjectAndBody(params: EmailNotifyParams): { subject: string; html: 
   const cfg = typeConfig[type];
   return {
     subject: `${cfg.prefix} ${fmeaName} - Rev.${revisionNumber}`,
-    html: buildEmailHtml({ ...cfg, fmeaId, fmeaName, revisionNumber, fromName, fromPosition, toName, toPosition, reason }),
+    html: buildEmailHtml({ ...cfg, type, fmeaId, fmeaName, revisionNumber, fromName, fromPosition, toName, toPosition, reason }),
   };
 }
 
 interface HtmlParams {
   title: string; badge: string; badgeColor: string; body: string;
+  type: 'submit' | 'review_approve' | 'final_approve' | 'reject';
   fmeaId: string; fmeaName: string; revisionNumber: string;
   fromName: string; fromPosition: string; toName: string; toPosition: string; reason?: string;
 }
@@ -120,6 +105,9 @@ function buildEmailHtml(p: HtmlParams): string {
       <div style="font-size:11px;color:#92400e;font-weight:bold;margin-bottom:4px">사유</div>
       <div style="color:#78350f;font-size:13px">${p.reason}</div>
     </div>` : ''}
+    ${p.type !== 'final_approve' ? `<div style="text-align:center;margin:16px 0">
+      <a href="http://new.smartfmea.co.kr:3001/approval/approver-portal" style="display:inline-block;padding:10px 24px;background:#00587a;color:white;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold">결재 처리하기</a>
+    </div>` : ''}
   </div>
   <div style="background:#f9fafb;padding:12px 24px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb">
     SMART FMEA System - 자동 발송 알림
@@ -132,37 +120,37 @@ function buildEmailHtml(p: HtmlParams): string {
 // =====================================================
 
 export async function sendApprovalNotification(params: EmailNotifyParams): Promise<EmailResult> {
-  try {
-    const { transporter, mode, senderEmail } = await createTransporter();
-    const { subject, html } = getSubjectAndBody(params);
+  // SMTP 미설정 시 발송하지 않음
+  const smtp = createTransporter();
+  if (!smtp) {
+    return { success: false, error: 'SMTP 미설정 (SMTP_USER/SMTP_PASS 환경변수 필요)' };
+  }
 
-    // 수신자 이메일: 직접 지정 또는 가상 주소
-    const toEmail = params.toEmail || `${params.toName.replace(/\s/g, '')}@fmea-system.local`;
+  // 수신자 이메일 없으면 발송하지 않음
+  if (!params.toEmail) {
+    return { success: false, error: '수신자 이메일 미등록' };
+  }
+
+  try {
+    const { transporter, senderEmail } = smtp;
+    const { subject, html } = getSubjectAndBody(params);
 
     const info = await transporter.sendMail({
       from: `"SMART FMEA (${params.fromPosition} ${params.fromName})" <${senderEmail}>`,
-      to: toEmail,
+      to: params.toEmail,
       subject,
       html,
     });
 
-    // Ethereal 모드: 미리보기 URL 반환
-    const previewUrl = mode === 'ethereal' ? nodemailer.getTestMessageUrl(info) : null;
-
-
     return {
       success: true,
-      previewUrl: typeof previewUrl === 'string' ? previewUrl : null,
       messageId: info.messageId,
-      mode,
     };
   } catch (error) {
     console.error('[이메일 서비스] 발송 실패:', error);
     return {
       success: false,
-      previewUrl: null,
       error: error instanceof Error ? error.message : '알 수 없는 오류',
-      mode: 'ethereal',
     };
   }
 }
