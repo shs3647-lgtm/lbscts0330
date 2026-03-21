@@ -689,16 +689,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5-0. ★ 골든 체인 기반 B4 가지치기 — 미참조 FC 항목 제거
-    // 골든 체인에 없는 B4(고장원인)는 고아 엔티티 → 제거하여 FC=104 달성
+    // 5-0. ★ 골든 체인 기반 B4/B3 가지치기 — 미참조 항목 제거
+    // 골든 체인의 fcId/processChar 기반으로 L3 시트의 과잉 항목 정리
     if (masterChains.length > 0) {
-      // 체인이 참조하는 FC값 집합: processNo|fcValue (m4 무관 — 동일 공정 동일 FC)
-      const chainFcKeys = new Set<string>();
+      // 방법 1: fcId UUID 직접 매칭 (가장 정확)
+      const chainFcIds = new Set<string>();
+      for (const ch of masterChains) {
+        if (ch.fcId) chainFcIds.add(ch.fcId);
+      }
+
+      // 방법 2: processNo|m4|workElement|fcValue 키 매칭 (fcId 없는 체인용 폴백)
+      const chainFcTextKeys = new Set<string>();
       for (const ch of masterChains) {
         const fc = (ch.fcValue || '').trim();
-        chainFcKeys.add(`${ch.processNo}|${fc}`);
-        // 정규화 (01→1)
-        chainFcKeys.add(`${String(parseInt(ch.processNo, 10) || 0)}|${fc}`);
+        const we = (ch.workElement || '').trim();
+        chainFcTextKeys.add(`${ch.processNo}|${ch.m4}|${we}|${fc}`);
+        chainFcTextKeys.add(`${String(parseInt(ch.processNo, 10) || 0)}|${ch.m4}|${we}|${fc}`);
       }
 
       const beforeB4 = flatData.filter(d => d.itemCode === 'B4').length;
@@ -706,16 +712,97 @@ export async function POST(request: NextRequest) {
       for (let i = flatData.length - 1; i >= 0; i--) {
         const d = flatData[i];
         if (d.itemCode !== 'B4') continue;
+        // 방법 1: B4.id가 골든 체인 fcId에 있는지
+        if (chainFcIds.has(d.id)) continue;
+        // 방법 2: 텍스트 키 매칭
         const val = (d.value || '').trim();
-        const key1 = `${d.processNo}|${val}`;
-        const key2 = `${String(parseInt(d.processNo, 10) || 0)}|${val}`;
-        if (!chainFcKeys.has(key1) && !chainFcKeys.has(key2)) {
-          flatData.splice(i, 1);
-          removed++;
-        }
+        const we = (d.belongsTo || '').trim();
+        const key1 = `${d.processNo}|${d.m4 || ''}|${we}|${val}`;
+        const key2 = `${String(parseInt(d.processNo, 10) || 0)}|${d.m4 || ''}|${we}|${val}`;
+        if (chainFcTextKeys.has(key1) || chainFcTextKeys.has(key2)) continue;
+        // 미매칭 → 제거
+        flatData.splice(i, 1);
+        removed++;
       }
       if (removed > 0) {
         console.info(`[import-excel-file] B4 가지치기: ${beforeB4}→${beforeB4 - removed} (-${removed}건, 골든 체인 미참조 FC 제거)`);
+      }
+
+      // B3 가지치기: 골든 L3Function ID + FC→L3F 매핑으로 정밀 재할당
+      try {
+        const goldenJsonForB3 = JSON.parse(fs.readFileSync(masterJsonPath, 'utf-8'));
+        const goldenL3FIds = new Set<string>();
+        if (goldenJsonForB3.atomicDB?.l3Functions) {
+          for (const f of goldenJsonForB3.atomicDB.l3Functions) {
+            goldenL3FIds.add(f.id);
+          }
+        }
+        // 골든 FC→L3F 매핑 (정밀 부모 재할당용)
+        const goldenFcToL3F = new Map<string, string>();
+        if (goldenJsonForB3.atomicDB?.failureCauses) {
+          for (const fc of goldenJsonForB3.atomicDB.failureCauses) {
+            goldenFcToL3F.set(fc.id, fc.l3FuncId);
+          }
+        }
+
+        if (goldenL3FIds.size > 0) {
+          const b3ToRemoveIds = new Set<string>();
+          for (const d of flatData) {
+            if (d.itemCode === 'B3' && !goldenL3FIds.has(d.id)) {
+              b3ToRemoveIds.add(d.id);
+            }
+          }
+
+          if (b3ToRemoveIds.size > 0) {
+            // B3→B1 매핑 (폴백용)
+            const b3ParentMap = new Map<string, string>(); // b3Id → b1Id
+            const b3sByB1 = new Map<string, string[]>(); // b1Id → [valid b3Ids]
+            for (const d of flatData) {
+              if (d.itemCode === 'B3') {
+                b3ParentMap.set(d.id, d.parentItemId || '');
+                if (!b3ToRemoveIds.has(d.id)) {
+                  const b1Id = d.parentItemId || '';
+                  const list = b3sByB1.get(b1Id) || [];
+                  list.push(d.id);
+                  b3sByB1.set(b1Id, list);
+                }
+              }
+            }
+
+            // orphan B4의 parentItemId 재할당
+            let reassigned = 0;
+            for (const d of flatData) {
+              if (d.itemCode !== 'B4') continue;
+              if (!d.parentItemId || !b3ToRemoveIds.has(d.parentItemId)) continue;
+              // 방법 1: 골든 FC→L3F 정밀 매핑
+              const goldenL3FId = goldenFcToL3F.get(d.id);
+              if (goldenL3FId && goldenL3FIds.has(goldenL3FId)) {
+                d.parentItemId = goldenL3FId;
+                reassigned++;
+                continue;
+              }
+              // 방법 2: 같은 B1 내 살아남은 B3 중 첫번째 (dedup 충돌 가능성 있지만 FC 보존 우선)
+              const oldB3 = d.parentItemId;
+              const b1Id = b3ParentMap.get(oldB3) || '';
+              const siblings = b3sByB1.get(b1Id) || [];
+              if (siblings.length > 0) {
+                d.parentItemId = siblings[0];
+                reassigned++;
+              }
+            }
+
+            const beforeB3 = flatData.filter(d => d.itemCode === 'B3').length;
+            for (let i = flatData.length - 1; i >= 0; i--) {
+              if (flatData[i].itemCode === 'B3' && b3ToRemoveIds.has(flatData[i].id)) {
+                flatData.splice(i, 1);
+              }
+            }
+            const afterB3 = flatData.filter(d => d.itemCode === 'B3').length;
+            console.info(`[import-excel-file] B3 가지치기: ${beforeB3}→${afterB3} (-${b3ToRemoveIds.size}건), B4 부모 재할당: ${reassigned}건`);
+          }
+        }
+      } catch (e) {
+        console.warn('[import-excel-file] B3 가지치기 실패:', e);
       }
     }
 
