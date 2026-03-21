@@ -40,6 +40,10 @@ import {
 } from './excel-parser-utils';
 import { m4SortValue } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import { detectDataRange, getMergedCellValue, getMergeSpan } from '@/lib/excel-data-range';
+import {
+  isL1UnifiedEmptyEffectDash,
+  resolveL1UnifiedRowScopeKey,
+} from '@/app/(fmea-core)/pfmea/import/l1-unified-scope';
 import { isSingleSheetFmea, isStepASheet, parseSingleSheetFmea } from './excel-parser-single-sheet';
 import { findFCSheet, parseFCSheet } from './excel-parser-fc';
 // ★★★ 2026-02-24: VERIFY 시트 리더 (엑셀 수식 기반 검증) ★★★
@@ -536,18 +540,25 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           const c2Entry = colFieldMap.find(m => m.targetCode === 'C2');
           const c3Entry = colFieldMap.find(m => m.targetCode === 'C3');
           if (c2Entry && c3Entry) {
-            let lastC1 = '';
+            let cfKeyC3 = '';
             let lastC2 = '';
             for (let ri = startRow; ri <= sheet.rowCount; ri++) {
               const uRow = sheet.getRow(ri);
               if (!uRow || uRow.cellCount === 0) continue;
-              const c1Raw = cellValueToString(uRow.getCell(keyMapping.col).value).trim();
-              const c2Raw = cellValueToString(uRow.getCell(c2Entry.col).value).trim();
-              const c3Raw = cellValueToString(uRow.getCell(c3Entry.col).value).trim();
-              if (c1Raw) lastC1 = c1Raw;
+              const { keyVal: c1Key, nextCfKey } = resolveL1UnifiedRowScopeKey(
+                sheet,
+                ri,
+                keyMapping.col,
+                cfKeyC3,
+              );
+              cfKeyC3 = nextCfKey;
+              if (!c1Key) continue;
+              let c2Raw = getMergedCellValue(sheet, ri, c2Entry.col).trim();
               if (c2Raw) lastC2 = c2Raw;
-              if (lastC1 && lastC2 && c3Raw) {
-                l1UnifiedC3ToC2.set(`${lastC1}|${c3Raw}`, lastC2);
+              else c2Raw = lastC2;
+              const c3Raw = getMergedCellValue(sheet, ri, c3Entry.col).trim();
+              if (c1Key && c2Raw && c3Raw) {
+                l1UnifiedC3ToC2.set(`${c1Key}|${c3Raw}`, c2Raw);
               }
             }
             console.info(`[L1_UNIFIED 직접] C3→C2 매핑 구축: ${l1UnifiedC3ToC2.size}건`);
@@ -568,12 +579,18 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
           const uRow = sheet.getRow(ri);
           if (!uRow || uRow.cellCount === 0) continue;
 
-          let keyVal = keyMapping
-            ? cellValueToString(uRow.getCell(keyMapping.col).value).trim()
-            : '';
-          if (!keyVal) keyVal = cfKey;
+          let keyVal = '';
+          if (sheetCode === 'L1_UNIFIED' && keyMapping) {
+            const resolved = resolveL1UnifiedRowScopeKey(sheet, ri, keyMapping.col, cfKey);
+            keyVal = resolved.keyVal;
+            cfKey = resolved.nextCfKey;
+          } else if (keyMapping) {
+            keyVal = cellValueToString(uRow.getCell(keyMapping.col).value).trim();
+            if (!keyVal) keyVal = cfKey;
+            if (!keyVal) continue;
+            cfKey = keyVal;
+          }
           if (!keyVal) continue;
-          cfKey = keyVal;
 
           let m4Val = m4Mapping ? cellValueToString(uRow.getCell(m4Mapping.col).value).trim().toUpperCase() : '';
           if (!m4Val && sheetCode === 'L3_UNIFIED') m4Val = cfM4;
@@ -582,11 +599,18 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
 
           for (const mapping of colFieldMap) {
             if (mapping.targetCode === '_KEY' || mapping.targetCode === '_4M' || mapping.targetCode === '_SC') continue;
-            let val = cellValueToString(uRow.getCell(mapping.col).value).trim();
+            let val =
+              sheetCode === 'L1_UNIFIED'
+                ? getMergedCellValue(sheet, ri, mapping.col).trim()
+                : cellValueToString(uRow.getCell(mapping.col).value).trim();
             // ★ 부모 컬럼 carry-forward: 빈칸이면 이전 값으로 채움
             if (parentCodes.has(mapping.targetCode)) {
               if (val) cfParents.set(mapping.targetCode, val);
               else val = cfParents.get(mapping.targetCode) || '';
+            }
+            // C4: 표시용 "-" / N/A 는 고장영향 없음과 동일
+            if (sheetCode === 'L1_UNIFIED' && mapping.targetCode === 'C4' && isL1UnifiedEmptyEffectDash(val)) {
+              val = '';
             }
             if (!val || val === 'null' || val === 'undefined') continue;
 

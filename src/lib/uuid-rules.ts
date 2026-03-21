@@ -338,6 +338,16 @@ export function extractPno(id: string): string | null {
   return parsed?.processNo ?? null;
 }
 
+/**
+ * L3Function.id가 genB2(요소기능) UUID 패턴인지 — B3(-C-) 없이 B2만 있는 L3F 행.
+ * 빈 processChar는 정상이므로 pipeline emptyPC/emptyProcessChar에서 제외한다.
+ */
+export function isL3FunctionIdB2Pattern(id: string): boolean {
+  if (!id.startsWith('PF-L3-')) return false;
+  if (id.includes('-C-')) return false;
+  return /-G(?:-\d{3})?$/.test(id);
+}
+
 // ══════════════════════════════════════════════
 // 3. validateParentChild — 부모-자식 관계 검증
 // ══════════════════════════════════════════════

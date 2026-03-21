@@ -16,6 +16,7 @@
 | 2026-03-08 | 20:05 | 배포 전 전체 진단 — 보안(하드코딩 비밀번호/시크릿 제거) + empty catch 16건 수정 + console.log 8건 제거 + Operations error.tsx 추가 | Claude |
 | 2026-03-18 | - | Raw SQL PascalCase 테이블명 전수 제거 (15개 파일) + CP 라우트 Prisma ORM 전환 + 트러블슈팅 T-38~T-42 추가 | Claude |
 | 2026-03-20 | - | B4 dedup key WE 추가 (emptyPC 근본수정) + 골든 베이스라인 FC/FL/RA/B4: 104→103 갱신 + 방어코드 4건 추가 | Claude |
+| 2026-03-22 | - | `repair-fk` API + `fk-repair.ts` (rebuild 없이 FK 정리), `DISABLE_REBUILD_ATOMIC`로 파이프라인 STEP0 rebuild 생략 | Claude |
 
 ---
 

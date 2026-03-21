@@ -134,8 +134,10 @@ export function useWorksheetDataLoader({
       }
 
       // ★★★ 2026-03-20: Atomic DB 전용 로드 (Legacy fallback 완전 제거) ★★★
+      // ★★★ 2026-03-22: loadAtomicDB()와 게이트 일치 — L1만 있고 L2=0인 경우도 반드시 Atomic 렌더
+      // (구버전: l2Structures.length>0 조건 → L1-only 프로젝트가 placeholder 빈 시트로 덮임 = 화면 누락)
       const atomicData = await loadAtomicDB(normalizedFmeaId);
-      if (atomicData && Array.isArray(atomicData.l2Structures) && atomicData.l2Structures.length > 0) {
+      if (atomicData) {
         // atomic 데이터가 존재하면 직접 사용 — atomicToLegacy로 WorksheetState 변환
         const legacyFromAtomic = atomicToLegacy(atomicData);
 

@@ -11,12 +11,27 @@
 
 import { calcAPServer } from './verify-steps';
 
+/** `1` 이면 L2=0일 때도 rebuild-atomic 호출 안 함 — FK 수선·재import 우선 (repair-fk) */
+function isRebuildAtomicDisabled(): boolean {
+  return (
+    process.env.DISABLE_REBUILD_ATOMIC === '1' ||
+    process.env.FMEA_REPAIR_NO_REBUILD === '1'
+  );
+}
+
 // ─── STEP 0: 구조 복원 ──────────────────────────────────────
 export async function fixStructure(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
 
   const l2Count = await prisma.l2Structure.count({ where: { fmeaId } });
   if (l2Count > 0) return fixed;
+
+  if (isRebuildAtomicDisabled()) {
+    fixed.push(
+      'rebuild-atomic: 스킵 (DISABLE_REBUILD_ATOMIC=1 또는 FMEA_REPAIR_NO_REBUILD=1) — Import/repair-fk로 복구',
+    );
+    return fixed;
+  }
 
   // Atomic DB가 비어있으면 rebuild-atomic 시도
   try {

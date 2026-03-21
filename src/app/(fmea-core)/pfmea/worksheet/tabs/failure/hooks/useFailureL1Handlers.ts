@@ -71,10 +71,8 @@ export function useFailureL1Handlers({
 
   // 셀 클릭 핸들러
   const handleCellClick = useCallback((modalConfig: any) => {
-    if (!isUpstreamConfirmed) {
-      _alert('기능분석(1L)을 먼저 확정해주세요.');
-      return;
-    }
+    // ★★★ 2026-03-22: 기능분석 1L 미확정이어도 FE 셀 편집 허용 (요구사항만 있으면)
+    // 확정 게이트는 handleConfirm(고장영향 확정)에서 유지
     if (isConfirmed) {
       const updateFn = (prev: any) => ({ ...prev, failureL1Confirmed: false });
       if (setStateSynced) {
@@ -85,7 +83,7 @@ export function useFailureL1Handlers({
       setDirty(true);
     }
     setModal(modalConfig);
-  }, [isUpstreamConfirmed, isConfirmed, setState, setStateSynced, setDirty, setModal]);
+  }, [isConfirmed, setState, setStateSynced, setDirty, setModal]);
 
   // 확정 핸들러
   const handleConfirm = useCallback(() => {

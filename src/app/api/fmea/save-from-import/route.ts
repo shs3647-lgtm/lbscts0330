@@ -5,6 +5,8 @@
  * POST /api/fmea/save-from-import
  * Body: { fmeaId, flatData, l1Name?, failureChains? }
  *
+ * 저장: FlatData+체인 → buildAtomicFromFlat → Prisma $transaction 으로 프로젝트 스키마에 FK 정합 행 직접 INSERT (마스터 JSON 파일 경로 없음).
+ *
  * 2026-03-21: buildAtomicFromFlat() 단일 경로로 전환
  * - buildWorksheetState + migrateToAtomicDB 2단계 제거
  * - reversePath 로직 제거
@@ -298,7 +300,16 @@ export async function POST(request: NextRequest) {
           const l3fData = a.l3Functions.map((f: any) => {
             const pc = (f.processChar || '').trim();
             const fn = (f.functionName || '').trim();
-            return { id: f.id, fmeaId: fId, l3StructId: f.l3StructId, l2StructId: f.l2StructId, functionName: fn || 'N/A', processChar: pc || fn || 'N/A', specialChar: f.specialChar || null };
+            // B2-only L3F(processChar '')는 fn으로 채우지 않음 — orphanPC 오탐 방지(Rule 1.5)
+            return {
+              id: f.id,
+              fmeaId: fId,
+              l3StructId: f.l3StructId,
+              l2StructId: f.l2StructId,
+              functionName: fn || 'N/A',
+              processChar: pc,
+              specialChar: f.specialChar || null,
+            };
           });
           const l3fResult = await tx.l3Function.createMany({ data: l3fData, skipDuplicates: true });
           if (l3fResult.count < l3fData.length) console.warn(`[save] L3Function: expected ${l3fData.length}, created ${l3fResult.count} (${l3fData.length - l3fResult.count} skipped)`);

@@ -3,7 +3,12 @@
  * @description 서버사이드 다중시트 엑셀 파싱 + DB 저장 API
  *
  * POST /api/fmea/import-excel-file
- * Body: { fmeaId, filePath, l1Name? }
+ * Body: {
+ *   fmeaId, filePath, l1Name?,
+ *   masterJsonPath?,   // 선택: data/... 상대경로 (없으면 data/master-fmea/{fmeaId}-golden.json → {fmeaId}.json 순 시도)
+ *   registerProject?,  // true면 public fmea_projects 등록 (워크시트 목록용)
+ *   projectName?,      // registerProject 시 표시명
+ * }
  *
  * 엑셀 구조 (5시트):
  *   Sheet 0: L1 통합(C1-C4) — C1(구분), C2(제품기능), C3(요구사항), C4(고장영향)
@@ -15,13 +20,21 @@
  * UUID 규칙: uuid-generator.ts의 결정론적 ID 사용 (Rule 1.7)
  * parentItemId FK 규칙: A5→A4, B4→B3, C3→C2, C4→L1Function (Rule 1.7.5)
  *
- * 용도: 골든 베이스라인 검증, 시드 스크립트, CI/CD 파이프라인
+ * ★ 마스터 JSON: 프로젝트 스키마에 L2가 없을 때(최초 Import)만 체인 보강/골든 가지치기에 사용.
+ *   재Import 시에는 엑셀 파싱 → buildAtomicFromFlat → save-from-import(PostgreSQL FK)만.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
 import ExcelJS from 'exceljs';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
+import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
+import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
+import {
+  masterJsonMatchesFmeaId,
+  normalizeFmeaId,
+  resolveMasterJsonPath,
+} from '@/lib/fmea-core/import-excel-master-resolve';
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
 import {
   genA1, genA3, genA4, genA5, genA6,
@@ -30,15 +43,20 @@ import {
 } from '@/lib/uuid-generator';
 
 interface MasterJSON {
+  fmeaId?: string;
   chains?: Array<{
     processNo: string; m4?: string; workElement?: string;
     fmValue: string; fcValue: string; feValue: string;
     feScope?: string; pcValue?: string; dcValue?: string;
     s?: number | null; o?: number | null; d?: number | null;
     ap?: string;
-    // 확정 FK ID (골든 마스터에서)
     id?: string; fmId?: string; fcId?: string; feId?: string;
   }>;
+  atomicDB?: {
+    fmeaId?: string;
+    l3Functions?: Array<{ id: string }>;
+    failureCauses?: Array<{ id: string; l3FuncId?: string | null }>;
+  };
 }
 
 export const runtime = 'nodejs';
@@ -536,7 +554,21 @@ function parseFCSheet(ws: ExcelJS.Worksheet): ChainEntry[] {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fmeaId, filePath, l1Name } = body;
+    const {
+      fmeaId,
+      filePath,
+      l1Name,
+      masterJsonPath: bodyMasterJsonPath,
+      registerProject,
+      projectName,
+    } = body as {
+      fmeaId?: string;
+      filePath?: string;
+      l1Name?: string;
+      masterJsonPath?: string;
+      registerProject?: boolean;
+      projectName?: string;
+    };
 
     // 1. 입력 검증
     if (!fmeaId || !isValidFmeaId(fmeaId)) {
@@ -561,7 +593,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.info(`[import-excel-file] 시작: fmeaId=${fmeaId}, file=${resolvedPath}`);
+    const normalizedFmeaId = normalizeFmeaId(fmeaId);
+
+    /** 프로젝트 스키마에 L2가 없으면 최초 Import → 마스터 JSON(체인 보강)만 허용 */
+    const baseUrl = getBaseDatabaseUrl();
+    let isFirstAtomicImport = !baseUrl;
+    if (baseUrl) {
+      try {
+        const schema = getProjectSchemaName(normalizedFmeaId);
+        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+        const prisma = getPrismaForSchema(schema);
+        if (prisma && /^[a-z][a-z0-9_]*$/.test(schema)) {
+          await prisma.$executeRawUnsafe(`SET search_path TO ${schema}, public`);
+          const l2Count = await prisma.l2Structure.count({ where: { fmeaId: normalizedFmeaId } });
+          isFirstAtomicImport = l2Count === 0;
+        } else {
+          isFirstAtomicImport = true;
+        }
+      } catch (e) {
+        console.warn('[import-excel-file] L2 카운트 실패 — 마스터 JSON 생략(엑셀+FK-only):', e);
+        isFirstAtomicImport = false;
+      }
+    }
+
+    const bodyMasterJsonPathTrim =
+      typeof bodyMasterJsonPath === 'string' ? bodyMasterJsonPath.trim() : '';
+    /** 최초 Import 또는 masterJsonPath 명시 시 마스터 체인·골든 가지치기 허용 */
+    const shouldLoadMasterJson = isFirstAtomicImport || Boolean(bodyMasterJsonPathTrim);
+
+    if (registerProject === true) {
+      try {
+        const { createOrUpdateProject } = await import('@/lib/services/fmea-project-service');
+        await createOrUpdateProject({
+          fmeaId: normalizedFmeaId,
+          fmeaType: 'P',
+          project: projectName ? { projectName } : undefined,
+        });
+        console.info(`[import-excel-file] fmea_projects 등록: ${normalizedFmeaId}`);
+      } catch (regErr) {
+        console.error('[import-excel-file] registerProject 실패:', regErr);
+        return NextResponse.json(
+          { success: false, error: regErr instanceof Error ? regErr.message : '프로젝트 등록 실패' },
+          { status: 500 }
+        );
+      }
+    }
+
+    console.info(`[import-excel-file] 시작: fmeaId=${normalizedFmeaId}, file=${resolvedPath}`);
 
     // 2. ExcelJS 로드
     const workbook = new ExcelJS.Workbook();
@@ -646,52 +724,81 @@ export async function POST(request: NextRequest) {
 
     console.info(`[import-excel-file] B4×A5 체인: ${masterChains.length}건 (FC시트 보충: ${fcSheetChains.length}건)`);
 
-    // 4-3. 골든 마스터 JSON 보충 (B4×A5로 부족한 체인 + PC/DC/SOD 보충)
-    // ★ 골든베이스라인 커밋(4a12796)의 마스터 JSON 사용 — 111 chains 확정
-    const goldenPath = path.resolve(process.cwd(), 'data/master-fmea/pfm26-m066-golden.json');
-    const masterJsonPath = fs.existsSync(goldenPath) ? goldenPath
-      : path.resolve(process.cwd(), 'data/master-fmea/pfm26-m066.json');
-    if (fs.existsSync(masterJsonPath)) {
+    let resolvedMasterJsonPath: string | null = null;
+    let masterJsonTried: string[] = [];
+    let loadedMasterJson: MasterJSON | null = null;
+    let jsonMatchesProject = false;
+    let useGoldenPruning = false;
+
+    if (shouldLoadMasterJson) {
+    // 4-3. 프로젝트별 마스터 JSON (data/master-fmea/{fmeaId}-golden.json → {fmeaId}.json)
+    // ★ 타 fmeaId(pfm26-m066 등) 자동 폴백 금지 — DB/체인 오염 방지 (Rule 0.8.1)
+    const resolved = resolveMasterJsonPath(
+      projectRoot,
+      normalizedFmeaId,
+      bodyMasterJsonPathTrim || undefined
+    );
+    resolvedMasterJsonPath = resolved.path;
+    masterJsonTried = resolved.tried;
+
+    if (resolvedMasterJsonPath) {
       try {
-        const masterJson: MasterJSON = JSON.parse(fs.readFileSync(masterJsonPath, 'utf-8'));
-        if (masterJson.chains && masterJson.chains.length > 0) {
-          // ★ 골든 마스터 JSON 체인을 항상 우선 사용 (111 chains = 검증 완료)
-          // B4×A5 확장은 체인 수를 과대 생성할 수 있음 (FC 중복 포함)
-          console.info(`[import-excel-file] 골든 마스터 체인 ${masterJson.chains.length}건 사용 (B4×A5 ${masterChains.length}건 대체)`);
-          const enrichedChains: ChainEntry[] = masterJson.chains.map(ch => {
-            const key = `${ch.processNo}|${ch.fmValue}|${ch.fcValue}`;
-            const fcInfo = fcSheetLookup.get(key);
-            return {
-              processNo: ch.processNo,
-              m4: ch.m4 || 'MN',
-              workElement: ch.workElement || '',
-              fmValue: ch.fmValue,
-              fcValue: ch.fcValue,
-              feValue: ch.feValue,
-              feScope: ch.feScope || 'YP',
-              pcValue: fcInfo?.pcValue || ch.pcValue || '',
-              dcValue: fcInfo?.dcValue || ch.dcValue || '',
-              s: ch.s || null,
-              o: fcInfo?.o || ch.o || null,
-              d: fcInfo?.d || ch.d || null,
-              ap: fcInfo?.ap || ch.ap || '',
-              // ★ 골든 마스터의 확정 FK ID 보존 (결정론적 UUID)
-              id: ch.id,
-              fmId: ch.fmId,
-              fcId: ch.fcId,
-              feId: ch.feId,
-            };
-          });
-          masterChains = enrichedChains;
-        }
+        loadedMasterJson = JSON.parse(fs.readFileSync(resolvedMasterJsonPath, 'utf-8')) as MasterJSON;
       } catch (e) {
-        console.warn('[import-excel-file] 마스터 JSON 로드 실패:', e);
+        console.warn('[import-excel-file] 마스터 JSON 파싱 실패:', e);
       }
     }
 
-    // 5-0. ★ 골든 체인 기반 B4/B3 가지치기 — 미참조 항목 제거
-    // 골든 체인의 fcId/processChar 기반으로 L3 시트의 과잉 항목 정리
-    if (masterChains.length > 0) {
+    jsonMatchesProject = masterJsonMatchesFmeaId(loadedMasterJson, normalizedFmeaId);
+
+    if (
+      loadedMasterJson?.chains &&
+      loadedMasterJson.chains.length > 0 &&
+      jsonMatchesProject
+    ) {
+      console.info(
+        `[import-excel-file] 마스터 체인 ${loadedMasterJson.chains.length}건 사용 (파일: ${resolvedMasterJsonPath}, B4×A5 ${masterChains.length}건 대체)`
+      );
+      const enrichedChains: ChainEntry[] = loadedMasterJson.chains.map(ch => {
+        const key = `${ch.processNo}|${ch.fmValue}|${ch.fcValue}`;
+        const fcInfo = fcSheetLookup.get(key);
+        return {
+          processNo: ch.processNo,
+          m4: ch.m4 || 'MN',
+          workElement: ch.workElement || '',
+          fmValue: ch.fmValue,
+          fcValue: ch.fcValue,
+          feValue: ch.feValue,
+          feScope: ch.feScope || 'YP',
+          pcValue: fcInfo?.pcValue || ch.pcValue || '',
+          dcValue: fcInfo?.dcValue || ch.dcValue || '',
+          s: ch.s || null,
+          o: fcInfo?.o || ch.o || null,
+          d: fcInfo?.d || ch.d || null,
+          ap: fcInfo?.ap || ch.ap || '',
+          id: ch.id,
+          fmId: ch.fmId,
+          fcId: ch.fcId,
+          feId: ch.feId,
+        };
+      });
+      masterChains = enrichedChains;
+    } else {
+      if (loadedMasterJson?.chains?.length && !jsonMatchesProject) {
+        console.warn(
+          `[import-excel-file] 마스터 JSON의 fmeaId가 ${normalizedFmeaId}와 불일치 — 골든 체인 미적용 (B4×A5 유지)`
+        );
+      } else if (!resolvedMasterJsonPath) {
+        console.info(
+          `[import-excel-file] 프로젝트 마스터 JSON 없음 — B4×A5+FC시트만 사용. 시도 경로: ${masterJsonTried.join(' | ')}`
+        );
+      }
+    }
+
+    useGoldenPruning = jsonMatchesProject && !!resolvedMasterJsonPath && !!loadedMasterJson?.atomicDB;
+
+    // 5-0. ★ 동일 fmeaId 마스터 JSON이 있을 때만 B4/B3 가지치기 (엑셀 과잉 행 정리)
+    if (masterChains.length > 0 && useGoldenPruning) {
       // 방법 1: fcId UUID 직접 매칭 (가장 정확)
       const chainFcIds = new Set<string>();
       for (const ch of masterChains) {
@@ -707,41 +814,60 @@ export async function POST(request: NextRequest) {
         chainFcTextKeys.add(`${String(parseInt(ch.processNo, 10) || 0)}|${ch.m4}|${we}|${fc}`);
       }
 
+      const strictB4Prune =
+        chainFcIds.size > 0 &&
+        jsonMatchesProject &&
+        masterChains.every((ch) => Boolean((ch as ChainEntry).fcId));
+
       const beforeB4 = flatData.filter(d => d.itemCode === 'B4').length;
       let removed = 0;
-      for (let i = flatData.length - 1; i >= 0; i--) {
-        const d = flatData[i];
-        if (d.itemCode !== 'B4') continue;
-        // 방법 1: B4.id가 골든 체인 fcId에 있는지
-        if (chainFcIds.has(d.id)) continue;
-        // 방법 2: 텍스트 키 매칭
-        const val = (d.value || '').trim();
-        const we = (d.belongsTo || '').trim();
-        const key1 = `${d.processNo}|${d.m4 || ''}|${we}|${val}`;
-        const key2 = `${String(parseInt(d.processNo, 10) || 0)}|${d.m4 || ''}|${we}|${val}`;
-        if (chainFcTextKeys.has(key1) || chainFcTextKeys.has(key2)) continue;
-        // 미매칭 → 제거
-        flatData.splice(i, 1);
-        removed++;
-      }
-      if (removed > 0) {
-        console.info(`[import-excel-file] B4 가지치기: ${beforeB4}→${beforeB4 - removed} (-${removed}건, 골든 체인 미참조 FC 제거)`);
+      if (strictB4Prune) {
+        for (let i = flatData.length - 1; i >= 0; i--) {
+          const d = flatData[i];
+          if (d.itemCode !== 'B4') continue;
+          if (chainFcIds.has(d.id)) continue;
+          flatData.splice(i, 1);
+          removed++;
+        }
+        if (removed > 0) {
+          console.info(
+            `[import-excel-file] B4 strict 가지치기(fcId 전부 보유 체인): ${beforeB4}→${beforeB4 - removed} (-${removed}건)`
+          );
+        }
+      } else {
+        for (let i = flatData.length - 1; i >= 0; i--) {
+          const d = flatData[i];
+          if (d.itemCode !== 'B4') continue;
+          if (chainFcIds.has(d.id)) continue;
+          const val = (d.value || '').trim();
+          const we = (d.belongsTo || '').trim();
+          const key1 = `${d.processNo}|${d.m4 || ''}|${we}|${val}`;
+          const key2 = `${String(parseInt(d.processNo, 10) || 0)}|${d.m4 || ''}|${we}|${val}`;
+          if (chainFcTextKeys.has(key1) || chainFcTextKeys.has(key2)) continue;
+          flatData.splice(i, 1);
+          removed++;
+        }
+        if (removed > 0) {
+          console.info(`[import-excel-file] B4 가지치기: ${beforeB4}→${beforeB4 - removed} (-${removed}건, 골든 체인 미참조 FC 제거)`);
+        }
       }
 
-      // B3 가지치기: 골든 L3Function ID + FC→L3F 매핑으로 정밀 재할당
+      // B3 가지치기: 마스터 L3Function ID + FC→L3F 매핑으로 정밀 재할당
       try {
-        const goldenJsonForB3 = JSON.parse(fs.readFileSync(masterJsonPath, 'utf-8'));
+        if (!loadedMasterJson?.atomicDB) {
+          throw new Error('B3 가지치기: atomicDB 없음');
+        }
+        const goldenJsonForB3 = loadedMasterJson;
         const goldenL3FIds = new Set<string>();
         if (goldenJsonForB3.atomicDB?.l3Functions) {
           for (const f of goldenJsonForB3.atomicDB.l3Functions) {
             goldenL3FIds.add(f.id);
           }
         }
-        // 골든 FC→L3F 매핑 (정밀 부모 재할당용)
         const goldenFcToL3F = new Map<string, string>();
         if (goldenJsonForB3.atomicDB?.failureCauses) {
           for (const fc of goldenJsonForB3.atomicDB.failureCauses) {
-            goldenFcToL3F.set(fc.id, fc.l3FuncId);
+            if (fc.l3FuncId) goldenFcToL3F.set(fc.id, fc.l3FuncId);
           }
         }
 
@@ -806,6 +932,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    } else {
+      console.info(
+        '[import-excel-file] 재Import — 마스터 JSON·골든 가지치기 생략(L2 존재·masterJsonPath 없음). 엑셀→buildAtomicFromFlat→save-from-import'
+      );
+    }
+
     // 항목별 카운트
     const itemCounts: Record<string, number> = {};
     for (const item of flatData) {
@@ -826,7 +958,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        fmeaId,
+        fmeaId: normalizedFmeaId,
         flatData,
         l1Name: l1Name || 'au bump',
         failureChains: masterChains,
@@ -837,12 +969,20 @@ export async function POST(request: NextRequest) {
     // 6. 결과 반환
     return NextResponse.json({
       success: saveResult.success,
-      fmeaId,
+      fmeaId: normalizedFmeaId,
       parsing: {
         sheets: sheets.map(s => s.name),
         flatDataTotal: flatData.length,
         chainsTotal: masterChains.length,
         itemCounts,
+        masterJsonPath: resolvedMasterJsonPath,
+        masterJsonTried,
+        masterJsonUsedChains: Boolean(
+          shouldLoadMasterJson && loadedMasterJson?.chains?.length && jsonMatchesProject
+        ),
+        goldenPruningApplied: useGoldenPruning,
+        isFirstAtomicImport,
+        shouldLoadMasterJson,
       },
       saveResult: {
         success: saveResult.success,

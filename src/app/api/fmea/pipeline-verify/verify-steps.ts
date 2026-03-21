@@ -1,3 +1,5 @@
+import { isL3FunctionIdB2Pattern } from '@/lib/uuid-rules';
+
 /**
  * @file verify-steps.ts
  * 파이프라인 검증 v3 — 5단계 통합 검증 (엑셀 Import + 역설계 Import 공통)
@@ -157,8 +159,10 @@ export async function verifyUuid(prisma: any, fmeaId: string): Promise<StepResul
     { parent: 'L3Structure', child: 'L3Function', missingChildren: missingL3Children },
   ];
 
-  // processChar 빈값 검증
-  const emptyProcessChar = l3Funcs.filter((f: any) => !f.processChar?.trim()).length;
+  // processChar 빈값 검증 (B2 전용 L3Function id는 제외)
+  const emptyProcessChar = l3Funcs.filter(
+    (f: any) => !f.processChar?.trim() && !isL3FunctionIdB2Pattern(f.id)
+  ).length;
   if (emptyProcessChar > 0) {
     r.status = worst(r.status, 'warn');
     r.issues.push(`L3Function processChar 빈값 ${emptyProcessChar}건`);
@@ -339,17 +343,20 @@ export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepRe
     prisma.optimization.findMany({ where: { fmeaId }, select: { id: true, riskId: true } }),
   ]);
 
-  // 공정특성 빈값
-  const emptyPC = l3Funcs.filter((f: any) => !f.processChar?.trim()).length;
+  // 공정특성 빈값 (B2 전용 L3Function id는 제외)
+  const emptyPC = l3Funcs.filter(
+    (f: any) => !f.processChar?.trim() && !isL3FunctionIdB2Pattern(f.id)
+  ).length;
   // orphan PC: FC에서 참조하지 않는 L3Function (폴백 L3F 제외 — FC 없는 WE는 정상)
   const fcL3FuncIds = new Set(fcs.map((fc: any) => fc.l3FuncId).filter(Boolean));
   const fcPcIds = new Set(fcs.map((fc: any) => fc.processCharId).filter(Boolean));
-  const orphanPC = l3Funcs.filter((f: any) =>
+  const orphanPCRows = l3Funcs.filter((f: any) =>
     f.processChar?.trim() &&
     !fcL3FuncIds.has(f.id) &&
     !fcPcIds.has(f.id) &&
     !f.id.endsWith('-L3F')  // 폴백 L3Function은 orphan 카운트에서 제외
-  ).length;
+  );
+  const orphanPC = orphanPCRows.length;
 
   // DC/PC null
   const nullDC = ras.filter((ra: any) => !ra.detectionControl?.trim()).length;
@@ -379,11 +386,21 @@ export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepRe
 
   if (emptyPC > 0) {
     r.status = worst(r.status, 'warn');
-    const emptyIds = l3Funcs.filter((f: any) => !f.processChar?.trim()).map((f: any) => ({ id: f.id, functionName: f.functionName }));
+    const emptyIds = l3Funcs
+      .filter((f: any) => !f.processChar?.trim() && !isL3FunctionIdB2Pattern(f.id))
+      .map((f: any) => ({ id: f.id, functionName: f.functionName }));
     r.issues.push(`빈 공정특성 ${emptyPC}건`);
     (r.details as any).emptyPCDetails = emptyIds;
   }
-  if (orphanPC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`FC 없는 공정특성 ${orphanPC}건`); }
+  if (orphanPC > 0) {
+    r.status = worst(r.status, 'warn');
+    r.issues.push(`FC 없는 공정특성 ${orphanPC}건`);
+    (r.details as any).orphanPCDetails = orphanPCRows.map((f: any) => ({
+      id: f.id,
+      processChar: (f.processChar || '').slice(0, 80),
+      functionName: (f.functionName || '').slice(0, 80),
+    }));
+  }
   if (nullDC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`DC(검출관리) 빈값 ${nullDC}건`); }
   if (nullPC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`PC(예방관리) 빈값 ${nullPC}건`); }
   if (missS > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`S(심각도) 미입력 ${missS}건`); }

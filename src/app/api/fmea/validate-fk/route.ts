@@ -23,14 +23,14 @@ export const runtime = 'nodejs';
 
 // ─── Types ───────────────────────────────────────────────────
 
-interface CheckResult {
+export interface CheckResult {
   name: string;
   status: 'OK' | 'ERROR';
   count: number;
   details: string[];
 }
 
-interface ValidateFkResponse {
+export interface ValidateFkResponse {
   success: boolean;
   fmeaId: string;
   allGreen: boolean;
@@ -140,7 +140,7 @@ async function checkCrossProcessFk(prisma: any): Promise<CheckResult> {
     if (fm.l2StructId) fmToL2.set(fm.id, fm.l2StructId);
   }
 
-  // Build FC → L2 mapping via FailureCause → L3Function → L3Structure.l2StructId
+  // Build FC → L2 mapping via FailureCause → L3Function → L3Structure.l2Id
   const fcs = await prisma.failureCause.findMany({
     select: { id: true, l3FuncId: true },
   });
@@ -148,7 +148,7 @@ async function checkCrossProcessFk(prisma: any): Promise<CheckResult> {
     select: { id: true, l3StructId: true },
   });
   const l3Structs = await prisma.l3Structure.findMany({
-    select: { id: true, l2StructId: true },
+    select: { id: true, l2Id: true },
   });
 
   const l3FuncToL3Struct = new Map<string, string>();
@@ -157,7 +157,7 @@ async function checkCrossProcessFk(prisma: any): Promise<CheckResult> {
   }
   const l3StructToL2 = new Map<string, string>();
   for (const s of l3Structs) {
-    if (s.l2StructId) l3StructToL2.set(s.id, s.l2StructId);
+    if (s.l2Id) l3StructToL2.set(s.id, s.l2Id);
   }
 
   const fcToL2 = new Map<string, string>();
@@ -271,7 +271,8 @@ async function checkFlTriple(prisma: any): Promise<CheckResult> {
 
 // ─── Main validation runner ─────────────────────────────────
 
-async function runValidation(prisma: any, fmeaId: string): Promise<ValidateFkResponse> {
+/** 프로젝트 스키마 Prisma로 FK 8종 검증 — repair-fk·테스트에서 재사용 */
+export async function runValidation(prisma: any, fmeaId: string): Promise<ValidateFkResponse> {
   const checks: CheckResult[] = [
     await checkOrphanFailureLinks(prisma),
     await checkOrphanRiskAnalyses(prisma),

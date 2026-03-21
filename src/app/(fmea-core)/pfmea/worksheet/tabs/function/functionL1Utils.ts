@@ -70,6 +70,20 @@ export const formatL1Name = (name: string | undefined | null): string => {
 /** ★★★ 2026-02-16: 필수 구분 (YP/SP/USER 3개 모두 필수) ★★★ */
 const REQUIRED_TYPES = ['YP', 'SP', 'USER'] as const;
 
+/**
+ * L1 구분 표시명 → YP / SP / USER (누락·배지 검사용)
+ * DB/Import는 'Your Plant'·'Ship to Plant'·'User' 등 풀네임이고, 초기값은 YP/SP/USER 약어 혼재.
+ */
+export function normalizeL1TypeNameToKey(name: string | undefined): 'YP' | 'SP' | 'USER' | null {
+  const c = (name || '').trim().toUpperCase();
+  if (!c) return null;
+  if (c === 'YP' || c === 'YOUR PLANT') return 'YP';
+  if (c === 'SP' || c === 'SHIP TO PLANT') return 'SP';
+  // fillL1Data / genC3 에서 USER 구분을 processNo 'US'로 쓰는 경로와 DB category 'US' 혼재
+  if (c === 'USER' || c === 'US' || c === 'END USER' || c === 'EU') return 'USER';
+  return null;
+}
+
 /** 누락 건수 계산 */
 export const calculateMissingCounts = (
   types: Array<{
@@ -85,18 +99,19 @@ export const calculateMissingCounts = (
   let requirementCount = 0;
 
   const meaningfulTypes = filterMeaningfulTypes(types || []);
-  const typeNames = meaningfulTypes.map(t => (t.name || '').trim().toUpperCase());
-
-  // ★★★ 2026-02-16: YP/SP/USER 3개 모두 필수 ★★★
+  // ★★★ 2026-03-22: 풀네임(Your Plant 등)과 약어(YP) 혼재 — 정규화 후 필수 구분 검사
+  const presentKeys = new Set<'YP' | 'SP' | 'USER'>();
+  meaningfulTypes.forEach(t => {
+    const k = normalizeL1TypeNameToKey(t.name);
+    if (k) presentKeys.add(k);
+  });
   REQUIRED_TYPES.forEach(req => {
-    if (!typeNames.includes(req)) {
+    if (!presentKeys.has(req)) {
       functionCount += 1; // 필수 구분 누락
     }
   });
 
   meaningfulTypes.forEach(t => {
-    const typeName = (t.name || '').trim().toUpperCase();
-    const isUser = typeName === 'USER';
     const meaningfulFunctions = filterMeaningfulFunctions(t.functions || []);
 
     // YP/SP: 기능 최소 1개 필수, USER: N/A도 허용

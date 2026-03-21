@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-18
+> **최종 업데이트**: 2026-03-22
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -46,6 +46,7 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `api/fmea/route.ts` | 2,451 | GET/POST Atomic DB 이중 저장 | ✅ v4.0.0 |
 | `api/fmea/save-from-import/route.ts` | 699 | Import→DB 서버사이드 오케스트레이션 | - |
 | `api/fmea/rebuild-atomic/route.ts` | ~400 | legacyData→Atomic 재구축 | - |
+| `api/fmea/repair-fk/route.ts` | ~90 | FK 고아·무효만 정리 (`fk-repair.ts`, rebuild 없음) | - |
 | `worksheet/migration.ts` | 1,200 | Legacy JSON → FMEAWorksheetDB 변환 | ✅ |
 | `worksheet/hooks/useWorksheetSave.ts` | 850 | 클라이언트 저장 (atomicDB 우선) | - |
 | `worksheet/hooks/useWorksheetDataLoader.ts` | ~400 | 클라이언트 로드 (**불변 원칙**) | - |

@@ -290,6 +290,9 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
   const l3Functions: L3Function[] = [];
   const seenL3F = new Set<string>();
 
+  const sortFlatById = (items: ImportedFlatData[]) =>
+    [...items].sort((a, b) => a.id.localeCompare(b.id));
+
   // FK 정합성 진단: B2/B3 orphan 확인
   {
     const b1Ids = new Set(b1Items.map(b => b.id));
@@ -311,21 +314,21 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const l2StructId = isNaN(pno) ? '' : genA1('PF', pno);
     const l3StructId = b1.id;
 
-    const relatedB2s = b2ByB1.get(b1.id) || [];
-    const relatedB3s = b3ByB1.get(b1.id) || [];
+    const relatedB2s = sortFlatById(b2ByB1.get(b1.id) || []);
+    const relatedB3s = sortFlatById(b3ByB1.get(b1.id) || []);
 
-    // Pair B2 and B3 by index within the same B1
-    // Each B3 corresponds to a B2 at the same index under the same WE
-    const maxLen = Math.max(relatedB2s.length, relatedB3s.length);
-
-    for (let i = 0; i < maxLen; i++) {
-      const b2 = relatedB2s[i];
+    // ★ B3 기준 페어링: L3Function.id = 항상 B3.id (B4.l3FuncId·FC가 B3 id를 참조)
+    //    인덱스만 맞추던 기존 방식은 B2/B3 개수 불일치 시 -G id에 B3 텍스트가 붙어 orphanPC 발생
+    for (let i = 0; i < relatedB3s.length; i++) {
       const b3 = relatedB3s[i];
-
-      // Use B3.id if available, else B2.id
-      const funcId = b3?.id || b2?.id;
-      if (!funcId) continue;
-      if (seenL3F.has(funcId)) continue;
+      const b2 =
+        i < relatedB2s.length
+          ? relatedB2s[i]
+          : relatedB2s.length > 0
+            ? relatedB2s[relatedB2s.length - 1]
+            : undefined;
+      const funcId = b3.id;
+      if (!funcId || seenL3F.has(funcId)) continue;
       seenL3F.add(funcId);
 
       l3Functions.push({
@@ -334,8 +337,25 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
         l3StructId,
         l2StructId,
         functionName: b2?.value || '',
-        processChar: b3?.value || '',
-        specialChar: b3?.specialChar || '',
+        processChar: b3.value || '',
+        specialChar: b3.specialChar || '',
+      });
+    }
+
+    // B3보다 B2가 많을 때만: 여분 B2 → id=B2 (processChar 없음, orphanPC 미카운트)
+    for (let i = relatedB3s.length; i < relatedB2s.length; i++) {
+      const b2 = relatedB2s[i];
+      const funcId = b2.id;
+      if (!funcId || seenL3F.has(funcId)) continue;
+      seenL3F.add(funcId);
+      l3Functions.push({
+        id: funcId,
+        fmeaId,
+        l3StructId,
+        l2StructId,
+        functionName: b2.value || '',
+        processChar: '',
+        specialChar: '',
       });
     }
   }
@@ -541,15 +561,32 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
       }
     }
 
-    // FE lookup: scope|value → id
+    // FE lookup: scope|value → id (flat C4.id만 — 긴 feScope/짧은 processNo 별칭 포함)
     const feLookup = new Map<string, string>();
     for (const c4 of c4Items) {
-      const key = `${c4.processNo}|${(c4.value || '').trim()}`;
-      if (!feLookup.has(key)) feLookup.set(key, c4.id);
+      const val = (c4.value || '').trim();
+      for (const key of feLookupKeysForC4(c4.processNo || '', val)) {
+        if (!feLookup.has(key)) feLookup.set(key, c4.id);
+      }
     }
+
+    const validC4Ids = new Set(c4Items.map(c => c.id));
+    const validFcIds = new Set(b4Items.map(b => b.id));
+    const validFmIds = new Set(a5Items.map(a => a.id));
 
     let assigned = 0;
     for (const chain of chains) {
+      // 마스터 JSON FK가 flat id와 다르면(골든 가지치기 등) 무시 → lookup으로만 재해석
+      if (chain.feId && !validC4Ids.has(chain.feId)) {
+        chain.feId = undefined;
+      }
+      if (chain.fcId && !validFcIds.has(chain.fcId)) {
+        chain.fcId = undefined;
+      }
+      if (chain.fmId && !validFmIds.has(chain.fmId)) {
+        chain.fmId = undefined;
+      }
+
       // FM FK 할당 (원본 + 정규화 processNo 매칭)
       if (!chain.fmId && chain.fmValue && chain.processNo) {
         const fmVal = chain.fmValue.trim();
@@ -569,15 +606,17 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
           || fcLookup.get(`${pnoN}||${fcVal}`);
         if (fcId) { chain.fcId = fcId; }
       }
-      // FE FK 할당
+      // FE FK 할당 — feScope(Your Plant) vs C4.processNo(YP) 별칭
       if (!chain.feId && chain.feValue) {
-        const scope = (chain as any).feScope || '';
-        const feId = feLookup.get(`${scope}|${chain.feValue.trim()}`);
-        if (feId) { chain.feId = feId; }
-        // scope 없이도 시도
+        const feVal = chain.feValue.trim();
+        const scopeRaw = String((chain as any).feScope || '').trim();
+        let feId =
+          feLookup.get(`${scopeRaw}|${feVal}`) ||
+          feLookup.get(`${normDivForFeLookup(scopeRaw)}|${feVal}`);
+        if (feId) chain.feId = feId;
         if (!chain.feId) {
           for (const [k, v] of feLookup) {
-            if (k.endsWith(`|${chain.feValue.trim()}`)) {
+            if (k.endsWith(`|${feVal}`)) {
               chain.feId = v;
               break;
             }
@@ -744,4 +783,37 @@ function scopeToCategory(scope: string): 'Your Plant' | 'Ship to Plant' | 'User'
   if (upper === 'YP' || upper === 'YOUR PLANT') return 'Your Plant';
   if (upper === 'SP' || upper === 'SHIP TO PLANT') return 'Ship to Plant';
   return 'User';
+}
+
+/** C4.processNo 또는 체인 feScope → YP/SP/USER (FE lookup 키 정규화) */
+function normDivForFeLookup(s: string): string {
+  const t = (s || '').trim();
+  const u = t.toUpperCase();
+  if (u === 'YP' || u === 'YOUR PLANT' || t === 'Your Plant') return 'YP';
+  if (u === 'SP' || u === 'SHIP TO PLANT' || t === 'Ship to Plant') return 'SP';
+  if (u === 'USER' || u === 'END USER' || t === 'User' || t === 'End User') return 'USER';
+  return t;
+}
+
+/** 동일 C4에 대해 마스터 체인 feScope(긴 이름) ↔ flat processNo(짧은 코드) 모두 등록 */
+function feLookupKeysForC4(processNo: string, value: string): string[] {
+  const val = value.trim();
+  const short = normDivForFeLookup(processNo);
+  const keys = new Set<string>();
+  keys.add(`${processNo}|${val}`);
+  keys.add(`${short}|${val}`);
+  if (short === 'YP') {
+    keys.add(`Your Plant|${val}`);
+    keys.add(`YOUR PLANT|${val}`);
+  }
+  if (short === 'SP') {
+    keys.add(`Ship to Plant|${val}`);
+    keys.add(`SHIP TO PLANT|${val}`);
+  }
+  if (short === 'USER') {
+    keys.add(`User|${val}`);
+    keys.add(`End User|${val}`);
+    keys.add(`END USER|${val}`);
+  }
+  return [...keys];
 }

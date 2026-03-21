@@ -476,6 +476,9 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pf
 # 2. 파이프라인 자동수정 + ImportValidation 저장
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
 
+# 2b. FK 수선 (rebuild-atomic 없음) — 먼저 dryRun 권장
+# Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/repair-fk" -Method POST -Body '{"fmeaId":"pfm26-m066","dryRun":true}' -ContentType "application/json" | ConvertTo-Json -Depth 5
+
 # 3. rebuild-atomic (RiskAnalysis DC/PC 최신화)
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m066" -Method POST | ConvertTo-Json -Depth 3
 
@@ -488,6 +491,8 @@ node -e "const d=JSON.parse(require('fs').readFileSync('data/master-fmea/pfm26-m
 # 6. import-validation 실행 (16개 규칙 검증)
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ForEach-Object { Write-Host "Total=$($_.summary.total) Errors=$($_.summary.errors) Warns=$($_.summary.warns)" }
 ```
+
+> **STEP0 / rebuild-atomic**: `DISABLE_REBUILD_ATOMIC=1` 또는 `FMEA_REPAIR_NO_REBUILD=1` 이면 파이프라인 자동수정(`fixStructure`)이 L2=0일 때도 `rebuild-atomic`을 호출하지 않음 — Import 또는 `repair-fk` 우선.
 
 ##### 세션 시작 시 체크리스트
 
@@ -545,6 +550,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-20 | emptyPC=1 재발 (Cu Target L3Function) | B4 dedup key={pno\|m4\|fc}에 WE 미포함 → Cu Target+Ti Target 동일 FC명 공유 → 1건 합침 → FC 미연결 → orphan L3F 삭제 | `import-builder.ts` B4 key에 WE 추가, `types.ts` StepBB4Item.we 필드 추가 | ✅ allGreen, emptyPC=0, 베이스라인 FC=103 갱신 |
 | 2026-03-21 | FL dedup key에 feId 누락 → 유효 체인 8건 삭제 | FL key=`fmId\|fcId`로 동일 FM+FC의 다른 FE 연결 체인 삭제 → FL 103건 (실제 111건) | `rebuild-atomic/route.ts` FL key에 feId 추가 (`fmId\|fcId\|feId`) | ✅ FL=111, RA=111, DC/PC=111 |
 | 2026-03-21 | UUID/FK 설계 원칙 부재 → 반복적 누락 | 모든 dedup key에 공정번호/구분 미포함 → 동일 텍스트 다른 엔티티 삭제 | Rule 1.6(근본원인분석) + Rule 1.7(UUID/FK설계) 추가, 전체 CODEFREEZE | ✅ 영구 CODEFREEZE 적용 |
+| 2026-03-22 | 워크시트 전체 누락(빈 placeholder) — L1만 있는 단계 | `loadAtomicDB`는 L1-only여도 객체 반환인데 로더가 `l2Structures.length>0`일 때만 Atomic 적용 → DB와 UI 불일치 | `useWorksheetDataLoader.ts` 게이트를 `if (atomicData)`로 `loadAtomicDB`와 정합 | ✅ vitest + Playwright manual-screen-verify-pause |
 
 ### 🔴 Rule 1.6: 근본원인 분석 원칙 — UUID/FK/DB/API 설계 우선 (2026-03-21) — 영구 CODEFREEZE
 
@@ -685,6 +691,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 |---|--------|------|------|
 | 1 | **UUID 검증 유틸리티** | `src/lib/uuid-rules.ts` | parseUuid, validateParentChild, validateDedupKey, validateNoCartesian |
 | 2 | **FK 무결성 검증 API** | `src/app/api/fmea/validate-fk/route.ts` | 8개 FK 검증 (orphan FL/RA/PC, cross-process, duplicate UUID) |
+| 2b | **FK 수선 API (rebuild 없음)** | `src/app/api/fmea/repair-fk/route.ts`, `src/lib/fmea-core/fk-repair.ts` | 무효 FL·고아 RA/Opt·선택 공정교차 FL 삭제, 무효 `FM.productCharId`→null; `dryRun`; 텍스트 재매칭 없음 |
 | 3 | **Import 사전검증** | `src/lib/fmea-core/validate-import.ts` | 10개 규칙 (processNo, parentItemId chain, dedup key, autoGen 텍스트) |
 | 4 | **CP UUID 생성기** | `src/lib/uuid-generator.ts` (genCpItem 등 6개) | CP 결정론적 UUID (CP-P-{pno}-I-{seq}) |
 | 5 | **PFD FK 검증** | `src/lib/fmea-core/validate-pfd-fk.ts` | PFD↔FMEA FK 교차 검증 (L2/L3/PC orphan, cross-process) |

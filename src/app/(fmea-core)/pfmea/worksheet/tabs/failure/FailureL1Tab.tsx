@@ -546,24 +546,23 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
   }, [state.l1?.types]);
 
   // ✅ 플레이스홀더/빈 요구사항 필터링 (FE 행 폭증/빈셀 폭증 방지)
+  // ★★★ 2026-03-22: 기능분석 1L 미확정이어도, 입력된 요구사항이 있으면 FE 행 표시
+  // (구버전: l1Confirmed=false일 때 [] → 1L 수정만 하고 확정 안 누르면 1L 영향 화면이 비어 보임)
   const meaningfulRequirementsFromFunction = useMemo(() => {
-    // ✅ 상위 단계 미확정이면 FE 표시 자체를 하지 않음
-    if (!isUpstreamConfirmed) return [];
     return requirementsFromFunction.filter(r => isMeaningfulRequirementName(r?.name));
-  }, [isUpstreamConfirmed, requirementsFromFunction]);
+  }, [requirementsFromFunction]);
 
-  // ★ 기능분석 미확정 시 팝업 안내 (인라인 배너 대신 1회 팝업)
+  // ★ 기능분석에 요구사항 없을 때 1회 안내 (미확정이어도, 요구사항만 있으면 위 행 목록 표시)
   const shownAlertRef = useRef(false);
   useEffect(() => {
     if (shownAlertRef.current) return;
     if (meaningfulRequirementsFromFunction.length === 0) {
       shownAlertRef.current = true;
-      const msg = !isUpstreamConfirmed
-        ? '기능분석(1L)을 먼저 확정해주세요.\n확정된 요구사항만 고장영향(FE) 단계에 표시됩니다.'
-        : '기능분석(L1)에서 요구사항을 먼저 입력해주세요.\n입력된 요구사항이 여기에 자동으로 표시됩니다.';
-      showAlert(msg);
+      showAlert(
+        '기능분석(L1)에서 요구사항을 먼저 입력해주세요.\n입력된 요구사항이 여기에 자동으로 표시됩니다.\n\n고장영향(FE) 단계 확정은 기능분석(1L) 확정 후에 가능합니다.'
+      );
     }
-  }, [meaningfulRequirementsFromFunction.length, isUpstreamConfirmed]);
+  }, [meaningfulRequirementsFromFunction.length, showAlert]);
 
   // 고장영향 데이터 (localStorage에서)
   const failureEffects: FailureEffect[] = useMemo(() => {

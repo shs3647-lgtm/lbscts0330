@@ -434,9 +434,11 @@ function fillL1Data(l1: L1Data, cItems: ImportedFlatData[], flatMap?: FlatToEnti
       }
       {
         // 빈 C2 function에 placeholder requirement 추가 (워크시트 편집용)
+        // ★★★ 2026-03-23: name '' 이면 filterMeaningfulRequirements에서 탈락 → '요구사항 0건'으로 누락 과다집계(9건 등)
+        // 비어 있지 않은 표시 문자열로 두어 1L Missing 카운트와 일치시킴
         for (let fi = 0; fi < funcs.length; fi++) {
           if (funcs[fi].requirements.length === 0) {
-            funcs[fi].requirements = [{ id: genC3('PF', div, fi + 1, 1), name: '' }];
+            funcs[fi].requirements = [{ id: genC3('PF', div, fi + 1, 1), name: '(요구사항 입력)' }];
           }
         }
       }
