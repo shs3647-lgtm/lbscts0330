@@ -14,9 +14,10 @@ import { validateImportData } from '../utils/import-validation';
 import { validateHierarchy } from '../utils/hierarchy-validation';
 import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '../utils/excel-color-detector';
 import { inferDC, inferPC, getDefaultRuleSet } from '../stepb-parser/pc-dc-inference';
-import { assignParentsByRowSpan } from '../utils/parentItemId-mapper';
 import { runParsingCriteriaValidation } from '../utils/parsing-criteria-validator';
-import { v4 as uuidv4 } from 'uuid';
+import { convertParseResultToStepBBuildData, convertStepBChainsToMasterChains } from '../utils/parseResultToStepBData';
+import { convertToImportFormat } from '../stepb-parser/import-builder';
+import { WarningCollector } from '../stepb-parser/types';
 
 interface UseImportFileHandlersProps {
   setFileName: (name: string) => void;
@@ -100,19 +101,7 @@ export function useImportFileHandlers({
         }
         : null;
 
-      // ★★★ 2026-02-22: FC_고장사슬 시트 파싱 결과 저장 ★★★
-      if (result.failureChains && result.failureChains.length > 0) {
-        setMasterChains?.(result.failureChains);
-
-        // ★★★ 2026-03-10: FC 파싱 즉시 DB 저장 — SA확정 전 페이지 이탈 시 pcValue/dcValue 유실 방지 ★★★
-        if (fmeaId) {
-          fetch(`/api/pfmea/master?fmeaId=${encodeURIComponent(fmeaId)}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ failureChains: result.failureChains }),
-          }).catch(err => console.error('[FC파싱] chains DB 즉시 저장 실패:', err));
-        }
-      }
+      // ★★★ chains는 convertToImportFormat 후 결정론적 flatId와 함께 설정 (아래 참조) ★★★
 
       // ★★★ 2026-02-17: 파싱 실패 → Import 차단 ★★★
       if (!result.success) {
@@ -171,260 +160,46 @@ export function useImportFileHandlers({
         );
       }
 
-      // ★★★ 2026-02-03: 객체 → 문자열 변환 헬퍼 ★★★
-      const ensureString = (val: unknown): string => {
-        if (val === null || val === undefined) return '';
-        if (typeof val === 'string') return val;
-        if (typeof val === 'object') {
-          if ('name' in (val as Record<string, unknown>)) return String((val as Record<string, unknown>).name || '');
-          if (Array.isArray(val)) return val.map(v => ensureString(v)).filter(Boolean).join(', ');
-          return '';
-        }
-        return String(val);
-      };
+      // ★★★ 2026-03-21: convertToImportFormat 기반 결정론적 ID 생성 ★★★
+      // ParseResult → StepBBuildData 변환 후 convertToImportFormat 호출
+      // 결과: 결정론적 ID (PF-L3-040-IM-001 등) + chain FK (fmFlatId/fcFlatId/feFlatId)
+      const stepBData = convertParseResultToStepBBuildData(result);
+      const warn = new WarningCollector();
+      const importResult = convertToImportFormat(stepBData, warn);
 
-      const flat: ImportedFlatData[] = [];
-      // ★★★ UUID 기반 parentItemId 매칭 인프라 (import-builder.ts 패턴 차용) ★★★
-      const globalB1IdMap = new Map<string, string>(); // `pNo|m4|weName` → B1 UUID
-      /** B1 UUID 조회 — WE명+m4 정확 매칭 → m4 무시 → 공정 첫 번째 B1 폴백 */
-      const findB1Uuid = (pNo: string, weName: string | undefined, m4: string): string | undefined => {
-        if (weName) {
-          const exactKey = `${pNo}|${m4}|${weName}`;
-          const exact = globalB1IdMap.get(exactKey);
-          if (exact) return exact;
-          for (const [k, v] of globalB1IdMap) {
-            if (k.startsWith(`${pNo}|`) && k.endsWith(`|${weName}`)) return v;
-          }
-        }
-        for (const [k, v] of globalB1IdMap) {
-          if (k.startsWith(`${pNo}|`)) return v;
-        }
-        return undefined;
-      };
-      /** 해당 공정의 첫 번째 B1 UUID 조회 */
-      const firstB1Uuid = (pNo: string): string | undefined => {
-        for (const [k, v] of globalB1IdMap) {
-          if (k.startsWith(`${pNo}|`)) return v;
-        }
-        return undefined;
-      };
+      // flat 배열에 결정론적 ID 기반 데이터 할당
+      const flat: ImportedFlatData[] = [...importResult.flatData];
 
-      result.processes.forEach((p) => {
-        const pNo = ensureString(p.processNo);
-        if (pNo === '공통') {
-          const has = (arr: string[]) => arr.some(v => v.trim() !== '');
-          const hasReal = (p.processName?.trim()) || has(p.processDesc) || has(p.productChars)
-            || has(p.failureModes) || has(p.workElements)
-            || has(p.elementFuncs) || has(p.processChars) || has(p.failureCauses);
-          if (!hasReal) return;
-        }
-        const meta = (code: string, idx: number) => p.itemMeta?.[`${code}-${idx}`];
-        const withMeta = (base: ImportedFlatData, code: string, idx: number): ImportedFlatData => {
-          const m = meta(code, idx);
-          if (!m) return { ...base, orderIndex: idx };
-          return { ...base, orderIndex: idx, excelRow: m.excelRow, excelCol: m.excelCol, mergeGroupId: m.mergeGroupId, rowSpan: m.rowSpan };
-        };
-        flat.push({ id: `${pNo}-A1`, processNo: pNo, category: 'A', itemCode: 'A1', value: pNo, createdAt: new Date() });
-        if (p.processName) {
-          flat.push({ id: `${pNo}-A2`, processNo: pNo, category: 'A', itemCode: 'A2', value: ensureString(p.processName), createdAt: new Date() });
-        }
-        p.processDesc.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A3-${i}`, processNo: pNo, category: 'A', itemCode: 'A3', value: ensureString(v), parentItemId: `${pNo}-A1`, createdAt: new Date() }, 'A3', i)));
-        p.productChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A4-${i}`, processNo: pNo, category: 'A', itemCode: 'A4', value: ensureString(v), specialChar: p.productCharsSpecialChar?.[i] || undefined, parentItemId: `${pNo}-A3-0`, createdAt: new Date() }, 'A4', i)));
-        p.failureModes.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-A5-${i}`, processNo: pNo, category: 'A', itemCode: 'A5', value: ensureString(v), parentItemId: `${pNo}-A4-0`, createdAt: new Date() }, 'A5', i)));
-        // ★★★ 2026-03-16: B1 UUID 기반 — import-builder.ts 패턴 통일 ★★★
-        p.workElements.forEach((v, i) => {
-          const b1Uuid = uuidv4();
-          const weKey = `${pNo}|${p.workElements4M?.[i] || ''}|${ensureString(v)}`;
-          globalB1IdMap.set(weKey, b1Uuid);
-          flat.push(withMeta({ id: b1Uuid, processNo: pNo, category: 'B', itemCode: 'B1', value: ensureString(v), m4: p.workElements4M?.[i] || '', parentItemId: `${pNo}-A1`, createdAt: new Date() }, 'B1', i));
-        });
-        // ★★★ 2026-03-16: B2/B3/B4 parentItemId를 B1 UUID로 직접 참조 ★★★
-        p.elementFuncs.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B2-${i}`, processNo: pNo, category: 'B', itemCode: 'B2', value: ensureString(v), m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, parentItemId: findB1Uuid(pNo, p.elementFuncsWE?.[i], p.elementFuncs4M?.[i] || ''), createdAt: new Date() }, 'B2', i)));
-        p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B3-${i}`, processNo: pNo, category: 'B', itemCode: 'B3', value: ensureString(v), m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: findB1Uuid(pNo, p.processCharsWE?.[i], p.processChars4M?.[i] || ''), createdAt: new Date() }, 'B3', i)));
-        p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${pNo}-B4-${i}`, processNo: pNo, category: 'B', itemCode: 'B4', value: ensureString(v), m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: findB1Uuid(pNo, p.failureCausesWE?.[i], p.failureCauses4M?.[i] || ''), createdAt: new Date() }, 'B4', i)));
-        // ★★★ 2026-03-14 SRP: B5/A6 템플릿 데이터는 FC 체인이 없을 때만 사용 (아래에서 처리) ★★★
-        // p.preventionCtrls / p.detectionCtrls → FC 체인 우선, 템플릿은 폴백
-      });
-
-      // ★★★ 2026-03-14 v5.4: A6(검출관리) + B5(예방관리) — 소스 우선순위 재설계 ★★★
-      // 우선순위: ① 전용시트 L2-6/L3-5 (최우선) → ② FC시트 dcValue/pcValue (폴백) → ③ 추론(inferDC/inferPC)
-      // 사유: FC 시트 carry-forward 병합셀 처리가 불안정 → 전용시트가 확실한 소스
+      // chains를 MasterFailureChain 형식으로 변환 (fmFlatId/fcFlatId/feFlatId 포함)
       const chains = result.failureChains;
+      if (importResult.failureChains.length > 0) {
+        const updatedChains = convertStepBChainsToMasterChains(
+          importResult.failureChains,
+          chains || [],
+        );
+        setMasterChains?.(updatedChains);
 
-      // ── ① 전용시트 L2-6(A6)/L3-5(B5)에서 추출 (최우선) ──
-      const tplB5Processes = new Set<string>();
-      const tplA6Processes = new Set<string>();
-      {
-        let tplB5 = 0;
-        result.processes.forEach((p) => {
-          const pNo = p.processNo;
-          p.preventionCtrls?.forEach((v, i) => {
-            if (!ensureString(v).trim()) return;
-            const b5m4 = p.preventionCtrls4M?.[i] || '';
-            const b5we = p.preventionCtrlsWE?.[i] || '';
-            const b1Uuid = findB1Uuid(pNo, b5we, b5m4);
-            flat.push({ id: `${pNo}-B5-tpl-${i}`, processNo: pNo, category: 'B', itemCode: 'B5', value: ensureString(v), m4: b5m4, belongsTo: b5we || undefined, parentItemId: b1Uuid || `${pNo}-B4-0`, createdAt: new Date() });
-            tplB5++;
-            tplB5Processes.add(pNo);
-          });
-        });
-        if (tplB5 > 0) console.log(`[A6/B5 소스] ① 전용시트 B5=${tplB5}건 (최우선)`);
-      }
-      {
-        let tplA6 = 0;
-        result.processes.forEach((p) => {
-          const pNo = p.processNo;
-          p.detectionCtrls?.forEach((v, i) => {
-            if (!ensureString(v).trim()) return;
-            flat.push({ id: `${pNo}-A6-tpl-${i}`, processNo: pNo, category: 'A', itemCode: 'A6', value: ensureString(v), parentItemId: `${pNo}-A5-0`, createdAt: new Date() });
-            tplA6++;
-            tplA6Processes.add(pNo);
-          });
-        });
-        if (tplA6 > 0) console.log(`[A6/B5 소스] ① 전용시트 A6=${tplA6}건 (최우선)`);
-      }
-
-      // ── ② FC 체인에서 A6/B5 추출 (전용시트 미커버 공정만 보충) ──
-      let fcA6Count = 0;
-      let fcB5Count = 0;
-      if (chains && chains.length > 0) {
-        const b5Seen = new Set<string>();
-        let b5Idx = 0;
-        for (const ch of chains) {
-          if (!ch.pcValue?.trim() || !ch.processNo) continue;
-          if (tplB5Processes.has(ch.processNo)) continue;  // 전용시트 우선
-          const key = `${ch.processNo}|${ch.m4 || ''}|${ch.pcValue.trim()}`;
-          if (b5Seen.has(key)) continue;
-          b5Seen.add(key);
-          flat.push({ id: `${ch.processNo}-B5-fc-${b5Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B5', value: ch.pcValue.trim(), m4: ch.m4 || '', parentItemId: `${ch.processNo}-B4-0`, createdAt: new Date() });
-          b5Idx++;
-        }
-        fcB5Count = b5Idx;
-
-        const a6Seen = new Set<string>();
-        let a6Idx = 0;
-        for (const ch of chains) {
-          if (!ch.dcValue?.trim() || !ch.processNo) continue;
-          if (tplA6Processes.has(ch.processNo)) continue;  // 전용시트 우선
-          const a6Key = `${ch.processNo}|${ch.dcValue.trim()}`;
-          if (a6Seen.has(a6Key)) continue;
-          a6Seen.add(a6Key);
-          flat.push({ id: `${ch.processNo}-A6-fc-${a6Idx}`, processNo: ch.processNo, category: 'A', itemCode: 'A6', value: ch.dcValue.trim(), parentItemId: `${ch.processNo}-A5-0`, createdAt: new Date() });
-          a6Idx++;
-        }
-        fcA6Count = a6Idx;
-        if (fcA6Count > 0 || fcB5Count > 0) console.log(`[A6/B5 소스] ② FC체인 폴백: A6=${fcA6Count}건, B5=${fcB5Count}건`);
-      }
-
-      if (chains && chains.length > 0) {
-        // ★★★ 2026-03-19 FIX: B2(요소기능) — 공정+WE별 갭 보충 (chain 기반) ★★★
-        {
-          const b2Keys = new Set(flat.filter(d => d.itemCode === 'B2').map(d => `${d.processNo}|${d.m4 || ''}|${(d.value || '').trim()}`));
-          let b2Idx = 0;
-          for (const ch of chains) {
-            if (!ch.l3Function?.trim() || !ch.processNo) continue;
-            const key = `${ch.processNo}|${ch.m4 || ''}|${ch.l3Function.trim()}`;
-            if (b2Keys.has(key)) continue;
-            b2Keys.add(key);
-            flat.push({ id: `${ch.processNo}-B2-fc-${b2Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B2', value: ch.l3Function.trim(), m4: ch.m4 || '', belongsTo: ch.workElement || undefined, parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
-            b2Idx++;
-          }
-          if (b2Idx > 0) console.log(`[B2 gap-fill] chain에서 ${b2Idx}건 보충`);
-        }
-
-        // ★★★ 2026-03-19 FIX: A3(공정기능) — 공정별 갭 보충 (chain 기반) ★★★
-        {
-          const a3Keys = new Set(flat.filter(d => d.itemCode === 'A3').map(d => `${d.processNo}|${(d.value || '').trim()}`));
-          let a3Idx = 0;
-          for (const ch of chains) {
-            if (!ch.l2Function?.trim() || !ch.processNo) continue;
-            const key = `${ch.processNo}|${ch.l2Function.trim()}`;
-            if (a3Keys.has(key)) continue;
-            a3Keys.add(key);
-            flat.push({ id: `${ch.processNo}-A3-fc-${a3Idx}`, processNo: ch.processNo, category: 'A', itemCode: 'A3', value: ch.l2Function.trim(), parentItemId: `${ch.processNo}-A1`, createdAt: new Date() });
-            a3Idx++;
-          }
-          if (a3Idx > 0) console.log(`[A3 gap-fill] chain에서 ${a3Idx}건 보충`);
-        }
-
-        // ★★★ 2026-03-19 FIX: B3(공정특성) — 공정+WE별 갭 보충 (chain 기반) ★★★
-        {
-          const b3Keys = new Set(flat.filter(d => d.itemCode === 'B3').map(d => `${d.processNo}|${d.m4 || ''}|${d.belongsTo || ''}|${(d.value || '').trim()}`));
-          let b3Idx = 0;
-          for (const ch of chains) {
-            if (!ch.processChar?.trim() || !ch.processNo) continue;
-            const key = `${ch.processNo}|${ch.m4 || ''}|${ch.workElement || ''}|${ch.processChar.trim()}`;
-            if (b3Keys.has(key)) continue;
-            b3Keys.add(key);
-            flat.push({ id: `${ch.processNo}-B3-fc-${b3Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B3', value: ch.processChar.trim(), m4: ch.m4 || '', specialChar: ch.specialChar || undefined, belongsTo: ch.workElement || undefined, parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
-            b3Idx++;
-          }
-          if (b3Idx > 0) console.log(`[B3 gap-fill] chain에서 ${b3Idx}건 보충`);
-        }
-
-        // ★★★ 2026-03-15 FIX: A4(제품특성) — 공정별 A4 갭 보충 (전역→공정별 조건) ★★★
-        // 이전: existingA4Count === 0 전역 조건 → 일부 공정에 A4 있으면 나머지 보충 안 됨
-        // 수정: 공정별로 A4 유무 확인 → 없는 공정만 체인에서 추출
-        {
-          const a4ProcSet = new Set(
-            flat.filter(d => d.itemCode === 'A4' && d.processNo).map(d => d.processNo),
-          );
-          const a4Seen = new Set<string>();
-          let a4Idx = 0;
-          for (const ch of chains) {
-            if (!ch.productChar?.trim() || !ch.processNo) continue;
-            if (a4ProcSet.has(ch.processNo)) continue;
-            const key = `${ch.processNo}|${ch.productChar.trim()}`;
-            if (a4Seen.has(key)) continue;
-            a4Seen.add(key);
-            flat.push({ id: `${ch.processNo}-A4-fc-${a4Idx}`, processNo: ch.processNo, category: 'A', itemCode: 'A4', value: ch.productChar.trim(), parentItemId: `${ch.processNo}-A3-0`, createdAt: new Date() });
-            a4Idx++;
-          }
-        }
-
-        // ★★★ 2026-03-19 FIX: B4(고장원인) — 공정+WE별 갭 보충 (chain 기반) ★★★
-        {
-          const b4Keys = new Set(flat.filter(d => d.itemCode === 'B4').map(d => `${d.processNo}|${d.m4 || ''}|${d.belongsTo || ''}|${(d.value || '').trim()}`));
-          let b4Idx = 0;
-          for (const ch of chains) {
-            if (!ch.fcValue?.trim() || !ch.processNo) continue;
-            const key = `${ch.processNo}|${ch.m4 || ''}|${ch.workElement || ''}|${ch.fcValue.trim()}`;
-            if (b4Keys.has(key)) continue;
-            b4Keys.add(key);
-            flat.push({ id: `${ch.processNo}-B4-fc-${b4Idx}`, processNo: ch.processNo, category: 'B', itemCode: 'B4', value: ch.fcValue.trim(), m4: ch.m4 || '', belongsTo: ch.workElement || undefined, parentItemId: findB1Uuid(ch.processNo, ch.workElement, ch.m4 || '') || firstB1Uuid(ch.processNo), createdAt: new Date() });
-            b4Idx++;
-          }
-          if (b4Idx > 0) console.log(`[B4 gap-fill] chain에서 ${b4Idx}건 보충`);
+        // FC 파싱 즉시 DB 저장 (결정론적 flatId 포함)
+        if (fmeaId) {
+          fetch(`/api/pfmea/master?fmeaId=${encodeURIComponent(fmeaId)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ failureChains: updatedChains }),
+          }).catch(err => console.error('[FC파싱] chains DB 즉시 저장 실패:', err));
         }
       }
 
-      // ★★★ 2026-03-17 FIX: B3 중복 제거 — processNo+m4+WE+value 기준 ★★★
-      // 이전 키: processNo|m4|value → Ti Target과 Cu Target이 같은 값이면 하나 삭제됨
-      // 수정 키: processNo|m4|parentItemId(WE)|value → 다른 WE의 같은 값 보존
-      {
-        const b3Seen = new Set<string>();
-        const toRemove: string[] = [];
-        for (const item of flat) {
-          if (item.itemCode !== 'B3') continue;
-          const we = item.parentItemId || '';
-          const key = `${item.processNo}|${item.m4 || ''}|${we}|${(item.value || '').trim()}`;
-          if (b3Seen.has(key)) {
-            toRemove.push(item.id);
-          } else {
-            b3Seen.add(key);
-          }
-        }
-        if (toRemove.length > 0) {
-          const removeSet = new Set(toRemove);
-          const before = flat.length;
-          for (let i = flat.length - 1; i >= 0; i--) {
-            if (removeSet.has(flat[i].id)) flat.splice(i, 1);
-          }
-          console.log(`[B3 dedup] ${before - flat.length}건 중복 제거`);
+      // WarningCollector 로그 출력
+      const warnSummary = warn.summary();
+      if (warnSummary.WARN > 0 || warnSummary.ERROR > 0) {
+        console.log(`[import-builder] 경고: ${warnSummary.WARN}건 WARN, ${warnSummary.ERROR}건 ERROR`);
+        for (const w of warn.getAll()) {
+          if (w.level === 'ERROR') console.error(`  [${w.code}] ${w.message}`);
+          else if (w.level === 'WARN') console.warn(`  [${w.code}] ${w.message}`);
         }
       }
 
-      // ★★★ 2026-03-14 FIX: A6(검출관리) 자동 추론 — 공정별 A6 미존재 시 inferDC(A5) ★★★
+      // ★★★ A6(검출관리) 자동 추론 — 공정별 A6 미존재 시 inferDC(A5) ★★★
       {
         const a6ByProc = new Set<string>();
         for (const item of flat) {
@@ -456,7 +231,7 @@ export function useImportFileHandlers({
         if (a6Idx > 0) console.log(`[A6 inferDC] ${a6Idx}건 자동 추론 (공정별 미커버분)`);
       }
 
-      // ★★★ 2026-03-14 FIX: B5(예방관리) 자동 추론 — 공정별 B5 미존재 시 inferPC(B4+m4) ★★★
+      // ★★★ B5(예방관리) 자동 추론 — 공정별 B5 미존재 시 inferPC(B4+m4) ★★★
       {
         const b5ByProc = new Set<string>();
         for (const item of flat) {
@@ -477,68 +252,6 @@ export function useImportFileHandlers({
           b5Idx++;
         }
         if (b5Idx > 0) console.log(`[B5 inferPC] ${b5Idx}건 자동 추론 (공정별 미커버분)`);
-      }
-
-      const C1_CATEGORY_MAP: Record<string, string> = {
-        'your plant': 'YP', 'ship to plant': 'SP', 'user': 'USER',
-        'end user': 'USER', '자사공장': 'YP', '고객사': 'SP', '최종사용자': 'USER',
-      };
-      function normalizeC1(name: string): string {
-        return C1_CATEGORY_MAP[name.toLowerCase()] || name;
-      }
-
-      result.products.forEach((p) => {
-        const categoryValue = normalizeC1(ensureString(p.productProcessName)) || 'YP';
-        const pMeta = (code: string, idx: number) => p.itemMeta?.[`${code}-${idx}`];
-        const withPMeta = (base: ImportedFlatData, code: string, idx: number): ImportedFlatData => {
-          const m = pMeta(code, idx);
-          if (!m) return { ...base, orderIndex: idx };
-          // ★ parentItemId: 직접 꽂기 (single-sheet 파서가 기록한 C3→C2 UUID 그대로 사용)
-          return { ...base, orderIndex: idx, excelRow: m.excelRow, excelCol: m.excelCol, mergeGroupId: m.mergeGroupId, rowSpan: m.rowSpan, ...(m.parentItemId ? { parentItemId: m.parentItemId } : {}) };
-        };
-        flat.push({ id: `C1-${categoryValue}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: categoryValue, createdAt: new Date() });
-        p.productFuncs.forEach((v, i) => flat.push(withPMeta({ id: `C2-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: ensureString(v), parentItemId: `C1-${categoryValue}`, createdAt: new Date() }, 'C2', i)));
-        // C3/C4 → assignParentsByRowSpan 후처리에서 정확 매핑
-        // L1 통합(C1-C4) 파싱결과를 그대로 사용 — 하위갯수 기반 rowSpan 매핑
-        // ★★★ 2026-03-16 FIX: 하드코딩 제거 → assignParentsByRowSpan이 rowSpan 기반으로 정확 매핑
-        p.requirements.forEach((v, i) => flat.push(withPMeta({ id: `C3-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: ensureString(v), createdAt: new Date() }, 'C3', i)));
-        p.failureEffects.forEach((v, i) => flat.push(withPMeta({ id: `C4-${categoryValue}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: ensureString(v), createdAt: new Date() }, 'C4', i)));
-      });
-
-      // ★★★ 2026-03-16: rowSpan 기반 parentItemId 정확 매핑 ★★★
-      // 하드코딩 `-0` 패턴 → excelRow+rowSpan 범위 기반 매핑으로 교체
-      // B2/B3/B4→B1은 이미 UUID 기반 (findB1Uuid) — 변경 불필요
-      {
-        const mapAndApply = (parentCode: string, childCode: string) => {
-          const parentItems = flat
-            .filter(it => it.itemCode === parentCode)
-            .map(it => ({ id: it.id, excelRow: it.excelRow, rowSpan: it.rowSpan, processNo: it.processNo }));
-          const childItems = flat
-            .filter(it => it.itemCode === childCode)
-            .map(it => ({ id: it.id, excelRow: it.excelRow, processNo: it.processNo }));
-          if (parentItems.length === 0 || childItems.length === 0) return;
-          const mapping = assignParentsByRowSpan(parentItems, childItems);
-          if (mapping.size === 0) return;
-          for (const item of flat) {
-            if (item.itemCode === childCode && mapping.has(item.id)) {
-              // C3→C2: 통합시트 텍스트 매핑으로 이미 설정된 parentItemId는 보존
-              if (childCode === 'C3' && item.parentItemId) continue;
-              item.parentItemId = mapping.get(item.id)!;
-            }
-          }
-        };
-
-        // A-level: A4→A3, A5→A4, A6→A5
-        mapAndApply('A3', 'A4');
-        mapAndApply('A4', 'A5');
-        mapAndApply('A5', 'A6');
-
-        // B-level: B5→B4
-        mapAndApply('B4', 'B5');
-
-        // C-level: C3→C2, C4→C3
-        mapAndApply('C2', 'C3');
-        mapAndApply('C3', 'C4');
       }
 
       // ★★★ 2026-03-19: 파싱 검증 기준표 + 자동수정 루프 (최대 3회) ★★★

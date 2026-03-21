@@ -659,6 +659,24 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 - 텍스트 매칭으로 FK 연결 → **즉시 삭제** + ID 기반으로 교체
 - **이 룰은 영구 CODEFREEZE** — 수정 시 반드시 다음 문구로 허락 요청: "Rule 1.7 UUID/FK 설계 원칙을 수정해도 될까요? 수정 사유: ___"
 
+> **상세 명세서**: `docs/UUID_FK_SPECIFICATION.md` 참조
+
+#### 1.7.5 parentItemId 필수 규칙 (2026-03-21)
+
+> **모든 FlatData 생성 시 parentItemId FK 체인을 반드시 설정한다.**
+
+| 엔티티 | parentItemId 대상 | 규칙 |
+|--------|------------------|------|
+| B2 (요소기능) | B1.id (L3Structure) | 필수 — 없으면 B2 스킵 |
+| B3 (공정특성) | B1.id (L3Structure) | 필수 — 없으면 B3 스킵 |
+| B4 (고장원인) | B3.id (L3Function) | 필수 — B1이 아닌 **B3** |
+| A5 (고장형태) | A4.id (L2Function) | 필수 — 없으면 A5 스킵 |
+| C3 (요구사항) | C2.id (L1Function) | 필수 — 없으면 C3 스킵 |
+
+- ❌ **parentItemId 없이 엔티티 생성 금지** — FK 없는 엔티티는 고아 데이터
+- ❌ **UUID v4로 B1/B4 ID 생성 금지** — `genB1()`/`genB4()` 결정론적 함수만 사용
+- ✅ **모든 ID는 `uuid-generator.ts`의 genXxx() 함수로 생성**
+
 ---
 
 ### 🔴 Rule 2: 기존 UI 변경 금지
