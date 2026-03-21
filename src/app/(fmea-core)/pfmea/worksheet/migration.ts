@@ -551,9 +551,11 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
         seq: fcIdx,
       });
       
-      // ★★★ 동일공정 동일원인 중복 방지 (2026-03-19) ★★★
+      // ★★★ 2026-03-21 FIX-2: FC dedup에 l3StructId 포함 — WE 단위 dedup ★★★
+      // 이전: l2StructId + cause → 같은 공정 다른 WE의 동일 원인 DROP
+      // 수정: l2StructId + l3StructId + cause → 다른 WE는 별개 (rebuild-atomic과 동일 기준)
       const dupFc = db.failureCauses.find(
-        c => c.l2StructId === l2Struct.id && c.cause === fc.name
+        c => c.l2StructId === l2Struct.id && c.l3StructId === relatedL3Func!.l3StructId && c.cause === fc.name
       );
       if (dupFc) return;
 
@@ -585,9 +587,9 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
           we.failureCauses.forEach((fc: any) => {
             const relatedL3Func = db.l3Functions.find(f => f.l3StructId === l3Struct.id);
             if (relatedL3Func) {
-              // ★★★ 동일공정 동일원인 중복 방지 (2026-03-19) ★★★
+              // ★★★ 2026-03-21 FIX-2: FC dedup에 l3StructId 포함 — WE 단위 dedup ★★★
               const dupFc = db.failureCauses.find(
-                c => c.l2StructId === relatedL3Func.l2StructId && c.cause === fc.name
+                c => c.l2StructId === relatedL3Func.l2StructId && c.l3StructId === l3Struct.id && c.cause === fc.name
               );
               if (dupFc) return;
 

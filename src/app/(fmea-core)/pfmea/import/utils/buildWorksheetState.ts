@@ -736,15 +736,15 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         // B4가 직접 매칭 안 되면 m4 기반으로 시도
         const weB4Effective = weB4.length > 0 ? weB4 : b4Items.filter(b4 => (b4.m4 || '') === (we.m4 || ''));
         if (weB4Effective.length > 0) {
-          const seen = new Set<string>();
+          // ★★★ 2026-03-21 FIX-1: B3 dedup 제거 — L3Function마다 독립 B3 생성 ★★★
+          // 이전: seen.has(pcFull) → continue → 같은 processChar의 두 번째 B3 DROP → FC orphan
+          // 수정: dedup 없이 B4마다 B3 생성 (processChar 중복 허용, FK 무결성 우선)
           const derived: ImportedFlatData[] = [];
           for (const b4 of weB4Effective) {
             const fcName = (b4.value || '').trim();
             if (!fcName) continue;
             const pcName = fcName.replace(/\s*부적합$/, '').trim() || fcName;
             const pcFull = pcName.includes('관리') ? pcName : `${pcName} 관리 특성`;
-            if (seen.has(pcFull)) continue;
-            seen.add(pcFull);
             const cs = (weCharSeqMap.get(we.id) || 0) + 1;
             weCharSeqMap.set(we.id, cs);
             const { m4: _m4, b1seq: _b1seq } = parseWeId(we.id);

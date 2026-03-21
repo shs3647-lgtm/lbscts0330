@@ -397,8 +397,9 @@ export function atomicToFlatData(
         const b4Id = genB4(doc, pnoNum, m4, b1seq, kseq);
         idRemap.fc.set(fc.id, b4Id);
 
-        const parentB3Id = l3FuncIdToB3Id.get(fc.l3FuncId)
-          || (l3FuncIdToB3Id.size > 0 ? [...l3FuncIdToB3Id.values()][0] : undefined);
+        // ★★★ 2026-03-21 FIX-3: B4→B3 FK — DB UUID 정확 매칭만 허용, fallback 삭제 ★★★
+        // FC.l3FuncId → L3Function → B3 정확 매칭. 매칭 실패 시 undefined (잘못된 FK 방지)
+        const parentB3Id = l3FuncIdToB3Id.get(fc.l3FuncId) || undefined;
 
         result.push(makeFlatItem({
           id: b4Id,
