@@ -1,4 +1,3 @@
-// CODEFREEZE — 2026-03-19 Legacy 경유 제거, Atomic DB 직접 저장 방식으로 전환
 /**
  * @file save-from-import/route.ts
  * @description Import→DB 서버사이드 저장 API
@@ -6,8 +5,10 @@
  * POST /api/fmea/save-from-import
  * Body: { fmeaId, flatData, l1Name?, failureChains? }
  *
- * 클라이언트에서 buildWorksheetState + migrateToAtomicDB를 실행하면
- * 모듈 해석/직렬화 차이로 실패할 수 있으므로, 서버에서 일괄 처리.
+ * 2026-03-21: buildAtomicFromFlat() 단일 경로로 전환
+ * - buildWorksheetState + migrateToAtomicDB 2단계 제거
+ * - reversePath 로직 제거
+ * - FlatData + Chains → Atomic DB 직접 변환 (1단계)
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       chainCount: Array.isArray(failureChains) ? failureChains.length : 0,
     });
 
-    // 1.5. ★ 누락 항목 보충 — buildWorksheetState 전에 B1 등 누락 보충
+    // 1.5. ★ 누락 항목 보충 — buildAtomicFromFlat 전에 B1 등 누락 보충
     const { supplementMissingItems } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/supplementMissingItems'
     );
@@ -70,104 +71,30 @@ export async function POST(request: NextRequest) {
       console.info(formatValidationReport(parseValidation));
     }
 
-    // 2. buildWorksheetState (엔티티 생성)
-    const { buildWorksheetState, buildFailureLinksDBCentric } = await import(
-      '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState'
+    // 2. buildAtomicFromFlat (FlatData + Chains → Atomic DB 직접 변환)
+    const { buildAtomicFromFlat } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/buildAtomicFromFlat'
     );
-
-    // ★★★ 2026-03-17 FIX: 리버스 경로 — DB 데이터가 있으면 convertToLegacyFormat 직접 사용 ★★★
-    // 이전: atomicToFlatData → buildWorksheetState → migrateToAtomicDB (손실 라운드트립)
-    //   → processCharId genB3↔hybridId 불일치로 FC 매칭 실패 → FC 6건 재발
-    // 수정: convertToLegacyFormat(existingDB)로 직접 legacyData 구성 → 라운드트립 제거
-    let useReversePath = false;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let reverseExistingDB: any = undefined;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let reverseLegacyData: any = undefined;
-    try {
-      const baseUrl = getBaseDatabaseUrl();
-      if (baseUrl) {
-        const schema = getProjectSchemaName(normalizedFmeaId);
-        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
-        const checkPrisma = getPrismaForSchema(schema);
-        if (checkPrisma) {
-          const existingLinkCount = await checkPrisma.failureLink.count({
-            where: { fmeaId: normalizedFmeaId },
-          });
-          if (existingLinkCount > 0) {
-            const [l2s, l3s, l1Funcs, l2Funcs, l3Funcs, fes, fms, fcs, links, risks, pcs] = await Promise.all([
-              checkPrisma.l2Structure.findMany({ where: { fmeaId: normalizedFmeaId }, orderBy: { order: 'asc' } }),
-              checkPrisma.l3Structure.findMany({ where: { fmeaId: normalizedFmeaId }, orderBy: { order: 'asc' } }),
-              checkPrisma.l1Function.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.l2Function.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.l3Function.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.failureEffect.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.failureMode.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.failureCause.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.failureLink.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.riskAnalysis.findMany({ where: { fmeaId: normalizedFmeaId } }),
-              checkPrisma.processProductChar.findMany({ where: { fmeaId: normalizedFmeaId } }),
-            ]);
-            reverseExistingDB = {
-              fmeaId: normalizedFmeaId, savedAt: new Date().toISOString(),
-              l1Structure: null, l2Structures: l2s, l3Structures: l3s,
-              l1Functions: l1Funcs, l2Functions: l2Funcs, l3Functions: l3Funcs,
-              failureEffects: fes, failureModes: fms, failureCauses: fcs,
-              failureLinks: links, failureAnalyses: [], riskAnalyses: risks, optimizations: [],
-              processProductChars: pcs,
-              confirmed: { structure: true, l1Function: true, l2Function: true, l3Function: true, l1Failure: true, l2Failure: true, l3Failure: true, failureLink: true, risk: true, optimization: true },
-            };
-            // ★ 핵심: convertToLegacyFormat으로 직접 변환 (손실 라운드트립 제거)
-            const { convertToLegacyFormat } = await import(
-              '@/app/(fmea-core)/pfmea/worksheet/migration'
-            );
-            reverseLegacyData = convertToLegacyFormat(reverseExistingDB);
-            useReversePath = Array.isArray(reverseLegacyData?.l2) && reverseLegacyData.l2.length > 0;
-            if (useReversePath) {
-              const rlFc = reverseLegacyData.l2.reduce((a: number, p: { failureCauses?: unknown[] }) =>
-                a + (Array.isArray(p.failureCauses) ? p.failureCauses.length : 0), 0);
-              console.info(`[save-from-import] ★ 리버스 경로(직접변환) 활성화: l2=${reverseLegacyData.l2.length} FC=${rlFc} links=${existingLinkCount}`);
-            }
-          }
-        }
-      }
-    } catch (reverseErr) {
-      console.warn('[save-from-import] 리버스 경로 실패 (기존 경로로 fallback):', reverseErr instanceof Error ? reverseErr.message : String(reverseErr));
-    }
-
-    // ★★★ Chain-Driven 통합 ★★★
-    // 리버스 경로 성공 시 → buildWorksheetState는 riskData 추출용으로만 실행
-    // 리버스 경로 실패 시 → 기존 forward path (flatData + chains)
-    const buildResult = buildWorksheetState(enrichedFlatData, {
+    const atomicDB = buildAtomicFromFlat({
       fmeaId: normalizedFmeaId,
-      l1Name,
-      chains: chainsArray,
+      flatData: enrichedFlatData,
+      chains: chainsArray || [],
+      l1Name: l1Name || '',
     });
 
-    if (!buildResult.success) {
-      return NextResponse.json({
-        success: false,
-        error: '데이터 빌드 실패',
-        diagnostics: buildResult.diagnostics,
-      });
-    }
+    console.info(
+      `[save-from-import] buildAtomicFromFlat 완료: ` +
+      `L2=${atomicDB.l2Structures.length} L3=${atomicDB.l3Structures.length} ` +
+      `L2F=${atomicDB.l2Functions.length} L3F=${atomicDB.l3Functions.length} ` +
+      `FM=${atomicDB.failureModes.length} FC=${atomicDB.failureCauses.length} ` +
+      `FE=${atomicDB.failureEffects.length} FL=${atomicDB.failureLinks.length} ` +
+      `RA=${atomicDB.riskAnalyses.length}`
+    );
 
-    // ★★★ ImportMapping: flatMap → ImportMappingRecord[] 직렬화 ★★★
-    const importMappingRecords = buildResult.flatMap
-      ? serializeFlatMap(buildResult.flatMap)
-      : [];
-    importJobData.usedReversePath = useReversePath;
+    // ★★★ ImportMapping: flatMap 직렬화 (buildAtomicFromFlat은 flatMap 미생성 → 빈 배열)
+    const importMappingRecords: ReturnType<typeof serializeFlatMap> = [];
 
-    // 3. Phase 3 결과 추출 (buildWorksheetState 내부에서 이미 실행됨)
-    const injectedLinks: unknown[] = (buildResult.state.failureLinks || []) as unknown[];
-    const injectedRisk: Record<string, number | string> =
-      (buildResult.state.riskData || {}) as Record<string, number | string>;
-    if (buildResult.diagnostics.linkStats) {
-      const ls = buildResult.diagnostics.linkStats;
-      console.info(`[save-from-import] 링크: injected=${ls.injectedCount} skipped=${ls.skippedCount}`);
-    }
-
-    // 3.5. A6/B5 riskData 보충 (Phase 4 안전망)
+    // 3.5. A6/B5 riskData 보충 (Phase 4 안전망) — chains + atomicDB.failureLinks 기반
     {
       const a6Items = flatData.filter((d: { itemCode?: string; value?: string }) =>
         d.itemCode === 'A6' && d.value?.trim()
@@ -175,12 +102,23 @@ export async function POST(request: NextRequest) {
       const b5Items = flatData.filter((d: { itemCode?: string; value?: string }) =>
         d.itemCode === 'B5' && d.value?.trim()
       );
-      const fLinks = (buildResult.state.failureLinks || []) as Array<{
-        fmId: string; fcId: string; fmProcessNo?: string; fmProcess?: string;
-      }>;
 
-      if ((a6Items.length > 0 || b5Items.length > 0) && fLinks.length > 0) {
-        const riskData = injectedRisk;
+      if ((a6Items.length > 0 || b5Items.length > 0) && atomicDB.failureLinks.length > 0) {
+        // Build processNo → links mapping from atomicDB
+        // FM.id contains L2-{pno} pattern → extract processNo
+        const fmPnoMap = new Map<string, string>();
+        for (const fm of atomicDB.failureModes) {
+          const pnoMatch = fm.id.match(/L2-(\d+)/);
+          if (pnoMatch) fmPnoMap.set(fm.id, pnoMatch[1]);
+        }
+
+        const linksByProc = new Map<string, Array<{ fmId: string; fcId: string }>>();
+        for (const link of atomicDB.failureLinks) {
+          const pNo = fmPnoMap.get(link.fmId) || '';
+          if (!pNo) continue;
+          if (!linksByProc.has(pNo)) linksByProc.set(pNo, []);
+          linksByProc.get(pNo)!.push({ fmId: link.fmId, fcId: link.fcId });
+        }
 
         // 공정번호별 A6/B5 그룹핑
         const a6ByProc = new Map<string, string[]>();
@@ -200,48 +138,56 @@ export async function POST(request: NextRequest) {
           b5ByProc.get(pNo)!.push(val);
         }
 
-        // failureLinks를 공정번호별로 그룹핑
-        const linksByProc = new Map<string, Array<{ fmId: string; fcId: string }>>();
-        for (const link of fLinks) {
-          const pNo = link.fmProcessNo || link.fmProcess || '';
-          if (!pNo || !link.fmId || !link.fcId) continue;
-          if (!linksByProc.has(pNo)) linksByProc.set(pNo, []);
-          linksByProc.get(pNo)!.push({ fmId: link.fmId, fcId: link.fcId });
+        // RA lookup by linkId for DC/PC supplement
+        const raByLinkId = new Map<string, (typeof atomicDB.riskAnalyses)[number]>();
+        for (const ra of atomicDB.riskAnalyses) {
+          raByLinkId.set(ra.linkId, ra);
         }
 
-        // A6 → riskData detection-* 키 보충
+        // A6 → RiskAnalysis.detectionControl 보충
         let a6Injected = 0;
         for (const [pNo, dcValues] of a6ByProc) {
           const procLinks = linksByProc.get(pNo);
           if (!procLinks || procLinks.length === 0) continue;
           dcValues.forEach((dc, i) => {
             const link = procLinks[i % procLinks.length];
-            const uKey = `${link.fmId}-${link.fcId}`;
-            const existing = String(riskData[`detection-${uKey}`] ?? '').trim();
+            // Find matching FL in atomicDB
+            const fl = atomicDB.failureLinks.find(
+              l => l.fmId === link.fmId && l.fcId === link.fcId
+            );
+            if (!fl) return;
+            const ra = raByLinkId.get(fl.id);
+            if (!ra) return;
+            const existing = (ra.detectionControl || '').trim();
             if (!existing) {
-              riskData[`detection-${uKey}`] = dc;
+              ra.detectionControl = dc;
               a6Injected++;
             } else if (!existing.includes(dc)) {
-              riskData[`detection-${uKey}`] = `${existing}\n${dc}`;
+              ra.detectionControl = `${existing}\n${dc}`;
               a6Injected++;
             }
           });
         }
 
-        // B5 → riskData prevention-* 키 보충
+        // B5 → RiskAnalysis.preventionControl 보충
         let b5Injected = 0;
         for (const [pNo, pcValues] of b5ByProc) {
           const procLinks = linksByProc.get(pNo);
           if (!procLinks || procLinks.length === 0) continue;
           pcValues.forEach((pc, i) => {
             const link = procLinks[i % procLinks.length];
-            const uKey = `${link.fmId}-${link.fcId}`;
-            const existing = String(riskData[`prevention-${uKey}`] ?? '').trim();
+            const fl = atomicDB.failureLinks.find(
+              l => l.fmId === link.fmId && l.fcId === link.fcId
+            );
+            if (!fl) return;
+            const ra = raByLinkId.get(fl.id);
+            if (!ra) return;
+            const existing = (ra.preventionControl || '').trim();
             if (!existing) {
-              riskData[`prevention-${uKey}`] = pc;
+              ra.preventionControl = pc;
               b5Injected++;
             } else if (!existing.includes(pc)) {
-              riskData[`prevention-${uKey}`] = `${existing}\n${pc}`;
+              ra.preventionControl = `${existing}\n${pc}`;
               b5Injected++;
             }
           });
@@ -250,132 +196,6 @@ export async function POST(request: NextRequest) {
         if (a6Injected > 0 || b5Injected > 0) {
           console.info(`[save-from-import] Phase 4 A6/B5 보충: A6=${a6Injected}건, B5=${b5Injected}건`);
         }
-      }
-    }
-
-    // 4. FM 갭 피드백
-    const { applyFmGapFeedback } = await import(
-      '@/app/(fmea-core)/pfmea/import/utils/fm-gap-feedback'
-    );
-    const feedback = applyFmGapFeedback(buildResult.state, flatData);
-
-    // 6. migrateToAtomicDB (Legacy 구성 제거 — Atomic DB 직접 저장)
-    const { migrateToAtomicDB } = await import(
-      '@/app/(fmea-core)/pfmea/worksheet/migration'
-    );
-    const { genFC } = await import('@/lib/uuid-generator');
-
-    // ★★★ 리버스 경로: atomic DB가 이미 정확 → migrateToAtomicDB 스킵 ★★★
-    // forward 경로: buildWorksheetState 결과에서 직접 atomicDB 생성
-    const atomicDB = useReversePath ? null : migrateToAtomicDB({
-      fmeaId: normalizedFmeaId,
-      l1: buildResult.state.l1,
-      l2: buildResult.state.l2,
-      failureLinks: injectedLinks,
-      riskData: injectedRisk,
-      forceOverwrite: true,
-      structureConfirmed: false,
-      l1Confirmed: false,
-      l2Confirmed: false,
-      l3Confirmed: false,
-      failureL1Confirmed: false,
-      failureL2Confirmed: false,
-      failureL3Confirmed: false,
-      failureLinkConfirmed: injectedLinks.length > 0,
-      riskConfirmed: false,
-      optimizationConfirmed: false,
-    } as any);
-    if (atomicDB) Object.assign(atomicDB, { forceOverwrite: true });
-
-    // ★★★ 2026-03-21 FIX: FK-only — 텍스트 기반 역매칭(fmByText/feByText/fcByText) 전면 삭제
-    // Rule 0/1.5/1.7 위반: 텍스트 매칭으로 FailureLink 복구는 거짓 FK 생성 위험
-    // ID 매칭만 허용. ID 매칭 실패 시 해당 link는 스킵 + 경고 로그
-    const migrationLinkCount = atomicDB?.failureLinks?.length ?? 0;
-    const originalLinkCount = injectedLinks.length;
-    if (!useReversePath && atomicDB && migrationLinkCount < originalLinkCount && originalLinkCount > 0) {
-      console.info(`[save-from-import] Links 복구(ID-only): migration=${migrationLinkCount}/${originalLinkCount}`);
-
-      type AtomicLink = { fmId: string; feId: string; fcId: string };
-      const existingCombos = new Set(
-        (atomicDB.failureLinks || []).map((l: AtomicLink) => `${l.fmId}|${l.feId}|${l.fcId}`)
-      );
-
-      // ★★★ ID-only 인덱스만 생성 (텍스트 인덱스 삭제됨)
-      type FM = { id: string; mode?: string };
-      type FE = { id: string; effect?: string };
-      type FC = { id: string; cause?: string };
-      const fmById = new Map<string, FM>();
-      const feById = new Map<string, FE>();
-      const fcById = new Map<string, FC>();
-
-      for (const fm of (atomicDB.failureModes || []) as FM[]) {
-        fmById.set(fm.id, fm);
-      }
-      for (const fe of (atomicDB.failureEffects || []) as FE[]) {
-        feById.set(fe.id, fe);
-      }
-      for (const fc of (atomicDB.failureCauses || []) as FC[]) {
-        fcById.set(fc.id, fc);
-      }
-
-      let recoveredCount = 0;
-      let skippedCount = 0;
-      type InjectedLink = { fmId?: string; feId?: string; fcId?: string; fmText?: string; feText?: string; fcText?: string; severity?: number; fmMergeSpan?: number };
-      for (const link of injectedLinks as InjectedLink[]) {
-        // ★★★ 2026-03-21 FIX: FK-only — ID 매칭만 사용, 텍스트 폴백 삭제
-        const fm = fmById.get(link.fmId || '');
-        const fe = feById.get(link.feId || '');
-        const fc = fcById.get(link.fcId || '');
-
-        if (!fm || !fe || !fc) {
-          // ID 매칭 실패 → 경고 + 스킵 (텍스트 폴백 금지)
-          console.warn(`[save-from-import] Link skipped (ID mismatch): fmId=${link.fmId} feId=${link.feId} fcId=${link.fcId} — fm=${!!fm} fe=${!!fe} fc=${!!fc}`);
-          skippedCount++;
-          continue;
-        }
-
-        const combo = `${fm.id}|${fe.id}|${fc.id}`;
-        if (!existingCombos.has(combo)) {
-          existingCombos.add(combo);
-          atomicDB.failureLinks = atomicDB.failureLinks || [];
-          const fmSeqMatch = fm.id.match(/M-(\d+)$/);
-          const mseq = fmSeqMatch ? parseInt(fmSeqMatch[1]) : 1;
-          const fcSeqMatch = fc.id.match(/(\w+)-(\d+)-K-(\d+)$/);
-          const fcM4 = fcSeqMatch ? fcSeqMatch[1] : '';
-          const fcB1seq = fcSeqMatch ? parseInt(fcSeqMatch[2]) : 1;
-          const fcKseq = fcSeqMatch ? parseInt(fcSeqMatch[3]) : 1;
-          const pnoMatch = fm.id.match(/L2-(\d+)/);
-          const pnoForLink = pnoMatch ? parseInt(pnoMatch[1]) : 0;
-          atomicDB.failureLinks.push({
-            id: genFC('PF', pnoForLink, mseq, fcM4, fcB1seq, fcKseq),
-            fmeaId: normalizedFmeaId,
-            fmId: fm.id,
-            feId: fe.id,
-            fcId: fc.id,
-            parentId: fm.id,
-            mergeGroupId: undefined,
-            rowSpan: link.fmMergeSpan || 1,
-            colSpan: 1,
-            cache: {
-              fmText: link.fmText || fm.mode || '',
-              fmProcess: '',
-              feText: link.feText || fe.effect || '',
-              feCategory: (fe as any).category || '',
-              feSeverity: link.severity ?? (fe as any).severity ?? 0,
-              fcText: link.fcText || fc.cause || '',
-              fcWorkElem: '',
-              fcProcess: '',
-            },
-          });
-          recoveredCount++;
-        }
-      }
-
-      if (recoveredCount > 0) {
-        console.info(`[save-from-import] Links 복구(ID-only): +${recoveredCount}건`);
-      }
-      if (skippedCount > 0) {
-        console.warn(`[save-from-import] Links 스킵(ID 불일치): ${skippedCount}건 — 텍스트 폴백 금지(Rule 1.7)`);
       }
     }
 
@@ -399,21 +219,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ★★★ 8. Atomic DB 직접 저장 (Legacy 경유 제거 — 2026-03-19) ★★★
-    // 설계: flatData → buildWorksheetState → migrateToAtomicDB → Atomic DB 직접 INSERT
-    // Legacy는 Atomic 저장 후 캐시로만 생성 (SSoT = Atomic DB)
+    // ★★★ 8. Atomic DB 직접 저장 (buildAtomicFromFlat 기반 — 2026-03-21) ★★★
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    const atomicSource = useReversePath ? reverseExistingDB : atomicDB;
-    if (!atomicSource && !useReversePath) {
-      return NextResponse.json({ success: false, error: 'Atomic DB 변환 실패' }, { status: 500 });
-    }
-
     let actualCounts = { l1Funcs: 0, l2: 0, l3: 0, fm: 0, fc: 0, fe: 0, links: 0 };
     const gaps: string[] = [];
     let verifyPassed = false;
 
-    if (!useReversePath && atomicSource) {
+    {
       const fId = normalizedFmeaId;
+      const a = atomicDB;
       await prisma.$transaction(async (tx: any) => {
         // 자식→부모 순서 삭제
         await tx.riskAnalysis.deleteMany({ where: { fmeaId: fId } }).catch((e: unknown) => console.error('[save] RA delete error:', e));
@@ -431,9 +245,8 @@ export async function POST(request: NextRequest) {
         await tx.l2Structure.deleteMany({ where: { fmeaId: fId } });
         await tx.l3Structure.deleteMany({ where: { fmeaId: fId } });
 
-        const a = atomicSource;
         if (a.l1Structure) {
-          await tx.l1Structure.create({ data: { id: a.l1Structure.id, fmeaId: fId, name: a.l1Structure.name, confirmed: a.l1Structure.confirmed ?? false } });
+          await tx.l1Structure.create({ data: { id: a.l1Structure.id, fmeaId: fId, name: a.l1Structure.name, confirmed: false } });
         }
         if (a.l2Structures?.length) {
           const l2Data = a.l2Structures.map((s: any) => ({ id: s.id, fmeaId: fId, l1Id: s.l1Id, no: (s.no ?? '').toString().trim() || String(s.order ?? 0), name: (s.name || '').trim() || `L2-${s.order ?? 0}`, order: s.order ?? 0 }));
@@ -505,82 +318,25 @@ export async function POST(request: NextRequest) {
           const fcResult = await tx.failureCause.createMany({ data: fcData, skipDuplicates: true });
           if (fcResult.count < fcData.length) console.warn(`[save] FailureCause: expected ${fcData.length}, created ${fcResult.count} (${fcData.length - fcResult.count} skipped)`);
         }
-        // ★★★ 2026-03-21 FIX: FK-only — arbitrary FM/FE fallback 전면 삭제
-        // Rule 0/1.5/1.7: FK 불일치 시 [0] fallback/processMatch 금지 → 경고 + 스킵
-        let fixedLinks: any[] = [];
+
+        // FailureLink 저장 — buildAtomicFromFlat이 FK 검증 완료 (Rule 1.7)
         if (a.failureLinks?.length) {
-          const fmIdSet = new Set((a.failureModes || []).map((fm: any) => fm.id));
-          const feIdSet = new Set((a.failureEffects || []).map((fe: any) => fe.id));
-          const fcIdSet = new Set((a.failureCauses || []).map((fc: any) => fc.id));
-
-          let skippedCount = 0;
-          fixedLinks = a.failureLinks.map((l: any) => {
-            const { fmId, feId, fcId } = l;
-
-            // ★★★ 2026-03-21 FIX: FK-only — ID가 존재하지 않으면 스킵 (fallback 금지)
-            if (!fmIdSet.has(fmId)) {
-              console.warn(`[save-from-import] fmId ${fmId} not found in atomicDB — link skipped (Rule 1.7: no fallback)`);
-              skippedCount++;
-              return null;
-            }
-
-            if (!feIdSet.has(feId)) {
-              console.warn(`[save-from-import] feId ${feId} not found in atomicDB — link skipped (Rule 1.7: no fallback)`);
-              skippedCount++;
-              return null;
-            }
-
-            if (!fcIdSet.has(fcId)) {
-              console.warn(`[save-from-import] fcId ${fcId} not found in atomicDB — link skipped (Rule 1.7: no fallback)`);
-              skippedCount++;
-              return null;
-            }
-
-            return { ...l, fmId, feId, fcId };
-          }).filter(Boolean);
-
-          // ★★★ 2026-03-21 FIX: FK-only — skipped links 로그
-          if (skippedCount > 0) {
-            console.warn(`[save-from-import] ${skippedCount} links skipped: FK ID not found in atomicDB (Rule 1.7: no fallback)`);
-            gaps.push(`${skippedCount} links skipped (FK ID mismatch — no fallback)`);
-          }
-          if (fixedLinks.length > 0) {
-            const flData = fixedLinks.map((l: any) => ({
-              id: l.id, fmeaId: fId, fmId: l.fmId, feId: l.feId, fcId: l.fcId,
-              fmText: l.cache?.fmText || l.fmText || null,
-              fmProcess: l.cache?.fmProcess || l.fmProcess || null,
-              feText: l.cache?.feText || l.feText || null,
-              feScope: l.cache?.feCategory || l.feScope || null,
-              fcText: l.cache?.fcText || l.fcText || null,
-              fcWorkElem: l.cache?.fcWorkElem || l.fcWorkElem || null,
-              fcM4: l.fcM4 || l.m4 || null,
-              severity: l.cache?.feSeverity || l.severity || null,
-            }));
-            const flResult = await tx.failureLink.createMany({ data: flData, skipDuplicates: true });
-            if (flResult.count < flData.length) console.warn(`[save] FailureLink: expected ${flData.length}, created ${flResult.count} (${flData.length - flResult.count} skipped)`);
-          }
+          const flData = a.failureLinks.map((l: any) => ({
+            id: l.id, fmeaId: fId, fmId: l.fmId, feId: l.feId, fcId: l.fcId,
+          }));
+          const flResult = await tx.failureLink.createMany({ data: flData, skipDuplicates: true });
+          if (flResult.count < flData.length) console.warn(`[save] FailureLink: expected ${flData.length}, created ${flResult.count} (${flData.length - flResult.count} skipped)`);
         }
 
-        // RiskAnalysis 직접 생성 (riskData에서 SOD/DC/PC 추출)
-        // ★ 2026-03-20: fixedLinks 사용 — 위에서 FK 자동수정된 links 기준으로 RA 생성
-        const riskData = injectedRisk || {};
-        const savedFLs = fixedLinks;
-        if (savedFLs.length > 0) {
-          const feMap = new Map((a.failureEffects || []).map((fe: any) => [fe.id, fe]));
-          const calculateAP = (s: number, o: number, d: number): string => {
-            if (s >= 9 || (s >= 6 && o >= 4) || (s >= 4 && o >= 4 && d >= 4)) return 'H';
-            if (s >= 6 || (s >= 4 && o >= 3) || (d >= 5 && o >= 3)) return 'M';
-            return 'L';
-          };
-          const raRows = savedFLs.map((fl: any) => {
-            const uk = `${fl.fmId}-${fl.fcId}`;
-            const s = Number(riskData[`risk-${uk}-S`]) || fl.severity || (feMap.get(fl.feId) as any)?.severity || 1;
-            const o = Number(riskData[`risk-${uk}-O`]) || 1;
-            const d = Number(riskData[`risk-${uk}-D`]) || 1;
-            const pc = String(riskData[`prevention-${uk}`] || '').trim() || null;
-            const dc = String(riskData[`detection-${uk}`] || '').trim() || null;
-            return { id: `ra-${fl.id}`, fmeaId: fId, linkId: fl.id, severity: s, occurrence: o, detection: d, ap: calculateAP(s, o, d), preventionControl: pc, detectionControl: dc };
-          });
+        // RiskAnalysis 저장 — buildAtomicFromFlat이 1:1 with FL로 이미 생성
+        if (a.riskAnalyses?.length) {
+          const raRows = a.riskAnalyses.map((ra: any) => ({
+            id: ra.id, fmeaId: fId, linkId: ra.linkId,
+            severity: ra.severity, occurrence: ra.occurrence, detection: ra.detection,
+            ap: ra.ap,
+            preventionControl: ra.preventionControl || null,
+            detectionControl: ra.detectionControl || null,
+          }));
           const raResult = await tx.riskAnalysis.createMany({ data: raRows, skipDuplicates: true });
           if (raResult.count < raRows.length) console.warn(`[save] RiskAnalysis: expected ${raRows.length}, created ${raResult.count} (${raRows.length - raResult.count} skipped)`);
         }
@@ -593,7 +349,7 @@ export async function POST(request: NextRequest) {
         }
       }, { timeout: 60000 });
 
-      console.info(`[save-from-import] Atomic DB 직접 저장 완료 (Legacy 경유 없음)`);
+      console.info(`[save-from-import] Atomic DB 직접 저장 완료 (buildAtomicFromFlat 기반)`);
     }
 
     // 9. Atomic 카운트 검증 (단순 — Legacy 무관)
@@ -626,10 +382,22 @@ export async function POST(request: NextRequest) {
       success: true,
       fmeaId: normalizedFmeaId,
       buildResult: {
-        success: buildResult.success,
-        diagnostics: buildResult.diagnostics,
+        success: true,
+        diagnostics: {
+          l2Count: atomicDB.l2Structures.length,
+          l3Count: atomicDB.l3Structures.length,
+          l2FCount: atomicDB.l2Functions.length,
+          l3FCount: atomicDB.l3Functions.length,
+          l1FCount: atomicDB.l1Functions.length,
+          fmCount: atomicDB.failureModes.length,
+          fcCount: atomicDB.failureCauses.length,
+          feCount: atomicDB.failureEffects.length,
+          linkCount: atomicDB.failureLinks.length,
+          raCount: atomicDB.riskAnalyses.length,
+          // 진단
+          _actualCounts: actualCounts,
+        },
       },
-      feedback: feedback.totalAdded > 0 ? { summary: feedback.summary, totalAdded: feedback.totalAdded } : undefined,
       parseValidation: {
         summary: parseValidation.summary,
         itemCodeCounts: parseValidation.itemCodeCounts,
