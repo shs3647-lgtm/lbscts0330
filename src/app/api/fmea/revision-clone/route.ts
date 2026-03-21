@@ -9,7 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
+import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 import { renameFmeaId } from './renameFmeaId';
 import { cloneAtomicData } from './cloneAtomicData';
@@ -283,8 +284,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // ── 3h. 원자성 테이블 복제 + 최적화 승격 ──
-      const cloneResult = await cloneAtomicData(tx, renamedSourceId, newFmeaId);
+      // ── 3h. 원자성 테이블 복제 → 트랜잭션 밖에서 프로젝트 스키마로 실행 ──
+      // (cloneAtomicData는 아래에서 프로젝트 스키마 클라이언트를 사용하여 별도 실행)
 
       // ── 3i. FmeaConfirmedState 생성 (모든 confirmed = false, step 1 시작) ──
       try {
@@ -307,6 +308,29 @@ export async function POST(req: NextRequest) {
         // FmeaConfirmedState 테이블 미존재 시 무시
       }
     });
+
+    // ── 4. 원자성 테이블 복제 (프로젝트 스키마 사용) ──
+    const baseUrl = getBaseDatabaseUrl();
+
+    // Source 프로젝트 스키마 (리네임된 ID 또는 원본 ID 기준)
+    const sourceSchema = getProjectSchemaName(renamedSourceId);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema: sourceSchema });
+    const sourcePrisma = getPrismaForSchema(sourceSchema);
+
+    // Target 프로젝트 스키마 (새 개정 ID 기준)
+    const targetSchema = getProjectSchemaName(newFmeaId);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema: targetSchema });
+    const targetPrisma = getPrismaForSchema(targetSchema);
+
+    if (!sourcePrisma || !targetPrisma) {
+      return NextResponse.json(
+        { success: false, error: '프로젝트 스키마 초기화 실패' },
+        { status: 500 }
+      );
+    }
+
+    // cloneAtomicData: 소스에서 읽고 타겟에 쓰기
+    await cloneAtomicData(sourcePrisma, targetPrisma, renamedSourceId, newFmeaId);
 
     return NextResponse.json({
       success: true,

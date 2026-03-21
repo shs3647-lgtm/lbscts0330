@@ -14,34 +14,45 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) {
       return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
     }
 
     const { id } = await params;
 
-    // ★★★ 1단계: ControlPlan 테이블에서 CP 조회 ★★★
-    let cp = await prisma.controlPlan.findFirst({
+    // ★ cpNo 결정을 위해 먼저 public에서 CpRegistration 조회
+    let resolvedCpNo: string | null = null;
+
+    // ★★★ 1단계: 프로젝트 스키마에서 ControlPlan 조회 ★★★
+    // cpNo 후보: id 자체가 cpNo일 수 있으므로 먼저 시도
+    let projPrisma = await getPrismaForCp(id);
+    let cp = projPrisma ? await projPrisma.controlPlan.findFirst({
       where: { OR: [{ id }, { cpNo: id }] },
-    });
+    }) : null;
+    if (cp) resolvedCpNo = cp.cpNo;
 
     // ★★★ 2단계: ControlPlan이 없으면 CpRegistration에서 조회 (APQP에서 생성한 CP) ★★★
     let cpRegistration = null;
     if (!cp) {
-      cpRegistration = await prisma.cpRegistration.findFirst({
+      cpRegistration = await publicPrisma.cpRegistration.findFirst({
         where: { OR: [{ id }, { cpNo: id }] },
       });
 
       if (cpRegistration) {
+        resolvedCpNo = cpRegistration.cpNo;
 
         // ★★★ 3단계: CpRegistration의 fmeaId로 ControlPlan 추가 검색 ★★★
         // (FMEA→CP 연동 시 다른 cpNo로 ControlPlan이 생성될 수 있음)
         if (cpRegistration.fmeaId) {
-          cp = await prisma.controlPlan.findFirst({
-            where: { fmeaId: cpRegistration.fmeaId },
-          });
+          projPrisma = await getPrismaForCp(cpRegistration.cpNo);
+          if (projPrisma) {
+            cp = await projPrisma.controlPlan.findFirst({
+              where: { fmeaId: cpRegistration.fmeaId },
+            });
+          }
           if (cp) {
+            resolvedCpNo = cp.cpNo;
             // cp를 찾았으므로 아래 items 조회 로직으로 진행 (return하지 않음)
           }
         }
@@ -73,7 +84,13 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'CP를 찾을 수 없습니다' }, { status: 404 });
     }
 
-    const items = await prisma.controlPlanItem.findMany({
+    // ★ 프로젝트 스키마 Prisma로 Atomic DB 조회
+    const cpPrisma = projPrisma || await getPrismaForCp(resolvedCpNo || id);
+    if (!cpPrisma) {
+      return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
+    }
+
+    const items = await cpPrisma.controlPlanItem.findMany({
       where: {
         cpId: cp!.id,
         linkStatus: { not: 'unlinked' },  // ★ unlinked 제외
@@ -82,20 +99,20 @@ export async function GET(
       orderBy: { sortOrder: 'asc' },
     });
 
-    // ★ CpRegistration에서 partNameMode 조회
+    // ★ CpRegistration에서 partNameMode 조회 (public 스키마 — 메타데이터)
     let partNameMode = 'A';
     try {
-      const cpReg = await prisma.cpRegistration.findFirst({
+      const cpReg = await publicPrisma.cpRegistration.findFirst({
         where: { cpNo: cp!.cpNo },
         select: { partNameMode: true },
       });
       if (cpReg?.partNameMode) partNameMode = cpReg.partNameMode;
     } catch { /* ignore */ }
 
-    // ★ CpRegistration에서 status 조회
+    // ★ CpRegistration에서 status 조회 (public 스키마 — 메타데이터)
     let cpStatus = 'draft';
     try {
-      const cpRegStatus = await prisma.cpRegistration.findFirst({
+      const cpRegStatus = await publicPrisma.cpRegistration.findFirst({
         where: { cpNo: cp!.cpNo },
         select: { status: true },
       });
@@ -106,7 +123,7 @@ export async function GET(
     let effectiveLinkedPfdNo = cp!.linkedPfdNo || null;
     if (!effectiveLinkedPfdNo) {
       try {
-        const pfdWithCp = await prisma.pfdRegistration.findFirst({
+        const pfdWithCp = await publicPrisma.pfdRegistration.findFirst({
           where: {
             deletedAt: null,
             OR: [
@@ -151,8 +168,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) {
       return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
     }
 
@@ -163,20 +180,28 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'items 배열이 필요합니다' }, { status: 400 });
     }
 
-    // ★★★ 1단계: ControlPlan 테이블에서 CP 조회 ★★★
-    let cp = await prisma.controlPlan.findFirst({
+    // ★ 프로젝트 스키마 Prisma 클라이언트 획득
+    let cpPrisma = await getPrismaForCp(id);
+
+    // ★★★ 1단계: 프로젝트 스키마에서 ControlPlan 조회 ★★★
+    let cp = cpPrisma ? await cpPrisma.controlPlan.findFirst({
       where: { OR: [{ id }, { cpNo: id }] },
-    });
+    }) : null;
 
     // ★★★ 2단계: ControlPlan이 없으면 CpRegistration에서 조회하고 ControlPlan 자동 생성 ★★★
     if (!cp) {
-      const cpRegistration = await prisma.cpRegistration.findFirst({
+      const cpRegistration = await publicPrisma.cpRegistration.findFirst({
         where: { OR: [{ id }, { cpNo: id }] },
       });
 
       if (cpRegistration) {
-        // CpRegistration 정보로 ControlPlan 레코드 생성
-        cp = await prisma.controlPlan.create({
+        // cpNo 확정 후 프로젝트 스키마 재획득
+        if (!cpPrisma) cpPrisma = await getPrismaForCp(cpRegistration.cpNo);
+        if (!cpPrisma) {
+          return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
+        }
+        // CpRegistration 정보로 ControlPlan 레코드 생성 (프로젝트 스키마)
+        cp = await cpPrisma.controlPlan.create({
           data: {
             cpNo: cpRegistration.cpNo,
             fmeaId: cpRegistration.fmeaId || '',
@@ -196,10 +221,14 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'CP를 찾을 수 없습니다' }, { status: 404 });
     }
 
-    // ★ 트랜잭션으로 deleteMany + create 원자성 보장
+    if (!cpPrisma) {
+      return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
+    }
+
+    // ★ 트랜잭션으로 deleteMany + create 원자성 보장 (프로젝트 스키마)
     const createdItems: any[] = [];
 
-    await prisma.$transaction(async (tx: any) => {
+    await cpPrisma.$transaction(async (tx: any) => {
       // 기존 UPI ID 수집 (고아 방지용)
       const oldItems = await tx.controlPlanItem.findMany({
         where: { cpId: cp.id },
@@ -329,27 +358,34 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) {
       return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
     }
 
     const { id } = await params;
     const item = await request.json();
 
-    // ★★★ 1단계: ControlPlan 테이블에서 CP 조회 ★★★
-    let cp = await prisma.controlPlan.findFirst({
+    // ★ 프로젝트 스키마 Prisma 클라이언트 획득
+    let cpPrisma = await getPrismaForCp(id);
+
+    // ★★★ 1단계: 프로젝트 스키마에서 ControlPlan 조회 ★★★
+    let cp = cpPrisma ? await cpPrisma.controlPlan.findFirst({
       where: { OR: [{ id }, { cpNo: id }] },
-    });
+    }) : null;
 
     // ★★★ 2단계: ControlPlan이 없으면 CpRegistration에서 조회하고 ControlPlan 자동 생성 ★★★
     if (!cp) {
-      const cpRegistration = await prisma.cpRegistration.findFirst({
+      const cpRegistration = await publicPrisma.cpRegistration.findFirst({
         where: { OR: [{ id }, { cpNo: id }] },
       });
 
       if (cpRegistration) {
-        cp = await prisma.controlPlan.create({
+        if (!cpPrisma) cpPrisma = await getPrismaForCp(cpRegistration.cpNo);
+        if (!cpPrisma) {
+          return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
+        }
+        cp = await cpPrisma.controlPlan.create({
           data: {
             cpNo: cpRegistration.cpNo,
             fmeaId: cpRegistration.fmeaId || '',
@@ -369,13 +405,17 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'CP를 찾을 수 없습니다' }, { status: 404 });
     }
 
-    // 마지막 sortOrder 조회
-    const lastItem = await prisma.controlPlanItem.findFirst({
+    if (!cpPrisma) {
+      return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
+    }
+
+    // 마지막 sortOrder 조회 (프로젝트 스키마)
+    const lastItem = await cpPrisma.controlPlanItem.findFirst({
       where: { cpId: cp.id },
       orderBy: { sortOrder: 'desc' },
     });
 
-    const newItem = await prisma.controlPlanItem.create({
+    const newItem = await cpPrisma.controlPlanItem.create({
       data: {
         cpId: cp.id,
         processNo: item.processNo || '',

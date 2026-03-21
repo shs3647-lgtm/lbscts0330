@@ -198,12 +198,20 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
   const a4Items = byCode.get('A4') || [];
 
   // A4 lookup: parentItemId → A3.id (or A4 groups under A3)
+  // parentItemId 없으면 processNo 기반 보완
   const a4ByParent = new Map<string, ImportedFlatData[]>();
+  const a4ByPnoForL2 = new Map<string, ImportedFlatData[]>(); // processNo → A4s (보완용)
   for (const a4 of a4Items) {
     const parentId = a4.parentItemId || '';
-    const list = a4ByParent.get(parentId) || [];
-    list.push(a4);
-    a4ByParent.set(parentId, list);
+    if (parentId) {
+      const list = a4ByParent.get(parentId) || [];
+      list.push(a4);
+      a4ByParent.set(parentId, list);
+    }
+    // processNo 기반 인덱스도 구축
+    const pnoList = a4ByPnoForL2.get(a4.processNo) || [];
+    pnoList.push(a4);
+    a4ByPnoForL2.set(a4.processNo, pnoList);
   }
 
   const l2Functions: L2Function[] = [];
@@ -212,7 +220,11 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
   for (const a3 of a3Items) {
     const pno = parseInt(a3.processNo, 10);
     const l2StructId = isNaN(pno) ? '' : genA1('PF', pno);
-    const relatedA4s = a4ByParent.get(a3.id) || [];
+    // parentItemId 기반 → processNo 기반 fallback
+    let relatedA4s = a4ByParent.get(a3.id) || [];
+    if (relatedA4s.length === 0) {
+      relatedA4s = a4ByPnoForL2.get(a3.processNo) || [];
+    }
 
     if (relatedA4s.length === 0) {
       // A3 without A4 — single L2Function with empty productChar
@@ -357,11 +369,12 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const scope = c4.processNo; // YP, SP, USER
     const category = scopeToCategory(scope);
 
-    // l1FuncId: C4.parentItemId → C3.id (= L1Function.id)
-    // C4가 parentItemId 없이 올 수 있음 (import-builder에서 C4는 parentItemId 미설정)
-    // → 같은 scope의 첫 번째 L1Function을 FK로 사용
+    // l1FuncId: C4.parentItemId → L1Function.id
+    // parentItemId가 C2 레벨(PF-L1-YP-001)이고 L1Function이 C3 레벨(PF-L1-YP-001-001)인 경우
+    // → scope 기반 fallback 필요
     let l1FuncId = c4.parentItemId || '';
-    if (!l1FuncId) {
+    // parentItemId가 있어도 L1Function에 없으면 scope 기반 fallback
+    if (!l1FuncId || !l1FuncById.has(l1FuncId)) {
       const scopeFunc = l1Functions.find(f => f.category === category);
       l1FuncId = scopeFunc?.id || '';
       if (!l1FuncId) {
@@ -391,6 +404,20 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
   const failureModes: FailureMode[] = [];
   const seenFM = new Set<string>();
 
+  // A4 lookup by processNo (A5.parentItemId 없을 때 보완용)
+  const a4ByPno = new Map<string, ImportedFlatData>();
+  for (const a4 of a4Items) {
+    if (!a4ByPno.has(a4.processNo)) a4ByPno.set(a4.processNo, a4);
+  }
+  // L2Function lookup by processNo (A3/A4 기반)
+  const l2FuncByPno = new Map<string, L2Function>();
+  for (const l2f of l2Functions) {
+    const l2s = l2Structures.find(s => s.id === l2f.l2StructId);
+    if (l2s && !l2FuncByPno.has(l2s.no || '')) {
+      l2FuncByPno.set(l2s.no || '', l2f);
+    }
+  }
+
   for (const a5 of a5Items) {
     if (seenFM.has(a5.id)) continue;
     seenFM.add(a5.id);
@@ -399,9 +426,21 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const l2StructId = isNaN(pno) ? '' : genA1('PF', pno);
 
     // A5.parentItemId → A4.id (L2Function.id = productCharId)
-    const l2FuncId = a5.parentItemId || '';
+    // parentItemId 없으면 동일 processNo의 A4/L2Function에서 보완
+    let l2FuncId = a5.parentItemId || '';
     if (!l2FuncId) {
-      console.warn(`[buildAtomicFromFlat] A5 "${a5.value}" (pno=${a5.processNo}) skipped: no parentItemId (missing A4 FK)`);
+      // 동일 processNo의 A4에서 lookup
+      const a4Match = a4ByPno.get(a5.processNo);
+      if (a4Match) {
+        l2FuncId = a4Match.id;
+      } else {
+        // L2Function에서 processNo 기반 lookup
+        const l2fMatch = l2FuncByPno.get(a5.processNo);
+        if (l2fMatch) l2FuncId = l2fMatch.id;
+      }
+    }
+    if (!l2FuncId) {
+      console.warn(`[buildAtomicFromFlat] A5 "${a5.value}" (pno=${a5.processNo}) skipped: no parentItemId and no A4 for processNo`);
       continue;
     }
 
@@ -642,6 +681,9 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     l1Functions,
     l2Functions,
     l3Functions,
+
+    // 제품특성
+    processProductChars: [],
 
     // 고장분석
     failureEffects,

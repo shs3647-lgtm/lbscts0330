@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
 
@@ -48,8 +49,8 @@ interface ImportWorksheetRequest {
 
 export async function POST(req: NextRequest) {
     // ★★★ 2026-02-05: API 응답 형식 통일 (ok → success) ★★★
-    const prisma = getPrisma();
-    if (!prisma) {
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) {
         return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
     }
 
@@ -66,8 +67,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: '데이터가 비어있습니다' }, { status: 400 });
         }
 
-        // CP 등록정보 확인
-        const registration = await prisma.cpRegistration.findUnique({
+        // CP 등록정보 확인 (public 스키마 — 메타데이터)
+        const registration = await publicPrisma.cpRegistration.findUnique({
             where: { cpNo: cpNo.trim() },
         });
 
@@ -76,6 +77,12 @@ export async function POST(req: NextRequest) {
                 success: false,
                 error: `CP 등록정보가 없습니다: ${cpNo}`
             }, { status: 404 });
+        }
+
+        // ★ 프로젝트 스키마 Prisma 클라이언트 획득
+        const cpPrisma = await getPrismaForCp(cpNo.trim());
+        if (!cpPrisma) {
+            return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
         }
 
         // 병합 정보를 rowIndex 기반 맵으로 변환
@@ -97,7 +104,7 @@ export async function POST(req: NextRequest) {
         });
 
 
-        await prisma.$transaction(async (tx: any) => {
+        await cpPrisma.$transaction(async (tx: any) => {
             // ── 1. 기존 원자성 데이터 삭제 ──
             await tx.cpAtomicReactionPlan.deleteMany({ where: { cpNo } });
             await tx.cpAtomicControlMethod.deleteMany({ where: { cpNo } });
@@ -254,9 +261,9 @@ export async function POST(req: NextRequest) {
 
         });
 
-        // 저장된 데이터 확인
-        const savedProcesses = await prisma.cpAtomicProcess.count({ where: { cpNo } });
-        const savedItems = await prisma.cpAtomicControlItem.count({ where: { cpNo } });
+        // 저장된 데이터 확인 (프로젝트 스키마)
+        const savedProcesses = await cpPrisma.cpAtomicProcess.count({ where: { cpNo } });
+        const savedItems = await cpPrisma.cpAtomicControlItem.count({ where: { cpNo } });
 
         return NextResponse.json({
             success: true,

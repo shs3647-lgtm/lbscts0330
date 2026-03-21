@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 
 // GET: CP 마스터 데이터 조회
 export async function GET(
@@ -12,17 +12,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
-      return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
-    }
-
     const { id } = await params;
     const cpNo = id.trim();
 
+    // ★ 프로젝트 스키마 Prisma 클라이언트 획득
+    const cpPrisma = await getPrismaForCp(cpNo);
+    if (!cpPrisma) {
+      return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
+    }
 
-    // CpProcess, CpDetector, CpControlItem, CpControlMethod, CpReactionPlan 조회
-    const processes = await prisma.cpProcess.findMany({
+    // CpProcess, CpDetector, CpControlItem, CpControlMethod, CpReactionPlan 조회 (프로젝트 스키마)
+    const processes = await cpPrisma.cpProcess.findMany({
       where: { cpNo },
       orderBy: { sortOrder: 'asc' },
     });
@@ -31,12 +31,12 @@ export async function GET(
       return NextResponse.json({ success: true, flatData: [] });
     }
 
-    // ★ 4개 쿼리 병렬 실행 (순차 → Promise.all 최적화)
+    // ★ 4개 쿼리 병렬 실행 (프로젝트 스키마)
     const [detectors, controlItems, controlMethods, reactionPlans] = await Promise.all([
-      prisma.cpDetector.findMany({ where: { cpNo } }),
-      prisma.cpControlItem.findMany({ where: { cpNo } }),
-      prisma.cpControlMethod.findMany({ where: { cpNo } }),
-      prisma.cpReactionPlan.findMany({ where: { cpNo } }),
+      cpPrisma.cpDetector.findMany({ where: { cpNo } }),
+      cpPrisma.cpControlItem.findMany({ where: { cpNo } }),
+      cpPrisma.cpControlMethod.findMany({ where: { cpNo } }),
+      cpPrisma.cpReactionPlan.findMany({ where: { cpNo } }),
     ]);
 
     // flatData 형식으로 변환 (Import 페이지에서 사용하는 형식)

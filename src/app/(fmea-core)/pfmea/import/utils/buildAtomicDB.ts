@@ -644,6 +644,7 @@ export function buildAtomicDB(
     fmeaId, savedAt: new Date().toISOString(),
     l1Structure: null, l2Structures: [], l3Structures: [],
     l1Functions: [], l2Functions: [], l3Functions: [],
+    processProductChars: [],
     failureEffects: [], failureModes: [], failureCauses: [],
     failureLinks: [], failureAnalyses: [], riskAnalyses: [], optimizations: [],
     confirmed: {
@@ -715,6 +716,7 @@ export function buildAtomicDB(
     l1Structure: l1, l2Structures, l3Structures,
     l1Functions, l2Functions: allL2Funcs, l3Functions: allL3Funcs,
     failureEffects, failureModes: allFMs, failureCauses: allFCs,
+    processProductChars: [], // 제품특성 — 호출측에서 별도 처리
     failureLinks: [],       // chains 기반 → 호출측에서 별도 처리
     failureAnalyses: [],    // 워크시트에서 고장연결 후 생성
     riskAnalyses: [], optimizations: [],

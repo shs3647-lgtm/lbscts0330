@@ -89,6 +89,7 @@ export async function loadAtomicDB(
       l1Functions: Array.isArray(data.l1Functions) ? data.l1Functions : [],
       l2Functions: Array.isArray(data.l2Functions) ? data.l2Functions : [],
       l3Functions: Array.isArray(data.l3Functions) ? data.l3Functions : [],
+      processProductChars: Array.isArray(data.processProductChars) ? data.processProductChars : [],
       failureEffects: Array.isArray(data.failureEffects) ? data.failureEffects : [],
       failureModes: Array.isArray(data.failureModes) ? data.failureModes : [],
       failureCauses: Array.isArray(data.failureCauses) ? data.failureCauses : [],

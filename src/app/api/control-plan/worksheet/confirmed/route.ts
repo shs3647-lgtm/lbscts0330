@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 import type { CpConfirmedState } from '@/app/(fmea-core)/control-plan/worksheet/schema';
 
 export const runtime = 'nodejs';
@@ -27,14 +27,15 @@ function jsonOk(data: unknown) {
 
 // ★★★ 2026-02-05: API 응답 형식 통일 (ok → success) ★★★
 export async function GET(req: NextRequest) {
-  const prisma = getPrisma();
-  if (!prisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
-
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries()) as SearchParams;
   const cpNo = sp.cpNo;
   if (!cpNo) {
     return NextResponse.json({ error: 'cpNo is required' }, { status: 400 });
   }
+
+  // ★ Rule 19: 프로젝트 스키마 사용 — cpConfirmedState는 프로젝트 전용 스키마에서 조회
+  const prisma = await getPrismaForCp(cpNo);
+  if (!prisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
 
   try {
     const confirmedState = await prisma.cpConfirmedState.findUnique({
@@ -78,13 +79,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const prisma = getPrisma();
-  if (!prisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
-
   const body = (await req.json()) as SaveBody;
   if (!body.cpNo || !body.confirmedState) {
     return NextResponse.json({ error: 'cpNo and confirmedState are required' }, { status: 400 });
   }
+
+  // ★ Rule 19: 프로젝트 스키마 사용 — cpConfirmedState는 프로젝트 전용 스키마에 저장
+  const prisma = await getPrismaForCp(body.cpNo);
+  if (!prisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
 
   try {
     const { cpNo, confirmedState } = body;

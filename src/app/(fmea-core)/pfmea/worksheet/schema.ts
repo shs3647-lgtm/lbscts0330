@@ -127,6 +127,21 @@ export interface L3Function extends AtomicRecord {
   specialChar?: string;   // 특별특성
 }
 
+// ============ 제품특성 (A4) - ProcessProductChar ============
+
+/**
+ * 제품특성 (ProcessProductChar - A4)
+ * - 상위: L2Structure (메인공정) - FK: l2StructId
+ * - 하위: FailureMode (productCharId FK)
+ */
+export interface ProcessProductChar extends AtomicRecord {
+  fmeaId: string;         // FK: FMEA 프로젝트 ID
+  l2StructId: string;     // FK: L2Structure.id (상위 구조분석 - 메인공정)
+  name: string;           // 제품특성명 (A4 값)
+  specialChar?: string;   // 특별특성 기호 (◇, ◆, △, ○ 등)
+  orderIndex?: number;    // 같은 공정 내 순서
+}
+
 // ============ 고장분석 (4단계) - Failure Tables ============
 
 /**
@@ -349,6 +364,9 @@ export interface FMEAWorksheetDB {
   l2Functions: L2Function[];
   l3Functions: L3Function[];
   
+  // 제품특성 (A4) - 공정별 공유 엔티티
+  processProductChars: ProcessProductChar[];
+
   // 고장분석 (4단계) - 원자 테이블
   failureEffects: FailureEffect[];
   failureModes: FailureMode[];
@@ -394,6 +412,7 @@ export const createEmptyDB = (fmeaId: string): FMEAWorksheetDB => ({
   l1Functions: [],
   l2Functions: [],
   l3Functions: [],
+  processProductChars: [],
   failureEffects: [],
   failureModes: [],
   failureCauses: [],

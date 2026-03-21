@@ -67,13 +67,15 @@ function remapOptional(idMap: IdRemapMap, oldId: string | null | undefined): str
 /**
  * 원자성 테이블 전체 복제 + 최적화 승격
  *
- * @param tx - Prisma 트랜잭션 클라이언트
+ * @param sourceClient - 소스 프로젝트 스키마 Prisma 클라이언트 (읽기)
+ * @param targetClient - 타겟 프로젝트 스키마 Prisma 클라이언트 (쓰기)
  * @param sourceFmeaId - 원본 FMEA ID (리네임 된 후의 ID, e.g. "pfm-xxx-r00")
  * @param newFmeaId - 새 FMEA ID (e.g. "pfm-xxx-r01")
  * @returns 클론 결과 (ID맵, 승격맵, 통계)
  */
 export async function cloneAtomicData(
-  tx: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  sourceClient: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  targetClient: any, // eslint-disable-line @typescript-eslint/no-explicit-any
   sourceFmeaId: string,
   newFmeaId: string
 ): Promise<CloneResult> {
@@ -86,26 +88,26 @@ export async function cloneAtomicData(
     failureLinks: 0, failureAnalyses: 0, riskAnalyses: 0, promoted: 0,
   };
 
-  // ── 1. 원본 데이터 로드 ──
+  // ── 1. 원본 데이터 로드 (소스 프로젝트 스키마에서 읽기) ──
   const [
     srcL1Structs, srcL2Structs, srcL3Structs,
     srcL1Funcs, srcL2Funcs, srcL3Funcs,
     srcFEs, srcFMs, srcFCs,
     srcLinks, srcFAs, srcRisks, srcOpts,
   ] = await Promise.all([
-    tx.l1Structure.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.l2Structure.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.l3Structure.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.l1Function.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.l2Function.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.l3Function.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.failureEffect.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.failureMode.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.failureCause.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.failureLink.findMany({ where: { fmeaId: sourceFmeaId, deletedAt: null } }),
-    tx.failureAnalysis.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.riskAnalysis.findMany({ where: { fmeaId: sourceFmeaId } }),
-    tx.optimization.findMany({ where: { fmeaId: sourceFmeaId }, orderBy: { updatedAt: 'desc' } }),
+    sourceClient.l1Structure.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.l2Structure.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.l3Structure.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.l1Function.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.l2Function.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.l3Function.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.failureEffect.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.failureMode.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.failureCause.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.failureLink.findMany({ where: { fmeaId: sourceFmeaId, deletedAt: null } }),
+    sourceClient.failureAnalysis.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.riskAnalysis.findMany({ where: { fmeaId: sourceFmeaId } }),
+    sourceClient.optimization.findMany({ where: { fmeaId: sourceFmeaId }, orderBy: { updatedAt: 'desc' } }),
   ]);
 
   // ── 2. ID 맵 생성 (모든 엔티티에 새 UUID) ──
@@ -140,7 +142,7 @@ export async function cloneAtomicData(
 
   // 4a. L1Structure
   if (srcL1Structs.length > 0) {
-    await tx.l1Structure.createMany({
+    await targetClient.l1Structure.createMany({
       data: srcL1Structs.map((s: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, s.id),
         fmeaId: newFmeaId,
@@ -160,7 +162,7 @@ export async function cloneAtomicData(
 
   // 4b. L2Structure
   if (srcL2Structs.length > 0) {
-    await tx.l2Structure.createMany({
+    await targetClient.l2Structure.createMany({
       data: srcL2Structs.map((s: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, s.id),
         fmeaId: newFmeaId,
@@ -182,7 +184,7 @@ export async function cloneAtomicData(
 
   // 4c. L3Structure
   if (srcL3Structs.length > 0) {
-    await tx.l3Structure.createMany({
+    await targetClient.l3Structure.createMany({
       data: srcL3Structs.map((s: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, s.id),
         fmeaId: newFmeaId,
@@ -205,7 +207,7 @@ export async function cloneAtomicData(
 
   // 4d. L1Function
   if (srcL1Funcs.length > 0) {
-    await tx.l1Function.createMany({
+    await targetClient.l1Function.createMany({
       data: srcL1Funcs.map((f: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, f.id),
         fmeaId: newFmeaId,
@@ -225,7 +227,7 @@ export async function cloneAtomicData(
 
   // 4e. L2Function
   if (srcL2Funcs.length > 0) {
-    await tx.l2Function.createMany({
+    await targetClient.l2Function.createMany({
       data: srcL2Funcs.map((f: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, f.id),
         fmeaId: newFmeaId,
@@ -245,7 +247,7 @@ export async function cloneAtomicData(
 
   // 4f. L3Function
   if (srcL3Funcs.length > 0) {
-    await tx.l3Function.createMany({
+    await targetClient.l3Function.createMany({
       data: srcL3Funcs.map((f: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, f.id),
         fmeaId: newFmeaId,
@@ -266,7 +268,7 @@ export async function cloneAtomicData(
 
   // 4g. FailureEffect
   if (srcFEs.length > 0) {
-    await tx.failureEffect.createMany({
+    await targetClient.failureEffect.createMany({
       data: srcFEs.map((fe: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, fe.id),
         fmeaId: newFmeaId,
@@ -286,7 +288,7 @@ export async function cloneAtomicData(
 
   // 4h. FailureMode
   if (srcFMs.length > 0) {
-    await tx.failureMode.createMany({
+    await targetClient.failureMode.createMany({
       data: srcFMs.map((fm: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, fm.id),
         fmeaId: newFmeaId,
@@ -307,7 +309,7 @@ export async function cloneAtomicData(
 
   // 4i. FailureCause
   if (srcFCs.length > 0) {
-    await tx.failureCause.createMany({
+    await targetClient.failureCause.createMany({
       data: srcFCs.map((fc: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, fc.id),
         fmeaId: newFmeaId,
@@ -329,7 +331,7 @@ export async function cloneAtomicData(
 
   // 4j. FailureLink (soft-deleted 제외됨 — 위에서 deletedAt: null 필터)
   if (srcLinks.length > 0) {
-    await tx.failureLink.createMany({
+    await targetClient.failureLink.createMany({
       data: srcLinks.map((link: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, link.id),
         fmeaId: newFmeaId,
@@ -362,7 +364,7 @@ export async function cloneAtomicData(
 
   // 4k. FailureAnalysis
   if (srcFAs.length > 0) {
-    await tx.failureAnalysis.createMany({
+    await targetClient.failureAnalysis.createMany({
       data: srcFAs.map((fa: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: remap(idMap, fa.id),
         fmeaId: newFmeaId,
@@ -426,7 +428,7 @@ export async function cloneAtomicData(
       const newRiskId = remap(idMap, risk.id);
       const newLinkId = remap(idMap, risk.linkId);
 
-      await tx.riskAnalysis.create({
+      await targetClient.riskAnalysis.create({
         data: {
           id: newRiskId,
           fmeaId: newFmeaId,

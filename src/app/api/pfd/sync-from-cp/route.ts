@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForPfd } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 import { recordSyncLog } from '@/lib/sync-helpers';
 
@@ -76,9 +77,18 @@ export async function POST(request: NextRequest) {
 
         const pfdId = existingPfd.id;
 
-        // ★ 트랜잭션으로 soft delete + create 원자성 보장
+        // ★ pfdItem = Atomic DB → 프로젝트 스키마 사용
+        const projPrisma = await getPrismaForPfd(targetPfdNo);
+        if (!projPrisma) {
+            return NextResponse.json(
+                { success: false, error: 'Project schema connection failed for PFD items' },
+                { status: 500 }
+            );
+        }
+
+        // ★ 트랜잭션으로 soft delete + create 원자성 보장 — 프로젝트 스키마
         const pfdItems: any[] = [];
-        await prisma.$transaction(async (tx: any) => {
+        await projPrisma.$transaction(async (tx: any) => {
             // ★★★ 기존 PfdItem 삭제 (soft delete) ★★★
             await tx.pfdItem.updateMany({
                 where: { pfdId },

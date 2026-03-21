@@ -4,7 +4,9 @@
  * - 기존 데이터가 있으면 덮어쓰기 또는 새 ID 생성
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
+import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
+import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -35,28 +37,38 @@ interface ImportPackage {
 }
 
 export async function POST(req: NextRequest) {
-  const prisma = getPrisma();
-  if (!prisma) {
-    return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
-  }
-  
   try {
     const body = await req.json();
     const { packageData, mode = 'overwrite', newFmeaId } = body;
-    
+
     // packageData는 ImportPackage 형식의 JSON
     const pkg: ImportPackage = packageData;
-    
+
     if (!pkg || !pkg.metadata || !pkg.data) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '유효하지 않은 패키지 형식입니다' 
+      return NextResponse.json({
+        success: false,
+        error: '유효하지 않은 패키지 형식입니다'
       }, { status: 400 });
     }
-    
+
     const targetFmeaId = mode === 'new' && newFmeaId ? newFmeaId : pkg.metadata.fmeaId;
-    
-    
+
+    if (!isValidFmeaId(targetFmeaId)) {
+      return NextResponse.json({
+        success: false,
+        error: '유효하지 않은 fmeaId입니다'
+      }, { status: 400 });
+    }
+
+    // 프로젝트 스키마 준비
+    const baseUrl = getBaseDatabaseUrl();
+    const schema = getProjectSchemaName(targetFmeaId);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+    const prisma = getPrismaForSchema(schema);
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'DB 연결 실패 (프로젝트 스키마)' }, { status: 500 });
+    }
+
     // 트랜잭션으로 모든 데이터 저장
     const result = await prisma.$transaction(async (tx) => {
       // 기존 데이터 삭제 (overwrite 모드)
@@ -340,11 +352,11 @@ export async function POST(req: NextRequest) {
       metadata: pkg.metadata
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('패키지 가져오기 오류:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message 
+    return NextResponse.json({
+      success: false,
+      error: safeErrorMessage(error)
     }, { status: 500 });
   }
 }

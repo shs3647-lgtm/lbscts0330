@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 
 /**
  * PUT /api/control-plan/step
@@ -25,13 +25,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Invalid step (1-5)' }, { status: 400 });
     }
 
-    const prisma = getPrisma();
-    if (!prisma) {
+    // ★ 프로젝트 스키마 Prisma 클라이언트 획득
+    const cpPrisma = await getPrismaForCp(cpNo);
+    if (!cpPrisma) {
       return NextResponse.json({ success: false, message: 'DB not configured' }, { status: 500 });
     }
 
-    // ControlPlan 테이블 업데이트
-    const updated = await prisma.controlPlan.update({
+    // ControlPlan 테이블 업데이트 (프로젝트 스키마)
+    const updated = await cpPrisma.controlPlan.update({
       where: { cpNo },
       data: { step },
     });

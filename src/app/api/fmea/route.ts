@@ -1511,6 +1511,7 @@ export async function GET(request: NextRequest) {
       failureLinks,
       riskAnalyses,
       optimizations,
+      processProductChars,
       confirmedState,
     ] = await Promise.all([
       prisma.l1Structure.findFirst({ where: { fmeaId } }),
@@ -1528,6 +1529,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.riskAnalysis.findMany({ where: { fmeaId } }),
       prisma.optimization.findMany({ where: { fmeaId } }),
+      prisma.processProductChar.findMany({ where: { fmeaId }, orderBy: { orderIndex: 'asc' } }),
       // 확정 상태 로드 (테이블 없으면 null 반환)
       prisma.fmeaConfirmedState.findUnique({ where: { fmeaId } }).catch(() => null),
     ]);
@@ -1600,6 +1602,16 @@ export async function GET(request: NextRequest) {
         specialChar: f.specialChar || undefined,
         createdAt: f.createdAt.toISOString(),
         updatedAt: f.updatedAt.toISOString(),
+      })),
+      processProductChars: processProductChars.map((pc: any) => ({
+        id: pc.id,
+        fmeaId: pc.fmeaId,
+        l2StructId: pc.l2StructId,
+        name: pc.name,
+        specialChar: pc.specialChar || undefined,
+        orderIndex: pc.orderIndex ?? 0,
+        createdAt: pc.createdAt.toISOString(),
+        updatedAt: pc.updatedAt.toISOString(),
       })),
       failureEffects: failureEffects.map((fe: any) => ({
         id: fe.id,

@@ -32,8 +32,8 @@ export async function GET(
     // ★ 잘못된 PFD ID 감지 → DB에서 fmeaId 기반으로 올바른 PFD 검색
     let correctedPfdNo: string | null = null;
 
-    // PFD 조회 (ID 또는 pfdNo로)
-    let pfd = await prisma.pfdRegistration.findFirst({
+    // PFD 등록정보 조회 (public 스키마 — 메타데이터)
+    let pfdReg = await prisma.pfdRegistration.findFirst({
       where: {
         OR: [
           { id },
@@ -41,65 +41,71 @@ export async function GET(
         ],
         deletedAt: null,
       },
-      include: {
-        items: {
-          where: { isDeleted: false },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
     });
 
-    // 잘못된 PFD ID로 레코드를 찾았지만 아이템이 없는 경우 → fmeaId로 올바른 PFD 검색
-    if (pfd && !isValidPfdFormat(pfd.pfdNo) && pfd.fmeaId) {
-      correctedPfdNo = derivePfdNoFromFmeaId(pfd.fmeaId);
+    // 잘못된 PFD ID로 레코드를 찾았지만 → fmeaId로 올바른 PFD 검색
+    if (pfdReg && !isValidPfdFormat(pfdReg.pfdNo) && pfdReg.fmeaId) {
+      correctedPfdNo = derivePfdNoFromFmeaId(pfdReg.fmeaId);
 
       // 교정된 ID로 다른 PFD가 존재하는지 확인
-      if (correctedPfdNo !== pfd.pfdNo) {
+      if (correctedPfdNo !== pfdReg.pfdNo) {
         const correctPfd = await prisma.pfdRegistration.findFirst({
           where: { pfdNo: correctedPfdNo, deletedAt: null },
-          include: {
-            items: {
-              where: { isDeleted: false },
-              orderBy: { sortOrder: 'asc' },
-            },
-          },
         });
-        if (correctPfd && correctPfd.items.length > 0) {
-          pfd = correctPfd; // 올바른 PFD로 교체
+        if (correctPfd) {
+          // 프로젝트 스키마에서 아이템 확인
+          const checkPrisma = await getPrismaForPfd(correctPfd.pfdNo);
+          if (checkPrisma) {
+            const itemCount = await checkPrisma.pfdItem.count({
+              where: { pfdId: correctPfd.id, isDeleted: false },
+            });
+            if (itemCount > 0) {
+              pfdReg = correctPfd; // 올바른 PFD로 교체
+            }
+          }
         }
       }
     }
 
-    if (!pfd) {
+    if (!pfdReg) {
       return NextResponse.json(
         { success: false, error: 'PFD를 찾을 수 없습니다' },
         { status: 404 }
       );
     }
 
-    // 연결된 문서 정보 조회
+    // ★ pfdItem = Atomic DB → 프로젝트 스키마에서 조회
+    const projPrisma = await getPrismaForPfd(pfdReg.pfdNo);
+    const pfdItems = projPrisma
+      ? await projPrisma.pfdItem.findMany({
+          where: { pfdId: pfdReg.id, isDeleted: false },
+          orderBy: { sortOrder: 'asc' },
+        })
+      : [];
+
+    // 연결된 문서 정보 조회 (public 스키마)
     const links = await prisma.documentLink.findMany({
       where: {
         OR: [
-          { sourceType: 'pfd', sourceId: pfd.id },
-          { targetType: 'pfd', targetId: pfd.id },
+          { sourceType: 'pfd', sourceId: pfdReg.id },
+          { targetType: 'pfd', targetId: pfdReg.id },
         ],
       },
     });
 
     // ★ processDesc 자동보충: FMEA 연결된 PFD의 빈 공정설명을 FMEA 함수명으로 채움
-    const enrichedItems = await enrichProcessDesc(pfd.items, pfd.fmeaId, prisma);
+    const enrichedItems = await enrichProcessDesc(pfdItems, pfdReg.fmeaId, projPrisma || prisma);
 
     // 요청 ID와 실제 pfdNo가 다르면 교정 정보 포함
-    const needsRedirect = pfd.pfdNo !== id && id !== pfd.id;
+    const needsRedirect = pfdReg.pfdNo !== id && id !== pfdReg.id;
 
     return NextResponse.json({
       success: true,
       data: {
-        ...pfd,
+        ...pfdReg,
         items: enrichedItems,
         links,
-        ...(needsRedirect ? { correctedPfdNo: pfd.pfdNo } : {}),
+        ...(needsRedirect ? { correctedPfdNo: pfdReg.pfdNo } : {}),
       },
     });
 
@@ -132,7 +138,7 @@ export async function PUT(
       );
     }
 
-    // 기존 PFD 확인 (활성 레코드만)
+    // 기존 PFD 확인 (활성 레코드만, public 스키마)
     const existing = await prisma.pfdRegistration.findFirst({
       where: {
         OR: [
@@ -150,7 +156,7 @@ export async function PUT(
       );
     }
 
-    // PFD 업데이트 (허용 필드만 추출 — mass assignment 방지)
+    // PFD 등록정보 업데이트 (public 스키마 — 허용 필드만 추출)
     const { items } = body;
     const PFD_ALLOWED_FIELDS = ['partName', 'partNo', 'processDescription', 'processType', 'status', 'subject', 'customer', 'customerPartNo', 'modelYear', 'engineeringLevel', 'revision', 'issueDate', 'preparedBy', 'approvedBy'];
     const pfdData = pickFields(body, PFD_ALLOWED_FIELDS);
@@ -163,10 +169,18 @@ export async function PUT(
       },
     });
 
-    // 항목 업데이트 (있는 경우)
+    // 항목 업데이트 (있는 경우) — pfdItem = Atomic DB → 프로젝트 스키마
     if (items && Array.isArray(items)) {
+      const projPrisma = await getPrismaForPfd(existing.pfdNo);
+      if (!projPrisma) {
+        return NextResponse.json(
+          { success: false, error: 'Project schema connection failed for pfdItem' },
+          { status: 500 }
+        );
+      }
+
       // 기존 항목 soft delete
-      await prisma.pfdItem.updateMany({
+      await projPrisma.pfdItem.updateMany({
         where: { pfdId: existing.id },
         data: { isDeleted: true },
       });
@@ -175,7 +189,7 @@ export async function PUT(
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.id) {
-          await prisma.pfdItem.update({
+          await projPrisma.pfdItem.update({
             where: { id: item.id },
             data: {
               ...item,
@@ -185,7 +199,7 @@ export async function PUT(
             },
           });
         } else {
-          await prisma.pfdItem.create({
+          await projPrisma.pfdItem.create({
             data: {
               ...item,
               pfdId: existing.id,
@@ -274,7 +288,7 @@ export async function DELETE(
 async function enrichProcessDesc(
   items: any[],
   fmeaId: string | null | undefined,
-  publicPrisma: any,
+  pfdProjPrisma: any,
 ): Promise<any[]> {
   if (!items || items.length === 0) return items;
 
@@ -343,9 +357,10 @@ async function enrichProcessDesc(
 
     if (updateIds.length > 0) {
       try {
+        // pfdItem = Atomic DB → 프로젝트 스키마 클라이언트 사용
         await Promise.all(
           updateIds.map((u) =>
-            publicPrisma.pfdItem.update({
+            pfdProjPrisma.pfdItem.update({
               where: { id: u.id },
               data: { processDesc: u.processDesc },
             }),

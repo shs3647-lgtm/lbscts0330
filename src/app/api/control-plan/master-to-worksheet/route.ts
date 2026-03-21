@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
 
@@ -23,9 +24,9 @@ interface MasterToWorksheetRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const prisma = getPrisma();
+  const publicPrisma = getPrisma();
   // ★★★ 2026-02-05: API 응답 형식 통일 (ok → success) ★★★
-  if (!prisma) {
+  if (!publicPrisma) {
     return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
   }
 
@@ -53,8 +54,8 @@ export async function POST(req: NextRequest) {
     // cpNo 정규화 (대소문자 통일)
     let normalizedCpNo = cpNo.trim();
 
-    // CP 등록정보 확인 (대소문자 구분 없이 검색)
-    let registration = await prisma.cpRegistration.findUnique({
+    // CP 등록정보 확인 (대소문자 구분 없이 검색) — public 스키마
+    let registration = await publicPrisma.cpRegistration.findUnique({
       where: { cpNo: normalizedCpNo },
     });
 
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
       const lowerCpNo = normalizedCpNo.toLowerCase();
       
       // PostgreSQL은 기본적으로 대소문자 구분하므로 직접 비교
-      registration = await prisma.cpRegistration.findFirst({
+      registration = await publicPrisma.cpRegistration.findFirst({
         where: {
           OR: [
             { cpNo: upperCpNo },
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
     if (!registration) {
       console.error('❌ [CP Master→Worksheet] CP 등록정보 없음:', normalizedCpNo);
       // 모든 CP 목록 확인 (디버깅용)
-      const allCps = await prisma.cpRegistration.findMany({
+      const allCps = await publicPrisma.cpRegistration.findMany({
         take: 10,
         select: { cpNo: true, subject: true },
       });
@@ -99,6 +100,12 @@ export async function POST(req: NextRequest) {
     // 실제 DB의 cpNo 사용 (대소문자 일치)
     const actualCpNo = registration.cpNo;
 
+    // ★ 프로젝트 스키마 Prisma 클라이언트 획득
+    const cpPrisma = await getPrismaForCp(actualCpNo);
+    if (!cpPrisma) {
+      return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
+    }
+
     // ★ 중요: 카운터 변수를 트랜잭션 밖에서 선언 (스코프 문제 해결)
     let processCount = 0;
     let detectorCount = 0;
@@ -106,7 +113,7 @@ export async function POST(req: NextRequest) {
     let controlMethodCount = 0;
     let reactionPlanCount = 0;
 
-    await prisma.$transaction(async (tx: any) => {
+    await cpPrisma.$transaction(async (tx: any) => {
       // 기존 워크시트 데이터 삭제 (replace 방식) - 실제 cpNo 사용
       await tx.cpReactionPlan.deleteMany({ where: { cpNo: actualCpNo } });
       await tx.cpControlMethod.deleteMany({ where: { cpNo: actualCpNo } });
@@ -450,8 +457,8 @@ export async function POST(req: NextRequest) {
       });
 
 
-      // ★ CP 등록정보/CFT 벤치마킹: 트랜잭션 전에 실제 cpNo 확인
-      const verifyCpNo = await prisma.cpRegistration.findUnique({
+      // ★ CP 등록정보/CFT 벤치마킹: 트랜잭션 전에 실제 cpNo 확인 (public 스키마)
+      const verifyCpNo = await publicPrisma.cpRegistration.findUnique({
         where: { cpNo: actualCpNo },
         select: { cpNo: true, id: true, subject: true },
       });
@@ -459,8 +466,8 @@ export async function POST(req: NextRequest) {
       if (!verifyCpNo) {
         console.error(`❌ [CP Master→Worksheet] CP 등록정보 없음: ${actualCpNo}`);
         
-        // 등록된 CP 목록 확인
-        const allCps = await prisma.cpRegistration.findMany({
+        // 등록된 CP 목록 확인 (public 스키마)
+        const allCps = await publicPrisma.cpRegistration.findMany({
           take: 10,
           select: { cpNo: true, subject: true },
         });
@@ -610,20 +617,20 @@ export async function POST(req: NextRequest) {
     
     // ★ 중요: 트랜잭션 외부에서 최종 카운터 확인
 
-    // ★ 중요: 트랜잭션 외부에서 실제 DB 조회로 최종 검증
-    const finalProcesses = await prisma.cpProcess.findMany({
+    // ★ 중요: 트랜잭션 외부에서 실제 DB 조회로 최종 검증 (프로젝트 스키마)
+    const finalProcesses = await cpPrisma.cpProcess.findMany({
       where: { cpNo: actualCpNo },
     });
-    const finalDetectors = await prisma.cpDetector.findMany({
+    const finalDetectors = await cpPrisma.cpDetector.findMany({
       where: { cpNo: actualCpNo },
     });
-    const finalControlItems = await prisma.cpControlItem.findMany({
+    const finalControlItems = await cpPrisma.cpControlItem.findMany({
       where: { cpNo: actualCpNo },
     });
-    const finalControlMethods = await prisma.cpControlMethod.findMany({
+    const finalControlMethods = await cpPrisma.cpControlMethod.findMany({
       where: { cpNo: actualCpNo },
     });
-    const finalReactionPlans = await prisma.cpReactionPlan.findMany({
+    const finalReactionPlans = await cpPrisma.cpReactionPlan.findMany({
       where: { cpNo: actualCpNo },
     });
 
@@ -642,16 +649,16 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // ★ ControlPlanItem 테이블에도 저장 (워크시트 페이지에서 사용)
+    // ★ ControlPlanItem 테이블에도 저장 (워크시트 페이지에서 사용) — 프로젝트 스키마
     // ControlPlan 조회 또는 생성
-    let controlPlan = await prisma.controlPlan.findFirst({
+    let controlPlan = await cpPrisma.controlPlan.findFirst({
       where: { cpNo: actualCpNo },
     });
 
     if (!controlPlan) {
       // ControlPlan이 없으면 생성
       // CpRegistration 필드: fmeaId, fmeaNo, subject, customerName
-      controlPlan = await prisma.controlPlan.create({
+      controlPlan = await cpPrisma.controlPlan.create({
         data: {
           cpNo: actualCpNo,
           fmeaId: registration.fmeaId || 'import', // fmeaId는 필수 필드
@@ -664,8 +671,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 기존 ControlPlanItem 삭제
-    await prisma.controlPlanItem.deleteMany({
+    // 기존 ControlPlanItem 삭제 (프로젝트 스키마)
+    await cpPrisma.controlPlanItem.deleteMany({
       where: { cpId: controlPlan.id },
     });
 
@@ -688,7 +695,7 @@ export async function POST(req: NextRequest) {
       const cm = finalControlMethods.find(m => m.processNo === proc.processNo);
       const rp = finalReactionPlans.find(r => r.processNo === proc.processNo);
 
-      await prisma.controlPlanItem.create({
+      await cpPrisma.controlPlanItem.create({
         data: {
           cpId: controlPlan.id,
           processNo: proc.processNo,
@@ -717,8 +724,8 @@ export async function POST(req: NextRequest) {
     }
 
 
-    // 저장된 ControlPlanItem 확인
-    const savedItems = await prisma.controlPlanItem.findMany({
+    // 저장된 ControlPlanItem 확인 (프로젝트 스키마)
+    const savedItems = await cpPrisma.controlPlanItem.findMany({
       where: { cpId: controlPlan.id },
       orderBy: { sortOrder: 'asc' },
     });

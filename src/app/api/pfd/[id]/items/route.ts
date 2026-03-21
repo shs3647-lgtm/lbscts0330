@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { getPrismaForPfd } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
+import type { PrismaClient } from '@prisma/client';
 
 // ============================================================================
 // POST: PFD 항목 일괄 저장
@@ -28,16 +29,16 @@ export async function POST(
       );
     }
 
-    const prisma = getPrisma();
-    if (!prisma) {
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) {
       return NextResponse.json(
         { success: false, error: 'Database connection failed' },
         { status: 500 }
       );
     }
 
-    // PFD 확인 또는 자동 생성
-    let pfd = await prisma.pfdRegistration.findFirst({
+    // PFD 확인 또는 자동 생성 (pfdRegistration = public 스키마)
+    let pfd = await publicPrisma.pfdRegistration.findFirst({
       where: {
         OR: [
           { id },
@@ -48,14 +49,14 @@ export async function POST(
 
     if (!pfd) {
       // TripletGroup에 소속된 PFD만 자동생성 허용 (SSI-01 불변량)
-      const tg = await prisma.tripletGroup.findFirst({
+      const tg = await publicPrisma.tripletGroup.findFirst({
         where: { pfdId: id },
         select: { id: true, pfmeaId: true },
         orderBy: { createdAt: 'desc' },
       }).catch(() => null);
 
       if (tg) {
-        pfd = await prisma.pfdRegistration.create({
+        pfd = await publicPrisma.pfdRegistration.create({
           data: {
             pfdNo: id,
             fmeaId: tg.pfmeaId || undefined,
@@ -75,8 +76,17 @@ export async function POST(
       }
     }
 
-    // 트랜잭션으로 처리 (기존 항목 삭제 후 새로 생성)
-    const result = await prisma.$transaction(async (tx: any) => {
+    // ★ pfdItem/unifiedProcessItem = Atomic DB → 프로젝트 스키마 사용
+    const projPrisma = await getPrismaForPfd(pfd.pfdNo) as PrismaClient;
+    if (!projPrisma) {
+      return NextResponse.json(
+        { success: false, error: 'Project schema connection failed' },
+        { status: 500 }
+      );
+    }
+
+    // 트랜잭션으로 처리 (기존 항목 삭제 후 새로 생성) — 프로젝트 스키마
+    const result = await projPrisma.$transaction(async (tx: any) => {
       // 기존 UPI ID 수집 (고아 방지용)
       const oldItems = await tx.pfdItem.findMany({
         where: { pfdId: pfd.id },
@@ -186,8 +196,8 @@ export async function POST(
       return savedItems;
     });
 
-    // 동기화 로그 기록
-    await prisma.syncLog.create({
+    // 동기화 로그 기록 (syncLog = public 스키마)
+    await publicPrisma.syncLog.create({
       data: {
         sourceType: 'pfd',
         sourceId: pfd.id,

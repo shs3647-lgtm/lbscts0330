@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrismaForPfd } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
 
@@ -53,16 +53,17 @@ function ensureStringValue(value: unknown): string {
 }
 
 export async function GET(req: NextRequest) {
-  const prisma = getPrisma();
-  if (!prisma) return jsonOk({ active: null });
-
   const sp = Object.fromEntries(req.nextUrl.searchParams.entries()) as SearchParams;
   const includeItems = sp.includeItems !== 'false';
   const pfdNo = sp.pfdNo?.toLowerCase();
 
   if (!pfdNo) return jsonOk({ active: null });
 
-  const active = await prisma.pfdMasterDataset.findUnique({
+  // ★ pfdMasterDataset/pfdMasterFlatItem = 프로젝트 스키마
+  const projPrisma = await getPrismaForPfd(pfdNo);
+  if (!projPrisma) return jsonOk({ active: null });
+
+  const active = await projPrisma.pfdMasterDataset.findUnique({
     where: { pfdNo },
     include: includeItems ? { flatItems: { orderBy: { createdAt: 'desc' } } } : undefined,
   });
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
 
   const itemCount = includeItems
     ? flatItems.length
-    : await prisma.pfdMasterFlatItem.count({ where: { datasetId: active.id } });
+    : await projPrisma.pfdMasterFlatItem.count({ where: { datasetId: active.id } });
 
   return jsonOk({
     active: {
@@ -93,9 +94,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const prisma = getPrisma();
-  if (!prisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
-
   const body = (await req.json()) as SaveBody;
   if (!Array.isArray(body.flatData)) {
     return NextResponse.json({ error: 'flatData is required' }, { status: 400 });
@@ -110,7 +108,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'pfdNo is required' }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (tx: any) => {
+    // ★ pfdMasterDataset/pfdMasterFlatItem = 프로젝트 스키마
+    const projPrisma = await getPrismaForPfd(pfdNo);
+    if (!projPrisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
+
+    const result = await projPrisma.$transaction(async (tx: any) => {
       let ds: any = await tx.pfdMasterDataset.findUnique({ where: { pfdNo } });
       if (ds) {
         ds = await tx.pfdMasterDataset.update({
@@ -203,9 +205,6 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const prisma = getPrisma();
-  if (!prisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
-
   try {
     const body = await req.json();
     const items: { itemCode: string; value: string; processNo?: string }[] = body.items;
@@ -219,7 +218,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'pfdNo is required' }, { status: 400 });
     }
 
-    const activeDs = await prisma.pfdMasterDataset.findUnique({
+    // ★ pfdMasterDataset/pfdMasterFlatItem = 프로젝트 스키마
+    const projPrisma = await getPrismaForPfd(pfdNo);
+    if (!projPrisma) return jsonOk({ success: false, error: 'DATABASE_URL not configured' });
+
+    const activeDs = await projPrisma.pfdMasterDataset.findUnique({
       where: { pfdNo },
     });
 
@@ -237,7 +240,7 @@ export async function DELETE(req: NextRequest) {
       if (item.processNo) {
         where.processNo = item.processNo;
       }
-      const result = await prisma.pfdMasterFlatItem.deleteMany({ where });
+      const result = await projPrisma.pfdMasterFlatItem.deleteMany({ where });
       totalDeleted += result.count;
     }
 

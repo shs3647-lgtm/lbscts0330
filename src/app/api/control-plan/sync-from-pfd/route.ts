@@ -12,11 +12,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 import { parseLinkedCpNos, recordSyncLog, isValidProcessNo } from '@/lib/sync-helpers';
 
 export async function POST(request: NextRequest) {
-    const prisma = getPrisma();
-    if (!prisma) {
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) {
         return NextResponse.json(
             { success: false, error: 'Database connection failed' },
             { status: 500 }
@@ -41,8 +42,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // ★★★ PFD 정보 먼저 조회 (linkedCpNos 가져오기) ★★★
-        const pfdInfo = await prisma.pfdRegistration.findUnique({
+        // ★★★ PFD 정보 먼저 조회 (linkedCpNos 가져오기) — public 스키마 ★★★
+        const pfdInfo = await publicPrisma.pfdRegistration.findUnique({
             where: { pfdNo },
         });
 
@@ -62,8 +63,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // ★★★ 1. CP 등록정보 조회 또는 생성 ★★★
-        let existingCp = await prisma.controlPlan.findUnique({
+        // ★ 프로젝트 스키마 Prisma 클라이언트 획득
+        const cpPrisma = await getPrismaForCp(targetCpNo);
+        if (!cpPrisma) {
+            return NextResponse.json(
+                { success: false, error: 'CP 프로젝트 스키마 연결 실패' },
+                { status: 500 }
+            );
+        }
+
+        // ★★★ 1. CP 등록정보 조회 또는 생성 (프로젝트 스키마) ★★★
+        let existingCp = await cpPrisma.controlPlan.findUnique({
             where: { cpNo: targetCpNo },
         });
 
@@ -71,7 +81,7 @@ export async function POST(request: NextRequest) {
             // fmeaId가 필수이므로 pfdInfo에서 가져오거나 기본값 사용
             const fmeaId = pfdInfo?.fmeaId || 'default-fmea-id';
 
-            existingCp = await prisma.controlPlan.create({
+            existingCp = await cpPrisma.controlPlan.create({
                 data: {
                     cpNo: targetCpNo,
                     fmeaId: fmeaId,
@@ -96,7 +106,7 @@ export async function POST(request: NextRequest) {
         // ★ H8: isValidProcessNo로 빈/무효 공정번호 제거
         const validItems = items.filter((item: any) => isValidProcessNo(item.processNo));
 
-        await prisma.$transaction(async (tx: any) => {
+        await cpPrisma.$transaction(async (tx: any) => {
             // ★★★ 2. 기존 ControlPlanItem soft delete (linkStatus 변경) ★★★
             await tx.controlPlanItem.updateMany({
                 where: { cpId },
@@ -149,7 +159,7 @@ export async function POST(request: NextRequest) {
 
 
         // ★ M6: SyncLog 기록
-        await recordSyncLog(prisma, {
+        await recordSyncLog(publicPrisma, {
             sourceType: 'pfd',
             sourceId: pfdNo,
             targetType: 'cp',
