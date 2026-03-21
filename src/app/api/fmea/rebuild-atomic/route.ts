@@ -419,6 +419,12 @@ export async function POST(request: NextRequest) {
             const masterRAs = master.riskAnalyses || [];
             const raByLinkId = new Map<string, any>(masterRAs.map((r: any) => [r.linkId, r]));
 
+            // Logical dedup: 기존 DB FL의 (fmId|fcId|feId) 조합 수집 (Rule 1.7.1)
+            const existingFLKeys = new Set(
+              atomic.failureLinks.map((fl: any) => `${fl.fmId}|${fl.fcId}|${fl.feId}`)
+            );
+            const newFLKeys = new Set<string>();
+
             for (const mfl of (master.failureLinks || [])) {
               if (existingFLIds.has(mfl.id)) continue;
 
@@ -427,6 +433,11 @@ export async function POST(request: NextRequest) {
               const fcId = fcIdRemap.get(mfl.fcId) || mfl.fcId; // FC는 리매핑
 
               if (!fmIdSet.has(fmId) || !feIdSet.has(feId) || !fcIdSet.has(fcId)) continue;
+
+              // Logical dedup: fmId|fcId|feId 3요소 중복 체크 (Rule 1.7.1)
+              const dedupKey = `${fmId}|${fcId}|${feId}`;
+              if (existingFLKeys.has(dedupKey) || newFLKeys.has(dedupKey)) continue;
+              newFLKeys.add(dedupKey);
 
               const newFlId = `FL-${fmeaId}-${flsToCreate.length + 1}`;
               flsToCreate.push({
