@@ -116,7 +116,8 @@ export async function POST(req: NextRequest) {
         created.failureEffects++;
       }
 
-      // ── 3b. FE l1FuncId FK 재매핑 (FE ID prefix → 올바른 L1Function) ──
+      // ── 3b. FE l1FuncId FK 재매핑 (m066 원본 매핑 기준) ──
+      // m066의 FE→L1Function 매핑을 직접 사용 (동일 FE ID → 동일 l1FuncId)
       {
         const allFEs = await tx.failureEffect.findMany({
           where: { fmeaId },
@@ -126,18 +127,20 @@ export async function POST(req: NextRequest) {
           (await tx.l1Function.findMany({ where: { fmeaId }, select: { id: true } }))
             .map((f: any) => f.id)
         );
+        // m066 FE→L1F 매핑 테이블
+        const m066FeMap = new Map<string, string>();
+        for (const mfe of m066FEs) {
+          m066FeMap.set(mfe.id, mfe.l1FuncId);
+        }
         let feRemapped = 0;
         for (const fe of allFEs) {
-          const parts = fe.id.split('-');
-          if (parts.length >= 4) {
-            const correctL1FId = parts.slice(0, 4).join('-');
-            if (allL1FIds.has(correctL1FId) && fe.l1FuncId !== correctL1FId) {
-              await tx.failureEffect.update({
-                where: { id: fe.id },
-                data: { l1FuncId: correctL1FId },
-              });
-              feRemapped++;
-            }
+          const m066L1FId = m066FeMap.get(fe.id);
+          if (m066L1FId && allL1FIds.has(m066L1FId) && fe.l1FuncId !== m066L1FId) {
+            await tx.failureEffect.update({
+              where: { id: fe.id },
+              data: { l1FuncId: m066L1FId },
+            });
+            feRemapped++;
           }
         }
         (created as any).feRemapped = feRemapped;
