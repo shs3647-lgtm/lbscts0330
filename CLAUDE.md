@@ -645,6 +645,55 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 - ❌ 코드만 수정하고 문서 미갱신 → **금지** (다음 세션에서 정보 불일치 발생)
 - ✅ 코드 수정 → 검증 → 문서 3개 동기화 → 커밋
 
+### 🟡 Rule 18: Living DB 아키텍처 — 산업DB/LLD/SOD 자동 동기화 (2026-03-21)
+
+> **산업DB(DC/PC), LLD, SOD 기준표는 독립 UUID 테이블로 관리하며, 워크시트 저장 시 Master DB에 자동 동기화한다.**
+
+#### 18.1 소스 추적 (Source Traceability)
+
+| 필드 | 테이블 | 용도 |
+|------|--------|------|
+| `dcSourceType` | `risk_analyses` | DC 출처: 'manual' \| 'master' \| 'industry' \| 'lld' \| 'keyword' |
+| `dcSourceId` | `risk_analyses` | DC 소스 엔티티 UUID |
+| `pcSourceType` | `risk_analyses` | PC 출처: 'manual' \| 'master' \| 'industry' \| 'lld' |
+| `pcSourceId` | `risk_analyses` | PC 소스 엔티티 UUID |
+
+#### 18.2 산업DB 자동 레이팅
+
+| 테이블 | 필드 | 용도 |
+|--------|------|------|
+| `kr_industry_detection` | `defaultRating` | 기본 D값 (1-10, 낮을수록 검출 잘됨) |
+| `kr_industry_prevention` | `defaultRating` | 기본 O값 (1-10, 낮을수록 예방 잘됨) |
+
+- 자동추천 DC/PC 실행 시, 산업DB 항목의 `defaultRating` 우선 적용
+- fallback: 기존 `recommendDetection()` 함수
+
+#### 18.3 Optimization → Master 동기화
+
+- `extractChainsFromAtomicDB()`에서 `optimization` 테이블 포함
+- `ChainEntry`에 `optRecommendedAction`, `optNewS/O/D` 등 7개 필드 추가
+- 워크시트 저장 → `syncMasterReferenceFromChains()` → `MasterFmeaReference` 자동 업데이트
+
+#### 18.4 Living DB 테이블 현황
+
+| 테이블 | 건수 | 용도 |
+|--------|------|------|
+| `lld_filter_code` | 12+ | LLD 통합 교훈DB (SOD 포함) |
+| `lessons_learned` | 8+ | LLD 레거시 |
+| `kr_industry_detection` | 25+ | 산업 공통 DC (D 레이팅 포함) |
+| `kr_industry_prevention` | 25+ | 산업 공통 PC (O 레이팅 포함) |
+| `continuous_improvement_plan` | 8+ | AP 개선 계획 |
+| `master_fmea_reference` | 91+ | 마스터 참조 (Living DB) |
+
+#### 18.5 API 엔드포인트
+
+| API | 용도 |
+|-----|------|
+| `GET /api/kr-industry?type=all` | 산업DB 조회 (defaultRating 포함) |
+| `GET /api/kr-industry/usage` | 산업DB 사용 통계 |
+| `GET /api/lld/usage` | LLD 사용 현황 역추적 |
+| `POST /api/lld/apply` | LLD 적용결과 업데이트 |
+
 ### 🔵 Rule 11: UI 슬림화 및 패딩 최소화 (2026-01-23)
 1. 모든 테이블 셀 내의 불필요한 아이콘(드롭다운 꺽쇄, 날짜 아이콘 등)은 기본적으로 감춥니다.
 2. 행 높이 및 패딩을 최소화하여 100% 배율에서 더 많은 정보가 보이도록 최적화합니다. (LLD No 등 주요 컬럼 패딩 0~2px)
