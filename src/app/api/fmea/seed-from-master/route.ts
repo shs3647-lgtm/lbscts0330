@@ -116,6 +116,33 @@ export async function POST(req: NextRequest) {
         created.failureEffects++;
       }
 
+      // ── 3b. FE l1FuncId FK 재매핑 (FE ID prefix → 올바른 L1Function) ──
+      {
+        const allFEs = await tx.failureEffect.findMany({
+          where: { fmeaId },
+          select: { id: true, l1FuncId: true },
+        });
+        const allL1FIds = new Set(
+          (await tx.l1Function.findMany({ where: { fmeaId }, select: { id: true } }))
+            .map((f: any) => f.id)
+        );
+        let feRemapped = 0;
+        for (const fe of allFEs) {
+          const parts = fe.id.split('-');
+          if (parts.length >= 4) {
+            const correctL1FId = parts.slice(0, 4).join('-');
+            if (allL1FIds.has(correctL1FId) && fe.l1FuncId !== correctL1FId) {
+              await tx.failureEffect.update({
+                where: { id: fe.id },
+                data: { l1FuncId: correctL1FId },
+              });
+              feRemapped++;
+            }
+          }
+        }
+        (created as any).feRemapped = feRemapped;
+      }
+
       // ── 4. 누락 FC 직접 삽입 (orphanPC 해결) ──
       const existingFCIds = new Set(
         (await tx.failureCause.findMany({ where: { fmeaId }, select: { id: true } }))
