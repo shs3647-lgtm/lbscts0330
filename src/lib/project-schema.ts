@@ -91,6 +91,10 @@ function quoteIdent(ident: string): string {
 /**
  * Ensure the project schema exists and contains the required tables.
  * This clones public.<table> into <schema>.<table> using LIKE INCLUDING ALL.
+ *
+ * ⚠️ RULE 0.8.1: 반드시 객체 파라미터로 호출.
+ * ❌ ensureProjectSchemaReady(fmeaId) — 문자열 전달 금지
+ * ✅ ensureProjectSchemaReady({ baseDatabaseUrl: getBaseDatabaseUrl(), schema: getProjectSchemaName(fmeaId) })
  */
 export async function ensureProjectSchemaReady(params: {
   baseDatabaseUrl: string;

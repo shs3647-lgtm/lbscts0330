@@ -166,6 +166,42 @@ npx tsc --noEmit
 | **PFD** | PfdItem, UnifiedProcessItem | PfdRegistration, PfdItem | FMEA/CP Atomic DB 직접 쓰기 |
 | **WS/PM** | 전체 (읽기 전용) | 자체 테이블만 | 다른 앱의 DB 쓰기 |
 
+#### 0.8.1 프로젝트별 스키마 분리 정책 (2026-03-21) — CRITICAL
+
+> **모든 프로젝트 데이터는 프로젝트 전용 스키마에 저장한다. public 스키마에 프로젝트 데이터를 저장하는 것은 절대 금지.**
+
+비유: **public 스키마는 "회사 로비"**다. 프로젝트 데이터는 "전용 사무실(프로젝트 스키마)"에 보관해야 한다. 로비에 서류를 방치하면 다른 프로젝트와 섞인다.
+
+**스키마 네이밍 규칙:**
+
+| 앱 | ID 패턴 | 스키마 이름 | 예시 |
+|----|---------|------------|------|
+| **PFMEA** | `pfm26-m066` | `pfmea_pfm26_m066` | `pfmea_pfm26_m066.l2_structures` |
+| **Control Plan** | `cp26-c001` | `pfmea_cp26_c001` | `pfmea_cp26_c001.control_plan_items` |
+| **PFD** | `pfd26-p001` | `pfmea_pfd26_p001` | `pfmea_pfd26_p001.pfd_items` |
+
+**필수 규칙:**
+
+1. **`getProjectSchemaName(fmeaId)`로 스키마 이름 생성** — 직접 문자열 조합 금지
+2. **`ensureProjectSchemaReady({ baseDatabaseUrl, schema })`로 스키마 생성** — 객체 파라미터 필수
+3. **`getPrismaForSchema(schema)`로 Prisma 클라이언트 획득** — `getPrisma()` (public) 사용 금지
+4. **`SET search_path TO {schema}, public`** — 프로젝트 스키마 우선, public 폴백
+5. **새 프로젝트 생성 시 DELETE ALL → CREATE ALL** — 기존 데이터 잔존 방지
+6. **seed/보충 API도 프로젝트 스키마에 저장** — public에 저장하면 다른 프로젝트에서 보임
+
+```typescript
+// ❌ 금지: public에 프로젝트 데이터 저장
+const prisma = getPrisma();
+await prisma.failureCause.create({ data: { fmeaId: 'pfm26-m066', ... } });
+
+// ✅ 필수: 프로젝트 스키마 클라이언트 사용
+const schema = getProjectSchemaName(fmeaId);
+await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+const prisma = getPrismaForSchema(schema);
+```
+
+**위반 시:** 즉시 롤백 + public 스키마에서 해당 fmeaId 데이터 삭제
+
 #### 0.9 예외: 유사도 추천 허용 대상
 
 > 아래 3가지는 **추천(Recommendation)** 기능이므로 유사도 매칭을 허용한다.
@@ -693,6 +729,42 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | `GET /api/kr-industry/usage` | 산업DB 사용 통계 |
 | `GET /api/lld/usage` | LLD 사용 현황 역추적 |
 | `POST /api/lld/apply` | LLD 적용결과 업데이트 |
+
+### 🔴 Rule 19: 프로젝트별 별도 DB 스키마 필수 — public 직접 저장 금지 (2026-03-21)
+
+> **모든 프로젝트 데이터는 프로젝트 전용 DB 스키마에 저장한다. public 스키마에 프로젝트 데이터를 직접 저장하지 않는다.**
+
+#### 19.1 스키마 명명 규칙
+
+| 프로젝트 유형 | 스키마 패턴 | 예시 |
+|-------------|-----------|------|
+| **PFMEA** | `pfmea_{fmeaId}` (하이픈→언더스코어) | `pfmea_pfm26_m066` |
+| **CP** | `cp_{cpNo}` | `cp_cp26_m066` |
+| **PFD** | `pfd_{pfdNo}` | `pfd_pfd26_m066` |
+
+#### 19.2 public vs 프로젝트 스키마 구분
+
+| 구분 | public 스키마 | 프로젝트 스키마 |
+|------|-------------|--------------|
+| **저장 대상** | 프로젝트 메타(TripletGroup, FmeaProject, FmeaRegistration), 공통 참조(산업DB, SOD기준표, MasterRef) | Atomic 구조(L1~L3), 기능(L1F~L3F), 고장(FM/FE/FC/FL), 위험(RA), 개선(Opt), Legacy |
+| **Import FlatItem** | `pfmea_master_datasets`, `pfmea_master_flat_items` (staging) | Atomic DB 테이블 (확정 데이터) |
+| **금지** | ❌ L1/L2/L3/FM/FE/FC/FL/RA를 public에 직접 저장 | ❌ TripletGroup/산업DB를 프로젝트 스키마에 복제 |
+
+#### 19.3 프로젝트 생성 절차
+
+```
+1. TripletGroup 등록 (public) — tg26-mXXX
+2. FmeaProject 등록 (public) — fmeaId, tripletGroupId FK
+3. FmeaRegistration 등록 (public) — 기초정보
+4. 프로젝트 스키마 생성 — CREATE SCHEMA pfmea_pfm26_mXXX
+5. Atomic 테이블 생성 — LIKE public.{table} INCLUDING ALL
+6. 데이터 저장 — 프로젝트 스키마에만 INSERT
+```
+
+- ❌ **public 스키마에 Atomic 데이터 직접 INSERT 금지**
+- ❌ **스크립트에서 프로젝트 등록 시 public 테이블 컬럼 추측 금지** — 반드시 `information_schema.columns` 조회 후 INSERT
+- ✅ **메타 등록(TripletGroup/FmeaProject/FmeaRegistration)만 public에 저장**
+- ✅ **모든 Atomic 데이터는 프로젝트 전용 스키마에 저장**
 
 ### 🔵 Rule 11: UI 슬림화 및 패딩 최소화 (2026-01-23)
 1. 모든 테이블 셀 내의 불필요한 아이콘(드롭다운 꺽쇄, 날짜 아이콘 등)은 기본적으로 감춥니다.

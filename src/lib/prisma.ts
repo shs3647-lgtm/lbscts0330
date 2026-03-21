@@ -50,6 +50,10 @@ export function getPrisma(): PrismaClient | null {
  * - 'public' 또는 빈 값이면 기본 클라이언트 반환
  * - project schema이면 PrismaPg({ schema }) 옵션으로 별도 클라이언트 생성
  * - 동일 schema에 대해 캐싱하여 Pool 누수 방지
+ *
+ * ⚠️ RULE 0.8.1: 프로젝트 데이터(FMEA/CP/PFD)는 반드시 프로젝트 스키마에 저장.
+ * getPrisma()(public)로 프로젝트 데이터를 저장하면 다른 프로젝트와 섞임.
+ * 올바른 호출: getPrismaForSchema(getProjectSchemaName(fmeaId))
  */
 export function getPrismaForSchema(schema: string): PrismaClient | null {
   if (!schema || schema === 'public') {
