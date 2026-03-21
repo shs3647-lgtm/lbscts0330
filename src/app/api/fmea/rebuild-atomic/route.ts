@@ -10,8 +10,9 @@
 // ██     - 공정이 다르면 동일 이름의 FC/FM/FE/L3F도 별개 엔티티                   ██
 // ██     - 예: 공정10 "작업숙련도부족" ≠ 공정20 "작업숙련도부족"                   ██
 // ██                                                                            ██
-// ██  2. FC dedup key = l2StructId + l3StructId + cause                          ██
+// ██  2. FC dedup key = l2StructId + l3StructId + l3FuncId + cause               ██
 // ██     - 같은 공정이라도 다른 WE의 동일 원인은 별개                              ██
+// ██     - 같은 WE라도 다른 L3Function의 동일 원인은 별개                          ██
 // ██     - MN(작업자)은 모든 공정에 배치 → 모든 공정별 독립 FC                     ██
 // ██                                                                            ██
 // ██  3. FailureLink dedup key = fmId + fcId + feId (3요소 완전일치)              ██
@@ -214,10 +215,11 @@ export async function POST(request: NextRequest) {
       // ██  "FC dedup 공정번호 기반 중복제거 CODEFREEZE 해제를 허락합니다"         ██
       // ██                                                                      ██
       // ██  핵심 원칙:                                                           ██
-      // ██  1. FC dedup key = l2StructId(공정) + l3StructId(WE) + cause(원인)    ██
+      // ██  1. FC dedup key = l2StructId(공정) + l3StructId(WE) + l3FuncId(기능) + cause ██
       // ██  2. 공정이 다르면 동일 원인명도 별개 FC (예: 모든 공정의 "작업숙련도부족") ██
       // ██  3. 같은 공정이라도 다른 WE의 동일 원인은 별개 FC                       ██
-      // ██  4. 단어만 보고 중복삭제 절대 금지 — 반드시 공정번호+WE 포함            ██
+      // ██  4. 같은 WE라도 다른 L3Function의 동일 원인은 별개 FC                   ██
+      // ██  5. 단어만 보고 중복삭제 절대 금지 — 반드시 공정번호+WE+기능 포함        ██
       // ██                                                                      ██
       // ██  위반 시: FC 누락 → FailureLink 끊김 → 워크시트 고장원인 빈칸          ██
       // ██████████████████████████████████████████████████████████████████████████
@@ -225,13 +227,20 @@ export async function POST(request: NextRequest) {
         const fcsByKey = new Map<string, string[]>();
         const allFcsForDedup = await tx.failureCause.findMany({
           where: { fmeaId },
-          select: { id: true, cause: true, l2StructId: true, l3StructId: true },
+          select: { id: true, cause: true, l2StructId: true, l3StructId: true, l3FuncId: true },
         });
         for (const fc of allFcsForDedup) {
-          // ★ key = l2StructId(공정번호) + l3StructId(WE) + cause(원인명)
+          // ★ key = l2StructId(공정) + l3StructId(WE) + l3FuncId(기능) + cause(원인명)
           // ★ 공정번호 없이 cause만으로 dedup하면 다른 공정의 동일 원인이 삭제됨
           // ★ 예: 공정10 "작업숙련도부족" ≠ 공정20 "작업숙련도부족" (별개 FC)
-          const key = `${(fc as any).l2StructId}|${(fc as any).l3StructId || ''}|${(fc as any).cause}`;
+          // ★ l3FuncId 포함: 같은 WE 내 다른 L3Function의 동일 원인도 별개 FC
+          // ★ 예: Cu Target(l3Func-A) "Target 소진" ≠ Ti Target(l3Func-B) "Target 소진"
+          // ★ NULL/empty l3StructId 또는 l3FuncId → FC.id를 key로 사용 (dedup 방지)
+          const l3s = (fc as any).l3StructId || '';
+          const l3f = (fc as any).l3FuncId || '';
+          const key = (l3s && l3f)
+            ? `${(fc as any).l2StructId}|${l3s}|${l3f}|${(fc as any).cause}`
+            : `__unique__${(fc as any).id}`;
           if (!fcsByKey.has(key)) fcsByKey.set(key, []);
           fcsByKey.get(key)!.push((fc as any).id);
         }
@@ -608,8 +617,35 @@ export async function POST(request: NextRequest) {
         }
 
         if (orphanIds.length > 0) {
-          await tx.l3Function.deleteMany({ where: { id: { in: orphanIds } } });
-          console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건`);
+          // ★★★ SAFETY: onDelete:Cascade → L3Function 삭제 시 FC도 연쇄 삭제됨
+          // FL이 참조하는 FC가 이 L3Function에 속하면 삭제하면 안 됨
+          const fcsUnderOrphanL3F = await tx.failureCause.findMany({
+            where: { fmeaId, l3FuncId: { in: orphanIds } },
+            select: { id: true },
+          });
+          if (fcsUnderOrphanL3F.length > 0) {
+            // CASCADE가 FC를 삭제할 수 있으므로 FL 참조 확인
+            const fcIdsUnderOrphan = fcsUnderOrphanL3F.map((f: { id: string }) => f.id);
+            const flsRefOrphanFcs = await tx.failureLink.findMany({
+              where: { fmeaId, fcId: { in: fcIdsUnderOrphan } },
+              select: { id: true },
+            });
+            if (flsRefOrphanFcs.length > 0) {
+              // FL이 참조하는 FC가 있으므로 삭제하면 데이터 손실 → 경고만
+              console.warn(
+                `[rebuild-atomic] orphan L3Function ${orphanIds.length}건 감지, ` +
+                `BUT ${flsRefOrphanFcs.length}건 FL이 참조하는 FC 존재 → 삭제 SKIP (데이터 보호)`
+              );
+            } else {
+              // FL 참조 없음 → 안전하게 삭제 (CASCADE로 FC도 삭제됨)
+              await tx.l3Function.deleteMany({ where: { id: { in: orphanIds } } });
+              console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건 (FL 미참조 확인됨)`);
+            }
+          } else {
+            // FC도 없음 → 순수 orphan, 안전 삭제
+            await tx.l3Function.deleteMany({ where: { id: { in: orphanIds } } });
+            console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건 (FC 0건)`);
+          }
         }
 
         // ★ 2026-03-20: L3Function 폴백 재생성/emptyPC 보정 제거 — Atomic DB 원본 유지

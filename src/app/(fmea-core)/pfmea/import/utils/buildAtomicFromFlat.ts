@@ -452,6 +452,11 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
       processCharId,            // B3.id
       cause: b4.value,
     });
+
+    // Cu Target FC 진단
+    if (b4.value?.includes('Target') && pno === 40) {
+      console.info(`[buildAtomicFromFlat] FC진단: cause="${b4.value}" id=${b4.id} l3StructId=${l3StructId} l3FuncId=${processCharId} b3Parent=${b3Item?.parentItemId}`);
+    }
   }
 
   // ============================================================

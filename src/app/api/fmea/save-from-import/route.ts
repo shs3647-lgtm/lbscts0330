@@ -396,6 +396,7 @@ export async function POST(request: NextRequest) {
           raCount: atomicDB.riskAnalyses.length,
           // 진단
           _actualCounts: actualCounts,
+          _targetFCs: atomicDB.failureCauses.filter((fc: any) => fc.cause?.includes('Target') && fc.l2StructId?.includes('040')).map((fc: any) => ({id:fc.id, cause:fc.cause?.substring(0,30), l3StructId:fc.l3StructId, l3FuncId:fc.l3FuncId})),
         },
       },
       parseValidation: {
