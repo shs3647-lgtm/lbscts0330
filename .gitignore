@@ -64,6 +64,7 @@ debug-*.png
 *.temp
 temp_*.json
 temp_*.sql
+*_temp.json
 
 # debug/analysis output
 *-분석.txt
@@ -176,3 +177,11 @@ tests/e2e/import-regression-*.spec.ts
 tests/e2e/import-sa-fa-fc-verify.spec.ts
 tests/e2e/pipeline-full-verify.spec.ts
 scripts/db-counts.js
+
+# e2e screenshots & test specs (local only)
+tests/e2e/screenshots/*.png
+tests/e2e/m066-full-cycle-verify.spec.ts
+tests/e2e/debug-*.spec.ts
+
+# m090 local data
+data/master-fmea/pfm26-m090*.json
