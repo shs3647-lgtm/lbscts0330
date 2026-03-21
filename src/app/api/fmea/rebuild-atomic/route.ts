@@ -624,6 +624,20 @@ export async function POST(request: NextRequest) {
       }
     }, { timeout: 30000, isolationLevel: 'Serializable' });
 
+    // ★ Living DB 지속 개선 루프: rebuild 완료 → Master 동기화
+    try {
+      const { syncMasterFromProject } = await import('@/lib/sync/master-chain-sync');
+      // 별도 트랜잭션으로 Master 동기화 (rebuild 트랜잭션과 분리)
+      await prisma.$transaction(async (syncTx: any) => {
+        await syncTx.$executeRawUnsafe(`SET search_path TO "${schema}", public`);
+        const result = await syncMasterFromProject(syncTx, fmeaId);
+        console.info(`[rebuild-atomic] Living DB sync: chains=${result.chainCount}, refs=${result.refCount}`);
+      }, { timeout: 15000 });
+    } catch (syncErr: any) {
+      // Master sync 실패는 rebuild 자체를 실패시키지 않음
+      console.warn(`[rebuild-atomic] Living DB sync 실패 (무시): ${syncErr?.message || syncErr}`);
+    }
+
     // 수복 후 최종 카운트 조회
     const [finalL2, finalL3, finalL1F, finalL2F, finalL3F, finalFE, finalFM, finalFC, finalFL, finalRA] = await Promise.all([
       prisma.l2Structure.count({ where: { fmeaId } }),
