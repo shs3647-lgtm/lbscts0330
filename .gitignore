@@ -67,6 +67,8 @@ temp_*.sql
 *_temp.json
 pv*.json
 adb_*.json
+db_*.json
+pub_*.json
 
 # debug/analysis output
 *-분석.txt
