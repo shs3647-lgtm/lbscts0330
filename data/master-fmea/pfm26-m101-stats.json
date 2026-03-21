@@ -1,0 +1,33 @@
+{
+  "fmeaId": "pfm26-m101",
+  "exportedAt": "2026-03-21T20:07:39.461Z",
+  "l2Count": 21,
+  "l3Count": 91,
+  "l1FuncCount": 7,
+  "l2FuncCount": 26,
+  "l3FuncCount": 100,
+  "fmCount": 26,
+  "feCount": 20,
+  "fcCount": 101,
+  "linkCount": 110,
+  "riskCount": 110,
+  "flatDataCount": 665,
+  "chainCount": 110,
+  "flatBreakdown": {
+    "A1": 21,
+    "A2": 21,
+    "A3": 21,
+    "A4": 26,
+    "A5": 26,
+    "A6": 25,
+    "B1": 91,
+    "B2": 100,
+    "B3": 98,
+    "B4": 101,
+    "B5": 98,
+    "C1": 3,
+    "C2": 7,
+    "C3": 7,
+    "C4": 20
+  }
+}

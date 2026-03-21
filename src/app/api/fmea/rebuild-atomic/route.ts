@@ -1022,10 +1022,27 @@ export async function POST(request: NextRequest) {
         });
         const linkedL3FuncIds = new Set(allFcsAfter.map((fc: { l3FuncId: string }) => fc.l3FuncId));
 
+        // ★ 2026-03-22 FIX: L3Structure당 최소 1개 L3Function 보존 (orphanPC 방지)
+        // L3Structure별로 연결된 L3Function 수를 계산 → 마지막 1개는 삭제하지 않음
+        const l3StructFuncCount = new Map<string, number>();
+        for (const f of allL3Funcs) {
+          const sid = (f as any).l3StructId;
+          l3StructFuncCount.set(sid, (l3StructFuncCount.get(sid) || 0) + 1);
+        }
+
         const orphanIds: string[] = [];
         for (const f of allL3Funcs) {
           if (linkedL3FuncIds.has(f.id)) continue;
+          // 이 L3Function이 속한 L3Structure의 남은 L3Function 수 확인
+          const sid = (f as any).l3StructId;
+          const remaining = l3StructFuncCount.get(sid) || 0;
+          if (remaining <= 1) {
+            // 마지막 L3Function → 삭제하면 L3Structure가 orphan됨 → SKIP
+            console.info(`[rebuild-atomic] orphan L3Function ${f.id} SKIP — L3Structure ${sid}의 마지막 L3Function (보존)`);
+            continue;
+          }
           orphanIds.push(f.id);
+          l3StructFuncCount.set(sid, remaining - 1); // 삭제 예정이므로 카운트 감소
         }
 
         if (orphanIds.length > 0) {
