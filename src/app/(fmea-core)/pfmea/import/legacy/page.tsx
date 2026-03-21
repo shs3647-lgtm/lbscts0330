@@ -40,10 +40,16 @@ import ImportStepBar from '../components/ImportStepBar';
 export default function LegacyImportPage() {
   const { isAdmin } = useAuth();
 
+  // ★★★ 2026-03-21 FIX: URL ?id= 파라미터로 selectedFmeaId 초기화
+  // Import 페이지에서 URL의 id와 다른 프로젝트에 저장하는 버그 방지
+  const urlFmeaId = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('id') || ''
+    : '';
+
   // ── 상태 관리 ──
   const [fmeaList, setFmeaList] = useState<FMEAProject[]>([]);
   const [adminMode, setAdminMode] = useState(false);
-  const [selectedFmeaId, setSelectedFmeaId] = useState<string>('');
+  const [selectedFmeaId, setSelectedFmeaId] = useState<string>(urlFmeaId);
   const [masterDatasetId, setMasterDatasetId] = useState<string | null>(null);
   const [masterDatasetName, setMasterDatasetName] = useState<string>('MASTER');
 

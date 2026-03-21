@@ -6,7 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { calculateAP } from '@/app/(fmea-core)/pfmea/worksheet/tabs/all/apCalculator';
 
@@ -52,14 +53,6 @@ interface RiskWithRelations {
 /** GET: FMEA 프로젝트의 AP H/M 항목 조회 */
 export async function GET(request: NextRequest) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection failed' },
-        { status: 500 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const fmeaId = searchParams.get('fmeaId') || '';
 
@@ -67,6 +60,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Invalid fmeaId' },
         { status: 400 }
+      );
+    }
+
+    const baseUrl = getBaseDatabaseUrl();
+    const schema = getProjectSchemaName(fmeaId);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+    const prisma = getPrismaForSchema(schema);
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection failed' },
+        { status: 500 }
       );
     }
 
@@ -158,14 +162,6 @@ export async function GET(request: NextRequest) {
 /** PATCH: Optimization upsert (개선조치 저장/수정) */
 export async function PATCH(request: NextRequest) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
-      return NextResponse.json(
-        { success: false, error: 'Database connection failed' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const {
       riskId,
@@ -186,6 +182,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'riskId and fmeaId are required' },
         { status: 400 }
+      );
+    }
+
+    const baseUrl = getBaseDatabaseUrl();
+    const schema = getProjectSchemaName(fmeaId);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+    const prisma = getPrismaForSchema(schema);
+    if (!prisma) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection failed' },
+        { status: 500 }
       );
     }
 

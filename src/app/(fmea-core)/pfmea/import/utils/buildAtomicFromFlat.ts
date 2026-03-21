@@ -291,11 +291,6 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
       console.warn(`[buildAtomicFromFlat] B3 orphan ${orphanB3.length}건:`);
       orphanB3.slice(0, 5).forEach(b => console.warn(`  B3 id=${b.id} parent=${b.parentItemId} val=${b.value?.substring(0,40)}`));
     }
-    // Cu Target 전용 진단
-    const cuB1 = b1Items.filter(b => b.value?.includes('Cu Target'));
-    const cuB2 = b2Items.filter(b => b.value?.includes('Cu Target'));
-    const cuB3 = b3Items.filter(b => b.parentItemId && cuB1.some(b1 => b1.id === b.parentItemId));
-    console.info(`[buildAtomicFromFlat] Cu Target: B1=${cuB1.length}(id=${cuB1[0]?.id}) B2=${cuB2.length}(parent=${cuB2[0]?.parentItemId}) B3=${cuB3.length}`);
   }
 
   // Iterate over B1 items (each B1 = one L3Structure = one WE)

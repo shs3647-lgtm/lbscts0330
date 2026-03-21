@@ -396,8 +396,7 @@ export async function POST(request: NextRequest) {
           raCount: atomicDB.riskAnalyses.length,
           // 진단
           _actualCounts: actualCounts,
-          _fcCreateManyExpected: atomicDB.failureCauses.length,
-          _fcDuplicateIds: atomicDB.failureCauses.filter((fc: any, idx: number, arr: any[]) => arr.findIndex((f: any) => f.id === fc.id) !== idx).map((fc: any) => fc.id),
+          _schemaUsed: schema,
         },
       },
       parseValidation: {

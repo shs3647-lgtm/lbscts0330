@@ -12,7 +12,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 import { derivePfdNoFromFmeaId, isValidPfdFormat } from '@/lib/utils/derivePfdNo';
 
@@ -30,8 +31,8 @@ function mapSpecialChar(raw: string | null | undefined): string {
 }
 
 export async function POST(request: NextRequest) {
-    const prisma = getPrisma();
-    if (!prisma) {
+    const publicPrisma = getPrisma();
+    if (!publicPrisma) {
         return NextResponse.json(
             { success: false, error: 'Database connection failed' },
             { status: 500 }
@@ -49,8 +50,20 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // ★ Project schema for Atomic DB access (L2/L3 structures)
+        const baseUrl = getBaseDatabaseUrl();
+        const schema = getProjectSchemaName(fmeaId);
+        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+        const projPrisma = getPrismaForSchema(schema);
+        if (!projPrisma) {
+            return NextResponse.json(
+                { success: false, error: 'Project schema connection failed' },
+                { status: 500 }
+            );
+        }
+
         // ★★★ v2.0: DB에서 직접 L2/L3 구조 조회 (sync-from-fmea 패턴) ★★★
-        const l2Structures = await prisma.l2Structure.findMany({
+        const l2Structures = await projPrisma.l2Structure.findMany({
             where: { fmeaId },
             include: {
                 l3Structures: {
@@ -78,7 +91,7 @@ export async function POST(request: NextRequest) {
 
         if (!targetPfdNo) {
             try {
-                const reg = await prisma.fmeaRegistration.findUnique({
+                const reg = await publicPrisma.fmeaRegistration.findUnique({
                     where: { fmeaId },
                     select: { linkedPfdNo: true },
                 });
@@ -92,7 +105,7 @@ export async function POST(request: NextRequest) {
         // ★ Priority 2.5: DB에서 fmeaId로 기존 PFD 검색
         if (!targetPfdNo) {
             try {
-                const existingLinkedPfd = await prisma.pfdRegistration.findFirst({
+                const existingLinkedPfd = await publicPrisma.pfdRegistration.findFirst({
                     where: {
                         OR: [
                             { fmeaId },
@@ -117,7 +130,7 @@ export async function POST(request: NextRequest) {
             let sequenceNo = 1;
             if (baseMatch) {
                 try {
-                    const existingPfds = await prisma.pfdRegistration.findMany({
+                    const existingPfds = await publicPrisma.pfdRegistration.findMany({
                         where: { pfdNo: { startsWith: `pfd${baseMatch[1]}` } },
                         select: { pfdNo: true },
                     });
@@ -141,7 +154,7 @@ export async function POST(request: NextRequest) {
         }
 
         // PFD 등록정보 생성 또는 조회
-        let existingPfd = await prisma.pfdRegistration.findUnique({
+        let existingPfd = await publicPrisma.pfdRegistration.findUnique({
             where: { pfdNo: targetPfdNo },
         });
 
@@ -152,7 +165,7 @@ export async function POST(request: NextRequest) {
             designResponsibility?: string | null; engineeringLocation?: string | null;
         } | null = null;
         try {
-            fmeaRegData = await prisma.fmeaRegistration.findUnique({
+            fmeaRegData = await publicPrisma.fmeaRegistration.findUnique({
                 where: { fmeaId },
                 select: {
                     subject: true, partName: true, partNo: true,
@@ -164,7 +177,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (!existingPfd) {
-            existingPfd = await prisma.pfdRegistration.create({
+            existingPfd = await publicPrisma.pfdRegistration.create({
                 data: {
                     pfdNo: targetPfdNo,
                     fmeaId: fmeaId,
@@ -181,7 +194,7 @@ export async function POST(request: NextRequest) {
                 },
             });
         } else {
-            await prisma.pfdRegistration.update({
+            await publicPrisma.pfdRegistration.update({
                 where: { pfdNo: targetPfdNo },
                 data: {
                     fmeaId: fmeaId,
@@ -199,7 +212,7 @@ export async function POST(request: NextRequest) {
 
         // ★★★ 트랜잭션: 기존 삭제 + L2Function/L3Function 기반 PFD 아이템 생성 ★★★
         const pfdItems: any[] = [];
-        await prisma.$transaction(async (tx: any) => {
+        await publicPrisma.$transaction(async (tx: any) => {
             // 기존 PfdItem 삭제
             await tx.pfdItem.deleteMany({
                 where: { pfdId },

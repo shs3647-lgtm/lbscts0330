@@ -11,7 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
 
@@ -111,12 +112,19 @@ export async function GET(req: NextRequest) {
       : [];
 
     if (orphanC3.length > 0) {
+      // ★ L1Requirement/L1Function are Atomic DB tables → use project schema
+      const baseUrl = getBaseDatabaseUrl();
+      const projSchema = getProjectSchemaName(fmeaId);
+      await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema: projSchema });
+      const projPrisma = getPrismaForSchema(projSchema);
+      const atomicClient = projPrisma || prisma; // fallback to public if schema not ready
+
       const [l1Reqs, l1Funcs] = await Promise.all([
-        prisma.l1Requirement.findMany({
+        atomicClient.l1Requirement.findMany({
           where: { fmeaId },
           select: { l1FuncId: true, requirement: true },
         }),
-        prisma.l1Function.findMany({
+        atomicClient.l1Function.findMany({
           where: { fmeaId },
           select: { id: true, functionName: true, category: true },
         }),

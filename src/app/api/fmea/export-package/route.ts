@@ -4,7 +4,8 @@
  * - 다른 PC에서 import하여 복원 가능
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import * as fs from 'fs';
 import * as path from 'path';
 import { isValidFmeaId } from '@/lib/security';
@@ -38,14 +39,9 @@ interface ExportPackage {
 }
 
 export async function POST(req: NextRequest) {
-  const prisma = getPrisma();
-  if (!prisma) {
-    return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
-  }
-  
   try {
     const { fmeaId, fmeaName, exportedBy } = await req.json();
-    
+
     if (!fmeaId) {
       return NextResponse.json({ success: false, error: 'FMEA ID is required' }, { status: 400 });
     }
@@ -53,7 +49,15 @@ export async function POST(req: NextRequest) {
     if (!isValidFmeaId(fmeaId)) {
       return NextResponse.json({ success: false, error: 'Invalid fmeaId format' }, { status: 400 });
     }
-    
+
+    const baseUrl = getBaseDatabaseUrl();
+    const schema = getProjectSchemaName(fmeaId);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+    const prisma = getPrismaForSchema(schema);
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
+    }
+
     // 1. DB에서 모든 데이터 조회
     const [
       l1Structure,
@@ -213,7 +217,7 @@ FMEA 명: ${exportPackage.metadata.fmeaName}
   }
 }
 
-// GET: 내보내기 가능한 FMEA 목록 조회
+// GET: 내보내기 가능한 FMEA 목록 조회 (cross-project — public schema)
 export async function GET() {
   const prisma = getPrisma();
   if (!prisma) {

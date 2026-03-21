@@ -30,7 +30,9 @@ import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma'
 import { upsertActiveMasterFromWorksheetTx } from '@/app/api/pfmea/master/sync';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import { Pool } from 'pg';
-import { bulkSyncToUnifiedItems, convertFMEAStructuresToUnifiedItems } from '@/lib/unified-sync';
+// ★★★ 2026-03-21: CODEFREEZE 해제 (사용자 승인) — legacy round-trip 제거 ★★★
+// migrateToAtomicDB, convertToLegacyFormat, convertFMEAStructuresToUnifiedItems, bulkSyncToUnifiedItems 제거
+// POST handler는 클라이언트(atomicDbSaver.ts)에서 받은 FMEAWorksheetDB를 직접 DB에 저장
 import { preserveFailureLinks, filterValidLinks } from '@/lib/failure-link-utils';
 
 // ✅ Prisma는 Node.js 런타임에서만 안정적으로 동작 (edge/browser 번들 방지)

@@ -190,29 +190,16 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       summary: feedback.summary,
     };
 
-    // 8-9. migrateToAtomicDB (Legacy 구성 제거 — 직접 Atomic 변환)
-    const { migrateToAtomicDB } = await import(
-      '@/app/(fmea-core)/pfmea/worksheet/migration'
+    // 8-9. buildAtomicFromFlat (FlatData + Chains → Atomic DB 직접 변환, 2026-03-21)
+    const { buildAtomicFromFlat } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/buildAtomicFromFlat'
     );
-    const atomicInput = {
+    const atomicDB = buildAtomicFromFlat({
       fmeaId,
-      l1: buildResult.state.l1,
-      l2: buildResult.state.l2,
-      failureLinks: injectedLinks,
-      riskData: injectedRisk,
-      forceOverwrite: true,
-      structureConfirmed: false,
-      l1Confirmed: false,
-      l2Confirmed: false,
-      l3Confirmed: false,
-      failureL1Confirmed: false,
-      failureL2Confirmed: false,
-      failureL3Confirmed: false,
-      failureLinkConfirmed: injectedLinks.length > 0,
-      riskConfirmed: false,
-      optimizationConfirmed: false,
-    };
-    const atomicDB = migrateToAtomicDB(JSON.parse(JSON.stringify(atomicInput)));
+      flatData: flatData as any,
+      chains: failureChains as any,
+      l1Name: l1Name || '',
+    });
     Object.assign(atomicDB, { forceOverwrite: true });
 
     diag['8_atomicDB'] = {
