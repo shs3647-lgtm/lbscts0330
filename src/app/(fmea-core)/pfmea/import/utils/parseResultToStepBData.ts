@@ -186,18 +186,20 @@ export function convertParseResultToStepBBuildData(result: ParseResult): StepBBu
     if (b3Items.length > 0) b3Map.set(pno, b3Items);
 
     // B4 — failure causes
+    // ★★★ 2026-03-21 FIX: dedup key = pno|m4|we|fc (FM 제외)
+    // L3 시트에서 FM 정보가 없으므로, FM을 key에 포함하면 chain gap-fill과 중복 발생
+    // FM은 chain의 fcChains에서 할당 (convertToImportFormat에서 처리)
     const b4Items = b4Map.get(pno) || [];
     for (let i = 0; i < p.failureCauses.length; i++) {
       const fc = ensureStr(p.failureCauses[i]).trim();
       if (!fc) continue;
       const m4 = p.failureCauses4M?.[i] || 'MC';
       const we = p.failureCausesWE?.[i] || '';
-      // Find associated FM for this FC (best effort: use first FM of the process)
-      const fm = (p.failureModes.length > 0) ? ensureStr(p.failureModes[0]).trim() : '';
-      const key = `${pno}|${m4}|${we}|${fm}|${fc}`;
+      const key = `${pno}|${m4}|${we}|${fc}`;
       if (seen.b4.has(key)) continue;
       seen.b4.add(key);
-      b4Items.push({ m4, we, fc, fm });
+      // FM은 빈 문자열 — chain의 fcChains에서 FM이 할당됨
+      b4Items.push({ m4, we, fc, fm: '' });
     }
     if (b4Items.length > 0) b4Map.set(pno, b4Items);
 
@@ -275,9 +277,10 @@ export function convertParseResultToStepBBuildData(result: ParseResult): StepBBu
       a4Map.set(ch.processNo, items);
     }
 
-    // B2 gap-fill
+    // B2 gap-fill — 시트에 해당 공정의 B2가 0건인 경우만 보충
     for (const ch of chains) {
       if (!ch.l3Function?.trim() || !ch.processNo) continue;
+      if (b2Map.has(ch.processNo) && (b2Map.get(ch.processNo)?.length ?? 0) > 0) continue;
       const m4 = ch.m4 || 'MC';
       const we = ch.workElement || '';
       const key = `${ch.processNo}|${m4}|${we}|${ch.l3Function.trim()}`;
@@ -288,9 +291,10 @@ export function convertParseResultToStepBBuildData(result: ParseResult): StepBBu
       b2Map.set(ch.processNo, items);
     }
 
-    // B3 gap-fill
+    // B3 gap-fill — 시트에 해당 공정의 B3가 0건인 경우만 보충
     for (const ch of chains) {
       if (!ch.processChar?.trim() || !ch.processNo) continue;
+      if (b3Map.has(ch.processNo) && (b3Map.get(ch.processNo)?.length ?? 0) > 0) continue;
       const m4 = ch.m4 || 'MC';
       const we = ch.workElement || '';
       const key = `${ch.processNo}|${m4}|${we}|${ch.processChar.trim()}`;
@@ -301,17 +305,17 @@ export function convertParseResultToStepBBuildData(result: ParseResult): StepBBu
       b3Map.set(ch.processNo, items);
     }
 
-    // B4 gap-fill
+    // B4 gap-fill — 시트에 해당 pno|m4|we|fc가 없는 경우만 체인에서 보충
+    // dedup key = pno|m4|we|fc (FM 제외 — 시트와 동일 key)
     for (const ch of chains) {
       if (!ch.fcValue?.trim() || !ch.processNo) continue;
       const m4 = ch.m4 || 'MC';
       const we = ch.workElement || '';
-      const fm = ch.fmValue?.trim() || '';
-      const key = `${ch.processNo}|${m4}|${we}|${fm}|${ch.fcValue.trim()}`;
+      const key = `${ch.processNo}|${m4}|${we}|${ch.fcValue.trim()}`;
       if (seen.b4.has(key)) continue;
       seen.b4.add(key);
       const items = b4Map.get(ch.processNo) || [];
-      items.push({ m4, we, fc: ch.fcValue.trim(), fm });
+      items.push({ m4, we, fc: ch.fcValue.trim(), fm: ch.fmValue?.trim() || '' });
       b4Map.set(ch.processNo, items);
     }
 

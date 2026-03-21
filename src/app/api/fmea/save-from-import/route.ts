@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       enrichedFlatData,
       chainsArray || [],
       normalizedFmeaId,
-      { autoFix: true },
+      { autoFix: false }, // ★★★ 2026-03-21 FIX: autoFix 비활성화 — "부적합" 자동생성 금지 (Rule 1.5)
     );
     if (parseValidation.fixes.length > 0 || parseValidation.summary.failed > 0) {
       console.info(formatValidationReport(parseValidation));
@@ -396,11 +396,6 @@ export async function POST(request: NextRequest) {
           raCount: atomicDB.riskAnalyses.length,
           // 진단
           _actualCounts: actualCounts,
-          _targetFCs: atomicDB.failureCauses.filter((fc: any) => fc.cause?.includes('Target') && fc.l2StructId?.includes('040')).map((fc: any) => ({id:fc.id, cause:fc.cause?.substring(0,30), l3StructId:fc.l3StructId, l3FuncId:fc.l3FuncId})),
-          // B4 FlatData 진단 — Cu Target 관련
-          _b4Flat: enrichedFlatData.filter((d: any) => d.itemCode === 'B4' && d.value?.includes('Target') && (d.processNo === '40' || d.processNo === '040')).map((d: any) => ({id: d.id, val: d.value?.substring(0,30), parent: d.parentItemId, m4: d.m4})),
-          _b3Flat: enrichedFlatData.filter((d: any) => d.itemCode === 'B3' && (d.processNo === '40' || d.processNo === '040') && d.m4 === 'IM').map((d: any) => ({id: d.id, val: d.value?.substring(0,30), parent: d.parentItemId})),
-          _b1Flat: enrichedFlatData.filter((d: any) => d.itemCode === 'B1' && (d.processNo === '40' || d.processNo === '040') && d.m4 === 'IM').map((d: any) => ({id: d.id, val: d.value, m4: d.m4})),
         },
       },
       parseValidation: {

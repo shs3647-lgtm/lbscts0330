@@ -363,10 +363,16 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const category = scopeToCategory(scope);
 
     // l1FuncId: C4.parentItemId → C3.id (= L1Function.id)
-    const l1FuncId = c4.parentItemId || '';
+    // C4가 parentItemId 없이 올 수 있음 (import-builder에서 C4는 parentItemId 미설정)
+    // → 같은 scope의 첫 번째 L1Function을 FK로 사용
+    let l1FuncId = c4.parentItemId || '';
     if (!l1FuncId) {
-      console.warn(`[buildAtomicFromFlat] C4 "${c4.value}" skipped: no parentItemId (missing C3 FK)`);
-      continue;
+      const scopeFunc = l1Functions.find(f => f.category === category);
+      l1FuncId = scopeFunc?.id || '';
+      if (!l1FuncId) {
+        console.warn(`[buildAtomicFromFlat] C4 "${c4.value}" (scope=${scope}): L1Function 없음 → FE 스킵`);
+        continue;
+      }
     }
 
     // Severity from chain data
@@ -453,10 +459,6 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
       cause: b4.value,
     });
 
-    // Cu Target FC 진단
-    if (b4.value?.includes('Target') && pno === 40) {
-      console.info(`[buildAtomicFromFlat] FC진단: cause="${b4.value}" id=${b4.id} l3StructId=${l3StructId} l3FuncId=${processCharId} b3Parent=${b3Item?.parentItemId}`);
-    }
   }
 
   // ============================================================

@@ -76,11 +76,11 @@ export default function ImportStepBar({
     try {
       await quickCreateWorksheet();
 
-      setPipelineStatus('파이프라인 자동수정 루프 실행 중...');
-      const pipeRes = await fetch('/api/fmea/pipeline-verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fmeaId }),
+      // ★★★ 2026-03-21 FIX: POST(자동수정) → GET(읽기전용)
+      // buildAtomicFromFlat이 FK 완전 확정한 Atomic DB를 POST 자동수정이 덮어쓰는 문제 방지
+      setPipelineStatus('파이프라인 검증 중...');
+      const pipeRes = await fetch(`/api/fmea/pipeline-verify?fmeaId=${encodeURIComponent(fmeaId)}`, {
+        method: 'GET',
       });
 
       if (pipeRes.ok) {
