@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from 'pg';
+import {
+  compareDbVsRender,
+  renderCompareHtml,
+  renderAutoFixScript,
+} from '@/lib/fmea-core/db-render-compare';
 
 const CSS = `
 * { box-sizing: border-box; }
@@ -249,6 +254,47 @@ export async function GET(req: NextRequest) {
       const l2 = tables.rows.find(r => r.table_name === 'l2_structures')?.row_count || 0;
       const l3 = tables.rows.find(r => r.table_name === 'l3_structures')?.row_count || 0;
       const opt = tables.rows.find(r => r.table_name === 'optimizations')?.row_count || 0;
+      const l2Func = tables.rows.find(r => r.table_name === 'l2_functions')?.row_count || 0;
+      const l3Func = tables.rows.find(r => r.table_name === 'l3_functions')?.row_count || 0;
+
+      // ── DB ↔ 렌더링 비교 검증 ──
+      // Atomic API가 반환하는 렌더링 카운트를 가져옴 (deletedAt IS NULL 필터 적용)
+      let compareHtml = '';
+      try {
+        // 렌더링 카운트: Atomic API가 실제 조회하는 조건과 동일
+        // FailureLink만 deletedAt IS NULL 필터 (soft delete 지원)
+        // 나머지 테이블은 deletedAt 컬럼 없음 → 전체 COUNT
+        const renderQueries = [
+          { key: 'l2', sql: `SELECT COUNT(*) FROM "${schema}".l2_structures` },
+          { key: 'l3', sql: `SELECT COUNT(*) FROM "${schema}".l3_structures` },
+          { key: 'l2Func', sql: `SELECT COUNT(*) FROM "${schema}".l2_functions` },
+          { key: 'l3Func', sql: `SELECT COUNT(*) FROM "${schema}".l3_functions` },
+          { key: 'fm', sql: `SELECT COUNT(*) FROM "${schema}".failure_modes` },
+          { key: 'fe', sql: `SELECT COUNT(*) FROM "${schema}".failure_effects` },
+          { key: 'fc', sql: `SELECT COUNT(*) FROM "${schema}".failure_causes` },
+          { key: 'fl', sql: `SELECT COUNT(*) FROM "${schema}".failure_links WHERE "deletedAt" IS NULL` },
+          { key: 'ra', sql: `SELECT COUNT(*) FROM "${schema}".risk_analyses` },
+          { key: 'opt', sql: `SELECT COUNT(*) FROM "${schema}".optimizations` },
+        ];
+
+        const renderCounts: Record<string, number> = {};
+        for (const q of renderQueries) {
+          try {
+            const r = await client.query(q.sql);
+            renderCounts[q.key] = parseInt(r.rows[0].count);
+          } catch { renderCounts[q.key] = 0; }
+        }
+
+        const dbCounts: Record<string, number> = {
+          l2, l3, l2Func, l3Func, fm, fe, fc, fl, ra, opt,
+        };
+
+        const compareResult = compareDbVsRender(dbCounts, renderCounts);
+        compareHtml = renderCompareHtml(compareResult, fmeaId);
+      } catch (compareErr) {
+        console.error('[db-viewer] compare error:', compareErr);
+        compareHtml = '<p style="color:#ef4444">비교 검증 실행 실패</p>';
+      }
 
       // N:1:N 요약
       let chainHtml = '';
@@ -294,6 +340,7 @@ export async function GET(req: NextRequest) {
           <div class="stat"><div class="num" style="color:#8b5cf6">${krPcCnt}</div><div class="label">산업DB PC</div></div>
           <div class="stat"><div class="num" style="color:#ec4899">${masterRefCnt}</div><div class="label">마스터 참조</div></div>
         </div>
+        ${compareHtml}
         <h2 style="color:#38bdf8;font-size:15px;margin:20px 0 8px">고장사슬 N:1:N 연결 현황 (FM별)</h2>
         ${chainHtml}
       </div>`;
@@ -404,6 +451,7 @@ function goFmea(v){if(v)location.href='?fmeaId='+v}
 function goCp(v){if(v)location.href='?fmeaId='+v}
 function goPfd(v){if(v)location.href='?fmeaId='+v}
 function goSearch(){var v=document.getElementById('searchInput').value.trim();if(v)location.href='?fmeaId='+v}
+${renderAutoFixScript()}
 </script>
 </body></html>`;
   return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
