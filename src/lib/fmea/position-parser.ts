@@ -420,9 +420,15 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     fe.severity = feSeverityMap.get(fe.id) || 0;
   }
 
-  // ─── 통계 ───
+  // ─── 통계 (엑셀 원본 행수 + 파싱 결과 비교) ───
 
   const stats: Record<string, number> = {
+    // 엑셀 원본 행수 (파싱 전)
+    excelL1Rows: l1Sheet.rows.length,
+    excelL2Rows: l2Sheet.rows.length,
+    excelL3Rows: l3Sheet.rows.length,
+    excelFCRows: fcSheet.rows.length,
+    // 파싱 결과 (DB 저장 대상)
     l1Functions: l1Functions.length,
     l2Structures: l2Structures.length,
     l3Structures: l3Structures.length,
@@ -440,8 +446,17 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     autoFixes: autoFixes.length,
   };
 
+  // ★ Import 파싱 결과 로그 (항목별 카운트 비교)
+  console.log(`[position-parser] ═══ 엑셀 원본 vs 파싱 결과 ═══`);
+  console.log(`  L1: 엑셀 ${stats.excelL1Rows}행 → L1Func ${stats.l1Functions}개, FE ${stats.failureEffects}개`);
+  console.log(`  L2: 엑셀 ${stats.excelL2Rows}행 → L2Struct ${stats.l2Structures}개, FM ${stats.failureModes}개`);
+  console.log(`  L3: 엑셀 ${stats.excelL3Rows}행 → L3Struct ${stats.l3Structures}개, FC ${stats.failureCauses}개`);
+  console.log(`  FC: 엑셀 ${stats.excelFCRows}행 → FL ${stats.failureLinks}개, RA ${stats.riskAnalyses}개`);
+  if (stats.brokenFE > 0 || stats.brokenFM > 0 || stats.brokenFC > 0) {
+    console.warn(`  ⚠️ 깨진 FK: FE=${stats.brokenFE} FM=${stats.brokenFM} FC=${stats.brokenFC}`);
+  }
   if (autoFixes.length > 0) {
-    console.log(`[position-parser] AutoFix ${autoFixes.length}건:`, autoFixes.map(f => `[${f.code}] ${f.message}`).join(', '));
+    console.log(`  AutoFix ${autoFixes.length}건:`, autoFixes.map(f => `[${f.code}] ${f.message}`).join(', '));
   }
 
   return {
@@ -493,8 +508,51 @@ function excelCellStr(row: any, col: number): string {
 }
 
 /**
+ * 헤더 행에서 컬럼 키워드 매칭 → 컬럼 번호 자동감지
+ * 하드코딩 컬럼 번호 제거 — 엑셀 레이아웃 변경에 강건
+ */
+function detectColumns(ws: any, keywordMap: Record<string, string[]>): Record<string, number> {
+  const result: Record<string, number> = {};
+  // 1~3행에서 헤더 찾기
+  for (let headerRow = 1; headerRow <= 3; headerRow++) {
+    const row = ws.getRow(headerRow);
+    if (!row) continue;
+    const totalCols = row.cellCount || 20;
+    for (let c = 1; c <= Math.min(totalCols + 5, 30); c++) {
+      const val = excelCellStr(row, c).toUpperCase();
+      if (!val) continue;
+      for (const [key, keywords] of Object.entries(keywordMap)) {
+        if (result[key]) continue; // 이미 찾음
+        if (keywords.some(kw => val.includes(kw.toUpperCase()))) {
+          result[key] = c;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+/** 헤더 행 번호 감지 (데이터 시작행 = 헤더행 + 1) */
+function detectHeaderRow(ws: any, keywordMap: Record<string, string[]>): number {
+  for (let r = 1; r <= 3; r++) {
+    const row = ws.getRow(r);
+    if (!row) continue;
+    const totalCols = row.cellCount || 20;
+    let matchCount = 0;
+    for (let c = 1; c <= Math.min(totalCols + 5, 30); c++) {
+      const val = excelCellStr(row, c).toUpperCase();
+      for (const keywords of Object.values(keywordMap)) {
+        if (keywords.some(kw => val.includes(kw.toUpperCase()))) matchCount++;
+      }
+    }
+    if (matchCount >= 2) return r; // 2개 이상 매칭되면 헤더행
+  }
+  return 1; // 기본값
+}
+
+/**
  * ExcelJS Workbook → PositionBasedJSON 변환
- * 4시트(L1/L2/L3/FC) 엑셀을 JSON 중간 포맷으로 변환 후 parsePositionBasedJSON 호출
+ * ★ 헤더 키워드 자동감지 — 컬럼 번호 하드코딩 제거
  */
 export function parsePositionBasedWorkbook(wb: any, targetId?: string): PositionAtomicData {
   const sheetNames = wb.worksheets.map((ws: any) => ws.name);
@@ -508,52 +566,145 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
     throw new Error(`Missing sheets: L1=${l1Name} L2=${l2Name} L3=${l3Name} FC=${fcName}`);
   }
 
-  // L1 시트: C1(2), C2(3), C3(4), C4(5)
+  // ─── L1 시트 — 헤더 자동감지 ───
+  const l1WS = wb.getWorksheet(l1Name);
+  const l1ColMap = detectColumns(l1WS, {
+    C1: ['C1', '구분', 'SCOPE', 'CATEGORY'],
+    C2: ['C2', '제품기능', '제품 기능', 'FUNCTION'],
+    C3: ['C3', '요구사항', '요구 사항', 'REQUIREMENT'],
+    C4: ['C4', '고장영향', '고장 영향', 'FAILURE EFFECT'],
+  });
+  const l1Header = detectHeaderRow(l1WS, { C1: ['C1', '구분'], C2: ['C2', '제품기능'] });
+  console.log(`[position-parser] L1 columns: ${JSON.stringify(l1ColMap)}, headerRow: ${l1Header}`);
+
   const l1Rows: SheetRow[] = [];
-  wb.getWorksheet(l1Name).eachRow((row: any, rn: number) => {
-    if (rn <= 1) return;
+  l1WS.eachRow((row: any, rn: number) => {
+    if (rn <= l1Header) return;
     l1Rows.push({
       excelRow: rn, posId: `L1-R${rn}`,
-      cells: { C1: excelCellStr(row, 2), C2: excelCellStr(row, 3), C3: excelCellStr(row, 4), C4: excelCellStr(row, 5) },
-    });
-  });
-
-  // L2 시트: A1(2), A2(3), A3(4), A4(5), SC(6), A5(7), A6(8)
-  const l2Rows: SheetRow[] = [];
-  wb.getWorksheet(l2Name).eachRow((row: any, rn: number) => {
-    if (rn <= 1) return;
-    l2Rows.push({
-      excelRow: rn, posId: `L2-R${rn}`,
-      cells: { A1: excelCellStr(row, 2), A2: excelCellStr(row, 3), A3: excelCellStr(row, 4), A4: excelCellStr(row, 5), SC: excelCellStr(row, 6), A5: excelCellStr(row, 7), A6: excelCellStr(row, 8) },
-    });
-  });
-
-  // L3 시트: processNo(2), m4(3), B1(4), B2(5), B3(6), SC(7), B4(8), B5(9)
-  const l3Rows: SheetRow[] = [];
-  wb.getWorksheet(l3Name).eachRow((row: any, rn: number) => {
-    if (rn <= 1) return;
-    l3Rows.push({
-      excelRow: rn, posId: `L3-R${rn}`,
-      cells: { processNo: excelCellStr(row, 2), m4: excelCellStr(row, 3), B1: excelCellStr(row, 4), B2: excelCellStr(row, 5), B3: excelCellStr(row, 6), SC: excelCellStr(row, 7), B4: excelCellStr(row, 8), B5: excelCellStr(row, 9) },
-    });
-  });
-
-  // FC 시트: FE_scope(2), FE(3), processNo(4), FM(5), m4(6), WE(7), FC(8), PC(9), DC(10), S(11), O(12), D(13), AP(14), L1행(15), L2행(16), L3행(17)
-  const fcRows: SheetRow[] = [];
-  wb.getWorksheet(fcName).eachRow((row: any, rn: number) => {
-    if (rn <= 1) return;
-    fcRows.push({
-      excelRow: rn, posId: `FC-R${rn}`,
       cells: {
-        FE_scope: excelCellStr(row, 2), FE: excelCellStr(row, 3), processNo: excelCellStr(row, 4),
-        FM: excelCellStr(row, 5), m4: excelCellStr(row, 6), WE: excelCellStr(row, 7),
-        FC: excelCellStr(row, 8), PC: excelCellStr(row, 9), DC: excelCellStr(row, 10),
-        S: excelCellStr(row, 11), O: excelCellStr(row, 12), D: excelCellStr(row, 13),
-        AP: excelCellStr(row, 14),
-        L1_origRow: excelCellStr(row, 15), L2_origRow: excelCellStr(row, 16), L3_origRow: excelCellStr(row, 17),
+        C1: excelCellStr(row, l1ColMap.C1 || 1),
+        C2: excelCellStr(row, l1ColMap.C2 || 2),
+        C3: excelCellStr(row, l1ColMap.C3 || 3),
+        C4: excelCellStr(row, l1ColMap.C4 || 4),
       },
     });
   });
+
+  // ─── L2 시트 — 헤더 자동감지 ───
+  const l2WS = wb.getWorksheet(l2Name);
+  const l2ColMap = detectColumns(l2WS, {
+    A1: ['A1', '공정번호', '공정 번호', 'PROCESS NO'],
+    A2: ['A2', '공정명', '공정 명', 'PROCESS NAME'],
+    A3: ['A3', '공정기능', '공정 기능'],
+    A4: ['A4', '제품특성', '제품 특성', 'PRODUCT CHAR'],
+    SC: ['SC', '특별특성', '특별 특성', 'SPECIAL'],
+    A5: ['A5', '고장형태', '고장 형태', 'FAILURE MODE'],
+    A6: ['A6', '검출관리', '검출 관리', 'DETECTION'],
+  });
+  const l2Header = detectHeaderRow(l2WS, { A1: ['A1', '공정번호'], A5: ['A5', '고장형태'] });
+  console.log(`[position-parser] L2 columns: ${JSON.stringify(l2ColMap)}, headerRow: ${l2Header}`);
+
+  const l2Rows: SheetRow[] = [];
+  l2WS.eachRow((row: any, rn: number) => {
+    if (rn <= l2Header) return;
+    l2Rows.push({
+      excelRow: rn, posId: `L2-R${rn}`,
+      cells: {
+        A1: excelCellStr(row, l2ColMap.A1 || 1),
+        A2: excelCellStr(row, l2ColMap.A2 || 2),
+        A3: excelCellStr(row, l2ColMap.A3 || 3),
+        A4: excelCellStr(row, l2ColMap.A4 || 4),
+        SC: excelCellStr(row, l2ColMap.SC || 5),
+        A5: excelCellStr(row, l2ColMap.A5 || 6),
+        A6: excelCellStr(row, l2ColMap.A6 || 7),
+      },
+    });
+  });
+
+  // ─── L3 시트 — 헤더 자동감지 ───
+  const l3WS = wb.getWorksheet(l3Name);
+  const l3ColMap = detectColumns(l3WS, {
+    processNo: ['공정번호', '공정 번호', 'PROCESS NO'],
+    m4: ['4M', 'M4', '분류'],
+    B1: ['B1', '작업요소', '작업 요소', 'WORK ELEMENT'],
+    B2: ['B2', '요소기능', '요소 기능'],
+    B3: ['B3', '공정특성', '공정 특성', 'PROCESS CHAR'],
+    SC: ['SC', '특별특성', '특별 특성', 'SPECIAL'],
+    B4: ['B4', '고장원인', '고장 원인', 'FAILURE CAUSE'],
+    B5: ['B5', '예방관리', '예방 관리', 'PREVENTION'],
+  });
+  const l3Header = detectHeaderRow(l3WS, { B1: ['B1', '작업요소'], B4: ['B4', '고장원인'] });
+  console.log(`[position-parser] L3 columns: ${JSON.stringify(l3ColMap)}, headerRow: ${l3Header}`);
+
+  const l3Rows: SheetRow[] = [];
+  l3WS.eachRow((row: any, rn: number) => {
+    if (rn <= l3Header) return;
+    l3Rows.push({
+      excelRow: rn, posId: `L3-R${rn}`,
+      cells: {
+        processNo: excelCellStr(row, l3ColMap.processNo || 1),
+        m4: excelCellStr(row, l3ColMap.m4 || 2),
+        B1: excelCellStr(row, l3ColMap.B1 || 3),
+        B2: excelCellStr(row, l3ColMap.B2 || 4),
+        B3: excelCellStr(row, l3ColMap.B3 || 5),
+        SC: excelCellStr(row, l3ColMap.SC || 6),
+        B4: excelCellStr(row, l3ColMap.B4 || 7),
+        B5: excelCellStr(row, l3ColMap.B5 || 8),
+      },
+    });
+  });
+
+  // ─── FC 시트 — 헤더 자동감지 ───
+  const fcWS = wb.getWorksheet(fcName);
+  const fcColMap = detectColumns(fcWS, {
+    FE_scope: ['FE구분', 'FE 구분', 'SCOPE'],
+    FE: ['FE', '고장영향', 'FAILURE EFFECT'],
+    processNo: ['공정번호', '공정 번호', 'PROCESS NO'],
+    FM: ['FM', '고장형태', 'FAILURE MODE'],
+    m4: ['4M', 'M4'],
+    WE: ['WE', '작업요소', 'WORK ELEMENT'],
+    FC: ['FC', '고장원인', 'FAILURE CAUSE'],
+    PC: ['PC', '예방관리', 'PREVENTION'],
+    DC: ['DC', '검출관리', 'DETECTION'],
+    S: ['S', '심각도', 'SEVERITY'],
+    O: ['O', '발생도', 'OCCURRENCE'],
+    D: ['D', '검출도'],
+    AP: ['AP', 'ACTION PRIORITY', '우선순위'],
+    L1_origRow: ['L1원본행', 'L1행', 'L1 ROW', 'L1_ORIG'],
+    L2_origRow: ['L2원본행', 'L2행', 'L2 ROW', 'L2_ORIG'],
+    L3_origRow: ['L3원본행', 'L3행', 'L3 ROW', 'L3_ORIG'],
+  });
+  const fcHeader = detectHeaderRow(fcWS, { FM: ['FM', '고장형태'], FC: ['FC', '고장원인'] });
+  console.log(`[position-parser] FC columns: ${JSON.stringify(fcColMap)}, headerRow: ${fcHeader}`);
+
+  const fcRows: SheetRow[] = [];
+  fcWS.eachRow((row: any, rn: number) => {
+    if (rn <= fcHeader) return;
+    fcRows.push({
+      excelRow: rn, posId: `FC-R${rn}`,
+      cells: {
+        FE_scope: excelCellStr(row, fcColMap.FE_scope || 1),
+        FE: excelCellStr(row, fcColMap.FE || 2),
+        processNo: excelCellStr(row, fcColMap.processNo || 3),
+        FM: excelCellStr(row, fcColMap.FM || 4),
+        m4: excelCellStr(row, fcColMap.m4 || 5),
+        WE: excelCellStr(row, fcColMap.WE || 6),
+        FC: excelCellStr(row, fcColMap.FC || 7),
+        PC: excelCellStr(row, fcColMap.PC || 8),
+        DC: excelCellStr(row, fcColMap.DC || 9),
+        S: excelCellStr(row, fcColMap.S || 10),
+        O: excelCellStr(row, fcColMap.O || 11),
+        D: excelCellStr(row, fcColMap.D || 12),
+        AP: excelCellStr(row, fcColMap.AP || 13),
+        L1_origRow: excelCellStr(row, fcColMap.L1_origRow || 14),
+        L2_origRow: excelCellStr(row, fcColMap.L2_origRow || 15),
+        L3_origRow: excelCellStr(row, fcColMap.L3_origRow || 16),
+      },
+    });
+  });
+
+  console.log(`[position-parser] Rows: L1=${l1Rows.length} L2=${l2Rows.length} L3=${l3Rows.length} FC=${fcRows.length}`);
 
   const json: PositionBasedJSON = {
     targetId: targetId || '',
