@@ -88,6 +88,11 @@ function normalizeProcessNo(raw: string): string {
   return nums ? nums[0] : trimmed;
 }
 
+/** 빈값/대시 판별 — "-", "—", "~", "." 등을 빈값으로 취급 */
+function isEmptyValue(v: string): boolean {
+  return !v || /^[-–—~·.]+$/.test(v.trim());
+}
+
 /** AP 자동정규화 — H/M/L만 허용 */
 function normalizeAP(raw: string): string {
   const u = raw.toUpperCase().trim();
@@ -155,9 +160,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const c3 = row.cells['C3']?.trim() || '';
     const c4 = row.cells['C4']?.trim() || '';
 
-    // ★ AutoFix: C2(제품기능) 빈값 → 스킵 (YOUR PLANT/SHIP TO PLANT 등 빈 placeholder)
-    if (!c2) {
-      autoFixes.push({ code: 'L1_SKIP_EMPTY', message: `R${rn}: C1="${c1}" C2 빈값 → L1Function 스킵`, row: rn });
+    // ★ AutoFix: C2(제품기능) 빈값/대시 → 스킵 (YOUR PLANT/SHIP TO PLANT 등 빈 placeholder)
+    if (isEmptyValue(c2)) {
+      autoFixes.push({ code: 'L1_SKIP_EMPTY', message: `R${rn}: C1="${c1}" C2="${c2||''}" → L1Function 스킵`, row: rn });
       continue;
     }
 
