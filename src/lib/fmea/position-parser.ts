@@ -169,6 +169,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         id: l1FuncId,
         fmeaId,
         l1StructId,
+        parentId: l1StructId, // E-02: L1Function.parentId → L1Structure
         category: c1,
         functionName: c2,
         requirement: c3,
@@ -184,6 +185,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         id: feId,
         fmeaId,
         l1FuncId,
+        parentId: l1FuncId, // E-03: FE.parentId → L1Function
         category: c1,
         effect: c4,
         severity: 0, // FC시트에서 채움
@@ -225,6 +227,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         id: l2Id,
         fmeaId,
         l1Id: l1StructId,
+        parentId: l1StructId, // E-05: L2Structure.parentId → L1Structure
         no: a1,
         name: a2,
         order: l2Order++,
@@ -239,6 +242,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       id: l2FuncId,
       fmeaId,
       l2StructId: l2Id,
+      parentId: l2Id, // E-08: L2Function.parentId → L2Structure
       functionName: a3,
       productChar: a4,
       specialChar: sc || undefined,
@@ -251,6 +255,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         id: pcId,
         fmeaId,
         l2StructId: l2Id,
+        parentId: l2Id, // E-09: ProductChar.parentId → L2Structure
         name: a4,
         specialChar: sc || undefined,
         orderIndex: pcOrderIndex++,
@@ -265,6 +270,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           l2FuncId,
           l2StructId: l2Id,
           productCharId: pcId,
+          parentId: pcId, // E-11: FM.parentId → ProductChar
           mode: a5,
         });
         resolver.registerFM(rn, fmId, a5, a1);
@@ -302,6 +308,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       fmeaId,
       l1Id: l1StructId,
       l2Id,
+      parentId: l2Id, // E-13: L3Structure.parentId → L2Structure
       m4: m4 || undefined,
       name: b1,
       order: l3Order++,
@@ -314,6 +321,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       fmeaId,
       l3StructId: l3Id,
       l2StructId: l2Id,
+      parentId: l3Id, // E-17: L3Function.parentId → L3Structure
       functionName: b2,
       processChar: b3,
       specialChar: sc || undefined,
@@ -328,6 +336,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         l3FuncId,
         l3StructId: l3Id,
         l2StructId: l2Id,
+        parentId: l3FuncId, // E-20: FC.parentId → L3Function
         cause: b4,
       });
       resolver.registerFC(rn, fcId, b4, pno, m4, b1);
@@ -410,6 +419,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       fmId,
       feId,
       fcId,
+      // parentId는 null (FailureLink는 root 고장사슬 — 상위 엔티티 없음)
       fmText: c['FM'] || undefined,
       feText: c['FE'] || undefined,
       fcText: c['FC'] || undefined,
@@ -424,6 +434,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       id: `${flId}-RA`,
       fmeaId,
       linkId: flId,
+      parentId: flId, // E-22: RiskAnalysis.parentId → FailureLink
       severity,
       occurrence,
       detection,

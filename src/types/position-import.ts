@@ -12,12 +12,14 @@ export interface PosL1Structure {
   id: string;        // 'L1-STRUCT' (singleton)
   fmeaId: string;
   name: string;
+  parentId?: string; // null (root)
 }
 
 export interface PosL1Function {
   id: string;        // 'L1-R{n}-C2' (C2 첫 등장 행)
   fmeaId: string;
   l1StructId: string;
+  parentId: string;  // → L1Structure.id (E-02)
   category: string;  // C1: YP|SP|USER
   functionName: string; // C2
   requirement: string;  // C3
@@ -27,6 +29,7 @@ export interface PosFailureEffect {
   id: string;        // 'L1-R{n}-C4'
   fmeaId: string;
   l1FuncId: string;  // FK → PosL1Function.id
+  parentId: string;  // → L1Function.id (E-03)
   category: string;  // C1: YP|SP|USER
   effect: string;    // C4
   severity: number;  // FC시트에서 역참조
@@ -38,6 +41,7 @@ export interface PosL2Structure {
   id: string;        // 'L2-R{n}' (공정번호 첫 등장 행)
   fmeaId: string;
   l1Id: string;      // FK → PosL1Structure.id
+  parentId: string;  // → L1Structure.id (E-05)
   no: string;        // A1 공정번호
   name: string;      // A2 공정명
   order: number;
@@ -47,6 +51,7 @@ export interface PosL2Function {
   id: string;        // 'L2-R{n}-C4'
   fmeaId: string;
   l2StructId: string;
+  parentId: string;  // → L2Structure.id (E-08)
   functionName: string; // A3
   productChar: string;  // A4
   specialChar?: string;
@@ -56,6 +61,7 @@ export interface PosProcessProductChar {
   id: string;        // 'L2-R{n}-C5'
   fmeaId: string;
   l2StructId: string;
+  parentId: string;  // → L2Structure.id (E-09)
   name: string;      // A4
   specialChar?: string;
   orderIndex: number;
@@ -67,6 +73,7 @@ export interface PosFailureMode {
   l2FuncId: string;
   l2StructId: string;
   productCharId?: string;
+  parentId: string;  // → ProductChar.id (E-11)
   mode: string;      // A5
 }
 
@@ -77,6 +84,7 @@ export interface PosL3Structure {
   fmeaId: string;
   l1Id: string;
   l2Id: string;      // FK → PosL2Structure.id (공정번호 lookup)
+  parentId: string;  // → L2Structure.id (E-13)
   m4?: string;
   name: string;      // B1
   order: number;
@@ -87,6 +95,7 @@ export interface PosL3Function {
   fmeaId: string;
   l3StructId: string;
   l2StructId: string;
+  parentId: string;  // → L3Structure.id (E-17)
   functionName: string; // B2
   processChar: string;  // B3
   specialChar?: string;
@@ -98,6 +107,7 @@ export interface PosFailureCause {
   l3FuncId: string;
   l3StructId: string;
   l2StructId: string;
+  parentId: string;  // → L3Function.id (E-20)
   cause: string;     // B4
 }
 
@@ -109,6 +119,7 @@ export interface PosFailureLink {
   fmId: string;      // FK → PosFailureMode.id (L2원본행 참조)
   feId: string;      // FK → PosFailureEffect.id (L1원본행 참조)
   fcId: string;      // FK → PosFailureCause.id (L3원본행 참조)
+  parentId?: string; // null (root level 고장사슬)
   fmText?: string;
   feText?: string;
   fcText?: string;
@@ -122,6 +133,7 @@ export interface PosRiskAnalysis {
   id: string;        // 'FC-R{n}-RA'
   fmeaId: string;
   linkId: string;    // FK → PosFailureLink.id
+  parentId: string;  // → FailureLink.id (E-22)
   severity: number;
   occurrence: number;
   detection: number;
