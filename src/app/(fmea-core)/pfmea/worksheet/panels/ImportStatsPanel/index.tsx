@@ -7,7 +7,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import type { WorksheetState, Process, L1Data } from '../../constants';
+import type { WorksheetState } from '../../constants';
 
 interface Props {
   state: WorksheetState;
@@ -48,15 +48,17 @@ function computeStats(state: WorksheetState): { rows: StatRow[]; c1Details: C1De
   const b3Vals = l2.flatMap(p => (p.l3 || []).flatMap(we => (we.functions || []).flatMap(f => (f.processChars || []).map(pc => pc.name)))).filter(Boolean);
   const b4Vals = l2.flatMap(p => (p.l3 || []).flatMap(we => (we.failureCauses || []).map(fc => fc.name))).filter(Boolean);
 
-  const riskKeys = Object.keys(state.riskData || {});
-  const dcKeys = riskKeys.filter(k => k.startsWith('detection-'));
-  const pcKeys = riskKeys.filter(k => k.startsWith('prevention-'));
-  const a6Vals = dcKeys.map(k => String((state.riskData as Record<string, unknown>)[k] || '')).filter(Boolean);
-  const b5Vals = pcKeys.map(k => String((state.riskData as Record<string, unknown>)[k] || '')).filter(Boolean);
+  const rd = (state.riskData || {}) as Record<string, unknown>;
+  const riskKeys = Object.keys(rd);
+  // detection-{fmId}-{fcId} = DC 텍스트, detection-opt-* = 최적화 (제외)
+  const dcKeys = riskKeys.filter(k => k.startsWith('detection-') && !k.startsWith('detection-opt-') && !k.includes('-D'));
+  const pcKeys = riskKeys.filter(k => k.startsWith('prevention-') && !k.startsWith('prevention-opt-'));
+  const a6Vals = dcKeys.map(k => String(rd[k] || '')).filter(v => v.trim() && isNaN(Number(v)));
+  const b5Vals = pcKeys.map(k => String(rd[k] || '')).filter(v => v.trim() && isNaN(Number(v)));
 
   const c1Vals = (l1?.types || []).map(t => t.name).filter(Boolean);
   const c2Vals = (l1?.types || []).flatMap(t => (t.functions || []).map(f => f.name)).filter(Boolean);
-  const c3Vals = (l1?.types || []).flatMap(t => (t.functions || []).flatMap(f => (f.requirements || []).map(r => typeof r === 'string' ? r : (r as { name?: string }).name || ''))).filter(Boolean);
+  const c3Vals = (l1?.types || []).flatMap(t => (t.functions || []).flatMap(f => (f.requirements || []).map(r => r.name || ''))).filter(Boolean);
   const c4Vals = (l1?.failureScopes || []).map(s => s.effect || s.name || '').filter(Boolean);
 
   const mk = (level: string, code: string, label: string, vals: string[]): StatRow => {
@@ -87,13 +89,8 @@ function computeStats(state: WorksheetState): { rows: StatRow[]; c1Details: C1De
     no: i + 1,
     category: t.name || `(구분 ${i + 1})`,
     funcCount: (t.functions || []).filter(f => f.name?.trim()).length,
-    reqCount: (t.functions || []).reduce((sum, f) => {
-      const reqs = (f.requirements || []);
-      return sum + reqs.filter((r: unknown) => {
-        if (typeof r === 'string') return r.trim().length > 0;
-        return ((r as { name?: string }).name || '').trim().length > 0;
-      }).length;
-    }, 0),
+    reqCount: (t.functions || []).reduce((sum, f) =>
+      sum + (f.requirements || []).filter(r => (r.name || '').trim().length > 0).length, 0),
   }));
 
   return { rows, c1Details };
@@ -106,10 +103,11 @@ export default function ImportStatsPanel({ state }: Props) {
   const totalRaw = rows.reduce((s, r) => s + r.raw, 0);
   const totalUnique = rows.reduce((s, r) => s + r.unique, 0);
   const totalDup = rows.reduce((s, r) => s + r.dup, 0);
+  const flCount = (state.failureLinks || []).length;
 
   return (
     <div className="p-2 text-[10px] overflow-auto h-full">
-      <h3 className="font-bold text-[11px] text-indigo-800 mb-1">Import 통계</h3>
+      <h3 className="font-bold text-[11px] text-indigo-800 mb-1">워크시트 통계</h3>
 
       <table className="w-full border-collapse text-[9px]">
         <thead>
@@ -148,6 +146,18 @@ export default function ImportStatsPanel({ state }: Props) {
           </tr>
         </tbody>
       </table>
+
+      {/* 고장사슬 */}
+      <div className="mt-1 px-1 py-0.5 bg-purple-50 border border-purple-200 rounded text-[9px]">
+        <span className="font-semibold text-purple-800">고장사슬(FL):</span>{' '}
+        <span className="font-bold text-purple-900">{flCount}</span>건
+        {' / '}
+        <span className="font-semibold text-purple-800">DC:</span>{' '}
+        <span className="font-bold">{rows.find(r => r.code === 'A6')?.raw || 0}</span>
+        {' / '}
+        <span className="font-semibold text-purple-800">PC:</span>{' '}
+        <span className="font-bold">{rows.find(r => r.code === 'B5')?.raw || 0}</span>
+      </div>
 
       {/* C1 상세 통계 */}
       <div className="mt-2">

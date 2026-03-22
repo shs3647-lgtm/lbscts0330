@@ -392,11 +392,24 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const category = scopeToCategory(scope);
 
     // l1FuncId: C4.parentItemId → L1Function.id
-    // parentItemId가 C2 레벨(PF-L1-YP-001)이고 L1Function이 C3 레벨(PF-L1-YP-001-001)인 경우
-    // → scope 기반 fallback 필요
+    // 3단계 매칭: (1) parentItemId 직접, (2) 행번호 접두사 매칭, (3) scope 첫번째 폴백
     let l1FuncId = c4.parentItemId || '';
-    // parentItemId가 있어도 L1Function에 없으면 scope 기반 fallback
+
+    // (1) parentItemId가 있고 L1Function에 존재하면 그대로 사용
     if (!l1FuncId || !l1FuncById.has(l1FuncId)) {
+      // (2) 행번호 접두사 매칭: C4 ID "L1-R3-C4" → prefix "L1-R3" → L1F "L1-R3-C2-C3"
+      const rowMatch = c4.id.match(/^(L1-R\d+)/);
+      if (rowMatch) {
+        const rowPrefix = rowMatch[1];
+        const matchByRow = l1Functions.find(f => f.id.startsWith(rowPrefix + '-') && f.category === category);
+        if (matchByRow) {
+          l1FuncId = matchByRow.id;
+        }
+      }
+    }
+
+    if (!l1FuncId || !l1FuncById.has(l1FuncId)) {
+      // (3) scope 내 첫 번째 L1Function 폴백
       const scopeFunc = l1Functions.find(f => f.category === category);
       l1FuncId = scopeFunc?.id || '';
       if (!l1FuncId) {
@@ -448,10 +461,21 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const l2StructId = isNaN(pno) ? '' : genA1('PF', pno);
 
     // A5.parentItemId → A4.id (L2Function.id = productCharId)
-    // parentItemId 없으면 동일 processNo의 A4/L2Function에서 보완
+    // 3단계 매칭: (1) parentItemId 직접, (2) 행번호 접두사 매칭, (3) processNo 폴백
     let l2FuncId = a5.parentItemId || '';
+
+    // (2) 행번호 접두사 매칭: A5 ID "L2-R4-C6" → prefix "L2-R4" → L2F "L2-R4-C5"
+    const a5RowMatch = a5.id.match(/^(L2-R\d+)/);
+    if (a5RowMatch) {
+      const rowPrefix = a5RowMatch[1];
+      const matchByRow = l2Functions.find(f => f.id.startsWith(rowPrefix + '-'));
+      if (matchByRow) {
+        l2FuncId = matchByRow.id;
+      }
+    }
+
     if (!l2FuncId) {
-      // 동일 processNo의 A4에서 lookup
+      // (3) 동일 processNo의 A4에서 lookup
       const a4Match = a4ByPno.get(a5.processNo);
       if (a4Match) {
         l2FuncId = a4Match.id;

@@ -40,7 +40,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
+import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -518,22 +518,91 @@ export async function POST(request: NextRequest) {
 
           console.info(`[rebuild-atomic] 꽂아넣기 완료: FM=${refreshedFMs.length} FE=${refreshedFEs.length} FC=${refreshedFCs.length} L3F=${refreshedL3Fs.length} FL=${refreshedFLs.length} RA=${refreshedRAs.length}`);
         } else {
-          // 마스터 JSON 없이 DB 다이렉트 생성 (L3Functions만)
+          // 마스터 JSON 없이 DB 다이렉트 생성 — FlatItem B2/B3 데이터 활용
           const existingL3FStructIds = new Set(atomic.l3Functions.map((f: any) => f.l3StructId));
           const l3sWithoutFunc = atomic.l3Structures.filter((s: any) => !existingL3FStructIds.has(s.id));
           if (l3sWithoutFunc.length > 0) {
-            await tx.l3Function.createMany({
-              data: l3sWithoutFunc.map((s: any) => ({
-                id: `${s.id}-G`, fmeaId, l3StructId: s.id,
-                l2StructId: l3ToL2Map.get(s.id) || '',
-                functionName: s.name || '', processChar: '',
-                specialChar: null, createdAt: now, updatedAt: now,
-              })),
-              skipDuplicates: true,
-            });
+            // FlatItem B2/B3 로드 (public 스키마) → L3Function 데이터 소스
+            const publicPrisma = getPrisma();
+            type FlatRow = { processNo: string; itemCode: string; value: string; m4: string | null; specialChar: string | null };
+            let flatB2: FlatRow[] = [];
+            let flatB3: FlatRow[] = [];
+            if (publicPrisma) {
+              try {
+                const dataset = await publicPrisma.pfmeaMasterDataset.findFirst({
+                  where: { fmeaId },
+                  select: { id: true },
+                });
+                if (dataset) {
+                  flatB2 = (await publicPrisma.pfmeaMasterFlatItem.findMany({
+                    where: { datasetId: dataset.id, itemCode: 'B2' },
+                    select: { processNo: true, itemCode: true, value: true, m4: true, specialChar: true },
+                  })) as FlatRow[];
+                  flatB3 = (await publicPrisma.pfmeaMasterFlatItem.findMany({
+                    where: { datasetId: dataset.id, itemCode: 'B3' },
+                    select: { processNo: true, itemCode: true, value: true, m4: true, specialChar: true },
+                  })) as FlatRow[];
+                }
+              } catch (e: any) {
+                console.warn(`[rebuild-atomic] FlatItem B2/B3 로드 실패: ${e?.message}`);
+              }
+            }
+
+            // processNo 추출: L2 ID "L2-PNO-040" → "40", "PF-L2-040" → "40"
+            const extractPno = (l2Id: string): string => {
+              const m = l2Id.match(/(\d+)$/);
+              return m ? String(parseInt(m[1], 10)) : '';
+            };
+
+            // FlatItem B2/B3를 processNo+m4로 그룹화
+            const b2Map = new Map<string, FlatRow[]>();
+            for (const b of flatB2) {
+              const key = `${parseInt(b.processNo, 10)}|${b.m4 || ''}`;
+              if (!b2Map.has(key)) b2Map.set(key, []);
+              b2Map.get(key)!.push(b);
+            }
+            const b3Map = new Map<string, FlatRow[]>();
+            for (const b of flatB3) {
+              const key = `${parseInt(b.processNo, 10)}|${b.m4 || ''}`;
+              if (!b3Map.has(key)) b3Map.set(key, []);
+              b3Map.get(key)!.push(b);
+            }
+
+            // 각 L3Structure별 FlatItem 매칭 카운터 (같은 pno+m4 내 순차 할당)
+            const usedIdx = new Map<string, number>();
+            const l3fToCreate: any[] = [];
+
+            for (const l3 of l3sWithoutFunc) {
+              const l3Id = (l3 as any).id;
+              const l2Id = l3ToL2Map.get(l3Id) || (l3 as any).l2Id || '';
+              const pno = extractPno(l2Id);
+              const m4 = (l3 as any).m4 || '';
+              const key = `${pno}|${m4}`;
+
+              const b2Items = b2Map.get(key) || [];
+              const b3Items = b3Map.get(key) || [];
+              const idx = usedIdx.get(key) || 0;
+              usedIdx.set(key, idx + 1);
+
+              const b2 = b2Items[idx];
+              const b3 = b3Items[idx];
+
+              l3fToCreate.push({
+                id: `${l3Id}-G`, fmeaId, l3StructId: l3Id, l2StructId: l2Id,
+                functionName: b2?.value || (l3 as any).name || '',
+                processChar: b3?.value || '',
+                specialChar: b3?.specialChar || null,
+                createdAt: now, updatedAt: now,
+              });
+            }
+
+            if (l3fToCreate.length > 0) {
+              await tx.l3Function.createMany({ data: l3fToCreate, skipDuplicates: true });
+              const scFilled = l3fToCreate.filter((f: any) => f.specialChar).length;
+              console.info(`[rebuild-atomic] DB 다이렉트 L3Functions: ${l3fToCreate.length} (SC=${scFilled})`);
+            }
             const refreshedL3Fs = await tx.l3Function.findMany({ where: { fmeaId } });
             atomic.l3Functions = refreshedL3Fs;
-            console.info(`[rebuild-atomic] DB 다이렉트 L3Functions: ${l3sWithoutFunc.length}`);
           }
         }
       }
@@ -1080,6 +1149,57 @@ export async function POST(request: NextRequest) {
         // ★ 2026-03-20: L3Function 폴백 재생성/emptyPC 보정 제거 — Atomic DB 원본 유지
 
         // Legacy sync removed — Atomic DB is SSoT
+      }
+
+      // ★★★ 2026-03-22 FIX: ProcessProductChar.specialChar 동기화 ★★★
+      // 소스 1: L2Function.specialChar → PPC (l2StructId+name 매칭)
+      // 소스 2: FlatItem A4.specialChar → PPC (processNo → l2StructId + name 매칭)
+      {
+        let ppcUpdated = 0;
+
+        // 1. L2Function → PPC (name 매칭)
+        const l2Funcs = await tx.l2Function.findMany({
+          where: { fmeaId, specialChar: { not: null } },
+          select: { l2StructId: true, productChar: true, specialChar: true },
+        });
+        for (const lf of l2Funcs) {
+          if (!lf.specialChar || !lf.productChar) continue;
+          const updated = await tx.processProductChar.updateMany({
+            where: { fmeaId, l2StructId: lf.l2StructId, name: lf.productChar, OR: [{ specialChar: null }, { specialChar: '' }] },
+            data: { specialChar: lf.specialChar },
+          });
+          ppcUpdated += updated.count;
+        }
+
+        // 2. FlatItem A4 → PPC (processNo 기반)
+        const publicPrisma = getPrisma();
+        if (publicPrisma) {
+          try {
+            const dataset = await publicPrisma.pfmeaMasterDataset.findFirst({ where: { fmeaId }, select: { id: true } });
+            if (dataset) {
+              const flatA4sc = await publicPrisma.pfmeaMasterFlatItem.findMany({
+                where: { datasetId: dataset.id, itemCode: 'A4', NOT: { specialChar: { in: [null, ''] } } },
+                select: { processNo: true, value: true, specialChar: true },
+              });
+              for (const a4 of flatA4sc) {
+                if (!a4.specialChar || !a4.value) continue;
+                const pnoNum = parseInt(a4.processNo, 10);
+                const l2Id = `L2-PNO-${String(pnoNum).padStart(3, '0')}`;
+                const updated = await tx.processProductChar.updateMany({
+                  where: { fmeaId, l2StructId: l2Id, name: a4.value, OR: [{ specialChar: null }, { specialChar: '' }] },
+                  data: { specialChar: a4.specialChar },
+                });
+                ppcUpdated += updated.count;
+              }
+            }
+          } catch (e: any) {
+            console.warn(`[rebuild-atomic] FlatItem A4 SC sync 실패: ${e?.message}`);
+          }
+        }
+
+        if (ppcUpdated > 0) {
+          console.info(`[rebuild-atomic] ProcessProductChar SC 동기화: ${ppcUpdated}건`);
+        }
       }
 
       // ★★★ 2026-03-18 FIX: Opt FK 수복 — riskId가 유효하지 않은 Optimization 삭제 ★★★
