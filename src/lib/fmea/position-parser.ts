@@ -53,6 +53,50 @@ interface PositionBasedJSON {
   sheets: Record<string, SheetData>;
 }
 
+// ─── Import AutoFix 유틸 ───
+
+interface AutoFixLog { code: string; message: string; row?: number }
+
+/** C1 scope 자동정규화 — Your Plant→YP, Ship to Plant→SP, End User→USER 등 */
+function normalizeScope(raw: string): string {
+  const u = raw.toUpperCase().trim();
+  if (u === 'YP' || u.includes('YOUR') || u === 'YOUR PLANT') return 'YP';
+  if (u === 'SP' || u.includes('SHIP') || u === 'SHIP TO PLANT') return 'SP';
+  if (u === 'USER' || u === 'US' || u.includes('END USER') || u.includes('END')) return 'USER';
+  if (u) return u; // 알 수 없는 값은 그대로 보존
+  return 'YP'; // 빈값 → 기본값 YP
+}
+
+/** 4M 자동정규화 */
+function normalizeM4(raw: string): string {
+  const u = raw.toUpperCase().trim();
+  if (u === 'MN' || u === 'MAN' || u.includes('사람') || u.includes('작업자')) return 'MN';
+  if (u === 'MC' || u === 'MACHINE' || u.includes('설비') || u.includes('기계')) return 'MC';
+  if (u === 'EN' || u === 'ENVIRONMENT' || u.includes('환경')) return 'EN';
+  if (u === 'IM' || u === 'MATERIAL' || u.includes('재료') || u.includes('자재')) return 'IM';
+  return u || 'MN';
+}
+
+/** 공정번호 자동정규화 — 선행0 유지, 숫자만 추출 */
+function normalizeProcessNo(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  // 숫자만 포함된 경우 그대로 반환 (선행0 유지)
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  // 숫자 추출
+  const nums = trimmed.match(/\d+/);
+  return nums ? nums[0] : trimmed;
+}
+
+/** AP 자동정규화 — H/M/L만 허용 */
+function normalizeAP(raw: string): string {
+  const u = raw.toUpperCase().trim();
+  if (u === 'H' || u === 'HIGH') return 'H';
+  if (u === 'M' || u === 'MEDIUM' || u === 'MED') return 'M';
+  if (u === 'L' || u === 'LOW') return 'L';
+  return u;
+}
+
 // ─── UUID 컬럼 상수 (시트별 논리 컬럼 번호) ───
 
 /** L1: C4 = 고장영향 = 4번째 컬럼 */
@@ -100,9 +144,13 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // ★ C1+C2+C3 조합으로 중복제거 — 같은 C2라도 다른 C3 = 다른 L1Function (요구사항 누락 방지)
   const seenC2C3: Map<string, string> = new Map(); // C1|C2|C3 → L1Function id
 
+  const autoFixes: AutoFixLog[] = [];
+
   for (const row of l1Sheet.rows) {
     const rn = row.excelRow;
-    const c1 = row.cells['C1']?.trim() || '';
+    const rawC1 = row.cells['C1']?.trim() || '';
+    const c1 = normalizeScope(rawC1); // ★ AutoFix: scope 정규화
+    if (c1 !== rawC1 && rawC1) autoFixes.push({ code: 'L1_SCOPE', message: `R${rn}: "${rawC1}"→"${c1}"`, row: rn });
     const c2 = row.cells['C2']?.trim() || '';
     const c3 = row.cells['C3']?.trim() || '';
     const c4 = row.cells['C4']?.trim() || '';
@@ -155,7 +203,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
   for (const row of l2Sheet.rows) {
     const rn = row.excelRow;
-    const a1 = row.cells['A1']?.trim() || '';
+    const a1 = normalizeProcessNo(row.cells['A1']?.trim() || ''); // ★ AutoFix
     const a2 = row.cells['A2']?.trim() || '';
     const a3 = row.cells['A3']?.trim() || '';
     const a4 = row.cells['A4']?.trim() || '';
@@ -231,8 +279,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
   for (const row of l3Sheet.rows) {
     const rn = row.excelRow;
-    const pno = row.cells['processNo']?.trim() || '';
-    const m4 = row.cells['m4']?.trim() || '';
+    const pno = normalizeProcessNo(row.cells['processNo']?.trim() || ''); // ★ AutoFix
+    const m4 = normalizeM4(row.cells['m4']?.trim() || ''); // ★ AutoFix
     const b1 = row.cells['B1']?.trim() || '';
     const b2 = row.cells['B2']?.trim() || '';
     const b3 = row.cells['B3']?.trim() || '';
@@ -299,6 +347,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const l2Row = parseInt(c['L2_origRow'] || '', 10) || 0;
     const l3Row = parseInt(c['L3_origRow'] || '', 10) || 0;
 
+    const fcPno = normalizeProcessNo(c['processNo'] || ''); // ★ AutoFix
+    const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
+    const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
+
     const { feId, fmId, fcId } = resolver.resolve({
       l1Row,
       l2Row,
@@ -306,15 +358,15 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       feText: c['FE'] || '',
       fmText: c['FM'] || '',
       fcText: c['FC'] || '',
-      processNo: c['processNo'] || '',
-      m4: c['m4'] || '',
+      processNo: fcPno,
+      m4: fcM4,
       workElement: c['WE'] || '',
     });
 
     const severity = parseInt(c['S'] || '0', 10) || 0;
     const occurrence = parseInt(c['O'] || '0', 10) || 0;
     const detection = parseInt(c['D'] || '0', 10) || 0;
-    const ap = c['AP']?.trim() || '';
+    const ap = normalizeAP(c['AP']?.trim() || ''); // ★ AutoFix
 
     // FailureLink
     const flId = positionUUID('FC', rn);
@@ -327,8 +379,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       fmText: c['FM'] || undefined,
       feText: c['FE'] || undefined,
       fcText: c['FC'] || undefined,
-      feScope: c['FE_scope'] || undefined,
-      fmProcess: c['processNo'] || undefined,
+      feScope: fcScope || undefined,
+      fmProcess: fcPno || undefined,
       fcWorkElem: c['WE'] || undefined,
       fcM4: c['m4'] || undefined,
     });
@@ -374,7 +426,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     brokenFE: failureLinks.filter(fl => !fl.feId).length,
     brokenFM: failureLinks.filter(fl => !fl.fmId).length,
     brokenFC: failureLinks.filter(fl => !fl.fcId).length,
+    autoFixes: autoFixes.length,
   };
+
+  if (autoFixes.length > 0) {
+    console.log(`[position-parser] AutoFix ${autoFixes.length}건:`, autoFixes.map(f => `[${f.code}] ${f.message}`).join(', '));
+  }
 
   return {
     fmeaId,

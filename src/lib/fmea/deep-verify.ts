@@ -221,6 +221,22 @@ function verifyDB(input: DeepVerifyInput, r: DeepVerifyResult): void {
   db.push(!input.l1Structure?.id
     ? check('A7', 'L1Structure 미존재', 'error', 1)
     : pass('A7', 'L1Structure 존재'));
+
+  // A8: L1Function scope 값 검증 (YP/SP/USER만 허용)
+  const validScopes = new Set(['YP', 'SP', 'USER']);
+  const badScopes = input.l1Functions.filter(f => !validScopes.has(f.category));
+  db.push(badScopes.length > 0
+    ? check('A8', 'L1Function scope 비표준', 'error', badScopes.length,
+        badScopes.map(f => `${f.id}:category="${f.category}"`))
+    : pass('A8', 'scope YP/SP/USER 정규'));
+
+  // A9: L3Structure m4 값 검증 (MN/MC/EN/IM만 허용)
+  const validM4s = new Set(['MN', 'MC', 'EN', 'IM', '']);
+  const badM4s = input.l3Structures.filter(l3 => l3.m4 && !validM4s.has(l3.m4));
+  db.push(badM4s.length > 0
+    ? check('A9', 'L3Structure m4 비표준', 'warning', badM4s.length,
+        badM4s.map(l3 => `${l3.id}:m4="${l3.m4}"`))
+    : pass('A9', '4M MN/MC/EN/IM 정규'));
 }
 
 // ═══════════════════════════════════════════
