@@ -132,8 +132,7 @@ export function buildFcToL3Map(
       // ★ 경로2: L3-level failureCauses 직접 매칭 (processCharId 없는 FC)
       (we.failureCauses || []).forEach((fc: any) => {
         if (fc.id && !map.has(fc.id)) {
-              // ★★★ 2026-03-21 FIX: FK-only — first-function fallback 삭제, processCharId FK 매칭만. 실패시 빈 문자열
-          // processCharId 기반 매칭 시도
+          // processCharId FK 매칭 우선 시도
           let matchedFn = '';
           let matchedPc = '';
           let matchedPcSC = '';
@@ -147,6 +146,13 @@ export function buildFcToL3Map(
                 }
               }
             }
+          }
+          // ★ FK 매칭 실패 시 → L3Function.processChars[0] 직접 사용 (위치기반 UUID 시스템)
+          if (!matchedPc && (we.functions || []).length > 0) {
+            const firstFn = (we.functions || [])[0];
+            matchedFn = matchedFn || (firstFn.name || '');
+            matchedPc = firstFn.processChars?.[0]?.name || '';
+            matchedPcSC = firstFn.processChars?.[0]?.specialChar || '';
           }
           map.set(fc.id, {
             workFunction: matchedFn,
