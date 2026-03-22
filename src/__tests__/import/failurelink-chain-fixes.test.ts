@@ -277,22 +277,28 @@ describe('H-1: Step 3/4 분리 — Import에서 PC/DC 미할당 허용', () => {
     expect(fcChains[0].dc).toBe('');
   });
 
-  it('Import 단계에서 빈 PC/DC를 즉시 추론하여 채움 (PCDC_INFERRED)', async () => {
-    // import-builder.ts에서 inferPC/inferDC가 즉시 호출되어야 함
+  it('Import 단계에서 빈 PC/DC는 추론하지 않고 빈칸 유지 (PCDC_EMPTY, Rule 1.5.2)', async () => {
+    // Rule 1.5.2: Import에서 inferPC/inferDC로 빈칸을 채우지 않음 → r.pc/r.dc 그대로, 경고만 PCDC_EMPTY
     const { readFileSync } = await import('fs');
     const builderSource = readFileSync(
       'src/app/(fmea-core)/pfmea/import/stepb-parser/import-builder.ts',
       'utf-8'
     );
 
-    // inferMissingPCDC 일괄 함수는 사용하지 않음 (개별 inferPC/inferDC 사용)
+    // inferMissingPCDC 일괄 함수는 사용하지 않음
     const codeLines = builderSource.split('\n').filter(
       (line: string) => !line.trim().startsWith('//') && !line.trim().startsWith('*')
     );
     const codeOnly = codeLines.join('\n');
     expect(codeOnly).not.toContain('inferMissingPCDC(fcChains');
-    // PCDC_INFERRED 로그가 존재해야 함 (Import 시 즉시 추론)
-    expect(builderSource).toContain('PCDC_INFERRED');
+    expect(
+      builderSource,
+      'import-builder must warn with PCDC_EMPTY when PC/DC are empty; Import must not infer-fill them (Rule 1.5.2)'
+    ).toContain('PCDC_EMPTY');
+    expect(
+      builderSource,
+      'fcChains must keep parsed pc/dc as-is (empty stays empty), not overwrite with inference'
+    ).toContain('빈 상태 유지');
   });
 });
 

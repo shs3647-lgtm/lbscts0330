@@ -14,7 +14,8 @@ import { describe, it, expect } from 'vitest';
 
 const FC_PARSER_PATH = 'src/app/(fmea-core)/pfmea/import/excel-parser-fc.ts';
 const EXCEL_PARSER_PATH = 'src/app/(fmea-core)/pfmea/import/excel-parser.ts';
-const HANDLER_PATH = 'src/app/(fmea-core)/pfmea/import/hooks/useImportFileHandlers.ts';
+/** 워크시트 PC/DC 채움 — 전용시트(-tpl-) 출처 공정은 tplA6/tplB5 Set으로 추적 (Import inferDC/inferPC 폴백 제거 후에도 유지) */
+const FILL_PCDC_PATH = 'src/app/(fmea-core)/pfmea/worksheet/utils/fillPCDCFromImport.ts';
 
 describe('FIX-1: recoverSkippedRows — pcValue/dcValue 포함', () => {
 
@@ -89,27 +90,20 @@ describe('FIX-2: A6/B5 시트 — 단일값 파싱 (D 숫자 혼입 방지)', ()
 });
 
 
-describe('FIX-3: 소스 우선순위 — 전용시트 > FC > 추론 (v5.4 재설계)', () => {
+describe('FIX-3: 소스 우선순위 — 전용시트(tpl) 공정별 Set (fillPCDCFromImport; Rule 1.5.2: Excel/샘플에 A6·B5 없으면 추론으로 채우지 않음)', () => {
 
   it('A6 전용시트 우선순위 — tplA6Processes Set으로 공정별 관리', async () => {
     const fs = await import('fs');
-    const content = fs.readFileSync(HANDLER_PATH, 'utf-8');
+    const content = fs.readFileSync(FILL_PCDC_PATH, 'utf-8');
 
-    // v5.4: 전용시트 우선순위 — tplA6Processes Set 사용
-    const hasPerProcessA6 = content.match(
-      /tplA6(Processes|Set|ByProc)/
-    );
-    expect(hasPerProcessA6).toBeTruthy();
+    expect(content).toMatch(/tplA6Processes/);
   });
 
   it('B5 전용시트 우선순위 — tplB5Processes Set으로 공정별 관리', async () => {
     const fs = await import('fs');
-    const content = fs.readFileSync(HANDLER_PATH, 'utf-8');
+    const content = fs.readFileSync(FILL_PCDC_PATH, 'utf-8');
 
-    const hasPerProcessB5 = content.match(
-      /tplB5(Processes|Set|ByProc)/
-    );
-    expect(hasPerProcessB5).toBeTruthy();
+    expect(content).toMatch(/tplB5Processes/);
   });
 });
 

@@ -129,12 +129,12 @@ describe('B3 공정특성 — 4M 빈 행 폴백', () => {
     expect(b3Items.length).toBe(3);
   });
 
-  it('B3 값에 Developer 항온수 유지 관련 특성이 포함되어야 한다', () => {
+  it('Developer 항온수 WE: 엑셀 B3 없음 → char 빈 문자열 (FC/WE inferChar 자동생성 없음, Rule 1.5.2)', () => {
     const result = buildImportData(makeRowsWithEmpty4M(), new WarningCollector());
     const b3Items = result.b3.get('10') || [];
-    const b3Chars = b3Items.map(b => b.char);
-    const hasDevHotWater = b3Chars.some(v => v.includes('항온수') || v.includes('Developer'));
-    expect(hasDevHotWater).toBe(true);
+    const devB3 = b3Items.find(b => b.we === 'Developer 항온수 유지');
+    expect(devB3).toBeDefined();
+    expect(devB3!.char).toBe('');
   });
 
   it('모든 B1에 대응하는 B3가 있어야 한다 (B1 ≤ B3)', () => {

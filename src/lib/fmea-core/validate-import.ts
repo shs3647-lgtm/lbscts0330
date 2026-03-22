@@ -64,7 +64,10 @@ const VALID_M4_CODES = new Set(['MC', 'MT', 'MN', 'ME', 'EN']);
 const B_LEVEL_CODES_REQUIRING_M4 = new Set(['B1', 'B2', 'B3', 'B4']);
 
 /** Auto-generated text patterns forbidden by Rule 1.5 */
-const FORBIDDEN_TEXT_PATTERNS = ['부적합', '관리 특성', '설비가', '작업자가'];
+const FORBIDDEN_TEXT_PATTERNS = [
+  '부적합', '불량', '관리 특성', '공정 품질 특성',
+  '충족', '방지 기능', '설비가', '작업자가',
+];
 
 // ══════════════════════════════════════════════
 // Helper: cap details array to avoid huge reports
@@ -372,7 +375,7 @@ function checkRequiredFields(flatData: ImportedFlatData[]): CheckResult {
 /**
  * Check 7: noAutoGenText
  * No auto-generated text patterns that violate Rule 1.5.
- * Patterns: "부적합", "관리 특성", "설비가", "작업자가"
+ * Patterns: "부적합", "불량", "관리 특성", "공정 품질 특성", "충족", "방지 기능", "설비가", "작업자가"
  */
 function checkNoAutoGenText(flatData: ImportedFlatData[]): CheckResult {
   const bad: CheckDetail[] = [];

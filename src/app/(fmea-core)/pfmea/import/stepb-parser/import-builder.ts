@@ -34,7 +34,7 @@ import type {
   StepBC4Item, StepBFCChain, WarningCollector,
 } from './types';
 import { stripPrefix } from './prefix-utils';
-import { inferC2C3, inferChar, inferPC, inferDC, getDefaultRuleSet, enhancePCFormat, enhanceDCFormat } from './pc-dc-inference';
+import { enhancePCFormat, enhanceDCFormat } from './pc-dc-inference';
 import type { SampleWEData } from '@/lib/sample-data-loader';
 import { lookupSampleWE } from '@/lib/sample-data-loader';
 // 업종별 규칙 셋 자동 등록 (사이드이펙트 import)
@@ -374,45 +374,13 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
   }
 
-  // 3차: 업종별 DB + FE→기능 변환 추론 (l1/l2 모두 없을 때)
+  // ★ 2026-03-22: inferC2C3 / C2→"방지 기능" / C3→"충족" 자동생성 전체 제거 (Rule 1.5.2)
+  // 엑셀에 C2/C3가 없으면 빈 상태 유지 — 워크시트에서 사용자가 직접 입력
   if (c2Map.size === 0 && c4.length > 0) {
-    const inferred = inferC2C3(c4, warn);
-    c2Map = inferred.c2Map;
-    c3Map = inferred.c3Map;
+    warn.warn('C2_MISSING', `C2(완제품기능) 없음 — L1 시트 또는 워크시트에서 직접 입력 필요`);
   }
-
-  // C3: 1차/2차에서 C2를 찾은 경우 C3 자동생성
   if (c3Map.size === 0 && c2Map.size > 0) {
-    for (const [scope, funcs] of c2Map) {
-      c3Map.set(scope, funcs.map(f => `${f} 충족`));
-    }
-  }
-
-  // ★★★ 4차 fallback: C2/C3 모두 비어있으면 C4(고장영향)에서 C3 직접 생성 ★★★
-  // C4의 scope별로 FE 텍스트에서 요구사항을 도출
-  if (c3Map.size === 0 && c4.length > 0) {
-    // C2도 비어있으면 C4에서 C2도 함께 생성
-    if (c2Map.size === 0) {
-      for (const item of c4) {
-        if (!item.scope) continue;
-        const list = c2Map.get(item.scope) || [];
-        const func = `${item.fe} 방지 기능`;
-        if (!list.includes(func)) {
-          list.push(func);
-          c2Map.set(item.scope, list);
-        }
-      }
-      if (c2Map.size > 0) {
-        warn.info('C2_FROM_C4', `C2: C4(고장영향)에서 ${c2Map.size}개 scope C2 자동생성`);
-      }
-    }
-    // C3 = C2 기반 요구사항 생성
-    for (const [scope, funcs] of c2Map) {
-      c3Map.set(scope, funcs.map(f => `${f} 충족`));
-    }
-    if (c3Map.size > 0) {
-      warn.info('C3_FROM_C4', `C3: C4(고장영향) 기반 ${[...c3Map.values()].flat().length}건 자동생성`);
-    }
+    warn.warn('C3_MISSING', `C3(요구사항) 없음 — 워크시트에서 직접 입력 필요`);
   }
 
   // 01번 공통 공정 자동 삽입
@@ -438,11 +406,9 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
       { char: '제품 청정도', sc: '' },
     ]);
 
-    // ★ 2026-03-05: A5(고장형태) 자동 삽입 — A4 제품특성 기반
-    a5Map.set('01', [
-      'ESD 특성 부적합',
-      '청정도 부적합',
-    ]);
+    // ★ 2026-03-22: A5 자동생성 제거 (Rule 1.5.2) — 워크시트에서 사용자가 직접 입력
+    // 이전: a5Map.set('01', ['ESD 특성 부적합', '청정도 부적합'])
+    warn.warn('A5_MISSING', '공통공정 01번 A5 없음 — 워크시트에서 직접 입력 필요');
 
     const commonWE: Array<[string, string, string]> = [
       ['MN', '셋업엔지니어', '설비 조건을 셋업하고 공정 파라미터를 설정하며 초기품을 승인한다'],
@@ -453,34 +419,26 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     ];
     b1Map.set('01', commonWE.map(([m4, we]) => ({ m4, we })));
     b2Map.set('01', commonWE.map(([m4, we, func]) => ({ m4, we, func })));
-    // ── 공통공정 B3: WE명 기반 의미있는 공정특성 생성 (전처리 = 완전한 데이터 목표)
+    // ★ 2026-03-22: B3 자동생성 제거 (Rule 1.5.2) — 빈 문자열, 워크시트에서 직접 입력
     b3Map.set('01', commonWE.map(([m4, we]) => ({
-      m4, we, char: `${we} 관리 특성`, sc: '',
+      m4, we, char: '', sc: '',
     })));
 
     // ★ B4: 공통공정 01번은 placeholder FC 생성하지 않음 — 수동모드에서 사용자가 직접 입력
     warn.info('COMMON_01', '01번 공통 공정 자동 삽입 (B4는 수동 입력 대기)');
   }
 
-  // A3가 있지만 A4가 없는 공정 → 플레이스홀더 A4 자동생성 (계층 체인 A3≤A4 충족)
-  for (const [pno, a3Info] of a3Map) {
+  // ★ 2026-03-22: A4 자동생성 제거 (Rule 1.5.2) — 엑셀에 없으면 빈 상태 유지
+  for (const [pno] of a3Map) {
     if (!a4Map.has(pno) || (a4Map.get(pno) || []).length === 0) {
-      const procName = procMaster.get(pno) || pno;
-      a4Map.set(pno, [{ char: `${procName} 공정 품질 특성`, sc: '' }]);
-      if (a3Info.auto) {
-        warn.info('A4_AUTO', `공정 ${pno}번 A4 자동생성 (A3 자동생성에 따른 보완)`);
-      }
+      warn.warn('A4_MISSING', `공정 ${pno}번 A4(제품특성) 없음 — 워크시트에서 직접 입력 필요`);
     }
   }
 
-  // ★ 2026-03-05: A4가 있지만 A5가 없는 공정 → A5 자동생성 (계층 체인 A4≤A5 충족)
+  // ★ 2026-03-22: A5 자동생성 제거 (Rule 1.5.2) — 엑셀에 없으면 빈 상태 유지
   for (const [pno] of a4Map) {
     if (!a5Map.has(pno) || (a5Map.get(pno) || []).length === 0) {
-      const a4Items = a4Map.get(pno) || [];
-      if (a4Items.length > 0) {
-        a5Map.set(pno, a4Items.map(a4 => `${a4.char} 부적합`));
-        warn.info('A5_AUTO', `공정 ${pno}번 A5 자동생성 (A4 기반 ${a4Items.length}건)`);
-      }
+      warn.warn('A5_MISSING', `공정 ${pno}번 A5(고장형태) 없음 — 워크시트에서 직접 입력 필요`);
     }
   }
 
@@ -538,9 +496,7 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
   }
 
-  // ★★★ 2026-03-20 FLAW-1 FIX: B4→B3 정합성 보장 — B4가 있지만 B3가 없는 m4+we 조합에 B3 자동생성 ★★★
-  // 비유: B4(고장원인)는 "증상 목록", B3(공정특성)는 "검사 항목". 증상이 있는데 검사 항목이 없으면
-  //       parentItemId=undefined → orphanPC 발생. 증상 기반으로 검사 항목을 자동 보충한다.
+  // ★ 2026-03-22: B3 자동생성 제거 (Rule 1.5.2) — B4만 있고 B3 없으면 빈 B3 생성 (char='')
   for (const [pno, b4Items] of b4Map) {
     const b3Items = b3Map.get(pno) || [];
     const b3Keys = new Set(b3Items.map(b => `${b.m4}|${b.we}`));
@@ -548,31 +504,22 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     for (const b4 of b4Items) {
       const key = `${b4.m4}|${(b4 as any).we || ''}`;
       if (!b3Keys.has(key)) {
-        // B4 exists but B3 missing for this m4+we → auto-create B3 from FC name
         const list = b3Map.get(pno) || [];
-        const derivedChar = b4.fc.replace(/\s*부적합$/, '').trim() || (b4 as any).we || 'N/A';
-        list.push({ m4: b4.m4, we: (b4 as any).we || '', char: derivedChar, sc: '' });
+        list.push({ m4: b4.m4, we: (b4 as any).we || '', char: '', sc: '' });
         b3Map.set(pno, list);
         b3Keys.add(key);
         added++;
       }
     }
     if (added > 0) {
-      warn.info('B3_FROM_B4', `공정 ${pno} B3 자동생성 ${added}건 (B4에만 존재하는 m4+we 보충)`);
+      warn.warn('B3_MISSING', `공정 ${pno} B3(공정특성) ${added}건 빈칸 — 워크시트에서 직접 입력 필요`);
     }
   }
 
-  // ★★★ 2026-03-20 FLAW-1 FIX: B4→A5 정합성 보장 — B4가 있지만 A5가 없는 공정에 A5 자동생성 ★★★
+  // ★ 2026-03-22: A5 "불량" 자동생성 제거 (Rule 1.5.2) — 엑셀에 없으면 빈 상태 유지
   for (const [pno, b4Items] of b4Map) {
     if (!a5Map.has(pno) || (a5Map.get(pno) || []).length === 0) {
-      const a4Items = a4Map.get(pno) || [];
-      const procName = procMaster.get(pno) || pno;
-      if (a4Items.length > 0) {
-        a5Map.set(pno, a4Items.map(a4 => a4.char + ' 불량'));
-      } else {
-        a5Map.set(pno, [`${procName} 불량`]);
-      }
-      warn.info('A5_FROM_B4', `공정 ${pno} A5 자동생성: B4 ${b4Items.length}건 있지만 A5 없음`);
+      warn.warn('A5_MISSING', `공정 ${pno} A5(고장형태) 없음 (B4 ${b4Items.length}건 존재) — 워크시트에서 직접 입력 필요`);
     }
   }
 
@@ -636,24 +583,13 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
   }
 
-  // ★ v5.5: Import 단계에서 빈 PC/DC 즉시 추론 — autoFix 사후 보정 제거
-  // FC 파싱 시 PC/DC 컬럼이 비어있으면 추론 엔진으로 즉시 채움
+  // ★ 2026-03-22: Import 단계 inferPC/inferDC 추론 제거 (Rule 1.5.2, Rule 0.9)
+  // PC/DC가 엑셀에 없으면 빈 상태 유지 → 워크시트에서 산업DB 자동추천 버튼으로 처리
   {
-    const ruleSet = getDefaultRuleSet();
-    let inferredPc = 0;
-    let inferredDc = 0;
-    for (const ch of fcChains) {
-      if (!ch.pc && ch.fc) {
-        ch.pc = inferPC(ch.fc, ch.m4, ruleSet, ch.fm);
-        if (ch.pc) inferredPc++;
-      }
-      if (!ch.dc && ch.fm) {
-        const { dc } = inferDC(ch.fm, ruleSet);
-        if (dc) { ch.dc = dc; inferredDc++; }
-      }
-    }
-    if (inferredPc > 0 || inferredDc > 0) {
-      warn.info('PCDC_INFERRED', `Import 시 추론: PC ${inferredPc}건 / DC ${inferredDc}건 채움`);
+    const emptyPc = fcChains.filter(ch => !ch.pc?.trim()).length;
+    const emptyDc = fcChains.filter(ch => !ch.dc?.trim()).length;
+    if (emptyPc > 0 || emptyDc > 0) {
+      warn.warn('PCDC_EMPTY', `PC ${emptyPc}건 / DC ${emptyDc}건 비어있음 — 워크시트에서 산업DB 자동추천 사용`);
     }
   }
 
@@ -739,13 +675,11 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
     }
   }
 
-  // 2차: m066 꽂아넣기 → 추론 fallback (A6/B5 보충)
+  // 2차: m066 꽂아넣기 (sampleData 조회만 유지, 추론 fallback 제거 — Rule 1.5.2)
   {
-    const ruleSet = getDefaultRuleSet();
-    for (const [pno, fms] of a5Map) {
+    for (const [pno] of a5Map) {
       if (a6Map.has(pno) && (a6Map.get(pno) || []).length > 0) continue;
       const dcList: string[] = [];
-      // m066에서 해당 공정 WE의 A6(DC) 가져오기
       const b1Items = b1Map.get(pno) || [];
       for (const b1 of b1Items) {
         const sample = sampleData ? lookupSampleWE(sampleData, b1.m4, b1.we) : null;
@@ -758,22 +692,16 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
           }
         }
       }
-      // m066에서 못 찾으면 추론 fallback
-      if (dcList.length === 0) {
-        for (const fm of fms) {
-          const { dc } = inferDC(fm, ruleSet);
-          if (dc && !seenA6.has(`${pno}|${dc}`)) {
-            seenA6.add(`${pno}|${dc}`);
-            dcList.push(dc);
-          }
-        }
+      // ★ 2026-03-22: inferDC fallback 제거 — sampleData에 없으면 빈 상태 유지
+      if (dcList.length > 0) {
+        a6Map.set(pno, dcList);
+      } else {
+        warn.warn('A6_MISSING', `공정 ${pno} A6(검출관리) 없음 — 워크시트에서 산업DB 자동추천 사용`);
       }
-      if (dcList.length > 0) a6Map.set(pno, dcList);
     }
-    for (const [pno, b4Items] of b4Map) {
+    for (const [pno] of b4Map) {
       if (b5Map.has(pno) && (b5Map.get(pno) || []).length > 0) continue;
       const pcList: StepBB5Item[] = [];
-      // m066에서 해당 공정 WE의 B5(PC) 가져오기
       const b1Items = b1Map.get(pno) || [];
       for (const b1 of b1Items) {
         const sample = sampleData ? lookupSampleWE(sampleData, b1.m4, b1.we) : null;
@@ -786,17 +714,12 @@ export function buildImportData(rows: StepBRawRow[], warn: WarningCollector, sam
           }
         }
       }
-      // m066에서 못 찾으면 추론 fallback
-      if (pcList.length === 0) {
-        for (const b4 of b4Items) {
-          const pc = inferPC(b4.fc, b4.m4, ruleSet);
-          if (pc && !seenB5.has(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`)) {
-            seenB5.add(`${pno}|${b4.m4}|${b4.we}|${b4.fc}|${pc}`);
-            pcList.push({ m4: b4.m4, pc });
-          }
-        }
+      // ★ 2026-03-22: inferPC fallback 제거 — sampleData에 없으면 빈 상태 유지
+      if (pcList.length > 0) {
+        b5Map.set(pno, pcList);
+      } else {
+        warn.warn('B5_MISSING', `공정 ${pno} B5(예방관리) 없음 — 워크시트에서 산업DB 자동추천 사용`);
       }
-      if (pcList.length > 0) b5Map.set(pno, pcList);
     }
   }
 
@@ -1052,22 +975,17 @@ export function convertToImportFormat(
         ? b3Ids[Math.min(b4Seq, b3Ids.length - 1)]
         : undefined;
 
-      // ★★★ 2026-03-20 FLAW-1 FIX: b3ParentId GUARANTEE — undefined 불가 (by construction) ★★★
-      // B4→B3 정합성이 buildImportData에서 보장되므로 이 분기는 방어 코드.
-      // 만약 b3Ids가 비어있으면 B3를 즉시 생성하여 parentItemId를 확정한다.
+      // ★ 2026-03-22: B3 자동생성 제거 (Rule 1.5.2) — 빈 B3 생성으로 parentItemId 보장
       if (!b3ParentId && !b4B1Id) {
         const autoB3Id = genB3('PF', pnoNum, item.m4, 1, 1);
-        // 이미 같은 ID의 B3가 있는지 확인
         if (!flatData.some(d => d.id === autoB3Id)) {
-          const derivedChar = item.fc.replace(/\s*부적합$/, '').trim() || 'N/A';
           flatData.push({
             id: autoB3Id, processNo: pno, category: 'B', itemCode: 'B3',
-            value: derivedChar, m4: item.m4, createdAt: now,
+            value: '', m4: item.m4, createdAt: now,
           });
-          // b3IdsByPnoM4We에도 등록하여 후속 B4가 같은 B3 참조
           if (!b3IdsByPnoM4We.has(b3m4WeKey)) b3IdsByPnoM4We.set(b3m4WeKey, []);
           b3IdsByPnoM4We.get(b3m4WeKey)!.push(autoB3Id);
-          warn.warn('B4_B3_AUTO', `공정${pno} B4 "${item.fc}" → B3 자동생성 (parentItemId 보장)`);
+          warn.warn('B3_MISSING', `공정${pno} B4 "${item.fc}" → B3 빈칸 생성 (parentItemId 보장, 직접 입력 필요)`);
         }
         b3ParentId = autoB3Id;
       }
