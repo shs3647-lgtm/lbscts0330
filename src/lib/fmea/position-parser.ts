@@ -368,6 +368,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       feText: c['FE'] || '',
       fmText: c['FM'] || '',
       fcText: c['FC'] || '',
+      feScope: fcScope, // ★ scope 전달 (텍스트 폴백 매칭용)
       processNo: fcPno,
       m4: fcM4,
       workElement: c['WE'] || '',

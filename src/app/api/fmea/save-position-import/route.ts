@@ -177,29 +177,39 @@ export async function POST(request: NextRequest) {
         console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성`);
       }
 
-      // 11. FailureLinks
-      if (atomicData.failureLinks.length > 0) {
+      // 11. FailureLinks — 빈 FK 필터링 후 저장 (FK 제약 위반 방지)
+      const validFLs = atomicData.failureLinks.filter(fl => fl.fmId && fl.feId && fl.fcId);
+      const brokenFLs = atomicData.failureLinks.length - validFLs.length;
+      if (brokenFLs > 0) {
+        console.warn(`[save-position-import] ⚠️ FL FK 불완전 ${brokenFLs}건 스킵 (fmId/feId/fcId 빈값)`);
+        console.warn('[save-position-import] 원인: FC 시트의 L1/L2/L3 원본행 컬럼 확인 필요');
+      }
+      if (validFLs.length > 0) {
         await tx.failureLink.createMany({
           skipDuplicates: true,
-          data: atomicData.failureLinks.map(fl => ({
+          data: validFLs.map(fl => ({
             id: fl.id, fmeaId: normalizedId,
             fmId: fl.fmId, feId: fl.feId, fcId: fl.fcId,
             fmText: fl.fmText, feText: fl.feText, fcText: fl.fcText,
             feScope: fl.feScope, fmProcess: fl.fmProcess, fcWorkElem: fl.fcWorkElem, fcM4: fl.fcM4,
           })),
         });
+        console.log(`[save-position-import] FailureLink: ${validFLs.length}건 생성`);
       }
 
-      // 12. RiskAnalyses
-      if (atomicData.riskAnalyses.length > 0) {
+      // 12. RiskAnalyses — 유효한 FL만 참조
+      const validFlIds = new Set(validFLs.map(fl => fl.id));
+      const validRAs = atomicData.riskAnalyses.filter(ra => validFlIds.has(ra.linkId));
+      if (validRAs.length > 0) {
         await tx.riskAnalysis.createMany({
           skipDuplicates: true,
-          data: atomicData.riskAnalyses.map(ra => ({
+          data: validRAs.map(ra => ({
             id: ra.id, fmeaId: normalizedId, linkId: ra.linkId,
             severity: ra.severity, occurrence: ra.occurrence, detection: ra.detection,
             ap: ra.ap, preventionControl: ra.preventionControl, detectionControl: ra.detectionControl,
           })),
         });
+        console.log(`[save-position-import] RiskAnalysis: ${validRAs.length}건 생성`);
       }
 
       // 13. Verify counts

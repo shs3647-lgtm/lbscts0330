@@ -20,6 +20,7 @@ export interface CrossSheetRef {
   l3Row?: number;
   /** 텍스트 폴백용 */
   feText?: string;
+  feScope?: string;  // ★ FE scope (YP/SP/USER) — feIndex 텍스트 매칭 키
   fmText?: string;
   fcText?: string;
   processNo?: string;
@@ -92,10 +93,16 @@ export class CrossSheetResolver {
     if (ref.l1Row && this.l1RowToFeId.has(ref.l1Row)) {
       return this.l1RowToFeId.get(ref.l1Row)!;
     }
-    // 방법 B: 텍스트 폴백
+    // 방법 B: 텍스트 폴백 — scope(YP/SP/USER) 기준 매칭 (feIndex key와 일치)
     if (ref.feText) {
-      const key = `${ref.processNo || ''}|${ref.feText.substring(0, 30)}`;
-      const match = this.feIndex.find(e => e.key === key);
+      // feScope로 먼저 시도
+      if (ref.feScope) {
+        const keyScope = `${ref.feScope}|${ref.feText.substring(0, 30)}`;
+        const match = this.feIndex.find(e => e.key === keyScope);
+        if (match) return match.id;
+      }
+      // 전체 feIndex에서 feText만으로 폴백
+      const match = this.feIndex.find(e => e.key.endsWith(`|${(ref.feText || '').substring(0, 30)}`));
       if (match) return match.id;
     }
     return '';
