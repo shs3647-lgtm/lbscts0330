@@ -591,10 +591,17 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       `[${d.processNo}] ${d.itemCode}: ${d.value} ← ${d.source}`
     );
 
+    // ★★★ 2026-03-22: autofix 결과 즉시 staging DB 저장 (재로그인 시 재발 방지)
+    if (totalFixed > 0 && onSave) {
+      // onAddItems/onUpdateItem이 setFlatData를 동기적으로 호출하므로
+      // 다음 tick에서 onSave 호출하면 최신 flatData가 DB에 저장됨
+      setTimeout(() => onSave(), 100);
+    }
+
     setAlertState({
       open: true,
       variant: totalFixed > 0 ? 'success' : 'warning',
-      title: `자동 FIX 완료 — ${totalFixed}건 수정`,
+      title: `자동 FIX 완료 — ${totalFixed}건 수정 (DB 저장됨)`,
       summary: [
         `A6(검출관리): ${a6Result.fixed}건 추론 채움${a6Result.skipped > 0 ? `, ${a6Result.skipped}건 스킵(A5 비어있음)` : ''}`,
         `B5(예방관리): ${b5Result.fixed}건 추론 채움${b5Result.skipped > 0 ? `, ${b5Result.skipped}건 스킵(B4 비어있음)` : ''}`,
@@ -602,7 +609,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       details: allDetails.length > 0 ? allDetails : undefined,
       footer: totalSkipped > 0 ? `스킵 ${totalSkipped}건 — 원본 데이터(A5/B4)가 비어있어 추론 불가` : undefined,
     });
-  }, [crossTab, onUpdateItem, onAddItems]);
+  }, [crossTab, onUpdateItem, onAddItems, onSave]);
 
   // ── FC 확정 핸들러 (미확정 시 전진) ──
   const handleFCConfirm = useCallback(() => {
