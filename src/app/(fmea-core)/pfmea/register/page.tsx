@@ -381,107 +381,43 @@ function PFMEARegisterPageContent() {
     if (!file) return;
     setBdIsSaving(true);
     try {
-      const { parseMultiSheetExcel } = await import('@/app/(fmea-core)/pfmea/import/excel-parser');
-      const result = await parseMultiSheetExcel(file);
-      if (result.success) {
-        // ParseResult → ImportedFlatData[] 변환
-        const flat: typeof flatData = [];
-        result.processes.forEach((p) => {
-          flat.push({ id: `${p.processNo}-A1`, processNo: p.processNo, category: 'A', itemCode: 'A1', value: p.processNo, createdAt: new Date() });
-          flat.push({ id: `${p.processNo}-A2`, processNo: p.processNo, category: 'A', itemCode: 'A2', value: p.processName, createdAt: new Date() });
-          if (p.processTypeCode) {
-            flat.push({ id: `${p.processNo}-A0`, processNo: p.processNo, category: 'A', itemCode: 'A0', value: p.processTypeCode, createdAt: new Date() });
+      // ★★★ 2026-03-22: 5시트 위치기반 포맷 자동 감지 → position-parser 라우팅
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const buf = await file.arrayBuffer();
+      await wb.xlsx.load(buf);
+      const sheetNames = wb.worksheets.map((ws: { name: string }) => ws.name);
+      const { isPositionBasedFormat, parsePositionBasedWorkbook, atomicToFlatData } = await import('@/lib/fmea/position-parser');
+
+      if (isPositionBasedFormat(sheetNames)) {
+        // 위치기반 5시트 → save-position-import
+        const atomicData = parsePositionBasedWorkbook(wb, fmeaId?.toLowerCase());
+        console.log('[Register Import] 위치기반 stats:', JSON.stringify(atomicData.stats));
+        const flatFromAtomic = atomicToFlatData(atomicData) as any[];
+        setFlatData(flatFromAtomic);
+
+        if (fmeaId) {
+          const saveRes = await fetch('/api/fmea/save-position-import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData }),
+          });
+          const saveResult = await saveRes.json();
+          if (saveResult.success) {
+            setBdIsSaved(true); setBdDirty(false);
+            console.log('[Register Import] 저장 완료:', saveResult.atomicCounts);
+          } else {
+            console.error('[Register Import] 저장 실패:', saveResult.error);
           }
-          p.processDesc.forEach((v, i) => flat.push({ id: `${p.processNo}-A3-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A3', value: v, createdAt: new Date() }));
-          p.productChars.forEach((v, i) => flat.push({ id: `${p.processNo}-A4-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A4', value: v, specialChar: p.productCharsSpecialChar?.[i] || undefined, createdAt: new Date() }));
-          p.failureModes.forEach((v, i) => flat.push({ id: `${p.processNo}-A5-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A5', value: v, specialChar: p.failureModesSpecialChar?.[i] || undefined, createdAt: new Date() }));
-          p.workElements.forEach((v, i) => flat.push({ id: `${p.processNo}-B1-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B1', value: v, m4: p.workElements4M?.[i] || '', createdAt: new Date() }));
-          p.elementFuncs.forEach((v, i) => flat.push({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, createdAt: new Date() }));
-          p.processChars.forEach((v, i) => flat.push({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, createdAt: new Date() }));
-          // ★ B4 parentItemId: WE+m4로 B3 id 매핑 (Rule 1.7.5: B4.parentItemId → B3)
-          p.failureCauses.forEach((v, i) => {
-            const weB4 = p.failureCausesWE?.[i] || '';
-            const m4B4 = p.failureCauses4M?.[i] || '';
-            const matchB3Idx = p.processChars.findIndex((_, j) =>
-              (p.processCharsWE?.[j] || '') === weB4 && (p.processChars4M?.[j] || '') === m4B4
-            );
-            const parentItemId = matchB3Idx >= 0 ? `${p.processNo}-B3-${matchB3Idx}` : undefined;
-            flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: m4B4, specialChar: p.failureCausesSpecialChar?.[i] || undefined, belongsTo: weB4 || undefined, parentItemId, createdAt: new Date() });
-          });
-          p.detectionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-A6-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A6', value: v, createdAt: new Date() }));
-          // ★ B5 parentItemId: WE+m4로 B1 id 매핑
-          p.preventionCtrls.forEach((v, i) => {
-            const weB5 = p.preventionCtrlsWE?.[i] || '';
-            const m4B5 = p.preventionCtrls4M?.[i] || '';
-            const matchB1Idx = p.workElements.findIndex((_, j) =>
-              (p.workElements4M?.[j] || '') === m4B5
-            );
-            flat.push({ id: `${p.processNo}-B5-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B5', value: v, m4: m4B5, belongsTo: weB5 || undefined, createdAt: new Date() });
-          });
-        });
-        result.products.forEach((p) => {
-          const categoryValue = p.productProcessName || 'YP';
-          flat.push({ id: `C1-${p.productProcessName}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: p.productProcessName, createdAt: new Date() });
-          p.productFuncs.forEach((v, i) => flat.push({ id: `C2-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: v, createdAt: new Date() }));
-          p.requirements.forEach((v, i) => {
-            const c3Meta = p.itemMeta?.[`C3-${i}`];
-            flat.push({ id: `C3-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, parentItemId: c3Meta?.parentItemId || undefined, createdAt: new Date() });
-          });
-          p.failureEffects.forEach((v, i) => flat.push({ id: `C4-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, createdAt: new Date() }));
-        });
-        setFlatData(flat);
-        setBdParseStatistics(result.statistics);
-        // ★ Import 즉시 BD DB 저장 (수동 저장 불필요)
-        if (fmeaId && flat.length > 0) {
-          try {
-            const { saveMasterDataset } = await getMasterApi();
-            const saveRes = await saveMasterDataset({ fmeaId, fmeaType: 'P', datasetId: bdDatasetId, name: 'MASTER', replace: true, flatData: flat });
-            if (saveRes.ok) {
-              if (saveRes.datasetId) setBdDatasetId(saveRes.datasetId);
-              setBdIsSaved(true); setBdDirty(false);
-              // ★ stageC1: FlatItem 저장 성공 → save-from-import 자동 호출 → Atomic DB 생성
-              try {
-                const saveImportRes = await fetch('/api/fmea/save-from-import', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fmeaId, flatData: flat, l1Name: '', failureChains: [] }),
-                });
-                const importResult = await saveImportRes.json();
-                if (importResult.success) {
-                  console.info(`[BD Import→Atomic] 성공: ${JSON.stringify(importResult.counts || {})}`);
-                } else {
-                  console.warn(`[BD Import→Atomic] 경고: ${importResult.error || 'unknown'}`);
-                }
-              } catch (atomicErr) {
-                console.error('[BD Import→Atomic] 오류:', atomicErr);
-              }
-              // ★ DB 영구저장 검증: 저장 후 DB에서 itemCode별 카운트 조회
-              try {
-                const { verifyDbFlatItemCounts } = await getMasterApi();
-                const counts = await verifyDbFlatItemCounts(fmeaId);
-                setBdDbCounts(counts);
-                const totalDb = Object.values(counts).reduce((s, c) => s + c, 0);
-                console.info(`[DB 영구저장 검증] 총 ${totalDb}건 확인: ${JSON.stringify(counts)}`);
-              } catch (verifyErr) {
-                console.error('[DB 영구저장 검증] 오류:', verifyErr);
-              }
-            } else {
-              setBdDirty(true); setBdIsSaved(false);
-            }
-          } catch (saveErr) {
-            console.error('[BD 자동저장] 오류:', saveErr);
-            setBdDirty(true); setBdIsSaved(false);
-          }
-        } else {
-          setBdDirty(true); setBdIsSaved(false);
         }
-        // ★ 파일 Import 후: 수동/자동 모드에서 import한 경우 모드 유지, 기존데이터 모드에서만 download 유지
-        if (templateGen.templateMode === 'download') {
-          templateGen.setTemplateMode('download');
-        }
-      } else {
-        alert('파일 파싱 실패: ' + (result.errors.join(', ') || '알 수 없는 오류'));
+        setBdIsSaving(false);
+        return;
       }
+
+      // 레거시 경로 제거됨 — 5시트 위치기반 포맷만 지원
+      alert('이 파일은 5시트 위치기반 포맷(L1/L2/L3/FC 시트)이 아닙니다.\n위치기반 Import 엑셀을 사용하세요.');
+      setBdIsSaving(false);
+      return;
     } catch (err) {
       console.error('파일 선택 오류:', err);
       alert('파일 처리 중 오류: ' + (err instanceof Error ? err.message : String(err)));
