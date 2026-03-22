@@ -138,22 +138,39 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
     processNo: normalizeC1Cat(d.processNo),
     value: d.itemCode === 'C1' ? normalizeC1Cat(d.value) : d.value,
   }));
-  // C2가 없거나 '-'뿐인 category는 제외 (YOUR PLANT placeholder 제거)
-  const cCatsAll = [...new Set(cItems.map(d => d.processNo))];
-  const cCats = cCatsAll.filter(cat => {
-    const c2Items = cItems.filter(d => d.processNo === cat && d.itemCode === 'C2');
-    return c2Items.some(d => d.value?.trim() && !/^[-–—~.]+$/.test(d.value.trim()));
-  });
-  const cRows: CRow[] = cCats.map(cat => {
-    const ids: CrossTabIds = {};
-    const row: CRow = { category: cat, C1: '', C2: '', C3: '', C4: '', _ids: ids };
-    (['C1','C2','C3','C4'] as const).forEach(code => {
-      const item = cItems.find(d => d.processNo === cat && d.itemCode === code);
-      row[code] = item?.value || '';
-      if (item?.id) ids[code] = item.id;
-    });
-    return row;
-  });
+  // ★ C4(고장영향) 기준으로 전체 행 생성 — 각 C4가 하나의 행 (45개 → 45행)
+  // C4.parentItemId → C3의 id → C2의 id (l1FuncId 공유)
+  const c4Items = cItems.filter(d => d.itemCode === 'C4');
+  const c3Items = cItems.filter(d => d.itemCode === 'C3');
+  const c2Items = cItems.filter(d => d.itemCode === 'C2');
+
+  // parentItemId 체인으로 C3→C2→C1 추적
+  const cRows: CRow[] = c4Items
+    .filter(c4 => c4.value?.trim() && !/^[-–—~.]+$/.test(c4.value.trim()))
+    .map(c4 => {
+      const cat = normalizeC1Cat(c4.processNo);
+      // C3: c4.parentItemId가 l1FuncId (C3는 l1FuncId를 parentItemId로 사용)
+      const c3 = c3Items.find(d => d.processNo === cat && d.parentItemId === c4.parentItemId)
+        || c3Items.find(d => d.processNo === cat);
+      // C2: c3.parentItemId 또는 c4.parentItemId (l1FuncId)
+      const l1FuncId = c4.parentItemId || c3?.parentItemId;
+      const c2 = c2Items.find(d => d.id === l1FuncId && d.processNo === cat)
+        || c2Items.find(d => d.processNo === cat);
+      const ids: CrossTabIds = {};
+      if (c4.id) ids.C4 = c4.id;
+      if (c3?.id) ids.C3 = c3.id;
+      if (c2?.id) ids.C2 = c2.id;
+      return {
+        category: cat,
+        C1: cat,
+        C2: c2?.value || '',
+        C3: c3?.value || '',
+        C4: c4.value || '',
+        _ids: ids,
+      };
+    })
+    // C2 빈값(YOUR PLANT placeholder) 제거
+    .filter(row => row.C2?.trim() && !/^[-–—~.]+$/.test(row.C2.trim()));
 
   return { aRows, bRows, cRows, total: data.length };
 }
