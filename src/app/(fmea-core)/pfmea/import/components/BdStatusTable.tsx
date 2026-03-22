@@ -47,27 +47,52 @@ function TypeBadge({ type }: { type: string }) {
   );
 }
 
-/** 판정: 공정·FM·FC 모두 1개 이상이면 적합 표시, 아니면 빈칸 */
-function JudgeBadge({ processCount, fmCount, fcCount, fmeaId }: {
+/**
+ * 판정 3단계:
+ *   적합    — 공정·FM·FC·데이터 모두 1개 이상 (녹색, 워크시트 이동)
+ *   부적합  — 데이터는 있으나 공정/FM/FC 중 누락 (주황)
+ *   데이터없음 — dataCount=0 (적색)
+ */
+function JudgeBadge({ processCount, dataCount, fmCount, fcCount, fmeaId }: {
   processCount: number; dataCount: number; fmCount: number; fcCount: number; onMissingClick?: () => void; fmeaId?: string;
 }) {
-  if (processCount > 0 && fmCount > 0 && fcCount > 0) {
+  if (processCount > 0 && fmCount > 0 && fcCount > 0 && dataCount > 0) {
     return (
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (fmeaId) {
-            window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`;
-          }
+          if (fmeaId) window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`;
         }}
         className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap bg-green-100 text-green-700 border-green-300 border hover:bg-green-200 cursor-pointer"
-        title={fmeaId ? `${fmeaId} 워크시트로 이동` : ''}
+        title={`적합 — 공정${processCount} FM${fmCount} FC${fcCount} 데이터${dataCount}${fmeaId ? '\n클릭: 워크시트 이동' : ''}`}
       >
         적합
       </button>
     );
   }
-  return null;
+  if (dataCount === 0) {
+    return (
+      <span
+        className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap bg-red-100 text-red-700 border-red-300 border"
+        title="데이터 없음 — Import에서 BD를 먼저 저장하세요"
+      >
+        데이터없음
+      </span>
+    );
+  }
+  // 데이터는 있으나 공정/FM/FC 중 누락
+  const missing: string[] = [];
+  if (processCount === 0) missing.push('공정');
+  if (fmCount === 0) missing.push('FM');
+  if (fcCount === 0) missing.push('FC');
+  return (
+    <span
+      className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap bg-amber-100 text-amber-700 border-amber-300 border"
+      title={`부적합 — 누락: ${missing.join(', ')}`}
+    >
+      부적합
+    </span>
+  );
 }
 
 type SortKey = 'fmeaType' | 'fmeaId' | 'bdId' | 'bdVersion' | 'customerName' | 'fmeaName' | 'revisionNo' | 'startDate' | 'createdAt' | 'processCount' | 'fmCount' | 'fcCount' | 'dataCount' | 'judge';
@@ -138,7 +163,12 @@ export function BdStatusTable({
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
-  const isOk = (bd: BdStatusItem) => (bd.processCount ?? 0) > 0 && (bd.fmCount ?? 0) > 0 && (bd.fcCount ?? 0) > 0;
+  // 적합 = 데이터·공정·FM·FC 모두 1개 이상
+  const isOk = (bd: BdStatusItem) =>
+    (bd.dataCount ?? 0) > 0 &&
+    (bd.processCount ?? 0) > 0 &&
+    (bd.fmCount ?? 0) > 0 &&
+    (bd.fcCount ?? 0) > 0;
 
   // 유형 + 검색 필터
   const filtered = useMemo(() => {
@@ -178,9 +208,10 @@ export function BdStatusTable({
         case 'fcCount': return dir * ((a.fcCount ?? 0) - (b.fcCount ?? 0));
         case 'dataCount': return dir * (a.dataCount - b.dataCount);
         case 'judge': {
-          const aOk = isOk(a) ? 1 : 0;
-          const bOk = isOk(b) ? 1 : 0;
-          return dir * (aOk - bOk);
+          // 적합=2, 부적합=1, 데이터없음=0
+          const judgeScore = (bd: BdStatusItem) =>
+            isOk(bd) ? 2 : (bd.dataCount ?? 0) > 0 ? 1 : 0;
+          return dir * (judgeScore(a) - judgeScore(b));
         }
         default: return 0;
       }
@@ -188,11 +219,13 @@ export function BdStatusTable({
     return list;
   }, [filtered, sortKey, sortDir]);
 
-  // 통계
+  // 통계 — 적합/부적합/데이터없음 3단계
   const stats = useMemo(() => {
     const total = bdStatusList.length;
     const ok = bdStatusList.filter(bd => isOk(bd)).length;
-    return { total, ok, missing: total - ok };
+    const noData = bdStatusList.filter(bd => (bd.dataCount ?? 0) === 0).length;
+    const partial = total - ok - noData; // 데이터 있으나 공정/FM/FC 누락
+    return { total, ok, noData, partial, missing: total - ok };
   }, [bdStatusList]);
 
   // 체크박스 토글
@@ -283,6 +316,8 @@ export function BdStatusTable({
           ))}
         </div>
         <span className="text-[10px] text-green-300 font-bold">적합 {stats.ok}</span>
+        {stats.noData > 0 && <span className="text-[10px] text-red-300 font-bold">데이터없음 {stats.noData}</span>}
+        {stats.partial > 0 && <span className="text-[10px] text-amber-300 font-bold">부적합 {stats.partial}</span>}
         {adminMode && deletedCount > 0 && (
           <span className="text-[10px] text-orange-300 font-bold">삭제 {deletedCount}</span>
         )}
