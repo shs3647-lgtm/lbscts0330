@@ -604,6 +604,227 @@ export async function POST(request: NextRequest) {
             const refreshedL3Fs = await tx.l3Function.findMany({ where: { fmeaId } });
             atomic.l3Functions = refreshedL3Fs;
           }
+
+          // ★★★ 2026-03-22: 비마스터 경로 — FC/FL/RA 생성 (FlatItem B4/A6/B5 기반) ★★★
+          {
+            const publicPr = getPrisma();
+            const ds = publicPr ? await publicPr.pfmeaMasterDataset.findFirst({ where: { fmeaId }, select: { id: true } }) : null;
+
+            if (ds && publicPr) {
+              const extractPnoLocal = (l2Id: string): string => {
+                const mm = l2Id.match(/(\d+)$/);
+                return mm ? String(parseInt(mm[1], 10)) : '';
+              };
+
+              // --- A) FailureCause 생성 (B4 FlatItem → FC) ---
+              const existingFCCount = await tx.failureCause.count({ where: { fmeaId } });
+              if (existingFCCount === 0) {
+                const flatB4 = await publicPr.pfmeaMasterFlatItem.findMany({
+                  where: { datasetId: ds.id, itemCode: 'B4' },
+                  select: { processNo: true, value: true, m4: true },
+                  orderBy: [{ processNo: 'asc' }, { m4: 'asc' }],
+                });
+
+                // L3Structure → m4 매핑 (L3Function에는 m4 없음)
+                const l3StructM4 = new Map<string, string>();
+                for (const l3s of atomic.l3Structures) {
+                  l3StructM4.set((l3s as any).id, (l3s as any).m4 || '');
+                }
+
+                // L3Function을 l2StructId+m4(from L3Struct)로 그룹화
+                const l3FuncByL2M4 = new Map<string, any[]>();
+                const l3FuncByL2All = new Map<string, any[]>();
+                for (const l3f of atomic.l3Functions) {
+                  const l2Id = (l3f as any).l2StructId || '';
+                  const m4 = l3StructM4.get((l3f as any).l3StructId) || '';
+                  const key = `${l2Id}|${m4}`;
+                  if (!l3FuncByL2M4.has(key)) l3FuncByL2M4.set(key, []);
+                  l3FuncByL2M4.get(key)!.push(l3f);
+                  if (!l3FuncByL2All.has(l2Id)) l3FuncByL2All.set(l2Id, []);
+                  l3FuncByL2All.get(l2Id)!.push(l3f);
+                }
+
+                const fcToCreate: any[] = [];
+                const fcByL2 = new Map<string, any[]>();
+                const fcIdxByL2 = new Map<string, number>();
+                const usedM4Idx = new Map<string, number>();
+
+                for (const b4 of flatB4) {
+                  if (!b4.value?.trim()) continue;
+                  const pnoNum = parseInt(b4.processNo, 10);
+                  const l2Id = `L2-PNO-${String(pnoNum).padStart(3, '0')}`;
+                  const allL3F = l3FuncByL2All.get(l2Id) || [];
+                  if (allL3F.length === 0) continue;
+
+                  // m4 매칭: B4.m4 → L3Structure.m4 → L3Function
+                  const m4Key = `${l2Id}|${b4.m4 || ''}`;
+                  const m4Funcs = l3FuncByL2M4.get(m4Key) || [];
+                  const m4Idx = usedM4Idx.get(m4Key) || 0;
+                  usedM4Idx.set(m4Key, m4Idx + 1);
+
+                  const matchedL3F = m4Funcs.length > 0
+                    ? m4Funcs[Math.min(m4Idx, m4Funcs.length - 1)]
+                    : allL3F[Math.min(m4Idx, allL3F.length - 1)];
+
+                  // FC ID: L2별 글로벌 순번으로 고유성 보장
+                  const globalIdx = fcIdxByL2.get(l2Id) || 0;
+                  fcIdxByL2.set(l2Id, globalIdx + 1);
+                  const fcId = `FC-${l2Id}-${globalIdx}`;
+
+                  const fc = {
+                    id: fcId, fmeaId,
+                    l2StructId: l2Id,
+                    l3StructId: (matchedL3F as any).l3StructId,
+                    l3FuncId: (matchedL3F as any).id,
+                    cause: b4.value,
+                    occurrence: 1,
+                    processCharId: (matchedL3F as any).id,
+                    createdAt: now, updatedAt: now,
+                  };
+                  fcToCreate.push(fc);
+                  if (!fcByL2.has(l2Id)) fcByL2.set(l2Id, []);
+                  fcByL2.get(l2Id)!.push(fc);
+                }
+
+                if (fcToCreate.length > 0) {
+                  await tx.failureCause.createMany({ data: fcToCreate, skipDuplicates: true });
+                  console.info(`[rebuild-atomic] DB 다이렉트 FailureCause: ${fcToCreate.length}`);
+                  atomic.failureCauses = await tx.failureCause.findMany({ where: { fmeaId } });
+                }
+
+                // --- B) FailureLink 생성 (FM × FC × FE, 같은 L2 기준) ---
+                const existingFLCount = await tx.failureLink.count({ where: { fmeaId } });
+                if (existingFLCount === 0 && fcToCreate.length > 0) {
+                  const fmByL2 = new Map<string, any[]>();
+                  for (const fm of atomic.failureModes) {
+                    const l2Id = (fm as any).l2StructId || '';
+                    if (!fmByL2.has(l2Id)) fmByL2.set(l2Id, []);
+                    fmByL2.get(l2Id)!.push(fm);
+                  }
+
+                  const l2ToL1 = new Map<string, string>();
+                  for (const l2 of atomic.l2Structures) {
+                    l2ToL1.set((l2 as any).id, (l2 as any).l1Id || '');
+                  }
+
+                  const feByL1Func = new Map<string, any[]>();
+                  for (const fe of atomic.failureEffects) {
+                    const l1fId = (fe as any).l1FuncId || '';
+                    if (!feByL1Func.has(l1fId)) feByL1Func.set(l1fId, []);
+                    feByL1Func.get(l1fId)!.push(fe);
+                  }
+
+                  const l1FuncByL1 = new Map<string, any[]>();
+                  for (const l1f of atomic.l1Functions) {
+                    const l1Id = (l1f as any).l1StructId || '';
+                    if (!l1FuncByL1.has(l1Id)) l1FuncByL1.set(l1Id, []);
+                    l1FuncByL1.get(l1Id)!.push(l1f);
+                  }
+
+                  const flToCreate: any[] = [];
+                  const flKeySet = new Set<string>();
+
+                  for (const l2 of atomic.l2Structures) {
+                    const l2Id = (l2 as any).id;
+                    const l1Id = l2ToL1.get(l2Id) || '';
+                    const fms = fmByL2.get(l2Id) || [];
+                    const fcs = fcByL2.get(l2Id) || [];
+                    if (fms.length === 0 || fcs.length === 0) continue;
+
+                    const l1Funcs = l1FuncByL1.get(l1Id) || [];
+                    const allFEs: any[] = [];
+                    for (const l1f of l1Funcs) {
+                      const fes = feByL1Func.get((l1f as any).id) || [];
+                      allFEs.push(...fes);
+                    }
+                    if (allFEs.length === 0) continue;
+
+                    for (const fc of fcs) {
+                      const fm = fms.length === 1
+                        ? fms[0]
+                        : fms[Math.min(fcs.indexOf(fc) % fms.length, fms.length - 1)];
+
+                      const feIdx = fcs.indexOf(fc) % allFEs.length;
+                      const fe = allFEs[feIdx];
+
+                      const flKey = `${(fm as any).id}|${fc.id}|${(fe as any).id}`;
+                      if (flKeySet.has(flKey)) continue;
+                      flKeySet.add(flKey);
+
+                      flToCreate.push({
+                        id: `FL-${l2Id}-${flToCreate.length}`,
+                        fmeaId,
+                        fmId: (fm as any).id,
+                        feId: (fe as any).id,
+                        fcId: fc.id,
+                        fmText: (fm as any).mode || '',
+                        feText: (fe as any).effect || '',
+                        fcText: fc.cause || '',
+                        createdAt: now, updatedAt: now,
+                      });
+                    }
+                  }
+
+                  if (flToCreate.length > 0) {
+                    await tx.failureLink.createMany({ data: flToCreate, skipDuplicates: true });
+                    console.info(`[rebuild-atomic] DB 다이렉트 FailureLink: ${flToCreate.length}`);
+                    atomic.failureLinks = await tx.failureLink.findMany({ where: { fmeaId } });
+                  }
+
+                  // --- C) RiskAnalysis 생성 + A6(DC)/B5(PC) 동기화 ---
+                  const existingRACount = await tx.riskAnalysis.count({ where: { fmeaId } });
+                  if (existingRACount === 0 && flToCreate.length > 0) {
+                    const flatA6 = await publicPr.pfmeaMasterFlatItem.findMany({
+                      where: { datasetId: ds.id, itemCode: 'A6' },
+                      select: { processNo: true, value: true },
+                    });
+                    const flatB5 = await publicPr.pfmeaMasterFlatItem.findMany({
+                      where: { datasetId: ds.id, itemCode: 'B5' },
+                      select: { processNo: true, value: true },
+                    });
+
+                    const dcByPno = new Map<string, string>();
+                    for (const a6 of flatA6) {
+                      const pno = String(parseInt(a6.processNo, 10));
+                      if (!dcByPno.has(pno) && a6.value?.trim()) dcByPno.set(pno, a6.value);
+                    }
+                    const pcByPno = new Map<string, string>();
+                    for (const b5 of flatB5) {
+                      const pno = String(parseInt(b5.processNo, 10));
+                      if (!pcByPno.has(pno) && b5.value?.trim()) pcByPno.set(pno, b5.value);
+                    }
+
+                    const raToCreate: any[] = [];
+                    for (const fl of flToCreate) {
+                      const l2Id = fl.id.split('-')[1] + '-' + fl.id.split('-')[2] + '-' + fl.id.split('-')[3];
+                      const pno = extractPnoLocal(fl.fmId.includes('L2-PNO') ? fl.fmId : '');
+                      const fmObj = atomic.failureModes.find((fm: any) => fm.id === fl.fmId);
+                      const fmL2Id = (fmObj as any)?.l2StructId || '';
+                      const pnoFromFm = extractPnoLocal(fmL2Id);
+
+                      raToCreate.push({
+                        id: `RA-${fl.id}`,
+                        fmeaId,
+                        linkId: fl.id,
+                        severity: 1,
+                        occurrence: 1,
+                        detection: 1,
+                        ap: '',
+                        detectionControl: dcByPno.get(pnoFromFm) || null,
+                        preventionControl: pcByPno.get(pnoFromFm) || null,
+                        createdAt: now, updatedAt: now,
+                      });
+                    }
+
+                    if (raToCreate.length > 0) {
+                      await tx.riskAnalysis.createMany({ data: raToCreate, skipDuplicates: true });
+                      console.info(`[rebuild-atomic] DB 다이렉트 RiskAnalysis: ${raToCreate.length} (DC=${[...dcByPno.values()].length} PC=${[...pcByPno.values()].length})`);
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
 
@@ -1151,54 +1372,70 @@ export async function POST(request: NextRequest) {
         // Legacy sync removed — Atomic DB is SSoT
       }
 
-      // ★★★ 2026-03-22 FIX: ProcessProductChar.specialChar 동기화 ★★★
-      // 소스 1: L2Function.specialChar → PPC (l2StructId+name 매칭)
-      // 소스 2: FlatItem A4.specialChar → PPC (processNo → l2StructId + name 매칭)
+      // ★★★ 2026-03-22 FIX: ProcessProductChar 보충 + specialChar 동기화 ★★★
       {
+        let ppcCreated = 0;
         let ppcUpdated = 0;
+        const now2 = new Date();
 
-        // 1. L2Function → PPC (name 매칭)
-        const l2Funcs = await tx.l2Function.findMany({
-          where: { fmeaId, specialChar: { not: null } },
-          select: { l2StructId: true, productChar: true, specialChar: true },
-        });
-        for (const lf of l2Funcs) {
-          if (!lf.specialChar || !lf.productChar) continue;
-          const updated = await tx.processProductChar.updateMany({
-            where: { fmeaId, l2StructId: lf.l2StructId, name: lf.productChar, OR: [{ specialChar: null }, { specialChar: '' }] },
-            data: { specialChar: lf.specialChar },
-          });
-          ppcUpdated += updated.count;
-        }
-
-        // 2. FlatItem A4 → PPC (processNo 기반)
         const publicPrisma = getPrisma();
         if (publicPrisma) {
           try {
             const dataset = await publicPrisma.pfmeaMasterDataset.findFirst({ where: { fmeaId }, select: { id: true } });
             if (dataset) {
-              const flatA4sc = await publicPrisma.pfmeaMasterFlatItem.findMany({
-                where: { datasetId: dataset.id, itemCode: 'A4', NOT: { specialChar: { in: [null, ''] } } },
+              const allA4 = await publicPrisma.pfmeaMasterFlatItem.findMany({
+                where: { datasetId: dataset.id, itemCode: 'A4' },
                 select: { processNo: true, value: true, specialChar: true },
               });
-              for (const a4 of flatA4sc) {
-                if (!a4.specialChar || !a4.value) continue;
+
+              const existingPPC = await tx.processProductChar.findMany({
+                where: { fmeaId },
+                select: { id: true, l2StructId: true, name: true, specialChar: true },
+              });
+              const ppcKeySet = new Set(existingPPC.map((p: any) => `${p.l2StructId}|${p.name}`));
+
+              const ppcToCreate: any[] = [];
+              for (const a4 of allA4) {
+                if (!a4.value) continue;
+                const pnoNum = parseInt(a4.processNo, 10);
+                const l2Id = `L2-PNO-${String(pnoNum).padStart(3, '0')}`;
+                const key = `${l2Id}|${a4.value}`;
+                if (!ppcKeySet.has(key)) {
+                  ppcToCreate.push({
+                    id: `PPC-${l2Id}-${a4.value.replace(/[^a-zA-Z0-9가-힣]/g, '').slice(0, 20)}`,
+                    fmeaId, l2StructId: l2Id, name: a4.value,
+                    specialChar: a4.specialChar || null,
+                    orderIndex: 0, createdAt: now2, updatedAt: now2,
+                  });
+                  ppcKeySet.add(key);
+                }
+              }
+              if (ppcToCreate.length > 0) {
+                await tx.processProductChar.createMany({ data: ppcToCreate, skipDuplicates: true });
+                ppcCreated = ppcToCreate.length;
+              }
+
+              for (const a4 of allA4) {
+                if (!a4.specialChar?.trim() || !a4.value) continue;
                 const pnoNum = parseInt(a4.processNo, 10);
                 const l2Id = `L2-PNO-${String(pnoNum).padStart(3, '0')}`;
                 const updated = await tx.processProductChar.updateMany({
-                  where: { fmeaId, l2StructId: l2Id, name: a4.value, OR: [{ specialChar: null }, { specialChar: '' }] },
+                  where: {
+                    fmeaId, l2StructId: l2Id, name: a4.value,
+                    OR: [{ specialChar: null }, { specialChar: '' }],
+                  },
                   data: { specialChar: a4.specialChar },
                 });
                 ppcUpdated += updated.count;
               }
             }
           } catch (e: any) {
-            console.warn(`[rebuild-atomic] FlatItem A4 SC sync 실패: ${e?.message}`);
+            console.warn(`[rebuild-atomic] PPC 보충/SC sync 실패: ${e?.message}`);
           }
         }
 
-        if (ppcUpdated > 0) {
-          console.info(`[rebuild-atomic] ProcessProductChar SC 동기화: ${ppcUpdated}건`);
+        if (ppcCreated > 0 || ppcUpdated > 0) {
+          console.info(`[rebuild-atomic] PPC 보충=${ppcCreated} SC동기화=${ppcUpdated}`);
         }
       }
 

@@ -704,11 +704,12 @@ function sortPaired(values: string[], m4s: string[]): void {
 function createEmptyProcess(processNo: string, processName: string): ProcessRelation {
   return {
     processNo, processName,
-    processDesc: [], productChars: [], productCharsSpecialChar: [], failureModes: [],
+    processDesc: [], productChars: [], productCharsSpecialChar: [],
+    failureModes: [], failureModesSpecialChar: [],
     workElements: [], workElements4M: [],
     elementFuncs: [], elementFuncs4M: [], elementFuncsWE: [],
     processChars: [], processChars4M: [], processCharsSpecialChar: [], processCharsWE: [],
-    failureCauses: [], failureCauses4M: [], failureCausesWE: [],
+    failureCauses: [], failureCauses4M: [], failureCausesSpecialChar: [], failureCausesWE: [],
     preventionCtrls: [], preventionCtrls4M: [], preventionCtrlsWE: [], detectionCtrls: [],
   };
 }

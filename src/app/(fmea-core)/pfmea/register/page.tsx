@@ -390,9 +390,9 @@ function PFMEARegisterPageContent() {
           p.workElements.forEach((v, i) => flat.push({ id: `${p.processNo}-B1-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B1', value: v, m4: p.workElements4M?.[i] || '', createdAt: new Date() }));
           p.elementFuncs.forEach((v, i) => flat.push({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, createdAt: new Date() }));
           p.processChars.forEach((v, i) => flat.push({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, createdAt: new Date() }));
-          p.failureCauses.forEach((v, i) => flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', createdAt: new Date() }));
+          p.failureCauses.forEach((v, i) => flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, createdAt: new Date() }));
           p.detectionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-A6-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A6', value: v, createdAt: new Date() }));
-          p.preventionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-B5-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B5', value: v, m4: p.preventionCtrls4M?.[i] || '', createdAt: new Date() }));
+          p.preventionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-B5-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B5', value: v, m4: p.preventionCtrls4M?.[i] || '', belongsTo: p.preventionCtrlsWE?.[i] || undefined, createdAt: new Date() }));
         });
         result.products.forEach((p) => {
           const categoryValue = p.productProcessName || 'YP';

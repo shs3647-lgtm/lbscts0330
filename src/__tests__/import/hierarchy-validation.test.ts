@@ -25,6 +25,7 @@ function makeProcess(overrides: Partial<ProcessRelation> = {}): ProcessRelation 
     productChars: ['외관'],              // A4
     productCharsSpecialChar: [],         // A4 특별특성
     failureModes: ['미조립'],            // A5
+    failureModesSpecialChar: [],         // A5 특별특성
     workElements: ['나사'],              // B1
     workElements4M: ['MC'],              // B1 4M
     elementFuncs: ['체결'],              // B2
@@ -36,6 +37,7 @@ function makeProcess(overrides: Partial<ProcessRelation> = {}): ProcessRelation 
     processCharsWE: [],                  // B3 소속 WE
     failureCauses: ['토크 부족'],        // B4
     failureCauses4M: ['MC'],             // B4 4M
+    failureCausesSpecialChar: [],        // B4 특별특성
     failureCausesWE: [],                 // B4 소속 WE
     preventionCtrls: [],                 // B5
     preventionCtrls4M: [],               // B5 4M

@@ -76,6 +76,7 @@ export interface ProcessRelation {
   productChars: string[];     // A4
   productCharsSpecialChar: string[];
   failureModes: string[];     // A5
+  failureModesSpecialChar: string[];
   // B 레벨: 작업요소
   workElements: string[];     // B1
   workElements4M: string[];
@@ -88,6 +89,7 @@ export interface ProcessRelation {
   processCharsWE: string[];
   failureCauses: string[];    // B4
   failureCauses4M: string[];
+  failureCausesSpecialChar: string[];
   failureCausesWE: string[];  // ★ 2026-03-15: B4 소속 WE 추적 (FC dedup/배분에 필수)
   preventionCtrls: string[];   // B5
   preventionCtrls4M: string[];
@@ -948,6 +950,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             productChars: [],
             productCharsSpecialChar: [],
             failureModes: [],
+            failureModesSpecialChar: [],
             workElements: [],
             workElements4M: [],
             elementFuncs: [],
@@ -959,6 +962,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             processCharsWE: [],
             failureCauses: [],
             failureCauses4M: [],
+            failureCausesSpecialChar: [],
             failureCausesWE: [],
             preventionCtrls: [],
             preventionCtrls4M: [],
@@ -1004,6 +1008,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               productChars: [],
               productCharsSpecialChar: [],
               failureModes: [],
+              failureModesSpecialChar: [],
               workElements: [],
               workElements4M: [],
               elementFuncs: [],
@@ -1015,6 +1020,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               processCharsWE: [],
               failureCauses: [],
               failureCauses4M: [],
+              failureCausesSpecialChar: [],
               failureCausesWE: [],
               preventionCtrls: [],
               preventionCtrls4M: [],
@@ -1080,8 +1086,11 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               process.processChars4M.push(row.m4 || '');
               process.processCharsSpecialChar.push(row.specialChar || '');
               process.processCharsWE.push(row.extra || '');
+            } else if (sheet === 'A5') {
+              process.failureModesSpecialChar.push(row.specialChar || '');
             } else if (sheet === 'B4') {
               process.failureCauses4M.push(row.m4 || '');
+              process.failureCausesSpecialChar.push(row.specialChar || '');
               process.failureCausesWE.push(row.extra || '');  // ★ 2026-03-15 FIX: FC 소속 WE 기록
             } else if (sheet === 'B5') {
               process.preventionCtrls4M.push(row.m4 || '');
@@ -1102,6 +1111,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               productChars: [],
               productCharsSpecialChar: [],
               failureModes: [],
+              failureModesSpecialChar: [],
               workElements: [],
               workElements4M: [],
               elementFuncs: [],
@@ -1113,6 +1123,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               processCharsWE: [],
               failureCauses: [],
               failureCauses4M: [],
+              failureCausesSpecialChar: [],
               failureCausesWE: [],
               preventionCtrls: [],
               preventionCtrls4M: [],

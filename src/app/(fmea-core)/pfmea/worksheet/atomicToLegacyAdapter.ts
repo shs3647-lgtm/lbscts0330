@@ -191,6 +191,8 @@ function buildLegacyFailureLinks(
   l2ById: Map<string, L2Structure>,
   l3ById: Map<string, L3Structure>,
   analysisByLinkId: Map<string, FMEAWorksheetDB['failureAnalyses'][number]>,
+  l2FuncById: Map<string, { productChar: string; specialChar?: string | null; functionName: string }>,
+  l3FuncById: Map<string, { processChar: string; specialChar?: string | null; functionName: string }>,
 ): WorksheetFailureLink[] {
   return links.map(link => {
     const analysis = analysisByLinkId.get(link.id);
@@ -204,31 +206,35 @@ function buildLegacyFailureLinks(
     const fcL3 = fc?.l3StructId ? l3ById.get(fc.l3StructId) : undefined;
     const fcL2 = fc?.l2StructId ? l2ById.get(fc.l2StructId) : undefined;
 
+    // FK 리매칭: L2Function/L3Function이 SSoT (FailureAnalysis는 비정규화 캐시)
+    const fmL2Func = fm?.l2FuncId ? l2FuncById.get(fm.l2FuncId) : undefined;
+    const fcL3Func = fc?.l3FuncId ? l3FuncById.get(fc.l3FuncId) : undefined;
+
     return {
       id: link.id,
       fmId: link.fmId,
-      fmText: analysis?.fmText || fm?.mode || '',
-      fmProcess: analysis?.fmProcessName || fmL2?.name || '',
+      fmText: fm?.mode || analysis?.fmText || '',
+      fmProcess: fmL2?.name || analysis?.fmProcessName || '',
       fmProcessNo: fmL2?.no || '',
-      fmProcessName: analysis?.fmProcessName || fmL2?.name || '',
-      fmProcessFunction: analysis?.l2FuncName || '',
-      fmProductChar: analysis?.l2ProductChar || '',
-      fmProductCharSC: analysis?.l2SpecialChar || '',
+      fmProcessName: fmL2?.name || analysis?.fmProcessName || '',
+      fmProcessFunction: fmL2Func?.functionName || analysis?.l2FuncName || '',
+      fmProductChar: fmL2Func?.productChar || analysis?.l2ProductChar || '',
+      fmProductCharSC: fmL2Func?.specialChar || analysis?.l2SpecialChar || '',
       feId: link.feId,
-      feScope: analysis?.feCategory || fe?.category,
-      feCategory: analysis?.feCategory || fe?.category || '',
-      feText: analysis?.feText || fe?.effect || '',
+      feScope: fe?.category || analysis?.feCategory,
+      feCategory: fe?.category || analysis?.feCategory || '',
+      feText: fe?.effect || analysis?.feText || '',
       feFunctionName: analysis?.l1FuncName || '',
       feRequirement: analysis?.l1Requirement || '',
-      severity: analysis?.feSeverity ?? fe?.severity ?? 1,
+      severity: fe?.severity ?? analysis?.feSeverity ?? 1,
       fcId: link.fcId,
-      fcText: analysis?.fcText || fc?.cause || '',
-      fcWorkFunction: analysis?.l3FuncName || '',
-      fcProcessChar: analysis?.l3ProcessChar || '',
-      fcProcessCharSC: analysis?.l3SpecialChar || '',
-      fcWorkElem: analysis?.fcWorkElementName || fcL3?.name || '',
-      fcProcess: analysis?.l2StructName || fcL2?.name || '',
-      fcM4: analysis?.fcM4 || fcL3?.m4 || '',
+      fcText: fc?.cause || analysis?.fcText || '',
+      fcWorkFunction: fcL3Func?.functionName || analysis?.l3FuncName || '',
+      fcProcessChar: fcL3Func?.processChar || analysis?.l3ProcessChar || '',
+      fcProcessCharSC: fcL3Func?.specialChar || analysis?.l3SpecialChar || '',
+      fcWorkElem: fcL3?.name || analysis?.fcWorkElementName || '',
+      fcProcess: fcL2?.name || analysis?.l2StructName || '',
+      fcM4: fcL3?.m4 || analysis?.fcM4 || '',
     };
   });
 }
@@ -399,7 +405,15 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
     };
   });
 
-  // ─── FailureLinks ───
+  // ─── FailureLinks (SC fallback: L2Function/L3Function 직접 참조) ───
+  const l2FuncByIdMap = new Map<string, { productChar: string; specialChar?: string | null; functionName: string }>();
+  for (const f of db.l2Functions) {
+    l2FuncByIdMap.set(f.id, { productChar: f.productChar, specialChar: f.specialChar, functionName: f.functionName });
+  }
+  const l3FuncByIdMap = new Map<string, { processChar: string; specialChar?: string | null; functionName: string }>();
+  for (const f of db.l3Functions) {
+    l3FuncByIdMap.set(f.id, { processChar: f.processChar, specialChar: f.specialChar, functionName: f.functionName });
+  }
   const failureLinks = buildLegacyFailureLinks(
     db.failureLinks,
     fmById,
@@ -408,6 +422,8 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
     l2ById,
     l3ById,
     analysisByLinkId,
+    l2FuncByIdMap,
+    l3FuncByIdMap,
   );
 
   // ─── RiskData ───
