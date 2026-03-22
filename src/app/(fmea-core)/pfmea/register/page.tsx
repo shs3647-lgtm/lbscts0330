@@ -390,9 +390,26 @@ function PFMEARegisterPageContent() {
           p.workElements.forEach((v, i) => flat.push({ id: `${p.processNo}-B1-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B1', value: v, m4: p.workElements4M?.[i] || '', createdAt: new Date() }));
           p.elementFuncs.forEach((v, i) => flat.push({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, createdAt: new Date() }));
           p.processChars.forEach((v, i) => flat.push({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, createdAt: new Date() }));
-          p.failureCauses.forEach((v, i) => flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, createdAt: new Date() }));
+          // ★ B4 parentItemId: WE+m4로 B3 id 매핑 (Rule 1.7.5: B4.parentItemId → B3)
+          p.failureCauses.forEach((v, i) => {
+            const weB4 = p.failureCausesWE?.[i] || '';
+            const m4B4 = p.failureCauses4M?.[i] || '';
+            const matchB3Idx = p.processChars.findIndex((_, j) =>
+              (p.processCharsWE?.[j] || '') === weB4 && (p.processChars4M?.[j] || '') === m4B4
+            );
+            const parentItemId = matchB3Idx >= 0 ? `${p.processNo}-B3-${matchB3Idx}` : undefined;
+            flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: m4B4, belongsTo: weB4 || undefined, parentItemId, createdAt: new Date() });
+          });
           p.detectionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-A6-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A6', value: v, createdAt: new Date() }));
-          p.preventionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-B5-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B5', value: v, m4: p.preventionCtrls4M?.[i] || '', belongsTo: p.preventionCtrlsWE?.[i] || undefined, createdAt: new Date() }));
+          // ★ B5 parentItemId: WE+m4로 B1 id 매핑
+          p.preventionCtrls.forEach((v, i) => {
+            const weB5 = p.preventionCtrlsWE?.[i] || '';
+            const m4B5 = p.preventionCtrls4M?.[i] || '';
+            const matchB1Idx = p.workElements.findIndex((_, j) =>
+              (p.workElements4M?.[j] || '') === m4B5
+            );
+            flat.push({ id: `${p.processNo}-B5-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B5', value: v, m4: m4B5, belongsTo: weB5 || undefined, createdAt: new Date() });
+          });
         });
         result.products.forEach((p) => {
           const categoryValue = p.productProcessName || 'YP';
@@ -403,8 +420,24 @@ function PFMEARegisterPageContent() {
         });
         setFlatData(flat);
         setBdParseStatistics(result.statistics);
-        setBdDirty(true);
-        setBdIsSaved(false);
+        // ★ Import 즉시 BD DB 저장 (수동 저장 불필요)
+        if (fmeaId && flat.length > 0) {
+          try {
+            const { saveMasterDataset } = await getMasterApi();
+            const saveRes = await saveMasterDataset({ fmeaId, fmeaType: 'P', datasetId: bdDatasetId, name: 'MASTER', replace: true, flatData: flat });
+            if (saveRes.ok) {
+              if (saveRes.datasetId) setBdDatasetId(saveRes.datasetId);
+              setBdIsSaved(true); setBdDirty(false);
+            } else {
+              setBdDirty(true); setBdIsSaved(false);
+            }
+          } catch (saveErr) {
+            console.error('[BD 자동저장] 오류:', saveErr);
+            setBdDirty(true); setBdIsSaved(false);
+          }
+        } else {
+          setBdDirty(true); setBdIsSaved(false);
+        }
         // ★ 파일 Import 후: 수동/자동 모드에서 import한 경우 모드 유지, 기존데이터 모드에서만 download 유지
         if (templateGen.templateMode === 'download') {
           templateGen.setTemplateMode('download');

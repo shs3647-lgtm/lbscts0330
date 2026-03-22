@@ -837,8 +837,11 @@ export async function POST(request: NextRequest) {
         const feIdSet = new Set(atomic.failureEffects.map((fe: any) => fe.id));
         const fcIdSet = new Set(atomic.failureCauses.map((fc: any) => fc.id));
 
+        const POS_UUID_RE_FL = /^(L[123]|FC)-R\d+/;
         const invalidLinkIds: string[] = [];
         for (const l of atomic.failureLinks) {
+          // ★ 위치기반 UUID FL은 save-position-import가 생성한 것 → 보호 (삭제 금지)
+          if (POS_UUID_RE_FL.test((l as any).id)) continue;
           const hasFm = fmIdSet.has((l as any).fmId);
           const hasFe = feIdSet.has((l as any).feId);
           const hasFc = fcIdSet.has((l as any).fcId);
@@ -1041,7 +1044,13 @@ export async function POST(request: NextRequest) {
         }
 
         // RA가 어떤 FL에도 속하지 않는 고아 RA 제거
+        // ★ 위치기반 FL(FC-R{n})이 참조하는 RA는 보호
+        const POS_FL_RE = /^(FC|L[123])-R\d+/;
         const flIds = new Set(savedLinks.map((l: any) => l.id));
+        // 위치기반 FL IDs도 flIds에 추가 (삭제 방지)
+        for (const ra of allRAs) {
+          if (POS_FL_RE.test(ra.linkId)) flIds.add(ra.linkId);
+        }
         const orphanRaIds = allRAs
           .filter((ra: any) => !flIds.has(ra.linkId) && !dupRaIds.includes(ra.id))
           .map((ra: any) => ra.id);
@@ -1223,12 +1232,14 @@ export async function POST(request: NextRequest) {
       }
 
       // ★ 고아 FC 정리: FL에 참조되지 않는 FC → 연쇄 삭제 (Optimization → RA → FL → FC)
+      // ★ 위치기반 UUID(L3-R\d+-C\d+) 는 save-position-import 생성 데이터 → 보호
       {
+        const POS_UUID_RE = /^L[123]-R\d+/;
         const allFcIds = (await tx.failureCause.findMany({ where: { fmeaId }, select: { id: true } })).map((f: { id: string }) => f.id);
         const linkedFcIds = new Set(
           (await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } })).map((f: { fcId: string }) => f.fcId)
         );
-        const orphanFcIds = allFcIds.filter((id: string) => !linkedFcIds.has(id));
+        const orphanFcIds = allFcIds.filter((id: string) => !linkedFcIds.has(id) && !POS_UUID_RE.test(id));
         if (orphanFcIds.length > 0) {
           // Cascade delete: find FLs referencing orphan FCs (safety — should be 0 by definition)
           const orphanFcFLs = await tx.failureLink.findMany({
