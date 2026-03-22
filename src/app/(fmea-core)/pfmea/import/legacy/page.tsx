@@ -278,11 +278,15 @@ export default function LegacyImportPage() {
     if (!selectedFmeaId || isSaving) return;
     setIsSaving(true);
     try {
+      // ★★★ 2026-03-22: 엑셀에 있는 itemCode만 교체 — autofix B5/A6 보존
+      const importedCodes = [...new Set(flatData.map(d => d.itemCode).filter(Boolean))];
       const res = await saveMasterDataset({
         fmeaId: selectedFmeaId,
         fmeaType: selectedFmea?.fmeaType || 'P',
         datasetId: masterDatasetId, name: masterDatasetName || 'MASTER',
-        replace: true, flatData,
+        replace: true,
+        replaceItemCodes: importedCodes,
+        flatData,
         failureChains: masterChains && masterChains.length > 0 ? masterChains : undefined,
       });
       if (res.ok) {
