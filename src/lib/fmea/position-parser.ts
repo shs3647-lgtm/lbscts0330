@@ -706,16 +706,26 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   const fcHeader = detectHeaderRow(fcWS, { FM: ['FM', '고장형태'], FC: ['FC', '고장원인'] });
   console.log(`[position-parser] FC columns: ${JSON.stringify(fcColMap)}, headerRow: ${fcHeader}`);
 
+  // ★ FC 시트 carry-forward: 병합셀로 인해 FM/FE/processNo가 빈 경우 이전 행 값 유지
+  let prevFEscope = '', prevFE = '', prevPno = '', prevFM = '';
   const fcRows: SheetRow[] = [];
   fcWS.eachRow((row: any, rn: number) => {
     if (rn <= fcHeader) return;
+    const feScope = excelCellStr(row, fcColMap.FE_scope || 1) || prevFEscope;
+    const feText = excelCellStr(row, fcColMap.FE || 2) || prevFE;
+    const pno = excelCellStr(row, fcColMap.processNo || 3) || prevPno;
+    const fm = excelCellStr(row, fcColMap.FM || 4) || prevFM;
+    if (feScope) prevFEscope = feScope;
+    if (feText) prevFE = feText;
+    if (pno) prevPno = pno;
+    if (fm) prevFM = fm;
     fcRows.push({
       excelRow: rn, posId: `FC-R${rn}`,
       cells: {
-        FE_scope: excelCellStr(row, fcColMap.FE_scope || 1),
-        FE: excelCellStr(row, fcColMap.FE || 2),
-        processNo: excelCellStr(row, fcColMap.processNo || 3),
-        FM: excelCellStr(row, fcColMap.FM || 4),
+        FE_scope: feScope,
+        FE: feText,
+        processNo: pno,
+        FM: fm,
         m4: excelCellStr(row, fcColMap.m4 || 5),
         WE: excelCellStr(row, fcColMap.WE || 6),
         FC: excelCellStr(row, fcColMap.FC || 7),
