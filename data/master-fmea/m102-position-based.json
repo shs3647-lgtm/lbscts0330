@@ -871,6 +871,56 @@
           "fk": {
             "origL1FuncId": "PF-L1-US-002-002"
           }
+        },
+        {
+          "excelRow": 65,
+          "posId": "L1-R65",
+          "cells": {
+            "C1": "YP",
+            "C2": "Wafer 표면 결함 부재 및 Lot 식별 정확성이 확보된 입고 Wafer를 제공한다",
+            "C3": "Lot 식별 정확도(OCR ID Matching Accuracy)",
+            "C4": "Lot 혼입으로 인한 Wafer 수율 손실"
+          }
+        },
+        {
+          "excelRow": 66,
+          "posId": "L1-R66",
+          "cells": {
+            "C1": "SP",
+            "C2": "Au Bump 전단강도 및 높이가 고객 규격을 만족하는 Wafer를 제공한다",
+            "C3": "Au Bump 높이(Bump Height, μm) — ★",
+            "C4": "Lot 혼입 불량 유출(고객 불량 수령)"
+          }
+        },
+        {
+          "excelRow": 67,
+          "posId": "L1-R67",
+          "cells": {
+            "C1": "USER",
+            "C2": "RoHS·REACH 규제 유해물질 기준을 준수하는 Wafer를 제공한다",
+            "C3": "RoHS 유해물질 기준 적합성(RoHS Compliance)",
+            "C4": "고객 라인 정지, 클레임"
+          }
+        },
+        {
+          "excelRow": 68,
+          "posId": "L1-R68",
+          "cells": {
+            "C1": "YP",
+            "C2": "",
+            "C3": "",
+            "C4": ""
+          }
+        },
+        {
+          "excelRow": 69,
+          "posId": "L1-R69",
+          "cells": {
+            "C1": "SP",
+            "C2": "",
+            "C3": "",
+            "C4": ""
+          }
         }
       ]
     },

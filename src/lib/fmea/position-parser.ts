@@ -97,7 +97,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
   const l1Functions: PosL1Function[] = [];
   const failureEffects: PosFailureEffect[] = [];
-  const seenC2: Map<string, string> = new Map(); // C2 text → L1Function id
+  // ★ C1+C2+C3 조합으로 중복제거 — 같은 C2라도 다른 C3 = 다른 L1Function (요구사항 누락 방지)
+  const seenC2C3: Map<string, string> = new Map(); // C1|C2|C3 → L1Function id
 
   for (const row of l1Sheet.rows) {
     const rn = row.excelRow;
@@ -106,12 +107,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const c3 = row.cells['C3']?.trim() || '';
     const c4 = row.cells['C4']?.trim() || '';
 
-    // L1Function: 같은 C2 텍스트의 첫 행만 생성
-    const c2Key = `${c1}|${c2}`;
+    // L1Function: 같은 C1+C2+C3 조합의 첫 행만 생성 (C3=요구사항 보존)
+    const funcKey = `${c1}|${c2}|${c3}`;
     let l1FuncId: string;
-    if (!seenC2.has(c2Key)) {
+    if (!seenC2C3.has(funcKey)) {
       l1FuncId = positionUUID('L1', rn, L1_FUNC_COL);
-      seenC2.set(c2Key, l1FuncId);
+      seenC2C3.set(funcKey, l1FuncId);
       l1Functions.push({
         id: l1FuncId,
         fmeaId,
@@ -121,7 +122,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         requirement: c3,
       });
     } else {
-      l1FuncId = seenC2.get(c2Key)!;
+      l1FuncId = seenC2C3.get(funcKey)!;
     }
 
     // FailureEffect: 행마다 독립 (C4가 비어있으면 스킵)

@@ -42,11 +42,13 @@ describe('parsePositionBasedJSON', () => {
     expect(result.failureEffects[0].id).toMatch(/^L1-R\d+-C4$/);
   });
 
-  it('L1 시트 → L1Function 중복제거 (같은 C2 = 같은 L1Function)', () => {
+  it('L1 시트 → L1Function 중복제거 (같은 C1+C2+C3 = 같은 L1Function, 요구사항 보존)', () => {
     result = parsePositionBasedJSON(fixture);
-    // C2 텍스트가 같으면 하나의 L1Function만 생성
-    const uniqueC2s = new Set(fixture.sheets.L1.rows.map((r: any) => r.cells.C2));
-    expect(result.l1Functions.length).toBe(uniqueC2s.size);
+    // C1+C2+C3 조합이 같으면 하나의 L1Function만 생성 (요구사항 누락 방지)
+    const uniqueC2C3 = new Set(fixture.sheets.L1.rows.map((r: any) =>
+      `${r.cells.C1}|${r.cells.C2}|${r.cells.C3}`
+    ));
+    expect(result.l1Functions.length).toBe(uniqueC2C3.size);
   });
 
   // ── L2 시트 → L2Structure + L2Function + ProductChar + FailureMode ──
