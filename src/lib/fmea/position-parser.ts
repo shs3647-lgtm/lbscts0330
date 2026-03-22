@@ -21,6 +21,7 @@ import type {
   PositionAtomicData,
   PosL1Structure,
   PosL1Function,
+  PosL1Requirement,
   PosL2Structure,
   PosL2Function,
   PosL3Structure,
@@ -102,6 +103,8 @@ function normalizeAP(raw: string): string {
 const L1_FE_COL = 4;
 /** L1: C2 = 제품기능 = 2번째 컬럼 */
 const L1_FUNC_COL = 2;
+/** L1: C3 = 요구사항 = 3번째 컬럼 (★v4: PosL1Requirement 독립 UUID) */
+const L1_REQ_COL = 3;
 /** L2: A5 = 고장형태 = 6번째 컬럼 (A1=1,A2=2,A3=3,A4=4,SC=5,A5=6) */
 const L2_FM_COL = 6;
 /** L2: A3+A4 = 공정기능 = 4번째 컬럼 */
@@ -141,9 +144,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // ═══════════════════════════════════════════
 
   const l1Functions: PosL1Function[] = [];
+  const l1Requirements: PosL1Requirement[] = []; // ★v4: C3 독립 엔티티
   const failureEffects: PosFailureEffect[] = [];
   // ★ C1+C2+C3 조합으로 중복제거 — 같은 C2라도 다른 C3 = 다른 L1Function (요구사항 누락 방지)
   const seenC2C3: Map<string, string> = new Map(); // C1|C2|C3 → L1Function id
+  let l1ReqOrderIndex = 0;
 
   const autoFixes: AutoFixLog[] = [];
 
@@ -179,6 +184,20 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
     } else {
       l1FuncId = seenC2C3.get(funcKey)!;
+    }
+
+    // ★v4: L1Requirement — C3(요구사항) 독립 엔티티 (행마다, C3가 있으면)
+    if (c3) {
+      const l1ReqId = positionUUID('L1', rn, L1_REQ_COL);
+      l1Requirements.push({
+        id: l1ReqId,
+        fmeaId,
+        l1StructId,
+        l1FuncId,
+        parentId: l1FuncId, // E-03: L1Requirement.parentId → L1Function
+        requirement: c3,
+        orderIndex: l1ReqOrderIndex++,
+      });
     }
 
     // FailureEffect: 행마다 독립 (C4가 비어있으면 스킵)
@@ -503,6 +522,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelB5: countNonEmpty(l3Sheet.rows, 'B5'),
     // 파싱 결과 (DB 저장 대상)
     l1Functions: l1Functions.length,
+    l1Requirements: l1Requirements.length, // ★v4
     l2Structures: l2Structures.length,
     l3Structures: l3Structures.length,
     l2Functions: l2Functions.length,
@@ -523,7 +543,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // ★ Import 파싱 결과 로그 (항목별 엑셀 원본 vs 파싱 결과)
   console.log(`[position-parser] ═══ 엑셀 원본 vs 파싱 결과 ═══`);
   console.log(`  L1: 엑셀 ${stats.excelL1Rows}행 (C1=${stats.excelC1}, C2=${stats.excelC2}, C3=${stats.excelC3}, C4=${stats.excelC4})`);
-  console.log(`     → L1Func=${stats.l1Functions}, FE=${stats.failureEffects}`);
+  console.log(`     → L1Func=${stats.l1Functions}, L1Req=${stats.l1Requirements}, FE=${stats.failureEffects}`);
   console.log(`  L2: 엑셀 ${stats.excelL2Rows}행 (A1=${stats.excelA1}, A3=${stats.excelA3}, A4=${stats.excelA4}, A5=${stats.excelA5}, A6=${stats.excelA6})`);
   console.log(`     → L2Struct=${stats.l2Structures}, FM=${stats.failureModes}`);
   console.log(`  L3: 엑셀 ${stats.excelL3Rows}행 (B1=${stats.excelB1}, B2=${stats.excelB2}, B3=${stats.excelB3}, B4=${stats.excelB4}, B5=${stats.excelB5})`);
@@ -544,6 +564,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     fmeaId,
     l1Structure: { id: l1StructId, fmeaId, name: '' },
     l1Functions,
+    l1Requirements,
     l2Structures,
     l2Functions,
     l3Structures,

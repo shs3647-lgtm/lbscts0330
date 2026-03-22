@@ -244,6 +244,7 @@ model L1Requirement {
   fmeaId       String
   l1StructId   String
   l1FuncId     String
+  parentId     String?     // ★v4: → L1Function.id (E-03)
   requirement  String
   orderIndex   Int         @default(0)
   createdAt    DateTime    @default(now())
@@ -252,6 +253,7 @@ model L1Requirement {
 
   @@index([fmeaId])
   @@index([l1FuncId])
+  @@index([parentId])
   @@map("l1_requirements")
 }
 

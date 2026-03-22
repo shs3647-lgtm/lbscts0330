@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
         await tx.l3ProcessChar.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l2Function.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l1Requirement.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l1Function.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3Structure.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l2Structure.deleteMany({ where: { fmeaId: normalizedId } });
@@ -99,6 +100,19 @@ export async function POST(request: NextRequest) {
             category: f.category, functionName: f.functionName, requirement: f.requirement,
           })),
         });
+      }
+
+      // 4b. L1Requirements (★v4: C3 독립 엔티티) — L1Function 이후 생성 (FK 의존)
+      if (atomicData.l1Requirements && atomicData.l1Requirements.length > 0) {
+        await tx.l1Requirement.createMany({
+          skipDuplicates: true,
+          data: atomicData.l1Requirements.map(r => ({
+            id: r.id, fmeaId: normalizedId, l1StructId: r.l1StructId,
+            l1FuncId: r.l1FuncId, parentId: r.parentId || null,
+            requirement: r.requirement, orderIndex: r.orderIndex,
+          })),
+        });
+        console.log(`[save-position-import] L1Requirement: ${atomicData.l1Requirements.length}건 생성`);
       }
 
       // 5. L2Functions

@@ -25,6 +25,17 @@ export interface PosL1Function {
   requirement: string;  // C3
 }
 
+// ★v4: C3(요구사항) 독립 엔티티 — L1Function.requirement 문자열에서 분리
+export interface PosL1Requirement {
+  id: string;        // 'L1-R{n}-C3' (C3 행마다 독립)
+  fmeaId: string;
+  l1StructId: string;
+  l1FuncId: string;  // FK → PosL1Function.id (E-03)
+  parentId: string;  // → L1Function.id (E-03)
+  requirement: string; // C3
+  orderIndex: number;
+}
+
 export interface PosFailureEffect {
   id: string;        // 'L1-R{n}-C4'
   fmeaId: string;
@@ -162,6 +173,7 @@ export interface PositionAtomicData {
   fmeaId: string;
   l1Structure: PosL1Structure;
   l1Functions: PosL1Function[];
+  l1Requirements: PosL1Requirement[];  // ★v4: C3 독립 엔티티
   l2Structures: PosL2Structure[];
   l2Functions: PosL2Function[];
   l3Structures: PosL3Structure[];
