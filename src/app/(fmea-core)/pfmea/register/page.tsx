@@ -61,6 +61,8 @@ import { useRegisterPageHandlers } from './hooks/useRegisterPageHandlers';
 import { useTemplateGenerator } from '@/app/(fmea-core)/pfmea/import/hooks/useTemplateGenerator';
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
 import type { BdStatusItem, FMEAProject as ImportFMEAProject } from '@/app/(fmea-core)/pfmea/import/components/ImportPageTypes';
+import { fmeaIdToBdId } from '@/app/(fmea-core)/pfmea/import/utils/bd-id';
+import { BdNavConfirmModal } from './components/BdNavConfirmModal';
 
 // ★ Heavy import modules → dynamic/lazy loading (컴파일 성능 최적화)
 const TemplateGeneratorPanel = dynamic(
@@ -155,6 +157,7 @@ function PFMEARegisterPageContent() {
   const [bdSelectModal, setBdSelectModal] = useState<{ open: boolean; type: 'M' | 'F' | 'P'; candidates: BdStatusItem[] }>({ open: false, type: 'P', candidates: [] });
   const [masterBdCount, setMasterBdCount] = useState(0);
   const [partBdCount, setPartBdCount] = useState(0);
+  const [bdNavConfirm, setBdNavConfirm] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
 
   // ★ Master/Part FMEA BD 카운트 로드
   useEffect(() => {
@@ -183,7 +186,37 @@ function PFMEARegisterPageContent() {
         const { summaries, deletedFmeaIds } = await loadAllDatasetSummaries();
         const activeProjects = projects.filter(p => !deletedFmeaIds.includes(p.id.toLowerCase()));
         setBdFmeaList(activeProjects);
-        setBdStatusList(buildBdStatusList(activeProjects, summaries));
+        const baseList = buildBdStatusList(activeProjects, summaries);
+
+        // ★ Master/Family BD도 BD 현황 테이블에 표시 (등록화면 버튼과 일치)
+        try {
+          const masterRes = await fetch('/api/master-fmea/bd-list');
+          const masterData = await masterRes.json();
+          const masterItems: any[] = masterData.masters || [];
+          const existingIds = new Set(baseList.map((b: BdStatusItem) => b.fmeaId.toLowerCase()));
+          const extraMasterItems: BdStatusItem[] = masterItems
+            .filter((m: any) => m.fmeaId && !existingIds.has(m.fmeaId.toLowerCase()))
+            .map((m: any) => {
+              const summary = summaries.find(s => s.fmeaId.toLowerCase() === m.fmeaId.toLowerCase());
+              return {
+                fmeaId: m.fmeaId,
+                fmeaType: 'M' as const,
+                fmeaName: m.name || m.fmeaId,
+                bdId: fmeaIdToBdId(m.fmeaId),
+                processCount: summary?.processCount ?? (m.processCount || 0),
+                itemCount: summary?.itemCount ?? 0,
+                dataCount: summary?.dataCount ?? 0,
+                fmCount: summary?.fmCount ?? 0,
+                fcCount: summary?.fcCount ?? 0,
+                version: summary?.version ?? undefined,
+                createdAt: summary?.createdAt ?? undefined,
+                isActive: true,
+              } as BdStatusItem;
+            });
+          setBdStatusList([...extraMasterItems, ...baseList]);
+        } catch {
+          setBdStatusList(baseList);
+        }
       } catch (e) { console.error('BD 현황 로드 오류:', e); }
     })();
   }, [cachedProjects]);
@@ -232,6 +265,7 @@ function PFMEARegisterPageContent() {
           setBdLoadedFmeaName(fmeaInfo.subject || fmeaId || '');
           templateGen.setTemplateMode('download');
           setBdExpandTrigger(prev => prev + 1);
+          setBdNavConfirm({ open: true, name: fmeaInfo.subject || targetId });
         }
       } catch (e) { console.error('[BD 로드] 오류:', e); }
       return;
@@ -302,6 +336,7 @@ function PFMEARegisterPageContent() {
             setBdLoadedFmeaName(fmeaInfo.subject || fmeaId || '');
             templateGen.setTemplateMode('download');
             setBdExpandTrigger(prev => prev + 1);
+            setBdNavConfirm({ open: true, name: fmeaInfo.subject || targetId });
           }
         } catch (e2) { console.error('[Part BD 폴백 로드] 오류:', e2); }
         return;
@@ -329,6 +364,7 @@ function PFMEARegisterPageContent() {
         setBdLoadedFmeaName(targetName);
         templateGen.setTemplateMode('download');
         setBdExpandTrigger(prev => prev + 1);
+        setBdNavConfirm({ open: true, name: targetName });
       } else {
         alert('해당 BD에 데이터가 없습니다.');
       }
@@ -1034,6 +1070,18 @@ function PFMEARegisterPageContent() {
 
         {/* CFT 미입력 경고 모달 */}
         <AlertModal isOpen={cftAlertRoles.length > 0} onClose={() => setCftAlertRoles([])} message="사용자 검색으로 CFT를 지정해 주세요" items={cftAlertRoles} />
+
+        {/* BD 로드 완료 → FMEA 작성화면 이동 확인 팝업 */}
+        <BdNavConfirmModal
+          open={bdNavConfirm.open}
+          bdName={bdNavConfirm.name}
+          fmeaId={fmeaId}
+          onClose={() => setBdNavConfirm({ open: false, name: '' })}
+          onNavigate={() => {
+            setBdNavConfirm({ open: false, name: '' });
+            if (fmeaId) router.push(`/pfmea/worksheet?id=${fmeaId}`);
+          }}
+        />
 
       </div>
     </FixedLayout>
