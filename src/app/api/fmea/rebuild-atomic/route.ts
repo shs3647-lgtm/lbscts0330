@@ -908,7 +908,7 @@ export async function POST(request: NextRequest) {
             dupFlIds.push(ids[i]);
           }
         }
-        if (dupFlIds.length > 0) {
+        if (dupFlIds.length > 0 && !isPositionBased) {  // ★ 위치기반 FL dedup 금지
           // Cascade: Optimization → RiskAnalysis → FailureLink
           const dupFlRAs = await tx.riskAnalysis.findMany({
             where: { fmeaId, linkId: { in: dupFlIds } },
@@ -976,7 +976,7 @@ export async function POST(request: NextRequest) {
             dupFcIds.push(...sorted.slice(1));
           }
         }
-        if (dupFcIds.length > 0) {
+        if (dupFcIds.length > 0 && !isPositionBased) {  // ★ 위치기반 FC dedup 금지
           // Cascade: Optimization → RiskAnalysis → FailureLink → FailureCause
           const dupFcFLs = await tx.failureLink.findMany({
             where: { fmeaId, fcId: { in: dupFcIds } },
