@@ -50,10 +50,18 @@ export async function POST(request: NextRequest) {
         await tx.failureMode.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.processProductChar.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3SpecialChar.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3ProcessChar.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3WorkElement.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3FourM.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3ProcessNo.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l2SpecialChar.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l2Function.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l2ProcessName.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l2ProcessNo.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l1Requirement.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l1Scope.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l1Function.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3Structure.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l2Structure.deleteMany({ where: { fmeaId: normalizedId } });
@@ -68,6 +76,18 @@ export async function POST(request: NextRequest) {
         update: { name: atomicData.l1Structure.name },
       });
 
+      // 1b. L1Scopes (★v4: C1 구분 독립 엔티티)
+      if (atomicData.l1Scopes && atomicData.l1Scopes.length > 0) {
+        await tx.l1Scope.createMany({
+          skipDuplicates: true,
+          data: atomicData.l1Scopes.map(s => ({
+            id: s.id, fmeaId: normalizedId, l1StructId: s.l1StructId,
+            parentId: s.parentId || null, scope: s.scope,
+          })),
+        });
+        console.log(`[save-position-import] L1Scope: ${atomicData.l1Scopes.length}건 생성`);
+      }
+
       // 2. L2Structures
       if (atomicData.l2Structures.length > 0) {
         await tx.l2Structure.createMany({
@@ -77,6 +97,28 @@ export async function POST(request: NextRequest) {
             parentId: s.parentId || null,
           })),
         });
+      }
+
+      // 2b. L2ProcessNos + L2ProcessNames (★v4: A1/A2 독립 엔티티)
+      if (atomicData.l2ProcessNos && atomicData.l2ProcessNos.length > 0) {
+        await tx.l2ProcessNo.createMany({
+          skipDuplicates: true,
+          data: atomicData.l2ProcessNos.map(p => ({
+            id: p.id, fmeaId: normalizedId, l2StructId: p.l2StructId,
+            parentId: p.parentId || null, no: p.no,
+          })),
+        });
+        console.log(`[save-position-import] L2ProcessNo: ${atomicData.l2ProcessNos.length}건 생성`);
+      }
+      if (atomicData.l2ProcessNames && atomicData.l2ProcessNames.length > 0) {
+        await tx.l2ProcessName.createMany({
+          skipDuplicates: true,
+          data: atomicData.l2ProcessNames.map(p => ({
+            id: p.id, fmeaId: normalizedId, l2StructId: p.l2StructId,
+            parentId: p.parentId || null, name: p.name,
+          })),
+        });
+        console.log(`[save-position-import] L2ProcessName: ${atomicData.l2ProcessNames.length}건 생성`);
       }
 
       // 3. L3Structures
@@ -127,6 +169,18 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // 5b. L2SpecialChars (★v4: SC 특별특성 독립 엔티티 — L2Function 이후)
+      if (atomicData.l2SpecialChars && atomicData.l2SpecialChars.length > 0) {
+        await tx.l2SpecialChar.createMany({
+          skipDuplicates: true,
+          data: atomicData.l2SpecialChars.map(sc => ({
+            id: sc.id, fmeaId: normalizedId, l2StructId: sc.l2StructId,
+            l2FuncId: sc.l2FuncId, parentId: sc.parentId || null, value: sc.value,
+          })),
+        });
+        console.log(`[save-position-import] L2SpecialChar: ${atomicData.l2SpecialChars.length}건 생성`);
+      }
+
       // 6. ProcessProductChars
       if (atomicData.processProductChars.length > 0) {
         await tx.processProductChar.createMany({
@@ -143,16 +197,20 @@ export async function POST(request: NextRequest) {
       // 이유: skipDuplicates가 빈값 레코드를 업데이트 못함 + for-loop upsert 너무 느림
       // Structure/L1F/L2F/FM/FE는 skipDuplicates 유지 (소실 위험 없음)
 
-      // 7. L3Functions + L3ProcessChars: DELETE ALL + CREATE (공정특성 B3 포함)
+      // 7. L3Functions + L3ProcessChars + L3 독립 엔티티: DELETE ALL + CREATE
       // ★ 방어: l3Functions가 비어있으면 DELETE 금지 (파싱 실패 시 기존 데이터 보호)
       if (atomicData.l3Functions.length === 0) {
         console.warn(`[save-position-import] ⚠️ l3Functions=0 — DELETE 건너뜀 (기존 데이터 보존). 파서 로그 확인 필요`);
       } else {
-        // 데이터 있을 때만 DELETE → CREATE
+        // 데이터 있을 때만 DELETE → CREATE (의존성 역순: SpecialChar → ProcessChar → Function)
         await tx.riskAnalysis.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureLink.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3SpecialChar.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3ProcessChar.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3WorkElement.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3FourM.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3ProcessNo.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
 
         await tx.l3Function.createMany({
@@ -174,6 +232,46 @@ export async function POST(request: NextRequest) {
             })),
           });
           console.log(`[save-position-import] L3ProcessChar: ${atomicData.l3ProcessChars.length}건 생성`);
+        }
+
+        // 7c. L3ProcessNos + L3FourMs + L3WorkElements (★v4) — L3Structure 이후 생성 (FK 의존)
+        if (atomicData.l3ProcessNos && atomicData.l3ProcessNos.length > 0) {
+          await tx.l3ProcessNo.createMany({
+            data: atomicData.l3ProcessNos.map(p => ({
+              id: p.id, fmeaId: normalizedId, l3StructId: p.l3StructId,
+              parentId: p.parentId || null, no: p.no,
+            })),
+          });
+          console.log(`[save-position-import] L3ProcessNo: ${atomicData.l3ProcessNos.length}건 생성`);
+        }
+        if (atomicData.l3FourMs && atomicData.l3FourMs.length > 0) {
+          await tx.l3FourM.createMany({
+            data: atomicData.l3FourMs.map(f => ({
+              id: f.id, fmeaId: normalizedId, l3StructId: f.l3StructId,
+              parentId: f.parentId || null, m4: f.m4,
+            })),
+          });
+          console.log(`[save-position-import] L3FourM: ${atomicData.l3FourMs.length}건 생성`);
+        }
+        if (atomicData.l3WorkElements && atomicData.l3WorkElements.length > 0) {
+          await tx.l3WorkElement.createMany({
+            data: atomicData.l3WorkElements.map(w => ({
+              id: w.id, fmeaId: normalizedId, l3StructId: w.l3StructId,
+              parentId: w.parentId || null, name: w.name,
+            })),
+          });
+          console.log(`[save-position-import] L3WorkElement: ${atomicData.l3WorkElements.length}건 생성`);
+        }
+
+        // 7d. L3SpecialChars (★v4: SC 독립 엔티티) — L3ProcessChar 이후 생성 (FK 의존)
+        if (atomicData.l3SpecialChars && atomicData.l3SpecialChars.length > 0) {
+          await tx.l3SpecialChar.createMany({
+            data: atomicData.l3SpecialChars.map(sc => ({
+              id: sc.id, fmeaId: normalizedId, l3StructId: sc.l3StructId,
+              l3ProcessCharId: sc.l3ProcessCharId, parentId: sc.parentId || null, value: sc.value,
+            })),
+          });
+          console.log(`[save-position-import] L3SpecialChar: ${atomicData.l3SpecialChars.length}건 생성`);
         }
       }
 

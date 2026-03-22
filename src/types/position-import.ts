@@ -138,6 +138,82 @@ export interface PosFailureCause {
   cause: string;     // B4
 }
 
+// ─── v4 신규 엔티티 ───
+
+// ★v4: C1(구분) 독립 엔티티
+export interface PosL1Scope {
+  id: string;         // 'L1-R{n}-C1'
+  fmeaId: string;
+  l1StructId: string;
+  parentId: string;   // → L1Structure.id (E-01)
+  scope: string;      // C1: YP|SP|USER
+}
+
+// ★v4: A1(공정번호) 독립 엔티티
+export interface PosL2ProcessNo {
+  id: string;         // 'L2-R{n}-C1'
+  fmeaId: string;
+  l2StructId: string;
+  parentId: string;   // → L2Structure.id (E-06)
+  no: string;         // A1
+}
+
+// ★v4: A2(공정명) 독립 엔티티
+export interface PosL2ProcessName {
+  id: string;         // 'L2-R{n}-C2'
+  fmeaId: string;
+  l2StructId: string;
+  parentId: string;   // → L2Structure.id (E-07)
+  name: string;       // A2
+}
+
+// ★v4: SC(특별특성) 독립 엔티티 — L2Function 기준
+export interface PosL2SpecialChar {
+  id: string;         // 'L2-R{n}-C7'
+  fmeaId: string;
+  l2StructId: string;
+  l2FuncId: string;
+  parentId: string;   // → L2Function.id (E-10)
+  value: string;      // SC
+}
+
+// ★v4: processNo 독립 엔티티 — L3Structure 기준
+export interface PosL3ProcessNo {
+  id: string;         // 'L3-R{n}-C1'
+  fmeaId: string;
+  l3StructId: string;
+  parentId: string;   // → L3Structure.id
+  no: string;         // processNo
+}
+
+// ★v4: m4(4M) 독립 엔티티 — L3Structure 기준
+export interface PosL3FourM {
+  id: string;         // 'L3-R{n}-C2'
+  fmeaId: string;
+  l3StructId: string;
+  parentId: string;   // → L3Structure.id (E-15)
+  m4: string;         // MN|MC|EN|IM
+}
+
+// ★v4: B1(작업요소) 독립 엔티티 — L3Structure 기준
+export interface PosL3WorkElement {
+  id: string;         // 'L3-R{n}-C3'
+  fmeaId: string;
+  l3StructId: string;
+  parentId: string;   // → L3Structure.id (E-16)
+  name: string;       // B1
+}
+
+// ★v4: SC(특별특성) 독립 엔티티 — L3ProcessChar 기준
+export interface PosL3SpecialChar {
+  id: string;         // 'L3-R{n}-C8'
+  fmeaId: string;
+  l3StructId: string;
+  l3ProcessCharId: string;
+  parentId: string;   // → L3ProcessChar.id (E-19)
+  value: string;      // SC
+}
+
 // ─── FC (고장사슬) ───
 
 export interface PosFailureLink {
@@ -181,11 +257,19 @@ export interface PositionAtomicData {
   l1Structure: PosL1Structure;
   l1Functions: PosL1Function[];
   l1Requirements: PosL1Requirement[];  // ★v4: C3 독립 엔티티
+  l1Scopes: PosL1Scope[];              // ★v4: C1 구분 독립 엔티티
   l2Structures: PosL2Structure[];
   l2Functions: PosL2Function[];
+  l2ProcessNos: PosL2ProcessNo[];      // ★v4: A1 공정번호 독립 엔티티
+  l2ProcessNames: PosL2ProcessName[];  // ★v4: A2 공정명 독립 엔티티
+  l2SpecialChars: PosL2SpecialChar[];  // ★v4: SC 특별특성 독립 엔티티 (L2)
   l3Structures: PosL3Structure[];
   l3Functions: PosL3Function[];
   l3ProcessChars: PosL3ProcessChar[];  // ★v4: B3 독립 엔티티
+  l3ProcessNos: PosL3ProcessNo[];      // ★v4: processNo 독립 엔티티
+  l3FourMs: PosL3FourM[];              // ★v4: 4M 독립 엔티티
+  l3WorkElements: PosL3WorkElement[];  // ★v4: B1 작업요소 독립 엔티티
+  l3SpecialChars: PosL3SpecialChar[];  // ★v4: SC 특별특성 독립 엔티티 (L3)
   processProductChars: PosProcessProductChar[];
   failureEffects: PosFailureEffect[];
   failureModes: PosFailureMode[];

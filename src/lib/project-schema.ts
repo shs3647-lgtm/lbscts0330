@@ -35,6 +35,14 @@ const PROJECT_TABLES = [
   'unified_process_items',  // ★ 2026-02-05: CP/PFD 연동용 테이블 추가
   'process_product_chars',  // ★ 2026-03-14: ProcessProductChar 독립 엔티티 (A4 공유)
   'l3_process_chars',       // ★ 2026-03-23: L3ProcessChar 독립 엔티티 (B3 공정특성 UUID)
+  'l1_scopes',              // ★ 2026-03-23: L1Scope (C1 구분 독립 엔티티)
+  'l2_process_nos',         // ★ 2026-03-23: L2ProcessNo (A1 공정번호 독립 엔티티)
+  'l2_process_names',       // ★ 2026-03-23: L2ProcessName (A2 공정명 독립 엔티티)
+  'l2_special_chars',       // ★ 2026-03-23: L2SpecialChar (L2 SC 독립 엔티티)
+  'l3_process_nos',         // ★ 2026-03-23: L3ProcessNo (processNo 독립 엔티티)
+  'l3_four_ms',             // ★ 2026-03-23: L3FourM (4M 독립 엔티티)
+  'l3_work_elements',       // ★ 2026-03-23: L3WorkElement (B1 작업요소 독립 엔티티)
+  'l3_special_chars',       // ★ 2026-03-23: L3SpecialChar (L3 SC 독립 엔티티)
   'import_jobs',            // ★ 2026-03-17: Import 추적
   'import_mappings',        // ★ 2026-03-17: Import 매핑 (flatData→entity)
   'import_validations',     // ★ 2026-03-17: Import 검증 결과
@@ -246,20 +254,45 @@ export async function getPrismaForCp(cpNo: string) {
   const publicPrisma = getPrisma();
   if (!publicPrisma) return null;
 
+  const idNorm = String(cpNo || '').trim().toLowerCase();
+  let fmeaId: string | null = null;
+
   try {
     const cp = await publicPrisma.controlPlan.findFirst({
-      where: { OR: [{ cpNo }, { id: cpNo }] },
+      where: { OR: [{ cpNo: idNorm }, { id: cpNo }] },
       select: { fmeaId: true, linkedPfmeaNo: true },
     });
-    const fmeaId = cp?.fmeaId || cp?.linkedPfmeaNo;
-    if (fmeaId) {
+    fmeaId = (cp?.fmeaId || cp?.linkedPfmeaNo || '').trim().toLowerCase() || null;
+  } catch {
+    // ignore
+  }
+
+  // ★ public.control_plans에 없어도 CpRegistration(메타)에서 PFMEA ID 역추적 — 워크시트는 프로젝트 스키마 CP를 본다
+  if (!fmeaId) {
+    try {
+      const reg = await publicPrisma.cpRegistration.findFirst({
+        where: {
+          deletedAt: null,
+          OR: [{ cpNo: idNorm }, { id: cpNo }],
+        },
+        select: { fmeaId: true, linkedPfmeaNo: true },
+      });
+      fmeaId = (reg?.fmeaId || reg?.linkedPfmeaNo || '').trim().toLowerCase() || null;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (fmeaId) {
+    try {
       const baseUrl = getBaseDatabaseUrl();
+      if (!baseUrl) return publicPrisma;
       const schema = getProjectSchemaName(fmeaId);
       await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
       return getPrismaForSchema(schema) || publicPrisma;
+    } catch {
+      return publicPrisma;
     }
-  } catch {
-    // 조회 실패 → public 폴백
   }
   return publicPrisma;
 }

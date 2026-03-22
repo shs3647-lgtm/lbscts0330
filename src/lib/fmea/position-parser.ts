@@ -22,11 +22,19 @@ import type {
   PosL1Structure,
   PosL1Function,
   PosL1Requirement,
+  PosL1Scope,
   PosL2Structure,
   PosL2Function,
+  PosL2ProcessNo,
+  PosL2ProcessName,
+  PosL2SpecialChar,
   PosL3Structure,
   PosL3Function,
   PosL3ProcessChar,
+  PosL3ProcessNo,
+  PosL3FourM,
+  PosL3WorkElement,
+  PosL3SpecialChar,
   PosProcessProductChar,
   PosFailureEffect,
   PosFailureMode,
@@ -99,24 +107,40 @@ function normalizeAP(raw: string): string {
 
 // ─── UUID 컬럼 상수 (시트별 논리 컬럼 번호) ───
 
-/** L1: C4 = 고장영향 = 4번째 컬럼 */
-const L1_FE_COL = 4;
+/** L1: C1 = 구분(scope) = 1번째 컬럼 (★v4: PosL1Scope 독립 UUID) */
+const L1_SCOPE_COL = 1;
 /** L1: C2 = 제품기능 = 2번째 컬럼 */
 const L1_FUNC_COL = 2;
 /** L1: C3 = 요구사항 = 3번째 컬럼 (★v4: PosL1Requirement 독립 UUID) */
 const L1_REQ_COL = 3;
-/** L2: A5 = 고장형태 = 6번째 컬럼 (A1=1,A2=2,A3=3,A4=4,SC=5,A5=6) */
-const L2_FM_COL = 6;
+/** L1: C4 = 고장영향 = 4번째 컬럼 */
+const L1_FE_COL = 4;
+/** L2: A1 = 공정번호 = 1번째 컬럼 (★v4: PosL2ProcessNo 독립 UUID) */
+const L2_PNO_COL = 1;
+/** L2: A2 = 공정명 = 2번째 컬럼 (★v4: PosL2ProcessName 독립 UUID) */
+const L2_PNAME_COL = 2;
 /** L2: A3+A4 = 공정기능 = 4번째 컬럼 */
 const L2_FUNC_COL = 4;
 /** L2: A4 = 제품특성 = 5번째 컬럼 (ProductChar) */
 const L2_PC_COL = 5;
-/** L3: B4 = 고장원인 = 7번째 컬럼 (pno=1,m4=2,B1=3,B2=4,B3=5,SC=6,B4=7) */
-const L3_FC_COL = 7;
+/** L2: A5 = 고장형태 = 6번째 컬럼 (A1=1,A2=2,A3=3,A4=4,SC=5,A5=6) */
+const L2_FM_COL = 6;
+/** L2: SC = 특별특성 = 7번째 컬럼 (★v4: PosL2SpecialChar 독립 UUID) */
+const L2_SC_COL = 7;
+/** L3: processNo = 공정번호 = 1번째 컬럼 (★v4: PosL3ProcessNo 독립 UUID) */
+const L3_PNO_COL = 1;
+/** L3: m4 = 4M = 2번째 컬럼 (★v4: PosL3FourM 독립 UUID) */
+const L3_FM4_COL = 2;
+/** L3: B1 = 작업요소 = 3번째 컬럼 (★v4: PosL3WorkElement 독립 UUID) */
+const L3_WE_COL = 3;
 /** L3: B2 = 요소기능 = 5번째 컬럼 */
 const L3_FUNC_COL = 5;
 /** L3: B3 = 공정특성 = 6번째 컬럼 (★v4: PosL3ProcessChar 독립 UUID) */
 const L3_PC_COL = 6;
+/** L3: B4 = 고장원인 = 7번째 컬럼 (pno=1,m4=2,B1=3,B2=4,B3=5,SC=6,B4=7) */
+const L3_FC_COL = 7;
+/** L3: SC = 특별특성 = 8번째 컬럼 (★v4: PosL3SpecialChar 독립 UUID) */
+const L3_SC_COL = 8;
 
 // ─── 메인 파서 ───
 
@@ -145,6 +169,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
   const l1Functions: PosL1Function[] = [];
   const l1Requirements: PosL1Requirement[] = []; // ★v4: C3 독립 엔티티
+  const l1Scopes: PosL1Scope[] = [];             // ★v4: C1 구분 독립 엔티티
   const failureEffects: PosFailureEffect[] = [];
   // ★ C1+C2+C3 조합으로 중복제거 — 같은 C2라도 다른 C3 = 다른 L1Function (요구사항 누락 방지)
   const seenC2C3: Map<string, string> = new Map(); // C1|C2|C3 → L1Function id
@@ -160,6 +185,17 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const c2 = row.cells['C2']?.trim() || '';
     const c3 = row.cells['C3']?.trim() || '';
     const c4 = row.cells['C4']?.trim() || '';
+
+    // ★v4: L1Scope — C1(구분) 독립 엔티티 (c1이 있으면 항상 생성, c2 스킵과 무관)
+    if (c1) {
+      l1Scopes.push({
+        id: positionUUID('L1', rn, L1_SCOPE_COL),
+        fmeaId,
+        l1StructId,
+        parentId: l1StructId,
+        scope: c1,
+      });
+    }
 
     // ★ AutoFix: C2(제품기능) 빈값/대시 → 스킵 (YOUR PLANT/SHIP TO PLANT 등 빈 placeholder)
     if (isEmptyValue(c2)) {
@@ -222,6 +258,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
   const l2Structures: PosL2Structure[] = [];
   const l2Functions: PosL2Function[] = [];
+  const l2ProcessNos: PosL2ProcessNo[] = [];     // ★v4: A1 공정번호 독립 엔티티
+  const l2ProcessNames: PosL2ProcessName[] = []; // ★v4: A2 공정명 독립 엔티티
+  const l2SpecialChars: PosL2SpecialChar[] = []; // ★v4: SC 특별특성 독립 엔티티
   const processProductChars: PosProcessProductChar[] = [];
   const failureModes: PosFailureMode[] = [];
 
@@ -254,6 +293,24 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         name: a2,
         order: l2Order++,
       });
+      // ★v4: L2ProcessNo — A1(공정번호) 독립 엔티티 (공정 첫 등장 행)
+      l2ProcessNos.push({
+        id: positionUUID('L2', rn, L2_PNO_COL),
+        fmeaId,
+        l2StructId: l2Id,
+        parentId: l2Id,
+        no: a1,
+      });
+      // ★v4: L2ProcessName — A2(공정명) 독립 엔티티 (공정 첫 등장 행)
+      if (a2) {
+        l2ProcessNames.push({
+          id: positionUUID('L2', rn, L2_PNAME_COL),
+          fmeaId,
+          l2StructId: l2Id,
+          parentId: l2Id,
+          name: a2,
+        });
+      }
     } else {
       l2Id = seenPno.get(a1)!;
     }
@@ -269,6 +326,18 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       productChar: a4,
       specialChar: sc || undefined,
     });
+
+    // ★v4: L2SpecialChar — SC(특별특성) 독립 엔티티 (SC가 있는 행만)
+    if (sc) {
+      l2SpecialChars.push({
+        id: positionUUID('L2', rn, L2_SC_COL),
+        fmeaId,
+        l2StructId: l2Id,
+        l2FuncId,
+        parentId: l2FuncId,
+        value: sc,
+      });
+    }
 
     // ProcessProductChar: 행마다 독립
     if (a4) {
@@ -310,6 +379,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const l3Structures: PosL3Structure[] = [];
   const l3Functions: PosL3Function[] = [];
   const l3ProcessChars: PosL3ProcessChar[] = []; // ★v4: B3 독립 엔티티
+  const l3ProcessNos: PosL3ProcessNo[] = [];     // ★v4: processNo 독립 엔티티
+  const l3FourMs: PosL3FourM[] = [];             // ★v4: 4M 독립 엔티티
+  const l3WorkElements: PosL3WorkElement[] = []; // ★v4: B1 작업요소 독립 엔티티
+  const l3SpecialChars: PosL3SpecialChar[] = []; // ★v4: SC 특별특성 독립 엔티티
   const failureCauses: PosFailureCause[] = [];
   let l3Order = 0;
   const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string; l3PcId: string }>();
@@ -340,6 +413,37 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       order: l3Order++,
     });
 
+    // ★v4: L3ProcessNo — processNo 독립 엔티티 (행마다)
+    l3ProcessNos.push({
+      id: positionUUID('L3', rn, L3_PNO_COL),
+      fmeaId,
+      l3StructId: l3Id,
+      parentId: l3Id,
+      no: pno,
+    });
+
+    // ★v4: L3FourM — 4M 독립 엔티티 (m4가 있는 행만)
+    if (m4) {
+      l3FourMs.push({
+        id: positionUUID('L3', rn, L3_FM4_COL),
+        fmeaId,
+        l3StructId: l3Id,
+        parentId: l3Id,
+        m4,
+      });
+    }
+
+    // ★v4: L3WorkElement — B1 작업요소 독립 엔티티 (b1이 있는 행만)
+    if (b1) {
+      l3WorkElements.push({
+        id: positionUUID('L3', rn, L3_WE_COL),
+        fmeaId,
+        l3StructId: l3Id,
+        parentId: l3Id,
+        name: b1,
+      });
+    }
+
     // L3Function: 행마다 독립
     const l3FuncId = positionUUID('L3', rn, L3_FUNC_COL);
     // ★v4: B3 공정특성 독립 UUID (L3-R{n}-C6)
@@ -366,6 +470,18 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       name: b3,
       specialChar: sc || undefined,
     });
+
+    // ★v4: L3SpecialChar — SC(특별특성) 독립 엔티티 (SC가 있는 행만, L3ProcessChar 이후)
+    if (sc) {
+      l3SpecialChars.push({
+        id: positionUUID('L3', rn, L3_SC_COL),
+        fmeaId,
+        l3StructId: l3Id,
+        l3ProcessCharId: l3PcId,
+        parentId: l3PcId,
+        value: sc,
+      });
+    }
 
     // FailureCause: B4가 있으면 생성 (없으면 FC 시트에서 보완)
     if (b4) {
@@ -549,12 +665,20 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelB5: countNonEmpty(l3Sheet.rows, 'B5'),
     // 파싱 결과 (DB 저장 대상)
     l1Functions: l1Functions.length,
-    l1Requirements: l1Requirements.length, // ★v4
+    l1Requirements: l1Requirements.length,     // ★v4
+    l1Scopes: l1Scopes.length,                 // ★v4
     l2Structures: l2Structures.length,
     l3Structures: l3Structures.length,
     l2Functions: l2Functions.length,
+    l2ProcessNos: l2ProcessNos.length,         // ★v4
+    l2ProcessNames: l2ProcessNames.length,     // ★v4
+    l2SpecialChars: l2SpecialChars.length,     // ★v4
     l3Functions: l3Functions.length,
-    l3ProcessChars: l3ProcessChars.length, // ★v4
+    l3ProcessChars: l3ProcessChars.length,     // ★v4
+    l3ProcessNos: l3ProcessNos.length,         // ★v4
+    l3FourMs: l3FourMs.length,                 // ★v4
+    l3WorkElements: l3WorkElements.length,     // ★v4
+    l3SpecialChars: l3SpecialChars.length,     // ★v4
     processProductChars: processProductChars.length,
     failureEffects: failureEffects.length,
     failureModes: failureModes.length,
@@ -592,11 +716,19 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     l1Structure: { id: l1StructId, fmeaId, name: '' },
     l1Functions,
     l1Requirements,
+    l1Scopes,
     l2Structures,
     l2Functions,
+    l2ProcessNos,
+    l2ProcessNames,
+    l2SpecialChars,
     l3Structures,
     l3Functions,
     l3ProcessChars,
+    l3ProcessNos,
+    l3FourMs,
+    l3WorkElements,
+    l3SpecialChars,
     processProductChars,
     failureEffects,
     failureModes,
