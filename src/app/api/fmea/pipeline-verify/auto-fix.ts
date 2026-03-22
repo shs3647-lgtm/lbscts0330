@@ -19,34 +19,48 @@ function isRebuildAtomicDisabled(): boolean {
   );
 }
 
-// ─── STEP 0: 구조 복원 ──────────────────────────────────────
+// ─── STEP 0: 구조 확인 (rebuild-atomic 호출 완전 제거 — 리매핑으로 처리) ─────
 export async function fixStructure(prisma: any, fmeaId: string): Promise<string[]> {
   const fixed: string[] = [];
 
   const l2Count = await prisma.l2Structure.count({ where: { fmeaId } });
-  if (l2Count > 0) return fixed;
-
-  if (isRebuildAtomicDisabled()) {
-    fixed.push(
-      'rebuild-atomic: 스킵 (DISABLE_REBUILD_ATOMIC=1 또는 FMEA_REPAIR_NO_REBUILD=1) — Import/repair-fk로 복구',
-    );
+  if (l2Count === 0) {
+    fixed.push('L2Structure 없음 — Import 먼저 실행하세요 (save-position-import)');
     return fixed;
   }
 
-  // Atomic DB가 비어있으면 rebuild-atomic 시도
-  try {
-    const rebuildRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(fmeaId)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fmeaId }),
-    });
-    if (rebuildRes.ok) {
-      const result = await rebuildRes.json();
-      const r = result.rebuilt || result.counts || {};
-      fixed.push(`rebuild-atomic: L2=${r.l2Structures ?? r.l2 ?? '?'} FM=${r.failureModes ?? r.fm ?? '?'} FC=${r.failureCauses ?? r.fc ?? '?'}`);
+  // ★ rebuild-atomic 호출 완전 제거 (위치기반 데이터 소실 방지)
+  // 위치기반 프로젝트는 processCharId 리매핑만으로 충분
+  const POS_UUID = /^L3-R\d+$/;
+  const sampleL3 = await prisma.l3Structure.findFirst({ where: { fmeaId }, select: { id: true } });
+  if (sampleL3 && POS_UUID.test(sampleL3.id)) {
+    // 위치기반: RA 보완 + processCharId 리매핑
+    const allFLs = await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } });
+    const existingRaLinkIds = new Set(
+      (await prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } })).map((r: { linkId: string }) => r.linkId)
+    );
+    const missingRaFLs = allFLs.filter((fl: { id: string }) => !existingRaLinkIds.has(fl.id));
+    if (missingRaFLs.length > 0) {
+      const now = new Date();
+      await prisma.riskAnalysis.createMany({
+        skipDuplicates: true,
+        data: missingRaFLs.map((fl: { id: string }) => ({
+          id: `${fl.id}-RA`, fmeaId, linkId: fl.id,
+          severity: 1, occurrence: 1, detection: 1, ap: 'L', createdAt: now, updatedAt: now,
+        })),
+      });
+      fixed.push(`위치기반 RA 보완: ${missingRaFLs.length}건 (영구저장)`);
     }
-  } catch (err) {
-    console.error('[fixStructure] rebuild-atomic 실패:', err);
+    // processCharId 리매핑
+    const fcsNull = await prisma.failureCause.findMany({ where: { fmeaId, processCharId: null }, select: { id: true, l3FuncId: true } });
+    let remapped = 0;
+    for (const fc of fcsNull) {
+      if (fc.l3FuncId) {
+        await prisma.failureCause.update({ where: { id: fc.id }, data: { processCharId: fc.l3FuncId } });
+        remapped++;
+      }
+    }
+    if (remapped > 0) fixed.push(`processCharId 리매핑: ${remapped}건 (영구저장)`);
   }
 
   return fixed;
