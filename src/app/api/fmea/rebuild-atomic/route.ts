@@ -85,11 +85,11 @@ export async function POST(request: NextRequest) {
     const prisma = getPrismaForSchema(schema);
     if (!prisma) return NextResponse.json({ success: false, error: 'Prisma not configured' }, { status: 200 });
 
-    // ★★★ 2026-03-22: 위치기반 UUID 감지 → FL/FC/RA 삭제 금지 (보존 + 리매칭) ★★★
-    const sampleFL = await prisma.failureLink.findFirst({ where: { fmeaId }, select: { id: true } });
-    const sampleFC = await prisma.failureCause.findFirst({ where: { fmeaId }, select: { id: true } });
-    const POS_UUID = /^(L[123]|FC)-R\d+/;
-    const isPositionBased = (sampleFL && POS_UUID.test(sampleFL.id)) || (sampleFC && POS_UUID.test(sampleFC.id));
+    // ★★★ 2026-03-22: 위치기반 UUID 감지 — L3Structure.id 기준 (FL/FC 없어도 감지 가능)
+    // FL/FC가 삭제된 후에도 L3Structure는 남아 있으므로 안정적으로 감지
+    const POS_UUID = /^L3-R\d+$/;
+    const sampleL3 = await prisma.l3Structure.findFirst({ where: { fmeaId }, select: { id: true } });
+    const isPositionBased = !!(sampleL3 && POS_UUID.test(sampleL3.id));
     if (isPositionBased) {
       console.log(`[rebuild-atomic] 위치기반 UUID 감지 → FL/FC/RA 삭제 금지, processCharId 리매칭 수행`);
     }
@@ -1064,8 +1064,8 @@ export async function POST(request: NextRequest) {
           .filter((ra: any) => !flIds.has(ra.linkId) && !dupRaIds.includes(ra.id))
           .map((ra: any) => ra.id);
         if (orphanRaIds.length > 0) {
-          await tx.riskAnalysis.deleteMany({ where: { id: { in: orphanRaIds } } });
-          console.info(`[rebuild-atomic] 고아 RA 제거: ${orphanRaIds.length}건 (linkId가 FL에 없음)`);
+          // ★ WARN_ONLY: 고아 RA 삭제 비활성화 — rebuild-atomic이 생성한 RA를 재삭제 방지
+          console.warn(`[rebuild-atomic] 고아 RA 감지: ${orphanRaIds.length}건 (삭제 안 함, WARN_ONLY)`);
         }
 
         // ★ SOD/DC/PC 빈값 RA 보충: (1) 동일 fcId 형제 RA → (2) 동일 fmId 피어 RA → (3) FE severity
@@ -1253,30 +1253,9 @@ export async function POST(request: NextRequest) {
           ? []
           : allFcIds.filter((id: string) => !linkedFcIds.has(id) && !POS_UUID_RE.test(id));
         if (orphanFcIds.length > 0) {
-          // Cascade delete: find FLs referencing orphan FCs (safety — should be 0 by definition)
-          const orphanFcFLs = await tx.failureLink.findMany({
-            where: { fmeaId, fcId: { in: orphanFcIds } },
-            select: { id: true },
-          });
-          const orphanFlIds = orphanFcFLs.map((f: { id: string }) => f.id);
-
-          if (orphanFlIds.length > 0) {
-            // Delete Optimizations → RiskAnalyses → FailureLinks (reverse FK order)
-            const orphanRAs = await tx.riskAnalysis.findMany({
-              where: { fmeaId, linkId: { in: orphanFlIds } },
-              select: { id: true },
-            });
-            const orphanRaIds = orphanRAs.map((r: { id: string }) => r.id);
-            if (orphanRaIds.length > 0) {
-              await tx.optimization.deleteMany({ where: { fmeaId, riskId: { in: orphanRaIds } } });
-            }
-            await tx.riskAnalysis.deleteMany({ where: { fmeaId, linkId: { in: orphanFlIds } } });
-            await tx.failureLink.deleteMany({ where: { id: { in: orphanFlIds } } });
-            console.info(`[rebuild-atomic] 고아 FC 연쇄 삭제: FL=${orphanFlIds.length} RA=${orphanRaIds.length} Opt 정리 완료`);
-          }
-
-          await tx.failureCause.deleteMany({ where: { id: { in: orphanFcIds } } });
-          console.info(`[rebuild-atomic] 고아 FC 삭제: ${orphanFcIds.length}건 (FL에 미참조)`);
+          // ★ WARN_ONLY: 고아 FC 삭제 비활성화 — rebuild-atomic이 생성한 FC를 재삭제 방지
+          // FC가 FL에 미참조인 이유: FL이 아직 미생성이거나 rebuild 순서 문제
+          console.warn(`[rebuild-atomic] 고아 FC 감지: ${orphanFcIds.length}건 (삭제 안 함, WARN_ONLY)`);
         }
       }
 
@@ -1403,35 +1382,8 @@ export async function POST(request: NextRequest) {
         }
 
         if (orphanIds.length > 0) {
-          // ★★★ SAFETY: onDelete:Cascade → L3Function 삭제 시 FC도 연쇄 삭제됨
-          // FL이 참조하는 FC가 이 L3Function에 속하면 삭제하면 안 됨
-          const fcsUnderOrphanL3F = await tx.failureCause.findMany({
-            where: { fmeaId, l3FuncId: { in: orphanIds } },
-            select: { id: true },
-          });
-          if (fcsUnderOrphanL3F.length > 0) {
-            // CASCADE가 FC를 삭제할 수 있으므로 FL 참조 확인
-            const fcIdsUnderOrphan = fcsUnderOrphanL3F.map((f: { id: string }) => f.id);
-            const flsRefOrphanFcs = await tx.failureLink.findMany({
-              where: { fmeaId, fcId: { in: fcIdsUnderOrphan } },
-              select: { id: true },
-            });
-            if (flsRefOrphanFcs.length > 0) {
-              // FL이 참조하는 FC가 있으므로 삭제하면 데이터 손실 → 경고만
-              console.warn(
-                `[rebuild-atomic] orphan L3Function ${orphanIds.length}건 감지, ` +
-                `BUT ${flsRefOrphanFcs.length}건 FL이 참조하는 FC 존재 → 삭제 SKIP (데이터 보호)`
-              );
-            } else {
-              // FL 참조 없음 → 안전하게 삭제 (CASCADE로 FC도 삭제됨)
-              await tx.l3Function.deleteMany({ where: { id: { in: orphanIds } } });
-              console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건 (FL 미참조 확인됨)`);
-            }
-          } else {
-            // FC도 없음 → 순수 orphan, 안전 삭제
-            await tx.l3Function.deleteMany({ where: { id: { in: orphanIds } } });
-            console.info(`[rebuild-atomic] orphan L3Function 삭제: ${orphanIds.length}건 (FC 0건)`);
-          }
+          // ★ WARN_ONLY: orphan L3Function 삭제 비활성화 — CASCADE로 FC 연쇄 삭제 방지
+          console.warn(`[rebuild-atomic] orphan L3Function 감지: ${orphanIds.length}건 (삭제 안 함, WARN_ONLY)`);
         }
 
         // ★ 2026-03-20: L3Function 폴백 재생성/emptyPC 보정 제거 — Atomic DB 원본 유지
