@@ -101,48 +101,62 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 7. L3Functions
-      if (atomicData.l3Functions.length > 0) {
-        await tx.l3Function.createMany({
-          skipDuplicates: true,
-          data: atomicData.l3Functions.map(f => ({
+      // 7. L3Functions — UPSERT: 빈 processChar도 업데이트 (B3 공정특성 복원)
+      for (const f of atomicData.l3Functions) {
+        await tx.l3Function.upsert({
+          where: { id: f.id },
+          create: {
             id: f.id, fmeaId: normalizedId, l3StructId: f.l3StructId, l2StructId: f.l2StructId,
             functionName: f.functionName, processChar: f.processChar, specialChar: f.specialChar,
-          })),
+          },
+          update: {
+            functionName: f.functionName || undefined,
+            processChar: f.processChar || undefined,
+            specialChar: f.specialChar || undefined,
+          },
         });
       }
 
-      // 8. FailureEffects
-      if (atomicData.failureEffects.length > 0) {
-        await tx.failureEffect.createMany({
-          skipDuplicates: true,
-          data: atomicData.failureEffects.map(fe => ({
+      // 8. FailureEffects — UPSERT: effect/severity 업데이트
+      for (const fe of atomicData.failureEffects) {
+        await tx.failureEffect.upsert({
+          where: { id: fe.id },
+          create: {
             id: fe.id, fmeaId: normalizedId, l1FuncId: fe.l1FuncId,
             category: fe.category, effect: fe.effect, severity: fe.severity,
-          })),
+          },
+          update: {
+            effect: fe.effect || undefined,
+            severity: fe.severity > 0 ? fe.severity : undefined,
+          },
         });
       }
 
-      // 9. FailureModes
-      if (atomicData.failureModes.length > 0) {
-        await tx.failureMode.createMany({
-          skipDuplicates: true,
-          data: atomicData.failureModes.map(fm => ({
+      // 9. FailureModes — UPSERT: mode 업데이트
+      for (const fm of atomicData.failureModes) {
+        await tx.failureMode.upsert({
+          where: { id: fm.id },
+          create: {
             id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
             l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
-          })),
+          },
+          update: { mode: fm.mode || undefined },
         });
       }
 
-      // 10. FailureCauses (★ processCharId = l3FuncId — 공정특성 FK)
-      if (atomicData.failureCauses.length > 0) {
-        await tx.failureCause.createMany({
-          skipDuplicates: true,
-          data: atomicData.failureCauses.map(fc => ({
+      // 10. FailureCauses — UPSERT: cause + processCharId 업데이트
+      for (const fc of atomicData.failureCauses) {
+        await tx.failureCause.upsert({
+          where: { id: fc.id },
+          create: {
             id: fc.id, fmeaId: normalizedId, l3FuncId: fc.l3FuncId,
             l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
             processCharId: fc.l3FuncId || null, cause: fc.cause,
-          })),
+          },
+          update: {
+            cause: fc.cause || undefined,
+            processCharId: fc.l3FuncId || undefined,
+          },
         });
       }
 
