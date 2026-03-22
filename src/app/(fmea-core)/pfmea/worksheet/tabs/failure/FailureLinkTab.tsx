@@ -1287,8 +1287,8 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
                 }}
               />
             </div>
-            {/* 오른쪽: 다이어그램 */}
-            <div style={{ flex: 1, overflow: 'auto' }}>
+            {/* 오른쪽: 다이어그램 — 정중앙 배치 */}
+            <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FailureLinkDiagram
                 currentFM={currentFM}
                 linkedFEs={linkedFEs}
