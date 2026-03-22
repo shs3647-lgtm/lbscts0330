@@ -40,11 +40,20 @@ import type {
   FailureCause,
 } from '@/app/(fmea-core)/pfmea/worksheet/schema';
 import { uid } from '@/app/(fmea-core)/pfmea/worksheet/schema';
-import {
-  genC1, genC2, genC3, genC4,
-  genA1, genA3, genA4, genA5,
-  genB1, genB2, genB3, genB4,
-} from '@/lib/uuid-generator';
+// uuid-generator 삭제됨 (2026-03-22) — uid() 기반 stub
+const pad3 = (n: number) => String(n).padStart(3, '0');
+const genC1 = (doc: string, div: string) => `${doc}-L1-${div}`;
+const genC2 = (doc: string, div: string, seq: number) => `${doc}-L1-${div}-${pad3(seq)}`;
+const genC3 = (doc: string, div: string, c2: number, c3: number) => `${doc}-L1-${div}-${pad3(c2)}-${pad3(c3)}`;
+const genC4 = (doc: string, div: string, c2: number, c3: number, c4: number) => `${doc}-L1-${div}-${pad3(c2)}-${pad3(c3)}-${pad3(c4)}`;
+const genA1 = (doc: string, pno: number) => `${doc}-L2-${pad3(pno)}`;
+const genA3 = (doc: string, pno: number, seq: number) => `${doc}-L2-${pad3(pno)}-F-${pad3(seq)}`;
+const genA4 = (doc: string, pno: number, seq: number) => `${doc}-L2-${pad3(pno)}-P-${pad3(seq)}`;
+const genA5 = (doc: string, pno: number, seq: number) => `${doc}-L2-${pad3(pno)}-M-${pad3(seq)}`;
+const genB1 = (doc: string, pno: number, m4: string, seq: number) => `${doc}-L3-${pad3(pno)}-${m4}-${pad3(seq)}`;
+const genB2 = (doc: string, pno: number, m4: string, seq: number, fi?: number) => `${doc}-L3-${pad3(pno)}-${m4}-${pad3(seq)}-G${fi && fi > 1 ? `-${pad3(fi)}` : ''}`;
+const genB3 = (doc: string, pno: number, m4: string, b1: number, cs: number) => `${doc}-L3-${pad3(pno)}-${m4}-${pad3(b1)}-C-${pad3(cs)}`;
+const genB4 = (doc: string, pno: number, m4: string, b1: number, ks: number) => `${doc}-L3-${pad3(pno)}-${m4}-${pad3(b1)}-K-${pad3(ks)}`;
 import {
   isCommonProcessNo,
   byCode,
