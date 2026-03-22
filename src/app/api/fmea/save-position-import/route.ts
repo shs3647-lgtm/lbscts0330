@@ -101,63 +101,58 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 7. L3Functions — UPSERT: 빈 processChar도 업데이트 (B3 공정특성 복원)
-      for (const f of atomicData.l3Functions) {
-        await tx.l3Function.upsert({
-          where: { id: f.id },
-          create: {
+      // ★ L3Function/FC/FL/RA: 완전 DELETE 후 재생성 (항상 최신 데이터 보장)
+      // 이유: skipDuplicates가 빈값 레코드를 업데이트 못함 + for-loop upsert 너무 느림
+      // Structure/L1F/L2F/FM/FE는 skipDuplicates 유지 (소실 위험 없음)
+
+      // 7. L3Functions: DELETE ALL + CREATE (공정특성 B3 포함)
+      await tx.riskAnalysis.deleteMany({ where: { fmeaId: normalizedId } });
+      await tx.failureLink.deleteMany({ where: { fmeaId: normalizedId } });
+      await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
+      await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
+
+      if (atomicData.l3Functions.length > 0) {
+        await tx.l3Function.createMany({
+          data: atomicData.l3Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l3StructId: f.l3StructId, l2StructId: f.l2StructId,
             functionName: f.functionName, processChar: f.processChar, specialChar: f.specialChar,
-          },
-          update: {
-            functionName: f.functionName || undefined,
-            processChar: f.processChar || undefined,
-            specialChar: f.specialChar || undefined,
-          },
+          })),
         });
+        console.log(`[save-position-import] L3Function: ${atomicData.l3Functions.length}건 생성`);
       }
 
-      // 8. FailureEffects — UPSERT: effect/severity 업데이트
-      for (const fe of atomicData.failureEffects) {
-        await tx.failureEffect.upsert({
-          where: { id: fe.id },
-          create: {
+      // 8. FailureEffects (skipDuplicates — FE는 보존)
+      if (atomicData.failureEffects.length > 0) {
+        await tx.failureEffect.createMany({
+          skipDuplicates: true,
+          data: atomicData.failureEffects.map(fe => ({
             id: fe.id, fmeaId: normalizedId, l1FuncId: fe.l1FuncId,
             category: fe.category, effect: fe.effect, severity: fe.severity,
-          },
-          update: {
-            effect: fe.effect || undefined,
-            severity: fe.severity > 0 ? fe.severity : undefined,
-          },
+          })),
         });
       }
 
-      // 9. FailureModes — UPSERT: mode 업데이트
-      for (const fm of atomicData.failureModes) {
-        await tx.failureMode.upsert({
-          where: { id: fm.id },
-          create: {
+      // 9. FailureModes (skipDuplicates — FM은 보존)
+      if (atomicData.failureModes.length > 0) {
+        await tx.failureMode.createMany({
+          skipDuplicates: true,
+          data: atomicData.failureModes.map(fm => ({
             id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
             l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
-          },
-          update: { mode: fm.mode || undefined },
+          })),
         });
       }
 
-      // 10. FailureCauses — UPSERT: cause + processCharId 업데이트
-      for (const fc of atomicData.failureCauses) {
-        await tx.failureCause.upsert({
-          where: { id: fc.id },
-          create: {
+      // 10. FailureCauses: DELETE 위에서 완료 → 재생성 (processCharId = l3FuncId)
+      if (atomicData.failureCauses.length > 0) {
+        await tx.failureCause.createMany({
+          data: atomicData.failureCauses.map(fc => ({
             id: fc.id, fmeaId: normalizedId, l3FuncId: fc.l3FuncId,
             l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
             processCharId: fc.l3FuncId || null, cause: fc.cause,
-          },
-          update: {
-            cause: fc.cause || undefined,
-            processCharId: fc.l3FuncId || undefined,
-          },
+          })),
         });
+        console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성`);
       }
 
       // 11. FailureLinks
