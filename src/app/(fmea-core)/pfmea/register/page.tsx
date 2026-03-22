@@ -139,6 +139,7 @@ function PFMEARegisterPageContent() {
   const [bdLoadedFmeaName, setBdLoadedFmeaName] = useState<string>('');
   const [bdExpandTrigger, setBdExpandTrigger] = useState(0);
   const bdFileInputRef = useRef<HTMLInputElement>(null);
+  const [bdParseStatistics, setBdParseStatistics] = useState<import('@/app/(fmea-core)/pfmea/import/excel-parser').ParseStatistics | undefined>(undefined);
   const templateGen = useTemplateGenerator({ setFlatData, setPreviewColumn: setBdPreviewCol, setDirty: setBdDirty, setIsSaved: setBdIsSaved });
 
   // ★ 2026-02-20: BD 현황 테이블 데이터
@@ -390,6 +391,8 @@ function PFMEARegisterPageContent() {
           p.elementFuncs.forEach((v, i) => flat.push({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, createdAt: new Date() }));
           p.processChars.forEach((v, i) => flat.push({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, createdAt: new Date() }));
           p.failureCauses.forEach((v, i) => flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', createdAt: new Date() }));
+          p.detectionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-A6-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A6', value: v, createdAt: new Date() }));
+          p.preventionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-B5-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B5', value: v, m4: p.preventionCtrls4M?.[i] || '', createdAt: new Date() }));
         });
         result.products.forEach((p) => {
           const categoryValue = p.productProcessName || 'YP';
@@ -399,6 +402,7 @@ function PFMEARegisterPageContent() {
           p.failureEffects.forEach((v, i) => flat.push({ id: `C4-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, createdAt: new Date() }));
         });
         setFlatData(flat);
+        setBdParseStatistics(result.statistics);
         setBdDirty(true);
         setBdIsSaved(false);
         // ★ 파일 Import 후: 수동/자동 모드에서 import한 경우 모드 유지, 기존데이터 모드에서만 download 유지
@@ -772,6 +776,7 @@ function PFMEARegisterPageContent() {
             removeWorkElement={templateGen.removeWorkElement}
             updateWorkElement={templateGen.updateWorkElement}
             flatData={flatData}
+            parseStatistics={bdParseStatistics}
             onDownloadSample={async () => {
               if (fmeaId) {
                 try {
