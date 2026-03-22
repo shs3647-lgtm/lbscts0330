@@ -166,7 +166,7 @@ export function useRelationData(flatData: ImportedFlatData[], relationTab: 'A' |
       }));
     } else {
       // C 레벨 - C1(구분) 기준으로 행 생성
-      // ✅ A1 컬럼에 C1 value(구분: YOUR PLANT/SHIP TO PLANT/USER 등)를 표시
+      // ✅ A1 컬럼에 C1 value(구분: YP/SP/USER — scope-constants.ts)를 표시
       const c1Data = flatData.filter(d => d.itemCode === 'C1');
       const c2Data = flatData.filter(d => d.itemCode === 'C2');
       const c3Data = flatData.filter(d => d.itemCode === 'C3');

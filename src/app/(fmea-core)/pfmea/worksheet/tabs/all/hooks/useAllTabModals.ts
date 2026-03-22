@@ -9,6 +9,7 @@ import { UserInfo } from '@/types/user';
 import type { SODItem } from '@/components/modals/SODMasterData';
 import { getRecommendedDetectionMethods } from './detectionKeywordMap';
 import { recordSeverityUsage } from '@/hooks/useSeverityRecommend';
+import { normalizeScope as normalizeScopeFromConstants } from '@/lib/fmea/scope-constants';
 
 /** WorksheetFailureLink + feSeverity (런타임에 존재하는 확장 필드) */
 interface FailureLinkWithSeverity extends WorksheetFailureLink {
@@ -177,13 +178,10 @@ export function useAllTabModals(
         if (targetFeId || targetFeText) {
           // ★ 개별 FE 클릭 → 동일 유형(scope)의 모든 FE에 동일 점수 부여
           // scope 정규화: 'Your Plant'/'YP' → 'YP', 'Ship to Plant'/'SP' → 'SP', 'User'/'USER' → 'USER'
+          // ★ 2026-03-22: 중앙 normalizeScope() 사용
           const normalizeScope = (s?: string): string => {
             if (!s) return '';
-            const lower = s.toLowerCase();
-            if (lower.includes('your') || lower === 'yp') return 'YP';
-            if (lower.includes('ship') || lower === 'sp') return 'SP';
-            if (lower.includes('user') || lower === 'u' || lower === 'USER') return 'USER';
-            return s;
+            return normalizeScopeFromConstants(s);
           };
 
           // 클릭된 FE의 scope 찾기

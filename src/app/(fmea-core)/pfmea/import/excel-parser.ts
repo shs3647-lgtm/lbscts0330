@@ -12,7 +12,7 @@
  * 시트 구조 (v3.0: A6/B5 제거):
  * A1-A5: 공정번호 + 공정 레벨 항목
  * B1-B4: 공정번호 + 작업요소 레벨 항목
- * C1-C4: 구분(YOUR PLANT/SHIP TO PLANT/USER) + 완제품 레벨 항목
+ * C1-C4: 구분(YP/SP/USER — see scope-constants.ts) + 완제품 레벨 항목
  *
  * 공정번호를 기준으로 모든 시트를 연결하여 관계형 데이터 생성
  */
@@ -46,6 +46,7 @@ import {
 } from '@/app/(fmea-core)/pfmea/import/l1-unified-scope';
 import { isSingleSheetFmea, isStepASheet, parseSingleSheetFmea } from './excel-parser-single-sheet';
 import { findFCSheet, parseFCSheet } from './excel-parser-fc';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 // ★★★ 2026-02-24: VERIFY 시트 리더 (엑셀 수식 기반 검증) ★★★
 import { readVerifySheet, scanRawFingerprint } from './excel-parser-verification';
 
@@ -1146,7 +1147,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
     // 완제품별 관계형 데이터 구축
     const productMap = new Map<string, ProductRelation>();
 
-    // C1 시트에서 구분 마스터 생성 (YOUR PLANT, SHIP TO PLANT, USER)
+    // C1 시트에서 구분 마스터 생성 (YP/SP/USER — scope-constants.ts)
     const c1Data = sheetDataMap['C1'];
     if (c1Data) {
       c1Data.rows.forEach((row) => {
@@ -1215,21 +1216,12 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
     });
 
     // L1 통합시트 매핑으로 C3 itemMeta.parentItemId 보정
-    // C1 구분 전체명↔약어 정규화 — "YOUR PLANT"↔"YP" 불일치 해소
+    // C1 구분 전체명↔약어 정규화 — normalizeScope() 사용 (scope-constants.ts)
     const normText = (s: string) => s.trim().replace(/\s+/g, ' ');
-    // C1 카테고리 전체명 → 약어 매핑 (useImportFileHandlers.ts C1_CATEGORY_MAP와 동일)
-    const C1_ABBREV_MAP: Record<string, string> = {
-      'your plant': 'YP', 'yourplant': 'YP',
-      'ship to plant': 'SP', 'shiptoplant': 'SP',
-      'user': 'USER', 'end user': 'USER', 'enduser': 'USER',
-      '자사공장': 'YP', '고객사': 'SP', '최종사용자': 'USER',
-    };
-    const abbrevC1 = (s: string): string => {
-      const lower = s.toLowerCase().replace(/\s+/g, '');
-      return C1_ABBREV_MAP[lower] ?? C1_ABBREV_MAP[s.toLowerCase().trim()] ?? s;
-    };
+    // C1 카테고리 전체명 → 약어: normalizeScope() 중앙 함수 사용
+    const abbrevC1 = (s: string): string => normalizeScope(s);
     // 정규화 키 맵: 원본 맵에서 못 찾을 경우를 위한 보조 맵 (정규화된 c1+c3 → c2)
-    // ★ c1 약어 정규화 포함: "YOUR PLANT|req" → also stored as "YP|req"
+    // ★ c1 약어 정규화 포함: normalizeScope()로 "YOUR PLANT|req" → "YP|req" 변환
     const l1UnifiedC3ToC2Norm = new Map<string, string>();
     for (const [k, v] of l1UnifiedC3ToC2.entries()) {
       const [c1Part, ...c3Parts] = k.split('|');

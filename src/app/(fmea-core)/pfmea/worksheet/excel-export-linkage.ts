@@ -12,6 +12,7 @@
 
 import { WorksheetState } from './constants';
 import { groupFailureLinksByFM, calculateLastRowMerge } from './utils';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 // ExcelJS 네임스페이스 타입 (동적 import)
 type ExcelJS_NS = typeof import('exceljs');
@@ -187,12 +188,11 @@ function buildGroupsFromState(state: WorksheetState): FMGroupForExcel[] {
 
 /**
  * scope를 Cat 약어로 변환 (UI와 동일)
+ * ★ 2026-03-22: 중앙 normalizeScope() 사용
  */
 function scopeToCat(scope: string): string {
-  if (scope === 'Your Plant') return 'YP';
-  if (scope === 'Ship to Plant') return 'SP';
-  if (scope === 'User') return 'USER';
-  return scope || '';
+  if (!scope) return '';
+  return normalizeScope(scope);
 }
 
 /**

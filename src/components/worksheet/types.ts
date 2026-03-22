@@ -1,6 +1,7 @@
 /**
  * FMEA 워크시트 타입 정의
  */
+import { SCOPE_LABEL_KR, SCOPE_COLOR } from '@/lib/fmea/scope-constants';
 
 // 탭 타입
 export type WorksheetTab = 'structure' | 'function' | 'failure' | 'linkage' | 'risk' | 'optimize';
@@ -102,11 +103,11 @@ export const M4_INFO: Record<M4Type, { label: string; color: string; bgColor: st
   EN: { label: 'Environment', color: '#7a1a88', bgColor: '#fef0ff' },
 };
 
-// 구분 정보
+// 구분 정보 — SCOPE_LABEL_KR + SCOPE_COLOR from scope-constants
 export const SCOPE_INFO: Record<ScopeType, { label: string; color: string }> = {
-  'YP': { label: '자사공정', color: '#1565c0' },
-  'SP': { label: '고객사', color: '#f57c00' },
-  'USER': { label: '최종사용자', color: '#2e7d32' },
+  'YP': { label: SCOPE_LABEL_KR.YP, color: SCOPE_COLOR.YP },
+  'SP': { label: SCOPE_LABEL_KR.SP, color: SCOPE_COLOR.SP },
+  'USER': { label: SCOPE_LABEL_KR.USER, color: SCOPE_COLOR.USER },
 };
 
 

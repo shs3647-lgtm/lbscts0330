@@ -9,6 +9,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { SCOPE_LABEL_UPPER, SCOPE_YP } from '@/lib/fmea/scope-constants';
 
 const EXCEL_FILE = 'C:\\00_LB세미콘FMEA\\FMEA&CP정보\\PFMEA_기초정보_샘플_v4.0.0_2026-03-14 (2).xlsx';
 const FMEA_ID = 'pfm26-m010';
@@ -88,10 +89,11 @@ test.describe('A6 save-from-import API 직접 검증', () => {
       flatData.push({ id: id(), processNo: d.processNo, category: 'B', itemCode: 'B4', value: d.v2 || d.v1, m4: d.v0, parentItemId: `${d.processNo}-B3-0`, createdAt: new Date().toISOString() });
     }
     // C1~C4
-    flatData.push({ id: id(), processNo: 'YOUR PLANT', category: 'C', itemCode: 'C1', value: 'YOUR PLANT', createdAt: new Date().toISOString() });
-    flatData.push({ id: id(), processNo: 'YOUR PLANT', category: 'C', itemCode: 'C2', value: '완제품기능', parentItemId: 'C1-0', createdAt: new Date().toISOString() });
-    flatData.push({ id: id(), processNo: 'YOUR PLANT', category: 'C', itemCode: 'C3', value: '요구사항', parentItemId: 'C2-0', createdAt: new Date().toISOString() });
-    flatData.push({ id: id(), processNo: 'YOUR PLANT', category: 'C', itemCode: 'C4', value: '고장영향', parentItemId: 'C3-0', createdAt: new Date().toISOString() });
+    const C1_LABEL = SCOPE_LABEL_UPPER[SCOPE_YP];
+    flatData.push({ id: id(), processNo: C1_LABEL, category: 'C', itemCode: 'C1', value: C1_LABEL, createdAt: new Date().toISOString() });
+    flatData.push({ id: id(), processNo: C1_LABEL, category: 'C', itemCode: 'C2', value: '완제품기능', parentItemId: 'C1-0', createdAt: new Date().toISOString() });
+    flatData.push({ id: id(), processNo: C1_LABEL, category: 'C', itemCode: 'C3', value: '요구사항', parentItemId: 'C2-0', createdAt: new Date().toISOString() });
+    flatData.push({ id: id(), processNo: C1_LABEL, category: 'C', itemCode: 'C4', value: '고장영향', parentItemId: 'C3-0', createdAt: new Date().toISOString() });
 
     console.log(`flatData: ${flatData.length}항목 (A6=${flatData.filter(d => d.itemCode === 'A6').length})`);
 
@@ -118,7 +120,7 @@ test.describe('A6 save-from-import API 직접 검증', () => {
         chains.push({
           id: `fc-${r}`,
           processNo,
-          feScope: feScope || 'YP',
+          feScope: feScope || SCOPE_YP,
           feValue: feValue || '고장영향',
           fmValue,
           fcValue: fcValue || '원인불명',

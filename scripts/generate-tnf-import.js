@@ -312,18 +312,27 @@ async function main() {
   }
 
   // ── 4. C1/C3 카테고리 정규화 (영문 풀네임 → 약어) ──
-  // ★ 반드시 CATEGORY_MAP 먼저 적용 → C1 데이터 자체를 YP/SP/USER로 변환
-  const CATEGORY_MAP = {
-    'your plant': 'YP', 'yp': 'YP',
-    'ship to plant': 'SP', 'sp': 'SP',
-    'user': 'USER', 'end user': 'USER',
-    '자사공장': 'YP', '고객사': 'SP', '최종사용자': 'USER',
-  };
+  // ★ 반드시 normalizeScope 먼저 적용 → C1 데이터 자체를 YP/SP/USER로 변환
+  const SCOPE_YP = 'YP';
+  const SCOPE_SP = 'SP';
+  const SCOPE_USER = 'USER';
+  /** @param {string} raw */
+  function _normalizeScope(raw) {
+    const u = raw.toUpperCase().trim();
+    if (u === 'YP' || u.includes('YOUR')) return SCOPE_YP;
+    if (u === 'SP' || u.includes('SHIP')) return SCOPE_SP;
+    if (u === 'USER' || u === 'US' || u.includes('END')) return SCOPE_USER;
+    // Korean labels
+    if (u === '자사공장') return SCOPE_YP;
+    if (u === '고객사') return SCOPE_SP;
+    if (u === '최종사용자') return SCOPE_USER;
+    if (u) return u;
+    return SCOPE_YP;
+  }
 
   // ★ C1 데이터를 먼저 약어로 변환 (Your Plant→YP, Ship to Plant→SP, User→USER)
   for (const d of c1Data) {
-    const mapped = CATEGORY_MAP[d.category.toLowerCase()];
-    if (mapped) d.category = mapped;
+    d.category = _normalizeScope(d.category);
   }
 
   const c1Set = new Set(c1Data.map(d => d.category)); // {"YP", "SP", "USER"}

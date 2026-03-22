@@ -220,8 +220,8 @@ export default function FailureLinkTables({
                 {(() => {
                   // ★ scope별 그룹 인덱스 계산 (YP/SP/USER별 줄무늬)
                   const scopeColorMap: Record<string, { light: string; dark: string }> = {
-                    'YP': { light: '#e3f2fd', dark: '#bbdefb' },   // 파란색 (Your Plant)
-                    'SP': { light: '#f3e5f5', dark: '#e1bee7' },   // 보라색 (Ship to Plant)
+                    'YP': { light: '#e3f2fd', dark: '#bbdefb' },   // 파란색 (YP = Your Plant)
+                    'SP': { light: '#f3e5f5', dark: '#e1bee7' },   // 보라색 (SP = Ship to Plant)
                     'USER': { light: '#e8f5e9', dark: '#c8e6c9' }, // 녹색 (User)
                   };
                   let scopeIdx = 0;

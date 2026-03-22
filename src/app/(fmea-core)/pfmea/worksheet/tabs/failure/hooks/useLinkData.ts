@@ -12,6 +12,7 @@
 import { useMemo } from 'react';
 import { uid } from '../../../constants';
 import { FEItem, FMItem, FCItem, LinkResult } from '../FailureLinkTypes';
+import { SCOPE_YP, SCOPE_SP, SCOPE_USER } from '@/lib/fmea/scope-constants';
 
 interface UseLinkDataProps {
   state: any;
@@ -137,8 +138,8 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
       });
     });
 
-    // 정렬: Your Plant → Ship to Plant → User 순서
-    const scopeOrder: Record<string, number> = { 'YP': 0, 'SP': 1, 'User': 2 };
+    // 정렬: YP → SP → USER 순서
+    const scopeOrder: Record<string, number> = { [SCOPE_YP]: 0, [SCOPE_SP]: 1, [SCOPE_USER]: 2 };
     items.sort((a, b) => (scopeOrder[a.scope] ?? 9) - (scopeOrder[b.scope] ?? 9));
 
     // FE 데이터 추출 완료

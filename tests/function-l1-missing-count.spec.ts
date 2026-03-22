@@ -1,23 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { calculateMissingCounts, normalizeL1TypeNameToKey } from '@/app/(fmea-core)/pfmea/worksheet/tabs/function/functionL1Utils';
 import { isMissing } from '@/app/(fmea-core)/pfmea/worksheet/tabs/shared/tabUtils';
+import { SCOPE_LABEL_EN, SCOPE_YP, SCOPE_SP, SCOPE_USER } from '@/lib/fmea/scope-constants';
 
 describe('L1 누락 — 구분명 풀네임 vs 약어', () => {
   it('normalizeL1TypeNameToKey maps full English names', () => {
-    expect(normalizeL1TypeNameToKey('Your Plant')).toBe('YP');
-    expect(normalizeL1TypeNameToKey('Ship to Plant')).toBe('SP');
-    expect(normalizeL1TypeNameToKey('User')).toBe('USER');
-    expect(normalizeL1TypeNameToKey('US')).toBe('USER');
+    expect(normalizeL1TypeNameToKey(SCOPE_LABEL_EN[SCOPE_YP])).toBe(SCOPE_YP);
+    expect(normalizeL1TypeNameToKey(SCOPE_LABEL_EN[SCOPE_SP])).toBe(SCOPE_SP);
+    expect(normalizeL1TypeNameToKey('User')).toBe(SCOPE_USER);
+    expect(normalizeL1TypeNameToKey('US')).toBe(SCOPE_USER);
   });
 
   it('calculateMissingCounts: Your Plant / Ship to Plant / User does not falsely add 3 missing categories', () => {
     const types = [
       {
-        name: 'Your Plant',
+        name: SCOPE_LABEL_EN[SCOPE_YP],
         functions: [{ name: 'F1', requirements: [{ name: 'R1' }] }],
       },
       {
-        name: 'Ship to Plant',
+        name: SCOPE_LABEL_EN[SCOPE_SP],
         functions: [{ name: 'F2', requirements: [{ name: 'R2' }] }],
       },
       {

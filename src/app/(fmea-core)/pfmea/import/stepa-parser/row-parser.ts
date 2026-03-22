@@ -7,11 +7,11 @@
 
 import type ExcelJS from 'exceljs';
 import type { StepBColumnMap, WarningCollector } from '../stepb-parser/types';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
+import type { StepARawRow } from './index';
 // prefix-utils 삭제됨 (2026-03-22) — 인라인 유틸로 대체 (extra args 무시)
 function stripPrefix(val: string, ..._args: any[]): string { return val.replace(/^[A-Z]\d+[_.\s-]+/i, '').trim(); }
-function normalizeScope(raw: string, ..._args: any[]): string { const u = raw.toUpperCase().trim(); if (u.includes('YOUR') || u === 'YP') return 'YP'; if (u.includes('SHIP') || u === 'SP') return 'SP'; if (u.includes('USER') || u.includes('END') || u === 'US') return 'USER'; return u || 'YP'; }
 function normalizeSC(raw: string, ..._args: any[]): string { const t = (raw || '').trim(); if (t === '◇' || t === '◆' || t === '△' || t === '○') return t; return ''; }
-import type { StepARawRow } from './index';
 
 // carry-forward 대상 필드 (병합셀 누락 보완) — STEP A용
 const CARRY_FIELDS = [
@@ -92,7 +92,7 @@ export function parseStepARows(
     const l2ElemFunc = raw['l2_elem_func'] || '';
     const cleanElemFunc = l2ElemFunc.replace(new RegExp(`^${procNo}번[-\\s]*`), '').trim();
 
-    const scopeNorm = normalizeScope(raw['l1_scope'] || '', warn, r);
+    const scopeNorm = normalizeScope(raw['l1_scope'] || '');
     const scNorm = normalizeSC(raw['sc'], '');
 
     const parsedRow: StepARawRow = {

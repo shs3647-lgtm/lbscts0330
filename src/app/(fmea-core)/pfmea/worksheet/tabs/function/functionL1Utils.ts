@@ -1,14 +1,16 @@
 /**
  * @file functionL1Utils.ts
  * @description FunctionL1Tab 유틸리티 함수
- * 
+ *
  * ★★★ 2026-02-05: FunctionL1Tab.tsx 최적화 - 공용 유틸리티 분리 ★★★
- * 
+ *
  * 원인 분석:
  * 1. 동일한 필터링 로직(meaningfulTypes/Functions/Reqs)이 5회 이상 반복
  * 2. 플레이스홀더 체크 로직이 여러 곳에 분산
  * 3. 타입 rowSpan 계산 로직 중복
  */
+
+import { normalizeScope, type ScopeCode } from '@/lib/fmea/scope-constants';
 
 /** 플레이스홀더 값 체크 (빈 값, 클릭하여, 선택, 자동생성 등) */
 export const isPlaceholder = (value: string | undefined | null): boolean => {
@@ -72,16 +74,12 @@ const REQUIRED_TYPES = ['YP', 'SP', 'USER'] as const;
 
 /**
  * L1 구분 표시명 → YP / SP / USER (누락·배지 검사용)
- * DB/Import는 'Your Plant'·'Ship to Plant'·'User' 등 풀네임이고, 초기값은 YP/SP/USER 약어 혼재.
+ * DB/Import는 'YP'·'SP'·'USER' 통일 사용.
+ * ★ 2026-03-22: normalizeScope() 중앙 함수 사용으로 통합
  */
-export function normalizeL1TypeNameToKey(name: string | undefined): 'YP' | 'SP' | 'USER' | null {
-  const c = (name || '').trim().toUpperCase();
-  if (!c) return null;
-  if (c === 'YP' || c === 'YOUR PLANT') return 'YP';
-  if (c === 'SP' || c === 'SHIP TO PLANT') return 'SP';
-  // fillL1Data / genC3 에서 USER 구분을 processNo 'US'로 쓰는 경로와 DB category 'US' 혼재
-  if (c === 'USER' || c === 'US' || c === 'END USER' || c === 'EU') return 'USER';
-  return null;
+export function normalizeL1TypeNameToKey(name: string | undefined): ScopeCode | null {
+  if (!name || !name.trim()) return null;
+  return normalizeScope(name);
 }
 
 /** 누락 건수 계산 */

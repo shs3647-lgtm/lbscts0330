@@ -31,7 +31,7 @@ for (let r = 11; r <= 609; r++) {
     processNo: getVal(r, 4),   // NO+공정명
     m4struct: getVal(r, 5),    // 4M(구조)
     we: getVal(r, 6),          // 작업요소(구조)
-    scope: getVal(r, 13),      // 구분(고장) — Your Plant / Ship to Plant / User
+    scope: getVal(r, 13),      // 구분(고장) — YP / SP / USER (Your Plant / Ship to Plant / User)
     fe: getVal(r, 14),         // FE
     s: getVal(r, 15),          // S
     fm: getVal(r, 16),         // FM

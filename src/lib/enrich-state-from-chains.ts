@@ -22,6 +22,7 @@ import type {
   L2FailureMode,
   L3FailureCauseExtended,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
+import { SCOPE_LABEL_EN } from '@/lib/fmea/scope-constants';
 import { uid } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 
 export interface ChainRecord {
@@ -165,7 +166,7 @@ export function enrichStateFromChains(
         const newFE: L1FailureScope = {
           id: feIdVal,
           name: feValue.trim(),
-          scope: feScope || 'Your Plant',
+          scope: feScope || SCOPE_LABEL_EN.YP,
           effect: feValue.trim(),
           severity: chain.severity || 0,
         };

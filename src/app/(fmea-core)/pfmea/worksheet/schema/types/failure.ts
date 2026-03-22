@@ -15,7 +15,7 @@ import { AtomicRecord } from './base';
 export interface FailureEffect extends AtomicRecord {
     fmeaId: string;         // FK: FMEA 프로젝트 ID
     l1FuncId: string;       // FK: L1Function.id (상위 기능분석 - 요구사항)
-    category: 'Your Plant' | 'Ship to Plant' | 'User';  // 구분
+    category: string;  // 구분 (YP/SP/USER — normalizeScope() 참조)
     effect: string;         // 고장영향 내용
     severity: number;       // 심각도 (1-10)
 }

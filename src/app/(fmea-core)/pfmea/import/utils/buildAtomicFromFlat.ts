@@ -775,16 +775,10 @@ function groupByItemCode(flatData: ImportedFlatData[]): Map<string, ImportedFlat
 }
 
 /**
- * C1 scope 문자열 → L1Function.category 변환 (중앙 상수 사용)
- *
- * FlatData의 processNo (C 카테고리) = 'YP' | 'SP' | 'USER'
- * → Atomic DB category = 'Your Plant' | 'Ship to Plant' | 'User' (레거시 워크시트 스키마 호환)
+ * C1 scope 문자열 → L1Function.category 변환 (YP/SP/USER 약어 통일)
  */
-type ScopeCategoryLabel = 'Your Plant' | 'Ship to Plant' | 'User';
-const SCOPE_TO_CATEGORY: Record<ScopeCode, ScopeCategoryLabel> = { YP: 'Your Plant', SP: 'Ship to Plant', USER: 'User' };
-function scopeToCategory(scope: string): ScopeCategoryLabel {
-  const code = normalizeScope(scope);
-  return SCOPE_TO_CATEGORY[code as ScopeCode] ?? 'User';
+function scopeToCategory(scope: string): string {
+  return normalizeScope(scope);
 }
 
 /** C4.processNo 또는 체인 feScope → YP/SP/USER (FE lookup 키 정규화, 중앙 상수 사용) */

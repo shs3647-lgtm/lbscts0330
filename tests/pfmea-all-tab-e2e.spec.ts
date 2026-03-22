@@ -10,6 +10,7 @@
  * → off-screen 요소는 DOM 존재(count > 0) 또는 scrollIntoView로 확인
  */
 import { test, expect, Page } from '@playwright/test';
+import { SCOPE_LABEL_EN, SCOPE_YP, SCOPE_SP, SCOPE_USER } from '@/lib/fmea/scope-constants';
 
 const BASE = process.env.TEST_BASE_URL ?? 'http://localhost:3000';
 const FMEA_ID = process.env.TEST_FMEA_ID ?? 'PFM26-M001';
@@ -453,7 +454,7 @@ test.describe('7. 데이터 무결성 검증', () => {
     await gotoAllTab(page);
 
     // FE 카테고리: Your Plant, Ship to Plant, User → 기능분석 구분 컬럼에 표시
-    const categories = ['Your Plant', 'Ship to Plant', 'User'];
+    const categories = [SCOPE_LABEL_EN[SCOPE_YP], SCOPE_LABEL_EN[SCOPE_SP], SCOPE_LABEL_EN[SCOPE_USER]];
     let foundAny = false;
     for (const cat of categories) {
       if (await domHasText(page, cat)) {

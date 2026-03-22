@@ -252,7 +252,10 @@ for (const [scope, vals] of Object.entries(scopeS)) {
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
-  const label = scope === 'Y' ? '자사(Your Plant)' : scope === 'C' ? '고객(Ship to Plant)' : '사용자(User)';
+  const SCOPE_LABEL_YP = '자사(Your Plant)';
+  const SCOPE_LABEL_SP = '고객(Ship to Plant)';
+  const SCOPE_LABEL_USER = '사용자(User)';
+  const label = scope === 'Y' ? SCOPE_LABEL_YP : scope === 'C' ? SCOPE_LABEL_SP : SCOPE_LABEL_USER;
   console.log('  ' + label + ': S=' + min + '~' + max + ' (평균 ' + avg + ', ' + vals.length + '건)');
 }
 console.log('');

@@ -61,6 +61,7 @@ import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 import { useFailureL1Handlers } from './hooks/useFailureL1Handlers';
 import { useAlertModal } from '../../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 // ★★★ 컨텍스트 메뉴 수평전개 ★★★
 // ┌──────────────────────────────────────────────────────────────────┐
@@ -140,7 +141,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
   const [sodModal, setSODModal] = useState<{
     effectId: string;
     currentValue?: number;
-    scope?: 'Your Plant' | 'Ship to Plant' | 'User';
+    scope?: string;  // YP/SP/USER (normalizeScope() 참조)
     feText?: string;
     recommendedRating?: number;
   } | null>(null);
@@ -687,7 +688,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
 
   // 구분별 번호 생성 (Y1, Y2, S1, S2, U1, U2...)
   const getFeNo = useCallback((typeName: string, index: number): string => {
-    const prefix = typeName === 'Your Plant' ? 'Y' : typeName === 'Ship to Plant' ? 'S' : typeName === 'User' ? 'U' : 'X';
+    const norm = normalizeScope(typeName || '');
+    const prefix = norm === 'YP' ? 'Y' : norm === 'SP' ? 'S' : norm === 'USER' ? 'U' : 'X';
     return `${prefix}${index + 1}`;
   }, []);
 
@@ -717,7 +719,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     const typeShown: Record<string, boolean> = {};
     const funcShown: Record<string, boolean> = {}; // 기능별 표시 여부 추적
     // 구분별 카운터
-    const typeCounters: Record<string, number> = { 'Your Plant': 0, 'Ship to Plant': 0, 'User': 0 };
+    const typeCounters: Record<string, number> = { 'YP': 0, 'SP': 0, 'USER': 0 };
 
     // 기능별 rowSpan 미리 계산
     const funcRowSpanMap = new Map<string, number>();
@@ -742,9 +744,10 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
           // 유효한 고장영향이 있으면 번호 증가
           let feNo = '';
           if (eff.id && eff.effect) {
-            const currentCount = typeCounters[group.typeName] || 0;
+            const normType = normalizeScope(group.typeName || '');
+            const currentCount = typeCounters[normType] || 0;
             feNo = getFeNo(group.typeName, currentCount);
-            typeCounters[group.typeName] = currentCount + 1;
+            typeCounters[normType] = currentCount + 1;
           }
 
           rows.push({
@@ -945,10 +948,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                         bgColor={zebra.failure}
                         onClick={() => {
                           // ★ typeName → 정규화 카테고리 (DB processNo 저장용)
-                          const tn = (row.typeName || '').trim().toUpperCase();
-                          const normCat = tn === 'YOUR PLANT' || tn === 'YP' ? 'YP'
-                            : tn === 'SHIP TO PLANT' || tn === 'SP' ? 'SP'
-                            : tn === 'USER' || tn === 'END USER' || tn === 'EU' ? 'USER' : 'YP';
+                          // ★ 2026-03-22: 중앙 normalizeScope() 사용
+                          const normCat = normalizeScope(row.typeName || '');
                           handleCellClick({
                             type: 'effect',
                             effectId: row.effectId || undefined,
@@ -1004,17 +1005,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                           return;
                         }
                         if (row.effectId) {
-                          // ✅ scope 값 명시적 확인 및 전달 (약어 'SP', 'YP'도 처리)
-                          const tn = row.typeName?.trim();
-                          let scopeValue: 'Your Plant' | 'Ship to Plant' | 'User' | undefined;
-
-                          if (tn === 'Your Plant' || tn === 'YP' || tn?.includes('Your') || tn?.includes('YP')) {
-                            scopeValue = 'Your Plant';
-                          } else if (tn === 'Ship to Plant' || tn === 'SP' || tn?.includes('Ship') || tn?.includes('SP')) {
-                            scopeValue = 'Ship to Plant';
-                          } else if (tn === 'User' || tn === 'EU' || tn?.includes('User') || tn?.includes('End')) {
-                            scopeValue = 'User';
-                          }
+                          // ✅ scope 값 정규화 — 중앙 normalizeScope() 사용 (2026-03-22)
+                          const scopeValue = row.typeName ? normalizeScope(row.typeName) : undefined;
 
                           const bestMatch = row.effect ? matchFESeverity(row.effect) : [];
                           const keywordRating = bestMatch.length > 0 ? bestMatch[0].rating : undefined;

@@ -9,6 +9,7 @@
  * ★ 쓰기 용도 사용 금지 — 렌더링 전용
  */
 
+import { SCOPE_LABEL_EN, SCOPE_YP } from '@/lib/fmea/scope-constants';
 import type {
   FMEAWorksheetDB,
   FailureEffect,
@@ -127,7 +128,7 @@ function buildFailureScopes(
       name: fe.effect,
       reqId: fe.l1FuncId,
       requirement: l1Func?.requirement || '',
-      scope: l1Func?.category || fe.category || 'Your Plant',
+      scope: l1Func?.category || fe.category || SCOPE_LABEL_EN[SCOPE_YP],
       effect: fe.effect,
       severity: fe.severity,
     };

@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import ExcelJS from 'exceljs';
 import { fillDownRows } from './forward-fill-utils';
+import { normalizeScope, SCOPE_YP } from '@/lib/fmea/scope-constants';
 
 interface FlatItem {
   processNo?: string;
@@ -48,18 +49,17 @@ const DEFAULT_OUT =
     : path.join(process.cwd(), 'data', 'master-fmea', 'fmea-validation-export');
 
 function normDiv(processNo: string): string {
-  if (processNo === 'Your Plant') return 'YP';
-  if (processNo === 'Ship to Plant') return 'SP';
-  if (processNo === 'User') return 'USER';
+  // Scope-like processNo → normalize; otherwise pass through
+  if (/^(Your Plant|Ship to Plant|User|YP|SP|USER|End User)$/i.test(processNo)) {
+    return normalizeScope(processNo);
+  }
   return processNo;
 }
 
 function normFeScope(scope: string | undefined): string {
   const s = (scope || '').trim();
-  if (s === 'Your Plant' || s === 'YP') return 'YP';
-  if (s === 'Ship to Plant' || s === 'SP') return 'SP';
-  if (s === 'End User' || s === 'USER' || s === 'User') return 'USER';
-  return s || 'YP';
+  if (!s) return SCOPE_YP;
+  return normalizeScope(s);
 }
 
 function stripPdPrefix(v: string | undefined): string {

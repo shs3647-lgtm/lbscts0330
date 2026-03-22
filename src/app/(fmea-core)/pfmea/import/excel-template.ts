@@ -10,7 +10,7 @@
  * A1: 공정번호 + 공정명
  * A3-A5: 공정번호 + 해당 항목
  * B1-B4: 공정번호 + 해당 항목
- * C1-C4: 구분(YOUR PLANT/SHIP TO PLANT/USER) + 해당 항목
+ * C1-C4: 구분(YP/SP/USER — see scope-constants.ts) + 해당 항목
  * FC 고장사슬: FE구분, FE, 공정번호, FM, 4M, WE, FC, PC, DC, O, D, AP (12열)
  */
 /**
@@ -29,6 +29,7 @@
 
 
 import { saveAs } from 'file-saver';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 import type ExcelJS from 'exceljs';
 
 /**
@@ -429,14 +430,8 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
     const l1Rows: string[][] = [];
     const c1Items = flatData.filter(d => d.itemCode === 'C1');
 
-    // 스코프 정규화: "Your Plant"↔"YP", "Ship to Plant"↔"SP", "End User"↔"USER"↔"User"
-    const normScope = (s: string): string => {
-      const u = (s || '').trim().toUpperCase();
-      if (u === 'YP' || u === 'YOUR PLANT') return 'YP';
-      if (u === 'SP' || u === 'SHIP TO PLANT') return 'SP';
-      if (u === 'USER' || u === 'US' || u === 'END USER') return 'USER';
-      return u;
-    };
+    // 스코프 정규화: normalizeScope() 중앙 함수 사용 (scope-constants.ts)
+    const normScope = (s: string): string => normalizeScope(s || '');
     // C2/C3/C4를 정규화된 스코프로 그룹핑
     const c2All = flatData.filter(d => d.itemCode === 'C2');
     const c3All = flatData.filter(d => d.itemCode === 'C3');

@@ -11,6 +11,7 @@
  */
 import type { FMEAWorksheetDB } from '@/app/(fmea-core)/pfmea/worksheet/schema';
 import { syncMasterChainsInTx } from '@/lib/sync/master-chain-sync';
+import { normalizeScope, SCOPE_YP } from '@/lib/fmea/scope-constants';
 
 type FlatItemInput = {
   processNo: string;
@@ -37,24 +38,7 @@ function stripProcessNoPrefix(name: string): string {
   return match ? match[1] : trimmed;
 }
 
-function normalizeC1Category(v: string): string {
-  const s = v.trim();
-  if (!s) return s;
-  if (s.toUpperCase() === 'YP') return 'YP';
-  if (s.toUpperCase() === 'SP') return 'SP';
-  if (s.toUpperCase() === 'USER') return 'USER';
-  return s.toUpperCase();
-}
-
-// ★★★ 2026-02-09: 구분값 → 코드 변환 (Your Plant→YP, Ship to Plant→SP, User→USER) ★★★
-function normalizeCategoryCode(v: string): string {
-  const s = (v || '').trim();
-  const lower = s.toLowerCase();
-  if (lower === 'your plant' || lower === 'yp') return 'YP';
-  if (lower === 'ship to plant' || lower === 'sp') return 'SP';
-  if (lower === 'user') return 'USER';
-  return s.toUpperCase() || 'YP';
-}
+// ★★★ 구분값 정규화 → scope-constants.normalizeScope() 사용 ★★★
 
 export function extractMasterFlatItemsFromWorksheet(db: FMEAWorksheetDB): FlatItemInput[] {
   const items: FlatItemInput[] = [];
@@ -137,8 +121,8 @@ export function extractMasterFlatItemsFromWorksheet(db: FMEAWorksheetDB): FlatIt
   // L1 functions -> C1/C2/C3 (project-wide)
   // ★★★ L1(C 카테고리)은 C1값(구분)을 processNo로 사용 (2026-02-02) ★★★
   db.l1Functions.forEach(f => {
-    const categoryValue = normalizeC1Category(f.category) || 'YP';  // C1값이 processNo
-    if (isFilled(f.category)) items.push({ processNo: categoryValue, category: 'C', itemCode: 'C1', value: normalizeC1Category(f.category), sourceFmeaId: db.fmeaId });
+    const categoryValue = normalizeScope(f.category) || SCOPE_YP;  // C1값이 processNo
+    if (isFilled(f.category)) items.push({ processNo: categoryValue, category: 'C', itemCode: 'C1', value: normalizeScope(f.category), sourceFmeaId: db.fmeaId });
     if (isFilled(f.functionName)) items.push({ processNo: categoryValue, category: 'C', itemCode: 'C2', value: f.functionName, sourceFmeaId: db.fmeaId });
     if (isFilled(f.requirement)) items.push({ processNo: categoryValue, category: 'C', itemCode: 'C3', value: f.requirement, sourceFmeaId: db.fmeaId });
   });
@@ -147,7 +131,7 @@ export function extractMasterFlatItemsFromWorksheet(db: FMEAWorksheetDB): FlatIt
   // FailureEffect → C4 (L1 카테고리 코드를 processNo로 사용)
   db.failureEffects.forEach(fe => {
     if (!isFilled(fe.effect)) return;
-    const categoryValue = normalizeCategoryCode(fe.category) || 'YP';
+    const categoryValue = normalizeScope(fe.category) || SCOPE_YP;
     items.push({ processNo: categoryValue, category: 'C', itemCode: 'C4', value: fe.effect, sourceFmeaId: db.fmeaId });
   });
 

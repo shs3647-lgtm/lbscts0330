@@ -10,6 +10,7 @@ import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { validateAutoMapping, groupMatchedByRoom } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
 import { bulkRecordSeverity } from '@/hooks/useSeverityRecommend';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 interface UseFailureL1HandlersProps {
   state: any;
@@ -27,13 +28,9 @@ interface UseFailureL1HandlersProps {
   showAlert?: (message: string, items?: string[]) => void;
 }
 
-// ★ 타입명 → C4 카테고리 정규화
+// ★ 타입명 → C4 카테고리 정규화 — normalizeScope() 중앙 함수 사용
 function normalizeTypeToCategory(typeName: string): string {
-  const tn = (typeName || '').trim().toUpperCase();
-  if (tn === 'YOUR PLANT' || tn === 'YP') return 'YP';
-  if (tn === 'SHIP TO PLANT' || tn === 'SP') return 'SP';
-  if (tn === 'USER' || tn === 'EU' || tn === 'END USER') return 'USER';
-  return tn || 'YP';
+  return normalizeScope(typeName);
 }
 
 export function useFailureL1Handlers({

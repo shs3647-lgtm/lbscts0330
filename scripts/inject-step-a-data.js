@@ -137,9 +137,10 @@ function parseStepA(filePath) {
     const c1Raw = getVal(colMap['C1'] !== undefined ? colMap['C1'] : 6, 'C1');
     // C1 값을 표준화 (Your Plant → YP, Ship to Plant → SP, End User → USER)
     let c1 = c1Raw;
-    if (c1Raw.includes('Your') || c1Raw === 'YP') c1 = 'YP';
-    else if (c1Raw.includes('Ship') || c1Raw === 'SP') c1 = 'SP';
-    else if (c1Raw.includes('End') || c1Raw.toLowerCase().includes('user') || c1Raw === 'USER') c1 = 'USER';
+    const _c1u = c1Raw.toUpperCase().trim();
+    if (_c1u === 'YP' || _c1u.includes('YOUR')) c1 = 'YP';
+    else if (_c1u === 'SP' || _c1u.includes('SHIP')) c1 = 'SP';
+    else if (_c1u === 'USER' || _c1u === 'US' || _c1u.includes('END') || _c1u.includes('USER')) c1 = 'USER';
 
     const c2 = getVal(colMap['C2'] !== undefined ? colMap['C2'] : 7, 'C2');
     const c3 = (colMap['C3'] !== undefined && row[colMap['C3']]) ? String(row[colMap['C3']]).trim() : '';

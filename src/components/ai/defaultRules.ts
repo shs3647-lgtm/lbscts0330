@@ -126,8 +126,8 @@ const DEFAULT_EFFECTS = {
     '신뢰도 하락',
     '거래 중단 위험',
   ],
-  // User - 최종 사용자
-  User: [
+  // USER - 최종 사용자
+  USER: [
     '안전 사고 위험',
     '제품 고장',
     '사용 불가',
@@ -171,7 +171,7 @@ export function getDefaultRecommendations(
       items = [
         ...DEFAULT_EFFECTS.YP.slice(0, 2),
         ...DEFAULT_EFFECTS.SP.slice(0, 2),
-        ...DEFAULT_EFFECTS.User.slice(0, 2),
+        ...DEFAULT_EFFECTS.USER.slice(0, 2),
       ];
       break;
 
@@ -228,7 +228,7 @@ export function getModesByProcess(processName: string): string[] {
 /**
  * 영향 범위별 고장영향 조회
  */
-export function getEffectsByScope(scope: 'YP' | 'SP' | 'User'): string[] {
+export function getEffectsByScope(scope: 'YP' | 'SP' | 'USER'): string[] {
   return DEFAULT_EFFECTS[scope] || DEFAULT_EFFECTS.YP;
 }
 

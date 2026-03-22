@@ -67,7 +67,7 @@ describe('migrateToAtomicDB ID 고유성', () => {
       name: '완제품 공정',
       types: [
         {
-          name: 'Your Plant',
+          name: 'YP',
           functions: [
             {
               name: '기능1',
@@ -81,7 +81,7 @@ describe('migrateToAtomicDB ID 고유성', () => {
       failureScopes: [
         {
           id: 'fe-scope-1',
-          scope: 'Your Plant',
+          scope: 'YP',
           effect: '고장영향1',
           severity: 8,
           requirement: '요구사항1',
@@ -178,12 +178,12 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
         name: '공정',
         types: [
           {
-            name: 'Your Plant',
+            name: 'YP',
             functions: [{ name: '기능', requirements: [{ id: 'r1', name: '요구' }] }],
           },
         ],
         failureScopes: [
-          { id: 'fe-1', scope: 'Your Plant', effect: '영향', severity: 5 },
+          { id: 'fe-1', scope: 'YP', effect: '영향', severity: 5 },
         ],
       },
       l2: [
@@ -234,7 +234,7 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
         name: '공정',
         types: [
           {
-            name: 'Your Plant',
+            name: 'YP',
             functions: [{ name: '기능', requirements: [{ id: 'r1', name: '요구' }] }],
           },
         ],
@@ -266,7 +266,7 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
           feText: '자동생성될 영향',
           fcText: '원인',
           severity: 7,
-          feScope: 'Your Plant',
+          feScope: 'YP',
         },
       ],
     };
@@ -291,12 +291,12 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
         name: '공정',
         types: [
           {
-            name: 'Your Plant',
+            name: 'YP',
             functions: [{ name: '기능', requirements: [{ id: 'r1', name: '요구' }] }],
           },
         ],
         failureScopes: [
-          { id: 'fe-exists', scope: 'Your Plant', effect: '영향', severity: 5 },
+          { id: 'fe-exists', scope: 'YP', effect: '영향', severity: 5 },
         ],
       },
       l2: [
@@ -379,7 +379,7 @@ describe('대규모 마이그레이션 ID 충돌 스트레스 테스트', () => 
 
     const failureScopes = Array.from({ length: 10 }, (_, i) => ({
       id: `fe-stress-${i}`,
-      scope: 'Your Plant',
+      scope: 'YP',
       effect: `영향${i}`,
       severity: 5 + (i % 5),
     }));
@@ -407,7 +407,7 @@ describe('대규모 마이그레이션 ID 충돌 스트레스 테스트', () => 
         name: '스트레스 공정',
         types: [
           {
-            name: 'Your Plant',
+            name: 'YP',
             functions: [{ name: '기능', requirements: [{ id: 'r1', name: '요구' }] }],
           },
         ],

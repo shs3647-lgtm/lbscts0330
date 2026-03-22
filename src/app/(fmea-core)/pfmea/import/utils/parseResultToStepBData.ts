@@ -18,6 +18,7 @@ import type {
   StepBA4Item, StepBB1Item, StepBB2Item, StepBB3Item, StepBB4Item, StepBB5Item,
   StepBC4Item, StepBFCChain,
 } from '../stepb-parser/types';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 /** 값을 문자열로 변환 */
 function ensureStr(val: unknown): string {
@@ -31,13 +32,9 @@ function ensureStr(val: unknown): string {
   return String(val);
 }
 
-/** C1 카테고리 정규화 */
-const C1_CATEGORY_MAP: Record<string, string> = {
-  'your plant': 'YP', 'ship to plant': 'SP', 'user': 'USER',
-  'end user': 'USER', '자사공장': 'YP', '고객사': 'SP', '최종사용자': 'USER',
-};
+/** C1 카테고리 정규화 (중앙 상수 사용) */
 function normalizeC1(name: string): string {
-  return C1_CATEGORY_MAP[name.toLowerCase()] || name;
+  return normalizeScope(name);
 }
 
 /**

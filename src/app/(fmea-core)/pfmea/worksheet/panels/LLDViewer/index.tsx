@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { SCOPE_LABEL_EN, SCOPE_YP } from '@/lib/fmea/scope-constants';
 
 interface LLDViewerProps {
   state: any;
@@ -57,7 +58,7 @@ export default function LLDViewer({ state }: LLDViewerProps) {
             <div className="ml-4 border-l-2 border-indigo-200 pl-2">
               {l1Structure.types.map((type: any, idx: number) => (
                 <div key={idx} className="mb-2">
-                  <div className="font-semibold text-indigo-600">{type.name || 'Your Plant'}</div>
+                  <div className="font-semibold text-indigo-600">{type.name || SCOPE_LABEL_EN[SCOPE_YP]}</div>
                   <div className="ml-3 text-gray-600">
                     기능: {type.functions?.length || 0}개
                   </div>

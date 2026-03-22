@@ -5,7 +5,7 @@
  * 
  * 약어 정의 (참조: terminology.ts):
  * - 4M: Man(MN,사람) / Machine(MC,설비) / In-Material(IM,부자재) / Environment(EN,환경)
- * - 구분: Your Plant(자사) / Ship to Plant(고객사) / User(사용자) ※EU 사용금지
+ * - 구분: YP(자사) / SP(고객사) / USER(사용자) ※normalizeScope() 참조
  * - FE: Failure Effect (고장영향)
  * - FM: Failure Mode (고장형태)
  * - FC: Failure Cause (고장원인)

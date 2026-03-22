@@ -115,7 +115,7 @@ export const TREE_HELP: Record<string, TabHelp> = {
       {
         label: '트리 구조',
         items: [
-          { title: '구분 노드', desc: 'YP(Your Plant, 자기회사 공장) / SP(Ship to Plant, 상위고객) / USER(자동차 사용자)' },
+          { title: '구분 노드', desc: 'YP(자사공정) / SP(고객사) / USER(최종사용자) — scope-constants.ts 참조' },
           { title: '기능 노드', desc: '각 구분 아래의 완제품 기능 목록입니다.' },
           { title: '요구사항', desc: '각 기능 아래의 요구사항/사양 목록입니다.' },
         ],

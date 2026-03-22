@@ -20,6 +20,13 @@
 const XLSX = require('xlsx');
 
 // ═══════════════════════════════════════════
+// Scope 상수 (scope-constants.ts 와 동일 값)
+// ═══════════════════════════════════════════
+const SCOPE_LABEL_YOUR_PLANT = 'Your Plant';
+const SCOPE_LABEL_SHIP_TO_PLANT = 'Ship to Plant';
+const SCOPE_LABEL_USER = 'User';
+
+// ═══════════════════════════════════════════
 // 데이터 정의
 // ═══════════════════════════════════════════
 
@@ -39,7 +46,7 @@ const scenarios = [
     },
     chains: [
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y1-6선별재작업_ 조립불량으로 라인내 선별 재작업', s: '6',
         fm: '10번F01_조립 위치 불량',
         fcs: [
@@ -67,7 +74,7 @@ const scenarios = [
     chains: [
       // FM1: 3열 FE (Y/C/U)
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y2-6선별재작업_ 외관불량 자재투입으로 선별 재작업', s: '6',
         fm: '20번-PGU ASSY-휘도 부적합',
         fcs: [
@@ -78,7 +85,7 @@ const scenarios = [
         ]
       },
       {
-        scope: 'Ship to Plant',
+        scope: SCOPE_LABEL_SHIP_TO_PLANT,
         fe: 'C3-4치수기능 부적합으로 대책서 요구', s: '4',
         fm: null,  // FM은 위와 동일 (FF 대상)
         fcs: [
@@ -87,7 +94,7 @@ const scenarios = [
         ]
       },
       {
-        scope: 'User',
+        scope: SCOPE_LABEL_USER,
         fe: 'U5-2기능저하_ 사용중 휘도 저하 발생', s: '5',
         fm: null,  // FM은 위와 동일 (FF 대상)
         fcs: [
@@ -97,7 +104,7 @@ const scenarios = [
       },
       // FM2: 2열 FE (Y/C)
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y5-4:100% 라인내 재작업(점등 불량)', s: '5',
         fm: '20번-PGU ASSY-점등 부적합',
         fcs: [
@@ -108,7 +115,7 @@ const scenarios = [
         ]
       },
       {
-        scope: 'Ship to Plant',
+        scope: SCOPE_LABEL_SHIP_TO_PLANT,
         fe: 'C2-5선별 부적합으로 선별재작업 요구', s: '3',
         fm: null, // FM은 위 FM2와 동일
         fcs: [
@@ -131,7 +138,7 @@ const scenarios = [
     },
     chains: [
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y1-6선별재작업_ 도포불량으로 라인내 선별 재작업', s: '6',
         fm: '30번F01_도포량 과다',
         fcs: [
@@ -170,7 +177,7 @@ const scenarios = [
     chains: [
       // FM1 + FE(Y)
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y1-6선별재작업_ 접합불량으로 라인내 선별 재작업', s: '6',
         fm: '40번F01_접합 강도 부족',
         fcs: [
@@ -186,7 +193,7 @@ const scenarios = [
       },
       // FM1 + FE(C) — scope/FE 변경, FM은 FF
       {
-        scope: 'Ship to Plant',
+        scope: SCOPE_LABEL_SHIP_TO_PLANT,
         fe: 'C3-4접합불량으로 고객 대책서 요구', s: '4',
         fm: null,
         fcs: [
@@ -202,7 +209,7 @@ const scenarios = [
       },
       // FM2 + FE(Y) — 새 FM, scope/FE 다시 원복
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y1-6선별재작업_ 접합불량으로 라인내 선별 재작업', s: '6',
         fm: '40번F02_접합 위치 편차',
         fcs: [
@@ -218,7 +225,7 @@ const scenarios = [
       },
       // FM2 + FE(C)
       {
-        scope: 'Ship to Plant',
+        scope: SCOPE_LABEL_SHIP_TO_PLANT,
         fe: 'C3-4접합불량으로 고객 대책서 요구', s: '4',
         fm: null,
         fcs: [
@@ -234,7 +241,7 @@ const scenarios = [
       },
       // FM3 + FE(Y) — 새 FM
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y1-6선별재작업_ 접합불량으로 라인내 선별 재작업', s: '6',
         fm: '40번F03_압착 시간 초과',
         fcs: [
@@ -250,7 +257,7 @@ const scenarios = [
       },
       // FM3 + FE(C)
       {
-        scope: 'Ship to Plant',
+        scope: SCOPE_LABEL_SHIP_TO_PLANT,
         fe: 'C3-4접합불량으로 고객 대책서 요구', s: '4',
         fm: null,
         fcs: [
@@ -278,7 +285,7 @@ const scenarios = [
     },
     chains: [
       {
-        scope: 'Your Plant',
+        scope: SCOPE_LABEL_YOUR_PLANT,
         fe: 'Y1-6선별재작업_ 세척불량으로 라인내 선별 재작업', s: '6',
         fm: '50번F01_세척 잔여물 잔류',
         fcs: [

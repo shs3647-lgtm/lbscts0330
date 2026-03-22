@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, getDynamicAlign, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED } from './allTabConstants';
+import { normalizeScope, SCOPE_YP, SCOPE_SP } from '@/lib/fmea/scope-constants';
 
 interface ColumnDef {
   id: number;
@@ -134,14 +135,14 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
     if (row.feRowSpan === 0) return null;
     // 누적 범위 체크: 이전 행의 feRowSpan 범위 안에 있으면 렌더링하지 않음
     if (rowInFM === 0 || !isInMergedRange('fe')) {
-      // ★ 카테고리별 심각도 표시: Y(Your Plant), S(Ship to Plant), U(User)
+      // ★ 카테고리별 심각도 표시: Y(YP), S(SP), U(USER)
+      // ★ 2026-03-22: 중앙 normalizeScope() 사용
       const getCategoryPrefix = (category: string): string => {
         if (!category) return 'S';  // 기본값
-        const cat = category.toLowerCase();
-        if (cat.includes('your') || cat === 'yp') return 'Y';
-        if (cat.includes('ship') || cat === 'sp') return 'S';
-        if (cat.includes('USER') || cat === 'u') return 'U';
-        return 'S';  // 기본값
+        const norm = normalizeScope(category);
+        if (norm === SCOPE_YP) return 'Y';
+        if (norm === SCOPE_SP) return 'S';
+        return 'U';
       };
       const prefix = getCategoryPrefix(row.feCategory);
       const severityDisplay = row.feSeverity > 0 ? ` (${prefix}:${row.feSeverity})` : '';

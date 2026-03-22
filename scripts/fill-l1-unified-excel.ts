@@ -11,6 +11,7 @@ import * as path from 'path';
 import ExcelJS from 'exceljs';
 import { getMergedCellValue } from '@/lib/excel-data-range';
 import { cellValueToString } from '@/app/(fmea-core)/pfmea/import/excel-parser-utils';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 const DASH = /^-+$|^[—–]$/u;
 
@@ -26,11 +27,7 @@ function isDashOrEmpty(s: string): boolean {
 function abbreviateScope(raw: string): string {
   const t = raw.trim();
   if (!t || isDashOrEmpty(t)) return '';
-  const u = t.toUpperCase();
-  if (u === 'YP' || u.includes('YOUR PLANT')) return 'YP';
-  if (u === 'SP' || u.includes('SHIP TO PLANT')) return 'SP';
-  if (u === 'USER' || u === 'US' || u.includes('USER')) return 'USER';
-  return t;
+  return normalizeScope(t);
 }
 
 /** C1 열 배열(데이터 행만) → 전/후방으로 빈 구분 채움 */

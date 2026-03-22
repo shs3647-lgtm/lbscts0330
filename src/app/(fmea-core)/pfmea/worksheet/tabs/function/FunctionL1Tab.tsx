@@ -76,17 +76,15 @@ type L1RowType = 'type' | 'function' | 'requirement';
 
 // ✅ 공용 스타일/유틸리티 (2026-01-19 리팩토링)
 import { FunctionL1Header } from '../shared/FunctionL1Header';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 const getTypeColor = getL1TypeColor;
 
 // ★ parentCategory → 정규화 카테고리 (DB processNo 저장용)
+// ★ 2026-03-22: 중앙 normalizeScope() 사용
 function normalizeCategoryToProcessNo(cat?: string): string | undefined {
   if (!cat) return undefined;
-  const c = cat.trim().toUpperCase();
-  if (c === 'YOUR PLANT' || c === 'YP') return 'YP';
-  if (c === 'SHIP TO PLANT' || c === 'SP') return 'SP';
-  if (c === 'USER' || c === 'END USER' || c === 'EU') return 'USER';
-  return undefined;
+  return normalizeScope(cat);
 }
 
 export default function FunctionL1Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId }: FunctionTabProps) {

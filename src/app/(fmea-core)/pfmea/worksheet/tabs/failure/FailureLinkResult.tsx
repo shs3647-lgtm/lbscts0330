@@ -8,6 +8,7 @@
 import React, { useMemo, useEffect, useCallback } from 'react';
 import { COLORS, FONT_SIZES } from '../../constants';
 import { groupFailureLinksByFM, calculateLastRowMerge } from '../../utils';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 import {
   resultTableContainer,
   resultTableHeaderStyle,
@@ -174,7 +175,7 @@ export default function FailureLinkResult({ savedLinks, fmData, isFullscreen, on
                   <>
                     <td rowSpan={row.feRowSpan} style={tdCenterStyle(feBg, '0.5px solid #60a5fa', COLORS.structure.text)}>{row.fe?.feNo || ''}</td>
                     <td rowSpan={row.feRowSpan} style={tdCenterStyle(feBg, '0.5px solid #60a5fa', 'inherit', { fontSize: FONT_SIZES.small, whiteSpace: 'nowrap' })}>
-                      {row.fe?.scope === 'Your Plant' ? 'YP' : row.fe?.scope === 'Ship to Plant' ? 'SP' : row.fe?.scope === 'User' ? 'USER' : row.fe?.scope || ''}
+                      {row.fe?.scope ? normalizeScope(row.fe.scope) : ''}
                     </td>
                     <td rowSpan={row.feRowSpan} style={tdStyle(feBg, '0.5px solid #60a5fa', { fontSize: FONT_SIZES.small, verticalAlign: 'middle' })}>{row.fe?.text || ''}</td>
                     <td rowSpan={row.feRowSpan} style={tdCenterStyle(feBg, '0.5px solid #60a5fa', (row.fe?.severity || 0) >= 8 ? '#f57c00' : (row.fe?.severity || 0) >= 5 ? '#f57f17' : '#333')}>{row.fe?.severity || ''}</td>

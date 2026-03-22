@@ -16,6 +16,7 @@
 
 import { positionUUID, type SheetCode } from './position-uuid';
 import { CrossSheetResolver } from './cross-sheet-resolver';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 import type {
   PositionAtomicData,
   PosL1Structure,
@@ -57,15 +58,7 @@ interface PositionBasedJSON {
 
 interface AutoFixLog { code: string; message: string; row?: number }
 
-/** C1 scope 자동정규화 — Your Plant→YP, Ship to Plant→SP, End User→USER 등 */
-function normalizeScope(raw: string): string {
-  const u = raw.toUpperCase().trim();
-  if (u === 'YP' || u.includes('YOUR') || u === 'YOUR PLANT') return 'YP';
-  if (u === 'SP' || u.includes('SHIP') || u === 'SHIP TO PLANT') return 'SP';
-  if (u === 'USER' || u === 'US' || u.includes('END USER') || u.includes('END')) return 'USER';
-  if (u) return u; // 알 수 없는 값은 그대로 보존
-  return 'YP'; // 빈값 → 기본값 YP
-}
+// C1 scope 정규화 — normalizeScope from @/lib/fmea/scope-constants (상단 import)
 
 /** 4M 자동정규화 */
 function normalizeM4(raw: string): string {

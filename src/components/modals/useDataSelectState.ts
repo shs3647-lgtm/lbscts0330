@@ -9,6 +9,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 import {
   DataItem,
   ITEM_CODE_LABELS,
@@ -242,15 +243,8 @@ export function useDataSelectState({
             const isL1Item = itemCode === 'C2' || itemCode === 'C3' || itemCode === 'C4' || itemCode === 'FE2'; // ★ FE2도 카테고리 필터
             if (isL1Item && parentCategory) {
               // ★★★ 구분 이름 정규화 (Your Plant → YP, Ship to Plant → SP, User → USER) ★★★
-              const normalizeCat = (cat: string): string => {
-                const c = (cat || '').trim().toUpperCase();
-                if (c === 'YOUR PLANT' || c === 'YP' || c === '자사') return 'YP';
-                if (c === 'SHIP TO PLANT' || c === 'SP' || c === '고객사') return 'SP';
-                if (c === 'USER' || c === 'END USER' || c === '사용자') return 'USER';
-                return cat;  // 원본 반환
-              };
-              const normalizedCategory = normalizeCat(parentCategory);
-              const filteredByCategory = fmeaItems.filter((item: any) => normalizeCat(item.processNo) === normalizedCategory);
+              const normalizedCategory = normalizeScope(parentCategory);
+              const filteredByCategory = fmeaItems.filter((item: any) => normalizeScope(item.processNo) === normalizedCategory);
 
               // ★★★ 2026-02-06 FIX: 해당 카테고리 항목이 0건이면 전체 표시 (USER 등) ★★★
               if (filteredByCategory.length > 0) {

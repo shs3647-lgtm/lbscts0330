@@ -36,6 +36,7 @@ import {
 import { buildFailureAnalyses } from './utils/failure-analysis-builder';
 import { calculateAP } from './tabs/all/apCalculator';
 import type { RiskAnalysis } from './schema';
+import { SCOPE_LABEL_EN, SCOPE_YP, normalizeScope } from '@/lib/fmea/scope-constants';
 
 // Re-export for external use
 export { getLinkedDataByFK, linkFunctionToStructure, linkFailureToFunction };
@@ -169,7 +170,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
   const l1FuncMap = new Map<string, L1Function>();
   const l1Types = oldData.l1?.types || [];
   l1Types.forEach((type: { name?: string; functions?: any[] }) => {
-    const category = type.name as 'Your Plant' | 'Ship to Plant' | 'User';
+    const category = normalizeScope(type.name || SCOPE_YP) as string;
     const functions = type.functions || [];
     
     functions.forEach((func: { name?: string; requirements?: any[]; id?: string }) => {
@@ -234,7 +235,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
       return;
     }
     
-    const category = (fs.scope as any) || targetFunc.category || 'Your Plant';
+    const category = (fs.scope as any) || targetFunc.category || SCOPE_LABEL_EN[SCOPE_YP];
     
     // ★★★ P7: uid()로 통일 — 충돌 위험 제거 ★★★
     const feId = fs.id || uid();
@@ -790,7 +791,7 @@ export function convertToLegacyFormat(db: FMEAWorksheetDB): OldWorksheetData {
     id: fe.id,
     reqId: fe.l1FuncId,
     requirement: l1FuncMap.get(fe.l1FuncId)?.reqName || '',
-    scope: l1FuncMap.get(fe.l1FuncId)?.category || fe.category || 'Your Plant',
+    scope: l1FuncMap.get(fe.l1FuncId)?.category || fe.category || SCOPE_LABEL_EN[SCOPE_YP],
     effect: fe.effect,
     severity: fe.severity,
   }));

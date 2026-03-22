@@ -15,7 +15,7 @@ import { AtomicRecord } from './base';
 export interface L1Function extends AtomicRecord {
     fmeaId: string;         // FK: FMEA 프로젝트 ID
     l1StructId: string;     // FK: L1Structure.id (상위 구조분석)
-    category: 'Your Plant' | 'Ship to Plant' | 'User';  // 구분
+    category: string;  // 구분 (YP/SP/USER — normalizeScope() 참조)
     functionName: string;   // 기능명
     requirement: string;    // 요구사항 (원자 단위)
 }

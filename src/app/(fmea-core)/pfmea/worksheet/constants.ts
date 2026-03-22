@@ -37,7 +37,7 @@ export interface L1FailureEffect extends AtomicUnit {
 export interface L1FailureScope extends AtomicUnit {
   reqId?: string; // FK: 요구사항 ID
   requirement?: string; // 연결된 요구사항 (텍스트)
-  scope?: string; // Your Plant / Ship to Plant / User
+  scope?: string; // YP / SP / USER (normalizeScope() 참조)
   effect?: string; // 고장영향 내용
   severity?: number; // 심각도
   effects?: L1FailureEffect[]; // 하위호환용 (deprecated)

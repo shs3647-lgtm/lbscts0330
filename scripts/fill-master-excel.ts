@@ -12,6 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import ExcelJS from 'exceljs';
+import { normalizeScope, SCOPE_YP } from '@/lib/fmea/scope-constants';
 
 const GOLDEN_PATH = path.resolve(__dirname, '..', 'data/master-fmea/pfm26-m066-golden.json');
 const ORIGINAL_PATH = path.resolve(__dirname, '..', 'data/master-fmea/master_import_12inch_AuBump.xlsx');
@@ -157,15 +158,12 @@ async function main() {
   headerRow.font = { bold: true };
   headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
 
-  // scope 매핑: Your Plant→YP, Ship to Plant→SP, User→USER
-  const scopeToShort: Record<string, string> = {
-    'Your Plant': 'YP', 'Ship to Plant': 'SP', 'User': 'USER',
-    'YP': 'YP', 'SP': 'SP', 'USER': 'USER',
-  };
+  // scope 매핑: normalizeScope() 사용
+  const scopeToShort = (raw: string | undefined): string => normalizeScope(raw || SCOPE_YP);
 
   let fcRowCount = 0;
   for (const ch of golden.chains) {
-    const scope = scopeToShort[ch.feScope] || ch.feScope || 'YP';
+    const scope = scopeToShort(ch.feScope);
     fcSheet.addRow([
       scope,
       ch.feValue || '-',
@@ -228,7 +226,7 @@ async function main() {
   const l1FuncMap = new Map<string, { category: string; funcName: string; requirement: string }>();
   for (const f of golden.atomicDB.l1Functions) {
     l1FuncMap.set(f.id, {
-      category: f.category || 'YP',
+      category: f.category || SCOPE_YP,
       funcName: f.functionName || '',
       requirement: (f.requirements || [])[0] || '',
     });
@@ -244,8 +242,8 @@ async function main() {
     const pno = parseInt(ch.processNo, 10) || 0;
     const l2Info = l2Map.get(pno) || { name: '', func: '', char: '', specChar: '-' };
     const l1FuncId = feToL1F.get(ch.feValue) || '';
-    const l1Info = l1FuncMap.get(l1FuncId) || { category: ch.feScope || 'YP', funcName: '', requirement: '' };
-    const scope = scopeToShort[ch.feScope] || ch.feScope || 'YP';
+    const l1Info = l1FuncMap.get(l1FuncId) || { category: ch.feScope || SCOPE_YP, funcName: '', requirement: '' };
+    const scope = scopeToShort(ch.feScope);
 
     faSheet.addRow([
       scope,

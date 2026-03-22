@@ -11,6 +11,7 @@ import { ImportedFlatData } from '../types';
 import { parseMultiSheetExcel, ParseResult } from '../excel-parser';
 import { assignParentsByRowSpan } from '../utils/parentItemId-mapper';
 import { FMEAProject } from './useImportState';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 interface UseImportHandlersProps {
   flatData: ImportedFlatData[];
@@ -255,13 +256,9 @@ export function useImportHandlers(props: UseImportHandlersProps) {
         p.processChars.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, parentItemId: findB1Uuid(p.processNo, p.processCharsWE?.[i], p.processChars4M?.[i] || ''), createdAt: new Date() }, 'B3', i)));
         p.failureCauses.forEach((v, i) => flat.push(withMeta({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: p.failureCauses4M?.[i] || '', belongsTo: p.failureCausesWE?.[i] || undefined, parentItemId: findB1Uuid(p.processNo, p.failureCausesWE?.[i], p.failureCauses4M?.[i] || ''), createdAt: new Date() }, 'B4', i)));
       });
-      // ★ C1 카테고리 영문 풀네임 → 약어 변환 (Your Plant→YP 등)
-      const C1_CATEGORY_MAP: Record<string, string> = {
-        'your plant': 'YP', 'ship to plant': 'SP', 'user': 'USER',
-        'end user': 'USER', '자사공장': 'YP', '고객사': 'SP', '최종사용자': 'USER',
-      };
+      // ★ C1 카테고리 영문 풀네임 → 약어 변환: normalizeScope() 중앙 함수 사용 (scope-constants.ts)
       function normalizeC1(name: string): string {
-        return C1_CATEGORY_MAP[name.toLowerCase()] || name;
+        return normalizeScope(name);
       }
 
       result.products.forEach((p) => {

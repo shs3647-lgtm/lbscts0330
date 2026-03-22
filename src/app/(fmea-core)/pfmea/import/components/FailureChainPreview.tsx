@@ -16,6 +16,7 @@
 
 import React, { useMemo } from 'react';
 import type { MasterFailureChain } from '../types/masterFailureChain';
+import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 // ─── 색상 상수 ───
 
@@ -57,14 +58,8 @@ function cellCenterStyle(bg: string, extra?: React.CSSProperties): React.CSSProp
   return cellStyle(bg, { textAlign: 'center', whiteSpace: 'nowrap', ...extra });
 }
 
-// ─── FE scope 약어 변환 ───
-
-function scopeAbbr(scope: string): string {
-  if (scope === 'Your Plant' || scope === 'YP') return 'YP';
-  if (scope === 'Ship to Plant' || scope === 'SP') return 'SP';
-  if (scope === 'User' || scope === 'USER') return 'USER';
-  return scope;
-}
+// ─── FE scope 약어 변환 (중앙 상수 사용) ───
+const scopeAbbr = (scope: string): string => normalizeScope(scope);
 
 // ─── flat row 타입 ───
 

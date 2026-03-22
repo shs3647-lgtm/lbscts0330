@@ -22,6 +22,7 @@ import {
   SHOW_EXAMPLES_COLUMN,
   uid,
 } from './SODMasterData';
+import { normalizeScope, SCOPE_YP, SCOPE_SP, SCOPE_USER } from '@/lib/fmea/scope-constants';
 
 interface SODSelectModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ interface SODSelectModalProps {
   category: 'S' | 'O' | 'D';
   fmeaType?: 'P-FMEA' | 'D-FMEA';
   currentValue?: number;
-  /** PFMEA: 'Your Plant' | 'Ship to Plant' | 'User', DFMEA: '법규' | '기본' | '보조' | '관능' */
+  /** PFMEA: 'YP' | 'SP' | 'USER', DFMEA: '법규' | '기본' | '보조' | '관능' */
   scope?: string;
   /** 고장영향(FE) 원문 — 심각도 모달에서 참조 표시 */
   feText?: string;
@@ -170,10 +171,11 @@ export default function SODSelectModal({
 
   if (!mounted || !isOpen || !initialized) return null;
 
+  const scopeNorm = scope ? normalizeScope(scope) : undefined;
   const headerBg =
-    scope === 'Your Plant' || scope === '기본' ? 'bg-blue-600' :
-      scope === 'Ship to Plant' || scope === '보조' ? 'bg-orange-600' :
-        scope === 'User' || scope === '관능' ? 'bg-purple-700' :
+    scopeNorm === SCOPE_YP || scope === '기본' ? 'bg-blue-600' :
+      scopeNorm === SCOPE_SP || scope === '보조' ? 'bg-orange-600' :
+        scopeNorm === SCOPE_USER || scope === '관능' ? 'bg-purple-700' :
           scope === '법규' ? 'bg-red-700' :
             categoryColors[category].bg;
 
@@ -272,20 +274,16 @@ export default function SODSelectModal({
                   // ✅ scope에 따라 올바른 필드 선택 (명시적 체크)
                   let content: string | undefined = '';
                   if (category === 'S') {
-                    const scopeStr = scope as string;
-                    const normalizedScope =
-                      scopeStr === 'YP' || scopeStr === 'Your Plant' ? 'Your Plant' :
-                        scopeStr === 'SP' || scopeStr === 'Ship to Plant' ? 'Ship to Plant' :
-                          scopeStr === 'User' || scopeStr === 'End User' ? 'User' : scope;
+                    const cellScope = scope ? normalizeScope(scope) : SCOPE_YP;
 
-                    if (normalizedScope === 'Your Plant') {
+                    if (cellScope === SCOPE_YP) {
                       content = item.yourPlant;
-                    } else if (normalizedScope === 'Ship to Plant') {
+                    } else if (cellScope === SCOPE_SP) {
                       content = item.shipToPlant;
                       if (!content) {
                         content = item.yourPlant || item.endUser || item.description;
                       }
-                    } else if (normalizedScope === 'User' || normalizedScope === '법규' || normalizedScope === '기본' || normalizedScope === '보조' || normalizedScope === '관능') {
+                    } else if (cellScope === SCOPE_USER || scope === '법규' || scope === '기본' || scope === '보조' || scope === '관능') {
                       content = item.endUser || item.yourPlant || item.description;
                     } else {
                       content = item.yourPlant || item.endUser || item.description;

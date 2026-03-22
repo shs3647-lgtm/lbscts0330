@@ -29,7 +29,7 @@
  *   fmProcess: string; // 공정명
  *   feId: string;      // FK: L1.failureScopes.id (빈 문자열 가능)
  *   feText: string;    // 고장영향 텍스트
- *   feScope: string;   // 구분 (Your Plant/Ship to Plant/User)
+ *   feScope: string;   // 구분 (YP/SP/USER)
  *   severity: number;  // 심각도
  *   fcId: string;      // FK: L3.failureCauses.id (빈 문자열 가능)
  *   fcText: string;    // 고장원인 텍스트
