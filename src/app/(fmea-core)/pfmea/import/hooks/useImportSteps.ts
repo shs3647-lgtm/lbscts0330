@@ -36,7 +36,8 @@ import {
   type ValidationResult,
 } from '../utils/importValidationFramework';
 import { quickWorksheetSave } from '../utils/quickWorksheetSave';
-import { supplementMissingItems } from '../utils/supplementMissingItems';
+// supplementMissingItems 삭제됨 (2026-03-22)
+const supplementMissingItems = (flatData: any[]) => flatData;
 // 규칙 등록 (import만으로 자동 등록)
 import '../utils/importValidationRules';
 

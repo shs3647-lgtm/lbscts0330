@@ -23,7 +23,8 @@ import type {
   Process,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import { uid } from '@/app/(fmea-core)/pfmea/worksheet/constants';
-import { genFC } from '@/lib/uuid-generator';
+// uuid-generator 삭제됨 (2026-03-22) — uid() 사용
+const genFC = (..._args: any[]) => `FC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 import { assignEntityUUIDsToChains } from './assignChainUUIDs';
 
 // ─── Types ───

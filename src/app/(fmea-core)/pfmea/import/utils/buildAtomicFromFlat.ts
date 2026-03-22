@@ -30,7 +30,8 @@ import type {
   RiskAnalysis,
 } from '../../worksheet/schema';
 import { uid } from '../../worksheet/schema';
-import { genA1 } from '@/lib/uuid-generator';
+// uuid-generator 삭제됨 (2026-03-22)
+const genA1 = (_doc: string, pno: number) => `L2-PNO-${String(pno).padStart(3, '0')}`;
 import { calculateAP } from '../../import/types/masterFailureChain';
 
 // ============================================================

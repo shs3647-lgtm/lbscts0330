@@ -47,17 +47,8 @@ export async function POST(request: NextRequest) {
       chainCount: Array.isArray(failureChains) ? failureChains.length : 0,
     });
 
-    // 1.5. ★ 누락 항목 보충 — buildAtomicFromFlat 전에 B1 등 누락 보충
-    const { supplementMissingItems } = await import(
-      '@/app/(fmea-core)/pfmea/import/utils/supplementMissingItems'
-    );
-    const chainsArray = Array.isArray(failureChains) && failureChains.length > 0
-      ? failureChains : undefined;
-    const supplements = supplementMissingItems(flatData, chainsArray || []);
-    const enrichedFlatData = supplements.length > 0 ? [...flatData, ...supplements] : flatData;
-    if (supplements.length > 0) {
-      console.info(`[save-from-import] 누락 보충: ${supplements.length}건`);
-    }
+    // 1.5. supplementMissingItems 삭제됨 (2026-03-22) — flatData 직접 사용
+    const enrichedFlatData = flatData;
 
     // 1.7. ★ 파싱 검증→자동수정→피드백 파이프라인 실행
     const { runParseValidationPipeline, formatValidationReport } = await import(

@@ -16,7 +16,6 @@ import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '..
 import { inferDC, inferPC, getDefaultRuleSet } from '../stepb-parser/pc-dc-inference';
 import { runParsingCriteriaValidation } from '../utils/parsing-criteria-validator';
 import { convertParseResultToStepBBuildData, convertStepBChainsToMasterChains } from '../utils/parseResultToStepBData';
-import { convertToImportFormat } from '../stepb-parser/import-builder';
 import { WarningCollector } from '../stepb-parser/types';
 
 interface UseImportFileHandlersProps {
@@ -203,43 +202,11 @@ export function useImportFileHandlers({
         );
       }
 
-      // ★★★ 2026-03-21: convertToImportFormat 기반 결정론적 ID 생성 ★★★
-      // ParseResult → StepBBuildData 변환 후 convertToImportFormat 호출
-      // 결과: 결정론적 ID (PF-L3-040-IM-001 등) + chain FK (fmFlatId/fcFlatId/feFlatId)
-      const stepBData = convertParseResultToStepBBuildData(result);
-      const warn = new WarningCollector();
-      const importResult = convertToImportFormat(stepBData, warn);
-
-      // flat 배열에 결정론적 ID 기반 데이터 할당
-      const flat: ImportedFlatData[] = [...importResult.flatData];
-
-      // chains를 MasterFailureChain 형식으로 변환 (fmFlatId/fcFlatId/feFlatId 포함)
+      // ★★★ 2026-03-22: import-builder 제거됨 → ParseResult.flatData 직접 사용 ★★★
+      const flat: ImportedFlatData[] = [...(result.flatData || [])];
       const chains = result.failureChains;
-      if (importResult.failureChains.length > 0) {
-        const updatedChains = convertStepBChainsToMasterChains(
-          importResult.failureChains,
-          chains || [],
-        );
-        setMasterChains?.(updatedChains);
-
-        // FC 파싱 즉시 DB 저장 (결정론적 flatId 포함)
-        if (fmeaId) {
-          fetch(`/api/pfmea/master?fmeaId=${encodeURIComponent(fmeaId)}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ failureChains: updatedChains }),
-          }).catch(err => console.error('[FC파싱] chains DB 즉시 저장 실패:', err));
-        }
-      }
-
-      // WarningCollector 로그 출력
-      const warnSummary = warn.summary();
-      if (warnSummary.WARN > 0 || warnSummary.ERROR > 0) {
-        console.log(`[import-builder] 경고: ${warnSummary.WARN}건 WARN, ${warnSummary.ERROR}건 ERROR`);
-        for (const w of warn.getAll()) {
-          if (w.level === 'ERROR') console.error(`  [${w.code}] ${w.message}`);
-          else if (w.level === 'WARN') console.warn(`  [${w.code}] ${w.message}`);
-        }
+      if (chains && chains.length > 0) {
+        setMasterChains?.(chains);
       }
 
       // ★★★ A6(검출관리) 자동 추론 — 공정별 A6 미존재 시 inferDC(A5) ★★★

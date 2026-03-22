@@ -14,7 +14,8 @@ import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import type { CrossTab } from './template-delete-logic';
-import { supplementMissingItems } from './supplementMissingItems';
+// supplementMissingItems 삭제됨 (2026-03-22)
+const supplementMissingItems = (flatData: any[]) => flatData;
 
 export interface QuickSaveParams {
   fmeaId: string;

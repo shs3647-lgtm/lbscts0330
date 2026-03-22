@@ -31,7 +31,8 @@ import { validateStructuralCompleteness, summarizeStructuralIssues } from '../ut
 import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integrity-validation';
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
-import { supplementMissingItems } from '../utils/supplementMissingItems';
+// supplementMissingItems 삭제됨 (2026-03-22) — no-op 대체
+const supplementMissingItems = (flatData: any[]) => flatData;
 import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
 
 // ─── Props ───

@@ -7,7 +7,12 @@
 
 import type ExcelJS from 'exceljs';
 import type { StepBColumnMap, StepBRawRow, WarningCollector } from './types';
-import { stripPrefix, stripFECode, normalizeScope, toIntSafe, normalizeSC } from './prefix-utils';
+// prefix-utils 삭제됨 (2026-03-22) — 인라인 유틸로 대체 (extra args 무시)
+function stripPrefix(val: string, ..._args: any[]): string { return val.replace(/^[A-Z]\d+[_.\s-]+/i, '').trim(); }
+function stripFECode(val: string, ..._args: any[]): string { return val.replace(/^\[?[A-Z]{2,3}\d*\]?\s*/i, '').trim(); }
+function normalizeScope(raw: string, ..._args: any[]): string { const u = raw.toUpperCase().trim(); if (u.includes('YOUR') || u === 'YP') return 'YP'; if (u.includes('SHIP') || u === 'SP') return 'SP'; if (u.includes('USER') || u.includes('END') || u === 'US') return 'USER'; return u || 'YP'; }
+function toIntSafe(val: unknown, ..._args: any[]): number { const n = parseInt(String(val), 10); return isNaN(n) ? 0 : n; }
+function normalizeSC(raw: string, ..._args: any[]): string { const t = (raw || '').trim(); if (t === '◇' || t === '◆' || t === '△' || t === '○') return t; return ''; }
 
 // carry-forward 대상 필드 (병합셀 누락 보완)
 const CARRY_FIELDS = [
