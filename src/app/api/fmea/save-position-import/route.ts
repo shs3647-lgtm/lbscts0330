@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l2Structures.map(s => ({
             id: s.id, fmeaId: normalizedId, l1Id: s.l1Id, no: s.no, name: s.name, order: s.order,
+            parentId: s.parentId || null,
           })),
         });
       }
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l3Structures.map(s => ({
             id: s.id, fmeaId: normalizedId, l1Id: s.l1Id, l2Id: s.l2Id, m4: s.m4, name: s.name, order: s.order,
+            parentId: s.parentId || null,
           })),
         });
       }
@@ -92,6 +94,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l1Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l1StructId: f.l1StructId,
+            parentId: f.parentId || null,
             category: f.category, functionName: f.functionName, requirement: f.requirement,
           })),
         });
@@ -103,6 +106,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l2Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l2StructId: f.l2StructId,
+            parentId: f.parentId || null,
             functionName: f.functionName, productChar: f.productChar, specialChar: f.specialChar,
           })),
         });
@@ -114,6 +118,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.processProductChars.map(pc => ({
             id: pc.id, fmeaId: normalizedId, l2StructId: pc.l2StructId,
+            parentId: pc.parentId || null,
             name: pc.name, specialChar: pc.specialChar, orderIndex: pc.orderIndex,
           })),
         });
@@ -137,6 +142,7 @@ export async function POST(request: NextRequest) {
         await tx.l3Function.createMany({
           data: atomicData.l3Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l3StructId: f.l3StructId, l2StructId: f.l2StructId,
+            parentId: f.parentId || null,
             functionName: f.functionName, processChar: f.processChar, specialChar: f.specialChar,
           })),
         });
@@ -149,6 +155,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.failureEffects.map(fe => ({
             id: fe.id, fmeaId: normalizedId, l1FuncId: fe.l1FuncId,
+            parentId: fe.parentId || null,
             category: fe.category, effect: fe.effect, severity: fe.severity,
           })),
         });
@@ -161,6 +168,7 @@ export async function POST(request: NextRequest) {
           data: atomicData.failureModes.map(fm => ({
             id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
             l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
+            parentId: fm.parentId || null,
           })),
         });
       }
@@ -172,6 +180,7 @@ export async function POST(request: NextRequest) {
             id: fc.id, fmeaId: normalizedId, l3FuncId: fc.l3FuncId,
             l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
             processCharId: fc.l3FuncId || null, cause: fc.cause,
+            parentId: fc.parentId || null,
           })),
         });
         console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성`);
