@@ -280,6 +280,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const l3Functions: PosL3Function[] = [];
   const failureCauses: PosFailureCause[] = [];
   let l3Order = 0;
+  const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string }>();
 
   for (const row of l3Sheet.rows) {
     const rn = row.excelRow;
@@ -318,7 +319,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       specialChar: sc || undefined,
     });
 
-    // FailureCause: B4가 있으면 생성
+    // FailureCause: B4가 있으면 생성 (없으면 FC 시트에서 보완)
     if (b4) {
       const fcId = positionUUID('L3', rn, L3_FC_COL);
       failureCauses.push({
@@ -331,7 +332,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
       resolver.registerFC(rn, fcId, b4, pno, m4, b1);
     }
+    // B4 없는 행을 FC 시트 보완용으로 등록 (cause는 FC 시트 파싱 후 채움)
+    if (!b4) {
+      l3RowNoB4.set(rn, { l3FuncId, l3Id, l2Id, pno, m4, b1 });
+    }
   }
+
 
   // ═══════════════════════════════════════════
   // Sheet 4: FC (고장사슬) → FailureLink + RiskAnalysis
@@ -520,6 +526,7 @@ function excelCellStr(row: any, col: number): string {
   if (typeof cell.value === 'object' && 'richText' in cell.value) {
     return (cell.value.richText || []).map((r: any) => r.text || '').join('').trim();
   }
+  // 숫자/날짜도 문자열로 변환
   return String(cell.value).trim();
 }
 
@@ -533,8 +540,8 @@ function detectColumns(ws: any, keywordMap: Record<string, string[]>): Record<st
   for (let headerRow = 1; headerRow <= 3; headerRow++) {
     const row = ws.getRow(headerRow);
     if (!row) continue;
-    const totalCols = row.cellCount || 20;
-    for (let c = 1; c <= Math.min(totalCols + 5, 30); c++) {
+    const totalCols = Math.max(row.cellCount || 20, 500); // ★ 최대 500컬럼까지 스캔
+    for (let c = 1; c <= totalCols; c++) {
       const val = excelCellStr(row, c).toUpperCase();
       if (!val) continue;
       for (const [key, keywords] of Object.entries(keywordMap)) {
@@ -652,6 +659,10 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   });
   const l3Header = detectHeaderRow(l3WS, { B1: ['B1', '작업요소'], B4: ['B4', '고장원인'] });
   console.log(`[position-parser] L3 columns: ${JSON.stringify(l3ColMap)}, headerRow: ${l3Header}`);
+  // ★ B4 감지 실패 시 경고
+  if (!l3ColMap.B4) {
+    console.warn('[position-parser] ⚠️ L3 시트 B4(고장원인) 컬럼 감지 실패 — fallback col 7 사용. 헤더 확인 필요');
+  }
 
   const l3Rows: SheetRow[] = [];
   l3WS.eachRow((row: any, rn: number) => {
@@ -721,6 +732,12 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   });
 
   console.log(`[position-parser] Rows: L1=${l1Rows.length} L2=${l2Rows.length} L3=${l3Rows.length} FC=${fcRows.length}`);
+  // ★ B4 감지 진단: 빈 B4 행 출력
+  const emptyB4Rows = l3Rows.filter(r => !r.cells.B4?.trim());
+  if (emptyB4Rows.length > 0) {
+    console.warn(`[position-parser] ⚠️ L3 시트 B4 빈값 ${emptyB4Rows.length}건:`, emptyB4Rows.map(r => `R${r.excelRow}(${r.cells.processNo}/${r.cells.m4}/${(r.cells.B1||'').substring(0,15)})`).join(', '));
+    console.warn(`[position-parser] B4 컬럼 감지: col=${l3ColMap.B4 || 7}(fallback). 실제 B4 헤더 확인 필요`);
+  }
 
   const json: PositionBasedJSON = {
     targetId: targetId || '',
@@ -840,27 +857,21 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     flat.push({ id: s.id, processNo: l2?.no || '', category: 'B', itemCode: 'B1', value: s.name, m4: s.m4 || undefined, createdAt: now, rowSpan: 1 });
   }
 
-  // B2/B3/SC: L3Function 기준 — m4 포함 (B1과 동일 m4, buildCrossTab 매칭용)
+  // B2/B3/SC: L3Function 기준 (1 L3Function = 1 B2 = 1 B3, 1:N 구조 정확 반영)
   const l3StructMap = new Map(data.l3Structures.map(s => [s.id, s]));
-  // L3Function → L3Structure 매핑 (B2/B3가 B1과 1:1 매칭되도록)
-  const l3FuncByStruct = new Map<string, typeof data.l3Functions[0]>();
   for (const f of data.l3Functions) {
-    if (!l3FuncByStruct.has(f.l3StructId)) l3FuncByStruct.set(f.l3StructId, f);
-  }
-  // B2/B3/SC는 L3Structure 기준으로 생성 → B1과 동일한 수 보장
-  for (const s of data.l3Structures) {
-    const l2 = data.l2Structures.find(d => d.id === s.l2Id);
-    const f = l3FuncByStruct.get(s.id);
+    const l3 = l3StructMap.get(f.l3StructId);
+    const l2 = l3 ? data.l2Structures.find(d => d.id === l3.l2Id) : undefined;
     const pno = l2?.no || '';
-    const m4 = s.m4 || undefined;
+    const m4 = l3?.m4 || undefined;
     // B2
-    flat.push({ id: f?.id || `${s.id}-B2`, processNo: pno, category: 'B', itemCode: 'B2', value: f?.functionName || '', m4, createdAt: now, rowSpan: 1 });
-    // B3 (공정특성 + 특별특성)
-    const sc = f?.specialChar || undefined;
-    flat.push({ id: `${s.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f?.processChar || '', specialChar: sc, m4, createdAt: now, rowSpan: 1 });
-    // SC: 특별특성 별도 itemCode (ImportInputSection counts 계산용)
+    flat.push({ id: f.id, processNo: pno, category: 'B', itemCode: 'B2', value: f.functionName, m4, createdAt: now, rowSpan: 1 });
+    // B3 (공정특성)
+    const sc = f.specialChar || undefined;
+    flat.push({ id: `${f.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f.processChar, specialChar: sc, m4, createdAt: now, rowSpan: 1 });
+    // SC: 특별특성 별도 itemCode
     if (sc) {
-      flat.push({ id: `${s.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC' as any, value: sc, m4, createdAt: now, rowSpan: 1 });
+      flat.push({ id: `${f.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC' as any, value: sc, m4, createdAt: now, rowSpan: 1 });
     }
   }
 
