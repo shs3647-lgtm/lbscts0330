@@ -85,6 +85,15 @@ export async function POST(request: NextRequest) {
     const prisma = getPrismaForSchema(schema);
     if (!prisma) return NextResponse.json({ success: false, error: 'Prisma not configured' }, { status: 200 });
 
+    // ★★★ 2026-03-22: 위치기반 UUID 감지 → FL/FC/RA 삭제 금지 (보존 + 리매칭) ★★★
+    const sampleFL = await prisma.failureLink.findFirst({ where: { fmeaId }, select: { id: true } });
+    const sampleFC = await prisma.failureCause.findFirst({ where: { fmeaId }, select: { id: true } });
+    const POS_UUID = /^(L[123]|FC)-R\d+/;
+    const isPositionBased = (sampleFL && POS_UUID.test(sampleFL.id)) || (sampleFC && POS_UUID.test(sampleFC.id));
+    if (isPositionBased) {
+      console.log(`[rebuild-atomic] 위치기반 UUID 감지 → FL/FC/RA 삭제 금지, processCharId 리매칭 수행`);
+    }
+
     // ★★★ 2026-03-20: Atomic DB 존재 확인 — Legacy 의존성 완전 제거 ★★★
     const l2Count = await prisma.l2Structure.count({ where: { fmeaId } });
     if (l2Count === 0) {
@@ -840,8 +849,8 @@ export async function POST(request: NextRequest) {
         const POS_UUID_RE_FL = /^(L[123]|FC)-R\d+/;
         const invalidLinkIds: string[] = [];
         for (const l of atomic.failureLinks) {
-          // ★ 위치기반 UUID FL은 save-position-import가 생성한 것 → 보호 (삭제 금지)
-          if (POS_UUID_RE_FL.test((l as any).id)) continue;
+          // ★ 위치기반 UUID FL: 삭제 금지, 리매칭은 별도 수행
+          if (isPositionBased || POS_UUID_RE_FL.test((l as any).id)) continue;
           const hasFm = fmIdSet.has((l as any).fmId);
           const hasFe = feIdSet.has((l as any).feId);
           const hasFc = fcIdSet.has((l as any).fcId);
@@ -1239,7 +1248,10 @@ export async function POST(request: NextRequest) {
         const linkedFcIds = new Set(
           (await tx.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } })).map((f: { fcId: string }) => f.fcId)
         );
-        const orphanFcIds = allFcIds.filter((id: string) => !linkedFcIds.has(id) && !POS_UUID_RE.test(id));
+        // ★ 위치기반 UUID FC는 고아 처리 금지 (RA 보완은 아래서 수행)
+        const orphanFcIds = isPositionBased
+          ? []
+          : allFcIds.filter((id: string) => !linkedFcIds.has(id) && !POS_UUID_RE.test(id));
         if (orphanFcIds.length > 0) {
           // Cascade delete: find FLs referencing orphan FCs (safety — should be 0 by definition)
           const orphanFcFLs = await tx.failureLink.findMany({
@@ -1265,6 +1277,50 @@ export async function POST(request: NextRequest) {
 
           await tx.failureCause.deleteMany({ where: { id: { in: orphanFcIds } } });
           console.info(`[rebuild-atomic] 고아 FC 삭제: ${orphanFcIds.length}건 (FL에 미참조)`);
+        }
+      }
+
+      // ★★★ 위치기반 UUID 프로젝트: FL 있는데 RA 없으면 RA 보완 생성 ★★★
+      if (isPositionBased) {
+        const allFLs = await tx.failureLink.findMany({ where: { fmeaId }, select: { id: true } });
+        const existingRaLinkIds = new Set(
+          (await tx.riskAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } })).map((r: { linkId: string }) => r.linkId)
+        );
+        const missingRaFLs = allFLs.filter((fl: { id: string }) => !existingRaLinkIds.has(fl.id));
+        if (missingRaFLs.length > 0) {
+          const now = new Date();
+          await tx.riskAnalysis.createMany({
+            data: missingRaFLs.map((fl: { id: string }) => ({
+              id: `${fl.id}-RA`,
+              fmeaId,
+              linkId: fl.id,
+              severity: 1,
+              occurrence: 1,
+              detection: 1,
+              ap: 'L',
+              createdAt: now,
+              updatedAt: now,
+            })),
+            skipDuplicates: true,
+          });
+          console.info(`[rebuild-atomic] 위치기반 RA 보완: ${missingRaFLs.length}건 생성`);
+        }
+
+        // processCharId 리매칭: FC.l3FuncId로 설정
+        const fcsNeedingPCFix = await tx.failureCause.findMany({
+          where: { fmeaId, processCharId: null },
+          select: { id: true, l3FuncId: true },
+        });
+        if (fcsNeedingPCFix.length > 0) {
+          for (const fc of fcsNeedingPCFix) {
+            if (fc.l3FuncId) {
+              await tx.failureCause.update({
+                where: { id: fc.id },
+                data: { processCharId: fc.l3FuncId },
+              });
+            }
+          }
+          console.info(`[rebuild-atomic] 위치기반 processCharId 리매칭: ${fcsNeedingPCFix.length}건`);
         }
       }
 
