@@ -215,12 +215,42 @@ export function useRegisterPageHandlers(core: CoreReturn) {
   // 저장
   // =====================================================
   const handleSave = useCallback(async () => {
-    if (!fmeaId) {
-      alert('PFMEA ID가 없습니다. "새로 작성" 버튼을 눌러 ID를 먼저 생성해주세요.');
-      setIsCreateModalOpen(true);
-      return;
-    }
     if (!fmeaInfo.subject?.trim()) { alert('PFMEA명을 입력해주세요.'); return; }
+
+    // fmeaId 없으면 triplet/create로 자동 생성
+    let currentFmeaId = fmeaId;
+    if (!currentFmeaId) {
+      try {
+        setSaveStatus('saving');
+        const docType = fmeaInfo.fmeaType === 'M' ? 'master' : fmeaInfo.fmeaType === 'F' ? 'family' : 'part';
+        const tripletRes = await fetch('/api/triplet/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            docType,
+            subject: fmeaInfo.subject.trim(),
+            productName: fmeaInfo.subject.trim(),
+            customerName: fmeaInfo.customerName?.trim() || '',
+            companyName: fmeaInfo.companyName?.trim() || 'LBS',
+            responsibleName: fmeaInfo.fmeaResponsibleName?.trim() || '',
+            partNo: fmeaInfo.partNo?.trim() || '',
+            ...(docType === 'part' ? { standalone: true } : {}),
+          }),
+        });
+        const tripletResult = await tripletRes.json();
+        if (!tripletResult.success) {
+          throw new Error(tripletResult.error || 'PFMEA ID 자동 생성 실패');
+        }
+        currentFmeaId = tripletResult.pfmeaId;
+        setFmeaId(currentFmeaId);
+        // URL에 id 파라미터 추가 (새로고침 시 유지)
+        window.history.replaceState(null, '', `/pfmea/register?id=${currentFmeaId}`);
+      } catch (err: any) {
+        setSaveStatus('idle');
+        alert(`PFMEA ID 자동 생성 오류: ${err.message}`);
+        return;
+      }
+    }
 
     let nameList = fmeaNameList;
     if (nameList.length === 0) {
@@ -232,7 +262,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     const isPfmea = pfmeaTypes.includes(currentType);
     const duplicateItem = nameList.find(f =>
       f.name.toLowerCase() === nameToCheck &&
-      f.id !== fmeaId &&
+      f.id !== currentFmeaId &&
       (isPfmea ? pfmeaTypes.includes(f.type) : f.type === currentType)
     );
     if (duplicateItem) {
@@ -243,7 +273,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
 
     setSaveStatus('saving');
     try {
-      const finalId = fmeaId.toLowerCase();
+      const finalId = currentFmeaId.toLowerCase();
       const updatedFmeaInfo = {
         ...fmeaInfo,
         linkedCpNo: linkedCpList.length > 0 ? linkedCpList[0].id : (fmeaInfo.linkedCpNo || ''),
