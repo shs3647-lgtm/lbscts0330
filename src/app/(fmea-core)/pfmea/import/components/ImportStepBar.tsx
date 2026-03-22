@@ -10,7 +10,6 @@
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { useImportSteps } from '../hooks/useImportSteps';
@@ -41,14 +40,13 @@ interface ImportStepBarProps {
 export default function ImportStepBar({
   flatData, fmeaId, failureChains: propChains, fmeaInfo, l1Name,
 }: ImportStepBarProps) {
-  const router = useRouter();
-
   const crossTab = useMemo(() => buildCrossTab(flatData), [flatData]);
   const failureChains = useMemo(() => propChains ?? [], [propChains]);
 
   const onWorksheetSaved = useCallback(() => {
-    router.push(`/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}`);
-  }, [router, fmeaId]);
+    // ★ window.location.href로 전체 새로고침 — React stale state 방지
+    window.location.href = `/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}&fresh=1`;
+  }, [fmeaId]);
 
   const {
     canSA,
@@ -135,7 +133,7 @@ export default function ImportStepBar({
 
         {/* 워크시트 이동 */}
         <button
-          onClick={() => router.push(`/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}`)}
+          onClick={() => { window.location.href = `/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}&fresh=1`; }}
           className="px-3 py-0.5 rounded text-[10px] font-bold border border-orange-400 text-white bg-orange-500 hover:bg-orange-600 cursor-pointer">
           워크시트 →
         </button>

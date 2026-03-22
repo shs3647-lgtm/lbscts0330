@@ -614,7 +614,8 @@ export async function POST(request: NextRequest) {
             atomic.l3Functions = refreshedL3Fs;
           }
 
-          // ★★★ 2026-03-22: 비마스터 경로 — FC/FL/RA 생성 (FlatItem B4/A6/B5 기반) ★★★
+          // ★★★ 2026-03-22: 비마스터 경로 — FC/FL/RA 독립 보충 (FlatItem B4/A6/B5 기반) ★★★
+          // ★ stageA2+A3: 각 엔티티별 독립 게이트 — FC>0이어도 FL=0이면 FL 생성
           {
             const publicPr = getPrisma();
             const ds = publicPr ? await publicPr.pfmeaMasterDataset.findFirst({ where: { fmeaId }, select: { id: true } }) : null;
@@ -625,7 +626,7 @@ export async function POST(request: NextRequest) {
                 return mm ? String(parseInt(mm[1], 10)) : '';
               };
 
-              // --- A) FailureCause 생성 (B4 FlatItem → FC) ---
+              // --- A) FailureCause 보충 (독립 게이트) ---
               const existingFCCount = await tx.failureCause.count({ where: { fmeaId } });
               if (existingFCCount === 0) {
                 const flatB4 = await publicPr.pfmeaMasterFlatItem.findMany({
@@ -634,13 +635,11 @@ export async function POST(request: NextRequest) {
                   orderBy: [{ processNo: 'asc' }, { m4: 'asc' }],
                 });
 
-                // L3Structure → m4 매핑 (L3Function에는 m4 없음)
                 const l3StructM4 = new Map<string, string>();
                 for (const l3s of atomic.l3Structures) {
                   l3StructM4.set((l3s as any).id, (l3s as any).m4 || '');
                 }
 
-                // L3Function을 l2StructId+m4(from L3Struct)로 그룹화
                 const l3FuncByL2M4 = new Map<string, any[]>();
                 const l3FuncByL2All = new Map<string, any[]>();
                 for (const l3f of atomic.l3Functions) {
@@ -654,7 +653,6 @@ export async function POST(request: NextRequest) {
                 }
 
                 const fcToCreate: any[] = [];
-                const fcByL2 = new Map<string, any[]>();
                 const fcIdxByL2 = new Map<string, number>();
                 const usedM4Idx = new Map<string, number>();
 
@@ -665,7 +663,6 @@ export async function POST(request: NextRequest) {
                   const allL3F = l3FuncByL2All.get(l2Id) || [];
                   if (allL3F.length === 0) continue;
 
-                  // m4 매칭: B4.m4 → L3Structure.m4 → L3Function
                   const m4Key = `${l2Id}|${b4.m4 || ''}`;
                   const m4Funcs = l3FuncByL2M4.get(m4Key) || [];
                   const m4Idx = usedM4Idx.get(m4Key) || 0;
@@ -675,12 +672,11 @@ export async function POST(request: NextRequest) {
                     ? m4Funcs[Math.min(m4Idx, m4Funcs.length - 1)]
                     : allL3F[Math.min(m4Idx, allL3F.length - 1)];
 
-                  // FC ID: L2별 글로벌 순번으로 고유성 보장
                   const globalIdx = fcIdxByL2.get(l2Id) || 0;
                   fcIdxByL2.set(l2Id, globalIdx + 1);
                   const fcId = `FC-${l2Id}-${globalIdx}`;
 
-                  const fc = {
+                  fcToCreate.push({
                     id: fcId, fmeaId,
                     l2StructId: l2Id,
                     l3StructId: (matchedL3F as any).l3StructId,
@@ -689,147 +685,152 @@ export async function POST(request: NextRequest) {
                     occurrence: 1,
                     processCharId: (matchedL3F as any).id,
                     createdAt: now, updatedAt: now,
-                  };
-                  fcToCreate.push(fc);
-                  if (!fcByL2.has(l2Id)) fcByL2.set(l2Id, []);
-                  fcByL2.get(l2Id)!.push(fc);
+                  });
                 }
 
                 if (fcToCreate.length > 0) {
                   await tx.failureCause.createMany({ data: fcToCreate, skipDuplicates: true });
-                  console.info(`[rebuild-atomic] DB 다이렉트 FailureCause: ${fcToCreate.length}`);
-                  atomic.failureCauses = await tx.failureCause.findMany({ where: { fmeaId } });
+                  console.info(`[rebuild-atomic] FC 보충: ${fcToCreate.length}`);
+                }
+              }
+              // ★ FC 리프레시 (DB에서 최신 상태 로드 — save-from-import 데이터 포함)
+              atomic.failureCauses = await tx.failureCause.findMany({ where: { fmeaId } });
+
+              // --- B) FailureLink 보충 (독립 게이트 — FC 존재 여부와 무관) ---
+              const existingFLCount = await tx.failureLink.count({ where: { fmeaId } });
+              if (existingFLCount === 0 && atomic.failureCauses.length > 0) {
+                // fcByL2: DB의 현재 FC 기준 (save-from-import 또는 위에서 생성한 FC 포함)
+                const fcByL2 = new Map<string, any[]>();
+                for (const fc of atomic.failureCauses) {
+                  const l2Id = (fc as any).l2StructId || '';
+                  if (!fcByL2.has(l2Id)) fcByL2.set(l2Id, []);
+                  fcByL2.get(l2Id)!.push(fc);
                 }
 
-                // --- B) FailureLink 생성 (FM × FC × FE, 같은 L2 기준) ---
-                const existingFLCount = await tx.failureLink.count({ where: { fmeaId } });
-                if (existingFLCount === 0 && fcToCreate.length > 0) {
-                  const fmByL2 = new Map<string, any[]>();
-                  for (const fm of atomic.failureModes) {
-                    const l2Id = (fm as any).l2StructId || '';
-                    if (!fmByL2.has(l2Id)) fmByL2.set(l2Id, []);
-                    fmByL2.get(l2Id)!.push(fm);
+                const fmByL2 = new Map<string, any[]>();
+                for (const fm of atomic.failureModes) {
+                  const l2Id = (fm as any).l2StructId || '';
+                  if (!fmByL2.has(l2Id)) fmByL2.set(l2Id, []);
+                  fmByL2.get(l2Id)!.push(fm);
+                }
+
+                const l2ToL1 = new Map<string, string>();
+                for (const l2 of atomic.l2Structures) {
+                  l2ToL1.set((l2 as any).id, (l2 as any).l1Id || '');
+                }
+
+                const feByL1Func = new Map<string, any[]>();
+                for (const fe of atomic.failureEffects) {
+                  const l1fId = (fe as any).l1FuncId || '';
+                  if (!feByL1Func.has(l1fId)) feByL1Func.set(l1fId, []);
+                  feByL1Func.get(l1fId)!.push(fe);
+                }
+
+                const l1FuncByL1 = new Map<string, any[]>();
+                for (const l1f of atomic.l1Functions) {
+                  const l1Id = (l1f as any).l1StructId || '';
+                  if (!l1FuncByL1.has(l1Id)) l1FuncByL1.set(l1Id, []);
+                  l1FuncByL1.get(l1Id)!.push(l1f);
+                }
+
+                const flToCreate: any[] = [];
+                const flKeySet = new Set<string>();
+
+                for (const l2 of atomic.l2Structures) {
+                  const l2Id = (l2 as any).id;
+                  const l1Id = l2ToL1.get(l2Id) || '';
+                  const fms = fmByL2.get(l2Id) || [];
+                  const fcs = fcByL2.get(l2Id) || [];
+                  if (fms.length === 0 || fcs.length === 0) continue;
+
+                  const l1Funcs = l1FuncByL1.get(l1Id) || [];
+                  const allFEs: any[] = [];
+                  for (const l1f of l1Funcs) {
+                    const fes = feByL1Func.get((l1f as any).id) || [];
+                    allFEs.push(...fes);
                   }
+                  if (allFEs.length === 0) continue;
 
-                  const l2ToL1 = new Map<string, string>();
-                  for (const l2 of atomic.l2Structures) {
-                    l2ToL1.set((l2 as any).id, (l2 as any).l1Id || '');
-                  }
+                  for (const fc of fcs) {
+                    const fm = fms.length === 1
+                      ? fms[0]
+                      : fms[Math.min(fcs.indexOf(fc) % fms.length, fms.length - 1)];
 
-                  const feByL1Func = new Map<string, any[]>();
-                  for (const fe of atomic.failureEffects) {
-                    const l1fId = (fe as any).l1FuncId || '';
-                    if (!feByL1Func.has(l1fId)) feByL1Func.set(l1fId, []);
-                    feByL1Func.get(l1fId)!.push(fe);
-                  }
+                    const feIdx = fcs.indexOf(fc) % allFEs.length;
+                    const fe = allFEs[feIdx];
 
-                  const l1FuncByL1 = new Map<string, any[]>();
-                  for (const l1f of atomic.l1Functions) {
-                    const l1Id = (l1f as any).l1StructId || '';
-                    if (!l1FuncByL1.has(l1Id)) l1FuncByL1.set(l1Id, []);
-                    l1FuncByL1.get(l1Id)!.push(l1f);
-                  }
+                    const flKey = `${(fm as any).id}|${(fc as any).id}|${(fe as any).id}`;
+                    if (flKeySet.has(flKey)) continue;
+                    flKeySet.add(flKey);
 
-                  const flToCreate: any[] = [];
-                  const flKeySet = new Set<string>();
-
-                  for (const l2 of atomic.l2Structures) {
-                    const l2Id = (l2 as any).id;
-                    const l1Id = l2ToL1.get(l2Id) || '';
-                    const fms = fmByL2.get(l2Id) || [];
-                    const fcs = fcByL2.get(l2Id) || [];
-                    if (fms.length === 0 || fcs.length === 0) continue;
-
-                    const l1Funcs = l1FuncByL1.get(l1Id) || [];
-                    const allFEs: any[] = [];
-                    for (const l1f of l1Funcs) {
-                      const fes = feByL1Func.get((l1f as any).id) || [];
-                      allFEs.push(...fes);
-                    }
-                    if (allFEs.length === 0) continue;
-
-                    for (const fc of fcs) {
-                      const fm = fms.length === 1
-                        ? fms[0]
-                        : fms[Math.min(fcs.indexOf(fc) % fms.length, fms.length - 1)];
-
-                      const feIdx = fcs.indexOf(fc) % allFEs.length;
-                      const fe = allFEs[feIdx];
-
-                      const flKey = `${(fm as any).id}|${fc.id}|${(fe as any).id}`;
-                      if (flKeySet.has(flKey)) continue;
-                      flKeySet.add(flKey);
-
-                      flToCreate.push({
-                        id: `FL-${l2Id}-${flToCreate.length}`,
-                        fmeaId,
-                        fmId: (fm as any).id,
-                        feId: (fe as any).id,
-                        fcId: fc.id,
-                        fmText: (fm as any).mode || '',
-                        feText: (fe as any).effect || '',
-                        fcText: fc.cause || '',
-                        createdAt: now, updatedAt: now,
-                      });
-                    }
-                  }
-
-                  if (flToCreate.length > 0) {
-                    await tx.failureLink.createMany({ data: flToCreate, skipDuplicates: true });
-                    console.info(`[rebuild-atomic] DB 다이렉트 FailureLink: ${flToCreate.length}`);
-                    atomic.failureLinks = await tx.failureLink.findMany({ where: { fmeaId } });
-                  }
-
-                  // --- C) RiskAnalysis 생성 + A6(DC)/B5(PC) 동기화 ---
-                  const existingRACount = await tx.riskAnalysis.count({ where: { fmeaId } });
-                  if (existingRACount === 0 && flToCreate.length > 0) {
-                    const flatA6 = await publicPr.pfmeaMasterFlatItem.findMany({
-                      where: { datasetId: ds.id, itemCode: 'A6' },
-                      select: { processNo: true, value: true },
+                    flToCreate.push({
+                      id: `FL-${l2Id}-${flToCreate.length}`,
+                      fmeaId,
+                      fmId: (fm as any).id,
+                      feId: (fe as any).id,
+                      fcId: (fc as any).id,
+                      fmText: (fm as any).mode || '',
+                      feText: (fe as any).effect || '',
+                      fcText: (fc as any).cause || '',
+                      createdAt: now, updatedAt: now,
                     });
-                    const flatB5 = await publicPr.pfmeaMasterFlatItem.findMany({
-                      where: { datasetId: ds.id, itemCode: 'B5' },
-                      select: { processNo: true, value: true },
-                    });
-
-                    const dcByPno = new Map<string, string>();
-                    for (const a6 of flatA6) {
-                      const pno = String(parseInt(a6.processNo, 10));
-                      if (!dcByPno.has(pno) && a6.value?.trim()) dcByPno.set(pno, a6.value);
-                    }
-                    const pcByPno = new Map<string, string>();
-                    for (const b5 of flatB5) {
-                      const pno = String(parseInt(b5.processNo, 10));
-                      if (!pcByPno.has(pno) && b5.value?.trim()) pcByPno.set(pno, b5.value);
-                    }
-
-                    const raToCreate: any[] = [];
-                    for (const fl of flToCreate) {
-                      const l2Id = fl.id.split('-')[1] + '-' + fl.id.split('-')[2] + '-' + fl.id.split('-')[3];
-                      const pno = extractPnoLocal(fl.fmId.includes('L2-PNO') ? fl.fmId : '');
-                      const fmObj = atomic.failureModes.find((fm: any) => fm.id === fl.fmId);
-                      const fmL2Id = (fmObj as any)?.l2StructId || '';
-                      const pnoFromFm = extractPnoLocal(fmL2Id);
-
-                      raToCreate.push({
-                        id: `RA-${fl.id}`,
-                        fmeaId,
-                        linkId: fl.id,
-                        severity: 1,
-                        occurrence: 1,
-                        detection: 1,
-                        ap: '',
-                        detectionControl: dcByPno.get(pnoFromFm) || null,
-                        preventionControl: pcByPno.get(pnoFromFm) || null,
-                        createdAt: now, updatedAt: now,
-                      });
-                    }
-
-                    if (raToCreate.length > 0) {
-                      await tx.riskAnalysis.createMany({ data: raToCreate, skipDuplicates: true });
-                      console.info(`[rebuild-atomic] DB 다이렉트 RiskAnalysis: ${raToCreate.length} (DC=${[...dcByPno.values()].length} PC=${[...pcByPno.values()].length})`);
-                    }
                   }
+                }
+
+                if (flToCreate.length > 0) {
+                  await tx.failureLink.createMany({ data: flToCreate, skipDuplicates: true });
+                  console.info(`[rebuild-atomic] FL 보충: ${flToCreate.length}`);
+                }
+              }
+              // ★ FL 리프레시 (DB에서 최신 상태 로드)
+              atomic.failureLinks = await tx.failureLink.findMany({ where: { fmeaId } });
+
+              // --- C) RiskAnalysis 보충 (독립 게이트 — FC/FL 존재 여부와 무관) ---
+              const existingRACount = await tx.riskAnalysis.count({ where: { fmeaId } });
+              if (existingRACount === 0 && atomic.failureLinks.length > 0) {
+                const flatA6 = await publicPr.pfmeaMasterFlatItem.findMany({
+                  where: { datasetId: ds.id, itemCode: 'A6' },
+                  select: { processNo: true, value: true },
+                });
+                const flatB5 = await publicPr.pfmeaMasterFlatItem.findMany({
+                  where: { datasetId: ds.id, itemCode: 'B5' },
+                  select: { processNo: true, value: true },
+                });
+
+                const dcByPno = new Map<string, string>();
+                for (const a6 of flatA6) {
+                  const pno = String(parseInt(a6.processNo, 10));
+                  if (!dcByPno.has(pno) && a6.value?.trim()) dcByPno.set(pno, a6.value);
+                }
+                const pcByPno = new Map<string, string>();
+                for (const b5 of flatB5) {
+                  const pno = String(parseInt(b5.processNo, 10));
+                  if (!pcByPno.has(pno) && b5.value?.trim()) pcByPno.set(pno, b5.value);
+                }
+
+                const raToCreate: any[] = [];
+                for (const fl of atomic.failureLinks) {
+                  const fmObj = atomic.failureModes.find((fm: any) => fm.id === (fl as any).fmId);
+                  const fmL2Id = (fmObj as any)?.l2StructId || '';
+                  const pnoFromFm = extractPnoLocal(fmL2Id);
+
+                  raToCreate.push({
+                    id: `RA-${(fl as any).id}`,
+                    fmeaId,
+                    linkId: (fl as any).id,
+                    severity: 1,
+                    occurrence: 1,
+                    detection: 1,
+                    ap: 'L',
+                    detectionControl: dcByPno.get(pnoFromFm) || null,
+                    preventionControl: pcByPno.get(pnoFromFm) || null,
+                    createdAt: now, updatedAt: now,
+                  });
+                }
+
+                if (raToCreate.length > 0) {
+                  await tx.riskAnalysis.createMany({ data: raToCreate, skipDuplicates: true });
+                  console.info(`[rebuild-atomic] RA 보충: ${raToCreate.length} (DC=${[...dcByPno.values()].length} PC=${[...pcByPno.values()].length})`);
                 }
               }
             }

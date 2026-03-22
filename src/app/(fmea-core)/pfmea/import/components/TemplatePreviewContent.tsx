@@ -819,7 +819,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           {/* ★ 워크시트 이동 — 데이터 있으면 활성화 (FA 완료 불필요) */}
           {fmeaId && flatData.length > 0 && (
             <button
-              onClick={() => window.location.href = `/pfmea/worksheet?id=${fmeaId}`}
+              onClick={() => window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`}
               className="px-3 py-0.5 rounded text-[10px] font-bold border border-orange-400 text-white bg-orange-500 hover:bg-orange-600 cursor-pointer">
               워크시트 →
             </button>

@@ -82,7 +82,7 @@ export default function LegacyImportPage() {
 
   const handleWorksheetSaved = useCallback(() => {
     if (selectedFmeaId) {
-      window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}&tab=structure`;
+      window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}&tab=structure&fresh=1`;
     }
   }, [selectedFmeaId]);
 
@@ -479,7 +479,7 @@ export default function LegacyImportPage() {
             <span className="text-[10px] text-gray-400">상세 검증/편집: 워크시트 → Verify → STEP 0</span>
             {selectedFmeaId && (
               <button
-                onClick={() => window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}`}
+                onClick={() => window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}&fresh=1`}
                 disabled={flatData.length === 0}
                 className={`px-4 py-1.5 text-[12px] font-bold rounded shadow-sm ${
                   flatData.length > 0

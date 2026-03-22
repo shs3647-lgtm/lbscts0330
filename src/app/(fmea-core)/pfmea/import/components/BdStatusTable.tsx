@@ -57,7 +57,7 @@ function JudgeBadge({ processCount, fmCount, fcCount, fmeaId }: {
         onClick={(e) => {
           e.stopPropagation();
           if (fmeaId) {
-            window.location.href = `/pfmea/worksheet?id=${fmeaId}`;
+            window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`;
           }
         }}
         className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap bg-green-100 text-green-700 border-green-300 border hover:bg-green-200 cursor-pointer"

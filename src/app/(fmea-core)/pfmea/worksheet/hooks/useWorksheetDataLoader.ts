@@ -94,6 +94,18 @@ export function useWorksheetDataLoader({
       console.log('[WorksheetDataLoader] stale localStorage 클리어 완료 (FC fix)');
     }
 
+    // ★★★ 2026-03-22: Import 후 워크시트 이동 시 stale React state 방지
+    // URL에 fresh=1이 있으면 suppressAutoSave 활성화 → DB 데이터만 사용
+    const freshParam = urlParams.get('fresh');
+    if (freshParam === '1') {
+      suppressAutoSaveRef.current = true;
+      // fresh 파라미터 제거 (뒤로가기 시 불필요한 재적용 방지)
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('fresh');
+      window.history.replaceState({}, '', cleanUrl.toString());
+      console.log('[WorksheetDataLoader] Import 후 fresh 모드 — DB에서 최신 데이터 로드');
+    }
+
     // 원자성 DB 로드 시도 (async) - ★★★ 프로젝트 정보 로드도 여기서 ★★★
     (async () => {
 

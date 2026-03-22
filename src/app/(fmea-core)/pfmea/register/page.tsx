@@ -386,7 +386,7 @@ function PFMEARegisterPageContent() {
           }
           p.processDesc.forEach((v, i) => flat.push({ id: `${p.processNo}-A3-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A3', value: v, createdAt: new Date() }));
           p.productChars.forEach((v, i) => flat.push({ id: `${p.processNo}-A4-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A4', value: v, specialChar: p.productCharsSpecialChar?.[i] || undefined, createdAt: new Date() }));
-          p.failureModes.forEach((v, i) => flat.push({ id: `${p.processNo}-A5-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A5', value: v, createdAt: new Date() }));
+          p.failureModes.forEach((v, i) => flat.push({ id: `${p.processNo}-A5-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A5', value: v, specialChar: p.failureModesSpecialChar?.[i] || undefined, createdAt: new Date() }));
           p.workElements.forEach((v, i) => flat.push({ id: `${p.processNo}-B1-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B1', value: v, m4: p.workElements4M?.[i] || '', createdAt: new Date() }));
           p.elementFuncs.forEach((v, i) => flat.push({ id: `${p.processNo}-B2-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B2', value: v, m4: p.elementFuncs4M?.[i] || '', belongsTo: p.elementFuncsWE?.[i] || undefined, createdAt: new Date() }));
           p.processChars.forEach((v, i) => flat.push({ id: `${p.processNo}-B3-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B3', value: v, m4: p.processChars4M?.[i] || '', specialChar: p.processCharsSpecialChar?.[i] || undefined, belongsTo: p.processCharsWE?.[i] || undefined, createdAt: new Date() }));
@@ -398,7 +398,7 @@ function PFMEARegisterPageContent() {
               (p.processCharsWE?.[j] || '') === weB4 && (p.processChars4M?.[j] || '') === m4B4
             );
             const parentItemId = matchB3Idx >= 0 ? `${p.processNo}-B3-${matchB3Idx}` : undefined;
-            flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: m4B4, belongsTo: weB4 || undefined, parentItemId, createdAt: new Date() });
+            flat.push({ id: `${p.processNo}-B4-${i}`, processNo: p.processNo, category: 'B', itemCode: 'B4', value: v, m4: m4B4, specialChar: p.failureCausesSpecialChar?.[i] || undefined, belongsTo: weB4 || undefined, parentItemId, createdAt: new Date() });
           });
           p.detectionCtrls.forEach((v, i) => flat.push({ id: `${p.processNo}-A6-${i}`, processNo: p.processNo, category: 'A', itemCode: 'A6', value: v, createdAt: new Date() }));
           // ★ B5 parentItemId: WE+m4로 B1 id 매핑
@@ -415,7 +415,10 @@ function PFMEARegisterPageContent() {
           const categoryValue = p.productProcessName || 'YP';
           flat.push({ id: `C1-${p.productProcessName}`, processNo: categoryValue, category: 'C', itemCode: 'C1', value: p.productProcessName, createdAt: new Date() });
           p.productFuncs.forEach((v, i) => flat.push({ id: `C2-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C2', value: v, createdAt: new Date() }));
-          p.requirements.forEach((v, i) => flat.push({ id: `C3-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, createdAt: new Date() }));
+          p.requirements.forEach((v, i) => {
+            const c3Meta = p.itemMeta?.[`C3-${i}`];
+            flat.push({ id: `C3-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C3', value: v, parentItemId: c3Meta?.parentItemId || undefined, createdAt: new Date() });
+          });
           p.failureEffects.forEach((v, i) => flat.push({ id: `C4-${p.productProcessName}-${i}`, processNo: categoryValue, category: 'C', itemCode: 'C4', value: v, createdAt: new Date() }));
         });
         setFlatData(flat);
@@ -428,6 +431,22 @@ function PFMEARegisterPageContent() {
             if (saveRes.ok) {
               if (saveRes.datasetId) setBdDatasetId(saveRes.datasetId);
               setBdIsSaved(true); setBdDirty(false);
+              // ★ stageC1: FlatItem 저장 성공 → save-from-import 자동 호출 → Atomic DB 생성
+              try {
+                const saveImportRes = await fetch('/api/fmea/save-from-import', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fmeaId, flatData: flat, l1Name: '', failureChains: [] }),
+                });
+                const importResult = await saveImportRes.json();
+                if (importResult.success) {
+                  console.info(`[BD Import→Atomic] 성공: ${JSON.stringify(importResult.counts || {})}`);
+                } else {
+                  console.warn(`[BD Import→Atomic] 경고: ${importResult.error || 'unknown'}`);
+                }
+              } catch (atomicErr) {
+                console.error('[BD Import→Atomic] 오류:', atomicErr);
+              }
             } else {
               setBdDirty(true); setBdIsSaved(false);
             }

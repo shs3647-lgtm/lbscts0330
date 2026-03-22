@@ -252,7 +252,7 @@ export default function ReverseImportPanel({ selectedFmeaId, fmeaList }: Reverse
                   Import 엑셀 다운로드
                 </button>
                 <button
-                  onClick={() => window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}`}
+                  onClick={() => window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}&fresh=1`}
                   className="px-4 py-2 text-xs font-bold bg-orange-500 text-white rounded shadow-sm hover:bg-orange-600 cursor-pointer"
                 >
                   워크시트 이동
