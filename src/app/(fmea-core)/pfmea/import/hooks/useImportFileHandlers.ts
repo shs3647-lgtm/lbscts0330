@@ -92,11 +92,30 @@ export function useImportFileHandlers({
       await wb.xlsx.load(buf);
       const sheetNames = wb.worksheets.map((ws: { name: string }) => ws.name);
 
-      const { isPositionBasedFormat, parsePositionBasedWorkbook } = await import('@/lib/fmea/position-parser');
+      const { isPositionBasedFormat, parsePositionBasedWorkbook, atomicToFlatData } = await import('@/lib/fmea/position-parser');
       if (isPositionBasedFormat(sheetNames)) {
         console.log('[Import] 위치기반 5시트 포맷 감지:', sheetNames.join(', '));
         const atomicData = parsePositionBasedWorkbook(wb, fmeaId?.toLowerCase());
         console.log('[Import] position-parser stats:', JSON.stringify(atomicData.stats));
+
+        // ★ PositionAtomicData → flatData 변환 → 미리보기/통계 UI 연동
+        const flatFromAtomic = atomicToFlatData(atomicData) as ImportedFlatData[];
+        setPendingData(flatFromAtomic);
+        setFlatData(flatFromAtomic);
+
+        // ★ chains 설정 (FC 고장사슬)
+        const chains = atomicData.failureLinks.map(fl => ({
+          id: fl.id,
+          processNo: fl.fmProcess || '',
+          fmValue: fl.fmText || '',
+          fcValue: fl.fcText || '',
+          feValue: fl.feText || '',
+          feScope: fl.feScope || '',
+          fmId: fl.fmId,
+          fcId: fl.fcId,
+          feId: fl.feId,
+        }));
+        setMasterChains?.(chains as any);
 
         // save-position-import API 호출
         if (fmeaId) {
@@ -111,12 +130,15 @@ export function useImportFileHandlers({
             setImportSuccess(true);
             setIsSaved?.(true);
             setDirty?.(false);
+
+            // ★ 통계 비교: 엑셀 원본 vs 파싱 결과
+            const s = atomicData.stats;
             setValidationMessage?.(
-              `위치기반 Import 완료 — ` +
-              `L2: ${saveResult.atomicCounts?.l2Structures || 0}, ` +
-              `FM: ${saveResult.atomicCounts?.failureModes || 0}, ` +
-              `FC: ${saveResult.atomicCounts?.failureCauses || 0}, ` +
-              `FL: ${saveResult.atomicCounts?.failureLinks || 0}`
+              `✅ 위치기반 Import 완료\n` +
+              `📊 엑셀: L1=${s.excelL1Rows}행, L2=${s.excelL2Rows}행, L3=${s.excelL3Rows}행, FC=${s.excelFCRows}행\n` +
+              `📊 파싱: L2=${saveResult.atomicCounts?.l2Structures || 0}, FM=${saveResult.atomicCounts?.failureModes || 0}, ` +
+              `FC=${saveResult.atomicCounts?.failureCauses || 0}, FL=${saveResult.atomicCounts?.failureLinks || 0}\n` +
+              `📊 flatData: ${flatFromAtomic.length}건 (미리보기용)`
             );
           } else {
             console.error('[Import] save-position-import 실패:', saveResult);
