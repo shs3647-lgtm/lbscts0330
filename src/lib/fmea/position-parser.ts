@@ -420,14 +420,34 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     fe.severity = feSeverityMap.get(fe.id) || 0;
   }
 
-  // ─── 통계 (엑셀 원본 행수 + 파싱 결과 비교) ───
+  // ─── 통계 (엑셀 원본 항목별 정확한 카운트) ───
+
+  // 엑셀 원본 항목별 카운트 (빈값/대시 제외)
+  const countNonEmpty = (rows: SheetRow[], key: string) =>
+    rows.filter(r => r.cells[key]?.trim() && !isEmptyValue(r.cells[key].trim())).length;
 
   const stats: Record<string, number> = {
-    // 엑셀 원본 행수 (파싱 전)
+    // 엑셀 원본 행수 (전체)
     excelL1Rows: l1Sheet.rows.length,
     excelL2Rows: l2Sheet.rows.length,
     excelL3Rows: l3Sheet.rows.length,
     excelFCRows: fcSheet.rows.length,
+    // 엑셀 원본 항목별 카운트 (빈값/대시 제외)
+    excelC1: countNonEmpty(l1Sheet.rows, 'C1'),
+    excelC2: countNonEmpty(l1Sheet.rows, 'C2'),
+    excelC3: countNonEmpty(l1Sheet.rows, 'C3'),
+    excelC4: countNonEmpty(l1Sheet.rows, 'C4'),
+    excelA1: countNonEmpty(l2Sheet.rows, 'A1'),
+    excelA2: countNonEmpty(l2Sheet.rows, 'A2'),
+    excelA3: countNonEmpty(l2Sheet.rows, 'A3'),
+    excelA4: countNonEmpty(l2Sheet.rows, 'A4'),
+    excelA5: countNonEmpty(l2Sheet.rows, 'A5'),
+    excelA6: countNonEmpty(l2Sheet.rows, 'A6'),
+    excelB1: countNonEmpty(l3Sheet.rows, 'B1'),
+    excelB2: countNonEmpty(l3Sheet.rows, 'B2'),
+    excelB3: countNonEmpty(l3Sheet.rows, 'B3'),
+    excelB4: countNonEmpty(l3Sheet.rows, 'B4'),
+    excelB5: countNonEmpty(l3Sheet.rows, 'B5'),
     // 파싱 결과 (DB 저장 대상)
     l1Functions: l1Functions.length,
     l2Structures: l2Structures.length,
@@ -446,12 +466,15 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     autoFixes: autoFixes.length,
   };
 
-  // ★ Import 파싱 결과 로그 (항목별 카운트 비교)
+  // ★ Import 파싱 결과 로그 (항목별 엑셀 원본 vs 파싱 결과)
   console.log(`[position-parser] ═══ 엑셀 원본 vs 파싱 결과 ═══`);
-  console.log(`  L1: 엑셀 ${stats.excelL1Rows}행 → L1Func ${stats.l1Functions}개, FE ${stats.failureEffects}개`);
-  console.log(`  L2: 엑셀 ${stats.excelL2Rows}행 → L2Struct ${stats.l2Structures}개, FM ${stats.failureModes}개`);
-  console.log(`  L3: 엑셀 ${stats.excelL3Rows}행 → L3Struct ${stats.l3Structures}개, FC ${stats.failureCauses}개`);
-  console.log(`  FC: 엑셀 ${stats.excelFCRows}행 → FL ${stats.failureLinks}개, RA ${stats.riskAnalyses}개`);
+  console.log(`  L1: 엑셀 ${stats.excelL1Rows}행 (C1=${stats.excelC1}, C2=${stats.excelC2}, C3=${stats.excelC3}, C4=${stats.excelC4})`);
+  console.log(`     → L1Func=${stats.l1Functions}, FE=${stats.failureEffects}`);
+  console.log(`  L2: 엑셀 ${stats.excelL2Rows}행 (A1=${stats.excelA1}, A3=${stats.excelA3}, A4=${stats.excelA4}, A5=${stats.excelA5}, A6=${stats.excelA6})`);
+  console.log(`     → L2Struct=${stats.l2Structures}, FM=${stats.failureModes}`);
+  console.log(`  L3: 엑셀 ${stats.excelL3Rows}행 (B1=${stats.excelB1}, B2=${stats.excelB2}, B3=${stats.excelB3}, B4=${stats.excelB4}, B5=${stats.excelB5})`);
+  console.log(`     → L3Struct=${stats.l3Structures}, FC=${stats.failureCauses}`);
+  console.log(`  FC: 엑셀 ${stats.excelFCRows}행 → FL=${stats.failureLinks}, RA=${stats.riskAnalyses}`);
   if (stats.brokenFE > 0 || stats.brokenFM > 0 || stats.brokenFC > 0) {
     console.warn(`  ⚠️ 깨진 FK: FE=${stats.brokenFE} FM=${stats.brokenFM} FC=${stats.brokenFC}`);
   }
