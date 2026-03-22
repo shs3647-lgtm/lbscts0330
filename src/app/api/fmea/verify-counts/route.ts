@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
-import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
+import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
@@ -23,13 +23,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // ★★★ 2026-03-22: 프로젝트 스키마 우선, 데이터 없으면 public 폴백
     const schema = getProjectSchemaName(fmeaId);
-    await ensureProjectSchemaReady({ baseDatabaseUrl: getBaseDatabaseUrl(), schema });
-    const prisma = getPrismaForSchema(schema);
+    let prisma: any;
+    let schemaUsed = 'project';
+    try {
+      await ensureProjectSchemaReady({ baseDatabaseUrl: getBaseDatabaseUrl(), schema });
+      const projectPrisma = getPrismaForSchema(schema);
+      // 프로젝트 스키마에 데이터 있는지 빠르게 확인
+      const testCount = projectPrisma ? await projectPrisma.l2Structure.count({ where: { fmeaId } }).catch(() => 0) : 0;
+      if (testCount > 0) {
+        prisma = projectPrisma;
+      } else {
+        prisma = getPrisma();
+        schemaUsed = 'public';
+      }
+    } catch {
+      prisma = getPrisma();
+      schemaUsed = 'public';
+    }
 
     if (!prisma) {
       return NextResponse.json(
-        { success: false, error: 'Failed to get Prisma client for project schema' },
+        { success: false, error: 'Failed to get Prisma client' },
         { status: 500 },
       );
     }
@@ -142,7 +158,7 @@ export async function GET(request: NextRequest) {
       C4: c4,
     };
 
-    return NextResponse.json({ success: true, fmeaId, counts });
+    return NextResponse.json({ success: true, fmeaId, schema: schemaUsed, counts });
   } catch (error) {
     console.error('[verify-counts] Error:', error);
     return NextResponse.json(
