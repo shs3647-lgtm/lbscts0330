@@ -83,7 +83,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
 
     const anyFixed = steps.some(s => s.fixed.length > 0);
     if (!anyFixed) {
-      const acceptable = steps.every(s => s.status === 'ok' || s.status === 'warn');
+      const acceptable = steps.every(s => s.status === 'ok');
       return { fmeaId, steps, allGreen: acceptable, loopCount, timestamp: new Date().toISOString() };
     }
   }
