@@ -71,6 +71,10 @@ const BdStatusTable = dynamic(
   () => import('@/app/(fmea-core)/pfmea/import/components/BdStatusTable').then(mod => ({ default: mod.BdStatusTable })),
   { ssr: false, loading: () => <div className="p-4 text-xs text-gray-400">BD 현황 로딩 중...</div> }
 );
+const DbVerifyPanel = dynamic(
+  () => import('./components/DbVerifyPanel'),
+  { ssr: false }
+);
 
 // ★ Heavy utility functions → lazy import helpers
 const getMasterApi = () => import('@/app/(fmea-core)/pfmea/import/utils/master-api');
@@ -140,6 +144,7 @@ function PFMEARegisterPageContent() {
   const [bdExpandTrigger, setBdExpandTrigger] = useState(0);
   const bdFileInputRef = useRef<HTMLInputElement>(null);
   const [bdParseStatistics, setBdParseStatistics] = useState<import('@/app/(fmea-core)/pfmea/import/excel-parser').ParseStatistics | undefined>(undefined);
+  const [bdDbCounts, setBdDbCounts] = useState<Record<string, number> | null>(null);
   const templateGen = useTemplateGenerator({ setFlatData, setPreviewColumn: setBdPreviewCol, setDirty: setBdDirty, setIsSaved: setBdIsSaved });
 
   // ★ 2026-02-20: BD 현황 테이블 데이터
@@ -187,11 +192,14 @@ function PFMEARegisterPageContent() {
   useEffect(() => {
     if (!fmeaId) return;
     getMasterApi().then(({ loadDatasetByFmeaId }) =>
-      loadDatasetByFmeaId(fmeaId).then(res => {
+      loadDatasetByFmeaId(fmeaId).then(async (res) => {
         if (res.datasetId) setBdDatasetId(res.datasetId);
         if (res.flatData.length > 0) {
           setFlatData(res.flatData); setBdIsSaved(true);
           setBdLoadedFmeaId(fmeaId);
+          const counts: Record<string, number> = {};
+          for (const item of res.flatData) counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
+          setBdDbCounts(counts);
         }
       })
     ).catch(e => { console.error('[기초정보 로드] 오류:', e); });
@@ -446,6 +454,16 @@ function PFMEARegisterPageContent() {
                 }
               } catch (atomicErr) {
                 console.error('[BD Import→Atomic] 오류:', atomicErr);
+              }
+              // ★ DB 영구저장 검증: 저장 후 DB에서 itemCode별 카운트 조회
+              try {
+                const { verifyDbFlatItemCounts } = await getMasterApi();
+                const counts = await verifyDbFlatItemCounts(fmeaId);
+                setBdDbCounts(counts);
+                const totalDb = Object.values(counts).reduce((s, c) => s + c, 0);
+                console.info(`[DB 영구저장 검증] 총 ${totalDb}건 확인: ${JSON.stringify(counts)}`);
+              } catch (verifyErr) {
+                console.error('[DB 영구저장 검증] 오류:', verifyErr);
               }
             } else {
               setBdDirty(true); setBdIsSaved(false);
@@ -913,6 +931,11 @@ function PFMEARegisterPageContent() {
           {/* Hidden file input for BD import */}
           <input ref={bdFileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBdFileSelect} />
         </div>
+
+        {/* ★ DB 영구저장 검증 패널 — Import 후 DB 카운트 vs 파싱 카운트 대조 */}
+        {bdDbCounts && bdParseStatistics && (
+          <DbVerifyPanel parseStats={bdParseStatistics} dbCounts={bdDbCounts} flatData={flatData} />
+        )}
 
         {/* ★ 2026-02-20: BD 현황 테이블 */}
         <BdStatusTable

@@ -41,7 +41,7 @@ interface UseWorksheetSaveReturn {
 // ── 헬퍼: atomicDB에 현재 stateRef의 confirmed 상태 + riskData 반영 ──
 
 function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB {
-  return {
+  const result = {
     ...db,
     confirmed: {
       ...db.confirmed,
@@ -55,6 +55,46 @@ function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWor
       failureLink: (state as any).failureLinkConfirmed || false,
     },
   };
+
+  // ★★★ 2026-03-22: L1Function 편집 내용을 atomicDB에 역동기화
+  // state.l1.types → atomicDB.l1Functions (functionName, requirement, category)
+  // 근본원인: 사용자 편집이 state에만 반영되고 atomicDB에 전파되지 않아 저장 시 편집 손실
+  const types = (state.l1 as any)?.types;
+  if (Array.isArray(types) && types.length > 0 && Array.isArray(db.l1Functions) && db.l1Functions.length > 0) {
+    // state.l1.types에서 L1Function ID → {functionName, requirement, category} 매핑 구축
+    const stateL1FMap = new Map<string, { functionName: string; requirement: string; category: string }>();
+    for (const type of types) {
+      const category = (type.name || '').trim();
+      if (!category) continue;
+      for (const func of (type.functions || [])) {
+        const functionName = (func.name || '').trim();
+        for (const req of (func.requirements || [])) {
+          if (req.id) {
+            stateL1FMap.set(req.id, { functionName, requirement: (req.name || '').trim(), category });
+          }
+        }
+        // C2 without C3: function ID = L1Function ID
+        if ((func.requirements || []).length === 0 && func.id) {
+          stateL1FMap.set(func.id, { functionName, requirement: '', category });
+        }
+      }
+    }
+
+    // atomicDB.l1Functions에 편집 내용 반영 (ID 기반 매칭, FK 보존)
+    if (stateL1FMap.size > 0) {
+      result.l1Functions = db.l1Functions.map(f => {
+        const edited = stateL1FMap.get(f.id);
+        if (!edited) return f;
+        // 값이 변경된 경우에만 업데이트 (불필요한 mutation 방지)
+        const changed = f.functionName !== edited.functionName ||
+          f.requirement !== edited.requirement ||
+          f.category !== edited.category;
+        return changed ? { ...f, functionName: edited.functionName, requirement: edited.requirement, category: edited.category } : f;
+      });
+    }
+  }
+
+  return result;
 }
 
 // ── REMOVED: syncFailureEffectsFromState, syncFailureLinksFromState ──
@@ -108,6 +148,17 @@ export function useWorksheetSave({
     const preCheckStructConfirmed = (preCheckState as any).structureConfirmed === true;
     if (!force && !preCheckStructConfirmed && preCheckL2Count === 0 && preCheckFMCount === 0 && preCheckFECount === 0 && preCheckL1FuncCount === 0) {
       return;
+    }
+
+    // ★★★ 2026-03-22: atomicDB 빈 데이터 보호 — L1Function/L2Structure 등 핵심 데이터가 비어있으면 저장 차단
+    // 근본원인: loadAtomicDB() 실패 → emptyDB → autoSave → DELETE ALL → 데이터 소실
+    if (!force && atomicDB) {
+      const atomicL1FCount = atomicDB.l1Functions?.length || 0;
+      const atomicL2Count = atomicDB.l2Structures?.length || 0;
+      if (atomicL1FCount === 0 && atomicL2Count === 0) {
+        console.warn('[useWorksheetSave] atomicDB 빈 데이터 저장 차단 — L1F=0, L2=0');
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -165,6 +216,16 @@ export function useWorksheetSave({
     const isStructureConfirmed = (currentState as any).structureConfirmed === true;
     if (!force && !isStructureConfirmed && l2ProcessCount === 0 && l2FMCount === 0 && feScopeCount === 0 && l1FuncCount === 0) {
       return;
+    }
+
+    // ★★★ 2026-03-22: atomicDB 빈 데이터 보호 (saveToLocalStorage 경로)
+    if (!force && atomicDB) {
+      const atomicL1FCount = atomicDB.l1Functions?.length || 0;
+      const atomicL2Count = atomicDB.l2Structures?.length || 0;
+      if (atomicL1FCount === 0 && atomicL2Count === 0) {
+        console.warn('[useWorksheetSave] saveToLocalStorage: atomicDB 빈 데이터 저장 차단');
+        return;
+      }
     }
 
     setIsSaving(true);

@@ -113,6 +113,24 @@ export function useFunctionL1Handlers({
   const missingCounts = calculateMissingCounts(state.l1?.types || [], isMissingUtil);
   const missingCount = missingCounts.total;
 
+  // ★ 디버그: 누락 원인 추적 (missingCount > 0일 때만 출력)
+  if (missingCount > 0) {
+    const types = state.l1?.types || [];
+    console.warn('[FunctionL1] 누락 감지:', missingCount, '건 | types:', types.length,
+      '| funcs:', types.reduce((a: number, t: any) => a + (t.functions?.length || 0), 0),
+      '| reqs:', types.reduce((a: number, t: any) => a + (t.functions || []).reduce((b: number, f: any) => b + (f.requirements?.length || 0), 0), 0));
+    types.forEach((t: any) => {
+      (t.functions || []).forEach((f: any) => {
+        const reqs = f.requirements || [];
+        const emptyReqs = reqs.filter((r: any) => !r.name || !r.name.trim());
+        if (!f.name || !f.name.trim() || emptyReqs.length > 0) {
+          console.warn('  ❌', t.name, '→ func:', f.name?.substring(0, 30) || '(EMPTY)',
+            '| reqs:', reqs.length, '| emptyReqs:', emptyReqs.length);
+        }
+      });
+    });
+  }
+
   // ✅ L1 데이터 변경 시 자동 저장
   useEffect(() => {
     const dataKey = JSON.stringify(state.l1?.types || []);

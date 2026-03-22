@@ -272,3 +272,16 @@ export async function permanentDeleteDatasets(fmeaIds: string[]): Promise<{ ok: 
   const json = await res.json();
   return { ok: json.success, deletedCount: json.deletedCount ?? 0 };
 }
+
+/**
+ * ★ DB 영구저장 검증 — FlatItem itemCode별 카운트 조회
+ * Import 후 DB에 실제 저장된 건수를 파싱 건수와 대조하여 정합성 보장
+ */
+export async function verifyDbFlatItemCounts(fmeaId: string): Promise<Record<string, number>> {
+  const data = await loadDatasetByFmeaId(fmeaId);
+  const counts: Record<string, number> = {};
+  for (const item of data.flatData) {
+    counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
+  }
+  return counts;
+}

@@ -242,6 +242,8 @@ export function useWorksheetDataLoader({
       }
 
       // ── Atomic 데이터 없음 → 빈 상태로 초기화 ──
+      // ★★★ 2026-03-22: emptyDB 설정 시 autoSave 영구 차단 (빈 데이터로 기존 DB 덮어쓰기 방지)
+      suppressAutoSaveRef.current = true;
       const emptyDB = createEmptyDB(normalizedFmeaId);
       setAtomicDB(emptyDB);
 
