@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'atomicData required' }, { status: 400 });
     }
 
+    const { force } = body as { fmeaId: string; atomicData: PositionAtomicData; force?: boolean };
     const normalizedId = fmeaId.toLowerCase();
     const schema = getProjectSchemaName(normalizedId);
     const baseDatabaseUrl = process.env.DATABASE_URL || '';
@@ -35,11 +36,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Failed to get Prisma client' }, { status: 500 });
     }
 
-    console.log(`[save-position-import] schema=${schema}, fmeaId=${normalizedId}`);
+    console.log(`[save-position-import] schema=${schema}, fmeaId=${normalizedId}, force=${force}`);
     console.log(`[save-position-import] stats:`, JSON.stringify(atomicData.stats));
 
-    // ─── $transaction: skipDuplicates (DELETE ALL 없음 — 기존 데이터 보존) ───
+    // ─── $transaction ───
     const counts = await prisma.$transaction(async (tx) => {
+
+      // ★ force=true이면 모든 데이터 완전 삭제 후 재생성 (클린 Import)
+      if (force) {
+        await tx.riskAnalysis.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureLink.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureEffect.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureMode.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.processProductChar.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l2Function.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l1Function.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3Structure.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l2Structure.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l1Structure.deleteMany({ where: { fmeaId: normalizedId } });
+        console.log(`[save-position-import] force=true: 전체 삭제 완료`);
+      }
 
       // 1. L1Structure upsert
       await tx.l1Structure.upsert({

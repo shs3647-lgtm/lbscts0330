@@ -122,7 +122,7 @@ export function useImportFileHandlers({
           const saveRes = await fetch('/api/fmea/save-position-import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData }),
+            body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData, force: true }),
           });
           const saveResult = await saveRes.json();
           if (saveResult.success) {

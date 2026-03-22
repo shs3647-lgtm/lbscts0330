@@ -295,18 +295,49 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
   const sortFlatById = (items: ImportedFlatData[]) =>
     [...items].sort((a, b) => a.id.localeCompare(b.id));
 
-  // FK 정합성 진단: B2/B3 orphan 확인
+  // FK 정합성 진단 + processNo+m4 fallback (parentItemId=null 호환)
   {
     const b1Ids = new Set(b1Items.map(b => b.id));
     const orphanB2 = b2Items.filter(b => !b1Ids.has(b.parentItemId || ''));
     const orphanB3 = b3Items.filter(b => !b1Ids.has(b.parentItemId || ''));
-    if (orphanB2.length > 0) {
-      console.warn(`[buildAtomicFromFlat] B2 orphan ${orphanB2.length}건:`);
-      orphanB2.slice(0, 5).forEach(b => console.warn(`  B2 id=${b.id} parent=${b.parentItemId} val=${b.value?.substring(0,40)}`));
-    }
-    if (orphanB3.length > 0) {
-      console.warn(`[buildAtomicFromFlat] B3 orphan ${orphanB3.length}건:`);
-      orphanB3.slice(0, 5).forEach(b => console.warn(`  B3 id=${b.id} parent=${b.parentItemId} val=${b.value?.substring(0,40)}`));
+
+    // ★ parentItemId null fallback: processNo+m4 기반 B1 매칭 (기존 데이터 호환)
+    if (orphanB2.length > 0 || orphanB3.length > 0) {
+      const b1ByPnoM4 = new Map<string, ImportedFlatData>();
+      for (const b1 of b1Items) {
+        const key = `${b1.processNo}|${b1.m4 || ''}`;
+        if (!b1ByPnoM4.has(key)) b1ByPnoM4.set(key, b1);
+      }
+
+      if (orphanB2.length > 0) {
+        let fixed = 0;
+        for (const b2 of orphanB2) {
+          const key = `${b2.processNo}|${b2.m4 || ''}`;
+          const b1Match = b1ByPnoM4.get(key);
+          if (b1Match) {
+            const list = b2ByB1.get(b1Match.id) || [];
+            list.push(b2);
+            b2ByB1.set(b1Match.id, list);
+            fixed++;
+          }
+        }
+        console.warn(`[buildAtomicFromFlat] B2 orphan ${orphanB2.length}건 → processNo+m4 fallback ${fixed}건 복구`);
+      }
+
+      if (orphanB3.length > 0) {
+        let fixed = 0;
+        for (const b3 of orphanB3) {
+          const key = `${b3.processNo}|${b3.m4 || ''}`;
+          const b1Match = b1ByPnoM4.get(key);
+          if (b1Match) {
+            const list = b3ByB1.get(b1Match.id) || [];
+            list.push(b3);
+            b3ByB1.set(b1Match.id, list);
+            fixed++;
+          }
+        }
+        console.warn(`[buildAtomicFromFlat] B3 orphan ${orphanB3.length}건 → processNo+m4 fallback ${fixed}건 복구`);
+      }
     }
   }
 
@@ -507,6 +538,16 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
   const failureCauses: FailureCause[] = [];
   const seenFC = new Set<string>();
 
+  // ★ L3Function lookup (processNo+m4 → L3Function) — B4 parentItemId null fallback용
+  const l3FuncByPnoM4 = new Map<string, L3Function>();
+  for (const l3f of l3Functions) {
+    const l3s = l3Structures.find(s => s.id === l3f.l3StructId);
+    if (!l3s) continue;
+    const l2s = l2Structures.find(s => s.id === l3s.l2Id);
+    const key = `${l2s?.no || ''}|${l3s.m4 || ''}`;
+    if (!l3FuncByPnoM4.has(key)) l3FuncByPnoM4.set(key, l3f);
+  }
+
   for (const b4 of b4Items) {
     if (seenFC.has(b4.id)) continue;
     seenFC.add(b4.id);
@@ -515,27 +556,53 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const l2StructId = isNaN(pno) ? '' : genA1('PF', pno);
 
     // B4.parentItemId → B3.id (= processCharId = L3Function.id)
-    const processCharId = b4.parentItemId || '';
-    if (!processCharId) {
-      console.warn(`[buildAtomicFromFlat] B4 "${b4.value}" (pno=${b4.processNo}) skipped: no parentItemId (missing B3 FK)`);
-      continue;
+    let processCharId = b4.parentItemId || '';
+    let l3StructId = '';
+
+    if (processCharId) {
+      // parentItemId 있음 → B3 flat item 또는 L3Function에서 l3StructId 조회
+      const b3Item = flatById.get(processCharId);
+      if (b3Item) {
+        l3StructId = b3Item.parentItemId || '';
+      }
+      if (!l3StructId) {
+        const matchL3F = l3Functions.find(f => f.id === processCharId);
+        if (matchL3F) {
+          l3StructId = matchL3F.l3StructId;
+        } else {
+          // parentItemId가 존재하지만 B3/L3Function과 매칭 불가 (ID 형식 불일치)
+          // → processNo+m4 fallback으로 전환
+          processCharId = '';
+        }
+      }
     }
 
-    // B3.parentItemId → B1.id (= L3Structure.id)
-    const b3Item = flatById.get(processCharId);
-    const l3StructId = b3Item?.parentItemId || '';
+    // ★ processNo+m4 fallback: parentItemId 없거나 매칭 실패 시
+    if (!processCharId || !l3StructId) {
+      const key = `${b4.processNo}|${b4.m4 || ''}`;
+      const matchL3F = l3FuncByPnoM4.get(key);
+      if (matchL3F) {
+        processCharId = matchL3F.id;
+        l3StructId = matchL3F.l3StructId;
+      }
+    }
+
+    if (!processCharId) {
+      console.warn(`[buildAtomicFromFlat] B4 "${b4.value}" (pno=${b4.processNo}) skipped: no matching L3Function`);
+      continue;
+    }
     if (!l3StructId) {
-      console.warn(`[buildAtomicFromFlat] B4 "${b4.value}" (pno=${b4.processNo}) skipped: B3 "${processCharId}" has no parentItemId (missing B1 FK)`);
+      console.warn(`[buildAtomicFromFlat] B4 "${b4.value}" (pno=${b4.processNo}) skipped: L3Function "${processCharId}" has no l3StructId`);
       continue;
     }
 
     failureCauses.push({
       id: b4.id,
       fmeaId,
-      l3FuncId: processCharId, // B3.id = L3Function.id
-      l3StructId,               // B1.id = L3Structure.id (via B3.parentItemId)
+      l3FuncId: processCharId,
+      l3StructId,
       l2StructId,
-      processCharId,            // B3.id
+      processCharId,
       cause: b4.value,
     });
 
