@@ -106,12 +106,16 @@ export async function POST(request: NextRequest) {
       // Structure/L1F/L2F/FM/FE는 skipDuplicates 유지 (소실 위험 없음)
 
       // 7. L3Functions: DELETE ALL + CREATE (공정특성 B3 포함)
-      await tx.riskAnalysis.deleteMany({ where: { fmeaId: normalizedId } });
-      await tx.failureLink.deleteMany({ where: { fmeaId: normalizedId } });
-      await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
-      await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
+      // ★ 방어: l3Functions가 비어있으면 DELETE 금지 (파싱 실패 시 기존 데이터 보호)
+      if (atomicData.l3Functions.length === 0) {
+        console.warn(`[save-position-import] ⚠️ l3Functions=0 — DELETE 건너뜀 (기존 데이터 보존). 파서 로그 확인 필요`);
+      } else {
+        // 데이터 있을 때만 DELETE → CREATE
+        await tx.riskAnalysis.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureLink.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
 
-      if (atomicData.l3Functions.length > 0) {
         await tx.l3Function.createMany({
           data: atomicData.l3Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l3StructId: f.l3StructId, l2StructId: f.l2StructId,
