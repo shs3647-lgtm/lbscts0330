@@ -349,9 +349,23 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // FE severity 업데이트용 Map
   const feSeverityMap = new Map<string, number>();
 
+  // ★ JSON 파서 FC carry-forward (parsePositionBasedJSON 경로)
+  let prevJsonFEscope = '', prevJsonFE = '', prevJsonPno = '', prevJsonFM = '';
+  let jsonCarryCount = 0;
+
   for (const row of fcSheet.rows) {
     const rn = row.excelRow;
     const c = row.cells;
+
+    // AutoFix: 빈 셀 carry-forward
+    if (!c['FE_scope'] && prevJsonFEscope) { c['FE_scope'] = prevJsonFEscope; jsonCarryCount++; }
+    if (!c['FE'] && prevJsonFE)            { c['FE'] = prevJsonFE;            jsonCarryCount++; }
+    if (!c['processNo'] && prevJsonPno)    { c['processNo'] = prevJsonPno;    jsonCarryCount++; }
+    if (!c['FM'] && prevJsonFM)            { c['FM'] = prevJsonFM;            jsonCarryCount++; }
+    if (c['FE_scope']) prevJsonFEscope = c['FE_scope'];
+    if (c['FE'])       prevJsonFE      = c['FE'];
+    if (c['processNo'])prevJsonPno     = c['processNo'];
+    if (c['FM'])       prevJsonFM      = c['FM'];
 
     const l1Row = parseInt(c['L1_origRow'] || '', 10) || 0;
     const l2Row = parseInt(c['L2_origRow'] || '', 10) || 0;
@@ -477,6 +491,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   console.log(`  FC: 엑셀 ${stats.excelFCRows}행 → FL=${stats.failureLinks}, RA=${stats.riskAnalyses}`);
   if (stats.brokenFE > 0 || stats.brokenFM > 0 || stats.brokenFC > 0) {
     console.warn(`  ⚠️ 깨진 FK: FE=${stats.brokenFE} FM=${stats.brokenFM} FC=${stats.brokenFC}`);
+  }
+  if (jsonCarryCount > 0) {
+    console.log(`  AutoFix FC carry-forward: ${jsonCarryCount}건 (FE/FM/공정번호 병합셀 자동복원)`);
+    autoFixes.push({ code: 'FC_CARRY_FORWARD', message: `FC 병합셀 자동복원 ${jsonCarryCount}건` });
   }
   if (autoFixes.length > 0) {
     console.log(`  AutoFix ${autoFixes.length}건:`, autoFixes.map(f => `[${f.code}] ${f.message}`).join(', '));
@@ -706,19 +724,27 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   const fcHeader = detectHeaderRow(fcWS, { FM: ['FM', '고장형태'], FC: ['FC', '고장원인'] });
   console.log(`[position-parser] FC columns: ${JSON.stringify(fcColMap)}, headerRow: ${fcHeader}`);
 
-  // ★ FC 시트 carry-forward: 병합셀로 인해 FM/FE/processNo가 빈 경우 이전 행 값 유지
+  // ★ FC 시트 AutoFix carry-forward: 병합셀로 인해 FM/FE/processNo가 빈 경우 이전 행 값 유지
   let prevFEscope = '', prevFE = '', prevPno = '', prevFM = '';
+  const fcCarryFixCount = { feScope: 0, feText: 0, pno: 0, fm: 0 };
   const fcRows: SheetRow[] = [];
   fcWS.eachRow((row: any, rn: number) => {
     if (rn <= fcHeader) return;
-    const feScope = excelCellStr(row, fcColMap.FE_scope || 1) || prevFEscope;
-    const feText = excelCellStr(row, fcColMap.FE || 2) || prevFE;
-    const pno = excelCellStr(row, fcColMap.processNo || 3) || prevPno;
-    const fm = excelCellStr(row, fcColMap.FM || 4) || prevFM;
+    const rawFEscope = excelCellStr(row, fcColMap.FE_scope || 1);
+    const rawFEtext  = excelCellStr(row, fcColMap.FE || 2);
+    const rawPno     = excelCellStr(row, fcColMap.processNo || 3);
+    const rawFM      = excelCellStr(row, fcColMap.FM || 4);
+
+    // AutoFix carry-forward 적용 + 카운트
+    const feScope = rawFEscope || (prevFEscope ? (fcCarryFixCount.feScope++, prevFEscope) : '');
+    const feText  = rawFEtext  || (prevFE      ? (fcCarryFixCount.feText++,  prevFE)      : '');
+    const pno     = rawPno     || (prevPno     ? (fcCarryFixCount.pno++,     prevPno)     : '');
+    const fm      = rawFM      || (prevFM      ? (fcCarryFixCount.fm++,      prevFM)      : '');
+
     if (feScope) prevFEscope = feScope;
-    if (feText) prevFE = feText;
-    if (pno) prevPno = pno;
-    if (fm) prevFM = fm;
+    if (feText)  prevFE      = feText;
+    if (pno)     prevPno     = pno;
+    if (fm)      prevFM      = fm;
     fcRows.push({
       excelRow: rn, posId: `FC-R${rn}`,
       cells: {
@@ -744,6 +770,15 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   });
 
   console.log(`[position-parser] Rows: L1=${l1Rows.length} L2=${l2Rows.length} L3=${l3Rows.length} FC=${fcRows.length}`);
+  // ★ AutoFix carry-forward 결과 보고
+  const totalCarry = fcCarryFixCount.feScope + fcCarryFixCount.feText + fcCarryFixCount.pno + fcCarryFixCount.fm;
+  if (totalCarry > 0) {
+    console.log(`[position-parser] ✅ AutoFix FC carry-forward ${totalCarry}건:`,
+      `FE_scope=${fcCarryFixCount.feScope}`,
+      `FE=${fcCarryFixCount.feText}`,
+      `공정번호=${fcCarryFixCount.pno}`,
+      `FM=${fcCarryFixCount.fm}`);
+  }
   // ★ B4 감지 진단: 빈 B4 행 출력
   const emptyB4Rows = l3Rows.filter(r => !r.cells.B4?.trim());
   if (emptyB4Rows.length > 0) {
