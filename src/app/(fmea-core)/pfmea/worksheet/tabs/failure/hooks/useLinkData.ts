@@ -48,8 +48,8 @@ const isMeaningful = (name: string): boolean => {
  * 구분(scope)에서 prefix 추출
  */
 const getScopePrefix = (scope: string): string => {
-  if (scope === 'YP' || scope === 'YP' || scope.startsWith('Y')) return 'Y';
-  if (scope === 'SP' || scope === 'SP' || scope.startsWith('S')) return 'S';
+  if (scope === 'YP' || scope.startsWith('Y')) return 'Y';
+  if (scope === 'SP' || scope.startsWith('S')) return 'S';
   if (scope === 'USER' || scope.startsWith('U')) return 'U';
   return 'U'; // 기본값 User
 };
