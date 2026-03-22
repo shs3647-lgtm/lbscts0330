@@ -979,32 +979,20 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
           </div>
         )}
 
-        {/* 헤더 — 2줄 레이아웃 */}
-        <div style={{ ...rightHeaderStyle, flexWrap: 'wrap', gap: 0, flexDirection: 'column', padding: '2px 4px 0' }}>
-        {/* 1행: 통계 배지 + 고장수정 버튼 */}
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'nowrap', width: '100%', padding: '2px 0 3px', borderBottom: '1px solid #e0e0e0' }}>
-          <span style={{ fontSize: 9, color: '#888', fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '-0.3px' }}>연결현황</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#1565c0', background: '#e3f2fd', border: '1.5px solid #90caf9', borderRadius: 4, padding: '2px 7px', whiteSpace: 'nowrap' }}>FE:{linkStats.feLinkedCount}</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#e65100', background: '#fff3e0', border: '1.5px solid #ffb74d', borderRadius: 4, padding: '2px 7px', whiteSpace: 'nowrap' }}>FM:{linkStats.fmLinkedCount}</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#2e7d32', background: '#e8f5e9', border: '1.5px solid #a5d6a7', borderRadius: 4, padding: '2px 7px', whiteSpace: 'nowrap' }}>FC:{linkStats.fcLinkedCount}</span>
-          {totalMissingCount > 0 && <span style={{ fontSize: 11, fontWeight: 800, color: '#c62828', background: '#ffebee', border: '1.5px solid #ef9a9a', borderRadius: 4, padding: '2px 7px', whiteSpace: 'nowrap' }}>Miss:{totalMissingCount}</span>}
+        {/* 헤더 — 2줄 균형 레이아웃 */}
+        <div style={{ ...rightHeaderStyle, flexWrap: 'wrap', gap: 0, flexDirection: 'column', padding: '2px 4px' }}>
+        {/* 1행: 통계 배지 + 고장수정 */}
+        <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'nowrap', width: '100%', padding: '1px 0 2px', borderBottom: '1px solid #ddd' }}>
+          <span style={{ fontSize: 9, color: '#888', fontWeight: 700, whiteSpace: 'nowrap' }}>연결:</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>FE:{linkStats.feLinkedCount}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#e65100', background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>FM:{linkStats.fmLinkedCount}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>FC:{linkStats.fcLinkedCount}</span>
+          {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>Miss:{totalMissingCount}</span>}
           <div style={{ flex: 1 }} />
-          {/* ★ 고장수정 버튼 — 1행 우측 */}
-          <button
-            onClick={() => setViewMode('result')}
-            style={{
-              padding: '3px 10px', fontSize: 11, fontWeight: 700,
-              border: '1.5px solid #7b1fa2', borderRadius: 4, cursor: 'pointer',
-              whiteSpace: 'nowrap', background: '#7b1fa2', color: '#fff',
-              boxShadow: '0 1px 3px rgba(123,31,162,0.3)',
-            }}
-            title="고장사슬 연결 편집 — FE/FM/FC 수동 연결·조정"
-          >
-            ✏️ 고장수정
-          </button>
+          <button onClick={() => setViewMode('result')} style={{ padding: '1px 8px', fontSize: 10, fontWeight: 700, border: '1px solid #7b1fa2', borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap', background: '#7b1fa2', color: '#fff' }} title="고장수정">✏️ 고장수정</button>
         </div>
         {/* 2행: 액션 버튼 */}
-        <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'nowrap', width: '100%', padding: '3px 0 0' }}>
+        <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'nowrap', width: '100%', padding: '2px 0 0' }}>
           {/* Confirm / Re-Confirm */}
           <button
             onClick={confirmLink}
