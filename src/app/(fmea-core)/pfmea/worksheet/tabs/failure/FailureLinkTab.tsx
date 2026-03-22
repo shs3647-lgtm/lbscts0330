@@ -990,6 +990,16 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
             <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '2px 6px' }}>FC:{linkStats.fcLinkedCount}</span>
             {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '2px 6px' }}>Miss:{totalMissingCount}</span>}
           </div>
+          {/* 전체보기 — 1행 우측, 고장수정 왼쪽 */}
+          <button
+            onClick={() => {
+              setCurrentFMId(null); // 모든 FM 선택 해제 → 전체 표시
+              setViewMode('result');
+            }}
+            style={{ padding: '2px 8px', fontSize: 10, fontWeight: 700, border: '1px solid #1565c0', borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap', background: '#e3f2fd', color: '#1565c0' }}
+            title="모든 FM 고장사슬 전체 Table 보기"
+          >📋 전체보기</button>
+          {/* 고장수정 자동연결 */}
           <button
             onClick={async () => {
               const fmeaId = (state as any)?.fmeaId;
@@ -1042,14 +1052,6 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
           {/* Chain Diagram */}
           <button onClick={() => setViewMode('diagram')} style={modeButtonStyle(viewMode === 'diagram')} title="FE→FM→FC chain diagram">
             Chain
-          </button>
-          {/* Chain 전체보기 */}
-          <button
-            onClick={() => setViewMode('result')}
-            style={{ ...modeButtonStyle(false), background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', fontWeight: 700 }}
-            title="고장사슬 전체 목록 보기 (Table)"
-          >
-            전체보기
           </button>
 
           {/* FA → ALL tab */}
