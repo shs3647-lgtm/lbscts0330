@@ -15,8 +15,7 @@ import { validateHierarchy } from '../utils/hierarchy-validation';
 import { detectRedCells, applyRevisedFlags, applyRevisedFlagsToChains } from '../utils/excel-color-detector';
 import { inferDC, inferPC, getDefaultRuleSet } from '../stepb-parser/pc-dc-inference';
 import { runParsingCriteriaValidation } from '../utils/parsing-criteria-validator';
-import { convertParseResultToStepBBuildData, convertStepBChainsToMasterChains } from '../utils/parseResultToStepBData';
-import { WarningCollector } from '../stepb-parser/types';
+import { convertLegacyParseResultToFlatData } from '../utils/legacyParseResultToFlatData';
 
 interface UseImportFileHandlersProps {
   setFileName: (name: string) => void;
@@ -224,9 +223,8 @@ export function useImportFileHandlers({
         );
       }
 
-      // ★★★ 2026-03-22: import-builder 제거됨 → 레거시 경로에서 flatData 생성 불가
-      // 위치기반 5시트 Import를 사용하세요. 레거시 2시트 경로는 deprecated.
-      const flat: ImportedFlatData[] = [];
+      // 레거시 파서 결과를 ImportedFlatData로 복원
+      const flat: ImportedFlatData[] = convertLegacyParseResultToFlatData(result);
       const chains = result.failureChains;
       if (chains && chains.length > 0) {
         setMasterChains?.(chains);

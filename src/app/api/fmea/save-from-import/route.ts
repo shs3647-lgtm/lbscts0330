@@ -48,9 +48,21 @@ export async function POST(request: NextRequest) {
     });
 
     // 1.5. supplementMissingItems 삭제됨 (2026-03-22) — flatData 직접 사용
-    const enrichedFlatData = flatData;
-    const chainsArray = Array.isArray(failureChains) && failureChains.length > 0
+    const { supplementFlatDataFromChains } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/supplementFlatDataFromChains'
+    );
+    let chainsArray = Array.isArray(failureChains) && failureChains.length > 0
       ? failureChains : [];
+    const enrichedFlatData = supplementFlatDataFromChains(flatData, chainsArray);
+    if (chainsArray.length === 0) {
+      const { buildFailureChainsFromFlat } = await import(
+        '@/app/(fmea-core)/pfmea/import/types/masterFailureChain'
+      );
+      chainsArray = buildFailureChainsFromFlat(enrichedFlatData, {} as never);
+      if (chainsArray.length > 0) {
+        console.info(`[save-from-import] failureChains 미전달 → flatData에서 ${chainsArray.length}건 유도`);
+      }
+    }
 
     // 1.7. ★ 파싱 검증→자동수정→피드백 파이프라인 실행
     const { runParseValidationPipeline, formatValidationReport } = await import(
@@ -211,6 +223,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Prisma client 생성 실패' },
         { status: 500 }
+      );
+    }
+
+    const existingCounts = {
+      l2: await prisma.l2Structure.count({ where: { fmeaId: normalizedFmeaId } }),
+      fm: await prisma.failureMode.count({ where: { fmeaId: normalizedFmeaId } }),
+      fc: await prisma.failureCause.count({ where: { fmeaId: normalizedFmeaId } }),
+      fl: await prisma.failureLink.count({ where: { fmeaId: normalizedFmeaId } }),
+      ra: await prisma.riskAnalysis.count({ where: { fmeaId: normalizedFmeaId } }),
+    };
+
+    const incomingCounts = {
+      l2: atomicDB.l2Structures.length,
+      fm: atomicDB.failureModes.length,
+      fc: atomicDB.failureCauses.length,
+      fl: atomicDB.failureLinks.length,
+      ra: atomicDB.riskAnalyses.length,
+    };
+
+    const hasExistingAtomic =
+      existingCounts.l2 > 0 ||
+      existingCounts.fm > 0 ||
+      existingCounts.fc > 0 ||
+      existingCounts.fl > 0 ||
+      existingCounts.ra > 0;
+
+    const wouldDropCriticalData =
+      (existingCounts.fc > 0 && incomingCounts.fc === 0) ||
+      (existingCounts.fl > 0 && incomingCounts.fl === 0) ||
+      (existingCounts.ra > 0 && incomingCounts.ra === 0);
+
+    const looksLikePartialRebuild = incomingCounts.l2 > 0 || incomingCounts.fm > 0;
+
+    if (hasExistingAtomic && wouldDropCriticalData && looksLikePartialRebuild) {
+      const guardMessage =
+        `incomplete atomic rebuild blocked: ` +
+        `existing(fc=${existingCounts.fc},fl=${existingCounts.fl},ra=${existingCounts.ra}) ` +
+        `incoming(fc=${incomingCounts.fc},fl=${incomingCounts.fl},ra=${incomingCounts.ra})`;
+      console.error(`[save-from-import] ${guardMessage}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: guardMessage,
+          existingCounts,
+          incomingCounts,
+        },
+        { status: 409 }
       );
     }
 

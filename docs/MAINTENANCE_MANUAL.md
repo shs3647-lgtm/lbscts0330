@@ -44,7 +44,7 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | 파일 | 줄 수 | 역할 | CODEFREEZE |
 |------|------|------|-----------|
 | `api/fmea/route.ts` | 2,451 | GET/POST Atomic DB 이중 저장 | ✅ v4.0.0 |
-| `api/fmea/save-from-import/route.ts` | 699 | Import→DB 서버사이드 오케스트레이션 | - |
+| `api/fmea/save-from-import/route.ts` | 699 | Import→DB 서버사이드 오케스트레이션 + 불완전 Atomic 덮어쓰기 차단 | - |
 | `api/fmea/rebuild-atomic/route.ts` | ~400 | legacyData→Atomic 재구축 | - |
 | `api/fmea/repair-fk/route.ts` | ~90 | FK 고아·무효만 정리 (`fk-repair.ts`, rebuild 없음) | - |
 | `worksheet/migration.ts` | 1,200 | Legacy JSON → FMEAWorksheetDB 변환 | ✅ |
@@ -71,16 +71,14 @@ useImportSteps → parseExcelToFlatData(file) → flatData[]
 
 [서버: save-from-import/route.ts]
 1. 입력 검증 (isValidFmeaId)
-2. supplementMissingItems (B1/A6/B5 등 누락 보충)
-3. 리버스 Import 시도 (기존 DB 데이터 있으면 ground truth 사용)
-4. buildWorksheetState(flatData, { chains }) → BuildResult { state, flatMap }
-5. ImportJob 생성 + flatMap 직렬화 → ImportMappingRecord[]
-6. legacyData 구성 + 풍부도 비교 (기존 vs 신규)
-7. $transaction { legacyData upsert + ImportJob/Mapping 저장 }
-8. rebuild-atomic API 호출 (리버스 경로면 스킵)
-9. Verify Loop (3회 재시도, FM/FC/Links 카운트 검증)
-10. verifyRoundTrip (ImportMapping → FM/FC/FE 존재 확인)
-11. 응답 반환 { success, atomicCounts, importJob }
+2. parseValidationPipeline 실행 (autoFix 금지)
+3. buildAtomicFromFlat(flatData, chains) → Atomic DB 직접 변환
+4. A6/B5 → RiskAnalysis DC/PC 보충 안전망 적용
+5. 기존 프로젝트 스키마 카운트 조회
+6. **기존 FC/FL/RA가 있는데 신규 Atomic이 0건이면 409 차단**
+7. $transaction { DELETE ALL → CREATE ALL } 저장
+8. 저장 후 Atomic 카운트 검증
+9. 응답 반환 { success, atomicCounts, verified, verifyGaps }
 ```
 
 ### 3.2 저장 경로 (워크시트 편집 → DB)
@@ -242,7 +240,7 @@ npx tsc --noEmit
 # 2단계: 단위 테스트
 npx playwright test tests/e2e/import-mapping.spec.ts --project chromium
 
-# 3단계: FK 정합성
+# 3단계: FK/커버리지 정합성
 node scripts/validate-fk.mjs
 ```
 
@@ -253,10 +251,24 @@ Import 완료 후 자동 실행. FM/FC/FE가 Atomic DB에 실제 존재하는지
 
 ### 7.3 Verify Loop (save-from-import)
 
-rebuild-atomic 후 3회까지 재시도. 각 시도마다:
-1. FM/FC/FE/Links 카운트 검증 (기대값 대비 90%+)
-2. legacyData 무결성 검사 (풍부도 역전 감지 → 복원)
-3. 실패 시 rebuild-atomic 재호출
+save-from-import는 저장 전에 아래 방어선을 먼저 통과해야 한다:
+1. 기존 프로젝트에 FC/FL/RA가 존재하는지 카운트 확인
+2. 신규 Atomic 변환 결과가 FC/FL/RA 0건인지 확인
+3. **기존>0 + 신규=0이면 409로 차단**하고 DELETE 트랜잭션 진입 금지
+
+### 7.4 validate-fk 확장 체크 (2026-03-22)
+
+`validate-fk/route.ts`는 기존 orphan/FK 검증 외에 아래 커버리지 체크를 포함한다:
+1. `failureLinkCoverage` — FM이 하나도 FailureLink에 연결되지 않으면 ERROR
+2. `riskAnalysisCoverage` — FailureLink별 RiskAnalysis가 정확히 1건이 아니면 ERROR
+
+### 7.5 Import/Repair hardening (2026-03-22)
+
+1. `legacyParseResultToFlatData.ts`가 레거시 ParseResult를 `ImportedFlatData[]`로 복원해 `B4/A6/B5` 누락을 막는다.
+2. `useImportFileHandlers.ts` 레거시 경로는 더 이상 `flat=[]`로 끝나지 않는다.
+3. `save-from-import/route.ts`는 `failureChains` 미전달 시 `flatData`에서 체인을 유도한다.
+4. `supplementFlatDataFromChains.ts`가 chain 기반 `B4/B5/A6`를 flatData에 꽂아넣어 `f001` 같은 B4 누락 dataset 재저장을 가능하게 한다.
+5. `pipeline-verify/auto-fix.ts`는 peer RA가 모두 비어 있어도 public `PfmeaMasterFlatItem(A6/B5)`를 읽어 `DC/PC`를 채운다.
 
 ---
 

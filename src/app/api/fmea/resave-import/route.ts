@@ -63,6 +63,9 @@ async function handleResave(request: NextRequest, doSave: boolean) {
         itemCode: true,
         processNo: true,
         value: true,
+        m4: true,
+        belongsTo: true,
+        specialChar: true,
         parentItemId: true,
       },
     });
@@ -79,6 +82,9 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       itemCode: item.itemCode,
       processNo: item.processNo || '',
       value: item.value || '',
+      m4: item.m4 || undefined,
+      belongsTo: item.belongsTo || undefined,
+      specialChar: item.specialChar || undefined,
       parentItemId: item.parentItemId || '',
       category: (item.itemCode.charAt(0) as 'A' | 'B' | 'C'),
       createdAt: new Date(),
@@ -89,6 +95,15 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       ? (dataset.failureChains as ChainRecord[])
       : [];
     diag['3_failureChains'] = { count: failureChains.length };
+
+    const { supplementFlatDataFromChains } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/supplementFlatDataFromChains'
+    );
+    const enrichedFlatData = supplementFlatDataFromChains(flatData as any, failureChains as any);
+    diag['3b_supplementedFlat'] = {
+      total: enrichedFlatData.length,
+      added: enrichedFlatData.length - flatData.length,
+    };
 
     // 4b. Get l1Name from registration (partName 우선)
     let l1Name = '';
@@ -109,7 +124,7 @@ async function handleResave(request: NextRequest, doSave: boolean) {
     const { buildWorksheetState } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState'
     );
-    const buildResult = buildWorksheetState(flatData, { fmeaId, l1Name });
+    const buildResult = buildWorksheetState(enrichedFlatData as any, { fmeaId, l1Name });
 
     if (!buildResult.success) {
       return NextResponse.json({
@@ -119,7 +134,7 @@ async function handleResave(request: NextRequest, doSave: boolean) {
       });
     }
     // B1 items debug - check which processNo each B1 item has
-    const b1Items = flatData.filter(i => i.itemCode === 'B1');
+    const b1Items = enrichedFlatData.filter(i => i.itemCode === 'B1');
     const b1Debug = b1Items.map(i => ({ processNo: i.processNo, value: i.value?.substring(0, 30) }));
 
     // L3 per process
@@ -184,7 +199,7 @@ async function handleResave(request: NextRequest, doSave: boolean) {
     const { applyFmGapFeedback } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/fm-gap-feedback'
     );
-    const feedback = applyFmGapFeedback(buildResult.state, flatData);
+    const feedback = applyFmGapFeedback(buildResult.state, enrichedFlatData as any);
     diag['7_feedback'] = {
       totalAdded: feedback.totalAdded,
       summary: feedback.summary,
@@ -196,7 +211,7 @@ async function handleResave(request: NextRequest, doSave: boolean) {
     );
     const atomicDB = buildAtomicFromFlat({
       fmeaId,
-      flatData: flatData as any,
+      flatData: enrichedFlatData as any,
       chains: failureChains as any,
       l1Name: l1Name || '',
     });

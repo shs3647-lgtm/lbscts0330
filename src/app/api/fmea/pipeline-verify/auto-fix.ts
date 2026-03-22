@@ -9,6 +9,7 @@
  * STEP 4: 누락 데이터 보충 (DC/PC/SOD 피어 채움, orphanOpt 삭제, RA 자동생성)
  */
 
+import { getPrisma } from '@/lib/prisma';
 import { calcAPServer } from './verify-steps';
 
 /** `1` 이면 L2=0일 때도 rebuild-atomic 호출 안 함 — FK 수선·재import 우선 (repair-fk) */
@@ -141,6 +142,7 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
   const fmPeerPC = new Map<string, string[]>();
   const fmPeerO = new Map<string, number[]>();
   const fmPeerD = new Map<string, number[]>();
+  const fmToProcessNo = new Map<string, string>();
 
   for (const ra of ras) {
     const fl = flById.get(ra.linkId);
@@ -160,6 +162,58 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
     if (ra.detection > 0) {
       if (!fmPeerD.has(fl.fmId)) fmPeerD.set(fl.fmId, []);
       fmPeerD.get(fl.fmId)!.push(ra.detection);
+    }
+  }
+
+  // Peer 데이터가 모두 비어 있으면 public staging A6/B5에서 공정 단위 기본값을 읽는다.
+  const publicPrisma = getPrisma();
+  const dcByProcess = new Map<string, string>();
+  const pcByProcess = new Map<string, string>();
+  if (publicPrisma) {
+    try {
+      const dataset = await publicPrisma.pfmeaMasterDataset.findFirst({
+        where: { fmeaId, isActive: true },
+        select: { id: true },
+      });
+      if (dataset) {
+        const [flatA6, flatB5, fms, l2s] = await Promise.all([
+          publicPrisma.pfmeaMasterFlatItem.findMany({
+            where: { datasetId: dataset.id, itemCode: 'A6' },
+            select: { processNo: true, value: true },
+          }),
+          publicPrisma.pfmeaMasterFlatItem.findMany({
+            where: { datasetId: dataset.id, itemCode: 'B5' },
+            select: { processNo: true, value: true },
+          }),
+          prisma.failureMode.findMany({
+            where: { fmeaId },
+            select: { id: true, l2StructId: true },
+          }),
+          prisma.l2Structure.findMany({
+            where: { fmeaId },
+            select: { id: true, no: true },
+          }),
+        ]);
+
+        const l2NoById = new Map<string, string>();
+        for (const l2 of l2s) {
+          if (l2?.id && l2?.no) l2NoById.set(l2.id, String(parseInt(String(l2.no), 10)));
+        }
+        for (const fm of fms) {
+          const pNo = l2NoById.get(fm.l2StructId || '') || '';
+          if (pNo) fmToProcessNo.set(fm.id, pNo);
+        }
+        for (const a6 of flatA6) {
+          const pNo = String(parseInt(String(a6.processNo || ''), 10));
+          if (pNo && !dcByProcess.has(pNo) && a6.value?.trim()) dcByProcess.set(pNo, a6.value.trim());
+        }
+        for (const b5 of flatB5) {
+          const pNo = String(parseInt(String(b5.processNo || ''), 10));
+          if (pNo && !pcByProcess.has(pNo) && b5.value?.trim()) pcByProcess.set(pNo, b5.value.trim());
+        }
+      }
+    } catch (e) {
+      console.error('[fixMissing] public A6/B5 fallback 조회 실패:', e);
     }
   }
 
@@ -193,11 +247,21 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
 
     if (!newDC.trim()) {
       const peer = mostFrequent(fmPeerDC.get(fl.fmId) || []);
-      if (peer) { newDC = peer; needsUpdate = true; dcFilled++; }
+      const fallback = dcByProcess.get(fmToProcessNo.get(fl.fmId) || '') || '';
+      if (peer || fallback) {
+        newDC = peer || fallback;
+        needsUpdate = true;
+        dcFilled++;
+      }
     }
     if (!newPC.trim()) {
       const peer = mostFrequent(fmPeerPC.get(fl.fmId) || []);
-      if (peer) { newPC = peer; needsUpdate = true; pcFilled++; }
+      const fallback = pcByProcess.get(fmToProcessNo.get(fl.fmId) || '') || '';
+      if (peer || fallback) {
+        newPC = peer || fallback;
+        needsUpdate = true;
+        pcFilled++;
+      }
     }
     if (!ra.occurrence || ra.occurrence <= 0) {
       newO = median(fmPeerO.get(fl.fmId) || []) || 1;

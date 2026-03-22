@@ -1,6 +1,6 @@
 # FMEA OnPremise 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-18
+> **최종 업데이트**: 2026-03-22
 > **총 테스트**: 78파일 / 1343테스트 ALL PASS | **빌드**: 240페이지 성공 | **tsc**: 에러 0개
 
 ---
@@ -17,6 +17,8 @@
 | 2026-03-18 | - | Raw SQL PascalCase 테이블명 전수 제거 (15개 파일) + CP 라우트 Prisma ORM 전환 + 트러블슈팅 T-38~T-42 추가 | Claude |
 | 2026-03-20 | - | B4 dedup key WE 추가 (emptyPC 근본수정) + 골든 베이스라인 FC/FL/RA/B4: 104→103 갱신 + 방어코드 4건 추가 | Claude |
 | 2026-03-22 | - | `repair-fk` API + `fk-repair.ts` (rebuild 없이 FK 정리), `DISABLE_REBUILD_ATOMIC`로 파이프라인 STEP0 rebuild 생략 | Claude |
+| 2026-03-22 | - | `validate-fk` 10개 체크로 확장 (`failureLinkCoverage`, `riskAnalysisCoverage`) + `save-from-import` 불완전 Atomic 409 차단 + 회귀 테스트 3건 추가 | Claude |
+| 2026-03-22 | - | 레거시 Import flat 복원, `save-from-import` 체인 유도/chain→flat B4/B5/A6 보강, `pipeline-verify` public A6/B5 fallback으로 `m001` DC/PC null 156건 해소, `f001` resave-import 0→23 FL/RA 회복 | Claude |
 
 ---
 
@@ -523,10 +525,12 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 
 ## 10. 버그 수정 이력
 
-### 최근 수정 (2026-03-20 기준, 최신순)
+### 최근 수정 (2026-03-22 기준, 최신순)
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|
+| 03-22 | - | Import/Repair | **레거시 Import/재저장 복구**: `legacyParseResultToFlatData.ts`로 레거시 ParseResult→flat 복원, `supplementFlatDataFromChains.ts`로 chain 기반 `B4/B5/A6` 꽂아넣기 추가. `pipeline-verify/auto-fix.ts`는 public `A6/B5`를 읽어 기존 RA `DC/PC` 빈값을 채운다. 결과적으로 `pfm26-m001`은 `DC/PC null 156건 → 0건`, `pfm26-f001`은 `FC/FL/RA 0건 → 23/23/23`까지 복구 |
+| 03-22 | - | Import/FK | **거짓 Green 차단**: `validate-fk`에 `failureLinkCoverage`(FM→FL 연결 누락)와 `riskAnalysisCoverage`(FL→RA 1:1) 추가. `pfm26-f001`처럼 FM만 있고 FL=0인 프로젝트가 더 이상 green 통과하지 않음. `save-from-import`는 기존 FC/FL/RA가 있는 프로젝트에 신규 Atomic FC/FL/RA=0 결과가 들어오면 409로 저장 차단 |
 | 03-20 | `458f2a7` | Import | **emptyPC 근본수정**: B4 dedup key에 WE 추가 (`{pno\|m4\|fc}`→`{pno\|m4\|we\|fc}`). Cu Target+Ti Target 동일 FC명 공유 시 1건으로 합쳐져 FC 미연결 → orphan L3F 삭제 → emptyPC 재발. StepBB4Item.we 필드 추가. 골든 베이스라인 FC/FL/RA/B4: 104→103 갱신 |
 | 03-20 | `4d64805` | 파이프라인 | **emptyPC 방어코드**: migration.ts orphan 삭제 후 폴백 L3F 재생성, rebuild-atomic emptyPC 보정, auto-fix emptyPC 자동수정, verify-steps 폴백 L3F orphanPC 제외 |
 | 03-19 | - | 파이프라인 | **자동수정 비활성화**: fixStep3/4/5에서 placeholder FC/FL 자동생성 → 경고만 표시 (부작용: Atomic↔Legacy 불일치 악화 차단) |

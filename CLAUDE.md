@@ -551,6 +551,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-21 | FL dedup key에 feId 누락 → 유효 체인 8건 삭제 | FL key=`fmId\|fcId`로 동일 FM+FC의 다른 FE 연결 체인 삭제 → FL 103건 (실제 111건) | `rebuild-atomic/route.ts` FL key에 feId 추가 (`fmId\|fcId\|feId`) | ✅ FL=111, RA=111, DC/PC=111 |
 | 2026-03-21 | UUID/FK 설계 원칙 부재 → 반복적 누락 | 모든 dedup key에 공정번호/구분 미포함 → 동일 텍스트 다른 엔티티 삭제 | Rule 1.6(근본원인분석) + Rule 1.7(UUID/FK설계) 추가, 전체 CODEFREEZE | ✅ 영구 CODEFREEZE 적용 |
 | 2026-03-22 | 워크시트 전체 누락(빈 placeholder) — L1만 있는 단계 | `loadAtomicDB`는 L1-only여도 객체 반환인데 로더가 `l2Structures.length>0`일 때만 Atomic 적용 → DB와 UI 불일치 | `useWorksheetDataLoader.ts` 게이트를 `if (atomicData)`로 `loadAtomicDB`와 정합 | ✅ vitest + Playwright manual-screen-verify-pause |
+| 2026-03-22 | `m001` DC/PC 156건 null + `f001` FC/FL/RA 0건 | 레거시 Import 훅이 `flat=[]`로 끝나고, 서버 저장은 체인 미전달/체인 누락 B4를 복구하지 못함. 파이프라인 자동수정도 public A6/B5 fallback이 없어 기존 RA 빈값을 못 채움 | `legacyParseResultToFlatData.ts` 추가 + `useImportFileHandlers.ts` 레거시 flat 복원, `save-from-import/route.ts` 체인 유도/체인기반 B4/B5/A6 보강, `pipeline-verify/auto-fix.ts` public A6/B5 fallback, `resave-import/route.ts` 보강 flat 사용 | ✅ `m001` allGreen, `f001` 0→23 FL/RA 회복 |
 
 ### 🔴 Rule 1.6: 근본원인 분석 원칙 — UUID/FK/DB/API 설계 우선 (2026-03-21) — 영구 CODEFREEZE
 
@@ -690,7 +691,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | # | 시스템 | 파일 | 용도 |
 |---|--------|------|------|
 | 1 | **UUID 검증 유틸리티** | `src/lib/uuid-rules.ts` | parseUuid, validateParentChild, validateDedupKey, validateNoCartesian |
-| 2 | **FK 무결성 검증 API** | `src/app/api/fmea/validate-fk/route.ts` | 8개 FK 검증 (orphan FL/RA/PC, cross-process, duplicate UUID) |
+| 2 | **FK 무결성 검증 API** | `src/app/api/fmea/validate-fk/route.ts` | 10개 FK/커버리지 검증 (orphan FL/RA/PC, cross-process, duplicate UUID, FM→FL 커버리지, FL→RA 1:1) |
 | 2b | **FK 수선 API (rebuild 없음)** | `src/app/api/fmea/repair-fk/route.ts`, `src/lib/fmea-core/fk-repair.ts` | 무효 FL·고아 RA/Opt·선택 공정교차 FL 삭제, 무효 `FM.productCharId`→null; `dryRun`; 텍스트 재매칭 없음 |
 | 3 | **Import 사전검증** | `src/lib/fmea-core/validate-import.ts` | 10개 규칙 (processNo, parentItemId chain, dedup key, autoGen 텍스트) |
 | 4 | **CP UUID 생성기** | `src/lib/uuid-generator.ts` (genCpItem 등 6개) | CP 결정론적 UUID (CP-P-{pno}-I-{seq}) |

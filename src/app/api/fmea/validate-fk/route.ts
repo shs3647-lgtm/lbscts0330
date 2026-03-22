@@ -4,7 +4,7 @@
  *
  * GET /api/fmea/validate-fk?fmeaId=pfm26-m066
  *
- * 8가지 FK 검증:
+ * 10가지 FK/커버리지 검증:
  * 1. orphanFailureLinks — FM/FC/FE 미존재 참조
  * 2. orphanRiskAnalyses — FailureLink 미존재 참조
  * 3. orphanProductChars — FM.productCharId → 미존재 ProcessProductChar
@@ -13,6 +13,8 @@
  * 6. duplicateUuids — 동일 UUID 중복 레코드
  * 7. missingUuids — null/빈 id 레코드
  * 8. flTripleCheck — FailureLink에 fmId/fcId/feId 누락
+ * 9. failureLinkCoverage — FailureMode가 FailureLink에 하나도 연결되지 않음
+ * 10. riskAnalysisCoverage — FailureLink별 RiskAnalysis 1:1 불일치
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
@@ -269,9 +271,55 @@ async function checkFlTriple(prisma: any): Promise<CheckResult> {
   return makeCheck('flTripleCheck', incomplete.length, incomplete.slice(0, 20));
 }
 
+async function checkFailureLinkCoverage(prisma: any): Promise<CheckResult> {
+  const fms = await prisma.failureMode.findMany({
+    select: { id: true },
+  });
+  const links = await prisma.failureLink.findMany({
+    select: { id: true, fmId: true },
+  });
+
+  const linkedFmIds = new Set(
+    links
+      .map((link: { fmId?: string | null }) => link.fmId)
+      .filter((fmId: string | null | undefined): fmId is string => typeof fmId === 'string' && fmId.trim() !== '')
+  );
+
+  const missing = fms
+    .filter((fm: { id: string }) => !linkedFmIds.has(fm.id))
+    .map((fm: { id: string }) => `FM ${fm.id}: no FailureLink`);
+
+  return makeCheck('failureLinkCoverage', missing.length, missing.slice(0, 20));
+}
+
+async function checkRiskAnalysisCoverage(prisma: any): Promise<CheckResult> {
+  const links = await prisma.failureLink.findMany({
+    select: { id: true },
+  });
+  const risks = await prisma.riskAnalysis.findMany({
+    select: { id: true, linkId: true },
+  });
+
+  const riskCountByLinkId = new Map<string, number>();
+  for (const risk of risks) {
+    if (!risk.linkId) continue;
+    riskCountByLinkId.set(risk.linkId, (riskCountByLinkId.get(risk.linkId) || 0) + 1);
+  }
+
+  const mismatches: string[] = [];
+  for (const link of links) {
+    const riskCount = riskCountByLinkId.get(link.id) || 0;
+    if (riskCount !== 1) {
+      mismatches.push(`FL ${link.id}: RiskAnalysis count=${riskCount}`);
+    }
+  }
+
+  return makeCheck('riskAnalysisCoverage', mismatches.length, mismatches.slice(0, 20));
+}
+
 // ─── Main validation runner ─────────────────────────────────
 
-/** 프로젝트 스키마 Prisma로 FK 8종 검증 — repair-fk·테스트에서 재사용 */
+/** 프로젝트 스키마 Prisma로 FK/커버리지 검증 — repair-fk·테스트에서 재사용 */
 export async function runValidation(prisma: any, fmeaId: string): Promise<ValidateFkResponse> {
   const checks: CheckResult[] = [
     await checkOrphanFailureLinks(prisma),
@@ -282,6 +330,8 @@ export async function runValidation(prisma: any, fmeaId: string): Promise<Valida
     await checkDuplicateUuids(prisma),
     await checkMissingUuids(prisma),
     await checkFlTriple(prisma),
+    await checkFailureLinkCoverage(prisma),
+    await checkRiskAnalysisCoverage(prisma),
   ];
 
   const passed = checks.filter(c => c.status === 'OK').length;
