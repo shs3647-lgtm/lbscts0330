@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ★ 2026-03-19: fmeaId별 마스터 데이터셋 분리
-    const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+    let activeDataset = await prisma.pfmeaMasterDataset.findFirst({
       where: {
         isActive: true,
         ...(fmeaId ? { fmeaId } : {}),
@@ -172,17 +172,18 @@ export async function POST(req: NextRequest) {
     if (!activeDataset) {
       // fmeaId가 있으면 해당 프로젝트용 데이터셋 자동 생성
       if (fmeaId) {
-        const newDataset = await prisma.pfmeaMasterDataset.create({
-          data: { fmeaId, isActive: true, name: `Master-${fmeaId}`, fmeaType: 'PFMEA' },
+        // fmeaId 패턴으로 fmeaType 결정 (pfm26-m→M, pfm26-f→F, pfm26-p→P, 기타→P)
+        const typeMatch = fmeaId.match(/-([mfp])\d/i);
+        const fmeaType = typeMatch ? typeMatch[1].toUpperCase() : 'P';
+        activeDataset = await prisma.pfmeaMasterDataset.create({
+          data: { fmeaId, isActive: true, name: `Master-${fmeaId}`, fmeaType },
         });
-        // 아래에서 newDataset 사용
-        (body as any)._datasetId = newDataset.id;
       } else {
-        return NextResponse.json({ success: false, error: 'Master Dataset이 없습니다.' });
+        return NextResponse.json({ success: false, error: 'Master Dataset이 없습니다. Import에서 먼저 BD를 저장하세요.' });
       }
     }
 
-    const datasetId = activeDataset?.id || (body as any)._datasetId;
+    const datasetId = activeDataset.id;
 
     // 중복 확인
     const existing = await prisma.pfmeaMasterFlatItem.findFirst({

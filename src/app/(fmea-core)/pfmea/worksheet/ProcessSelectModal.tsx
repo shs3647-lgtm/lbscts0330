@@ -337,44 +337,51 @@ export default function ProcessSelectModal({
   const handleAddNew = () => {
     if (!newName.trim()) return;
 
-    // 중복 확인 - 이미 존재하면 무시
-    if (processes.some(p => p.name === newName.trim())) return;
+    // 중복 확인 - 이름 또는 번호가 이미 존재하면 경고
+    const trimmedName = newName.trim();
+    const trimmedNo = newNo.trim();
+    if (processes.some(p => p.name === trimmedName)) {
+      alert(`"${trimmedName}" 공정이 이미 목록에 있습니다.`);
+      return;
+    }
 
-    // 공정번호 자동 생성 (입력 안했으면)
-    const procNo = newNo.trim() || String((processes.length + 1) * 10);
+    // 공정번호 자동 생성 — 기존 최대값 + 10
+    const maxNo = processes.reduce((max, p) => {
+      const n = parseInt(p.no.replace(/\D/g, '') || '0', 10);
+      return n > max ? n : max;
+    }, 0);
+    const procNo = trimmedNo || String(maxNo + 10 || 10);
 
     const newProc: ProcessItem = {
       id: `proc_new_${Date.now()}`,
       no: procNo,
-      name: newName.trim(),
+      name: trimmedName,
     };
 
-    setProcesses(prev => [newProc, ...prev]);  // 최상단에 추가
+    // ★ 목록에 추가 + 자동 선택 (모달 유지 — 사용자가 목록에서 확인 후 "적용" 클릭)
+    setProcesses(prev => [newProc, ...prev]);
     setSelectedIds(prev => new Set([...prev, newProc.id]));
 
-    // ★★★ 2026-02-07: 마스터 DB에 즉시 저장 (localStorage 폴백) ★★★
+    // ★ 마스터 DB에 즉시 저장 (fire-and-forget)
     fetch('/api/fmea/master-processes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ processNo: procNo, processName: newProc.name, fmeaId }),
+      body: JSON.stringify({ processNo: procNo, processName: trimmedName, fmeaId }),
     }).then(res => res.json()).then(data => {
-      if (!data.success) {
-        console.error('DB 저장 실패, localStorage 폴백:', data.error);
+      if (!data.success && !data.duplicate) {
+        console.error('[ProcessSelectModal] DB 저장 실패:', data.error);
       }
     }).catch(e => {
-      console.error('DB 저장 오류:', e);
+      console.error('[ProcessSelectModal] DB 저장 오류:', e);
     });
 
     // ✅ 연속입력 모드: 워크시트에 즉시 반영 + 새 행 추가
     if (continuousMode && onContinuousAdd) {
-      onContinuousAdd(newProc, true); // 새 행 추가 요청
+      onContinuousAdd(newProc, true);
       setAddedCount(prev => prev + 1);
-    } else {
-      // ✅ 2026-02-07: 수동추가 후 워크시트에 즉시 반영 + 모달 닫기 (자동모드 동일)
-      const currentSelected = processes.filter(p => selectedIds.has(p.id));
-      onSave([...currentSelected, newProc]);
-      onClose();
     }
+    // ★ 비연속 모드: 모달 유지 — 목록에 선택 상태로 추가됨 (사용자가 "✓ 적용" 클릭으로 반영)
+    // 이전 동작(즉시 onSave+onClose)은 사용자가 결과를 확인할 수 없어 제거
 
     setNewNo('');
     setNewName('');
