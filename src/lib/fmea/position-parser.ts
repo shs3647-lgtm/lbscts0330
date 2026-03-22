@@ -840,22 +840,27 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     flat.push({ id: s.id, processNo: l2?.no || '', category: 'B', itemCode: 'B1', value: s.name, m4: s.m4 || undefined, createdAt: now, rowSpan: 1 });
   }
 
-  // B2: L3Function.functionName
+  // B2: L3Function.functionName — m4는 L3Structure에서 가져와 buildCrossTab 매칭용
+  const l3StructMap = new Map(data.l3Structures.map(s => [s.id, s]));
   for (const f of data.l3Functions) {
     const l2 = data.l2Structures.find(s => s.id === f.l2StructId);
-    flat.push({ id: f.id, processNo: l2?.no || '', category: 'B', itemCode: 'B2', value: f.functionName, createdAt: now, rowSpan: 1 });
+    const l3 = l3StructMap.get(f.l3StructId);
+    flat.push({ id: f.id, processNo: l2?.no || '', category: 'B', itemCode: 'B2', value: f.functionName, m4: l3?.m4 || undefined, createdAt: now, rowSpan: 1 });
   }
 
-  // B3: L3Function.processChar
+  // B3: L3Function.processChar — m4 포함 (B1과 동일 m4)
   for (const f of data.l3Functions) {
     const l2 = data.l2Structures.find(s => s.id === f.l2StructId);
-    flat.push({ id: `${f.id}-B3`, processNo: l2?.no || '', category: 'B', itemCode: 'B3', value: f.processChar, specialChar: f.specialChar || undefined, createdAt: now, rowSpan: 1 });
+    const l3 = l3StructMap.get(f.l3StructId);
+    flat.push({ id: `${f.id}-B3`, processNo: l2?.no || '', category: 'B', itemCode: 'B3', value: f.processChar, specialChar: f.specialChar || undefined, m4: l3?.m4 || undefined, createdAt: now, rowSpan: 1 });
   }
 
-  // B4: FailureCause.cause
+  // B4: FailureCause.cause — m4 포함 (L3Structure에서)
+  const l3StructByFc = new Map(data.failureCauses.map(fc => [fc.id, l3StructMap.get(fc.l3StructId)]));
   for (const fc of data.failureCauses) {
     const l2 = data.l2Structures.find(s => s.id === fc.l2StructId);
-    flat.push({ id: fc.id, processNo: l2?.no || '', category: 'B', itemCode: 'B4', value: fc.cause, createdAt: now, rowSpan: 1 });
+    const l3 = l3StructByFc.get(fc.id);
+    flat.push({ id: fc.id, processNo: l2?.no || '', category: 'B', itemCode: 'B4', value: fc.cause, m4: l3?.m4 || undefined, createdAt: now, rowSpan: 1 });
   }
 
   // B5: RiskAnalysis.preventionControl (FL→RA에서 PC 추출, 공정별 고유)
