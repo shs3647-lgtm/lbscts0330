@@ -1261,7 +1261,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
       {isChainFullscreen && createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: '#1565c0', color: '#fff' }}>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>⛶ Chain Full Screen — {currentFM?.name || 'FM 선택'}</span>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>⛶ Chain Full Screen — {currentFM?.text || currentFM?.processName || 'FM 선택'}</span>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={goToPrevFM} disabled={!hasPrevFM} style={{ padding: '2px 10px', background: hasPrevFM ? '#fff' : '#90caf9', color: '#1565c0', border: 'none', borderRadius: 3, cursor: hasPrevFM ? 'pointer' : 'default', fontWeight: 700 }}>◀ Prev</button>
               <button onClick={goToNextFM} disabled={!hasNextFM} style={{ padding: '2px 10px', background: hasNextFM ? '#fff' : '#90caf9', color: '#1565c0', border: 'none', borderRadius: 3, cursor: hasNextFM ? 'pointer' : 'default', fontWeight: 700 }}>Next ▶</button>
