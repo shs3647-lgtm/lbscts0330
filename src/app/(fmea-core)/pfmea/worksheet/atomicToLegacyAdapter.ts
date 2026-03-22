@@ -383,7 +383,8 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
       id: fc.id,
       name: fc.cause,
       occurrence: fc.occurrence,
-      processCharId: fc.processCharId || '',
+      // ★ processCharId 없으면 l3FuncId로 폴백 (위치기반 UUID 시스템 호환)
+      processCharId: fc.processCharId || fc.l3FuncId || '',
     }));
 
     return {
