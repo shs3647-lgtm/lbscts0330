@@ -31,6 +31,7 @@ import { validateStructuralCompleteness, summarizeStructuralIssues } from '../ut
 import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integrity-validation';
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
+import { useImportVerification } from '../hooks/useImportVerification';
 // supplementMissingItems 삭제됨 (2026-03-22) — no-op 대체
 const supplementMissingItems = (flatData: any[], ..._args: any[]) => [] as any[];
 import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
@@ -275,6 +276,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     }
     return counts;
   }, [flatData]);
+
+  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅
+  const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(fmeaId, flatData, uuidCounts);
 
   // ── ★ 2026-03-15: 누락 항목코드 자동 보충 (A1-A3, B1-B2, C1-C4) ──
   const supplementedRef = useRef(false);
@@ -811,7 +815,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           {/* ─── 원클릭 Import→워크시트 (SA/FC/FA 자동 확정) ─── */}
           {hasStepProcess && fmeaId && quickCreateWorksheet && (
             <button
-              onClick={quickCreateWorksheet}
+              onClick={async () => { await quickCreateWorksheet(); setTimeout(() => runFullVerify(), 500); }}
               disabled={!canSA || isAnalysisImporting || isAnalysisComplete}
               className={`px-3 py-0.5 rounded text-[10px] font-bold transition-colors border ${
                 isAnalysisComplete ? BTN_CONFIRMED
@@ -853,6 +857,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>중복</th>
               <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
               <th className="bg-emerald-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-emerald-600" style={{width:32}} title="SA(구조확정) 시점 카운트">SA</th>
+              <th className="bg-purple-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-purple-600" style={{width:40}} title="FK 무결성 (parentItemId 체인)">FK</th>
+              <th className="bg-teal-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-teal-600" style={{width:40}} title="PostgreSQL 프로젝트 스키마 저장 건수">pgsql</th>
+              <th className="bg-rose-700 text-white font-bold px-1.5 py-0.5 text-center" style={{width:40}} title="GET API 응답 건수 일치 여부">API</th>
             </tr></thead>
             <tbody>
               {effectiveStatistics.itemStats.map((s, i) => {
@@ -891,6 +898,30 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         <span className={saSnapshot[s.itemCode] === uuid ? 'text-emerald-600' : 'text-orange-600'}>{saSnapshot[s.itemCode] ?? 0}</span>
                       ) : <span className="text-gray-300">-</span>}
                     </td>
+                    {/* FK */}
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                      {fkData ? (() => {
+                        const fk = fkData[s.itemCode];
+                        if (!fk || fk.status === 'na') return <span className="text-gray-300">-</span>;
+                        return <span className={fk.orphans === 0 ? 'text-green-600' : 'text-red-600'}>{fk.valid}/{fk.total}</span>;
+                      })() : <span className="text-gray-300">-</span>}
+                    </td>
+                    {/* pgsql */}
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                      {pgsqlData ? (() => {
+                        const pg = pgsqlData[s.itemCode];
+                        if (!pg || pg.status === 'pending') return <span className="text-gray-300">…</span>;
+                        return <span className={pg.actual === pg.expected ? 'text-teal-600' : pg.actual > 0 ? 'text-orange-600' : 'text-red-600'}>{pg.actual}</span>;
+                      })() : <span className="text-gray-300">-</span>}
+                    </td>
+                    {/* API */}
+                    <td className="px-1.5 py-0.5 text-center font-bold">
+                      {apiData ? (() => {
+                        const api = apiData[s.itemCode];
+                        if (!api || api.status === 'na') return <span className="text-gray-300">-</span>;
+                        return <span className={api.apiCount === api.expected ? 'text-green-600' : api.apiCount > 0 ? 'text-orange-600' : 'text-red-600'}>{api.apiCount}</span>;
+                      })() : <span className="text-gray-300">-</span>}
+                    </td>
                   </tr>
                 );
               })}
@@ -902,6 +933,30 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-emerald-600">
                   {saSnapshot ? Object.values(saSnapshot).reduce((s, c) => s + c, 0) : <span className="text-gray-300">-</span>}
+                </td>
+                {/* FK 합계 */}
+                <td className="px-1.5 py-0.5 text-center font-bold text-purple-700">
+                  {fkData ? (() => {
+                    const vals = Object.values(fkData);
+                    const totalOrphans = vals.reduce((s, v) => s + v.orphans, 0);
+                    return totalOrphans === 0 ? <span className="text-green-600">✓</span> : <span className="text-red-600">{totalOrphans}</span>;
+                  })() : <span className="text-gray-300">-</span>}
+                </td>
+                {/* pgsql 합계 */}
+                <td className="px-1.5 py-0.5 text-center font-bold text-teal-700">
+                  {pgsqlData ? (() => {
+                    const vals = Object.values(pgsqlData);
+                    const total = vals.reduce((s, v) => s + v.actual, 0);
+                    return <span>{total}</span>;
+                  })() : <span className="text-gray-300">-</span>}
+                </td>
+                {/* API 합계 */}
+                <td className="px-1.5 py-0.5 text-center font-bold text-rose-700">
+                  {apiData ? (() => {
+                    const vals = Object.values(apiData);
+                    const total = vals.reduce((s, v) => s + v.apiCount, 0);
+                    return <span>{total}</span>;
+                  })() : <span className="text-gray-300">-</span>}
                 </td>
               </tr>
             </tbody>
