@@ -686,10 +686,10 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   // ─── FC 시트 — 헤더 자동감지 ───
   const fcWS = wb.getWorksheet(fcName);
   const fcColMap = detectColumns(fcWS, {
-    FE_scope: ['FE구분', 'FE 구분', 'SCOPE'],
-    FE: ['FE', '고장영향', 'FAILURE EFFECT'],
-    processNo: ['공정번호', '공정 번호', 'PROCESS NO'],
-    FM: ['FM', '고장형태', 'FAILURE MODE'],
+    FE_scope: ['FE구분', 'FE 구분', 'SCOPE', 'FE_SCOPE'],
+    FE: ['FE(고장', 'FE(', '고장영향', 'FAILURE EFFECT'],  // ★ 'FE' 단독 제거 — FE구분 오매칭 방지
+    processNo: ['공정번호', '공정 번호', 'PROCESS NO', 'L2-1.공정번호'],
+    FM: ['FM(', 'FM(고장', '고장형태', 'FAILURE MODE'],  // ★ 'FM' 단독 제거
     m4: ['4M', 'M4'],
     WE: ['WE', '작업요소', 'WORK ELEMENT'],
     FC: ['FC', '고장원인', 'FAILURE CAUSE'],
@@ -721,13 +721,14 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
         FC: excelCellStr(row, fcColMap.FC || 7),
         PC: excelCellStr(row, fcColMap.PC || 8),
         DC: excelCellStr(row, fcColMap.DC || 9),
-        S: excelCellStr(row, fcColMap.S || 10),
-        O: excelCellStr(row, fcColMap.O || 11),
-        D: excelCellStr(row, fcColMap.D || 12),
-        AP: excelCellStr(row, fcColMap.AP || 13),
-        L1_origRow: excelCellStr(row, fcColMap.L1_origRow || 14),
-        L2_origRow: excelCellStr(row, fcColMap.L2_origRow || 15),
-        L3_origRow: excelCellStr(row, fcColMap.L3_origRow || 16),
+        // ★ S 없는 Excel 대응: S 감지 실패 시 '' (심각도는 FE에서 별도 설정)
+        S: fcColMap.S ? excelCellStr(row, fcColMap.S) : '',
+        O: excelCellStr(row, fcColMap.O || 10),
+        D: excelCellStr(row, fcColMap.D || 11),
+        AP: excelCellStr(row, fcColMap.AP || 12),
+        L1_origRow: fcColMap.L1_origRow ? excelCellStr(row, fcColMap.L1_origRow) : '',
+        L2_origRow: fcColMap.L2_origRow ? excelCellStr(row, fcColMap.L2_origRow) : '',
+        L3_origRow: fcColMap.L3_origRow ? excelCellStr(row, fcColMap.L3_origRow) : '',
       },
     });
   });
