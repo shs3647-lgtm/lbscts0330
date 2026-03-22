@@ -1,13 +1,18 @@
 /**
- * ImportAtomMap CRUD API
+ * ImportAtomMap CRUD API + 셀 단위 PATCH
  * GET    /api/fmea/atom-map?fmeaId=xxx  — 해당 fmeaId의 atom map 전체 조회
  * POST   /api/fmea/atom-map             — 기존 삭제 후 bulk 생성 (트랜잭션)
+ * PATCH  /api/fmea/atom-map             — 셀 단위 UPDATE (DELETE 없이 1건씩 UPDATE)
  * DELETE /api/fmea/atom-map?fmeaId=xxx  — 해당 fmeaId의 atom map 전체 삭제
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForSchema } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
+import type { AtomMapPatchRequest, AtomMapPatchResponse } from '@/types/atom-map';
+import { validateChange, coerceValue, isSODChange, calcAP } from '@/lib/fmea/atom-map-whitelist';
 
 export const runtime = 'nodejs';
 
@@ -139,6 +144,118 @@ export async function POST(request: NextRequest) {
     console.error('[atom-map] POST error:', error);
     return NextResponse.json(
       { success: false, error: safeErrorMessage(error) },
+      { status: 500 },
+    );
+  }
+}
+
+// ─── PATCH (셀 단위 UPDATE) ──────────────────────────────
+export async function PATCH(request: NextRequest) {
+  try {
+    const body: AtomMapPatchRequest = await request.json();
+    const { fmeaId, changes } = body;
+
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
+    }
+    if (!changes || !Array.isArray(changes) || changes.length === 0) {
+      return NextResponse.json({ success: false, error: 'changes array required' }, { status: 400 });
+    }
+    if (changes.length > 100) {
+      return NextResponse.json({ success: false, error: 'Max 100 changes per request' }, { status: 400 });
+    }
+
+    const normalizedId = fmeaId.toLowerCase();
+    const schema = getProjectSchemaName(normalizedId);
+    const baseDatabaseUrl = process.env.DATABASE_URL || '';
+
+    await ensureProjectSchemaReady({ baseDatabaseUrl, schema });
+    const prisma = getPrismaForSchema(schema);
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'Failed to get Prisma client' }, { status: 500 });
+    }
+
+    // 화이트리스트 검증
+    const validChanges: Array<{ change: typeof changes[0]; def: NonNullable<ReturnType<typeof validateChange>> }> = [];
+    const errors: string[] = [];
+
+    for (const ch of changes) {
+      if (!ch.id || !ch.table || !ch.field) {
+        errors.push(`Invalid change: missing id/table/field`);
+        continue;
+      }
+      const def = validateChange(ch);
+      if (!def) {
+        errors.push(`Blocked: ${ch.table}.${ch.field} not editable`);
+        continue;
+      }
+      validChanges.push({ change: ch, def });
+    }
+
+    if (validChanges.length === 0) {
+      return NextResponse.json({
+        success: false, saved: 0, failed: errors.length, errors, apRecalculated: 0,
+      } satisfies AtomMapPatchResponse, { status: 400 });
+    }
+
+    // $transaction: UPDATE only (DELETE 없음)
+    let saved = 0;
+    let apRecalculated = 0;
+    const sodChangedRAIds = new Set<string>();
+
+    await prisma.$transaction(async (tx: any) => {
+      for (const { change, def } of validChanges) {
+        const model = tx[def.prismaModel];
+        if (!model) {
+          errors.push(`Model not found: ${def.prismaModel}`);
+          continue;
+        }
+
+        const existing = await model.findUnique({ where: { id: change.id } });
+        if (!existing) {
+          errors.push(`Not found: ${def.prismaModel}#${change.id}`);
+          continue;
+        }
+
+        const coerced = coerceValue(change.value, def.type);
+        await model.update({
+          where: { id: change.id },
+          data: { [change.field]: coerced },
+        });
+        saved++;
+
+        if (isSODChange(change)) {
+          sodChangedRAIds.add(change.id);
+        }
+      }
+
+      // AP 자동재계산 (S/O/D 변경 시)
+      for (const raId of sodChangedRAIds) {
+        const ra = await tx.riskAnalysis.findUnique({ where: { id: raId } });
+        if (!ra) continue;
+
+        const newAP = calcAP(ra.severity, ra.occurrence, ra.detection);
+        if (newAP !== ra.ap) {
+          await tx.riskAnalysis.update({
+            where: { id: raId },
+            data: { ap: newAP },
+          });
+          apRecalculated++;
+        }
+      }
+    });
+
+    console.log(`[atom-map] PATCH fmeaId=${normalizedId} saved=${saved} failed=${errors.length} apRecalc=${apRecalculated}`);
+
+    const response: AtomMapPatchResponse = {
+      success: true, saved, failed: errors.length, errors, apRecalculated,
+    };
+    return NextResponse.json(response);
+
+  } catch (err) {
+    console.error('[atom-map] PATCH error:', err);
+    return NextResponse.json(
+      { success: false, error: safeErrorMessage(err) },
       { status: 500 },
     );
   }
