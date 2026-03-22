@@ -206,41 +206,61 @@ export default function UserMasterPage() {
   return (
     <FixedLayout topNav={<AdminTopNav />} showSidebar={true}>
       <div className="h-full flex flex-col bg-gray-50">
-        {/* 헤더 */}
+        {/* 헤더 — 예전 CFT: Import / Export / 추가 / 수정·저장 / 삭제 (가로 한 줄) */}
         <div className="bg-[#00587a] px-4 py-3 flex items-center justify-between">
           <h1 className="text-lg font-bold text-white flex items-center gap-2">
             👤 {t('사용자 정보 관리')} ({t('직원')}/CFT)
           </h1>
-          <div className="flex items-center gap-2">
-            <button onClick={handleImport} className="px-3 py-1.5 text-xs font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              type="button"
+              onClick={handleImport}
+              className="px-3 py-1.5 text-xs font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100"
+            >
               📥 Import
             </button>
-            <button onClick={handleExport} className="px-3 py-1.5 text-xs font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100">
+            <button
+              type="button"
+              onClick={handleExport}
+              className="px-3 py-1.5 text-xs font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100"
+            >
               📤 Export
             </button>
-            <button onClick={handleAdd} disabled={loading} className="px-3 py-1.5 text-xs font-semibold bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-semibold bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               ➕ {t('추가')}
             </button>
             <button
+              type="button"
               disabled={loading}
               onClick={() => {
                 if (editingUser) {
-                  handleSave();
+                  void handleSave();
                 } else if (selectedId) {
-                  const user = users.find(u => u.id === selectedId);
-                  if (user) setEditingUser({ ...user });
+                  const u = users.find((x) => x.id === selectedId);
+                  if (u) setEditingUser({ ...u });
                 } else {
                   alert('수정할 사용자를 선택해주세요.');
                 }
               }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded disabled:opacity-50 disabled:cursor-not-allowed ${editingUser
-                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                : 'bg-amber-500 text-white hover:bg-amber-600'
-                }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded disabled:opacity-50 disabled:cursor-not-allowed ${
+                editingUser
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'bg-amber-500 text-white hover:bg-amber-600'
+              }`}
             >
               {editingUser ? `💾 ${t('저장')}` : `✏️ ${t('수정')}`}
             </button>
-            <button onClick={handleDelete} disabled={loading} className="px-3 py-1.5 text-xs font-semibold bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-semibold bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               🗑️ {t('삭제')}
             </button>
           </div>

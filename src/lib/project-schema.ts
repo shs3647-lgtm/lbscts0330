@@ -157,8 +157,9 @@ export async function ensureProjectSchemaReady(params: {
  */
 async function syncMissingColumns(client: Client, schema: string): Promise<void> {
   for (const table of PROJECT_TABLES) {
+    // ★ 2026-03-23: udt_name 추가 — ARRAY 타입 처리를 위해 (feRefs TEXT[] 등)
     const pubCols = await client.query(`
-      SELECT column_name, data_type, character_maximum_length, column_default, is_nullable
+      SELECT column_name, data_type, character_maximum_length, column_default, is_nullable, udt_name
       FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = $1
       ORDER BY ordinal_position
@@ -183,6 +184,10 @@ async function syncMissingColumns(client: Client, schema: string): Promise<void>
         colType = 'TIMESTAMP';
       } else if (colType === 'TIMESTAMP WITH TIME ZONE') {
         colType = 'TIMESTAMPTZ';
+      } else if (colType === 'ARRAY') {
+        // ★ PostgreSQL ARRAY: udt_name starts with '_' (e.g., '_text' → TEXT[])
+        const baseType = (col.udt_name || '').replace(/^_/, '').toUpperCase() || 'TEXT';
+        colType = `${baseType}[]`;
       }
 
       const nullable = col.is_nullable === 'YES' ? '' : ' NOT NULL';

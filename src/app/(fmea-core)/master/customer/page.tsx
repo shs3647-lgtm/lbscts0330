@@ -21,7 +21,6 @@ export default function CustomerMasterPage() {
   const [customers, setCustomers] = useState<BizInfoCustomer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<BizInfoCustomer | null>(null);
-  const [showTools, setShowTools] = useState(false); // 도구 토글
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -106,14 +105,14 @@ export default function CustomerMasterPage() {
 
   // Export
   const handleExport = () => {
-    const headers = ['고객사명', '코드', '공장'];
+    const headers = ['회사명', '코드', '공장'];
     const colWidths = [20, 10, 20];
     const data = customers.map(c => [
       c.name,
       c.code,
       c.factory
     ]);
-    downloadStyledExcel(headers, data, colWidths, '고객사정보', `고객사정보_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    downloadStyledExcel(headers, data, colWidths, '회사명정보', `회사명정보_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   // Import
@@ -156,7 +155,7 @@ export default function CustomerMasterPage() {
       }
 
       refreshData();
-      alert(`✅ ${importedCount}개 고객사 Import 완료!`);
+      alert(`✅ ${importedCount}건 Import 완료!`);
     } catch (err) {
       console.error('Import 오류:', err);
       alert('❌ 엑셀 파일 읽기 오류');
@@ -167,66 +166,62 @@ export default function CustomerMasterPage() {
   return (
     <FixedLayout topNav={<AdminTopNav />} showSidebar={true}>
       <div className="h-full flex flex-col bg-gray-50">
-        {/* 헤더 - 버튼 최적화: 주요 버튼 + 도구 토글 */}
-        <div className="bg-[#37474f] px-4 py-2 flex items-center justify-between">
-          <h1 className="text-sm font-bold text-white flex items-center gap-2">
-            {t('고객사 정보')}
+        {/* 헤더 — 예전 CFT와 동일: Import / Export / 추가 / 수정 / 삭제 (가로 한 줄) */}
+        <div className="bg-[#00587a] px-4 py-3 flex items-center justify-between">
+          <h1 className="text-lg font-bold text-white flex items-center gap-2">
+            🏢 {t('회사명')} {t('정보')}
           </h1>
-          <div className="flex items-center gap-1.5">
-            {/* 주요 버튼: 추가, 수정 */}
-            <button onClick={handleAdd} disabled={loading} className="px-3 py-1 text-[11px] font-semibold bg-green-500 text-white rounded hover:bg-green-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-              + {t('추가')}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button
+              type="button"
+              onClick={handleImport}
+              className="px-3 py-1.5 text-xs font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100"
+            >
+              📥 Import
             </button>
             <button
+              type="button"
+              onClick={handleExport}
+              className="px-3 py-1.5 text-xs font-semibold bg-white text-[#00587a] rounded hover:bg-gray-100"
+            >
+              📤 Export
+            </button>
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-semibold bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ➕ {t('추가')}
+            </button>
+            <button
+              type="button"
               disabled={loading}
               onClick={() => {
                 if (selectedId) {
-                  const customer = customers.find(c => c.id === selectedId);
+                  const customer = customers.find((c) => c.id === selectedId);
                   if (customer) setEditingCustomer({ ...customer });
                 } else {
-                  alert('수정할 고객사를 선택해주세요.');
+                  alert('수정할 항목을 선택해주세요.');
                 }
               }}
-              className="px-3 py-1 text-[11px] font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {t('수정')}
+              ✏️ {t('수정')}
             </button>
-
-            {/* 구분선 */}
-            <div className="w-px h-5 bg-white/30 mx-0.5" />
-
-            {/* 도구 토글 */}
-            <div className="relative">
-              <button
-                onClick={() => setShowTools(!showTools)}
-                className={`px-3 py-1 text-[11px] font-semibold rounded cursor-pointer transition-colors ${
-                  showTools ? 'bg-white text-[#37474f]' : 'bg-white/20 text-white hover:bg-white/30'
-                }`}
-              >
-                {t('도구')} {showTools ? '▲' : '▼'}
-              </button>
-              {showTools && (
-                <div className="absolute right-0 top-8 z-20 bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-[120px]">
-                  <button onClick={() => { handleImport(); setShowTools(false); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-blue-50 cursor-pointer">
-                    Import
-                  </button>
-                  <button onClick={() => { handleExport(); setShowTools(false); }} className="w-full px-3 py-1.5 text-xs text-left hover:bg-blue-50 cursor-pointer">
-                    Export
-                  </button>
-                  <hr className="my-1 border-gray-200" />
-                  <button onClick={() => { handleDelete(); setShowTools(false); }} className="w-full px-3 py-1.5 text-xs text-left text-red-600 hover:bg-red-50 cursor-pointer">
-                    {t('삭제')}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* 자동저장 상태 표시 */}
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs font-semibold bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              🗑️ {t('삭제')}
+            </button>
             {autoSaveStatus === 'saving' && (
-              <span className="text-[10px] text-yellow-300 animate-pulse">{t('저장중')}</span>
+              <span className="text-[10px] text-yellow-200 animate-pulse">{t('저장중')}</span>
             )}
             {autoSaveStatus === 'saved' && (
-              <span className="text-[10px] text-green-300">{t('저장됨')}</span>
+              <span className="text-[10px] text-green-200">{t('저장됨')}</span>
             )}
           </div>
         </div>
@@ -238,7 +233,7 @@ export default function CustomerMasterPage() {
         <div className="px-4 py-3 bg-white border-b border-gray-200">
           <input
             type="text"
-            placeholder="🔍 검색 (고객사명/코드/공장)"
+            placeholder="🔍 검색 (회사명/코드/공장)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full max-w-md px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -254,7 +249,7 @@ export default function CustomerMasterPage() {
               </span>
               <div className="flex-1 flex items-center gap-2">
                 <input type="text" value={editingCustomer.name} onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder={`${t('고객사명')} *`} autoFocus />
+                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder={`${t('회사명')} *`} autoFocus />
                 <input type="text" value={editingCustomer.code} onChange={(e) => setEditingCustomer({ ...editingCustomer, code: e.target.value })}
                   className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400" placeholder={t('코드')} />
                 <input type="text" value={editingCustomer.factory} onChange={(e) => setEditingCustomer({ ...editingCustomer, factory: e.target.value })}
@@ -279,10 +274,10 @@ export default function CustomerMasterPage() {
             </div>
           ) : (
             <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 bg-[#37474f] text-white">
+              <thead className="sticky top-0 bg-[#00587a] text-white">
                 <tr>
                   <th className="border border-white/50 px-2 py-2 text-center font-semibold w-10">✓</th>
-                  <th className="border border-white/50 px-2 py-2 text-center font-semibold" title="Customer Name">고객사명(Customer Name)</th>
+                  <th className="border border-white/50 px-2 py-2 text-center font-semibold" title="Company Name">회사명(Company Name)</th>
                   <th className="border border-white/50 px-2 py-2 text-center font-semibold w-24" title="Code">코드(Code)</th>
                   <th className="border border-white/50 px-2 py-2 text-center font-semibold" title="Factory">공장(Factory)</th>
                   <th className="border border-white/50 px-2 py-2 text-center font-semibold w-32" title="Registration Date">등록일(Reg. Date)</th>

@@ -378,6 +378,8 @@ model FailureMode {
   productCharId String?
   mode          String
   specialChar   Boolean?            @default(false)
+  feRefs        String[]            // ★v4 EX-05: 이 FM에 연결된 FE UUID 목록 (크로스시트 매칭 결과)
+  fcRefs        String[]            // ★v4 EX-05: 이 FM에 연결된 FC UUID 목록
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   parentId      String?
@@ -484,6 +486,8 @@ model FailureLink {
   fmId            String
   feId            String
   fcId            String
+  l2StructId      String?          // ★v4 EX-38: L2Structure 직접참조 (조인 불필요)
+  l3StructId      String?          // ★v4 EX-38: L3Structure 직접참조
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   fmText          String?
@@ -576,6 +580,9 @@ model RiskAnalysis {
   id                String         @id @default(uuid())
   fmeaId            String
   linkId            String
+  fmId              String?        // ★v4 EX-06: FM 직접참조 (FailureLink 조인 불필요)
+  fcId              String?        // ★v4 EX-06: FC 직접참조
+  feId              String?        // ★v4 EX-06: FE 직접참조
   severity          Int
   occurrence        Int
   detection         Int

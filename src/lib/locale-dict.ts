@@ -678,6 +678,8 @@ export const MENU_DICT: Record<string, string> = {
   '삭제된 문서를 복원하거나 영구삭제합니다.': 'Restore or permanently delete documents.',
   '데이터베이스를 조회합니다.': 'Browse the database.',
   '고객사 정보': 'Customer Info',
+  '회사명': 'Company Name',
+  '정보': 'Info',
   '고객사명': 'Customer Name',
   '코드': 'Code',
   '등록일': 'Registered',

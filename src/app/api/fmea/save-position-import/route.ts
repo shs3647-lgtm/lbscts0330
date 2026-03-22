@@ -197,6 +197,8 @@ export async function POST(request: NextRequest) {
             id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
             l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
             parentId: fm.parentId || null,
+            feRefs: fm.feRefs || [], // ★v4 EX-05
+            fcRefs: fm.fcRefs || [], // ★v4 EX-05
           })),
         });
       }
@@ -228,6 +230,8 @@ export async function POST(request: NextRequest) {
           data: validFLs.map(fl => ({
             id: fl.id, fmeaId: normalizedId,
             fmId: fl.fmId, feId: fl.feId, fcId: fl.fcId,
+            l2StructId: fl.l2StructId || null, // ★v4 EX-38
+            l3StructId: fl.l3StructId || null, // ★v4 EX-38
             fmText: fl.fmText, feText: fl.feText, fcText: fl.fcText,
             feScope: fl.feScope, fmProcess: fl.fmProcess, fcWorkElem: fl.fcWorkElem, fcM4: fl.fcM4,
           })),
@@ -243,6 +247,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: validRAs.map(ra => ({
             id: ra.id, fmeaId: normalizedId, linkId: ra.linkId,
+            fmId: ra.fmId || null, fcId: ra.fcId || null, feId: ra.feId || null, // ★v4 EX-06
             severity: ra.severity, occurrence: ra.occurrence, detection: ra.detection,
             ap: ra.ap, preventionControl: ra.preventionControl, detectionControl: ra.detectionControl,
           })),

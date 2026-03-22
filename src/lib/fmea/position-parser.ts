@@ -294,8 +294,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           productCharId: pcId,
           parentId: pcId, // E-11: FM.parentId → ProductChar
           mode: a5,
+          // feRefs/fcRefs: FC 시트 파싱 후 채움 (초기 빈 배열)
+          feRefs: [],
+          fcRefs: [],
         });
-        resolver.registerFM(rn, fmId, a5, a1);
+        resolver.registerFM(rn, fmId, a5, a1, l2Id); // ★v4: l2StructId 전달
       }
     }
   }
@@ -377,7 +380,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         l3CharId: l3PcId,   // ★v4: B-13 FK → L3ProcessChar
         cause: b4,
       });
-      resolver.registerFC(rn, fcId, b4, pno, m4, b1);
+      resolver.registerFC(rn, fcId, b4, pno, m4, b1, l3Id); // ★v4: l3StructId 전달
     }
     // B4 없는 행을 FC 시트 보완용으로 등록 (cause는 FC 시트 파싱 후 채움)
     if (!b4) {
@@ -422,7 +425,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
     const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
 
-    const { feId, fmId, fcId } = resolver.resolve({
+    const { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
       l1Row,
       l2Row,
       l3Row,
@@ -457,6 +460,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       fmId,
       feId,
       fcId,
+      l2StructId: flL2StructId || undefined, // ★v4 EX-38
+      l3StructId: flL3StructId || undefined, // ★v4 EX-38
       // parentId는 null (FailureLink는 root 고장사슬 — 상위 엔티티 없음)
       fmText: c['FM'] || undefined,
       feText: c['FE'] || undefined,
@@ -467,12 +472,15 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       fcM4: c['m4'] || undefined,
     });
 
-    // RiskAnalysis
+    // RiskAnalysis (★v4 EX-06: fmId/fcId/feId 직접참조)
     riskAnalyses.push({
       id: `${flId}-RA`,
       fmeaId,
       linkId: flId,
       parentId: flId, // E-22: RiskAnalysis.parentId → FailureLink
+      fmId: fmId || undefined,  // ★v4 EX-06
+      fcId: fcId || undefined,  // ★v4 EX-06
+      feId: feId || undefined,  // ★v4 EX-06
       severity,
       occurrence,
       detection,
@@ -490,6 +498,25 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // FE severity 업데이트
   for (const fe of failureEffects) {
     fe.severity = feSeverityMap.get(fe.id) || 0;
+  }
+
+  // ★v4 EX-05: FM.feRefs / FM.fcRefs — 유효한 FL에서 FM별로 FE/FC UUID 수집
+  const fmFeRefsMap = new Map<string, Set<string>>();
+  const fmFcRefsMap = new Map<string, Set<string>>();
+  for (const fl of failureLinks) {
+    if (!fl.fmId) continue;
+    if (fl.feId) {
+      if (!fmFeRefsMap.has(fl.fmId)) fmFeRefsMap.set(fl.fmId, new Set());
+      fmFeRefsMap.get(fl.fmId)!.add(fl.feId);
+    }
+    if (fl.fcId) {
+      if (!fmFcRefsMap.has(fl.fmId)) fmFcRefsMap.set(fl.fmId, new Set());
+      fmFcRefsMap.get(fl.fmId)!.add(fl.fcId);
+    }
+  }
+  for (const fm of failureModes) {
+    fm.feRefs = Array.from(fmFeRefsMap.get(fm.id) || []);
+    fm.fcRefs = Array.from(fmFcRefsMap.get(fm.id) || []);
   }
 
   // ─── 통계 (엑셀 원본 항목별 정확한 카운트) ───

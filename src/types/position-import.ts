@@ -86,6 +86,8 @@ export interface PosFailureMode {
   productCharId?: string;
   parentId: string;  // → ProductChar.id (E-11)
   mode: string;      // A5
+  feRefs?: string[]; // ★v4 EX-05: 연결된 FE UUID 목록 (크로스시트 매칭 후 채움)
+  fcRefs?: string[]; // ★v4 EX-05: 연결된 FC UUID 목록
 }
 
 // ─── L3 (작업요소) ───
@@ -144,6 +146,8 @@ export interface PosFailureLink {
   fmId: string;      // FK → PosFailureMode.id (L2원본행 참조)
   feId: string;      // FK → PosFailureEffect.id (L1원본행 참조)
   fcId: string;      // FK → PosFailureCause.id (L3원본행 참조)
+  l2StructId?: string; // ★v4 EX-38: L2Structure 직접참조
+  l3StructId?: string; // ★v4 EX-38: L3Structure 직접참조
   parentId?: string; // null (root level 고장사슬)
   fmText?: string;
   feText?: string;
@@ -159,6 +163,9 @@ export interface PosRiskAnalysis {
   fmeaId: string;
   linkId: string;    // FK → PosFailureLink.id
   parentId: string;  // → FailureLink.id (E-22)
+  fmId?: string;     // ★v4 EX-06: FM 직접참조 (FailureLink 조인 불필요)
+  fcId?: string;     // ★v4 EX-06: FC 직접참조
+  feId?: string;     // ★v4 EX-06: FE 직접참조
   severity: number;
   occurrence: number;
   detection: number;

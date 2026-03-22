@@ -49,6 +49,10 @@ export class CrossSheetResolver {
   /** row → FC UUID: L3시트 행번호 → L3-R{n}-C7 */
   private l3RowToFcId = new Map<number, string>();
 
+  /** ★v4 EX-38: row → L2StructId / L3StructId 추적 */
+  private l2RowToL2StructId = new Map<number, string>();
+  private l3RowToL3StructId = new Map<number, string>();
+
   /** 텍스트 폴백 인덱스 */
   private feIndex: IndexEntry[] = [];
   private fmIndex: IndexEntry[] = [];
@@ -62,15 +66,17 @@ export class CrossSheetResolver {
     this.feIndex.push({ id: feId, row, key: `${scope}|${feText.substring(0, 30)}` });
   }
 
-  /** L2 시트 FM 등록 */
-  registerFM(row: number, fmId: string, fmText: string, processNo: string): void {
+  /** L2 시트 FM 등록 (★v4: l2StructId 추가) */
+  registerFM(row: number, fmId: string, fmText: string, processNo: string, l2StructId?: string): void {
     this.l2RowToFmId.set(row, fmId);
+    if (l2StructId) this.l2RowToL2StructId.set(row, l2StructId);
     this.fmIndex.push({ id: fmId, row, key: `${processNo}|${fmText.substring(0, 30)}` });
   }
 
-  /** L3 시트 FC 등록 */
-  registerFC(row: number, fcId: string, fcText: string, processNo: string, m4: string, we: string): void {
+  /** L3 시트 FC 등록 (★v4: l3StructId 추가) */
+  registerFC(row: number, fcId: string, fcText: string, processNo: string, m4: string, we: string, l3StructId?: string): void {
     this.l3RowToFcId.set(row, fcId);
+    if (l3StructId) this.l3RowToL3StructId.set(row, l3StructId);
     this.fcIndex.push({ id: fcId, row, key: `${processNo}|${m4}|${we}|${fcText.substring(0, 30)}` });
   }
 
@@ -78,13 +84,17 @@ export class CrossSheetResolver {
 
   /**
    * FC 시트 한 행의 크로스시트 FK 해결
-   * @returns { feId, fmId, fcId } — 해결 실패 시 빈 문자열
+   * ★v4: l2StructId/l3StructId도 반환 (EX-38)
    */
-  resolve(ref: CrossSheetRef): { feId: string; fmId: string; fcId: string } {
+  resolve(ref: CrossSheetRef): { feId: string; fmId: string; fcId: string; l2StructId: string; l3StructId: string } {
+    const fmId = this.resolveFM(ref);
+    const fcId = this.resolveFC(ref);
     return {
       feId: this.resolveFE(ref),
-      fmId: this.resolveFM(ref),
-      fcId: this.resolveFC(ref),
+      fmId,
+      fcId,
+      l2StructId: ref.l2Row ? (this.l2RowToL2StructId.get(ref.l2Row) || '') : '',
+      l3StructId: ref.l3Row ? (this.l3RowToL3StructId.get(ref.l3Row) || '') : '',
     };
   }
 
