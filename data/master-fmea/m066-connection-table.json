@@ -1,0 +1,5363 @@
+{
+  "sourceId": "pfm26-m066",
+  "exportedAt": "2026-03-21T22:09:30.286Z",
+  "entities": {
+    "fm": [
+      {
+        "id": "PF-L2-001-M-001",
+        "processNo": "01",
+        "processName": "작업환경",
+        "mode": "파티클 초과",
+        "l2StructId": "PF-L2-001",
+        "l2FuncId": "PF-L2-001-P-001",
+        "productChar": "파티클 수"
+      },
+      {
+        "id": "PF-L2-010-M-001",
+        "processNo": "10",
+        "processName": "IQA(수입검사)",
+        "mode": "두께 규격 이탈",
+        "l2StructId": "PF-L2-010",
+        "l2FuncId": "PF-L2-010-P-001",
+        "productChar": "Wafer 두께 (Wafer Thickness, μm)"
+      },
+      {
+        "id": "PF-L2-010-M-002",
+        "processNo": "10",
+        "processName": "IQA(수입검사)",
+        "mode": "TTV 규격 초과",
+        "l2StructId": "PF-L2-010",
+        "l2FuncId": "PF-L2-010-P-002",
+        "productChar": "Wafer TTV (Total Thickness Variation, μm)"
+      },
+      {
+        "id": "PF-L2-020-M-001",
+        "processNo": "20",
+        "processName": "Sorter",
+        "mode": "OCR ID 오인식 또는 Lot 혼입 (ID Mismatch/Lot Mix)",
+        "l2StructId": "PF-L2-020",
+        "l2FuncId": "PF-L2-020-P-001",
+        "productChar": "OCR ID 인식 정확도"
+      },
+      {
+        "id": "PF-L2-020-M-002",
+        "processNo": "20",
+        "processName": "Sorter",
+        "mode": "Wafer 정렬 불량",
+        "l2StructId": "PF-L2-020",
+        "l2FuncId": "PF-L2-020-P-002",
+        "productChar": "Wafer 정렬 정확도"
+      },
+      {
+        "id": "PF-L2-030-M-001",
+        "processNo": "30",
+        "processName": "Scrubber",
+        "mode": "Wafer 표면 이물 잔류 (Particle 오염)",
+        "l2StructId": "PF-L2-030",
+        "l2FuncId": "PF-L2-030-P-001",
+        "productChar": "파티클 잔류수 (Particle Count, ea)"
+      },
+      {
+        "id": "PF-L2-040-M-001",
+        "processNo": "40",
+        "processName": "UBM Sputter",
+        "mode": "UBM 두께 부족 (Thickness Under Spec)",
+        "l2StructId": "PF-L2-040",
+        "l2FuncId": "PF-L2-040-P-001",
+        "productChar": "UBM 두께 (UBM Thickness, Å)"
+      },
+      {
+        "id": "PF-L2-040-M-002",
+        "processNo": "40",
+        "processName": "UBM Sputter",
+        "mode": "막질 불균일 (Film Non-uniformity)",
+        "l2StructId": "PF-L2-040",
+        "l2FuncId": "PF-L2-040-P-002",
+        "productChar": "막질 균일도 (Film Uniformity, %)"
+      },
+      {
+        "id": "PF-L2-050-M-001",
+        "processNo": "50",
+        "processName": "Scrubber2",
+        "mode": "Wafer 표면 이물 잔류 (Particle 오염)",
+        "l2StructId": "PF-L2-050",
+        "l2FuncId": "PF-L2-050-P-001",
+        "productChar": "파티클 잔류수 (Particle Count, ea)"
+      },
+      {
+        "id": "PF-L2-060-M-001",
+        "processNo": "60",
+        "processName": "PR Coating",
+        "mode": "PR 두께 불균일 (PR Thickness Non-uniformity)",
+        "l2StructId": "PF-L2-060",
+        "l2FuncId": "PF-L2-060-P-001",
+        "productChar": "PR 두께 (PR Thickness, μm)"
+      },
+      {
+        "id": "PF-L2-070-M-001",
+        "processNo": "70",
+        "processName": "Exposure",
+        "mode": "CD 규격 이탈 (CD Out of Spec)",
+        "l2StructId": "PF-L2-070",
+        "l2FuncId": "PF-L2-070-P-001",
+        "productChar": "CD(Critical Dimension, μm)"
+      },
+      {
+        "id": "PF-L2-080-M-001",
+        "processNo": "80",
+        "processName": "Develop",
+        "mode": "Under/Over develop (Opening 불량)",
+        "l2StructId": "PF-L2-080",
+        "l2FuncId": "PF-L2-080-P-001",
+        "productChar": "Opening 정확도 (Opening Accuracy, μm)"
+      },
+      {
+        "id": "PF-L2-090-M-001",
+        "processNo": "90",
+        "processName": "Descum",
+        "mode": "PR Scum 잔류 (Descum 불완전)",
+        "l2StructId": "PF-L2-090",
+        "l2FuncId": "PF-L2-090-P-001",
+        "productChar": "PR 잔사 수 (Scum Count, ea)"
+      },
+      {
+        "id": "PF-L2-100-M-001",
+        "processNo": "100",
+        "processName": "Au Plating",
+        "mode": "Au Bump 높이 편차 (Height Variation)",
+        "l2StructId": "PF-L2-100",
+        "l2FuncId": "PF-L2-100-P-001",
+        "productChar": "Au Bump 높이 (Bump Height, μm)"
+      },
+      {
+        "id": "PF-L2-100-M-002",
+        "processNo": "100",
+        "processName": "Au Plating",
+        "mode": "Au 순도 저하 (Purity Degradation)",
+        "l2StructId": "PF-L2-100",
+        "l2FuncId": "PF-L2-100-P-002",
+        "productChar": "Au 순도 (Au Purity, %)"
+      },
+      {
+        "id": "PF-L2-110-M-001",
+        "processNo": "110",
+        "processName": "PR Strip",
+        "mode": "PR 잔사 잔류 (Strip 불완전)",
+        "l2StructId": "PF-L2-110",
+        "l2FuncId": "PF-L2-110-P-001",
+        "productChar": "PR 잔사 (Strip Residue, ea)"
+      },
+      {
+        "id": "PF-L2-120-M-001",
+        "processNo": "120",
+        "processName": "Au Etch",
+        "mode": "에칭 부족/과다 (Under/Over Etch)",
+        "l2StructId": "PF-L2-120",
+        "l2FuncId": "PF-L2-120-P-001",
+        "productChar": "에칭 잔류물 (Etch Residue, ea)"
+      },
+      {
+        "id": "PF-L2-130-M-001",
+        "processNo": "130",
+        "processName": "TiW Etch",
+        "mode": "TiW Etch 후 잔류 Film 이상 (Under/Over etch)",
+        "l2StructId": "PF-L2-130",
+        "l2FuncId": "PF-L2-130-P-001",
+        "productChar": "Seed 잔류물 (Seed Residue, ea)"
+      },
+      {
+        "id": "PF-L2-140-M-001",
+        "processNo": "140",
+        "processName": "Anneal",
+        "mode": "IMC 과성장 (IMC Overgrowth)",
+        "l2StructId": "PF-L2-140",
+        "l2FuncId": "PF-L2-140-P-001",
+        "productChar": "IMC 두께 (IMC Thickness, μm)"
+      },
+      {
+        "id": "PF-L2-150-M-001",
+        "processNo": "150",
+        "processName": "Final Inspection",
+        "mode": "Bump 외관 불량 (Visual Defect)",
+        "l2StructId": "PF-L2-150",
+        "l2FuncId": "PF-L2-150-P-001",
+        "productChar": "Bump 외관 결함 (Visual Defect, ea)"
+      },
+      {
+        "id": "PF-L2-150-M-002",
+        "processNo": "150",
+        "processName": "Final Inspection",
+        "mode": "Bump 높이 규격 이탈 (Height Out of Spec)",
+        "l2StructId": "PF-L2-150",
+        "l2FuncId": "PF-L2-150-P-002",
+        "productChar": "Bump 높이 (Bump Height, μm)"
+      },
+      {
+        "id": "PF-L2-160-M-001",
+        "processNo": "160",
+        "processName": "Clean",
+        "mode": "Wafer 표면 이물 잔류 (Particle 오염)",
+        "l2StructId": "PF-L2-160",
+        "l2FuncId": "PF-L2-160-P-001",
+        "productChar": "파티클 잔류수 (Particle Count, ea)"
+      },
+      {
+        "id": "PF-L2-170-M-001",
+        "processNo": "170",
+        "processName": "Scrubber3",
+        "mode": "Wafer 표면 이물 잔류 (Particle 오염)",
+        "l2StructId": "PF-L2-170",
+        "l2FuncId": "PF-L2-170-P-001",
+        "productChar": "파티클 잔류수 (Particle Count, ea)"
+      },
+      {
+        "id": "PF-L2-180-M-001",
+        "processNo": "180",
+        "processName": "Sorter3",
+        "mode": "Wafer 정렬 불량",
+        "l2StructId": "PF-L2-180",
+        "l2FuncId": "PF-L2-180-P-001",
+        "productChar": "Wafer 정렬 정확도"
+      },
+      {
+        "id": "PF-L2-190-M-001",
+        "processNo": "190",
+        "processName": "AVI",
+        "mode": "AVI 검사 불량 미검출 (Visual Defect Escape)",
+        "l2StructId": "PF-L2-190",
+        "l2FuncId": "PF-L2-190-P-001",
+        "productChar": "Defect 수 (Defect Count, ea)"
+      },
+      {
+        "id": "PF-L2-200-M-001",
+        "processNo": "200",
+        "processName": "OGI/Packing",
+        "mode": "포장 불량 (Packaging Defect)",
+        "l2StructId": "PF-L2-200",
+        "l2FuncId": "PF-L2-200-P-001",
+        "productChar": "포장 상태 (Packaging Condition)"
+      }
+    ],
+    "fc": [
+      {
+        "id": "PF-L3-001-MN-001-K-001",
+        "processNo": "01",
+        "m4": "MN",
+        "workElement": "클린룸 담당자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-MN-001",
+        "l3FuncId": "PF-L3-001-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-001-MC-001-K-001",
+        "processNo": "01",
+        "m4": "MC",
+        "workElement": "항온항습기",
+        "cause": "설비 가동률 저하",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-MC-001",
+        "l3FuncId": "PF-L3-001-MC-001-C-001",
+        "processChar": "온도 (Temperature, ℃)"
+      },
+      {
+        "id": "PF-L3-001-IM-001-K-001",
+        "processNo": "01",
+        "m4": "IM",
+        "workElement": "HEPA 필터 소모품",
+        "cause": "HEPA 필터 성능 저하",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-IM-001",
+        "l3FuncId": "PF-L3-001-IM-001-C-001",
+        "processChar": "자재 규격 기준 (Material Spec)"
+      },
+      {
+        "id": "PF-L3-001-EN-001-K-001",
+        "processNo": "01",
+        "m4": "EN",
+        "workElement": "클린룸",
+        "cause": "온습도 제어 이탈",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-EN-001",
+        "l3FuncId": "PF-L3-001-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class)"
+      },
+      {
+        "id": "PF-L3-001-EN-002-K-001",
+        "processNo": "01",
+        "m4": "EN",
+        "workElement": "FFU(Fan Filter Unit)",
+        "cause": "온습도 제어 이탈",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-EN-002",
+        "l3FuncId": "PF-L3-001-EN-002-C-001",
+        "processChar": "풍속 (Air Velocity, m/s)"
+      },
+      {
+        "id": "PF-L3-010-MN-001-K-001",
+        "processNo": "10",
+        "m4": "MN",
+        "workElement": "IQA 검사원",
+        "cause": "판정 기준 오적용",
+        "l2StructId": "PF-L2-010",
+        "l3StructId": "PF-L3-010-MN-001",
+        "l3FuncId": "PF-L3-010-MN-001-C-001",
+        "processChar": "검사 숙련도"
+      },
+      {
+        "id": "PF-L3-010-MC-001-K-001",
+        "processNo": "10",
+        "m4": "MC",
+        "workElement": "두께 측정기",
+        "cause": "측정 오차",
+        "l2StructId": "PF-L2-010",
+        "l3StructId": "PF-L3-010-MC-001",
+        "l3FuncId": "PF-L3-010-MC-001-C-001",
+        "processChar": "측정 정밀도 (Accuracy, μm)"
+      },
+      {
+        "id": "PF-L3-010-MC-002-K-001",
+        "processNo": "10",
+        "m4": "MC",
+        "workElement": "HIGH POWER SCOPE",
+        "cause": "측정 오차",
+        "l2StructId": "PF-L2-010",
+        "l3StructId": "PF-L3-010-MC-002",
+        "l3FuncId": "PF-L3-010-MC-002-C-001",
+        "processChar": "광학 해상도 (Optical Resolution, μm)"
+      },
+      {
+        "id": "PF-L3-010-IM-001-K-001",
+        "processNo": "10",
+        "m4": "IM",
+        "workElement": "입고 Wafer",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-010",
+        "l3StructId": "PF-L3-010-IM-001",
+        "l3FuncId": "PF-L3-010-IM-001-C-001",
+        "processChar": "표면 결함 밀도 (Defect Density)"
+      },
+      {
+        "id": "PF-L3-010-EN-001-K-001",
+        "processNo": "10",
+        "m4": "EN",
+        "workElement": "검사실",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-010",
+        "l3StructId": "PF-L3-010-EN-001",
+        "l3FuncId": "PF-L3-010-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-020-MN-001-K-001",
+        "processNo": "20",
+        "m4": "MN",
+        "workElement": "Sorter 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-020",
+        "l3StructId": "PF-L3-020-MN-001",
+        "l3FuncId": "PF-L3-020-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-020-MC-001-K-001",
+        "processNo": "20",
+        "m4": "MC",
+        "workElement": "Sorter 장비",
+        "cause": "정렬 센서 오작동",
+        "l2StructId": "PF-L2-020",
+        "l3StructId": "PF-L3-020-MC-001",
+        "l3FuncId": "PF-L3-020-MC-001-C-001",
+        "processChar": "정렬 반복 정밀도 (Repeatability, μm)"
+      },
+      {
+        "id": "PF-L3-020-MC-002-K-001",
+        "processNo": "20",
+        "m4": "MC",
+        "workElement": "OCR Reader",
+        "cause": "정렬 센서 오작동",
+        "l2StructId": "PF-L2-020",
+        "l3StructId": "PF-L3-020-MC-002",
+        "l3FuncId": "PF-L3-020-MC-002-C-001",
+        "processChar": "인식 정확도 (Recognition Rate, %)"
+      },
+      {
+        "id": "PF-L3-020-IM-001-K-001",
+        "processNo": "20",
+        "m4": "IM",
+        "workElement": "Wafer Cassette",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-020",
+        "l3StructId": "PF-L3-020-IM-001",
+        "l3FuncId": "PF-L3-020-IM-001-C-001",
+        "processChar": "자재 규격 기준 (Material Spec)"
+      },
+      {
+        "id": "PF-L3-020-EN-001-K-001",
+        "processNo": "20",
+        "m4": "EN",
+        "workElement": "Sorter 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-020",
+        "l3StructId": "PF-L3-020-EN-001",
+        "l3FuncId": "PF-L3-020-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-030-MN-001-K-001",
+        "processNo": "30",
+        "m4": "MN",
+        "workElement": "Scrubber 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-030",
+        "l3StructId": "PF-L3-030-MN-001",
+        "l3FuncId": "PF-L3-030-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-030-MC-001-K-001",
+        "processNo": "30",
+        "m4": "MC",
+        "workElement": "Scrubber 장비",
+        "cause": "노즐 막힘",
+        "l2StructId": "PF-L2-030",
+        "l3StructId": "PF-L3-030-MC-001",
+        "l3FuncId": "PF-L3-030-MC-001-C-001",
+        "processChar": "분사 압력 (Spray Pressure, kPa)"
+      },
+      {
+        "id": "PF-L3-030-IM-001-K-001",
+        "processNo": "30",
+        "m4": "IM",
+        "workElement": "DI Water",
+        "cause": "DI Water 비저항 저하",
+        "l2StructId": "PF-L2-030",
+        "l3StructId": "PF-L3-030-IM-001",
+        "l3FuncId": "PF-L3-030-IM-001-C-001",
+        "processChar": "비저항 (Resistivity, MΩ·cm)"
+      },
+      {
+        "id": "PF-L3-030-EN-001-K-001",
+        "processNo": "30",
+        "m4": "EN",
+        "workElement": "Scrubber 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-030",
+        "l3StructId": "PF-L3-030-EN-001",
+        "l3FuncId": "PF-L3-030-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-040-MN-001-K-001",
+        "processNo": "40",
+        "m4": "MN",
+        "workElement": "Sputter 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-MN-001",
+        "l3FuncId": "PF-L3-040-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-040-MC-001-K-001",
+        "processNo": "40",
+        "m4": "MC",
+        "workElement": "Sputter 장비",
+        "cause": "Power 변동",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-MC-001",
+        "l3FuncId": "PF-L3-040-MC-001-C-001",
+        "processChar": "DC Power (kW)"
+      },
+      {
+        "id": "PF-L3-040-MC-001-K-002",
+        "processNo": "40",
+        "m4": "MC",
+        "workElement": "Sputter 장비",
+        "cause": "전압 변동",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-MC-001",
+        "l3FuncId": "PF-L3-040-MC-001-C-002",
+        "processChar": "증착 속도 (Deposition Rate, Å/s)"
+      },
+      {
+        "id": "PF-L3-040-MC-001-K-003",
+        "processNo": "40",
+        "m4": "MC",
+        "workElement": "Sputter 장비",
+        "cause": "RF Etch Amount 규격 이탈",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-MC-001",
+        "l3FuncId": "PF-L3-040-MC-001-C-003",
+        "processChar": "RF Etch Amount (Å)"
+      },
+      {
+        "id": "PF-L3-040-MC-001-K-004",
+        "processNo": "40",
+        "m4": "MC",
+        "workElement": "Sputter 장비",
+        "cause": "TiW 증착 두께 편차",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-MC-001",
+        "l3FuncId": "PF-L3-040-MC-001-C-004",
+        "processChar": "TiW Thickness (Å)"
+      },
+      {
+        "id": "PF-L3-040-MC-001-K-005",
+        "processNo": "40",
+        "m4": "MC",
+        "workElement": "Sputter 장비",
+        "cause": "Au 증착 두께 편차",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-MC-001",
+        "l3FuncId": "PF-L3-040-MC-001-C-005",
+        "processChar": "Au Thickness (Å)"
+      },
+      {
+        "id": "PF-L3-040-MC-002-K-001",
+        "processNo": "40",
+        "m4": "MC",
+        "workElement": "DC Power Supply",
+        "cause": "Power 변동",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-MC-002",
+        "l3FuncId": "PF-L3-040-MC-002-C-001",
+        "processChar": "전압 안정도 (Voltage Stability, V)"
+      },
+      {
+        "id": "PF-L3-040-IM-001-K-001",
+        "processNo": "40",
+        "m4": "IM",
+        "workElement": "Ti Target",
+        "cause": "Target 소진",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-IM-001",
+        "l3FuncId": "PF-L3-040-IM-001-C-001",
+        "processChar": "Target 두께 잔량 (Remaining Thickness, mm)"
+      },
+      {
+        "id": "PF-L3-040-EN-001-K-001",
+        "processNo": "40",
+        "m4": "EN",
+        "workElement": "진공 챔버",
+        "cause": "진공 누설",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-EN-001",
+        "l3FuncId": "PF-L3-040-EN-001-C-001",
+        "processChar": "진공도 (Base Pressure, Pa)"
+      },
+      {
+        "id": "PF-L3-050-MN-001-K-001",
+        "processNo": "50",
+        "m4": "MN",
+        "workElement": "Scrubber2 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-050",
+        "l3StructId": "PF-L3-050-MN-001",
+        "l3FuncId": "PF-L3-050-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-050-MC-001-K-001",
+        "processNo": "50",
+        "m4": "MC",
+        "workElement": "Scrubber 장비",
+        "cause": "노즐 막힘",
+        "l2StructId": "PF-L2-050",
+        "l3StructId": "PF-L3-050-MC-001",
+        "l3FuncId": "PF-L3-050-MC-001-C-001",
+        "processChar": "분사 압력 (Spray Pressure, kPa)"
+      },
+      {
+        "id": "PF-L3-050-IM-001-K-001",
+        "processNo": "50",
+        "m4": "IM",
+        "workElement": "DI Water",
+        "cause": "DI Water 비저항 저하",
+        "l2StructId": "PF-L2-050",
+        "l3StructId": "PF-L3-050-IM-001",
+        "l3FuncId": "PF-L3-050-IM-001-C-001",
+        "processChar": "비저항 (Resistivity, MΩ·cm)"
+      },
+      {
+        "id": "PF-L3-050-EN-001-K-001",
+        "processNo": "50",
+        "m4": "EN",
+        "workElement": "Scrubber2 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-050",
+        "l3StructId": "PF-L3-050-EN-001",
+        "l3FuncId": "PF-L3-050-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-060-MN-001-K-001",
+        "processNo": "60",
+        "m4": "MN",
+        "workElement": "Coating 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-060",
+        "l3StructId": "PF-L3-060-MN-001",
+        "l3FuncId": "PF-L3-060-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-060-MC-001-K-001",
+        "processNo": "60",
+        "m4": "MC",
+        "workElement": "Coater",
+        "cause": "RPM 편차",
+        "l2StructId": "PF-L2-060",
+        "l3StructId": "PF-L3-060-MC-001",
+        "l3FuncId": "PF-L3-060-MC-001-C-001",
+        "processChar": "회전 속도 (RPM)"
+      },
+      {
+        "id": "PF-L3-060-IM-001-K-001",
+        "processNo": "60",
+        "m4": "IM",
+        "workElement": "PR(Photo Resist)",
+        "cause": "PR 열화",
+        "l2StructId": "PF-L2-060",
+        "l3StructId": "PF-L3-060-IM-001",
+        "l3FuncId": "PF-L3-060-IM-001-C-001",
+        "processChar": "점도 (Viscosity, cP)"
+      },
+      {
+        "id": "PF-L3-060-EN-001-K-001",
+        "processNo": "60",
+        "m4": "EN",
+        "workElement": "Yellow Room",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-060",
+        "l3StructId": "PF-L3-060-EN-001",
+        "l3FuncId": "PF-L3-060-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-070-MN-001-K-001",
+        "processNo": "70",
+        "m4": "MN",
+        "workElement": "Exposure 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-070",
+        "l3StructId": "PF-L3-070-MN-001",
+        "l3FuncId": "PF-L3-070-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-070-MC-001-K-001",
+        "processNo": "70",
+        "m4": "MC",
+        "workElement": "Stepper/Scanner",
+        "cause": "에너지 편차",
+        "l2StructId": "PF-L2-070",
+        "l3StructId": "PF-L3-070-MC-001",
+        "l3FuncId": "PF-L3-070-MC-001-C-001",
+        "processChar": "노광 에너지 (UV Energy, mJ/cm²)"
+      },
+      {
+        "id": "PF-L3-070-IM-001-K-001",
+        "processNo": "70",
+        "m4": "IM",
+        "workElement": "Mask(Reticle)",
+        "cause": "Mask 결함",
+        "l2StructId": "PF-L2-070",
+        "l3StructId": "PF-L3-070-IM-001",
+        "l3FuncId": "PF-L3-070-IM-001-C-001",
+        "processChar": "CD 정밀도 (Reticle CD Accuracy, nm)"
+      },
+      {
+        "id": "PF-L3-070-EN-001-K-001",
+        "processNo": "70",
+        "m4": "EN",
+        "workElement": "Exposure 챔버",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-070",
+        "l3StructId": "PF-L3-070-EN-001",
+        "l3FuncId": "PF-L3-070-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-080-MN-001-K-001",
+        "processNo": "80",
+        "m4": "MN",
+        "workElement": "Develop 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-080",
+        "l3StructId": "PF-L3-080-MN-001",
+        "l3FuncId": "PF-L3-080-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-080-MC-001-K-001",
+        "processNo": "80",
+        "m4": "MC",
+        "workElement": "Developer",
+        "cause": "현상 시간 편차",
+        "l2StructId": "PF-L2-080",
+        "l3StructId": "PF-L3-080-MC-001",
+        "l3FuncId": "PF-L3-080-MC-001-C-001",
+        "processChar": "현상 시간 (Develop Time, sec)"
+      },
+      {
+        "id": "PF-L3-080-IM-001-K-001",
+        "processNo": "80",
+        "m4": "IM",
+        "workElement": "현상액(TMAH)",
+        "cause": "농도 편차",
+        "l2StructId": "PF-L2-080",
+        "l3StructId": "PF-L3-080-IM-001",
+        "l3FuncId": "PF-L3-080-IM-001-C-001",
+        "processChar": "TMAH 농도 (Concentration, %)"
+      },
+      {
+        "id": "PF-L3-080-EN-001-K-001",
+        "processNo": "80",
+        "m4": "EN",
+        "workElement": "Develop 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-080",
+        "l3StructId": "PF-L3-080-EN-001",
+        "l3FuncId": "PF-L3-080-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-090-MN-001-K-001",
+        "processNo": "90",
+        "m4": "MN",
+        "workElement": "Descum 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-090",
+        "l3StructId": "PF-L3-090-MN-001",
+        "l3FuncId": "PF-L3-090-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-090-MC-001-K-001",
+        "processNo": "90",
+        "m4": "MC",
+        "workElement": "Descum 장비",
+        "cause": "Power 불안정",
+        "l2StructId": "PF-L2-090",
+        "l3StructId": "PF-L3-090-MC-001",
+        "l3FuncId": "PF-L3-090-MC-001-C-001",
+        "processChar": "O₂ Plasma Power (W)"
+      },
+      {
+        "id": "PF-L3-090-IM-001-K-001",
+        "processNo": "90",
+        "m4": "IM",
+        "workElement": "O₂ Gas",
+        "cause": "Gas 유량 편차",
+        "l2StructId": "PF-L2-090",
+        "l3StructId": "PF-L3-090-IM-001",
+        "l3FuncId": "PF-L3-090-IM-001-C-001",
+        "processChar": "Gas 유량 (Flow Rate, sccm)"
+      },
+      {
+        "id": "PF-L3-090-EN-001-K-001",
+        "processNo": "90",
+        "m4": "EN",
+        "workElement": "Descum 챔버",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-090",
+        "l3StructId": "PF-L3-090-EN-001",
+        "l3FuncId": "PF-L3-090-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-100-MN-001-K-001",
+        "processNo": "100",
+        "m4": "MN",
+        "workElement": "Plating 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-100",
+        "l3StructId": "PF-L3-100-MN-001",
+        "l3FuncId": "PF-L3-100-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-100-MC-001-K-001",
+        "processNo": "100",
+        "m4": "MC",
+        "workElement": "Au Plating Tank",
+        "cause": "전류밀도 편차",
+        "l2StructId": "PF-L2-100",
+        "l3StructId": "PF-L3-100-MC-001",
+        "l3FuncId": "PF-L3-100-MC-001-C-001",
+        "processChar": "도금 전류밀도 (Current Density, mA/cm²)"
+      },
+      {
+        "id": "PF-L3-100-MC-001-K-002",
+        "processNo": "100",
+        "m4": "MC",
+        "workElement": "Au Plating Tank",
+        "cause": "전류 변동",
+        "l2StructId": "PF-L2-100",
+        "l3StructId": "PF-L3-100-MC-001",
+        "l3FuncId": "PF-L3-100-MC-001-C-002",
+        "processChar": "도금 시간 (Plating Time, min)"
+      },
+      {
+        "id": "PF-L3-100-MC-001-K-003",
+        "processNo": "100",
+        "m4": "MC",
+        "workElement": "Au Plating Tank",
+        "cause": "도금 균일도 편차",
+        "l2StructId": "PF-L2-100",
+        "l3StructId": "PF-L3-100-MC-001",
+        "l3FuncId": "PF-L3-100-MC-001-C-003",
+        "processChar": "도금 균일도 (Plating Uniformity, %)"
+      },
+      {
+        "id": "PF-L3-100-MC-002-K-001",
+        "processNo": "100",
+        "m4": "MC",
+        "workElement": "정류기(Rectifier)",
+        "cause": "전류밀도 편차",
+        "l2StructId": "PF-L2-100",
+        "l3StructId": "PF-L3-100-MC-002",
+        "l3FuncId": "PF-L3-100-MC-002-C-001",
+        "processChar": "출력 전류 (Output Current, A)"
+      },
+      {
+        "id": "PF-L3-100-IM-001-K-001",
+        "processNo": "100",
+        "m4": "IM",
+        "workElement": "Au 도금액 (Au Ion Solution)",
+        "cause": "농도 저하",
+        "l2StructId": "PF-L2-100",
+        "l3StructId": "PF-L3-100-IM-001",
+        "l3FuncId": "PF-L3-100-IM-001-C-001",
+        "processChar": "Au 이온 농도 (Au Concentration, g/L)"
+      },
+      {
+        "id": "PF-L3-100-EN-001-K-001",
+        "processNo": "100",
+        "m4": "EN",
+        "workElement": "Plating 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-100",
+        "l3StructId": "PF-L3-100-EN-001",
+        "l3FuncId": "PF-L3-100-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-110-MN-001-K-001",
+        "processNo": "110",
+        "m4": "MN",
+        "workElement": "Strip 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-110",
+        "l3StructId": "PF-L3-110-MN-001",
+        "l3FuncId": "PF-L3-110-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-110-MC-001-K-001",
+        "processNo": "110",
+        "m4": "MC",
+        "workElement": "Strip 장비",
+        "cause": "온도 편차",
+        "l2StructId": "PF-L2-110",
+        "l3StructId": "PF-L3-110-MC-001",
+        "l3FuncId": "PF-L3-110-MC-001-C-001",
+        "processChar": "Strip 온도 (Temperature, ℃)"
+      },
+      {
+        "id": "PF-L3-110-IM-001-K-001",
+        "processNo": "110",
+        "m4": "IM",
+        "workElement": "Strip 용제",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-110",
+        "l3StructId": "PF-L3-110-IM-001",
+        "l3FuncId": "PF-L3-110-IM-001-C-001",
+        "processChar": "용제 농도 (Concentration, %)"
+      },
+      {
+        "id": "PF-L3-110-EN-001-K-001",
+        "processNo": "110",
+        "m4": "EN",
+        "workElement": "Strip 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-110",
+        "l3StructId": "PF-L3-110-EN-001",
+        "l3FuncId": "PF-L3-110-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-120-MN-001-K-001",
+        "processNo": "120",
+        "m4": "MN",
+        "workElement": "Au Etch 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-120",
+        "l3StructId": "PF-L3-120-MN-001",
+        "l3FuncId": "PF-L3-120-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-120-MC-001-K-001",
+        "processNo": "120",
+        "m4": "MC",
+        "workElement": "Au Etch 장비",
+        "cause": "에칭 시간 편차",
+        "l2StructId": "PF-L2-120",
+        "l3StructId": "PF-L3-120-MC-001",
+        "l3FuncId": "PF-L3-120-MC-001-C-001",
+        "processChar": "식각 시간 (Etch Time, sec)"
+      },
+      {
+        "id": "PF-L3-120-MC-001-K-002",
+        "processNo": "120",
+        "m4": "MC",
+        "workElement": "Au Etch 장비",
+        "cause": "Au Etch Rate 편차",
+        "l2StructId": "PF-L2-120",
+        "l3StructId": "PF-L3-120-MC-001",
+        "l3FuncId": "PF-L3-120-MC-001-C-002",
+        "processChar": "Au Etch Rate (Å/min)"
+      },
+      {
+        "id": "PF-L3-120-IM-001-K-001",
+        "processNo": "120",
+        "m4": "IM",
+        "workElement": "Au Etchant",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-120",
+        "l3StructId": "PF-L3-120-IM-001",
+        "l3FuncId": "PF-L3-120-IM-001-C-001",
+        "processChar": "Etchant 농도 (Concentration, %)"
+      },
+      {
+        "id": "PF-L3-120-EN-001-K-001",
+        "processNo": "120",
+        "m4": "EN",
+        "workElement": "Etch 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-120",
+        "l3StructId": "PF-L3-120-EN-001",
+        "l3FuncId": "PF-L3-120-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-130-MN-001-K-001",
+        "processNo": "130",
+        "m4": "MN",
+        "workElement": "TiW Etch 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-130",
+        "l3StructId": "PF-L3-130-MN-001",
+        "l3FuncId": "PF-L3-130-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-130-MC-001-K-001",
+        "processNo": "130",
+        "m4": "MC",
+        "workElement": "TiW Etch 장비",
+        "cause": "온도 편차",
+        "l2StructId": "PF-L2-130",
+        "l3StructId": "PF-L3-130-MC-001",
+        "l3FuncId": "PF-L3-130-MC-001-C-001",
+        "processChar": "식각 온도 (Etch Temperature, ℃)"
+      },
+      {
+        "id": "PF-L3-130-IM-001-K-001",
+        "processNo": "130",
+        "m4": "IM",
+        "workElement": "TiW Etchant",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-130",
+        "l3StructId": "PF-L3-130-IM-001",
+        "l3FuncId": "PF-L3-130-IM-001-C-001",
+        "processChar": "Etchant 농도 (Concentration, %)"
+      },
+      {
+        "id": "PF-L3-130-EN-001-K-001",
+        "processNo": "130",
+        "m4": "EN",
+        "workElement": "TiW Etch 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-130",
+        "l3StructId": "PF-L3-130-EN-001",
+        "l3FuncId": "PF-L3-130-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-140-MN-001-K-001",
+        "processNo": "140",
+        "m4": "MN",
+        "workElement": "Anneal 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-140",
+        "l3StructId": "PF-L3-140-MN-001",
+        "l3FuncId": "PF-L3-140-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-140-MC-001-K-001",
+        "processNo": "140",
+        "m4": "MC",
+        "workElement": "Anneal 장비",
+        "cause": "온도 과다/부족",
+        "l2StructId": "PF-L2-140",
+        "l3StructId": "PF-L3-140-MC-001",
+        "l3FuncId": "PF-L3-140-MC-001-C-001",
+        "processChar": "열처리 온도 (Anneal Temperature, ℃)"
+      },
+      {
+        "id": "PF-L3-140-IM-001-K-001",
+        "processNo": "140",
+        "m4": "IM",
+        "workElement": "N₂ Gas",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-140",
+        "l3StructId": "PF-L3-140-IM-001",
+        "l3FuncId": "PF-L3-140-IM-001-C-001",
+        "processChar": "자재 규격 기준 (Material Spec)"
+      },
+      {
+        "id": "PF-L3-140-EN-001-K-001",
+        "processNo": "140",
+        "m4": "EN",
+        "workElement": "N₂ 공급장치",
+        "cause": "유량 부족",
+        "l2StructId": "PF-L2-140",
+        "l3StructId": "PF-L3-140-EN-001",
+        "l3FuncId": "PF-L3-140-EN-001-C-001",
+        "processChar": "N₂ 유량 (Flow Rate, L/min)"
+      },
+      {
+        "id": "PF-L3-150-MN-001-K-001",
+        "processNo": "150",
+        "m4": "MN",
+        "workElement": "Final 검사원",
+        "cause": "판정 기준 오적용",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-MN-001",
+        "l3FuncId": "PF-L3-150-MN-001-C-001",
+        "processChar": "검사 숙련도"
+      },
+      {
+        "id": "PF-L3-150-MC-001-K-001",
+        "processNo": "150",
+        "m4": "MC",
+        "workElement": "AVI 장비",
+        "cause": "해상도 저하",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-MC-001",
+        "l3FuncId": "PF-L3-150-MC-001-C-001",
+        "processChar": "해상도 (Resolution, μm)"
+      },
+      {
+        "id": "PF-L3-150-MC-002-K-001",
+        "processNo": "150",
+        "m4": "MC",
+        "workElement": "높이 측정기",
+        "cause": "해상도 저하",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-MC-002",
+        "l3FuncId": "PF-L3-150-MC-002-C-001",
+        "processChar": "측정 정밀도 (Accuracy, μm)"
+      },
+      {
+        "id": "PF-L3-150-MC-002-K-002",
+        "processNo": "150",
+        "m4": "MC",
+        "workElement": "높이 측정기",
+        "cause": "측정 오차",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-MC-002",
+        "l3FuncId": "PF-L3-150-MC-002-C-002",
+        "processChar": "공간적 균일도 측정 정밀도 (Co-planarity Accuracy, μm)"
+      },
+      {
+        "id": "PF-L3-150-IM-001-K-001",
+        "processNo": "150",
+        "m4": "IM",
+        "workElement": "한도 견본",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-IM-001",
+        "l3FuncId": "PF-L3-150-IM-001-C-001",
+        "processChar": "자재 규격 기준 (Material Spec)"
+      },
+      {
+        "id": "PF-L3-150-EN-001-K-001",
+        "processNo": "150",
+        "m4": "EN",
+        "workElement": "검사실",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-EN-001",
+        "l3FuncId": "PF-L3-150-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-160-MN-001-K-001",
+        "processNo": "160",
+        "m4": "MN",
+        "workElement": "Clean 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-160",
+        "l3StructId": "PF-L3-160-MN-001",
+        "l3FuncId": "PF-L3-160-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-160-MC-001-K-001",
+        "processNo": "160",
+        "m4": "MC",
+        "workElement": "Clean 장비",
+        "cause": "노즐 막힘",
+        "l2StructId": "PF-L2-160",
+        "l3StructId": "PF-L3-160-MC-001",
+        "l3FuncId": "PF-L3-160-MC-001-C-001",
+        "processChar": "분사 압력 (Spray Pressure, kPa)"
+      },
+      {
+        "id": "PF-L3-160-IM-001-K-001",
+        "processNo": "160",
+        "m4": "IM",
+        "workElement": "DI Water",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-160",
+        "l3StructId": "PF-L3-160-IM-001",
+        "l3FuncId": "PF-L3-160-IM-001-C-001",
+        "processChar": "비저항 (Resistivity, MΩ·cm)"
+      },
+      {
+        "id": "PF-L3-160-EN-001-K-001",
+        "processNo": "160",
+        "m4": "EN",
+        "workElement": "Clean 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-160",
+        "l3StructId": "PF-L3-160-EN-001",
+        "l3FuncId": "PF-L3-160-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-170-MN-001-K-001",
+        "processNo": "170",
+        "m4": "MN",
+        "workElement": "Scrubber3 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-170",
+        "l3StructId": "PF-L3-170-MN-001",
+        "l3FuncId": "PF-L3-170-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-170-MC-001-K-001",
+        "processNo": "170",
+        "m4": "MC",
+        "workElement": "Scrubber 장비",
+        "cause": "노즐 막힘",
+        "l2StructId": "PF-L2-170",
+        "l3StructId": "PF-L3-170-MC-001",
+        "l3FuncId": "PF-L3-170-MC-001-C-001",
+        "processChar": "분사 압력 (Spray Pressure, kPa)"
+      },
+      {
+        "id": "PF-L3-170-IM-001-K-001",
+        "processNo": "170",
+        "m4": "IM",
+        "workElement": "DI Water",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-170",
+        "l3StructId": "PF-L3-170-IM-001",
+        "l3FuncId": "PF-L3-170-IM-001-C-001",
+        "processChar": "비저항 (Resistivity, MΩ·cm)"
+      },
+      {
+        "id": "PF-L3-170-EN-001-K-001",
+        "processNo": "170",
+        "m4": "EN",
+        "workElement": "Scrubber3 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-170",
+        "l3StructId": "PF-L3-170-EN-001",
+        "l3FuncId": "PF-L3-170-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-180-MN-001-K-001",
+        "processNo": "180",
+        "m4": "MN",
+        "workElement": "Sorter3 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-180",
+        "l3StructId": "PF-L3-180-MN-001",
+        "l3FuncId": "PF-L3-180-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-180-MC-001-K-001",
+        "processNo": "180",
+        "m4": "MC",
+        "workElement": "Sorter 장비",
+        "cause": "정렬 센서 오작동",
+        "l2StructId": "PF-L2-180",
+        "l3StructId": "PF-L3-180-MC-001",
+        "l3FuncId": "PF-L3-180-MC-001-C-001",
+        "processChar": "정렬 반복 정밀도 (Repeatability, μm)"
+      },
+      {
+        "id": "PF-L3-180-IM-001-K-001",
+        "processNo": "180",
+        "m4": "IM",
+        "workElement": "Wafer Cassette",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-180",
+        "l3StructId": "PF-L3-180-IM-001",
+        "l3FuncId": "PF-L3-180-IM-001-C-001",
+        "processChar": "자재 규격 기준 (Material Spec)"
+      },
+      {
+        "id": "PF-L3-180-EN-001-K-001",
+        "processNo": "180",
+        "m4": "EN",
+        "workElement": "Sorter3 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-180",
+        "l3StructId": "PF-L3-180-EN-001",
+        "l3FuncId": "PF-L3-180-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-190-MN-001-K-001",
+        "processNo": "190",
+        "m4": "MN",
+        "workElement": "AVI 작업자",
+        "cause": "작업 숙련도 부족",
+        "l2StructId": "PF-L2-190",
+        "l3StructId": "PF-L3-190-MN-001",
+        "l3FuncId": "PF-L3-190-MN-001-C-001",
+        "processChar": "검사 숙련도"
+      },
+      {
+        "id": "PF-L3-190-MC-001-K-001",
+        "processNo": "190",
+        "m4": "MC",
+        "workElement": "AVI 장비",
+        "cause": "해상도 저하",
+        "l2StructId": "PF-L2-190",
+        "l3StructId": "PF-L3-190-MC-001",
+        "l3FuncId": "PF-L3-190-MC-001-C-001",
+        "processChar": "해상도 (Resolution, μm)"
+      },
+      {
+        "id": "PF-L3-190-IM-001-K-001",
+        "processNo": "190",
+        "m4": "IM",
+        "workElement": "한도 견본",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-190",
+        "l3StructId": "PF-L3-190-IM-001",
+        "l3FuncId": "PF-L3-190-IM-001-C-001",
+        "processChar": "자재 규격 기준 (Material Spec)"
+      },
+      {
+        "id": "PF-L3-190-EN-001-K-001",
+        "processNo": "190",
+        "m4": "EN",
+        "workElement": "AVI 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-190",
+        "l3StructId": "PF-L3-190-EN-001",
+        "l3FuncId": "PF-L3-190-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-200-MN-001-K-001",
+        "processNo": "200",
+        "m4": "MN",
+        "workElement": "포장 작업자",
+        "cause": "체크리스트 누락",
+        "l2StructId": "PF-L2-200",
+        "l3StructId": "PF-L3-200-MN-001",
+        "l3FuncId": "PF-L3-200-MN-001-C-001",
+        "processChar": "작업 숙련도"
+      },
+      {
+        "id": "PF-L3-200-MC-001-K-001",
+        "processNo": "200",
+        "m4": "MC",
+        "workElement": "포장 장비",
+        "cause": "진공 누설",
+        "l2StructId": "PF-L2-200",
+        "l3StructId": "PF-L3-200-MC-001",
+        "l3FuncId": "PF-L3-200-MC-001-C-001",
+        "processChar": "진공 압력 (Vacuum Pressure, kPa)"
+      },
+      {
+        "id": "PF-L3-200-IM-001-K-001",
+        "processNo": "200",
+        "m4": "IM",
+        "workElement": "포장재",
+        "cause": "자재 품질 부적합",
+        "l2StructId": "PF-L2-200",
+        "l3StructId": "PF-L3-200-IM-001",
+        "l3FuncId": "PF-L3-200-IM-001-C-001",
+        "processChar": "자재 규격 기준 (Material Spec)"
+      },
+      {
+        "id": "PF-L3-200-EN-001-K-001",
+        "processNo": "200",
+        "m4": "EN",
+        "workElement": "포장 작업영역",
+        "cause": "환경 조건 이탈",
+        "l2StructId": "PF-L2-200",
+        "l3StructId": "PF-L3-200-EN-001",
+        "l3FuncId": "PF-L3-200-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class) / 온습도 (Temp·Humidity)"
+      },
+      {
+        "id": "PF-L3-001-EN-001-K-1",
+        "processNo": "01",
+        "m4": "EN",
+        "workElement": "클린룸",
+        "cause": "풍속 저하",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-EN-001",
+        "l3FuncId": "PF-L3-001-EN-001-C-001",
+        "processChar": "청정도 등급 (ISO Class)"
+      },
+      {
+        "id": "PF-L3-001-EN-002-K-1",
+        "processNo": "01",
+        "m4": "EN",
+        "workElement": "FFU(Fan Filter Unit)",
+        "cause": "풍속 저하",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-EN-002",
+        "l3FuncId": "PF-L3-001-EN-002-C-001",
+        "processChar": "풍속 (Air Velocity, m/s)"
+      },
+      {
+        "id": "PF-L3-020-MC-001-K-1",
+        "processNo": "20",
+        "m4": "MC",
+        "workElement": "Sorter 장비",
+        "cause": "OCR 인식 오류",
+        "l2StructId": "PF-L2-020",
+        "l3StructId": "PF-L3-020-MC-001",
+        "l3FuncId": "PF-L3-020-MC-001-C-001",
+        "processChar": "정렬 반복 정밀도 (Repeatability, μm)"
+      },
+      {
+        "id": "PF-L3-020-MC-002-K-1",
+        "processNo": "20",
+        "m4": "MC",
+        "workElement": "OCR Reader",
+        "cause": "OCR 인식 오류",
+        "l2StructId": "PF-L2-020",
+        "l3StructId": "PF-L3-020-MC-002",
+        "l3FuncId": "PF-L3-020-MC-002-C-001",
+        "processChar": "인식 정확도 (Recognition Rate, %)"
+      },
+      {
+        "id": "PF-L3-120-IM-001-K-1",
+        "processNo": "120",
+        "m4": "IM",
+        "workElement": "Au Etchant",
+        "cause": "H₂O₂ 농도 편차에 의한 Etch Rate 이탈",
+        "l2StructId": "PF-L2-120",
+        "l3StructId": "PF-L3-120-IM-001",
+        "l3FuncId": "PF-L3-120-IM-001-C-001",
+        "processChar": "Etchant 농도 (Concentration, %)"
+      },
+      {
+        "id": "PF-L3-130-MC-001-K-1",
+        "processNo": "130",
+        "m4": "MC",
+        "workElement": "TiW Etch 장비",
+        "cause": "Etch Rate 편차",
+        "l2StructId": "PF-L2-130",
+        "l3StructId": "PF-L3-130-MC-001",
+        "l3FuncId": "PF-L3-130-MC-001-C-001",
+        "processChar": "식각 온도 (Etch Temperature, ℃)"
+      },
+      {
+        "id": "PF-L3-150-MC-001-K-1",
+        "processNo": "150",
+        "m4": "MC",
+        "workElement": "AVI 장비",
+        "cause": "측정 오차",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-MC-001",
+        "l3FuncId": "PF-L3-150-MC-001-C-001",
+        "processChar": "해상도 (Resolution, μm)"
+      },
+      {
+        "id": "PF-L3-150-MC-001-K-2",
+        "processNo": "150",
+        "m4": "MC",
+        "workElement": "AVI 장비",
+        "cause": "측정 균일도 편차",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-MC-001",
+        "l3FuncId": "PF-L3-150-MC-001-C-001",
+        "processChar": "해상도 (Resolution, μm)"
+      },
+      {
+        "id": "PF-L3-150-MC-002-K-1",
+        "processNo": "150",
+        "m4": "MC",
+        "workElement": "높이 측정기",
+        "cause": "측정 균일도 편차",
+        "l2StructId": "PF-L2-150",
+        "l3StructId": "PF-L3-150-MC-002",
+        "l3FuncId": "PF-L3-150-MC-002-C-001",
+        "processChar": "측정 정밀도 (Accuracy, μm)"
+      },
+      {
+        "id": "PF-L3-001-MC-001-K-1",
+        "processNo": "01",
+        "m4": "MC",
+        "workElement": "항온항습기",
+        "cause": "습도(Humidity, %RH) 부적합",
+        "l2StructId": "PF-L2-001",
+        "l3StructId": "PF-L3-001-MC-001",
+        "l3FuncId": "PF-L3-001-MC-001-C-001",
+        "processChar": "온도 (Temperature, ℃)"
+      },
+      {
+        "id": "PF-L3-040-IM-001-K-1",
+        "processNo": "40",
+        "m4": "IM",
+        "workElement": "Ti Target",
+        "cause": "Target 두께 잔량(Remaining Thickness, mm) 부적합",
+        "l2StructId": "PF-L2-040",
+        "l3StructId": "PF-L3-040-IM-001",
+        "l3FuncId": "PF-L3-040-IM-001-C-001",
+        "processChar": "Target 두께 잔량 (Remaining Thickness, mm)"
+      },
+      {
+        "id": "PF-L3-130-IM-001-K-1",
+        "processNo": "130",
+        "m4": "IM",
+        "workElement": "TiW Etchant",
+        "cause": "H₂O₂ 농도(Concentration, %) 부적합",
+        "l2StructId": "PF-L2-130",
+        "l3StructId": "PF-L3-130-IM-001",
+        "l3FuncId": "PF-L3-130-IM-001-C-001",
+        "processChar": "Etchant 농도 (Concentration, %)"
+      },
+      {
+        "id": "PF-L3-140-MC-001-K-1",
+        "processNo": "140",
+        "m4": "MC",
+        "workElement": "Anneal 장비",
+        "cause": "열처리 시간(Anneal Time, min) 부적합",
+        "l2StructId": "PF-L2-140",
+        "l3StructId": "PF-L3-140-MC-001",
+        "l3FuncId": "PF-L3-140-MC-001-C-001",
+        "processChar": "열처리 온도 (Anneal Temperature, ℃)"
+      }
+    ],
+    "fe": [
+      {
+        "id": "PF-L1-YP-001-001-001",
+        "scope": "Your Plant",
+        "effect": "Particle 오염으로 인한 제품 특성 이상",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-002-001-002",
+        "scope": "Your Plant",
+        "effect": "Wafer 표면 결함 미검출로 인한 후공정 유출",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-001-003",
+        "scope": "Your Plant",
+        "effect": "Lot 혼입으로 인한 Wafer 수율 손실",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-002-004",
+        "scope": "Your Plant",
+        "effect": "전기적 Open/Short",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-003-005",
+        "scope": "Your Plant",
+        "effect": "Bump Lift-off",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-004-006",
+        "scope": "Your Plant",
+        "effect": "PR 두께 Spec Out으로 인한 패턴 불량",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-005-007",
+        "scope": "Your Plant",
+        "effect": "Bump간 Bridge",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-006-008",
+        "scope": "Your Plant",
+        "effect": "CD Spec Out으로 인한 Bump 형성 불량",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-006-009",
+        "scope": "Your Plant",
+        "effect": "PR Scum 잔류로 인한 Au Bump 형성 불량",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-006-010",
+        "scope": "Your Plant",
+        "effect": "Bump Height Spec Out으로 인한 제품 특성 이상",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-YP-003-006-011",
+        "scope": "Your Plant",
+        "effect": "Plating 균일도 Spec Out으로 인한 Bump 특성 이상",
+        "severity": 1,
+        "l1FuncId": "PF-L1-YP-001-001",
+        "functionName": "Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 규격(Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-SP-001-001-001",
+        "scope": "Ship to Plant",
+        "effect": "IMC 과성장에 의한 접합부 열화",
+        "severity": 1,
+        "l1FuncId": "PF-L1-SP-001-001",
+        "functionName": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 고객 출하 규격(Customer Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-SP-002-001-002",
+        "scope": "Ship to Plant",
+        "effect": "Particle 오염 불량 유출로 인한 고객 기능 이상",
+        "severity": 1,
+        "l1FuncId": "PF-L1-SP-001-001",
+        "functionName": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 고객 출하 규격(Customer Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-SP-002-002-003",
+        "scope": "Ship to Plant",
+        "effect": "라벨 불일치로 인한 Lot 혼입 불량 유출",
+        "severity": 1,
+        "l1FuncId": "PF-L1-SP-001-001",
+        "functionName": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 고객 출하 규격(Customer Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-SP-002-003-004",
+        "scope": "Ship to Plant",
+        "effect": "외관 결함 불량 유출(고객 Outgoing Defect)",
+        "severity": 1,
+        "l1FuncId": "PF-L1-SP-001-001",
+        "functionName": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 고객 출하 규격(Customer Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-SP-002-004-005",
+        "scope": "Ship to Plant",
+        "effect": "고객 Packing 기준 부적합으로 인한 납품 Reject",
+        "severity": 1,
+        "l1FuncId": "PF-L1-SP-001-001",
+        "functionName": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 고객 출하 규격(Customer Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-SP-002-005-006",
+        "scope": "Ship to Plant",
+        "effect": "IMC 두께 Spec Out으로 인한 접합부 신뢰성 저하",
+        "severity": 1,
+        "l1FuncId": "PF-L1-SP-001-001",
+        "functionName": "고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다",
+        "requirement": "Au Bump 높이 고객 출하 규격(Customer Bump Height Spec, μm)"
+      },
+      {
+        "id": "PF-L1-US-001-001-001",
+        "scope": "User",
+        "effect": "고객 라인 정지, 클레임",
+        "severity": 1,
+        "l1FuncId": "PF-L1-US-001-001",
+        "functionName": "최종 사용자 전기적·기계적 신뢰성 기준을 충족하는 Au Bump를 제공한다",
+        "requirement": "Au Bump 전기적 신뢰성 기준 (Electrical Reliability Spec)"
+      },
+      {
+        "id": "PF-L1-US-002-001-002",
+        "scope": "User",
+        "effect": "고객 신뢰도 하락",
+        "severity": 1,
+        "l1FuncId": "PF-L1-US-001-001",
+        "functionName": "최종 사용자 전기적·기계적 신뢰성 기준을 충족하는 Au Bump를 제공한다",
+        "requirement": "Au Bump 전기적 신뢰성 기준 (Electrical Reliability Spec)"
+      },
+      {
+        "id": "PF-L1-US-002-002-003",
+        "scope": "User",
+        "effect": "RoHS 부적합으로 인한 리콜·법적 조치",
+        "severity": 1,
+        "l1FuncId": "PF-L1-US-001-001",
+        "functionName": "최종 사용자 전기적·기계적 신뢰성 기준을 충족하는 Au Bump를 제공한다",
+        "requirement": "Au Bump 전기적 신뢰성 기준 (Electrical Reliability Spec)"
+      }
+    ]
+  },
+  "links": [
+    {
+      "id": "fc-parsed-2",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-EN-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "클린룸 파티클 카운터 정기 모니터링, ISO 등급 분기 측정",
+      "detectionControl": "Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "fc-parsed-3",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-MN-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "클린룸 작업자 교육 및 인증, 작업표준서 게시",
+      "detectionControl": "Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "fc-parsed-4",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-MC-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:항온항습기 정기 PM 및 교정, 온습도 실시간 모니터링",
+      "detectionControl": "D:Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "fc-parsed-5",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-IM-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:HEPA 필터 정기 교체 주기 관리, 차압 모니터링",
+      "detectionControl": "D:Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "fc-parsed-6",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-EN-002-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 4,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "FFU 풍속 정기 측정 및 PM, 이상 시 알람 인터록",
+      "detectionControl": "Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "fc-parsed-8",
+      "fmId": "PF-L2-010-M-002",
+      "fcId": "PF-L3-010-EN-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사실 청정도 및 조도 정기 점검",
+      "detectionControl": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-9",
+      "fmId": "PF-L2-010-M-002",
+      "fcId": "PF-L3-010-MC-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:두께 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-10",
+      "fmId": "PF-L2-010-M-002",
+      "fcId": "PF-L3-010-IM-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "입고 Wafer 성적서 검토, 공급업체 SQC 모니터링",
+      "detectionControl": "두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-11",
+      "fmId": "PF-L2-010-M-001",
+      "fcId": "PF-L3-010-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:두께 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-12",
+      "fmId": "PF-L2-010-M-001",
+      "fcId": "PF-L3-010-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사원 인증 교육, 판정 기준서 최신화 및 게시",
+      "detectionControl": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-13",
+      "fmId": "PF-L2-010-M-001",
+      "fcId": "PF-L3-010-MC-002-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "두께 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-14",
+      "fmId": "PF-L2-010-M-001",
+      "fcId": "PF-L3-010-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "입고 Wafer 성적서 검토, 공급업체 SQC 모니터링",
+      "detectionControl": "두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-15",
+      "fmId": "PF-L2-010-M-001",
+      "fcId": "PF-L3-010-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사실 청정도 및 조도 정기 점검",
+      "detectionControl": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "fc-parsed-16",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-MN-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-17",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-MC-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 장비 정기 PM, 정렬 센서 교정",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-18",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-MC-002-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:OCR Reader 정기 교정, 인식률 일일 확인",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-19",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-IM-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Wafer Cassette 이상 유무 입고 검사",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-20",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-EN-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업영역 ESD 매트·손목 스트랩 점검",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-21",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-IM-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Wafer Cassette 이상 유무 입고 검사",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-22",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-EN-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업영역 ESD 매트·손목 스트랩 점검",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-23",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-MN-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-24",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-MC-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Sorter 장비 정기 PM, 정렬 센서 교정",
+      "detectionControl": "OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "fc-parsed-25",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-MC-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-26",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-IM-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-27",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-EN-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-28",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-MN-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-29",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Target 잔량 정기 점검 및 교체 기준 설정",
+      "detectionControl": "Target 수명 모니터링 시스템"
+    },
+    {
+      "id": "fc-parsed-31",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MC-001-K-001",
+      "feId": "PF-L1-YP-003-005-007",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-32",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MC-001-K-002",
+      "feId": "PF-L1-YP-003-005-007",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-33",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-EN-001-K-001",
+      "feId": "PF-L1-YP-003-005-007",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:진공 챔버 기밀 점검, 진공도 실시간 인터록",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-34",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-002-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-35",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MN-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sputter Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-36",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-003",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sputter 장비 정기 PM, Power 실시간 모니터링",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-37",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-004",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DC Power Supply 전압 안정도 정기 교정",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-38",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-005",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-39",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-IM-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-41",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-EN-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber2 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-42",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-MN-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber2 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-43",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-MC-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-44",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-IM-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-45",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-MN-001-K-001",
+      "feId": "PF-L1-YP-003-006-009",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Coater Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-46",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-009",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Coater 정기 PM, RPM 교정 및 모니터링",
+      "detectionControl": "D:α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-47",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-009",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:PR 보관 온도·유효기간 관리, 입고 검사",
+      "detectionControl": "D:α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-48",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-EN-001-K-001",
+      "feId": "PF-L1-YP-003-006-009",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Yellow Room UV 조도 정기 점검, 기준 초과 시 알람",
+      "detectionControl": "D:α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-49",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-MN-001-K-001",
+      "feId": "PF-L1-YP-003-006-010",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Exposure Recipe 승인제도, Mask 정렬 교육",
+      "detectionControl": "D:CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-50",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-010",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Stepper/Scanner 광원 에너지 정기 교정, PM",
+      "detectionControl": "D:CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-51",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-010",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Mask 이물·손상 입고 검사, 보관 기준 관리",
+      "detectionControl": "D:CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-52",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-EN-001-K-001",
+      "feId": "PF-L1-YP-003-006-010",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Exposure 챔버 온습도·진동 정기 점검",
+      "detectionControl": "D:CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-53",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-MN-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Develop Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-54",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Developer 현상 시간 자동 제어, PM 정기 실시",
+      "detectionControl": "D:SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-55",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:현상액 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-56",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-EN-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Develop 작업영역 온도·습도 모니터링",
+      "detectionControl": "D:SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-57",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-MN-001-K-001",
+      "feId": "PF-L1-SP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-58",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-MC-001-K-001",
+      "feId": "PF-L1-SP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum 장비 Power 안정도 정기 교정, PM",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-59",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-IM-001-K-001",
+      "feId": "PF-L1-SP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:O₂ Gas 유량 자동 제어, 기준 이탈 시 인터록",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-60",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-EN-001-K-001",
+      "feId": "PF-L1-SP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum 챔버 기밀 및 균일도 정기 점검",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-61",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-MC-001-K-001",
+      "feId": "PF-L1-SP-002-002-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링\n도금 Recipe 승인제도, 전류밀도 설정 교육",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)\n높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "fc-parsed-62",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-IM-001-K-001",
+      "feId": "PF-L1-SP-002-002-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 도금액 Au 이온 농도 정기 분석, 기준 이탈 시 보충\n도금 균일도 SPC 관리, 정기 전류 분포 측정",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-63",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-EN-001-K-001",
+      "feId": "PF-L1-SP-002-002-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Plating 작업영역 온도·습도 정기 모니터링\n정류기(Rectifier) 정기 교정, 출력 전류 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-64",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MN-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:도금 Recipe 승인제도, 전류밀도 설정 교육\nAu 도금액 Au 이온 농도 정기 분석, 기준 이탈 시 보충",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-65",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MC-001-K-002",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링\nP:정류기(Rectifier) 정기 교정, 출력 전류 모니터링\nPlating 작업영역 온도·습도 정기 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-66",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MC-001-K-003",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:정류기(Rectifier) 정기 교정, 출력 전류 모니터링\nP:도금 균일도 SPC 관리, 정기 전류 분포 측정",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-67",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MC-002-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:도금 균일도 SPC 관리, 정기 전류 분포 측정",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "fc-parsed-68",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-MN-001-K-001",
+      "feId": "PF-L1-SP-002-003-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Strip Recipe 승인제도, 온도 설정 교육",
+      "detectionControl": "D:SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-69",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-MC-001-K-001",
+      "feId": "PF-L1-SP-002-003-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Strip 장비 온도 교정, 정기 PM",
+      "detectionControl": "D:SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-70",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-IM-001-K-001",
+      "feId": "PF-L1-SP-002-003-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Strip 용제 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-71",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-EN-001-K-001",
+      "feId": "PF-L1-SP-002-003-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Strip 작업영역 환기 상태 정기 점검",
+      "detectionControl": "D:SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-72",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-MN-001-K-001",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Etch Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-73",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-MC-001-K-001",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Etch 장비 식각 시간 자동 제어, 정기 PM\nAu Etch Rate 정기 모니터링, 교정",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-74",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-MC-001-K-002",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Etch Rate 정기 모니터링, 교정\nH₂O₂ 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-75",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-IM-001-K-001",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:H₂O₂ 농도 정기 측정, 기준 이탈 시 교체\nEtch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-76",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-EN-001-K-001",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Etch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-77",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Etchant 농도 정기 분석 및 자동 보충\nTiW Etch Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "H₂O₂ 농도 실시간 모니터링\nSEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-79",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-MN-001-K-001",
+      "feId": "PF-L1-SP-002-005-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:TiW Etch Recipe 승인제도, 작업 표준 교육\nEtch Rate 정기 모니터링, 교정",
+      "detectionControl": "D:SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-80",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-MC-001-K-001",
+      "feId": "PF-L1-SP-002-005-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:TiW Etch 장비 온도 교정, 정기 PM\nTiW Etchant 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-81",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-EN-001-K-001",
+      "feId": "PF-L1-SP-002-005-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:TiW Etch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "D:SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-82",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-MN-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Anneal Recipe 승인제도, 온도·시간 설정 교육",
+      "detectionControl": "D:TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-83",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-MC-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Anneal 장비 온도 교정, 정기 PM",
+      "detectionControl": "D:TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-84",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-IM-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:N₂ Gas 유량 자동 제어, 순도 정기 분석",
+      "detectionControl": "D:TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-85",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-EN-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:N₂ 공급장치 유량 모니터링, 기준 이탈 시 알람",
+      "detectionControl": "D:TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "fc-parsed-87",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MN-001-K-001",
+      "feId": "PF-L1-US-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사원 인증 교육, 판정 기준서 최신화 및 게시",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "fc-parsed-88",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MC-001-K-001",
+      "feId": "PF-L1-US-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:AVI 장비 해상도 정기 교정, 기준 이미지 최신화",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "fc-parsed-89",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MC-002-K-001",
+      "feId": "PF-L1-US-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:높이 측정기 정기 교정(MSA), PM 일정 관리\n높이 측정기 Co-planarity 측정 정밀도 정기 교정(MSA)",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "fc-parsed-90",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-MC-002-K-002",
+      "feId": "PF-L1-US-002-002-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:높이 측정기 Co-planarity 측정 정밀도 정기 교정(MSA)\n한도 견본 정기 최신화, 승인 기준 관리",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "fc-parsed-91",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-IM-001-K-001",
+      "feId": "PF-L1-US-002-002-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:한도 견본 정기 최신화, 승인 기준 관리\n검사실 조도·청정도 정기 점검",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "fc-parsed-92",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-EN-001-K-001",
+      "feId": "PF-L1-US-002-002-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사실 조도·청정도 정기 점검",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "fc-parsed-93",
+      "fmId": "PF-L2-160-M-001",
+      "fcId": "PF-L3-160-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Clean 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-94",
+      "fmId": "PF-L2-160-M-001",
+      "fcId": "PF-L3-160-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Clean 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-95",
+      "fmId": "PF-L2-160-M-001",
+      "fcId": "PF-L3-160-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-96",
+      "fmId": "PF-L2-160-M-001",
+      "fcId": "PF-L3-160-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Clean 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "fc-parsed-97",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-MC-001-K-001",
+      "feId": "PF-L1-US-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 장비 정기 PM, 노즐 주기 점검\nScrubber3 작업 표준 교육, 출하 기준 확인",
+      "detectionControl": "D:Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "fc-parsed-98",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-MN-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber3 작업 표준 교육, 출하 기준 확인\nScrubber 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "D:Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "fc-parsed-99",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-IM-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "D:Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "fc-parsed-100",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-EN-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber3 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "fc-parsed-101",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-MN-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Sorter3 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-102",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-MC-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Sorter 장비 정기 PM, 정렬 센서 교정",
+      "detectionControl": "Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-103",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-IM-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Wafer Cassette 이상 유무 입고 검사",
+      "detectionControl": "D:Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-104",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-EN-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter3 작업영역 ESD 매트·손목 스트랩 점검",
+      "detectionControl": "D:Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-105",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-MN-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:AVI 결과 검토 교육, 이상 발생 시 에스컬레이션 절차",
+      "detectionControl": "D:AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-106",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-MC-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:AVI 장비 해상도 정기 교정, 기준 이미지 최신화",
+      "detectionControl": "D:AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-107",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-IM-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:한도 견본 정기 최신화, 승인 기준 관리",
+      "detectionControl": "D:AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-108",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-EN-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:AVI 작업영역 조도·진동 정기 점검",
+      "detectionControl": "D:AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "fc-parsed-109",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-MN-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:포장 작업자 교육, 포장 체크리스트 표준화",
+      "detectionControl": "D:포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "fc-parsed-110",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-MC-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:포장 장비 진공 압력 정기 점검, PM",
+      "detectionControl": "D:포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "fc-parsed-111",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-IM-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:포장재 입고 검사, 보관 기준 관리",
+      "detectionControl": "D:포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "fc-parsed-112",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-EN-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:포장 작업영역 청정도 및 ESD 정기 점검",
+      "detectionControl": "D:포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "FL-pfm26-m066-1",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Au Etch 장비 식각 시간 자동 제어, 정기 PM\nAu Etch Rate 정기 모니터링, 교정",
+      "detectionControl": "SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-2",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-MC-001-K-002",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "H₂O₂ 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-3",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Au Etchant 농도 정기 측정, 기준 이탈 시 교체\nEtch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-4",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-IM-001-K-1",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:H₂O₂ 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-5",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Etch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-6",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "TiW Etch Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-7",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "TiW Etch 장비 온도 교정, 정기 PM\nEtch Rate 정기 모니터링, 교정",
+      "detectionControl": "SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-8",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-MC-001-K-1",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "TiW Etchant 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-9",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "TiW Etchant 농도 정기 측정, 기준 이탈 시 교체\nTiW Etch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-10",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "클린룸 작업자 교육 및 인증, 작업표준서 게시",
+      "detectionControl": "Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-11",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:항온항습기 정기 PM 및 교정, 온습도 실시간 모니터링",
+      "detectionControl": "D:Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-12",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:HEPA 필터 정기 교체 주기 관리, 차압 모니터링",
+      "detectionControl": "D:Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-13",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "클린룸 파티클 카운터 정기 모니터링, ISO 등급 분기 측정",
+      "detectionControl": "Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-14",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-EN-001-K-1",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 4,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "FFU 풍속 정기 측정 및 PM, 이상 시 알람 인터록",
+      "detectionControl": "Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-15",
+      "fmId": "PF-L2-010-M-002",
+      "fcId": "PF-L3-010-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사원 인증 교육, 판정 기준서 최신화 및 게시",
+      "detectionControl": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-16",
+      "fmId": "PF-L2-010-M-001",
+      "fcId": "PF-L3-010-MC-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "두께 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-17",
+      "fmId": "PF-L2-010-M-001",
+      "fcId": "PF-L3-010-IM-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "입고 Wafer 성적서 검토, 공급업체 SQC 모니터링",
+      "detectionControl": "두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-18",
+      "fmId": "PF-L2-010-M-002",
+      "fcId": "PF-L3-010-IM-001-K-001",
+      "feId": "PF-L1-YP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "입고 Wafer 성적서 검토, 공급업체 SQC 모니터링",
+      "detectionControl": "두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-19",
+      "fmId": "PF-L2-010-M-002",
+      "fcId": "PF-L3-010-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사실 청정도 및 조도 정기 점검",
+      "detectionControl": "D:두께 측정기 전수 측정, 버니어 캘리퍼스 교차 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-20",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-21",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-22",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Sorter 장비 정기 PM, 정렬 센서 교정",
+      "detectionControl": "OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-23",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-MC-001-K-001",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Sorter 장비 정기 PM, 정렬 센서 교정",
+      "detectionControl": "OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-24",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-MC-001-K-1",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "OCR Reader 정기 교정, 인식률 일일 확인",
+      "detectionControl": "OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-25",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-MC-001-K-1",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "OCR Reader 정기 교정, 인식률 일일 확인",
+      "detectionControl": "OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-26",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Wafer Cassette 이상 유무 입고 검사",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-27",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Wafer Cassette 이상 유무 입고 검사",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-28",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업영역 ESD 매트·손목 스트랩 점검",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-29",
+      "fmId": "PF-L2-020-M-002",
+      "fcId": "PF-L3-020-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sorter 작업영역 ESD 매트·손목 스트랩 점검",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-30",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-31",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Scrubber 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-32",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-33",
+      "fmId": "PF-L2-030-M-001",
+      "fcId": "PF-L3-030-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-34",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sputter Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-35",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sputter Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-36",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Sputter 장비 정기 PM, Power 실시간 모니터링",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-37",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Sputter 장비 정기 PM, Power 실시간 모니터링",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-38",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-002",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "DC Power Supply 전압 안정도 정기 교정",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-39",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MC-001-K-002",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "DC Power Supply 전압 안정도 정기 교정",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-40",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-003",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sputter 장비 정기 PM, Power 실시간 모니터링",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-41",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MC-001-K-003",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Sputter 장비 정기 PM, Power 실시간 모니터링",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-42",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-004",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DC Power Supply 전압 안정도 정기 교정",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-43",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MC-001-K-004",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DC Power Supply 전압 안정도 정기 교정",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-44",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-MC-001-K-005",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-45",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-MC-001-K-005",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-46",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Cu Target 잔량 자동 모니터링, 소진 임박 알람",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-47",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-IM-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 4,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Cu Target 잔량 자동 모니터링, 소진 임박 알람",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-48",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-EN-001-K-001",
+      "feId": "PF-L1-YP-003-003-005",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "진공 챔버 기밀 점검, 진공도 실시간 인터록",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-49",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "진공 챔버 기밀 점검, 진공도 실시간 인터록",
+      "detectionControl": "4-Point Probe 두께 측정, SEM 단면 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-50",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber2 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-51",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Scrubber 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-52",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-53",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber2 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-54",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Coater Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-55",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-MC-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Coater 정기 PM, RPM 교정 및 모니터링",
+      "detectionControl": "α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-56",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-IM-001-K-001",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "PR 보관 온도·유효기간 관리, 입고 검사",
+      "detectionControl": "α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-57",
+      "fmId": "PF-L2-060-M-001",
+      "fcId": "PF-L3-060-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Yellow Room UV 조도 정기 점검, 기준 초과 시 알람",
+      "detectionControl": "D:α-step/Ellipsometer PR 두께 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-58",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Exposure Recipe 승인제도, Mask 정렬 교육",
+      "detectionControl": "D:CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-59",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-MC-001-K-001",
+      "feId": "PF-L1-YP-003-005-007",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Stepper/Scanner 광원 에너지 정기 교정, PM",
+      "detectionControl": "CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-60",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-IM-001-K-001",
+      "feId": "PF-L1-YP-003-005-007",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Mask 이물·손상 입고 검사, 보관 기준 관리",
+      "detectionControl": "CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-61",
+      "fmId": "PF-L2-070-M-001",
+      "fcId": "PF-L3-070-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Exposure 챔버 온습도·진동 정기 점검",
+      "detectionControl": "D:CD-SEM CD 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-62",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Develop Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-63",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-008",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Developer 현상 시간 자동 제어, PM 정기 실시",
+      "detectionControl": "SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-64",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-008",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "현상액 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-65",
+      "fmId": "PF-L2-080-M-001",
+      "fcId": "PF-L3-080-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Develop 작업영역 온도·습도 모니터링",
+      "detectionControl": "D:SEM Opening 치수 측정, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-66",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-67",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-009",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Descum 장비 Power 안정도 정기 교정, PM",
+      "detectionControl": "SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-68",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-009",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "O₂ Gas 유량 자동 제어, 기준 이탈 시 인터록",
+      "detectionControl": "SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-69",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum 챔버 기밀 및 균일도 정기 점검",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-70",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "도금 Recipe 승인제도, 전류밀도 설정 교육",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-71",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "도금 균일도 SPC 관리, 정기 전류 분포 측정",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-72",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-MC-001-K-001",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링\n정류기(Rectifier) 정기 교정, 출력 전류 모니터링",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-73",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Au 도금액 Au 이온 농도 정기 분석, 기준 이탈 시 보충",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-74",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-MC-001-K-002",
+      "feId": "PF-L1-YP-003-002-004",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "정류기(Rectifier) 정기 교정, 출력 전류 모니터링\nPlating 작업영역 온도·습도 정기 모니터링",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-75",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MC-001-K-002",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "정류기(Rectifier) 정기 교정, 출력 전류 모니터링\nPlating 작업영역 온도·습도 정기 모니터링",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-76",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-MC-001-K-003",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-77",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MC-001-K-003",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-78",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Au 도금액 Au 이온 농도 정기 분석, 기준 이탈 시 보충",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-79",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-IM-001-K-001",
+      "feId": "PF-L1-SP-001-001-001",
+      "severity": 1,
+      "occurrence": 4,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Au 도금액 Au 이온 농도 정기 분석, 기준 이탈 시 보충",
+      "detectionControl": "높이 측정기 전수 높이 측정, XRF 순도 분석 (샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-80",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Plating 작업영역 온도·습도 정기 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-81",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Plating 작업영역 온도·습도 정기 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-82",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Strip Recipe 승인제도, 온도 설정 교육",
+      "detectionControl": "SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-83",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-010",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Strip 장비 온도 교정, 정기 PM",
+      "detectionControl": "SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-84",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-010",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Strip 용제 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-85",
+      "fmId": "PF-L2-110-M-001",
+      "fcId": "PF-L3-110-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Strip 작업영역 환기 상태 정기 점검",
+      "detectionControl": "D:SEM PR 잔사 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-86",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Au Etch Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-87",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:TiW Etch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "D:SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-88",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Anneal Recipe 승인제도, 온도·시간 설정 교육",
+      "detectionControl": "TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-89",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-MC-001-K-001",
+      "feId": "PF-L1-SP-001-001-001",
+      "severity": 1,
+      "occurrence": 4,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Anneal 장비 온도 교정, 정기 PM",
+      "detectionControl": "TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-90",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "N₂ Gas 유량 자동 제어, 순도 정기 분석",
+      "detectionControl": "D:TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-91",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-EN-001-K-001",
+      "feId": "PF-L1-SP-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "N₂ 공급장치 유량 모니터링, 기준 이탈 시 알람",
+      "detectionControl": "TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-92",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "검사원 인증 교육, 판정 기준서 최신화 및 게시",
+      "detectionControl": "AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-93",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "AVI 장비 해상도 정기 교정, 기준 이미지 최신화",
+      "detectionControl": "AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-94",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MC-001-K-001",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "AVI 장비 해상도 정기 교정, 기준 이미지 최신화\n높이 측정기 Co-planarity 측정 정밀도 정기 교정(MSA)",
+      "detectionControl": "AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-95",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-MC-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "한도 견본 정기 최신화, 승인 기준 관리",
+      "detectionControl": "AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-96",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MC-001-K-1",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "검사실 조도·청정도 정기 점검",
+      "detectionControl": "AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-97",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-MC-001-K-1",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "높이 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-98",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MC-001-K-2",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "검사원 인증 교육, 판정 기준서 최신화 및 게시",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-99",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-MC-001-K-2",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "높이 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-100",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:한도 견본 정기 최신화, 승인 기준 관리",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-101",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:한도 견본 정기 최신화, 승인 기준 관리",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-102",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사실 조도·청정도 정기 점검",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-103",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:검사실 조도·청정도 정기 점검",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-104",
+      "fmId": "PF-L2-160-M-001",
+      "fcId": "PF-L3-160-MC-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Clean 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-105",
+      "fmId": "PF-L2-160-M-001",
+      "fcId": "PF-L3-160-IM-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-106",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-MN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Scrubber3 작업 표준 교육, 출하 기준 확인",
+      "detectionControl": "Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-107",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-MC-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Scrubber 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-108",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-IM-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-109",
+      "fmId": "PF-L2-170-M-001",
+      "fcId": "PF-L3-170-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Scrubber3 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 파티클 측정, 출하 전 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-110",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-MN-001-K-001",
+      "feId": "PF-L1-SP-002-002-003",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Sorter3 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-111",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-MC-001-K-001",
+      "feId": "PF-L1-SP-002-002-003",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "Sorter 장비 정기 PM, 정렬 센서 교정",
+      "detectionControl": "Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-112",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Wafer Cassette 이상 유무 입고 검사",
+      "detectionControl": "D:Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-113",
+      "fmId": "PF-L2-180-M-001",
+      "fcId": "PF-L3-180-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Sorter3 작업영역 ESD 매트·손목 스트랩 점검",
+      "detectionControl": "D:Sorter3 정렬 센서 자동 확인, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-114",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-MN-001-K-001",
+      "feId": "PF-L1-SP-002-003-004",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "AVI 결과 검토 교육, 이상 발생 시 에스컬레이션 절차",
+      "detectionControl": "AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-115",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-MC-001-K-001",
+      "feId": "PF-L1-SP-002-003-004",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "AVI 장비 해상도 정기 교정, 기준 이미지 최신화",
+      "detectionControl": "AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-116",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "한도 견본 정기 최신화, 승인 기준 관리",
+      "detectionControl": "D:AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-117",
+      "fmId": "PF-L2-190-M-001",
+      "fcId": "PF-L3-190-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "AVI 작업영역 조도·진동 정기 점검",
+      "detectionControl": "D:AVI 장비 전수 자동 외관검사, 매 Wafer"
+    },
+    {
+      "id": "FL-pfm26-m066-118",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-MN-001-K-001",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "포장 작업자 교육, 포장 체크리스트 표준화",
+      "detectionControl": "포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "FL-pfm26-m066-119",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-MC-001-K-001",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "포장 장비 진공 압력 정기 점검, PM",
+      "detectionControl": "포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "FL-pfm26-m066-120",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-IM-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "포장재 입고 검사, 보관 기준 관리",
+      "detectionControl": "D:포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "FL-pfm26-m066-121",
+      "fmId": "PF-L2-200-M-001",
+      "fcId": "PF-L3-200-EN-001-K-001",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "포장 작업영역 청정도 및 ESD 정기 점검",
+      "detectionControl": "D:포장 외관 전수 육안검사, 포장재 진공도 검사"
+    },
+    {
+      "id": "FL-pfm26-m066-126",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-EN-002-K-1",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:FFU 풍속 정기 측정 및 PM, 이상 시 알람 인터록",
+      "detectionControl": "D:Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-127",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-MC-001-K-1",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:항온항습기 정기 PM 및 교정, 온습도 실시간 모니터링",
+      "detectionControl": "D:Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-136",
+      "fmId": "PF-L2-020-M-001",
+      "fcId": "PF-L3-020-MC-002-K-1",
+      "feId": "PF-L1-YP-003-001-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:OCR Reader 정기 교정, 인식률 일일 확인",
+      "detectionControl": "D:OCR Reader 자동 인식 확인, Sorter 장비 정렬 센서 검증"
+    },
+    {
+      "id": "FL-pfm26-m066-145",
+      "fmId": "PF-L2-040-M-002",
+      "fcId": "PF-L3-040-IM-001-K-1",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Target 두께 정기 측정",
+      "detectionControl": "Target 두께 인라인 모니터링"
+    },
+    {
+      "id": "FL-pfm26-m066-154",
+      "fmId": "PF-L2-040-M-001",
+      "fcId": "PF-L3-040-IM-001-K-1",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au 증착 두께 인라인 모니터링, 정기 PM",
+      "detectionControl": "D:4-Point Probe 두께 측정, SEM 단면 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-155",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-EN-001-K-001",
+      "feId": "PF-L1-YP-003-006-008",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber2 작업영역 청정도 정기 모니터링",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-156",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-MN-001-K-001",
+      "feId": "PF-L1-YP-003-006-008",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber2 작업 표준 교육, 인증 후 투입",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-157",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-MC-001-K-001",
+      "feId": "PF-L1-YP-003-006-008",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Scrubber 장비 정기 PM, 노즐 주기 점검",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-158",
+      "fmId": "PF-L2-050-M-001",
+      "fcId": "PF-L3-050-IM-001-K-001",
+      "feId": "PF-L1-YP-003-006-008",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:DI Water 비저항 일일 측정, 기준 미달 시 교체",
+      "detectionControl": "D:Particle Counter 세정 후 파티클 측정, 매 Lot"
+    },
+    {
+      "id": "FL-pfm26-m066-171",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-MN-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum Recipe 승인제도, 작업 표준 교육",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-172",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-MC-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum 장비 Power 안정도 정기 교정, PM",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-173",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-IM-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:O₂ Gas 유량 자동 제어, 기준 이탈 시 인터록",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-174",
+      "fmId": "PF-L2-090-M-001",
+      "fcId": "PF-L3-090-EN-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Descum 챔버 기밀 및 균일도 정기 점검",
+      "detectionControl": "D:SEM Scum 유무 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-175",
+      "fmId": "PF-L2-100-M-001",
+      "fcId": "PF-L3-100-MC-001-K-003",
+      "feId": "PF-L1-SP-002-002-003",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-179",
+      "fmId": "PF-L2-100-M-002",
+      "fcId": "PF-L3-100-MC-001-K-001",
+      "feId": "PF-L1-SP-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Au Plating Tank 정기 PM, 전류밀도 실시간 모니터링\nP:정류기(Rectifier) 정기 교정, 출력 전류 모니터링",
+      "detectionControl": "D:높이 측정기 전수 높이 측정, XRF 순도 분석(샘플링)"
+    },
+    {
+      "id": "FL-pfm26-m066-189",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-IM-001-K-1",
+      "feId": "PF-L1-SP-002-004-005",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:H₂O₂ 농도 정기 측정, 기준 이탈 시 교체",
+      "detectionControl": "D:SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-192",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-IM-001-K-1",
+      "feId": "PF-L1-YP-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "Etchant 교체 주기 관리",
+      "detectionControl": "Etch Rate 인라인 모니터링"
+    },
+    {
+      "id": "FL-pfm26-m066-194",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-MC-001-K-1",
+      "feId": "PF-L1-SP-002-005-006",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:TiW Etch 장비 온도 교정, 정기 PM",
+      "detectionControl": "D:SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-200",
+      "fmId": "PF-L2-140-M-001",
+      "fcId": "PF-L3-140-MC-001-K-1",
+      "feId": "PF-L1-US-001-001-001",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:Anneal 장비 온도 교정, 정기 PM",
+      "detectionControl": "D:TEM/SEM IMC 두께 분석, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-201",
+      "fmId": "PF-L2-150-M-001",
+      "fcId": "PF-L3-150-MC-002-K-1",
+      "feId": "PF-L1-US-002-001-002",
+      "severity": 1,
+      "occurrence": 1,
+      "detection": 1,
+      "ap": "L",
+      "preventionControl": "P:높이 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "D:AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    },
+    {
+      "id": "FL-pfm26-m066-220",
+      "fmId": "PF-L2-001-M-001",
+      "fcId": "PF-L3-001-EN-001-K-1",
+      "feId": "PF-L1-YP-003-004-006",
+      "severity": 1,
+      "occurrence": 4,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "FFU 풍속 정기 측정 및 PM, 이상 시 알람 인터록",
+      "detectionControl": "Particle Counter 파티클 측정, 매 근무조 실시"
+    },
+    {
+      "id": "FL-pfm26-m066-221",
+      "fmId": "PF-L2-120-M-001",
+      "fcId": "PF-L3-120-IM-001-K-1",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "Au Etchant 농도 정기 측정, 기준 이탈 시 교체\nEtch 작업영역 환기 및 약액 안전 정기 점검",
+      "detectionControl": "SEM 에칭 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-222",
+      "fmId": "PF-L2-130-M-001",
+      "fcId": "PF-L3-130-MC-001-K-1",
+      "feId": "PF-L1-YP-003-006-011",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 4,
+      "ap": "L",
+      "preventionControl": "TiW Etch 장비 온도 교정, 정기 PM\nEtch Rate 정기 모니터링, 교정",
+      "detectionControl": "SEM Seed 잔류물 확인, 매 Lot 샘플링"
+    },
+    {
+      "id": "FL-pfm26-m066-224",
+      "fmId": "PF-L2-150-M-002",
+      "fcId": "PF-L3-150-MC-001-K-1",
+      "feId": "PF-L1-US-002-002-003",
+      "severity": 1,
+      "occurrence": 3,
+      "detection": 3,
+      "ap": "L",
+      "preventionControl": "높이 측정기 정기 교정(MSA), PM 일정 관리",
+      "detectionControl": "AVI 장비 전수 외관검사, 높이 측정기 전수 높이 측정"
+    }
+  ],
+  "fkMap": {
+    "fmToFCs": {
+      "PF-L2-001-M-001": [
+        "PF-L3-001-EN-001-K-001",
+        "PF-L3-001-MN-001-K-001",
+        "PF-L3-001-MC-001-K-001",
+        "PF-L3-001-IM-001-K-001",
+        "PF-L3-001-EN-002-K-001",
+        "PF-L3-001-EN-001-K-1",
+        "PF-L3-001-EN-002-K-1",
+        "PF-L3-001-MC-001-K-1"
+      ],
+      "PF-L2-010-M-002": [
+        "PF-L3-010-EN-001-K-001",
+        "PF-L3-010-MC-001-K-001",
+        "PF-L3-010-IM-001-K-001",
+        "PF-L3-010-MN-001-K-001"
+      ],
+      "PF-L2-010-M-001": [
+        "PF-L3-010-MC-001-K-001",
+        "PF-L3-010-MN-001-K-001",
+        "PF-L3-010-MC-002-K-001",
+        "PF-L3-010-IM-001-K-001",
+        "PF-L3-010-EN-001-K-001"
+      ],
+      "PF-L2-020-M-001": [
+        "PF-L3-020-MN-001-K-001",
+        "PF-L3-020-MC-001-K-001",
+        "PF-L3-020-MC-002-K-001",
+        "PF-L3-020-IM-001-K-001",
+        "PF-L3-020-EN-001-K-001",
+        "PF-L3-020-MC-001-K-1",
+        "PF-L3-020-MC-002-K-1"
+      ],
+      "PF-L2-020-M-002": [
+        "PF-L3-020-IM-001-K-001",
+        "PF-L3-020-EN-001-K-001",
+        "PF-L3-020-MN-001-K-001",
+        "PF-L3-020-MC-001-K-001",
+        "PF-L3-020-MC-001-K-1"
+      ],
+      "PF-L2-030-M-001": [
+        "PF-L3-030-MC-001-K-001",
+        "PF-L3-030-IM-001-K-001",
+        "PF-L3-030-EN-001-K-001",
+        "PF-L3-030-MN-001-K-001"
+      ],
+      "PF-L2-040-M-002": [
+        "PF-L3-040-IM-001-K-001",
+        "PF-L3-040-MC-001-K-001",
+        "PF-L3-040-MC-001-K-002",
+        "PF-L3-040-EN-001-K-001",
+        "PF-L3-040-MN-001-K-001",
+        "PF-L3-040-MC-001-K-003",
+        "PF-L3-040-MC-001-K-004",
+        "PF-L3-040-MC-001-K-005",
+        "PF-L3-040-IM-001-K-1"
+      ],
+      "PF-L2-040-M-001": [
+        "PF-L3-040-MC-002-K-001",
+        "PF-L3-040-MN-001-K-001",
+        "PF-L3-040-MC-001-K-003",
+        "PF-L3-040-MC-001-K-004",
+        "PF-L3-040-MC-001-K-005",
+        "PF-L3-040-IM-001-K-001",
+        "PF-L3-040-MC-001-K-001",
+        "PF-L3-040-MC-001-K-002",
+        "PF-L3-040-EN-001-K-001",
+        "PF-L3-040-IM-001-K-1"
+      ],
+      "PF-L2-050-M-001": [
+        "PF-L3-050-EN-001-K-001",
+        "PF-L3-050-MN-001-K-001",
+        "PF-L3-050-MC-001-K-001",
+        "PF-L3-050-IM-001-K-001"
+      ],
+      "PF-L2-060-M-001": [
+        "PF-L3-060-MN-001-K-001",
+        "PF-L3-060-MC-001-K-001",
+        "PF-L3-060-IM-001-K-001",
+        "PF-L3-060-EN-001-K-001"
+      ],
+      "PF-L2-070-M-001": [
+        "PF-L3-070-MN-001-K-001",
+        "PF-L3-070-MC-001-K-001",
+        "PF-L3-070-IM-001-K-001",
+        "PF-L3-070-EN-001-K-001"
+      ],
+      "PF-L2-080-M-001": [
+        "PF-L3-080-MN-001-K-001",
+        "PF-L3-080-MC-001-K-001",
+        "PF-L3-080-IM-001-K-001",
+        "PF-L3-080-EN-001-K-001"
+      ],
+      "PF-L2-090-M-001": [
+        "PF-L3-090-MN-001-K-001",
+        "PF-L3-090-MC-001-K-001",
+        "PF-L3-090-IM-001-K-001",
+        "PF-L3-090-EN-001-K-001"
+      ],
+      "PF-L2-100-M-001": [
+        "PF-L3-100-MC-001-K-001",
+        "PF-L3-100-IM-001-K-001",
+        "PF-L3-100-EN-001-K-001",
+        "PF-L3-100-MN-001-K-001",
+        "PF-L3-100-MC-001-K-002",
+        "PF-L3-100-MC-001-K-003"
+      ],
+      "PF-L2-100-M-002": [
+        "PF-L3-100-MN-001-K-001",
+        "PF-L3-100-MC-001-K-002",
+        "PF-L3-100-MC-001-K-003",
+        "PF-L3-100-MC-002-K-001",
+        "PF-L3-100-MC-001-K-001",
+        "PF-L3-100-IM-001-K-001",
+        "PF-L3-100-EN-001-K-001"
+      ],
+      "PF-L2-110-M-001": [
+        "PF-L3-110-MN-001-K-001",
+        "PF-L3-110-MC-001-K-001",
+        "PF-L3-110-IM-001-K-001",
+        "PF-L3-110-EN-001-K-001"
+      ],
+      "PF-L2-120-M-001": [
+        "PF-L3-120-MN-001-K-001",
+        "PF-L3-120-MC-001-K-001",
+        "PF-L3-120-MC-001-K-002",
+        "PF-L3-120-IM-001-K-001",
+        "PF-L3-120-EN-001-K-001",
+        "PF-L3-120-IM-001-K-1"
+      ],
+      "PF-L2-130-M-001": [
+        "PF-L3-130-IM-001-K-001",
+        "PF-L3-130-MN-001-K-001",
+        "PF-L3-130-MC-001-K-001",
+        "PF-L3-130-EN-001-K-001",
+        "PF-L3-130-MC-001-K-1",
+        "PF-L3-130-IM-001-K-1"
+      ],
+      "PF-L2-140-M-001": [
+        "PF-L3-140-MN-001-K-001",
+        "PF-L3-140-MC-001-K-001",
+        "PF-L3-140-IM-001-K-001",
+        "PF-L3-140-EN-001-K-001",
+        "PF-L3-140-MC-001-K-1"
+      ],
+      "PF-L2-150-M-001": [
+        "PF-L3-150-MN-001-K-001",
+        "PF-L3-150-MC-001-K-001",
+        "PF-L3-150-MC-002-K-001",
+        "PF-L3-150-MC-001-K-1",
+        "PF-L3-150-MC-001-K-2",
+        "PF-L3-150-IM-001-K-001",
+        "PF-L3-150-EN-001-K-001",
+        "PF-L3-150-MC-002-K-1"
+      ],
+      "PF-L2-150-M-002": [
+        "PF-L3-150-MC-002-K-002",
+        "PF-L3-150-IM-001-K-001",
+        "PF-L3-150-EN-001-K-001",
+        "PF-L3-150-MN-001-K-001",
+        "PF-L3-150-MC-001-K-001",
+        "PF-L3-150-MC-001-K-1",
+        "PF-L3-150-MC-001-K-2"
+      ],
+      "PF-L2-160-M-001": [
+        "PF-L3-160-MN-001-K-001",
+        "PF-L3-160-MC-001-K-001",
+        "PF-L3-160-IM-001-K-001",
+        "PF-L3-160-EN-001-K-001"
+      ],
+      "PF-L2-170-M-001": [
+        "PF-L3-170-MC-001-K-001",
+        "PF-L3-170-MN-001-K-001",
+        "PF-L3-170-IM-001-K-001",
+        "PF-L3-170-EN-001-K-001"
+      ],
+      "PF-L2-180-M-001": [
+        "PF-L3-180-MN-001-K-001",
+        "PF-L3-180-MC-001-K-001",
+        "PF-L3-180-IM-001-K-001",
+        "PF-L3-180-EN-001-K-001"
+      ],
+      "PF-L2-190-M-001": [
+        "PF-L3-190-MN-001-K-001",
+        "PF-L3-190-MC-001-K-001",
+        "PF-L3-190-IM-001-K-001",
+        "PF-L3-190-EN-001-K-001"
+      ],
+      "PF-L2-200-M-001": [
+        "PF-L3-200-MN-001-K-001",
+        "PF-L3-200-MC-001-K-001",
+        "PF-L3-200-IM-001-K-001",
+        "PF-L3-200-EN-001-K-001"
+      ]
+    },
+    "fcToFMs": {
+      "PF-L3-001-EN-001-K-001": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-001-MN-001-K-001": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-001-MC-001-K-001": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-001-IM-001-K-001": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-001-EN-002-K-001": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-010-EN-001-K-001": [
+        "PF-L2-010-M-002",
+        "PF-L2-010-M-001"
+      ],
+      "PF-L3-010-MC-001-K-001": [
+        "PF-L2-010-M-002",
+        "PF-L2-010-M-001"
+      ],
+      "PF-L3-010-IM-001-K-001": [
+        "PF-L2-010-M-002",
+        "PF-L2-010-M-001"
+      ],
+      "PF-L3-010-MN-001-K-001": [
+        "PF-L2-010-M-001",
+        "PF-L2-010-M-002"
+      ],
+      "PF-L3-010-MC-002-K-001": [
+        "PF-L2-010-M-001"
+      ],
+      "PF-L3-020-MN-001-K-001": [
+        "PF-L2-020-M-001",
+        "PF-L2-020-M-002"
+      ],
+      "PF-L3-020-MC-001-K-001": [
+        "PF-L2-020-M-001",
+        "PF-L2-020-M-002"
+      ],
+      "PF-L3-020-MC-002-K-001": [
+        "PF-L2-020-M-001"
+      ],
+      "PF-L3-020-IM-001-K-001": [
+        "PF-L2-020-M-001",
+        "PF-L2-020-M-002"
+      ],
+      "PF-L3-020-EN-001-K-001": [
+        "PF-L2-020-M-001",
+        "PF-L2-020-M-002"
+      ],
+      "PF-L3-030-MC-001-K-001": [
+        "PF-L2-030-M-001"
+      ],
+      "PF-L3-030-IM-001-K-001": [
+        "PF-L2-030-M-001"
+      ],
+      "PF-L3-030-EN-001-K-001": [
+        "PF-L2-030-M-001"
+      ],
+      "PF-L3-030-MN-001-K-001": [
+        "PF-L2-030-M-001"
+      ],
+      "PF-L3-040-IM-001-K-001": [
+        "PF-L2-040-M-002",
+        "PF-L2-040-M-001"
+      ],
+      "PF-L3-040-MC-001-K-001": [
+        "PF-L2-040-M-002",
+        "PF-L2-040-M-001"
+      ],
+      "PF-L3-040-MC-001-K-002": [
+        "PF-L2-040-M-002",
+        "PF-L2-040-M-001"
+      ],
+      "PF-L3-040-EN-001-K-001": [
+        "PF-L2-040-M-002",
+        "PF-L2-040-M-001"
+      ],
+      "PF-L3-040-MC-002-K-001": [
+        "PF-L2-040-M-001"
+      ],
+      "PF-L3-040-MN-001-K-001": [
+        "PF-L2-040-M-001",
+        "PF-L2-040-M-002"
+      ],
+      "PF-L3-040-MC-001-K-003": [
+        "PF-L2-040-M-001",
+        "PF-L2-040-M-002"
+      ],
+      "PF-L3-040-MC-001-K-004": [
+        "PF-L2-040-M-001",
+        "PF-L2-040-M-002"
+      ],
+      "PF-L3-040-MC-001-K-005": [
+        "PF-L2-040-M-001",
+        "PF-L2-040-M-002"
+      ],
+      "PF-L3-050-EN-001-K-001": [
+        "PF-L2-050-M-001"
+      ],
+      "PF-L3-050-MN-001-K-001": [
+        "PF-L2-050-M-001"
+      ],
+      "PF-L3-050-MC-001-K-001": [
+        "PF-L2-050-M-001"
+      ],
+      "PF-L3-050-IM-001-K-001": [
+        "PF-L2-050-M-001"
+      ],
+      "PF-L3-060-MN-001-K-001": [
+        "PF-L2-060-M-001"
+      ],
+      "PF-L3-060-MC-001-K-001": [
+        "PF-L2-060-M-001"
+      ],
+      "PF-L3-060-IM-001-K-001": [
+        "PF-L2-060-M-001"
+      ],
+      "PF-L3-060-EN-001-K-001": [
+        "PF-L2-060-M-001"
+      ],
+      "PF-L3-070-MN-001-K-001": [
+        "PF-L2-070-M-001"
+      ],
+      "PF-L3-070-MC-001-K-001": [
+        "PF-L2-070-M-001"
+      ],
+      "PF-L3-070-IM-001-K-001": [
+        "PF-L2-070-M-001"
+      ],
+      "PF-L3-070-EN-001-K-001": [
+        "PF-L2-070-M-001"
+      ],
+      "PF-L3-080-MN-001-K-001": [
+        "PF-L2-080-M-001"
+      ],
+      "PF-L3-080-MC-001-K-001": [
+        "PF-L2-080-M-001"
+      ],
+      "PF-L3-080-IM-001-K-001": [
+        "PF-L2-080-M-001"
+      ],
+      "PF-L3-080-EN-001-K-001": [
+        "PF-L2-080-M-001"
+      ],
+      "PF-L3-090-MN-001-K-001": [
+        "PF-L2-090-M-001"
+      ],
+      "PF-L3-090-MC-001-K-001": [
+        "PF-L2-090-M-001"
+      ],
+      "PF-L3-090-IM-001-K-001": [
+        "PF-L2-090-M-001"
+      ],
+      "PF-L3-090-EN-001-K-001": [
+        "PF-L2-090-M-001"
+      ],
+      "PF-L3-100-MC-001-K-001": [
+        "PF-L2-100-M-001",
+        "PF-L2-100-M-002"
+      ],
+      "PF-L3-100-IM-001-K-001": [
+        "PF-L2-100-M-001",
+        "PF-L2-100-M-002"
+      ],
+      "PF-L3-100-EN-001-K-001": [
+        "PF-L2-100-M-001",
+        "PF-L2-100-M-002"
+      ],
+      "PF-L3-100-MN-001-K-001": [
+        "PF-L2-100-M-002",
+        "PF-L2-100-M-001"
+      ],
+      "PF-L3-100-MC-001-K-002": [
+        "PF-L2-100-M-002",
+        "PF-L2-100-M-001"
+      ],
+      "PF-L3-100-MC-001-K-003": [
+        "PF-L2-100-M-002",
+        "PF-L2-100-M-001"
+      ],
+      "PF-L3-100-MC-002-K-001": [
+        "PF-L2-100-M-002"
+      ],
+      "PF-L3-110-MN-001-K-001": [
+        "PF-L2-110-M-001"
+      ],
+      "PF-L3-110-MC-001-K-001": [
+        "PF-L2-110-M-001"
+      ],
+      "PF-L3-110-IM-001-K-001": [
+        "PF-L2-110-M-001"
+      ],
+      "PF-L3-110-EN-001-K-001": [
+        "PF-L2-110-M-001"
+      ],
+      "PF-L3-120-MN-001-K-001": [
+        "PF-L2-120-M-001"
+      ],
+      "PF-L3-120-MC-001-K-001": [
+        "PF-L2-120-M-001"
+      ],
+      "PF-L3-120-MC-001-K-002": [
+        "PF-L2-120-M-001"
+      ],
+      "PF-L3-120-IM-001-K-001": [
+        "PF-L2-120-M-001"
+      ],
+      "PF-L3-120-EN-001-K-001": [
+        "PF-L2-120-M-001"
+      ],
+      "PF-L3-130-IM-001-K-001": [
+        "PF-L2-130-M-001"
+      ],
+      "PF-L3-130-MN-001-K-001": [
+        "PF-L2-130-M-001"
+      ],
+      "PF-L3-130-MC-001-K-001": [
+        "PF-L2-130-M-001"
+      ],
+      "PF-L3-130-EN-001-K-001": [
+        "PF-L2-130-M-001"
+      ],
+      "PF-L3-140-MN-001-K-001": [
+        "PF-L2-140-M-001"
+      ],
+      "PF-L3-140-MC-001-K-001": [
+        "PF-L2-140-M-001"
+      ],
+      "PF-L3-140-IM-001-K-001": [
+        "PF-L2-140-M-001"
+      ],
+      "PF-L3-140-EN-001-K-001": [
+        "PF-L2-140-M-001"
+      ],
+      "PF-L3-150-MN-001-K-001": [
+        "PF-L2-150-M-001",
+        "PF-L2-150-M-002"
+      ],
+      "PF-L3-150-MC-001-K-001": [
+        "PF-L2-150-M-001",
+        "PF-L2-150-M-002"
+      ],
+      "PF-L3-150-MC-002-K-001": [
+        "PF-L2-150-M-001"
+      ],
+      "PF-L3-150-MC-002-K-002": [
+        "PF-L2-150-M-002"
+      ],
+      "PF-L3-150-IM-001-K-001": [
+        "PF-L2-150-M-002",
+        "PF-L2-150-M-001"
+      ],
+      "PF-L3-150-EN-001-K-001": [
+        "PF-L2-150-M-002",
+        "PF-L2-150-M-001"
+      ],
+      "PF-L3-160-MN-001-K-001": [
+        "PF-L2-160-M-001"
+      ],
+      "PF-L3-160-MC-001-K-001": [
+        "PF-L2-160-M-001"
+      ],
+      "PF-L3-160-IM-001-K-001": [
+        "PF-L2-160-M-001"
+      ],
+      "PF-L3-160-EN-001-K-001": [
+        "PF-L2-160-M-001"
+      ],
+      "PF-L3-170-MC-001-K-001": [
+        "PF-L2-170-M-001"
+      ],
+      "PF-L3-170-MN-001-K-001": [
+        "PF-L2-170-M-001"
+      ],
+      "PF-L3-170-IM-001-K-001": [
+        "PF-L2-170-M-001"
+      ],
+      "PF-L3-170-EN-001-K-001": [
+        "PF-L2-170-M-001"
+      ],
+      "PF-L3-180-MN-001-K-001": [
+        "PF-L2-180-M-001"
+      ],
+      "PF-L3-180-MC-001-K-001": [
+        "PF-L2-180-M-001"
+      ],
+      "PF-L3-180-IM-001-K-001": [
+        "PF-L2-180-M-001"
+      ],
+      "PF-L3-180-EN-001-K-001": [
+        "PF-L2-180-M-001"
+      ],
+      "PF-L3-190-MN-001-K-001": [
+        "PF-L2-190-M-001"
+      ],
+      "PF-L3-190-MC-001-K-001": [
+        "PF-L2-190-M-001"
+      ],
+      "PF-L3-190-IM-001-K-001": [
+        "PF-L2-190-M-001"
+      ],
+      "PF-L3-190-EN-001-K-001": [
+        "PF-L2-190-M-001"
+      ],
+      "PF-L3-200-MN-001-K-001": [
+        "PF-L2-200-M-001"
+      ],
+      "PF-L3-200-MC-001-K-001": [
+        "PF-L2-200-M-001"
+      ],
+      "PF-L3-200-IM-001-K-001": [
+        "PF-L2-200-M-001"
+      ],
+      "PF-L3-200-EN-001-K-001": [
+        "PF-L2-200-M-001"
+      ],
+      "PF-L3-120-IM-001-K-1": [
+        "PF-L2-120-M-001"
+      ],
+      "PF-L3-130-MC-001-K-1": [
+        "PF-L2-130-M-001"
+      ],
+      "PF-L3-001-EN-001-K-1": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-020-MC-001-K-1": [
+        "PF-L2-020-M-001",
+        "PF-L2-020-M-002"
+      ],
+      "PF-L3-150-MC-001-K-1": [
+        "PF-L2-150-M-001",
+        "PF-L2-150-M-002"
+      ],
+      "PF-L3-150-MC-001-K-2": [
+        "PF-L2-150-M-001",
+        "PF-L2-150-M-002"
+      ],
+      "PF-L3-001-EN-002-K-1": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-001-MC-001-K-1": [
+        "PF-L2-001-M-001"
+      ],
+      "PF-L3-020-MC-002-K-1": [
+        "PF-L2-020-M-001"
+      ],
+      "PF-L3-040-IM-001-K-1": [
+        "PF-L2-040-M-002",
+        "PF-L2-040-M-001"
+      ],
+      "PF-L3-130-IM-001-K-1": [
+        "PF-L2-130-M-001"
+      ],
+      "PF-L3-140-MC-001-K-1": [
+        "PF-L2-140-M-001"
+      ],
+      "PF-L3-150-MC-002-K-1": [
+        "PF-L2-150-M-001"
+      ]
+    },
+    "fmToFEs": {
+      "PF-L2-001-M-001": [
+        "PF-L1-YP-003-004-006",
+        "PF-L1-YP-001-001-001"
+      ],
+      "PF-L2-010-M-002": [
+        "PF-L1-YP-002-001-002",
+        "PF-L1-SP-002-001-002",
+        "PF-L1-YP-001-001-001"
+      ],
+      "PF-L2-010-M-001": [
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-002-001-002"
+      ],
+      "PF-L2-020-M-001": [
+        "PF-L1-YP-003-001-003",
+        "PF-L1-YP-001-001-001"
+      ],
+      "PF-L2-020-M-002": [
+        "PF-L1-YP-003-002-004",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-001-003"
+      ],
+      "PF-L2-030-M-001": [
+        "PF-L1-US-001-001-001",
+        "PF-L1-YP-003-003-005",
+        "PF-L1-YP-001-001-001"
+      ],
+      "PF-L2-040-M-002": [
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-005-007",
+        "PF-L1-YP-003-002-004"
+      ],
+      "PF-L2-040-M-001": [
+        "PF-L1-YP-003-004-006",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-002-004",
+        "PF-L1-YP-003-003-005"
+      ],
+      "PF-L2-050-M-001": [
+        "PF-L1-YP-003-003-005",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-006-008"
+      ],
+      "PF-L2-060-M-001": [
+        "PF-L1-YP-003-006-009",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-004-006"
+      ],
+      "PF-L2-070-M-001": [
+        "PF-L1-YP-003-006-010",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-005-007"
+      ],
+      "PF-L2-080-M-001": [
+        "PF-L1-YP-003-006-011",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-006-008"
+      ],
+      "PF-L2-090-M-001": [
+        "PF-L1-SP-001-001-001",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-006-009",
+        "PF-L1-SP-002-001-002"
+      ],
+      "PF-L2-100-M-001": [
+        "PF-L1-SP-002-002-003",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-002-004"
+      ],
+      "PF-L2-100-M-002": [
+        "PF-L1-SP-002-001-002",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-SP-001-001-001"
+      ],
+      "PF-L2-110-M-001": [
+        "PF-L1-SP-002-003-004",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-YP-003-006-010"
+      ],
+      "PF-L2-120-M-001": [
+        "PF-L1-SP-002-004-005",
+        "PF-L1-YP-003-006-011",
+        "PF-L1-YP-001-001-001"
+      ],
+      "PF-L2-130-M-001": [
+        "PF-L1-YP-001-001-001",
+        "PF-L1-SP-002-005-006",
+        "PF-L1-YP-003-006-011"
+      ],
+      "PF-L2-140-M-001": [
+        "PF-L1-US-001-001-001",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-SP-001-001-001"
+      ],
+      "PF-L2-150-M-001": [
+        "PF-L1-US-002-001-002",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-US-001-001-001"
+      ],
+      "PF-L2-150-M-002": [
+        "PF-L1-US-002-002-003",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-US-001-001-001"
+      ],
+      "PF-L2-160-M-001": [
+        "PF-L1-YP-001-001-001",
+        "PF-L1-SP-002-001-002"
+      ],
+      "PF-L2-170-M-001": [
+        "PF-L1-US-002-001-002",
+        "PF-L1-YP-002-001-002",
+        "PF-L1-YP-001-001-001",
+        "PF-L1-SP-002-001-002"
+      ],
+      "PF-L2-180-M-001": [
+        "PF-L1-YP-003-001-003",
+        "PF-L1-SP-002-002-003",
+        "PF-L1-YP-001-001-001"
+      ],
+      "PF-L2-190-M-001": [
+        "PF-L1-YP-003-002-004",
+        "PF-L1-SP-002-003-004",
+        "PF-L1-YP-001-001-001"
+      ],
+      "PF-L2-200-M-001": [
+        "PF-L1-YP-003-003-005",
+        "PF-L1-SP-002-004-005",
+        "PF-L1-YP-001-001-001"
+      ]
+    }
+  },
+  "stats": {
+    "fmCount": 26,
+    "fcCount": 111,
+    "feCount": 20,
+    "linkCount": 251,
+    "fmToFCsAvg": 5.4,
+    "fcLinkedToMultipleFMs": 30,
+    "fmLinkedToMultipleFEs": 26
+  }
+}
