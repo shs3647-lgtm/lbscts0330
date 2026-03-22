@@ -34,6 +34,17 @@ export async function fixStructure(prisma: any, fmeaId: string): Promise<string[
   const POS_UUID = /^L3-R\d+$/;
   const sampleL3 = await prisma.l3Structure.findFirst({ where: { fmeaId }, select: { id: true } });
   if (sampleL3 && POS_UUID.test(sampleL3.id)) {
+    // ★ 위치기반: L3Function=0이면 repair-l3 API 호출 (즉시 복구)
+    const l3FuncCount = await prisma.l3Function.count({ where: { fmeaId } });
+    if (l3FuncCount === 0) {
+      try {
+        const repairRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/repair-l3?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
+        if (repairRes.ok) {
+          const r = await repairRes.json();
+          fixed.push(`L3Function 자동복구: ${r.after?.l3f || 0}건 생성 (${r.repairs?.join(', ') || ''})`);
+        }
+      } catch (e) { console.error('[fixStructure] repair-l3 실패:', e); }
+    }
     // 위치기반: RA 보완 + processCharId 리매핑
     const allFLs = await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } });
     const existingRaLinkIds = new Set(

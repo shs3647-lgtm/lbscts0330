@@ -864,11 +864,12 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     const l2 = l3 ? data.l2Structures.find(d => d.id === l3.l2Id) : undefined;
     const pno = l2?.no || '';
     const m4 = l3?.m4 || undefined;
+    const b1Id = f.l3StructId; // B1.id = L3Structure.id (Rule 1.7.5)
     // B2
-    flat.push({ id: f.id, processNo: pno, category: 'B', itemCode: 'B2', value: f.functionName, m4, createdAt: now, rowSpan: 1 });
+    flat.push({ id: f.id, processNo: pno, category: 'B', itemCode: 'B2', value: f.functionName, m4, parentItemId: b1Id, createdAt: now, rowSpan: 1 });
     // B3 (공정특성)
     const sc = f.specialChar || undefined;
-    flat.push({ id: `${f.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f.processChar, specialChar: sc, m4, createdAt: now, rowSpan: 1 });
+    flat.push({ id: `${f.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f.processChar, specialChar: sc, m4, parentItemId: b1Id, createdAt: now, rowSpan: 1 });
     // SC: 특별특성 별도 itemCode
     if (sc) {
       flat.push({ id: `${f.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC' as any, value: sc, m4, createdAt: now, rowSpan: 1 });
@@ -880,7 +881,9 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
   for (const fc of data.failureCauses) {
     const l2 = data.l2Structures.find(s => s.id === fc.l2StructId);
     const l3 = l3StructByFc.get(fc.id);
-    flat.push({ id: fc.id, processNo: l2?.no || '', category: 'B', itemCode: 'B4', value: fc.cause, m4: l3?.m4 || undefined, createdAt: now, rowSpan: 1 });
+    // B4.parentItemId = B3.id = "${L3Function.id}-B3" (Rule 1.7.5: B4→B3 FK)
+    const b3Id = fc.l3FuncId ? `${fc.l3FuncId}-B3` : undefined;
+    flat.push({ id: fc.id, processNo: l2?.no || '', category: 'B', itemCode: 'B4', value: fc.cause, m4: l3?.m4 || undefined, parentItemId: b3Id, createdAt: now, rowSpan: 1 });
   }
 
   // B5: RiskAnalysis.preventionControl (FL→RA에서 PC 추출, 공정별 고유)

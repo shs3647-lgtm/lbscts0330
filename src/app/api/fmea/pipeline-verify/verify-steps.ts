@@ -155,8 +155,9 @@ export async function verifyUuid(prisma: any, fmeaId: string): Promise<StepResul
     }
   }
   if (missingL3Children.length > 0) {
-    r.status = worst(r.status, 'warn');
-    r.issues.push(`L3Function 없는 WE ${missingL3Children.length}건`);
+    // ★ L3Function 완전 누락은 ERROR (warn이 아님 — 렌더링 불가)
+    r.status = l3Funcs.length === 0 ? 'error' : worst(r.status, 'warn');
+    r.issues.push(`L3Function 없는 WE ${missingL3Children.length}건${l3Funcs.length === 0 ? ' ← Import 필요' : ''}`);
   }
 
   r.parentChild = [
@@ -306,8 +307,12 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   };
 
   if (unlinkedFC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`FL 없는 FC ${unlinkedFC}건`); }
-  if (unlinkedFM > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`FL 없는 FM ${unlinkedFM}건`); }
+  // ★ FM 있는데 FL=0 → ERROR (완전 누락, warn이 아님)
+  if (unlinkedFM > 0 && fls.length === 0) { r.status = 'error'; r.issues.push(`FL 없는 FM ${unlinkedFM}건 ← Import 필요 (FailureLink=0)`); }
+  else if (unlinkedFM > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`FL 없는 FM ${unlinkedFM}건`); }
   if (fls.length === 0 && fcs.length > 0) { r.status = 'error'; r.issues.push('FailureLink 0건 — FK 연결 필요'); }
+  // ★ FM>0인데 FL=0 → ERROR
+  if (fls.length === 0 && fms.length > 0) { r.status = 'error'; r.issues.push(`FailureLink 0건 (FM=${fms.length}건 존재) — Import 필요`); }
   if (flNoRA > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`RA 없는 FL ${flNoRA}건`); }
 
   // FL.feId null 검증
