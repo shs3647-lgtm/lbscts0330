@@ -737,6 +737,11 @@ function FMEAWorksheetPageContent() {
             router.push(`/pfmea/revision?id=${fmeaId}`);
           }}
           onOpenBackup={() => setBackupPanelOpen(true)}
+          onOpenStats={() => {
+            panelButtonClickedRef.current = true;
+            setActivePanelId(prev => prev === 'stats' ? '' : 'stats');
+            setPanelFullscreen(false);
+          }}
           state={state}
           inputMode={inputMode}
           onInputModeChange={setInputMode}
@@ -929,8 +934,8 @@ function FMEAWorksheetPageContent() {
           {/* 워크시트 영역 닫힘 */}
 
           {/* ===== 우측: 5AP/6AP/RPN 사이드 패널 (350px) ===== */}
-          {(state.tab === 'all' || state.tab === 'risk' || state.tab === 'opt') &&
-           ['5ap', '6ap', 'rpn', 'rpn-chart'].includes(activePanelId) ? (
+          {(state.tab === 'all' || state.tab === 'risk' || state.tab === 'opt' || activePanelId === 'stats') &&
+           ['5ap', '6ap', 'rpn', 'rpn-chart', 'stats'].includes(activePanelId) ? (
             <>
               <div className="w-[2px] bg-[#1a237e] shrink-0" />
               <div className="w-[350px] shrink-0 flex flex-col bg-[#f0f4f8] overflow-hidden h-full">

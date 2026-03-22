@@ -92,6 +92,14 @@ export const PANEL_REGISTRY: PanelConfig[] = [
     color: '#4f46e5',
     order: 8,
   },
+  {
+    id: 'stats',
+    label: '통계',
+    icon: '📋',
+    component: lazy(() => import('./ImportStatsPanel')),
+    color: '#0d9488',
+    order: 9,
+  },
 ];
 
 /**

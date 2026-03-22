@@ -58,6 +58,7 @@ interface TopMenuBarProps {
   linkedPfdNo?: string | null; // ★ 연동된 PFD 번호
   onConfirm?: () => void;     // ★ 확정 → 개정관리 현황
   onOpenBackup?: () => void;  // ★ 백업 관리 패널
+  onOpenStats?: () => void;   // ★ Import 통계 패널
   inputMode?: 'auto' | 'manual';
   onInputModeChange?: React.Dispatch<React.SetStateAction<'auto' | 'manual'>>;
   // ★★★ 2026-02-05: 수동/자동 토글 삭제 - StructureHeader에서 관리 ★★★
@@ -77,7 +78,7 @@ export default function TopMenuBar({
   fmeaList, selectedFmeaId, cpNo, dirty, isSaving, syncStatus = 'idle', importMessage, fileInputRef, state,
   onFmeaChange, onSave, onNavigateToList, onExport, onImportFile, onDownloadTemplate, onOpenSpecialChar, onOpenSOD, onOpen5AP, onOpen6AP, onOpenRPN, showRPN, onOpenPDF, onOpenTree,
   activePanelId,
-  onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, linkedPfdNo, onConfirm, onOpenBackup,
+  onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, linkedPfdNo, onConfirm, onOpenBackup, onOpenStats,
   isAdmin, onQuickCpSync,
 }: TopMenuBarProps) {
   const router = useRouter();
@@ -340,6 +341,17 @@ export default function TopMenuBar({
           title={linkedPfdNo ? `PFD 워크시트로 이동 (${linkedPfdNo})` : 'PFD 워크시트로 이동'}
         >
           →PFD
+        </button>
+        <button
+          onClick={onOpenStats}
+          className={`px-1 py-0.5 rounded border text-[9px] font-medium transition-all whitespace-nowrap ${
+            activePanelId === 'stats'
+              ? 'bg-teal-600 border-teal-300 text-white'
+              : 'bg-transparent border-white/30 text-white/70 hover:bg-white/15 hover:text-white'
+          }`}
+          title={t('Import 통계 패널')}
+        >
+          {t('통계')}
         </button>
         <button
           onClick={onConfirm}
