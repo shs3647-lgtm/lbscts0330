@@ -114,6 +114,10 @@ export function UserSelectModal({
     }
   }, [isOpen, initialSearchTerm]);
 
+  const reloadUsers = useCallback(() => {
+    getAllUsers().then(setUsers);
+  }, []);
+
   // 비모달: body 스크롤 방지 해제됨 — 배경 페이지 조작 가능
 
   if (!isOpen) return null;
@@ -122,10 +126,6 @@ export function UserSelectModal({
     onSelect(user);
     onClose();
   };
-
-  const reloadUsers = useCallback(() => {
-    getAllUsers().then(setUsers);
-  }, []);
 
   const handleAddUser = async () => {
     if (!newUser.name.trim()) { alert('성명을 입력해주세요.'); return; }

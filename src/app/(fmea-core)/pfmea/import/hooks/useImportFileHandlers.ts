@@ -86,6 +86,49 @@ export function useImportFileHandlers({
     setImportSuccess(false);
 
     try {
+      // ★★★ 2026-03-22: 5시트 위치기반 포맷 자동 감지 → position-parser 라우팅 ★★★
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const buf = await file.arrayBuffer();
+      await wb.xlsx.load(buf);
+      const sheetNames = wb.worksheets.map((ws: { name: string }) => ws.name);
+
+      const { isPositionBasedFormat, parsePositionBasedWorkbook } = await import('@/lib/fmea/position-parser');
+      if (isPositionBasedFormat(sheetNames)) {
+        console.log('[Import] 위치기반 5시트 포맷 감지:', sheetNames.join(', '));
+        const atomicData = parsePositionBasedWorkbook(wb, fmeaId?.toLowerCase());
+        console.log('[Import] position-parser stats:', JSON.stringify(atomicData.stats));
+
+        // save-position-import API 호출
+        if (fmeaId) {
+          const saveRes = await fetch('/api/fmea/save-position-import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData }),
+          });
+          const saveResult = await saveRes.json();
+          if (saveResult.success) {
+            console.log('[Import] save-position-import 성공:', saveResult.atomicCounts);
+            setImportSuccess(true);
+            setIsSaved?.(true);
+            setDirty?.(false);
+            setValidationMessage?.(
+              `위치기반 Import 완료 — ` +
+              `L2: ${saveResult.atomicCounts?.l2Structures || 0}, ` +
+              `FM: ${saveResult.atomicCounts?.failureModes || 0}, ` +
+              `FC: ${saveResult.atomicCounts?.failureCauses || 0}, ` +
+              `FL: ${saveResult.atomicCounts?.failureLinks || 0}`
+            );
+          } else {
+            console.error('[Import] save-position-import 실패:', saveResult);
+            setValidationMessage?.(`Import 실패: ${saveResult.error || ''}`);
+          }
+        }
+        setIsParsing(false);
+        return;
+      }
+
+      // ── 기존 레거시 파서 흐름 (구 Smart FMEA / 단일시트 / 2시트) ──
       const result = await parseMultiSheetExcel(file);
       setParseResult(result);
 

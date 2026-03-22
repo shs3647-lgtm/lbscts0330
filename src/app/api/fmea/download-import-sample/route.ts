@@ -1,34 +1,29 @@
 /**
  * @file GET /api/fmea/download-import-sample
- * @description aubump Import 샘플 엑셀 다운로드 (4시트: L1+L2+L3+FC)
+ * @description aubump Import 샘플 엑셀 다운로드 (4시트: L1+L2+L3+FC, N:1:N 다대다)
  *
  * 사용법: GET /api/fmea/download-import-sample
- *   → aubump_import_sample.xlsx 다운로드
+ *   → aubump_import_sample.xlsx 다운로드 (public/downloads에 캐시)
  *
  * @created 2026-03-22
  */
 import { NextResponse } from 'next/server';
-import { extractFromExcel, generateImportExcel } from '../../../../../scripts/generate-import-4sheet';
-import path from 'path';
 import fs from 'fs';
+import path from 'path';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const inputPath = 'C:/Users/Administrator/Desktop/LB쎄미콘/aubump/aubump.xlsx';
+    const filePath = path.join(process.cwd(), 'public', 'downloads', 'aubump_import_sample.xlsx');
 
-    if (!fs.existsSync(inputPath)) {
-      return NextResponse.json({ error: '원본 엑셀 파일을 찾을 수 없습니다: ' + inputPath }, { status: 404 });
+    if (!fs.existsSync(filePath)) {
+      return NextResponse.json({ error: '샘플 파일이 없습니다. scripts/generate-import-4sheet.ts --merge 실행 필요' }, { status: 404 });
     }
 
-    const data = await extractFromExcel(inputPath);
-    const wb = await generateImportExcel(data);
+    const buffer = fs.readFileSync(filePath);
 
-    const buffer = await wb.xlsx.writeBuffer();
-
-    const uint8 = new Uint8Array(buffer as ArrayBuffer);
-    return new NextResponse(uint8, {
+    return new NextResponse(buffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

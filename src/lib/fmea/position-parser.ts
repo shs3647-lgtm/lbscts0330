@@ -392,3 +392,109 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     stats,
   };
 }
+
+// ═══════════════════════════════════════════
+// ExcelJS Workbook → PositionBasedJSON 변환
+// (브라우저/서버 공용 — ExcelJS 의존)
+// ═══════════════════════════════════════════
+
+/** 5시트 위치기반 포맷 감지 (시트명 기반) */
+export function isPositionBasedFormat(sheetNames: string[]): boolean {
+  const upper = sheetNames.map(n => n.toUpperCase());
+  const hasL1 = upper.some(n => n.startsWith('L1'));
+  const hasL2 = upper.some(n => n.startsWith('L2'));
+  const hasL3 = upper.some(n => n.startsWith('L3'));
+  const hasFC = upper.some(n => n.startsWith('FC') || n.startsWith('FL') || n.includes('고장사슬') || n.includes('FAILURE'));
+  return hasL1 && hasL2 && hasL3 && hasFC;
+}
+
+/** 시트명 매칭 헬퍼 */
+function findSheetByPrefix(sheetNames: string[], prefix: string): string | undefined {
+  return sheetNames.find(n => n.toUpperCase().startsWith(prefix.toUpperCase()));
+}
+
+/** ExcelJS Row → 셀 문자열 추출 */
+function excelCellStr(row: any, col: number): string {
+  const cell = row.getCell(col);
+  if (!cell || cell.value == null) return '';
+  if (typeof cell.value === 'object' && 'richText' in cell.value) {
+    return (cell.value.richText || []).map((r: any) => r.text || '').join('').trim();
+  }
+  return String(cell.value).trim();
+}
+
+/**
+ * ExcelJS Workbook → PositionBasedJSON 변환
+ * 4시트(L1/L2/L3/FC) 엑셀을 JSON 중간 포맷으로 변환 후 parsePositionBasedJSON 호출
+ */
+export function parsePositionBasedWorkbook(wb: any, targetId?: string): PositionAtomicData {
+  const sheetNames = wb.worksheets.map((ws: any) => ws.name);
+
+  const l1Name = findSheetByPrefix(sheetNames, 'L1');
+  const l2Name = findSheetByPrefix(sheetNames, 'L2');
+  const l3Name = findSheetByPrefix(sheetNames, 'L3');
+  const fcName = findSheetByPrefix(sheetNames, 'FC') || findSheetByPrefix(sheetNames, 'FL');
+
+  if (!l1Name || !l2Name || !l3Name || !fcName) {
+    throw new Error(`Missing sheets: L1=${l1Name} L2=${l2Name} L3=${l3Name} FC=${fcName}`);
+  }
+
+  // L1 시트: C1(2), C2(3), C3(4), C4(5)
+  const l1Rows: SheetRow[] = [];
+  wb.getWorksheet(l1Name).eachRow((row: any, rn: number) => {
+    if (rn <= 1) return;
+    l1Rows.push({
+      excelRow: rn, posId: `L1-R${rn}`,
+      cells: { C1: excelCellStr(row, 2), C2: excelCellStr(row, 3), C3: excelCellStr(row, 4), C4: excelCellStr(row, 5) },
+    });
+  });
+
+  // L2 시트: A1(2), A2(3), A3(4), A4(5), SC(6), A5(7), A6(8)
+  const l2Rows: SheetRow[] = [];
+  wb.getWorksheet(l2Name).eachRow((row: any, rn: number) => {
+    if (rn <= 1) return;
+    l2Rows.push({
+      excelRow: rn, posId: `L2-R${rn}`,
+      cells: { A1: excelCellStr(row, 2), A2: excelCellStr(row, 3), A3: excelCellStr(row, 4), A4: excelCellStr(row, 5), SC: excelCellStr(row, 6), A5: excelCellStr(row, 7), A6: excelCellStr(row, 8) },
+    });
+  });
+
+  // L3 시트: processNo(2), m4(3), B1(4), B2(5), B3(6), SC(7), B4(8), B5(9)
+  const l3Rows: SheetRow[] = [];
+  wb.getWorksheet(l3Name).eachRow((row: any, rn: number) => {
+    if (rn <= 1) return;
+    l3Rows.push({
+      excelRow: rn, posId: `L3-R${rn}`,
+      cells: { processNo: excelCellStr(row, 2), m4: excelCellStr(row, 3), B1: excelCellStr(row, 4), B2: excelCellStr(row, 5), B3: excelCellStr(row, 6), SC: excelCellStr(row, 7), B4: excelCellStr(row, 8), B5: excelCellStr(row, 9) },
+    });
+  });
+
+  // FC 시트: FE_scope(2), FE(3), processNo(4), FM(5), m4(6), WE(7), FC(8), PC(9), DC(10), S(11), O(12), D(13), AP(14), L1행(15), L2행(16), L3행(17)
+  const fcRows: SheetRow[] = [];
+  wb.getWorksheet(fcName).eachRow((row: any, rn: number) => {
+    if (rn <= 1) return;
+    fcRows.push({
+      excelRow: rn, posId: `FC-R${rn}`,
+      cells: {
+        FE_scope: excelCellStr(row, 2), FE: excelCellStr(row, 3), processNo: excelCellStr(row, 4),
+        FM: excelCellStr(row, 5), m4: excelCellStr(row, 6), WE: excelCellStr(row, 7),
+        FC: excelCellStr(row, 8), PC: excelCellStr(row, 9), DC: excelCellStr(row, 10),
+        S: excelCellStr(row, 11), O: excelCellStr(row, 12), D: excelCellStr(row, 13),
+        AP: excelCellStr(row, 14),
+        L1_origRow: excelCellStr(row, 15), L2_origRow: excelCellStr(row, 16), L3_origRow: excelCellStr(row, 17),
+      },
+    });
+  });
+
+  const json: PositionBasedJSON = {
+    targetId: targetId || '',
+    sheets: {
+      L1: { sheetName: l1Name, headers: [], rows: l1Rows },
+      L2: { sheetName: l2Name, headers: [], rows: l2Rows },
+      L3: { sheetName: l3Name, headers: [], rows: l3Rows },
+      FC: { sheetName: fcName, headers: [], rows: fcRows },
+    },
+  };
+
+  return parsePositionBasedJSON(json);
+}
