@@ -115,12 +115,12 @@ export function ImportInputSection(props: Props) {
           pendingData.forEach(d => { if (counts[d.itemCode] !== undefined) counts[d.itemCode]++; });
           const labels: Record<string, string> = {
             A1:'공정번호', A2:'공정명', A3:'공정기능', A4:'제품특성', A5:'고장형태', A6:'검출관리',
-            B1:'작업요소', B2:'요소기능', B3:'공정특성', B4:'고장원인', B5:'예방관리',
+            B1:'작업요소', B2:'요소기능', B3:'공정특성', SC:'특별특성', B4:'고장원인', B5:'예방관리',
             C1:'구분', C2:'제품기능', C3:'요구사항', C4:'고장영향',
           };
           const groups = [
             { label: 'L2', codes: ['A1','A2','A3','A4','A5','A6'] },
-            { label: 'L3', codes: ['B1','B2','B3','B4','B5'] },
+            { label: 'L3', codes: ['B1','B2','B3','SC','B4','B5'] },
             { label: 'L1', codes: ['C1','C2','C3','C4'] },
           ];
 

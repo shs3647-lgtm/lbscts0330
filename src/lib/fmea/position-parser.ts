@@ -840,19 +840,28 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     flat.push({ id: s.id, processNo: l2?.no || '', category: 'B', itemCode: 'B1', value: s.name, m4: s.m4 || undefined, createdAt: now, rowSpan: 1 });
   }
 
-  // B2: L3Function.functionName — m4는 L3Structure에서 가져와 buildCrossTab 매칭용
+  // B2/B3/SC: L3Function 기준 — m4 포함 (B1과 동일 m4, buildCrossTab 매칭용)
   const l3StructMap = new Map(data.l3Structures.map(s => [s.id, s]));
+  // L3Function → L3Structure 매핑 (B2/B3가 B1과 1:1 매칭되도록)
+  const l3FuncByStruct = new Map<string, typeof data.l3Functions[0]>();
   for (const f of data.l3Functions) {
-    const l2 = data.l2Structures.find(s => s.id === f.l2StructId);
-    const l3 = l3StructMap.get(f.l3StructId);
-    flat.push({ id: f.id, processNo: l2?.no || '', category: 'B', itemCode: 'B2', value: f.functionName, m4: l3?.m4 || undefined, createdAt: now, rowSpan: 1 });
+    if (!l3FuncByStruct.has(f.l3StructId)) l3FuncByStruct.set(f.l3StructId, f);
   }
-
-  // B3: L3Function.processChar — m4 포함 (B1과 동일 m4)
-  for (const f of data.l3Functions) {
-    const l2 = data.l2Structures.find(s => s.id === f.l2StructId);
-    const l3 = l3StructMap.get(f.l3StructId);
-    flat.push({ id: `${f.id}-B3`, processNo: l2?.no || '', category: 'B', itemCode: 'B3', value: f.processChar, specialChar: f.specialChar || undefined, m4: l3?.m4 || undefined, createdAt: now, rowSpan: 1 });
+  // B2/B3/SC는 L3Structure 기준으로 생성 → B1과 동일한 수 보장
+  for (const s of data.l3Structures) {
+    const l2 = data.l2Structures.find(d => d.id === s.l2Id);
+    const f = l3FuncByStruct.get(s.id);
+    const pno = l2?.no || '';
+    const m4 = s.m4 || undefined;
+    // B2
+    flat.push({ id: f?.id || `${s.id}-B2`, processNo: pno, category: 'B', itemCode: 'B2', value: f?.functionName || '', m4, createdAt: now, rowSpan: 1 });
+    // B3 (공정특성 + 특별특성)
+    const sc = f?.specialChar || undefined;
+    flat.push({ id: `${s.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f?.processChar || '', specialChar: sc, m4, createdAt: now, rowSpan: 1 });
+    // SC: 특별특성 별도 itemCode (ImportInputSection counts 계산용)
+    if (sc) {
+      flat.push({ id: `${s.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC' as any, value: sc, m4, createdAt: now, rowSpan: 1 });
+    }
   }
 
   // B4: FailureCause.cause — m4 포함 (L3Structure에서)

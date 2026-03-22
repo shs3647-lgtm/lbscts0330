@@ -167,30 +167,18 @@ function buildL2Functions(l2Funcs: AtomicL2Function[]): L2Function[] {
 // ============ L3 기능: L3Function → WorkElement.functions[].processChars[] ============
 
 function buildL3Functions(l3Funcs: AtomicL3Function[]): L3Function[] {
-  const funcGroups = new Map<string, AtomicL3Function[]>();
-  for (const f of l3Funcs) {
-    const arr = funcGroups.get(f.functionName);
-    if (arr) {
-      arr.push(f);
-    } else {
-      funcGroups.set(f.functionName, [f]);
-    }
-  }
-
-  const result: L3Function[] = [];
-  funcGroups.forEach((funcs, funcName) => {
-    const processChars: L3ProcessChar[] = funcs.map(f => ({
+  // ★ 2026-03-22 FIX: functionName 기준 병합 → l3StructId(id) 기준 독립 생성
+  // 같은 functionName이라도 다른 L3Structure이면 별도 공정특성(processChar)을 가짐
+  // 병합하면 processChar 누락 발생
+  return l3Funcs.map(f => ({
+    id: f.id,
+    name: f.functionName,
+    processChars: [{
       id: f.id,
       name: f.processChar,
       specialChar: f.specialChar,
-    }));
-    result.push({
-      id: funcs[0].id,
-      name: funcName,
-      processChars,
-    });
-  });
-  return result;
+    }],
+  }));
 }
 
 // ============ FailureLinks → WorksheetFailureLink[] ============
