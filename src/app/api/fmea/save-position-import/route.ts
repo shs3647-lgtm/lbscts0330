@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
         await tx.failureMode.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.processProductChar.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3ProcessChar.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l2Function.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l1Function.deleteMany({ where: { fmeaId: normalizedId } });
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
       // 이유: skipDuplicates가 빈값 레코드를 업데이트 못함 + for-loop upsert 너무 느림
       // Structure/L1F/L2F/FM/FE는 skipDuplicates 유지 (소실 위험 없음)
 
-      // 7. L3Functions: DELETE ALL + CREATE (공정특성 B3 포함)
+      // 7. L3Functions + L3ProcessChars: DELETE ALL + CREATE (공정특성 B3 포함)
       // ★ 방어: l3Functions가 비어있으면 DELETE 금지 (파싱 실패 시 기존 데이터 보호)
       if (atomicData.l3Functions.length === 0) {
         console.warn(`[save-position-import] ⚠️ l3Functions=0 — DELETE 건너뜀 (기존 데이터 보존). 파서 로그 확인 필요`);
@@ -137,6 +138,7 @@ export async function POST(request: NextRequest) {
         await tx.riskAnalysis.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureLink.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.l3ProcessChar.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l3Function.deleteMany({ where: { fmeaId: normalizedId } });
 
         await tx.l3Function.createMany({
@@ -147,6 +149,18 @@ export async function POST(request: NextRequest) {
           })),
         });
         console.log(`[save-position-import] L3Function: ${atomicData.l3Functions.length}건 생성`);
+
+        // 7b. L3ProcessChars (★v4: B3 독립 엔티티) — L3Function 이후 생성 (FK 의존)
+        if (atomicData.l3ProcessChars && atomicData.l3ProcessChars.length > 0) {
+          await tx.l3ProcessChar.createMany({
+            data: atomicData.l3ProcessChars.map(pc => ({
+              id: pc.id, fmeaId: normalizedId, l3FuncId: pc.l3FuncId, l3StructId: pc.l3StructId,
+              parentId: pc.parentId || null,
+              name: pc.name, specialChar: pc.specialChar,
+            })),
+          });
+          console.log(`[save-position-import] L3ProcessChar: ${atomicData.l3ProcessChars.length}건 생성`);
+        }
       }
 
       // 8. FailureEffects (skipDuplicates — FE는 보존)
@@ -173,13 +187,14 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 10. FailureCauses: DELETE 위에서 완료 → 재생성 (processCharId = l3FuncId)
+      // 10. FailureCauses: DELETE 위에서 완료 → 재생성 (★v4: processCharId = l3CharId → L3ProcessChar.id)
       if (atomicData.failureCauses.length > 0) {
         await tx.failureCause.createMany({
           data: atomicData.failureCauses.map(fc => ({
             id: fc.id, fmeaId: normalizedId, l3FuncId: fc.l3FuncId,
             l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
-            processCharId: fc.l3FuncId || null, cause: fc.cause,
+            processCharId: fc.l3CharId || fc.l3FuncId || null, // ★v4: B-13 L3ProcessChar FK
+            cause: fc.cause,
             parentId: fc.parentId || null,
           })),
         });
@@ -222,9 +237,10 @@ export async function POST(request: NextRequest) {
       }
 
       // 13. Verify counts
-      const [l2c, l3c, fmc, fcc, fec, flc, rac] = await Promise.all([
+      const [l2c, l3c, l3pcc, fmc, fcc, fec, flc, rac] = await Promise.all([
         tx.l2Structure.count({ where: { fmeaId: normalizedId } }),
         tx.l3Structure.count({ where: { fmeaId: normalizedId } }),
+        tx.l3ProcessChar.count({ where: { fmeaId: normalizedId } }),
         tx.failureMode.count({ where: { fmeaId: normalizedId } }),
         tx.failureCause.count({ where: { fmeaId: normalizedId } }),
         tx.failureEffect.count({ where: { fmeaId: normalizedId } }),
@@ -233,7 +249,7 @@ export async function POST(request: NextRequest) {
       ]);
 
       return {
-        l2Structures: l2c, l3Structures: l3c,
+        l2Structures: l2c, l3Structures: l3c, l3ProcessChars: l3pcc,
         failureModes: fmc, failureCauses: fcc, failureEffects: fec,
         failureLinks: flc, riskAnalyses: rac,
       };

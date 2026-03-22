@@ -97,8 +97,21 @@ export interface PosL3Function {
   l2StructId: string;
   parentId: string;  // → L3Structure.id (E-17)
   functionName: string; // B2
-  processChar: string;  // B3
+  processChar: string;  // B3 텍스트 (fallback 호환용)
+  processCharId?: string; // ★v4: → PosL3ProcessChar.id (B-13)
   specialChar?: string;
+}
+
+// ★v4 신규: L3ProcessChar — B3(공정특성) 독립 엔티티
+// 기존: L3Function.processChar 문자열 → 신규: 독립 UUID FK
+export interface PosL3ProcessChar {
+  id: string;        // 'L3-R{n}-C5-PC' (B3 독립 UUID)
+  fmeaId: string;
+  l3FuncId: string;  // FK → PosL3Function.id (E-18)
+  l3StructId: string;
+  parentId: string;  // → L3Function.id (E-18)
+  name: string;      // B3 공정특성 텍스트
+  specialChar?: string; // SC 특별특성
 }
 
 export interface PosFailureCause {
@@ -108,6 +121,7 @@ export interface PosFailureCause {
   l3StructId: string;
   l2StructId: string;
   parentId: string;  // → L3Function.id (E-20)
+  l3CharId?: string; // ★v4 핵심: → PosL3ProcessChar.id (B-13)
   cause: string;     // B4
 }
 
@@ -152,6 +166,7 @@ export interface PositionAtomicData {
   l2Functions: PosL2Function[];
   l3Structures: PosL3Structure[];
   l3Functions: PosL3Function[];
+  l3ProcessChars: PosL3ProcessChar[];  // ★v4: B3 독립 엔티티
   processProductChars: PosProcessProductChar[];
   failureEffects: PosFailureEffect[];
   failureModes: PosFailureMode[];

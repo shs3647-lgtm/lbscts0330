@@ -34,6 +34,7 @@ const PROJECT_TABLES = [
   'fmea_confirmed_states',
   'unified_process_items',  // ★ 2026-02-05: CP/PFD 연동용 테이블 추가
   'process_product_chars',  // ★ 2026-03-14: ProcessProductChar 독립 엔티티 (A4 공유)
+  'l3_process_chars',       // ★ 2026-03-23: L3ProcessChar 독립 엔티티 (B3 공정특성 UUID)
   'import_jobs',            // ★ 2026-03-17: Import 추적
   'import_mappings',        // ★ 2026-03-17: Import 매핑 (flatData→entity)
   'import_validations',     // ★ 2026-03-17: Import 검증 결과

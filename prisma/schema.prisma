@@ -300,21 +300,22 @@ model L2Function {
 }
 
 model L3Function {
-  id            String         @id @default(uuid())
-  fmeaId        String
-  l3StructId    String
-  l2StructId    String
-  functionName  String
-  processChar   String
-  specialChar   String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  parentId      String?
-  mergeGroupId  String?
-  rowSpan       Int?           @default(1)
-  colSpan       Int?           @default(1)
-  failureCauses FailureCause[]
-  l3Structure   L3Structure    @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
+  id              String           @id @default(uuid())
+  fmeaId          String
+  l3StructId      String
+  l2StructId      String
+  functionName    String
+  processChar     String
+  specialChar     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  parentId        String?
+  mergeGroupId    String?
+  rowSpan         Int?             @default(1)
+  colSpan         Int?             @default(1)
+  failureCauses   FailureCause[]
+  l3ProcessChars  L3ProcessChar[]  // ★v4: B3 독립 엔티티
+  l3Structure     L3Structure      @relation(fields: [l3StructId], references: [id], onDelete: Cascade)
 
   @@index([fmeaId])
   @@index([l3StructId])
@@ -322,6 +323,26 @@ model L3Function {
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("l3_functions")
+}
+
+// ★v4 신규: B3(공정특성) 독립 엔티티 — L3Function.processChar 문자열에서 분리
+model L3ProcessChar {
+  id          String     @id
+  fmeaId      String
+  l3FuncId    String
+  l3StructId  String
+  parentId    String?
+  name        String
+  specialChar String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  l3Function  L3Function @relation(fields: [l3FuncId], references: [id], onDelete: Cascade)
+
+  @@index([fmeaId])
+  @@index([l3FuncId])
+  @@index([l3StructId])
+  @@index([parentId])
+  @@map("l3_process_chars")
 }
 
 model FailureEffect {

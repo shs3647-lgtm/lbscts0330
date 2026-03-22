@@ -25,6 +25,7 @@ import type {
   PosL2Function,
   PosL3Structure,
   PosL3Function,
+  PosL3ProcessChar,
   PosProcessProductChar,
   PosFailureEffect,
   PosFailureMode,
@@ -111,6 +112,8 @@ const L2_PC_COL = 5;
 const L3_FC_COL = 7;
 /** L3: B2 = 요소기능 = 5번째 컬럼 */
 const L3_FUNC_COL = 5;
+/** L3: B3 = 공정특성 = 6번째 컬럼 (★v4: PosL3ProcessChar 독립 UUID) */
+const L3_PC_COL = 6;
 
 // ─── 메인 파서 ───
 
@@ -284,9 +287,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
   const l3Structures: PosL3Structure[] = [];
   const l3Functions: PosL3Function[] = [];
+  const l3ProcessChars: PosL3ProcessChar[] = []; // ★v4: B3 독립 엔티티
   const failureCauses: PosFailureCause[] = [];
   let l3Order = 0;
-  const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string }>();
+  const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string; l3PcId: string }>();
 
   for (const row of l3Sheet.rows) {
     const rn = row.excelRow;
@@ -316,6 +320,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
     // L3Function: 행마다 독립
     const l3FuncId = positionUUID('L3', rn, L3_FUNC_COL);
+    // ★v4: B3 공정특성 독립 UUID (L3-R{n}-C6)
+    const l3PcId = positionUUID('L3', rn, L3_PC_COL);
     l3Functions.push({
       id: l3FuncId,
       fmeaId,
@@ -324,6 +330,18 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       parentId: l3Id, // E-17: L3Function.parentId → L3Structure
       functionName: b2,
       processChar: b3,
+      processCharId: l3PcId, // ★v4: FK → L3ProcessChar (B-13)
+      specialChar: sc || undefined,
+    });
+
+    // ★v4: L3ProcessChar — B3 공정특성 독립 엔티티
+    l3ProcessChars.push({
+      id: l3PcId,
+      fmeaId,
+      l3FuncId,
+      l3StructId: l3Id,
+      parentId: l3FuncId, // E-18: L3ProcessChar.parentId → L3Function
+      name: b3,
       specialChar: sc || undefined,
     });
 
@@ -337,13 +355,14 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         l3StructId: l3Id,
         l2StructId: l2Id,
         parentId: l3FuncId, // E-20: FC.parentId → L3Function
+        l3CharId: l3PcId,   // ★v4: B-13 FK → L3ProcessChar
         cause: b4,
       });
       resolver.registerFC(rn, fcId, b4, pno, m4, b1);
     }
     // B4 없는 행을 FC 시트 보완용으로 등록 (cause는 FC 시트 파싱 후 채움)
     if (!b4) {
-      l3RowNoB4.set(rn, { l3FuncId, l3Id, l2Id, pno, m4, b1 });
+      l3RowNoB4.set(rn, { l3FuncId, l3Id, l2Id, pno, m4, b1, l3PcId });
     }
   }
 
@@ -488,6 +507,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     l3Structures: l3Structures.length,
     l2Functions: l2Functions.length,
     l3Functions: l3Functions.length,
+    l3ProcessChars: l3ProcessChars.length, // ★v4
     processProductChars: processProductChars.length,
     failureEffects: failureEffects.length,
     failureModes: failureModes.length,
@@ -507,7 +527,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   console.log(`  L2: 엑셀 ${stats.excelL2Rows}행 (A1=${stats.excelA1}, A3=${stats.excelA3}, A4=${stats.excelA4}, A5=${stats.excelA5}, A6=${stats.excelA6})`);
   console.log(`     → L2Struct=${stats.l2Structures}, FM=${stats.failureModes}`);
   console.log(`  L3: 엑셀 ${stats.excelL3Rows}행 (B1=${stats.excelB1}, B2=${stats.excelB2}, B3=${stats.excelB3}, B4=${stats.excelB4}, B5=${stats.excelB5})`);
-  console.log(`     → L3Struct=${stats.l3Structures}, FC=${stats.failureCauses}`);
+  console.log(`     → L3Struct=${stats.l3Structures}, L3PC=${stats.l3ProcessChars}, FC=${stats.failureCauses}`);
   console.log(`  FC: 엑셀 ${stats.excelFCRows}행 → FL=${stats.failureLinks}, RA=${stats.riskAnalyses}`);
   if (stats.brokenFE > 0 || stats.brokenFM > 0 || stats.brokenFC > 0) {
     console.warn(`  ⚠️ 깨진 FK: FE=${stats.brokenFE} FM=${stats.brokenFM} FC=${stats.brokenFC}`);
@@ -528,6 +548,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     l2Functions,
     l3Structures,
     l3Functions,
+    l3ProcessChars,
     processProductChars,
     failureEffects,
     failureModes,
