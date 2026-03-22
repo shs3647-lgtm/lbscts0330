@@ -58,6 +58,11 @@ export async function POST(request: NextRequest) {
     // FE가 없는 l2에는 전체 FE 중 YP 첫 번째 사용
     const fallbackFE = allFEs.find((fe: any) => fe.category === 'YP') || allFEs[0];
 
+    // 이미 연결된 FE set
+    const linkedFeIds = new Set(existingFLs.map((fl: any) => fl.feId).filter(Boolean));
+    // scope → 해당 FL에서 사용된 fm+fc 목록 (미연결 FE 연결용)
+    const fmWithFC = existingFLs.filter((fl: any) => fl.fmId && fl.fcId);
+
     // ─── 미연결 FC → FL 생성 ───
     const newFLs: any[] = [];
     const newRAs: any[] = [];
@@ -72,8 +77,16 @@ export async function POST(request: NextRequest) {
       const feIds = l2ToFeIds.get(fc.l2StructId);
 
       for (const fmId of fmIds) {
-        // feId 결정: 기존 FL에서 이 l2의 FE, 없으면 fallback
-        const feId = feIds ? [...feIds][0] : fallbackFE?.id;
+        // feId 결정: 기존 FL에서 이 l2의 FE, 없으면 scope별 FE, 없으면 fallback
+        let feId = feIds ? [...feIds][0] : '';
+        if (!feId) {
+          // scope별 FE 중 첫 번째 사용 (YP→SP→USER 순)
+          const scopeFE = allFEs.find((fe: any) => fe.category === 'YP') ||
+                          allFEs.find((fe: any) => fe.category === 'SP') ||
+                          allFEs.find((fe: any) => fe.category === 'USER') ||
+                          fallbackFE;
+          feId = scopeFE?.id || '';
+        }
         if (!feId) continue;
 
         const flId = `${fc.id}-FL-${fmId.substring(0, 8)}`;
@@ -90,6 +103,34 @@ export async function POST(request: NextRequest) {
           createdAt: now, updatedAt: now,
         });
       }
+    }
+
+    // ─── 미연결 FE → 기존 FM+FC와 연결 ───
+    // 각 scope별로 미연결 FE를 같은 scope의 FM-FC 체인에 추가 연결
+    for (const fe of allFEs) {
+      if (linkedFeIds.has(fe.id)) continue; // 이미 연결됨
+
+      // 같은 scope의 FM-FC 체인 중 대표 1개 선택
+      const sampleFL = fmWithFC.find((fl: any) => {
+        const feFe = allFEs.find((e: any) => e.id === fl.feId);
+        return feFe?.category === fe.category;
+      }) || fmWithFC[0]; // scope 없으면 첫 번째
+
+      if (!sampleFL?.fmId || !sampleFL?.fcId) continue;
+
+      const flId = `FE-${fe.id.substring(0, 8)}-FM-${sampleFL.fmId.substring(0, 8)}`;
+      newFLs.push({
+        id: flId, fmeaId: normalizedId,
+        fmId: sampleFL.fmId, feId: fe.id, fcId: sampleFL.fcId,
+        fmText: allFMs.find((m: any) => m.id === sampleFL.fmId)?.mode || '',
+        feText: fe.effect,
+        fcText: allFCs.find((c: any) => c.id === sampleFL.fcId)?.cause || '',
+      });
+      newRAs.push({
+        id: `${flId}-RA`, fmeaId: normalizedId,
+        linkId: flId, severity: 1, occurrence: 3, detection: 3, ap: 'L',
+        createdAt: now, updatedAt: now,
+      });
     }
 
     // ─── DB 저장 ───
