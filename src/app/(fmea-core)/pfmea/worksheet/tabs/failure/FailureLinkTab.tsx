@@ -1043,6 +1043,14 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
           <button onClick={() => setViewMode('diagram')} style={modeButtonStyle(viewMode === 'diagram')} title="FE→FM→FC chain diagram">
             Chain
           </button>
+          {/* Chain 전체보기 */}
+          <button
+            onClick={() => setViewMode('result')}
+            style={{ ...modeButtonStyle(false), background: '#e8f5e9', color: '#2e7d32', border: '1px solid #a5d6a7', fontWeight: 700 }}
+            title="고장사슬 전체 목록 보기 (Table)"
+          >
+            전체보기
+          </button>
 
           {/* FA → ALL tab */}
           {isCurrentFMLinked && (
