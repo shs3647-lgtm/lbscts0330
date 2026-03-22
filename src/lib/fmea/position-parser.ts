@@ -382,11 +382,20 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       feText: c['FE'] || '',
       fmText: c['FM'] || '',
       fcText: c['FC'] || '',
-      feScope: fcScope, // ★ scope 전달 (텍스트 폴백 매칭용)
+      feScope: fcScope,
       processNo: fcPno,
       m4: fcM4,
       workElement: c['WE'] || '',
     });
+
+    // ★ 디버그: FK 해결 실패 행 로그 (브라우저 콘솔 확인용)
+    if (!feId || !fmId || !fcId) {
+      console.warn(`[position-parser] ⚠️ FL R${rn} FK 미해결:`,
+        `feId=${feId||'❌'}(l1Row=${l1Row},feText="${(c['FE']||'').substring(0,20)}",scope=${fcScope})`,
+        `fmId=${fmId||'❌'}(l2Row=${l2Row},fm="${(c['FM']||'').substring(0,15)}",pno=${fcPno})`,
+        `fcId=${fcId||'❌'}(l3Row=${l3Row},fc="${(c['FC']||'').substring(0,15)}")`
+      );
+    }
 
     const severity = parseInt(c['S'] || '0', 10) || 0;
     const occurrence = parseInt(c['O'] || '0', 10) || 0;
