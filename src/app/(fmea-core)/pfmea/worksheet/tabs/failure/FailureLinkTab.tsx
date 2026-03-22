@@ -979,8 +979,18 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
           </div>
         )}
 
-        {/* 헤더 — 한 줄 간소화 (영어만) */}
-        <div style={{ ...rightHeaderStyle, flexWrap: 'nowrap', gap: 3 }}>
+        {/* 헤더 — 2줄 레이아웃 */}
+        <div style={{ ...rightHeaderStyle, flexWrap: 'wrap', gap: 3, flexDirection: 'column', padding: '3px 4px' }}>
+        {/* 1행: 통계 배지 */}
+        <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'nowrap', width: '100%' }}>
+          <span style={{ fontSize: 9, color: '#666', fontWeight: 600, whiteSpace: 'nowrap' }}>연결현황:</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>FE:{linkStats.feLinkedCount}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#e65100', background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>FM:{linkStats.fmLinkedCount}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>FC:{linkStats.fcLinkedCount}</span>
+          {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#d32f2f', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap' }}>Miss:{totalMissingCount}</span>}
+        </div>
+        {/* 2행: 액션 버튼 */}
+        <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'nowrap', width: '100%' }}>
           {/* Confirm / Re-Confirm */}
           <button
             onClick={confirmLink}
@@ -999,18 +1009,17 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
             {isCurrentFMLinked ? 'Re-Confirm' : 'Confirm'}
           </button>
 
-          {/* Result (FE/FM/FC counts) */}
+          {/* ★ 고장수정 버튼 */}
           <button
             onClick={() => setViewMode('result')}
             style={{
-              padding: '3px 6px', fontSize: 10, fontWeight: 600,
-              border: '1px solid #0d47a1', borderRadius: 3, cursor: 'pointer',
-              whiteSpace: 'nowrap', minWidth: 'fit-content',
-              background: viewMode === 'result' ? '#0d47a1' : '#fff',
-              color: viewMode === 'result' ? '#fff' : '#0d47a1',
+              padding: '3px 8px', fontSize: 10, fontWeight: 700,
+              border: '1px solid #7b1fa2', borderRadius: 3, cursor: 'pointer',
+              whiteSpace: 'nowrap', background: '#f3e5f5', color: '#7b1fa2',
             }}
+            title="고장사슬 연결 편집 — FE/FM/FC 수동 연결·조정"
           >
-            Result(<span style={{ color: viewMode === 'result' ? '#90caf9' : '#1976d2', fontWeight: 700 }}>FE:{linkStats.feLinkedCount}</span>,<span style={{ color: viewMode === 'result' ? '#ffab91' : '#e65100', fontWeight: 700 }}>FM:{linkStats.fmLinkedCount}</span>,<span style={{ color: viewMode === 'result' ? '#a5d6a7' : '#388e3c', fontWeight: 700 }}>FC:{linkStats.fcLinkedCount}</span>{totalMissingCount > 0 && <span style={{ color: viewMode === 'result' ? '#ff8a80' : '#d32f2f', fontWeight: 700 }}>,Miss:{totalMissingCount}</span>})
+            ✏️ 고장수정
           </button>
 
           {/* Link Table */}
@@ -1159,7 +1168,8 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
               Edit
             </button>
           )}
-        </div>
+        </div>{/* 2행 end */}
+        </div>{/* 2줄 헤더 end */}
 
         {/* 콘텐츠 */}
         <div className="flex-1 overflow-auto" style={{ display: 'flex', flexDirection: 'column' }}>
