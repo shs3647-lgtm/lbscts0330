@@ -124,8 +124,26 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
     },
   }));
 
-  const cItems = data.filter(d => d.category === 'C');
-  const cCats = [...new Set(cItems.map(d => d.processNo))];
+  // ★ scope 정규화: YOUR PLANT→YP, SHIP TO PLANT→SP, End User→USER
+  function normalizeC1Cat(cat: string): string {
+    const u = cat.toUpperCase().trim();
+    if (u === 'YP' || u.includes('YOUR')) return 'YP';
+    if (u === 'SP' || u.includes('SHIP')) return 'SP';
+    if (u === 'USER' || u === 'US' || u.includes('END')) return 'USER';
+    return cat;
+  }
+  // scope 정규화 후 processNo 변환 + 빈 placeholder 행 제거
+  const cItems = data.filter(d => d.category === 'C').map(d => ({
+    ...d,
+    processNo: normalizeC1Cat(d.processNo),
+    value: d.itemCode === 'C1' ? normalizeC1Cat(d.value) : d.value,
+  }));
+  // C2가 없거나 '-'뿐인 category는 제외 (YOUR PLANT placeholder 제거)
+  const cCatsAll = [...new Set(cItems.map(d => d.processNo))];
+  const cCats = cCatsAll.filter(cat => {
+    const c2Items = cItems.filter(d => d.processNo === cat && d.itemCode === 'C2');
+    return c2Items.some(d => d.value?.trim() && !/^[-–—~.]+$/.test(d.value.trim()));
+  });
   const cRows: CRow[] = cCats.map(cat => {
     const ids: CrossTabIds = {};
     const row: CRow = { category: cat, C1: '', C2: '', C3: '', C4: '', _ids: ids };

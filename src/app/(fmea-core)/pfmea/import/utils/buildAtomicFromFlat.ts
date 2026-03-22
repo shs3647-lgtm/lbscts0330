@@ -30,6 +30,7 @@ import type {
   RiskAnalysis,
 } from '../../worksheet/schema';
 import { uid } from '../../worksheet/schema';
+import { normalizeScope, SCOPE_LABEL_EN, SCOPE_LABEL_UPPER, type ScopeCode } from '@/lib/fmea/scope-constants';
 // uuid-generator 삭제됨 (2026-03-22)
 const genA1 = (_doc: string, pno: number) => `L2-PNO-${String(pno).padStart(3, '0')}`;
 import { calculateAP } from '../../import/types/masterFailureChain';
@@ -607,7 +608,7 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
           || fcLookup.get(`${pnoN}||${fcVal}`);
         if (fcId) { chain.fcId = fcId; }
       }
-      // FE FK 할당 — feScope(Your Plant) vs C4.processNo(YP) 별칭
+      // FE FK 할당 — feScope(SCOPE_LABEL_EN) vs C4.processNo(YP/SP/USER) 별칭
       if (!chain.feId && chain.feValue) {
         const feVal = chain.feValue.trim();
         const scopeRaw = String((chain as any).feScope || '').trim();
@@ -774,47 +775,40 @@ function groupByItemCode(flatData: ImportedFlatData[]): Map<string, ImportedFlat
 }
 
 /**
- * C1 scope 문자열 → L1Function.category 변환
+ * C1 scope 문자열 → L1Function.category 변환 (중앙 상수 사용)
  *
  * FlatData의 processNo (C 카테고리) = 'YP' | 'SP' | 'USER'
- * → Atomic DB category = 'Your Plant' | 'Ship to Plant' | 'User'
+ * → Atomic DB category = 'Your Plant' | 'Ship to Plant' | 'User' (레거시 워크시트 스키마 호환)
  */
-function scopeToCategory(scope: string): 'Your Plant' | 'Ship to Plant' | 'User' {
-  const upper = scope.toUpperCase();
-  if (upper === 'YP' || upper === 'YOUR PLANT') return 'Your Plant';
-  if (upper === 'SP' || upper === 'SHIP TO PLANT') return 'Ship to Plant';
-  return 'User';
+type ScopeCategoryLabel = 'Your Plant' | 'Ship to Plant' | 'User';
+const SCOPE_TO_CATEGORY: Record<ScopeCode, ScopeCategoryLabel> = { YP: 'Your Plant', SP: 'Ship to Plant', USER: 'User' };
+function scopeToCategory(scope: string): ScopeCategoryLabel {
+  const code = normalizeScope(scope);
+  return SCOPE_TO_CATEGORY[code as ScopeCode] ?? 'User';
 }
 
-/** C4.processNo 또는 체인 feScope → YP/SP/USER (FE lookup 키 정규화) */
+/** C4.processNo 또는 체인 feScope → YP/SP/USER (FE lookup 키 정규화, 중앙 상수 사용) */
 function normDivForFeLookup(s: string): string {
   const t = (s || '').trim();
-  const u = t.toUpperCase();
-  if (u === 'YP' || u === 'YOUR PLANT' || t === 'Your Plant') return 'YP';
-  if (u === 'SP' || u === 'SHIP TO PLANT' || t === 'Ship to Plant') return 'SP';
-  if (u === 'USER' || u === 'END USER' || t === 'User' || t === 'End User') return 'USER';
-  return t;
+  if (!t) return t;
+  return normalizeScope(t);
 }
 
-/** 동일 C4에 대해 마스터 체인 feScope(긴 이름) ↔ flat processNo(짧은 코드) 모두 등록 */
+/** 동일 C4에 대해 마스터 체인 feScope(긴 이름) ↔ flat processNo(짧은 코드) 모두 등록 (중앙 상수 사용) */
 function feLookupKeysForC4(processNo: string, value: string): string[] {
   const val = value.trim();
   const short = normDivForFeLookup(processNo);
   const keys = new Set<string>();
   keys.add(`${processNo}|${val}`);
   keys.add(`${short}|${val}`);
-  if (short === 'YP') {
-    keys.add(`Your Plant|${val}`);
-    keys.add(`YOUR PLANT|${val}`);
-  }
-  if (short === 'SP') {
-    keys.add(`Ship to Plant|${val}`);
-    keys.add(`SHIP TO PLANT|${val}`);
-  }
+  // 약어 → 전체명 변형 모두 등록 (cross-reference 호환)
+  const en = SCOPE_LABEL_EN[short as ScopeCode];
+  const upper = SCOPE_LABEL_UPPER[short as ScopeCode];
+  if (en) keys.add(`${en}|${val}`);
+  if (upper) keys.add(`${upper}|${val}`);
+  // USER 추가 별칭
   if (short === 'USER') {
     keys.add(`User|${val}`);
-    keys.add(`End User|${val}`);
-    keys.add(`END USER|${val}`);
   }
   return [...keys];
 }
