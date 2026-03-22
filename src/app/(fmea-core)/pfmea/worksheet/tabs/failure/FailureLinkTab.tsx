@@ -990,7 +990,28 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
             <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '2px 6px' }}>FC:{linkStats.fcLinkedCount}</span>
             {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '2px 6px' }}>Miss:{totalMissingCount}</span>}
           </div>
-          <button onClick={() => setViewMode('result')} style={{ padding: '2px 10px', fontSize: 10, fontWeight: 700, border: '1px solid #7b1fa2', borderRadius: 3, cursor: 'pointer', background: '#7b1fa2', color: '#fff', whiteSpace: 'nowrap' }} title="고장사슬 FE/FM/FC 수동 연결·조정">✏️ 고장수정</button>
+          <button
+            onClick={async () => {
+              const fmeaId = (state as any)?.fmeaId;
+              if (!fmeaId) { alert('fmeaId 없음'); return; }
+              const btn = document.activeElement as HTMLButtonElement;
+              if (btn) btn.textContent = '⏳ 연결 중...';
+              try {
+                const res = await fetch(`/api/fmea/auto-link?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                  alert(`✅ 자동연결 완료!\n신규 FL: ${data.created.fl}건\n총 FL: ${data.total.fl}건\n\n페이지를 새로고침하여 결과를 확인하세요.`);
+                  window.location.reload();
+                } else {
+                  alert('❌ 실패: ' + (data.error || ''));
+                }
+              } catch (e) {
+                alert('❌ 오류: ' + e);
+              }
+            }}
+            style={{ padding: '2px 10px', fontSize: 10, fontWeight: 700, border: '1px solid #7b1fa2', borderRadius: 3, cursor: 'pointer', background: '#7b1fa2', color: '#fff', whiteSpace: 'nowrap' }}
+            title="미연결 FC를 FM↔FE↔FC 자동 연결"
+          >✏️ 고장수정</button>
         </div>
         {/* 2행: 액션 버튼 (space-between) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: '3px' }}>
