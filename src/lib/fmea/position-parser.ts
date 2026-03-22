@@ -155,6 +155,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const c3 = row.cells['C3']?.trim() || '';
     const c4 = row.cells['C4']?.trim() || '';
 
+    // ★ AutoFix: C2(제품기능) 빈값 → 스킵 (YOUR PLANT/SHIP TO PLANT 등 빈 placeholder)
+    if (!c2) {
+      autoFixes.push({ code: 'L1_SKIP_EMPTY', message: `R${rn}: C1="${c1}" C2 빈값 → L1Function 스킵`, row: rn });
+      continue;
+    }
+
     // L1Function: 같은 C1+C2+C3 조합의 첫 행만 생성 (C3=요구사항 보존)
     const funcKey = `${c1}|${c2}|${c3}`;
     let l1FuncId: string;
