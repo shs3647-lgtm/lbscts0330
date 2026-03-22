@@ -405,7 +405,7 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
     };
   });
 
-  // ─── FailureLinks (SC fallback: L2Function/L3Function 직접 참조) ───
+  // ─── FailureLinks (FK 리매칭: L2Function/L3Function = SSoT) ───
   const l2FuncByIdMap = new Map<string, { productChar: string; specialChar?: string | null; functionName: string }>();
   for (const f of db.l2Functions) {
     l2FuncByIdMap.set(f.id, { productChar: f.productChar, specialChar: f.specialChar, functionName: f.functionName });
