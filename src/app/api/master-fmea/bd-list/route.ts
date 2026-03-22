@@ -4,6 +4,15 @@
  * MasterFmea + FamilyMaster + MasterFmeaProcess 카운트를 반환.
  *
  * GET → { success: true, masters: [...] }
+ *
+ * 조회 우선순위:
+ *   1순위: MasterFmea → FamilyMaster.fmeaId (체인이 유효한 경우)
+ *   2순위: pfmeaMasterDataset fmeaType='M' fallback
+ *          (MasterFmea에 FamilyMaster.fmeaId가 없을 때)
+ *
+ * ★ pfmeaMasterDataset 보유 여부로 필터하지 않음
+ *    → fmeaId가 있으면 반환 (BD 없으면 "해당 BD에 데이터가 없습니다" alert이 올바른 안내)
+ *    → fmeaId가 null이면 fallback으로 pfmeaMasterDataset fmeaType='M' 검색
  */
 
 import { NextResponse } from 'next/server';
@@ -32,36 +41,13 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    // ★ familyMaster.fmeaId가 없는 마스터 제외
-    const validFmeaIds = masterFmeas
-      .map((mf: any) => mf.familyMaster?.fmeaId)
-      .filter(Boolean) as string[];
-
-    // ★ pfmeaMasterDataset에 실제 flatItems가 있는지 확인
-    const bdsWithItems = validFmeaIds.length > 0
-      ? await prisma.pfmeaMasterDataset.findMany({
-          where: {
-            fmeaId: { in: validFmeaIds.map((id: string) => id.toLowerCase()) },
-            isActive: true,
-          },
-          include: { flatItems: { select: { id: true }, take: 1 } },
-        })
-      : [];
-    const bdFmeaIdSet = new Set(
-      bdsWithItems
-        .filter((bd: any) => bd.flatItems && bd.flatItems.length > 0)
-        .map((bd: any) => bd.fmeaId.toLowerCase())
-    );
-
-    // ★ 실제 BD 데이터가 있는 마스터만 반환 (없으면 카운트에서 제외)
-    const masters = masterFmeas
-      .filter((mf: any) => {
-        const fid = mf.familyMaster?.fmeaId;
-        return fid && bdFmeaIdSet.has(fid.toLowerCase());
-      })
+    // ★ 1순위: FamilyMaster.fmeaId가 있는 Master → fmeaId null 제외만 수행
+    //   (pfmeaMasterDataset 보유 여부는 체크하지 않음 — BD 없으면 "데이터 없음" alert이 정확한 안내)
+    const mastersFromLink = masterFmeas
+      .filter((mf: any) => mf.familyMaster?.fmeaId)
       .map((mf: any) => ({
         id: mf.id,
-        fmeaId: mf.familyMaster?.fmeaId ?? null,
+        fmeaId: mf.familyMaster.fmeaId as string,
         code: mf.code,
         name: mf.name,
         productName: mf.productName ?? null,
@@ -73,7 +59,32 @@ export async function GET() {
         status: mf.status,
       }));
 
-    return NextResponse.json({ success: true, masters });
+    if (mastersFromLink.length > 0) {
+      return NextResponse.json({ success: true, masters: mastersFromLink });
+    }
+
+    // ★ 2순위 fallback: FamilyMaster 체인이 없는 경우
+    //   pfmeaMasterDataset에서 fmeaType='M' 항목 직접 검색
+    const mDatasets = await prisma.pfmeaMasterDataset.findMany({
+      where: { fmeaType: 'M', isActive: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const mastersFromDataset = mDatasets.map((ds: any) => ({
+      id: ds.id,
+      fmeaId: ds.fmeaId,
+      code: ds.fmeaId,
+      name: ds.name || ds.fmeaId,
+      productName: null,
+      processCount: 0,
+      version: String(ds.version ?? 1),
+      fmeaType: 'M',
+      familyMasterCode: null,
+      familyMasterName: null,
+      status: 'ACTIVE',
+    }));
+
+    return NextResponse.json({ success: true, masters: mastersFromDataset });
   } catch (error) {
     console.error('[bd-list] Error:', error);
     return NextResponse.json(
