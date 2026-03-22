@@ -77,6 +77,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   const [feFcFilter, setFeFcFilter] = useState<string>(firstProcessNo);
   const [includeUpstream, setIncludeUpstream] = useState(false);
   const [isResultFullscreen, setIsResultFullscreen] = useState(false);
+  const [isChainFullscreen, setIsChainFullscreen] = useState(false);
 
   // 고장연결 확정 상태
   const isConfirmed = (state as any).failureLinkConfirmed || false;
@@ -990,15 +991,18 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
             <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '2px 6px' }}>FC:{linkStats.fcLinkedCount}</span>
             {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '2px 6px' }}>Miss:{totalMissingCount}</span>}
           </div>
-          {/* 전체보기 — 전체화면 확대 */}
+          {/* Full Screen — 현재 뷰(Chain/Table) 전체화면 */}
           <button
             onClick={() => {
-              setCurrentFMId(null);   // 전체 FM 표시
-              setViewMode('result');  // Table 뷰로 전환
-              setIsResultFullscreen(true); // 전체화면
+              if (viewMode === 'diagram') {
+                setIsChainFullscreen(true);   // Chain 전체화면
+              } else {
+                setCurrentFMId(null);          // Table: 전체 FM
+                setIsResultFullscreen(true);   // Table 전체화면
+              }
             }}
             style={{ padding: '2px 8px', fontSize: 10, fontWeight: 700, border: '1px solid #1565c0', borderRadius: 3, cursor: 'pointer', whiteSpace: 'nowrap', background: '#1565c0', color: '#fff' }}
-            title="고장사슬 전체화면 — 메인메뉴 제외 확대 (ESC로 닫기)"
+            title="현재 뷰 전체화면 (Chain: 다이어그램, Table: 연결 목록)"
           >⛶ Full Screen</button>
           {/* 고장수정 자동연결 */}
           <button
@@ -1250,6 +1254,36 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
               }
             }}
           />
+        </div>,
+        document.body
+      )}
+      {/* ★ Chain 다이어그램 전체화면 portal */}
+      {isChainFullscreen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: '#1565c0', color: '#fff' }}>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>⛶ Chain Full Screen — {currentFM?.name || 'FM 선택'}</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={goToPrevFM} disabled={!hasPrevFM} style={{ padding: '2px 10px', background: hasPrevFM ? '#fff' : '#90caf9', color: '#1565c0', border: 'none', borderRadius: 3, cursor: hasPrevFM ? 'pointer' : 'default', fontWeight: 700 }}>◀ Prev</button>
+              <button onClick={goToNextFM} disabled={!hasNextFM} style={{ padding: '2px 10px', background: hasNextFM ? '#fff' : '#90caf9', color: '#1565c0', border: 'none', borderRadius: 3, cursor: hasNextFM ? 'pointer' : 'default', fontWeight: 700 }}>Next ▶</button>
+              <button onClick={() => setIsChainFullscreen(false)} style={{ padding: '2px 12px', background: '#ef5350', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 700 }}>✕ 닫기</button>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            <FailureLinkDiagram
+              currentFM={currentFM}
+              linkedFEs={linkedFEs}
+              linkedFCs={linkedFCs}
+              svgPaths={svgPaths}
+              chainAreaRef={chainAreaRef}
+              fmNodeRef={fmNodeRef}
+              feColRef={feColRef}
+              fcColRef={fcColRef}
+              onPrevFM={goToPrevFM}
+              onNextFM={goToNextFM}
+              hasPrevFM={hasPrevFM}
+              hasNextFM={hasNextFM}
+            />
+          </div>
         </div>,
         document.body
       )}
