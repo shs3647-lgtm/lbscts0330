@@ -1260,7 +1260,8 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
       {/* ★ Chain 다이어그램 전체화면 portal */}
       {isChainFullscreen && createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: '#1565c0', color: '#fff' }}>
+          {/* 상단 헤더 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: '#1565c0', color: '#fff', flexShrink: 0 }}>
             <span style={{ fontWeight: 700, fontSize: 14 }}>⛶ Chain Full Screen — {currentFM?.text || currentFM?.processName || 'FM 선택'}</span>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={goToPrevFM} disabled={!hasPrevFM} style={{ padding: '2px 10px', background: hasPrevFM ? '#fff' : '#90caf9', color: '#1565c0', border: 'none', borderRadius: 3, cursor: hasPrevFM ? 'pointer' : 'default', fontWeight: 700 }}>◀ Prev</button>
@@ -1268,21 +1269,41 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
               <button onClick={() => setIsChainFullscreen(false)} style={{ padding: '2px 12px', background: '#ef5350', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 700 }}>✕ 닫기</button>
             </div>
           </div>
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            <FailureLinkDiagram
-              currentFM={currentFM}
-              linkedFEs={linkedFEs}
-              linkedFCs={linkedFCs}
-              svgPaths={svgPaths}
-              chainAreaRef={chainAreaRef}
-              fmNodeRef={fmNodeRef}
-              feColRef={feColRef}
-              fcColRef={fcColRef}
-              onPrevFM={goToPrevFM}
-              onNextFM={goToNextFM}
-              hasPrevFM={hasPrevFM}
-              hasNextFM={hasNextFM}
-            />
+          {/* 좌: 연결표 | 우: 다이어그램 */}
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            {/* 왼쪽: 연결표 (FailureLinkResult) */}
+            <div style={{ width: '45%', borderRight: '2px solid #1565c0', overflow: 'auto', background: '#fafafa' }}>
+              <FailureLinkResult
+                savedLinks={savedLinksWithoutOrphans}
+                fmData={fmData}
+                onToggleFullscreen={() => {}}
+                onExcelExport={async () => {
+                  try {
+                    const { exportLinkageExcel } = await import('../../excel-export-linkage');
+                    await exportLinkageExcel(state, '');
+                  } catch (err) {
+                    console.error('[연결표 엑셀]', err);
+                  }
+                }}
+              />
+            </div>
+            {/* 오른쪽: 다이어그램 */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <FailureLinkDiagram
+                currentFM={currentFM}
+                linkedFEs={linkedFEs}
+                linkedFCs={linkedFCs}
+                svgPaths={svgPaths}
+                chainAreaRef={chainAreaRef}
+                fmNodeRef={fmNodeRef}
+                feColRef={feColRef}
+                fcColRef={fcColRef}
+                onPrevFM={goToPrevFM}
+                onNextFM={goToNextFM}
+                hasPrevFM={hasPrevFM}
+                hasNextFM={hasNextFM}
+              />
+            </div>
           </div>
         </div>,
         document.body
