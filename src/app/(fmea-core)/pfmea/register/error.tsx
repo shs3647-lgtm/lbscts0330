@@ -28,20 +28,21 @@ export default function ModuleError({
       <p style={{ fontSize: 14, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>
         일시적인 오류일 수 있습니다. 다시 시도하거나 홈으로 이동하세요.
       </p>
-      {process.env.NODE_ENV === 'development' && (
-        <details style={{
-          marginBottom: 16, textAlign: 'left', padding: 12,
-          backgroundColor: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca',
-          maxWidth: 600, margin: '0 auto 16px',
-        }}>
-          <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#b91c1c' }}>
-            에러 상세 (개발 모드)
-          </summary>
-          <pre style={{ marginTop: 8, fontSize: 11, color: '#7f1d1d', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            {error.message}
-          </pre>
-        </details>
-      )}
+      <div style={{
+        marginBottom: 16, textAlign: 'left', padding: 12,
+        backgroundColor: '#fef2f2', borderRadius: 8, border: '2px solid #dc2626',
+        maxWidth: 800, margin: '0 auto 16px',
+      }}>
+        <p style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 8 }}>
+          ERROR: {error.name}
+        </p>
+        <pre style={{ fontSize: 12, color: '#7f1d1d', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.6, background: '#fff', padding: 10, borderRadius: 4, border: '1px solid #fca5a5' }}>
+{error.message}
+        </pre>
+        <pre style={{ fontSize: 10, color: '#991b1b', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.4, marginTop: 8, maxHeight: 200, overflow: 'auto' }}>
+{error.stack || 'no stack'}
+        </pre>
+      </div>
       <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
         <button
           onClick={reset}
@@ -65,4 +66,3 @@ export default function ModuleError({
     </div>
   );
 }
-

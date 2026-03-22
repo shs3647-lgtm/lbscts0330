@@ -52,9 +52,9 @@ function sanitizeProcessNo(raw: string): string {
   const leadingNumMatch = s.match(/^(\d+)/);
   if (leadingNumMatch) {
     let num = leadingNumMatch[1];
-    // ★★★ 2026-03-01: 선행 0 제거 (단, "0" 자체는 유지) ★★★
-    // "010" → "10", "020" → "20", "0" → "0"
-    num = num.replace(/^0+(?=\d)/, '');
+    // ★★★ 2026-03-22 FIX: 선행 0 유지 — L2 시트 공정번호("01","10")와 일치 필수
+    // 이전: "01"→"1" 제거 → L2("01")와 FK 불일치 발생
+    // 수정: 원본 숫자 문자열 그대로 반환
     return num;
   }
 
