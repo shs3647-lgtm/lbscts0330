@@ -94,9 +94,10 @@ const adminMenuItems: MenuItem[] = [
     id: 'admin', label: '시스템 관리', shortLabel: '',
     Icon: ColorIcons.Admin, href: '/admin',
     subItems: [
-      { label: '사용자 권한 설정', href: '/admin/settings/users' },
-      { label: '⚙️ 결제환경설정', href: '/admin/settings/approval' },
-      { label: '🗄️ DB 뷰어', href: '/admin/db-viewer' },
+      { label: '🏠 관리자 홈', href: '/admin' },
+      { label: '👤 사용자관리', href: '/admin/users' },
+      { label: '📋 권한(CSV)', href: '/admin/settings/users' },
+      { label: '⚙️ 결재환경설정', href: '/admin/settings/approval' },
     ],
   },
 ];

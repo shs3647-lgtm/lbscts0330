@@ -20,7 +20,6 @@ export const ADMIN_ITEMS_KO: ManualItem[] = [
       '■ 주요 기능\n' +
       '• 사용자 관리 (등록/수정/삭제/권한)\n' +
       '• 결재환경 설정\n' +
-      '• DB 뷰어 (데이터 직접 조회)\n' +
       '• 시스템 설정\n\n' +
       '■ 접근 권한\n' +
       '• 관리자(Admin) 권한 필요\n' +
@@ -59,23 +58,6 @@ export const ADMIN_ITEMS_KO: ManualItem[] = [
       '[사용자 정보 제공 후 상세 내용 추가 예정]',
     keywords: ['결재', '환경', '설정', 'approval', 'setting', '이메일'],
     paths: ['/admin/settings/approval'],
-  },
-  {
-    category: '관리자',
-    title: 'DB 뷰어',
-    content:
-      '데이터베이스 테이블을 직접 조회할 수 있는 관리자 전용 도구입니다.\n\n' +
-      '■ 기능\n' +
-      '• 테이블 목록 조회\n' +
-      '• SQL 없이 데이터 검색/필터\n' +
-      '• 데이터 내보내기 (CSV/JSON)\n' +
-      '• 읽기 전용 (수정 불가)\n\n' +
-      '■ 주의사항\n' +
-      '• 관리자 권한 필수\n' +
-      '• 대량 데이터 조회 시 페이징 적용\n' +
-      '• 개인정보 보호 필드 마스킹',
-    keywords: ['DB', '뷰어', 'database', '테이블', '조회', '데이터'],
-    paths: ['/admin/db-viewer'],
   },
 
   // ═══════════════════════════════════════════

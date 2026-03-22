@@ -13,9 +13,16 @@ import { useLocale } from '@/lib/locale';
 
 export default function MasterPage() {
     const { t } = useLocale();
-    const { isAdmin } = useAuth();
+    const { isAdmin, isManager } = useAuth();
+    const canEnterprise = isAdmin || isManager;
 
-    const menuItems = [
+    const menuItems: Array<{
+        title: string;
+        description: string;
+        href: string;
+        icon: string;
+        adminOnly?: boolean;
+    }> = [
         {
             title: '고객사정보(Customer Info)',
             description: '고객사 정보를 등록하고 관리합니다.',
@@ -52,17 +59,15 @@ export default function MasterPage() {
             href: '/master/trash',
             icon: '🗑️',
         },
-        {
-            title: 'DB뷰어(DB Viewer)',
-            description: '데이터베이스를 조회합니다.',
-            href: '/admin/db-viewer',
-            icon: '🗄️',
-            adminOnly: true,
-        },
     ];
 
-    // admin이 아니면 adminOnly 메뉴 필터링
-    const visibleMenuItems = menuItems.filter(item => !item.adminOnly || isAdmin);
+    /** 고객사·CFT(직원): ADMIN/MANAGER, 나머지: ADMIN만 */
+    const visibleMenuItems = menuItems.filter((item) => {
+        const isEnterprise = item.href === '/master/customer' || item.href === '/master/user';
+        if (isEnterprise) return canEnterprise;
+        if (item.adminOnly) return isAdmin;
+        return isAdmin;
+    });
 
     return (
         <FixedLayout topNav={<AdminTopNav />} showSidebar={true}>
@@ -75,6 +80,11 @@ export default function MasterPage() {
 
                 {/* 메뉴 그리드 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {visibleMenuItems.length === 0 && (
+                        <div className="col-span-full rounded-lg border border-amber-200 bg-amber-50 p-6 text-amber-900 text-sm">
+                            기초정보 메뉴를 볼 권한이 없습니다. 고객사·CFT는 <strong>기업관리자(MANAGER)</strong>, 임포트·시스템 도구는 <strong>시스템관리자(ADMIN)</strong>에게 문의하세요.
+                        </div>
+                    )}
                     {visibleMenuItems.map((item) => (
                         <Link
                             key={item.href}

@@ -9,6 +9,7 @@
 
 import React, { useEffect } from 'react';
 import { FixedLayout, AdminTopNav } from '@/components/layout';
+import { AdminBackToHome } from '@/components/admin/AdminBackToHome';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 import { useUserHandlers } from './hooks/useUserHandlers';
 import UserTable from './components/UserTable';
@@ -32,10 +33,15 @@ export default function UsersSettingsPage() {
         <div className="bg-gradient-to-r from-indigo-900 to-indigo-800 text-white p-4 rounded-t-lg">
           <div className="flex items-center justify-between">
             <div>
+              <div className="mb-2">
+                <AdminBackToHome className="!text-indigo-100 hover:!text-white" />
+              </div>
               <h1 className="text-xl font-bold flex items-center gap-2">
-                👥 사용자 권한 설정
+                👥 사용자 권한 설정 (CSV)
               </h1>
-              <p className="text-indigo-200 text-sm mt-1">시스템 사용자 관리 및 모듈별 권한 설정</p>
+              <p className="text-indigo-200 text-sm mt-1">
+                CSV Import/Export · 신규 ID/PW·엑셀 관리는 <span className="font-semibold text-white">사용자 정보 관리</span> 메뉴 이용
+              </p>
             </div>
             <div className="flex gap-2">
               {/* CSV Import */}

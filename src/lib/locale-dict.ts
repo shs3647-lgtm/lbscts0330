@@ -97,6 +97,7 @@ export const MENU_DICT: Record<string, string> = {
 
   // ── CommonTopNav ──
   '사용자 매뉴얼': 'User Manual',
+  '기업 관리': 'Enterprise',
 
   // ── TopNav shortLabels (공통) ──
   '작성': 'Worksheet',

@@ -151,6 +151,7 @@ function BilingualLabel({ text, className, multiline = false }: { text: string; 
 interface SidebarShellProps {
   mainMenuItems: MenuItem[];
   bottomMenuItems?: MenuItem[];
+  /** 시스템관리자(ADMIN) — /admin */
   adminMenuItems?: MenuItem[];
 }
 
@@ -174,30 +175,51 @@ export const SidebarShell = React.memo(function SidebarShell({
     if (savedPin === 'true') setIsPinned(true);
 
     const loadUserInfo = async () => {
+      let role: string | null = null;
+      try {
+        const fmea = localStorage.getItem('fmea-user');
+        if (fmea) {
+          const u = JSON.parse(fmea) as { role?: string; id?: string };
+          role = u.role ?? null;
+        }
+      } catch {
+        /* ignore */
+      }
       const session = localStorage.getItem('user_session');
-      if (session) {
+      if (!role && session) {
         try {
-          const user = JSON.parse(session);
-          setUserRole(user.role);
-          let photo = user.photoUrl || localStorage.getItem(USER_PHOTO_STORAGE_KEY);
-          if (!photo && user.id) {
-            try {
-              const res = await fetch(`/api/admin/users?id=${user.id}`);
-              if (res.ok) {
-                const data = await res.json();
-                if (data.user?.photoUrl) {
-                  photo = data.user.photoUrl;
-                  localStorage.setItem('user_session', JSON.stringify({ ...user, photoUrl: photo }));
-                }
+          const user = JSON.parse(session) as { role?: string; id?: string; photoUrl?: string };
+          role = user.role ?? null;
+        } catch (e) {
+          console.error('Failed to parse user session', e);
+        }
+      }
+      setUserRole(role);
+
+      let photo: string | null = localStorage.getItem(USER_PHOTO_STORAGE_KEY);
+      try {
+        const fmea = localStorage.getItem('fmea-user');
+        const uid = fmea ? (JSON.parse(fmea) as { id?: string }).id : undefined;
+        if (!photo && uid) {
+          try {
+            const res = await fetch(`/api/users?id=${encodeURIComponent(uid)}`);
+            if (res.ok) {
+              const data = await res.json();
+              const p = data.user?.photoUrl;
+              if (typeof p === 'string' && p.length > 0) {
+                photo = p;
+                localStorage.setItem(USER_PHOTO_STORAGE_KEY, p);
               }
-            } catch (e) { console.error('[사용자 세션 로드] 오류:', e); }
+            }
+          } catch (e) {
+            console.error('[사용자 사진 로드] 오류:', e);
           }
-          if (photo) {
-            setUserPhoto(photo);
-            localStorage.setItem(USER_PHOTO_STORAGE_KEY, photo);
-          }
-        } catch (e) { console.error('Failed to parse user session', e); }
-      } else {
+        }
+      } catch {
+        /* ignore */
+      }
+      if (photo) setUserPhoto(photo);
+      else {
         const savedPhoto = localStorage.getItem(USER_PHOTO_STORAGE_KEY);
         if (savedPhoto) setUserPhoto(savedPhoto);
       }
@@ -249,6 +271,21 @@ export const SidebarShell = React.memo(function SidebarShell({
       setExpandedMenuId(expandedMenuId === itemId ? null : itemId);
     }
   };
+
+  /** MANAGER는 기초정보에서 고객사·CFT만 (임포트 등 숨김) */
+  const bottomMenuFiltered =
+    userRole === 'manager'
+      ? bottomMenuItems.map((b) =>
+          b.id === 'master'
+            ? {
+                ...b,
+                subItems: b.subItems?.filter(
+                  (s) => s.href === '/master/customer' || s.href === '/master/user'
+                ),
+              }
+            : b
+        )
+      : bottomMenuItems;
 
   const renderMenuItems = (items: MenuItem[], photoSrc?: string | null) => {
     return items.map((item) => {
@@ -400,7 +437,7 @@ export const SidebarShell = React.memo(function SidebarShell({
       {/* 하단 메뉴 */}
       <nav className="py-0 flex flex-col">
         {userRole === 'admin' && renderMenuItems(adminMenuItems)}
-        {renderMenuItems(bottomMenuItems)}
+        {renderMenuItems(bottomMenuFiltered)}
       </nav>
 
       {/* 한/영 토글 → CommonTopNav로 이동 */}

@@ -25,7 +25,10 @@ interface UseAuthReturn {
   user: AuthUser | null;
   isLoading: boolean;
   isLoggedIn: boolean;
+  /** 시스템관리자 — /admin, /api/admin */
   isAdmin: boolean;
+  /** 기업관리자 — 고객사·CFT 기초정보 */
+  isManager: boolean;
   login: (loginId: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   hasPermission: (module: 'pfmea' | 'dfmea' | 'cp' | 'pfd', action: 'read' | 'write') => boolean;
@@ -153,7 +156,7 @@ export function useAuth(): UseAuthReturn {
   const hasPermission = useCallback((module: 'pfmea' | 'dfmea' | 'cp' | 'pfd', action: 'read' | 'write') => {
     if (!user) return false;
 
-    // admin은 모든 권한
+    // 시스템관리자는 모든 모듈 권한
     if (user.role === 'admin') return true;
 
     const permKey = `perm${module.charAt(0).toUpperCase() + module.slice(1)}` as keyof AuthUser;
@@ -170,6 +173,7 @@ export function useAuth(): UseAuthReturn {
     isLoading,
     isLoggedIn: !!user,
     isAdmin: user?.role === 'admin',
+    isManager: user?.role === 'manager',
     login,
     logout,
     hasPermission,

@@ -9,6 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/locale';
+import { ADMIN_HOME_PATH } from '@/lib/admin/admin-routes';
 
 // ============================================================================
 // 타입 정의
@@ -204,10 +205,11 @@ export default function ApprovalSettingsPage() {
             <p className="text-sm text-gray-200">{t('관리자 전용')} - SMTP, {t('결재자 지정')}, {t('알림 설정')}</p>
           </div>
           <button
-            onClick={() => router.push('/admin')}
+            type="button"
+            onClick={() => router.replace(ADMIN_HOME_PATH)}
             className="px-3 py-1 bg-gray-600 rounded hover:bg-gray-700 text-sm"
           >
-            ← {t('관리자 메뉴')}
+            ← {t('관리 홈')}
           </button>
         </div>
         

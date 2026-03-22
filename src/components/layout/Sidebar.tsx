@@ -151,13 +151,6 @@ const pfmeaSubItems = [
   { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement' },
 ];
 
-// Admin 관리자 하위 메뉴
-const adminSubItems = [
-  { label: '🏠 관리자 홈', href: '/admin' },
-  { label: '👤 사용자관리', href: '/admin/settings/users' },
-  { label: '⚙️ 결제환경설정', href: '/admin/settings/approval' },
-  { label: '🗄️ DB 뷰어', href: '/admin/db-viewer' },
-];
 
 
 // MyJob 메뉴는 특별 처리 (사진 업로드 기능)
@@ -202,14 +195,6 @@ const menuItems = [
     href: '/pfd',
     subItems: createSubItems('/pfd'),
   },
-  {
-    id: 'admin',
-    label: 'Admin',
-    shortLabel: 'Ad',
-    Icon: ColorIcons.Admin,
-    href: '/admin',
-    subItems: adminSubItems,
-  },
 ];
 
 // 하단 메뉴 (기초정보 - 개발 완료된 화면만 연결)
@@ -231,7 +216,7 @@ const bottomMenuItems = [
   },
 ];
 
-// 시스템 관리 메뉴 (관리자 전용)
+// 시스템 관리 메뉴 (관리자 전용) — Admin + 시스템 관리 통합
 const adminMenuItems = [
   {
     id: 'admin',
@@ -240,9 +225,9 @@ const adminMenuItems = [
     Icon: ColorIcons.Admin,
     href: '/admin',
     subItems: [
-      { label: '사용자 권한 설정', href: '/admin/settings/users' },
+      { label: '🏠 관리자 홈', href: '/admin' },
+      { label: '👤 사용자관리', href: '/admin/settings/users' },
       { label: '⚙️ 결제환경설정', href: '/admin/settings/approval' },
-      { label: '🗄️ DB 뷰어', href: '/admin/db-viewer' },
     ],
   },
 ];

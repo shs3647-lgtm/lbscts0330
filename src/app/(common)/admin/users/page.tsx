@@ -1,16 +1,20 @@
-// CODEFREEZE
 /**
  * @file page.tsx
- * @description 사용자 정보 관리 페이지 (고객사별, ID/PW 설정, 엑셀 Import 지원)
+ * @description 사용자 정보 관리 페이지 (회사명별, ID/PW 설정, 엑셀 Import 지원)
  * @created 2026-01-26
+ * @updated 2026-03-22 — 뷰포트 높이 레이아웃, 인라인 편집 저장/닫기, 필드 저장 stale fix
  */
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Users, Upload, Download, Plus, Trash2, Edit, Search, Building2, Key, X, Eye, EyeOff, Camera } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Users, Upload, Download, Plus, Trash2, Edit, Search, Building2, Key, Eye, EyeOff, Camera, Save, DoorOpen } from 'lucide-react';
 import { FixedLayout, AdminTopNav } from '@/components/layout';
+import { AdminBackToHome } from '@/components/admin/AdminBackToHome';
+import { ADMIN_HOME_PATH } from '@/lib/admin/admin-routes';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
+import { toast } from '@/hooks/useToast';
 import * as XLSX from 'xlsx';
 
 interface UserInfo {
@@ -22,7 +26,7 @@ interface UserInfo {
     phone: string;
     loginType: 'email' | 'id_pw';
     loginId?: string;
-    role: 'admin' | 'editor' | 'viewer';
+    role: 'admin' | 'manager' | 'editor' | 'viewer';
     permPfmea: 'none' | 'read' | 'write';
     permCp: 'none' | 'read' | 'write';
     permPfd: 'none' | 'read' | 'write';
@@ -51,6 +55,7 @@ const DEFAULT_USER: Omit<UserInfo, 'id'> = {
 };
 
 export default function UsersManagementPage() {
+    const router = useRouter();
     const [users, setUsers] = useState<UserInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedCustomer, setSelectedCustomer] = useState('전체');
@@ -71,56 +76,94 @@ export default function UsersManagementPage() {
     const { pos: pwPos, size: pwSize, onDragStart: pwDragStart, onResizeStart: pwResizeStart } = useFloatingWindow({ isOpen: showPwModal, width: 400, height: 300 });
     const { pos: editPos, size: editSize, onDragStart: editDragStart, onResizeStart: editResizeStart } = useFloatingWindow({ isOpen: showEditModal, width: 520, height: 600 });
 
-    useEffect(() => {
-        loadUsers();
-    }, []);
-
-    const loadUsers = async () => {
+    /** @returns 서버에서 목록을 정상 반영했으면 true */
+    const loadUsers = useCallback(async (): Promise<boolean> => {
         setLoading(true);
         try {
             const res = await fetch('/api/admin/users');
             const data = await res.json();
             if (data.success) {
                 setUsers(data.users || []);
+                return true;
             }
+            toast.warn(data.error || '사용자 목록을 불러오지 못했습니다.');
+            return false;
         } catch (err) {
             console.error('사용자 로드 실패:', err);
+            toast.error('사용자 목록을 불러오는 중 오류가 발생했습니다.');
+            return false;
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        void loadUsers();
+    }, [loadUsers]);
 
     const filteredUsers = users.filter(user => {
         const matchesCustomer = selectedCustomer === '전체' || user.customer === selectedCustomer;
-        const matchesSearch = !searchTerm ||
-            user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (user.customer || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const q = searchTerm.trim().toLowerCase();
+        const matchesSearch = !q ||
+            user.name.toLowerCase().includes(q) ||
+            user.email.toLowerCase().includes(q) ||
+            user.department.toLowerCase().includes(q) ||
+            (user.customer || '').toLowerCase().includes(q) ||
+            (user.loginId || '').toLowerCase().includes(q);
         return matchesCustomer && matchesSearch;
     });
 
-    // 인라인 편집: 사용자 필드 업데이트
-    const updateUserField = async (userId: string, field: string, value: string) => {
-        // 로컬 상태 먼저 업데이트
-        setUsers(prev => prev.map(u =>
-            u.id === userId ? { ...u, [field]: value } : u
-        ));
-
-        // 서버에 저장
+    // 인라인 편집: 사용자 필드 업데이트 (최신 병합 객체로 서버 저장 — stale closure 방지)
+    const updateUserField = useCallback(async (userId: string, field: string, value: string) => {
+        let merged: UserInfo | null = null;
+        setUsers(prev => {
+            const next = prev.map(u => {
+                if (u.id !== userId) return u;
+                merged = { ...u, [field]: value };
+                return merged;
+            });
+            return next;
+        });
+        if (!merged) return;
         try {
-            const user = users.find(u => u.id === userId);
-            if (!user) return;
-
-            await fetch('/api/admin/users', {
+            const res = await fetch('/api/admin/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user: { ...user, [field]: value } }),
+                body: JSON.stringify({ user: merged }),
             });
+            const data = await res.json();
+            if (!data.success) {
+                console.error('[사용자 필드 저장]', data.error);
+                toast.error(data.error || '저장에 실패했습니다.');
+                await loadUsers();
+            }
         } catch (err) {
             console.error('업데이트 실패:', err);
+            toast.error('네트워크 오류로 저장에 실패했습니다.');
         }
-    };
+    }, [loadUsers]);
+
+    /** 푸터 저장: 서버에서 목록 다시 불러오기 */
+    const handleToolbarSave = useCallback(async () => {
+        const ok = await loadUsers();
+        if (ok) {
+            toast.success('서버에서 최신 사용자 목록을 불러왔습니다.');
+        }
+    }, [loadUsers]);
+
+    /**
+     * 푸터 닫기: 인라인 편집 해제 후 관리 메인(/admin)으로 복귀 (항상 동일 동작)
+     */
+    const handleToolbarClose = useCallback(() => {
+        try {
+            setInlineEditMode(false);
+            router.replace(ADMIN_HOME_PATH);
+        } catch (e) {
+            console.error('[닫기]', e);
+            toast.error('화면 이동에 실패했습니다. 관리 홈으로 이동합니다.');
+            router.replace(ADMIN_HOME_PATH);
+        }
+    }, [router]);
 
     // 이미지 리사이즈 함수 (큰 이미지 자동 압축)
     const resizeImage = (file: File, maxWidth: number = 150, quality: number = 0.6): Promise<string> => {
@@ -313,7 +356,7 @@ export default function UsersManagementPage() {
             const jsonData = XLSX.utils.sheet_to_json(sheet) as any[];
 
             const importedUsers: Omit<UserInfo, 'id'>[] = jsonData.map(row => ({
-                customer: row['고객사'] || row['customer'] || '기타',
+                customer: row['회사명'] || row['고객사'] || row['customer'] || '기타',
                 name: row['이름'] || row['name'] || '',
                 email: row['이메일'] || row['email'] || '',
                 loginId: row['로그인ID'] || row['ID'] || row['loginId'] || '',
@@ -321,7 +364,7 @@ export default function UsersManagementPage() {
                 position: row['직급'] || row['position'] || '',
                 phone: row['전화번호'] || row['phone'] || '',
                 loginType: (row['로그인방식'] === '이메일' ? 'email' : 'id_pw') as 'email' | 'id_pw',
-                role: (row['역할'] || row['role'] || 'viewer') as 'admin' | 'editor' | 'viewer',
+                role: (row['역할'] || row['role'] || 'viewer') as 'admin' | 'manager' | 'editor' | 'viewer',
                 permPfmea: (row['PFMEA'] || row['permPfmea'] || 'read') as 'none' | 'read' | 'write',
                 permCp: (row['CP'] || row['permCp'] || 'read') as 'none' | 'read' | 'write',
                 permPfd: (row['PFD'] || row['permPfd'] || 'none') as 'none' | 'read' | 'write',
@@ -351,7 +394,7 @@ export default function UsersManagementPage() {
 
     const handleExcelExport = () => {
         const exportData = filteredUsers.map(user => ({
-            '고객사': user.customer || '전체',
+            '회사명': user.customer || '전체',
             '이름': user.name,
             '로그인ID': user.loginId || user.email,
             '이메일': user.email,
@@ -374,9 +417,9 @@ export default function UsersManagementPage() {
 
     const downloadSampleExcel = () => {
         const sampleData = [
-            { '고객사': '현대자동차', '이름': '홍길동', '로그인ID': 'hong123', '이메일': 'hong@company.com', '부서': '품질팀', '직급': '과장', '전화번호': '010-1234-5678', '로그인방식': 'ID/PW', '역할': 'editor', 'PFMEA': 'write', 'CP': 'write', 'PFD': 'read', '활성': '활성' },
-            { '고객사': '기아자동차', '이름': '김철수', '로그인ID': 'kimcs', '이메일': 'kim@company.com', '부서': '설계팀', '직급': '대리', '전화번호': '010-2345-6789', '로그인방식': 'ID/PW', '역할': 'viewer', 'PFMEA': 'read', 'CP': 'read', 'PFD': 'none', '활성': '활성' },
-            { '고객사': 'GM', '이름': '박영희', '로그인ID': '', '이메일': 'park@gm.com', '부서': '개발팀', '직급': '차장', '전화번호': '010-3456-7890', '로그인방식': '이메일', '역할': 'admin', 'PFMEA': 'write', 'CP': 'write', 'PFD': 'write', '활성': '활성' },
+            { '회사명': '현대자동차', '이름': '홍길동', '로그인ID': 'hong123', '이메일': 'hong@company.com', '부서': '품질팀', '직급': '과장', '전화번호': '010-1234-5678', '로그인방식': 'ID/PW', '역할': 'editor', 'PFMEA': 'write', 'CP': 'write', 'PFD': 'read', '활성': '활성' },
+            { '회사명': '기아자동차', '이름': '김철수', '로그인ID': 'kimcs', '이메일': 'kim@company.com', '부서': '설계팀', '직급': '대리', '전화번호': '010-2345-6789', '로그인방식': 'ID/PW', '역할': 'viewer', 'PFMEA': 'read', 'CP': 'read', 'PFD': 'none', '활성': '활성' },
+            { '회사명': 'GM', '이름': '박영희', '로그인ID': '', '이메일': 'park@gm.com', '부서': '개발팀', '직급': '차장', '전화번호': '010-3456-7890', '로그인방식': '이메일', '역할': 'admin', 'PFMEA': 'write', 'CP': 'write', 'PFD': 'write', '활성': '활성' },
         ];
         const ws = XLSX.utils.json_to_sheet(sampleData);
         const wb = XLSX.utils.book_new();
@@ -396,14 +439,17 @@ export default function UsersManagementPage() {
 
     return (
         <FixedLayout topNav={<AdminTopNav />} showSidebar={true}>
-            <div className="p-4">
-                <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-3 max-w-full">
+                <div className="flex flex-wrap items-start justify-between gap-3 shrink-0">
                     <div>
+                        <div className="mb-1.5">
+                            <AdminBackToHome />
+                        </div>
                         <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                             <Users className="w-6 h-6 text-blue-600" />
                             사용자 정보 관리 (ID/PW 설정)
                         </h1>
-                        <p className="text-sm text-gray-600">고객사별 사용자 계정, 비밀번호, 시스템 권한 설정</p>
+                        <p className="text-sm text-gray-600">회사명별 사용자 계정, 비밀번호, 시스템 권한 설정</p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={downloadSampleExcel} className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1">
@@ -431,7 +477,7 @@ export default function UsersManagementPage() {
                     </div>
                 </div>
 
-                <div className="flex gap-4 mb-4">
+                <div className="flex gap-4 shrink-0">
                     <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-gray-500" />
                         <select value={selectedCustomer} onChange={(e) => setSelectedCustomer(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
@@ -440,17 +486,41 @@ export default function UsersManagementPage() {
                     </div>
                     <div className="flex-1 relative">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type="text" placeholder="고객사, 이름, 이메일, 부서 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
+                        <input type="text" placeholder="회사명, 이름, 이메일, 부서, 로그인ID 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-sm" />
                     </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                    <div className="overflow-x-auto max-h-[calc(100vh-280px)]">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-100 sticky top-0">
+                {/* 목록 요약 + 저장/닫기 — 항상 테이블 위(하단 고정 금지, 가독성) */}
+                <div className="rounded-lg border border-gray-200 bg-white shadow-md flex flex-col overflow-hidden">
+                    <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-2.5 text-sm">
+                        <span className="text-gray-700">
+                            총 <strong className="text-blue-600">{filteredUsers.length}</strong>명
+                            {selectedCustomer !== '전체' && ` · 필터: ${selectedCustomer}`}
+                            {inlineEditMode && <span className="ml-2 text-orange-700 font-medium">· 인라인 편집 중</span>}
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => void handleToolbarSave()}
+                                className="inline-flex items-center gap-1 rounded-md border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-800 shadow-sm hover:bg-blue-50"
+                            >
+                                <Save className="w-3.5 h-3.5" /> 저장
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { handleToolbarClose(); }}
+                                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-100"
+                            >
+                                <DoorOpen className="w-3.5 h-3.5" /> 닫기
+                            </button>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-15.5rem)]">
+                        <table className="w-full text-sm border-collapse table-fixed">
+                            <thead className="bg-gray-100 sticky top-0 z-10">
                                 <tr>
                                     <th className="px-2 py-2 text-center font-bold text-gray-700 border-b w-12">사진</th>
-                                    <th className="px-3 py-2 text-left font-bold text-gray-700 border-b bg-blue-50">고객사</th>
+                                    <th className="px-3 py-2 text-left font-bold text-gray-700 border-b bg-blue-50 w-[10rem]">회사명</th>
                                     <th className="px-3 py-2 text-left font-bold text-gray-700 border-b">이름</th>
                                     <th className="px-3 py-2 text-left font-bold text-gray-700 border-b">ID</th>
                                     <th className="px-3 py-2 text-center font-bold text-gray-700 border-b">PW</th>
@@ -468,7 +538,7 @@ export default function UsersManagementPage() {
                                 {filteredUsers.length === 0 ? (
                                     <tr><td colSpan={14} className="px-4 py-8 text-center text-gray-500">{loading ? '로딩 중...' : '등록된 사용자가 없습니다.'}</td></tr>
                                 ) : filteredUsers.map((user) => (
-                                    <tr key={user.id} className="hover:bg-gray-50 border-b border-gray-100">
+                                    <tr key={user.id} className="hover:bg-gray-50 border-b border-gray-100 align-middle">
                                         {/* 사진 셀 */}
                                         <td className="px-2 py-1 text-center">
                                             <label className="cursor-pointer inline-block">
@@ -491,7 +561,7 @@ export default function UsersManagementPage() {
                                                 )}
                                             </label>
                                         </td>
-                                        {/* 고객사 */}
+                                        {/* 회사명 */}
                                         <td className="px-1 py-1">
                                             <input
                                                 type="text"
@@ -511,8 +581,8 @@ export default function UsersManagementPage() {
                                                 </datalist>
                                             )}
                                         </td>
-                                        <td className="px-3 py-2 font-medium text-gray-800">{user.name}</td>
-                                        <td className="px-3 py-2 text-gray-600 font-mono text-xs">{user.loginId || user.email?.split('@')[0] || '-'}</td>
+                                        <td className="px-3 py-2 font-medium text-gray-800 align-middle">{user.name}</td>
+                                        <td className="px-3 py-2 text-gray-600 font-mono text-xs align-middle whitespace-nowrap">{user.loginId || user.email?.split('@')[0] || '—'}</td>
                                         <td className="px-3 py-2 text-center">
                                             <button
                                                 onClick={() => { setSelectedUser(user); setShowPwModal(true); setNewPassword(''); }}
@@ -529,12 +599,13 @@ export default function UsersManagementPage() {
                                                     onChange={(e) => updateUserField(user.id, 'role', e.target.value)}
                                                     className="px-1 py-0.5 text-[10px] font-bold border rounded border-orange-300 bg-orange-50"
                                                 >
-                                                    <option value="admin">admin</option>
-                                                    <option value="editor">editor</option>
                                                     <option value="viewer">viewer</option>
+                                                    <option value="editor">editor</option>
+                                                    <option value="manager">manager</option>
+                                                    <option value="admin">admin</option>
                                                 </select>
                                             ) : (
-                                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${user.role === 'admin' ? 'bg-red-100 text-red-700' : user.role === 'editor' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${user.role === 'admin' ? 'bg-red-100 text-red-700' : user.role === 'manager' ? 'bg-cyan-100 text-cyan-800' : user.role === 'editor' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
                                                     {user.role}
                                                 </span>
                                             )}
@@ -557,10 +628,6 @@ export default function UsersManagementPage() {
                         </table>
                     </div>
                 </div>
-
-                <div className="mt-3 text-sm text-gray-600">
-                    총 <strong className="text-blue-600">{filteredUsers.length}</strong>명{selectedCustomer !== '전체' && ` (${selectedCustomer})`}
-                </div>
             </div>
 
             {/* 사용자 추가 모달 */}
@@ -575,7 +642,7 @@ export default function UsersManagementPage() {
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">고객사 *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">회사명 *</label>
                                     <input type="text" list="customer-list-add" value={newUser.customer} onChange={e => setNewUser({ ...newUser, customer: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="선택 또는 직접 입력" />
                                     <datalist id="customer-list-add">
                                         {CUSTOMERS.filter(c => c !== '전체').map(c => <option key={c} value={c} />)}
@@ -609,10 +676,11 @@ export default function UsersManagementPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">역할</label>
-                                    <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as any })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <select value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserInfo['role'] })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                         <option value="viewer">Viewer (읽기 전용)</option>
                                         <option value="editor">Editor (편집 가능)</option>
-                                        <option value="admin">Admin (관리자)</option>
+                                        <option value="manager">Manager (기업관리·고객사/CFT)</option>
+                                        <option value="admin">Admin (시스템관리)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -700,7 +768,7 @@ export default function UsersManagementPage() {
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">고객사 *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">회사명 *</label>
                                     <input type="text" list="customer-list-edit" value={editingUser.customer} onChange={e => setEditingUser({ ...editingUser, customer: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="선택 또는 직접 입력" />
                                     <datalist id="customer-list-edit">
                                         {CUSTOMERS.filter(c => c !== '전체').map(c => <option key={c} value={c} />)}
@@ -738,10 +806,11 @@ export default function UsersManagementPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">역할</label>
-                                    <select value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value as any })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <select value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value as UserInfo['role'] })} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                         <option value="viewer">Viewer (읽기 전용)</option>
                                         <option value="editor">Editor (편집 가능)</option>
-                                        <option value="admin">Admin (관리자)</option>
+                                        <option value="manager">Manager (기업관리·고객사/CFT)</option>
+                                        <option value="admin">Admin (시스템관리)</option>
                                     </select>
                                 </div>
                             </div>

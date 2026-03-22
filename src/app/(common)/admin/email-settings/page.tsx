@@ -8,7 +8,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Mail, Save, TestTube, Building2, Check, X, Loader2 } from 'lucide-react';
-import { FixedLayout, PFMEATopNav } from '@/components/layout';
+import { FixedLayout, AdminTopNav } from '@/components/layout';
+import { AdminBackToHome } from '@/components/admin/AdminBackToHome';
 import { useLocale } from '@/lib/locale';
 
 interface EmailConfig {
@@ -119,10 +120,13 @@ export default function EmailSettingsPage() {
     };
 
     return (
-        <FixedLayout topNav={<PFMEATopNav />} showSidebar={true}>
+        <FixedLayout topNav={<AdminTopNav />} showSidebar={true}>
             <div className="p-6 max-w-5xl mx-auto">
                 {/* 헤더 */}
                 <div className="mb-6">
+                    <div className="mb-2">
+                        <AdminBackToHome />
+                    </div>
                     <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <Mail className="w-7 h-7 text-blue-600" />
                         {t('이메일 설정')} ({t('고객사별')})

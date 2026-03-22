@@ -7,7 +7,7 @@
 'use client';
 
 import React from 'react';
-import { Users, Mail, Building2, Database, Shield, Settings, BarChart3 } from 'lucide-react';
+import { Users, Mail, Building2, Shield, Settings, ClipboardList, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { FixedLayout, AdminTopNav } from '@/components/layout';
 import { useLocale } from '@/lib/locale';
@@ -25,7 +25,7 @@ const quickLinks: QuickLinkCard[] = [
   // 사용자 정보 관리
   {
     title: '사용자 정보 관리',
-    description: '고객사별 사용자 계정, ID/PW, 권한 설정',
+    description: '회사명별 사용자 계정, ID/PW, 권한 설정',
     href: '/admin/users',
     icon: <Users className="w-8 h-8" />,
     color: 'from-blue-500 to-blue-600',
@@ -37,6 +37,22 @@ const quickLinks: QuickLinkCard[] = [
     href: '/admin/email-settings',
     icon: <Mail className="w-8 h-8" />,
     color: 'from-purple-500 to-purple-600',
+    category: '사용자 관리',
+  },
+  {
+    title: '결재 환경설정',
+    description: 'SMTP, 결재자 지정, 알림·그룹웨어',
+    href: '/admin/settings/approval',
+    icon: <CheckCircle2 className="w-8 h-8" />,
+    color: 'from-slate-600 to-slate-700',
+    category: '사용자 관리',
+  },
+  {
+    title: '권한 설정 (CSV)',
+    description: 'CSV Import/Export로 권한 일괄 편집',
+    href: '/admin/settings/users',
+    icon: <ClipboardList className="w-8 h-8" />,
+    color: 'from-cyan-600 to-cyan-700',
     category: '사용자 관리',
   },
   // 기초정보 관리
@@ -56,26 +72,9 @@ const quickLinks: QuickLinkCard[] = [
     color: 'from-teal-500 to-teal-600',
     category: '기초정보 관리',
   },
-  // DB 관리
-  {
-    title: 'DB 뷰어',
-    description: '데이터베이스 테이블 조회/검색',
-    href: '/admin/db-viewer',
-    icon: <Database className="w-8 h-8" />,
-    color: 'from-orange-500 to-orange-600',
-    category: 'DB 관리',
-  },
-  {
-    title: 'DB 통계',
-    description: '테이블별 레코드 수, 용량 확인',
-    href: '/admin/db-stats',
-    icon: <BarChart3 className="w-8 h-8" />,
-    color: 'from-red-500 to-red-600',
-    category: 'DB 관리',
-  },
 ];
 
-const categories = ['사용자 관리', '기초정보 관리', 'DB 관리'];
+const categories = ['사용자 관리', '기초정보 관리'];
 
 export default function AdminPage() {
   const { t } = useLocale();
@@ -99,7 +98,6 @@ export default function AdminPage() {
             <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
               {category === '사용자 관리' && <Users className="w-5 h-5 text-blue-600" />}
               {category === '기초정보 관리' && <Building2 className="w-5 h-5 text-green-600" />}
-              {category === 'DB 관리' && <Database className="w-5 h-5 text-orange-600" />}
               {category}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

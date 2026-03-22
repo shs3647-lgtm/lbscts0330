@@ -10,6 +10,8 @@ export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, BarChart3 } from 'lucide-react';
+import { FixedLayout, AdminTopNav } from '@/components/layout';
+import { AdminBackToHome } from '@/components/admin/AdminBackToHome';
 import { useLocale } from '@/lib/locale';
 
 interface TableStat {
@@ -50,7 +52,11 @@ export default function DBStatsPage() {
     };
 
     return (
-        <div className="p-6">
+        <FixedLayout topNav={<AdminTopNav />} showSidebar={true}>
+        <div className="p-6 max-w-6xl mx-auto">
+                <div className="mb-4">
+                    <AdminBackToHome />
+                </div>
                 {/* 헤더 */}
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -138,5 +144,6 @@ export default function DBStatsPage() {
                     </div>
                 </div>
         </div>
+        </FixedLayout>
     );
 }

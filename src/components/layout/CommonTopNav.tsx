@@ -1,9 +1,11 @@
 'use client';
 
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useLocale } from '@/lib/locale';
+import { ROLE_ADMIN, ROLE_MANAGER } from '@/lib/auth/roles';
 import { MENU_DICT } from '@/lib/locale-dict';
 import HelpSearchModal from '@/components/modals/HelpSearchModal';
 import HelpChatbot from '@/components/help/HelpChatbot';
@@ -66,6 +68,45 @@ const STAT_COLORS = {
   gray: 'text-gray-300',
 };
 
+/**
+ * FMEA 워크시트 등에서만 쿼리 파라미터(fmeaId)를 읽는다.
+ * useSearchParams()는 Next.js App Router에서 Suspense 경계 안에서만 사용해야 하므로
+ * CommonTopNav 본문과 분리한다. (React 훅 규칙: try/catch로 감싸면 안 됨)
+ */
+function PipelineVerifyNavInner() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [showVerify, setShowVerify] = useState(false);
+  const fmeaId = searchParams.get('fmeaId') || searchParams.get('id') || '';
+  const isFmeaPage = pathname?.includes('/pfmea') || pathname?.includes('/dfmea') || false;
+  if (!isFmeaPage || !fmeaId) return null;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setShowVerify(prev => !prev)}
+        className={`h-9 flex items-center gap-1 px-1.5 border-l border-white/30 transition-colors ${showVerify ? 'bg-orange-500/80 text-white' : 'text-yellow-300/90 hover:text-white hover:bg-white/10'}`}
+        title="Pipeline Verify (5단계 파이프라인 검증)"
+        data-testid="verify-pipeline-button"
+      >
+        <span className="text-[10px]">🔍</span>
+        <span className="text-[9px] font-bold hidden sm:inline">Verify</span>
+      </button>
+      {showVerify && (
+        <PipelineVerifyPanel fmeaId={fmeaId} onClose={() => setShowVerify(false)} />
+      )}
+    </div>
+  );
+}
+
+function PipelineVerifyNav() {
+  return (
+    <Suspense fallback={null}>
+      <PipelineVerifyNavInner />
+    </Suspense>
+  );
+}
+
 export default function CommonTopNav({
   title,
   menuItems,
@@ -77,19 +118,11 @@ export default function CommonTopNav({
   openNavInNewTab = false,
 }: CommonTopNavProps) {
   const pathname = usePathname();
-  let searchParams: any = null;
-  try {
-    searchParams = useSearchParams();
-  } catch (e) {
-    // SSR에서는 useSearchParams 사용 불가
-  }
   const { locale, setLocale, t } = useLocale();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [showHelpSearch, setShowHelpSearch] = useState(false);
-  const [showVerify, setShowVerify] = useState(false);
-
-  const fmeaId = searchParams ? (searchParams.get('fmeaId') || searchParams.get('id') || '') : '';
-  const isFmeaPage = pathname?.includes('/pfmea') || pathname?.includes('/dfmea') || false;
+  const [showManagerMenu, setShowManagerMenu] = useState(false);
+  const managerMenuRef = useRef<HTMLDivElement>(null);
 
   // 사용자 정보 로드
   useEffect(() => {
@@ -121,7 +154,7 @@ export default function CommonTopNav({
 
           // DB에서 최신 사진 가져오기 (백그라운드)
           try {
-            const res = await fetch(`/api/admin/users?id=${userData.id}`);
+            const res = await fetch(`/api/users?id=${encodeURIComponent(userData.id)}`);
             const data = await res.json();
             if (data.success && data.user?.photoUrl) {
               userData.photoUrl = data.user.photoUrl;
@@ -139,6 +172,17 @@ export default function CommonTopNav({
     };
     loadUser();
   }, []);
+
+  useEffect(() => {
+    if (!showManagerMenu) return;
+    const onDoc = (e: MouseEvent) => {
+      if (managerMenuRef.current && !managerMenuRef.current.contains(e.target as Node)) {
+        setShowManagerMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [showManagerMenu]);
 
   // 로그아웃
   const handleLogout = () => {
@@ -244,23 +288,8 @@ export default function CommonTopNav({
         </button>
       )} />
 
-      {/* Pipeline Verify — FMEA 페이지에서만 표시 */}
-      {isFmeaPage && fmeaId && (
-        <div className="relative">
-          <button
-            onClick={() => setShowVerify(prev => !prev)}
-            className={`h-9 flex items-center gap-1 px-1.5 border-l border-white/30 transition-colors ${showVerify ? 'bg-orange-500/80 text-white' : 'text-yellow-300/90 hover:text-white hover:bg-white/10'}`}
-            title="Pipeline Verify (5단계 파이프라인 검증)"
-            data-testid="verify-pipeline-button"
-          >
-            <span className="text-[10px]">🔍</span>
-            <span className="text-[9px] font-bold hidden sm:inline">Verify</span>
-          </button>
-          {showVerify && (
-            <PipelineVerifyPanel fmeaId={fmeaId} onClose={() => setShowVerify(false)} />
-          )}
-        </div>
-      )}
+      {/* Pipeline Verify — FMEA 페이지에서만 표시 (useSearchParams → Suspense 필수) */}
+      <PipelineVerifyNav />
 
       {/* 한/영 토글 버튼 */}
       <button
@@ -281,6 +310,39 @@ export default function CommonTopNav({
         <span className="text-[10px]">📖</span>
         <span className="text-[9px] hidden sm:inline">{t('매뉴얼')}</span>
       </button>
+
+      {/* 기업관리자(MANAGER) — 고객사·CFT (시스템관리자도 동일 메뉴 접근) */}
+      {user && (user.role === ROLE_MANAGER || user.role === ROLE_ADMIN) && (
+        <div className="relative shrink-0 border-l border-white/30" ref={managerMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowManagerMenu((v) => !v)}
+            className={`h-9 flex items-center gap-1 px-1.5 text-white/90 hover:text-white hover:bg-white/10 transition-colors ${showManagerMenu ? 'bg-white/15' : ''}`}
+            title={t('기업 관리')}
+          >
+            <span className="text-[10px]">🏢</span>
+            <span className="text-[9px] font-bold hidden sm:inline">MANAGER</span>
+          </button>
+          {showManagerMenu && (
+            <div className="absolute right-0 top-full mt-0.5 min-w-[11rem] rounded-md border border-white/20 bg-[#1a237e] shadow-xl z-[200] py-1 text-left">
+              <Link
+                href="/master/customer"
+                className="block px-3 py-2 text-[11px] text-white/95 hover:bg-white/10"
+                onClick={() => setShowManagerMenu(false)}
+              >
+                {t('고객사 관리')}
+              </Link>
+              <Link
+                href="/master/user"
+                className="block px-3 py-2 text-[11px] text-white/95 hover:bg-white/10 border-t border-white/10"
+                onClick={() => setShowManagerMenu(false)}
+              >
+                {t('CFT 관리')}
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 접속자 ID 표시 - 우측 끝 */}
       <div className="h-9 flex items-center border-l border-white/30 shrink-0 px-1.5">
@@ -303,8 +365,11 @@ export default function CommonTopNav({
               )}
               <span className="text-white/90 text-[9px]">
                 <span className="font-semibold">{user.name}</span>
-                {user.role === 'admin' && (
+                {user.role === ROLE_ADMIN && (
                   <span className="ml-0.5 px-0.5 py-0.5 bg-yellow-500 text-black text-[7px] rounded font-bold">AMP</span>
+                )}
+                {user.role === ROLE_MANAGER && (
+                  <span className="ml-0.5 px-0.5 py-0.5 bg-cyan-400 text-gray-900 text-[7px] rounded font-bold">MGR</span>
                 )}
               </span>
             </a>
