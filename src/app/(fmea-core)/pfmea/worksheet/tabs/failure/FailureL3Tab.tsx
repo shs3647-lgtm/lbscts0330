@@ -151,12 +151,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
             displayedInFunc.add(charName);
 
             const ids = charIdsByName.get(charName) || new Set<string>([String(pc.id)]);
-            // ★ 위치기반 UUID: processCharId 없을 때 l3FuncId(=processChar.id)로 폴백
-            const linked = allCauses.filter((c: any) => {
-              const pcId = String(c.processCharId || '').trim();
-              const l3FuncId = String(c.l3FuncId || '').trim();
-              return ids.has(pcId) || ids.has(l3FuncId);
-            });
+            const linked = allCauses.filter((c: any) => ids.has(String(c.processCharId || '').trim()));
             const seenNames = new Set<string>();
             const uniqueLinked = linked.filter((c: any) => {
               const n = String(c?.name || '').trim();

@@ -185,6 +185,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 11. CREATE FailureCauses
+      // ★ processCharId = l3FuncId: 위치기반에서 L3Function.id = processChar.id (B3 공정특성 FK)
       if (atomicData.failureCauses.length > 0) {
         await tx.failureCause.createMany({
           data: atomicData.failureCauses.map(fc => ({
@@ -193,6 +194,7 @@ export async function POST(request: NextRequest) {
             l3FuncId: fc.l3FuncId,
             l3StructId: fc.l3StructId,
             l2StructId: fc.l2StructId,
+            processCharId: fc.l3FuncId || null, // ★ FK 재매핑: processCharId = l3FuncId
             cause: fc.cause,
           })),
         });
