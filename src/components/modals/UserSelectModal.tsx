@@ -10,7 +10,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale } from '@/lib/locale';
 import { UserInfo } from '@/types/user';
-import { getAllUsers } from '@/lib/user-db';
+import { getAllUsers, createUser, deleteUser } from '@/lib/user-db';
 
 interface UserSelectModalProps {
   isOpen: boolean;
@@ -34,6 +34,8 @@ export function UserSelectModal({
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newUser, setNewUser] = useState({ factory: '', department: '', name: '', position: '', remark: '' });
 
   // 드래그 & 리사이즈 상태
   const DEFAULT_W = 520;
@@ -121,6 +123,46 @@ export function UserSelectModal({
     onClose();
   };
 
+  const reloadUsers = useCallback(() => {
+    getAllUsers().then(setUsers);
+  }, []);
+
+  const handleAddUser = async () => {
+    if (!newUser.name.trim()) { alert('성명을 입력해주세요.'); return; }
+    try {
+      await createUser({
+        factory: newUser.factory.trim() || '-',
+        department: newUser.department.trim() || '-',
+        name: newUser.name.trim(),
+        position: newUser.position.trim() || '-',
+        phone: '',
+        email: '',
+        remark: newUser.remark.trim() || '',
+      });
+      setNewUser({ factory: '', department: '', name: '', position: '', remark: '' });
+      setIsAdding(false);
+      reloadUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '사용자 추가 실패';
+      alert(msg);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUserId) { alert('삭제할 사용자를 선택해주세요.'); return; }
+    const user = users.find(u => u.id === selectedUserId);
+    if (!user) return;
+    if (!confirm(`"${user.name}" 사용자를 삭제하시겠습니까?`)) return;
+    try {
+      await deleteUser(selectedUserId);
+      setSelectedUserId(null);
+      reloadUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '사용자 삭제 실패';
+      alert(msg);
+    }
+  };
+
   // ✅ 2026-01-22: Portal을 사용하여 레이아웃 영향 방지
   if (typeof document === 'undefined') return null;
 
@@ -164,26 +206,46 @@ export function UserSelectModal({
           />
         </div>
 
-        {/* 안내 메시지 + 선택 적용 버튼 */}
+        {/* 안내 메시지 + 버튼 영역 */}
         <div className="flex items-center justify-between px-3 py-1 bg-amber-50 border-b border-amber-200">
           <p className="text-[10px] text-amber-700">
             클릭(Click) → 선택(Select) | 더블클릭(DblClick) → 즉시 적용(Apply)
           </p>
-          <button
-            onClick={() => {
-              if (!selectedUserId) { alert('선택된 사용자가 없습니다(No user selected).'); return; }
-              const user = users.find(u => u.id === selectedUserId);
-              if (user) handleSelect(user);
-            }}
-            disabled={!selectedUserId}
-            title="Apply Selection"
-            className={`px-2 py-0.5 text-[9px] font-semibold rounded ${selectedUserId
-              ? 'bg-blue-500 text-white hover:bg-blue-600'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-          >
-            ✓ 적용<span className="text-[7px] opacity-70 ml-0.5">(Apply)</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { setIsAdding(v => !v); setNewUser({ factory: '', department: '', name: '', position: '', remark: '' }); }}
+              title="사용자 추가(Add)"
+              className={`px-2 py-0.5 text-[9px] font-semibold rounded ${isAdding ? 'bg-orange-500 text-white' : 'bg-green-500 text-white hover:bg-green-600'}`}
+            >
+              {isAdding ? '취소' : '+ 추가'}
+            </button>
+            <button
+              onClick={handleDeleteUser}
+              disabled={!selectedUserId}
+              title="사용자 삭제(Delete)"
+              className={`px-2 py-0.5 text-[9px] font-semibold rounded ${selectedUserId
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+            >
+              - 삭제
+            </button>
+            <button
+              onClick={() => {
+                if (!selectedUserId) { alert('선택된 사용자가 없습니다(No user selected).'); return; }
+                const user = users.find(u => u.id === selectedUserId);
+                if (user) handleSelect(user);
+              }}
+              disabled={!selectedUserId}
+              title="Apply Selection"
+              className={`px-2 py-0.5 text-[9px] font-semibold rounded ${selectedUserId
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+            >
+              ✓ 적용<span className="text-[7px] opacity-70 ml-0.5">(Apply)</span>
+            </button>
+          </div>
         </div>
 
         {/* 테이블 */}
@@ -204,6 +266,23 @@ export function UserSelectModal({
                 </tr>
               </thead>
               <tbody>
+                {isAdding && (
+                  <tr className="bg-green-50">
+                    {(['factory', 'department', 'name', 'position', 'remark'] as const).map(field => (
+                      <td key={field} className="border border-gray-300 px-0.5 py-0.5">
+                        <input
+                          type="text"
+                          value={newUser[field]}
+                          onChange={e => setNewUser(prev => ({ ...prev, [field]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddUser(); if (e.key === 'Escape') setIsAdding(false); }}
+                          placeholder={field === 'factory' ? '공장' : field === 'department' ? '부서' : field === 'name' ? '성명*' : field === 'position' ? '직급' : '비고'}
+                          className={`w-full px-1 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-green-400 ${field === 'name' ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}
+                          autoFocus={field === 'factory'}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                )}
                 {filteredUsers.map((user, index) => (
                   <tr
                     key={user.id}
