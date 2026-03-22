@@ -979,21 +979,21 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
           </div>
         )}
 
-        {/* 헤더 — 2행 바둑판 레이아웃 */}
-        <div style={{ ...rightHeaderStyle, flexDirection: 'column', gap: 0, padding: '2px 4px' }}>
-        {/* 1행: 연결현황 배지 | 고장수정 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', width: '100%', paddingBottom: '2px', borderBottom: '1px solid #ddd', gap: 6 }}>
+        {/* 헤더 — 2행 바둑판 레이아웃 (양쪽 정렬) */}
+        <div style={{ ...rightHeaderStyle, flexDirection: 'column', gap: 0, padding: '3px 4px' }}>
+        {/* 1행: 배지(좌) + 고장수정(우) — space-between */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingBottom: '3px', borderBottom: '1px solid #ddd' }}>
           <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-            <span style={{ fontSize: 9, color: '#999', fontWeight: 600 }}>연결현황</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 3, padding: '1px 6px' }}>FE:{linkStats.feLinkedCount}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#e65100', background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: 3, padding: '1px 6px' }}>FM:{linkStats.fmLinkedCount}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '1px 6px' }}>FC:{linkStats.fcLinkedCount}</span>
-            {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '1px 6px' }}>Miss:{totalMissingCount}</span>}
+            <span style={{ fontSize: 9, color: '#999', fontWeight: 600, marginRight: 1 }}>연결현황</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 3, padding: '2px 6px' }}>FE:{linkStats.feLinkedCount}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#e65100', background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: 3, padding: '2px 6px' }}>FM:{linkStats.fmLinkedCount}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '2px 6px' }}>FC:{linkStats.fcLinkedCount}</span>
+            {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '2px 6px' }}>Miss:{totalMissingCount}</span>}
           </div>
           <button onClick={() => setViewMode('result')} style={{ padding: '2px 10px', fontSize: 10, fontWeight: 700, border: '1px solid #7b1fa2', borderRadius: 3, cursor: 'pointer', background: '#7b1fa2', color: '#fff', whiteSpace: 'nowrap' }} title="고장사슬 FE/FM/FC 수동 연결·조정">✏️ 고장수정</button>
         </div>
-        {/* 2행: 액션 버튼 */}
-        <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'nowrap', width: '100%', paddingTop: '2px' }}>
+        {/* 2행: 액션 버튼 (space-between) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingTop: '3px' }}>
           {/* Confirm / Re-Confirm */}
           <button
             onClick={confirmLink}
