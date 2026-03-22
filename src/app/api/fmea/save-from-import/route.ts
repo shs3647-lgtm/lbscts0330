@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
 
     // 1.5. supplementMissingItems 삭제됨 (2026-03-22) — flatData 직접 사용
     const enrichedFlatData = flatData;
+    const chainsArray = Array.isArray(failureChains) && failureChains.length > 0
+      ? failureChains : [];
 
     // 1.7. ★ 파싱 검증→자동수정→피드백 파이프라인 실행
     const { runParseValidationPipeline, formatValidationReport } = await import(

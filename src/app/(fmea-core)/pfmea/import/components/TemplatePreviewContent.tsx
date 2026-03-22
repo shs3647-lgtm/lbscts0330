@@ -32,7 +32,7 @@ import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integr
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
 // supplementMissingItems 삭제됨 (2026-03-22) — no-op 대체
-const supplementMissingItems = (flatData: any[]) => flatData;
+const supplementMissingItems = (flatData: any[], ..._args: any[]) => [] as any[];
 import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
 
 // ─── Props ───

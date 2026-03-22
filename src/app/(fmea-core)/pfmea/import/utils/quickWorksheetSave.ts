@@ -15,7 +15,7 @@ import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import type { CrossTab } from './template-delete-logic';
 // supplementMissingItems 삭제됨 (2026-03-22)
-const supplementMissingItems = (flatData: any[]) => flatData;
+const supplementMissingItems = (_flatData: any[], ..._args: any[]) => [] as any[];
 
 export interface QuickSaveParams {
   fmeaId: string;

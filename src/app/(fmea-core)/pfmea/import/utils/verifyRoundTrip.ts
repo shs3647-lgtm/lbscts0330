@@ -14,7 +14,8 @@ import type {
 import type {
   WorksheetState,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
-import type { IdRemapTable } from './atomicToFlatData';
+// atomicToFlatData 삭제됨 (2026-03-22)
+type IdRemapTable = Record<string, Map<string, string>>;
 
 // ─── 결과 타입 ───
 

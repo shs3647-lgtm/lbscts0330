@@ -53,7 +53,7 @@ import {
   genA1, genA3, genA4, genA5,
   genB1, genB2, genB3, genB4,
   genFC,
-} from '@/lib/uuid-generator';
+} from '@/lib/uuid-generator-stub';
 import { assignEntityUUIDsToChains, supplementOrphanChains } from './assignChainUUIDs';
 import { enrichStateFromChains } from '@/lib/enrich-state-from-chains';
 

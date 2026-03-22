@@ -202,8 +202,9 @@ export function useImportFileHandlers({
         );
       }
 
-      // ★★★ 2026-03-22: import-builder 제거됨 → ParseResult.flatData 직접 사용 ★★★
-      const flat: ImportedFlatData[] = [...(result.flatData || [])];
+      // ★★★ 2026-03-22: import-builder 제거됨 → 레거시 경로에서 flatData 생성 불가
+      // 위치기반 5시트 Import를 사용하세요. 레거시 2시트 경로는 deprecated.
+      const flat: ImportedFlatData[] = [];
       const chains = result.failureChains;
       if (chains && chains.length > 0) {
         setMasterChains?.(chains);
