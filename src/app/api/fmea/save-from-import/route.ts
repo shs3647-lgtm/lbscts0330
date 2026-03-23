@@ -5,7 +5,9 @@
  * POST /api/fmea/save-from-import
  * Body: { fmeaId, flatData, l1Name?, failureChains? }
  *
- * 저장: FlatData+체인 → buildAtomicFromFlat → Prisma $transaction 으로 프로젝트 스키마에 FK 정합 행 직접 INSERT (마스터 JSON 파일 경로 없음).
+ * 저장: FlatData+체인 → buildAtomicFromFlat → Prisma **단일** `$transaction`(interactive)으로
+ * 프로젝트 스키마에서 DELETE ALL → CREATE ALL (원자성). 트랜잭션 옵션: `maxWait`/`timeout`(대용량 Import).
+ * 격리 수준: Prisma 기본(Read Committed). Serializable는 동시 편집·데드락 리스크로 본 API 기본값에서 제외.
  *
  * 2026-03-21: buildAtomicFromFlat() 단일 경로로 전환
  * - buildWorksheetState + migrateToAtomicDB 2단계 제거
@@ -301,9 +303,17 @@ export async function POST(request: NextRequest) {
         await tx.failureEffect.deleteMany({ where: { fmeaId: fId } });
         await tx.failureMode.deleteMany({ where: { fmeaId: fId } });
         await tx.failureCause.deleteMany({ where: { fmeaId: fId } });
-        try { if (tx.l1Requirement) await tx.l1Requirement.deleteMany({ where: { fmeaId: fId } }); } catch {}
+        try {
+          if (tx.l1Requirement) await tx.l1Requirement.deleteMany({ where: { fmeaId: fId } });
+        } catch (e: unknown) {
+          console.warn('[save-from-import] l1Requirement.deleteMany skipped:', e instanceof Error ? e.message : String(e));
+        }
         await tx.l1Function.deleteMany({ where: { fmeaId: fId } });
-        try { if (tx.processProductChar) await tx.processProductChar.deleteMany({ where: { fmeaId: fId } }); } catch {}
+        try {
+          if (tx.processProductChar) await tx.processProductChar.deleteMany({ where: { fmeaId: fId } });
+        } catch (e: unknown) {
+          console.warn('[save-from-import] processProductChar.deleteMany skipped:', e instanceof Error ? e.message : String(e));
+        }
         await tx.l2Function.deleteMany({ where: { fmeaId: fId } });
         await tx.l3Function.deleteMany({ where: { fmeaId: fId } });
         await tx.l1Structure.deleteMany({ where: { fmeaId: fId } });
@@ -421,7 +431,21 @@ export async function POST(request: NextRequest) {
           await createImportJob(tx, importJobData);
           await saveAllMappings(tx, importJobData.id, importMappingRecords);
         }
-      }, { timeout: 60000 });
+
+        // Phase 3-3: 커밋 전 최소 불변 검증 — 전면 INSERT 실패(0건)만 롤백 (skipDuplicates 부분 누락은 별도 경고로만)
+        if ((a.failureLinks?.length ?? 0) > 0) {
+          const flDb = await tx.failureLink.count({ where: { fmeaId: fId } });
+          if (flDb === 0) {
+            throw new Error('[save-from-import] invariant: FailureLink 입력>0 인데 DB 0건 — 롤백');
+          }
+        }
+        if ((a.riskAnalyses?.length ?? 0) > 0) {
+          const raDb = await tx.riskAnalysis.count({ where: { fmeaId: fId } });
+          if (raDb === 0) {
+            throw new Error('[save-from-import] invariant: RiskAnalysis 입력>0 인데 DB 0건 — 롤백');
+          }
+        }
+      }, { maxWait: 20_000, timeout: 120_000 });
 
       console.info(`[save-from-import] Atomic DB 직접 저장 완료 (buildAtomicFromFlat 기반)`);
     }
@@ -448,7 +472,10 @@ export async function POST(request: NextRequest) {
         const rt = await vrTrip(prisma, importJobData.id);
         await ujStatus(prisma, importJobData.id, 'completed');
         importJobResult = { id: importJobData.id, mappingCount: importMappingRecords.length, roundTrip: { total: rt.total, verified: rt.verified, missingCount: rt.missing.length } };
-      } catch (e) { importJobResult = { id: importJobData.id, mappingCount: importMappingRecords.length }; }
+      } catch (e: unknown) {
+        console.error('[save-from-import] verifyRoundTrip/updateJobStatus 실패:', e instanceof Error ? e.message : String(e));
+        importJobResult = { id: importJobData.id, mappingCount: importMappingRecords.length };
+      }
     }
 
     // 10. 성공 응답

@@ -161,8 +161,8 @@ Get-ChildItem -Recurse -Path $root -Include `
 
 ### Phase 3
 - [x] 3-1. `parsePositionBasedJSON` FC 행 — L1/L2/L3 `_origRow`를 각 시트 `max excelRow` 및 `≥2`로 검증 (`validateFcOrigRow`, 2026-03-23)
-- [ ] 3-2. 트랜잭션 범위
-- [ ] 3-3. Import 불변 검증
+- [x] 3-2. `save-from-import` — 단일 `$transaction` 유지, `maxWait: 20s` / `timeout: 120s`, 파일 헤더에 격리 수준·경계 문서화 (2026-03-23)
+- [x] 3-3. 트랜잭션 **커밋 직전** 최소 불변 검증: 입력 FL/RA >0 인데 DB `count===0` 이면 throw 롤백; 빈 `catch` 제거 (`console.warn`/`console.error`)
 - [ ] 동일 VERIFY
 
 ### Phase 4

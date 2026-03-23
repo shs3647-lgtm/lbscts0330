@@ -3,8 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const captured: { chains: any[] | null; flatData: any[] | null } = { chains: null, flatData: null };
 
 const tx = {
-  riskAnalysis: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 1 })) },
-  failureLink: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 1 })) },
+  riskAnalysis: {
+    deleteMany: vi.fn(async () => ({ count: 0 })),
+    createMany: vi.fn(async () => ({ count: 1 })),
+    count: vi.fn(async () => 1),
+  },
+  failureLink: {
+    deleteMany: vi.fn(async () => ({ count: 0 })),
+    createMany: vi.fn(async () => ({ count: 1 })),
+    count: vi.fn(async () => 1),
+  },
   failureAnalysis: { deleteMany: vi.fn(async () => ({ count: 0 })) },
   failureEffect: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 1 })) },
   failureMode: { deleteMany: vi.fn(async () => ({ count: 0 })), createMany: vi.fn(async () => ({ count: 1 })) },
