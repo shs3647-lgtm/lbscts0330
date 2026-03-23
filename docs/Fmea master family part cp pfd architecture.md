@@ -1,7 +1,7 @@
 # FMEA 계층 구조 + CP/PFD 연동 아키텍처
 
 > **작성일**: 2026-03-23  
-> **최종 확정**: 2026-03-23 — Master 포함 **모든 PFMEA 행 데이터**는 `pfmea_{fmeaId}` 프로젝트 스키마에 저장  
+> **최종 확정**: 2026-03-22 — Master 포함 **모든 PFMEA 행 데이터**는 `pfmea_{fmeaId}` 프로젝트 스키마에 저장 (§6.4 검증 레퍼런스 2026-03-22 보강)  
 > **목적**: Master/Family/Part FMEA 계층과 CP/PFD 연동 방식 확정  
 > **핵심**: **Master(M001)도 Family/Part와 동일하게 `pfmea_m001` 패턴**. public은 프로젝트 목록·등록정보·사용자 등 **메타 전용**. CP/PFD 행은 **항상 FMEA와 동일 프로젝트 스키마**.
 
@@ -413,6 +413,12 @@ Family에 복사 시: 새 UUID 부여 (Family 자체 위치 기반)
 - Import 시 **엑셀 물리 행(1-based)** 을 **기준행**으로 삼아 L1/L2/L3 각 시트에서 행 단위로 엔티티를 생성·등록한다.
 - **FC(고장사슬) 시트**는 L1/L2/L3 본문을 다시 텍스트 매칭하지 않고, `L1원본행` / `L2원본행` / `L3원본행`에 적힌 기준행 번호만으로 FE–FM–FC **상호관계(FailureLink)** 를 연결한다.
 - 즉 FC의 역할은 **“어느 행의 FE·FM·FC를 한 체인으로 묶을지”** 를 행 포인터로만 지정하는 것이다.
+
+**저장·검증 (개발 레퍼런스):**
+
+- 위치기반 파서 산출물 → DB: `POST /api/fmea/save-position-import` — `risk_analyses` 행은 **`linkId`**(FailureLink FK)와 **`fmId` / `fcId` / `feId`**(EX-06)를 함께 저장한다. (타입상 E-22 `parentId`는 FL id와 동일 의미이나 Prisma 스키마에는 `linkId`만 존재.)
+- 회귀(DB 불필요): `npm run test:import-slice` — 가드·`save-from-import`·`position-parser`. Import 반영 후: `npm run verify:pipeline-baseline` (대상 `fmeaId` Atomic 존재 전제).
+- 상세: `docs/MAINTENANCE_MANUAL.md` §2.2·§2.5, `docs/SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md`.
 
 ---
 

@@ -143,7 +143,7 @@ Get-ChildItem -Recurse -Path $root -Include `
 
 - 본 리포는 **코드프리즈 태그/CODEFREEZE 변경에 사용자 서면 승인**이 필요할 수 있음 (`CLAUDE.md` / 프로젝트 규칙).
 - 권장: `OPTIMIZE: …` 커밋 → 검증 로그 첨부 → 승인 후 annotated tag.
-- **적용됨 (2026-03-22, 사용자 승인):** annotated tag `import-pipeline-phase4-2026-03-22` → 커밋 `OPTIMIZE: import pipeline phase1-3 + save-position-import RA EX-06 (Phase 4 user-approved)`.
+- **적용됨 (2026-03-22, 사용자 승인):** annotated tag `import-pipeline-phase4-2026-03-22` — **최신으로 재지정 시** `chore: test:import-slice` 커밋까지 포함(스냅샷). 최초 승인 커밋: `OPTIMIZE: import pipeline phase1-3 + save-position-import RA EX-06 (Phase 4 user-approved)`.
 
 ---
 
