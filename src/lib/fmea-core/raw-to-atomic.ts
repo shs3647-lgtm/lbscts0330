@@ -192,7 +192,7 @@ export async function saveAtomicFromPosition(
             fmeaId: normalizedId,
             l1StructId: r.l1StructId,
             l1FuncId: r.l1FuncId,
-            
+            parentId: r.parentId || null,
             requirement: r.requirement,
             orderIndex: r.orderIndex,
           })),
@@ -306,8 +306,8 @@ export async function saveAtomicFromPosition(
             productCharId: fm.productCharId,
             mode: fm.mode,
             parentId: fm.parentId || null,
-            
-            
+            feRefs: fm.feRefs || [],
+            fcRefs: fm.fcRefs || [],
           })),
         });
       }
@@ -451,8 +451,8 @@ export async function saveAtomicFromPosition(
             fmId: fl.fmId,
             feId: fl.feId,
             fcId: fl.fcId,
-            
-            
+            l2StructId: fl.l2StructId || null,
+            l3StructId: fl.l3StructId || null,
             fmText: fl.fmText,
             feText: fl.feText,
             fcText: fl.fcText,
