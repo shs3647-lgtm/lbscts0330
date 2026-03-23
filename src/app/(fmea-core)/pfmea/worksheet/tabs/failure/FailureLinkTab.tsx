@@ -354,11 +354,23 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     linkStats,
   });
 
-  // ========== ✅ 탭 진입 시 누락 FM 자동 고장매칭 — 비활성화 (수동 버튼으로만 실행) ==========
-  // ★★★ 2026-03-12 FIX: 대량 데이터(FM 152건+) 시 브라우저 멈춤 방지 — 고장매칭 버튼 수동 실행으로 변경 ★★★
+  // ========== ✅ 탭 진입 시 누락 FM+FC 자동 고장매칭 — 활성화 (★ 2026-03-24) ==========
+  // 조건: savedLinks 로드 완료(isInitialLoad=false) + 누락 존재 + 1회만
   useEffect(() => {
-    return;
-  }, [fmData.length, feData.length, fcData.length, missingFMs.length, savedLinks.length, handleAutoMatchMissing, state]);
+    if (isInitialLoad.current) return;           // 아직 초기 로드 전
+    if (autoMatchDoneRef.current) return;        // 이미 실행됨
+    if (missingFMs.length === 0 && missingFCs.length === 0) {
+      autoMatchDoneRef.current = true;
+      return;
+    }
+    autoMatchDoneRef.current = true;
+    setIsMatching(true);
+    setTimeout(async () => {
+      try { await handleAutoMatchMissing(); }
+      finally { setIsMatching(false); }
+    }, 200);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fmData.length, fcData.length, missingFMs.length, missingFCs.length, savedLinks.length]);
 
   // ========== ✅ 고아(Orphan) 감지 ==========
   const orphanIds = useMemo(() => {
