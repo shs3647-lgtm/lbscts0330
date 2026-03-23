@@ -37,6 +37,7 @@ import { buildFailureAnalyses } from './utils/failure-analysis-builder';
 import { calculateAP } from './tabs/all/apCalculator';
 import type { RiskAnalysis } from './schema';
 import { SCOPE_LABEL_EN, SCOPE_YP, normalizeScope } from '@/lib/fmea/scope-constants';
+import { pickLegacyFcProcessCharId } from './atomicToLegacyAdapter';
 
 // Re-export for external use
 export { getLinkedDataByFK, linkFunctionToStructure, linkFailureToFunction };
@@ -833,6 +834,7 @@ export function convertToLegacyFormat(db: FMEAWorksheetDB): OldWorksheetData {
   });
   
   // L2/L3 구조 → 중첩 구조로 변환
+  const validL3FuncIds = new Set(db.l3Functions.map(f => f.id));
   db.l2Structures.forEach(l2 => {
     const procObj: OldProcess = {
       id: l2.id,
@@ -920,7 +922,7 @@ export function convertToLegacyFormat(db: FMEAWorksheetDB): OldWorksheetData {
       id: fc.id,
       name: fc.cause,
       occurrence: fc.occurrence,
-      processCharId: fc.processCharId || fc.l3FuncId || '', // ✅ l3FuncId fallback (FC 누락 방지)
+      processCharId: pickLegacyFcProcessCharId(fc, validL3FuncIds),
     }));
     
     result.l2.push(procObj);

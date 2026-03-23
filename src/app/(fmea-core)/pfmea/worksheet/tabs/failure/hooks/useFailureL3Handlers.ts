@@ -2,6 +2,11 @@
 /**
  * @file useFailureL3Handlers.ts
  * @description FailureL3Tab의 핸들러 로직 분리
+ *
+ * ⚠️ AI / 유지보수 주의 (2026-03-23)
+ * - `l3FailureCause` 저장 시 **동일 공정특성명**이 여러 B3 id로 존재할 수 있음 → `targetCharId`는 **모달의 processCharId** 우선.
+ * - 공정 내 이름만 보고 **canonical id 하나로 몰아넣기** 금지(과거 버그). 다른 WE·다른 B3는 별개 FK.
+ * - 아래 “다른 공정 자동연결” 블록은 **이름** 기준 편의 기능이므로, 동일 공정 내 복수 B3와 혼동하지 말 것.
  */
 
 import { useCallback, useState } from 'react';
@@ -134,12 +139,17 @@ export function useFailureL3Handlers({
           );
           const matchingChars = currentCharName ? allChars.filter((c: any) => String(c?.name || '').trim() === currentCharName) : [];
           const matchingIds = new Set<string>(matchingChars.map((c: any) => String(c?.id || '').trim()).filter(Boolean));
-          const canonicalCharId = matchingIds.size > 0
-            ? Array.from(matchingIds).sort((a: string, b: string) => a.localeCompare(b))[0]
-            : String(processCharId || '').trim();
+          const requestedId = String(processCharId || '').trim();
+          // ★ 동일 공정특성명 복수 행: 모달에서 연 공정특성 id를 우선 사용 (이름만으로 canonical 합치기 금지)
+          // ⚠️ AI주의: `matchingIds`의 “첫 id” 폴백은 **모달에 processCharId가 없을 때만**. 있으면 반드시 그 행에만 저장.
+          const targetCharId =
+            requestedId && matchingIds.has(requestedId)
+              ? requestedId
+              : matchingIds.size > 0
+                ? Array.from(matchingIds).sort((a: string, b: string) => a.localeCompare(b))[0]
+                : requestedId;
 
-          // processCharId가 비어있으면 고장원인 저장 불가
-          if (!canonicalCharId) {
+          if (!targetCharId) {
             return proc;
           }
 
@@ -147,7 +157,7 @@ export function useFailureL3Handlers({
             if (selectedValues.length === 0) {
               // ★ 방어: failureCauses 배열이 완전히 비는 것 방지
               const filtered = currentCauses.filter((c: any) => c.id !== causeId);
-              return { ...proc, failureCauses: ensurePlaceholder(filtered, () => ({ id: uid(), name: '', processCharId: canonicalCharId }), 'L3 failureCauses') };
+              return { ...proc, failureCauses: ensurePlaceholder(filtered, () => ({ id: uid(), name: '', processCharId: targetCharId }), 'L3 failureCauses') };
             }
             return {
               ...proc,
@@ -159,9 +169,7 @@ export function useFailureL3Handlers({
           
           const otherCauses = currentCauses.filter((c: any) => {
             const pid = String(c?.processCharId || '').trim();
-            if (!pid) return true;
-            if (matchingIds.size === 0) return pid !== String(processCharId || '').trim();
-            return !matchingIds.has(pid);
+            return pid !== targetCharId;
           });
           
           const charName = modal.processCharName || '';
@@ -173,7 +181,7 @@ export function useFailureL3Handlers({
           
           const newCauses = selectedValues.map(val => {
             const existing = currentCauses.find((c: any) => 
-              String(c.processCharId || '').trim() === canonicalCharId && c.name === val
+              String(c.processCharId || '').trim() === targetCharId && c.name === val
             );
             
             return existing || { 
@@ -181,7 +189,7 @@ export function useFailureL3Handlers({
               name: val, 
               occurrence: undefined,
               sc: autoSC,
-              processCharId: canonicalCharId
+              processCharId: targetCharId
             };
           });
           
@@ -191,7 +199,8 @@ export function useFailureL3Handlers({
           };
         });
         
-        // 자동연결: 동일한 공정특성 이름을 가진 다른 공정에도 추가
+        // 자동연결: 동일한 공정특성 이름을 가진 **다른 공정**에도 추가 (편의 기능)
+        // ⚠️ AI주의: 이 블록은 “타 공정”만 대상. 동일 공정 내 복수 B3/WE는 `targetCharId` 로직으로 처리 — 여기서 이름으로 공정 내 병합 추가 금지.
         const currentCharName = String(modal.processCharName || '').trim();
         if (currentCharName && selectedValues.length > 0) {
           const autoLinkResult: string[] = [];

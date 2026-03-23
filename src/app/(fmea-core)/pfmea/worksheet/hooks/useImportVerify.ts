@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { buildFailureChainsFromFlat } from '@/app/(fmea-core)/pfmea/import/types/masterFailureChain';
+import { isMeaningfulL3 } from '@/app/(fmea-core)/pfmea/worksheet/tabs/function/functionL3Utils';
 
 export interface ImportCounts {
   processCount: number;
@@ -58,14 +59,15 @@ export interface FlatItem {
   m4?: string;
 }
 
+/** ⚠️ AI주의: B2/B3는 `pno|값` Set이 아니라 **flat 행 수**로 집계(동일 텍스트 복수 행 반영). Set으로 바꾸면 Import vs 워크시트 불일치 재발. */
 function computeImportCounts(flatItems: FlatItem[]): ImportCounts {
   const processes = new Set<string>();
   const l3s = new Set<string>();         // B1 작업요소
   const l1Funcs = new Set<string>();     // C2 1L기능
   const l2Funcs = new Set<string>();     // A3 2L기능
   const productChars = new Set<string>();// A4 제품특성
-  const l3Funcs = new Set<string>();     // B2 3L기능
-  const processChars = new Set<string>();// B3 공정특성
+  let l3FuncRowCount = 0;                // B2 행 수 (동일명 복수 행 포함)
+  let processCharRowCount = 0;           // B3 행 수 (동일명 복수 행 포함)
   const fms = new Set<string>();         // A5 고장형태
   const fcs = new Set<string>();         // B4 고장원인
   const fes = new Set<string>();         // C4 고장영향
@@ -88,8 +90,14 @@ function computeImportCounts(flatItems: FlatItem[]): ImportCounts {
       case 'C2': l1Funcs.add(val); break;
       case 'A3': l2Funcs.add(`${pno}|${val}`); break;
       case 'A4': productChars.add(`${pno}|${val}`); break;
-      case 'B2': l3Funcs.add(`${pno}|${val}`); break;
-      case 'B3': processChars.add(`${pno}|${val}`); break;
+      case 'B2':
+        if (isMeaningfulL3(val)) l3FuncRowCount++;
+        break;
+      case 'B3':
+        if (isMeaningfulL3(val)) {
+          processCharRowCount++;
+        }
+        break;
       case 'A5': fms.add(`${pno}|${val}`); break;
       case 'B4': fcs.add(`${pno}|${val}`); break;
       case 'C4': fes.add(val); break;
@@ -102,8 +110,8 @@ function computeImportCounts(flatItems: FlatItem[]): ImportCounts {
     l1FuncCount: l1Funcs.size,
     l2FuncCount: l2Funcs.size,
     productCharCount: productChars.size,
-    l3FuncCount: l3Funcs.size,
-    processCharCount: processChars.size,
+    l3FuncCount: l3FuncRowCount,
+    processCharCount: processCharRowCount,
     fmCount: fms.size,
     fcCount: fcs.size,
     feCount: fes.size,

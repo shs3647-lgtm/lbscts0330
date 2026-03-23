@@ -32,8 +32,7 @@ import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integr
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
 import { useImportVerification } from '../hooks/useImportVerification';
-// supplementMissingItems 삭제됨 (2026-03-22) — no-op 대체
-const supplementMissingItems = (flatData: any[], ..._args: any[]) => [] as any[];
+import { supplementMissingItems } from '../utils/supplementMissingItems';
 import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
 
 // ─── Props ───
@@ -279,35 +278,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅
   const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(fmeaId, flatData, uuidCounts);
-
-  // ── ★ 항목별 PASS/FAIL/WARN 판정 ──
-  // FAIL(빨강): rawCount === 0 이면서 필수 항목
-  // WARN(노랑): rawCount > 0 이지만 FK 오류 있거나 선택 항목이 0
-  // PASS(초록): rawCount > 0 이고 FK 이상 없음
-  const REQUIRED_ZERO_FAIL = new Set(['A1','A2','A5','B1','B2','B4','C2','C4']);
-  const WARN_ZERO = new Set(['A3','A4','A6','B3','B5','C1','C3']);
-  const getItemStatus = (code: string, rawCount: number): 'PASS' | 'WARN' | 'FAIL' => {
-    if (rawCount === 0) return REQUIRED_ZERO_FAIL.has(code) ? 'FAIL' : 'WARN';
-    const fk = fkData?.[code];
-    if (fk && fk.status !== 'na' && fk.orphans > 0) return 'WARN';
-    return 'PASS';
-  };
-  // 레벨별 전체 상태
-  const getLevelStatus = (codes: string[]): 'PASS' | 'WARN' | 'FAIL' => {
-    const statuses = codes.map(c => {
-      const s = effectiveStatistics?.itemStats.find(i => i.itemCode === c);
-      return getItemStatus(c, s?.rawCount ?? 0);
-    });
-    if (statuses.includes('FAIL')) return 'FAIL';
-    if (statuses.includes('WARN')) return 'WARN';
-    return 'PASS';
-  };
-  const L1_CODES = ['C1','C2','C3','C4'];
-  const L2_CODES = ['A1','A2','A3','A4','A5','A6'];
-  const L3_CODES = ['B1','B2','B3','B4','B5'];
-  const l1Status = getLevelStatus(L1_CODES);
-  const l2Status = getLevelStatus(L2_CODES);
-  const l3Status = getLevelStatus(L3_CODES);
 
   // ── ★ 2026-03-15: 누락 항목코드 자동 보충 (A1-A3, B1-B2, C1-C4) ──
   const supplementedRef = useRef(false);
@@ -761,24 +731,18 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
           <span className="w-px h-4 bg-blue-300 mx-0.5" />
 
-          {/* L1/L2/L3 레벨 */}
+          {/* L1/L2/L3 레벨 전환 (상태별 적색/경고 색상 제거 — 카운트만 표시) */}
           {(['L1','L2','L3'] as const).map(lvl => {
             const count = lvl === 'L1' ? crossTab.cRows.length : lvl === 'L2' ? crossTab.aRows.length : crossTab.bRows.length;
             const miss = missingStats[lvl];
-            const lvlStatus = lvl === 'L1' ? l1Status : lvl === 'L2' ? l2Status : l3Status;
-            const statusDot = lvlStatus === 'FAIL' ? '🔴' : lvlStatus === 'WARN' ? '🟡' : '🟢';
             return (
               <button key={lvl} onClick={() => setPreviewLevel(lvl)}
                 className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
                   previewLevel === lvl
-                    ? lvlStatus === 'FAIL' ? 'bg-red-600 text-white border-red-600 cursor-pointer'
-                      : lvlStatus === 'WARN' ? 'bg-yellow-500 text-white border-yellow-500 cursor-pointer'
-                      : 'bg-blue-600 text-white border-blue-600 cursor-pointer'
-                    : lvlStatus === 'FAIL' ? 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 cursor-pointer'
-                      : lvlStatus === 'WARN' ? 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100 cursor-pointer'
-                      : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 cursor-pointer'
+                    ? 'bg-blue-600 text-white border-blue-600 cursor-pointer'
+                    : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 cursor-pointer'
                 }`}>
-                {statusDot} {lvl} <span className="text-[9px]">{count}</span>
+                {lvl} <span className="text-[9px]">{count}</span>
                 {miss > 0 && <span className={`ml-0.5 text-[8px] ${previewLevel === lvl ? 'text-orange-200' : 'text-orange-500'}`}>({miss})</span>}
               </button>
             );

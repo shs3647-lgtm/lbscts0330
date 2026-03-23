@@ -245,6 +245,19 @@ export function normalizeSheetName(name: string): string | null {
     return matched || trimmedName.toUpperCase();
   }
 
+  // 6b. L1/L2/L3 통합 시트명 변형 (괄호·접미어 — SHEET_NAME_MAP 미등록 탭명 대응)
+  // 예: "L1통합 (C1-C4)", "L1-통합", "L1 통합 시트"
+  const collapse = trimmedName.replace(/\s+/g, ' ').trim();
+  if (/^L1(?:통합|[\s\-_(]*통합)/i.test(collapse)) {
+    return 'L1_UNIFIED';
+  }
+  if (/^L2(?:통합|[\s\-_(]*통합)/i.test(collapse)) {
+    return 'L2_UNIFIED';
+  }
+  if (/^L3(?:통합|[\s\-_(]*통합)/i.test(collapse)) {
+    return 'L3_UNIFIED';
+  }
+
   // ★★★ 7. 핵심 키워드 기반 유연한 매핑 (2026-02-04) ★★★
   const keywordMap: { keywords: string[]; code: string }[] = [
     { keywords: ['공정번호'], code: 'A1' },

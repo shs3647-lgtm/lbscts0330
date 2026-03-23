@@ -3,6 +3,7 @@ import type { ParseResult } from '../excel-parser';
 import type { ImportedFlatData } from '../types';
 import { assignParentsByRowSpan } from './parentItemId-mapper';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
+import { dedupeFlatB1ByWorkElement } from './dedupeFlatB1ByWorkElement';
 
 function withMeta(
   base: ImportedFlatData,
@@ -229,5 +230,5 @@ export function convertLegacyParseResultToFlatData(result: ParseResult): Importe
     }
   }
 
-  return flat;
+  return dedupeFlatB1ByWorkElement(flat);
 }

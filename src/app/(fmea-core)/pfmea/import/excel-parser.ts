@@ -262,10 +262,17 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
     const sheetDataMap: Record<string, SheetData> = {};
 
     // 각 시트명의 매핑 결과 미리 확인
+    /** VERIFY/검증 등 부가 시트 — 데이터 시트가 아니므로 '미인식' 경고에서 제외 */
+    const isAuxiliarySheetName = (name: string): boolean => {
+      const n = name.trim().toLowerCase();
+      return n === 'verify' || n.startsWith('verify_') || n.includes('검증')
+        || n === 'fa' || n.includes('fa통합');
+    };
+
     const unmappedSheets: string[] = [];
     allSheetNames.forEach(sheetName => {
       const normalized = normalizeSheetName(sheetName.trim());
-      if (!normalized) {
+      if (!normalized && !isAuxiliarySheetName(sheetName)) {
         unmappedSheets.push(sheetName);
       }
     });

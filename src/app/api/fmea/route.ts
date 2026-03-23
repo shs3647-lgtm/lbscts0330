@@ -34,6 +34,7 @@ import { Pool } from 'pg';
 // migrateToAtomicDB, convertToLegacyFormat, convertFMEAStructuresToUnifiedItems, bulkSyncToUnifiedItems 제거
 // POST handler는 클라이언트(atomicDbSaver.ts)에서 받은 FMEAWorksheetDB를 직접 DB에 저장
 import { preserveFailureLinks, filterValidLinks } from '@/lib/failure-link-utils';
+import { pickLegacyFcProcessCharId } from '@/app/(fmea-core)/pfmea/worksheet/atomicToLegacyAdapter';
 
 // ✅ Prisma는 Node.js 런타임에서만 안정적으로 동작 (edge/browser 번들 방지)
 export const runtime = 'nodejs';
@@ -887,7 +888,7 @@ export async function POST(request: NextRequest) {
               l3FuncId: fc.l3FuncId,
               l3StructId: fc.l3StructId,
               l2StructId: fc.l2StructId,
-              processCharId: fc.processCharId || fc.l3FuncId || null, // ✅ l3FuncId fallback (processChar.id === L3Function.id)
+              processCharId: fc.l3FuncId || fc.processCharId || null, // ✅ SSoT: l3FuncId = L3Function.id (= 워크시트 B3 id)
               cause: fc.cause,
               occurrence: fc.occurrence || null,
               // ★★★ 하이브리드 ID 시스템 필드 ★★★
@@ -1534,6 +1535,9 @@ export async function GET(request: NextRequest) {
       prisma.fmeaConfirmedState.findUnique({ where: { fmeaId } }).catch(() => null),
     ]);
 
+    /** FC.processCharId가 레거시 오염 UUID일 때 워크시트 B3(L3Function.id)와 불일치 → 3L 누락 대량. l3FuncId 우선 + 유효 id 선택 */
+    const validL3FuncIds = new Set(l3Functions.map((f: { id: string }) => f.id));
+
     // 데이터가 없으면 null 반환
     if (!l1Structure && l2Structures.length === 0) {
       return NextResponse.json(null);
@@ -1634,20 +1638,25 @@ export async function GET(request: NextRequest) {
         createdAt: fm.createdAt.toISOString(),
         updatedAt: fm.updatedAt.toISOString(),
       })),
-      failureCauses: failureCauses.map((fc: any) => ({
-        id: fc.id,
-        fmeaId: fc.fmeaId,
-        l3FuncId: fc.l3FuncId,
-        l3StructId: fc.l3StructId,
-        l2StructId: fc.l2StructId,
-        // ✅ 2026-03-17 FIX: processCharId가 NULL이면 l3FuncId로 폴백 (processChar.id === L3Function.id)
-        // NULL인 채로 undefined 반환하면 JSON에서 제거 → UI에서 매칭 실패 → 누락 표시
-        processCharId: fc.processCharId || fc.l3FuncId || undefined,
-        cause: fc.cause,
-        occurrence: fc.occurrence || undefined,
-        createdAt: fc.createdAt.toISOString(),
-        updatedAt: fc.updatedAt.toISOString(),
-      })),
+      failureCauses: failureCauses.map((fc: any) => {
+        const pc = pickLegacyFcProcessCharId(
+          { l3FuncId: fc.l3FuncId, processCharId: fc.processCharId },
+          validL3FuncIds,
+        );
+        return {
+          id: fc.id,
+          fmeaId: fc.fmeaId,
+          l3FuncId: fc.l3FuncId,
+          l3StructId: fc.l3StructId,
+          l2StructId: fc.l2StructId,
+          // ✅ l3FuncId·processCharId 중 실제 L3Function에 존재하는 값 (오염된 processCharId 단독 우선 금지)
+          processCharId: pc || undefined,
+          cause: fc.cause,
+          occurrence: fc.occurrence || undefined,
+          createdAt: fc.createdAt.toISOString(),
+          updatedAt: fc.updatedAt.toISOString(),
+        };
+      }),
       failureLinks: failureLinks.map((link: any) => ({
         id: link.id,
         fmeaId: link.fmeaId,

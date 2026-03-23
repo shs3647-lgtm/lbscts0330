@@ -72,6 +72,8 @@ export interface PosProcessProductChar {
   id: string;        // 'L2-R{n}-C5'
   fmeaId: string;
   l2StructId: string;
+  /** 동일 L2 행의 L2Function(A3) id — flat 검증 A4.parentItemId→A3용 */
+  l2FuncId?: string;
   parentId: string;  // → L2Structure.id (E-09)
   name: string;      // A4
   specialChar?: string;

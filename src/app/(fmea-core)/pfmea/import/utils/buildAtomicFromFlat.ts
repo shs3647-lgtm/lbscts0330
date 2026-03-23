@@ -302,18 +302,32 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const orphanB3 = b3Items.filter(b => !b1Ids.has(b.parentItemId || ''));
 
     // ★ parentItemId null fallback: processNo+m4 기반 B1 매칭 (기존 데이터 호환)
+    // ★ 2026-03-22: 동일 공정·동일 4M(IM)에 작업요소가 여러 개일 때 pno|m4만으로는 첫 B1만 선택됨
+    //    → belongsTo(작업요소명) 포함 키로 B1 매칭 (Cu Target / Ti Target 등)
     if (orphanB2.length > 0 || orphanB3.length > 0) {
-      const b1ByPnoM4 = new Map<string, ImportedFlatData>();
+      const b1ByPnoM4First = new Map<string, ImportedFlatData>();
+      const b1ByPnoM4WeName = new Map<string, ImportedFlatData>();
       for (const b1 of b1Items) {
-        const key = `${b1.processNo}|${b1.m4 || ''}`;
-        if (!b1ByPnoM4.has(key)) b1ByPnoM4.set(key, b1);
+        const shortKey = `${b1.processNo}|${b1.m4 || ''}`;
+        if (!b1ByPnoM4First.has(shortKey)) b1ByPnoM4First.set(shortKey, b1);
+        const weKey = `${b1.processNo}|${b1.m4 || ''}|${(b1.value || '').trim()}`;
+        b1ByPnoM4WeName.set(weKey, b1);
       }
+
+      const resolveOrphanB1 = (row: ImportedFlatData): ImportedFlatData | undefined => {
+        const we = (row.belongsTo || '').trim();
+        if (we) {
+          const k = `${row.processNo}|${row.m4 || ''}|${we}`;
+          const exact = b1ByPnoM4WeName.get(k);
+          if (exact) return exact;
+        }
+        return b1ByPnoM4First.get(`${row.processNo}|${row.m4 || ''}`);
+      };
 
       if (orphanB2.length > 0) {
         let fixed = 0;
         for (const b2 of orphanB2) {
-          const key = `${b2.processNo}|${b2.m4 || ''}`;
-          const b1Match = b1ByPnoM4.get(key);
+          const b1Match = resolveOrphanB1(b2);
           if (b1Match) {
             const list = b2ByB1.get(b1Match.id) || [];
             list.push(b2);
@@ -321,14 +335,13 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
             fixed++;
           }
         }
-        console.warn(`[buildAtomicFromFlat] B2 orphan ${orphanB2.length}건 → processNo+m4 fallback ${fixed}건 복구`);
+        console.warn(`[buildAtomicFromFlat] B2 orphan ${orphanB2.length}건 → pno|m4|WE fallback ${fixed}건 복구`);
       }
 
       if (orphanB3.length > 0) {
         let fixed = 0;
         for (const b3 of orphanB3) {
-          const key = `${b3.processNo}|${b3.m4 || ''}`;
-          const b1Match = b1ByPnoM4.get(key);
+          const b1Match = resolveOrphanB1(b3);
           if (b1Match) {
             const list = b3ByB1.get(b1Match.id) || [];
             list.push(b3);
@@ -336,7 +349,7 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
             fixed++;
           }
         }
-        console.warn(`[buildAtomicFromFlat] B3 orphan ${orphanB3.length}건 → processNo+m4 fallback ${fixed}건 복구`);
+        console.warn(`[buildAtomicFromFlat] B3 orphan ${orphanB3.length}건 → pno|m4|WE fallback ${fixed}건 복구`);
       }
     }
   }
@@ -422,9 +435,17 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     const scope = c4.processNo; // YP, SP, USER
     const category = scopeToCategory(scope);
 
-    // l1FuncId: C4.parentItemId → L1Function.id
-    // 3단계 매칭: (1) parentItemId 직접, (2) 행번호 접두사 매칭, (3) scope 첫번째 폴백
+    // l1FuncId: C4.parentItemId → L1Function.id (flat에서 보통 C3 id = `${PosL1FuncId}-C3`)
+    // 3단계 매칭: (0) 레거시 parent=PosL1FuncId만 → `-C3` 접미 보정, (1) 직접, (2) 행 접두사, (3) scope 폴백
     let l1FuncId = c4.parentItemId || '';
+
+    // (0) parentItemId가 L1Function(위치기반) id만 있으면 flat C3 id(`…-C3`)로 보정
+    if (l1FuncId && !l1FuncById.has(l1FuncId)) {
+      const c3Style = `${l1FuncId}-C3`;
+      if (l1FuncById.has(c3Style)) {
+        l1FuncId = c3Style;
+      }
+    }
 
     // (1) parentItemId가 있고 L1Function에 존재하면 그대로 사용
     if (!l1FuncId || !l1FuncById.has(l1FuncId)) {

@@ -502,13 +502,15 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
   // ✅ 의미 있는 기능 체크 헬퍼
   const isMeaningfulFunc = (f: any) => {
     const name = f.name || '';
-    const hasProcessChars = (f.processChars || []).some((c: any) => c.name && c.name.trim() !== '');
+    const hasProcessChars = (f.processChars || []).some((c: any) => isMeaningfulL3(c?.name));
     const isNameMeaningful = isMeaningfulL3(name) && !name.includes('자동생성');
     return isNameMeaningful || hasProcessChars;
   };
 
   // ✅ 의미 있는 공정특성 필터
-  const getMeaningfulChars = (chars: any[]) => filterMeaningfulProcessChars(chars, true);
+  // 동일 공정특성명 복수 행 허용 — 이름 기준 중복 제거 없음
+  // ⚠️ AI주의: `removeDuplicates: true` 로 바꾸면 동일 이름 B3 행이 한 줄로 합쳐져 rowSpan·표시가 깨짐.
+  const getMeaningfulChars = (chars: any[]) => filterMeaningfulProcessChars(chars, false);
 
   // ✅ 공정/작업요소 rowSpan 계산
   const getProcRowSpan = (proc: any) => {

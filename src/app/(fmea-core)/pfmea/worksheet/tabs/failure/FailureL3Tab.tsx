@@ -14,6 +14,16 @@
  * @frozen_date 2026-03-02
  * @gold_tag v4.0.0-gold
  * @allowed_changes NONE — 사용자 명시적 승인 + full test pass 필수
+ *
+ * -----------------------------------------------------------------------------
+ * ⚠️ AI / 차기 유지보수용 주의 (2026-03-23) — 반드시 읽을 것 (DO NOT regress)
+ * -----------------------------------------------------------------------------
+ * 1) 작업요소(WE)가 다르거나, 같은 기능 아래라도 B3(공정특성) id가 다르면 **동일 텍스트라도 별개 행**이다.
+ *    “이름이 같으면 하나로 합친다(canonical id / 대표 id)” 로직을 **다시 넣지 말 것** — 과거에 FC·B3가 잘못 병합됨.
+ * 2) failureCauses 정리 useEffect: **동일 FC id가 배열에 중복된 경우만** 제거. 이름·(processCharId+FC명)으로 dedup 금지.
+ * 3) missingCount / flatRows / totalCauseCount: 연결·건수는 **processCharId·FC id 기준**. 공정특성명·FC명만으로 그룹핑 금지.
+ * 4) 관련: `useFailureL3Handlers`의 `targetCharId`(모달의 processCharId 우선), `functionL3Utils`·`useL3Deduplication`.
+ * -----------------------------------------------------------------------------
  */
 
 'use client';
@@ -109,8 +119,9 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     return !PLACEHOLDERS.includes(trimmed);
   };
 
-  // ★★★ 2026-02-05 FIX: missingCount — flatRows와 동일 isMeaningful/charIdsByName 로직 사용 ★★★
+  // ★★★ 2026-02-05 FIX: missingCount — flatRows와 동일 isMeaningful + 공정특성 행별 processCharId ★★★
   // (useFailureL3Handlers 훅 호출 전에 선언 필요 → flatRows에서 직접 파생 불가, 동일 로직으로 일관성 보장)
+  // ⚠️ AI주의: 공정특성 **이름**으로 행을 합치거나 FC를 묶지 말 것. 각 B3 행은 `pc.id`로만 FC(`processCharId`) 매칭.
   const missingCount = useMemo(() => {
     let count = 0;
     const allL2 = state.l2 || [];
@@ -118,19 +129,6 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
 
     procs.forEach(proc => {
       const allCauses = proc.failureCauses || [];
-      const charIdsByName = new Map<string, Set<string>>();
-      (proc.l3 || []).forEach((we: any) => {
-        (we.functions || []).forEach((f: any) => {
-          (f.processChars || []).forEach((pc: any) => {
-            const n = String(pc?.name || '').trim();
-            const id = String(pc?.id || '').trim();
-            if (!n || !id) return;
-            if (!charIdsByName.has(n)) charIdsByName.set(n, new Set<string>());
-            charIdsByName.get(n)!.add(id);
-          });
-        });
-      });
-
       const workElements = (proc.l3 || []).filter((we: any) => isMeaningful(we.name));
       workElements.forEach((we: any) => {
         const functions = (we.functions || []);
@@ -142,16 +140,14 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
           const hasChars = (f.processChars || []).some((c: any) => isMeaningful(c.name));
           if (!isMeaningful(f.name) && !hasChars) return;
 
-          const displayedInFunc = new Set<string>();
           (f.processChars || []).forEach((pc: any) => {
             if (!isMeaningful(pc.name)) return;
             weHasAnyMeaningfulChar = true;
-            const charName = String(pc.name || '').trim();
-            if (displayedInFunc.has(charName)) return;
-            displayedInFunc.add(charName);
-
-            const ids = charIdsByName.get(charName) || new Set<string>([String(pc.id)]);
-            const linked = allCauses.filter((c: any) => ids.has(String(c.processCharId || '').trim()));
+            const pcId = String(pc?.id || '').trim();
+            // ★ 동일 공정특성명 복수 행 — 행별 processCharId로만 FC 연결 판정 (이름 그룹 합치기 금지)
+            const linked = pcId
+              ? allCauses.filter((c: any) => String(c.processCharId || '').trim() === pcId)
+              : [];
             const seenNames = new Set<string>();
             const uniqueLinked = linked.filter((c: any) => {
               const n = String(c?.name || '').trim();
@@ -228,64 +224,38 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
   });
 
   // ✅ 중복 고장원인 정리 (FailureL2Tab 패턴과 동일)
+  // ⚠️ AI주의: 여기서 공정특성 **이름→대표 id** 병합 또는 `(processCharId + FC명)` 중복 제거를 **재도입하지 말 것**.
+  //    서로 다른 작업요소·다른 B3 id인데 문구만 같으면 정상 데이터다. 과거 그 로직이 데이터를 합쳐 버렸음(2026-03-23 제거).
   const lastCleanedHash = useRef<string>('');
   useEffect(() => {
     // 이미 정리한 데이터인지 체크 (무한 루프 방지)
     const currentHash = JSON.stringify((state.l2 || []).map(p => ({
       id: p.id,
-      causes: (p.failureCauses || []).map((c: any) => ({ name: c.name, pcId: c.processCharId }))
+      causes: (p.failureCauses || []).map((c: any) => ({ id: c.id, name: c.name, pcId: c.processCharId }))
     })));
     if (lastCleanedHash.current === currentHash) return;
 
     // 중복 고장원인 검사 및 정리
-    // ✅ 추가 정리: 공정 내 동일 공정특성명 중복(id가 여러 개) → failureCauses.processCharId를 대표 id로 정규화
+    // ★ 2026-03-23: 작업요소·B3가 다르면 동일 공정특성명·동일 FC명도 별개 — 이름으로 processCharId 병합·(pc+이름) dedup 금지
+    // 동일 FC id가 배열에 두 번만 제거 (데이터 오염 방지)
     let hasDuplicates = false;
     const cleanedL2 = (state.l2 || []).map((proc: any) => {
       const currentCauses = proc.failureCauses || [];
       if (currentCauses.length === 0) return proc;
 
-      // 공정 내 공정특성 id→name, name→대표 id(사전순) 매핑
-      const charNameById = new Map<string, string>();
-      const canonicalIdByName = new Map<string, string>();
-      (proc.l3 || []).forEach((we: any) => {
-        (we.functions || []).forEach((f: any) => {
-          (f.processChars || []).forEach((pc: any) => {
-            const n = String(pc?.name || '').trim();
-            const id = String(pc?.id || '').trim();
-            if (!n || !id) return;
-            charNameById.set(id, n);
-            const prev = canonicalIdByName.get(n);
-            if (!prev || id.localeCompare(prev) < 0) canonicalIdByName.set(n, id);
-          });
-        });
-      });
-
-      const normalizedCauses = currentCauses.map((c: any) => {
-        const oldId = String(c?.processCharId || '').trim();
-        if (!oldId) return c;
-        const n = charNameById.get(oldId);
-        if (!n) return c;
-        const canonicalId = canonicalIdByName.get(n);
-        if (canonicalId && canonicalId !== oldId) {
-          hasDuplicates = true;
-          return { ...c, processCharId: canonicalId };
-        }
-        return c;
-      });
-
-      // processCharId + name 조합으로 중복 제거
-      const seen = new Set<string>();
-      const uniqueCauses = normalizedCauses.filter((c: any) => {
-        const key = `${c.processCharId || ''}_${c.name || ''}`;
-        if (seen.has(key)) {
+      const seenFcIds = new Set<string>();
+      const uniqueCauses = currentCauses.filter((c: any) => {
+        const fid = String(c?.id || '').trim();
+        if (!fid) return true;
+        if (seenFcIds.has(fid)) {
           hasDuplicates = true;
           return false;
         }
-        seen.add(key);
+        seenFcIds.add(fid);
         return true;
       });
 
-      if (uniqueCauses.length !== currentCauses.length || normalizedCauses.some((c: any, idx: number) => c?.processCharId !== currentCauses[idx]?.processCharId)) {
+      if (uniqueCauses.length !== currentCauses.length) {
         return { ...proc, failureCauses: uniqueCauses };
       }
       return proc;
@@ -294,7 +264,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     if (hasDuplicates) {
       lastCleanedHash.current = JSON.stringify(cleanedL2.map((p: any) => ({
         id: p.id,
-        causes: (p.failureCauses || []).map((c: any) => ({ name: c.name, pcId: c.processCharId }))
+        causes: (p.failureCauses || []).map((c: any) => ({ id: c.id, name: c.name, pcId: c.processCharId }))
       })));
       // ★ 2026-02-20: setStateSynced 우선 사용 (stateRef 즉시 동기화 → DB 저장 안정)
       const updateFn = (prev: any) => ({ ...prev, l2: cleanedL2 as any });
@@ -724,6 +694,9 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
    * ✅ 평탄화된 행 데이터 - CASCADE 구조 (FailureL2Tab 패턴)
    * 공정(proc) → 작업요소(we) → 기능(func) → 공정특성(char) → 고장원인(cause)
    * 공정특성 기준으로 행 분리, 각 고장원인에 processCharId 연결
+   *
+   * ⚠️ AI주의: 기능(function) 안에서 공정특성 **이름**이 같아도 **행을 스킵하지 말 것** — 행마다 `c.id`가 다를 수 있음.
+   *    FC 연결은 `failureCauses[].processCharId === pc.id` 만 인정. 동일 FC **문구**는 FC **id**로만 중복 제거.
    */
   const flatRows = useMemo(() => {
     // ★★★ 2026-02-02: 상위 확정 여부와 관계없이 데이터 표시 (트리뷰와 동일) ★★★
@@ -742,24 +715,6 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
       const meaningfulWe = allWe.filter((we: any) => we.name && !we.name.includes('클릭'));
       const workElements = meaningfulWe.length > 0 ? meaningfulWe : allWe;
       const allCauses = proc.failureCauses || [];  // 공정 레벨에 저장된 고장원인
-
-      // ✅ 공정 내 공정특성 이름별 id 그룹/대표 id(사전순) - “표시 1개 + FK 안정화”를 위한 기준
-      const charIdsByName = new Map<string, Set<string>>();
-      const canonicalIdByName = new Map<string, string>();
-      (proc.l3 || []).forEach((we: any) => {
-        (we.functions || []).forEach((f: any) => {
-          (f.processChars || []).forEach((pc: any) => {
-            const n = String(pc?.name || '').trim();
-            const id = String(pc?.id || '').trim();
-            if (!n || !id) return;
-            if (!charIdsByName.has(n)) charIdsByName.set(n, new Set<string>());
-            charIdsByName.get(n)!.add(id);
-            const prev = canonicalIdByName.get(n);
-            if (!prev || id.localeCompare(prev) < 0) canonicalIdByName.set(n, id);
-          });
-        });
-      });
-
 
       if (workElements.length === 0) {
         rows.push({ proc, we: null, processChar: null, cause: null, procRowSpan: 1, weRowSpan: 1, charRowSpan: 1, showProc: true, showWe: true, showChar: true });
@@ -789,27 +744,15 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
           const hasProcessChars = (f.processChars || []).some((c: any) => isMeaningful(c.name));
           if (!isMeaningful(f.name) && !hasProcessChars) return;
 
-          // ✅ 2026-01-19: 기능(Function) 내에서만 중복 체크 (바로 상위 부모 기준)
-          // - 같은 기능 내 동일 공정특성명 → 스킵
-          // - 다른 기능/다른 작업요소의 동일 이름 → 허용
-          const displayedCharsInFunc = new Set<string>();
-
+          // ★ 2026-03-23: 동일 기능 내 동일 공정특성명 복수 행 허용 — 행마다 별도 id, FC는 processCharId로만 연결
           (f.processChars || []).forEach((c: any) => {
-            // ✅ 의미 있는 공정특성만 추가
             if (!isMeaningful(c.name)) return;
-
-            const charName = c.name?.trim();
-
-            // ✅ 같은 기능 내에서만 중복 스킵
-            if (displayedCharsInFunc.has(charName)) {
-              return; // 같은 기능 내 중복만 스킵
-            }
-            displayedCharsInFunc.add(charName);
-
-            const canonicalId = canonicalIdByName.get(charName) || String(c.id || '').trim();
-            const ids = Array.from(charIdsByName.get(charName) || new Set<string>([canonicalId])).filter(Boolean);
-            // ✅ 표시 행은 대표 id로 고정하고, 연결은 name-group ids 전체로 처리
-            allProcessChars.push({ ...c, id: canonicalId, processCharIds: ids, funcId: f.id, funcName: f.name });
+            allProcessChars.push({
+              ...c,
+              funcId: f.id,
+              funcName: f.name,
+              processCharIds: c?.id ? [String(c.id)] : [],
+            });
           });
         });
 
@@ -826,19 +769,18 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
           weRowCount = 1;
         } else {
           // 각 공정특성별로 행 생성
-          allProcessChars.forEach((pc: any, pcIdx: number) => {
-            // 이 공정특성에 연결된 고장원인들
-            const ids: string[] = Array.isArray(pc.processCharIds) && pc.processCharIds.length > 0
-              ? pc.processCharIds
-              : [String(pc.id || '').trim()];
-            const linkedCausesRaw = allCauses.filter((c: any) => ids.includes(String(c.processCharId || '').trim()));
-            // ✅ 동일 공정특성명 중복 id로 인해 같은 고장원인이 중복 생성된 경우, name 기준 1번만 표시
-            const seenCauseNames = new Set<string>();
+          allProcessChars.forEach((pc: any) => {
+            const pcId = String(pc.id || '').trim();
+            const linkedCausesRaw = allCauses.filter(
+              (c: any) => String(c.processCharId || '').trim() === pcId
+            );
+            // 동일 B3·동일 FC 문구라도 FC id가 다르면 별도 행 — id 기준만 중복 제거
+            const seenFcIds = new Set<string>();
             const linkedCauses = linkedCausesRaw.filter((c: any) => {
-              const n = String(c?.name || '').trim();
-              if (!n) return true;
-              if (seenCauseNames.has(n)) return false;
-              seenCauseNames.add(n);
+              const fid = String(c?.id || '').trim();
+              if (!fid) return true;
+              if (seenFcIds.has(fid)) return false;
+              seenFcIds.add(fid);
               return true;
             });
             const charFirstRowIdx = rows.length;
@@ -888,23 +830,24 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     return rows;
   }, [state.l2]);
 
-  // FC 고유 카운트 (state.l2 기반 — 공정+FC명 유니크)
+  // FC 건수 — 작업요소가 달라도 동일 FC명 허용: FC id(없으면 proc+pcId+name)로 집계
+  // ⚠️ AI주의: `공정번호|FC명` 만으로 Set 하면 동일 문구가 한 건으로 뭉개짐. 반드시 FC id 우선 키 유지.
   const totalCauseCount = useMemo(() => {
     const uniqueFCs = new Set<string>();
     for (const proc of (state.l2 || []) as any[]) {
-      const pno = proc.no || proc.id || '';
+      const pno = String(proc.no || proc.id || '');
       for (const fc of (proc.failureCauses || [])) {
         const name = String(fc?.name || '').trim();
-        if (name && !isMissing(name)) {
-          uniqueFCs.add(`${pno}|${name}`);
-        }
+        if (!name || isMissing(name)) continue;
+        const fid = String(fc?.id || '').trim();
+        uniqueFCs.add(fid ? `${pno}|fc:${fid}` : `${pno}|pc:${String(fc.processCharId || '')}|${name}`);
       }
       for (const we of (proc.l3 || [])) {
         for (const fc of (we.failureCauses || [])) {
           const name = String(fc?.name || '').trim();
-          if (name && !isMissing(name)) {
-            uniqueFCs.add(`${pno}|${name}`);
-          }
+          if (!name || isMissing(name)) continue;
+          const fid = String(fc?.id || '').trim();
+          uniqueFCs.add(fid ? `${pno}|fc:${fid}` : `${pno}|we:${we?.id || ''}|${name}`);
         }
       }
     }

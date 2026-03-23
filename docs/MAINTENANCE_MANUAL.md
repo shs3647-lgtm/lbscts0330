@@ -38,6 +38,11 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `import/utils/assignChainUUIDs.ts` | 445 | UUID FK 할당 (flatMap 기반) | - |
 | `import/utils/failureChainInjector.ts` | 347 | FC 매칭 주입 | - |
 | `import/utils/supplementMissingItems.ts` | ~200 | A1-C4 누락 항목 보충 | - |
+| `lib/fmea/position-parser.ts` | ~1,200 | 위치기반 JSON/Excel → `PositionAtomicData`; **`atomicToFlatData`**는 미리보기/검증용 flat으로 변환 | - |
+
+**`atomicToFlatData` L1 FK (2026-03-23):** Import 검증 `verifyFK`(`import-verification-columns.ts`)와 동일 체인을 맞춘다 — **C1.parent→L1Structure**, **C2.parent→C1**, **C3.parent→대표 C2 id**(동일 C2+다중 C3 시 첫 L1Function id), **C4.parent→`${l1FuncId}-C3`**. L2는 **A3.parent→L2Structure**, **A4.parent→동일 행 `l2FuncId`(파서가 설정)**, **A5.parent→productCharId**.
+
+**삭제 복구 (2026-03-23):** 커밋 `49c88af` 이전에서 **`supplementMissingItems.ts`**, **`import/utils/atomicToFlatData.ts`**(DB→flat 역변환), **`atomicToChains.ts`**, **`lib/uuid-generator.ts`**, **`lib/uuid-rules.ts`** 를 복원하고, 미리보기/저장 경로의 no-op을 제거해 **FC 기반 누락 항목 보충**이 다시 동작한다. 위치기반 `position-parser.ts`의 `atomicToFlatData(PositionAtomicData)`와 **이름은 같으나 모듈이 다름**(역변환 vs 파서 출력).
 
 ### 2.2 DB 저장/로드 (Atomic DB ↔ Client)
 
@@ -119,6 +124,8 @@ useImportSteps → parseExcelToFlatData(file) → flatData[]
 3. 없으면 → Atomic DB에서 조립
 4. ⚠️ 불변 원칙: 로드 경로에 필터/변환 삽입 절대 금지 (Rule 10.5)
 ```
+
+**3L 기능 — 공정특성(B3)**: 동일 작업요소기능 하에 **동일 공정특성 텍스트가 여러 행**(서로 다른 `id`)일 수 있음. `functionL3Utils.deduplicateFunctionsL3`는 **이름**으로 B3 행을 합치지 않으며(동일 **id**만 제거), `useL3Deduplication`의 FC 리매핑은 남아 있는 `processCharId`를 유지한다.
 
 ---
 

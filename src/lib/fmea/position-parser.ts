@@ -346,6 +346,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         id: pcId,
         fmeaId,
         l2StructId: l2Id,
+        l2FuncId,
         parentId: l2Id, // E-09: ProductChar.parentId → L2Structure
         name: a4,
         specialChar: sc || undefined,
@@ -1051,6 +1052,16 @@ export interface ImportedFlatDataCompat {
 export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataCompat[] {
   const flat: ImportedFlatDataCompat[] = [];
   const now = new Date();
+  const l1RootId = data.l1Structure?.id || '';
+
+  // C2 대표 id: (구분|제품기능)당 첫 L1Function id — C3.parentItemId는 항상 이 id를 가리킴 (verifyFK C3→C2)
+  const c2IdByCategoryFunction = new Map<string, string>();
+  for (const f of data.l1Functions) {
+    const key = `${f.category}|${f.functionName}`;
+    if (!c2IdByCategoryFunction.has(key)) {
+      c2IdByCategoryFunction.set(key, f.id);
+    }
+  }
 
   // ─── C (L1) ───
   // C1: L1Function.category (고유 scope별 1개)
@@ -1058,7 +1069,16 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
   for (const f of data.l1Functions) {
     if (!seenC1.has(f.category)) {
       seenC1.add(f.category);
-      flat.push({ id: `C1-${f.category}`, processNo: f.category, category: 'C', itemCode: 'C1', value: f.category, createdAt: now, rowSpan: 1 });
+      flat.push({
+        id: `C1-${f.category}`,
+        processNo: f.category,
+        category: 'C',
+        itemCode: 'C1',
+        value: f.category,
+        parentItemId: l1RootId || undefined,
+        createdAt: now,
+        rowSpan: 1,
+      });
     }
   }
 
@@ -1068,18 +1088,46 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     const key = `${f.category}|${f.functionName}`;
     if (!seenC2.has(key)) {
       seenC2.add(key);
-      flat.push({ id: f.id, processNo: f.category, category: 'C', itemCode: 'C2', value: f.functionName, createdAt: now, rowSpan: 1 });
+      flat.push({
+        id: c2IdByCategoryFunction.get(key)!,
+        processNo: f.category,
+        category: 'C',
+        itemCode: 'C2',
+        value: f.functionName,
+        parentItemId: `C1-${f.category}`,
+        createdAt: now,
+        rowSpan: 1,
+      });
     }
   }
 
   // C3: L1Function.requirement (모든 L1Function = 고유 C1+C2+C3 조합)
   for (const f of data.l1Functions) {
-    flat.push({ id: `${f.id}-C3`, processNo: f.category, category: 'C', itemCode: 'C3', value: f.requirement, parentItemId: f.id, createdAt: now, rowSpan: 1 });
+    const c2Canon = c2IdByCategoryFunction.get(`${f.category}|${f.functionName}`) || f.id;
+    flat.push({
+      id: `${f.id}-C3`,
+      processNo: f.category,
+      category: 'C',
+      itemCode: 'C3',
+      value: f.requirement,
+      parentItemId: c2Canon,
+      createdAt: now,
+      rowSpan: 1,
+    });
   }
 
-  // C4: FailureEffect (행마다 독립)
+  // C4: FailureEffect — parentItemId는 C3 행 id (verifyFK: C4 → C3)
   for (const fe of data.failureEffects) {
-    flat.push({ id: fe.id, processNo: fe.category, category: 'C', itemCode: 'C4', value: fe.effect, parentItemId: fe.l1FuncId, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: fe.id,
+      processNo: fe.category,
+      category: 'C',
+      itemCode: 'C4',
+      value: fe.effect,
+      parentItemId: `${fe.l1FuncId}-C3`,
+      createdAt: now,
+      rowSpan: 1,
+    });
   }
 
   // ─── A (L2) ───
@@ -1093,22 +1141,50 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     flat.push({ id: `${s.id}-A2`, processNo: s.no, category: 'A', itemCode: 'A2', value: s.name, createdAt: now, rowSpan: 1 });
   }
 
-  // A3: L2Function.functionName
+  // A3: L2Function.functionName — parentItemId → L2Structure(A1과 동일 id)
   for (const f of data.l2Functions) {
     const l2 = data.l2Structures.find(s => s.id === f.l2StructId);
-    flat.push({ id: f.id, processNo: l2?.no || '', category: 'A', itemCode: 'A3', value: f.functionName, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: f.id,
+      processNo: l2?.no || '',
+      category: 'A',
+      itemCode: 'A3',
+      value: f.functionName,
+      parentItemId: l2?.id,
+      createdAt: now,
+      rowSpan: 1,
+    });
   }
 
-  // A4: ProcessProductChar.name
+  // A4: ProcessProductChar — parentItemId → 동일 행 L2Function(A3) id (verifyFK A4→A3)
   for (const pc of data.processProductChars) {
     const l2 = data.l2Structures.find(s => s.id === pc.l2StructId);
-    flat.push({ id: pc.id, processNo: l2?.no || '', category: 'A', itemCode: 'A4', value: pc.name, specialChar: pc.specialChar || undefined, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: pc.id,
+      processNo: l2?.no || '',
+      category: 'A',
+      itemCode: 'A4',
+      value: pc.name,
+      specialChar: pc.specialChar || undefined,
+      parentItemId: pc.l2FuncId || l2?.id,
+      createdAt: now,
+      rowSpan: 1,
+    });
   }
 
-  // A5: FailureMode.mode
+  // A5: FailureMode — parentItemId → A4(ProductChar) id
   for (const fm of data.failureModes) {
     const l2 = data.l2Structures.find(s => s.id === fm.l2StructId);
-    flat.push({ id: fm.id, processNo: l2?.no || '', category: 'A', itemCode: 'A5', value: fm.mode, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: fm.id,
+      processNo: l2?.no || '',
+      category: 'A',
+      itemCode: 'A5',
+      value: fm.mode,
+      parentItemId: fm.productCharId || undefined,
+      createdAt: now,
+      rowSpan: 1,
+    });
   }
 
   // A6: RiskAnalysis.detectionControl (FL→RA에서 DC 추출, 공정별 고유)

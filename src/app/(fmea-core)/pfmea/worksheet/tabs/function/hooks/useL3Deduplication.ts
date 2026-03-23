@@ -3,6 +3,10 @@
  * @description L3 기능/공정특성 중복 제거 훅
  * 
  * ★★★ 2026-02-05: FunctionL3Tab.tsx 최적화 - 중복 제거 로직 분리 ★★★
+ *
+ * ⚠️ AI / 유지보수 주의 (2026-03-23)
+ * - `deduplicateFunctionsL3`·`remapFailureCauseCharIds` 정책과 연동. 공정특성 **이름** 기준 merge 재도입 금지.
+ * - FC 리매핑 전 `validCharIds`로 살아 있는 B3 id는 건드리지 않음(동일 이름 복수 행 보호).
  */
 
 import { useEffect, useRef } from 'react';
@@ -59,7 +63,16 @@ export function useL3Deduplication({
         return { ...we, functions: uniqueFuncs };
       });
 
-      // 정규 ID 매핑 생성
+      const validCharIds = new Set<string>();
+      newL3.forEach((we: any) => {
+        (we.functions || []).forEach((f: any) => {
+          (f.processChars || []).forEach((c: any) => {
+            if (c?.id != null && String(c.id).trim() !== '') validCharIds.add(String(c.id));
+          });
+        });
+      });
+
+      // 정규 ID 매핑 생성 (동일 이름 복수 행 시 첫 id — 리매핑은 validCharIds에 없을 때만)
       const canonicalIdByCharName = new Map<string, string>();
       newL3.forEach((we: any) => {
         (we.functions || []).forEach((f: any) => {
@@ -77,7 +90,8 @@ export function useL3Deduplication({
       const { causes: remappedCauses, cleaned: causesCleaned } = remapFailureCauseCharIds(
         proc.failureCauses || [],
         oldCharIdToName,
-        canonicalIdByCharName
+        canonicalIdByCharName,
+        validCharIds
       );
       if (causesCleaned) anyClean = true;
 

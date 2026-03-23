@@ -17,8 +17,7 @@ import type { MasterFailureChain } from '../types/masterFailureChain';
 import { isValidFmeaId } from '@/lib/security';
 import { buildWorksheetState, type BuildResult } from './buildWorksheetState';
 import { applyFmGapFeedback, type FmGapFeedbackResult } from './fm-gap-feedback';
-// supplementMissingItems 삭제됨 (2026-03-22)
-const supplementMissingItems = (_flatData: any[], ..._args: any[]) => [] as any[];
+import { supplementMissingItems } from './supplementMissingItems';
 
 export interface SaveFromImportParams {
   fmeaId: string;

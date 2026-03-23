@@ -27,6 +27,11 @@
 | 2026-03-23 | - | **수동모드 컨텍스트 메뉴 진단서**: Handsontable 가정과 실제(HTML 테이블 + `PfmeaContextMenu`) 구분, 체크리스트 A~F 매핑 — `docs/PFMEA_MANUAL_MODE_CONTEXT_MENU_DIAGNOSIS.md`. E2E `context-menu-all-tabs.spec.ts`에 L2「위로 새 행 추가」→정확히 +1행 케이스 추가. | Claude |
 | 2026-03-23 | - | **PFMEA 좌우 비교 뷰**: `/pfmea/compare` + `compare/constants.ts` (`normalizeCompareTab`). 워크시트 `compareEmbed`/`readonly`/`compareSide`, 스크롤 `postMessage`, `globals.css` `.compare-worksheet-readonly`. 문서: `docs/PFMEA_COMPARE_VIEW.md`. | Claude |
 | 2026-03-23 | - | **비교 뷰 탭 동기화**: `compareEmbed=1`일 때 `useWorksheetDataLoader`·초기 hydration이 FMEA별 `localStorage` 탭을 쓰면 좌·우 iframe이 서로 다른 탭(예: 1L 기능 vs 구조)으로 열림 → **URL `tab`만** 사용, `visibleSteps` 복원/저장도 비교 iframe에서 스킵. | Claude |
+| 2026-03-23 | - | **L3 동일 공정특성명 복수 행**: `deduplicateFunctionsL3`에서 이름 기준 B3 dedup 제거(동일 id만 제거), `filterMeaningfulProcessChars`/`rowSpan`/`FunctionL3Tab`은 이름 중복 제거 끔, `remapFailureCauseCharIds`는 `validCharIds`에 남은 id는 이름으로 병합 안 함. Import 검증 `computeImportCounts` B2/B3는 **행 수** 집계. 테스트: `function-l3-dedup-process-chars.test.ts`. | Claude |
+| 2026-03-23 | - | **3L 고장 탭 누락/표시**: `FailureL3Tab` `flatRows`/`missingCount`가 같은 기능 내 **동일 공정특성명을 1행으로 합침** → 두 번째 B3 행·FC 누락·잘못된 누락 카운트. `useFailureL3Handlers` 저장 시 **모달의 processCharId** 우선 사용. | Claude |
+| 2026-03-23 | - | **3L 고장 자동 병합 완화**: `FailureL3Tab` `useEffect`가 공정 전체에서 **동일 공정특성명 → 대표 id로 processCharId 정규화** + `(pc+FC명)` 중복 제거 → **작업요소가 달라도** 같은 문구가 한 덩어리로 합쳐짐. **이름 기반 병합 제거**, FC 배열은 **동일 FC id 중복만** 제거. 표시/건수도 FC **id**·`processCharId` 기준. | Claude |
+| 2026-03-23 | - | **3L 고장 누락 수백 건(가짜)**: `atomicToLegacy`가 `failureCauses[].processCharId`를 `fc.processCharId || fc.l3FuncId`로 두어, DB `processCharId`가 레거시/오염 UUID이면 워크시트 B3(`L3Function.id`)와 불일치 → FC 미연결. **`l3FuncId || processCharId`** 로 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts`. | Claude |
+| 2026-03-23 | - | **동일 원인 — `migration.ts` 역변환**: `atomicDB → legacy`에서 FC의 `processCharId` 복원을 **`pickLegacyFcProcessCharId`** 로 통일(API `atomic` 응답·`atomicToLegacy`와 동일: 유효한 `L3Function.id`만 매칭). | Claude |
 
 ---
 
@@ -529,6 +534,7 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 | `pfd-context-menu-render.spec.ts` | PFD | 렌더링 검증 |
 | `context-menu-all-tabs.spec.ts` | PFMEA | 전탭 컨텍스트 메뉴 동작 |
 | `strictModeStateUpdater.test.ts` | PFMEA | Strict Mode 이중 setState 업데이터 → splice 1회만 |
+| `function-l3-dedup-process-chars.test.ts` | PFMEA | L3 동일 공정특성명 복수 행 유지·FC id 리매핑 가드 |
 
 ---
 
@@ -538,6 +544,8 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|
+| 03-23 | - | PFMEA/기능L3 | **동일 작업요소기능 하 동일 공정특성명 복수 행**: `functionL3Utils` 이름 기준 B3 dedup 제거, FC 리매핑은 살아 있는 `processCharId` 유지. Import 카운트 B2/B3는 고유 문자열이 아니라 **flat 행 수** |
+| 03-23 | - | PFMEA/고장L3 | **`FailureL3Tab` `flatRows`/`missingCount`**: 동일 기능 내 동일 공정특성명 복수 행 표시·누락 판정을 **processCharId** 기준으로. `useFailureL3Handlers.handleSave`는 **모달 processCharId** 우선(이름 canonical 합침 제거) |
 | 03-23 | - | PFMEA/구조 | **Strict Mode 행추가 이중 삽입**: `StructureTab` `handleInsertAbove/Below`, 병합 위·아래 추가, `handleDeleteRow`의 `setState` 업데이터를 `createStrictModeDedupedUpdater`로 래핑 (개발 모드에서 한 번 클릭 → 한 줄만 추가) |
 | 03-22 | - | Import/Repair | **레거시 Import/재저장 복구**: `legacyParseResultToFlatData.ts`로 레거시 ParseResult→flat 복원, `supplementFlatDataFromChains.ts`로 chain 기반 `B4/B5/A6` 꽂아넣기 추가. `pipeline-verify/auto-fix.ts`는 public `A6/B5`를 읽어 기존 RA `DC/PC` 빈값을 채운다. 결과적으로 `pfm26-m001`은 `DC/PC null 156건 → 0건`, `pfm26-f001`은 `FC/FL/RA 0건 → 23/23/23`까지 복구 |
 | 03-22 | - | Import/FK | **거짓 Green 차단**: `validate-fk`에 `failureLinkCoverage`(FM→FL 연결 누락)와 `riskAnalysisCoverage`(FL→RA 1:1) 추가. `pfm26-f001`처럼 FM만 있고 FL=0인 프로젝트가 더 이상 green 통과하지 않음. `save-from-import`는 기존 FC/FL/RA가 있는 프로젝트에 신규 Atomic FC/FL/RA=0 결과가 들어오면 409로 저장 차단 |

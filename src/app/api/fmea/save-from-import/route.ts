@@ -22,7 +22,7 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fmeaId, flatData, l1Name, failureChains } = body;
+    let { fmeaId, flatData, l1Name, failureChains } = body;
 
     // 1. 입력 검증
     if (!fmeaId || !isValidFmeaId(fmeaId)) {
@@ -38,6 +38,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { dedupeFlatB1ByWorkElement } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/dedupeFlatB1ByWorkElement'
+    );
+    flatData = dedupeFlatB1ByWorkElement(flatData);
+
     const normalizedFmeaId = fmeaId.toLowerCase();
 
     // ★★★ ImportMapping: ImportJob 생성 (status: pending) ★★★
@@ -47,13 +52,19 @@ export async function POST(request: NextRequest) {
       chainCount: Array.isArray(failureChains) ? failureChains.length : 0,
     });
 
-    // 1.5. supplementMissingItems 삭제됨 (2026-03-22) — flatData 직접 사용
+    // 1.5. FC 체인 기준 누락 항목(A1~A3, B1~B2, C1~C4 등) 보충 → 체인 기반 A6/B5 등 보강
+    const { supplementMissingItems } = await import(
+      '@/app/(fmea-core)/pfmea/import/utils/supplementMissingItems'
+    );
     const { supplementFlatDataFromChains } = await import(
       '@/app/(fmea-core)/pfmea/import/utils/supplementFlatDataFromChains'
     );
     let chainsArray = Array.isArray(failureChains) && failureChains.length > 0
       ? failureChains : [];
-    const enrichedFlatData = supplementFlatDataFromChains(flatData, chainsArray);
+    const missingItems = supplementMissingItems(flatData, chainsArray);
+    const flatAfterMissing =
+      missingItems.length > 0 ? [...flatData, ...missingItems] : flatData;
+    const enrichedFlatData = supplementFlatDataFromChains(flatAfterMissing, chainsArray);
     if (chainsArray.length === 0) {
       const { buildFailureChainsFromFlat } = await import(
         '@/app/(fmea-core)/pfmea/import/types/masterFailureChain'

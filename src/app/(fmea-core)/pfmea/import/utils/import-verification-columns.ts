@@ -195,7 +195,10 @@ export function mapApiToVerification(
     B4: (apiData.failureCauses || []).length,
     B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
     C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,
-    C2: (apiData.l1Functions || []).length,
+    // C2 = 고유 (구분|제품기능) — flat atomicToFlatData C2 행 수와 동일 의미
+    C2: new Set(
+      (apiData.l1Functions || []).map((f: any) => `${f.category}|${String(f.functionName || '').trim()}`),
+    ).size,
     C3: (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()).length,
     C4: (apiData.failureEffects || []).length,
   };

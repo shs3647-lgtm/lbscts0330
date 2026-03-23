@@ -726,13 +726,23 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
           }
         }
         // 경로4: UUID형 parentItemId → m4 기반 WE 매칭 (legacy 데이터 호환)
-        // 같은 m4의 WE가 1개뿐이면 결정론적 매칭 가능
+        // 같은 m4의 WE가 1개뿐이면 결정론적 매칭
+        // ★ 2026-03-22: m4가 2개 이상(IM+Cu Target / IM+Ti Target 등)일 때 belongsTo(작업요소명)로 구분
+        // 근본원인: B3/B2 parent가 B1 UUID로만 풀리지 않거나 findB1Uuid 폴백 시 첫 WE로만 붙음 → 나머지 WE는 공정특성 0건
         if (weIdx < 0 && item.m4) {
           const candidates = weIdxByM4.get(item.m4) || [];
           if (candidates.length === 1) {
             weIdx = candidates[0];
+          } else if (candidates.length > 1) {
+            const weName = (item.belongsTo || '').trim();
+            if (weName) {
+              const matchedIdx = candidates.find((ci) => {
+                const w = process.l3[ci];
+                return (w.name || '').trim() === weName;
+              });
+              if (matchedIdx !== undefined) weIdx = matchedIdx;
+            }
           }
-          // m4의 WE가 2개 이상이면 ambiguous → 스킵 (Cu Target vs Ti Target 구분 불가)
         }
       }
       if (weIdx < 0) {

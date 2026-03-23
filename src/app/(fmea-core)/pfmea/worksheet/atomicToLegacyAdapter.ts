@@ -7,6 +7,9 @@
  *
  * ★ UUID 재생성 절대 금지 — 기존 ID를 그대로 사용
  * ★ 쓰기 용도 사용 금지 — 렌더링 전용
+ *
+ * ⚠️ FC→legacy.processCharId: 워크시트 B3 id = L3Function.id. FailureCause는 **l3FuncId 우선**
+ *    (processCharId만 쓰면 DB 오염 시 3L 고장 누락 대량 발생). 2026-03-23
  */
 
 import { SCOPE_LABEL_EN, SCOPE_YP } from '@/lib/fmea/scope-constants';
@@ -43,6 +46,22 @@ import type {
   L3FailureCauseExtended,
   WorksheetFailureLink,
 } from './constants';
+
+/**
+ * FC → 워크시트 B3 셀 id (= L3Function.id). DB의 processCharId가 오염된 경우에도
+ * 실제 존재하는 L3Function id를 선택 (GET format=atomic 응답도 l3FuncId 우선 정렬 권장).
+ */
+/** @internal GET format=atomic 응답과 동일 규칙으로 FC→B3 id 정규화 가능 */
+export function pickLegacyFcProcessCharId(
+  fc: { l3FuncId: string; processCharId?: string | null },
+  validL3FuncIds: Set<string>,
+): string {
+  const a = String(fc.l3FuncId || '').trim();
+  const b = String(fc.processCharId || '').trim();
+  if (a && validL3FuncIds.has(a)) return a;
+  if (b && validL3FuncIds.has(b)) return b;
+  return a || b || '';
+}
 
 // ============ 헬퍼: Map 기반 인덱스 빌더 ============
 
@@ -385,12 +404,16 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
 
     // FC (공정 레벨)
     const allFcs = fcsByL2Id.get(l2Struct.id) || [];
+    const l3FuncIdsForL2 = new Set(
+      (db.l3Functions || []).filter(f => f.l2StructId === l2Struct.id).map(f => f.id),
+    );
     const failureCauses: L3FailureCauseExtended[] = allFcs.map(fc => ({
       id: fc.id,
       name: fc.cause,
       occurrence: fc.occurrence,
-      // ★ processCharId 없으면 l3FuncId로 폴백 (위치기반 UUID 시스템 호환)
-      processCharId: fc.processCharId || fc.l3FuncId || '',
+      // ★ FC→B3 연결: 워크시트 processChars[].id = L3Function.id (buildL3Functions).
+      // l3FuncId·processCharId 중 실제 L3Function에 존재하는 쪽을 사용 (한쪽만 오염된 DB 대비).
+      processCharId: pickLegacyFcProcessCharId(fc, l3FuncIdsForL2),
     }));
 
     return {
