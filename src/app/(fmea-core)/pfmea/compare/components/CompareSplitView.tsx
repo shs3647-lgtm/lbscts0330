@@ -134,16 +134,18 @@ export default function CompareSplitView() {
 
         <CompareTabBar activeTab={tab} onChange={(t) => pushUrl({ tab: t })} />
 
-        <div ref={containerRef} className="flex min-h-0 flex-1 flex-row overflow-hidden">
+        {/* iframe 영역 — 남은 공간 전체 사용 */}
+        <div ref={containerRef} className="relative flex min-h-0 flex-1 flex-row">
+          {/* 좌측 (Master) */}
           <div
-            className="min-h-0 min-w-[320px] overflow-hidden border-r border-slate-200 bg-white"
-            style={{ flex: `0 0 ${leftWidthPct}%` }}
+            className="relative min-h-0 bg-white"
+            style={{ flex: `0 0 ${leftWidthPct}%`, minWidth: 200 }}
           >
             <iframe
               ref={leftIframeRef}
               title="PFMEA 비교 좌측"
-              className="h-full w-full min-h-0 border-0"
               src={leftSrc}
+              style={{ display: 'block', width: '100%', height: '100%', border: 'none' }}
             />
           </div>
 
@@ -153,7 +155,8 @@ export default function CompareSplitView() {
             onWidthPercentChange={setLeftWidthPct}
           />
 
-          <div className="min-h-0 min-w-[320px] flex-1 overflow-hidden bg-white">
+          {/* 우측 (편집) */}
+          <div className="relative min-h-0 flex-1 bg-white" style={{ minWidth: 200 }}>
             {!rightId ? (
               <div className="flex h-full items-center justify-center text-sm text-slate-500">
                 우측 FMEA를 선택하세요.
@@ -162,20 +165,20 @@ export default function CompareSplitView() {
               <iframe
                 ref={rightIframeRef}
                 title="PFMEA 비교 우측"
-                className="h-full w-full min-h-0 border-0"
                 src={rightSrc}
+                style={{ display: 'block', width: '100%', height: '100%', border: 'none' }}
               />
             )}
           </div>
         </div>
 
-        <footer className="relative z-20 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-300 bg-slate-100 px-3 py-2 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+        <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-300 bg-slate-100 px-3 py-1">
           <p className="text-[10px] text-slate-600">
-            좌측 읽기 전용(참조) · 우측 편집·저장 (HTML 테이블 워크시트)
+            좌측 읽기 전용(참조) · 우측 편집·저장
           </p>
           <button
             type="button"
-            className="rounded border border-slate-500 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-900 hover:bg-slate-50"
+            className="rounded border border-slate-500 bg-white px-3 py-1 text-[10px] font-semibold text-slate-900 hover:bg-slate-50"
             onClick={exitCompare}
           >
             비교 종료
