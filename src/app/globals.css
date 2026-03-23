@@ -991,15 +991,29 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* 테이블 기본 스타일 */
 
-/* PFMEA 비교 뷰 iframe: Master(좌) 읽기 전용 — 스크롤만 허용 */
+/* PFMEA 비교 뷰 iframe: Master(좌) 읽기 전용 — 셀 편집 차단 + 스크롤/휠은 유지 */
 .compare-worksheet-readonly {
   user-select: none;
 }
 
 .compare-worksheet-readonly .worksheet-scroll-container {
   pointer-events: auto;
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior: contain;
 }
 
+/* 기본: 자식은 클릭·포커스 차단 (스크롤은 아래 overflow 래퍼가 담당) */
 .compare-worksheet-readonly .worksheet-scroll-container * {
   pointer-events: none;
+}
+
+/*
+ * 탭 본문의 중첩 overflow-auto/y/x 래퍼 — 실제 세로 스크롤이 여기서 일어남.
+ * * { pointer-events:none } 때문에 휠/스크롤바가 먹통이 되므로 예외 처리.
+ */
+.compare-worksheet-readonly [class*="overflow-auto"],
+.compare-worksheet-readonly [class*="overflow-x-auto"],
+.compare-worksheet-readonly [class*="overflow-y-auto"] {
+  pointer-events: auto !important;
+  touch-action: pan-y pinch-zoom;
 }

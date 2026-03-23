@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import PFMEATopNav from '@/components/layout/PFMEATopNav';
+import { SidebarRouter } from '@/components/layout';
 import { DEFAULT_COMPARE_MASTER_FMEA_ID, normalizeCompareTab } from '../constants';
 import { FmeaSelector } from './FmeaSelector';
 import { CompareTabBar } from './CompareTabBar';
@@ -65,95 +67,121 @@ export default function CompareSplitView() {
 
   useCompareScrollSync(leftIframeRef, rightIframeRef, Boolean(rightId));
 
-  const onFullscreen = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    if (!document.fullscreenElement) {
-      void el.requestFullscreen?.();
+  const navSelectedId = rightId || leftId;
+
+  const exitCompare = useCallback(() => {
+    if (rightId) {
+      router.push(`/pfmea/worksheet?id=${encodeURIComponent(rightId)}`);
     } else {
-      void document.exitFullscreen?.();
+      router.push('/pfmea/list');
     }
-  }, []);
+  }, [rightId, router]);
 
   if (narrow) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center p-6 text-center text-sm text-slate-600">
-        화면 너비 900px 이상에서 PFMEA 비교 뷰를 이용할 수 있습니다.
-      </div>
+      <>
+        <SidebarRouter />
+        <div className="fixed z-40 h-screen bg-white" style={{ left: 48, width: 5 }} />
+        <PFMEATopNav selectedFmeaId={navSelectedId} />
+        <div
+          className="fixed right-0 bottom-0 flex flex-col items-center justify-center gap-3 bg-slate-100 p-4 text-center text-sm text-slate-600"
+          style={{ top: 36, left: 53 }}
+        >
+          <p>화면 너비 900px 이상에서 PFMEA 비교 뷰를 이용할 수 있습니다.</p>
+          <button
+            type="button"
+            className="rounded border border-slate-400 bg-white px-4 py-2 text-[12px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
+            onClick={exitCompare}
+          >
+            비교 종료
+          </button>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2">
-        <h1 className="text-sm font-bold text-slate-800">PFMEA 비교 뷰</h1>
-        <div className="flex flex-wrap items-center gap-2">
+    <>
+      <SidebarRouter />
+      <div className="fixed z-40 h-screen bg-white" style={{ left: 48, width: 5 }} />
+      <PFMEATopNav selectedFmeaId={navSelectedId} />
+
+      <div
+        className="fixed right-0 flex flex-col"
+        style={{ top: 36, left: 53, bottom: 0, background: '#f5f7fb' }}
+      >
+        {/* 워크시트 TopMenuBar와 동일 인디고 그라데이션 */}
+        <div
+          className="flex h-9 min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-white/30 px-2"
+          style={{ background: 'linear-gradient(to right, #1a237e, #283593, #1a237e)' }}
+        >
+          <span className="hidden shrink-0 text-[10px] font-bold text-white sm:inline">PFMEA 비교</span>
+          <FmeaSelector variant="dark" label="좌측(Master·읽기)" value={leftId} onChange={(id) => pushUrl({ left: id })} />
+          <FmeaSelector
+            variant="dark"
+            label="우측(편집)"
+            value={rightId}
+            onChange={(id) => pushUrl({ right: id })}
+          />
           <button
             type="button"
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] hover:bg-slate-100"
-            onClick={() => router.push('/pfmea/list')}
+            className="ml-auto shrink-0 rounded border border-white/40 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-white/20"
+            onClick={exitCompare}
           >
             비교 종료
           </button>
+        </div>
+
+        <CompareTabBar activeTab={tab} onChange={(t) => pushUrl({ tab: t })} />
+
+        <div ref={containerRef} className="flex min-h-0 flex-1 flex-row overflow-hidden">
+          <div
+            className="min-h-0 min-w-[320px] overflow-hidden border-r border-slate-200 bg-white"
+            style={{ flex: `0 0 ${leftWidthPct}%` }}
+          >
+            <iframe
+              ref={leftIframeRef}
+              title="PFMEA 비교 좌측"
+              className="h-full w-full min-h-0 border-0"
+              src={leftSrc}
+            />
+          </div>
+
+          <PanelResizer
+            containerRef={containerRef}
+            leftWidthPercent={leftWidthPct}
+            onWidthPercentChange={setLeftWidthPct}
+          />
+
+          <div className="min-h-0 min-w-[320px] flex-1 overflow-hidden bg-white">
+            {!rightId ? (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                우측 FMEA를 선택하세요.
+              </div>
+            ) : (
+              <iframe
+                ref={rightIframeRef}
+                title="PFMEA 비교 우측"
+                className="h-full w-full min-h-0 border-0"
+                src={rightSrc}
+              />
+            )}
+          </div>
+        </div>
+
+        <footer className="relative z-20 flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-300 bg-slate-100 px-3 py-2 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+          <p className="text-[10px] text-slate-600">
+            좌측 읽기 전용(참조) · 우측 편집·저장 (HTML 테이블 워크시트)
+          </p>
           <button
             type="button"
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] hover:bg-slate-100"
-            onClick={onFullscreen}
+            className="rounded border border-slate-500 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-900 hover:bg-slate-50"
+            onClick={exitCompare}
           >
-            전체화면
+            비교 종료
           </button>
-        </div>
-      </header>
-
-      <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 bg-white px-3 py-2">
-        <FmeaSelector label="좌측 (Master·읽기전용)" value={leftId} onChange={(id) => pushUrl({ left: id })} />
-        <FmeaSelector
-          label="우측 (작업·편집)"
-          value={rightId}
-          onChange={(id) => pushUrl({ right: id })}
-        />
+        </footer>
       </div>
-
-      <CompareTabBar activeTab={tab} onChange={(t) => pushUrl({ tab: t })} />
-
-      <div ref={containerRef} className="flex min-h-0 flex-1 flex-row">
-        <div
-          className="min-h-0 min-w-[320px] overflow-hidden border-r border-slate-200 bg-white"
-          style={{ flex: `0 0 ${leftWidthPct}%` }}
-        >
-          <iframe
-            ref={leftIframeRef}
-            title="PFMEA 비교 좌측"
-            className="h-[calc(100vh-140px)] w-full border-0"
-            src={leftSrc}
-          />
-        </div>
-
-        <PanelResizer
-          containerRef={containerRef}
-          leftWidthPercent={leftWidthPct}
-          onWidthPercentChange={setLeftWidthPct}
-        />
-
-        <div className="min-h-0 min-w-[320px] flex-1 overflow-hidden bg-white">
-          {!rightId ? (
-            <div className="flex h-[calc(100vh-140px)] items-center justify-center text-sm text-slate-500">
-              우측 FMEA를 선택하세요.
-            </div>
-          ) : (
-            <iframe
-              ref={rightIframeRef}
-              title="PFMEA 비교 우측"
-              className="h-[calc(100vh-140px)] w-full border-0"
-              src={rightSrc}
-            />
-          )}
-        </div>
-      </div>
-
-      <p className="shrink-0 border-t border-slate-200 bg-amber-50 px-3 py-1 text-[10px] text-amber-900">
-        좌측은 읽기 전용(참조), 우측만 편집·저장됩니다. (HTML 테이블 워크시트 — Handsontable 미사용)
-      </p>
-    </div>
+    </>
   );
 }

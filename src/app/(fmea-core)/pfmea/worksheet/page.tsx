@@ -54,6 +54,7 @@ import { getStepNumber } from './components/TabFullComponents';
 import { registerSaveErrorCallback, unregisterSaveErrorCallback, setupBeforeUnloadGuard } from './db-storage';
 import { toast } from '@/hooks/useToast';
 import { DEFAULT_COMPARE_MASTER_FMEA_ID, normalizeCompareTab } from '../compare/constants';
+import CompareEmbedToolbar from './components/CompareEmbedToolbar';
 // ✅ convertToFmea4: Fmea4Tab 컴포넌트 내부에서 사용 (page.tsx에서 미사용 → import 제거)
 
 // ✅ 대용량 컴포넌트 Dynamic Import — 초기 번들 경량화
@@ -90,13 +91,31 @@ function FMEAWorksheetPageContent() {
     (el: HTMLElement) => {
       if (!compareEmbed || !compareSide) return;
       if (typeof window === 'undefined' || window.parent === window) return;
+      const denom = el.scrollHeight - el.clientHeight;
+      const scrollRatio = denom > 0 ? el.scrollTop / denom : 0;
       window.parent.postMessage(
-        { type: 'pfmea-compare-scroll', scrollTop: el.scrollTop, source: compareSide },
+        { type: 'pfmea-compare-scroll', scrollRatio, scrollTop: el.scrollTop, source: compareSide },
         window.location.origin,
       );
     },
     [compareEmbed, compareSide],
   );
+
+  /** scroll 이벤트는 버블하지 않음 — 중첩 overflow-auto 스크롤을 캡처 단계에서 동기화 */
+  useEffect(() => {
+    if (!compareEmbed || !compareSide) return;
+    const onScrollCapture = (e: Event) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      const denom = t.scrollHeight - t.clientHeight;
+      if (denom <= 0) return;
+      const root = document.getElementById('fmea-worksheet-container');
+      if (!root || !root.contains(t)) return;
+      reportCompareScroll(t);
+    };
+    document.addEventListener('scroll', onScrollCapture, true);
+    return () => document.removeEventListener('scroll', onScrollCapture, true);
+  }, [compareEmbed, compareSide, reportCompareScroll]);
 
   // ✅ FMEA 워크시트 기본 배율 110% 설정
   // ⚠️ 2026-01-11: zoom은 클릭 이벤트에 영향을 줄 수 있어 비활성화
@@ -816,6 +835,13 @@ function FMEAWorksheetPageContent() {
             saveToLocalStorage={saveToLocalStorage}
             saveAtomicDB={saveAtomicDB}
             fmeaId={selectedFmeaId || ''}
+            showCompareButton={Boolean(selectedFmeaId)}
+            onCompareClick={() => {
+              const tab = normalizeCompareTab(state.tab);
+              router.push(
+                `/pfmea/compare?left=${encodeURIComponent(DEFAULT_COMPARE_MASTER_FMEA_ID)}&right=${encodeURIComponent(selectedFmeaId!)}&tab=${encodeURIComponent(tab)}`,
+              );
+            }}
             onOpen5AP={() => {
               panelButtonClickedRef.current = true;
               if (state.tab !== 'all') setState(prev => ({ ...prev, tab: 'all' }));
@@ -836,23 +862,6 @@ function FMEAWorksheetPageContent() {
         </div>
         )}
 
-        {/* 비교 뷰 진입 (일반 워크시트에서만) */}
-        {!compareEmbed && selectedFmeaId && (
-          <button
-            type="button"
-            className="fixed right-3 z-[250] rounded border border-indigo-400 bg-indigo-900/90 px-2 py-1 text-[10px] font-medium text-white shadow hover:bg-indigo-800"
-            style={{ top: inheritInfo ? 116 : 88 }}
-            onClick={() => {
-              const tab = normalizeCompareTab(state.tab);
-              router.push(
-                `/pfmea/compare?left=${encodeURIComponent(DEFAULT_COMPARE_MASTER_FMEA_ID)}&right=${encodeURIComponent(selectedFmeaId)}&tab=${encodeURIComponent(tab)}`,
-              );
-            }}
-          >
-            비교 뷰
-          </button>
-        )}
-
         {/* ========== 메인 레이아웃 (메뉴 아래, 상속 배너 고려) ========== */}
         {/* All 탭: overflow-auto로 브라우저 스크롤 허용 */}
         <div
@@ -870,7 +879,22 @@ function FMEAWorksheetPageContent() {
             id="fmea-worksheet-container"
             className={`flex-1 flex flex-col min-w-0 bg-white overflow-hidden ${compareReadonly ? 'compare-worksheet-readonly' : ''}`}
           >
-
+            {compareEmbed && (
+              <CompareEmbedToolbar
+                readOnly={compareReadonly}
+                dirty={dirty}
+                isSaving={isSaving}
+                lastSaved={lastSaved}
+                fmeaLabel={
+                  (currentFmea?.fmeaInfo as { subject?: string } | undefined)?.subject ||
+                  selectedFmeaId ||
+                  ''
+                }
+                onSave={() => {
+                  void saveAtomicDB(true);
+                }}
+              />
+            )}
 
             {/* 구조분석 제목 바는 StructureTab 내부 헤더로 이동됨 (표준화 완료) */}
 
@@ -880,7 +904,7 @@ function FMEAWorksheetPageContent() {
               <div
                 id="all-tab-scroll-wrapper"
                 ref={allTabScrollRef}
-                className="worksheet-scroll-container"
+                className="worksheet-scroll-container min-h-0"
                 style={{
                   flex: 1,
                   overflowX: 'scroll',
@@ -888,7 +912,6 @@ function FMEAWorksheetPageContent() {
                   background: '#fff',
                   position: 'relative',
                 }}
-                onScroll={(e) => reportCompareScroll(e.currentTarget)}
               >
                 {/* 전체보기 탭: 통합 화면 (40열 구조) - 원자성 DB 기반 */}
                 <AllTabRenderer
@@ -935,7 +958,7 @@ function FMEAWorksheetPageContent() {
               /* 다른 탭: 내용 초과 시에만 좌우 스크롤 */
               <div
                 id="worksheet-scroll-container"
-                className="worksheet-scroll-container"
+                className="worksheet-scroll-container min-h-0"
                 style={{
                   flex: 1,
                   overflowX: 'auto',
@@ -943,7 +966,6 @@ function FMEAWorksheetPageContent() {
                   background: '#fff',
                   position: 'relative',
                 }}
-                onScroll={(e) => reportCompareScroll(e.currentTarget)}
                 onWheel={(e) => {
                   // 마우스 휠로 좌우 스크롤 (Shift 없이도 가능)
                   if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {

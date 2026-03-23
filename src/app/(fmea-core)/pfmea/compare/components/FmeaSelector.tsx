@@ -13,9 +13,11 @@ interface FmeaSelectorProps {
   value: string;
   onChange: (fmeaId: string) => void;
   disabled?: boolean;
+  /** 워크시트 TopMenuBar와 동일 톤(인디고 바 위) */
+  variant?: 'light' | 'dark';
 }
 
-export function FmeaSelector({ label, value, onChange, disabled }: FmeaSelectorProps) {
+export function FmeaSelector({ label, value, onChange, disabled, variant = 'light' }: FmeaSelectorProps) {
   const [list, setList] = useState<FmeaProject[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,11 +42,19 @@ export function FmeaSelector({ label, value, onChange, disabled }: FmeaSelectorP
     };
   }, []);
 
+  const isDark = variant === 'dark';
+
   return (
-    <label className="flex items-center gap-2 text-[11px] text-slate-700">
-      <span className="font-semibold text-slate-600 shrink-0">{label}</span>
+    <label
+      className={`flex items-center gap-2 text-[11px] ${isDark ? 'text-white' : 'text-slate-700'}`}
+    >
+      <span className={`shrink-0 font-semibold ${isDark ? 'text-white/90' : 'text-slate-600'}`}>{label}</span>
       <select
-        className="max-w-[min(280px,40vw)] rounded border border-slate-300 bg-white px-2 py-1 text-[11px]"
+        className={
+          isDark
+            ? 'max-w-[min(280px,40vw)] rounded border-0 bg-white/20 px-2 py-0.5 text-[9px] sm:text-[10px] text-white min-w-[120px] sm:min-w-[140px]'
+            : 'max-w-[min(280px,40vw)] rounded border border-slate-300 bg-white px-2 py-1 text-[11px]'
+        }
         value={value}
         disabled={disabled || loading}
         onChange={(e) => onChange(e.target.value)}

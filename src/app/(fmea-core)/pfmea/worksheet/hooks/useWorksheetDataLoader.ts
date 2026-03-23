@@ -154,15 +154,22 @@ export function useWorksheetDataLoader({
         const legacyFromAtomic = atomicToLegacy(atomicData);
 
         // 탭 결정: URL > localStorage > 'structure'
-        const atomicUrlTab = typeof window !== 'undefined'
-          ? new URLSearchParams(window.location.search).get('tab')
+        // ★ 비교 뷰(compareEmbed): URL tab만 사용 — 좌·우 FMEA별 localStorage가 서로 다른 탭을 켜는 버그 방지
+        const loaderUrlParams = typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search)
           : null;
+        const compareEmbedLoader = loaderUrlParams?.get('compareEmbed') === '1';
+        const atomicUrlTab = loaderUrlParams?.get('tab') ?? null;
         let atomicSavedTab = '';
-        try {
-          const storedTab = localStorage.getItem(`pfmea_tab_${normalizedFmeaId}`);
-          if (storedTab) atomicSavedTab = storedTab;
-        } catch (_e) { /* ignore */ }
-        const atomicTab = atomicUrlTab || atomicSavedTab || 'structure';
+        if (!compareEmbedLoader) {
+          try {
+            const storedTab = localStorage.getItem(`pfmea_tab_${normalizedFmeaId}`);
+            if (storedTab) atomicSavedTab = storedTab;
+          } catch (_e) { /* ignore */ }
+        }
+        const atomicTab = compareEmbedLoader
+          ? (atomicUrlTab && atomicUrlTab.trim() ? atomicUrlTab : 'structure')
+          : (atomicUrlTab || atomicSavedTab || 'structure');
 
         // L1 이름: 등록정보 우선
         if (projectL1Name && legacyFromAtomic.l1) {

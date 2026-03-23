@@ -94,13 +94,15 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     if (!fmeaId) return;
 
     const urlTabParam = urlParams.get('tab');
+    const compareEmbedParam = urlParams.get('compareEmbed') === '1';
 
     let savedTab = '';
     const savedRiskData: { [key: string]: number | string } = {};
 
+    /** 비교 뷰 iframe: 부모 URL의 tab만 사용 — FMEA별 localStorage 탭이 좌우 불일치 유발 */
     if (urlTabParam) {
       savedTab = urlTabParam;
-    } else {
+    } else if (!compareEmbedParam) {
       try {
         const tabStr = localStorage.getItem(`pfmea_tab_${fmeaId}`);
         if (tabStr) {
@@ -113,17 +115,19 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     // riskData는 DB의 riskAnalyses에서 convertToLegacyFormat으로 복원됨
 
 
-    // ★ visibleSteps 복원 (ALL 탭에서 마지막으로 보던 단계)
+    // ★ visibleSteps 복원 (ALL 탭에서 마지막으로 보던 단계) — 비교 iframe은 동기화 위해 스킵
     let savedVisibleSteps: number[] | null = null;
-    try {
-      const vsStr = localStorage.getItem(`pfmea_visibleSteps_${fmeaId}`);
-      if (vsStr) {
-        const parsed = JSON.parse(vsStr);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          savedVisibleSteps = parsed;
+    if (!compareEmbedParam) {
+      try {
+        const vsStr = localStorage.getItem(`pfmea_visibleSteps_${fmeaId}`);
+        if (vsStr) {
+          const parsed = JSON.parse(vsStr);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            savedVisibleSteps = parsed;
+          }
         }
-      }
-    } catch (e) { /* ignore */ }
+      } catch (e) { /* ignore */ }
+    }
 
     if (savedTab || savedVisibleSteps || Object.keys(savedRiskData).length > 0) {
       setState(prev => ({
@@ -188,6 +192,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
   // ★★★ 2026-02-22: visibleSteps 변경 시 localStorage 저장 (ALL 탭 스크롤 위치 복원용) ★★★
   useEffect(() => {
     if (!isHydrated) return;
+    if (compareEmbed) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const fromWindow =
@@ -197,7 +202,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
         localStorage.setItem(`pfmea_visibleSteps_${canonicalId}`, JSON.stringify(state.visibleSteps));
       }
     } catch (e) { console.error('[visibleSteps 저장 오류]', e); }
-  }, [state.visibleSteps, isHydrated, selectedFmeaId]);
+  }, [state.visibleSteps, isHydrated, selectedFmeaId, compareEmbed]);
 
   const [atomicDB, setAtomicDB] = useState<FMEAWorksheetDB | null>(null);
   const [dirty, setDirty] = useState(false);

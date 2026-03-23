@@ -26,6 +26,7 @@
 | 2026-03-23 | - | **setStateSynced 근본 수정**: `useWorksheetState`가 `updater(stateRef)` 후 `setState(객체)`만 호출해 React 큐의 `prev`와 어긋날 수 있음 → `setState(prev => …)`로 통일. `PfmeaContextMenu` 메뉴 액션에 `stopPropagation`/`type="button"`/패널 `onMouseDown`으로 중복 실행 방지. | Claude |
 | 2026-03-23 | - | **수동모드 컨텍스트 메뉴 진단서**: Handsontable 가정과 실제(HTML 테이블 + `PfmeaContextMenu`) 구분, 체크리스트 A~F 매핑 — `docs/PFMEA_MANUAL_MODE_CONTEXT_MENU_DIAGNOSIS.md`. E2E `context-menu-all-tabs.spec.ts`에 L2「위로 새 행 추가」→정확히 +1행 케이스 추가. | Claude |
 | 2026-03-23 | - | **PFMEA 좌우 비교 뷰**: `/pfmea/compare` + `compare/constants.ts` (`normalizeCompareTab`). 워크시트 `compareEmbed`/`readonly`/`compareSide`, 스크롤 `postMessage`, `globals.css` `.compare-worksheet-readonly`. 문서: `docs/PFMEA_COMPARE_VIEW.md`. | Claude |
+| 2026-03-23 | - | **비교 뷰 탭 동기화**: `compareEmbed=1`일 때 `useWorksheetDataLoader`·초기 hydration이 FMEA별 `localStorage` 탭을 쓰면 좌·우 iframe이 서로 다른 탭(예: 1L 기능 vs 구조)으로 열림 → **URL `tab`만** 사용, `visibleSteps` 복원/저장도 비교 iframe에서 스킵. | Claude |
 
 ---
 

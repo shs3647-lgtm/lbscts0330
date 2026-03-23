@@ -26,9 +26,22 @@ interface TabMenuProps {
   onOpen6AP?: () => void;
   onAllClick?: () => void;
   fmeaId?: string;
+  /** 우측 정렬 — Master와 좌우 비교 화면으로 이동 */
+  showCompareButton?: boolean;
+  onCompareClick?: () => void;
 }
 
-export default function TabMenu({ state, setState, setDirty, saveToLocalStorage, saveAtomicDB, onAllClick, fmeaId = '' }: TabMenuProps) {
+export default function TabMenu({
+  state,
+  setState,
+  setDirty,
+  saveToLocalStorage,
+  saveAtomicDB,
+  onAllClick,
+  fmeaId = '',
+  showCompareButton = false,
+  onCompareClick,
+}: TabMenuProps) {
   const router = useRouter();
   const { t } = useLocale();
 
@@ -126,6 +139,19 @@ export default function TabMenu({ state, setState, setDirty, saveToLocalStorage,
 
 
       </div>
+
+      {showCompareButton && typeof onCompareClick === 'function' && (
+        <div className="flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={onCompareClick}
+            className="rounded border border-sky-400/90 bg-indigo-950/90 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-white shadow-sm hover:bg-indigo-800"
+            title="Master와 나란히 비교"
+          >
+            비교 뷰
+          </button>
+        </div>
+      )}
     </div>
   );
 }
