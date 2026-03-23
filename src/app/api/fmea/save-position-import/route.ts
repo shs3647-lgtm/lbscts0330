@@ -227,13 +227,12 @@ export async function POST(request: NextRequest) {
         console.log(`[save-position-import] L2SpecialChar: ${atomicData.l2SpecialChars.length}건 생성`);
       }
 
-      // 6. ProcessProductChars
+      // 6. ProcessProductChars (parentId 없음 — l2StructId가 부모 FK 역할)
       if (atomicData.processProductChars.length > 0) {
         await tx.processProductChar.createMany({
           skipDuplicates: true,
           data: atomicData.processProductChars.map(pc => ({
             id: pc.id, fmeaId: normalizedId, l2StructId: pc.l2StructId,
-            parentId: pc.parentId || null,
             name: pc.name, specialChar: pc.specialChar, orderIndex: pc.orderIndex,
           })),
         });
@@ -335,16 +334,32 @@ export async function POST(request: NextRequest) {
 
       // 9. FailureModes (skipDuplicates — FM은 보존)
       if (atomicData.failureModes.length > 0) {
-        await tx.failureMode.createMany({
-          skipDuplicates: true,
-          data: atomicData.failureModes.map(fm => ({
-            id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
-            l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
-            parentId: fm.parentId || null,
-            feRefs: fm.feRefs || undefined,
-            fcRefs: fm.fcRefs || undefined,
-          })),
-        });
+        const fmHasRefs = !!(tx.failureMode as any).fields?.feRefs;
+        try {
+          await tx.failureMode.createMany({
+            skipDuplicates: true,
+            data: atomicData.failureModes.map(fm => ({
+              id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
+              l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
+              parentId: fm.parentId || null,
+              ...(fmHasRefs ? { feRefs: fm.feRefs || [], fcRefs: fm.fcRefs || [] } : {}),
+            })),
+          });
+        } catch (fmErr: any) {
+          if (fmErr.message?.includes('feRefs') || fmErr.message?.includes('fcRefs')) {
+            console.warn('[save-position-import] feRefs/fcRefs not supported, retrying without');
+            await tx.failureMode.createMany({
+              skipDuplicates: true,
+              data: atomicData.failureModes.map(fm => ({
+                id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
+                l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
+                parentId: fm.parentId || null,
+              })),
+            });
+          } else {
+            throw fmErr;
+          }
+        }
       }
 
       // 10. FailureCauses: DELETE 위에서 완료 → 재생성 (★v4: processCharId = l3CharId → L3ProcessChar.id)
