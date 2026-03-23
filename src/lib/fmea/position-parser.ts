@@ -747,6 +747,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 /** 5시트 위치기반 포맷 감지 (시트명 기반) */
 export function isPositionBasedFormat(sheetNames: string[]): boolean {
   const upper = sheetNames.map(n => n.toUpperCase());
+  // ★ 통합시트(L1통합, L2 통합, L1_UNIFIED 등) → 레거시 파서(excel-parser)로 처리
+  // "L1통합".startsWith("L1") = true 이므로 오감지 방지 필수
+  const hasUnified = upper.some(n => n.includes('통합') || n.includes('UNIFIED'));
+  if (hasUnified) return false;
+
   const hasL1 = upper.some(n => n.startsWith('L1'));
   const hasL2 = upper.some(n => n.startsWith('L2'));
   const hasL3 = upper.some(n => n.startsWith('L3'));

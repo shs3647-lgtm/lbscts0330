@@ -165,13 +165,24 @@ const SHEET_NAME_MAP: Record<string, string> = {
   'A1': 'A1', 'A2': 'A2', 'A3': 'A3', 'A4': 'A4', 'A5': 'A5', 'A6': 'A6',
   'B1': 'B1', 'B2': 'B2', 'B3': 'B3', 'B4': 'B4', 'B5': 'B5',
   'C1': 'C1', 'C2': 'C2', 'C3': 'C3', 'C4': 'C4',
-  // v5.5: 통합시트 (15시트 → L1/L2/L3 통합)
+  // v5.5: 통합시트 (15시트 → L1/L2/L3 통합) — 공백 있는/없는 한글 모두 지원
   'L1 통합(C1-C4)': 'L1_UNIFIED',
   'L2 통합(A1-A6)': 'L2_UNIFIED',
   'L3 통합(B1-B5)': 'L3_UNIFIED',
   'L1 통합': 'L1_UNIFIED',
   'L2 통합': 'L2_UNIFIED',
   'L3 통합': 'L3_UNIFIED',
+  // ★ 공백 없는 한글 시트명 (L1통합, L2통합, L3통합)
+  'L1통합': 'L1_UNIFIED',
+  'L2통합': 'L2_UNIFIED',
+  'L3통합': 'L3_UNIFIED',
+  'L1통합(C1-C4)': 'L1_UNIFIED',
+  'L2통합(A1-A6)': 'L2_UNIFIED',
+  'L3통합(B1-B5)': 'L3_UNIFIED',
+  // ★ 영어 UNIFIED 시트명
+  'L1_UNIFIED': 'L1_UNIFIED',
+  'L2_UNIFIED': 'L2_UNIFIED',
+  'L3_UNIFIED': 'L3_UNIFIED',
 };
 
 /** 유효한 시트 이름 확인 및 내부 코드 반환 (템플릿 다운로드 시트명과 100% 매칭) */
