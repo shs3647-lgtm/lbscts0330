@@ -18,7 +18,7 @@
  * @created 2026-03-22
  */
 
-/** FC 시트 한 행에서 추출한 크로스시트 참조 정보 */
+/** FC 시트 한 행에서 추출한 크로스시트 참조 — **원본 행번호만** (resolve는 텍스트 미사용). */
 export interface CrossSheetRef {
   /** L1 시트에서 해당 FE가 있는 **엑셀 물리 행**(1-based, FC시트 L1원본행 컬럼) */
   l1Row?: number;
@@ -26,14 +26,6 @@ export interface CrossSheetRef {
   l2Row?: number;
   /** L3 시트에서 해당 FC(B4)가 있는 **엑셀 물리 행**(1-based, FC시트 L3원본행 컬럼) */
   l3Row?: number;
-  /** (호환) 파서가 넘기는 셀 텍스트 — resolve()에서 사용하지 않음 */
-  feText?: string;
-  feScope?: string;
-  fmText?: string;
-  fcText?: string;
-  processNo?: string;
-  m4?: string;
-  workElement?: string;
 }
 
 /**

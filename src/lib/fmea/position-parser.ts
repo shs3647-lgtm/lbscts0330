@@ -85,6 +85,25 @@ interface PositionBasedJSON {
 
 interface AutoFixLog { code: string; message: string; row?: number }
 
+/**
+ * 파싱 진단 로그 게이트 (Phase 1-2 최적화).
+ * - Production(`NODE_ENV=production`)에서는 기본 **무출력** (서버 로그 노이즈 감소).
+ * - `POSITION_PARSER_VERBOSE=1` 이면 환경 무관 출력.
+ */
+function positionParserVerboseLogsEnabled(): boolean {
+  if (typeof process === 'undefined') return false;
+  if (process.env.POSITION_PARSER_VERBOSE === '1') return true;
+  return process.env.NODE_ENV !== 'production';
+}
+
+function ppLog(...args: unknown[]): void {
+  if (positionParserVerboseLogsEnabled()) console.log(...args);
+}
+
+function ppWarn(...args: unknown[]): void {
+  if (positionParserVerboseLogsEnabled()) console.warn(...args);
+}
+
 // C1 scope 정규화 — normalizeScope from @/lib/fmea/scope-constants (상단 import)
 
 /** 4M 자동정규화 */
@@ -569,7 +588,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
     if (!feId || !fmId || !fcId) {
-      console.warn(`[position-parser] ⚠️ FL R${rn} FK 미해결 (행번호만 사용):`,
+      ppWarn(`[position-parser] ⚠️ FL R${rn} FK 미해결 (행번호만 사용):`,
         `feId=${feId || '❌'}(L1_origRow=${l1Row})`,
         `fmId=${fmId || '❌'}(L2_origRow=${l2Row})`,
         `fcId=${fcId || '❌'}(L3_origRow=${l3Row})`,
@@ -705,24 +724,24 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     autoFixes: autoFixes.length,
   };
 
-  // ★ Import 파싱 결과 로그 (항목별 엑셀 원본 vs 파싱 결과)
-  console.log(`[position-parser] ═══ 엑셀 원본 vs 파싱 결과 ═══`);
-  console.log(`  L1: 엑셀 ${stats.excelL1Rows}행 (C1=${stats.excelC1}, C2=${stats.excelC2}, C3=${stats.excelC3}, C4=${stats.excelC4})`);
-  console.log(`     → L1Func=${stats.l1Functions}, L1Req=${stats.l1Requirements}, FE=${stats.failureEffects}`);
-  console.log(`  L2: 엑셀 ${stats.excelL2Rows}행 (A1=${stats.excelA1}, A3=${stats.excelA3}, A4=${stats.excelA4}, A5=${stats.excelA5}, A6=${stats.excelA6})`);
-  console.log(`     → L2Struct=${stats.l2Structures}, FM=${stats.failureModes}`);
-  console.log(`  L3: 엑셀 ${stats.excelL3Rows}행 (B1=${stats.excelB1}, B2=${stats.excelB2}, B3=${stats.excelB3}, B4=${stats.excelB4}, B5=${stats.excelB5})`);
-  console.log(`     → L3Struct=${stats.l3Structures}, L3PC=${stats.l3ProcessChars}, FC=${stats.failureCauses}`);
-  console.log(`  FC: 엑셀 ${stats.excelFCRows}행 → FL=${stats.failureLinks}, RA=${stats.riskAnalyses}`);
+  // ★ Import 파싱 결과 로그 (항목별 엑셀 원본 vs 파싱 결과) — verbose 게이트
+  ppLog(`[position-parser] ═══ 엑셀 원본 vs 파싱 결과 ═══`);
+  ppLog(`  L1: 엑셀 ${stats.excelL1Rows}행 (C1=${stats.excelC1}, C2=${stats.excelC2}, C3=${stats.excelC3}, C4=${stats.excelC4})`);
+  ppLog(`     → L1Func=${stats.l1Functions}, L1Req=${stats.l1Requirements}, FE=${stats.failureEffects}`);
+  ppLog(`  L2: 엑셀 ${stats.excelL2Rows}행 (A1=${stats.excelA1}, A3=${stats.excelA3}, A4=${stats.excelA4}, A5=${stats.excelA5}, A6=${stats.excelA6})`);
+  ppLog(`     → L2Struct=${stats.l2Structures}, FM=${stats.failureModes}`);
+  ppLog(`  L3: 엑셀 ${stats.excelL3Rows}행 (B1=${stats.excelB1}, B2=${stats.excelB2}, B3=${stats.excelB3}, B4=${stats.excelB4}, B5=${stats.excelB5})`);
+  ppLog(`     → L3Struct=${stats.l3Structures}, L3PC=${stats.l3ProcessChars}, FC=${stats.failureCauses}`);
+  ppLog(`  FC: 엑셀 ${stats.excelFCRows}행 → FL=${stats.failureLinks}, RA=${stats.riskAnalyses}`);
   if (stats.brokenFE > 0 || stats.brokenFM > 0 || stats.brokenFC > 0) {
-    console.warn(`  ⚠️ 깨진 FK: FE=${stats.brokenFE} FM=${stats.brokenFM} FC=${stats.brokenFC}`);
+    ppWarn(`  ⚠️ 깨진 FK: FE=${stats.brokenFE} FM=${stats.brokenFM} FC=${stats.brokenFC}`);
   }
   if (jsonCarryCount > 0) {
-    console.log(`  AutoFix FC carry-forward: ${jsonCarryCount}건 (FE/FM/공정번호 병합셀 자동복원)`);
+    ppLog(`  AutoFix FC carry-forward: ${jsonCarryCount}건 (FE/FM/공정번호 병합셀 자동복원)`);
     autoFixes.push({ code: 'FC_CARRY_FORWARD', message: `FC 병합셀 자동복원 ${jsonCarryCount}건` });
   }
   if (autoFixes.length > 0) {
-    console.log(`  AutoFix ${autoFixes.length}건:`, autoFixes.map(f => `[${f.code}] ${f.message}`).join(', '));
+    ppLog(`  AutoFix ${autoFixes.length}건:`, autoFixes.map(f => `[${f.code}] ${f.message}`).join(', '));
   }
 
   return {
@@ -866,7 +885,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
     C4: ['C4', '고장영향', '고장 영향', 'FAILURE EFFECT'],
   });
   const l1Header = detectHeaderRow(l1WS, { C1: ['C1', '구분'], C2: ['C2', '제품기능'] });
-  console.log(`[position-parser] L1 columns: ${JSON.stringify(l1ColMap)}, headerRow: ${l1Header}`);
+  ppLog(`[position-parser] L1 columns: ${JSON.stringify(l1ColMap)}, headerRow: ${l1Header}`);
 
   const l1Rows: SheetRow[] = [];
   l1WS.eachRow((row: any, rn: number) => {
@@ -894,7 +913,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
     A6: ['A6', '검출관리', '검출 관리', 'DETECTION'],
   });
   const l2Header = detectHeaderRow(l2WS, { A1: ['A1', '공정번호'], A5: ['A5', '고장형태'] });
-  console.log(`[position-parser] L2 columns: ${JSON.stringify(l2ColMap)}, headerRow: ${l2Header}`);
+  ppLog(`[position-parser] L2 columns: ${JSON.stringify(l2ColMap)}, headerRow: ${l2Header}`);
 
   const l2Rows: SheetRow[] = [];
   l2WS.eachRow((row: any, rn: number) => {
@@ -926,10 +945,10 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
     B5: ['B5', '예방관리', '예방 관리', 'PREVENTION'],
   });
   const l3Header = detectHeaderRow(l3WS, { B1: ['B1', '작업요소'], B4: ['B4', '고장원인'] });
-  console.log(`[position-parser] L3 columns: ${JSON.stringify(l3ColMap)}, headerRow: ${l3Header}`);
+  ppLog(`[position-parser] L3 columns: ${JSON.stringify(l3ColMap)}, headerRow: ${l3Header}`);
   // ★ B4 감지 실패 시 경고
   if (!l3ColMap.B4) {
-    console.warn('[position-parser] ⚠️ L3 시트 B4(고장원인) 컬럼 감지 실패 — fallback col 7 사용. 헤더 확인 필요');
+    ppWarn('[position-parser] ⚠️ L3 시트 B4(고장원인) 컬럼 감지 실패 — fallback col 7 사용. 헤더 확인 필요');
   }
 
   const l3Rows: SheetRow[] = [];
@@ -971,7 +990,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
     L3_origRow: ['L3원본행', 'L3행', 'L3 ROW', 'L3_ORIG'],
   });
   const fcHeader = detectHeaderRow(fcWS, { FM: ['FM', '고장형태'], FC: ['FC', '고장원인'] });
-  console.log(`[position-parser] FC columns: ${JSON.stringify(fcColMap)}, headerRow: ${fcHeader}`);
+  ppLog(`[position-parser] FC columns: ${JSON.stringify(fcColMap)}, headerRow: ${fcHeader}`);
 
   // ★ FC 시트 AutoFix carry-forward: 병합셀로 인해 FM/FE/processNo가 빈 경우 이전 행 값 유지
   let prevFEscope = '', prevFE = '', prevPno = '', prevFM = '';
@@ -1018,11 +1037,11 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
     });
   });
 
-  console.log(`[position-parser] Rows: L1=${l1Rows.length} L2=${l2Rows.length} L3=${l3Rows.length} FC=${fcRows.length}`);
+  ppLog(`[position-parser] Rows: L1=${l1Rows.length} L2=${l2Rows.length} L3=${l3Rows.length} FC=${fcRows.length}`);
   // ★ AutoFix carry-forward 결과 보고
   const totalCarry = fcCarryFixCount.feScope + fcCarryFixCount.feText + fcCarryFixCount.pno + fcCarryFixCount.fm;
   if (totalCarry > 0) {
-    console.log(`[position-parser] ✅ AutoFix FC carry-forward ${totalCarry}건:`,
+    ppLog(`[position-parser] ✅ AutoFix FC carry-forward ${totalCarry}건:`,
       `FE_scope=${fcCarryFixCount.feScope}`,
       `FE=${fcCarryFixCount.feText}`,
       `공정번호=${fcCarryFixCount.pno}`,
@@ -1031,8 +1050,8 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   // ★ B4 감지 진단: 빈 B4 행 출력
   const emptyB4Rows = l3Rows.filter(r => !r.cells.B4?.trim());
   if (emptyB4Rows.length > 0) {
-    console.warn(`[position-parser] ⚠️ L3 시트 B4 빈값 ${emptyB4Rows.length}건:`, emptyB4Rows.map(r => `R${r.excelRow}(${r.cells.processNo}/${r.cells.m4}/${(r.cells.B1||'').substring(0,15)})`).join(', '));
-    console.warn(`[position-parser] B4 컬럼 감지: col=${l3ColMap.B4 || 7}(fallback). 실제 B4 헤더 확인 필요`);
+    ppWarn(`[position-parser] ⚠️ L3 시트 B4 빈값 ${emptyB4Rows.length}건:`, emptyB4Rows.map(r => `R${r.excelRow}(${r.cells.processNo}/${r.cells.m4}/${(r.cells.B1||'').substring(0,15)})`).join(', '));
+    ppWarn(`[position-parser] B4 컬럼 감지: col=${l3ColMap.B4 || 7}(fallback). 실제 B4 헤더 확인 필요`);
   }
 
   const json: PositionBasedJSON = {

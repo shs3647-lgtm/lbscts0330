@@ -6,6 +6,15 @@
 
 ---
 
+### 환경 변수 (`position-parser` 로그, 2026-03-23)
+
+| 변수 | 동작 |
+|------|------|
+| *(기본)* | `NODE_ENV=production` 이면 파싱 진단 `console.log`/`warn` **비출력** |
+| `POSITION_PARSER_VERBOSE=1` | `NODE_ENV`와 무관하게 진단 로그 출력 |
+
+---
+
 ## autom-fmea 실제 파일 맵 (Critical Path)
 
 원안의 `src/lib/excel/*`, `1L-import-route.ts` 는 **본 리포와 다름**. 실제 위치:
@@ -139,9 +148,9 @@ Get-ChildItem -Recurse -Path $root -Include `
 ## 최적화 체크리스트
 
 ### Phase 1
-- [ ] 1-1. 데드코드 제거 (텍스트 폴백 잔여)
-- [ ] 1-2. console 정리
-- [ ] 1-3. 명시 타입
+- [x] 1-1. `cross-sheet-resolver.ts` — 이미 행 전용; `CrossSheetRef`에서 미사용 텍스트 필드 제거 (2026-03-23)
+- [x] 1-2. `position-parser.ts` — `ppLog`/`ppWarn` + `POSITION_PARSER_VERBOSE` / non-production 게이트 (2026-03-23)
+- [ ] 1-3. 명시 타입 (`position-parser` 등 `any` 축소 — CODEFREEZE 구간 제외)
 - [ ] `npm run test:run` + `npx tsc --noEmit` (+ 권장: `npm run verify:pipeline-baseline`)
 
 ### Phase 2
