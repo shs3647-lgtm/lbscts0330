@@ -155,6 +155,7 @@ Get-ChildItem -Recurse -Path $root -Include `
 - [x] 1-3. `position-parser.ts` — `exceljs` `Workbook`/`Worksheet`/`Row`, `parsePositionBasedWorkbook(wb: Workbook)` (2026-03-23)
 - [x] `npx tsc --noEmit` + Import 관련 Vitest (`save-from-import*`, `position-parser` 등) 세션 내 통과 (2026-03-23~24)
 - [ ] `npm run test:run` **전체** 녹색 — DB/FULL_SYSTEM 의존 스펙 포함 시 CI·로컬에서 별도 확인
+- **부분 VERIFY (Import 핵심만):** `npm run test:import-slice` — 가드·`save-from-import`·`position-parser` (DB 불필요)
 
 ### Phase 2
 - [ ] 2-1. 인덱스 Map화 (`cross-sheet-resolver` 이미 Map 전용; `masterFailureChain.ts`는 **CODEFREEZE** — 변경 시 사용자 승인)
@@ -179,7 +180,7 @@ Get-ChildItem -Recurse -Path $root -Include `
 
 1. **PLAN** — 파일 1개·diff 범위 확정  
 2. **EXECUTE** — 한 커밋에 핵심 1주제  
-3. **VERIFY** — `test:run` + `tsc` + (가능 시) `verify:pipeline-baseline`  
+3. **VERIFY** — `npm run test:import-slice` 또는 `test:run` + `tsc` + (가능 시) `verify:pipeline-baseline`  
 4. **COMMIT**
 
 실패 시 `git stash` 또는 이전 커밋으로 복귀 후 재시도.

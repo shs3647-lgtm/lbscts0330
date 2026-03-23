@@ -478,6 +478,7 @@ npx tsc --noEmit
 #     전제: 해당 fmeaId에 Import·Atomic 저장 완료(L2>0). 미Import DB면 allGreen=false.
 
 # 0c. Import 저장 API: POST /api/fmea/save-from-import — 프로젝트 스키마 단일 $transaction(maxWait 20s, timeout 120s), 커밋 전 FL/RA 0건 불변 검증. 위치 Import: POST /api/fmea/save-position-import — RA는 linkId + fmId/fcId/feId. 위치 파서 상세 로그: POSITION_PARSER_VERBOSE=1
+# 0d. Import 핵심만( DB 불필요): npm run test:import-slice
 
 # 1. 파이프라인 검증 (GET = 읽기전용, POST = 자동수정 포함)
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5
