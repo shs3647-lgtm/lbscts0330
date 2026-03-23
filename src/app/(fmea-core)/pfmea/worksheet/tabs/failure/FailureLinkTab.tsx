@@ -59,6 +59,7 @@ import {
   fullscreenOverlayStyle
 } from './FailureLinkStyles';
 import { FEItem, FMItem, FCItem, LinkResult } from './FailureLinkTypes';
+import { computeFailureLinkStats } from './computeFailureLinkStats';
 
 export default function FailureLinkTab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveToLocalStorageOnly, saveAtomicDB }: FailureTabProps) {
   // ========== 상태 관리 ==========
@@ -269,79 +270,11 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   }, []);
 
   // ========== 연결 통계 계산 ==========
-  const linkStats = useMemo(() => {
-    // ✅ ID 기반 연결 확인 + 텍스트 fallback (ID 불일치 보정)
-    const feLinkedIds = new Set<string>();
-    const fcLinkedIds = new Set<string>();
-    const fmLinkedIds = new Set<string>();
-    const fmLinkCounts = new Map<string, { feCount: number; fcCount: number }>();
-
-    savedLinks.forEach(link => {
-      if (link.fmId) fmLinkedIds.add(link.fmId);
-      if (link.feId && link.feId.trim() !== '') feLinkedIds.add(link.feId);
-      if (link.fcId && link.fcId.trim() !== '') fcLinkedIds.add(link.fcId);
-
-      // FM별 연결 카운트 (ID만 확인)
-      if (!fmLinkCounts.has(link.fmId)) {
-        fmLinkCounts.set(link.fmId, { feCount: 0, fcCount: 0 });
-      }
-      const counts = fmLinkCounts.get(link.fmId)!;
-
-      // FE 카운트: feId만 확인
-      if (link.feId && link.feId.trim() !== '') {
-        counts.feCount++;
-      }
-
-      // FC 카운트: fcId만 확인
-      if (link.fcId && link.fcId.trim() !== '') {
-        counts.fcCount++;
-      }
-    });
-
-    // ★★★ 2026-02-28 FIX: Import ID 불일치 보정 ★★★
-    // Import 시 failureScopes 중복 → feData dedup 후 ID가 달라질 수 있음
-    // 링크의 feId가 feData에 없지만 같은 텍스트의 FE가 있으면 → feData ID도 등록
-    const feIdSet = new Set(feData.map(f => f.id));
-    const feTextToId = new Map<string, string>();
-    feData.forEach(fe => {
-      const k = fe.text.trim().toLowerCase().replace(/\s+/g, ' ');
-      if (!feTextToId.has(k)) feTextToId.set(k, fe.id);
-    });
-    const fcIdSet = new Set(fcData.map(f => f.id));
-    const fcTextToId = new Map<string, string>();
-    fcData.forEach(fc => {
-      const k = fc.text.trim().toLowerCase().replace(/\s+/g, ' ');
-      if (!fcTextToId.has(k)) fcTextToId.set(k, fc.id);
-    });
-    savedLinks.forEach(link => {
-      // FE text fallback
-      if (link.feId && !feIdSet.has(link.feId) && link.feText) {
-        const matched = feTextToId.get(link.feText.trim().toLowerCase().replace(/\s+/g, ' '));
-        if (matched) feLinkedIds.add(matched);
-      }
-      // FC text fallback
-      if (link.fcId && !fcIdSet.has(link.fcId) && link.fcText) {
-        const matched = fcTextToId.get(link.fcText.trim().toLowerCase().replace(/\s+/g, ' '));
-        if (matched) fcLinkedIds.add(matched);
-      }
-    });
-
-    // ✅ ID 기반 카운트 (텍스트 fallback으로 보정된 ID 포함)
-    const feLinkedCount = feData.filter(fe => feLinkedIds.has(fe.id)).length;
-    const fcLinkedCount = fcData.filter(fc => fcLinkedIds.has(fc.id)).length;
-    // ★★★ fmLinkedCount: FC 연결된 FM을 "연결완료"로 카운트 (FE는 선택사항) ★★★
-    const fmLinkedCount = fmData.filter(fm => {
-      const counts = fmLinkCounts.get(fm.id);
-      return counts && counts.fcCount > 0;
-    }).length;
-
-    return {
-      feLinkedIds, feLinkedTexts: new Set<string>(), feLinkedCount, feMissingCount: feData.length - feLinkedCount,
-      fcLinkedIds, fcLinkedTexts: new Set<string>(), fcLinkedCount, fcMissingCount: fcData.length - fcLinkedCount,
-      fmLinkedIds, fmLinkedCount, fmMissingCount: fmData.length - fmLinkedCount,
-      fmLinkCounts
-    };
-  }, [savedLinks, feData, fmData, fcData]);
+  // 연결 통계: feId/fcId FK만 인정 (텍스트 역매칭 없음) — computeFailureLinkStats
+  const linkStats = useMemo(
+    () => computeFailureLinkStats(savedLinks, feData, fmData, fcData),
+    [savedLinks, feData, fmData, fcData],
+  );
 
   // ========== 누락 FM 상세 목록 계산 (FC 미연결만 누락 — FE는 선택사항) ==========
   // ★ 현재 선택 중(미확정) FC가 있는 FM도 실시간 제외
@@ -571,37 +504,24 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
             : (fcItem.processName === fmProcessName);
           if (!itemAllowed) return;
           newFCs.set(fcItem.id, fcItem);
-        } else if (link.fcText) {
-          // ★★★ 2026-02-28 FIX: FC도 동일 패턴 — 텍스트 매칭 우선 ★★★
-          const normText = link.fcText.trim().toLowerCase().replace(/\s+/g, ' ');
-          const matchByText = fcData.find(f =>
-            f.text.trim().toLowerCase().replace(/\s+/g, ' ') === normText
-          );
-          if (matchByText) {
-            const matchAllowed = includeUpstream
-              ? getProcessOrder(matchByText.processName) <= fmOrder
-              : (matchByText.processName === fmProcessName);
-            if (!matchAllowed) return;
-            newFCs.set(matchByText.id, matchByText);
-          } else {
-            const rawFc = rawFcById.get(link.fcId);
-            const rawProcessName = link.fcProcess || rawFc?.processName || '';
-            const rawAllowed = includeUpstream
-              ? (rawProcessName ? getProcessOrder(rawProcessName) <= fmOrder : true)
-              : (rawProcessName === fmProcessName || !rawProcessName);
-            if (!rawAllowed) return;
-            const tempFC: FCItem = {
-              id: link.fcId,
-              fcNo: link.fcNo || '',
-              processName: rawProcessName,
-              m4: link.fcM4 || '',
-              workElem: link.fcWorkElem || '',
-              text: link.fcText || rawFc?.text || '',
-              workFunction: (link as any).fcWorkFunction || '',
-              processChar: (link as any).fcProcessChar || '',
-            };
-            newFCs.set(link.fcId, tempFC);
-          }
+        } else {
+          const rawFc = rawFcById.get(link.fcId);
+          const rawProcessName = link.fcProcess || rawFc?.processName || '';
+          const rawAllowed = includeUpstream
+            ? (rawProcessName ? getProcessOrder(rawProcessName) <= fmOrder : true)
+            : (rawProcessName === fmProcessName || !rawProcessName);
+          if (!rawAllowed) return;
+          const tempFC: FCItem = {
+            id: link.fcId,
+            fcNo: link.fcNo || '',
+            processName: rawProcessName,
+            m4: link.fcM4 || '',
+            workElem: link.fcWorkElem || '',
+            text: link.fcText || rawFc?.text || '',
+            workFunction: (link as any).fcWorkFunction || '',
+            processChar: (link as any).fcProcessChar || '',
+          };
+          newFCs.set(link.fcId, tempFC);
         }
       }
     });

@@ -748,7 +748,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 파일 | 역할 | 보호 필드 |
 |------|------|----------|
 | `src/app/api/fmea/save-position-import/route.ts` | Import DB 저장 API | parentId ×19, feRefs, fcRefs, l2StructId, l3StructId |
-| `src/lib/fmea/position-parser.ts` | 위치기반 파서 (parentId 생성) | parentId ×10 (E-02~E-22) |
+| `src/lib/fmea/position-parser.ts` | 위치기반 파서 — **엑셀 물리 행=기준행**으로 L1/L2/L3 맵; FC는 `L1/L2/L3원본행`으로 관계만 (`cross-sheet-resolver`) | parentId ×10 (E-02~E-22) |
 | `src/lib/fmea-core/raw-to-atomic.ts` | raw→atomic DB 저장 | parentId ×4 (L2F, PPC, L3F, L3PC) |
 
 #### 3.1.4 금지 패턴

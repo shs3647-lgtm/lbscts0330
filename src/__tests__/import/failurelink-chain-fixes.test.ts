@@ -190,63 +190,51 @@ describe('C-2: parentItemId undefined 가드 (B3→B1)', () => {
 // C-3: relaxed match multi-FM 보존
 // ═══════════════════════════════════════════════
 
-describe('C-3: relaxed match multi-FM 보존 (fcComparison)', () => {
-  it('동일 processNo+FC에 서로 다른 FM 2건 → 모두 matched', () => {
-    // derived: 공정10에 FC "토크 부족"이지만 FM이 다른 2건
+describe('C-3: FK 다건 보존 (fcComparison)', () => {
+  it('동일 공정에 서로 다른 FM+FC FK 2건 → 모두 matched', () => {
     const derived = [
-      makeChain({ id: 'd1', processNo: '10', fmValue: '미조립', fcValue: '토크 부족' }),
-      makeChain({ id: 'd2', processNo: '10', fmValue: '체결 불량', fcValue: '토크 부족' }),
+      makeChain({ id: 'd1', processNo: '10', feId: 'fe-1', fmId: 'fm-1', fcId: 'fc-1' }),
+      makeChain({ id: 'd2', processNo: '10', feId: 'fe-1', fmId: 'fm-2', fcId: 'fc-2' }),
     ];
-
-    // existing: 같은 FC "토크 부족"이지만 FM이 다른 2건
     const existing = [
-      makeChain({ id: 'e1', processNo: '10', fmValue: '미조립', fcValue: '토크 부족' }),
-      makeChain({ id: 'e2', processNo: '10', fmValue: '체결 불량', fcValue: '토크 부족' }),
+      makeChain({ id: 'e1', processNo: '10', feId: 'fe-1', fmId: 'fm-1', fcId: 'fc-1' }),
+      makeChain({ id: 'e2', processNo: '10', feId: 'fe-1', fmId: 'fm-2', fcId: 'fc-2' }),
     ];
 
-    const result = compareFCChains(derived, existing);
-
-    // 이전 버그: relaxedMap이 단일 값이라 두 번째 FM이 덮어써짐 → missing 발생
-    // 수정 후: 배열로 변경하여 모두 보존
+    const result = compareFCChains(derived, existing, { industryAnchors: null });
     expect(result.matched).toHaveLength(2);
     expect(result.missing).toHaveLength(0);
   });
 
-  it('동일 FC에 3개 FM → relaxed match로 모두 매칭', () => {
+  it('동일 패턴 FK 3건 → 모두 매칭', () => {
     const derived = [
-      makeChain({ id: 'd1', processNo: '10', fmValue: 'FM-A', fcValue: '압력 부족' }),
-      makeChain({ id: 'd2', processNo: '10', fmValue: 'FM-B', fcValue: '압력 부족' }),
-      makeChain({ id: 'd3', processNo: '10', fmValue: 'FM-C', fcValue: '압력 부족' }),
+      makeChain({ id: 'd1', processNo: '10', feId: 'fe-a', fmId: 'fm-a', fcId: 'fc-a' }),
+      makeChain({ id: 'd2', processNo: '10', feId: 'fe-b', fmId: 'fm-b', fcId: 'fc-b' }),
+      makeChain({ id: 'd3', processNo: '10', feId: 'fe-c', fmId: 'fm-c', fcId: 'fc-c' }),
     ];
-
     const existing = [
-      makeChain({ id: 'e1', processNo: '10', fmValue: 'FM-A', fcValue: '압력 부족' }),
-      makeChain({ id: 'e2', processNo: '10', fmValue: 'FM-B', fcValue: '압력 부족' }),
-      makeChain({ id: 'e3', processNo: '10', fmValue: 'FM-C', fcValue: '압력 부족' }),
+      makeChain({ id: 'e1', processNo: '10', feId: 'fe-a', fmId: 'fm-a', fcId: 'fc-a' }),
+      makeChain({ id: 'e2', processNo: '10', feId: 'fe-b', fmId: 'fm-b', fcId: 'fc-b' }),
+      makeChain({ id: 'e3', processNo: '10', feId: 'fe-c', fmId: 'fm-c', fcId: 'fc-c' }),
     ];
 
-    const result = compareFCChains(derived, existing);
+    const result = compareFCChains(derived, existing, { industryAnchors: null });
     expect(result.matched).toHaveLength(3);
     expect(result.missing).toHaveLength(0);
     expect(result.extra).toHaveLength(0);
   });
 
-  it('UUID FK 기반 매칭 — fmValue 불일치 시 missing 처리 (relaxed match 제거됨)', () => {
-    // 2026-03-15: relaxed match 제거 → UUID FK 또는 정확한 텍스트 키만 매칭
-    // fmValue가 다르면 매칭 불가 → missing으로 분류
+  it('FK 불일치 — fmId 다르면 missing', () => {
     const derived = [
-      makeChain({ id: 'd1', processNo: '10', fmValue: 'FM-X', fcValue: '토크 부족' }),
-      makeChain({ id: 'd2', processNo: '10', fmValue: 'FM-Y', fcValue: '토크 부족' }),
+      makeChain({ id: 'd1', processNo: '10', feId: 'fe-1', fmId: 'fm-x', fcId: 'fc-1' }),
+      makeChain({ id: 'd2', processNo: '10', feId: 'fe-1', fmId: 'fm-y', fcId: 'fc-2' }),
     ];
-
     const existing = [
-      makeChain({ id: 'e1', processNo: '10', fmValue: 'FM-A', fcValue: '토크 부족' }),
-      makeChain({ id: 'e2', processNo: '10', fmValue: 'FM-B', fcValue: '토크 부족' }),
+      makeChain({ id: 'e1', processNo: '10', feId: 'fe-1', fmId: 'fm-a', fcId: 'fc-1' }),
+      makeChain({ id: 'e2', processNo: '10', feId: 'fe-1', fmId: 'fm-b', fcId: 'fc-2' }),
     ];
 
-    const result = compareFCChains(derived, existing);
-
-    // fmValue 불일치 → 텍스트 키 매칭 실패 → missing
+    const result = compareFCChains(derived, existing, { industryAnchors: null });
     expect(result.matched).toHaveLength(0);
     expect(result.missing).toHaveLength(2);
   });
@@ -494,11 +482,11 @@ describe('M-4: 빈 FMEA 감지 (B4=0 AND FC=0 동시 통과 차단)', () => {
 describe('NEW: compareFCChains 파라미터 순서 (derived, existing)', () => {
   it('derived에만 있는 체인 → missing (자동도출은 되었으나 기존에 없음)', () => {
     const derived = [
-      makeChain({ id: 'd1', processNo: '10', fmValue: 'FM-new', fcValue: 'FC-new' }),
+      makeChain({ id: 'd1', processNo: '10', feId: 'fe-n', fmId: 'fm-n', fcId: 'fc-n' }),
     ];
     const existing: MasterFailureChain[] = [];
 
-    const result = compareFCChains(derived, existing);
+    const result = compareFCChains(derived, existing, { industryAnchors: null });
 
     expect(result.missing).toHaveLength(1);
     expect(result.missing[0].id).toBe('d1');
@@ -508,10 +496,10 @@ describe('NEW: compareFCChains 파라미터 순서 (derived, existing)', () => {
   it('existing에만 있는 체인 → extra (기존에는 있으나 자동도출에 없음)', () => {
     const derived: MasterFailureChain[] = [];
     const existing = [
-      makeChain({ id: 'e1', processNo: '10', fmValue: 'FM-old', fcValue: 'FC-old' }),
+      makeChain({ id: 'e1', processNo: '10', feId: 'fe-o', fmId: 'fm-o', fcId: 'fc-o' }),
     ];
 
-    const result = compareFCChains(derived, existing);
+    const result = compareFCChains(derived, existing, { industryAnchors: null });
 
     expect(result.extra).toHaveLength(1);
     expect(result.extra[0].id).toBe('e1');
@@ -520,24 +508,22 @@ describe('NEW: compareFCChains 파라미터 순서 (derived, existing)', () => {
 
   it('순서가 바뀌면 missing/extra가 반전됨', () => {
     const setA = [
-      makeChain({ id: 'a1', processNo: '10', fmValue: 'FM-A', fcValue: 'FC-A' }),
+      makeChain({ id: 'a1', processNo: '10', feId: 'fe-a', fmId: 'fm-a', fcId: 'fc-a' }),
     ];
     const setB = [
-      makeChain({ id: 'b1', processNo: '20', fmValue: 'FM-B', fcValue: 'FC-B' }),
+      makeChain({ id: 'b1', processNo: '20', feId: 'fe-b', fmId: 'fm-b', fcId: 'fc-b' }),
     ];
 
-    // A=derived, B=existing → A is missing in B? No, A is in derived but not in existing → A goes to missing
-    const result1 = compareFCChains(setA, setB);
-    expect(result1.missing).toHaveLength(1);   // derived(A)에 있고 existing(B)에 없음
-    expect(result1.extra).toHaveLength(1);     // existing(B)에 있고 derived(A)에 없음
+    const result1 = compareFCChains(setA, setB, { industryAnchors: null });
+    expect(result1.missing).toHaveLength(1);
+    expect(result1.extra).toHaveLength(1);
     expect(result1.missing[0].id).toBe('a1');
     expect(result1.extra[0].id).toBe('b1');
 
-    // 순서 반전: B=derived, A=existing
-    const result2 = compareFCChains(setB, setA);
+    const result2 = compareFCChains(setB, setA, { industryAnchors: null });
     expect(result2.missing).toHaveLength(1);
     expect(result2.extra).toHaveLength(1);
-    expect(result2.missing[0].id).toBe('b1');  // 반전!
-    expect(result2.extra[0].id).toBe('a1');    // 반전!
+    expect(result2.missing[0].id).toBe('b1');
+    expect(result2.extra[0].id).toBe('a1');
   });
 });

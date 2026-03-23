@@ -11,6 +11,12 @@
  *   L3: processNo, m4, B1(작업요소), B2(요소기능), B3(공정특성), SC, B4(고장원인), B5(예방관리)
  *   FC: FE_scope, FE, processNo, FM, m4, WE, FC, PC, DC, S, O, D, AP, L1_origRow, L2_origRow, L3_origRow
  *
+ * **L1/L2/L3_origRow / 각 시트 `excelRow`**: 워크시트 **엑셀 물리 행(1-based)** (= ExcelJS rowNumber, =ROW()).
+ * 데이터 전용 0-based 인덱스가 아님.
+ *
+ * **정답 흐름**: Import 시 엑셀 행을 **기준행**으로 잡아 L1/L2/L3 엔티티를 행 단위로 맵핑하고,
+ * FC는 `L1/L2/L3_origRow`로 그 기준행들만 가리켜 **관계(FE–FM–FC 링크)** 만 형성한다.
+ *
  * @created 2026-03-22
  */
 /**
@@ -56,6 +62,7 @@ import type {
 // ─── JSON 입력 타입 ───
 
 interface SheetRow {
+  /** 워크시트 엑셀 물리 행(1-based). L1/L2/L3 원본행 컬럼 값과 동일 기준이어야 FK가 맞는다. */
   excelRow: number;
   posId: string;
   cells: Record<string, string>;
@@ -544,6 +551,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (c['processNo'])prevJsonPno     = c['processNo'];
     if (c['FM'])       prevJsonFM      = c['FM'];
 
+    // L1/L2/L3_origRow = 각 시트 **엑셀 물리 행(1-based)**; registerFE/FM/FC의 excelRow와 동일해야 함
     const l1Row = parseInt(c['L1_origRow'] || '', 10) || 0;
     const l2Row = parseInt(c['L2_origRow'] || '', 10) || 0;
     const l3Row = parseInt(c['L3_origRow'] || '', 10) || 0;
@@ -552,25 +560,20 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
     const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
 
+    // FK는 위 엑셀 행번호만 사용 (CrossSheetResolver — 텍스트 역매칭 없음)
     const { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
       l1Row,
       l2Row,
       l3Row,
-      feText: c['FE'] || '',
-      fmText: c['FM'] || '',
-      fcText: c['FC'] || '',
-      feScope: fcScope,
-      processNo: fcPno,
-      m4: fcM4,
-      workElement: c['WE'] || '',
     });
 
-    // ★ 디버그: FK 해결 실패 행 로그 (브라우저 콘솔 확인용)
+    // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
     if (!feId || !fmId || !fcId) {
-      console.warn(`[position-parser] ⚠️ FL R${rn} FK 미해결:`,
-        `feId=${feId||'❌'}(l1Row=${l1Row},feText="${(c['FE']||'').substring(0,20)}",scope=${fcScope})`,
-        `fmId=${fmId||'❌'}(l2Row=${l2Row},fm="${(c['FM']||'').substring(0,15)}",pno=${fcPno})`,
-        `fcId=${fcId||'❌'}(l3Row=${l3Row},fc="${(c['FC']||'').substring(0,15)}")`
+      console.warn(`[position-parser] ⚠️ FL R${rn} FK 미해결 (행번호만 사용):`,
+        `feId=${feId || '❌'}(L1_origRow=${l1Row})`,
+        `fmId=${fmId || '❌'}(L2_origRow=${l2Row})`,
+        `fcId=${fcId || '❌'}(L3_origRow=${l3Row})`,
+        `셀참고 FE="${(c['FE'] || '').substring(0, 20)}" FM="${(c['FM'] || '').substring(0, 15)}" FC="${(c['FC'] || '').substring(0, 15)}"`,
       );
     }
 

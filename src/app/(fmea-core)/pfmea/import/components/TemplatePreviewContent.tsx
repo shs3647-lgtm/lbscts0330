@@ -48,8 +48,8 @@ export interface TemplatePreviewContentProps {
   templateGenerated: boolean;
   setTemplateGenerated: (v: boolean) => void;
   // 미리보기 레벨
-  previewLevel: 'L1' | 'L2' | 'L3';
-  setPreviewLevel: (v: 'L1' | 'L2' | 'L3') => void;
+  previewLevel: 'L1' | 'L2' | 'L3' | 'FC';
+  setPreviewLevel: (v: 'L1' | 'L2' | 'L3' | 'FC') => void;
   // 행 선택
   selectedRows: Set<number>;
   setSelectedRows: (v: Set<number>) => void;

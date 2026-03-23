@@ -97,7 +97,8 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     }
 
     const items: FEItem[] = [];
-    const seen = new Set<string>();
+    // ★ Rule 1.7: 동일 텍스트라도 UUID가 다르면 별도 FE — 텍스트 키 dedup 금지
+    // (dedup 시 failureLinks.feId가 feData에 없어 누락으로 과대집계됨)
     const seenIds = new Set<string>();
     const counters: Record<string, number> = { 'YP': 0, 'SP': 0, 'USER': 0 };
 
@@ -116,10 +117,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
         }
       }
 
-      // 중복 체크 (텍스트 + ID 모두)
-      const key = `${scope}|${fs.effect}`;
-      if (seen.has(key) || seenIds.has(fs.id)) return;
-      seen.add(key);
+      if (seenIds.has(fs.id)) return;
       seenIds.add(fs.id);
 
       // 번호 생성
@@ -154,7 +152,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     }
 
     const items: FMItem[] = [];
-    const seen = new Set<string>();
+    // ★ Rule 1.7: 공정+고장형태 텍스트 dedup 금지 — UUID별 1행
     const seenIds = new Set<string>();
     let counter = 1;
 
@@ -165,9 +163,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
         if (!fm.name || fm.name.includes('클릭')) return;
         if (!fm.id) fm.id = uid();
 
-        const key = `${proc.name}|${fm.name}`;
-        if (seen.has(key) || seenIds.has(fm.id)) return;
-        seen.add(key);
+        if (seenIds.has(fm.id)) return;
         seenIds.add(fm.id);
 
         // 역전개: productCharId로 제품특성 → 공정기능 역추적
@@ -217,7 +213,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     }
 
     const items: FCItem[] = [];
-    const seen = new Set<string>();
+    // ★ Rule 1.7: 공정|WE|원인 텍스트 dedup 금지 — UUID별 1행
     const seenIds = new Set<string>();
     let counter = 1;
 
@@ -267,9 +263,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
             if (!isMeaningful(fc.name)) return;
             if (!fc.id) fc.id = uid();
 
-            const key = `${proc.name}|${weName}|${fc.name}`;
-            if (seen.has(key) || seenIds.has(fc.id)) return;
-            seen.add(key);
+            if (seenIds.has(fc.id)) return;
             seenIds.add(fc.id);
 
             items.push({
@@ -296,9 +290,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
           if (!isMeaningful(fc.name)) return;
           if (!fc.id) fc.id = uid();
 
-          const key = `${proc.name}|${weName}|${fc.name}`;
-          if (seen.has(key) || seenIds.has(fc.id)) return;
-          seen.add(key);
+          if (seenIds.has(fc.id)) return;
           seenIds.add(fc.id);
 
           items.push({
@@ -329,9 +321,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
         const weName = matchedWe?.name || (workElements[0]?.name || '');
         const m4 = matchedWe?.m4 || matchedWe?.fourM || fcM4 || (workElements[0]?.m4 || '');
 
-        const key = `${proc.name}|${weName}|${fc.name}`;
-        if (seen.has(key) || seenIds.has(fc.id)) return;
-        seen.add(key);
+        if (seenIds.has(fc.id)) return;
         seenIds.add(fc.id);
 
         items.push({

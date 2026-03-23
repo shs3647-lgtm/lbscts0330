@@ -315,16 +315,21 @@ export function renderSpecialCharCell(
     }
   }
 
-  // ⑤ SC 마스터 기반 기호 해석
-  const scResolved = resolveSpecialChar(scVal);
-  const scDisplay = scResolved?.displaySymbol || scVal;
+  // ⑤ SC 마스터는 색/툴팁만; 표시 글자는 저장·입력 원문(scVal) 그대로
+  const scResolved = scVal.trim() ? resolveSpecialChar(scVal) : null;
+  const scDisplay = scVal;
+  const scTitle = scDisplay.trim()
+    ? scResolved?.meaning
+      ? `특별특성: ${scDisplay} — ${scResolved.meaning}`
+      : `특별특성: ${scDisplay}`
+    : '클릭하여 특별특성 선택';
 
   return (
     <td key={colIdx} rowSpan={fcRowSpan} style={{ ...style, cursor: 'pointer', textAlign: 'center' }}
-      title={scDisplay ? `특별특성: ${scDisplay}` : '클릭하여 특별특성 선택'}
+      title={scTitle}
       onClick={() => onOpenSpecialChar?.(riskDataKey, scVal)}
     >
-      {scDisplay ? <span style={getSpecialCharBadgeStyle(scVal)}>{scDisplay}</span> : <span style={{ color: '#999', fontSize: '10px' }}>+</span>}
+      {scDisplay.trim() ? <span style={getSpecialCharBadgeStyle(scVal)}>{scDisplay}</span> : <span style={{ color: '#999', fontSize: '10px' }}>+</span>}
     </td>
   );
 }

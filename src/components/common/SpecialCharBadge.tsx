@@ -87,12 +87,13 @@ function loadMasterLookup(): { byInternal: Map<string, ResolvedChar>; byCustomer
 export function invalidateSpecialCharCache() { _masterCache = null; }
 
 /**
- * DB 저장값 → SC 마스터 기호/색상 해석 (3곳 공용: SpecialCharBadge, SpecialCharCell, RiskOptHelperCells)
- * @returns { displaySymbol, color, meaning, icon } 또는 null (미지정)
+ * DB 저장값 → SC 마스터 색상/의미 해석 (3곳 공용: SpecialCharBadge, SpecialCharCell, RiskOptHelperCells)
+ * 화면에 그리는 글자는 항상 입력/저장 원문을 쓰고, 마스터는 색·툴팁(의미)만 보조한다.
+ * @returns { displaySymbol, color, meaning, icon } 또는 null (미지정/미매칭)
  */
 export function resolveSpecialChar(value: string | undefined | null): ResolvedChar | null {
   const v = String(value || '').trim();
-  if (!v || v === '-') return null;
+  if (!v) return null;
   const { byInternal, byCustomer } = loadMasterLookup();
   return byCustomer.get(v) || byInternal.get(v) || null;
 }
@@ -104,11 +105,9 @@ export function getResolvedBadgeStyle(value: string | undefined | null): React.C
   return { backgroundColor: r.color, color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
 }
 
-/** resolveSpecialChar의 결과에서 displaySymbol만 반환 (없으면 원본 반환) */
+/** 화면 표시용 원문 (마스터 기호로 치환하지 않음) */
 export function getResolvedSymbol(value: string | undefined | null): string {
-  const v = String(value || '').trim();
-  const r = resolveSpecialChar(v);
-  return r?.displaySymbol || v;
+  return String(value ?? '');
 }
 
 // ─── Badge 컴포넌트 ───
@@ -128,8 +127,8 @@ const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, 
     return () => window.removeEventListener(SC_LOADED_EVENT, h);
   }, []);
 
-  const resolved = resolveSpecialChar(value);
-  const displayValue = resolved?.displaySymbol || value;
+  const displayValue = String(value ?? '');
+  const resolved = displayValue.trim() ? resolveSpecialChar(displayValue) : null;
 
   const sizeStyles = {
     sm: { fontSize: '10px', padding: '1px 4px', gap: '1px' },
@@ -138,7 +137,7 @@ const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, 
   };
   const style = sizeStyles[size];
 
-  if (!displayValue) {
+  if (!displayValue.trim()) {
     return (
       <div onClick={onClick} className="cursor-pointer flex items-center justify-center h-full hover:bg-gray-100"
         style={{ padding: '4px', minHeight: '24px' }} title="클릭하여 특별특성 지정">
@@ -148,7 +147,6 @@ const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, 
   }
 
   const bgColor = resolved?.color || '#9e9e9e';
-  const icon = resolved?.icon || '';
 
   return (
     <div onClick={onClick} className="cursor-pointer flex items-center justify-center h-full" style={{ padding: '4px' }}>
@@ -159,9 +157,8 @@ const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, 
           gap: style.gap, boxShadow: '0 1px 3px rgba(0,0,0,0.25)', whiteSpace: 'nowrap',
           border: `2px solid ${bgColor}`,
         }}
-        title={resolved?.meaning || displayValue}
+        title={resolved?.meaning ? `${resolved.meaning} (${displayValue})` : displayValue}
       >
-        {icon && icon !== displayValue && <span style={{ fontSize: '10px' }}>{icon}</span>}
         {displayValue}
       </span>
     </div>

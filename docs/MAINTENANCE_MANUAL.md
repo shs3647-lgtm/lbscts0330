@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-23
+> **최종 업데이트**: 2026-03-22
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -39,6 +39,14 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `import/utils/failureChainInjector.ts` | 347 | FC 매칭 주입 | - |
 | `import/utils/supplementMissingItems.ts` | ~200 | A1-C4 누락 항목 보충 | - |
 | `lib/fmea/position-parser.ts` | ~1,200 | 위치기반 JSON/Excel → `PositionAtomicData`; **`atomicToFlatData`**는 미리보기/검증용 flat으로 변환 | - |
+| `lib/fmea/cross-sheet-resolver.ts` | ~110 | FC 시트 `L1/L2/L3원본행` → L1/L2/L3 시트 FE/FM/FC UUID (행번호만, 텍스트 매칭 없음) | - |
+
+**위치기반 Import 정답 (엑셀 행 = 기준행, 2026-03-22):**
+
+1. Import 시 **엑셀 물리 행**을 기준으로 L1/L2/L3를 읽으며 **행 번호 → 해당 시트 엔티티 UUID** 맵을 만든다 (`position-parser` + `CrossSheetResolver.register*`).
+2. **FC(고장사슬) 시트**는 본문 텍스트로 L1/L2/L3를 다시 추론하지 않고, `L1/L2/L3원본행`이 가리키는 **기준행**만으로 FE–FM–FC **상호관계(FailureLink)** 를 연결한다. (Rule 1.7: 텍스트 역매칭 없음.)
+
+**원본행 숫자 규칙:** `excelRow` 및 FC의 `L1_origRow`/`L2_origRow`/`L3_origRow`는 모두 **워크시트 물리 행 Excel 1-based** (= ExcelJS `rowNumber`, `=ROW()`). 헤더 제외 0-based 데이터 인덱스가 아님. 등록 맵의 키와 FC 컬럼 값이 동일 기준이어야 FK가 맞는다.
 
 **`atomicToFlatData` L1 FK (2026-03-23):** Import 검증 `verifyFK`(`import-verification-columns.ts`)와 동일 체인을 맞춘다 — **C1.parent→L1Structure**, **C2.parent→C1**, **C3.parent→대표 C2 id**(동일 C2+다중 C3 시 첫 L1Function id), **C4.parent→`${l1FuncId}-C3`**. L2는 **A3.parent→L2Structure**, **A4.parent→동일 행 `l2FuncId`(파서가 설정)**, **A5.parent→productCharId**.
 

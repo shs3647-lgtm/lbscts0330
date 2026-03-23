@@ -384,17 +384,41 @@ export async function POST(request: NextRequest) {
         console.warn('[save-position-import] 원인: FC 시트의 L1/L2/L3 원본행 컬럼 확인 필요');
       }
       if (validFLs.length > 0) {
-        await tx.failureLink.createMany({
-          skipDuplicates: true,
-          data: validFLs.map(fl => ({
-            id: fl.id, fmeaId: normalizedId,
-            fmId: fl.fmId, feId: fl.feId, fcId: fl.fcId,
-            l2StructId: fl.l2StructId || undefined,
-            l3StructId: fl.l3StructId || undefined,
-            fmText: fl.fmText, feText: fl.feText, fcText: fl.fcText,
-            feScope: fl.feScope, fmProcess: fl.fmProcess, fcWorkElem: fl.fcWorkElem, fcM4: fl.fcM4,
-          })),
-        });
+        try {
+          await tx.failureLink.createMany({
+            skipDuplicates: true,
+            data: validFLs.map(fl => ({
+              id: fl.id, fmeaId: normalizedId,
+              fmId: fl.fmId, feId: fl.feId, fcId: fl.fcId,
+              l2StructId: fl.l2StructId || undefined,
+              l3StructId: fl.l3StructId || undefined,
+              fmText: fl.fmText, feText: fl.feText, fcText: fl.fcText,
+              feScope: fl.feScope, fmProcess: fl.fmProcess, fcWorkElem: fl.fcWorkElem, fcM4: fl.fcM4,
+            })),
+          });
+        } catch (flErr: any) {
+          console.warn('[save-position-import] FL retry without optional fields:', flErr.message?.substring(0, 100));
+          try {
+            await tx.failureLink.createMany({
+              skipDuplicates: true,
+              data: validFLs.map(fl => ({
+                id: fl.id, fmeaId: normalizedId,
+                fmId: fl.fmId, feId: fl.feId, fcId: fl.fcId,
+                l2StructId: fl.l2StructId || undefined,
+                l3StructId: fl.l3StructId || undefined,
+              })),
+            });
+          } catch (flErr2: any) {
+            console.warn('[save-position-import] FL retry core-only:', flErr2.message?.substring(0, 100));
+            await tx.failureLink.createMany({
+              skipDuplicates: true,
+              data: validFLs.map(fl => ({
+                id: fl.id, fmeaId: normalizedId,
+                fmId: fl.fmId, feId: fl.feId, fcId: fl.fcId,
+              })),
+            });
+          }
+        }
         console.log(`[save-position-import] FailureLink: ${validFLs.length}건 생성`);
       }
 
@@ -406,7 +430,6 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: validRAs.map(ra => ({
             id: ra.id, fmeaId: normalizedId, linkId: ra.linkId,
-            parentId: ra.parentId || null,
             severity: ra.severity, occurrence: ra.occurrence, detection: ra.detection,
             ap: ra.ap, preventionControl: ra.preventionControl, detectionControl: ra.detectionControl,
           })),

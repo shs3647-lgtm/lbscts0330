@@ -5,7 +5,7 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { resolveSpecialChar, getResolvedBadgeStyle, getResolvedSymbol } from '@/components/common/SpecialCharBadge';
+import { resolveSpecialChar, getResolvedBadgeStyle } from '@/components/common/SpecialCharBadge';
 
 interface SpecialCharCellProps {
     colIdx: number;
@@ -26,8 +26,14 @@ export function SpecialCharCell({
     value,
     align = 'center',
 }: SpecialCharCellProps) {
-    const resolved = resolveSpecialChar(value);
-    const displayValue = resolved?.displaySymbol || value;
+    const displayValue = String(value ?? '');
+    const resolved = displayValue.trim() ? resolveSpecialChar(displayValue) : null;
+    const titleText =
+        displayValue.trim() === ''
+            ? '특별특성 없음'
+            : resolved?.meaning
+              ? `특별특성: ${displayValue} — ${resolved.meaning}`
+              : `특별특성: ${displayValue}`;
 
     return (
         <td
@@ -43,9 +49,9 @@ export function SpecialCharCell({
                 verticalAlign: 'middle',
                 cursor: 'default',
             }}
-            title={displayValue ? `특별특성: ${displayValue}` : '특별특성 없음'}
+            title={titleText}
         >
-            {displayValue ? (
+            {displayValue.trim() ? (
                 <span style={getResolvedBadgeStyle(value)}>{displayValue}</span>
             ) : (
                 ''

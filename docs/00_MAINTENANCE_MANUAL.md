@@ -20,9 +20,11 @@
 | 2026-03-22 | - | `validate-fk` 10개 체크로 확장 (`failureLinkCoverage`, `riskAnalysisCoverage`) + `save-from-import` 불완전 Atomic 409 차단 + 회귀 테스트 3건 추가 | Claude |
 | 2026-03-22 | - | 레거시 Import flat 복원, `save-from-import` 체인 유도/chain→flat B4/B5/A6 보강, `pipeline-verify` public A6/B5 fallback으로 `m001` DC/PC null 156건 해소, `f001` resave-import 0→23 FL/RA 회복 | Claude |
 | 2026-03-22 | - | **CFT 공용 디렉터리**: `CftPublicMember` → `public.cft_public_members`, API `/api/cft-public-members`, 클라이언트 `cft-public-db.ts`. 기초정보 **사용자 정보(CFT)** 화면·`UserSelectModal`은 이 테이블만 사용 — 로그인 계정 `users`(ADMIN `/api/users`)와 **연동·동기화 없음**. 스키마 반영: `npx prisma db push` 또는 migrate | Claude |
+| 2026-03-22 | - | **위치기반 Import 정답 원칙**: 엑셀 물리 행(1-based)=**기준행**으로 L1/L2/L3 맵핑, FC 시트는 `L1/L2/L3원본행`으로 **관계(FailureLink)만** 연결(텍스트 재추론 없음). 반영: `cross-sheet-resolver.ts`/`position-parser.ts` 주석, `docs/MAINTENANCE_MANUAL.md`, `docs/Fmea master family part cp pfd architecture.md` §6.4 | Claude |
 | 2026-03-22 | - | **PFMEA→CP 생성 근본 수정**: `POST /api/pfmea/create-cp`가 `public`만 쓰던 문제 → **PFMEA 프로젝트 스키마**(`getPrismaForSchema(getProjectSchemaName(fmeaId))`)에 `control_plans`/`control_plan_items` 저장. `getPrismaForCp`에 `CpRegistration` 폴백. `GET /api/pfmea/[id]`는 프로젝트 `fmea_registrations`와 병합해 `linkedCpNo` 누락 방지. (M001 등에서 CP 워크시트 빈 화면·「연동할 CP 없음」 재발 방지) | Claude |
 | 2026-03-23 | - | **아키텍처 확정**: Master 포함 모든 PFMEA 행 데이터는 `pfmea_{fmeaId}` — public은 메타 전용. **`POST /api/fmea/sync-cp-pfd`**가 `public`에 쓰던 이중 경로 제거 → **프로젝트 스키마**에만 CP/PFD 행 저장(`create-cp`/`sync-to-cp`와 동일). 레거시 이관: `scripts/migrate-public-cp-pfd-to-project-schema.ts`. 문서: `docs/Fmea master family part cp pfd architecture.md` 갱신. | Claude |
 | 2026-03-23 | - | **구조분석 컨텍스트 메뉴**: React 18 Strict Mode(개발)에서 함수형 `setState`가 동일 `prev`로 두 번 호출되며 `splice`가 이중 적용 → 「아래로 새 행 추가」 시 placeholder가 위·아래 2줄로 보이던 현상. `createStrictModeDedupedUpdater`(`strictModeStateUpdater.ts`)로 첫 계산 결과만 캐시. `StructureTab` 행 추가·병합 추가·삭제 업데이터에 적용. 단위 테스트: `strictModeStateUpdater.test.ts`. | Claude |
+| 2026-03-23 | - | **고장연결**: `computeFailureLinkStats`·`FailureLinkTab`에서 feText/fcText 역매칭 제거 — 누락 집계·선택 FE/FC는 **feId/fcId FK만** 인정. 불일치 시 `repair-fk`/재Import로 ID 정합. 테스트: `failure-link-link-stats.test.ts`. | Claude |
 | 2026-03-23 | - | **setStateSynced 근본 수정**: `useWorksheetState`가 `updater(stateRef)` 후 `setState(객체)`만 호출해 React 큐의 `prev`와 어긋날 수 있음 → `setState(prev => …)`로 통일. `PfmeaContextMenu` 메뉴 액션에 `stopPropagation`/`type="button"`/패널 `onMouseDown`으로 중복 실행 방지. | Claude |
 | 2026-03-23 | - | **수동모드 컨텍스트 메뉴 진단서**: Handsontable 가정과 실제(HTML 테이블 + `PfmeaContextMenu`) 구분, 체크리스트 A~F 매핑 — `docs/PFMEA_MANUAL_MODE_CONTEXT_MENU_DIAGNOSIS.md`. E2E `context-menu-all-tabs.spec.ts`에 L2「위로 새 행 추가」→정확히 +1행 케이스 추가. | Claude |
 | 2026-03-23 | - | **PFMEA 좌우 비교 뷰**: `/pfmea/compare` + `compare/constants.ts` (`normalizeCompareTab`). 워크시트 `compareEmbed`/`readonly`/`compareSide`, 스크롤 `postMessage`, `globals.css` `.compare-worksheet-readonly`. 문서: `docs/PFMEA_COMPARE_VIEW.md`. | Claude |
@@ -122,6 +124,7 @@
 | LK-04 | 수동 연결/해제 | 체크박스 클릭 | savedLinks DB 저장 | |
 | LK-05 | 공통공정 FM | 01번 공정 | FM 누락 없음 (399a042c) | |
 | LK-06 | B2/B3 belongsTo | 워크시트 WE 매칭 | 정확한 매칭 (d22615a3) | |
+| LK-07 | 연결 통계·다이어그램 | feId/fcId FK만 | feText/fcText 역매칭 없음 (Rule 1.7) | |
 
 ### 1.7 ALL 탭 (AllTabAtomic)
 
