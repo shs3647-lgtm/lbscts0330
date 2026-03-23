@@ -15,6 +15,7 @@ import {
   getMaxSeverity, getSafeSODValue, getImprovementStatus, checkNeedsAction,
   getSpecialCharBadgeStyle, parseTargetFromText,
 } from './riskOptUtils';
+import { resolveSpecialChar } from '@/components/common/SpecialCharBadge';
 import { getOptRowKey, getOptSODKey } from './multiOptUtils';
 import { PLACEHOLDER_NA } from './allTabConstants';
 import { getSpecialCharMaster, type SpecialCharMaster } from '@/components/modals/SpecialCharMasterModal';
@@ -314,16 +315,16 @@ export function renderSpecialCharCell(
     }
   }
 
-  // ⑤ 레거시 CC/SC → LBS 기호 변환 (DB에 저장된 레거시값 호환)
-  if (scVal === 'CC') scVal = '★';
-  if (scVal === 'SC') scVal = '◇';
+  // ⑤ SC 마스터 기반 기호 해석
+  const scResolved = resolveSpecialChar(scVal);
+  const scDisplay = scResolved?.displaySymbol || scVal;
 
   return (
     <td key={colIdx} rowSpan={fcRowSpan} style={{ ...style, cursor: 'pointer', textAlign: 'center' }}
-      title={scVal ? `특별특성: ${scVal}` : '클릭하여 특별특성 선택'}
+      title={scDisplay ? `특별특성: ${scDisplay}` : '클릭하여 특별특성 선택'}
       onClick={() => onOpenSpecialChar?.(riskDataKey, scVal)}
     >
-      {scVal ? <span style={getSpecialCharBadgeStyle(scVal)}>{scVal}</span> : <span style={{ color: '#999', fontSize: '10px' }}>+</span>}
+      {scDisplay ? <span style={getSpecialCharBadgeStyle(scVal)}>{scDisplay}</span> : <span style={{ color: '#999', fontSize: '10px' }}>+</span>}
     </td>
   );
 }

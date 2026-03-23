@@ -259,10 +259,5 @@ export function checkNeedsAction(fmId: string, uniqueKey: string, state?: Worksh
   return ap === 'H' || ap === 'M';
 }
 
-/** 특별특성 배지 스타일 — LBS: ★=제품(주황), ◇=공정(청록) + 레거시 CC/SC 호환 */
-export const getSpecialCharBadgeStyle = (sc: string | boolean | number | undefined): React.CSSProperties => {
-  const s = String(sc || '');
-  if (s === '★' || s === 'CC' || s.includes('CC')) return { backgroundColor: '#e65100', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
-  if (s === '◇' || s === 'SC' || s.includes('SC')) return { backgroundColor: '#00838f', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
-  return {};
-};
+/** 특별특성 배지 스타일 — SC 마스터 기반 동적 해석 */
+export { getResolvedBadgeStyle as getSpecialCharBadgeStyle } from '@/components/common/SpecialCharBadge';

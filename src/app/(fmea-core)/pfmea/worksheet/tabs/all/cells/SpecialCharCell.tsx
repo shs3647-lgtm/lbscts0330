@@ -1,12 +1,11 @@
 /**
  * @file cells/SpecialCharCell.tsx
- * @description 특별특성 셀 렌더링 (CC/SC 배지)
- * @created 2026-01-27
+ * @description 특별특성 셀 렌더링 — SC 마스터 기반 동적 기호/색상
  */
 'use client';
 
-import React from 'react';
 import type { CSSProperties } from 'react';
+import { resolveSpecialChar, getResolvedBadgeStyle, getResolvedSymbol } from '@/components/common/SpecialCharBadge';
 
 interface SpecialCharCellProps {
     colIdx: number;
@@ -18,13 +17,6 @@ interface SpecialCharCellProps {
     align?: 'left' | 'center' | 'right';
 }
 
-// 특별특성 배지 스타일 — LBS: ★=제품(주황), ◇=공정(청록)
-const getBadgeStyle = (sc: string): CSSProperties => {
-    if (sc === '★' || sc === 'CC') return { backgroundColor: '#e65100', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
-    if (sc === '◇' || sc === 'SC') return { backgroundColor: '#00838f', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700 };
-    return {};
-};
-
 export function SpecialCharCell({
     colIdx,
     globalRowIdx,
@@ -34,8 +26,8 @@ export function SpecialCharCell({
     value,
     align = 'center',
 }: SpecialCharCellProps) {
-    // ★ 레거시 CC/SC → LBS 기호 변환 (DB에 저장된 레거시값 호환)
-    const displayValue = value === 'CC' ? '★' : value === 'SC' ? '◇' : value;
+    const resolved = resolveSpecialChar(value);
+    const displayValue = resolved?.displaySymbol || value;
 
     return (
         <td
@@ -54,7 +46,7 @@ export function SpecialCharCell({
             title={displayValue ? `특별특성: ${displayValue}` : '특별특성 없음'}
         >
             {displayValue ? (
-                <span style={getBadgeStyle(displayValue)}>{displayValue}</span>
+                <span style={getResolvedBadgeStyle(value)}>{displayValue}</span>
             ) : (
                 ''
             )}
