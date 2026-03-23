@@ -331,6 +331,7 @@ export const ANALYSIS_TABS = [
   { id: 'function-l2', label: '2L Function(기능)', step: 3 },
   { id: 'function-l3', label: '3L Function(기능)', step: 3 },
   { id: 'failure-l1', label: '1L영향(FE)', step: 4 },
+  { id: 'failure-severity-map', label: 'AIAG S매핑', step: 4 },
   { id: 'failure-l2', label: '2L형태(FM)', step: 4 },
   { id: 'failure-l3', label: '3L원인(FC)', step: 4 },
   { id: 'failure-link', label: 'Failure Link(고장연결)', step: 4 },

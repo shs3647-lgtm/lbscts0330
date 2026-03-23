@@ -187,18 +187,10 @@ export default function SODMasterModal({ isOpen, onClose }: SODMasterModalProps)
   // 가져오기 (Excel .xlsx) - SODExcelUtils로 분리
   const handleImport = useCallback(() => {
     importSODFromExcel(activeTab, activeCategory, activeStandard, (importedItems) => {
-      setItems(prev => {
-        const next = [
-          ...prev.filter(item => !(item.fmeaType === activeTab && item.category === activeCategory && (item.standard || DEFAULT_STANDARD) === activeStandard)),
-          ...importedItems,
-        ];
-        try {
-          localStorage.setItem('sod_master_data', JSON.stringify(next));
-        } catch (e) {
-          console.error('[SODMasterModal] import 후 localStorage 저장 실패:', e);
-        }
-        return next;
-      });
+      setItems(prev => [
+        ...prev.filter(item => !(item.fmeaType === activeTab && item.category === activeCategory && (item.standard || DEFAULT_STANDARD) === activeStandard)),
+        ...importedItems,
+      ]);
     });
   }, [activeTab, activeCategory, activeStandard]);
 
@@ -345,9 +337,6 @@ export default function SODMasterModal({ isOpen, onClose }: SODMasterModalProps)
                       </th>
                       <th className="py-0.5 px-1 border border-gray-300 whitespace-nowrap text-center" title="Impact to End User">
                         최종사용자 영향(User)<br/><span className="text-[8px] opacity-80">Impact to End User</span>
-                      </th>
-                      <th className="py-0.5 px-1 border border-gray-300 whitespace-nowrap text-center" title="Severity recommendation (per rating)">
-                        심각도 추천(S Rec)<br/><span className="text-[8px] opacity-80">Severity Recommendation</span>
                       </th>
                       {SHOW_EXAMPLES_COLUMN && (
                         <th className="py-0.5 px-1 border border-gray-300 whitespace-nowrap text-center bg-teal-700 text-white">
@@ -515,20 +504,6 @@ export default function SODMasterModal({ isOpen, onClose }: SODMasterModalProps)
                               {(item.endUser || '').includes('(') ? '(' + (item.endUser || '').split('(').slice(1).join('(') : ''}
                             </div>
                           </div>
-                        </td>
-                        <td style={tdContentStyle} className="align-top">
-                          {isEditMode ? (
-                            <textarea
-                              value={item.severityRecommendation || ''}
-                              onChange={(e) => updateItem(item.id, 'severityRecommendation', e.target.value)}
-                              className="w-full border border-rose-300 p-1 text-[10px] bg-rose-50 rounded resize-y min-h-[44px]"
-                              placeholder="등급별 심각도 추천 문구 (엑셀 Import 가능)"
-                            />
-                          ) : (
-                            <div className="text-[9px] leading-[1.25] text-gray-800 whitespace-pre-wrap">
-                              {item.severityRecommendation?.trim() || '—'}
-                            </div>
-                          )}
                         </td>
                         {SHOW_EXAMPLES_COLUMN && (
                           <td className="p-0.5 border border-gray-300 align-top bg-teal-50">

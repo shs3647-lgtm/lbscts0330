@@ -217,7 +217,7 @@ export default function SODSelectModal({
             {recommendedRating && (
               <div className="mt-0.5 flex items-center gap-1">
                 <span className="bg-blue-600 text-white px-1.5 py-0 rounded text-[9px] font-bold">AI추천 S={recommendedRating}</span>
-                <span className="text-gray-500 text-[9px]">키워드 매칭 기반 예비평가 — 기준표 확인 후 선택하세요</span>
+                <span className="text-gray-500 text-[9px]">키워드/매핑표 기반 예비평가 — 기준표 확인 후 선택하세요</span>
               </div>
             )}
           </div>
@@ -242,9 +242,6 @@ export default function SODSelectModal({
                       <th className={`${tw.th} bg-red-700`} title="Impact to Your Plant">귀사 공장 영향(YP)<div className="text-[8px] font-normal opacity-80">Impact to Your Plant</div></th>
                       <th className={`${tw.th} bg-red-700`} title="Impact to Ship-to-Plant">고객사 영향(SP)<div className="text-[8px] font-normal opacity-80">Impact to Ship-to-Plant</div></th>
                       <th className={`${tw.th} bg-red-700`} title="Impact to End User">최종사용자 영향(User)<div className="text-[8px] font-normal opacity-80">Impact to End User</div></th>
-                      {fmeaType === 'P-FMEA' && (
-                        <th className={`${tw.th} bg-red-700`} title="Severity Recommendation">심각도 추천(S Rec)<div className="text-[8px] font-normal opacity-80">Excel Import</div></th>
-                      )}
                     </>
                   ) : category === 'O' ? (
                     fmeaType === 'P-FMEA' ? (
@@ -332,11 +329,6 @@ export default function SODSelectModal({
                               <div key={i} style={lineStyle(/^[A-Z\[]/.test(line.trim()))}>{line}</div>
                             ))}
                           </td>
-                          {fmeaType === 'P-FMEA' && (
-                            <td className={`${tw.td} leading-tight text-[9px] align-top bg-rose-50 text-gray-800`}>
-                              {(item.severityRecommendation || '').trim() || '—'}
-                            </td>
-                          )}
                         </>
                       ) : category === 'O' ? (
                         fmeaType === 'P-FMEA' ? (

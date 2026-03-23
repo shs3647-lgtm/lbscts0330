@@ -85,7 +85,7 @@ export function FailureL1Header({
             </div>
           </div>
         </th>
-        <th colSpan={3} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold">
+        <th colSpan={2} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold">
           <div className="flex items-center justify-between gap-1">
             <div className="flex items-center gap-1.5">
               <span className="whitespace-nowrap font-bold"><BiHeader ko="1L 고장분석" en="Failure Analysis" /></span>
@@ -115,7 +115,7 @@ export function FailureL1Header({
         <th colSpan={3} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
           <BiHeader ko="1. 완제품 공정기능/요구사항" en="Function/Requirements" />
         </th>
-        <th colSpan={3} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
+        <th colSpan={2} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
           <div className="flex items-center justify-center gap-1">
             <span><BiHeader ko="1. 고장영향/심각도" en="FE/Severity" /></span>
             {onAutoRecommendS && (
@@ -152,9 +152,6 @@ export function FailureL1Header({
               {effectCount}
             </span>
           )}
-        </th>
-        <th className="bg-[#fce4ec] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }} title="FE·구분 기준 키워드 매칭 추천 등급">
-          <BiHeader ko="심각도 추천" en="S (recommended)" />
         </th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ width: '30px', minWidth: '30px', maxWidth: '30px', boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           S

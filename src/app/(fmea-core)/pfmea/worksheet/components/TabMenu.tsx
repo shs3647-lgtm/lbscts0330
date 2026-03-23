@@ -63,6 +63,7 @@ export default function TabMenu({
     'function-l2': l2Confirmed,
     'function-l3': l3Confirmed,
     'failure-l1': failureL1Confirmed,
+    'failure-severity-map': false,
     'failure-l2': failureL2Confirmed,
     'failure-l3': failureL3Confirmed,
     'failure-link': failureLinkConfirmed,

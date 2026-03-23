@@ -16,7 +16,6 @@ function getExtraCols(activeCategory: 'S' | 'O' | 'D', activeTab: 'P-FMEA' | 'D-
         { header: '귀사의 공장에 미치는 영향', sub: 'Impact to Your Plant', key: 'yourPlant', width: 50 },
         { header: '고객사에 미치는 영향', sub: 'Impact to Ship-to-Plant', key: 'shipToPlant', width: 50 },
         { header: '최종사용자에 대한 영향', sub: 'Impact to End User', key: 'endUser', width: 50 },
-        { header: '심각도 추천', sub: 'Severity Recommendation', key: 'severityRecommendation', width: 36 },
       ];
     }
     return [{ header: 'DFMEA 심각도 기준', sub: 'DFMEA Severity Criteria', key: 'endUser', width: 80 }];
@@ -139,8 +138,7 @@ export async function exportSODToExcel(
 const FIELD_MAP: Record<string, keyof SODItem | '_level'> = {
   '등급': 'rating', '레벨': '_level', '레벨(한글)': 'levelKr', '레벨(영문)': 'levelEn',
   '귀사의 공장에 미치는 영향': 'yourPlant', '고객사에 미치는 영향': 'shipToPlant',
-  '최종사용자에 대한 영향': 'endUser', '심각도 추천': 'severityRecommendation',
-  'DFMEA 심각도 기준': 'endUser',
+  '최종사용자에 대한 영향': 'endUser', 'DFMEA 심각도 기준': 'endUser',
   '관리유형': 'controlType', '예방관리': 'preventionControl',
   'FMEA 대안1 발생빈도': 'description', 'DFMEA 발생도 기준': 'criteria',
   'FMEA 대안1': 'description', '검출방법 성숙도': 'criteria', '검출기회': 'description',

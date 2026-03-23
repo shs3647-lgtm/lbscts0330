@@ -39,8 +39,6 @@ export interface SODItem {
   yourPlant?: string; // Your Plant 영향
   shipToPlant?: string; // Ship to Plant 영향
   endUser?: string; // End User 영향
-  /** P-FMEA 심각도(S) 등급별 추천 문구 — 엑셀 Import/수정 가능 */
-  severityRecommendation?: string;
   description?: string; // 추가 설명/발생빈도
   criteria?: string; // 기준 설명/검출방법 성숙도
   // 발생도(O) 전용 필드

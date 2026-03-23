@@ -11,9 +11,14 @@ import FailureL1Tab from './FailureL1Tab';
 import FailureL2Tab from './FailureL2Tab';
 import FailureL3Tab from './FailureL3Tab';
 import FailureLinkTab from './FailureLinkTab';
+import FailureSeverityMappingTab from './FailureSeverityMappingTab';
 
 export default function FailureTab(props: FailureTabProps) {
   const { state } = props;
+
+  if (state.tab === 'failure-severity-map') {
+    return <FailureSeverityMappingTab {...props} />;
+  }
   
   // 메인 탭에서 직접 레벨 결정
   if (state.tab === 'failure-l2') {

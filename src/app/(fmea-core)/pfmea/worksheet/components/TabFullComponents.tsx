@@ -29,6 +29,7 @@ export function getStepNumber(tab: string): number {
     'function-l2': 3,
     'function-l3': 3,
     'failure-l1': 4,
+    'failure-severity-map': 4,
     'failure-l2': 4,
     'failure-l3': 4,
     'failure-link': 4,

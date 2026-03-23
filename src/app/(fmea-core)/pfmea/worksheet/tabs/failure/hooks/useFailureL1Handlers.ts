@@ -284,16 +284,26 @@ export function useFailureL1Handlers({
     }, 100);
   }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
-  // 심각도 업데이트 핸들러
-  const updateSeverity = useCallback((effectId: string, severity: number | undefined) => {
+  // 심각도 업데이트 핸들러 (근거는 고장영향 열에 표시 — severityRationale로 저장)
+  const updateSeverity = useCallback((
+    effectId: string,
+    severity: number | undefined,
+    severityRationale?: string,
+  ) => {
     const updateFn = (prev: any) => {
       const newState = JSON.parse(JSON.stringify(prev));
       const allScopes = newState.l1.failureScopes || [];
       const currentEffect = allScopes.find((s: any) => s.id === effectId);
       const effectName = currentEffect?.effect;
-      
+
       newState.l1.failureScopes = allScopes.map((s: any) => {
-        if (s.id === effectId) return { ...s, severity };
+        if (s.id === effectId) {
+          const next: Record<string, unknown> = { ...s, severity };
+          if (severityRationale !== undefined) {
+            next.severityRationale = severityRationale;
+          }
+          return next;
+        }
         if (effectName && s.effect === effectName && s.severity !== severity) return { ...s, severity };
         return s;
       });
