@@ -106,6 +106,7 @@ interface FailureEffect {
   reqId: string; // 연결된 요구사항 ID
   effect: string; // 고장영향
   severity?: number; // 심각도
+  severityRationale?: string; // AIAG-VDA 근거 문구
   isRevised?: boolean; // 개정 마커
 }
 
@@ -195,11 +196,12 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       if (matches.length > 0) {
         const best = matches[0];
         const prev = scope.severity || 0;
+        const rationale = best.matchedKeywords.join(', ').replace(/^직접매핑:\s*/, '');
         if (prev !== best.rating) {
           changeCount++;
-          details.push(`S=${prev}→${best.rating}(${best.level}) ← "${(scope.effect as string).substring(0, 25)}..." [${best.matchedKeywords.join(',')}]`);
+          details.push(`S=${prev}→${best.rating} "${(scope.effect as string).substring(0, 20)}" — ${rationale}`);
         }
-        return { ...scope, severity: best.rating };
+        return { ...scope, severity: best.rating, severityRationale: rationale };
       }
       return scope;
     });
@@ -582,6 +584,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       reqId: s.reqId || '',
       effect: s.effect || '',
       severity: s.severity,
+      severityRationale: s.severityRationale || '',
       isRevised: s.isRevised
     }));
   }, [(state.l1 as any)?.failureScopes]);
@@ -722,7 +725,11 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       effectId: string;
       effect: string;
       severity?: number;
+      severityRationale?: string;
       isRevised?: boolean;
+      /** FE·구분 기준 키워드/직접매핑 추천 S */
+      severityRecRating?: number;
+      severityRecHint?: string;
     }[] = [];
 
     const typeShown: Record<string, boolean> = {};
@@ -750,13 +757,18 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
           const isFirstInType = !typeShown[group.typeName];
           const isFirstInReq = eIdx === 0;
 
+          const scopeNorm = normalizeScope(group.typeName || '');
+          const recMatches = eff.effect?.trim()
+            ? matchFESeverity(eff.effect, scopeNorm)
+            : [];
+          const topRec = recMatches[0];
+
           // 유효한 고장영향이 있으면 번호 증가
           let feNo = '';
           if (eff.id && eff.effect) {
-            const normType = normalizeScope(group.typeName || '');
-            const currentCount = typeCounters[normType] || 0;
+            const currentCount = typeCounters[scopeNorm] || 0;
             feNo = getFeNo(group.typeName, currentCount);
-            typeCounters[normType] = currentCount + 1;
+            typeCounters[scopeNorm] = currentCount + 1;
           }
 
           rows.push({
@@ -779,7 +791,12 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
             effectId: eff.id,
             effect: eff.effect,
             severity: eff.severity,
-            isRevised: eff.isRevised
+            severityRationale: eff.severityRationale,
+            isRevised: eff.isRevised,
+            severityRecRating: topRec?.rating,
+            severityRecHint: topRec
+              ? [...(topRec.matchedKeywords || []), topRec.level].filter(Boolean).join(' · ')
+              : undefined,
           });
 
           typeShown[group.typeName] = true;
@@ -795,11 +812,12 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     <div className="p-0 overflow-auto h-full" style={{ paddingBottom: '50px' }} onKeyDown={handleEnterBlur}>
       <table className="w-full border-collapse table-fixed" style={{ minWidth: '100%', marginBottom: '50px' }}>
         <colgroup>
-          <col style={{ width: '14%' }} /> {/* 완제품공정명 */}
+          <col style={{ width: '13%' }} /> {/* 완제품공정명 */}
           <col style={{ width: '7%' }} />  {/* 구분 */}
-          <col style={{ width: '19%' }} /> {/* 완제품기능 */}
-          <col style={{ width: '14%' }} /> {/* 요구사항 */}
-          <col style={{ width: '40%' }} /> {/* 고장영향 */}
+          <col style={{ width: '18%' }} /> {/* 완제품기능 */}
+          <col style={{ width: '13%' }} /> {/* 요구사항 */}
+          <col style={{ width: '34%' }} /> {/* 고장영향 */}
+          <col style={{ width: '6%' }} />  {/* 심각도 추천 */}
           <col style={{ width: '6%' }} />  {/* S */}
         </colgroup>
 
@@ -849,8 +867,11 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                       <td className="border border-[#ccc] p-1 align-middle" style={{ background: '#fff3e0' }}>
                         <span className="text-[11px] italic text-[#f57c00] opacity-60 block text-center">고장영향 선택</span>
                       </td>
+                      <td className="border border-[#ccc] p-1 text-center text-[11px] align-middle" style={{ background: '#fce4ec' }}>
+                        —
+                      </td>
                       <td className="border border-[#ccc] p-1 text-center text-[11px] align-middle" style={{ background: '#fafafa' }}>
-                        -
+                        —
                       </td>
                     </tr>
                   );
@@ -993,16 +1014,33 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                       />
                     </td>
 
+                    {/* 심각도 추천 (키워드/직접매핑) — 읽기 전용 */}
+                    <td
+                      className="border border-[#ccc] p-1 text-center align-middle text-[11px] font-semibold"
+                      style={{
+                        background: '#fce4ec',
+                        color: row.severityRecRating != null ? '#880e4f' : '#9e9e9e',
+                        minWidth: '36px',
+                      }}
+                      title={row.severityRecHint || 'FE 텍스트·구분 기준 추천 등급'}
+                    >
+                      {row.effect?.trim() && row.severityRecRating != null ? row.severityRecRating : '—'}
+                    </td>
+
                     {/* 심각도 - 클릭하면 SOD 모달 팝업 */}
                     <td
                       style={{
                         border: `1px solid #ccc`,
-                        padding: '4px',
+                        padding: '2px 4px',
                         textAlign: 'center',
-                        width: '30px',
                         minWidth: '30px',
-                        maxWidth: '30px',
-                        background: row.severity && row.severity >= 8 ? '#ffe0b2' : row.severity && row.severity >= 5 ? '#fff9c4' : zebra.failure,
+                        background: row.severity && row.severity >= 9
+                          ? '#ffebee'
+                          : row.severity && row.severity >= 8
+                            ? '#fce4ec'
+                            : row.severity && row.severity >= 5
+                              ? '#fff9c4'
+                              : zebra.failure,
                         cursor: 'pointer',
                         position: 'relative',
                         zIndex: 10
@@ -1017,7 +1055,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                           // ✅ scope 값 정규화 — 중앙 normalizeScope() 사용 (2026-03-22)
                           const scopeValue = row.typeName ? normalizeScope(row.typeName) : undefined;
 
-                          const bestMatch = row.effect ? matchFESeverity(row.effect) : [];
+                          const bestMatch = row.effect ? matchFESeverity(row.effect, scopeValue) : [];
                           const keywordRating = bestMatch.length > 0 ? bestMatch[0].rating : undefined;
                           setSODModal({
                             effectId: row.effectId,
@@ -1036,16 +1074,29 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                           }
                         }
                       }}
-                      title={row.effectId ? '클릭하여 심각도 선택' : ''}
+                      title={row.effectId ? (row.severityRationale ? `S=${row.severity} — ${row.severityRationale}\n클릭하여 변경` : '클릭하여 심각도 선택') : ''}
                     >
                       {row.effectId ? (
-                        <span style={{
-                          fontWeight: FONT_WEIGHTS.semibold,
-                          fontSize: FONT_SIZES.pageHeader,
-                          color: row.severity && row.severity >= 8 ? COLORS.failure.text : row.severity && row.severity >= 5 ? '#f57f17' : COLORS.text
-                        }}>
-                          {row.severity || '🔍'}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                          <span style={{
+                            fontWeight: FONT_WEIGHTS.semibold,
+                            fontSize: FONT_SIZES.pageHeader,
+                            color: row.severity && row.severity >= 9
+                              ? '#880e4f'
+                              : row.severity && row.severity >= 8
+                                ? '#ad1457'
+                                : row.severity && row.severity >= 5
+                                  ? '#f57f17'
+                                  : COLORS.text
+                          }}>
+                            {row.severity || '🔍'}
+                          </span>
+                          {row.severityRationale && (
+                            <span style={{ fontSize: '8px', color: '#1565c0', lineHeight: 1.1, wordBreak: 'keep-all' }}>
+                              ({row.severityRationale})
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span style={{ color: COLORS.failure.dark, fontSize: FONT_SIZES.cell, fontWeight: FONT_WEIGHTS.semibold }}>-</span>
                       )}
