@@ -414,9 +414,9 @@ export default function FailureLinkTables({
             <table style={{ ...tableFullStyle(FONT_SIZES.cell), tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={thStyle('#e8f5e9', '8%')}>No</th>
-                  <th style={thStyle('#e8f5e9', '19%')} title="Process Name">공정명<br/>(Process)</th>
-                  <th style={{...thStyle('#e8f5e9', '30px'), minWidth: 30}} title="Work Element">WE</th>
+                  <th style={{...thStyle('#e8f5e9'), width: 30, minWidth: 30, maxWidth: 30}}>No</th>
+                  <th style={thStyle('#e8f5e9', '24%')} title="Process Name">공정명<br/>(Process)</th>
+                  <th style={{...thStyle('#e8f5e9', '26px'), minWidth: 26}} title="Work Element">WE</th>
                   <th style={thStyle('#e8f5e9')} title="Failure Cause">고장원인(FC)</th>
                 </tr>
               </thead>
