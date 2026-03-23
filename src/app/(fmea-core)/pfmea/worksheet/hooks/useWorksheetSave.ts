@@ -195,14 +195,15 @@ export function useWorksheetSave({
             const res = await fetch('/api/fmea/save-position-import', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fmeaId: targetFmeaId, atomicData: posData }),
+              // manualMode=true: L2/L3 완전 동기화 (삭제+생성) — skipDuplicates 사용 안 함
+              body: JSON.stringify({ fmeaId: targetFmeaId, atomicData: posData, manualMode: true }),
             });
             if (res.ok) {
               const result = await res.json();
               if (result.success) {
                 setDirty(false);
                 setLastSaved(new Date().toLocaleTimeString('ko-KR'));
-                console.info(`[useWorksheetSave] 수동모드 저장 완료 — ${targetFmeaId}`);
+                console.info(`[useWorksheetSave] 수동모드 저장 완료 — ${targetFmeaId} L2=${result.counts?.l2 ?? '?'}`);
               }
             }
           }
@@ -284,10 +285,10 @@ export function useWorksheetSave({
               fetch('/api/fmea/save-position-import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fmeaId: targetId, atomicData: posData }),
+                body: JSON.stringify({ fmeaId: targetId, atomicData: posData, manualMode: true }),
               }).then(res => res.json()).then(result => {
                 if (result.success) {
-                  console.info(`[useWorksheetSave] saveToLocalStorage 수동저장 완료`);
+                  console.info(`[useWorksheetSave] saveToLocalStorage 수동저장 완료 L2=${result.counts?.l2 ?? '?'}`);
                 }
               }).catch(e => console.error('[수동저장] 오류:', e));
             }
