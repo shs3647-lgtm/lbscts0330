@@ -475,9 +475,9 @@ export async function saveAtomicFromPosition(
             id: ra.id,
             fmeaId: normalizedId,
             linkId: ra.linkId,
-            
-            
-            
+            fmId: ra.fmId || null,
+            fcId: ra.fcId || null,
+            feId: ra.feId || null,   // ★v4 EX-06
             severity: ra.severity,
             occurrence: ra.occurrence,
             detection: ra.detection,
