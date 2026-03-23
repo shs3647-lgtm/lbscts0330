@@ -12,7 +12,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { normalizeM4WithOriginal, isValidProcessNo, recordSyncLog, buildCpPreservedFieldsMap, restorePreservedFields } from '@/lib/sync-helpers';
 
 interface CharItem {
@@ -79,6 +80,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const fmeaIdNorm = String(fmeaId).trim().toLowerCase();
+        const baseUrl = getBaseDatabaseUrl();
+        if (!baseUrl) {
+            return NextResponse.json({ success: false, error: 'DATABASE_URL not configured' }, { status: 500 });
+        }
+        const schema = getProjectSchemaName(fmeaIdNorm);
+        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+        const prismaProj = getPrismaForSchema(schema);
+        if (!prismaProj) {
+            return NextResponse.json({ success: false, error: 'Project schema Prisma client unavailable' }, { status: 500 });
+        }
+
         // P0-2: riskData → refSeverity/O/D/AP 룩업 테이블 구축
         const riskByL2L3 = new Map<string, { refSeverity?: number; refOccurrence?: number; refDetection?: number; refAp?: string }>();
         const riskByL2 = new Map<string, { maxSeverity?: number }>();
@@ -103,10 +116,10 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // ★ CP 과다 생성 방지 — 동일 FMEA에 연결된 CP가 10개 이상이면 경고
+        // ★ CP 과다 생성 방지 — 동일 FMEA에 연결된 CP가 10개 이상이면 경고 (프로젝트 스키마 기준)
         const MAX_CP_PER_FMEA = 10;
-        const existingCpCount = await prisma.controlPlan.count({
-            where: { fmeaId: fmeaId },
+        const existingCpCount = await prismaProj.controlPlan.count({
+            where: { fmeaId: fmeaIdNorm },
         });
         if (existingCpCount >= MAX_CP_PER_FMEA) {
             return NextResponse.json({
@@ -118,35 +131,35 @@ export async function POST(request: NextRequest) {
         }
 
         // 대상 CP 번호 결정
-        const targetCpNo = cpNo || fmeaId.replace(/^pfm/i, 'cp').toLowerCase();
+        const targetCpNo = String(cpNo || fmeaIdNorm.replace(/^pfm/i, 'cp')).toLowerCase();
 
-        // 1. CP 등록정보 생성 또는 조회
-        let existingCp = await prisma.controlPlan.findUnique({
+        // 1. CP 헤더 — Rule 0.8.1: 반드시 PFMEA와 동일 프로젝트 스키마 (워크시트 GET /api/control-plan/[id]/items 와 동일 저장소)
+        let existingCp = await prismaProj.controlPlan.findUnique({
             where: { cpNo: targetCpNo },
         });
 
         if (!existingCp) {
-            existingCp = await prisma.controlPlan.create({
+            existingCp = await prismaProj.controlPlan.create({
                 data: {
                     cpNo: targetCpNo,
-                    fmeaId: fmeaId,
+                    fmeaId: fmeaIdNorm,
                     partName: subject || '',
                     customer: customer || '',
                     revNo: 'A',
                     status: 'draft',
-                    linkedPfmeaNo: fmeaId,
+                    linkedPfmeaNo: fmeaIdNorm,
                 },
             });
         }
 
         const cpId = existingCp.id;
 
-        // C1: 사용자 편집 필드 보존 — deleteMany 전에 수집
-        const preservedMap = await buildCpPreservedFieldsMap(prisma, cpId);
+        // C1: 사용자 편집 필드 보존 — deleteMany 전에 수집 (프로젝트 스키마)
+        const preservedMap = await buildCpPreservedFieldsMap(prismaProj, cpId);
 
         // 트랜잭션으로 deleteMany + creates + 역링크 원자성 보장
         const cpItems: any[] = [];
-        await prisma.$transaction(async (tx: any) => {
+        await prismaProj.$transaction(async (tx: any) => {
             // 2. 기존 ControlPlanItem 삭제 (덮어쓰기)
             await tx.controlPlanItem.deleteMany({
                 where: { cpId },
@@ -356,27 +369,73 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // C4: FmeaRegistration.linkedCpNo 역링크 저장 (트랜잭션 내부)
+            // C4: FmeaRegistration.linkedCpNo 역링크 (프로젝트 스키마 기초정보)
             try {
                 await tx.fmeaRegistration.updateMany({
-                    where: { fmeaId },
+                    where: { fmeaId: fmeaIdNorm },
                     data: { linkedCpNo: targetCpNo },
                 });
             } catch (regErr) {
-                // P1-7: 역링크 실패는 치명적이지 않으나 추적 필요
-                console.error('[PFMEA→CP 생성] FmeaRegistration 역링크 저장 실패 — fmeaId:', fmeaId, ', cpNo:', targetCpNo, ', error:', regErr);
+                console.error('[PFMEA→CP 생성] FmeaRegistration 역링크 저장 실패 — fmeaId:', fmeaIdNorm, ', cpNo:', targetCpNo, ', error:', regErr);
             }
         });
 
-        // M6: SyncLog 기록
+        // ★ public 메타: CP 목록·연동 라우팅용 (CpRegistration / ProjectLinkage)
+        try {
+            await prisma.cpRegistration.upsert({
+                where: { cpNo: targetCpNo },
+                create: {
+                    cpNo: targetCpNo,
+                    fmeaId: fmeaIdNorm,
+                    fmeaNo: fmeaIdNorm,
+                    linkedPfmeaNo: fmeaIdNorm,
+                    subject: subject || `CP ${targetCpNo}`,
+                    status: 'draft',
+                },
+                update: {
+                    fmeaId: fmeaIdNorm,
+                    fmeaNo: fmeaIdNorm,
+                    linkedPfmeaNo: fmeaIdNorm,
+                    subject: subject || undefined,
+                },
+            });
+        } catch (e) {
+            console.error('[PFMEA→CP 생성] CpRegistration upsert 실패:', e);
+        }
+
+        try {
+            const link = await prisma.projectLinkage.findFirst({
+                where: { pfmeaId: fmeaIdNorm, status: 'active' },
+            });
+            if (link) {
+                await prisma.projectLinkage.update({
+                    where: { id: link.id },
+                    data: { cpNo: targetCpNo, subject: subject || link.subject },
+                });
+            } else {
+                await prisma.projectLinkage.create({
+                    data: {
+                        pfmeaId: fmeaIdNorm,
+                        cpNo: targetCpNo,
+                        subject: subject || null,
+                        status: 'active',
+                        linkType: 'pfmea-cp',
+                    },
+                });
+            }
+        } catch (e) {
+            console.error('[PFMEA→CP 생성] ProjectLinkage 저장 실패:', e);
+        }
+
+        // M6: SyncLog 기록 (public)
         await recordSyncLog(prisma, {
             sourceType: 'PFMEA',
-            sourceId: fmeaId,
+            sourceId: fmeaIdNorm,
             targetType: 'ControlPlan',
             targetId: targetCpNo,
             action: 'create-cp',
             status: 'completed',
-            fieldChanges: `${cpItems.length}건 생성`,
+            fieldChanges: `${cpItems.length}건 생성 (schema:${schema})`,
         });
 
         return NextResponse.json({
@@ -385,9 +444,10 @@ export async function POST(request: NextRequest) {
             data: {
                 cpNo: targetCpNo,
                 cpId,
-                fmeaId,
+                fmeaId: fmeaIdNorm,
                 itemCount: cpItems.length,
-                redirectUrl: `/control-plan/worksheet?cpNo=${targetCpNo}&fromFmea=${fmeaId}`,
+                projectSchema: schema,
+                redirectUrl: `/control-plan/worksheet?cpNo=${encodeURIComponent(targetCpNo)}&fromFmea=${encodeURIComponent(fmeaIdNorm)}`,
                 createdAt: new Date().toISOString(),
             }
         });

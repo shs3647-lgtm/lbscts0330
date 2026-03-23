@@ -11,7 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { findOrCreateCp } from '../utils';
 import { normalizeM4WithOriginal, isValidProcessNo, recordSyncLog, buildCpPreservedFieldsMap, restorePreservedFields } from '@/lib/sync-helpers';
 
@@ -64,8 +65,20 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 1. 대상 CP 조회 또는 생성
-        const cp = await findOrCreateCp(prisma as any, cpNo, fmeaId);
+        const fmeaIdNorm = String(fmeaId).trim().toLowerCase();
+        const baseUrl = getBaseDatabaseUrl();
+        if (!baseUrl) {
+            return NextResponse.json({ success: false, error: 'DATABASE_URL not configured' }, { status: 500 });
+        }
+        const schema = getProjectSchemaName(fmeaIdNorm);
+        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+        const prismaProj = getPrismaForSchema(schema);
+        if (!prismaProj) {
+            return NextResponse.json({ success: false, error: 'Project schema unavailable' }, { status: 500 });
+        }
+
+        // 1. 대상 CP 조회 또는 생성 (프로젝트 스키마)
+        const cp = await findOrCreateCp(prisma as any, cpNo, fmeaIdNorm);
 
         // 3. L2 데이터를 CP Item으로 변환
         const cpItems: any[] = [];
@@ -103,10 +116,10 @@ export async function POST(request: NextRequest) {
         const mergedL2Data = Array.from(mergedL2Map.values());
 
         // C1: 사용자 편집 보존을 위해 삭제 전 기존 필드 룩업
-        const preservedMap = await buildCpPreservedFieldsMap(prisma as any, cp.id);
+        const preservedMap = await buildCpPreservedFieldsMap(prismaProj as any, cp.id);
 
-        // ★ 트랜잭션으로 deleteMany + create 원자성 보장
-        await prisma.$transaction(async (tx: any) => {
+        // ★ 트랜잭션으로 deleteMany + create 원자성 보장 (프로젝트 스키마)
+        await prismaProj.$transaction(async (tx: any) => {
             // 2. 기존 CP Item 삭제 (새로 생성)
             await tx.controlPlanItem.deleteMany({
                 where: { cpId: cp.id },
@@ -208,18 +221,18 @@ export async function POST(request: NextRequest) {
             await tx.controlPlan.update({
                 where: { id: cp.id },
                 data: {
-                    fmeaId,
-                    linkedPfmeaNo: fmeaId,
+                    fmeaId: fmeaIdNorm,
+                    linkedPfmeaNo: fmeaIdNorm,
                     syncStatus: 'synced',
                     lastSyncAt: new Date(),
                 },
             });
 
-            // C4: FmeaRegistration.linkedCpNo 역링크 저장 (트랜잭션 내부)
+            // C4: FmeaRegistration.linkedCpNo 역링크 저장 (트랜잭션 내부, 프로젝트 스키마)
             try {
                 await tx.fmeaRegistration.updateMany({
-                    where: { fmeaId },
-                    data: { linkedCpNo: cpNo },
+                    where: { fmeaId: fmeaIdNorm },
+                    data: { linkedCpNo: String(cpNo).toLowerCase() },
                 });
             } catch (regErr: unknown) {
                 console.error('[FMEA→CP 구조연동] 역링크 저장 실패:', regErr);
@@ -229,22 +242,23 @@ export async function POST(request: NextRequest) {
         // M6: SyncLog 기록
         await recordSyncLog(prisma as any, {
             sourceType: 'PFMEA',
-            sourceId: fmeaId,
+            sourceId: fmeaIdNorm,
             targetType: 'ControlPlan',
             targetId: cp.id,
             action: 'structure-sync',
             status: 'completed',
-            fieldChanges: `synced=${cpItems.length}, processes=${l2Data.length}`,
+            fieldChanges: `synced=${cpItems.length}, processes=${l2Data.length}, schema=${schema}`,
         });
 
         return NextResponse.json({
             success: true,
             message: `구조 연동 완료: ${cpItems.length}건`,
             data: {
-                cpNo,
+                cpNo: String(cpNo).toLowerCase(),
                 cpId: cp.id,
                 synced: cpItems.length,
                 processCount: l2Data.length,
+                projectSchema: schema,
             },
         });
 

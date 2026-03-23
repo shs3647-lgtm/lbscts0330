@@ -7,6 +7,9 @@
  *   STEP 2: validateFkDoors() — FK 문 잠금 검증
  *   STEP 3: $transaction — 꽂아넣기 (CREATE/UPDATE 모드)
  *
+ * ★ 2026-03-23: CP/PFD 행 데이터는 **PFMEA 프로젝트 스키마**(`pfmea_{fmeaId}`)에만 저장.
+ *    public은 `fmea_registrations` 등 메타 + 조회용만 사용 (sync-to-cp / create-cp 와 동일 패턴).
+ *
  * POST /api/fmea/sync-cp-pfd
  *   Body: { fmeaId, cpNo?, pfdNo?, mode: "CREATE"|"UPDATE"|"VALIDATE" }
  *
@@ -20,7 +23,6 @@ import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-sc
 import { safeErrorMessage } from '@/lib/security';
 import { buildCpPfdSkeleton } from '@/lib/fmea-core/build-cp-pfd-skeleton';
 import { validateFkDoors } from '@/lib/fmea-core/validate-fk-doors';
-import type { CpItemSkeleton, PfdItemSkeleton } from '@/lib/fmea-core/build-cp-pfd-skeleton';
 
 // ══════════════════════════════════════════════════════
 // POST — 연동 실행
@@ -29,18 +31,19 @@ import type { CpItemSkeleton, PfdItemSkeleton } from '@/lib/fmea-core/build-cp-p
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fmeaId, cpNo, pfdNo, mode = 'CREATE' } = body;
+    const { fmeaId: rawFmeaId, cpNo, pfdNo, mode = 'CREATE' } = body;
 
-    if (!fmeaId) {
+    if (!rawFmeaId) {
       return NextResponse.json(
         { ok: false, error: 'fmeaId is required' },
         { status: 400 }
       );
     }
 
-    // ── 프로젝트 스키마 Prisma (FMEA Atomic) + public Prisma (CP/PFD) ──
+    const fmeaIdNorm = String(rawFmeaId).trim().toLowerCase();
+
     const baseUrl = getBaseDatabaseUrl();
-    const schema = getProjectSchemaName(fmeaId);
+    const schema = getProjectSchemaName(fmeaIdNorm);
     await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
     const projectPrisma = getPrismaForSchema(schema) || getPrisma();
     const publicPrisma = getPrisma();
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ══ STEP 1: 설계도 생성 ══
-    const skeleton = await buildCpPfdSkeleton(projectPrisma, fmeaId);
+    const skeleton = await buildCpPfdSkeleton(projectPrisma, fmeaIdNorm);
 
     if (skeleton.cpItems.length === 0 && skeleton.pfdItems.length === 0) {
       return NextResponse.json(
@@ -64,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     // ══ STEP 2: FK 검증 (문 잠금 체크) ══
     const validation = await validateFkDoors(
-      projectPrisma, fmeaId, skeleton.cpItems, skeleton.pfdItems
+      projectPrisma, fmeaIdNorm, skeleton.cpItems, skeleton.pfdItems
     );
 
     // VALIDATE 모드: 검증만 하고 INSERT 안 함
@@ -78,6 +81,7 @@ export async function POST(request: NextRequest) {
           pfdCount: skeleton.pfdItems.length,
           stats: skeleton.stats,
         },
+        schema,
       });
     }
 
@@ -93,90 +97,91 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // ══ STEP 3: 꽂아넣기 ══
+    // ══ STEP 3: 꽂아넣기 (프로젝트 스키마) ══
 
-    // CP/PFD 번호 결정: FmeaRegistration(SSoT, public 스키마) 우선 → TripletGroup → findFirst(orderBy)
     const reg = await publicPrisma.fmeaRegistration.findUnique({
-      where: { fmeaId },
+      where: { fmeaId: fmeaIdNorm },
       select: { linkedCpNo: true, linkedPfdNo: true },
     }).catch(() => null);
 
-    // TODO: FMEA 등록 시 CP/PFD 동시 생성(FIX-SSI-01/04)으로 폴백 자체가 불필요해지면 폴백 분기 제거 예정
-    let targetCpNo = cpNo;
+    let targetCpNo = cpNo ? String(cpNo).trim().toLowerCase() : undefined;
     if (!targetCpNo) {
       if (reg?.linkedCpNo) {
-        targetCpNo = reg.linkedCpNo;
+        targetCpNo = String(reg.linkedCpNo).trim().toLowerCase();
       } else {
-        console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: linkedCpNo 없음, TripletGroup/findFirst 폴백 사용`);
+        console.warn(`[sync-cp-pfd] fmeaId=${fmeaIdNorm}: linkedCpNo 없음, TripletGroup/findFirst 폴백 사용`);
         const tg = await publicPrisma.tripletGroup.findFirst({
-          where: { pfmeaId: fmeaId },
+          where: { pfmeaId: fmeaIdNorm },
           select: { cpId: true },
           orderBy: { createdAt: 'desc' },
         }).catch(() => null);
         if (tg?.cpId) {
-          targetCpNo = tg.cpId;
-          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: TripletGroup 폴백으로 cpId=${tg.cpId} 사용`);
+          targetCpNo = String(tg.cpId).trim().toLowerCase();
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaIdNorm}: TripletGroup 폴백으로 cpId=${targetCpNo} 사용`);
         } else {
-          const existingCp = await publicPrisma.controlPlan.findFirst({
-            where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+          const existingCp = await projectPrisma.controlPlan.findFirst({
+            where: { OR: [{ fmeaId: fmeaIdNorm }, { linkedPfmeaNo: fmeaIdNorm }] },
             select: { cpNo: true },
             orderBy: { createdAt: 'desc' },
           }).catch(() => null);
-          targetCpNo = existingCp?.cpNo || fmeaId.replace(/^pfm/i, 'cp');
-          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: findFirst 폴백으로 cpNo=${targetCpNo} 사용 (비결정론 위험)`);
+          targetCpNo =
+            existingCp?.cpNo || fmeaIdNorm.replace(/^pfm/i, 'cp');
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaIdNorm}: findFirst 폴백으로 cpNo=${targetCpNo} 사용 (비결정론 위험)`);
         }
       }
     }
 
-    let targetPfdNo = pfdNo;
+    let targetPfdNo = pfdNo ? String(pfdNo).trim().toLowerCase() : undefined;
     if (!targetPfdNo) {
       if (reg?.linkedPfdNo) {
-        targetPfdNo = reg.linkedPfdNo;
+        targetPfdNo = String(reg.linkedPfdNo).trim().toLowerCase();
       } else {
-        console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: linkedPfdNo 없음, TripletGroup/findFirst 폴백 사용`);
+        console.warn(`[sync-cp-pfd] fmeaId=${fmeaIdNorm}: linkedPfdNo 없음, TripletGroup/findFirst 폴백 사용`);
         const tg = await publicPrisma.tripletGroup.findFirst({
-          where: { pfmeaId: fmeaId },
+          where: { pfmeaId: fmeaIdNorm },
           select: { pfdId: true },
           orderBy: { createdAt: 'desc' },
         }).catch(() => null);
         if (tg?.pfdId) {
-          targetPfdNo = tg.pfdId;
-          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: TripletGroup 폴백으로 pfdId=${tg.pfdId} 사용`);
+          targetPfdNo = String(tg.pfdId).trim().toLowerCase();
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaIdNorm}: TripletGroup 폴백으로 pfdId=${targetPfdNo} 사용`);
         } else {
-          const existingPfd = await publicPrisma.pfdRegistration.findFirst({
-            where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+          const existingPfd = await projectPrisma.pfdRegistration.findFirst({
+            where: { OR: [{ fmeaId: fmeaIdNorm }, { linkedPfmeaNo: fmeaIdNorm }] },
             select: { pfdNo: true },
             orderBy: { createdAt: 'desc' },
           }).catch(() => null);
-          targetPfdNo = existingPfd?.pfdNo || fmeaId.replace(/^pfm/i, 'pfd');
-          console.warn(`[sync-cp-pfd] fmeaId=${fmeaId}: findFirst 폴백으로 pfdNo=${targetPfdNo} 사용 (비결정론 위험)`);
+          targetPfdNo =
+            existingPfd?.pfdNo || fmeaIdNorm.replace(/^pfm/i, 'pfd');
+          console.warn(`[sync-cp-pfd] fmeaId=${fmeaIdNorm}: findFirst 폴백으로 pfdNo=${targetPfdNo} 사용 (비결정론 위험)`);
         }
       }
     }
 
-    // CP/PFD 등록정보 find-or-create (public 스키마)
-    let cp = await publicPrisma.controlPlan.findFirst({ where: { cpNo: targetCpNo } });
+    // CP/PFD 헤더 find-or-create — 프로젝트 스키마만
+    let cp = await projectPrisma.controlPlan.findFirst({ where: { cpNo: targetCpNo! } });
     if (!cp) {
-      cp = await publicPrisma.controlPlan.create({
+      cp = await projectPrisma.controlPlan.create({
         data: {
-          cpNo: targetCpNo,
-          fmeaId,
-          linkedPfmeaNo: fmeaId,
-          linkedPfdNo: targetPfdNo,
+          cpNo: targetCpNo!,
+          fmeaId: fmeaIdNorm,
+          linkedPfmeaNo: fmeaIdNorm,
+          linkedPfdNo: targetPfdNo!,
           status: 'draft',
+          revNo: 'A',
         },
       });
     }
 
-    let pfd = await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: targetPfdNo } });
+    let pfd = await projectPrisma.pfdRegistration.findFirst({ where: { pfdNo: targetPfdNo! } });
     if (!pfd) {
-      pfd = await publicPrisma.pfdRegistration.create({
+      pfd = await projectPrisma.pfdRegistration.create({
         data: {
-          pfdNo: targetPfdNo,
-          fmeaId,
-          subject: `FMEA FK 연동 (${fmeaId})`,
+          pfdNo: targetPfdNo!,
+          fmeaId: fmeaIdNorm,
+          subject: `FMEA FK 연동 (${fmeaIdNorm})`,
           status: 'draft',
-          linkedPfmeaNo: fmeaId,
+          linkedPfmeaNo: fmeaIdNorm,
         },
       });
     }
@@ -185,16 +190,13 @@ export async function POST(request: NextRequest) {
     const pfdId = pfd.id;
 
     if (mode === 'CREATE') {
-      // ── CREATE 모드: deleteAll → createAll (멱등성) ──
-      await publicPrisma.$transaction(async (tx: any) => {
-        // 기존 삭제
+      await projectPrisma.$transaction(async (tx: any) => {
         await tx.controlPlanItem.deleteMany({ where: { cpId } });
         await tx.pfdItem.updateMany({
           where: { pfdId },
           data: { isDeleted: true },
         });
 
-        // CP items 생성
         for (let idx = 0; idx < skeleton.cpItems.length; idx++) {
           const item = skeleton.cpItems[idx];
           await tx.controlPlanItem.create({
@@ -226,7 +228,6 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // PFD items 생성
         for (let idx = 0; idx < skeleton.pfdItems.length; idx++) {
           const item = skeleton.pfdItems[idx];
           await tx.pfdItem.create({
@@ -253,18 +254,15 @@ export async function POST(request: NextRequest) {
           });
         }
       }, { timeout: 60000 });
-
     } else if (mode === 'UPDATE') {
-      // ── UPDATE 모드: FK 잠금 필드만 갱신, 사용자 편집 보존 ──
-      await publicPrisma.$transaction(async (tx: any) => {
-        // 기존 CP items 로드 (linkId 기준 매칭)
+      await projectPrisma.$transaction(async (tx: any) => {
         const existingCpItems = await tx.controlPlanItem.findMany({
           where: { cpId },
         });
-        const cpByLinkId = new Map(
+        const cpByLinkId = new Map<string, { id: string; linkId: string | null }>(
           existingCpItems
-            .filter((i: any) => i.linkId)
-            .map((i: any) => [i.linkId, i])
+            .filter((i: { linkId?: string | null }) => i.linkId)
+            .map((i: { linkId: string | null; id: string }) => [String(i.linkId), i])
         );
 
         const processedLinkIds = new Set<string>();
@@ -273,8 +271,7 @@ export async function POST(request: NextRequest) {
           const item = skeleton.cpItems[idx];
 
           if (item.linkId && cpByLinkId.has(item.linkId)) {
-            // 기존 항목 → FK 잠금 필드만 갱신
-            const existing: any = cpByLinkId.get(item.linkId);
+            const existing = cpByLinkId.get(item.linkId)!;
             await tx.controlPlanItem.update({
               where: { id: existing.id },
               data: {
@@ -296,12 +293,10 @@ export async function POST(request: NextRequest) {
                 refDetection: item.refDetection,
                 refAp: item.refAp,
                 sortOrder: idx,
-                // controlMethod, sampleSize 등 사용자 편집 필드 건드리지 않음
               },
             });
             processedLinkIds.add(item.linkId);
           } else {
-            // 새 항목 → INSERT
             await tx.controlPlanItem.create({
               data: {
                 cpId,
@@ -332,14 +327,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // FMEA에서 삭제된 항목 → CP에서도 삭제
         for (const existing of existingCpItems) {
           if (existing.linkId && !processedLinkIds.has(existing.linkId)) {
             await tx.controlPlanItem.delete({ where: { id: existing.id } });
           }
         }
 
-        // PFD도 동일 패턴 (fmeaL2Id+fmeaL3Id 복합키 매칭)
         await tx.pfdItem.updateMany({
           where: { pfdId },
           data: { isDeleted: true },
@@ -372,9 +365,20 @@ export async function POST(request: NextRequest) {
       }, { timeout: 60000 });
     }
 
-    // 레코드 수 검증
-    const cpCount = await publicPrisma.controlPlanItem.count({ where: { cpId } });
-    const pfdCount = await publicPrisma.pfdItem.count({ where: { pfdId, isDeleted: false } });
+    const cpCount = await projectPrisma.controlPlanItem.count({ where: { cpId } });
+    const pfdCount = await projectPrisma.pfdItem.count({ where: { pfdId, isDeleted: false } });
+
+    try {
+      await publicPrisma.fmeaRegistration.update({
+        where: { fmeaId: fmeaIdNorm },
+        data: {
+          linkedCpNo: targetCpNo!,
+          linkedPfdNo: targetPfdNo!,
+        },
+      });
+    } catch (regErr) {
+      console.warn('[sync-cp-pfd] fmeaRegistration linkedCpNo/linkedPfdNo 갱신 스킵:', regErr);
+    }
 
     return NextResponse.json({
       ok: true,
@@ -387,12 +391,12 @@ export async function POST(request: NextRequest) {
         cpItems: cpCount,
         pfdItems: pfdCount,
         stats: skeleton.stats,
+        schema,
       },
       validation,
-      message: `CP ${cpCount}건 + PFD ${pfdCount}건 FK 연동 완료 (${mode})`,
+      message: `CP ${cpCount}건 + PFD ${pfdCount}건 FK 연동 완료 (${mode}) — 프로젝트 스키마 ${schema}`,
     });
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[sync-cp-pfd] Error:', error);
     return NextResponse.json(
       { ok: false, error: safeErrorMessage(error) },
@@ -408,16 +412,17 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const fmeaId = searchParams.get('fmeaId');
+    const rawFmeaId = searchParams.get('fmeaId');
     const inspect = searchParams.get('inspect'); // 'cp' | 'pfd'
 
-    if (!fmeaId) {
+    if (!rawFmeaId) {
       return NextResponse.json(
         { ok: false, error: 'fmeaId is required' },
         { status: 400 }
       );
     }
 
+    const fmeaIdNorm = String(rawFmeaId).trim().toLowerCase();
     const publicPrisma = getPrisma();
     if (!publicPrisma) {
       return NextResponse.json(
@@ -426,60 +431,75 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // TODO: FMEA 등록 시 CP/PFD 동시 생성으로 폴백 제거 예정
-    const regGet = await publicPrisma.fmeaRegistration.findUnique({
-      where: { fmeaId },
+    const baseUrl = getBaseDatabaseUrl();
+    const schema = getProjectSchemaName(fmeaIdNorm);
+    await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+    const projectPrisma = getPrismaForSchema(schema) || getPrisma();
+    if (!projectPrisma) {
+      return NextResponse.json(
+        { ok: false, error: 'Project schema Prisma unavailable' },
+        { status: 500 }
+      );
+    }
+
+    let regGet = await publicPrisma.fmeaRegistration.findUnique({
+      where: { fmeaId: fmeaIdNorm },
       select: { linkedCpNo: true, linkedPfdNo: true },
     }).catch(() => null);
 
-    let cp = regGet?.linkedCpNo
-      ? await publicPrisma.controlPlan.findFirst({ where: { cpNo: regGet.linkedCpNo } })
-      : null;
+    let cp =
+      regGet?.linkedCpNo
+        ? await projectPrisma.controlPlan.findFirst({
+            where: { cpNo: String(regGet.linkedCpNo).trim().toLowerCase() },
+          })
+        : null;
     if (!cp) {
       if (!regGet?.linkedCpNo) {
-        console.warn(`[sync-cp-pfd GET] fmeaId=${fmeaId}: linkedCpNo 없음, findFirst 폴백 사용`);
+        console.warn(`[sync-cp-pfd GET] fmeaId=${fmeaIdNorm}: linkedCpNo 없음, 프로젝트 스키마 findFirst 폴백`);
       }
-      cp = await publicPrisma.controlPlan.findFirst({
-        where: { fmeaId },
+      cp = await projectPrisma.controlPlan.findFirst({
+        where: { OR: [{ fmeaId: fmeaIdNorm }, { linkedPfmeaNo: fmeaIdNorm }] },
         orderBy: { createdAt: 'desc' },
       });
     }
 
-    let pfd = regGet?.linkedPfdNo
-      ? await publicPrisma.pfdRegistration.findFirst({ where: { pfdNo: regGet.linkedPfdNo } })
-      : null;
+    let pfd =
+      regGet?.linkedPfdNo
+        ? await projectPrisma.pfdRegistration.findFirst({
+            where: { pfdNo: String(regGet.linkedPfdNo).trim().toLowerCase() },
+          })
+        : null;
     if (!pfd) {
       if (!regGet?.linkedPfdNo) {
-        console.warn(`[sync-cp-pfd GET] fmeaId=${fmeaId}: linkedPfdNo 없음, findFirst 폴백 사용`);
+        console.warn(`[sync-cp-pfd GET] fmeaId=${fmeaIdNorm}: linkedPfdNo 없음, 프로젝트 스키마 findFirst 폴백`);
       }
-      pfd = await publicPrisma.pfdRegistration.findFirst({
-        where: { OR: [{ fmeaId }, { linkedPfmeaNo: fmeaId }] },
+      pfd = await projectPrisma.pfdRegistration.findFirst({
+        where: { OR: [{ fmeaId: fmeaIdNorm }, { linkedPfmeaNo: fmeaIdNorm }] },
         orderBy: { createdAt: 'desc' },
       });
     }
 
     if (inspect === 'cp' && cp) {
-      const items = await publicPrisma.controlPlanItem.findMany({
+      const items = await projectPrisma.controlPlanItem.findMany({
         where: { cpId: cp.id },
         orderBy: { sortOrder: 'asc' },
       });
-      return NextResponse.json({ ok: true, cpItems: items });
+      return NextResponse.json({ ok: true, cpItems: items, schema });
     }
 
     if (inspect === 'pfd' && pfd) {
-      const items = await publicPrisma.pfdItem.findMany({
+      const items = await projectPrisma.pfdItem.findMany({
         where: { pfdId: pfd.id, isDeleted: false },
         orderBy: { sortOrder: 'asc' },
       });
-      return NextResponse.json({ ok: true, pfdItems: items });
+      return NextResponse.json({ ok: true, pfdItems: items, schema });
     }
 
-    // 기본: 상태 요약
     const cpCount = cp
-      ? await publicPrisma.controlPlanItem.count({ where: { cpId: cp.id } })
+      ? await projectPrisma.controlPlanItem.count({ where: { cpId: cp.id } })
       : 0;
     const pfdCount = pfd
-      ? await publicPrisma.pfdItem.count({ where: { pfdId: pfd.id, isDeleted: false } })
+      ? await projectPrisma.pfdItem.count({ where: { pfdId: pfd.id, isDeleted: false } })
       : 0;
 
     return NextResponse.json({
@@ -491,10 +511,10 @@ export async function GET(request: NextRequest) {
         pfdItems: pfdCount,
         hasCp: !!cp,
         hasPfd: !!pfd,
+        schema,
       },
     });
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[sync-cp-pfd GET] Error:', error);
     return NextResponse.json(
       { ok: false, error: safeErrorMessage(error) },

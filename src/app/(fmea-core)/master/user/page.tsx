@@ -2,14 +2,19 @@
 
 /**
  * @file 사용자정보 기초정보 페이지
- * @description UserSelectModal과 동일한 데이터 소스(localStorage) 사용 - 양방향 동기화
+ * @description CFT·직원 디렉터리 public.cft_public_members — 로그인 users(ADMIN)와 분리
  * @version 1.1.0
  * @updated 2026-01-26 AdminTopNav 추가
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UserInfo } from '@/types/user';
-import { getAllUsers, deleteUser, createUser, updateUser } from '@/lib/user-db';
+import {
+  getAllCftPublicMembers,
+  deleteCftPublicMember,
+  createCftPublicMember,
+  updateCftPublicMember,
+} from '@/lib/cft-public-db';
 import { downloadStyledExcel } from '@/lib/excel-utils';
 import { FixedLayout, AdminTopNav } from '@/components/layout';
 import { useLocale } from '@/lib/locale';
@@ -32,7 +37,7 @@ export default function UserMasterPage() {
   const refreshData = async () => {
     setLoading(true);
     try {
-      const loadedUsers = await getAllUsers();
+      const loadedUsers = await getAllCftPublicMembers();
       setUsers(loadedUsers);
     } finally {
       setLoading(false);
@@ -73,10 +78,10 @@ export default function UserMasterPage() {
         return;
       }
 
-      const savedId = editingUser.id;
+      let savedId = editingUser.id;
 
       if (editingUser.id && users.find(u => u.id === editingUser.id)) {
-        await updateUser(editingUser.id, {
+        await updateCftPublicMember(editingUser.id, {
           factory: editingUser.factory,
           department: editingUser.department,
           name: editingUser.name,
@@ -87,7 +92,7 @@ export default function UserMasterPage() {
           remark: editingUser.remark,
         });
       } else {
-        await createUser({
+        const created = await createCftPublicMember({
           factory: editingUser.factory,
           department: editingUser.department,
           name: editingUser.name,
@@ -97,6 +102,7 @@ export default function UserMasterPage() {
           photoUrl: editingUser.photoUrl,
           remark: editingUser.remark,
         });
+        savedId = created.id;
       }
 
       setEditingUser(null);
@@ -119,7 +125,7 @@ export default function UserMasterPage() {
     const confirmed = window.confirm(`"${user.name}" (${user.factory}/${user.department}) 삭제하시겠습니까(Delete)?`);
     if (!confirmed) return;
     try {
-      await deleteUser(selectedId);
+      await deleteCftPublicMember(selectedId);
       await refreshData();
       setSelectedId(null);
       setEditingUser(null);
@@ -185,10 +191,10 @@ export default function UserMasterPage() {
         };
 
         if (userData.name) {
-          const existingUsers = await getAllUsers();
+          const existingUsers = await getAllCftPublicMembers();
           const emailExists = userData.email && existingUsers.find(u => u.email === userData.email);
           if (!emailExists) {
-            await createUser(userData);
+            await createCftPublicMember(userData);
             importedCount++;
           }
         }

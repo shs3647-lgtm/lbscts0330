@@ -188,6 +188,7 @@ npx tsc --noEmit
 4. **`SET search_path TO {schema}, public`** — 프로젝트 스키마 우선, public 폴백
 5. **새 프로젝트 생성 시 DELETE ALL → CREATE ALL** — 기존 데이터 잔존 방지
 6. **seed/보충 API도 프로젝트 스키마에 저장** — public에 저장하면 다른 프로젝트에서 보임
+7. **`POST /api/fmea/sync-cp-pfd`** — CP/PFD 행은 **`pfmea_{fmeaId}`에만** 저장 (`create-cp` / `sync-to-cp`와 동일). Master(M001)도 예외 없음. 레거시 public 행 이관: `scripts/migrate-public-cp-pfd-to-project-schema.ts`
 
 ```typescript
 // ❌ 금지: public에 프로젝트 데이터 저장
@@ -346,6 +347,7 @@ npm run build             # 209페이지 프로덕션 빌드 성공 확인
 | 6 | **Users API password 제외** — `select: {...}` 유지, password 필드 절대 응답에 포함 금지 | 비밀번호 해시 노출 |
 | 7 | **700행 초과 시 파일 분리** | 유지보수 불가 |
 | 8 | **Handsontable 도입 금지** — HTML table + Tailwind만 사용 | 라이선스 위반 |
+| 9 | **CFT·직원 디렉터리** — `public.cft_public_members` + `cft-public-db.ts` / `/api/cft-public-members`만 사용. 로그인 계정 `users`(ADMIN `/api/users`)와 **동기화·연동 금지** | CFT/시스템 계정 혼선 |
 
 **Forge 문제해결 프로세스 (2026-03-07 확정, 비-트리비얼 작업 시 필수)**:
 

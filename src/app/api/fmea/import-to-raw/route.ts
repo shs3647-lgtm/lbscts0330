@@ -15,44 +15,54 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { parsePositionBasedJSON } from '@/lib/fmea/position-parser';
 import { validateFKChain } from '@/lib/fmea-core/fk-chain-validator';
 import { checkRawQuality } from '@/lib/fmea-core/raw-quality-checker';
+import { saveAtomicFromPosition } from '@/lib/fmea-core/raw-to-atomic';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
+import { getPrismaForSchema } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fmeaId, json } = body as { fmeaId: string; json: unknown };
+    const { fmeaId, json, save: doSave, force } = body as {
+      fmeaId: string; json: unknown; save?: boolean; force?: boolean;
+    };
 
-    // 1. fmeaId 검증
     if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
     }
-
-    // 2. json 파라미터 필수 검증
     if (!json || typeof json !== 'object') {
       return NextResponse.json({ success: false, error: 'json parameter required (PositionBasedJSON)' }, { status: 400 });
     }
 
     const normalizedId = fmeaId.toLowerCase();
-
-    // 2. parsePositionBasedJSON 호출
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const atomicData = parsePositionBasedJSON(json as any);
-
-    // 3. validateFKChain 호출
     const report = validateFKChain(atomicData);
-
-    // 4. checkRawQuality 호출
     const qualityResult = checkRawQuality(atomicData, report);
 
-    console.log(`[import-to-raw] fmeaId=${normalizedId} quality=${qualityResult.status} FL=${atomicData.failureLinks.length}`);
+    console.log(`[import-to-raw] fmeaId=${normalizedId} quality=${qualityResult.status} FL=${atomicData.failureLinks.length} save=${doSave}`);
 
-    // 5. 응답 (atomicData 전체는 크므로 stats만)
+    // ★ save=true 이면 DB 저장까지 수행
+    if (doSave) {
+      const schema = getProjectSchemaName(normalizedId);
+      const baseDatabaseUrl = process.env.DATABASE_URL || '';
+      await ensureProjectSchemaReady({ baseDatabaseUrl, schema });
+      const prisma = getPrismaForSchema(schema);
+      if (!prisma) {
+        return NextResponse.json({ success: false, error: 'Failed to get Prisma client' }, { status: 500 });
+      }
+      const saveResult = await saveAtomicFromPosition(prisma, atomicData, { force: force ?? true });
+      return NextResponse.json({
+        success: true, fmeaId: normalizedId,
+        stats: atomicData.stats, quality: qualityResult,
+        saved: true, counts: saveResult.counts, skippedFL: saveResult.skippedFL,
+      });
+    }
+
     return NextResponse.json({
-      success: true,
-      fmeaId: normalizedId,
-      stats: atomicData.stats,
-      quality: qualityResult,
+      success: true, fmeaId: normalizedId,
+      stats: atomicData.stats, quality: qualityResult,
     });
 
   } catch (err) {

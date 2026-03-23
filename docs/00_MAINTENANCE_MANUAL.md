@@ -1,6 +1,6 @@
 # FMEA OnPremise 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-22
+> **최종 업데이트**: 2026-03-23
 > **총 테스트**: 78파일 / 1343테스트 ALL PASS | **빌드**: 240페이지 성공 | **tsc**: 에러 0개
 
 ---
@@ -19,6 +19,9 @@
 | 2026-03-22 | - | `repair-fk` API + `fk-repair.ts` (rebuild 없이 FK 정리), `DISABLE_REBUILD_ATOMIC`로 파이프라인 STEP0 rebuild 생략 | Claude |
 | 2026-03-22 | - | `validate-fk` 10개 체크로 확장 (`failureLinkCoverage`, `riskAnalysisCoverage`) + `save-from-import` 불완전 Atomic 409 차단 + 회귀 테스트 3건 추가 | Claude |
 | 2026-03-22 | - | 레거시 Import flat 복원, `save-from-import` 체인 유도/chain→flat B4/B5/A6 보강, `pipeline-verify` public A6/B5 fallback으로 `m001` DC/PC null 156건 해소, `f001` resave-import 0→23 FL/RA 회복 | Claude |
+| 2026-03-22 | - | **CFT 공용 디렉터리**: `CftPublicMember` → `public.cft_public_members`, API `/api/cft-public-members`, 클라이언트 `cft-public-db.ts`. 기초정보 **사용자 정보(CFT)** 화면·`UserSelectModal`은 이 테이블만 사용 — 로그인 계정 `users`(ADMIN `/api/users`)와 **연동·동기화 없음**. 스키마 반영: `npx prisma db push` 또는 migrate | Claude |
+| 2026-03-22 | - | **PFMEA→CP 생성 근본 수정**: `POST /api/pfmea/create-cp`가 `public`만 쓰던 문제 → **PFMEA 프로젝트 스키마**(`getPrismaForSchema(getProjectSchemaName(fmeaId))`)에 `control_plans`/`control_plan_items` 저장. `getPrismaForCp`에 `CpRegistration` 폴백. `GET /api/pfmea/[id]`는 프로젝트 `fmea_registrations`와 병합해 `linkedCpNo` 누락 방지. (M001 등에서 CP 워크시트 빈 화면·「연동할 CP 없음」 재발 방지) | Claude |
+| 2026-03-23 | - | **아키텍처 확정**: Master 포함 모든 PFMEA 행 데이터는 `pfmea_{fmeaId}` — public은 메타 전용. **`POST /api/fmea/sync-cp-pfd`**가 `public`에 쓰던 이중 경로 제거 → **프로젝트 스키마**에만 CP/PFD 행 저장(`create-cp`/`sync-to-cp`와 동일). 레거시 이관: `scripts/migrate-public-cp-pfd-to-project-schema.ts`. 문서: `docs/Fmea master family part cp pfd architecture.md` 갱신. | Claude |
 
 ---
 

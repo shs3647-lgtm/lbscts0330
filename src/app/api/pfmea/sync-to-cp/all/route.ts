@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { findOrCreateCp } from '../utils';
+import { findOrCreateCp, getProjectPrismaForFmea } from '../utils';
 import { normalizeM4WithOriginal, isValidProcessNo, recordSyncLog, buildCpPreservedFieldsMap, restorePreservedFields } from '@/lib/sync-helpers';
 
 interface L2Function {
@@ -91,6 +91,19 @@ export async function POST(request: NextRequest) {
                 { success: false, error: 'l2Data array is required' },
                 { status: 400 }
             );
+        }
+
+        let prismaProj: Awaited<ReturnType<typeof getProjectPrismaForFmea>>['prismaProj'];
+        let fmeaIdNorm: string;
+        let schema: string;
+        try {
+            const p = await getProjectPrismaForFmea(fmeaId);
+            prismaProj = p.prismaProj;
+            fmeaIdNorm = p.fmeaIdNorm;
+            schema = p.schema;
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Project schema init failed';
+            return NextResponse.json({ success: false, error: msg }, { status: 500 });
         }
 
         const results: SyncResult[] = [];
@@ -174,10 +187,10 @@ export async function POST(request: NextRequest) {
         const mergedL2Data = Array.from(mergedL2Map.values());
 
         // ★ C1: deleteMany 전에 사용자 편집 필드 보존
-        const preservedMap = await buildCpPreservedFieldsMap(prisma, cp.id);
+        const preservedMap = await buildCpPreservedFieldsMap(prismaProj, cp.id);
 
-        // ★ 트랜잭션으로 deleteMany + create 원자성 보장
-        await prisma.$transaction(async (tx: any) => {
+        // ★ 트랜잭션으로 deleteMany + create 원자성 보장 (프로젝트 스키마)
+        await prismaProj.$transaction(async (tx: any) => {
             await tx.controlPlanItem.deleteMany({
                 where: { cpId: cp.id },
             });
@@ -431,8 +444,8 @@ export async function POST(request: NextRequest) {
             await tx.controlPlan.update({
                 where: { id: cp.id },
                 data: {
-                    fmeaId,
-                    linkedPfmeaNo: fmeaId,
+                    fmeaId: fmeaIdNorm,
+                    linkedPfmeaNo: fmeaIdNorm,
                     syncStatus: 'synced',
                     lastSyncAt: new Date(),
                 },
@@ -441,23 +454,23 @@ export async function POST(request: NextRequest) {
             // ★★★ C4: FmeaRegistration.linkedCpNo 역링크 저장 (트랜잭션 내부) ★★★
             try {
                 await tx.fmeaRegistration.updateMany({
-                    where: { fmeaId },
+                    where: { fmeaId: fmeaIdNorm },
                     data: { linkedCpNo: cp.cpNo },
                 });
             } catch (regErr: unknown) {
                 // P1-7: 역링크 실패는 치명적이지 않으나 추적 필요
-                console.error('[FMEA→CP] FmeaRegistration 역링크 저장 실패 — fmeaId:', fmeaId, ', cpNo:', cp.cpNo, ', error:', regErr);
+                console.error('[FMEA→CP] FmeaRegistration 역링크 저장 실패 — fmeaId:', fmeaIdNorm, ', cpNo:', cp.cpNo, ', error:', regErr);
             }
         });
 
         // ★ M6: SyncLog 기록
         await recordSyncLog(prisma, {
             sourceType: 'pfmea',
-            sourceId: fmeaId,
+            sourceId: fmeaIdNorm,
             targetType: 'cp',
             targetId: cp.cpNo,
             action: 'sync-to-cp-all',
-            fieldChanges: JSON.stringify({ items: cpItems.length }),
+            fieldChanges: JSON.stringify({ items: cpItems.length, schema }),
         });
 
         results.push({

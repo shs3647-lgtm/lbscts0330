@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { findOrCreateCp } from '../utils';
+import { findOrCreateCp, getProjectPrismaForFmea } from '../utils';
 
 interface ProductChar {
     id?: string;
@@ -53,11 +53,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const { prismaProj, fmeaIdNorm } = await getProjectPrismaForFmea(fmeaId);
+
         // 1. 대상 CP 조회 또는 생성
-        const cp = await findOrCreateCp(prisma as any, cpNo, fmeaId);
+        const cp = await findOrCreateCp(prisma as any, cpNo, fmeaIdNorm);
 
         // 2. 기존 CP Item 조회 (구조 연동에서 생성된 것)
-        const existingItems = await prisma.controlPlanItem.findMany({
+        const existingItems = await prismaProj.controlPlanItem.findMany({
             where: { cpId: cp.id },
             orderBy: { sortOrder: 'asc' },
         });
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
 
                     if (i === 0 && matchingItems.length > 0) {
                         // 첫 번째 제품특성: 기존 행 업데이트 (processDesc는 유지)
-                        await prisma.controlPlanItem.update({
+                        await prismaProj.controlPlanItem.update({
                             where: { id: matchingItems[0].id },
                             data: {
                                 productChar: pc.name || '',
@@ -99,7 +101,7 @@ export async function POST(request: NextRequest) {
                         );
 
                         if (baseItem) {
-                            await prisma.controlPlanItem.create({
+                            await prismaProj.controlPlanItem.create({
                                 data: {
                                     cpId: cp.id,
                                     processNo: baseItem.processNo,
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
 
                 // 제품특성 없으면 공정설명만 업데이트
                 if (productChars.length === 0 && funcName && matchingItems.length > 0) {
-                    await prisma.controlPlanItem.update({
+                    await prismaProj.controlPlanItem.update({
                         where: { id: matchingItems[0].id },
                         data: { processDesc: funcName },
                     });

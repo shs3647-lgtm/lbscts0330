@@ -1,6 +1,6 @@
 /**
  * 사용자 선택 모달
- * CFT/승인권자 등록 시 사용자 선택
+ * CFT/승인권자 등록 시 인원 선택 — public.cft_public_members (로그인 users와 분리)
  * @ref C:\01_Next_FMEA\app\fmea\components\UserInfoSelectionModal.tsx
  */
 
@@ -10,7 +10,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale } from '@/lib/locale';
 import { UserInfo } from '@/types/user';
-import { getAllUsers, createUser, deleteUser } from '@/lib/user-db';
+import { getAllCftPublicMembers, createCftPublicMember, deleteCftPublicMember } from '@/lib/cft-public-db';
 
 interface UserSelectModalProps {
   isOpen: boolean;
@@ -87,7 +87,7 @@ export function UserSelectModal({
   // 데이터 로드
   useEffect(() => {
     if (!isOpen) return;
-    getAllUsers().then(setUsers);
+    getAllCftPublicMembers().then(setUsers);
   }, [isOpen]);
 
   // 검색 필터링 (대소문자 무시, 성명/부서/공장/이메일/직급/비고)
@@ -115,7 +115,7 @@ export function UserSelectModal({
   }, [isOpen, initialSearchTerm]);
 
   const reloadUsers = useCallback(() => {
-    getAllUsers().then(setUsers);
+    getAllCftPublicMembers().then(setUsers);
   }, []);
 
   // 비모달: body 스크롤 방지 해제됨 — 배경 페이지 조작 가능
@@ -130,7 +130,7 @@ export function UserSelectModal({
   const handleAddUser = async () => {
     if (!newUser.name.trim()) { alert('성명을 입력해주세요.'); return; }
     try {
-      await createUser({
+      await createCftPublicMember({
         factory: newUser.factory.trim() || '-',
         department: newUser.department.trim() || '-',
         name: newUser.name.trim(),
@@ -154,7 +154,7 @@ export function UserSelectModal({
     if (!user) return;
     if (!confirm(`"${user.name}" 사용자를 삭제하시겠습니까?`)) return;
     try {
-      await deleteUser(selectedUserId);
+      await deleteCftPublicMember(selectedUserId);
       setSelectedUserId(null);
       reloadUsers();
     } catch (err: unknown) {

@@ -6,7 +6,8 @@
  * ★★★ 2026-02-05: fmeaId 소문자 정규화 적용 ★★★
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
+import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { normalizeFmeaId } from '@/lib/constants';
 
 export const runtime = 'nodejs';
@@ -147,8 +148,17 @@ export async function GET(
       // APQPProject가 없을 수 있음
     }
 
-    // 5. FMEA 등록 정보 조회 (있으면)
-    let fmeaRegistration = null;
+    // 5. FMEA 등록 정보 — public + 프로젝트 스키마 병합 (연동 ID는 프로젝트에만 있을 수 있음)
+    let fmeaRegistration: {
+      id: string;
+      fmeaId: string;
+      subject: string | null;
+      customerName: string | null;
+      companyName: string | null;
+      linkedCpNo: string | null;
+      linkedPfdNo: string | null;
+      linkedDfmeaNo: string | null;
+    } | null = null;
     try {
       const registration = await prisma.fmeaRegistration.findFirst({
         where: { fmeaId },
@@ -160,14 +170,39 @@ export async function GET(
           subject: registration.subject,
           customerName: registration.customerName,
           companyName: registration.companyName,
-          // ★★★ 연동 ID 추가 ★★★
           linkedCpNo: registration.linkedCpNo,
           linkedPfdNo: registration.linkedPfdNo,
           linkedDfmeaNo: registration.linkedDfmeaNo,
         };
       }
     } catch (e) {
-      // FmeaRegistration이 없을 수 있음
+      // ignore
+    }
+
+    try {
+      const baseUrl = getBaseDatabaseUrl();
+      if (baseUrl) {
+        const schema = getProjectSchemaName(fmeaId);
+        await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
+        const proj = getPrismaForSchema(schema);
+        if (proj) {
+          const regP = await proj.fmeaRegistration.findFirst({ where: { fmeaId } });
+          if (regP) {
+            fmeaRegistration = {
+              id: fmeaRegistration?.id || regP.id,
+              fmeaId: regP.fmeaId,
+              subject: fmeaRegistration?.subject ?? regP.subject,
+              customerName: fmeaRegistration?.customerName ?? regP.customerName,
+              companyName: fmeaRegistration?.companyName ?? regP.companyName,
+              linkedCpNo: fmeaRegistration?.linkedCpNo || regP.linkedCpNo || null,
+              linkedPfdNo: fmeaRegistration?.linkedPfdNo || regP.linkedPfdNo || null,
+              linkedDfmeaNo: fmeaRegistration?.linkedDfmeaNo || regP.linkedDfmeaNo || null,
+            };
+          }
+        }
+      }
+    } catch {
+      /* ignore */
     }
 
     return NextResponse.json({

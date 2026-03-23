@@ -1,0 +1,569 @@
+# FMEA 계층 구조 + CP/PFD 연동 아키텍처
+
+> **작성일**: 2026-03-23  
+> **최종 확정**: 2026-03-23 — Master 포함 **모든 PFMEA 행 데이터**는 `pfmea_{fmeaId}` 프로젝트 스키마에 저장  
+> **목적**: Master/Family/Part FMEA 계층과 CP/PFD 연동 방식 확정  
+> **핵심**: **Master(M001)도 Family/Part와 동일하게 `pfmea_m001` 패턴**. public은 프로젝트 목록·등록정보·사용자 등 **메타 전용**. CP/PFD 행은 **항상 FMEA와 동일 프로젝트 스키마**.
+
+---
+
+## 1. FMEA 3계층 구조
+
+```
+Master FMEA (M001)
+│  "제품군 전체의 표준 FMEA"
+│  예: 12inch AU Bump 전체 공정 표준
+│  저장: 프로젝트 스키마 pfmea_m001 (public 아님)
+│
+├── Family FMEA (F001, F002...)
+│     "제품 패밀리 단위 FMEA"
+│     예: AU Bump 5μm 패밀리, AU Bump 10μm 패밀리
+│     저장: 프로젝트 스키마 (pfmea_{fmeaId})
+│     기초정보: Master에서 상속
+│
+└── Part FMEA (P001, P002...)
+      "개별 제품/부품 단위 FMEA"
+      예: 고객A향 AU Bump 10μm Rev.3
+      저장: 프로젝트 스키마 (pfmea_{fmeaId})
+      기초정보: Master 또는 Family에서 상속
+```
+
+---
+
+## 2. DB 저장 원칙
+
+### 2.1 public 스키마 (메타·공통 참조 전용)
+
+```
+public 스키마에 저장하는 것 (행 단위 PFMEA/CP/PFD 데이터 아님):
+  ├── FMEA 프로젝트 목록 (fmea_projects)
+  ├── FMEA 등록 (fmea_registrations) — linkedCpNo, linkedPfdNo 등 연동 메타
+  ├── CP/PFD 등록 메타 (cp_registrations, pfd_registrations 일부 조회용)
+  ├── Triplet / APQP 연동
+  ├── 사용자/권한 (users)
+  ├── LLD 교훈사례 (lessons_learned)
+  ├── AP 판정 매트릭스
+  └── 표준공정 마스터 (master_processes)
+
+역할:
+  - Master **기초정보**는 Family/Part 생성 시 모달/API에서 **소스로 조회** (복사 원천)
+  - public은 **프로젝트 식별·연결 정보**의 인덱스 역할
+```
+
+### 2.2 프로젝트 스키마 (Master / Family / Part 공통 패턴)
+
+```
+pfmea_{fmeaId} 스키마에 저장하는 것 (행 데이터 SSoT):
+  ├── 해당 FMEA의 24개 엔티티 전체 (v4 기준, Master 포함)
+  ├── 해당 FMEA의 CP (control_plans / control_plan_items)
+  ├── 해당 FMEA의 PFD (pfd_registrations / pfd_items)
+  └── 변경 이력 (audit trail 등)
+
+예시:
+  pfmea_m001 → Master M001의 FMEA + CP + PFD
+  pfmea_f001 → Family F001의 FMEA + CP + PFD
+  pfmea_p001 → Part P001의 FMEA + CP + PFD
+```
+
+### 2.3 왜 이렇게 분리하는가
+
+```
+Master 기초정보를 제공하는 방식:
+  - Master의 **행 데이터**는 pfmea_m001에 있음
+  - Family/Part 생성 시 모달에서 Master를 **복사** (상속 = 복사, §3.3)
+  - public에 Master 행을 두지 않아도, 메타·API로 M001을 가리키면 됨
+
+모든 프로젝트를 pfmea_{fmeaId}에 두는 이유:
+  - Master/Family/Part **동일 패턴** → sync-cp-pfd / create-cp / 워크시트 단일 경로
+  - fmeaId별 완전 독립, CP/PFD FK가 FMEA Atomic과 **같은 스키마**에서 유지
+```
+
+### 2.4 이중 경로 제거 (2026-03-23)
+
+```
+금지: sync-cp-pfd는 public.control_plans에 쓰고, 워크시트는 pfmea_* 스키마를 읽는 구조
+필수: POST /api/fmea/sync-cp-pfd 도 CP/PFD 행을 pfmea_{fmeaId} 에만 저장 (create-cp / sync-to-cp 와 동일)
+
+레거시 public CP/PFD 행: scripts/migrate-public-cp-pfd-to-project-schema.ts 로 이관 후 public 정리(선택)
+```
+
+---
+
+## 3. Master → Family → Part 상속 흐름
+
+### 3.1 Family 생성 시
+
+```
+[Family FMEA 신규 생성]
+    │
+    ▼
+[모달: Master 기초정보 선택]
+    │  public.master_fmea에서 조회
+    │  ├── 공정 목록 (L2Structure)
+    │  ├── 4M/작업요소 (L3Structure)
+    │  ├── 표준 FM/FE/FC
+    │  └── 표준 DC/PC
+    │
+    ▼
+[사용자: 필요한 항목 선택/수정]
+    │  ├── 공정 추가/삭제
+    │  ├── FM/FC 수정
+    │  └── Family 고유 항목 추가
+    │
+    ▼
+[프로젝트 스키마 생성]
+    │  pfmea_{familyFmeaId}
+    │
+    ▼
+[선택된 Master 데이터 → 프로젝트 스키마에 복사]
+    │  ★ 복사본이므로 이후 독립 운영
+    │  ★ Master 수정해도 Family에 자동 반영 안 됨
+    │  ★ 필요 시 "Master 동기화" 기능으로 수동 병합
+    │
+    ▼
+[Family FMEA 독립 운영 시작]
+```
+
+### 3.2 Part 생성 시
+
+```
+[Part FMEA 신규 생성]
+    │
+    ▼
+[모달: 기초정보 소스 선택]
+    │  ├── 옵션 A: Master에서 상속
+    │  └── 옵션 B: Family에서 상속
+    │
+    ▼
+[기초정보 모달 표시]
+    │  소스(Master 또는 Family)에서 조회:
+    │  ├── 공정 목록
+    │  ├── FM/FE/FC
+    │  ├── DC/PC
+    │  └── 기존 SOD 참고값
+    │
+    ▼
+[사용자: Part 고유 항목 수정]
+    │
+    ▼
+[프로젝트 스키마 생성 + 데이터 복사]
+    │
+    ▼
+[Part FMEA 독립 운영]
+```
+
+### 3.3 상속 규칙
+
+```
+규칙 1: 상속 = 복사. 참조가 아님.
+  → Family/Part는 생성 시점의 Master 스냅샷을 복사받음
+  → 이후 Master 변경이 자동 전파되지 않음
+
+규칙 2: 동기화는 수동.
+  → "Master 동기화" 버튼으로 Master 변경분을 diff 비교
+  → 사용자가 항목별로 수락/거부 선택
+
+규칙 3: 상위→하위 방향만.
+  → Master → Family → Part (하향 상속만 가능)
+  → Part에서 발견한 개선사항은 LLD(교훈사례)로 등록 후
+    Master에 반영하는 별도 프로세스
+```
+
+---
+
+## 4. CP/PFD 연동
+
+### 4.1 CP 저장 위치 (핵심 수정)
+
+```
+원칙 (2026-03-23 확정):
+  CP 행 데이터는 해당 FMEA와 같은 프로젝트 스키마에만 저장
+
+  Master M001의 CP → pfmea_m001.control_plans
+  Family F001의 CP → pfmea_f001.control_plans
+  Part P001의 CP → pfmea_p001.control_plans
+
+API: POST /api/fmea/sync-cp-pfd — public이 아닌 pfmea_{fmeaId} 에 INSERT/UPDATE
+```
+
+### 4.2 CP 연동 구조
+
+```
+FMEA 워크시트
+    │
+    │  FM(고장형태) + FC(고장원인) + PC(예방관리) + DC(검출관리)
+    │  + SOD/AP + 제품특성(A4) + 공정특성(B3) + 특별특성
+    │
+    ▼
+[CP 동기화 (sync-to-cp)]
+    │
+    ▼
+CP 워크시트 (같은 프로젝트 스키마)
+    ├── control_plans (CP 헤더)
+    │     id, fmeaId, cpNo, title, ...
+    │
+    └── control_plan_items (CP 항목)
+          id, cpId, processNo, processName,
+          productChar, processChar, specialChar,
+          controlMethod, sampleSize, sampleFreq,
+          reactionPlan, ...
+          
+          FK 참조:
+          fmeaFmId → FailureMode UUID
+          fmeaPcId → ProductChar UUID
+          fmeaL3CharId → L3ProcessChar UUID  ★v4 핵심
+          fmeaFcId → FailureCause UUID
+```
+
+### 4.3 FMEA → CP 동기화 매핑
+
+```
+FMEA 엔티티              →  CP 항목 필드
+─────────────────────────────────────────
+L2Structure.processNo     →  cp_item.processNo
+L2Structure.processName   →  cp_item.processName
+ProductChar.charText      →  cp_item.productChar
+L2SpecialChar.specialChar →  cp_item.productSpecialChar
+L3ProcessChar.charText    →  cp_item.processChar        ★v4
+L3SpecialChar.specialChar →  cp_item.processSpecialChar  ★v4
+FailureMode.modeText      →  cp_item.failureMode
+DetectionControl.controlText → cp_item.controlMethod
+PreventionControl.pcText  →  cp_item.preventionMethod
+RiskAnalysis.ap           →  cp_item.actionPriority
+
+CP 고유 필드 (FMEA에 없는 것):
+  sampleSize, sampleFreq, reactionPlan, responsiblePerson
+  → CP 워크시트에서 사용자가 직접 입력
+```
+
+### 4.4 PFD 연동 구조
+
+```
+FMEA 워크시트
+    │
+    │  L2Structure (공정 목록, 순서)
+    │  L3Structure (작업요소)
+    │  FM/FC (고장형태/원인)
+    │
+    ▼
+[PFD 동기화 (sync-to-pfd)]
+    │
+    ▼
+PFD (같은 프로젝트 스키마)
+    ├── pfd_registrations (PFD 헤더)
+    │     id, fmeaId, pfdNo, ...
+    │
+    └── pfd_items (PFD 항목)
+          id, pfdId, processNo, processName,
+          processType, inputMaterial, outputMaterial,
+          equipment, controlPoint, ...
+          
+          FK 참조:
+          fmeaL2StructId → L2Structure UUID
+          fmeaProcessNoId → L2ProcessNo UUID  ★v4
+```
+
+### 4.5 FMEA → PFD 동기화 매핑
+
+```
+FMEA 엔티티              →  PFD 항목 필드
+─────────────────────────────────────────
+L2Structure               →  pfd_item 행 (공정 1개 = PFD 1행)
+L2ProcessNo.processNo     →  pfd_item.processNo
+L2ProcessName.processName →  pfd_item.processName
+L2Function.functionText   →  pfd_item.processDescription
+
+PFD 고유 필드:
+  processType (가공/검사/이동/보관/지연)
+  inputMaterial, outputMaterial
+  → PFD 워크시트에서 사용자가 직접 입력
+```
+
+---
+
+## 5. 전체 연동 아키텍처
+
+```
+public 스키마 (메타)
+┌─────────────────────────────────────────────────┐
+│  fmea_projects / fmea_registrations             │
+│  users, LLD, ap_matrix, master_processes …      │
+└─────────────────────────────────────────────────┘
+        │
+        │  fmeaId
+        ▼
+┌─────────────────────────────────────────────────┐
+│  pfmea_m001 — Master (M001)                     │
+│  24개 엔티티 + CP + PFD (행 데이터 SSoT)         │
+└─────────────────────────────────────────────────┘
+        │                          │
+        │ 기초정보 제공             │ 기초정보 제공
+        ▼                          ▼
+┌──────────────────┐    ┌──────────────────┐
+│ pfmea_f001       │    │ pfmea_f002       │
+│ Family FMEA #1   │    │ Family FMEA #2   │
+│ ├── 24개 엔티티  │    │ ├── 24개 엔티티  │
+│ ├── Family CP    │    │ ├── Family CP    │
+│ └── Family PFD   │    │ └── Family PFD   │
+└──────────────────┘    └──────────────────┘
+    │          │
+    ▼          ▼
+┌────────┐  ┌────────┐
+│pfmea_  │  │pfmea_  │
+│p001    │  │p002    │
+│Part #1 │  │Part #2 │
+│├─24엔티│  │├─24엔티│
+│├─Part  │  │├─Part  │
+││ CP    │  ││ CP    │
+│└─Part  │  │└─Part  │
+│  PFD   │  │  PFD   │
+└────────┘  └────────┘
+```
+
+---
+
+## 6. 기초정보 모달 (수동/자동 작성 시)
+
+### 6.1 모달 동작 흐름
+
+```
+[사용자: Family 또는 Part FMEA 작성 시작]
+    │
+    ▼
+[기초정보 모달 열림]
+    │
+    ├── 소스 선택: [Master M001 ▼] 또는 [Family F001 ▼]
+    │
+    ├── 공정 목록 표시 (Master/Family에서 로드)
+    │   □ 01 작업환경
+    │   ☑ 10 IQA
+    │   ☑ 20 Sorter
+    │   ☑ 40 UBM Sputter
+    │   ...
+    │   → 사용자가 필요한 공정 체크
+    │
+    ├── 선택된 공정의 기초정보 미리보기
+    │   공정 40 UBM Sputter:
+    │     A3: Ti/Cu UBM 증착으로...
+    │     A4: UBM 두께 (★), 막질 균일도
+    │     A5: UBM 두께 부족, 막질 불균일
+    │     4M/WE: MC-Sputter장비, IM-Ti Target, ...
+    │     B3: DC Power, 전압안정도, ...
+    │     B4: Power 변동, 전압 변동, ...
+    │
+    ├── [수동 모드]: 사용자가 항목별 수정/추가/삭제
+    │   또는
+    ├── [자동 모드]: 선택된 공정의 기초정보 전체 자동 복사
+    │
+    ▼
+[확인] → 프로젝트 스키마에 데이터 생성
+```
+
+### 6.2 모달 API
+
+```
+GET /api/fmea/master-base-info?sourceId={masterId}&processNos=10,20,40
+
+응답:
+{
+  source: "M001",
+  sourceType: "master",
+  processes: [
+    {
+      processNo: "40",
+      processName: "UBM Sputter",
+      l2Struct: { id: "L2-R13", ... },
+      l2Func: { id: "L2-R13-C3", functionText: "..." },
+      productChars: [ { id: "L2-R13-C4", charText: "UBM 두께", ... } ],
+      failureModes: [ { id: "L2-R13-C6", modeText: "UBM 두께 부족", ... } ],
+      l3Items: [
+        {
+          fourM: "MC", workElement: "Sputter 장비",
+          l3Func: { functionText: "...", processChar: "DC Power" },
+          failureCause: { causeText: "Power 변동" },
+          preventionControl: { pcText: "..." }
+        },
+        ...
+      ],
+      detectionControl: { controlText: "4-Point Probe..." }
+    }
+  ]
+}
+```
+
+### 6.3 기초정보 복사 시 UUID 처리
+
+```
+Master의 UUID: L2-R13-C6 (Master 엑셀 기준 위치)
+Family에 복사 시: 새 UUID 부여 (Family 자체 위치 기반)
+
+방법 A: Family Import 엑셀을 생성해서 Import
+  → Master 기초정보 → 엑셀 생성 → Family Import → 위치기반 UUID 자동 부여
+
+방법 B: 직접 DB 복사 + UUID 재생성
+  → Master 데이터 읽기 → UUID를 Family 프로젝트용으로 재생성 → 프로젝트 스키마에 저장
+
+권장: 방법 A (Import 파이프라인 재사용, 일관성)
+```
+
+---
+
+## 7. Master 동기화 (변경분 반영)
+
+### 7.1 Master 변경 시 하위 프로젝트 알림
+
+```
+[Master M001 수정]
+    │
+    ▼
+[변경 이벤트 기록]
+    public.master_change_log:
+      changeId, masterId, entityType, entityId,
+      changeType (add/modify/delete), changedAt
+    │
+    ▼
+[하위 프로젝트에 알림 배지 표시]
+    Family F001: "Master 변경 3건"
+    Part P001: "Master 변경 3건"
+    │
+    ▼
+[사용자: "동기화" 클릭]
+    │
+    ▼
+[Diff 비교 화면]
+    │  Master 현재값 vs 프로젝트 현재값
+    │
+    │  공정 40 A5 "UBM 두께 부족":
+    │    Master: "UBM 두께 Spec Out (Under/Over)"  ← 변경됨
+    │    F001:   "UBM 두께 부족"                   ← 기존 값
+    │    [수락] [거부]
+    │
+    ▼
+[수락한 항목만 프로젝트에 반영]
+```
+
+---
+
+## 8. CP 스키마 불일치 해결 (기존 문제)
+
+### 8.1 문제 원인 (해결됨)
+
+```
+과거:
+  일부 경로가 public.control_plans / public.pfd_* 에만 쓰고
+  워크시트는 getPrismaForCp → pfmea_{fmeaId} 를 읽음 → 빈 화면
+
+현재:
+  sync-cp-pfd POST는 프로젝트 스키마에만 쓴다 (create-cp / sync-to-cp 와 동일 SSoT)
+```
+
+### 8.2 마이그레이션 (레거시 public 행)
+
+```
+기존 public에만 남아 있는 CP/PFD 행:
+  → scripts/migrate-public-cp-pfd-to-project-schema.ts
+  → dry-run 후 본 실행
+  → 이관 완료 후 public 행 삭제는 운영 정책에 따라 (백업 후)
+```
+
+### 8.3 CP/PFD 통합 스키마 구조
+
+```
+프로젝트 스키마 (pfmea_{fmeaId}) 테이블 전체:
+
+FMEA 데이터 (v4 24개 엔티티):
+  l1_structures, l1_scopes, l1_functions, l1_requirements,
+  failure_effects,
+  l2_structures, l2_process_nos, l2_process_names,
+  l2_functions, product_chars, l2_special_chars,
+  failure_modes, detection_controls,
+  l3_structures, l3_process_nos, l3_four_ms, l3_work_elements,
+  l3_functions, l3_process_chars, l3_special_chars,
+  failure_causes, prevention_controls,
+  failure_links, risk_analyses
+
+CP 데이터:
+  control_plans           (CP 헤더)
+  control_plan_items      (CP 항목, FMEA FK 참조)
+
+PFD 데이터:
+  pfd_registrations       (PFD 헤더)
+  pfd_items              (PFD 항목, FMEA FK 참조)
+
+메타 데이터:
+  fmea_confirmed_states   (확정 상태)
+  optimizations          (최적화 조치)
+  audit_trail            (변경 이력)
+```
+
+---
+
+## 9. linkedCpNo 문제 해결
+
+```
+기존 문제:
+  linkedCpNo가 없으면 useCpSync가 "연동할 CP가 없습니다" 경로로 감
+
+해결:
+  FMEA 등록 시 CP를 자동 생성하지 않음
+  사용자가 "CP 생성" 버튼 클릭 시:
+    1. 프로젝트 스키마에 control_plans 레코드 생성
+    2. fmea_projects.linkedCpNo 업데이트
+    3. FMEA → CP 동기화 실행 (sync-to-cp)
+    4. CP 워크시트에 항목 표시
+
+  CP가 이미 있으면:
+    1. linkedCpNo로 CP 조회 (프로젝트 스키마)
+    2. sync-to-cp로 최신 FMEA 데이터 반영
+    3. CP 워크시트 표시
+```
+
+---
+
+## 10. 전체 API 흐름
+
+### 10.1 Master 관련
+
+```
+GET  /api/fmea/master-base-info    Master 기초정보 조회 (모달용)
+GET  /api/fmea/master-processes    Master 공정 목록
+POST /api/fmea/master-sync-check   Master 변경분 diff
+POST /api/fmea/master-sync-apply   Master 변경분 수락/반영
+```
+
+### 10.2 Family/Part 생성
+
+```
+POST /api/fmea/create-from-master  Master 기초정보 → Family/Part 생성
+POST /api/fmea/create-from-family  Family 기초정보 → Part 생성
+```
+
+### 10.3 CP 연동
+
+```
+POST /api/fmea/create-cp           CP 신규 생성 (프로젝트 스키마)
+POST /api/fmea/sync-to-cp          FMEA → CP 동기화
+GET  /api/fmea/cp-items            CP 항목 조회
+```
+
+### 10.4 PFD 연동
+
+```
+POST /api/fmea/create-pfd          PFD 신규 생성 (프로젝트 스키마)
+POST /api/fmea/sync-to-pfd         FMEA → PFD 동기화
+GET  /api/fmea/pfd-items           PFD 항목 조회
+```
+
+---
+
+## 11. 핵심 정리
+
+```
+1. Master FMEA + CP + PFD 행 데이터 → pfmea_m001 (public 아님)
+2. Family/Part 동일 패턴 → pfmea_{fmeaId}
+3. public → 프로젝트 목록·등록정보·사용자 등 메타 전용
+4. 상속 = 복사 (참조 아님). Master basic data는 Family/Part 생성 시 기초정보 원천.
+5. CP/PFD는 FMEA와 같은 스키마. sync-cp-pfd / create-cp / 워크시트 단일 패턴.
+6. Master 변경 → 하위에 알림 → 사용자가 수동 동기화 (§7, 별도 구현 시)
+7. v4 UUID/FK가 CP/PFD FK 참조의 기반 (특히 L3ProcessChar)
+```

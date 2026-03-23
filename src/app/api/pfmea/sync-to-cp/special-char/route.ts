@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { findOrCreateCp } from '../utils';
+import { findOrCreateCp, getProjectPrismaForFmea } from '../utils';
 
 export async function POST(request: NextRequest) {
     const prisma = getPrisma();
@@ -33,11 +33,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const { prismaProj, fmeaIdNorm } = await getProjectPrismaForFmea(fmeaId);
+
         // 1. 대상 CP 조회 또는 생성
-        const cp = await findOrCreateCp(prisma as any, cpNo, fmeaId);
+        const cp = await findOrCreateCp(prisma as any, cpNo, fmeaIdNorm);
 
         // 2. 기존 CP Item 조회
-        const existingItems = await prisma.controlPlanItem.findMany({
+        const existingItems = await prismaProj.controlPlanItem.findMany({
             where: { cpId: cp.id },
         });
 
@@ -68,13 +70,13 @@ export async function POST(request: NextRequest) {
 
         const [fmRows, fcRows] = await Promise.all([
             fmIds.size > 0
-                ? prisma.failureMode.findMany({
+                ? prismaProj.failureMode.findMany({
                     where: { id: { in: [...fmIds] } },
                     select: { id: true, l2StructId: true },
                 })
                 : [],
             fcIds.size > 0
-                ? prisma.failureCause.findMany({
+                ? prismaProj.failureCause.findMany({
                     where: { id: { in: [...fcIds] } },
                     select: { id: true, l3StructId: true },
                 })
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
             }
 
             if (target) {
-                await prisma.controlPlanItem.update({
+                await prismaProj.controlPlanItem.update({
                     where: { id: target.id },
                     data: { specialChar: value },
                 });
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 4. 동기화 상태 업데이트
-        await prisma.controlPlan.update({
+        await prismaProj.controlPlan.update({
             where: { id: cp.id },
             data: {
                 syncStatus: 'synced',
