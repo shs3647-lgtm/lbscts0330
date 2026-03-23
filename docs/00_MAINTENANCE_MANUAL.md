@@ -46,6 +46,7 @@
 | 2026-03-22 | - | **save-position-import RiskAnalysis + baseline 전제**: RA `createMany`에 `fmId`/`fcId`/`feId`(EX-06); E-22 `parentId`≡`linkId`(주석). Guard `tests/guard/save-position-import-fk.guard.test.ts`. `npm run verify:pipeline-baseline`은 대상 fmeaId **Import 완료** 전제 — 문서 `MAINTENANCE_MANUAL.md` §2.2·§2.5, `CLAUDE.md` 0b·0c | Claude |
 | 2026-03-22 | - | **`npm run test:import-slice`**: Import 핵심 Vitest(가드·save-from-import·position-parser) 원클릭 — `package.json`, `MAINTENANCE_MANUAL.md` §2.5, `SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md`, `CLAUDE.md` 0d | Claude |
 | 2026-03-22 | - | **`test:import-slice` 확장**: `position-format-routing` 가드, `atomic-to-flat-c1c4-fk`, `build-atomic-from-flat-fallback` 추가(41 tests 묶음). `Fmea master family…` §6.4 문구 동기화 | Claude |
+| 2026-03-22 | - | **FMEA Core 사이드바**: `FmeaSidebar`에서 Part FMEA 최상위 메뉴 제거 — `/part-fmea/*`·API·등록 연동은 유지. 가드 `tests/guard/fmea-sidebar-no-part-fmea-menu.guard.test.ts` | Claude |
 | 2026-03-23 | - | **3L 고장 누락 대량(예: 100건+) 재발**: `atomicToLegacy`의 `pickLegacyFcProcessCharId` 유효 집합을 `L3Function.l2StructId === L2`로만 구성 → DB에 `l2StructId` 비정규 오염 시 `l3FuncId`가 집합에서 제외되어 `processCharId`가 빈값 → B3와 FC 불일치. **이 공정의 `L3Structure.id`에 연결된 `l3StructId`로 필터**하도록 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts` 3번째 케이스. | Claude |
 
 ---

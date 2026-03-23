@@ -1,7 +1,7 @@
 /**
  * @file FmeaSidebar.tsx
  * @description FMEA Core 가족 전용 사이드바
- * 메뉴: MyJob, DFMEA, PFMEA, CP, PFD + 기초정보 + Admin
+ * 메뉴: MyJob, PFMEA, CP, PFD + 기초정보 + Admin (Part FMEA는 /part-fmea 직접 URL·내부 연동만 유지)
  * @created 2026-02-27
  */
 
@@ -48,12 +48,6 @@ const pfmeaSubItems = [
   { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement', multiline: true },
 ];
 
-const partFmeaSubItems = [
-  { label: '📊 대시보드', href: '/part-fmea' },
-  { label: '📋 P/F 목록', href: '/part-fmea/list' },
-  { label: '➕ 새 P/F 생성', href: '/part-fmea/create' },
-];
-
 const mainMenuItems: MenuItem[] = [
   myJobItem,
   {
@@ -67,10 +61,6 @@ const mainMenuItems: MenuItem[] = [
   {
     id: 'pfd', label: 'PFD', shortLabel: 'F',
     Icon: ColorIcons.Revision, href: '/pfd', subItems: createSubItems('/pfd'),
-  },
-  {
-    id: 'part-fmea', label: 'Part FMEA', shortLabel: 'PF',
-    Icon: ColorIcons.List, href: '/part-fmea', subItems: partFmeaSubItems,
   },
 ];
 
