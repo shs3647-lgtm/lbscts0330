@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-22
+> **최종 업데이트**: 2026-03-23
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -86,6 +86,16 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `worksheet/hooks/useWorksheetState.ts` | `compareEmbed` 시 URL 탭 동기화 생략 |
 
 상세: `docs/PFMEA_COMPARE_VIEW.md`
+
+### 2.5 파이프라인·FK CLI 검증 (2026-03-23)
+
+| 스크립트 / npm | 설명 |
+|----------------|------|
+| `scripts/verify-location-fk-baseline.ts` | `GET /api/fmea/pipeline-verify` — 구조(0)→UUID(1)→fmeaId(2)→**FK(3)**→누락(4), `allGreen` 필수 |
+| `npm run verify:pipeline-baseline` | 기본 URL `http://127.0.0.1:3000`, `VERIFY_FMEA_ID` 기본 `pfm26-m066` |
+| `npm run verify:pipeline-baseline:strict` | `--baseline`: 골든 L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
+
+스냅샷·순서: `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3
 
 ---
 

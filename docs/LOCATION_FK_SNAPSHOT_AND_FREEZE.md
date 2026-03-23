@@ -29,8 +29,8 @@ git checkout -b recover/location-fk-100pct snapshot-location-fk-100pct-2026-03-2
 
 1. ✅ **백업** — 위 태그
 2. ✅ **프리즈(정책)** — 본 문서 + 보호 경로 가드 (`scripts/guard/*`)
-3. ⏳ **검증 테스트 스크립트** — Import → 파싱 → DB → FailureLink 자동 검증 (다음 작업)
-4. ⏳ **주석(읽기 전용 성격)** — 스크립트 통과 후, 로직 변경 없이 문서화
+3. ✅ **검증 테스트 스크립트** — `scripts/verify-location-fk-baseline.ts` + `npm run verify:pipeline-baseline` (아래 §3)
+4. ⏳ **주석(읽기 전용 성격)** — 스크립트·핵심 모듈 상단 문서화 보강 (로직 변경 없이)
 5. ⏳ **최적화** — 맨 마지막, 매 변경마다 동일 검증 스크립트 실행
 
 **금지:** 프리즈·검증 없이 보호 경로(워크시트/고장분석 등)에서 로직 변경.
@@ -39,7 +39,34 @@ git checkout -b recover/location-fk-100pct snapshot-location-fk-100pct-2026-03-2
 
 ---
 
-## 3단계 이후 (예정)
+## 3단계: 파이프라인·FK 검증 스크립트 (완료)
 
-- 파이프라인 검증 API 또는 `node`/`vitest` 기반 일괄 스크립트로 `pfm26-m066` 등 골든 기준과 FK 건수를 고정 비교.
-- 상세 명세는 `docs/UUID_FK_SPECIFICATION.md`, `CLAUDE.md` Rule 0·1.7 참고.
+**전제:** `npm run dev` 등으로 API가 떠 있고, 대상 `fmeaId`가 프로젝트 스키마에 Import·저장되어 있어야 합니다.
+
+| 명령 | 설명 |
+|------|------|
+| `npm run verify:pipeline-baseline` | `GET /api/fmea/pipeline-verify?fmeaId=…` 호출 → `success` + `allGreen` 필수 (5단계 모두 `status=ok`) |
+| `npm run verify:pipeline-baseline:strict` | 위 + **`pfm26-m066` 골든**: L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
+
+**환경 변수**
+
+| 변수 | 기본값 |
+|------|--------|
+| `VERIFY_BASE_URL` | `http://127.0.0.1:3000` |
+| `VERIFY_FMEA_ID` | `pfm26-m066` |
+
+PowerShell 예:
+
+```powershell
+$env:VERIFY_BASE_URL="http://localhost:3000"
+$env:VERIFY_FMEA_ID="pfm26-m066"
+npm run verify:pipeline-baseline:strict
+```
+
+---
+
+## 4단계 이후 (예정)
+
+- 주석 보강: `pipeline-verify/verify-steps.ts`의 FK·FailureLink 검증 구간 등 (읽기용)
+- 최적화: 변경 후 위 스크립트 재실행
+- 상세 명세: `docs/UUID_FK_SPECIFICATION.md`, `CLAUDE.md` Rule 0·1.7 참고
