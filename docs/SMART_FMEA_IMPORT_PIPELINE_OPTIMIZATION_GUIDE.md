@@ -150,17 +150,17 @@ Get-ChildItem -Recurse -Path $root -Include `
 ### Phase 1
 - [x] 1-1. `cross-sheet-resolver.ts` — 이미 행 전용; `CrossSheetRef`에서 미사용 텍스트 필드 제거 (2026-03-23)
 - [x] 1-2. `position-parser.ts` — `ppLog`/`ppWarn` + `POSITION_PARSER_VERBOSE` / non-production 게이트 (2026-03-23)
-- [ ] 1-3. 명시 타입 (`position-parser` 등 `any` 축소 — CODEFREEZE 구간 제외)
+- [x] 1-3. `position-parser.ts` — `exceljs` `Workbook`/`Worksheet`/`Row`, `parsePositionBasedWorkbook(wb: Workbook)` (2026-03-23)
 - [ ] `npm run test:run` + `npx tsc --noEmit` (+ 권장: `npm run verify:pipeline-baseline`)
 
 ### Phase 2
-- [ ] 2-1. 인덱스 Map화
+- [ ] 2-1. 인덱스 Map화 (`cross-sheet-resolver` 이미 Map 전용; `masterFailureChain.ts`는 **CODEFREEZE** — 변경 시 사용자 승인)
 - [ ] 2-2. FM 탐색 알고리즘
 - [ ] 2-3. 메모리/스트리밍
 - [ ] 동일 VERIFY
 
 ### Phase 3
-- [ ] 3-1. origRow 검증
+- [x] 3-1. `parsePositionBasedJSON` FC 행 — L1/L2/L3 `_origRow`를 각 시트 `max excelRow` 및 `≥2`로 검증 (`validateFcOrigRow`, 2026-03-23)
 - [ ] 3-2. 트랜잭션 범위
 - [ ] 3-3. Import 불변 검증
 - [ ] 동일 VERIFY

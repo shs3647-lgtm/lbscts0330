@@ -142,4 +142,16 @@ describe('parsePositionBasedJSON', () => {
       expect(l2Ids.has(l3.l2Id)).toBe(true);
     }
   });
+
+  it('FC L3_origRow가 L3 시트 max excelRow 초과면 해당 FL fcId 미해결 (origRow 검증)', () => {
+    const bad = JSON.parse(JSON.stringify(fixture)) as typeof fixture;
+    const fcRow = bad.sheets.FC.rows.find((r: { cells: Record<string, string> }) =>
+      String(r.cells.L3_origRow || '').trim(),
+    );
+    expect(fcRow).toBeDefined();
+    fcRow!.cells.L3_origRow = '999999';
+    const r = parsePositionBasedJSON(bad);
+    const anyBrokenFc = r.failureLinks.some((fl) => !fl.fcId);
+    expect(anyBrokenFc).toBe(true);
+  });
 });

@@ -40,6 +40,7 @@
 | 2026-03-23 | - | **파이프라인 검증 주석**: `pipeline-verify/verify-steps.ts` 파일 헤더·`verifyFk`/`verifyMissing` JSDoc — FailureLink SSoT, feId 3요소, FK vs 누락 단계 구분. `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §4 | Claude |
 | 2026-03-23 | - | **Import 파이프라인 최적화 가이드**: `docs/SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md` — autom-fmea 실제 경로(`lib/fmea`, `masterFailureChain`, `save-from-import`), Phase 1–4, CODEFREEZE·Rule 17·`verify:pipeline-baseline` 연계 | Claude |
 | 2026-03-23 | - | **Phase 1 (일부)**: `cross-sheet-resolver` `CrossSheetRef` 행 필드만 유지; `position-parser` 파싱 로그를 `POSITION_PARSER_VERBOSE` / non-production 게이트 (`ppLog`/`ppWarn`) | Claude |
+| 2026-03-23 | - | **Phase 1-3 + 3-1**: `position-parser` — `exceljs` 타입(`Workbook`/`Row`/`Worksheet`), 시트 누락 시 명시 throw, FC `L1/L2/L3_origRow` 범위 검증; `atomicToFlatData` `itemCode: 'SC'` `as any` 제거; 테스트 `position-parser.test.ts` origRow 초과 케이스 | Claude |
 | 2026-03-23 | - | **3L 고장 누락 대량(예: 100건+) 재발**: `atomicToLegacy`의 `pickLegacyFcProcessCharId` 유효 집합을 `L3Function.l2StructId === L2`로만 구성 → DB에 `l2StructId` 비정규 오염 시 `l3FuncId`가 집합에서 제외되어 `processCharId`가 빈값 → B3와 FC 불일치. **이 공정의 `L3Structure.id`에 연결된 `l3StructId`로 필터**하도록 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts` 3번째 케이스. | Claude |
 
 ---

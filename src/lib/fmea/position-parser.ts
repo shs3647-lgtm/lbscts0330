@@ -30,6 +30,7 @@
  * ██████████████████████████████████████████████████████████████████████████
  */
 
+import type { Row, Workbook, Worksheet } from 'exceljs';
 import { positionUUID, type SheetCode } from './position-uuid';
 import { CrossSheetResolver } from './cross-sheet-resolver';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
@@ -102,6 +103,30 @@ function ppLog(...args: unknown[]): void {
 
 function ppWarn(...args: unknown[]): void {
   if (positionParserVerboseLogsEnabled()) console.warn(...args);
+}
+
+/**
+ * FC 시트 L1/L2/L3 원본행이 **해당 시트에 실제 존재하는 excelRow 범위**인지 검증 (Phase 3-1).
+ * 실패 시 0 → CrossSheetResolver가 빈 FK 반환(기존 FL 진단 흐름과 동일).
+ */
+function validateFcOrigRow(
+  raw: number,
+  maxOnSheet: number,
+  label: 'L1' | 'L2' | 'L3',
+  fcExcelRow: number,
+): number {
+  if (!raw) return 0;
+  if (raw < 2) {
+    ppWarn(`[position-parser] FC R${fcExcelRow}: invalid ${label}_origRow=${raw} (expect ≥2, 헤더 제외)`);
+    return 0;
+  }
+  if (maxOnSheet > 0 && raw > maxOnSheet) {
+    ppWarn(
+      `[position-parser] FC R${fcExcelRow}: ${label}_origRow=${raw} exceeds ${label} sheet max excelRow=${maxOnSheet}`,
+    );
+    return 0;
+  }
+  return raw;
 }
 
 // C1 scope 정규화 — normalizeScope from @/lib/fmea/scope-constants (상단 import)
@@ -549,6 +574,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const failureLinks: PosFailureLink[] = [];
   const riskAnalyses: PosRiskAnalysis[] = [];
 
+  const maxOrigRowL1 = l1Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
+  const maxOrigRowL2 = l2Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
+  const maxOrigRowL3 = l3Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
+
   // FE severity 업데이트용 Map
   const feSeverityMap = new Map<string, number>();
 
@@ -571,9 +600,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (c['FM'])       prevJsonFM      = c['FM'];
 
     // L1/L2/L3_origRow = 각 시트 **엑셀 물리 행(1-based)**; registerFE/FM/FC의 excelRow와 동일해야 함
-    const l1Row = parseInt(c['L1_origRow'] || '', 10) || 0;
-    const l2Row = parseInt(c['L2_origRow'] || '', 10) || 0;
-    const l3Row = parseInt(c['L3_origRow'] || '', 10) || 0;
+    let l1Row = parseInt(c['L1_origRow'] || '', 10) || 0;
+    let l2Row = parseInt(c['L2_origRow'] || '', 10) || 0;
+    let l3Row = parseInt(c['L3_origRow'] || '', 10) || 0;
+    l1Row = validateFcOrigRow(l1Row, maxOrigRowL1, 'L1', rn);
+    l2Row = validateFcOrigRow(l2Row, maxOrigRowL2, 'L2', rn);
+    l3Row = validateFcOrigRow(l3Row, maxOrigRowL3, 'L3', rn);
 
     const fcPno = normalizeProcessNo(c['processNo'] || ''); // ★ AutoFix
     const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
@@ -807,21 +839,26 @@ function findSheetByPrefix(sheetNames: string[], prefix: string): string | undef
 }
 
 /** ExcelJS Row → 셀 문자열 추출 */
-function excelCellStr(row: any, col: number): string {
+function excelCellStr(row: Row, col: number): string {
   const cell = row.getCell(col);
   if (!cell || cell.value == null) return '';
-  if (typeof cell.value === 'object' && 'richText' in cell.value) {
-    return (cell.value.richText || []).map((r: any) => r.text || '').join('').trim();
+  const v = cell.value;
+  if (typeof v === 'object' && v !== null && 'richText' in v) {
+    const rt = (v as { richText?: { text?: string }[] }).richText || [];
+    return rt.map((r) => r.text || '').join('').trim();
   }
-  // 숫자/날짜도 문자열로 변환
-  return String(cell.value).trim();
+  // 숫자/날짜/불리언/에러 등 문자열로 변환
+  if (typeof v === 'object' && v !== null && 'error' in v) {
+    return '';
+  }
+  return String(v).trim();
 }
 
 /**
  * 헤더 행에서 컬럼 키워드 매칭 → 컬럼 번호 자동감지
  * 하드코딩 컬럼 번호 제거 — 엑셀 레이아웃 변경에 강건
  */
-function detectColumns(ws: any, keywordMap: Record<string, string[]>): Record<string, number> {
+function detectColumns(ws: Worksheet, keywordMap: Record<string, string[]>): Record<string, number> {
   const result: Record<string, number> = {};
   // 1~3행에서 헤더 찾기
   for (let headerRow = 1; headerRow <= 3; headerRow++) {
@@ -843,7 +880,7 @@ function detectColumns(ws: any, keywordMap: Record<string, string[]>): Record<st
 }
 
 /** 헤더 행 번호 감지 (데이터 시작행 = 헤더행 + 1) */
-function detectHeaderRow(ws: any, keywordMap: Record<string, string[]>): number {
+function detectHeaderRow(ws: Worksheet, keywordMap: Record<string, string[]>): number {
   for (let r = 1; r <= 3; r++) {
     const row = ws.getRow(r);
     if (!row) continue;
@@ -864,8 +901,8 @@ function detectHeaderRow(ws: any, keywordMap: Record<string, string[]>): number 
  * ExcelJS Workbook → PositionBasedJSON 변환
  * ★ 헤더 키워드 자동감지 — 컬럼 번호 하드코딩 제거
  */
-export function parsePositionBasedWorkbook(wb: any, targetId?: string): PositionAtomicData {
-  const sheetNames = wb.worksheets.map((ws: any) => ws.name);
+export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): PositionAtomicData {
+  const sheetNames = wb.worksheets.map((ws) => ws.name);
 
   const l1Name = findSheetByPrefix(sheetNames, 'L1');
   const l2Name = findSheetByPrefix(sheetNames, 'L2');
@@ -878,6 +915,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
 
   // ─── L1 시트 — 헤더 자동감지 ───
   const l1WS = wb.getWorksheet(l1Name);
+  if (!l1WS) throw new Error(`[position-parser] Worksheet not found: ${l1Name}`);
   const l1ColMap = detectColumns(l1WS, {
     C1: ['C1', '구분', 'SCOPE', 'CATEGORY'],
     C2: ['C2', '제품기능', '제품 기능', 'FUNCTION'],
@@ -888,7 +926,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   ppLog(`[position-parser] L1 columns: ${JSON.stringify(l1ColMap)}, headerRow: ${l1Header}`);
 
   const l1Rows: SheetRow[] = [];
-  l1WS.eachRow((row: any, rn: number) => {
+  l1WS.eachRow((row: Row, rn: number) => {
     if (rn <= l1Header) return;
     l1Rows.push({
       excelRow: rn, posId: `L1-R${rn}`,
@@ -903,6 +941,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
 
   // ─── L2 시트 — 헤더 자동감지 ───
   const l2WS = wb.getWorksheet(l2Name);
+  if (!l2WS) throw new Error(`[position-parser] Worksheet not found: ${l2Name}`);
   const l2ColMap = detectColumns(l2WS, {
     A1: ['A1', '공정번호', '공정 번호', 'PROCESS NO'],
     A2: ['A2', '공정명', '공정 명', 'PROCESS NAME'],
@@ -916,7 +955,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   ppLog(`[position-parser] L2 columns: ${JSON.stringify(l2ColMap)}, headerRow: ${l2Header}`);
 
   const l2Rows: SheetRow[] = [];
-  l2WS.eachRow((row: any, rn: number) => {
+  l2WS.eachRow((row: Row, rn: number) => {
     if (rn <= l2Header) return;
     l2Rows.push({
       excelRow: rn, posId: `L2-R${rn}`,
@@ -934,6 +973,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
 
   // ─── L3 시트 — 헤더 자동감지 ───
   const l3WS = wb.getWorksheet(l3Name);
+  if (!l3WS) throw new Error(`[position-parser] Worksheet not found: ${l3Name}`);
   const l3ColMap = detectColumns(l3WS, {
     processNo: ['공정번호', '공정 번호', 'PROCESS NO'],
     m4: ['4M', 'M4', '분류'],
@@ -952,7 +992,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   }
 
   const l3Rows: SheetRow[] = [];
-  l3WS.eachRow((row: any, rn: number) => {
+  l3WS.eachRow((row: Row, rn: number) => {
     if (rn <= l3Header) return;
     l3Rows.push({
       excelRow: rn, posId: `L3-R${rn}`,
@@ -971,6 +1011,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
 
   // ─── FC 시트 — 헤더 자동감지 ───
   const fcWS = wb.getWorksheet(fcName);
+  if (!fcWS) throw new Error(`[position-parser] Worksheet not found: ${fcName}`);
   const fcColMap = detectColumns(fcWS, {
     FE_scope: ['FE구분', 'FE 구분', 'SCOPE', 'FE_SCOPE'],
     FE: ['FE(고장', 'FE(', '고장영향', 'FAILURE EFFECT'],  // ★ 'FE' 단독 제거 — FE구분 오매칭 방지
@@ -996,7 +1037,7 @@ export function parsePositionBasedWorkbook(wb: any, targetId?: string): Position
   let prevFEscope = '', prevFE = '', prevPno = '', prevFM = '';
   const fcCarryFixCount = { feScope: 0, feText: 0, pno: 0, fm: 0 };
   const fcRows: SheetRow[] = [];
-  fcWS.eachRow((row: any, rn: number) => {
+  fcWS.eachRow((row: Row, rn: number) => {
     if (rn <= fcHeader) return;
     const rawFEscope = excelCellStr(row, fcColMap.FE_scope || 1);
     const rawFEtext  = excelCellStr(row, fcColMap.FE || 2);
@@ -1262,7 +1303,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     flat.push({ id: `${f.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f.processChar, specialChar: sc, m4, parentItemId: b1Id, createdAt: now, rowSpan: 1 });
     // SC: 특별특성 별도 itemCode
     if (sc) {
-      flat.push({ id: `${f.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC' as any, value: sc, m4, createdAt: now, rowSpan: 1 });
+      flat.push({ id: `${f.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC', value: sc, m4, createdAt: now, rowSpan: 1 });
     }
   }
 
