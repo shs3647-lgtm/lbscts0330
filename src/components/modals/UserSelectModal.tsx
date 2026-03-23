@@ -219,6 +219,15 @@ export function UserSelectModal({
             >
               {isAdding ? '취소' : '+ 추가'}
             </button>
+            {isAdding && (
+              <button
+                onClick={handleAddUser}
+                title="저장(Save)"
+                className="px-2 py-0.5 text-[9px] font-semibold rounded bg-blue-600 text-white hover:bg-blue-700"
+              >
+                저장
+              </button>
+            )}
             <button
               onClick={handleDeleteUser}
               disabled={!selectedUserId}
