@@ -37,6 +37,7 @@
 | 2026-03-23 | - | **3L 고장 누락 수백 건(가짜)**: `atomicToLegacy`가 `failureCauses[].processCharId`를 `fc.processCharId || fc.l3FuncId`로 두어, DB `processCharId`가 레거시/오염 UUID이면 워크시트 B3(`L3Function.id`)와 불일치 → FC 미연결. **`l3FuncId || processCharId`** 로 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts`. | Claude |
 | 2026-03-23 | - | **동일 원인 — `migration.ts` 역변환**: `atomicDB → legacy`에서 FC의 `processCharId` 복원을 **`pickLegacyFcProcessCharId`** 로 통일(API `atomic` 응답·`atomicToLegacy`와 동일: 유효한 `L3Function.id`만 매칭). | Claude |
 | 2026-03-23 | - | **파이프라인·FK CLI 검증**: `scripts/verify-location-fk-baseline.ts`, `npm run verify:pipeline-baseline` / `:strict` (`GET` pipeline-verify, `--baseline` 시 m066 골든). 문서: `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3, `docs/MAINTENANCE_MANUAL.md` §2.5 | Claude |
+| 2026-03-23 | - | **파이프라인 검증 주석**: `pipeline-verify/verify-steps.ts` 파일 헤더·`verifyFk`/`verifyMissing` JSDoc — FailureLink SSoT, feId 3요소, FK vs 누락 단계 구분. `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §4 | Claude |
 | 2026-03-23 | - | **3L 고장 누락 대량(예: 100건+) 재발**: `atomicToLegacy`의 `pickLegacyFcProcessCharId` 유효 집합을 `L3Function.l2StructId === L2`로만 구성 → DB에 `l2StructId` 비정규 오염 시 `l3FuncId`가 집합에서 제외되어 `processCharId`가 빈값 → B3와 FC 불일치. **이 공정의 `L3Structure.id`에 연결된 `l3StructId`로 필터**하도록 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts` 3번째 케이스. | Claude |
 
 ---

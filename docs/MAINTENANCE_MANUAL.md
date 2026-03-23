@@ -95,7 +95,7 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `npm run verify:pipeline-baseline` | 기본 URL `http://127.0.0.1:3000`, `VERIFY_FMEA_ID` 기본 `pfm26-m066` |
 | `npm run verify:pipeline-baseline:strict` | `--baseline`: 골든 L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
 
-스냅샷·순서: `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3
+스냅샷·순서: `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3·§4 — STEP3 `verifyFk` JSDoc에 FailureLink·고아·미연결 판정 근거 정리
 
 ---
 

@@ -9,11 +9,18 @@ function isL3FunctionIdB2Pattern(id: string): boolean {
  * @file verify-steps.ts
  * 파이프라인 검증 v3 — 5단계 통합 검증 (엑셀 Import + 역설계 Import 공통)
  *
+ * **프로젝트 스키마:** 호출부(`route.ts`)에서 `SET search_path TO {schema}, public` 후 이 모듈의 Prisma
+ * 쿼리가 실행된다. public 직접 저장과 혼동하지 말 것 (Rule 0.8.1).
+ *
  * STEP 0: 구조 완전성 — L1→L2→L3 계층 존재 확인
  * STEP 1: UUID — 중복 탐지 + 수량 + 모자관계
  * STEP 2: fmeaId — 10개 테이블 격리 검증
- * STEP 3: FK — 14개 관계 전수검증 + 미연결 엔티티
- * STEP 4: 누락 — emptyPC/orphanPC/DC/PC/SOD + 자동수정
+ * STEP 3: FK — 구조·고장사슬·위험분석까지 **ID 기반** 무결성 (텍스트 재매칭 없음, Rule 1.7)
+ *   - `fkChecks` 루프: 각 행의 FK 값이 동일 fmeaId 스코프 내 실제 부모 ID 집합에 존재하는지
+ *   - FailureLink: FM·FE·FC 3요소 FK + **feId NULL 금지** (고장사슬 SSoT)
+ *   - 보조: 미연결 FC/FM, RA↔FL 커버, FC 동일 키 중복 경고
+ * STEP 4: 누락 — 워크시트/위험 품질 (emptyPC, orphanPC, DC/PC/SOD, RA 대비 FL 등)
+ *   - 자동수정은 `auto-fix.ts`; 본 파일은 **판정만**
  */
 
 export type StepStatus = 'ok' | 'warn' | 'error' | 'fixed';
@@ -224,9 +231,25 @@ export async function verifyFmeaId(prisma: any, fmeaId: string): Promise<StepRes
 }
 
 // ─── STEP 3: FK ──────────────────────────────────────────────
+/**
+ * 고장사슬·Atomic 계층의 **FK 전수 검증** (읽기 전용).
+ *
+ * - **FailureLink (`failure_links`)** 가 FM↔FE↔FC를 잇는 SSoT. 각 링크는 `fmId`/`feId`/`fcId`가
+ *   모두 유효한 UUID이고 해당 엔티티 행이 존재해야 한다. `feId` NULL 은 Rule 1.7(3요소) 위반으로 error.
+ * - **고아(orphan):** FK 값이 NULL이거나(비 nullable인 경우), 부모 집합에 없으면 error.
+ *   `FM.productCharId`·`FE.l1FuncId` 는 nullable — NULL 은 허용.
+ * - **미연결 FC/FM:** FC/FM 행이 어느 FL에도 안 묶이면 warn (데이터는 있으나 사슬 미완성).
+ *   단, FM은 있는데 **FL이 0건**이면 완전 누락으로 **error** (Import/재구축 필요).
+ * - **RA.linkId → FL:** RiskAnalysis 가 가리키는 링크가 존재해야 함. FL 대비 RA 없음은 warn.
+ * - **FC 중복:** 동일 `l2StructId|l3StructId|cause` 가 2회 이상이면 warn (dedup/Import 점검 힌트).
+ *
+ * CLI 골든(`scripts/verify-location-fk-baseline.ts --baseline`)은 본 단계의 `details.links`,
+ * `totalOrphans`, `nullFeIdLinks` 및 STEP 0 `l2` 등과 정합한다.
+ */
 export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult> {
   const r: StepResult = { step: 3, name: 'FK', status: 'ok', details: {}, issues: [], fixed: [], fkIntegrity: [] };
 
+  // 한 번에 로드 후 메모리에서 집합 검사 — N+1 없음, 순서 무관
   const [l1Funcs, l2s, l2Funcs, l3s, l3Funcs, fms, fes, fcs, fls, ras] = await Promise.all([
     prisma.l1Function.findMany({ where: { fmeaId }, select: { id: true } }).catch(() => []),
     prisma.l2Structure.findMany({ where: { fmeaId }, select: { id: true } }),
@@ -252,6 +275,7 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
     fl: new Set<string>(fls.map((r: any) => r.id)),
   };
 
+  // 관계 라벨은 디버그/ImportValidation 표시용. 검증 로직은 전부 targetSet.has(fkVal).
   const fkChecks: { relation: string; rows: any[]; fkField: string; targetSet: Set<string>; nullable?: boolean; nameField?: string }[] = [
     { relation: 'L3.l2Id → L2', rows: l3s as any[], fkField: 'l2Id', targetSet: idSet.l2 },
     { relation: 'L2F.l2StructId → L2', rows: l2Funcs, fkField: 'l2StructId', targetSet: idSet.l2, nameField: 'functionName' },
@@ -290,7 +314,7 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
     }
   }
 
-  // 미연결 엔티티 검증
+  // 사슬 커버리지: FC/FM 이 최소 1개의 FL에 등장하는지 (역은 아님 — FL만 있고 고아 부모는 위에서 걸림)
   const linkedFcIds = new Set(fls.map((l: any) => l.fcId));
   const linkedFmIds = new Set(fls.map((l: any) => l.fmId));
   const unlinkedFC = fcs.filter((fc: any) => !linkedFcIds.has(fc.id)).length;
@@ -342,6 +366,13 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
 }
 
 // ─── STEP 4: 누락 ───────────────────────────────────────────
+/**
+ * 워크시트·위험분석 **품질/완성도** (FK와 구분).
+ *
+ * - emptyPC / orphanPC: L3Function(B3) 문자열·FC와의 정합 — FK 고아와는 다른 축.
+ * - DC/PC/SOD: RiskAnalysis 필드 채움 (마스터·파이프라인 베이스라인과 별도로 warn 가능).
+ * - missRA: FL 마다 RA 1건 기대에 가깝게 카운트 (세부는 아래 구현 주석 참고).
+ */
 export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepResult> {
   const r: StepResult = { step: 4, name: '누락', status: 'ok', details: {}, issues: [], fixed: [] };
 

@@ -30,7 +30,7 @@ git checkout -b recover/location-fk-100pct snapshot-location-fk-100pct-2026-03-2
 1. ✅ **백업** — 위 태그
 2. ✅ **프리즈(정책)** — 본 문서 + 보호 경로 가드 (`scripts/guard/*`)
 3. ✅ **검증 테스트 스크립트** — `scripts/verify-location-fk-baseline.ts` + `npm run verify:pipeline-baseline` (아래 §3)
-4. ⏳ **주석(읽기 전용 성격)** — 스크립트·핵심 모듈 상단 문서화 보강 (로직 변경 없이)
+4. ✅ **주석(읽기 전용 성격)** — `verify-steps.ts` 파일 헤더·`verifyFk`/`verifyMissing` JSDoc 보강 (로직 불변)
 5. ⏳ **최적화** — 맨 마지막, 매 변경마다 동일 검증 스크립트 실행
 
 **금지:** 프리즈·검증 없이 보호 경로(워크시트/고장분석 등)에서 로직 변경.
@@ -65,8 +65,11 @@ npm run verify:pipeline-baseline:strict
 
 ---
 
-## 4단계 이후 (예정)
+## 4단계: FK·누락 검증 주석 (완료)
 
-- 주석 보강: `pipeline-verify/verify-steps.ts`의 FK·FailureLink 검증 구간 등 (읽기용)
-- 최적화: 변경 후 위 스크립트 재실행
+- `src/app/api/fmea/pipeline-verify/verify-steps.ts`: 프로젝트 스키마 맥락, STEP 3 FailureLink SSoT·3요소·고아/미연결/RA 커버, STEP 4 FK와의 역할 구분.
+
+## 5단계 이후 (예정)
+
+- 최적화: 변경 후 `npm run verify:pipeline-baseline` 재실행
 - 상세 명세: `docs/UUID_FK_SPECIFICATION.md`, `CLAUDE.md` Rule 0·1.7 참고
