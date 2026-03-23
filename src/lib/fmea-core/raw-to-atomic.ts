@@ -11,6 +11,13 @@
  * @version 1.0.0
  * @created 2026-03-23
  */
+/**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  CODEFREEZE — parentId 필드를 절대 제거하지 마세요!                 ██
+ * ██  save-position-import/route.ts와 동일한 FK 보호 정책 적용.         ██
+ * ██  수정 시 사용자 승인 필수.                                         ██
+ * ██████████████████████████████████████████████████████████████████████████
+ */
 
 import type { PrismaClient } from '@prisma/client';
 import type { PositionAtomicData } from '@/types/position-import';

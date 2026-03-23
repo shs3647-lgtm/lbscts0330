@@ -13,6 +13,16 @@
  *
  * @created 2026-03-22
  */
+/**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  CODEFREEZE — 이 파일의 parentId 설정 라인을 절대 제거하지 마세요!  ██
+ * ██                                                                     ██
+ * ██  모든 엔티티에 parentId: xxxId 형태로 부모 FK가 설정되어 있습니다.  ██
+ * ██  이 FK가 DB에 저장되어야 워크시트 렌더링이 100% 동작합니다.        ██
+ * ██                                                                     ██
+ * ██  수정이 필요하면 사용자 승인 필수.                                  ██
+ * ██████████████████████████████████████████████████████████████████████████
+ */
 
 import { positionUUID, type SheetCode } from './position-uuid';
 import { CrossSheetResolver } from './cross-sheet-resolver';
@@ -745,14 +755,23 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 // (브라우저/서버 공용 — ExcelJS 의존)
 // ═══════════════════════════════════════════
 
-/** 5시트 위치기반 포맷 감지 (시트명 기반) */
+/**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  CODEFREEZE — isPositionBasedFormat 함수 수정 절대 금지!            ██
+ * ██                                                                     ██
+ * ██  PRD §2.1: 시트명이 "L1 통합(C1-C4)", "L2 통합(A1-A6)" 등          ██
+ * ██  "통합" 키워드를 포함하는 것이 위치기반 포맷의 정상 시트명이다.     ██
+ * ██  "통합" 키워드로 차단하면 레거시 파서로 빠져 파싱 실패한다.         ██
+ * ██                                                                     ██
+ * ██  사고 이력: 2026-03-23 커밋 ab7054a에서 "통합" 차단 추가            ██
+ * ██  → A5=1, B4=18 (정상: A5=25+, B4=90+) → 106건 누락 발생           ██
+ * ██                                                                     ██
+ * ██  수정이 필요하면 사용자 승인 필수.                                  ██
+ * ██████████████████████████████████████████████████████████████████████████
+ */
+/** 5시트 위치기반 포맷 감지 (시트명 기반) — "통합" 포함 시트도 위치기반 */
 export function isPositionBasedFormat(sheetNames: string[]): boolean {
   const upper = sheetNames.map(n => n.toUpperCase());
-  // ★ 통합시트(L1통합, L2 통합, L1_UNIFIED 등) → 레거시 파서(excel-parser)로 처리
-  // "L1통합".startsWith("L1") = true 이므로 오감지 방지 필수
-  const hasUnified = upper.some(n => n.includes('통합') || n.includes('UNIFIED'));
-  if (hasUnified) return false;
-
   const hasL1 = upper.some(n => n.startsWith('L1'));
   const hasL2 = upper.some(n => n.startsWith('L2'));
   const hasL3 = upper.some(n => n.startsWith('L3'));

@@ -32,6 +32,7 @@
 | 2026-03-23 | - | **3L 고장 자동 병합 완화**: `FailureL3Tab` `useEffect`가 공정 전체에서 **동일 공정특성명 → 대표 id로 processCharId 정규화** + `(pc+FC명)` 중복 제거 → **작업요소가 달라도** 같은 문구가 한 덩어리로 합쳐짐. **이름 기반 병합 제거**, FC 배열은 **동일 FC id 중복만** 제거. 표시/건수도 FC **id**·`processCharId` 기준. | Claude |
 | 2026-03-23 | - | **3L 고장 누락 수백 건(가짜)**: `atomicToLegacy`가 `failureCauses[].processCharId`를 `fc.processCharId || fc.l3FuncId`로 두어, DB `processCharId`가 레거시/오염 UUID이면 워크시트 B3(`L3Function.id`)와 불일치 → FC 미연결. **`l3FuncId || processCharId`** 로 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts`. | Claude |
 | 2026-03-23 | - | **동일 원인 — `migration.ts` 역변환**: `atomicDB → legacy`에서 FC의 `processCharId` 복원을 **`pickLegacyFcProcessCharId`** 로 통일(API `atomic` 응답·`atomicToLegacy`와 동일: 유효한 `L3Function.id`만 매칭). | Claude |
+| 2026-03-23 | - | **3L 고장 누락 대량(예: 100건+) 재발**: `atomicToLegacy`의 `pickLegacyFcProcessCharId` 유효 집합을 `L3Function.l2StructId === L2`로만 구성 → DB에 `l2StructId` 비정규 오염 시 `l3FuncId`가 집합에서 제외되어 `processCharId`가 빈값 → B3와 FC 불일치. **이 공정의 `L3Structure.id`에 연결된 `l3StructId`로 필터**하도록 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts` 3번째 케이스. | Claude |
 
 ---
 

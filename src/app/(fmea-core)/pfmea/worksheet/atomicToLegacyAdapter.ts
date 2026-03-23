@@ -404,8 +404,14 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
 
     // FC (공정 레벨)
     const allFcs = fcsByL2Id.get(l2Struct.id) || [];
+    // ★ B3 행은 l3StructId→L3Function으로만 그려짐(buildL3Functions). L3Function.l2StructId는 비정규 필드라
+    // Import/수선 과정에서 l3Struct와 불일치하면 fc.l3FuncId가 "유효 id 집합"에서 빠져 processCharId가 ''가 됨 → 3L 누락 대량.
+    // 유효 집합은 이 공정에 속한 L3Structure id로 필터한 L3Function.id만 사용한다.
+    const l3StructIdSetForL2 = new Set(l3Structs.map(s => s.id));
     const l3FuncIdsForL2 = new Set(
-      (db.l3Functions || []).filter(f => f.l2StructId === l2Struct.id).map(f => f.id),
+      (db.l3Functions || [])
+        .filter(f => l3StructIdSetForL2.has(f.l3StructId))
+        .map(f => f.id),
     );
     const failureCauses: L3FailureCauseExtended[] = allFcs.map(fc => ({
       id: fc.id,

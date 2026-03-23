@@ -942,6 +942,107 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 2. 행 높이 및 패딩을 최소화하여 100% 배율에서 더 많은 정보가 보이도록 최적화합니다. (LLD No 등 주요 컬럼 패딩 0~2px)
 3. 드롭다운이나 날짜 선택 등의 상호작용은 테이블 헤더 라벨링을 통해 암시하거나 호버 시에만 표시하여 화면을 넓고 깔끔하게 유지합니다.
 
+### 🔴 Rule 20: FK 필드 제거 절대 금지 — 3중 방어 (2026-03-23) — 영구 CODEFREEZE
+
+> **save-position-import / raw-to-atomic / position-parser의 parentId·feRefs·fcRefs·l2StructId·l3StructId·fmId·fcId·feId 필드를 절대 제거하지 않는다.**
+
+#### 20.1 사고 이력 (2026-03-23)
+
+| 항목 | 내용 |
+|------|------|
+| **커밋** | `e1f1bd5` (10:49) |
+| **명목** | "런타임 Prisma 캐시 호환성 — 서버 재시작 전까지 skip" |
+| **실제 행위** | `save-position-import/route.ts`에서 `parentId` 19개 + `feRefs/fcRefs` 2개 + `l2StructId/l3StructId` 2개 = **총 23개 FK 필드 제거** |
+| **결과** | DB에 FK 전멸 → 워크시트 렌더링 완전 실패 (FK 0%) |
+| **복구** | 동일 파일에 23개 필드 전부 복원 |
+
+#### 20.2 3중 방어 체계
+
+| # | 방어 | 파일 | 동작 |
+|---|------|------|------|
+| 1 | **CODEFREEZE 주석** | `save-position-import/route.ts`, `position-parser.ts`, `raw-to-atomic.ts` | 파일 상단 경고 — 수정 시 사용자 승인 필수 |
+| 2 | **Guard Test** | `tests/guard/save-position-import-fk.guard.test.ts` | parentId 18개+, feRefs/fcRefs, l2StructId/l3StructId 존재 검증 |
+| 3 | **CLAUDE.md Rule** | 이 룰 (Rule 20) | AI 에이전트가 FK 필드 제거 시도 시 즉시 차단 |
+
+#### 20.3 보호 대상 파일 (3개)
+
+| 파일 | 역할 | 보호 필드 |
+|------|------|----------|
+| `src/app/api/fmea/save-position-import/route.ts` | Import DB 저장 API | parentId ×19, feRefs, fcRefs, l2StructId, l3StructId |
+| `src/lib/fmea/position-parser.ts` | 위치기반 파서 (parentId 생성) | parentId ×10 (E-02~E-22) |
+| `src/lib/fmea-core/raw-to-atomic.ts` | raw→atomic DB 저장 | parentId ×4 (L2F, PPC, L3F, L3PC) |
+
+#### 20.4 금지 패턴
+
+```typescript
+// ❌ 절대 금지: "런타임 호환성" 명목의 FK 필드 제거
+-            parentId: s.parentId || null,
++            // parentId: s.parentId || null, // 런타임 미지원 → 스킵
+
+// ❌ 절대 금지: "새 모델 미지원" 명목의 FK 필드 제거
+-            feRefs: fm.feRefs || undefined,
+-            fcRefs: fm.fcRefs || undefined,
+
+// ✅ 허용: FK 필드 유지 + 런타임 안전 처리
+parentId: s.parentId || null,  // null fallback으로 안전
+feRefs: fm.feRefs || undefined, // undefined → Prisma가 skip
+```
+
+#### 20.5 위반 시
+
+- **즉시 롤백** — FK 필드 제거 커밋 revert
+- Guard Test 실행: `npx vitest run tests/guard/save-position-import-fk.guard.test.ts`
+- FK 필드 카운트 확인: `Select-String -Path "src/app/api/fmea/save-position-import/route.ts" -Pattern "parentId:" | Measure-Object`
+- **이 룰은 영구 CODEFREEZE** — 수정 시 반드시: "Rule 20 FK 필드 보호를 수정해도 될까요? 수정 사유: ___"
+
+### 🔴 Rule 21: isPositionBasedFormat 라우팅 보호 — "통합" 키워드 차단 재삽입 절대 금지 (2026-03-23) — 영구 CODEFREEZE
+
+> **`isPositionBasedFormat()` 함수에서 시트명의 "통합" 또는 "UNIFIED" 키워드를 검사하여 `return false` 처리하는 코드를 절대 삽입하지 않는다.**
+
+#### 21.1 사고 경위
+
+| 시점 | 커밋 | 변경 내용 | 결과 |
+|------|------|----------|------|
+| 2026-03-23 14:54 | `ab7054a` | `isPositionBasedFormat`에 `hasUnified` 체크 4줄 추가 | 위치기반 엑셀 → 레거시 파서로 오라우팅 |
+| | | `if (hasUnified) return false;` | A5=1, B4=18 (정상: 25+, 90+) |
+| | | | **106건 FC 누락 → 전체 렌더링 실패** |
+
+#### 21.2 PRD 근거 (위치기반 포맷의 정상 시트명)
+
+> `# PRD 위치기반 UUID + FK 꽂아넣기 시스템.md` §2.1에 정의된 시트명:
+> - "L1 통합(C1-C4)" ← **"통합" 포함이 정상**
+> - "L2 통합(A1-A6)" ← **"통합" 포함이 정상**
+> - "L3 통합(B1-B5)" ← **"통합" 포함이 정상**
+> - "FC 고장사슬"
+
+#### 21.3 3중 방어 시스템
+
+| # | 방어 계층 | 위치 | 기능 |
+|---|----------|------|------|
+| 1 | **CODEFREEZE 주석** | `position-parser.ts` `isPositionBasedFormat` 함수 위 | 14줄 경고 블록 — 사고 이력 + PRD 근거 명시 |
+| 2 | **Guard Test** | `tests/guard/position-format-routing.guard.test.ts` | 5개 테스트: "통합" 차단 코드 부재 검증, PRD 시트명 true 확인 |
+| 3 | **CLAUDE.md Rule** | 이 룰 (Rule 21) | AI 에이전트가 "통합" 차단 코드 재삽입 시 즉시 차단 |
+
+#### 21.4 금지 패턴 (절대 재삽입 금지)
+
+```typescript
+// ⛔ 절대 금지 — 이 코드를 다시 넣으면 전체 Import 파이프라인 파괴
+const hasUnified = upper.some(n => n.includes('통합') || n.includes('UNIFIED'));
+if (hasUnified) return false;
+```
+
+#### 21.5 검증 방법
+
+```bash
+# Guard Test 실행 (5개 테스트 전체 PASS 필수)
+npx vitest run tests/guard/position-format-routing.guard.test.ts
+
+# 수동 확인: "통합" 차단 코드 없어야 함 (결과 0건이 정상)
+Select-String -Path "src/lib/fmea/position-parser.ts" -Pattern "hasUnified"
+```
+
+- **이 룰은 영구 CODEFREEZE** — 수정 시 반드시: "Rule 21 isPositionBasedFormat 라우팅 보호를 수정해도 될까요? 수정 사유: ___"
+
 ---
 
 ## Project Overview
