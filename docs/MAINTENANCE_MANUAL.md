@@ -7,6 +7,8 @@
 
 ## 1. 시스템 개요
 
+Import 파이프라인 **성능·안전 최적화 순서(Phase 1–4)** 는 `docs/SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md` 참고.
+
 비유: FMEA Import 파이프라인은 **"공장의 조립 라인"**이다.
 Excel(원재료) → 파싱(부품 분해) → buildWorksheetState(조립) → Atomic DB(완제품 창고).
 각 단계에서 불량(UUID 불일치, FK 누락)이 발생하면 뒤의 모든 공정이 멈춘다.
