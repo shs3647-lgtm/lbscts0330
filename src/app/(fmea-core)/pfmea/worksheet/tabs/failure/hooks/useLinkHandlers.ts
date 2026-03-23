@@ -605,6 +605,7 @@ export function useLinkHandlers({
       }, 150);
     } else {
       // 모든 FM 연결 완료 → 결과 화면 전환
+      justConfirmedRef.current = false;
       setViewMode('result');
     }
 

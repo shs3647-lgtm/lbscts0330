@@ -366,7 +366,7 @@ export function supplementOrphanChains(
         fcValue: pairedFcValue,
         fcId: pairedFcId,
         feValue: '',
-        // feId will be assigned by round-robin in buildFailureLinksDBCentric
+        // feId: buildFailureLinksDBCentric — 공정 carry 또는 글로벌 단일 FE(failureScopes[0])
       };
       chains.push(synthetic);
       matchedFmIds.add(fm.id);
@@ -394,7 +394,7 @@ export function supplementOrphanChains(
           fmValue: pairedFm.name,
           fmId: pairedFm.id,
           feValue: '',
-          // feId will be assigned by round-robin in buildFailureLinksDBCentric
+          // feId: buildFailureLinksDBCentric — 공정 carry 또는 글로벌 단일 FE
         };
         chains.push(synthetic);
         matchedFcIds.add(fc.id);

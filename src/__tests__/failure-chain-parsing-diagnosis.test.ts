@@ -115,7 +115,55 @@ describe('진단 1: 카테시안 곱 제거', () => {
     expect(chains[0].fmValue).toBe('FM-단독');
     expect(chains[0].fcValue).toBe('');
   });
+
+  it('A5 행 번호 역순(파일상 M43>M48)이어도 구간 매칭으로 FC는 행 위치에 맞는 FM에 연결', () => {
+    // 엑셀 위→아래: M48 행 100, M43 행 200 (공정번호 아님 — 표시용 이름). FC 한 줄 행 150.
+    // 이전 max-row≤fc 로직은 배열 첫 순서·행 혼동 시 M43만 FC를 먹는 경우가 있음.
+    const data: ImportedFlatData[] = [
+      flat('30', 'A5', 'FM-M43-하단', { excelRow: 200 }),
+      flat('30', 'A5', 'FM-M48-상단', { excelRow: 100 }),
+      flat('30', 'B4', 'FC-중간행', { m4: 'MC', excelRow: 150 }),
+      flat('YP', 'C4', 'FE-글로벌', { category: 'C' }),
+    ];
+    const chains = buildFailureChainsFromFlat(data, emptyCrossTab());
+    // FC 1건(M48) + FC 없는 FM 1건(M43) = 2체인 (이전 max-row 규칙에서는 FC가 M43에만 몰릴 수 있음)
+    expect(chains.length).toBe(2);
+    const mid = chains.find(c => c.fcValue === 'FC-중간행');
+    expect(mid?.fmValue).toBe('FM-M48-상단');
+    const m43Only = chains.find(c => c.fmValue === 'FM-M43-하단');
+    expect(m43Only?.fcValue).toBe('');
+  });
+
+  it('A5 없이 B4만 있는 공정도 체인 1건씩 생성 (FC-only 공정 누락 방지)', () => {
+    const b4a = flat('99', 'B4', 'FC-고아공정-1', { m4: 'MC', excelRow: 20 });
+    const b4b = flat('99', 'B4', 'FC-고아공정-2', { m4: 'MN', excelRow: 21 });
+    const data: ImportedFlatData[] = [
+      flat('99', 'A2', '공정명-테스트'),
+      flat('99', 'A3', '기능'),
+      b4a,
+      b4b,
+      flat('YP', 'C4', 'FE-글로벌', { category: 'C', excelRow: 1 }),
+    ];
+
+    const chains = buildFailureChainsFromFlat(data, emptyCrossTab());
+    const p99 = chains.filter(c => normalizeProcessNoLocal(c.processNo) === '99');
+    expect(p99.length).toBe(2);
+    expect(p99.map(c => c.fcValue).sort()).toEqual(['FC-고아공정-1', 'FC-고아공정-2']);
+    expect(p99.every(c => c.fmValue === '')).toBe(true);
+    expect(chains.find(c => c.fcValue === 'FC-고아공정-1')?.fcFlatId).toBe(b4a.id);
+    expect(chains.find(c => c.fcValue === 'FC-고아공정-2')?.fcFlatId).toBe(b4b.id);
+  });
 });
+
+/** masterFailureChain.normalizeProcessNo 와 동일 (테스트 전용) */
+function normalizeProcessNoLocal(pNo: string | undefined): string {
+  if (!pNo) return '';
+  let n = pNo.trim();
+  n = n.replace(/^(공정|process|proc|p)[\s\-_]*/i, '');
+  n = n.replace(/번$/, '');
+  n = n.replace(/^0+(?=\d)/, '');
+  return n;
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 진단 2: rowSpan 추론 정확성

@@ -7,7 +7,9 @@
  * - 6개 연속 setTimeout → RAF 기반 재시도 루프로 통합
  * - MutationObserver 콜백 디바운스 (50ms)
  * - resize 핸들러 RAF 스로틀
- * - 동작/로직 변경 없음 (스케줄링 최적화만 적용)
+ *
+ * ★ 2026-03-24: ref 일시 null / FM 노드 0×0 레이아웃 프레임에서 setSvgPaths([]) 금지
+ *   (연결확정·FM 전환 직후 화살표 영구 소실 방지 — 이전 경로 유지, 상위에서 재호출)
  */
 
 import { useState, useCallback, useEffect, useRef, RefObject } from 'react';
@@ -26,14 +28,14 @@ export function useSVGLines(
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const drawLines = useCallback(() => {
+    // ★ ref가 한 프레임 비거나 레이아웃 전이면 setSvgPaths([]) 금지 — 화살표 영구 소실 방지
     if (!chainAreaRef.current || !fmNodeRef.current) {
-      setSvgPaths([]);
       return;
     }
     const area = chainAreaRef.current.getBoundingClientRect();
     const fmRect = fmNodeRef.current.getBoundingClientRect();
 
-    // DOM이 아직 렌더링되지 않은 경우 (크기가 0인 경우)
+    // DOM이 아직 렌더링되지 않은 경우 (크기가 0) — 이전 경로 유지, 재시도는 MutationObserver·상위 effect
     if (fmRect.width === 0 || fmRect.height === 0) {
       return;
     }

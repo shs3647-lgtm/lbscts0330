@@ -138,11 +138,14 @@ const SpecialCharBadge = React.memo(function SpecialCharBadge({ value, onClick, 
   const style = sizeStyles[size];
 
   if (!displayValue.trim()) {
+    // 특별특성 없음: 행 배경과 동일하게 보이도록 플레이스홀더·회색 배지 없음 (클릭 영역만 유지)
     return (
-      <div onClick={onClick} className="cursor-pointer flex items-center justify-center h-full hover:bg-gray-100"
-        style={{ padding: '4px', minHeight: '24px' }} title="클릭하여 특별특성 지정">
-        <span style={{ color: '#ccc', fontSize: '10px' }}>-</span>
-      </div>
+      <div
+        onClick={onClick}
+        className="cursor-pointer flex items-center justify-center h-full"
+        style={{ padding: '4px', minHeight: '24px', background: 'transparent' }}
+        title="클릭하여 특별특성 지정"
+      />
     );
   }
 

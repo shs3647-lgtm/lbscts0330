@@ -305,13 +305,13 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
         });
       });
 
-      // ★ processCharId 없는 L2 레벨 FC (failureChainInjector 자동 생성 FC 포함)
-      // primary path(processCharId 매칭)에서 이미 처리된 FC는 seen에 있으므로 중복 방지됨
+      // ★ L2 레벨 FC 폴백 (failureChainInjector / Import 자동 FC 포함)
+      // primary(charIdsByName→processCharId)에서 잡히지 않은 FC — 고아 processCharId·DB/레거시 불일치 시
+      // 예전에는 processCharId만 있으면 무조건 스킵 → fcData에서 빠짐 → linkStats는 미연결, 다이어그램만 rawFc로 표시(불일치)
       allCauses.forEach((fc: any) => {
         if (!isMeaningful(fc.name)) return;
         if (!fc.id) fc.id = uid();
-        // processCharId가 있으면 이미 primary path에서 처리됨 → 스킵
-        if (fc.processCharId) return;
+        if (seenIds.has(fc.id)) return;
 
         // m4 기반으로 해당 작업요소 찾기 (자동 생성 FC는 m4를 가질 수 있음)
         const fcM4 = (fc as any).m4 || '';
@@ -321,7 +321,6 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
         const weName = matchedWe?.name || (workElements[0]?.name || '');
         const m4 = matchedWe?.m4 || matchedWe?.fourM || fcM4 || (workElements[0]?.m4 || '');
 
-        if (seenIds.has(fc.id)) return;
         seenIds.add(fc.id);
 
         items.push({

@@ -1262,35 +1262,44 @@ export function buildFailureLinksDBCentric(
     }
   }
 
-  // ─── FE:FM:FC = N:1:N — chain별 개별 FE 할당 ───
-  // 같은 FM이라도 각 chain이 자신의 FE를 독립적으로 결정
+  // ─── FE 미할당 체인: 공정 carry → 글로벌 단일 캐노니컬 FE (round-robin 금지) ───
+  // ★ 2026-03-23: `feRoundIdx % allFEs.length` 는 공정별 첫 체인마다 FE-01/FE-02/…를 번갈아 부여하여
+  //    엔지니어링적으로 "한 프로젝트 기본 FE"와 어긋나고, 다중 FE가 인위적으로 퍼짐.
+  //    assignChainUUIDs 3c와 동일하게 **항상 failureScopes[0]** 만 글로벌 폴백으로 사용.
   const allFEs = state.l1?.failureScopes || [];
+  const canonicalFeId = allFEs.length > 0 ? allFEs[0]!.id : '';
 
-  if (allFEs.length > 0) {
-    // feId 미할당 chain에 공정별 carry-forward → 순차 할당
+  if (allFEs.length > 0 && canonicalFeId) {
+    // 공정별 시드: assignChainUUIDs와 동일 — feId만 있으면 됨 (FC-only 체인도 공정 carry 제공)
     const procToFeId = new Map<string, string>();
     for (const c of chains) {
-      if (c.feId && c.fmId) {
+      if (c.feId && c.processNo) {
         const pNo = c.processNo || '';
         if (pNo && !procToFeId.has(pNo)) procToFeId.set(pNo, c.feId);
       }
     }
-    let feRoundIdx = 0;
     let feAssigned = 0;
+    let fromCarry = 0;
+    let fromCanonical = 0;
     for (const c of chains) {
       if (c.feId) continue;
-      // 1순위: 같은 공정의 기존 FE
       const pNo = c.processNo || '';
       const fromProc = pNo ? procToFeId.get(pNo) : undefined;
-      if (fromProc) { c.feId = fromProc; feAssigned++; continue; }
-      // 2순위: 순차 FE 할당 (N:1:N 분산)
-      c.feId = allFEs[feRoundIdx % allFEs.length].id;
+      if (fromProc) {
+        c.feId = fromProc;
+        feAssigned++;
+        fromCarry++;
+        continue;
+      }
+      c.feId = canonicalFeId;
       if (pNo) procToFeId.set(pNo, c.feId);
-      feRoundIdx++;
       feAssigned++;
+      fromCanonical++;
     }
     if (feAssigned > 0) {
-      console.info(`[buildWS:Phase3] FE N:1:N 할당: ${feAssigned}건 (공정carry=${feAssigned - feRoundIdx} 순차=${feRoundIdx})`);
+      console.info(
+        `[buildWS:Phase3] FE 폴백: ${feAssigned}건 (공정carry=${fromCarry}, 글로벌단일=${fromCanonical}, canonicalFeId=${canonicalFeId})`,
+      );
     }
   }
 

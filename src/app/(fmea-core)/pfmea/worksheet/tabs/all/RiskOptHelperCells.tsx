@@ -329,7 +329,7 @@ export function renderSpecialCharCell(
       title={scTitle}
       onClick={() => onOpenSpecialChar?.(riskDataKey, scVal)}
     >
-      {scDisplay.trim() ? <span style={getSpecialCharBadgeStyle(scVal)}>{scDisplay}</span> : <span style={{ color: '#999', fontSize: '10px' }}>+</span>}
+      {scDisplay.trim() ? <span style={getSpecialCharBadgeStyle(scVal)}>{scDisplay}</span> : null}
     </td>
   );
 }

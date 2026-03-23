@@ -373,8 +373,11 @@ export function useImportFileHandlers({
     // B3: 같은 공정/m4에서 다른 WE가 동일한 공정특성을 가질 수 있음
     // B4: 같은 공정/m4에서 다른 WE가 동일한 FC 텍스트를 가질 수 있음
     // 예: 40/IM에서 "Target 소진"이 Ti Target과 Cu Target에 각각 적용 → 별도 항목으로 유지
+    // ★ 2026-03-24: excelRow + orderIndex(배열 순번) 포함 — 병합셀/동일문구 연속 행도 엑셀 행 수만큼 유지 (FC 누락 완화)
     if ((d.itemCode === 'B3' || d.itemCode === 'B4') && d.m4) {
-      return `${d.processNo}|${d.itemCode}|${d.m4}|${d.belongsTo || ''}|${d.value}`;
+      const er = d.excelRow != null && d.excelRow > 0 ? `|r${d.excelRow}` : '';
+      const ord = d.orderIndex != null ? `|o${d.orderIndex}` : '';
+      return `${d.processNo}|${d.itemCode}|${d.m4}|${d.belongsTo || ''}|${d.value}${er}${ord}`;
     }
     return `${d.processNo}|${d.itemCode}|${d.value}`;
   };

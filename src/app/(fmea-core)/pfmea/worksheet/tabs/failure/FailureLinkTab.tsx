@@ -270,7 +270,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   }, []);
 
   // ========== 연결 통계 계산 ==========
-  // 연결 통계: feId/fcId FK만 인정 (텍스트 역매칭 없음) — computeFailureLinkStats
+  // 연결 통계: UUID 일치 + 링크에 실린 feText/fcText·번호·공정으로 유일 보강 (가짜 누락 완화)
   const linkStats = useMemo(
     () => computeFailureLinkStats(savedLinks, feData, fmData, fcData),
     [savedLinks, feData, fmData, fcData],
@@ -437,12 +437,8 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   });
 
   // ========== FM 선택 시 연결된 FE/FC 로드 ==========
+  // ★ justConfirmedRef로 스킵하면 연결확정 직후 savedLinks와 다이어그램 맵이 어긋나 SVG만 비는 현상 발생 → 항상 동기화
   useEffect(() => {
-    if (justConfirmedRef.current) {
-      justConfirmedRef.current = false;
-      return;
-    }
-
     if (!currentFMId) {
       setLinkedFEs(new Map());
       setLinkedFCs(new Map());
@@ -529,6 +525,22 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     setLinkedFEs(newFEs);
     setLinkedFCs(newFCs);
   }, [currentFMId, savedLinks, feData, fcData, rawFeById, rawFcById, fmData, getProcessOrder, includeUpstream]);
+
+  // ========== FE/FC 카드·FM 변경 시 SVG 연결선 재계산 (연결확정 직후 레이아웃 타이밍) ==========
+  useEffect(() => {
+    if (viewMode !== 'diagram') return;
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      drawLines();
+    });
+    const t1 = setTimeout(drawLines, 50);
+    const t2 = setTimeout(drawLines, 160);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [viewMode, linkedFEs, linkedFCs, currentFMId, drawLines]);
 
   // ========== 엔터키로 연결확정 ==========
   useEffect(() => {

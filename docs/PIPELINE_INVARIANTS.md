@@ -18,6 +18,8 @@
 
 ## Stage 1: Excel 파싱 → ImportedFlatData[]
 
+> 2026-03-24: 멀티시트 `buildMultiSheetDedupKey` — B3/B4/B5/A6에 **시트 출력 순번(i)** 를 키에 포함해 병합셀과 동일 `excelRow`에서도 행별 FC가 합쳐지지 않도록 완화. Import 병합 `getBusinessKey`(B3/B4)에 **excelRow + orderIndex** 포함.
+
 | ID | 불변 조건 | 위반 시 증상 |
 |----|----------|-------------|
 | S1-1 | processNo는 정규화됨 (선행0 제거, "번" 제거) | Stage 2에서 FK 매칭 실패 |
@@ -46,12 +48,25 @@
 
 ## Stage 3: buildFailureChainsFromFlat() → MasterFailureChain[]
 
+> 2026-03-23: S3-1~2 갱신 — rowSpan 창 매칭 폐지, **FC-only 공정** 및 **flatId** 반영.
+
 | ID | 불변 조건 | 위반 시 증상 |
 |----|----------|-------------|
-| S3-1 | FM(A5) rowSpan=N이면 해당 FM에 N개 FC(B4)만 매칭 | 카테시안 product |
-| S3-2 | FE carry-forward: chain[i].feValue 비어있으면 이전 행에서 계승 | FE 빈값 → 링크 생성 불가 |
-| S3-3 | chains 배열 원본 불변 (mutation 금지) | 사이드이펙트로 데이터 왜곡 |
-| S3-4 | feValue+fmValue+fcValue 모두 빈값인 chain은 스킵 | 빈 링크 생성 |
+| S3-1 | **공정 순회 = `processFMs.keys() ∪ processFCs.keys()`** (A5 없이 B4만 있어도 체인 생성) | FC-only 공정 전량 누락 |
+| S3-2 | 동일 공정 내 **B4 1행 = 체인 1건**; FM은 `fm.excelRow ≤ fc.excelRow` 중 최근 FM(carry); excelRow 없으면 라운드로빈 | FM-FC 행 불일치 |
+| S3-3 | FM만·FC만 공정: FM-only는 `fcValue=''`; FC-only는 `fmValue=''` (텍스트 자동생성 금지) | 거짓 FM/FC 텍스트 |
+| S3-4 | 가능한 체인에 **fmFlatId / fcFlatId / feFlatId**(C4 행 매칭 시) 설정 → `assignChainUUIDs` 0단계 | 텍스트 매칭 실패·중복 행 누락 |
+| S3-5 | chains 배열 원본 불변 (mutation 금지) | 사이드이펙트로 데이터 왜곡 |
+| S3-6 | feValue+fmValue+fcValue 모두 빈값인 chain은 생성하지 않음 | 빈 링크 생성 |
+
+---
+
+## Stage 3b: buildFailureLinksDBCentric() — `feId` 미할당 체인 보강
+
+| ID | 불변 조건 | 위반 시 증상 |
+|----|----------|-------------|
+| S3b-1 | 공정에 이미 `feId`가 있는 체인이 있으면 **같은 processNo**의 나머지 체인은 그 `feId` carry (시드에 `fmId` 불필요) | FC-only 체인이 carry를 못 줘 후속이 잘못된 FE |
+| S3b-2 | 공정에 시드가 없으면 **글로벌 폴백 = `failureScopes[0]` 단일** — `feIdx % N` round-robin 금지 | 공정마다 FE-01/02/… 인위 분산 → 사실 왜곡 |
 
 ---
 

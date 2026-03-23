@@ -112,12 +112,23 @@ export interface MasterFailureChain {
  *   - L1 C4와 L2 A5 행번호가 겹치거나 인접(한 시트에 교차)하면: FM 행 이하의 **가장 가까운 이전 C4** 행의 FE
  *   - C4·FM 행이 겹치지 않으면(별도 시트 블록): 기존과 같이 **carry-forward** — L1 글로벌 첫 FE 유지 (assignChainUUIDs·골든 테스트 정합)
  *   - 행이 겹칠 때만 FM 행 이하 최근 C4로 FE 교체
+ *
+ * ★ 2026-03-23: FC(B4) 누락 방지 — **FM rowSpan 창 밖 FC는 버리지 않음**
+ *   - 이전: FM 행~rowSpan 안의 FC만 연결 → span 추론 오류 시 FC 다수 미체인
+ *   - ★ 2026-03-24: **구간 매칭** — `max FM row ≤ fc` 는 배열 순서·행 역전 시 잘못된 FM(M43)에만 FC가 몰리고
+ *     상위 FM(M48)은 FC없음이 됨. **A5 행 번호 오름차순**으로 구간 [Rᵢ, Rᵢ₊₁) 을 두고 FC 행 f가 속한 구간의 FM에 연결.
+ *     동일 행 A5가 여러 개면 해당 구간 내 라운드로빈. excelRow 없는 FM은 꼬리(tail) RR 풀에만 참여.
+ *   - FM 행 없음/매칭 불가 시 라운드로빈. FC 없는 FM만 FM-only 체인.
+ *
+ * ★ 2026-03-23: Flat↔체인 **건수 100%** — A5 없이 B4만 있는 공정도 누락 금지
+ *   - `processFMs`만 순회하면 FC-only 공정 전체가 사라짐 → **processFMs ∪ processFCs** 키 합집합 순회
+ *   - 체인에 **fmFlatId / fcFlatId / feFlatId** 부여 → assignChainUUIDs 0단계 결정론적 매핑
  */
 
 /** FM 아이템 (행 위치 포함) */
-interface FMItem { value: string; excelRow?: number; rowSpan?: number }
+interface FMItem { value: string; excelRow?: number; rowSpan?: number; flatId?: string }
 /** FC 아이템 (행 위치 포함) */
-interface FCItem { value: string; m4?: string; excelRow?: number }
+interface FCItem { value: string; m4?: string; excelRow?: number; flatId?: string }
 
 export function buildFailureChainsFromFlat(
   flatData: ImportedFlatData[],
@@ -141,12 +152,12 @@ export function buildFailureChainsFromFlat(
   });
   const defaultFE = uniqueFEList.length > 0 ? uniqueFEList[0] : { scope: '', value: '' };
 
-  // C4 행 정렬 (엑셀 행 기반 FE 매핑용)
-  const c4RowEntries: { excelRow: number; scope: string; value: string }[] = [];
+  // C4 행 정렬 (엑셀 행 기반 FE 매핑용) + flat id (feFlatId)
+  const c4RowEntries: { excelRow: number; scope: string; value: string; flatId?: string }[] = [];
   for (const d of flatData) {
     if (d.itemCode !== 'C4' || !d.value?.trim() || d.excelRow == null) continue;
     const scope = normalizeProcessNo(d.processNo) || d.processNo || '';
-    c4RowEntries.push({ excelRow: d.excelRow, scope, value: d.value.trim() });
+    c4RowEntries.push({ excelRow: d.excelRow, scope, value: d.value.trim(), flatId: d.id });
   }
   c4RowEntries.sort((a, b) => a.excelRow - b.excelRow);
 
@@ -158,14 +169,17 @@ export function buildFailureChainsFromFlat(
     a5RowsAll.length > 0 &&
     !(Math.max(...c4RowEntries.map(e => e.excelRow)) < Math.min(...a5RowsAll));
 
-  function pickFeForFmExcelRow(fmRow: number): { scope: string; value: string } {
-    if (c4RowEntries.length === 0) return defaultFE;
-    let pick = c4RowEntries[0];
+  /** FM/FC 행 번호 기준: 해당 행 이하의 가장 최근 C4(FE) */
+  function pickFeAtOrBeforeRow(targetRow: number): { scope: string; value: string; feFlatId?: string } {
+    if (c4RowEntries.length === 0) {
+      return { scope: defaultFE.scope, value: defaultFE.value, feFlatId: undefined };
+    }
+    let pick = c4RowEntries[0]!;
     for (const e of c4RowEntries) {
-      if (e.excelRow <= fmRow) pick = e;
+      if (e.excelRow <= targetRow) pick = e;
       else break;
     }
-    return { scope: pick.scope, value: pick.value };
+    return { scope: pick.scope, value: pick.value, feFlatId: pick.flatId };
   }
 
   // ── 공정별 FM(A5) — excelRow/rowSpan 보존 ──
@@ -197,6 +211,7 @@ export function buildFailureChainsFromFlat(
           value: d.value.trim(),
           excelRow: d.excelRow,
           rowSpan: d.rowSpan,
+          flatId: d.id,
         });
         break;
       }
@@ -206,6 +221,7 @@ export function buildFailureChainsFromFlat(
           value: d.value.trim(),
           m4: d.m4,
           excelRow: d.excelRow,
+          flatId: d.id,
         });
         break;
       }
@@ -240,76 +256,124 @@ export function buildFailureChainsFromFlat(
     }
   }
 
-  // ── ★ 사실기반 사슬 생성 — 행 매칭 (카테시안 금지) ──
+  // ── ★ 사실기반 사슬 생성 — FC 1행 1체인 + FM carry (rowSpan 창에 FC 버리지 않음) ──
   let idx = 0;
-  // L1 글로벌 carry-forward (다중 C4가 있어도 행 연결 불가 시 첫 FE 유지 — 진단 테스트·기존 파이프라인)
-  let cfFeValue = uniqueFEList.length > 0 ? uniqueFEList[0] : defaultFE;
+  const cfFeValue = uniqueFEList.length > 0 ? uniqueFEList[0]! : defaultFE;
 
-  for (const [processNo, fms] of processFMs.entries()) {
+  /**
+   * FC 행 f → FM 인덱스 (공정 내)
+   * - 유효 excelRow 가진 FM만 오름차순 정렬해 구간 [Rᵢ, Rᵢ₊₁) 배정 (f < 첫 R → 첫 R 그룹, f ≥ 마지막 R → 마지막 R 그룹 + excelRow 없는 FM RR)
+   * - 동일 R에 FM 여러 개면 해당 구간에서 roundRobinIdx로 분배
+   */
+  function pickFmIndexForFc(fms: FMItem[], fc: FCItem, roundRobinIdx: number): number {
+    if (fms.length === 0) return 0;
+    if (fms.length === 1) return 0;
+    if (fc.excelRow == null) return roundRobinIdx % fms.length;
+
+    const f = fc.excelRow;
+    type Slot = { idx: number; r: number };
+    const slots: Slot[] = [];
+    const noRowIdx: number[] = [];
+    for (let i = 0; i < fms.length; i++) {
+      const r = fms[i].excelRow;
+      if (r != null && r > 0) slots.push({ idx: i, r });
+      else noRowIdx.push(i);
+    }
+    if (slots.length === 0) return roundRobinIdx % fms.length;
+
+    slots.sort((a, b) => (a.r !== b.r ? a.r - b.r : a.idx - b.idx));
+
+    const pickFromRow = (targetR: number): number => {
+      const tie = slots.filter(s => s.r === targetR);
+      if (tie.length === 1) return tie[0]!.idx;
+      return tie[roundRobinIdx % tie.length]!.idx;
+    };
+
+    const firstR = slots[0]!.r;
+    const lastR = slots[slots.length - 1]!.r;
+
+    if (f < firstR) return pickFromRow(firstR);
+
+    if (f >= lastR) {
+      const tailIdx = [...slots.filter(s => s.r === lastR).map(s => s.idx), ...noRowIdx];
+      if (tailIdx.length === 0) return pickFromRow(lastR);
+      return tailIdx[roundRobinIdx % tailIdx.length]!;
+    }
+
+    for (let i = 0; i < slots.length - 1; i++) {
+      const curR = slots[i]!.r;
+      const nextR = slots[i + 1]!.r;
+      if (curR <= f && f < nextR) return pickFromRow(curR);
+    }
+
+    return roundRobinIdx % fms.length;
+  }
+
+  function feForFm(fm: FMItem): { scope: string; value: string; feFlatId?: string } {
+    if (canFeRowLink && fm.excelRow != null && c4RowEntries.length > 0) {
+      return pickFeAtOrBeforeRow(fm.excelRow);
+    }
+    return { scope: cfFeValue.scope, value: cfFeValue.value, feFlatId: undefined };
+  }
+
+  function feForFc(fc: FCItem): { scope: string; value: string; feFlatId?: string } {
+    if (canFeRowLink && fc.excelRow != null && c4RowEntries.length > 0) {
+      return pickFeAtOrBeforeRow(fc.excelRow);
+    }
+    return { scope: cfFeValue.scope, value: cfFeValue.value, feFlatId: undefined };
+  }
+
+  const sortedProcessNos = [...new Set([...processFMs.keys(), ...processFCs.keys()])].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  );
+
+  for (const processNo of sortedProcessNos) {
+    const fms = processFMs.get(processNo) || [];
     const fcs = processFCs.get(processNo) || [];
     const info = processInfo.get(processNo) || { A2: '', A3: '', A4: '' };
 
-    // excelRow 데이터 존재 여부 판별
-    const hasRowData = fms.some(fm => fm.excelRow != null) && fcs.some(fc => fc.excelRow != null);
+    if (fms.length === 0 && fcs.length === 0) continue;
 
-    // ★ rowSpan 미설정 시 FM 간 간격으로 추론 (파서가 rowSpan을 채우지 않으므로)
-    // ★ P4: 마지막 FM의 범위를 실제 FC 데이터 범위로 정확하게 제한
-    if (hasRowData) {
-      const sorted = fms.filter(fm => fm.excelRow != null).sort((a, b) => a.excelRow! - b.excelRow!);
-      const maxFcRow = Math.max(0, ...fcs.filter(fc => fc.excelRow != null).map(fc => fc.excelRow!));
-      const minFcRow = Math.min(Infinity, ...fcs.filter(fc => fc.excelRow != null).map(fc => fc.excelRow!));
-      for (let i = 0; i < sorted.length; i++) {
-        if (sorted[i].rowSpan == null || sorted[i].rowSpan === 0) {
-          if (i + 1 < sorted.length) {
-            // 다음 FM까지의 간격
-            sorted[i].rowSpan = sorted[i + 1].excelRow! - sorted[i].excelRow!;
-          } else {
-            // ★ P4: 마지막 FM — 자신의 행 이후에 있는 FC만 카운트하여 범위 제한
-            const fcsAfterLastFm = fcs.filter(fc => fc.excelRow != null && fc.excelRow! >= sorted[i].excelRow!);
-            sorted[i].rowSpan = fcsAfterLastFm.length > 0
-              ? Math.max(...fcsAfterLastFm.map(fc => fc.excelRow!)) - sorted[i].excelRow! + 1
-              : 1;
-          }
-        }
+    // ★ A5 없이 B4만 있는 공정 — 이전에는 전부 스킵되어 FC 누락
+    if (fms.length === 0 && fcs.length > 0) {
+      const fcOnlyIndexed = fcs.map((fc, i) => ({ fc, i }));
+      fcOnlyIndexed.sort((a, b) => {
+        const ra = a.fc.excelRow ?? 1e9;
+        const rb = b.fc.excelRow ?? 1e9;
+        if (ra !== rb) return ra - rb;
+        return a.i - b.i;
+      });
+      for (const { fc } of fcOnlyIndexed) {
+        const assignedFE = feForFc(fc);
+        const supp = bSupp.get(processNo)?.get(fc.m4 || '') ||
+          bSupp.get(processNo)?.values().next().value;
+        chains.push({
+          id: `fc-${idx++}`,
+          processNo,
+          m4: fc.m4 || undefined,
+          workElement: supp?.B1 || undefined,
+          fmValue: '',
+          fcValue: fc.value,
+          feValue: assignedFE.value,
+          feScope: assignedFE.scope || undefined,
+          l2Function: info.A3,
+          productChar: info.A4,
+          l3Function: supp?.B2 || undefined,
+          processChar: supp?.B3 || undefined,
+          specialChar: (info as any).A4SC || undefined,
+          pcValue: supp?.B5 || undefined,
+          dcValue: processDCs.get(processNo) || undefined,
+          excelRow: fc.excelRow ?? undefined,
+          fcFlatId: fc.flatId,
+          feFlatId: assignedFE.feFlatId,
+        });
       }
+      continue;
     }
 
-    for (let fmIdx = 0; fmIdx < fms.length; fmIdx++) {
-      const fm = fms[fmIdx];
-
-      // ★ FE 할당: (1) C4·A5 행역 겹침 시 엑셀 행 기준 최근 C4 (2) 아니면 carry-forward
-      const assignedFE: { scope: string; value: string } =
-        canFeRowLink && fm.excelRow != null && c4RowEntries.length > 0
-          ? pickFeForFmExcelRow(fm.excelRow)
-          : cfFeValue;
-
-      // ── FM에 매칭되는 FC 결정 (사실 기반) ──
-      let matchedFCs: FCItem[];
-
-      if (hasRowData && fm.excelRow != null && fm.rowSpan) {
-        // ★ 행 기반 매칭: FM 행 범위 내의 FC만 연결
-        const rowEnd = fm.excelRow + fm.rowSpan - 1;
-        matchedFCs = fcs.filter(fc =>
-          fc.excelRow != null && fc.excelRow >= fm.excelRow! && fc.excelRow <= rowEnd,
-        );
-      } else if (fcs.length > 0) {
-        // ★★★ 2026-03-01 FIX: 라운드로빈 분배 — 모든 FM에 최소 1개 FC 보장 ★★★
-        // 체인 빌딩(검증 미리보기)용 — 워크시트 렌더링과 무관
-        // excelRow 없으면 FM↔FC 정확한 매칭 불가 → 라운드로빈 근사치 유지
-        const base = Math.floor(fcs.length / fms.length);
-        const remainder = fcs.length % fms.length;
-        let offset = 0;
-        for (let i = 0; i < fmIdx; i++) {
-          offset += base + (i < remainder ? 1 : 0);
-        }
-        const count = base + (fmIdx < remainder ? 1 : 0);
-        matchedFCs = fcs.slice(offset, offset + count);
-      } else {
-        matchedFCs = [];
-      }
-
-      if (matchedFCs.length === 0) {
-        // FM만 있고 매칭 FC 없음 → FM 전용 사슬 1개
+    if (fms.length > 0 && fcs.length === 0) {
+      for (const fm of fms) {
+        const assignedFE = feForFm(fm);
         chains.push({
           id: `fc-${idx++}`,
           processNo,
@@ -321,32 +385,74 @@ export function buildFailureChainsFromFlat(
           productChar: info.A4,
           specialChar: (info as any).A4SC || undefined,
           excelRow: fm.excelRow ?? undefined,
+          fmFlatId: fm.flatId,
+          feFlatId: assignedFE.feFlatId,
         });
-      } else {
-        // FM + 매칭된 FC들만 사슬 생성
-        for (const fc of matchedFCs) {
-          const supp = bSupp.get(processNo)?.get(fc.m4 || '') ||
-                       bSupp.get(processNo)?.values().next().value;
-          chains.push({
-            id: `fc-${idx++}`,
-            processNo,
-            m4: fc.m4 || undefined,
-            workElement: supp?.B1 || undefined,
-            fmValue: fm.value,
-            fcValue: fc.value,
-            feValue: assignedFE.value,
-            feScope: assignedFE.scope || undefined,
-            l2Function: info.A3,
-            productChar: info.A4,
-            l3Function: supp?.B2 || undefined,
-            processChar: supp?.B3 || undefined,
-            specialChar: (info as any).A4SC || undefined,
-            pcValue: supp?.B5 || undefined,
-            dcValue: processDCs.get(processNo) || undefined,
-            excelRow: fc.excelRow ?? fm.excelRow ?? undefined,
-          });
-        }
       }
+      continue;
+    }
+
+    const fcIndexed = fcs.map((fc, i) => ({ fc, i }));
+    fcIndexed.sort((a, b) => {
+      const ra = a.fc.excelRow ?? 1e9;
+      const rb = b.fc.excelRow ?? 1e9;
+      if (ra !== rb) return ra - rb;
+      return a.i - b.i;
+    });
+
+    const fmIndicesUsed = new Set<number>();
+
+    for (let oi = 0; oi < fcIndexed.length; oi++) {
+      const { fc } = fcIndexed[oi]!;
+      const fmIndex = pickFmIndexForFc(fms, fc, oi);
+      fmIndicesUsed.add(fmIndex);
+      const fm = fms[fmIndex]!;
+      const assignedFE = feForFm(fm);
+
+      const supp = bSupp.get(processNo)?.get(fc.m4 || '') ||
+        bSupp.get(processNo)?.values().next().value;
+
+      chains.push({
+        id: `fc-${idx++}`,
+        processNo,
+        m4: fc.m4 || undefined,
+        workElement: supp?.B1 || undefined,
+        fmValue: fm.value,
+        fcValue: fc.value,
+        feValue: assignedFE.value,
+        feScope: assignedFE.scope || undefined,
+        l2Function: info.A3,
+        productChar: info.A4,
+        l3Function: supp?.B2 || undefined,
+        processChar: supp?.B3 || undefined,
+        specialChar: (info as any).A4SC || undefined,
+        pcValue: supp?.B5 || undefined,
+        dcValue: processDCs.get(processNo) || undefined,
+        excelRow: fc.excelRow ?? fm.excelRow ?? undefined,
+        fmFlatId: fm.flatId,
+        fcFlatId: fc.flatId,
+        feFlatId: assignedFE.feFlatId,
+      });
+    }
+
+    for (let i = 0; i < fms.length; i++) {
+      if (fmIndicesUsed.has(i)) continue;
+      const fm = fms[i]!;
+      const assignedFE = feForFm(fm);
+      chains.push({
+        id: `fc-${idx++}`,
+        processNo,
+        fmValue: fm.value,
+        fcValue: '',
+        feValue: assignedFE.value,
+        feScope: assignedFE.scope || undefined,
+        l2Function: info.A3,
+        productChar: info.A4,
+        specialChar: (info as any).A4SC || undefined,
+        excelRow: fm.excelRow ?? undefined,
+        fmFlatId: fm.flatId,
+        feFlatId: assignedFE.feFlatId,
+      });
     }
   }
 

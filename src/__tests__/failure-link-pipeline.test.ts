@@ -180,10 +180,10 @@ function extractFCData(state: WorksheetState): { id: string; processName: string
       });
     });
 
-    // ★ processCharId 없는 L2 레벨 FC (failureChainInjector 자동 생성 FC 포함)
+    // ★ L2 레벨 FC 폴백 — primary에서 processCharId 매칭 실패(고아 PC FK)여도 id 기준으로 1회만 포함
     allCauses.forEach((fc: any) => {
       if (!isMeaningful(fc.name)) return;
-      if (fc.processCharId) return; // 이미 primary path에서 처리됨
+      if (items.some(i => i.id === fc.id)) return;
       const fcM4 = fc.m4 || '';
       const matchedWe = fcM4
         ? workElements.find((we) => (we.m4 || '') === fcM4)
@@ -568,6 +568,30 @@ describe('FailureLink 파이프라인 TDD', () => {
       expect(extracted).toHaveLength(1);
       expect(extracted[0].id).toBe(fc.id);
       expect(extracted[0].text).toBe('자동생성된 원인');
+    });
+
+    it('3.5 고아 processCharId — L2 FC의 PC FK가 어떤 공정특성 id와도 불일치해도 fcData에 포함 (누락 통계/⚠️ 오판 방지)', () => {
+      const validPcId = testUid();
+      const orphanPcId = testUid();
+      const fc = makeFC('Etch Rate 이상', orphanPcId);
+
+      const state = makeState({
+        processes: [makeProcess('30', 'Au Etch', {
+          failureCauses: [fc],
+          l3: [makeWorkElement('Chamber', 'MC', {
+            functions: [{
+              id: testUid(),
+              name: 'Etch 기능',
+              processChars: [{ id: validPcId, name: 'Etch Rate' }],
+            }],
+          })],
+        })],
+      });
+
+      const extracted = extractFCData(state);
+      const row = extracted.find(e => e.id === fc.id);
+      expect(row).toBeDefined();
+      expect(row!.text).toBe('Etch Rate 이상');
     });
   });
 

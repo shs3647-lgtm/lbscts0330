@@ -88,10 +88,10 @@ export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollT
     // flatData 건수
     const fdProc = new Set(fd.filter(d => d.category !== 'C' && d.processNo && /^\d+$/.test(d.processNo)).map(d => d.processNo)).size;
     const fdFM = new Set(
-      fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => fmFlatKey(d as { processNo: string; value: string })),
+      fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => fmFlatKey(d)),
     ).size;
     const fdFC = new Set(
-      fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => fcFlatKey(d as { processNo: string; value: string })),
+      fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => fcFlatKey(d)),
     ).size;
     // ★ Bug fix: FE = 고장영향 = C4 (C3은 요구사항 — 오인식 버그였음)
     const fdFE = new Set(fd.filter(d => d.itemCode === 'C4' && d.value?.trim()).map(d => d.value.trim())).size;
@@ -144,8 +144,8 @@ export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollT
     // 메인시트 Set
     // ★ Bug fix: FE = C4(고장영향), NOT C3(요구사항)
     const mainFE = new Set(fd.filter(d => d.itemCode === 'C4' && d.value?.trim()).map(d => norm(d.value)));
-    const mainFM = new Set(fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => fmFlatKey(d as { processNo: string; value: string })));
-    const mainFC = new Set(fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => fcFlatKey(d as { processNo: string; value: string })));
+    const mainFM = new Set(fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => fmFlatKey(d)));
+    const mainFC = new Set(fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => fcFlatKey(d)));
 
     // FC시트 Set
     const chainFESet = new Set(chains.filter(c => c.feValue?.trim()).map(c => norm(c.feValue!)));
@@ -157,11 +157,11 @@ export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollT
     fd.filter(d => d.itemCode === 'C4' && d.value?.trim()).forEach(d => feOriginal.set(norm(d.value), d.value.trim()));
     const fmOriginal = new Map<string, string>();
     fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).forEach(d =>
-      fmOriginal.set(fmFlatKey(d as { processNo: string; value: string }), `[${d.processNo}] ${d.value.trim()}`),
+      fmOriginal.set(fmFlatKey(d), `[${d.processNo}] ${d.value.trim()}`),
     );
     const fcOriginal = new Map<string, string>();
     fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).forEach(d =>
-      fcOriginal.set(fcFlatKey(d as { processNo: string; value: string }), `[${d.processNo}] ${d.value.trim()}`),
+      fcOriginal.set(fcFlatKey(d), `[${d.processNo}] ${d.value.trim()}`),
     );
 
     // 차집합: 메인시트에 있지만 FC시트에 없는 항목

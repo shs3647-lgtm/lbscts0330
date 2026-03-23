@@ -164,22 +164,34 @@ export interface ParseResult {
  * - B계열: 작업요소(extra) 포함
  * - A6/B5: WE(extra) 포함
  * - ★ 2026-03-23: excelRow(>0)를 키에 포함 — 동일 텍스트·동일 WE라도 **서로 다른 엑셀 행**은 별도 항목 (FM/FC 누락 방지)
+ * - ★ 2026-03-24: B3/B4/B5·A6만 시트 내 **출력 순번(rowOrdinal)** 을 키에 포함 — 병합셀로 excelRow가 동일해도 행별 FC(B4) 보존 (중복삭제 완화). B1/B2는 기존처럼 excelRow만.
  */
 export function buildMultiSheetDedupKey(
   sheet: string,
   row: { key: string; value: string; m4?: string; extra?: string; excelRow?: number },
+  rowOrdinal?: number,
 ): string {
   const v = row.value.trim();
   const we = (row.extra || '').trim();
-  const rowTag =
-    row.excelRow != null && row.excelRow > 0 ? `|@r${row.excelRow}` : '';
-  if (sheet === 'B5' || sheet === 'A6') {
-    return `${row.key}|${sheet}|${we}|${v}${rowTag}`;
-  }
   const m4 = row.m4 || '';
   const bLevel = sheet.startsWith('B');
+  const ordinalSheets = sheet === 'B3' || sheet === 'B4' || sheet === 'B5' || sheet === 'A6';
+
+  let rowGrain = '';
+  if (ordinalSheets) {
+    const parts: string[] = [];
+    if (row.excelRow != null && row.excelRow > 0) parts.push(`r${row.excelRow}`);
+    if (rowOrdinal != null) parts.push(`i${rowOrdinal}`);
+    if (parts.length) rowGrain = `|@${parts.join('_')}`;
+  } else if (row.excelRow != null && row.excelRow > 0) {
+    rowGrain = `|@r${row.excelRow}`;
+  }
+
+  if (sheet === 'B5' || sheet === 'A6') {
+    return `${row.key}|${sheet}|${we}|${v}${rowGrain}`;
+  }
   const weInfix = bLevel && we ? `${we}|` : '';
-  return `${row.key}|${sheet}|${m4}|${weInfix}${v}${rowTag}`;
+  return `${row.key}|${sheet}|${m4}|${weInfix}${v}${rowGrain}`;
 }
 
 /**
@@ -1085,10 +1097,10 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         console.log(`[excel-parser] sheetMapping ${sheet}: sheetData=${sheetData ? sheetData.rows.length + '건' : 'NULL'}`);
       }
       if (sheetData) {
-        sheetData.rows.forEach((row) => {
+        sheetData.rows.forEach((row, rowOrdinal) => {
           const process = processMap.get(row.key);
           if (process && row.value) {
-            const dedupKey = buildMultiSheetDedupKey(sheet, row);
+            const dedupKey = buildMultiSheetDedupKey(sheet, row, rowOrdinal);
             if (multiSheetSeen.has(dedupKey)) return;  // 중복 → 스킵
             multiSheetSeen.add(dedupKey);
 
@@ -1127,7 +1139,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
             }
           } else if (row.key && !processMap.has(row.key)) {
             // 공정이 없으면 생성 — 첫 행이므로 dedup 키 등록 (병합 dedup과 동일 규칙)
-            const newDedupKey = buildMultiSheetDedupKey(sheet, row);
+            const newDedupKey = buildMultiSheetDedupKey(sheet, row, rowOrdinal);
             multiSheetSeen.add(newDedupKey);
             const newProcess: ProcessRelation = {
               processNo: row.key,

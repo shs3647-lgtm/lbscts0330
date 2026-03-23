@@ -39,16 +39,30 @@ export function supplementChainsFromFlatData(
   chains: MasterFailureChain[],
   flatData: ImportedFlatData[],
 ): MasterFailureChain[] {
-  // ── 1. 기존 chain에서 FC 키 Set 구축: "normalizedProcessNo|trimmedFcValue" ──
-  const existingFCKeys = new Set<string>();
-  for (const chain of chains) {
-    if (chain.fcValue?.trim()) {
-      const normPNo = normalizeProcessNo(chain.processNo);
-      existingFCKeys.add(`${normPNo}|${normText(chain.fcValue)}`);
+  function countMapInc(m: Map<string, number>, k: string): void {
+    m.set(k, (m.get(k) || 0) + 1);
+  }
+  function fmAggKey(pNo: string | undefined, fm: string): string {
+    return `${normalizeProcessNo(pNo)}|${normText(fm)}`;
+  }
+  function countFmInList(list: MasterFailureChain[]): Map<string, number> {
+    const m = new Map<string, number>();
+    for (const c of list) {
+      if (c.fmValue?.trim()) countMapInc(m, fmAggKey(c.processNo, c.fmValue));
     }
+    return m;
+  }
+  function countFcInList(list: MasterFailureChain[]): Map<string, number> {
+    const m = new Map<string, number>();
+    for (const c of list) {
+      if (c.fcValue?.trim()) {
+        countMapInc(m, `${normalizeProcessNo(c.processNo)}|${normText(c.fcValue)}`);
+      }
+    }
+    return m;
   }
 
-  // ── 2. 기존 chain에서 FE 정규화 키 Set (FAVerificationBar·검증행 5와 동일 기준)
+  // ── 1. 기존 chain에서 FE 정규화 키 Set (FAVerificationBar·검증행 5와 동일 기준)
   const existingFENorms = new Set<string>();
   for (const chain of chains) {
     if (chain.feValue?.trim()) {
@@ -133,17 +147,6 @@ export function supplementChainsFromFlatData(
   let fcIdx = 0;
   let feIdx = 0;
 
-  // ── 3. flatData A5 항목 중 chains에 없는 FM 보충 ──
-  // FAVerificationBar는 "processNo|fmValue" 기준으로 FM 매칭을 비교한다.
-  // 메인시트(A5)에 있지만 FC시트 chains에 없는 FM → synthetic chain 생성
-  const existingFMKeys = new Set<string>();
-  for (const chain of chains) {
-    if (chain.fmValue?.trim()) {
-      const normPNo = normalizeProcessNo(chain.processNo);
-      existingFMKeys.add(`${normPNo}|${normText(chain.fmValue)}`);
-    }
-  }
-
   // ── 보조 인덱스: 공정별 FC (flatData B4) ──
   const flatFCByProcess = new Map<string, { fcValue: string; m4?: string }>();
   for (const d of flatData) {
@@ -164,86 +167,108 @@ export function supplementChainsFromFlatData(
     }
   }
 
+  // ── 3. FM 보충: 공정|정규화FM 기준 건수 — flat A5 행 수 = chain FM 슬롯 (동일 문구 다행)
+  let combined: MasterFailureChain[] = [...chains];
+  let chainFmCounts = countFmInList(combined);
+
+  const flatFmCounts = new Map<string, number>();
   for (const d of flatData) {
-    if (d.itemCode !== 'A5') continue;
-    if (!d.value?.trim()) continue;
+    if (d.itemCode === 'A5' && d.value?.trim()) {
+      countMapInc(flatFmCounts, fmAggKey(d.processNo, d.value));
+    }
+  }
 
-    const normPNo = normalizeProcessNo(d.processNo);
-    const fmKey = `${normPNo}|${d.value.trim()}`;
+  function firstFmDisplayForAggKey(aggKey: string): string {
+    for (const d of flatData) {
+      if (d.itemCode !== 'A5' || !d.value?.trim()) continue;
+      if (fmAggKey(d.processNo, d.value) === aggKey) return d.value.trim();
+    }
+    return '';
+  }
 
-    if (existingFMKeys.has(fmKey)) continue;
-    // 중복 방지: 이미 이번 보충에서 추가한 키
-    existingFMKeys.add(fmKey);
-
-    // FC 결정: chains에서 같은 공정 → flatData B4에서 같은 공정
-    const fcInfo =
-      chainFCByProcess.get(normPNo) ||
-      flatFCByProcess.get(normPNo) ||
-      { fcValue: '', m4: undefined };
-
-    // FE 결정: chains에서 같은 공정 → flatData C4에서 같은 공정 → 전체 첫 번째 FE
-    const feInfo =
-      chainFEByProcess.get(normPNo) ||
-      flatFEByProcess.get(normPNo) ||
-      defaultFE;
-
-    // m4 결정: chains에서 같은 공정 → FC info
-    const m4 = chainM4ByProcess.get(normPNo) || fcInfo.m4 || undefined;
-
-    newChains.push({
-      id: `supplement-fm-${fmIdx++}`,
-      processNo: normPNo || d.processNo || '',
-      m4,
-      fmValue: d.value.trim(),
-      fcValue: fcInfo.fcValue,
-      feValue: feInfo.feValue,
-      feScope: feInfo.feScope || undefined,
-    });
+  for (const [aggKey, flatCnt] of flatFmCounts) {
+    let need = flatCnt - (chainFmCounts.get(aggKey) || 0);
+    const normPNo = aggKey.slice(0, Math.max(0, aggKey.indexOf('|')));
+    while (need-- > 0) {
+      const fmDisplay = firstFmDisplayForAggKey(aggKey);
+      const fcInfo =
+        chainFCByProcess.get(normPNo) ||
+        flatFCByProcess.get(normPNo) ||
+        { fcValue: '', m4: undefined };
+      const feInfo =
+        chainFEByProcess.get(normPNo) ||
+        flatFEByProcess.get(normPNo) ||
+        defaultFE;
+      const m4 = chainM4ByProcess.get(normPNo) || fcInfo.m4 || undefined;
+      const ch: MasterFailureChain = {
+        id: `supplement-fm-${fmIdx++}`,
+        processNo: normPNo || '',
+        m4,
+        fmValue: fmDisplay,
+        fcValue: fcInfo.fcValue,
+        feValue: feInfo.feValue,
+        feScope: feInfo.feScope || undefined,
+      };
+      newChains.push(ch);
+      combined.push(ch);
+      countMapInc(chainFmCounts, aggKey);
+    }
   }
 
   if (fmIdx > 0) {
-    console.log(`[supplement] FM ${fmIdx}건 보충 (메인시트 A5 → FC시트 누락분)`);
-  }
-  if (fcIdx > 0) {
-    console.log(`[supplement] FC ${fcIdx}건 보충 (메인시트 B4 → FC시트 누락분)`);
+    console.log(`[supplement] FM ${fmIdx}건 보충 (메인시트 A5 → FC시트 누락분, multiset)`);
   }
 
-  // ── 4. flatData B4 항목 중 chains에 없는 FC 보충 ──
+  // ── 4. FC 보충: 공정|정규화FC 기준 건수 (동일 고장원인 텍스트 다행)
+  let chainFcCounts = countFcInList(combined);
+
+  const flatFcCounts = new Map<string, number>();
   for (const d of flatData) {
-    if (d.itemCode !== 'B4') continue;
-    if (!d.value?.trim()) continue;
+    if (d.itemCode === 'B4' && d.value?.trim()) {
+      countMapInc(flatFcCounts, `${normalizeProcessNo(d.processNo)}|${normText(d.value)}`);
+    }
+  }
 
-    const normPNo = normalizeProcessNo(d.processNo);
-    const fcKey = `${normPNo}|${normText(d.value)}`;
+  function firstB4ForAggKey(aggKey: string): ImportedFlatData | undefined {
+    for (const d of flatData) {
+      if (d.itemCode !== 'B4' || !d.value?.trim()) continue;
+      if (`${normalizeProcessNo(d.processNo)}|${normText(d.value)}` === aggKey) return d;
+    }
+    return undefined;
+  }
 
-    if (existingFCKeys.has(fcKey)) continue;
-    // 중복 방지: 이미 이번 보충에서 추가한 키
-    existingFCKeys.add(fcKey);
+  for (const [aggKey, flatCnt] of flatFcCounts) {
+    let need = flatCnt - (chainFcCounts.get(aggKey) || 0);
+    const normPNo = aggKey.slice(0, Math.max(0, aggKey.indexOf('|')));
+    while (need-- > 0) {
+      const b4Row = firstB4ForAggKey(aggKey);
+      const fcDisplay = b4Row?.value.trim() || '';
+      const fmValue =
+        chainFMByProcess.get(normPNo) ||
+        flatFMByProcess.get(normPNo) ||
+        '';
+      const feInfo =
+        chainFEByProcess.get(normPNo) ||
+        flatFEByProcess.get(normPNo) ||
+        defaultFE;
+      const m4 = b4Row?.m4 || chainM4ByProcess.get(normPNo) || undefined;
+      const ch: MasterFailureChain = {
+        id: `supplement-fc-${fcIdx++}`,
+        processNo: normPNo || b4Row?.processNo || '',
+        m4,
+        fmValue,
+        fcValue: fcDisplay,
+        feValue: feInfo.feValue,
+        feScope: feInfo.feScope || undefined,
+      };
+      newChains.push(ch);
+      combined.push(ch);
+      countMapInc(chainFcCounts, aggKey);
+    }
+  }
 
-    // FM 결정: chains에서 같은 공정 → flatData A5에서 같은 공정
-    const fmValue =
-      chainFMByProcess.get(normPNo) ||
-      flatFMByProcess.get(normPNo) ||
-      '';
-
-    // FE 결정: chains에서 같은 공정 → flatData C4에서 같은 공정 → 전체 첫 번째 FE
-    const feInfo =
-      chainFEByProcess.get(normPNo) ||
-      flatFEByProcess.get(normPNo) ||
-      defaultFE;
-
-    // m4 결정: flatData 원본 → chains에서 같은 공정
-    const m4 = d.m4 || chainM4ByProcess.get(normPNo) || undefined;
-
-    newChains.push({
-      id: `supplement-fc-${fcIdx++}`,
-      processNo: normPNo || d.processNo || '',
-      m4,
-      fmValue,
-      fcValue: d.value.trim(),
-      feValue: feInfo.feValue,
-      feScope: feInfo.feScope || undefined,
-    });
+  if (fcIdx > 0) {
+    console.log(`[supplement] FC ${fcIdx}건 보충 (메인시트 B4 → FC시트 누락분, multiset)`);
   }
 
   // ── 5. flatData C4 항목 중 chains(+3·4단계 보충분)에 없는 FE 보충 ──

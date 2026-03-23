@@ -55,6 +55,44 @@ describe('supplementChainsFromFlatData', () => {
     expect(feOnly.length).toBe(0);
   });
 
+  it('동일 공정·동일 FM 문구 A5가 flat에 2행이면 chain FM 슬롯 2개까지 multiset 보충', () => {
+    const chains: MasterFailureChain[] = [
+      chain({
+        id: 'c1',
+        processNo: '10',
+        fmValue: '치수불량',
+        fcValue: '원인1',
+        feValue: 'FE1',
+      }),
+    ];
+    const flat: ImportedFlatData[] = [
+      { id: 'a5a', processNo: '10', category: 'A', itemCode: 'A5', value: '치수불량', excelRow: 5 } as ImportedFlatData,
+      { id: 'a5b', processNo: '10', category: 'A', itemCode: 'A5', value: '치수불량', excelRow: 6 } as ImportedFlatData,
+    ];
+    const out = supplementChainsFromFlatData(chains, flat);
+    const fmSup = out.filter(c => c.id.startsWith('supplement-fm'));
+    expect(fmSup.length).toBe(1);
+  });
+
+  it('동일 공정·동일 FC 문구 B4가 flat에 2행이면 multiset으로 FC 보충 1건 추가', () => {
+    const chains: MasterFailureChain[] = [
+      chain({
+        id: 'c1',
+        processNo: '10',
+        fmValue: 'FM',
+        fcValue: '동일원인',
+        feValue: 'FE',
+      }),
+    ];
+    const flat: ImportedFlatData[] = [
+      { id: 'b4a', processNo: '10', category: 'B', itemCode: 'B4', value: '동일원인', m4: 'MC', excelRow: 3 } as ImportedFlatData,
+      { id: 'b4b', processNo: '10', category: 'B', itemCode: 'B4', value: '동일원인', m4: 'MC', excelRow: 4 } as ImportedFlatData,
+    ];
+    const out = supplementChainsFromFlatData(chains, flat);
+    const fcSup = out.filter(c => c.id.startsWith('supplement-fc'));
+    expect(fcSup.length).toBe(1);
+  });
+
   it('chain에 없는 C4 텍스트(norm)는 supplement-fe 1행 추가', () => {
     const chains: MasterFailureChain[] = [
       chain({
