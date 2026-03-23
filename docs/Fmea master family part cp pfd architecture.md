@@ -417,7 +417,7 @@ Family에 복사 시: 새 UUID 부여 (Family 자체 위치 기반)
 **저장·검증 (개발 레퍼런스):**
 
 - 위치기반 파서 산출물 → DB: `POST /api/fmea/save-position-import` — `risk_analyses` 행은 **`linkId`**(FailureLink FK)와 **`fmId` / `fcId` / `feId`**(EX-06)를 함께 저장한다. (타입상 E-22 `parentId`는 FL id와 동일 의미이나 Prisma 스키마에는 `linkId`만 존재.)
-- 회귀(DB 불필요): `npm run test:import-slice` — 가드·`save-from-import`·`position-parser`. Import 반영 후: `npm run verify:pipeline-baseline` (대상 `fmeaId` Atomic 존재 전제).
+- 회귀(DB 불필요): `npm run test:import-slice` — 위치 가드·`save-from-import`·`position-parser`·`atomicToFlatData`(C1–C4 FK)·`buildAtomicFromFlat` fallback. Import 반영 후: `npm run verify:pipeline-baseline` (대상 `fmeaId` Atomic 존재 전제).
 - 상세: `docs/MAINTENANCE_MANUAL.md` §2.2·§2.5, `docs/SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md`.
 
 ---

@@ -37,7 +37,7 @@
     "forge:m100": "powershell -NoProfile -ExecutionPolicy Bypass -File m100/scripts/forge-m100-loop.ps1",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:import-slice": "vitest run tests/guard/save-position-import-fk.guard.test.ts src/__tests__/save-from-import-guard.test.ts src/__tests__/save-from-import-derived-chains.test.ts tests/position-import/position-parser.test.ts",
+    "test:import-slice": "vitest run tests/guard/save-position-import-fk.guard.test.ts tests/guard/position-format-routing.guard.test.ts src/__tests__/save-from-import-guard.test.ts src/__tests__/save-from-import-derived-chains.test.ts tests/position-import/position-parser.test.ts tests/import/atomic-to-flat-c1c4-fk.test.ts src/__tests__/import/build-atomic-from-flat-fallback.test.ts",
     "test:coverage": "vitest run --coverage",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
