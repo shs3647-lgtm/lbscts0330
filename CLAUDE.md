@@ -476,6 +476,8 @@ npx tsc --noEmit
 # npm run verify:pipeline-baseline
 # npm run verify:pipeline-baseline:strict   # pfm26-m066 골든 (L2=21, FL=111, …)
 
+# 0c. Import 저장 API 참고: POST /api/fmea/save-from-import — 프로젝트 스키마 단일 $transaction(maxWait 20s, timeout 120s), 커밋 전 FL/RA 0건 불변 검증. 위치 파서 상세 로그: POSITION_PARSER_VERBOSE=1
+
 # 1. 파이프라인 검증 (GET = 읽기전용, POST = 자동수정 포함)
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5
 

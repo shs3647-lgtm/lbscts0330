@@ -151,7 +151,8 @@ Get-ChildItem -Recurse -Path $root -Include `
 - [x] 1-1. `cross-sheet-resolver.ts` — 이미 행 전용; `CrossSheetRef`에서 미사용 텍스트 필드 제거 (2026-03-23)
 - [x] 1-2. `position-parser.ts` — `ppLog`/`ppWarn` + `POSITION_PARSER_VERBOSE` / non-production 게이트 (2026-03-23)
 - [x] 1-3. `position-parser.ts` — `exceljs` `Workbook`/`Worksheet`/`Row`, `parsePositionBasedWorkbook(wb: Workbook)` (2026-03-23)
-- [ ] `npm run test:run` + `npx tsc --noEmit` (+ 권장: `npm run verify:pipeline-baseline`)
+- [x] `npx tsc --noEmit` + Import 관련 Vitest (`save-from-import*`, `position-parser` 등) 세션 내 통과 (2026-03-23~24)
+- [ ] `npm run test:run` **전체** 녹색 — DB/FULL_SYSTEM 의존 스펙 포함 시 CI·로컬에서 별도 확인
 
 ### Phase 2
 - [ ] 2-1. 인덱스 Map화 (`cross-sheet-resolver` 이미 Map 전용; `masterFailureChain.ts`는 **CODEFREEZE** — 변경 시 사용자 승인)
@@ -163,11 +164,11 @@ Get-ChildItem -Recurse -Path $root -Include `
 - [x] 3-1. `parsePositionBasedJSON` FC 행 — L1/L2/L3 `_origRow`를 각 시트 `max excelRow` 및 `≥2`로 검증 (`validateFcOrigRow`, 2026-03-23)
 - [x] 3-2. `save-from-import` — 단일 `$transaction` 유지, `maxWait: 20s` / `timeout: 120s`, 파일 헤더에 격리 수준·경계 문서화 (2026-03-23)
 - [x] 3-3. 트랜잭션 **커밋 직전** 최소 불변 검증: 입력 FL/RA >0 인데 DB `count===0` 이면 throw 롤백; 빈 `catch` 제거 (`console.warn`/`console.error`)
-- [ ] 동일 VERIFY
+- [x] 문서 동기화 — `docs/MAINTENANCE_MANUAL.md` §3.1·§7.3, `CLAUDE.md` 테스트 블록 (2026-03-24)
 
 ### Phase 4
-- [ ] 최종 테스트 + 문서 동기화 (`CLAUDE.md` / `docs/MAINTENANCE_MANUAL.md` 등 Rule 17)
-- [ ] (승인 후) 버전 태그
+- [x] 문서 동기화(Rule 17): `MAINTENANCE_MANUAL` §3.1·§7.3, `CLAUDE.md` 0c, 본 가이드·`00_MAINTENANCE_MANUAL` (2026-03-24)
+- [ ] 전체 테스트 녹색 + (승인 후) 버전 태그 / CODEFREEZE 태그
 
 ---
 

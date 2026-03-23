@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-23
+> **최종 업데이트**: 2026-03-24
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -63,7 +63,7 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | 파일 | 줄 수 | 역할 | CODEFREEZE |
 |------|------|------|-----------|
 | `api/fmea/route.ts` | 2,451 | GET/POST Atomic DB 이중 저장 | ✅ v4.0.0 |
-| `api/fmea/save-from-import/route.ts` | 699 | Import→DB 서버사이드 오케스트레이션 + 불완전 Atomic 덮어쓰기 차단 | - |
+| `api/fmea/save-from-import/route.ts` | 699 | Import→DB: 단일 `$transaction`(DELETE ALL→CREATE ALL), `maxWait` 20s/`timeout` 120s, 커밋 전 FL·RA 0건 불변 검증, 빈 catch 금지 | - |
 | `api/fmea/rebuild-atomic/route.ts` | ~400 | legacyData→Atomic 재구축 | - |
 | `api/fmea/repair-fk/route.ts` | ~90 | FK 고아·무효만 정리 (`fk-repair.ts`, rebuild 없음) | - |
 | `worksheet/migration.ts` | 1,200 | Legacy JSON → FMEAWorksheetDB 변환 | ✅ |
@@ -117,9 +117,10 @@ useImportSteps → parseExcelToFlatData(file) → flatData[]
 4. A6/B5 → RiskAnalysis DC/PC 보충 안전망 적용
 5. 기존 프로젝트 스키마 카운트 조회
 6. **기존 FC/FL/RA가 있는데 신규 Atomic이 0건이면 409 차단**
-7. $transaction { DELETE ALL → CREATE ALL } 저장
-8. 저장 후 Atomic 카운트 검증
-9. 응답 반환 { success, atomicCounts, verified, verifyGaps }
+7. `$transaction` **한 번**에 `{ DELETE ALL → CREATE ALL }` 저장 (`maxWait` 20s, `timeout` 120s; 격리는 Prisma 기본 Read Committed)
+8. 트랜잭션 **커밋 직전**: 입력 `failureLinks`/`riskAnalyses`가 각각 1건 이상인데 DB `count===0`이면 throw → 전체 롤백
+9. 저장 후 Atomic 카운트 검증
+10. 응답 반환 { success, atomicCounts, verified, verifyGaps }
 ```
 
 ### 3.2 저장 경로 (워크시트 편집 → DB)
@@ -294,10 +295,15 @@ Import 완료 후 자동 실행. FM/FC/FE가 Atomic DB에 실제 존재하는지
 
 ### 7.3 Verify Loop (save-from-import)
 
-save-from-import는 저장 전에 아래 방어선을 먼저 통과해야 한다:
+save-from-import는 저장 전·트랜잭션 안에서 아래 방어선을 통과해야 한다:
 1. 기존 프로젝트에 FC/FL/RA가 존재하는지 카운트 확인
 2. 신규 Atomic 변환 결과가 FC/FL/RA 0건인지 확인
 3. **기존>0 + 신규=0이면 409로 차단**하고 DELETE 트랜잭션 진입 금지
+4. **트랜잭션**: 단일 interactive `$transaction`; 풀 대기 `maxWait` 20s, 실행 `timeout` 120s (대용량 Import)
+5. **커밋 직전 불변**: `atomicDB.failureLinks.length>0` 인데 `tx.failureLink.count===0`이면 에러 throw(롤백). `riskAnalyses` 동일
+6. 스키마에 없을 수 있는 optional 테이블 `deleteMany` 실패는 **빈 catch 금지** → `console.warn` 후 계속
+
+상세·최적화 순서: `docs/SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md`
 
 ### 7.4 validate-fk 확장 체크 (2026-03-22)
 
