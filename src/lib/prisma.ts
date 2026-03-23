@@ -1,4 +1,4 @@
-// HMR trigger: 2026-03-19 schema update (linkId, processCharId)
+// HMR trigger: 2026-03-23 prisma generate — CftPublicMember 모델 재생성
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -14,7 +14,17 @@ const globalForPrisma = globalThis as unknown as {
  * - Driver Adapter 필수 사용 (@prisma/adapter-pg)
  */
 export function getPrisma(): PrismaClient | null {
-  if (globalForPrisma.prisma) return globalForPrisma.prisma;
+  // ★ 캐시된 클라이언트가 최신 모델을 지원하는지 확인 — 스테일 캐시 무효화
+  if (globalForPrisma.prisma) {
+    const p = globalForPrisma.prisma as any;
+    if (!p.cftPublicMember || !p.l1Structure) {
+      console.warn('[Prisma] 캐시된 클라이언트 스테일 → 무효화 후 재생성');
+      globalForPrisma.prisma = undefined;
+      globalForPrisma.pool = undefined;
+    } else {
+      return globalForPrisma.prisma;
+    }
+  }
 
   // ★★★ DATABASE_URL 환경 변수 확인
   const dbUrl = process.env.DATABASE_URL;
