@@ -135,46 +135,66 @@ export function useWorksheetState(): UseWorksheetStateReturn {
   }, []);
 
   // ★★★ 2026-02-25: 탭 변경 시 localStorage + URL 파라미터 동시 저장 ★★★
+  // ★★★ 2026-03-23: fmeaId는 useSearchParams(selectedFmeaId) 우선 — window.location과 불일치 시
+  //    드롭다운 전환 직후 탭 클릭이 이전 id로 replaceState 하며 URL을 덮어쓰는 버그 방지
   // 'structure'는 기본값이므로 저장하지 않음 (초기 렌더 시 오염 방지)
   useEffect(() => {
     if (!isHydrated || !state.tab) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const fmeaId = urlParams.get('id')?.toLowerCase();
-      if (!fmeaId) return;
+      const fromWindow =
+        urlParams.get('id')?.toLowerCase() || urlParams.get('fmeaId')?.toLowerCase() || '';
+      const canonicalId = (selectedFmeaId || fromWindow || '').toLowerCase();
+      if (!canonicalId) return;
+
+      if (urlParams.get('id')?.toLowerCase() !== canonicalId) {
+        urlParams.set('id', canonicalId);
+      }
 
       if (state.tab === 'structure') {
-        // 기본값은 저장 불필요 — URL에서도 제거하여 오염 방지
+        let changed = false;
         if (urlParams.has('tab')) {
           urlParams.delete('tab');
+          changed = true;
+        }
+        if (urlParams.get('id')?.toLowerCase() !== canonicalId) {
+          urlParams.set('id', canonicalId);
+          changed = true;
+        }
+        if (changed) {
           const newUrl = urlParams.toString()
             ? window.location.pathname + '?' + urlParams.toString()
-            : window.location.pathname + '?id=' + fmeaId;
+            : window.location.pathname + '?id=' + encodeURIComponent(canonicalId);
           window.history.replaceState({}, '', newUrl);
         }
         return;
       }
 
-      localStorage.setItem(`pfmea_tab_${fmeaId}`, state.tab);
-      if (urlParams.get('tab') !== state.tab) {
+      localStorage.setItem(`pfmea_tab_${canonicalId}`, state.tab);
+      const needTab = urlParams.get('tab') !== state.tab;
+      const needId = urlParams.get('id')?.toLowerCase() !== canonicalId;
+      if (needTab || needId) {
+        urlParams.set('id', canonicalId);
         urlParams.set('tab', state.tab);
         const newUrl = window.location.pathname + '?' + urlParams.toString();
         window.history.replaceState({}, '', newUrl);
       }
     } catch (e) { console.error('[탭 저장 오류]', e); }
-  }, [state.tab, isHydrated]);
+  }, [state.tab, isHydrated, selectedFmeaId]);
 
   // ★★★ 2026-02-22: visibleSteps 변경 시 localStorage 저장 (ALL 탭 스크롤 위치 복원용) ★★★
   useEffect(() => {
     if (!isHydrated) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const fmeaId = urlParams.get('id')?.toLowerCase();
-      if (fmeaId && Array.isArray(state.visibleSteps)) {
-        localStorage.setItem(`pfmea_visibleSteps_${fmeaId}`, JSON.stringify(state.visibleSteps));
+      const fromWindow =
+        urlParams.get('id')?.toLowerCase() || urlParams.get('fmeaId')?.toLowerCase() || '';
+      const canonicalId = (selectedFmeaId || fromWindow || '').toLowerCase();
+      if (canonicalId && Array.isArray(state.visibleSteps)) {
+        localStorage.setItem(`pfmea_visibleSteps_${canonicalId}`, JSON.stringify(state.visibleSteps));
       }
     } catch (e) { console.error('[visibleSteps 저장 오류]', e); }
-  }, [state.visibleSteps, isHydrated]);
+  }, [state.visibleSteps, isHydrated, selectedFmeaId]);
 
   const [atomicDB, setAtomicDB] = useState<FMEAWorksheetDB | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -192,15 +212,19 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     stateRef.current = state;
   }, [state]);
 
+  /**
+   * React 큐의 최신 prev를 사용한다 (stateRef 직접 호출만 하면 배치/Strict Mode와 어긋날 수 있음).
+   * 함수형 setState로 전달해야 하위에서 createStrictModeDedupedUpdater가 이중 호출을 흡수할 수 있다.
+   */
   const setStateSynced = useCallback((updater: React.SetStateAction<WorksheetState>) => {
-    if (typeof updater === 'function') {
-      const newState = updater(stateRef.current);
-      stateRef.current = newState;
-      setState(newState);
-    } else {
-      stateRef.current = updater;
-      setState(updater);
-    }
+    setState((prev) => {
+      const next =
+        typeof updater === 'function'
+          ? (updater as (p: WorksheetState) => WorksheetState)(prev)
+          : updater;
+      stateRef.current = next;
+      return next;
+    });
   }, []);
 
   // Save hooks (P2)

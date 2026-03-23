@@ -53,6 +53,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Failed to get Prisma client' }, { status: 500 });
       }
       const saveResult = await saveAtomicFromPosition(prisma, atomicData, { force: force ?? true });
+      if (!saveResult.success) {
+        return NextResponse.json({
+          success: false, fmeaId: normalizedId, error: saveResult.error,
+          stats: atomicData.stats, quality: qualityResult,
+        }, { status: 500 });
+      }
       return NextResponse.json({
         success: true, fmeaId: normalizedId,
         stats: atomicData.stats, quality: qualityResult,

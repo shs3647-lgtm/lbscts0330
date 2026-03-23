@@ -22,6 +22,9 @@
 | 2026-03-22 | - | **CFT 공용 디렉터리**: `CftPublicMember` → `public.cft_public_members`, API `/api/cft-public-members`, 클라이언트 `cft-public-db.ts`. 기초정보 **사용자 정보(CFT)** 화면·`UserSelectModal`은 이 테이블만 사용 — 로그인 계정 `users`(ADMIN `/api/users`)와 **연동·동기화 없음**. 스키마 반영: `npx prisma db push` 또는 migrate | Claude |
 | 2026-03-22 | - | **PFMEA→CP 생성 근본 수정**: `POST /api/pfmea/create-cp`가 `public`만 쓰던 문제 → **PFMEA 프로젝트 스키마**(`getPrismaForSchema(getProjectSchemaName(fmeaId))`)에 `control_plans`/`control_plan_items` 저장. `getPrismaForCp`에 `CpRegistration` 폴백. `GET /api/pfmea/[id]`는 프로젝트 `fmea_registrations`와 병합해 `linkedCpNo` 누락 방지. (M001 등에서 CP 워크시트 빈 화면·「연동할 CP 없음」 재발 방지) | Claude |
 | 2026-03-23 | - | **아키텍처 확정**: Master 포함 모든 PFMEA 행 데이터는 `pfmea_{fmeaId}` — public은 메타 전용. **`POST /api/fmea/sync-cp-pfd`**가 `public`에 쓰던 이중 경로 제거 → **프로젝트 스키마**에만 CP/PFD 행 저장(`create-cp`/`sync-to-cp`와 동일). 레거시 이관: `scripts/migrate-public-cp-pfd-to-project-schema.ts`. 문서: `docs/Fmea master family part cp pfd architecture.md` 갱신. | Claude |
+| 2026-03-23 | - | **구조분석 컨텍스트 메뉴**: React 18 Strict Mode(개발)에서 함수형 `setState`가 동일 `prev`로 두 번 호출되며 `splice`가 이중 적용 → 「아래로 새 행 추가」 시 placeholder가 위·아래 2줄로 보이던 현상. `createStrictModeDedupedUpdater`(`strictModeStateUpdater.ts`)로 첫 계산 결과만 캐시. `StructureTab` 행 추가·병합 추가·삭제 업데이터에 적용. 단위 테스트: `strictModeStateUpdater.test.ts`. | Claude |
+| 2026-03-23 | - | **setStateSynced 근본 수정**: `useWorksheetState`가 `updater(stateRef)` 후 `setState(객체)`만 호출해 React 큐의 `prev`와 어긋날 수 있음 → `setState(prev => …)`로 통일. `PfmeaContextMenu` 메뉴 액션에 `stopPropagation`/`type="button"`/패널 `onMouseDown`으로 중복 실행 방지. | Claude |
+| 2026-03-23 | - | **수동모드 컨텍스트 메뉴 진단서**: Handsontable 가정과 실제(HTML 테이블 + `PfmeaContextMenu`) 구분, 체크리스트 A~F 매핑 — `docs/PFMEA_MANUAL_MODE_CONTEXT_MENU_DIAGNOSIS.md`. E2E `context-menu-all-tabs.spec.ts`에 L2「위로 새 행 추가」→정확히 +1행 케이스 추가. | Claude |
 
 ---
 
@@ -523,6 +526,7 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 | `pfd-context-menu-db.spec.ts` | PFD | DB 라운드트립 |
 | `pfd-context-menu-render.spec.ts` | PFD | 렌더링 검증 |
 | `context-menu-all-tabs.spec.ts` | PFMEA | 전탭 컨텍스트 메뉴 동작 |
+| `strictModeStateUpdater.test.ts` | PFMEA | Strict Mode 이중 setState 업데이터 → splice 1회만 |
 
 ---
 
@@ -532,6 +536,7 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|
+| 03-23 | - | PFMEA/구조 | **Strict Mode 행추가 이중 삽입**: `StructureTab` `handleInsertAbove/Below`, 병합 위·아래 추가, `handleDeleteRow`의 `setState` 업데이터를 `createStrictModeDedupedUpdater`로 래핑 (개발 모드에서 한 번 클릭 → 한 줄만 추가) |
 | 03-22 | - | Import/Repair | **레거시 Import/재저장 복구**: `legacyParseResultToFlatData.ts`로 레거시 ParseResult→flat 복원, `supplementFlatDataFromChains.ts`로 chain 기반 `B4/B5/A6` 꽂아넣기 추가. `pipeline-verify/auto-fix.ts`는 public `A6/B5`를 읽어 기존 RA `DC/PC` 빈값을 채운다. 결과적으로 `pfm26-m001`은 `DC/PC null 156건 → 0건`, `pfm26-f001`은 `FC/FL/RA 0건 → 23/23/23`까지 복구 |
 | 03-22 | - | Import/FK | **거짓 Green 차단**: `validate-fk`에 `failureLinkCoverage`(FM→FL 연결 누락)와 `riskAnalysisCoverage`(FL→RA 1:1) 추가. `pfm26-f001`처럼 FM만 있고 FL=0인 프로젝트가 더 이상 green 통과하지 않음. `save-from-import`는 기존 FC/FL/RA가 있는 프로젝트에 신규 Atomic FC/FL/RA=0 결과가 들어오면 409로 저장 차단 |
 | 03-20 | `458f2a7` | Import | **emptyPC 근본수정**: B4 dedup key에 WE 추가 (`{pno\|m4\|fc}`→`{pno\|m4\|we\|fc}`). Cu Target+Ti Target 동일 FC명 공유 시 1건으로 합쳐져 FC 미연결 → orphan L3F 삭제 → emptyPC 재발. StepBB4Item.we 필드 추가. 골든 베이스라인 FC/FL/RA/B4: 104→103 갱신 |

@@ -11,6 +11,7 @@
  *
  * @created 2026-03-06
  * @updated 2026-03-07: L3 삭제 공정보존 검증 + L2 행추가 waitForFunction
+ * @updated 2026-03-23: L2(공정) "위로 새 행 추가" → 정확히 +1행 (이중 삽입 회귀 방지)
  */
 
 import { test, expect, Page } from '@playwright/test';
@@ -185,6 +186,25 @@ test.describe('PFMEA 컨텍스트 메뉴 전탭 검증', () => {
     const menu = await assertContextMenuVisible(page);
     const headerText = await menu.textContent();
     expect(headerText).toContain('L2');
+  });
+
+  test('1-3b. 구조분석: L2(공정) 열에서 "위로 새 행 추가" → 정확히 +1행', async ({ page }) => {
+    const switched = await switchToTab(page, '구조분석');
+    test.skip(!switched, '구조분석 탭이 없습니다');
+
+    const initialRows = await countRows(page);
+    const clicked = await rightClickCellByDataCol(page, 'process');
+    test.skip(!clicked, 'data-col="process" 셀을 찾을 수 없습니다');
+
+    const menu = await assertContextMenuVisible(page);
+    await menu.locator('button:has-text("위로 새 행 추가")').click();
+
+    await page.waitForFunction(
+      (expected) => document.querySelectorAll('table tbody tr').length === expected,
+      initialRows + 1,
+      { timeout: 10000 }
+    );
+    expect(await countRows(page)).toBe(initialRows + 1);
   });
 
   test('1-4. 구조분석: L3(작업요소) 열 우클릭 → 메뉴 헤더에 L3 표시', async ({ page }) => {

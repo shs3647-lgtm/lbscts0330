@@ -54,6 +54,7 @@ import { HelpPopup } from './shared/HelpPopup';
 import { BiHeader } from './shared/BaseWorksheetComponents';
 import { useAlertModal } from '../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
+import { createStrictModeDedupedUpdater } from '../utils/strictModeStateUpdater';
 
 /**
  * ★★★ 2026-01-12 리팩토링 ★★★
@@ -656,7 +657,7 @@ export default function StructureTab(props: StructureTabProps) {
   const handleInsertAbove = useCallback(() => {
     const { procIdx, l2Id, l3Idx, clickedColumn } = contextMenuExtra;
 
-    const updateFn = (prev: WorksheetState) => {
+    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
       const newState = JSON.parse(JSON.stringify(prev));
       if (!newState.l2) return prev;
 
@@ -699,7 +700,7 @@ export default function StructureTab(props: StructureTabProps) {
       newState.l2.forEach((p: any, i: number) => { p.order = i; });
       newState.structureConfirmed = false;
       return newState;
-    };
+    });
 
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
@@ -711,7 +712,7 @@ export default function StructureTab(props: StructureTabProps) {
   // ★★★ 2026-03-06: 열 단위 분기 — 아래로 새 행 추가 (L2 열→새 공정, L3 열→새 작업요소) ★★★
   const handleInsertBelow = useCallback(() => {
     const { procIdx, l2Id, l3Idx, clickedColumn } = contextMenuExtra;
-    const updateFn = (prev: WorksheetState) => {
+    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
       const newState = JSON.parse(JSON.stringify(prev));
       if (!newState.l2) return prev;
 
@@ -753,9 +754,8 @@ export default function StructureTab(props: StructureTabProps) {
       newState.l2.splice(insertIdx, 0, newProc);
       newState.l2.forEach((p: any, i: number) => { p.order = i; });
       newState.structureConfirmed = false;
-      console.log('[DEBUG-STRUCT] L2 branch: new l2.length=', newState.l2.length);
       return newState;
-    };
+    });
 
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
@@ -772,7 +772,7 @@ export default function StructureTab(props: StructureTabProps) {
       return;
     }
 
-    const updateFn = (prev: WorksheetState) => {
+    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
       const newState = JSON.parse(JSON.stringify(prev));
       if (!newState.l2) return prev;
 
@@ -804,7 +804,7 @@ export default function StructureTab(props: StructureTabProps) {
       proc.l3.forEach((w: any, i: number) => { w.order = i; });
       newState.structureConfirmed = false;
       return newState;
-    };
+    });
 
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
@@ -821,7 +821,7 @@ export default function StructureTab(props: StructureTabProps) {
       return;
     }
 
-    const updateFn = (prev: WorksheetState) => {
+    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
       const newState = JSON.parse(JSON.stringify(prev));
       if (!newState.l2) return prev;
 
@@ -853,7 +853,7 @@ export default function StructureTab(props: StructureTabProps) {
       proc.l3.forEach((w: any, i: number) => { w.order = i; });
       newState.structureConfirmed = false;
       return newState;
-    };
+    });
 
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
@@ -881,7 +881,7 @@ export default function StructureTab(props: StructureTabProps) {
         : '빈 공정 행을 삭제하시겠습니까?';
       if (!window.confirm(confirmMsg)) return;
 
-      const updateFn = (prev: WorksheetState) => {
+      const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
         if (prev.l2.length <= 1) {
           // ★ 마지막 공정: 빈 공정으로 초기화 (행 유지)
           // ★ 마지막 공정 초기화 시 failureLinks도 초기화 (orphan 방지)
@@ -905,7 +905,7 @@ export default function StructureTab(props: StructureTabProps) {
           (deletedProc.failureCauses || []).forEach(c => { if (c.id) deletedFcIds.add(c.id); });
         }
         const newL2 = prev.l2.filter(p => p.id !== l2Id);
-        newL2.forEach((p, i) => p.order = i);
+        newL2.forEach((p, i) => { p.order = i; });
         const cleanedLinks = (deletedFmIds.size > 0 || deletedFcIds.size > 0)
           ? (prev.failureLinks || []).filter(link => {
               if (link.fmId && deletedFmIds.has(link.fmId)) return false;
@@ -914,7 +914,7 @@ export default function StructureTab(props: StructureTabProps) {
             })
           : prev.failureLinks;
         return { ...prev, l2: newL2, failureLinks: cleanedLinks, structureConfirmed: false };
-      };
+      });
       if (setStateSynced) setStateSynced(updateFn);
       else setState(updateFn);
       setDirty(true);
@@ -936,7 +936,7 @@ export default function StructureTab(props: StructureTabProps) {
       if (!window.confirm(`작업요소 "${weName}"을(를) 삭제하시겠습니까?`)) return;
     }
 
-    const updateFn = (prev: WorksheetState) => {
+    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
       // ★ 삭제 대상 L3의 processChar ID 수집 → 연결된 FC의 failureLinks orphan 방지
       const targetProc = prev.l2.find(p => p.id === l2Id);
       const deletedCharIds = new Set<string>();
@@ -958,7 +958,7 @@ export default function StructureTab(props: StructureTabProps) {
         if (newL3.length === 0) {
           newL3.push({ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] });
         }
-        newL3.forEach((w, i) => w.order = i);
+        newL3.forEach((w, i) => { w.order = i; });
         return { ...p, l3: newL3 };
       });
 
@@ -966,7 +966,7 @@ export default function StructureTab(props: StructureTabProps) {
         ? (prev.failureLinks || []).filter(link => !(link.fcId && deletedFcIds.has(link.fcId)))
         : prev.failureLinks;
       return { ...prev, l2: newL2, failureLinks: cleanedLinks, structureConfirmed: false };
-    };
+    });
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);

@@ -4,6 +4,7 @@
  * @created 2026-01-27
  * @updated 2026-01-29: CP 벤치마킹 - 행 추가/삭제, 병합/병합해제, Undo/Redo 추가
  * @updated 2026-02-06: 메뉴 명칭 개선 및 상세 주석 추가
+ * @updated 2026-03-23: 메뉴 액션에 stopPropagation + type="button" + 패널 onMouseDown (중복 행 삽입 방지)
  * 
  * ═══════════════════════════════════════════════════════════════════════════════
  * 📋 컨텍스트 메뉴 기능 설명 (수동모드에서 우클릭 시 표시)
@@ -168,22 +169,31 @@ export function PfmeaContextMenu({
     // 구조분석 컬럼인지 확인 (L1/L2/L3)
     const isStructureColumn = ['l1', 'l2', 'l3'].includes(columnType || '');
 
+    /** 메뉴 액션: 오버레이/부모로 이벤트 전파 시 중복 실행 방지 */
+    const stopMenuPointer = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
     // 핸들러들
-    const handleInsertAbove = () => {
+    const handleInsertAbove = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onInsertAbove) {
             onInsertAbove(rowIdx, columnType, colKey);
         }
         onClose();
     };
 
-    const handleInsertBelow = () => {
+    const handleInsertBelow = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onInsertBelow) {
             onInsertBelow(rowIdx, columnType, colKey);
         }
         onClose();
     };
 
-    const handleDeleteRow = () => {
+    const handleDeleteRow = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onDeleteRow) {
             onDeleteRow(rowIdx);
         }
@@ -191,77 +201,88 @@ export function PfmeaContextMenu({
     };
 
     // ★★★ 2026-02-05: 병합 추가 (작업요소 추가 - 상위 병합 확장) ★★★
-    const handleAddMergedAbove = () => {
+    const handleAddMergedAbove = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onAddMergedAbove) {
             onAddMergedAbove(rowIdx, colKey);
         }
         onClose();
     };
 
-    const handleAddMergedBelow = () => {
+    const handleAddMergedBelow = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onAddMergedBelow) {
             onAddMergedBelow(rowIdx, colKey);
         }
         onClose();
     };
 
-    const handleMergeUp = () => {
+    const handleMergeUp = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onMergeUp) {
             onMergeUp(rowIdx, colKey);
         }
         onClose();
     };
 
-    const handleMergeDown = () => {
+    const handleMergeDown = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onMergeDown) {
             onMergeDown(rowIdx, colKey);
         }
         onClose();
     };
 
-    const handleUnmerge = () => {
+    const handleUnmerge = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onUnmerge) {
             onUnmerge(rowIdx, colKey);
         }
         onClose();
     };
 
-    const handleUndo = () => {
+    const handleUndo = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (undoCount > 0 && onUndo) {
             onUndo();
         }
         onClose();
     };
 
-    const handleRedo = () => {
+    const handleRedo = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (redoCount > 0 && onRedo) {
             onRedo();
         }
         onClose();
     };
 
-    const handleAddFailureLink = () => {
+    const handleAddFailureLink = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onAddFailureLink && fmId) {
             onAddFailureLink(fmId, fcId || '');
         }
         onClose();
     };
 
-    const handleDeleteFailureLink = () => {
+    const handleDeleteFailureLink = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onDeleteFailureLink && fmId && fcId) {
             onDeleteFailureLink(fmId, fcId);
         }
         onClose();
     };
 
-    const handleCopy = () => {
+    const handleCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onCopyRow) {
             onCopyRow(rowIdx);
         }
         onClose();
     };
 
-    const handlePaste = () => {
+    const handlePaste = (e: React.MouseEvent<HTMLButtonElement>) => {
+        stopMenuPointer(e);
         if (onPasteRow) {
             onPasteRow(rowIdx);
         }
@@ -272,7 +293,7 @@ export function PfmeaContextMenu({
     const UndoRedoMenuItems = () => (
         <>
             <div className="border-t border-gray-200 my-0.5" />
-            <button
+            <button type="button"
                 onClick={handleUndo}
                 disabled={undoCount === 0}
                 className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 ${undoCount > 0 ? 'hover:bg-yellow-50 text-yellow-700' : 'text-gray-300 cursor-not-allowed'
@@ -280,7 +301,7 @@ export function PfmeaContextMenu({
             >
                 ↩️ 실행취소 {undoCount > 0 && <span className="text-[8px] bg-yellow-100 px-0.5 rounded">{Math.min(undoCount, 3)}회</span>}
             </button>
-            <button
+            <button type="button"
                 onClick={handleRedo}
                 disabled={redoCount === 0}
                 className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 ${redoCount > 0 ? 'hover:bg-green-50 text-green-700' : 'text-gray-300 cursor-not-allowed'
@@ -303,11 +324,13 @@ export function PfmeaContextMenu({
             {/* 메뉴 (컴팩트 스타일) - 뷰포트 경계 자동 조정 */}
             <div
                 ref={menuRef}
+                role="menu"
                 className="fixed z-[201] bg-white border border-gray-300 rounded-md shadow-lg py-0.5 min-w-[180px] max-h-[calc(100vh-16px)] overflow-y-auto"
                 style={{
                     left: adjustedPos.x,
                     top: adjustedPos.y,
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
             >
                 {/* 헤더 - 컬럼 타입 표시 */}
                 <div className="px-2 py-1 text-[9px] text-gray-500 border-b border-gray-100">
@@ -322,7 +345,7 @@ export function PfmeaContextMenu({
                     const canInsertBelow = onInsertBelow && !isL3;
                     return (
                         <>
-                            <button
+                            <button type="button"
                                 onClick={canInsertAbove ? handleInsertAbove : undefined}
                                 disabled={!canInsertAbove}
                                 className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 transition-colors ${canInsertAbove ? 'hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`}
@@ -331,7 +354,7 @@ export function PfmeaContextMenu({
                                 <span>위로 새 행 추가</span>
                                 {isStructureColumn && canInsertAbove && <span className="ml-auto text-gray-400 text-[8px]">{columnType?.toUpperCase()}</span>}
                             </button>
-                            <button
+                            <button type="button"
                                 onClick={canInsertBelow ? handleInsertBelow : undefined}
                                 disabled={!canInsertBelow}
                                 className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 transition-colors ${canInsertBelow ? 'hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`}
@@ -349,7 +372,7 @@ export function PfmeaContextMenu({
                     <div className="border-t border-gray-100 my-0.5" />
                 )}
                 {onAddMergedAbove && (
-                    <button
+                    <button type="button"
                         onClick={handleAddMergedAbove}
                         className="w-full text-left px-2 py-1 text-[10px] hover:bg-green-50 text-green-700 flex items-center gap-1.5 transition-colors"
                     >
@@ -358,7 +381,7 @@ export function PfmeaContextMenu({
                     </button>
                 )}
                 {onAddMergedBelow && (
-                    <button
+                    <button type="button"
                         onClick={handleAddMergedBelow}
                         className="w-full text-left px-2 py-1 text-[10px] hover:bg-green-50 text-green-700 flex items-center gap-1.5 transition-colors"
                     >
@@ -369,7 +392,7 @@ export function PfmeaContextMenu({
 
                 {/* ★ 행 삭제 */}
                 <div className="border-t border-gray-100 my-0.5" />
-                <button
+                <button type="button"
                     onClick={onDeleteRow ? handleDeleteRow : undefined}
                     disabled={!onDeleteRow}
                     className={`w-full text-left px-2 py-1 text-[10px] flex items-center gap-1.5 transition-colors ${onDeleteRow ? 'hover:bg-red-50 text-red-600' : 'text-gray-300 cursor-not-allowed'}`}
@@ -383,7 +406,7 @@ export function PfmeaContextMenu({
                     <>
                         <div className="border-t border-gray-100 my-0.5" />
                         {onMergeUp && (
-                            <button
+                            <button type="button"
                                 onClick={handleMergeUp}
                                 className="w-full text-left px-2 py-1 text-[10px] hover:bg-purple-50 text-purple-700 flex items-center gap-1.5 transition-colors"
                             >
@@ -392,7 +415,7 @@ export function PfmeaContextMenu({
                             </button>
                         )}
                         {onMergeDown && (
-                            <button
+                            <button type="button"
                                 onClick={handleMergeDown}
                                 className="w-full text-left px-2 py-1 text-[10px] hover:bg-purple-50 text-purple-700 flex items-center gap-1.5 transition-colors"
                             >
@@ -401,7 +424,7 @@ export function PfmeaContextMenu({
                             </button>
                         )}
                         {onUnmerge && (
-                            <button
+                            <button type="button"
                                 onClick={handleUnmerge}
                                 className="w-full text-left px-2 py-1 text-[10px] hover:bg-orange-50 text-orange-700 flex items-center gap-1.5 transition-colors"
                             >
@@ -417,7 +440,7 @@ export function PfmeaContextMenu({
                     <>
                         <div className="border-t border-gray-100 my-0.5" />
                         {onAddFailureLink && (
-                            <button
+                            <button type="button"
                                 onClick={handleAddFailureLink}
                                 className="w-full text-left px-2 py-1 text-[10px] hover:bg-blue-50 flex items-center gap-1.5 transition-colors"
                             >
@@ -426,7 +449,7 @@ export function PfmeaContextMenu({
                             </button>
                         )}
                         {onDeleteFailureLink && fmId && fcId && (
-                            <button
+                            <button type="button"
                                 onClick={handleDeleteFailureLink}
                                 className="w-full text-left px-2 py-1 text-[10px] hover:bg-red-50 flex items-center gap-1.5 transition-colors text-red-600"
                             >
@@ -442,7 +465,7 @@ export function PfmeaContextMenu({
                     <>
                         <div className="border-t border-gray-100 my-0.5" />
                         {onCopyRow && (
-                            <button
+                            <button type="button"
                                 onClick={handleCopy}
                                 className="w-full text-left px-2 py-1 text-[10px] hover:bg-gray-50 flex items-center gap-1.5 transition-colors"
                             >
@@ -451,7 +474,7 @@ export function PfmeaContextMenu({
                             </button>
                         )}
                         {onPasteRow && (
-                            <button
+                            <button type="button"
                                 onClick={handlePaste}
                                 className="w-full text-left px-2 py-1 text-[10px] hover:bg-gray-50 flex items-center gap-1.5 transition-colors"
                             >
@@ -467,7 +490,7 @@ export function PfmeaContextMenu({
 
                 {/* 도움말 */}
                 <div className="border-t border-gray-100 my-0.5" />
-                <button
+                <button type="button"
                     onClick={() => setShowHelp(true)}
                     className="w-full text-left px-2 py-1 text-[10px] hover:bg-yellow-50 text-yellow-700 flex items-center gap-1.5 transition-colors"
                 >
@@ -477,7 +500,7 @@ export function PfmeaContextMenu({
 
                 {/* 닫기 */}
                 <div className="border-t border-gray-100 my-0.5" />
-                <button
+                <button type="button"
                     onClick={onClose}
                     className="w-full text-left px-2 py-1 text-[10px] hover:bg-gray-50 flex items-center gap-1.5 transition-colors text-gray-500"
                 >
@@ -537,7 +560,7 @@ export function PfmeaContextMenu({
                                 <span>실행취소 / 다시실행</span>
                             </div>
                         </div>
-                        <button
+                        <button type="button"
                             onClick={() => { setShowHelp(false); onClose(); }}
                             className="mt-3 w-full py-1 text-[10px] bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition-colors"
                         >

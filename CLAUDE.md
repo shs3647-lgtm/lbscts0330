@@ -554,6 +554,8 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-21 | UUID/FK 설계 원칙 부재 → 반복적 누락 | 모든 dedup key에 공정번호/구분 미포함 → 동일 텍스트 다른 엔티티 삭제 | Rule 1.6(근본원인분석) + Rule 1.7(UUID/FK설계) 추가, 전체 CODEFREEZE | ✅ 영구 CODEFREEZE 적용 |
 | 2026-03-22 | 워크시트 전체 누락(빈 placeholder) — L1만 있는 단계 | `loadAtomicDB`는 L1-only여도 객체 반환인데 로더가 `l2Structures.length>0`일 때만 Atomic 적용 → DB와 UI 불일치 | `useWorksheetDataLoader.ts` 게이트를 `if (atomicData)`로 `loadAtomicDB`와 정합 | ✅ vitest + Playwright manual-screen-verify-pause |
 | 2026-03-22 | `m001` DC/PC 156건 null + `f001` FC/FL/RA 0건 | 레거시 Import 훅이 `flat=[]`로 끝나고, 서버 저장은 체인 미전달/체인 누락 B4를 복구하지 못함. 파이프라인 자동수정도 public A6/B5 fallback이 없어 기존 RA 빈값을 못 채움 | `legacyParseResultToFlatData.ts` 추가 + `useImportFileHandlers.ts` 레거시 flat 복원, `save-from-import/route.ts` 체인 유도/체인기반 B4/B5/A6 보강, `pipeline-verify/auto-fix.ts` public A6/B5 fallback, `resave-import/route.ts` 보강 flat 사용 | ✅ `m001` allGreen, `f001` 0→23 FL/RA 회복 |
+| 2026-03-23 | 구조분석 「아래로 새 행 추가」 시 placeholder가 위·아래 2줄로 보임 | React 18 Strict Mode(개발)에서 함수형 `setState` 업데이터가 동일 `prev`에 대해 2회 호출 → `splice` 이중 적용 | `createStrictModeDedupedUpdater` (`strictModeStateUpdater.ts`) + `StructureTab` 행 추가/병합/삭제 업데이터 적용 | ✅ `strictModeStateUpdater.test.ts` |
+| 2026-03-23 | 구조분석 행이 위·아래 중복(재발: 위로 2줄 등) | `setStateSynced`가 `updater(stateRef)`+`setState(객체)`로 React 큐 `prev`와 불일치 → 동일 인덱스에 삽입이 2회 적용될 수 있음 | `useWorksheetState` `setStateSynced`를 `setState(prev=>…)`로 통일 + `PfmeaContextMenu` 메뉴 `stopPropagation`/`type="button"` | ✅ tsc + vitest |
 
 ### 🔴 Rule 1.6: 근본원인 분석 원칙 — UUID/FK/DB/API 설계 우선 (2026-03-21) — 영구 CODEFREEZE
 
