@@ -51,8 +51,9 @@ export function computeFailureLinkStats(
       fmLinkCounts.set(link.fmId, { feCount: 0, fcCount: 0 });
     }
     const counts = fmLinkCounts.get(link.fmId)!;
-    if (idFe && feIdSet.has(idFe)) counts.feCount++;
-    if (idFc && fcIdSet.has(idFc)) counts.fcCount++;
+    // ★ FM 누락 판정: FK가 존재하면 연결된 것으로 인정 (fcData 추출 누락과 무관)
+    if (idFe) counts.feCount++;
+    if (idFc) counts.fcCount++;
   });
 
   const feLinkedCount = feData.filter(fe => feLinkedIds.has(fe.id)).length;
