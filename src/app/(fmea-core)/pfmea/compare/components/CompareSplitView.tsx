@@ -110,29 +110,23 @@ export default function CompareSplitView() {
         className="fixed right-0 flex flex-col"
         style={{ top: 36, left: 53, bottom: 0, background: '#f5f7fb' }}
       >
-        {/* 워크시트 TopMenuBar와 동일 인디고 그라데이션 */}
+        {/* 상단 1줄: FMEA 선택 + 탭 + 비교종료 — 최대 컴팩트 */}
         <div
-          className="flex h-9 min-h-9 shrink-0 flex-wrap items-center gap-2 border-b border-white/30 px-2"
-          style={{ background: 'linear-gradient(to right, #1a237e, #283593, #1a237e)' }}
+          className="flex shrink-0 items-center gap-1 overflow-x-auto scrollbar-hide border-b border-white/20 px-1"
+          style={{ height: 26, background: 'linear-gradient(to right, #1a237e, #283593, #1a237e)' }}
         >
-          <span className="hidden shrink-0 text-[10px] font-bold text-white sm:inline">PFMEA 비교</span>
-          <FmeaSelector variant="dark" label="좌측(Master·읽기)" value={leftId} onChange={(id) => pushUrl({ left: id })} />
-          <FmeaSelector
-            variant="dark"
-            label="우측(편집)"
-            value={rightId}
-            onChange={(id) => pushUrl({ right: id })}
-          />
+          <FmeaSelector variant="dark" label="좌" value={leftId} onChange={(id) => pushUrl({ left: id })} />
+          <FmeaSelector variant="dark" label="우" value={rightId} onChange={(id) => pushUrl({ right: id })} />
+          <span className="mx-0.5 h-3 w-px shrink-0 bg-white/30" />
+          <CompareTabBar activeTab={tab} onChange={(t) => pushUrl({ tab: t })} inline />
           <button
             type="button"
-            className="ml-auto shrink-0 rounded border border-white/40 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-white/20"
+            className="ml-auto shrink-0 rounded border border-white/40 bg-white/10 px-1.5 py-px text-[8px] font-semibold text-white hover:bg-white/20"
             onClick={exitCompare}
           >
-            비교 종료
+            종료
           </button>
         </div>
-
-        <CompareTabBar activeTab={tab} onChange={(t) => pushUrl({ tab: t })} />
 
         {/* iframe 영역 — 남은 공간 전체 사용 */}
         <div ref={containerRef} className="relative flex min-h-0 flex-1 flex-row">
