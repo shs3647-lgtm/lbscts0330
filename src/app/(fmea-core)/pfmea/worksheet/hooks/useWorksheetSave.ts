@@ -19,6 +19,7 @@ import { useCallback } from 'react';
 import { WorksheetState, FMEAProject } from '../constants';
 import { FMEAWorksheetDB } from '../schema';
 import { saveAtomicDB as saveAtomicDBDirect } from './atomicDbSaver';
+import { buildManualPositionData } from './manualStructureBuilder';
 
 interface UseWorksheetSaveParams {
   selectedFmeaId: string | null;
@@ -164,21 +165,47 @@ export function useWorksheetSave({
     setIsSaving(true);
     try {
       // ★★★ 2026-03-21: atomicDB 직접 저장 — legacy round-trip 완전 제거 ★★★
-      // atomicDB는 useWorksheetDataLoader에서 DB로부터 로드된 상태 그대로 사용.
-      // confirmed 플래그만 stateRef에서 동기화 (안전 — boolean 값만 복사).
-      if (atomicDB && Array.isArray(atomicDB.l2Structures)) {
+      if (atomicDB && Array.isArray(atomicDB.l2Structures) && atomicDB.l2Structures.length > 0) {
+        // [경로 A] 기존 Import된 FMEA — atomicDB 그대로 저장
         let dbToSave = syncConfirmedFlags(atomicDB, stateRef.current);
-
-        // force 모드(확정) 시 forceOverwrite 전달
         if (force) {
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }
-
         const result = await saveAtomicDBDirect(dbToSave, false);
         if (result.success) {
           setAtomicDB(dbToSave);
           setDirty(false);
           setLastSaved(new Date().toLocaleTimeString('ko-KR'));
+        }
+      } else {
+        // ★★★ [경로 B] 신규 FMEA 수동모드 — atomicDB=null 또는 비어있음 ★★★
+        // state.l2에 수동 추가된 공정을 save-position-import로 DB에 저장
+        const manualL2 = (stateRef.current.l2 || []).filter(
+          (p: any) => p.name?.trim() || p.no?.trim()
+        );
+        if (manualL2.length > 0) {
+          const l1Name =
+            (currentFmea as any)?.fmeaInfo?.partName ||
+            (currentFmea as any)?.fmeaInfo?.subject ||
+            (stateRef.current.l1 as any)?.name ||
+            '완제품 공정';
+          const posData = buildManualPositionData(targetFmeaId, l1Name, manualL2);
+          if (posData) {
+            console.info(`[useWorksheetSave] 수동모드 저장 — L2=${posData.l2Structures.length}, L3=${posData.l3Structures.length}`);
+            const res = await fetch('/api/fmea/save-position-import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fmeaId: targetFmeaId, atomicData: posData }),
+            });
+            if (res.ok) {
+              const result = await res.json();
+              if (result.success) {
+                setDirty(false);
+                setLastSaved(new Date().toLocaleTimeString('ko-KR'));
+                console.info(`[useWorksheetSave] 수동모드 저장 완료 — ${targetFmeaId}`);
+              }
+            }
+          }
         }
       }
     } catch (e) {
@@ -230,17 +257,42 @@ export function useWorksheetSave({
 
     setIsSaving(true);
     try {
-      // ★★★ 2026-03-21: atomicDB 직접 저장 — legacy round-trip 완전 제거 ★★★
-      if (atomicDB && Array.isArray(atomicDB.l2Structures)) {
+      if (atomicDB && Array.isArray(atomicDB.l2Structures) && atomicDB.l2Structures.length > 0) {
+        // [경로 A] 기존 Import된 FMEA
         let dbToSave = syncConfirmedFlags(atomicDB, currentState);
         if (force) {
           dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         }
         saveAtomicDBDirect(dbToSave, false).then(result => {
-          if (result.success) {
-            setAtomicDB(dbToSave);
-          }
+          if (result.success) setAtomicDB(dbToSave);
         }).catch(e => console.error('[저장] DB 저장 오류:', e));
+      } else {
+        // ★ [경로 B] 신규 FMEA 수동모드 — save-position-import 경로
+        const manualL2 = (currentState.l2 || []).filter(
+          (p: any) => p.name?.trim() || p.no?.trim()
+        );
+        if (manualL2.length > 0) {
+          const targetId = selectedFmeaId || currentFmea?.id;
+          if (targetId) {
+            const l1Name =
+              (currentFmea as any)?.fmeaInfo?.partName ||
+              (currentFmea as any)?.fmeaInfo?.subject ||
+              (currentState.l1 as any)?.name ||
+              '완제품 공정';
+            const posData = buildManualPositionData(targetId, l1Name, manualL2);
+            if (posData) {
+              fetch('/api/fmea/save-position-import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fmeaId: targetId, atomicData: posData }),
+              }).then(res => res.json()).then(result => {
+                if (result.success) {
+                  console.info(`[useWorksheetSave] saveToLocalStorage 수동저장 완료`);
+                }
+              }).catch(e => console.error('[수동저장] 오류:', e));
+            }
+          }
+        }
       }
 
       setDirty(false);
