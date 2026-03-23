@@ -595,16 +595,110 @@ export interface SeverityMatch {
   ruleIndex: number;
 }
 
+// =====================================================
+// FE 직접 매핑 테이블 (AIAG-VDA 근거 — 키워드 매칭보다 1순위)
+// =====================================================
+
+interface FEDirectEntry {
+  fe: string;
+  severity: number;
+  scope?: string;
+  rationale: string;
+}
+
+const FE_DIRECT_MAP: FEDirectEntry[] = [
+  // USER
+  { fe: '제품 손실', severity: 8, scope: 'USER', rationale: '고객 사용 불가, 제품 전수 폐기' },
+  { fe: 'N/A', severity: 1, rationale: '영향 없음' },
+  // SP — Customer Yield Spec
+  { fe: 'FT Yield 저하', severity: 6, scope: 'SP', rationale: '고객 생산 편의기능 저하(부분 수율 감소)' },
+  { fe: 'Yield Drop→고객 Capa Drop', severity: 7, scope: 'SP', rationale: '고객 생산능력 심각 저하' },
+  { fe: '수율 감소/저하', severity: 6, scope: 'SP', rationale: '고객 생산 편의기능 저하' },
+  { fe: '제품 수율감소/저하', severity: 6, scope: 'SP', rationale: '고객 생산 편의기능 저하' },
+  // SP — Visual / Customer Spec
+  { fe: '외관 불량', severity: 5, scope: 'SP', rationale: '고객 인지 가능 결함(불편)' },
+  { fe: '인식 불량', severity: 6, scope: 'SP', rationale: '고객 Lot 관리 기능 저하' },
+  { fe: '제품 손실', severity: 8, scope: 'SP', rationale: '고객 제품 전수 폐기' },
+  { fe: '제품 특성 이상', severity: 6, scope: 'SP', rationale: '고객 제품 부분 기능 저하' },
+  { fe: '패널 불량', severity: 6, scope: 'SP', rationale: '고객 후공정 부분 기능 저하' },
+  // SP — Assembly Spec
+  { fe: '제품 조립 불가', severity: 8, scope: 'SP', rationale: '고객 조립 공정 운행 불가 (기능 상실)' },
+  { fe: '조립 불량', severity: 7, scope: 'SP', rationale: '고객 조립 성능 심각 저하' },
+  { fe: '조립 수율 감소', severity: 6, scope: 'SP', rationale: '고객 조립 편의기능 저하' },
+  // SP — Functional Test Spec
+  { fe: 'PKG TEST 불량', severity: 7, scope: 'SP', rationale: '고객 기능시험 불합격 → 성능 심각 저하' },
+  { fe: '기능 불량', severity: 7, scope: 'SP', rationale: '고객 제품 기능 상실 수준' },
+  { fe: '기능 저하', severity: 6, scope: 'SP', rationale: '고객 제품 부분 기능 저하' },
+  { fe: '부품 기능 이상', severity: 7, scope: 'SP', rationale: '고객 제품 기능 심각 저하' },
+  { fe: '제품 기능 손실', severity: 8, scope: 'SP', rationale: '고객 제품 기능 완전 상실' },
+  { fe: '제품 기능 이상/저하', severity: 7, scope: 'SP', rationale: '고객 제품 기능 심각 저하' },
+  { fe: '고객불만', severity: 8, scope: 'SP', rationale: '고객 클레임, 납품 중단 위험' },
+  // YP — Process Yield Spec (Wafer)
+  { fe: 'Wafer LOSS/Broken', severity: 8, scope: 'YP', rationale: '자사 Wafer 전수 폐기 (기능 상실)' },
+  { fe: 'Wafer Yield 저하', severity: 6, scope: 'YP', rationale: '자사 수율 부분 저하' },
+  // YP — Process Yield Spec (Au Bump)
+  { fe: 'Yield Drop', severity: 6, scope: 'YP', rationale: '자사 공정 수율 편의기능 저하' },
+  { fe: 'Yield Drop+Test Fail', severity: 7, scope: 'YP', rationale: '자사 수율+기능 복합 심각 저하' },
+  { fe: 'Yield Drop→Capa Drop', severity: 7, scope: 'YP', rationale: '자사 생산능력 심각 저하' },
+  { fe: 'Yield Mismatch', severity: 7, scope: 'YP', rationale: '자사 Lot 관리 기능 심각 저하' },
+  { fe: '수율 감소/저하', severity: 6, scope: 'YP', rationale: '자사 공정 수율 부분 저하' },
+  { fe: '제품 기능이상', severity: 7, scope: 'YP', rationale: '자사 제품 기능 심각 저하' },
+  { fe: '제품 손상', severity: 7, scope: 'YP', rationale: '자사 Wafer 부분 손상 → 성능 저하' },
+  { fe: '제품 손실', severity: 8, scope: 'YP', rationale: '자사 Wafer 전수 폐기' },
+  { fe: '제품 특성 불량/이상', severity: 6, scope: 'YP', rationale: '자사 Spec Out → 부분 기능 저하' },
+  { fe: '고객불만', severity: 8, scope: 'YP', rationale: '고객 클레임, 자사 신뢰도 상실' },
+  { fe: '공정 skip/미진행', severity: 7, scope: 'YP', rationale: '공정 누락 → 후공정 전수 불량 위험' },
+  { fe: '불량 유출', severity: 8, scope: 'YP', rationale: '불량 Wafer 후공정 유출 → 고객 영향' },
+  { fe: '외관 불량', severity: 5, scope: 'YP', rationale: '자사 외관 결함 인지 (불편)' },
+  { fe: '환경 이상', severity: 4, scope: 'YP', rationale: '환경 기준 이탈 → 경미 결함 가능' },
+];
+
+/** 정규화된 FE 텍스트로 직접 매핑 조회 (scope 우선, 없으면 scope 무관 매칭) */
+function matchDirectFE(feText: string, feScope?: string): FEDirectEntry | undefined {
+  const n = feText.normalize('NFKC').trim().replace(/\s+/g, ' ');
+  const nLower = n.toLowerCase();
+
+  // 1순위: scope + 텍스트 정확 매칭
+  if (feScope) {
+    const scopeUpper = feScope.toUpperCase();
+    const exact = FE_DIRECT_MAP.find(e =>
+      e.scope === scopeUpper && e.fe.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase() === nLower
+    );
+    if (exact) return exact;
+  }
+
+  // 2순위: 텍스트만 매칭 (scope 무관 — 첫 번째 매칭)
+  return FE_DIRECT_MAP.find(e =>
+    e.fe.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase() === nLower
+  );
+}
+
 /**
- * ★ FE 텍스트 → 심각도(S) 키워드 기반 추천
+ * ★ FE 텍스트 → 심각도(S) 추천
+ *
+ * 우선순위: 1) 직접 매핑 테이블  2) S접두사  3) 키워드 규칙
  *
  * @param feText 고장영향(FE) 텍스트
+ * @param feScope FE 구분 (YP/SP/USER) — 직접 매핑 시 scope 우선 매칭
  * @returns 매칭된 심각도 후보 (점수 내림차순), 없으면 빈 배열
  */
-export function matchFESeverity(feText: string): SeverityMatch[] {
+export function matchFESeverity(feText: string, feScope?: string): SeverityMatch[] {
   if (!feText || !feText.trim()) return [];
 
-  // ★ 최우선: S접두사 파싱 ("S6:보조 기능 상실..." → S=6)
+  // ★ 1순위: 직접 매핑 테이블 (AIAG-VDA 확정값)
+  const direct = matchDirectFE(feText, feScope);
+  if (direct) {
+    const rule = PFMEA_SEVERITY_RULES.find(r => r.rating === direct.severity);
+    return [{
+      rating: direct.severity,
+      level: rule?.level || `S=${direct.severity}`,
+      score: 3.0,  // 직접 매핑 = 최고 점수
+      matchedKeywords: [`직접매핑: ${direct.rationale}`],
+      ruleIndex: -1,
+    }];
+  }
+
+  // ★ 2순위: S접두사 파싱 ("S6:보조 기능 상실..." → S=6)
   const prefixS = parseSeverityPrefix(feText.trim());
   if (prefixS !== null) {
     const rule = PFMEA_SEVERITY_RULES.find(r => r.rating === prefixS);

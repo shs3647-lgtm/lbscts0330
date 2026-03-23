@@ -190,7 +190,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     const details: string[] = [];
     const updatedScopes = scopes.map((scope: any) => {
       if (!scope.effect?.trim()) return scope;
-      const matches = matchFESeverity(scope.effect);
+      const feScope = scope.scope || scope.category || '';
+      const matches = matchFESeverity(scope.effect, feScope);
       if (matches.length > 0) {
         const best = matches[0];
         const prev = scope.severity || 0;
