@@ -273,6 +273,16 @@ function PFMEARegisterPageContent() {
 
     // Master: 새 MasterFmea 시스템에서 조회
     if (type === 'M') {
+      // ★ 상위 FMEA가 Master로 이미 선택된 경우 → 해당 BD 자동 로드 (선택 모달 스킵)
+      if (selectedBaseFmea) {
+        const baseType = selectedBaseFmea.match(/pfm\d{2}-([mfp])/i)?.[1]?.toLowerCase();
+        if (baseType === 'm') {
+          const baseFmeaItem = availableFmeas.find(f => f.id === selectedBaseFmea);
+          const baseFmeaName = baseFmeaItem?.subject || selectedBaseFmea;
+          await loadBdById(selectedBaseFmea, baseFmeaName);
+          return;
+        }
+      }
       try {
         const res = await fetch('/api/master-fmea/bd-list');
         const data = await res.json();
@@ -973,7 +983,19 @@ function PFMEARegisterPageContent() {
             setBizInfoModalOpen(false);
           }} />
         <UserSelectModal isOpen={userModalOpen} onClose={() => { setUserModalOpen(false); setSelectedMemberIndex(null); setRoleSearchTerm(''); }} onSelect={handleUserSelect} initialSearchTerm={roleSearchTerm} />
-        <FmeaSelectModal isOpen={fmeaSelectModalOpen} onClose={() => setFmeaSelectModalOpen(false)} onSelect={handleFmeaSelect} fmeas={availableFmeas} selectType={fmeaSelectType} currentFmeaId={fmeaId} onExcelImport={() => window.location.href = `/pfmea/import?id=${fmeaId}&mode=excel&type=${fmeaSelectType}`} />
+        <FmeaSelectModal isOpen={fmeaSelectModalOpen} onClose={() => setFmeaSelectModalOpen(false)} onSelect={async (selectedId: string) => {
+            await handleFmeaSelect(selectedId);
+            // ★ 상위 FMEA로 Master 선택 시 → 해당 Master BD 자동 로드
+            if (fmeaSelectType === 'MF') {
+              const normId = selectedId.toLowerCase();
+              const baseType = normId.match(/pfm\d{2}-([mfp])/i)?.[1]?.toLowerCase();
+              if (baseType === 'm') {
+                const fmeaItem = availableFmeas.find(f => f.id === normId);
+                const fmeaName = fmeaItem?.subject || normId;
+                await loadBdById(normId, fmeaName);
+              }
+            }
+          }} fmeas={availableFmeas} selectType={fmeaSelectType} currentFmeaId={fmeaId} onExcelImport={() => window.location.href = `/pfmea/import?id=${fmeaId}&mode=excel&type=${fmeaSelectType}`} />
 
         {/* BD 선택 모달: Master/Family가 2개 이상일 때 */}
         {bdSelectModal.open && (
