@@ -47,9 +47,9 @@ export interface TemplatePreviewContentProps {
   editDisabled: boolean;
   templateGenerated: boolean;
   setTemplateGenerated: (v: boolean) => void;
-  // 미리보기 레벨
-  previewLevel: 'L1' | 'L2' | 'L3' | 'FC';
-  setPreviewLevel: (v: 'L1' | 'L2' | 'L3' | 'FC') => void;
+  // 미리보기 레벨 (L1/L2/L3 테이블 전용 — 고장사슬은 activeStep === 'FC' 패널)
+  previewLevel: 'L1' | 'L2' | 'L3';
+  setPreviewLevel: (v: 'L1' | 'L2' | 'L3') => void;
   // 행 선택
   selectedRows: Set<number>;
   setSelectedRows: (v: Set<number>) => void;

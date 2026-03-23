@@ -411,12 +411,12 @@ export default function FailureLinkTables({
         {/* FC 테이블 - 반응형 비율 */}
         <div style={{ ...panelStyleWithFlex('1 1 35%', '#ddd'), minWidth: 0 }}>
           <div style={scrollAreaStyle}>
-            <table style={tableFullStyle(FONT_SIZES.cell)}>
+            <table style={{ ...tableFullStyle(FONT_SIZES.cell), tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={thStyle('#e8f5e9', '6%')}>No</th>
-                  <th style={thStyle('#e8f5e9', '15%')} title="Process Name">공정명(Process)</th>
-                  <th style={thStyle('#e8f5e9', '10%')} title="Work Element">작업요소(WE)</th>
+                  <th style={thStyle('#e8f5e9', '5%')}>No</th>
+                  <th style={thStyle('#e8f5e9', '22%')} title="Process Name">공정명<br/>(Process)</th>
+                  <th style={{...thStyle('#e8f5e9', '30px'), minWidth: 30}} title="Work Element">WE</th>
                   <th style={thStyle('#e8f5e9')} title="Failure Cause">고장원인(FC)</th>
                 </tr>
               </thead>
@@ -478,11 +478,13 @@ export default function FailureLinkTables({
                         </td>
                         <td style={tdCenterStyle(cellBg, BORDER_GREEN, isOrphanFc ? '#c62828' : COLORS.function.text, {
                           fontSize: 'clamp(7px, 0.7vw, 9px)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
+                          wordBreak: 'keep-all',
+                          overflowWrap: 'anywhere',
+                          lineHeight: 1.1,
                         })}>
-                          {isOrphanFc ? '삭제됨' : fc.processName}
+                          {isOrphanFc ? '삭제됨' : (fc.processName || '').split(/(?=\()/).map((s, j) =>
+                            j === 0 ? s : <React.Fragment key={j}><br/>{s}</React.Fragment>
+                          )}
                         </td>
                         <td style={tdCenterStyle(cellBg, BORDER_GREEN, isOrphanFc ? '#c62828' : COLORS.function.text, {
                           fontSize: 'clamp(7px, 0.7vw, 9px)',

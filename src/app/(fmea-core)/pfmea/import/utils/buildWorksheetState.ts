@@ -912,6 +912,60 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
   }
 }
 
+/**
+ * 레거시 flat(JSON 픽스처·구버전 Export 등)에 `B4.parentItemId`가 없을 때,
+ * `fillL2Data`+`fillL3Data`와 동일 규칙으로 생성될 B3(PC) ID에 결정론적 round-robin FK를 부여한다.
+ *
+ * - 실제 Import 파이프라인: import-builder가 B4→B3 FK를 반드시 설정 (본 함수 호출 금지)
+ * - 용도: 단위테스트 픽스처 보정, 구데이터 1회 마이그레이션 스크립트
+ */
+export function patchLegacyFlatB4ParentItemIds(flatData: ImportedFlatData[]): void {
+  if (flatData.length === 0) return;
+
+  const commonProcessItems = flatData.filter(d => isCommonProcessNo(d.processNo || ''));
+  const hasRealCommonData = commonProcessItems.some(d =>
+    d.itemCode === 'A5' || d.itemCode === 'B4' || d.itemCode === 'A3' || d.itemCode === 'B2',
+  );
+  const filtered = hasRealCommonData
+    ? flatData
+    : flatData.filter(d => !isCommonProcessNo(d.processNo || ''));
+
+  const byProcess = groupByProcessNo(filtered);
+  const { processes: l2, b1IdMaps } = buildL2Structure(byProcess);
+
+  for (const proc of l2) {
+    const processItems = byProcess.get(proc.no) || [];
+    const b4Need = processItems.filter(d => d.itemCode === 'B4' && d.value?.trim() && !d.parentItemId);
+    if (b4Need.length === 0) continue;
+
+    const procClone = JSON.parse(JSON.stringify(proc)) as Process;
+    fillL2Data(procClone, processItems);
+    fillL3Data(procClone, processItems, b1IdMaps.get(proc.no));
+
+    const pcByM4 = new Map<string, { id: string }[]>();
+    for (const we of procClone.l3) {
+      const m4Key = we.m4 || '';
+      if (!pcByM4.has(m4Key)) pcByM4.set(m4Key, []);
+      for (const func of we.functions || []) {
+        for (const pc of func.processChars || []) {
+          pcByM4.get(m4Key)!.push({ id: pc.id });
+        }
+      }
+    }
+
+    const rr = new Map<string, number>();
+    for (const b4 of processItems) {
+      if (b4.itemCode !== 'B4' || !b4.value?.trim() || b4.parentItemId) continue;
+      const m4Key = b4.m4 || '';
+      const pcs = pcByM4.get(m4Key) || [];
+      if (pcs.length === 0) continue;
+      const idx = rr.get(m4Key) ?? 0;
+      rr.set(m4Key, idx + 1);
+      b4.parentItemId = pcs[idx % pcs.length]!.id;
+    }
+  }
+}
+
 // ════════════════════════════════════════════
 // Main
 // ════════════════════════════════════════════

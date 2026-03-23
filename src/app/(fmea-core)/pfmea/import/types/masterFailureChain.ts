@@ -107,6 +107,11 @@ export interface MasterFailureChain {
  * 수정: excelRow + rowSpan 기반 행 매칭
  *   - FM(A5)의 행 범위 내에 있는 FC(B4)만 연결 (엑셀 병합셀 구조 반영)
  *   - excelRow 없으면 순차 분배 (fallback, 카테시안 금지)
+ *
+ * ★ 2026-03-22: FE(C4) — 엑셀 행 기준
+ *   - L1 C4와 L2 A5 행번호가 겹치거나 인접(한 시트에 교차)하면: FM 행 이하의 **가장 가까운 이전 C4** 행의 FE
+ *   - C4·FM 행이 겹치지 않으면(별도 시트 블록): 기존과 같이 **carry-forward** — L1 글로벌 첫 FE 유지 (assignChainUUIDs·골든 테스트 정합)
+ *   - 행이 겹칠 때만 FM 행 이하 최근 C4로 FE 교체
  */
 
 /** FM 아이템 (행 위치 포함) */
@@ -135,6 +140,33 @@ export function buildFailureChainsFromFlat(
     return true;
   });
   const defaultFE = uniqueFEList.length > 0 ? uniqueFEList[0] : { scope: '', value: '' };
+
+  // C4 행 정렬 (엑셀 행 기반 FE 매핑용)
+  const c4RowEntries: { excelRow: number; scope: string; value: string }[] = [];
+  for (const d of flatData) {
+    if (d.itemCode !== 'C4' || !d.value?.trim() || d.excelRow == null) continue;
+    const scope = normalizeProcessNo(d.processNo) || d.processNo || '';
+    c4RowEntries.push({ excelRow: d.excelRow, scope, value: d.value.trim() });
+  }
+  c4RowEntries.sort((a, b) => a.excelRow - b.excelRow);
+
+  const a5RowsAll = flatData
+    .filter(d => d.itemCode === 'A5' && d.excelRow != null && d.value?.trim())
+    .map(d => d.excelRow!);
+  const canFeRowLink =
+    c4RowEntries.length > 0 &&
+    a5RowsAll.length > 0 &&
+    !(Math.max(...c4RowEntries.map(e => e.excelRow)) < Math.min(...a5RowsAll));
+
+  function pickFeForFmExcelRow(fmRow: number): { scope: string; value: string } {
+    if (c4RowEntries.length === 0) return defaultFE;
+    let pick = c4RowEntries[0];
+    for (const e of c4RowEntries) {
+      if (e.excelRow <= fmRow) pick = e;
+      else break;
+    }
+    return { scope: pick.scope, value: pick.value };
+  }
 
   // ── 공정별 FM(A5) — excelRow/rowSpan 보존 ──
   const processFMs = new Map<string, FMItem[]>();
@@ -210,8 +242,9 @@ export function buildFailureChainsFromFlat(
 
   // ── ★ 사실기반 사슬 생성 — 행 매칭 (카테시안 금지) ──
   let idx = 0;
-  // ★★★ 2026-03-14 I-1: round-robin → carry-forward (FE는 L1 글로벌 레벨이므로 직전 FE 유지) ★★★
+  // L1 글로벌 carry-forward (다중 C4가 있어도 행 연결 불가 시 첫 FE 유지 — 진단 테스트·기존 파이프라인)
   let cfFeValue = uniqueFEList.length > 0 ? uniqueFEList[0] : defaultFE;
+
   for (const [processNo, fms] of processFMs.entries()) {
     const fcs = processFCs.get(processNo) || [];
     const info = processInfo.get(processNo) || { A2: '', A3: '', A4: '' };
@@ -244,8 +277,11 @@ export function buildFailureChainsFromFlat(
     for (let fmIdx = 0; fmIdx < fms.length; fmIdx++) {
       const fm = fms[fmIdx];
 
-      // ★ FE 할당 (carry-forward — 직전 FE 유지, L1 글로벌 레벨)
-      const assignedFE = cfFeValue;
+      // ★ FE 할당: (1) C4·A5 행역 겹침 시 엑셀 행 기준 최근 C4 (2) 아니면 carry-forward
+      const assignedFE: { scope: string; value: string } =
+        canFeRowLink && fm.excelRow != null && c4RowEntries.length > 0
+          ? pickFeForFmExcelRow(fm.excelRow)
+          : cfFeValue;
 
       // ── FM에 매칭되는 FC 결정 (사실 기반) ──
       let matchedFCs: FCItem[];
@@ -284,6 +320,7 @@ export function buildFailureChainsFromFlat(
           l2Function: info.A3,
           productChar: info.A4,
           specialChar: (info as any).A4SC || undefined,
+          excelRow: fm.excelRow ?? undefined,
         });
       } else {
         // FM + 매칭된 FC들만 사슬 생성
@@ -306,6 +343,7 @@ export function buildFailureChainsFromFlat(
             specialChar: (info as any).A4SC || undefined,
             pcValue: supp?.B5 || undefined,
             dcValue: processDCs.get(processNo) || undefined,
+            excelRow: fc.excelRow ?? fm.excelRow ?? undefined,
           });
         }
       }

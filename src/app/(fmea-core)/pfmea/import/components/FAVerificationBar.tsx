@@ -6,6 +6,7 @@
  *
  * CODEFREEZE — 최고단계 (2026-02-28)
  * 수정 조건: "IMPORT 통계검증 수정해"라고 명시적으로 지시할 때만 수정
+ * 2026-03-22: FM/FC 미매칭·합계를 공정번호|정규화값 키로 통일 (타공정 동문자 오판 제거), supplementChainsFromFlatData와 정합
  * 포괄적 수정 지시 시 반드시 사용자에게 먼저 확인 요청
  */
 
@@ -39,6 +40,30 @@ function norm(s: string): string {
   return s.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+/** supplementChainsFromFlatData / excel-parser와 동일 — 공정번호 키 정규화 */
+function normalizeProcessNo(pNo: string | undefined): string {
+  if (!pNo) return '';
+  let n = pNo.trim();
+  n = n.replace(/^(공정|process|proc|p)[\s\-_]*/i, '');
+  n = n.replace(/번$/, '');
+  n = n.replace(/^0+(?=\d)/, '');
+  return n;
+}
+
+/** FM/FC 매칭 키: 공정별 고유 FM·FC (텍스트만 비교하면 타 공정 동문자 오판) */
+function fmFlatKey(d: { processNo: string; value: string }): string {
+  return `${normalizeProcessNo(d.processNo)}|${norm(d.value.trim())}`;
+}
+function fcFlatKey(d: { processNo: string; value: string }): string {
+  return `${normalizeProcessNo(d.processNo)}|${norm(d.value.trim())}`;
+}
+function fmChainKey(c: { processNo: string; fmValue: string }): string {
+  return `${normalizeProcessNo(c.processNo)}|${norm(c.fmValue.trim())}`;
+}
+function fcChainKey(c: { processNo: string; fcValue: string }): string {
+  return `${normalizeProcessNo(c.processNo)}|${norm(c.fcValue.trim())}`;
+}
+
 export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollToItem }: FAVerificationBarProps) {
 
   // ─── 1. 건수 검증 테이블 ───
@@ -50,15 +75,19 @@ export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollT
 
     // flatData 건수
     const fdProc = new Set(fd.filter(d => d.category !== 'C' && d.processNo && /^\d+$/.test(d.processNo)).map(d => d.processNo)).size;
-    const fdFM = new Set(fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => `${d.processNo}|${d.value.trim()}`)).size;
-    const fdFC = new Set(fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => `${d.processNo}|${d.value.trim()}`)).size;
+    const fdFM = new Set(
+      fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => fmFlatKey(d as { processNo: string; value: string })),
+    ).size;
+    const fdFC = new Set(
+      fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => fcFlatKey(d as { processNo: string; value: string })),
+    ).size;
     // ★ Bug fix: FE = 고장영향 = C4 (C3은 요구사항 — 오인식 버그였음)
     const fdFE = new Set(fd.filter(d => d.itemCode === 'C4' && d.value?.trim()).map(d => d.value.trim())).size;
 
     // FC시트 건수
     const chainCount = chains.length;
-    const chainFM = new Set(chains.filter(c => c.fmValue?.trim()).map(c => `${c.processNo}|${c.fmValue!.trim()}`)).size;
-    const chainFC = new Set(chains.filter(c => c.fcValue?.trim()).map(c => `${c.processNo}|${c.fcValue!.trim()}`)).size;
+    const chainFM = new Set(chains.filter(c => c.fmValue?.trim()).map(c => fmChainKey(c))).size;
+    const chainFC = new Set(chains.filter(c => c.fcValue?.trim()).map(c => fcChainKey(c))).size;
     const chainFE = new Set(chains.filter(c => c.feValue?.trim()).map(c => c.feValue!.trim())).size;
 
     const actualProc = fdProc || procStats.length || new Set(chains.map(c => c.processNo).filter(Boolean)).size;
@@ -103,21 +132,25 @@ export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollT
     // 메인시트 Set
     // ★ Bug fix: FE = C4(고장영향), NOT C3(요구사항)
     const mainFE = new Set(fd.filter(d => d.itemCode === 'C4' && d.value?.trim()).map(d => norm(d.value)));
-    const mainFM = new Set(fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => norm(d.value)));
-    const mainFC = new Set(fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => norm(d.value)));
+    const mainFM = new Set(fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).map(d => fmFlatKey(d as { processNo: string; value: string })));
+    const mainFC = new Set(fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).map(d => fcFlatKey(d as { processNo: string; value: string })));
 
     // FC시트 Set
     const chainFESet = new Set(chains.filter(c => c.feValue?.trim()).map(c => norm(c.feValue!)));
-    const chainFMSet = new Set(chains.filter(c => c.fmValue?.trim()).map(c => norm(c.fmValue!)));
-    const chainFCSet = new Set(chains.filter(c => c.fcValue?.trim()).map(c => norm(c.fcValue!)));
+    const chainFMSet = new Set(chains.filter(c => c.fmValue?.trim()).map(c => fmChainKey(c)));
+    const chainFCSet = new Set(chains.filter(c => c.fcValue?.trim()).map(c => fcChainKey(c)));
 
-    // 원본 텍스트로 표시하기 위한 Map (정규화 → 원본)
+    // 원본 텍스트로 표시하기 위한 Map (비교 키 → 표시 문자열)
     const feOriginal = new Map<string, string>();
     fd.filter(d => d.itemCode === 'C4' && d.value?.trim()).forEach(d => feOriginal.set(norm(d.value), d.value.trim()));
     const fmOriginal = new Map<string, string>();
-    fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).forEach(d => fmOriginal.set(norm(d.value), `[${d.processNo}] ${d.value.trim()}`));
+    fd.filter(d => d.itemCode === 'A5' && d.value?.trim()).forEach(d =>
+      fmOriginal.set(fmFlatKey(d as { processNo: string; value: string }), `[${d.processNo}] ${d.value.trim()}`),
+    );
     const fcOriginal = new Map<string, string>();
-    fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).forEach(d => fcOriginal.set(norm(d.value), `[${d.processNo}] ${d.value.trim()}`));
+    fd.filter(d => d.itemCode === 'B4' && d.value?.trim()).forEach(d =>
+      fcOriginal.set(fcFlatKey(d as { processNo: string; value: string }), `[${d.processNo}] ${d.value.trim()}`),
+    );
 
     // 차집합: 메인시트에 있지만 FC시트에 없는 항목
     const unmatchedFE = [...mainFE].filter(v => !chainFESet.has(v)).map(v => feOriginal.get(v) || v);

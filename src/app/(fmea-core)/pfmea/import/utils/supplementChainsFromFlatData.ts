@@ -23,6 +23,11 @@ function normalizeProcessNo(pNo: string | undefined): string {
   return n;
 }
 
+/** FAVerificationBar.norm 과 동일 — FE 중복·누락 판정 일치 */
+function normText(s: string): string {
+  return s.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 /**
  * 메인시트(flatData)에 있지만 FC시트 chains에 없는 FC/FE 항목을 보충하여 반환.
  * 원본 chains 배열은 변이하지 않는다.
@@ -39,15 +44,15 @@ export function supplementChainsFromFlatData(
   for (const chain of chains) {
     if (chain.fcValue?.trim()) {
       const normPNo = normalizeProcessNo(chain.processNo);
-      existingFCKeys.add(`${normPNo}|${chain.fcValue.trim()}`);
+      existingFCKeys.add(`${normPNo}|${normText(chain.fcValue)}`);
     }
   }
 
-  // ── 2. 기존 chain에서 FE 값 Set 구축: trimmed feValue ──
-  const existingFEValues = new Set<string>();
+  // ── 2. 기존 chain에서 FE 정규화 키 Set (FAVerificationBar·검증행 5와 동일 기준)
+  const existingFENorms = new Set<string>();
   for (const chain of chains) {
     if (chain.feValue?.trim()) {
-      existingFEValues.add(chain.feValue.trim());
+      existingFENorms.add(normText(chain.feValue));
     }
   }
 
@@ -111,7 +116,7 @@ export function supplementChainsFromFlatData(
   const feSeen = new Set<string>();
   for (const d of flatData) {
     if (d.itemCode === 'C4' && d.value?.trim()) {
-      const key = d.value.trim().toLowerCase();
+      const key = normText(d.value);
       if (!feSeen.has(key)) {
         feSeen.add(key);
         allFEValues.push({
@@ -135,7 +140,7 @@ export function supplementChainsFromFlatData(
   for (const chain of chains) {
     if (chain.fmValue?.trim()) {
       const normPNo = normalizeProcessNo(chain.processNo);
-      existingFMKeys.add(`${normPNo}|${chain.fmValue.trim()}`);
+      existingFMKeys.add(`${normPNo}|${normText(chain.fmValue)}`);
     }
   }
 
@@ -199,6 +204,9 @@ export function supplementChainsFromFlatData(
   if (fmIdx > 0) {
     console.log(`[supplement] FM ${fmIdx}건 보충 (메인시트 A5 → FC시트 누락분)`);
   }
+  if (fcIdx > 0) {
+    console.log(`[supplement] FC ${fcIdx}건 보충 (메인시트 B4 → FC시트 누락분)`);
+  }
 
   // ── 4. flatData B4 항목 중 chains에 없는 FC 보충 ──
   for (const d of flatData) {
@@ -206,7 +214,7 @@ export function supplementChainsFromFlatData(
     if (!d.value?.trim()) continue;
 
     const normPNo = normalizeProcessNo(d.processNo);
-    const fcKey = `${normPNo}|${d.value.trim()}`;
+    const fcKey = `${normPNo}|${normText(d.value)}`;
 
     if (existingFCKeys.has(fcKey)) continue;
     // 중복 방지: 이미 이번 보충에서 추가한 키
@@ -238,21 +246,22 @@ export function supplementChainsFromFlatData(
     });
   }
 
-  // ── 5. flatData C4 항목 중 chains에 없는 FE 보충 ──
+  // ── 5. flatData C4 항목 중 chains(+3·4단계 보충분)에 없는 FE 보충 ──
+  // FM/FC 보충 행에 이미 실린 feValue도 norm 기준으로 합산 (중복 supplement-fe 방지)
+  for (const c of newChains) {
+    if (c.feValue?.trim()) {
+      existingFENorms.add(normText(c.feValue));
+    }
+  }
+
   for (const d of flatData) {
     if (d.itemCode !== 'C4') continue;
     if (!d.value?.trim()) continue;
 
     const feValue = d.value.trim();
-    if (existingFEValues.has(feValue)) continue;
-    // 중복 방지
-    existingFEValues.add(feValue);
-
-    // 이미 FC 보충 과정에서 이 FE를 참조하는 chain이 추가되었는지 확인
-    const alreadyReferenced = newChains.some(
-      (c) => c.feValue === feValue,
-    );
-    if (alreadyReferenced) continue;
+    const feN = normText(feValue);
+    if (existingFENorms.has(feN)) continue;
+    existingFENorms.add(feN);
 
     const normPNo = normalizeProcessNo(d.processNo);
 
@@ -264,6 +273,10 @@ export function supplementChainsFromFlatData(
       feValue,
       feScope: normPNo || undefined,
     });
+  }
+
+  if (feIdx > 0) {
+    console.log(`[supplement] FE ${feIdx}건 보충 (메인시트 C4 → FC시트 누락분, norm 기준)`);
   }
 
   // ── 6. 원본 불변: 새 배열 반환 ──

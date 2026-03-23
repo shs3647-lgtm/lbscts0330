@@ -41,6 +41,10 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `lib/fmea/position-parser.ts` | ~1,200 | 위치기반 JSON/Excel → `PositionAtomicData`; **`atomicToFlatData`**는 미리보기/검증용 flat으로 변환 | - |
 | `lib/fmea/cross-sheet-resolver.ts` | ~110 | FC 시트 `L1/L2/L3원본행` → L1/L2/L3 시트 FE/FM/FC UUID (행번호만, 텍스트 매칭 없음) | - |
 
+**TemplatePreviewContent `previewLevel` (2026-03-22):** `'L1' \| 'L2' \| 'L3'` 만 — 고장사슬 UI는 `stepState.activeStep === 'FC'` 로 전환. `previewLevel: 'FC'` 는 미사용이었고 부모 `useState`와 불일치해 tsc 오류를 냈음.
+
+**FA 검증바(FAVerificationBar) FM/FC 키 (2026-03-22):** 미매칭·건수는 **`normalizeProcessNo(processNo)|norm(값)`** — 동일 문구라도 **공정이 다르면 별도 항목**. `supplementChainsFromFlatData`도 동일 키·FE는 `norm`으로 chain과 맞춤.
+
 **위치기반 Import 정답 (엑셀 행 = 기준행, 2026-03-22):**
 
 1. Import 시 **엑셀 물리 행**을 기준으로 L1/L2/L3를 읽으며 **행 번호 → 해당 시트 엔티티 UUID** 맵을 만든다 (`position-parser` + `CrossSheetResolver.register*`).

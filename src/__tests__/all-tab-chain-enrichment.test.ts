@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildWorksheetState } from '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState';
+import { buildWorksheetState, patchLegacyFlatB4ParentItemIds } from '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState';
 import { buildFailureChainsFromFlat } from '@/app/(fmea-core)/pfmea/import/types/masterFailureChain';
 import { injectFailureChains } from '@/app/(fmea-core)/pfmea/import/utils/failureChainInjector';
 import { processFailureLinks } from '@/app/(fmea-core)/pfmea/worksheet/tabs/all/processFailureLinks';
@@ -38,6 +38,9 @@ const realData: ImportedFlatData[] = (fixtureRaw as unknown[]).map((item: unknow
     createdAt: new Date(d.createdAt as string),
   } as ImportedFlatData;
 });
+
+// 픽스처(2026-02)에 B4.parentItemId 없음 → FK-only fillL3에서 FC 전부 스킵됨. 결정론적 보정.
+patchLegacyFlatB4ParentItemIds(realData);
 
 const dummyCrossTab: CrossTab = { aRows: [], bRows: [], cRows: [], total: 0 };
 
