@@ -1,6 +1,6 @@
 # FMEA OnPremise 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-23
+> **최종 업데이트**: 2026-03-22
 > **총 테스트**: 78파일 / 1343테스트 ALL PASS | **빌드**: 240페이지 성공 | **tsc**: 에러 0개
 
 ---
@@ -43,6 +43,7 @@
 | 2026-03-23 | - | **Phase 1-3 + 3-1**: `position-parser` — `exceljs` 타입(`Workbook`/`Row`/`Worksheet`), 시트 누락 시 명시 throw, FC `L1/L2/L3_origRow` 범위 검증; `atomicToFlatData` `itemCode: 'SC'` `as any` 제거; 테스트 `position-parser.test.ts` origRow 초과 케이스 | Claude |
 | 2026-03-23 | - | **Phase 3-2·3-3**: `save-from-import/route.ts` — `$transaction` `maxWait`/`timeout` 보강, FL·RA 전면 저장 실패(0건) 시 롤백, optional `deleteMany` 빈 catch → `console.warn`; `verifyRoundTrip` 실패 `console.error`; Vitest mock에 `tx.failureLink.count`/`tx.riskAnalysis.count` | Claude |
 | 2026-03-24 | - | **Rule 17 동기화**: `docs/MAINTENANCE_MANUAL.md` §3.1·§7.3(save-from-import 트랜잭션·불변·빈 catch), `CLAUDE.md` 테스트 블록 0c; `SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md` Phase 4 문서 항목·전체 `test:run`은 별도 검증으로 명시 | Claude |
+| 2026-03-22 | - | **save-position-import RiskAnalysis + baseline 전제**: RA `createMany`에 `fmId`/`fcId`/`feId`(EX-06); E-22 `parentId`≡`linkId`(주석). Guard `tests/guard/save-position-import-fk.guard.test.ts`. `npm run verify:pipeline-baseline`은 대상 fmeaId **Import 완료** 전제 — 문서 `MAINTENANCE_MANUAL.md` §2.2·§2.5, `CLAUDE.md` 0b·0c | Claude |
 | 2026-03-23 | - | **3L 고장 누락 대량(예: 100건+) 재발**: `atomicToLegacy`의 `pickLegacyFcProcessCharId` 유효 집합을 `L3Function.l2StructId === L2`로만 구성 → DB에 `l2StructId` 비정규 오염 시 `l3FuncId`가 집합에서 제외되어 `processCharId`가 빈값 → B3와 FC 불일치. **이 공정의 `L3Structure.id`에 연결된 `l3StructId`로 필터**하도록 수정. 테스트: `atomic-to-legacy-fc-processcharid.test.ts` 3번째 케이스. | Claude |
 
 ---

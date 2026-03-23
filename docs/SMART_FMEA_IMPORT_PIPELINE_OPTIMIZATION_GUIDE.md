@@ -28,9 +28,10 @@
 | ④ FC 주입 등 | `src/app/(fmea-core)/pfmea/import/utils/failureChainInjector.ts` |
 | ⑤ 워크시트 상태 | `src/app/(fmea-core)/pfmea/import/utils/buildWorksheetState.ts` |
 | ⑥ Import → DB (서버) | `src/app/api/fmea/save-from-import/route.ts` |
+| ⑥b 위치기반 Import → DB | `src/app/api/fmea/save-position-import/route.ts` — RiskAnalysis: `linkId` + `fmId`/`fcId`/`feId`(EX-06); 가드 `tests/guard/save-position-import-fk.guard.test.ts` |
 
 **검증·파이프라인 API:** `src/app/api/fmea/pipeline-verify/*`  
-**CLI (골든):** `npm run verify:pipeline-baseline` / `verify:pipeline-baseline:strict` — `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3
+**CLI (골든):** `npm run verify:pipeline-baseline` / `verify:pipeline-baseline:strict` — `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3 — **대상 fmeaId는 Import·Atomic 저장 완료 후** 실행 (빈 DB면 `allGreen=false`).
 
 ---
 
@@ -142,6 +143,7 @@ Get-ChildItem -Recurse -Path $root -Include `
 
 - 본 리포는 **코드프리즈 태그/CODEFREEZE 변경에 사용자 서면 승인**이 필요할 수 있음 (`CLAUDE.md` / 프로젝트 규칙).
 - 권장: `OPTIMIZE: …` 커밋 → 검증 로그 첨부 → 승인 후 annotated tag.
+- **적용됨 (2026-03-22, 사용자 승인):** annotated tag `import-pipeline-phase4-2026-03-22` → 커밋 `OPTIMIZE: import pipeline phase1-3 + save-position-import RA EX-06 (Phase 4 user-approved)`.
 
 ---
 
@@ -168,7 +170,8 @@ Get-ChildItem -Recurse -Path $root -Include `
 
 ### Phase 4
 - [x] 문서 동기화(Rule 17): `MAINTENANCE_MANUAL` §3.1·§7.3, `CLAUDE.md` 0c, 본 가이드·`00_MAINTENANCE_MANUAL` (2026-03-24)
-- [ ] 전체 테스트 녹색 + (승인 후) 버전 태그 / CODEFREEZE 태그
+- [x] (승인 후) **annotated tag** `import-pipeline-phase4-2026-03-22` (2026-03-22) — 소스 파일에 **CODEFREEZE 주석 추가/변경은 별도 승인**
+- [ ] `npm run test:run` **전체** 녹색 — DB/FULL_SYSTEM·환경 의존 스펙은 CI/별도 검증 (가이드 Phase 1과 동일)
 
 ---
 

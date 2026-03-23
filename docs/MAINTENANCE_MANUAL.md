@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-24
+> **최종 업데이트**: 2026-03-22
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -64,6 +64,7 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 |------|------|------|-----------|
 | `api/fmea/route.ts` | 2,451 | GET/POST Atomic DB 이중 저장 | ✅ v4.0.0 |
 | `api/fmea/save-from-import/route.ts` | 699 | Import→DB: 단일 `$transaction`(DELETE ALL→CREATE ALL), `maxWait` 20s/`timeout` 120s, 커밋 전 FL·RA 0건 불변 검증, 빈 catch 금지 | - |
+| `api/fmea/save-position-import/route.ts` | ~470 | 위치기반 `PositionAtomicData`→프로젝트 스키마. **RiskAnalysis**: Prisma는 `linkId`(FailureLink FK) + `fmId`/`fcId`/`feId`(EX-06); 타입상 E-22 `parentId`는 FL id와 동일 의미(스키마 컬럼 없음). FK 가드: `tests/guard/save-position-import-fk.guard.test.ts` | - |
 | `api/fmea/rebuild-atomic/route.ts` | ~400 | legacyData→Atomic 재구축 | - |
 | `api/fmea/repair-fk/route.ts` | ~90 | FK 고아·무효만 정리 (`fk-repair.ts`, rebuild 없음) | - |
 | `worksheet/migration.ts` | 1,200 | Legacy JSON → FMEAWorksheetDB 변환 | ✅ |
@@ -96,6 +97,8 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `scripts/verify-location-fk-baseline.ts` | `GET /api/fmea/pipeline-verify` — 구조(0)→UUID(1)→fmeaId(2)→**FK(3)**→누락(4), `allGreen` 필수 |
 | `npm run verify:pipeline-baseline` | 기본 URL `http://127.0.0.1:3000`, `VERIFY_FMEA_ID` 기본 `pfm26-m066` |
 | `npm run verify:pipeline-baseline:strict` | `--baseline`: 골든 L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
+
+**전제:** 대상 `fmeaId`(기본 `pfm26-m066`)에 **이미 Import·Atomic 저장**이 되어 있어야 STEP0 구조가 통과한다. DB가 비어 있으면 `L2=0`·`allGreen=false`이며, **dev 서버만 기동한 상태로는 녹색이 되지 않는다.**
 
 스냅샷·순서: `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3·§4 — STEP3 `verifyFk` JSDoc에 FailureLink·고아·미연결 판정 근거 정리
 

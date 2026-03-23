@@ -423,15 +423,25 @@ export async function POST(request: NextRequest) {
       }
 
       // 12. RiskAnalyses — 유효한 FL만 참조
+      // E-22 parentId: PosRiskAnalysis.parentId === FailureLink.id — Prisma는 linkId FK만 보관(EX-06: fmId/fcId/feId 병행).
       const validFlIds = new Set(validFLs.map(fl => fl.id));
       const validRAs = atomicData.riskAnalyses.filter(ra => validFlIds.has(ra.linkId));
       if (validRAs.length > 0) {
         await tx.riskAnalysis.createMany({
           skipDuplicates: true,
           data: validRAs.map(ra => ({
-            id: ra.id, fmeaId: normalizedId, linkId: ra.linkId,
-            severity: ra.severity, occurrence: ra.occurrence, detection: ra.detection,
-            ap: ra.ap, preventionControl: ra.preventionControl, detectionControl: ra.detectionControl,
+            id: ra.id,
+            fmeaId: normalizedId,
+            linkId: ra.linkId,
+            fmId: ra.fmId ?? undefined,
+            fcId: ra.fcId ?? undefined,
+            feId: ra.feId ?? undefined,
+            severity: ra.severity,
+            occurrence: ra.occurrence,
+            detection: ra.detection,
+            ap: ra.ap,
+            preventionControl: ra.preventionControl,
+            detectionControl: ra.detectionControl,
           })),
         });
         console.log(`[save-position-import] RiskAnalysis: ${validRAs.length}건 생성`);
