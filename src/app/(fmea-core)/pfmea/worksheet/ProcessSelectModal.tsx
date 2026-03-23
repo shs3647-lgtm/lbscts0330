@@ -39,22 +39,29 @@ interface ProcessSelectModalProps {
   onContinuousAdd?: (process: ProcessItem, addNewRow: boolean) => void;
 }
 
-// DB에서 마스터 FMEA 공정 로드
-const loadMasterProcessesFromDB = async (fmeaId?: string): Promise<ProcessItem[]> => {
+// DB에서 마스터 FMEA 공정 로드 (4단계 fallback 체인 — API 레벨에서 처리)
+const loadMasterProcessesFromDB = async (fmeaId?: string): Promise<{
+  processes: ProcessItem[];
+  sourceFmeaId?: string;
+  datasetName?: string;
+}> => {
   try {
-    // ★ 2026-03-19: fmeaId별 마스터 데이터 분리
-    const url = fmeaId ? `/api/fmea/master-processes?fmeaId=${fmeaId}` : '/api/fmea/master-processes';
-    const res = await fetch(url);
+    const url = fmeaId
+      ? `/api/fmea/master-processes?fmeaId=${encodeURIComponent(fmeaId)}`
+      : '/api/fmea/master-processes';
+    const res = await fetch(url, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      if (data.processes && data.processes.length > 0) {
-        return data.processes;
-      }
+      return {
+        processes: data.processes || [],
+        sourceFmeaId: data.sourceFmeaId,
+        datasetName: data.datasetName,
+      };
     }
   } catch (e) {
     console.error('마스터 공정 로드 실패:', e);
   }
-  return [];
+  return { processes: [] };
 };
 
 // ★★★ 2026-02-16: localStorage 폴백 함수 제거 (DB Only 정책) ★★★
@@ -82,6 +89,7 @@ export default function ProcessSelectModal({
 
   const [loading, setLoading] = useState(false);
   const [dataSource, setDataSource] = useState<string>('');
+  const [sourceFmeaId, setSourceFmeaId] = useState<string | undefined>();
 
   // ★ 공정명 수정 추적 (processNo → 수정된 이름)
   const [modifiedProcesses, setModifiedProcesses] = useState<Map<string, string>>(new Map());
@@ -105,13 +113,20 @@ export default function ProcessSelectModal({
 
     const loadData = async () => {
       try {
-        // ★★★ 2026-02-16: DB Only 정책 - localStorage 폴백 제거 ★★★
-        let loaded = await loadMasterProcessesFromDB(fmeaId);
+        // ★★★ 4단계 Fallback 체인 — API 레벨에서 처리 (master-processes route) ★★★
+        const result = await loadMasterProcessesFromDB(fmeaId);
+        let loaded = result.processes;
 
         if (loaded.length > 0) {
-          setDataSource('Master FMEA (DB)');
+          // sourceFmeaId가 현재 fmeaId와 다르면 → 마스터에서 가져온 것임을 표시
+          const src = result.sourceFmeaId && result.sourceFmeaId !== fmeaId
+            ? `Master BD (${result.sourceFmeaId})`
+            : 'Master FMEA (DB)';
+          setDataSource(src);
+          setSourceFmeaId(result.sourceFmeaId);
         } else {
           setDataSource('없음 - 직접 입력 필요');
+          setSourceFmeaId(undefined);
         }
 
         // 워크시트 수정 이름 오버레이
@@ -121,7 +136,7 @@ export default function ProcessSelectModal({
           return (wsProc && wsProc.name !== p.name) ? { ...p, name: wsProc.name } : p;
         });
 
-        // 워크시트에만 있는 공정 추가
+        // 워크시트에만 있는 공정 추가 (수동 입력된 공정)
         const loadedNos = new Set(loaded.map(p => p.no));
         existingProcesses.forEach(wp => {
           if (wp.no && wp.name && !loadedNos.has(wp.no)) {
@@ -430,9 +445,14 @@ export default function ProcessSelectModal({
         <div className="px-3 py-1 border-b bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-between">
           <span className="text-[10px] font-bold text-green-700">▼ 하위항목(Child): 메인공정명(Main Process)</span>
           <div className="flex items-center gap-2">
-            <span className={`text-[9px] px-2 py-0.5 rounded ${dataSource.includes('Master') ? 'bg-blue-100 text-blue-700' : dataSource.includes('local') ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
-              {loading ? '로딩중...' : `📂 ${dataSource} (${processes.length}개)`}
+            <span className={`text-[9px] px-2 py-0.5 rounded ${dataSource.includes('Master') || dataSource.includes('BD') ? 'bg-blue-100 text-blue-700' : dataSource.includes('실패') ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>
+              {loading ? '⏳ 로딩중...' : `📂 ${dataSource} (${processes.length}개)`}
             </span>
+            {!loading && sourceFmeaId && sourceFmeaId !== fmeaId && (
+              <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-300" title={`Master BD 출처: ${sourceFmeaId}`}>
+                ← {sourceFmeaId}
+              </span>
+            )}
             {/* ✅ 연속입력 토글 */}
             {onContinuousAdd && (
               <button

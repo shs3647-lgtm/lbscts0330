@@ -32,113 +32,160 @@ const ITEM_CODE_MAPPING: Record<string, string> = {
   'C4': 'failureEffect',  // L1-4 고장영향
 };
 
+/**
+ * ★ dataset → processes 변환 헬퍼
+ */
+async function buildProcessesFromDataset(
+  prisma: ReturnType<typeof getPrisma>,
+  datasetId: string
+): Promise<Array<{ id: string; no: string; name: string; cpData: Record<string, string> }>> {
+  if (!prisma) return [];
+  const flatItems = await prisma.pfmeaMasterFlatItem.findMany({
+    where: { datasetId },
+    orderBy: { processNo: 'asc' },
+  });
+
+  const processMap = new Map<string, Record<string, string>>();
+  flatItems.forEach((item: any) => {
+    const processNo = item.processNo || '';
+    if (!processMap.has(processNo)) {
+      processMap.set(processNo, {
+        processNo: '', processName: '', processDesc: '',
+        workElement: '', productChar: '', processChar: '',
+        specialChar: '', specTolerance: '', evalMethod: '',
+        sampleSize: '', controlMethod: '', reactionPlan: '',
+      });
+    }
+    const proc = processMap.get(processNo)!;
+    const cpField = ITEM_CODE_MAPPING[item.itemCode];
+    if (cpField && item.value) proc[cpField] = item.value;
+  });
+
+  return Array.from(processMap.entries())
+    .filter(([_, proc]) => proc.processName?.trim())
+    .map(([processNo, proc], idx) => ({
+      id: `master_proc_${processNo}_${idx}`,
+      no: proc.processNo || String((idx + 1) * 10),
+      name: proc.processName,
+      cpData: {
+        processNo: proc.processNo || String((idx + 1) * 10),
+        processName: proc.processName,
+        processDesc: proc.processDesc || '',
+        workElement: proc.workElement || '',
+        productChar: '', processChar: '', specialChar: '',
+        specTolerance: '', evalMethod: '', sampleSize: '',
+        controlMethod: '', reactionPlan: '',
+      },
+    }));
+}
+
+/**
+ * GET: 마스터 공정 목록 조회
+ *
+ * ★ 4단계 Fallback 체인 (bd-list와 동일 전략):
+ *   1단계: 현재 fmeaId의 pfmeaMasterDataset → processes 존재 시 반환
+ *   2단계: fmeaType='M' 데이터셋 중 processes > 0
+ *   3단계: fmeaType='F' 데이터셋 중 processes > 0
+ *   4단계: 모든 isActive 데이터셋 중 processes > 0 (M→F→P 순)
+ *
+ * 근본 원인: 현재 FMEA(pfm26-p003-i03)는 직접 BD가 없고,
+ *   Master BD는 다른 fmeaId(pfm26-m066)에 저장됨 → fallback으로 찾아야 함
+ */
 export async function GET(req: NextRequest) {
   const prisma = getPrisma();
   if (!prisma) {
     return NextResponse.json({ success: false, error: 'DB 연결 실패', processes: [] });
   }
-  
+
   try {
-    // 1. 활성화된 Master Dataset 조회 — ★ 2026-03-19: fmeaId별 분리
     const fmeaId = req.nextUrl.searchParams.get('fmeaId') || '';
-    const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
-      where: {
-        isActive: true,
-        ...(fmeaId ? { fmeaId } : {}),
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
-    
-    if (!activeDataset) {
-      return NextResponse.json({ 
-        success: true, 
+
+    let activeDataset: any = null;
+    let processes: any[] = [];
+
+    // ─── 1단계: 정확한 fmeaId 매칭 ─────────────────────────────────
+    if (fmeaId) {
+      activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+        where: { isActive: true, fmeaId },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (activeDataset) {
+        processes = await buildProcessesFromDataset(prisma, activeDataset.id);
+        if (processes.length > 0) {
+          console.info(`[master-processes] 1단계 매칭: fmeaId=${fmeaId} → ${processes.length}건`);
+        }
+      }
+    }
+
+    // ─── 2단계: fmeaType='M' Master 데이터셋 ────────────────────────
+    if (processes.length === 0) {
+      const mDatasets = await prisma.pfmeaMasterDataset.findMany({
+        where: { isActive: true, fmeaType: 'M' },
+        orderBy: { updatedAt: 'desc' },
+      });
+      for (const ds of mDatasets) {
+        const p = await buildProcessesFromDataset(prisma, ds.id);
+        if (p.length > 0) { activeDataset = ds; processes = p; break; }
+      }
+      if (processes.length > 0) {
+        console.info(`[master-processes] 2단계 fmeaType='M' 매칭: fmeaId=${activeDataset?.fmeaId} → ${processes.length}건`);
+      }
+    }
+
+    // ─── 3단계: fmeaType='F' Family 데이터셋 ────────────────────────
+    if (processes.length === 0) {
+      const fDatasets = await prisma.pfmeaMasterDataset.findMany({
+        where: { isActive: true, fmeaType: 'F' },
+        orderBy: { updatedAt: 'desc' },
+      });
+      for (const ds of fDatasets) {
+        const p = await buildProcessesFromDataset(prisma, ds.id);
+        if (p.length > 0) { activeDataset = ds; processes = p; break; }
+      }
+      if (processes.length > 0) {
+        console.info(`[master-processes] 3단계 fmeaType='F' 매칭: fmeaId=${activeDataset?.fmeaId} → ${processes.length}건`);
+      }
+    }
+
+    // ─── 4단계: 모든 isActive 데이터셋 (어떤 타입이든 processes 있는 것) ─
+    if (processes.length === 0) {
+      const allDatasets = await prisma.pfmeaMasterDataset.findMany({
+        where: { isActive: true },
+        orderBy: [{ fmeaType: 'asc' }, { updatedAt: 'desc' }], // M→F→P 순
+      });
+      for (const ds of allDatasets) {
+        const p = await buildProcessesFromDataset(prisma, ds.id);
+        if (p.length > 0) { activeDataset = ds; processes = p; break; }
+      }
+      if (processes.length > 0) {
+        console.info(`[master-processes] 4단계 전체 매칭: fmeaId=${activeDataset?.fmeaId} → ${processes.length}건`);
+      }
+    }
+
+    if (processes.length === 0) {
+      return NextResponse.json({
+        success: true,
         processes: [],
         source: 'none',
-        message: 'Master FMEA 기초정보가 없습니다. 먼저 기초정보를 Import해주세요.'
+        message: 'Master FMEA 기초정보가 없습니다. Import에서 BD를 먼저 저장하세요.',
       });
     }
-    
-    // 2. Master Dataset의 전체 공정 데이터 조회
-    const flatItems = await prisma.pfmeaMasterFlatItem.findMany({
-      where: { datasetId: activeDataset.id },
-      orderBy: { processNo: 'asc' }
-    });
-    
-    // 3. processNo별로 전체 데이터 그룹핑
-    const processMap = new Map<string, Record<string, string>>();
-    
-    flatItems.forEach((item: any) => {
-      const processNo = item.processNo || '';
-      if (!processMap.has(processNo)) {
-        processMap.set(processNo, {
-          processNo: '',
-          processName: '',
-          processDesc: '',
-          workElement: '',
-          productChar: '',
-          processChar: '',
-          specialChar: '',
-          specTolerance: '',
-          evalMethod: '',
-          sampleSize: '',
-          controlMethod: '',
-          reactionPlan: '',
-        });
-      }
-      const proc = processMap.get(processNo)!;
-      
-      // itemCode를 CP 필드로 매핑
-      const cpField = ITEM_CODE_MAPPING[item.itemCode];
-      if (cpField && item.value) {
-        proc[cpField] = item.value;
-      }
-    });
-    
-    // 4. 공정 목록 생성 (공정명이 있는 것만)
-    // ★ 공정 기본 정보(A~E열)만 자동 입력, 특성 정보(I열 이후)는 사용자 입력
-    const processes = Array.from(processMap.entries())
-      .filter(([_, proc]) => proc.processName && proc.processName.trim() !== '')
-      .map(([processNo, proc], idx) => ({
-        id: `master_proc_${processNo}_${idx}`,
-        no: proc.processNo || String((idx + 1) * 10),
-        name: proc.processName,
-        // CP 자동 입력용 기본 데이터 (A~E열만)
-        cpData: {
-          processNo: proc.processNo || String((idx + 1) * 10),
-          processName: proc.processName,
-          processDesc: proc.processDesc || '',
-          workElement: proc.workElement || '',
-          // ★ 특성 관련 정보는 빈 값 (1:N 관계이므로 사용자 입력)
-          productChar: '',
-          processChar: '',
-          specialChar: '',
-          specTolerance: '',
-          evalMethod: '',
-          sampleSize: '',
-          controlMethod: '',
-          reactionPlan: '',
-        }
-      }));
-    
-    
-    // ★ 마스터 공정 목록은 참조 데이터 → 2분 캐시
+
+    // ★ fallback 결과는 캐시하지 않음 (다음 요청에서 더 나은 매칭이 생길 수 있음)
     return NextResponse.json({
       success: true,
       processes,
       source: 'pfmea_master_flat_items',
+      sourceFmeaId: activeDataset.fmeaId,  // ★ 실제 사용된 fmeaId (UI 표시용)
       datasetId: activeDataset.id,
-      datasetName: activeDataset.name
+      datasetName: activeDataset.name,
     }, {
-      headers: { 'Cache-Control': 'private, max-age=120, stale-while-revalidate=60' },
+      headers: { 'Cache-Control': 'no-store' },
     });
-    
+
   } catch (error: any) {
     console.error('공정 조회 오류:', error.message);
-    return NextResponse.json({
-      success: false,
-      processes: [],
-      error: error.message
-    });
+    return NextResponse.json({ success: false, processes: [], error: error.message });
   }
 }
 
