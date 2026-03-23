@@ -937,7 +937,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
         )}
 
         {/* ⚠️ 심각도 누락 배너 — 확정 여부와 무관하게 항상 표시 */}
-        {/* ✅ 고장연결 완료 배너 + ALL 화면 이동 버튼 */}
+        {/* 고장연결 완료 배너 + ALL 화면 이동 버튼 */}
         {/* ★★★ FM+FE+FC 모두 누락 0이어야 완전 완료 ★★★ */}
         {totalMissingCount === 0 && savedLinks.length > 0 && !isConfirmed && (
           <div style={{

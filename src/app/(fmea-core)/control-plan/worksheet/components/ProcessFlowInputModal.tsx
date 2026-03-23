@@ -304,7 +304,7 @@ export default function ProcessFlowInputModal({
             <span className={`text-[9px] px-2 py-0.5 rounded ${dataSource.includes('Master') ? 'bg-blue-100 text-blue-700' : dataSource.includes('local') ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
               {loading ? '로딩중...' : `📂 ${dataSource} (${processes.length}개)`}
             </span>
-            {/* ✅ 연속입력 토글 */}
+            {/* 연속입력 토글 */}
             {onContinuousAdd && (
               <button
                 onClick={() => {

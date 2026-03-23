@@ -195,7 +195,7 @@ export function RevisionTable({
                         {revisions.map((revision, index) => (
                             <tr key={revision.id} className={`h-[20px] hover:bg-blue-50 ${index % 2 === 0 ? 'bg-white' : 'bg-[#e0f2fb]'}`}>
                                 <td className="border border-gray-400 px-[1px] py-[1px] text-center align-middle">
-                                    {/* ✅ 디폴트(1.00) + 승인완료 개정은 삭제 불가 → 체크박스 비활성화 */}
+                                    {/* 디폴트(1.00) + 승인완료 개정은 삭제 불가 → 체크박스 비활성화 */}
                                     {(() => {
                                         const isDefault = index === 0;
                                         const isApproved = revision.approveStatus === '승인';

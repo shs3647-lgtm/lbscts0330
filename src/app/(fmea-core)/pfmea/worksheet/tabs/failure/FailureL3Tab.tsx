@@ -1010,7 +1010,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
                     </td>
                   )}
 
-                  {/* ✅ 공정특성 셀: showChar && charRowSpan > 0 (녹색) ★ 읽기전용: 컨텍스트 메뉴 차단 */}
+                  {/* 공정특성 셀: showChar && charRowSpan > 0 (녹색) ★ 읽기전용: 컨텍스트 메뉴 차단 */}
                   {row.showChar && row.charRowSpan > 0 && (
                     <td rowSpan={row.charRowSpan} className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-1.5 text-center align-middle text-xs" style={{ background: getZebra('function', charStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       {String(row.processChar?.name || '') || '(기능분석에서 입력)'}

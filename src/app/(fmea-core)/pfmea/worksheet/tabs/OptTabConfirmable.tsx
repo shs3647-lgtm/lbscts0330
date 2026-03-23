@@ -321,7 +321,7 @@ export default function OptTabConfirmable({
             <div className="flex items-center justify-between">
               <span className="flex-1 text-center">P-FMEA 최적화(6단계)</span>
               <div className="flex gap-1 absolute right-2">
-                {/* ✅ 완료 상태 표시 */}
+                {/* 완료 상태 표시 */}
                 {!isConfirmed && completionStatus.total > 0 && (
                   <span className={`text-[10px] px-2 py-0.5 rounded ${
                     completionStatus.isReady 

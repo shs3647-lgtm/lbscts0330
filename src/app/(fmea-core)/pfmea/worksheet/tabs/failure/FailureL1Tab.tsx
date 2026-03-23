@@ -872,7 +872,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                 const reqZebra = getZebra('requirement', reqIdxMap.get(row.key) ?? idx); // ★ 보라색 (고장영향과 구분)
                 return (
                   <tr key={row.key} data-effect-id={row.effectId} onContextMenu={(e) => handleContextMenu(e, 'effect', row.reqId, row.effectId)}>
-                    {/* ✅ 완제품 공정명 - productIdx 기준 줄무늬 */}
+                    {/* 완제품 공정명 - productIdx 기준 줄무늬 */}
                     {row.showProduct && (
                       <td
                         rowSpan={row.productRowSpan}

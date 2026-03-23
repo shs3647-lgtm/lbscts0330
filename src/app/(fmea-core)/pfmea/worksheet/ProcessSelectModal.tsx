@@ -408,7 +408,7 @@ export default function ProcessSelectModal({
 
   return createPortal(
     <>
-      {/* ✅ 2026-01-19: 배경을 클릭 통과하도록 변경 - 다른 항목 클릭 시 자동 전환 */}
+      {/* 2026-01-19: 배경을 클릭 통과하도록 변경 - 다른 항목 클릭 시 자동 전환 */}
       <div
         className="fixed inset-0 z-[9998] pointer-events-none"
       />
@@ -453,7 +453,7 @@ export default function ProcessSelectModal({
                 ← {sourceFmeaId}
               </span>
             )}
-            {/* ✅ 연속입력 토글 */}
+            {/* 연속입력 토글 */}
             {onContinuousAdd && (
               <button
                 onClick={() => {
