@@ -211,7 +211,7 @@ export async function saveAtomicFromPosition(
             parentId: f.parentId || null,
             functionName: f.functionName,
             productChar: f.productChar,
-            specialChar: f.specialChar,
+            specialChar: f.specialChar ?? null,
           })),
         });
       }
@@ -256,7 +256,7 @@ export async function saveAtomicFromPosition(
             l2StructId: pc.l2StructId,
             parentId: pc.parentId || null,
             name: pc.name,
-            specialChar: pc.specialChar,
+            specialChar: pc.specialChar ?? null,
             orderIndex: pc.orderIndex,
           })),
         });
@@ -339,7 +339,7 @@ export async function saveAtomicFromPosition(
             parentId: f.parentId || null,
             functionName: f.functionName,
             processChar: f.processChar,
-            specialChar: f.specialChar,
+            specialChar: f.specialChar ?? null,
           })),
         });
         console.log(`[raw-to-atomic] L3Function: ${data.l3Functions.length}건 생성`);
@@ -354,7 +354,7 @@ export async function saveAtomicFromPosition(
               l3StructId: pc.l3StructId,
               parentId: pc.parentId || null,
               name: pc.name,
-              specialChar: pc.specialChar,
+              specialChar: pc.specialChar ?? null,
             })),
           });
           console.log(`[raw-to-atomic] L3ProcessChar: ${data.l3ProcessChars.length}건 생성`);

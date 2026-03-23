@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l1Scopes.map(s => ({
             id: s.id, fmeaId: normalizedId, l1StructId: s.l1StructId,
-            parentId: s.parentId || null, scope: s.scope,
+            scope: s.scope,
           })),
         });
         console.log(`[save-position-import] L1Scope: ${atomicData.l1Scopes.length}건 생성`);
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l2Structures.map(s => ({
             id: s.id, fmeaId: normalizedId, l1Id: s.l1Id, no: s.no, name: s.name, order: s.order,
-            parentId: s.parentId || null,
+            
           })),
         });
       }
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l2ProcessNos.map(p => ({
             id: p.id, fmeaId: normalizedId, l2StructId: p.l2StructId,
-            parentId: p.parentId || null, no: p.no,
+            no: p.no,
           })),
         });
         console.log(`[save-position-import] L2ProcessNo: ${atomicData.l2ProcessNos.length}건 생성`);
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l2ProcessNames.map(p => ({
             id: p.id, fmeaId: normalizedId, l2StructId: p.l2StructId,
-            parentId: p.parentId || null, name: p.name,
+            name: p.name,
           })),
         });
         console.log(`[save-position-import] L2ProcessName: ${atomicData.l2ProcessNames.length}건 생성`);
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l3Structures.map(s => ({
             id: s.id, fmeaId: normalizedId, l1Id: s.l1Id, l2Id: s.l2Id, m4: s.m4, name: s.name, order: s.order,
-            parentId: s.parentId || null,
+            
           })),
         });
       }
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l1Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l1StructId: f.l1StructId,
-            parentId: f.parentId || null,
+            
             category: f.category, functionName: f.functionName, requirement: f.requirement,
           })),
         });
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l2Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l2StructId: f.l2StructId,
-            parentId: f.parentId || null,
+            
             functionName: f.functionName, productChar: f.productChar, specialChar: f.specialChar,
           })),
         });
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.l2SpecialChars.map(sc => ({
             id: sc.id, fmeaId: normalizedId, l2StructId: sc.l2StructId,
-            l2FuncId: sc.l2FuncId, parentId: sc.parentId || null, value: sc.value,
+            l2FuncId: sc.l2FuncId, value: sc.value,
           })),
         });
         console.log(`[save-position-import] L2SpecialChar: ${atomicData.l2SpecialChars.length}건 생성`);
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.processProductChars.map(pc => ({
             id: pc.id, fmeaId: normalizedId, l2StructId: pc.l2StructId,
-            parentId: pc.parentId || null,
+            
             name: pc.name, specialChar: pc.specialChar, orderIndex: pc.orderIndex,
           })),
         });
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
         await tx.l3Function.createMany({
           data: atomicData.l3Functions.map(f => ({
             id: f.id, fmeaId: normalizedId, l3StructId: f.l3StructId, l2StructId: f.l2StructId,
-            parentId: f.parentId || null,
+            
             functionName: f.functionName, processChar: f.processChar, specialChar: f.specialChar,
           })),
         });
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
           await safeTx(tx, 'l3ProcessChar').createMany({
             data: atomicData.l3ProcessChars.map(pc => ({
               id: pc.id, fmeaId: normalizedId, l3FuncId: pc.l3FuncId, l3StructId: pc.l3StructId,
-              parentId: pc.parentId || null,
+              
               name: pc.name, specialChar: pc.specialChar,
             })),
           });
@@ -270,7 +270,7 @@ export async function POST(request: NextRequest) {
           await safeTx(tx, 'l3ProcessNo').createMany({
             data: atomicData.l3ProcessNos.map(p => ({
               id: p.id, fmeaId: normalizedId, l3StructId: p.l3StructId,
-              parentId: p.parentId || null, no: p.no,
+              no: p.no,
             })),
           });
           console.log(`[save-position-import] L3ProcessNo: ${atomicData.l3ProcessNos.length}건 생성`);
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
           await safeTx(tx, 'l3FourM').createMany({
             data: atomicData.l3FourMs.map(f => ({
               id: f.id, fmeaId: normalizedId, l3StructId: f.l3StructId,
-              parentId: f.parentId || null, m4: f.m4,
+              m4: f.m4,
             })),
           });
           console.log(`[save-position-import] L3FourM: ${atomicData.l3FourMs.length}건 생성`);
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
           await safeTx(tx, 'l3WorkElement').createMany({
             data: atomicData.l3WorkElements.map(w => ({
               id: w.id, fmeaId: normalizedId, l3StructId: w.l3StructId,
-              parentId: w.parentId || null, name: w.name,
+              name: w.name,
             })),
           });
           console.log(`[save-position-import] L3WorkElement: ${atomicData.l3WorkElements.length}건 생성`);
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
           await safeTx(tx, 'l3SpecialChar').createMany({
             data: atomicData.l3SpecialChars.map(sc => ({
               id: sc.id, fmeaId: normalizedId, l3StructId: sc.l3StructId,
-              l3ProcessCharId: sc.l3ProcessCharId, parentId: sc.parentId || null, value: sc.value,
+              l3ProcessCharId: sc.l3ProcessCharId, value: sc.value,
             })),
           });
           console.log(`[save-position-import] L3SpecialChar: ${atomicData.l3SpecialChars.length}건 생성`);
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
           skipDuplicates: true,
           data: atomicData.failureEffects.map(fe => ({
             id: fe.id, fmeaId: normalizedId, l1FuncId: fe.l1FuncId,
-            parentId: fe.parentId || null,
+            
             category: fe.category, effect: fe.effect, severity: fe.severity,
           })),
         });
@@ -325,7 +325,7 @@ export async function POST(request: NextRequest) {
           data: atomicData.failureModes.map(fm => ({
             id: fm.id, fmeaId: normalizedId, l2FuncId: fm.l2FuncId,
             l2StructId: fm.l2StructId, productCharId: fm.productCharId, mode: fm.mode,
-            parentId: fm.parentId || null,
+            
             
             
           })),
@@ -340,7 +340,7 @@ export async function POST(request: NextRequest) {
             l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
             processCharId: fc.l3CharId || fc.l3FuncId || null, // ★v4: B-13 L3ProcessChar FK
             cause: fc.cause,
-            parentId: fc.parentId || null,
+            
           })),
         });
         console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성`);

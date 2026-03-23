@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-22
+> **최종 업데이트**: 2026-03-23
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -57,6 +57,18 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 |------|------|
 | `lib/import/importJobManager.ts` | serializeFlatMap, createImportJobData (순수 함수) |
 | `lib/import/importJobDb.ts` | createImportJob, saveAllMappings, verifyRoundTrip (DB) |
+
+### 2.4 PFMEA 좌우 비교 뷰 (2026-03-23)
+
+| 파일 | 역할 |
+|------|------|
+| `pfmea/compare/page.tsx` | `/pfmea/compare` 라우트 |
+| `pfmea/compare/components/CompareSplitView.tsx` | iframe 2개 + 탭 URL + 리사이저 |
+| `pfmea/compare/hooks/useCompareScrollSync.ts` | `postMessage` 세로 스크롤 동기화 |
+| `pfmea/worksheet/page.tsx` | `compareEmbed`/`readonly`/`compareSide`, 스크롤 보고, 좌측 `.compare-worksheet-readonly` |
+| `worksheet/hooks/useWorksheetState.ts` | `compareEmbed` 시 URL 탭 동기화 생략 |
+
+상세: `docs/PFMEA_COMPARE_VIEW.md`
 
 ---
 

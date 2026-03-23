@@ -25,6 +25,7 @@
 | 2026-03-23 | - | **구조분석 컨텍스트 메뉴**: React 18 Strict Mode(개발)에서 함수형 `setState`가 동일 `prev`로 두 번 호출되며 `splice`가 이중 적용 → 「아래로 새 행 추가」 시 placeholder가 위·아래 2줄로 보이던 현상. `createStrictModeDedupedUpdater`(`strictModeStateUpdater.ts`)로 첫 계산 결과만 캐시. `StructureTab` 행 추가·병합 추가·삭제 업데이터에 적용. 단위 테스트: `strictModeStateUpdater.test.ts`. | Claude |
 | 2026-03-23 | - | **setStateSynced 근본 수정**: `useWorksheetState`가 `updater(stateRef)` 후 `setState(객체)`만 호출해 React 큐의 `prev`와 어긋날 수 있음 → `setState(prev => …)`로 통일. `PfmeaContextMenu` 메뉴 액션에 `stopPropagation`/`type="button"`/패널 `onMouseDown`으로 중복 실행 방지. | Claude |
 | 2026-03-23 | - | **수동모드 컨텍스트 메뉴 진단서**: Handsontable 가정과 실제(HTML 테이블 + `PfmeaContextMenu`) 구분, 체크리스트 A~F 매핑 — `docs/PFMEA_MANUAL_MODE_CONTEXT_MENU_DIAGNOSIS.md`. E2E `context-menu-all-tabs.spec.ts`에 L2「위로 새 행 추가」→정확히 +1행 케이스 추가. | Claude |
+| 2026-03-23 | - | **PFMEA 좌우 비교 뷰**: `/pfmea/compare` + `compare/constants.ts` (`normalizeCompareTab`). 워크시트 `compareEmbed`/`readonly`/`compareSide`, 스크롤 `postMessage`, `globals.css` `.compare-worksheet-readonly`. 문서: `docs/PFMEA_COMPARE_VIEW.md`. | Claude |
 
 ---
 

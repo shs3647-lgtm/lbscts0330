@@ -15,9 +15,6 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { parsePositionBasedJSON } from '@/lib/fmea/position-parser';
 import { validateFKChain } from '@/lib/fmea-core/fk-chain-validator';
 import { checkRawQuality } from '@/lib/fmea-core/raw-quality-checker';
-import { saveAtomicFromPosition } from '@/lib/fmea-core/raw-to-atomic';
-import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
-import { getPrismaForSchema } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -43,16 +40,15 @@ export async function POST(request: NextRequest) {
 
     console.log(`[import-to-raw] fmeaId=${normalizedId} quality=${qualityResult.status} FL=${atomicData.failureLinks.length} save=${doSave}`);
 
-    // ★ save=true 이면 DB 저장까지 수행
+    // ★ save=true 이면 save-position-import API 경유로 DB 저장
     if (doSave) {
-      const schema = getProjectSchemaName(normalizedId);
-      const baseDatabaseUrl = process.env.DATABASE_URL || '';
-      await ensureProjectSchemaReady({ baseDatabaseUrl, schema });
-      const prisma = getPrismaForSchema(schema);
-      if (!prisma) {
-        return NextResponse.json({ success: false, error: 'Failed to get Prisma client' }, { status: 500 });
-      }
-      const saveResult = await saveAtomicFromPosition(prisma, atomicData, { force: force ?? true });
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const saveRes = await fetch(`${baseUrl}/api/fmea/save-position-import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fmeaId: normalizedId, atomicData, force: force ?? true }),
+      });
+      const saveResult = await saveRes.json();
       if (!saveResult.success) {
         return NextResponse.json({
           success: false, fmeaId: normalizedId, error: saveResult.error,
@@ -62,7 +58,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true, fmeaId: normalizedId,
         stats: atomicData.stats, quality: qualityResult,
-        saved: true, counts: saveResult.counts, skippedFL: saveResult.skippedFL,
+        saved: true, counts: saveResult.atomicCounts,
       });
     }
 

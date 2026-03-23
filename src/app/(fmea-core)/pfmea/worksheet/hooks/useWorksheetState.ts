@@ -78,6 +78,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
   const baseId = searchParams.get('baseId')?.toLowerCase() || null;  // ✅ DB 소문자 일관성
   const mode = searchParams.get('mode');
   const urlTab = searchParams.get('tab') || null;
+  const compareEmbed = searchParams.get('compareEmbed') === '1';
 
   const [state, setState] = useState<WorksheetState>(createInitialState);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -140,6 +141,8 @@ export function useWorksheetState(): UseWorksheetStateReturn {
   // 'structure'는 기본값이므로 저장하지 않음 (초기 렌더 시 오염 방지)
   useEffect(() => {
     if (!isHydrated || !state.tab) return;
+    /** 비교 뷰 iframe: 부모가 tab 쿼리로 제어 — replaceState로 덮어쓰지 않음 */
+    if (compareEmbed) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const fromWindow =
@@ -180,7 +183,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
         window.history.replaceState({}, '', newUrl);
       }
     } catch (e) { console.error('[탭 저장 오류]', e); }
-  }, [state.tab, isHydrated, selectedFmeaId]);
+  }, [state.tab, isHydrated, selectedFmeaId, compareEmbed]);
 
   // ★★★ 2026-02-22: visibleSteps 변경 시 localStorage 저장 (ALL 탭 스크롤 위치 복원용) ★★★
   useEffect(() => {

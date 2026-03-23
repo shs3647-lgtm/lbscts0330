@@ -990,3 +990,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* 테이블 기본 스타일 */
+
+/* PFMEA 비교 뷰 iframe: Master(좌) 읽기 전용 — 스크롤만 허용 */
+.compare-worksheet-readonly {
+  user-select: none;
+}
+
+.compare-worksheet-readonly .worksheet-scroll-container {
+  pointer-events: auto;
+}
+
+.compare-worksheet-readonly .worksheet-scroll-container * {
+  pointer-events: none;
+}

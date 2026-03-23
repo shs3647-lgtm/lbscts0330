@@ -1075,6 +1075,7 @@ Protected paths are enforced via git hooks:
 
 ## Documentation References
 
+- `docs/PFMEA_COMPARE_VIEW.md` - Master vs Part 좌우 비교 뷰 (`/pfmea/compare`, iframe + 스크롤 동기화)
 - `docs/MODULARIZATION_GUIDE.md` - File organization patterns
 - `docs/WORKSHEET_DESIGN_PRINCIPLES.md` - UI layout rules
 - `docs/DB_SCHEMA.md` - Database schema details

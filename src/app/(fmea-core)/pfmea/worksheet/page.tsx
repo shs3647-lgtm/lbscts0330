@@ -15,7 +15,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
 import { SidebarRouter } from '@/components/layout';
@@ -53,6 +53,7 @@ import { useBackupTrigger } from './hooks/useBackupTrigger';
 import { getStepNumber } from './components/TabFullComponents';
 import { registerSaveErrorCallback, unregisterSaveErrorCallback, setupBeforeUnloadGuard } from './db-storage';
 import { toast } from '@/hooks/useToast';
+import { DEFAULT_COMPARE_MASTER_FMEA_ID, normalizeCompareTab } from '../compare/constants';
 // ✅ convertToFmea4: Fmea4Tab 컴포넌트 내부에서 사용 (page.tsx에서 미사용 → import 제거)
 
 // ✅ 대용량 컴포넌트 Dynamic Import — 초기 번들 경량화
@@ -79,7 +80,23 @@ const CPTab = dynamic(() => import('./tabs/cp').then(mod => mod.CPTab), { ssr: f
  */
 function FMEAWorksheetPageContent() {
   const router = useRouter();
+  const urlParams = useSearchParams();
+  const compareEmbed = urlParams.get('compareEmbed') === '1';
+  const compareReadonly = urlParams.get('readonly') === '1';
+  const compareSide = (urlParams.get('compareSide') as 'left' | 'right' | null) || null;
   const { isAdmin } = useAuth();
+
+  const reportCompareScroll = useCallback(
+    (el: HTMLElement) => {
+      if (!compareEmbed || !compareSide) return;
+      if (typeof window === 'undefined' || window.parent === window) return;
+      window.parent.postMessage(
+        { type: 'pfmea-compare-scroll', scrollTop: el.scrollTop, source: compareSide },
+        window.location.origin,
+      );
+    },
+    [compareEmbed, compareSide],
+  );
 
   // ✅ FMEA 워크시트 기본 배율 110% 설정
   // ⚠️ 2026-01-11: zoom은 클릭 이벤트에 영향을 줄 수 있어 비활성화
@@ -616,13 +633,21 @@ function FMEAWorksheetPageContent() {
 
   return (
     <>
-      <SidebarRouter />
-      <div className="fixed h-screen z-40 bg-white" style={{ left: 48, width: 5 }} /> {/* 사이드바 구분선 */}
-      <PFMEATopNav selectedFmeaId={currentFmea?.id} linkedCpNo={linkedCpNo} linkedPfdNo={linkedPfdNo} />
+      {!compareEmbed && (
+        <>
+          <SidebarRouter />
+          <div className="fixed h-screen z-40 bg-white" style={{ left: 48, width: 5 }} /> {/* 사이드바 구분선 */}
+          <PFMEATopNav selectedFmeaId={currentFmea?.id} linkedCpNo={linkedCpNo} linkedPfdNo={linkedPfdNo} />
+        </>
+      )}
 
-      <div className="h-full flex flex-col font-[Segoe_UI,Malgun_Gothic,Arial,sans-serif]" style={{ background: COLORS.bg, color: COLORS.text, marginLeft: 53 }}>
+      <div
+        className="h-full flex flex-col font-[Segoe_UI,Malgun_Gothic,Arial,sans-serif]"
+        style={{ background: COLORS.bg, color: COLORS.text, marginLeft: compareEmbed ? 0 : 53 }}
+      >
 
         {/* ========== 상단 메뉴 바 ========== */}
+        {!compareEmbed && (
         <TopMenuBar
           fmeaList={fmeaList}
           currentFmea={currentFmea}
@@ -746,8 +771,9 @@ function FMEAWorksheetPageContent() {
           inputMode={inputMode}
           onInputModeChange={setInputMode}
         />
+        )}
 
-        {/* ✅ 상속 모드 배너 */}
+        {/* 상속 모드 배너 */}
         {inheritInfo && (
           <div
             className="fixed top-[72px] left-[53px] right-0 h-7 z-[99] bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 border-b border-blue-800 flex items-center justify-center gap-4 text-white text-xs"
@@ -779,6 +805,7 @@ function FMEAWorksheetPageContent() {
         )}
 
         {/* ===== 탭 메뉴 (고정, top-[72px] = TopNav 36 + TopMenuBar 36) ===== */}
+        {!compareEmbed && (
         <div
           className={`fixed ${inheritInfo ? 'top-[100px]' : 'top-[72px]'} left-[53px] right-0 h-9 z-[100] bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-900 border-b-[2px] border-[#1a237e]`}
         >
@@ -807,20 +834,47 @@ function FMEAWorksheetPageContent() {
             }}
           />
         </div>
+        )}
 
-
+        {/* 비교 뷰 진입 (일반 워크시트에서만) */}
+        {!compareEmbed && selectedFmeaId && (
+          <button
+            type="button"
+            className="fixed right-3 z-[250] rounded border border-indigo-400 bg-indigo-900/90 px-2 py-1 text-[10px] font-medium text-white shadow hover:bg-indigo-800"
+            style={{ top: inheritInfo ? 116 : 88 }}
+            onClick={() => {
+              const tab = normalizeCompareTab(state.tab);
+              router.push(
+                `/pfmea/compare?left=${encodeURIComponent(DEFAULT_COMPARE_MASTER_FMEA_ID)}&right=${encodeURIComponent(selectedFmeaId)}&tab=${encodeURIComponent(tab)}`,
+              );
+            }}
+          >
+            비교 뷰
+          </button>
+        )}
 
         {/* ========== 메인 레이아웃 (메뉴 아래, 상속 배너 고려) ========== */}
-        {/* ✅ All 탭: overflow-auto로 브라우저 스크롤 허용 */}
-        <div className={`fixed ${inheritInfo ? 'top-[136px]' : 'top-[108px]'} left-[53px] right-0 bottom-0 flex flex-row overflow-hidden`}>
+        {/* All 탭: overflow-auto로 브라우저 스크롤 허용 */}
+        <div
+          className={`fixed flex flex-row overflow-hidden ${
+            compareEmbed
+              ? 'top-0 left-0 right-0 bottom-0'
+              : inheritInfo
+                ? 'top-[136px] left-[53px] right-0 bottom-0'
+                : 'top-[108px] left-[53px] right-0 bottom-0'
+          }`}
+        >
 
           {/* ===== 좌측: 워크시트 영역 ===== */}
-          <div id="fmea-worksheet-container" className="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+          <div
+            id="fmea-worksheet-container"
+            className={`flex-1 flex flex-col min-w-0 bg-white overflow-hidden ${compareReadonly ? 'compare-worksheet-readonly' : ''}`}
+          >
 
 
             {/* 구조분석 제목 바는 StructureTab 내부 헤더로 이동됨 (표준화 완료) */}
 
-            {/* ✅ All 탭: 좌우 스크롤 지원 (2026-01-12 수정) */}
+            {/* All 탭: 좌우 스크롤 지원 (2026-01-12 수정) */}
             {(state.tab === 'all' || state.tab === 'risk' || state.tab === 'opt') ? (
               <>
               <div
@@ -834,6 +888,7 @@ function FMEAWorksheetPageContent() {
                   background: '#fff',
                   position: 'relative',
                 }}
+                onScroll={(e) => reportCompareScroll(e.currentTarget)}
               >
                 {/* 전체보기 탭: 통합 화면 (40열 구조) - 원자성 DB 기반 */}
                 <AllTabRenderer
@@ -888,6 +943,7 @@ function FMEAWorksheetPageContent() {
                   background: '#fff',
                   position: 'relative',
                 }}
+                onScroll={(e) => reportCompareScroll(e.currentTarget)}
                 onWheel={(e) => {
                   // 마우스 휠로 좌우 스크롤 (Shift 없이도 가능)
                   if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
@@ -934,7 +990,8 @@ function FMEAWorksheetPageContent() {
           {/* 워크시트 영역 닫힘 */}
 
           {/* ===== 우측: 5AP/6AP/RPN 사이드 패널 (350px) ===== */}
-          {(state.tab === 'all' || state.tab === 'risk' || state.tab === 'opt' || activePanelId === 'stats') &&
+          {!compareEmbed &&
+           (state.tab === 'all' || state.tab === 'risk' || state.tab === 'opt' || activePanelId === 'stats') &&
            ['5ap', '6ap', 'rpn', 'rpn-chart', 'stats'].includes(activePanelId) ? (
             <>
               <div className="w-[2px] bg-[#1a237e] shrink-0" />
