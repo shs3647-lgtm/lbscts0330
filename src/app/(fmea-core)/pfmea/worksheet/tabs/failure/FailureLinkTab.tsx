@@ -691,7 +691,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
                 missingFCs.length > 0 ? `FC ${missingFCs.length}건` : '',
                 missingFEs.length > 0 ? `FE ${missingFEs.length}건` : '',
               ].filter(Boolean).join(', ')}</span>
-              {missingFMs.length > 0 && (
+              {(missingFMs.length > 0 || missingFCs.length > 0) && (
                 <button
                   disabled={isMatching}
                   onClick={(e) => {
