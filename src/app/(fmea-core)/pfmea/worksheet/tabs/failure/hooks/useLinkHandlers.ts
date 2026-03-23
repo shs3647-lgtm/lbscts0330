@@ -40,6 +40,8 @@ interface UseLinkHandlersProps {
     fmMissingCount: number;
     feLinkedCount: number;
     fcLinkedCount: number;
+    fcLinkedIds: Set<string>;
+    feLinkedIds: Set<string>;
     fmLinkCounts: Map<string, { feCount: number; fcCount: number }>;
   };
 }
@@ -669,20 +671,10 @@ export function useLinkHandlers({
     alert(msg);
   }, [savedLinks, state.l1]);
 
-  // ========== 누락 FM 자동연결 (★ 2026-03-12: async 배치 처리로 브라우저 멈춤 방지) ==========
+  // ========== 누락 FM+FC 자동연결 (★ 2026-03-24: FC 자동연결 추가) ==========
   const handleAutoMatchMissing = useCallback(async () => {
-    // 1. 누락 FM 목록 추출
-    const missingFMs = fmData.filter(fm => {
-      const counts = linkStats.fmLinkCounts.get(fm.id);
-      if (!counts) return true;
-      return counts.feCount === 0 || counts.fcCount === 0;
-    });
-
-    if (missingFMs.length === 0) {
-      return { success: false, message: '✅ 누락된 FM이 없습니다.' };
-    }
-
-    // 2. 공정별 기존 링크 패턴 수집 (processName → { fes, fcs })
+    // ── 공통 준비 ──
+    // 공정별 기존 링크 패턴 수집 (processName → { fes, fcs })
     const processPatterns = new Map<string, { fes: Map<string, LinkResult>; fcs: Map<string, LinkResult> }>();
     savedLinks.forEach(link => {
       const proc = link.fmProcess;
@@ -695,7 +687,7 @@ export function useLinkHandlers({
       if (link.fcId && link.fcId.trim()) pat.fcs.set(link.fcId, link);
     });
 
-    // 3. 글로벌 FE 패턴 (fallback — 가장 많이 사용된 FE 집합)
+    // 글로벌 FE 패턴 (fallback — 가장 많이 사용된 FE 집합)
     const globalFeMap = new Map<string, LinkResult>();
     savedLinks.forEach(link => {
       if (link.feId && link.feId.trim() && !globalFeMap.has(link.feId)) {
@@ -703,18 +695,23 @@ export function useLinkHandlers({
       }
     });
 
-    // ★ 기존 링크의 빠른 중복 검사용 Set
+    // 기존 링크의 빠른 중복 검사용 Set
     const existingKeySet = new Set<string>();
     savedLinks.forEach(l => {
       if (l.fmId && l.feId && l.fcId) existingKeySet.add(`${l.fmId}|${l.feId}|${l.fcId}`);
     });
 
-    // 4. 각 누락 FM에 대해 자동 링크 생성 — 배치 단위 async
     const newLinks: LinkResult[] = [...savedLinks];
-    let linkedCount = 0;
-    const BATCH_SIZE = 5; // FM 5건씩 처리 후 브라우저에 제어권 반환
-
+    let fmLinkedCount = 0;
+    const BATCH_SIZE = 5;
     const yieldToMain = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    // ── Phase 1: 누락 FM 자동연결 ──
+    const missingFMs = fmData.filter(fm => {
+      const counts = linkStats.fmLinkCounts.get(fm.id);
+      if (!counts) return true;
+      return counts.feCount === 0 || counts.fcCount === 0;
+    });
 
     for (let i = 0; i < missingFMs.length; i += BATCH_SIZE) {
       const batch = missingFMs.slice(i, i + BATCH_SIZE);
@@ -727,36 +724,25 @@ export function useLinkHandlers({
         if (feSourceMap.size === 0) return;
 
         // FC 결정: 같은 공정 패턴 → 없으면 fcData에서 같은/앞공정 FC
-        let fcEntries: { id: string; fcNo: string; process: string; m4: string; workElem: string; text: string; workFunction?: string; processChar?: string }[] = [];
+        const fcEntries: { id: string; fcNo: string; process: string; m4: string; workElem: string; text: string; workFunction?: string; processChar?: string }[] = [];
 
         if (pat && pat.fcs.size > 0) {
           pat.fcs.forEach(link => {
             fcEntries.push({
-              id: link.fcId,
-              fcNo: link.fcNo,
-              process: link.fcProcess,
-              m4: link.fcM4,
-              workElem: link.fcWorkElem,
-              text: link.fcText,
-              workFunction: link.fcWorkFunction,
-              processChar: link.fcProcessChar,
+              id: link.fcId, fcNo: link.fcNo, process: link.fcProcess,
+              m4: link.fcM4, workElem: link.fcWorkElem, text: link.fcText,
+              workFunction: link.fcWorkFunction, processChar: link.fcProcessChar,
             });
           });
         } else {
-          // fcData에서 같은 공정 또는 앞공정 FC 수집
           const fmOrder = getProcessOrder(fm.processName);
           fcData
             .filter(fc => getProcessOrder(fc.processName) <= fmOrder)
             .forEach(fc => {
               fcEntries.push({
-                id: fc.id,
-                fcNo: fc.fcNo,
-                process: fc.processName,
-                m4: fc.m4,
-                workElem: fc.workElem,
-                text: fc.text,
-                workFunction: fc.workFunction,
-                processChar: fc.processChar,
+                id: fc.id, fcNo: fc.fcNo, process: fc.processName,
+                m4: fc.m4, workElem: fc.workElem, text: fc.text,
+                workFunction: fc.workFunction, processChar: fc.processChar,
               });
             });
         }
@@ -766,50 +752,97 @@ export function useLinkHandlers({
         // 크로스 프로덕트 생성 (FM × FEs × FCs)
         feSourceMap.forEach(feLink => {
           fcEntries.forEach(fc => {
-            // ★ Set 기반 O(1) 중복 방지
             const key = `${fm.id}|${feLink.feId}|${fc.id}`;
             if (existingKeySet.has(key)) return;
             existingKeySet.add(key);
 
             newLinks.push({
-              fmId: fm.id,
-              fmNo: fm.fmNo,
-              fmText: fm.text,
-              fmProcess: fm.processName,
-              fmProcessNo: fm.processNo || '',
-              feId: feLink.feId,
-              feNo: feLink.feNo,
-              feScope: feLink.feScope,
-              feText: feLink.feText,
-              severity: feLink.severity || 0,
-              feFunctionName: feLink.feFunctionName || '',
-              feRequirement: feLink.feRequirement || '',
-              fcId: fc.id,
-              fcNo: fc.fcNo,
-              fcProcess: fc.process,
-              fcM4: fc.m4,
-              fcWorkElem: fc.workElem,
-              fcText: fc.text,
-              fcWorkFunction: fc.workFunction || '',
-              fcProcessChar: fc.processChar || '',
+              fmId: fm.id, fmNo: fm.fmNo, fmText: fm.text,
+              fmProcess: fm.processName, fmProcessNo: fm.processNo || '',
+              feId: feLink.feId, feNo: feLink.feNo, feScope: feLink.feScope,
+              feText: feLink.feText, severity: feLink.severity || 0,
+              feFunctionName: feLink.feFunctionName || '', feRequirement: feLink.feRequirement || '',
+              fcId: fc.id, fcNo: fc.fcNo, fcProcess: fc.process,
+              fcM4: fc.m4, fcWorkElem: fc.workElem, fcText: fc.text,
+              fcWorkFunction: fc.workFunction || '', fcProcessChar: fc.processChar || '',
             });
           });
         });
 
-        linkedCount++;
+        fmLinkedCount++;
       });
 
-      // ★ 배치 완료 후 브라우저에 제어권 반환 (UI 업데이트 + 응답 유지)
       if (i + BATCH_SIZE < missingFMs.length) {
         await yieldToMain();
       }
     }
 
-    if (linkedCount === 0) {
-      return { success: false, message: '⚠️ 매칭할 수 있는 FM이 없습니다.\n(같은 공정에 연결된 FM이 없거나 FC가 없습니다)' };
+    // ── Phase 2: 미연결 FC 자동연결 (★ 2026-03-24 신규) ──
+    // newLinks에 이미 추가된 FC도 반영하여 "아직 미연결인 FC"만 처리
+    const nowLinkedFcIds = new Set<string>();
+    newLinks.forEach(l => { if (l.fcId?.trim()) nowLinkedFcIds.add(l.fcId.trim()); });
+
+    const unlinkedFCs = fcData.filter(fc => !nowLinkedFcIds.has(fc.id));
+    let fcLinkedCount = 0;
+
+    // 공정명→FM 빠른 조회
+    const fmByProcess = new Map<string, FMItem[]>();
+    fmData.forEach(fm => {
+      const list = fmByProcess.get(fm.processName) || [];
+      list.push(fm);
+      fmByProcess.set(fm.processName, list);
+    });
+
+    // processPatterns를 Phase 1 newLinks 포함으로 갱신
+    newLinks.forEach(link => {
+      const proc = link.fmProcess || link.fcProcess;
+      if (!proc) return;
+      if (!processPatterns.has(proc)) {
+        processPatterns.set(proc, { fes: new Map(), fcs: new Map() });
+      }
+      const pat = processPatterns.get(proc)!;
+      if (link.feId && link.feId.trim() && !pat.fes.has(link.feId)) pat.fes.set(link.feId, link);
+    });
+
+    for (const fc of unlinkedFCs) {
+      // 같은 공정 FM 찾기
+      const sameProcFMs = fmByProcess.get(fc.processName);
+      if (!sameProcFMs || sameProcFMs.length === 0) continue;
+
+      // FE 결정: 같은 공정 기존 링크 FE → 없으면 글로벌
+      const pat = processPatterns.get(fc.processName);
+      const feSourceMap = (pat && pat.fes.size > 0) ? pat.fes : globalFeMap;
+      if (feSourceMap.size === 0) continue;
+
+      let linked = false;
+      for (const fm of sameProcFMs) {
+        feSourceMap.forEach(feLink => {
+          const key = `${fm.id}|${feLink.feId}|${fc.id}`;
+          if (existingKeySet.has(key)) return;
+          existingKeySet.add(key);
+
+          newLinks.push({
+            fmId: fm.id, fmNo: fm.fmNo, fmText: fm.text,
+            fmProcess: fm.processName, fmProcessNo: fm.processNo || '',
+            feId: feLink.feId, feNo: feLink.feNo, feScope: feLink.feScope,
+            feText: feLink.feText, severity: feLink.severity || 0,
+            feFunctionName: feLink.feFunctionName || '', feRequirement: feLink.feRequirement || '',
+            fcId: fc.id, fcNo: fc.fcNo, fcProcess: fc.processName,
+            fcM4: fc.m4, fcWorkElem: fc.workElem, fcText: fc.text,
+            fcWorkFunction: fc.workFunction || '', fcProcessChar: fc.processChar || '',
+          });
+          linked = true;
+        });
+      }
+      if (linked) fcLinkedCount++;
     }
 
-    // 5. 저장
+    // ── 결과 ──
+    if (fmLinkedCount === 0 && fcLinkedCount === 0) {
+      return { success: false, message: '✅ 누락된 FM·FC가 없습니다.' };
+    }
+
+    // 저장
     setSavedLinks(newLinks);
     const updateFn = (prev: any) => ({ ...prev, failureLinks: newLinks });
     if (setStateSynced) {
@@ -823,7 +856,10 @@ export function useLinkHandlers({
     });
 
     setViewMode('result');
-    return { success: true, message: `✅ ${linkedCount}건 FM 고장매칭 완료!\n(같은 공정의 기존 FE·FC 패턴을 복사했습니다)` };
+    const parts: string[] = [];
+    if (fmLinkedCount > 0) parts.push(`FM ${fmLinkedCount}건`);
+    if (fcLinkedCount > 0) parts.push(`FC ${fcLinkedCount}건`);
+    return { success: true, message: `✅ ${parts.join(' + ')} 자동연결 완료!\n(같은 공정의 FM↔FE↔FC 패턴으로 연결했습니다)` };
   }, [fmData, fcData, savedLinks, linkStats, getProcessOrder, setState, setStateSynced, setDirty, saveTemp, setViewMode, setSavedLinks]);
 
   return {
