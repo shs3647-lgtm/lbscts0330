@@ -324,14 +324,15 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
         };
       };
 
-      addIfNew(seen, `${normProcNo}|A3|${vals.A3}`, vals.A3, v => { setMeta('A3', proc.processDesc); proc.processDesc.push(v); }, counter, normProcNo, 'A3');
-      addIfNew(seen, `${normProcNo}|A4|${vals.A4}`, vals.A4, v => {
+      // ★ 2026-03-23: dedup 키에 엑셀 행 r 포함 — 캐리/병합으로 동일 텍스트가 연속 행에 있어도 행별로 보존 (FM/FC 누락 방지)
+      addIfNew(seen, `${normProcNo}|A3|${vals.A3}|r${r}`, vals.A3, v => { setMeta('A3', proc.processDesc); proc.processDesc.push(v); }, counter, normProcNo, 'A3');
+      addIfNew(seen, `${normProcNo}|A4|${vals.A4}|r${r}`, vals.A4, v => {
         setMeta('A4', proc.productChars);
         proc.productChars.push(v);
         proc.productCharsSpecialChar.push(vals.SC_A4 || '');
       }, counter, normProcNo, 'A4');
-      addIfNew(seen, `${normProcNo}|A5|${vals.A5}`, vals.A5, v => { setMeta('A5', proc.failureModes); proc.failureModes.push(v); }, counter, normProcNo, 'A5');
-      addIfNew(seen, `${normProcNo}|A6|${vals.A6}`, vals.A6, v => { setMeta('A6', proc.detectionCtrls); proc.detectionCtrls.push(v); }, counter, normProcNo, 'A6');
+      addIfNew(seen, `${normProcNo}|A5|${vals.A5}|r${r}`, vals.A5, v => { setMeta('A5', proc.failureModes); proc.failureModes.push(v); }, counter, normProcNo, 'A5');
+      addIfNew(seen, `${normProcNo}|A6|${vals.A6}|r${r}`, vals.A6, v => { setMeta('A6', proc.detectionCtrls); proc.detectionCtrls.push(v); }, counter, normProcNo, 'A6');
 
       // ★★★ 2026-03-02: B1 "XX번-장비명" → "장비명" 접두사 제거 ★★★
       const b1Clean = vals.B1 ? vals.B1.replace(/^\d+번[-\s]?/, '') : vals.B1;
@@ -341,26 +342,26 @@ export function parseSingleSheetFmea(sheet: ExcelJS.Worksheet): ParseResult {
         proc.workElements4M.push(struct4M);
       }, counter, normProcNo, 'B1');
 
-      addIfNew(seen, `${normProcNo}|B2|${func4M}|${b1Clean}|${vals.B2}`, vals.B2, v => {
+      addIfNew(seen, `${normProcNo}|B2|${func4M}|${b1Clean}|${vals.B2}|r${r}`, vals.B2, v => {
         setMeta('B2', proc.elementFuncs);
         proc.elementFuncs.push(v);
         proc.elementFuncs4M.push(func4M);
       }, counter, normProcNo, 'B2');
 
-      addIfNew(seen, `${normProcNo}|B3|${func4M}|${b1Clean}|${vals.B3}`, vals.B3, v => {
+      addIfNew(seen, `${normProcNo}|B3|${func4M}|${b1Clean}|${vals.B3}|r${r}`, vals.B3, v => {
         setMeta('B3', proc.processChars);
         proc.processChars.push(v);
         proc.processChars4M.push(func4M);
         proc.processCharsSpecialChar.push(vals.SC_B3 || '');
       }, counter, normProcNo, 'B3');
 
-      addIfNew(seen, `${normProcNo}|B4|${fail4M}|${b1Clean}|${vals.B4}`, vals.B4, v => {
+      addIfNew(seen, `${normProcNo}|B4|${fail4M}|${b1Clean}|${vals.B4}|r${r}`, vals.B4, v => {
         setMeta('B4', proc.failureCauses);
         proc.failureCauses.push(v);
         proc.failureCauses4M.push(fail4M);
       }, counter, normProcNo, 'B4');
 
-      addIfNew(seen, `${normProcNo}|B5|${fail4M}|${b1Clean}|${vals.B5}`, vals.B5, v => {
+      addIfNew(seen, `${normProcNo}|B5|${fail4M}|${b1Clean}|${vals.B5}|r${r}`, vals.B5, v => {
         setMeta('B5', proc.preventionCtrls);
         proc.preventionCtrls.push(v);
         proc.preventionCtrls4M.push(fail4M);

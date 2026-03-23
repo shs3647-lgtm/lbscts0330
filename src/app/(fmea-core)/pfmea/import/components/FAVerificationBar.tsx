@@ -50,18 +50,30 @@ function normalizeProcessNo(pNo: string | undefined): string {
   return n;
 }
 
-/** FM/FC 매칭 키: 공정별 고유 FM·FC (텍스트만 비교하면 타 공정 동문자 오판) */
-function fmFlatKey(d: { processNo: string; value: string }): string {
-  return `${normalizeProcessNo(d.processNo)}|${norm(d.value.trim())}`;
+/** 엑셀 행·체인 id — 동일 공정·동일 문구라도 행이 다르면 별도 건 (COUNTA/파싱 100% 정합) */
+function flatRowGrain(d: { excelRow?: number; id?: string }): string {
+  if (d.excelRow != null && d.excelRow > 0) return `|r${d.excelRow}`;
+  if (d.id) return `|i${d.id}`;
+  return '';
 }
-function fcFlatKey(d: { processNo: string; value: string }): string {
-  return `${normalizeProcessNo(d.processNo)}|${norm(d.value.trim())}`;
+function chainRowGrain(c: { excelRow?: number; id?: string }): string {
+  if (c.excelRow != null && c.excelRow > 0) return `|r${c.excelRow}`;
+  if (c.id) return `|i${c.id}`;
+  return '';
 }
-function fmChainKey(c: { processNo: string; fmValue: string }): string {
-  return `${normalizeProcessNo(c.processNo)}|${norm(c.fmValue.trim())}`;
+
+/** FM/FC 매칭 키: 공정 + 정규화값 + 행/ID (타 공정 동문자·동일문구 다행 구분) */
+function fmFlatKey(d: { processNo: string; value: string; excelRow?: number; id?: string }): string {
+  return `${normalizeProcessNo(d.processNo)}|${norm(d.value.trim())}${flatRowGrain(d)}`;
 }
-function fcChainKey(c: { processNo: string; fcValue: string }): string {
-  return `${normalizeProcessNo(c.processNo)}|${norm(c.fcValue.trim())}`;
+function fcFlatKey(d: { processNo: string; value: string; excelRow?: number; id?: string }): string {
+  return `${normalizeProcessNo(d.processNo)}|${norm(d.value.trim())}${flatRowGrain(d)}`;
+}
+function fmChainKey(c: { processNo: string; fmValue: string; excelRow?: number; id?: string }): string {
+  return `${normalizeProcessNo(c.processNo)}|${norm(c.fmValue.trim())}${chainRowGrain(c)}`;
+}
+function fcChainKey(c: { processNo: string; fcValue: string; excelRow?: number; id?: string }): string {
+  return `${normalizeProcessNo(c.processNo)}|${norm(c.fcValue.trim())}${chainRowGrain(c)}`;
 }
 
 export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollToItem }: FAVerificationBarProps) {

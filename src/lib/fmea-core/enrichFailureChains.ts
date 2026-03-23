@@ -83,7 +83,10 @@ export function buildFeToReqMap(
     if (fs.id && fs.reqId) {
       map.set(fs.id, fs.reqId);
     }
-    // ★★★ 2026-03-21 FIX: FK-only — text-based FE→req lookup 삭제, ID-based만 유지
+    // 고장영향 텍스트 → 요구사항 (엑셀 export와 동일 인덱스; 표시/보내기 fallback용, FK 생성 아님)
+    if (fs.effect && fs.reqId) {
+      map.set(fs.effect, fs.reqId);
+    }
   });
   return map;
 }

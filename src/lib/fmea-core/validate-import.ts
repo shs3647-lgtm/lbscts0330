@@ -265,10 +265,7 @@ function checkParentItemIdChain(flatData: ImportedFlatData[]): CheckResult {
 /**
  * Check 5: dedupKeyUnique
  * No duplicate dedup keys within the same entity type.
- * - A4: pno|char
- * - A5: pno|fm
- * - B4: pno|m4|we|fm|fc
- * - C4: procNo|scope|fe
+ * - A4/A5/B4/C4: 논리 키 + 엑셀 행(또는 id) — 동일 텍스트 **다른 행** 허용 (IMPORT 행 단위 FK)
  */
 function checkDedupKeyUnique(flatData: ImportedFlatData[]): CheckResult {
   const byId = new Map<string, ImportedFlatData>();
@@ -293,6 +290,14 @@ function checkDedupKeyUnique(flatData: ImportedFlatData[]): CheckResult {
     return '';
   }
 
+  /** 동일 공정·동일 텍스트라도 엑셀 행(또는 flat id)으로 구분 */
+  function rowGrain(item: ImportedFlatData): string {
+    if (item.excelRow != null && item.excelRow > 0) {
+      return `|@r${item.excelRow}`;
+    }
+    return `|@${item.id}`;
+  }
+
   // Helper to check duplicates within a group
   function checkGroup(itemCode: string, keyFn: (item: ImportedFlatData) => string): void {
     const items = flatData.filter((d) => d.itemCode === itemCode);
@@ -313,23 +318,19 @@ function checkDedupKeyUnique(flatData: ImportedFlatData[]): CheckResult {
     }
   }
 
-  // A4: pno|char
-  checkGroup('A4', (item) => `${item.processNo}|${item.value}`);
+  checkGroup('A4', (item) => `${item.processNo}|${item.value}${rowGrain(item)}`);
 
-  // A5: pno|fm
-  checkGroup('A5', (item) => `${item.processNo}|${item.value}`);
+  checkGroup('A5', (item) => `${item.processNo}|${item.value}${rowGrain(item)}`);
 
-  // B4: pno|m4|we|fm|fc
   checkGroup('B4', (item) => {
     const we = findAncestorValue(item, 'B1');
     const fm = findAncestorValue(item, 'A5');
-    return `${item.processNo}|${item.m4 ?? ''}|${we}|${fm}|${item.value}`;
+    return `${item.processNo}|${item.m4 ?? ''}|${we}|${fm}|${item.value}${rowGrain(item)}`;
   });
 
-  // C4: procNo|scope|fe
   checkGroup('C4', (item) => {
     const scope = findAncestorValue(item, 'C1');
-    return `${item.processNo}|${scope}|${item.value}`;
+    return `${item.processNo}|${scope}|${item.value}${rowGrain(item)}`;
   });
 
   if (bad.length === 0) {

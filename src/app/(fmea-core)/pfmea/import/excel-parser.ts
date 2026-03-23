@@ -159,6 +159,28 @@ export interface ParseResult {
   statistics?: ParseStatistics;     // ★ v2.5.1: 파싱 통계 (변환결과 검증용)
 }
 
+/**
+ * 멀티시트 → processMap 병합 시 dedup 키 (엑셀 행·WE 단위 보존)
+ * - B계열: 작업요소(extra) 포함
+ * - A6/B5: WE(extra) 포함
+ * - ★ 2026-03-23: excelRow(>0)를 키에 포함 — 동일 텍스트·동일 WE라도 **서로 다른 엑셀 행**은 별도 항목 (FM/FC 누락 방지)
+ */
+export function buildMultiSheetDedupKey(
+  sheet: string,
+  row: { key: string; value: string; m4?: string; extra?: string; excelRow?: number },
+): string {
+  const v = row.value.trim();
+  const we = (row.extra || '').trim();
+  const rowTag =
+    row.excelRow != null && row.excelRow > 0 ? `|@r${row.excelRow}` : '';
+  if (sheet === 'B5' || sheet === 'A6') {
+    return `${row.key}|${sheet}|${we}|${v}${rowTag}`;
+  }
+  const m4 = row.m4 || '';
+  const bLevel = sheet.startsWith('B');
+  const weInfix = bLevel && we ? `${we}|` : '';
+  return `${row.key}|${sheet}|${m4}|${weInfix}${v}${rowTag}`;
+}
 
 /**
  * Excel 파일 파싱 (다중 시트) - 모든 열 읽기 지원
@@ -1053,6 +1075,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
     ];
 
     // ★★★ 2026-03-14 FIX: 멀티시트 중복 방지 — processNo+sheet+m4+value 기준 dedup ★★★
+    // ★★★ 2026-03-23: B2~B5·A6는 작업요소(extra)를 키에 포함 — 동일 FC/예방·검출 텍스트도 WE별로 별도 행 유지
     // 이전: 중복 검사 없이 push → 엑셀 병합셀/반복행에서 같은 값 2회 push → 2배 복제
     // 수정: seen Set으로 dedup (싱글시트 파서의 addIfNew 패턴과 동일)
     const multiSheetSeen = new Set<string>();
@@ -1065,11 +1088,7 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
         sheetData.rows.forEach((row) => {
           const process = processMap.get(row.key);
           if (process && row.value) {
-            // ★ 중복 검사: processNo + sheet + value 기준 (B5/A6는 m4 제외 — verify-counts distinct 기준과 일치)
-            // B5(예방관리)/A6(검출관리): 같은 공정+값이면 m4가 달라도 중복으로 처리
-            const dedupKey = (sheet === 'B5' || sheet === 'A6')
-              ? `${row.key}|${sheet}|${row.value.trim()}`
-              : `${row.key}|${sheet}|${row.m4 || ''}|${row.value.trim()}`;
+            const dedupKey = buildMultiSheetDedupKey(sheet, row);
             if (multiSheetSeen.has(dedupKey)) return;  // 중복 → 스킵
             multiSheetSeen.add(dedupKey);
 
@@ -1107,8 +1126,8 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               process.productCharsSpecialChar.push(row.specialChar || '');
             }
           } else if (row.key && !processMap.has(row.key)) {
-            // 공정이 없으면 생성 — 첫 행이므로 dedup 키 등록
-            const newDedupKey = `${row.key}|${sheet}|${row.m4 || ''}|${row.value.trim()}`;
+            // 공정이 없으면 생성 — 첫 행이므로 dedup 키 등록 (병합 dedup과 동일 규칙)
+            const newDedupKey = buildMultiSheetDedupKey(sheet, row);
             multiSheetSeen.add(newDedupKey);
             const newProcess: ProcessRelation = {
               processNo: row.key,
@@ -1152,6 +1171,13 @@ export async function parseMultiSheetExcel(file: File): Promise<ParseResult> {
               newProcess.processCharsWE.push(row.extra || '');
             } else if (sheet === 'B4') {
               newProcess.failureCauses4M.push(row.m4 || '');
+              newProcess.failureCausesSpecialChar.push(row.specialChar || '');
+              newProcess.failureCausesWE.push(row.extra || '');
+            } else if (sheet === 'A5') {
+              newProcess.failureModesSpecialChar.push(row.specialChar || '');
+            } else if (sheet === 'B5') {
+              newProcess.preventionCtrls4M.push(row.m4 || '');
+              newProcess.preventionCtrlsWE.push(row.extra || '');
             }
             if (sheet === 'A4') {
               newProcess.productCharsSpecialChar.push(row.specialChar || '');

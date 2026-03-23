@@ -532,6 +532,34 @@ export default function LegacyImportPage() {
         updateWorkElement={templateGen.updateWorkElement}
         flatData={flatData}
         onDownloadSample={async () => {
+          // 0순위: 현재 flatData가 있으면 (자동FIX/편집 반영) 즉시 내보내기
+          if (flatData.length > 0) {
+            const exportData = flatData.map(d => ({
+              processNo: d.processNo || '',
+              itemCode: d.itemCode || '',
+              value: d.value || '',
+              m4: d.m4 || undefined,
+              specialChar: d.specialChar || undefined,
+              belongsTo: d.belongsTo || undefined,
+            }));
+            const chains = (masterChains || []).map(ch => ({
+              processNo: ch.processNo || '',
+              m4: ch.m4 || undefined,
+              fcValue: ch.fcValue || '',
+              fmValue: ch.fmValue || '',
+              feValue: ch.feValue || '',
+              feScope: ch.feScope || undefined,
+              workElement: ch.workElement || undefined,
+              pcValue: ch.pcValue || undefined,
+              dcValue: ch.dcValue || undefined,
+              severity: ch.severity || undefined,
+              occurrence: ch.occurrence || undefined,
+              detection: ch.detection || undefined,
+            }));
+            const fileName = `PFMEA_${selectedFmeaId || 'data'}_현재데이터`;
+            await downloadDataTemplate(exportData, fileName, chains);
+            return;
+          }
           if (selectedFmeaId) {
             // 1순위: 빈칸 0건 filled Excel (서버에 생성된 파일)
             try {

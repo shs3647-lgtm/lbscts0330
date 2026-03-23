@@ -698,6 +698,9 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     weIdxByM4.get(m4)!.push(idx);
   });
 
+  /** 레거시 flat: 동일 m4 WE 다수 + belongsTo 없음 → 후보 WE에 순차 분배 (결정론적) */
+  const legacyM4WePickSeq = new Map<string, number>();
+
   function mapToWeIdx(dataItems: ImportedFlatData[]): Map<number, ImportedFlatData[]> {
     const byWe = new Map<number, ImportedFlatData[]>();
     for (const item of dataItems) {
@@ -725,23 +728,26 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
             if (idx !== undefined) weIdx = idx;
           }
         }
-        // 경로4: UUID형 parentItemId → m4 기반 WE 매칭 (legacy 데이터 호환)
-        // 같은 m4의 WE가 1개뿐이면 결정론적 매칭
-        // ★ 2026-03-22: m4가 2개 이상(IM+Cu Target / IM+Ti Target 등)일 때 belongsTo(작업요소명)로 구분
-        // 근본원인: B3/B2 parent가 B1 UUID로만 풀리지 않거나 findB1Uuid 폴백 시 첫 WE로만 붙음 → 나머지 WE는 공정특성 0건
-        if (weIdx < 0 && item.m4) {
-          const candidates = weIdxByM4.get(item.m4) || [];
-          if (candidates.length === 1) {
-            weIdx = candidates[0];
-          } else if (candidates.length > 1) {
-            const weName = (item.belongsTo || '').trim();
-            if (weName) {
-              const matchedIdx = candidates.find((ci) => {
-                const w = process.l3[ci];
-                return (w.name || '').trim() === weName;
-              });
-              if (matchedIdx !== undefined) weIdx = matchedIdx;
-            }
+      }
+      // 경로4: parentItemId 없거나 1~3 실패 시 m4 기반 WE 매칭 (레거시 flat / 픽스처 호환)
+      // ★ 2026-03-22 FIX: 반드시 if(pid) 밖에서 실행 — parentItemId 없으면 B2/B3가 WE에 0건으로 떨어지던 버그
+      if (weIdx < 0 && item.m4) {
+        const candidates = weIdxByM4.get(item.m4) || [];
+        if (candidates.length === 1) {
+          weIdx = candidates[0]!;
+        } else if (candidates.length > 1) {
+          const weName = (item.belongsTo || '').trim();
+          if (weName) {
+            const matchedIdx = candidates.find((ci) => {
+              const w = process.l3[ci];
+              return (w.name || '').trim() === weName;
+            });
+            if (matchedIdx !== undefined) weIdx = matchedIdx;
+          } else {
+            const k = item.m4 || '';
+            const seq = legacyM4WePickSeq.get(k) ?? 0;
+            legacyM4WePickSeq.set(k, seq + 1);
+            weIdx = candidates[seq % candidates.length]!;
           }
         }
       }
@@ -831,12 +837,31 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
     }
   }
 
+  // ★ 2026-03-23: 레거시 flat — B4.parentItemId 없을 때만 동일 m4 PC에 결정론적 round-robin
+  // (정상 Import는 import-builder가 B4→B3 FK를 설정. 픽스처/구Export는 누락 가능)
+  for (const [m4Key, m4B4] of b4ByM4) {
+    let m4PCs = pcByM4.get(m4Key) || [];
+    if (m4PCs.length === 0 && allProcessChars.length > 0) {
+      m4PCs = allProcessChars;
+    }
+    if (m4PCs.length === 0) continue;
+    let rri = 0;
+    for (const b4 of m4B4) {
+      if (b4.parentItemId) continue;
+      b4.parentItemId = m4PCs[rri % m4PCs.length]!.id;
+      rri++;
+    }
+  }
+
   // m4별 B4→processChar 꽂아넣기 (parentItemId=B3 ID FK 기반)
   // ★★★ 2026-03-19: import-builder에서 B4.parentItemId를 B3 ID로 설정하므로
   // pcIdSet.has(parentItemId) 매칭이 정상 동작 → orphanPC 근본 해결 ★★★
   const unmatchedB4: ImportedFlatData[] = [];
   for (const [m4Key, m4B4] of b4ByM4) {
-    const m4PCs = pcByM4.get(m4Key) || [];
+    let m4PCs = pcByM4.get(m4Key) || [];
+    if (m4PCs.length === 0 && m4B4.length > 0 && allProcessChars.length > 0) {
+      m4PCs = allProcessChars;
+    }
     if (m4PCs.length > 0 && m4B4.length > 0) {
       // ★★★ 2026-03-21 FIX: FK-only — parentItemId FK 매칭만 허용, positional fallback 삭제
       const pcIdSet = new Set(m4PCs.map(pc => pc.id));
@@ -908,60 +933,6 @@ function fillL3Data(process: Process, items: ImportedFlatData[], b1IdToWeId?: B1
         // ★★★ 2026-03-21 FIX: FK-only — processCharId 실패 시 경고만 (m4 텍스트매칭/index-0 fallback 삭제)
         console.warn(`[buildWorksheetState] 공정 ${process.no}: FC "${fc.name}" processCharId FK 매칭 실패 — WE 분배 스킵`);
       }
-    }
-  }
-}
-
-/**
- * 레거시 flat(JSON 픽스처·구버전 Export 등)에 `B4.parentItemId`가 없을 때,
- * `fillL2Data`+`fillL3Data`와 동일 규칙으로 생성될 B3(PC) ID에 결정론적 round-robin FK를 부여한다.
- *
- * - 실제 Import 파이프라인: import-builder가 B4→B3 FK를 반드시 설정 (본 함수 호출 금지)
- * - 용도: 단위테스트 픽스처 보정, 구데이터 1회 마이그레이션 스크립트
- */
-export function patchLegacyFlatB4ParentItemIds(flatData: ImportedFlatData[]): void {
-  if (flatData.length === 0) return;
-
-  const commonProcessItems = flatData.filter(d => isCommonProcessNo(d.processNo || ''));
-  const hasRealCommonData = commonProcessItems.some(d =>
-    d.itemCode === 'A5' || d.itemCode === 'B4' || d.itemCode === 'A3' || d.itemCode === 'B2',
-  );
-  const filtered = hasRealCommonData
-    ? flatData
-    : flatData.filter(d => !isCommonProcessNo(d.processNo || ''));
-
-  const byProcess = groupByProcessNo(filtered);
-  const { processes: l2, b1IdMaps } = buildL2Structure(byProcess);
-
-  for (const proc of l2) {
-    const processItems = byProcess.get(proc.no) || [];
-    const b4Need = processItems.filter(d => d.itemCode === 'B4' && d.value?.trim() && !d.parentItemId);
-    if (b4Need.length === 0) continue;
-
-    const procClone = JSON.parse(JSON.stringify(proc)) as Process;
-    fillL2Data(procClone, processItems);
-    fillL3Data(procClone, processItems, b1IdMaps.get(proc.no));
-
-    const pcByM4 = new Map<string, { id: string }[]>();
-    for (const we of procClone.l3) {
-      const m4Key = we.m4 || '';
-      if (!pcByM4.has(m4Key)) pcByM4.set(m4Key, []);
-      for (const func of we.functions || []) {
-        for (const pc of func.processChars || []) {
-          pcByM4.get(m4Key)!.push({ id: pc.id });
-        }
-      }
-    }
-
-    const rr = new Map<string, number>();
-    for (const b4 of processItems) {
-      if (b4.itemCode !== 'B4' || !b4.value?.trim() || b4.parentItemId) continue;
-      const m4Key = b4.m4 || '';
-      const pcs = pcByM4.get(m4Key) || [];
-      if (pcs.length === 0) continue;
-      const idx = rr.get(m4Key) ?? 0;
-      rr.set(m4Key, idx + 1);
-      b4.parentItemId = pcs[idx % pcs.length]!.id;
     }
   }
 }
