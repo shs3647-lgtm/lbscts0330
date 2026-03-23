@@ -21,8 +21,48 @@ interface ResolvedChar {
   icon: string;
 }
 
-/** SC 마스터 캐시 — localStorage에서 1회 로드 후 캐시 (30초 TTL) */
+const SC_MASTER_LS_KEY = 'pfmea_special_char_master';
+
+/** SC 마스터 캐시 — localStorage + DB API 자동 로드 (30초 TTL) */
 let _masterCache: { byInternal: Map<string, ResolvedChar>; byCustomer: Map<string, ResolvedChar>; ts: number } | null = null;
+let _fetchScheduled = false;
+
+type MasterRaw = { customerSymbol?: string; internalSymbol?: string; meaning?: string; color?: string; icon?: string };
+
+function buildMaps(items: MasterRaw[]): { byInternal: Map<string, ResolvedChar>; byCustomer: Map<string, ResolvedChar> } {
+  const byInternal = new Map<string, ResolvedChar>();
+  const byCustomer = new Map<string, ResolvedChar>();
+  for (const m of items) {
+    const cs = (m.customerSymbol || '').trim();
+    const is_ = (m.internalSymbol || '').trim();
+    if (!cs && !is_) continue;
+    const entry: ResolvedChar = {
+      displaySymbol: cs || is_,
+      meaning: m.meaning || '',
+      color: m.color || '#9e9e9e',
+      icon: cs || is_,
+    };
+    if (is_ && !byInternal.has(is_)) byInternal.set(is_, entry);
+    if (cs && !byCustomer.has(cs)) byCustomer.set(cs, entry);
+  }
+  return { byInternal, byCustomer };
+}
+
+/** localStorage 비어있으면 DB API에서 자동 로드 후 localStorage + 캐시 갱신 */
+function scheduleFetchFromApi() {
+  if (_fetchScheduled || typeof window === 'undefined') return;
+  _fetchScheduled = true;
+  fetch('/api/special-char')
+    .then(r => r.json())
+    .then(json => {
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        localStorage.setItem(SC_MASTER_LS_KEY, JSON.stringify(json.data));
+        _masterCache = null; // 다음 resolveCharData 호출 시 재로드
+      }
+    })
+    .catch(() => { /* API 실패 — 다음 세션에서 재시도 */ })
+    .finally(() => { _fetchScheduled = false; });
+}
 
 function loadMasterLookup(): { byInternal: Map<string, ResolvedChar>; byCustomer: Map<string, ResolvedChar> } {
   const now = Date.now();
@@ -30,37 +70,24 @@ function loadMasterLookup(): { byInternal: Map<string, ResolvedChar>; byCustomer
     return _masterCache;
   }
 
-  const byInternal = new Map<string, ResolvedChar>();
-  const byCustomer = new Map<string, ResolvedChar>();
+  let items: MasterRaw[] = [];
 
   if (typeof window !== 'undefined') {
     try {
-      const saved = localStorage.getItem('pfmea_special_char_master');
+      const saved = localStorage.getItem(SC_MASTER_LS_KEY);
       if (saved) {
-        const items = JSON.parse(saved) as Array<{
-          customerSymbol?: string; internalSymbol?: string;
-          meaning?: string; color?: string; icon?: string;
-        }>;
-        for (const m of items) {
-          const cs = (m.customerSymbol || '').trim();
-          const is_ = (m.internalSymbol || '').trim();
-          if (!cs && !is_) continue;
-          const entry: ResolvedChar = {
-            displaySymbol: cs || is_,
-            meaning: m.meaning || '',
-            color: m.color || '#9e9e9e',
-            icon: cs || is_,
-          };
-          // internalSymbol -> customerSymbol 매핑 (SC->customerSymbol, CC->customerSymbol 등)
-          if (is_ && !byInternal.has(is_)) byInternal.set(is_, entry);
-          // customerSymbol 직접 매핑
-          if (cs && !byCustomer.has(cs)) byCustomer.set(cs, entry);
-        }
+        items = JSON.parse(saved) as MasterRaw[];
       }
     } catch { /* parse error */ }
   }
 
-  _masterCache = { byInternal, byCustomer, ts: now };
+  // localStorage 비어있으면 DB API에서 비동기 로드 예약
+  if (items.length === 0) {
+    scheduleFetchFromApi();
+  }
+
+  const maps = buildMaps(items);
+  _masterCache = { ...maps, ts: now };
   return _masterCache;
 }
 
