@@ -170,39 +170,55 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     return count;
   }, [state.l1?.types, state.l1?.failureScopes]);
 
-  // ★ 심각도 미평가 FE 건수 (S추천 버튼 표시용)
+  // ★ 심각도 추천 대상 FE 건수 (effect가 있는 전체 FE)
   const missingSeverityCount = useMemo(() => {
     const scopes = state.l1?.failureScopes || [];
-    return scopes.filter((s: any) => s.effect && (!s.severity || s.severity === 0)).length;
+    return scopes.filter((s: any) => s.effect?.trim()).length;
   }, [state.l1?.failureScopes]);
 
-  // ★ S추천 핸들러 — FE 텍스트 키워드 기반 심각도 자동 적용
+  // ★ S추천 핸들러 — 전체 FE에 대해 추천 → 확인 후 적용
   const handleAutoRecommendS = useCallback(() => {
     const scopes = state.l1?.failureScopes || [];
-    const targets = scopes.filter((s: any) => s.effect && (!s.severity || s.severity === 0));
+    const targets = scopes.filter((s: any) => s.effect?.trim());
     if (targets.length === 0) {
-      alert('심각도 미평가 항목이 없습니다.');
+      alert('고장영향(FE)이 없습니다.');
       return;
     }
 
-    let applied = 0;
+    // 1단계: 추천값 미리 계산
+    let changeCount = 0;
     const details: string[] = [];
     const updatedScopes = scopes.map((scope: any) => {
-      if (!scope.effect || (scope.severity && scope.severity > 0)) return scope;
+      if (!scope.effect?.trim()) return scope;
       const matches = matchFESeverity(scope.effect);
       if (matches.length > 0) {
         const best = matches[0];
-        applied++;
-        details.push(`S=${best.rating}(${best.level}) ← "${(scope.effect as string).substring(0, 25)}..." [${best.matchedKeywords.join(',')}]`);
+        const prev = scope.severity || 0;
+        if (prev !== best.rating) {
+          changeCount++;
+          details.push(`S=${prev}→${best.rating}(${best.level}) ← "${(scope.effect as string).substring(0, 25)}..." [${best.matchedKeywords.join(',')}]`);
+        }
         return { ...scope, severity: best.rating };
       }
       return scope;
     });
 
-    if (applied === 0) {
-      alert('키워드 매칭 가능한 항목이 없습니다.');
+    if (changeCount === 0) {
+      alert('모든 FE가 이미 최적 심각도입니다. 변경 없음.');
       return;
     }
+
+    // 2단계: 사용자 확인
+    const preview = details.slice(0, 8).map(d => `  ${d}`).join('\n');
+    const confirmed = confirm(
+      `심각도(S) 추천 결과 — ${changeCount}건 변경\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `${preview}${details.length > 8 ? `\n  ... 외 ${details.length - 8}건` : ''}\n\n` +
+      `적용하시겠습니까?`
+    );
+    if (!confirmed) return;
+
+    const applied = changeCount;
 
     setState((prev: WorksheetState) => ({
       ...prev,
@@ -211,15 +227,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     setDirty(true);
     saveAtomicDB?.(true);
 
-    const preview = details.slice(0, 5).map(d => `  ${d}`).join('\n');
-    alert(
-      `심각도(S) 자동추천 완료\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `• 적용: ${applied}건 / 전체: ${targets.length}건\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `${preview}\n\n` +
-      `※ 예비평가입니다. SOD 기준표 확인 후 조정하세요.`
-    );
+    alert(`심각도(S) 추천 적용 완료 — ${applied}건 변경\n※ 예비평가입니다. SOD 기준표 확인 후 조정하세요.`);
   }, [state.l1?.failureScopes, setState, setDirty, saveAtomicDB]);
 
   // ✅ 핸들러 hook 사용 (2026-01-20 분리)

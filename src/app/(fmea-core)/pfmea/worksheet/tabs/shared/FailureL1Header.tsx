@@ -122,7 +122,7 @@ export function FailureL1Header({
               <button type="button"
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAutoRecommendS(); }}
                 className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer border whitespace-nowrap shadow-sm ${(missingSeverityCount ?? 0) > 0 ? 'bg-[#1565c0] text-white border-[#42a5f5] hover:bg-[#0d47a1]' : 'bg-white/20 text-white/80 border-white/30 hover:bg-white/30'}`}
-                title={`심각도(S) 자동추천 — 미평가 ${missingSeverityCount ?? 0}건`}
+                title={`심각도(S) 자동추천 — FE ${missingSeverityCount ?? 0}건 전체 재평가`}
               >
                 S추천({missingSeverityCount ?? 0})
               </button>
