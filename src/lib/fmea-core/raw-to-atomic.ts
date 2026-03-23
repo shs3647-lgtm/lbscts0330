@@ -192,6 +192,8 @@ export async function saveAtomicFromPosition(
             fmeaId: normalizedId,
             l1StructId: r.l1StructId,
             l1FuncId: r.l1FuncId,
+            // ⛔ GUARD: parentId 절대 삭제 금지 — C3→L1Function FK (계층구조 필수)
+            // Prisma 캐시 문제가 있어도 이 필드는 임시 제거 불가. 캐시는 getPrisma()에서 처리.
             parentId: r.parentId || null,
             requirement: r.requirement,
             orderIndex: r.orderIndex,
@@ -306,6 +308,8 @@ export async function saveAtomicFromPosition(
             productCharId: fm.productCharId,
             mode: fm.mode,
             parentId: fm.parentId || null,
+            // ⛔ GUARD: feRefs/fcRefs 절대 삭제 금지 — FM↔FE/FC 크로스참조 (★v4 EX-05)
+            // 이 필드가 없으면 고장사슬 재구성 불가. Prisma 캐시 문제도 예외 없음.
             feRefs: fm.feRefs || [],
             fcRefs: fm.fcRefs || [],
           })),
@@ -451,6 +455,8 @@ export async function saveAtomicFromPosition(
             fmId: fl.fmId,
             feId: fl.feId,
             fcId: fl.fcId,
+            // ⛔ GUARD: l2StructId/l3StructId 절대 삭제 금지 — FL→구조 직접참조 (★v4 EX-38)
+            // FK 조인 없이 L2/L3 필터 가능. 없으면 전체 쿼리 성능 저하.
             l2StructId: fl.l2StructId || null,
             l3StructId: fl.l3StructId || null,
             fmText: fl.fmText,
@@ -475,6 +481,8 @@ export async function saveAtomicFromPosition(
             id: ra.id,
             fmeaId: normalizedId,
             linkId: ra.linkId,
+            // ⛔ GUARD: fmId/fcId/feId 절대 삭제 금지 — RA 직접참조 (★v4 EX-06)
+            // FailureLink JOIN 없이 FM/FC/FE별 RA 직접 필터 가능.
             fmId: ra.fmId || null,
             fcId: ra.fcId || null,
             feId: ra.feId || null,   // ★v4 EX-06
