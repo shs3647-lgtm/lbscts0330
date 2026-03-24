@@ -43,6 +43,7 @@ function main(): void {
     'src/__tests__/failure-link-link-stats.test.ts',
     'src/__tests__/auto-match-missing-fc.test.ts',
     'src/__tests__/import/v3-masterfc-no-pcdc.test.ts',
+    'src/__tests__/import/fa-verification-spec-relax.test.ts',
   ].join(' ');
 
   run('3/4 Vitest (파이프라인·고장연결 회귀 묶음)', `npx vitest run ${pipelineTests}`);

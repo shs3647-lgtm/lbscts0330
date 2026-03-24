@@ -35,6 +35,8 @@
 
 ## 3. FORGE 루프 (재현 ~ 100% 맞추기)
 
+- **Import 파싱 검증바 M1/M8 (2026-03-24)**: 행 #1·#8은 체인 행수 vs VERIFY수식 명세 축이다. 통합 시트·`supplementChainsFromFlatData` 등으로 수량이 명세와 1:1이 아닐 수 있어, **파싱 체인이 1건 이상이면 명세 대비 증감은 FAIL 배너·NG로 보지 않음** (`faVerificationSpecRelax.ts`). 연결 품질은 행 5~7·미매칭 패널로 확인.
+
 1. **EXPLORE**: `fmeaId` 확정 후 아래 API로 스냅샷 저장.
 2. **PLAN**: 누락이 Import 검증인지 / 고장연결 UI인지 / DB FK인지 분기.
 3. **TDD**: `failure-chain-parsing-diagnosis` · `failure-link-pipeline` 등 회귀.

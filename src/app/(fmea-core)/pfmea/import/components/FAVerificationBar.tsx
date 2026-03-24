@@ -5,8 +5,9 @@
  * @created 2026-02-26
  *
  * CODEFREEZE — 최고단계 (2026-02-28)
- * 수정 조건: "IMPORT 통계검증 수정해"라고 명시적으로 지시할 때만 수정
+ * 수정 조건: "IMPORT 통계검증 수정해" 또는 명세-수량(M1/M8) 완화 등 사용자 명시 지시 시만 수정
  * 2026-03-22: FM/FC 미매칭·합계를 공정번호|정규화값 키로 통일 (타공정 동문자 오판 제거), supplementChainsFromFlatData와 정합
+ * 2026-03-24: 행1·8(체인수↔VERIFY수식) 연결기준 완화 — faVerificationSpecRelax (통합시트·보강체인)
  * 포괄적 수정 지시 시 반드시 사용자에게 먼저 확인 요청
  */
 
@@ -16,6 +17,7 @@ import { useMemo } from 'react';
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import type { ParseStatistics } from '../excel-parser';
+import { isFaVerifyRowPass } from '../utils/faVerificationSpecRelax';
 
 interface FAVerificationBarProps {
   chains: MasterFailureChain[];
@@ -174,8 +176,10 @@ export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollT
 
   if (chains.length === 0 && (!flatData || flatData.length === 0)) return null;
 
-  const allOk = verify.every(v => v.expected === 0 || v.actual === v.expected);
-  const failCount = verify.filter(v => v.expected > 0 && v.actual !== v.expected).length;
+  const allOk = verify.every(v => isFaVerifyRowPass(v.no, v.actual, v.expected));
+  const failCount = verify.filter(
+    v => v.expected > 0 && !isFaVerifyRowPass(v.no, v.actual, v.expected),
+  ).length;
   const totalUnmatched = unmatched.fe.length + unmatched.fm.length + unmatched.fc.length;
 
   return (
@@ -205,8 +209,9 @@ export function FAVerificationBar({ chains, parseStatistics, flatData, onScrollT
         <tbody>
           {verify.map(v => {
             const hasExp = v.expected > 0;
-            const ok = hasExp && v.actual === v.expected;
-            const ng = hasExp && v.actual !== v.expected;
+            const pass = isFaVerifyRowPass(v.no, v.actual, v.expected);
+            const ok = hasExp && pass;
+            const ng = hasExp && !pass;
             const diff = v.actual - v.expected;
             return (
               <tr key={v.no} className={ng ? 'bg-red-50' : ok ? 'bg-green-50' : 'bg-white'}>
