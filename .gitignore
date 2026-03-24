@@ -42,6 +42,9 @@ yarn-error.log*
 # local snapshots (commit 시 자동 생성)
 /snapshots
 
+# 로컬 PFMEA/스크립트 export 산출물 (프로젝트별 JSON 덤프)
+/exports/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
