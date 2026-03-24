@@ -70,16 +70,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '문서명을 입력해주세요.' }, { status: 400 });
     }
 
-    if (docType === 'family' && !parentTripletId && !parentFmeaId) {
-      return NextResponse.json({ success: false, error: '상위 FMEA를 선택해주세요.' }, { status: 400 });
-    }
-    // Part는 standalone 모드 허용 (상위 없이 독립 생성)
-    if (docType === 'part' && !parentTripletId && !parentFmeaId && !body.standalone) {
+    // Master/Family/Part 모두 standalone 허용 (상위 없이 독립 생성)
+    if ((docType === 'family' || docType === 'part') && !parentTripletId && !parentFmeaId && !body.standalone) {
       return NextResponse.json({ success: false, error: '상위 FMEA를 선택하거나 직접 작성 모드를 선택해주세요.' }, { status: 400 });
     }
 
     // ★ 기존 FMEA를 부모로 선택한 경우 → 자동 TripletGroup 래핑
-    if (!parentTripletId && parentFmeaId && (docType === 'family' || (docType === 'part' && !body.standalone))) {
+    if (!parentTripletId && parentFmeaId && !body.standalone && (docType === 'family' || docType === 'part')) {
       const existingProject = await prisma.fmeaProject.findUnique({
         where: { fmeaId: parentFmeaId },
         include: { registration: true },
@@ -154,7 +151,7 @@ export async function POST(request: NextRequest) {
     if (docType === 'master') {
       return await createMasterTriplet(prisma, typeCode, pfmeaIds, cpIds, pfdIds, tgIds, headerData, familyCount, existingLinkGroups);
     } else if (docType === 'family') {
-      return await createFamilyTriplet(prisma, typeCode, pfmeaIds, cpIds, pfdIds, tgIds, headerData, parentTripletId!, immediateCP, immediatePFD, partCount, existingLinkGroups);
+      return await createFamilyTriplet(prisma, typeCode, pfmeaIds, cpIds, pfdIds, tgIds, headerData, parentTripletId || null, immediateCP, immediatePFD, partCount, existingLinkGroups);
     } else {
       return await createPartTriplet(prisma, pfmeaIds, cpIds, pfdIds, tgIds, headerData, parentTripletId || null, existingLinkGroups);
     }
@@ -329,7 +326,7 @@ async function createFamilyTriplet(
   pfdIds: string[],
   tgIds: string[],
   headerData: Record<string, string>,
-  parentTripletId: string,
+  parentTripletId: string | null,
   _immediateCP: boolean,
   _immediatePFD: boolean,
   partCount: number,
@@ -341,10 +338,12 @@ async function createFamilyTriplet(
   const cpId = ids.cpId;
   const pfdId = ids.pfdId;
 
-  const parentTriplet = await prisma.tripletGroup.findUnique({
-    where: { id: parentTripletId },
-    select: { pfmeaId: true },
-  });
+  const parentTriplet = parentTripletId
+    ? await prisma.tripletGroup.findUnique({
+        where: { id: parentTripletId },
+        select: { pfmeaId: true },
+      })
+    : null;
 
   await prisma.$transaction(async (tx) => {
     await tx.tripletGroup.create({
