@@ -41,6 +41,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import DataSelectModal from '@/components/modals/DataSelectModal';
@@ -215,15 +216,35 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
 
     const applied = changeCount;
 
-    setState((prev: WorksheetState) => ({
-      ...prev,
-      l1: { ...prev.l1!, failureScopes: updatedScopes },
-    }));
+    // ★★★ 2026-03-22 FIX: 동기 반영 후 저장 — setState 직후 saveAtomicDB는 stateRef가 아직 이전 failureScopes라
+    // syncConfirmedFlags가 구 S를 POST → 프로젝트 DB에 S추천이 영구 저장되지 않음 (MX5 등 전 프로젝트)
+    flushSync(() => {
+      if (setStateSynced) {
+        setStateSynced((prev: WorksheetState) => ({
+          ...prev,
+          l1: { ...prev.l1!, failureScopes: updatedScopes },
+        }));
+      } else {
+        setState((prev: WorksheetState) => ({
+          ...prev,
+          l1: { ...prev.l1!, failureScopes: updatedScopes },
+        }));
+      }
+    });
     setDirty(true);
-    saveAtomicDB?.(true);
 
-    alert(`심각도(S) 추천 적용 완료 — ${applied}건 변경\n※ 예비평가입니다. SOD 기준표 확인 후 조정하세요.`);
-  }, [state.l1?.failureScopes, setState, setDirty, saveAtomicDB]);
+    void (async () => {
+      try {
+        await saveAtomicDB?.(true);
+        alert(
+          `심각도(S) 추천 적용 완료 — ${applied}건 변경\n※ 예비평가입니다. SOD 기준표 확인 후 조정하세요.`,
+        );
+      } catch (e) {
+        console.error('[FailureL1Tab] S추천 적용 후 DB 저장 오류:', e);
+        alert('DB 저장에 실패했습니다. 네트워크 확인 후 워크시트 저장을 다시 시도해 주세요.');
+      }
+    })();
+  }, [state.l1, setState, setStateSynced, setDirty, saveAtomicDB, fmeaId]);
 
   // ✅ 핸들러 hook 사용 (2026-01-20 분리)
   const {

@@ -41,7 +41,8 @@ interface UseWorksheetSaveReturn {
 
 // ── 헬퍼: atomicDB에 현재 stateRef의 confirmed 상태 + riskData 반영 ──
 
-function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB {
+/** 테스트·도구용 export — S추천 등 failureScopes→failureEffects 역동기화 검증 */
+export function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB {
   const result = {
     ...db,
     confirmed: {

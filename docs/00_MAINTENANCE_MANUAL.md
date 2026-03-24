@@ -567,6 +567,7 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|
+| 03-23 | - | PFMEA/1L S추천 | **S추천 일괄 적용 후 DB 미저장**: `handleAutoRecommendS`가 `setState` 직후 `saveAtomicDB`를 호출해 `stateRef`가 이전 `failureScopes`인 채로 `syncConfirmedFlags`가 실행됨 → `failure_effects.severity`에 반영 안 됨. **`react-dom` `flushSync` + `setStateSynced`** 후 `await saveAtomicDB(true)`. Vitest: `sync-confirmed-flags-fe-severity.test.ts` |
 | 03-23 | - | PFMEA/기능L3 | **동일 작업요소기능 하 동일 공정특성명 복수 행**: `functionL3Utils` 이름 기준 B3 dedup 제거, FC 리매핑은 살아 있는 `processCharId` 유지. Import 카운트 B2/B3는 고유 문자열이 아니라 **flat 행 수** |
 | 03-23 | - | PFMEA/고장L3 | **`FailureL3Tab` `flatRows`/`missingCount`**: 동일 기능 내 동일 공정특성명 복수 행 표시·누락 판정을 **processCharId** 기준으로. `useFailureL3Handlers.handleSave`는 **모달 processCharId** 우선(이름 canonical 합침 제거) |
 | 03-23 | - | PFMEA/구조 | **Strict Mode 행추가 이중 삽입**: `StructureTab` `handleInsertAbove/Below`, 병합 위·아래 추가, `handleDeleteRow`의 `setState` 업데이터를 `createStrictModeDedupedUpdater`로 래핑 (개발 모드에서 한 번 클릭 → 한 줄만 추가) |
