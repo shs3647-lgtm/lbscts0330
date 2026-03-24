@@ -15,6 +15,9 @@
  *   공정번호, 4M, 고장원인(B4), 고장형태(A5), 고장영향(C4), 예방관리(B5), 검출관리(A6), S, O, D, AP
  *
  * ★ 헤더 텍스트를 읽어서 어떤 형식인지 자동 감지 → 컬럼 매핑
+ *
+ * ★ 2026-03-24: UI **연결표(Linkage)**보내기(10열 FE|FM|FC) — findFCSheet + 전용 파서
+ *   (기존에는 시트명이 FC_고장사슬 패턴에 안 걸려 failureChains=0 → 메인시트 도출과 불일치)
  */
 
 import type ExcelJS from 'exceljs';
@@ -76,25 +79,132 @@ const FC_SHEET_PATTERNS = [
   /^fc\s/i,             // "FC "로 시작
 ];
 
-/** 워크북에서 FC_고장사슬 시트를 찾음 (없으면 null) */
+/** 연결표(Linkage) UI보내기 시트 — 고장사슬 패턴에 없을 수 있음 */
+const FC_LINKAGE_SHEET_PATTERNS = [
+  /^연결표/i,
+  /\(linkage\)/i,
+  /linkage/i,
+];
+
+/** 워크북에서 FC 데이터 시트 (고장사슬 표준 > 연결표보내기) */
 export function findFCSheet(workbook: ExcelJS.Workbook): ExcelJS.Worksheet | null {
-  let found: ExcelJS.Worksheet | null = null;
-  const sheetNames: string[] = [];
+  let standard: ExcelJS.Worksheet | null = null;
+  let linkage: ExcelJS.Worksheet | null = null;
   workbook.eachSheet((sheet) => {
-    sheetNames.push(sheet.name);
-    if (found) return;
     const name = sheet.name.trim();
     if (FC_SHEET_PATTERNS.some(p => p.test(name))) {
-      found = sheet;
+      standard = standard || sheet;
+    }
+    if (FC_LINKAGE_SHEET_PATTERNS.some(p => p.test(name))) {
+      linkage = linkage || sheet;
     }
   });
-  
-  // ★ 2026-02-24: 디버깅용 로그
-  if (found !== null) {
-  } else {
+  return standard || linkage;
+}
+
+/** excel-export-linkage.ts 1행 헤더와 동일한 10열 연결표 */
+function detectLinkageExportLayout(sheet: ExcelJS.Worksheet): boolean {
+  const r1 = sheet.getRow(1);
+  const h = (c: number) => cellValueToString(r1.getCell(c)).trim().toLowerCase();
+  const a1 = h(1);
+  const c3 = h(3);
+  const h8 = h(8);
+  const j1 = h(10);
+  return (
+    a1.includes('fe') && a1.includes('no')
+    && c3 === 'fe'
+    && h8.includes('process')
+    && (j1 === 'fc' || j1.startsWith('fc'))
+  );
+}
+
+/**
+ * 연결표(Linkage) 10열 레이아웃 → MasterFailureChain[]
+ * 병합셀은 getMergedCellValue, Process/WE는 FM 그룹 내 carry-forward
+ */
+function parseLinkageExportSheet(sheet: ExcelJS.Worksheet): MasterFailureChain[] {
+  const chains: MasterFailureChain[] = [];
+  const cell = (row: number, col: number) => getMergedCellValue(sheet, row, col).trim();
+
+  let cfCat = '';
+  let cfFe = '';
+  let cfS = '';
+  let cfFm = '';
+  let cfProc = '';
+  let cfWe = '';
+  let prevFm = '\u0000';
+
+  for (let r = 2; r <= sheet.rowCount; r++) {
+    const c1 = cell(r, 1);
+    const c2 = cell(r, 2);
+    const c3 = cell(r, 3);
+    const c4 = cell(r, 4);
+    const c6 = cell(r, 6);
+    const c8 = cell(r, 8);
+    const c9 = cell(r, 9);
+    const c10 = cell(r, 10);
+
+    if (c1.includes('연결 현황') || c3.includes('연결된 고장이 없습니다')) {
+      continue;
+    }
+
+    const rowHasData = c1 || c2 || c3 || c4 || c6 || c8 || c9 || c10;
+    if (!rowHasData) {
+      continue;
+    }
+
+    if (c3) {
+      cfFe = c3;
+      if (c2) {
+        cfCat = c2;
+      }
+      if (c4) {
+        cfS = c4;
+      }
+    }
+
+    if (c6) {
+      if (c6 !== prevFm) {
+        prevFm = c6;
+        cfProc = '';
+        cfWe = '';
+      }
+      cfFm = c6;
+    }
+
+    if (c8) {
+      cfProc = c8;
+    }
+    if (c9) {
+      cfWe = c9;
+    }
+
+    if (!c10 || !cfFm) {
+      continue;
+    }
+
+    const rawProc = cfProc || c8;
+    const processNo = rawProc ? (sanitizeProcessNo(rawProc) || rawProc) : '';
+
+    const sevNum = parseInt(cfS || c4, 10);
+    const severity =
+      Number.isFinite(sevNum) && sevNum >= 1 && sevNum <= 10 ? sevNum : undefined;
+
+    chains.push({
+      id: `fc-linkage-${r}`,
+      processNo,
+      workElement: (cfWe || c9) || undefined,
+      feValue: cfFe,
+      feScope: cfCat || undefined,
+      fmValue: cfFm,
+      fcValue: c10,
+      severity,
+      feSeverity: severity,
+      excelRow: r,
+    });
   }
-  
-  return found;
+
+  return chains;
 }
 
 // ─── 컬럼 매핑 ───
@@ -244,6 +354,10 @@ export function detectColumnMap(sheet: ExcelJS.Worksheet): { headerRow: number; 
  *   → 이전 행의 값을 유지(carry-forward)하여 모든 행에 완전한 데이터 보장
  */
 export function parseFCSheet(sheet: ExcelJS.Worksheet): MasterFailureChain[] {
+  if (detectLinkageExportLayout(sheet)) {
+    return parseLinkageExportSheet(sheet);
+  }
+
   const chains: MasterFailureChain[] = [];
 
   const { headerRow, colMap } = detectColumnMap(sheet);

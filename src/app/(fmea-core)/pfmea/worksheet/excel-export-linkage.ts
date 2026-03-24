@@ -91,6 +91,8 @@ interface FMGroupForExcel {
   fmId: string;
   fmText: string;
   fmProcess: string;
+  /** L2 공정번호(A1) — Process 열 비어 있을 때 Import·연결표 병합 정합 */
+  fmProcessNo: string;
   fmNo: string;
   fes: { feNo: string; scope: string; text: string; severity: number }[];
   fcs: { fcNo: string; processName: string; workElem: string; text: string }[];
@@ -126,14 +128,16 @@ function buildGroupsFromState(state: WorksheetState): FMGroupForExcel[] {
   const fmGroupsMap = groupFailureLinksByFM(linkResults);
 
   // fmData 재구성 (state에서 FM 정보 가져오기)
-  const fmDataMap = new Map<string, { text: string; processName: string; fmNo: string }>();
+  const fmDataMap = new Map<string, { text: string; processName: string; processNo: string; fmNo: string }>();
   for (const l2 of (state.l2 || [])) {
     const failureModes = l2.failureModes || [];
+    const processNo = String(l2.no ?? '').trim();
     failureModes.forEach((fm, fmIdx) => {
       if (fm.id) {
         fmDataMap.set(fm.id, {
           text: fm.name || '',
           processName: l2.name || '',
+          processNo,
           fmNo: `M${fmIdx + 1}`,
         });
       }
@@ -154,6 +158,7 @@ function buildGroupsFromState(state: WorksheetState): FMGroupForExcel[] {
       fmId: group.fmId,
       fmText: fmInfo?.text || group.fmText,
       fmProcess: fmInfo?.processName || group.fmProcess,
+      fmProcessNo: fmInfo?.processNo || '',
       fmNo: fmInfo?.fmNo || group.fmNo || `M${fmCounter}`,
       fes: group.fes.map(fe => {
         feCounter++;
@@ -296,6 +301,11 @@ export async function exportLinkageExcel(
         const feItem = (mergeConfig.showFe && rowIdx < feCount) ? group.fes[rowIdx] : null;
         const fcItem = (mergeConfig.showFc && rowIdx < fcCount) ? group.fcs[rowIdx] : null;
 
+        const procCell =
+          (fcItem?.processName && String(fcItem.processName).trim())
+          || (group.fmProcessNo && String(group.fmProcessNo).trim())
+          || (group.fmProcess && String(group.fmProcess).trim())
+          || '';
         const rowData = [
           feItem?.feNo || '',
           feItem ? scopeToCat(feItem.scope) : '',
@@ -304,7 +314,7 @@ export async function exportLinkageExcel(
           rowIdx === 0 ? group.fmNo : '',
           rowIdx === 0 ? group.fmText : '',
           fcItem?.fcNo || '',
-          fcItem?.processName || '',
+          procCell,
           fcItem?.workElem || '',
           fcItem?.text || '',
         ];

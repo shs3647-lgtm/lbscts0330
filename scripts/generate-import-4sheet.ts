@@ -227,13 +227,21 @@ export async function mergeWithLinkageTable(
   const linkRows = (XLSX.default.utils.sheet_to_json(wbLink.Sheets[sheetName], { header: 1, defval: '' }) as any[][]).slice(1);
 
   let curCat = '', curFE = '', curFM = '', curS = 0;
+  /** Process(H열) 병합 시 빈칸 — 동일 FM 블록 내 carry (2026-03-24) */
+  let curProc = '';
   const mergedFC: FCRow[] = [];
   let matched = 0, unmatched = 0;
 
   for (const r of linkRows) {
     if (str(r[2])) { curCat = str(r[1]); curFE = str(r[2]); curS = num(r[3]); }
-    if (str(r[5])) { curFM = str(r[5]); }
-    const proc = str(r[7]);
+    if (str(r[5])) {
+      curFM = str(r[5]);
+      curProc = '';
+    }
+    if (str(r[7])) {
+      curProc = str(r[7]);
+    }
+    const proc = curProc;
     const we = str(r[8]);
     const fc = str(r[9]);
     if (!fc || !proc) continue;
