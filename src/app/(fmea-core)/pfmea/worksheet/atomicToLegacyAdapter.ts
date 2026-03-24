@@ -156,6 +156,9 @@ function buildFailureScopes(
 }
 
 // ============ L2 기능: L2Function → Process.functions[].productChars[] ============
+// CODEFREEZE 2026-03-24: buildL2Functions — productChars[].id는 PPC.id 사용 필수
+// FM.productCharId가 PPC.id(C5)를 가리키므로 L2Function.id(C4)를 쓰면 FM↔PC 매핑이 깨짐
+// 위반 사고: L2Func.id 사용 → computeFailureLinkStats에서 FM 미연결 오표시 → 사용자 반복 보고
 
 /**
  * ██████████████████████████████████████████████████████████████████████████

@@ -279,6 +279,8 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
     ppc: new Set<string>(ppc.map((r: any) => r.id)), // ★ ProcessProductChar
   };
 
+  // CODEFREEZE 2026-03-24: FM.productCharId → PPC (ProcessProductChar.id)로 검증
+  // L2Function.id가 아님! PPC.id(C5)와 L2Function.id(C4)는 별도 UUID.
   // 관계 라벨은 디버그/ImportValidation 표시용. 검증 로직은 전부 targetSet.has(fkVal).
   const fkChecks: { relation: string; rows: any[]; fkField: string; targetSet: Set<string>; nullable?: boolean; nameField?: string }[] = [
     { relation: 'L3.l2Id → L2', rows: l3s as any[], fkField: 'l2Id', targetSet: idSet.l2 },
