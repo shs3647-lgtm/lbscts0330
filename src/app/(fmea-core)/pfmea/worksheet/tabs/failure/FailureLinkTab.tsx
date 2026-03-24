@@ -332,11 +332,11 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     return fmData.filter(fm => {
       // 현재 FM에 미확정 FC가 있으면 누락에서 제외
       if (fm.id === currentFMId && linkedFCs.size > 0) return false;
-      // 1순위: UUID 매칭
-      const counts = linkStats.fmLinkCounts.get(fm.id);
-      if (counts && counts.fcCount > 0) return false;
-      // 2순위: fmId가 savedLinks에 직접 존재
+      // 1순위: fmId가 savedLinks(DB FL)에 존재 → 연결됨 (DB가 SSoT)
       if (linkStats.fmLinkedIds.has(fm.id)) return false;
+      // 2순위: fmLinkCounts UUID 매칭
+      const counts = linkStats.fmLinkCounts.get(fm.id);
+      if (counts && (counts.fcCount > 0 || counts.feCount > 0)) return false;
       // 3순위: 텍스트+공정 매칭 (DB FL에는 연결되어 있지만 ID가 다른 경우)
       const key = ((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
       if (linkFmTextSet.has(key)) return false;
