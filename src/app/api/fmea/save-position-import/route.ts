@@ -362,9 +362,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 10. FailureCauses: DELETE 위에서 완료 → 재생성 (★v4: processCharId = l3CharId → L3ProcessChar.id)
+      // 10. FailureCauses: skipDuplicates 추가 (★ 2026-03-25: 재Import 중복 누적 방지)
       if (atomicData.failureCauses.length > 0) {
         await tx.failureCause.createMany({
+          skipDuplicates: true,
           data: atomicData.failureCauses.map(fc => ({
             id: fc.id, fmeaId: normalizedId, l3FuncId: fc.l3FuncId,
             l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
@@ -373,7 +374,7 @@ export async function POST(request: NextRequest) {
             parentId: fc.parentId || null,
           })),
         });
-        console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성`);
+        console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성 (skipDuplicates)`);
       }
 
       // 11. FailureLinks — 빈 FK 필터링 후 저장 (FK 제약 위반 방지)
@@ -495,10 +496,148 @@ export async function POST(request: NextRequest) {
 
     console.log(`[save-position-import] Done:`, JSON.stringify(counts));
 
-    return NextResponse.json({
-      success: true, fmeaId: normalizedId, schema,
-      atomicCounts: counts, stats: atomicData.stats,
-    });
+    // ██████████████████████████████████████████████████████████████████
+    // ██  POST-SAVE FORGE: 자동검증 + 자동수정 루프 (최대 3회)       ██
+    // ██  Import 후 즉시 실행 — L3→L2 고아, FC미연결, FL불완전 수정  ██
+    // ██████████████████████████████████████████████████████████████████
+    let forgeLog: string[] = [];
+    let forgePassed = false;
+    let forgeIteration = 0;
+    const MAX_FORGE = 3;
+
+    try {
+      while (forgeIteration < MAX_FORGE && !forgePassed) {
+        forgeIteration++;
+        forgeLog.push(`── Forge #${forgeIteration} ──`);
+
+        // ── 1. L3→L2 고아 감지 + 삭제 ──
+        const l3Orphans: any[] = await prisma.$queryRawUnsafe(
+          `SELECT l3.id FROM l3_structures l3 WHERE NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = l3."l2Id") AND l3."fmeaId" = '${normalizedId}'`
+        );
+        if (l3Orphans.length > 0) {
+          const l3Ids = l3Orphans.map((r: any) => `'${r.id}'`).join(',');
+          // 종속: L3F, FC, L3WorkElement, L3FourM, L3ProcessNo → 삭제
+          await prisma.$executeRawUnsafe(`DELETE FROM l3_functions WHERE "l3StructId" IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`);
+          await prisma.$executeRawUnsafe(`DELETE FROM failure_causes WHERE "l3StructId" IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`);
+          try { await prisma.$executeRawUnsafe(`DELETE FROM l3_work_elements WHERE "l3StructId" IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`); } catch {}
+          try { await prisma.$executeRawUnsafe(`DELETE FROM l3_four_ms WHERE "l3StructId" IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`); } catch {}
+          try { await prisma.$executeRawUnsafe(`DELETE FROM l3_process_nos WHERE "l3StructId" IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`); } catch {}
+          try { await prisma.$executeRawUnsafe(`DELETE FROM l3_process_chars WHERE "l3StructId" IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`); } catch {}
+          try { await prisma.$executeRawUnsafe(`DELETE FROM l3_special_chars WHERE "l3StructId" IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`); } catch {}
+          await prisma.$executeRawUnsafe(`DELETE FROM l3_structures WHERE id IN (${l3Ids}) AND "fmeaId" = '${normalizedId}'`);
+          forgeLog.push(`  L3→L2 고아 ${l3Orphans.length}건 삭제 (종속 L3F/FC 포함)`);
+        }
+
+        // ── 2. L3F→L2 고아 감지 + 삭제 ──
+        const l3fOrphans: any[] = await prisma.$queryRawUnsafe(
+          `SELECT l3f.id FROM l3_functions l3f WHERE l3f."l2StructId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = l3f."l2StructId") AND l3f."fmeaId" = '${normalizedId}'`
+        );
+        if (l3fOrphans.length > 0) {
+          const ids = l3fOrphans.map((r: any) => `'${r.id}'`).join(',');
+          await prisma.$executeRawUnsafe(`DELETE FROM l3_functions WHERE id IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+          forgeLog.push(`  L3F→L2 고아 ${l3fOrphans.length}건 삭제`);
+        }
+
+        // ── 3. FC→L2 고아 감지 + 삭제 ──
+        const fcL2Orphans: any[] = await prisma.$queryRawUnsafe(
+          `SELECT fc.id FROM failure_causes fc WHERE fc."l2StructId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = fc."l2StructId") AND fc."fmeaId" = '${normalizedId}'`
+        );
+        if (fcL2Orphans.length > 0) {
+          const ids = fcL2Orphans.map((r: any) => `'${r.id}'`).join(',');
+          // FL 참조 삭제 먼저
+          await prisma.$executeRawUnsafe(`DELETE FROM risk_analyses WHERE "failureLinkId" IN (SELECT id FROM failure_links WHERE "fcId" IN (${ids}) AND "fmeaId" = '${normalizedId}') AND "fmeaId" = '${normalizedId}'`);
+          await prisma.$executeRawUnsafe(`DELETE FROM failure_links WHERE "fcId" IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+          await prisma.$executeRawUnsafe(`DELETE FROM failure_causes WHERE id IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+          forgeLog.push(`  FC→L2 고아 ${fcL2Orphans.length}건 삭제`);
+        }
+
+        // ── 4. 불완전 FL 삭제 (fmId/fcId/feId 참조 깨진) ──
+        const brokenFLs: any[] = await prisma.$queryRawUnsafe(`
+          SELECT fl.id FROM failure_links fl WHERE fl."fmeaId" = '${normalizedId}' AND (
+            NOT EXISTS (SELECT 1 FROM failure_modes fm WHERE fm.id = fl."fmId")
+            OR NOT EXISTS (SELECT 1 FROM failure_causes fc WHERE fc.id = fl."fcId")
+            OR NOT EXISTS (SELECT 1 FROM failure_effects fe WHERE fe.id = fl."feId")
+          )
+        `);
+        if (brokenFLs.length > 0) {
+          const ids = brokenFLs.map((r: any) => `'${r.id}'`).join(',');
+          await prisma.$executeRawUnsafe(`DELETE FROM risk_analyses WHERE "failureLinkId" IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+          await prisma.$executeRawUnsafe(`DELETE FROM failure_links WHERE id IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+          forgeLog.push(`  불완전 FL ${brokenFLs.length}건 삭제`);
+        }
+
+        // ── 5. 고아 RA 삭제 ──
+        const orphanRAs: any[] = await prisma.$queryRawUnsafe(`
+          SELECT ra.id FROM risk_analyses ra WHERE ra."fmeaId" = '${normalizedId}'
+            AND NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl.id = ra."failureLinkId")
+        `);
+        if (orphanRAs.length > 0) {
+          const ids = orphanRAs.map((r: any) => `'${r.id}'`).join(',');
+          await prisma.$executeRawUnsafe(`DELETE FROM risk_analyses WHERE id IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+          forgeLog.push(`  고아 RA ${orphanRAs.length}건 삭제`);
+        }
+
+        // ── 6. FC 중복 삭제 (l2StructId + cause 기준, 최신만 보존) ──
+        try {
+          const fcDups: any[] = await prisma.$queryRawUnsafe(`
+            SELECT id FROM failure_causes fc1 WHERE fc1."fmeaId" = '${normalizedId}'
+              AND EXISTS (SELECT 1 FROM failure_causes fc2
+                WHERE fc2."fmeaId" = fc1."fmeaId" AND fc2."l2StructId" = fc1."l2StructId"
+                  AND fc2.cause = fc1.cause AND fc2.id > fc1.id)
+              AND NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl."fcId" = fc1.id)
+          `);
+          if (fcDups.length > 0) {
+            const ids = fcDups.map((r: any) => `'${r.id}'`).join(',');
+            await prisma.$executeRawUnsafe(`DELETE FROM failure_causes WHERE id IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+            forgeLog.push(`  FC 중복 ${fcDups.length}건 삭제`);
+          }
+        } catch {}
+
+        // ── 7. 최종 검증 ──
+        const finalChecks = await Promise.all([
+          prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM l3_structures l3 WHERE NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = l3."l2Id") AND l3."fmeaId" = '${normalizedId}'`),
+          prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM failure_causes fc WHERE fc."l2StructId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = fc."l2StructId") AND fc."fmeaId" = '${normalizedId}'`),
+          prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM failure_links fl WHERE fl."fmeaId" = '${normalizedId}' AND (NOT EXISTS (SELECT 1 FROM failure_modes fm WHERE fm.id = fl."fmId") OR NOT EXISTS (SELECT 1 FROM failure_causes fc WHERE fc.id = fl."fcId") OR NOT EXISTS (SELECT 1 FROM failure_effects fe WHERE fe.id = fl."feId"))`),
+          prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM risk_analyses ra WHERE ra."fmeaId" = '${normalizedId}' AND NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl.id = ra."failureLinkId")`),
+        ]);
+        const issues = finalChecks.map((r: any) => Number(r[0]?.c || 0));
+        const totalIssues = issues.reduce((a: number, b: number) => a + b, 0);
+        forgeLog.push(`  검증: L3고아=${issues[0]} FC고아=${issues[1]} FL불완전=${issues[2]} RA고아=${issues[3]}`);
+
+        if (totalIssues === 0) {
+          forgePassed = true;
+          forgeLog.push(`  ✅ FORGE PASS — 0건 이슈`);
+        } else {
+          forgeLog.push(`  → ${totalIssues}건 남음, 다음 루프`);
+        }
+      }
+
+      // 최종 건수
+      const forgeResult = {
+        fm: await prisma.failureMode.count({ where: { fmeaId: normalizedId } }),
+        fc: await prisma.failureCause.count({ where: { fmeaId: normalizedId } }),
+        fe: await prisma.failureEffect.count({ where: { fmeaId: normalizedId } }),
+        fl: await prisma.failureLink.count({ where: { fmeaId: normalizedId } }),
+        ra: await prisma.riskAnalysis.count({ where: { fmeaId: normalizedId } }),
+        l3: await prisma.l3Structure.count({ where: { fmeaId: normalizedId } }),
+      };
+      forgeLog.push(`최종: FM=${forgeResult.fm} FC=${forgeResult.fc} FE=${forgeResult.fe} FL=${forgeResult.fl} RA=${forgeResult.ra} L3=${forgeResult.l3}`);
+      console.log(`[save-position-import] FORGE: ${forgePassed ? 'PASS' : 'FAIL'} (${forgeIteration}회)`, forgeLog.join('\n'));
+
+      return NextResponse.json({
+        success: true, fmeaId: normalizedId, schema,
+        atomicCounts: counts, stats: atomicData.stats,
+        forge: { passed: forgePassed, iterations: forgeIteration, result: forgeResult, log: forgeLog },
+      });
+    } catch (forgeErr) {
+      console.warn('[save-position-import] FORGE warn:', forgeErr);
+      // Forge 실패해도 Import 자체는 성공 반환
+      return NextResponse.json({
+        success: true, fmeaId: normalizedId, schema,
+        atomicCounts: counts, stats: atomicData.stats,
+        forge: { passed: false, error: String(forgeErr), log: forgeLog },
+      });
+    }
 
   } catch (err) {
     console.error('[save-position-import] Error:', err);
