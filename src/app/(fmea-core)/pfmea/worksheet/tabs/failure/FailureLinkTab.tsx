@@ -884,22 +884,19 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
         {/* 고장연결 완료 배너 + ALL 화면 이동 버튼 */}
         {/* ★★★ FM+FE+FC 모두 누락 0이어야 완전 완료 ★★★ */}
         {totalMissingCount === 0 && savedLinks.length > 0 && !isConfirmed && (
-          <div style={{
-            background: 'linear-gradient(135deg, #4caf50, #2e7d32)',
-            color: '#fff',
-            padding: '6px 10px',
-            borderRadius: '6px',
-            margin: '4px 8px',
-            textAlign: 'center',
-            boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
-              🎉 모든 고장연결이 완료되었습니다!
-            </div>
-            <div style={{ fontSize: 10, opacity: 0.9, marginBottom: 4 }}>
-              아래 [전체확정] 버튼을 눌러 확정해주세요
-            </div>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #4caf50, #2e7d32)',
+              color: '#fff',
+              padding: '3px 8px',
+              borderRadius: '4px',
+              margin: '2px 8px',
+              textAlign: 'center',
+              boxShadow: '0 1px 4px rgba(76, 175, 80, 0.25)',
+            }}
+          >
             <button
+              type="button"
               onClick={() => {
                 setState((prev: any) => ({ ...prev, tab: 'all', allViewSection: 'failure' }));
                 try {
@@ -908,18 +905,18 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
                 } catch (e) { /* ignore */ }
               }}
               style={{
-                background: '#fff',
-                color: '#2e7d32',
+                background: 'transparent',
+                color: '#fff',
                 border: 'none',
-                padding: '4px 12px',
-                borderRadius: '12px',
+                padding: '2px 4px',
                 fontSize: 10,
                 fontWeight: 700,
                 cursor: 'pointer',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                textDecoration: 'underline',
+                textUnderlineOffset: 2,
               }}
             >
-              📊 ALL 화면에서 결과 확인
+              ALL 화면에서 결과 확인
             </button>
           </div>
         )}
