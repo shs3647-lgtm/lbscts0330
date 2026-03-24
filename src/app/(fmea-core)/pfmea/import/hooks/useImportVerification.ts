@@ -37,7 +37,7 @@ interface UseImportVerificationReturn {
   runPgsqlVerify: () => Promise<void>;
   runApiVerify: () => Promise<void>;
   runFullVerify: () => Promise<void>;
-  runSelfImprovementLoop: (resaveFn?: () => Promise<boolean>) => Promise<{ pass: boolean; loops: number }>;
+  runSelfImprovementLoop: (resaveFn?: () => Promise<boolean>, masterImportFn?: () => Promise<boolean>) => Promise<{ pass: boolean; loops: number; strategy: string }>;
 }
 
 export function useImportVerification(
@@ -130,19 +130,43 @@ export function useImportVerification(
   const getMismatchCodes = (pg: Record<string, PgsqlVerifyResult>): string[] =>
     Object.entries(pg).filter(([, v]) => v.actual === 0 && v.expected > 0).map(([k]) => k);
 
-  // ★★★ 자가개선루프 ★★★
+  // ★★★ 자가개선루프 3단계 전략 ★★★
+  // Loop 1: 검증 only (정상이면 즉시 pass)
+  // Loop 2: force=true ReImport → 재검증
+  // Loop 3: masterData에서 Import → 재검증
   const runSelfImprovementLoop = useCallback(async (
-    resaveFn?: () => Promise<boolean>
-  ): Promise<{ pass: boolean; loops: number }> => {
+    resaveFn?: () => Promise<boolean>,
+    masterImportFn?: () => Promise<boolean>,
+  ): Promise<{ pass: boolean; loops: number; strategy: string }> => {
     loopLogRef.current = [];
     setLoopLog([]);
     setLoopCount(0);
 
-    for (let loop = 1; loop <= MAX_LOOP; loop++) {
-      setLoopCount(loop);
-      addLog(`── Loop ${loop}/${MAX_LOOP} 시작 ──`);
+    const strategies = [
+      { name: '검증', action: null },
+      { name: 'ReImport (force)', action: resaveFn },
+      { name: 'MasterData Import', action: masterImportFn || resaveFn },
+    ];
 
-      // 1. 검증
+    for (let loop = 1; loop <= MAX_LOOP; loop++) {
+      const strat = strategies[loop - 1];
+      setLoopCount(loop);
+      addLog(`── Loop ${loop}/${MAX_LOOP}: ${strat.name} ──`);
+
+      // Loop 2,3: 복구 액션 실행
+      if (loop > 1 && strat.action) {
+        addLog(`🔄 ${strat.name} 실행 중...`);
+        const ok = await strat.action();
+        if (!ok) {
+          addLog(`⚠️ ${strat.name} 실패 — 다음 루프로`);
+          await new Promise(r => setTimeout(r, 1000));
+          continue;
+        }
+        addLog(`${strat.name} 완료 — 2초 대기 후 재검증`);
+        await new Promise(r => setTimeout(r, 2000));
+      }
+
+      // 검증
       setIsVerifyingPgsql(true);
       setIsVerifyingApi(true);
       addLog('pgsql 검증 중...');
@@ -153,42 +177,30 @@ export function useImportVerification(
       setIsVerifyingApi(false);
 
       if (!pgResult || !apiResult) {
-        addLog('⚠️ 검증 API 응답 없음 — 재시도');
+        addLog('⚠️ 검증 API 응답 없음 — 다음 루프');
         await new Promise(r => setTimeout(r, 1000));
         continue;
       }
 
-      // 2. 판정
+      // 판정
       const pgPass = isPgsqlPass(pgResult);
       const apiPass = isApiPass(apiResult);
       const mismatch = getMismatchCodes(pgResult);
 
       if (pgPass && apiPass) {
-        addLog(`✅ Loop ${loop}: ALL PASS — pgsql ✓, API ✓`);
-        return { pass: true, loops: loop };
+        addLog(`✅ Loop ${loop} (${strat.name}): ALL PASS — pgsql ✓, API ✓`);
+        return { pass: true, loops: loop, strategy: strat.name };
       }
 
-      // 3. 불일치 진단
+      // 불일치 진단
       addLog(`❌ Loop ${loop}: pgsql ${pgPass ? '✓' : '✗'}, API ${apiPass ? '✓' : '✗'}`);
       if (mismatch.length > 0) {
-        addLog(`   불일치 코드: ${mismatch.join(', ')}`);
-      }
-
-      // 4. 자가 개선: force=true 재저장
-      if (loop < MAX_LOOP && resaveFn) {
-        addLog(`🔄 자동 재저장 (force=true)...`);
-        const saved = await resaveFn();
-        if (!saved) {
-          addLog('⚠️ 재저장 실패 — 루프 중단');
-          break;
-        }
-        addLog('재저장 완료 — 2초 대기 후 재검증');
-        await new Promise(r => setTimeout(r, 2000));
+        addLog(`   불일치: ${mismatch.join(', ')}`);
       }
     }
 
-    addLog(`⛔ ${MAX_LOOP}회 루프 완료 — 자동 개선 한계 도달`);
-    return { pass: false, loops: MAX_LOOP };
+    addLog(`⛔ 3단계 루프 완료 — 수동 확인 필요`);
+    return { pass: false, loops: MAX_LOOP, strategy: 'exhausted' };
   }, [_verifyPgsql, _verifyApi]);
 
   return {

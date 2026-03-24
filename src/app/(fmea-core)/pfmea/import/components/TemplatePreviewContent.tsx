@@ -817,15 +817,29 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               onClick={async () => {
                 await quickCreateWorksheet();
                 await new Promise(r => setTimeout(r, 2000));
-                const result = await runSelfImprovementLoop(async () => {
-                  try { await quickCreateWorksheet(); return true; } catch { return false; }
-                });
+                const result = await runSelfImprovementLoop(
+                  // Loop 2: force ReImport
+                  async () => {
+                    try { await quickCreateWorksheet(); return true; } catch { return false; }
+                  },
+                  // Loop 3: MasterData Import (save-from-import API)
+                  async () => {
+                    try {
+                      const res = await fetch('/api/fmea/save-from-import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fmeaId, flatData, l1Name: '', failureChains: [] }),
+                      });
+                      return res.ok;
+                    } catch { return false; }
+                  }
+                );
                 if (result.pass) {
                   setAlertState({ open: true, variant: 'success', title: '✅ 자가검증 완료',
-                    summary: `${result.loops}회 루프 — pgsql/API ALL PASS\n워크시트로 이동할 수 있습니다.` });
+                    summary: `${result.loops}회 루프 (${result.strategy}) — pgsql/API ALL PASS\n워크시트로 이동할 수 있습니다.` });
                 } else {
                   setAlertState({ open: true, variant: 'warning', title: '⚠️ 자가개선 한계',
-                    summary: `${result.loops}회 루프 후에도 불일치가 있습니다.\n통계표를 확인하세요.` });
+                    summary: `3단계 루프 완료 후에도 불일치가 있습니다.\n통계표를 확인하세요.` });
                 }
               }}
               disabled={!canSA || isAnalysisImporting || isAnalysisComplete}
