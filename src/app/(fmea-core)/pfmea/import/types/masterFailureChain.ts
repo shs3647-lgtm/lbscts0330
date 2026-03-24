@@ -109,9 +109,11 @@ export interface MasterFailureChain {
  *   - excelRow 없으면 순차 분배 (fallback, 카테시안 금지)
  *
  * ★ 2026-03-22: FE(C4) — 엑셀 행 기준
- *   - L1 C4와 L2 A5 행번호가 겹치거나 인접(한 시트에 교차)하면: FM 행 이하의 **가장 가까운 이전 C4** 행의 FE
- *   - C4·FM 행이 겹치지 않으면(별도 시트 블록): 기존과 같이 **carry-forward** — L1 글로벌 첫 FE 유지 (assignChainUUIDs·골든 테스트 정합)
- *   - 행이 겹칠 때만 FM 행 이하 최근 C4로 FE 교체
+ *   - FM(A5)/FC(B4) 행 번호 기준으로 **그 이하(≤)의 가장 최근 C4** 행을 FE로 사용 (pickFeAtOrBeforeRow)
+ * ★ 2026-03-24 FIX (MX5 등): 예전에는 max(C4행) < min(A5행)이면 canFeRowLink=false → carry-forward만 사용해
+ *   모든 체인이 동일 feValue·feFlatId 없음 → assignChainUUIDs가 텍스트당 첫 FE UUID만 연결 → FE 누락 수백 건.
+ *   **통합 시트에서 L1 블록이 위·L2 블록이 아래**여도 행 번호는 동일 좌표계이므로 pick이 정상 동작해야 함.
+ *   (서로 다른 시트에서 행 번호가 충돌하는 예외는 파서/flat 병합 이슈 — 별도 대응)
  *
  * ★ 2026-03-23: FC(B4) 누락 방지 — **FM rowSpan 창 밖 FC는 버리지 않음**
  *   - 이전: FM 행~rowSpan 안의 FC만 연결 → span 추론 오류 시 FC 다수 미체인
@@ -164,10 +166,8 @@ export function buildFailureChainsFromFlat(
   const a5RowsAll = flatData
     .filter(d => d.itemCode === 'A5' && d.excelRow != null && d.value?.trim())
     .map(d => d.excelRow!);
-  const canFeRowLink =
-    c4RowEntries.length > 0 &&
-    a5RowsAll.length > 0 &&
-    !(Math.max(...c4RowEntries.map(e => e.excelRow)) < Math.min(...a5RowsAll));
+  // ★ C4·A5 모두 행 번호가 있으면 행 기반 FE 매핑 활성화 (L1 위 / L2 아래 레이아웃 포함)
+  const canFeRowLink = c4RowEntries.length > 0 && a5RowsAll.length > 0;
 
   /** FM/FC 행 번호 기준: 해당 행 이하의 가장 최근 C4(FE) */
   function pickFeAtOrBeforeRow(targetRow: number): { scope: string; value: string; feFlatId?: string } {

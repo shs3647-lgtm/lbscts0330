@@ -23,10 +23,10 @@ function flat(
   processNo: string,
   itemCode: string,
   value: string,
-  opts: { m4?: string; excelRow?: number; rowSpan?: number; category?: 'A' | 'B' | 'C' } = {},
+  opts: { m4?: string; excelRow?: number; rowSpan?: number; category?: 'A' | 'B' | 'C'; id?: string } = {},
 ): ImportedFlatData {
   return {
-    id: `test-${++_id}`,
+    id: opts.id || `test-${++_id}`,
     processNo,
     category: opts.category || (itemCode.startsWith('A') ? 'A' : itemCode.startsWith('B') ? 'B' : 'C'),
     itemCode,
@@ -358,5 +358,30 @@ describe('진단 6: 다중 공정 격리', () => {
     expect(proc20.length).toBe(1);
     expect(proc20[0].fmValue).toBe('FM-공정20');
     expect(proc20[0].fcValue).toBe('FC-공정20원인');
+  });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 진단 7: L1 C4 블록이 L2 A5보다 위 (MX5 / 통합시트) — feFlatId 필수
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+describe('진단 7: L1 위 / L2 아래 레이아웃 (canFeRowLink)', () => {
+  it('max(C4행) < min(A5행)여도 FM 행 이하 최근 C4·feFlatId를 체인에 싣는다', () => {
+    const c4a = flat('YP', 'C4', 'FE-초기', { category: 'C', excelRow: 5, id: 'flat-c4-5' });
+    const c4b = flat('YP', 'C4', 'FE-후속', { category: 'C', excelRow: 12, id: 'flat-c4-12' });
+    const data: ImportedFlatData[] = [
+      c4a,
+      c4b,
+      flat('10', 'A5', 'FM-하단', { excelRow: 100 }),
+      flat('10', 'B4', 'FC-연결', { m4: 'MC', excelRow: 101 }),
+    ];
+
+    const chains = buildFailureChainsFromFlat(data, emptyCrossTab());
+    expect(chains.length).toBe(1);
+    expect(chains[0].fmValue).toBe('FM-하단');
+    expect(chains[0].fcValue).toBe('FC-연결');
+    // FM 행 100 이하 최근 C4 = 행 12
+    expect(chains[0].feValue).toBe('FE-후속');
+    expect(chains[0].feFlatId).toBe('flat-c4-12');
   });
 });

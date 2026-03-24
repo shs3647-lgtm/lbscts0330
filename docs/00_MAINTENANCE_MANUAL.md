@@ -567,6 +567,7 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 
 | 날짜 | 커밋 | 모듈 | 수정 내용 |
 |------|------|------|----------|
+| 03-24 | - | Import/고장체인 | **FE 대량 누락(MX5 등)**: `buildFailureChainsFromFlat`의 `canFeRowLink`가 `max(C4행)<min(A5행)`일 때 행 기반 FE를 끄면 통합 시트(L1 위·L2 아래)에서 체인에 `feFlatId` 없음 → `assignChainUUIDs`가 텍스트당 첫 FE UUID만 연결 → 고장연결 탭 FE 누락 과대. **C4·A5 행 있으면 항상 `pickFeAtOrBeforeRow` 활성화**. 가이드: `docs/MX5_IMPORT_GAP_DIAGNOSIS.md`, Vitest 진단7 |
 | 03-23 | - | PFMEA/1L S추천 | **S추천 일괄 적용 후 DB 미저장**: `handleAutoRecommendS`가 `setState` 직후 `saveAtomicDB`를 호출해 `stateRef`가 이전 `failureScopes`인 채로 `syncConfirmedFlags`가 실행됨 → `failure_effects.severity`에 반영 안 됨. **`react-dom` `flushSync` + `setStateSynced`** 후 `await saveAtomicDB(true)`. Vitest: `sync-confirmed-flags-fe-severity.test.ts` |
 | 03-23 | - | PFMEA/기능L3 | **동일 작업요소기능 하 동일 공정특성명 복수 행**: `functionL3Utils` 이름 기준 B3 dedup 제거, FC 리매핑은 살아 있는 `processCharId` 유지. Import 카운트 B2/B3는 고유 문자열이 아니라 **flat 행 수** |
 | 03-23 | - | PFMEA/고장L3 | **`FailureL3Tab` `flatRows`/`missingCount`**: 동일 기능 내 동일 공정특성명 복수 행 표시·누락 판정을 **processCharId** 기준으로. `useFailureL3Handlers.handleSave`는 **모달 processCharId** 우선(이름 canonical 합침 제거) |
