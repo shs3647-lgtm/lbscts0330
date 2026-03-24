@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       if (brokenFLs.length > 0) {
         const ids = brokenFLs.map((fl: any) => fl.id);
         // 불완전 RA도 삭제
-        await prisma.$queryRawUnsafe(`DELETE FROM risk_analyses WHERE "failureLinkId" IN (${ids.map((id: string) => `'${id}'`).join(',')})`);
+        await prisma.$queryRawUnsafe(`DELETE FROM risk_analyses WHERE "linkId" IN (${ids.map((id: string) => `'${id}'`).join(',')})`);
         await prisma.$queryRawUnsafe(`DELETE FROM failure_links WHERE id IN (${ids.map((id: string) => `'${id}'`).join(',')})`);
         log.push(`  불완전 FL ${brokenFLs.length}건 삭제`);
       }

@@ -779,6 +779,22 @@ export function buildAtomicFromFlat(params: BuildAtomicParams): FMEAWorksheetDB 
     });
   }
 
+  // ★★★ 2026-03-25: 미연결 FC/FM은 체인(FC 시트) 원본에 해당 연결이 없는 것 ★★★
+  // FailureLink는 엔지니어의 기술적 판단으로 연결 — 카테시안 크로스프로덕트 절대 금지 (Rule 0.5)
+  // 미연결 항목이 있으면 FC 시트 파서(buildFailureChainsFromFlat)를 수정해야 함
+  {
+    const linkedFCIds = new Set(failureLinks.map(fl => fl.fcId));
+    const linkedFMIds = new Set(failureLinks.map(fl => fl.fmId));
+    const unlinkedFC = failureCauses.filter(fc => !linkedFCIds.has(fc.id));
+    const unlinkedFM = failureModes.filter(fm => !linkedFMIds.has(fm.id));
+    if (unlinkedFC.length > 0 || unlinkedFM.length > 0) {
+      console.warn(
+        `[buildAtomicFromFlat] ⚠️ 미연결: FC ${unlinkedFC.length}건, FM ${unlinkedFM.length}건 ` +
+        `— FC 시트 원본에서 누락된 체인. 자동 생성 금지 (Rule 0.5/1.6).`
+      );
+    }
+  }
+
   // ============================================================
   // 11. RiskAnalysis (위험분석) — 1:1 with FailureLink
   // ============================================================

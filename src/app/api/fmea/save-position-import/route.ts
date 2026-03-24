@@ -545,7 +545,7 @@ export async function POST(request: NextRequest) {
         if (fcL2Orphans.length > 0) {
           const ids = fcL2Orphans.map((r: any) => `'${r.id}'`).join(',');
           // FL 참조 삭제 먼저
-          await prisma.$executeRawUnsafe(`DELETE FROM risk_analyses WHERE "failureLinkId" IN (SELECT id FROM failure_links WHERE "fcId" IN (${ids}) AND "fmeaId" = '${normalizedId}') AND "fmeaId" = '${normalizedId}'`);
+          await prisma.$executeRawUnsafe(`DELETE FROM risk_analyses WHERE "linkId" IN (SELECT id FROM failure_links WHERE "fcId" IN (${ids}) AND "fmeaId" = '${normalizedId}') AND "fmeaId" = '${normalizedId}'`);
           await prisma.$executeRawUnsafe(`DELETE FROM failure_links WHERE "fcId" IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
           await prisma.$executeRawUnsafe(`DELETE FROM failure_causes WHERE id IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
           forgeLog.push(`  FC→L2 고아 ${fcL2Orphans.length}건 삭제`);
@@ -561,7 +561,7 @@ export async function POST(request: NextRequest) {
         `);
         if (brokenFLs.length > 0) {
           const ids = brokenFLs.map((r: any) => `'${r.id}'`).join(',');
-          await prisma.$executeRawUnsafe(`DELETE FROM risk_analyses WHERE "failureLinkId" IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
+          await prisma.$executeRawUnsafe(`DELETE FROM risk_analyses WHERE "linkId" IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
           await prisma.$executeRawUnsafe(`DELETE FROM failure_links WHERE id IN (${ids}) AND "fmeaId" = '${normalizedId}'`);
           forgeLog.push(`  불완전 FL ${brokenFLs.length}건 삭제`);
         }
@@ -569,7 +569,7 @@ export async function POST(request: NextRequest) {
         // ── 5. 고아 RA 삭제 ──
         const orphanRAs: any[] = await prisma.$queryRawUnsafe(`
           SELECT ra.id FROM risk_analyses ra WHERE ra."fmeaId" = '${normalizedId}'
-            AND NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl.id = ra."failureLinkId")
+            AND NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl.id = ra."linkId")
         `);
         if (orphanRAs.length > 0) {
           const ids = orphanRAs.map((r: any) => `'${r.id}'`).join(',');
@@ -598,7 +598,7 @@ export async function POST(request: NextRequest) {
           prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM l3_structures l3 WHERE NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = l3."l2Id") AND l3."fmeaId" = '${normalizedId}'`),
           prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM failure_causes fc WHERE fc."l2StructId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = fc."l2StructId") AND fc."fmeaId" = '${normalizedId}'`),
           prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM failure_links fl WHERE fl."fmeaId" = '${normalizedId}' AND (NOT EXISTS (SELECT 1 FROM failure_modes fm WHERE fm.id = fl."fmId") OR NOT EXISTS (SELECT 1 FROM failure_causes fc WHERE fc.id = fl."fcId") OR NOT EXISTS (SELECT 1 FROM failure_effects fe WHERE fe.id = fl."feId"))`),
-          prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM risk_analyses ra WHERE ra."fmeaId" = '${normalizedId}' AND NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl.id = ra."failureLinkId")`),
+          prisma.$queryRawUnsafe(`SELECT count(*)::int as c FROM risk_analyses ra WHERE ra."fmeaId" = '${normalizedId}' AND NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl.id = ra."linkId")`),
         ]);
         const issues = finalChecks.map((r: any) => Number(r[0]?.c || 0));
         const totalIssues = issues.reduce((a: number, b: number) => a + b, 0);

@@ -570,7 +570,36 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-23 | 동일 작업요소기능 하 동일 공정특성명이 한 줄로 합쳐짐 / Import B3 카운트 불일치 | `deduplicateFunctionsL3`·`filterMeaningfulProcessChars(removeDuplicates)`가 **이름** 기준으로 B3 행 제거. `remapFailureCauseCharIds`가 동일 이름의 첫 id로 FC 강제 병합 | `functionL3Utils.ts` 이름 dedup 제거·id 중복만 제거, rowSpan/UI는 `removeDuplicates=false`, `remapFailureCauseCharIds`에 `validCharIds` 가드, `useImportVerify` B2/B3는 행 수 집계 | ✅ `function-l3-dedup-process-chars.test.ts` + tsc |
 | 2026-03-23 | 3L 고장 누락 수십~백건(가짜) — FC는 DB에 있는데 화면 미연결 | `atomicToLegacy`가 `processCharId \|\| l3FuncId` 순서로 legacy FC를 만들어, `failure_causes.processCharId`가 레거시/오염 UUID이면 워크시트 B3 id(`L3Function.id`)와 불일치 | `atomicToLegacyAdapter.ts` **l3FuncId 우선**; `buildL3Functions`의 B3 id = L3Function.id와 SSOT 정합 | ✅ `atomic-to-legacy-fc-processcharid.test.ts` |
 | 2026-03-24 | 고장연결 탭: 다이어그램에 FC 연결됨인데 FM ⚠️ FC 누락·Miss 과대 | `useLinkData` L2 `allCauses` 폴백이 **processCharId만 있으면 무조건 스킵** → primary(charIdsByName)에서 PC FK 불일치 시 `fcData`에 FC 없음 → `computeFailureLinkStats`는 미연결, 다이어그램은 `rawFcById` temp로 표시 | `useLinkData.ts`: 폴백은 **seenIds(fc.id)** 로만 중복 방지, 고아 `processCharId`도 포함 | ✅ `failure-link-pipeline.test.ts` 3.5 |
-| 2026-03-24 | Import FA검증바 M1/M8: VERIFY수식 vs 파싱 체인 수 불일치 시 빨간 FAIL 과다 | 통합 시트·`supplementChainsFromFlatData` 등으로 명세 COUNT ≠ `chainCount` 잦음 | `faVerificationSpecRelax.ts` + `FAVerificationBar` — 기대>0·파싱>0이면 행#1·#8 NG 제외; 연결 품질은 행5~7·미매칭 패널 | ✅ `fa-verification-spec-relax.test.ts`, `npm run verify:all` |
+| 2026-03-24 | Import FA검증바 M1/M8: VERIFY수식 vs 파싱 체인 수 불일치 시 빨간 FAIL 과다 | 통합 시트·`supplementChainsFromFlatData` 등으로 명세 COUNT ≠ `chainCount` 잦음 | `faVerificationSpecRelax.ts` + `FAVerificationBar` — 기대\u003e0·파싱\u003e0이면 행#1·#8 NG 제외; 연결 품질은 행5~7·미매칭 패널 | ✅ `fa-verification-spec-relax.test.ts`, `npm run verify:all` |
+| 2026-03-25 | Import 후 미연결 FC/FM — FL 부족 (FC 62 > FL 49) | L3 고아(l2Id 빈값) 11건은 레거시 Import 잔존 데이터. 미연결 FC 13건은 FC 시트(체인)에 해당 연결이 없는 것 — 파서 누락 | POST-SAVE FORGE: L3 고아+종속 cascade 삭제; FC skipDuplicates 추가; 미연결 FC/FM 경고 로그 | ✅ FK 고아 57→0 |
+
+#### ⚠️ 반복 발생 주의 — FailureLink는 엔지니어의 기술적 판단 (2026-03-25) — 영구 기록
+
+> **이 문제는 매번 반복 발생하므로 반드시 기억해야 한다.**
+>
+> FailureLink(고장사슬)는 **엔지니어가 사실에 근거하여 기술적으로 판단**하여 연결하는 것이다.
+> 수학적 조합(카테시안 크로스프로덕트)으로 자동 생성하는 것은 **절대 금지**.
+>
+> ```
+> ★ 미연결 FC/FM이 발생하는 원인:
+>   1. FC 시트(고장사슬) 파서가 원본 엑셀의 체인을 누락 파싱
+>   2. 체인 FK 할당(fmId/fcId/feId 매칭)이 실패
+>   3. 원본 엑셀에 실제로 해당 FC/FM의 연결이 없음
+>
+> ★ 올바른 해결:
+>   ✅ FC 시트 파서(buildFailureChainsFromFlat) 수정 → 누락 체인 파싱
+>   ✅ FK 할당 로직 보완 → processNo 정규화, m4 매칭 개선
+>   ✅ 원본에 없는 연결은 미연결로 유지 → 워크시트에서 경고 표시
+>
+> ★ 금지 패턴:
+>   ❌ 같은 공정의 FM×FE 크로스프로덕트로 FL 자동 생성 (카테시안 복제)
+>   ❌ 미연결 FC에 임의 FM/FE 할당
+>   ❌ placeholder FL 자동 생성
+> ```
+>
+> **적용 위치**: buildAtomicFromFlat 섹션 10, failureChainInjector
+> **근거**: Rule 0.5 카테시안 복제 금지, Rule 1.6 사실 기반 FL 원칙
+
 
 ### 🔴 Rule 1.6: 근본원인 분석 원칙 — UUID/FK/DB/API 설계 우선 (2026-03-21) — 영구 CODEFREEZE
 
