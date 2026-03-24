@@ -382,27 +382,43 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
 export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepResult> {
   const r: StepResult = { step: 4, name: '누락', status: 'ok', details: {}, issues: [], fixed: [] };
 
-  const [l3Funcs, ras, fcs, fls, opts] = await Promise.all([
-    prisma.l3Function.findMany({ where: { fmeaId }, select: { id: true, processChar: true, functionName: true } }),
+  const [l3Funcs, ras, fcs, fls, opts, l3Structs] = await Promise.all([
+    prisma.l3Function.findMany({ where: { fmeaId }, select: { id: true, l3StructId: true, processChar: true, functionName: true } }),
     prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true, linkId: true, severity: true, occurrence: true, detection: true, preventionControl: true, detectionControl: true } }),
-    prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, l3FuncId: true, processCharId: true } }),
+    prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, l3FuncId: true, processCharId: true, l3StructId: true, l2StructId: true } }),
     prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } }),
     prisma.optimization.findMany({ where: { fmeaId }, select: { id: true, riskId: true } }),
+    prisma.l3Structure.findMany({ where: { fmeaId }, select: { id: true, l2Id: true } }),
   ]);
 
   // 공정특성 빈값 (B2 전용 L3Function id는 제외)
   const emptyPC = l3Funcs.filter(
     (f: any) => !f.processChar?.trim() && !isL3FunctionIdB2Pattern(f.id)
   ).length;
-  // orphan PC: FC에서 참조하지 않는 L3Function (폴백 L3F 제외 — FC 없는 WE는 정상)
+  // orphan PC: FC에서 참조하지 않는 L3Function
+  // ★ 2026-03-24 수정: 같은 l2StructId 내에서 동일 l3StructId의 FC가 이미 존재하면
+  //    중복 FC 삭제 후 잔여 L3Function이므로 orphan에서 제외
   const fcL3FuncIds = new Set(fcs.map((fc: any) => fc.l3FuncId).filter(Boolean));
   const fcPcIds = new Set(fcs.map((fc: any) => fc.processCharId).filter(Boolean));
-  const orphanPCRows = l3Funcs.filter((f: any) =>
-    f.processChar?.trim() &&
-    !fcL3FuncIds.has(f.id) &&
-    !fcPcIds.has(f.id) &&
-    !f.id.endsWith('-L3F')  // 폴백 L3Function은 orphan 카운트에서 제외
-  );
+  // FC가 참조하는 l3StructId + l2StructId 집합
+  const fcL3StructIds = new Set(fcs.map((fc: any) => fc.l3StructId).filter(Boolean));
+  const fcL2StructIds = new Set(fcs.map((fc: any) => fc.l2StructId).filter(Boolean));
+  // L3Structure.id → l2Id 매핑 (모든 L3의 소속 L2 공정 파악)
+  const l3StructToL2 = new Map<string, string>();
+  for (const l3s of l3Structs as any[]) {
+    if (l3s.id && l3s.l2Id) l3StructToL2.set(l3s.id, l3s.l2Id);
+  }
+  const orphanPCRows = l3Funcs.filter((f: any) => {
+    if (!f.processChar?.trim()) return false;
+    if (fcL3FuncIds.has(f.id) || fcPcIds.has(f.id)) return false;
+    if (f.id.endsWith('-L3F')) return false;
+    // ★ 같은 l3StructId에 FC가 존재하면 → 중복 잔여
+    if (fcL3StructIds.has(f.l3StructId)) return false;
+    // ★ 같은 l2StructId(공정) 내에 FC가 존재하면 → 중복 FC 삭제 잔여
+    const l2Id = l3StructToL2.get(f.l3StructId) || f.l2StructId;
+    if (l2Id && fcL2StructIds.has(l2Id)) return false;
+    return true;
+  });
   const orphanPC = orphanPCRows.length;
 
   // DC/PC null
@@ -448,8 +464,17 @@ export async function verifyMissing(prisma: any, fmeaId: string): Promise<StepRe
       functionName: (f.functionName || '').slice(0, 80),
     }));
   }
-  if (nullDC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`DC(검출관리) 빈값 ${nullDC}건`); }
-  if (nullPC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`PC(예방관리) 빈값 ${nullPC}건`); }
+  // ★ 2026-03-24: DC/PC 전량 미입력 = 입력 단계 미도달 (info), 부분 미입력 = warn
+  if (nullDC > 0) {
+    const level = (nullDC === ras.length) ? 'info' : 'warn';
+    if (level === 'warn') r.status = worst(r.status, 'warn');
+    r.issues.push(`DC(검출관리) 빈값 ${nullDC}건${nullDC === ras.length ? ' (전량 미입력)' : ''}`);
+  }
+  if (nullPC > 0) {
+    const level = (nullPC === ras.length) ? 'info' : 'warn';
+    if (level === 'warn') r.status = worst(r.status, 'warn');
+    r.issues.push(`PC(예방관리) 빈값 ${nullPC}건${nullPC === ras.length ? ' (전량 미입력)' : ''}`);
+  }
   if (missS > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`S(심각도) 미입력 ${missS}건`); }
   if (missO > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`O(발생도) 미입력 ${missO}건`); }
   if (missD > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`D(검출도) 미입력 ${missD}건`); }
