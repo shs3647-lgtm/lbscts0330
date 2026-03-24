@@ -814,7 +814,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           {/* ─── 원클릭 Import→워크시트 (SA/FC/FA 자동 확정) ─── */}
           {hasStepProcess && fmeaId && quickCreateWorksheet && (
             <button
-              onClick={async () => { await quickCreateWorksheet(); setTimeout(() => runFullVerify(), 500); }}
+              onClick={async () => { await quickCreateWorksheet(); setTimeout(() => runFullVerify(), 2000); }}
               disabled={!canSA || isAnalysisImporting || isAnalysisComplete}
               className={`px-3 py-0.5 rounded text-[10px] font-bold transition-colors border ${
                 isAnalysisComplete ? BTN_CONFIRMED
