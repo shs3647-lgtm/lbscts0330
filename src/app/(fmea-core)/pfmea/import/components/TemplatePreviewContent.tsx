@@ -276,8 +276,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return counts;
   }, [flatData]);
 
-  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅
-  const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(fmeaId, flatData, uuidCounts);
+  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 + 자가개선루프
+  const { fkData, pgsqlData, apiData, loopCount, loopLog, runFullVerify, runSelfImprovementLoop } = useImportVerification(fmeaId, flatData, uuidCounts);
 
   // ── ★ 2026-03-15: 누락 항목코드 자동 보충 (A1-A3, B1-B2, C1-C4) ──
   const supplementedRef = useRef(false);
@@ -814,7 +814,20 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           {/* ─── 원클릭 Import→워크시트 (SA/FC/FA 자동 확정) ─── */}
           {hasStepProcess && fmeaId && quickCreateWorksheet && (
             <button
-              onClick={async () => { await quickCreateWorksheet(); setTimeout(() => runFullVerify(), 2000); }}
+              onClick={async () => {
+                await quickCreateWorksheet();
+                await new Promise(r => setTimeout(r, 2000));
+                const result = await runSelfImprovementLoop(async () => {
+                  try { await quickCreateWorksheet(); return true; } catch { return false; }
+                });
+                if (result.pass) {
+                  setAlertState({ open: true, variant: 'success', title: '✅ 자가검증 완료',
+                    summary: `${result.loops}회 루프 — pgsql/API ALL PASS\n워크시트로 이동할 수 있습니다.` });
+                } else {
+                  setAlertState({ open: true, variant: 'warning', title: '⚠️ 자가개선 한계',
+                    summary: `${result.loops}회 루프 후에도 불일치가 있습니다.\n통계표를 확인하세요.` });
+                }
+              }}
               disabled={!canSA || isAnalysisImporting || isAnalysisComplete}
               className={`px-3 py-0.5 rounded text-[10px] font-bold transition-colors border ${
                 isAnalysisComplete ? BTN_CONFIRMED
@@ -982,6 +995,15 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               </tr>
             </tbody>
           </table>
+          {/* ★ 자가개선루프 로그 */}
+          {loopLog.length > 0 && (
+            <div className="mt-1 px-2 py-1 bg-gray-900 rounded text-[9px] font-mono text-gray-300 max-h-[80px] overflow-y-auto">
+              <div className="text-[8px] text-gray-500 mb-0.5">자가개선루프 (Loop {loopCount}/3)</div>
+              {loopLog.map((log, i) => (
+                <div key={i} className={log.includes('✅') ? 'text-green-400' : log.includes('❌') ? 'text-red-400' : log.includes('🔄') ? 'text-yellow-400' : ''}>{log}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
