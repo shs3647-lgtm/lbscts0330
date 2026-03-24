@@ -120,7 +120,7 @@ FMEA Core 경로에서는 `FmeaSidebar`가 쓰이므로, 일반 사용자는 아
 | Admin 하위 | `사용자관리` → `/admin/users`, `권한(CSV)` → `/admin/settings/users` | **동일하게 통일** |
 | 결재 설정 라벨 | `결재환경설정` | **오타 `결제` → `결재` 수정** |
 
-**남은 권고:** 메뉴 배열을 **`SidebarShell`용 공유 모듈**로 한 곳에서만 정의해 드리프트 방지(§6 P0).
+**SSoT 반영 (2026-03-22):** `fmea-core-sidebar-menu.tsx`에서 메뉴 정의 → `FmeaSidebar`·`Sidebar` 동일 배열 사용.
 
 ---
 
@@ -128,18 +128,28 @@ FMEA Core 경로에서는 `FmeaSidebar`가 쓰이므로, 일반 사용자는 아
 
 ### P0 — 출시 전 권장
 
-1. **메뉴 단일 소스(SSoT):** `FmeaSidebar` vs `Sidebar.tsx` 중복 제거 → 공유 `menuConfig` + `SidebarShell`.  
+1. ~~**메뉴 단일 소스(SSoT)**~~ → **2026-03-22 반영:** `src/components/layout/fmea-core-sidebar-menu.tsx` + `collectAllFmeaCoreSidebarHrefs()`.  
 2. ~~**`Sidebar.tsx` 오타·Admin 링크**~~ → **2026-03-22 반영** (`결재` 라벨, `/admin/users` + 권한(CSV) 행).
 
 ### P1 — 출시 직후
 
-4. **감사 스크립트 CI 연계:** `npm run audit:sidebar-routes` 를 릴리스/주요 PR 게이트에 추가.  
-5. **Playwright 스모크:** FMEA 패턴에서 사이드바 각 1-depth 링크 HTTP 200 (로그인 세션 모의).  
+4. **릴리스 게이트:** `npm run release:audit` (= `audit:sidebar-routes` + `tsc --noEmit`) — CI/수동 출시 전 실행 권장.  
+5. **Playwright 스모크:** `tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts` — SSoT 경로 `GET` (404/5xx 방지). dev 서버 + `npx playwright test …`  
 
 ### P2 — 제품 기획 연동
 
-6. **숨은 기능 노출:** `compare`, `fmea4` 등 — 매뉴얼/도움말에 URL 안내 또는 메뉴 정책 확정.  
-7. **Part FMEA:** 사이드바 비노출 정책 유지 시, `docs/Fmea master family part cp pfd architecture.md` 등과 문구 일치 유지.
+6. **숨은 기능 노출:** 아래 **§6.1** URL — 매뉴얼/도움말 안내 또는 메뉴 정책 확정.  
+7. **Part FMEA:** 글로벌 사이드바 비노출 정책 — `Fmea master family…` §6.5 문구 참고.
+
+### 6.1 사이드바에 없는 PFMEA 구현 URL (참고)
+
+| 경로 | 용도 |
+|------|------|
+| `/pfmea/compare` | 좌우 비교 뷰 |
+| `/pfmea/fmea4` | FMEA4판(실험/보조) |
+| `/pfmea/import/manual`, `/legacy` | 임포트 보조 라우트 |
+| `/pfmea/cft`, `/pfmea/all-template`, `/pfmea/approve` | CFT·템플릿·승인 흐름 |
+| `/part-fmea`, `/part-fmea/list`, … | Part FMEA 앱(직접 URL·등록 연동) |
 
 ---
 
@@ -157,8 +167,9 @@ FMEA Core 경로에서는 `FmeaSidebar`가 쓰이므로, 일반 사용자는 아
 
 | 파일 | 역할 |
 |------|------|
-| `src/components/layout/FmeaSidebar.tsx` | FMEA Core 메뉴 정의 |
-| `src/components/layout/Sidebar.tsx` | 비 FMEA 구간 Full 메뉴 |
+| `src/components/layout/fmea-core-sidebar-menu.tsx` | **메뉴 SSoT** + `collectAllFmeaCoreSidebarHrefs()` |
+| `src/components/layout/FmeaSidebar.tsx` | `SidebarShell` 래퍼 |
+| `src/components/layout/Sidebar.tsx` | 비 FMEA 구간 Full 사이드바 (동일 메뉴 배열) |
 | `src/components/layout/SidebarRouter.tsx` | pathname → 사이드바 분기 |
 | `src/components/layout/SidebarShell.tsx` | 공통 렌더 |
 | `scripts/audit-fmea-sidebar-routes.ts` | 기대 경로 ↔ `page.tsx` 검증 |
@@ -170,3 +181,4 @@ FMEA Core 경로에서는 `FmeaSidebar`가 쓰이므로, 일반 사용자는 아
 | 날짜 | 내용 |
 |------|------|
 | 2026-03-22 | 초안 — Forge 감사, 정적 라우트 검증 스크립트, P0~P2 권고 |
+| 2026-03-22 | 메뉴 SSoT·`release:audit`·Playwright 스모크 스펙 반영 |

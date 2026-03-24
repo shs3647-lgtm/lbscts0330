@@ -98,7 +98,8 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | `npm run verify:pipeline-baseline` | 기본 URL `http://127.0.0.1:3000`, `VERIFY_FMEA_ID` 기본 `pfm26-m066` |
 | `npm run verify:pipeline-baseline:strict` | `--baseline`: 골든 L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
 | `npm run test:import-slice` | Import 핵심 Vitest: `save-position-import-fk`·`position-format-routing` 가드, `save-from-import` 유도/409, `position-parser`, `atomic-to-flat-c1c4-fk`, `build-atomic-from-flat-fallback` (전체 `test:run` 대체 아님) |
-| `npm run audit:sidebar-routes` | `FmeaSidebar` 기대 경로 ↔ `src/app/**/page.tsx` 존재 검증 — `docs/FMEA_RELEASE_FORGE_SIDEBAR_AUDIT_REPORT.md` |
+| `npm run audit:sidebar-routes` | `fmea-core-sidebar-menu.tsx` SSoT 경로 ↔ `src/app/**/page.tsx` 검증 — `docs/FMEA_RELEASE_FORGE_SIDEBAR_AUDIT_REPORT.md` |
+| `npm run release:audit` | `audit:sidebar-routes` + `tsc --noEmit` (출시 전 권장) |
 
 **전제:** 대상 `fmeaId`(기본 `pfm26-m066`)에 **이미 Import·Atomic 저장**이 되어 있어야 STEP0 구조가 통과한다. DB가 비어 있으면 `L2=0`·`allGreen=false`이며, **dev 서버만 기동한 상태로는 녹색이 되지 않는다.**
 

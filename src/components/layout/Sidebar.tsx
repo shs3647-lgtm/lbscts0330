@@ -15,224 +15,26 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useLocale, T } from '@/lib/locale';
 import CompanyLogo from '@/components/CompanyLogo';
+import { ColorIcons } from './SidebarShell';
+import {
+  FMEA_CORE_MAIN_MENU_ITEMS,
+  FMEA_CORE_BOTTOM_MENU_ITEMS,
+  FMEA_CORE_ADMIN_MENU_ITEMS,
+} from './fmea-core-sidebar-menu';
 
 // LocalStorage 키
 const USER_PHOTO_STORAGE_KEY = 'fmea_user_photo';
 
-// 컬러 아이콘 SVG 컴포넌트들
-const ColorIcons = {
-  // AMP 로고 스타일 (주황/빨강 원형)
-  Dashboard: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <circle cx="8" cy="8" r="6" fill="#FF6B35" />
-      <circle cx="16" cy="16" r="6" fill="#FF4444" />
-    </svg>
-  ),
-  // 분홍색 차트
-  Worksheet: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <rect x="2" y="12" width="4" height="10" rx="1" fill="#E91E8C" />
-      <rect x="8" y="8" width="4" height="14" rx="1" fill="#E91E8C" opacity="0.7" />
-      <rect x="14" y="4" width="4" height="18" rx="1" fill="#E91E8C" opacity="0.5" />
-      <rect x="20" y="10" width="4" height="12" rx="1" fill="#E91E8C" opacity="0.3" />
-    </svg>
-  ),
-  // 민트색 연결 아이콘
-  Register: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <path d="M4 6h16M4 12h16M4 18h10" stroke="#4DD0E1" strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx="20" cy="18" r="3" fill="#4DD0E1" />
-    </svg>
-  ),
-  // 청록색 폴더
-  List: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <path d="M3 6C3 4.89543 3.89543 4 5 4H9L11 6H19C20.1046 6 21 6.89543 21 8V18C21 19.1046 20.1046 20 19 20H5C3.89543 20 3 19.1046 3 18V6Z" fill="#26C6DA" />
-    </svg>
-  ),
-  // 분홍 체크
-  CFT: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" fill="#F48FB1" opacity="0.3" />
-      <path d="M8 12L11 15L17 9" stroke="#E91E8C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  // 큐브 아이콘 (보라색)
-  Revision: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" fill="#9575CD" opacity="0.3" />
-      <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="#7E57C2" strokeWidth="1.5" />
-      <path d="M12 22V12M12 12L4 7M12 12L20 7" stroke="#7E57C2" strokeWidth="1.5" />
-    </svg>
-  ),
-  // 설정 기어 (청록색)
-  Settings: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="3" fill="#4DD0E1" />
-      <path d="M12 1V3M12 21V23M23 12H21M3 12H1M20.5 3.5L19 5M5 19L3.5 20.5M20.5 20.5L19 19M5 5L3.5 3.5"
-        stroke="#4DD0E1" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  ),
-  // 설비 유지보수 (Maintenance) - 렌치 아이콘
-  Maintenance: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      {/* 렌치 */}
-      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-        fill="#26A69A" opacity="0.3" stroke="#00897B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      {/* 기어 장식 */}
-      <circle cx="18" cy="6" r="2" fill="#00897B" opacity="0.5" />
-    </svg>
-  ),
-  // 사용자 (주황색)
-  User: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="8" r="4" fill="#FF8A65" />
-      <path d="M4 20C4 16.6863 7.13401 14 12 14C16.866 14 20 16.6863 20 20"
-        stroke="#FF8A65" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
-  ),
-  // 세련된 프로필 아이콘 (MyJob용) - 모던 미니멀 스타일
-  Person: ({ className, photoSrc }: { className?: string; photoSrc?: string }) => (
-    photoSrc ? (
-      <img src={photoSrc} alt="User" className={cn(className, "rounded-full object-cover")} />
-    ) : (
-      <svg className={className} viewBox="0 0 24 24" fill="none">
-        <defs>
-          <linearGradient id="personGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#667eea" />
-            <stop offset="100%" stopColor="#764ba2" />
-          </linearGradient>
-        </defs>
-        {/* 배경 원 */}
-        <circle cx="12" cy="12" r="11" fill="url(#personGrad)" />
-        {/* 얼굴 */}
-        <circle cx="12" cy="10" r="5" fill="white" />
-        {/* 몸통 */}
-        <path d="M4 21C4 17 7 14 12 14C17 14 20 17 20 21" fill="white" />
-      </svg>
-    )
-  ),
-  // Admin 관리자 아이콘 (빨간색/주황색)
-  Admin: ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <path d="M12 2L3 7V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V7L12 2Z" fill="#FF5722" opacity="0.3" />
-      <path d="M12 2L3 7V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V7L12 2Z" stroke="#E64A19" strokeWidth="1.5" />
-      <circle cx="12" cy="10" r="3" fill="#E64A19" />
-      <path d="M8 16C8 14.3431 9.79086 13 12 13C14.2091 13 16 14.3431 16 16" stroke="#E64A19" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ),
-};
-
-
-// 공통 하위 메뉴 생성 함수 (대시보드 첫번째, 기본 4개)
-const createSubItems = (basePath: string) => [
-  { label: '📊 대시보드', href: `${basePath}/dashboard` },
-  { label: '등록', href: `${basePath}/register` },
-  { label: '리스트', href: `${basePath}/list` },
-  { label: '작성화면', href: `${basePath}/worksheet` },
-  { label: '개정관리', href: `${basePath}/revision` },
-];
-
-// PFMEA 전용 하위 메뉴 (통일 순서: 대시보드 → 기본메뉴 → 습득교훈 → AP개선)
-const pfmeaSubItems = [
-  { label: '📊 대시보드', href: '/pfmea/dashboard' },
-  { label: '등록', href: '/pfmea/register' },
-  { label: '리스트', href: '/pfmea/list' },
-  { label: 'New FMEA', href: '/pfmea/worksheet' },
-  // { label: 'FMEA4판', href: '/pfmea/fmea4' },
-  { label: '개정관리', href: '/pfmea/revision' },
-  { label: '📋 LLD(필터코드)', href: '/pfmea/lld' },
-  { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement' },
-];
-
-
-
-// MyJob 메뉴는 특별 처리 (사진 업로드 기능)
-const myJobMenuItem = {
-  id: 'myjob',
-  label: 'My Job',
-  shortLabel: 'My Job',
-  Icon: ColorIcons.Person,
-  href: '/myjob',
-  subItems: [
-    { label: '📋 나의 업무현황', href: '/myjob' },
-    { label: '💼 결재현황', href: '/approval/approver-portal' },
-    { label: '📊 프로젝트 진행현황', href: '/pfmea/list' },
-    { label: '🚀 AP 개선 진행현황', href: '/pfmea/ap-improvement' },
-  ],
-};
-
-// 메뉴 아이템 정의
-const menuItems = [
-  myJobMenuItem,
-  {
-    id: 'pfmea',
-    label: 'PFMEA',
-    shortLabel: 'P',
-    Icon: ColorIcons.List,
-    href: '/pfmea',
-    subItems: pfmeaSubItems,
-  },
-  {
-    id: 'cp',
-    label: 'Control Plan',
-    shortLabel: 'C',
-    Icon: ColorIcons.CFT,
-    href: '/control-plan',
-    subItems: createSubItems('/control-plan'),
-  },
-  {
-    id: 'pfd',
-    label: 'PFD',
-    shortLabel: 'F',
-    Icon: ColorIcons.Revision,
-    href: '/pfd',
-    subItems: createSubItems('/pfd'),
-  },
-];
-
-// 하단 메뉴 (기초정보 - 개발 완료된 화면만 연결)
-const bottomMenuItems = [
-  {
-    id: 'master',
-    label: '기초정보',
-    shortLabel: '',
-    Icon: ColorIcons.Settings,
-    href: '/master',
-    subItems: [
-      { label: '고객사정보', href: '/master/customer' },
-      { label: '사용자정보', href: '/master/user' },
-      { label: 'PFMEA 임포트', href: '/pfmea/import' },
-      { label: 'CP 기초정보', href: '/control-plan/import' },
-      { label: 'PFD 기초정보', href: '/pfd/import' },
-      { label: '데이타 복구 관리', href: '/master/trash' },
-    ],
-  },
-];
-
-// 시스템 관리 메뉴 (관리자 전용) — Admin + 시스템 관리 통합
-const adminMenuItems = [
-  {
-    id: 'admin',
-    label: '시스템 관리',
-    shortLabel: '',
-    Icon: ColorIcons.Admin,
-    href: '/admin',
-    subItems: [
-      { label: '🏠 관리자 홈', href: '/admin' },
-      { label: '👤 사용자관리', href: '/admin/users' },
-      { label: '📋 권한(CSV)', href: '/admin/settings/users' },
-      { label: '⚙️ 결재환경설정', href: '/admin/settings/approval' },
-    ],
-  },
-];
-
+/** FMEA Core 메뉴 — `fmea-core-sidebar-menu.tsx` 단일 소스 */
+const menuItems = FMEA_CORE_MAIN_MENU_ITEMS;
+const bottomMenuItems = FMEA_CORE_BOTTOM_MENU_ITEMS;
+const adminMenuItems = FMEA_CORE_ADMIN_MENU_ITEMS;
 
 /**
  * 사이드바 컴포넌트

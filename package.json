@@ -33,6 +33,7 @@
     "verify:pipeline-baseline": "npx tsx scripts/verify-location-fk-baseline.ts",
     "verify:pipeline-baseline:strict": "npx tsx scripts/verify-location-fk-baseline.ts --baseline",
     "audit:sidebar-routes": "npx tsx scripts/audit-fmea-sidebar-routes.ts",
+    "release:audit": "npm run audit:sidebar-routes && npx tsc --noEmit",
     "export:validation-excel": "npx tsx scripts/export-fmea-validation-excel.ts",
     "fill:excel-forward": "npx tsx scripts/fill-excel-forward-fill.ts",
     "forge:m100": "powershell -NoProfile -ExecutionPolicy Bypass -File m100/scripts/forge-m100-loop.ps1",

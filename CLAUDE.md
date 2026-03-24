@@ -479,6 +479,7 @@ npx tsc --noEmit
 
 # 0c. Import 저장 API: POST /api/fmea/save-from-import — 프로젝트 스키마 단일 $transaction(maxWait 20s, timeout 120s), 커밋 전 FL/RA 0건 불변 검증. 위치 Import: POST /api/fmea/save-position-import — RA는 linkId + fmId/fcId/feId. 위치 파서 상세 로그: POSITION_PARSER_VERBOSE=1
 # 0d. Import 핵심만(DB 불필요): npm run test:import-slice — 7개 스펙 파일·가드·position-parser·atomicToFlat·buildAtomicFromFlat
+# 0e. 출시 전 사이드바·타입: npm run release:audit — audit:sidebar-routes(SSoT) + tsc. E2E: playwright tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts
 
 # 1. 파이프라인 검증 (GET = 읽기전용, POST = 자동수정 포함)
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5

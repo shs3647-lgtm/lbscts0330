@@ -420,6 +420,12 @@ Family에 복사 시: 새 UUID 부여 (Family 자체 위치 기반)
 - 회귀(DB 불필요): `npm run test:import-slice` — 위치 가드·`save-from-import`·`position-parser`·`atomicToFlatData`(C1–C4 FK)·`buildAtomicFromFlat` fallback. Import 반영 후: `npm run verify:pipeline-baseline` (대상 `fmeaId` Atomic 존재 전제).
 - 상세: `docs/MAINTENANCE_MANUAL.md` §2.2·§2.5, `docs/SMART_FMEA_IMPORT_PIPELINE_OPTIMIZATION_GUIDE.md`.
 
+### 6.5 글로벌 내비·Part FMEA (출시 정책)
+
+- **FMEA Core 사이드바** 메뉴는 `src/components/layout/fmea-core-sidebar-menu.tsx` 단일 소스이며, Master/Family/Part **계층 개념**과 별개로 **PFMEA 리스트·등록**에서 동일 `fmeaId` 패턴으로 접근한다.
+- **Part FMEA** 전용 화면(`/part-fmea/*`)은 글로벌 사이드바 최상위에서 **비노출**(직접 URL·내부 링크·등록 시 Part 선택 유지). 상세: `docs/FMEA_RELEASE_FORGE_SIDEBAR_AUDIT_REPORT.md` §6.1.
+- 사이드바에 없는 PFMEA 보조 경로(`compare`, `fmea4`, 임포트 서브경로 등)는 매뉴얼·도움말에 URL을 안내하거나 메뉴 정책을 확정할 것.
+
 ---
 
 ## 7. Master 동기화 (변경분 반영)
