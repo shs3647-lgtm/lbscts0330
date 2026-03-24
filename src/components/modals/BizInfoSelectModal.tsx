@@ -55,17 +55,21 @@ export function BizInfoSelectModal({
     }
   };
 
-  // 데이터 로드 - DB 전용, localStorage 완전 제거, 샘플 생성 없음
+  // 데이터 로드 - DB 우선, localStorage 폴백 보존
   useEffect(() => {
     if (!isOpen) return;
 
     const loadData = async () => {
-      // ★ 1단계: 모달 열릴 때마다 모든 localStorage 캐시 완전 삭제
-      clearAllBizInfoCache();
-
-      // ★ 2단계: DB에서만 최신 데이터 로드 (샘플 생성 없음 - PUBLIC DB 데이터 사용)
+      // ★ DB에서 먼저 조회 (캐시 삭제하지 않음)
       const loadedProjects = await getAllProjects(true);
-      setProjects(Array.isArray(loadedProjects) ? loadedProjects : []);
+      if (Array.isArray(loadedProjects) && loadedProjects.length > 0) {
+        // DB에 데이터가 있으면 → 캐시 갱신 + 표시
+        clearAllBizInfoCache();
+        setProjects(loadedProjects);
+      } else {
+        // DB 비어있으면 → localStorage 폴백 유지
+        setProjects(Array.isArray(loadedProjects) ? loadedProjects : []);
+      }
     };
 
     loadData();
