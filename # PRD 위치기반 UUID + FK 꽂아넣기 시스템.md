@@ -1,8 +1,9 @@
 # PRD: 위치기반 UUID + FK 꽂아넣기 시스템
 
 > **문서번호**: PRD-FMEA-POSID-001  
-> **버전**: 1.0  
+> **버전**: 2.0 (CODEFREEZE v4.6.0)  
 > **작성일**: 2026-03-22  
+> **최종 검증일**: 2026-03-24 (v4.6.0-codefreeze-final)  
 > **상위 PRD**: PRD-FMEA-LDB-001 (fmeaId별 Living DB 시스템)  
 > **핵심 변경**: 텍스트 매칭 FK → 위치기반 UUID FK로 전면 교체
 
@@ -1162,3 +1163,60 @@ Phase 4: 안정화 후 기존 방식 deprecated
 
 > **이 PRD를 Cursor/Claude Code에 컨텍스트로 제공하면, 위치기반 UUID 시스템을 구현할 수 있습니다.**  
 > **상위 PRD(PRD-FMEA-LDB-001)의 Step 3 Import 파이프라인을 이 방식으로 교체합니다.**
+
+---
+
+## 13. CODEFREEZE v4.6.0 — 최종 검증 결과 (2026-03-24)
+
+> **코드프리즈 태그:** `v4.6.0-codefreeze-final`  
+> **DB 백업:** `backup_codefreeze_v460_20260324.sql` (7.2MB)
+
+### 13.1 파이프라인 전체 검증
+
+| 파이프라인 단계 | p006-i06 | p007-i07 |
+|---|---|---|
+| Import (Excel 파싱) | ✅ A6=26건, B5=115건 | ✅ |
+| Atomic DB (UUID/FK) | ✅ Step0-2 ok | ✅ Step0-2 ok |
+| FK 무결성 (9개 체크) | ✅ **orphan 0건** | ✅ **orphan 0건** |
+| 고장연결 (FM→FC→FE→FL) | ✅ orphanPC=0 | ✅ |
+| 위험분석 (RA/DC/PC) | ✅ ok (전량 미입력=info) | ⚠️ RA 미완료 (데이터) |
+
+### 13.2 Import Excel FC 셀병합 검증
+
+| 검증 항목 | 결과 |
+|-----------|------|
+| FC 시트 병합 범위 | 63개 merge range |
+| parseFCSheet 파싱 | **58 chains** (전행 일치) |
+| 빈 fmValue | **0건** ✅ |
+| 빈 fcValue | **0건** ✅ |
+| 빈 feValue | **0건** ✅ |
+| pcValue (예방관리) | **58/58건** ✅ (100%) |
+| dcValue (검출관리) | **58/58건** ✅ (100%) |
+| FM 병합 분기 | Unique FM 28개 → 19개 FM이 2+ chains |
+
+### 13.3 DB 레거시 정리
+
+| 항목 | 내용 |
+|------|------|
+| 삭제된 스키마 | 25개 (E2E 잔여 + 마스터 + 테스트) |
+| 삭제된 orphan 참조 | 9개 public 테이블, **852건** |
+| 남은 프로젝트 | **p006-i06, p007-i07** (2개만) |
+| 남은 스키마 | **pfmea_pfm26_p006_i06, pfmea_pfm26_p007_i07** |
+
+### 13.4 정적 분석
+
+| 검사 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | **0 에러** ✅ |
+| `npm run build` | **성공** ✅ |
+| 카데시안/이름매칭/폴백 | **없음** ✅ |
+
+### 13.5 롤백 방법
+
+```bash
+# Git 롤백
+git checkout v4.6.0-codefreeze-final
+
+# DB 롤백
+psql -U postgres -d fmea_db < backup_codefreeze_v460_20260324.sql
+```
