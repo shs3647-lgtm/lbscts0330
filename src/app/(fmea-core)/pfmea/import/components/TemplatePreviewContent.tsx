@@ -23,6 +23,7 @@ import type { FCComparisonResult } from '../utils/fcComparison';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from '../hooks/useTemplateGenerator';
 import { FailureChainPreview } from './FailureChainPreview';
+import { FailureChainCompare } from './FailureChainCompare';
 // FullAnalysisPreview 삭제됨 (사용자 요청)
 import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
@@ -1074,7 +1075,18 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </span>
           )}
         </div>
+        {/* ★ 기존 7컬럼 테이블 + FMEA 연결표 대조뷰 토글 */}
         <FailureChainPreview chains={failureChains} isFullscreen={isFullscreen} hideStats />
+        {failureChains.length > 0 && (
+          <details className="mt-1">
+            <summary className="text-[10px] text-blue-600 cursor-pointer hover:text-blue-800 font-bold">
+              ▼ FMEA 연결표 대조뷰 (3패널: FE | FM | FC)
+            </summary>
+            <div className="mt-1">
+              <FailureChainCompare chains={failureChains} isFullscreen={isFullscreen} />
+            </div>
+          </details>
+        )}
         {fcComparison && (fcComparison.missing.length > 0 || fcComparison.incomplete.length > 0 || fcComparison.apMismatch.length > 0) && (
           <div className="mt-2 p-2 border border-orange-200 rounded bg-orange-50/50 text-[10px]">
             {fcComparison.missing.length > 0 && (
