@@ -111,6 +111,19 @@ export function useWorksheetDataLoader({
 
       suppressAutoSaveRef.current = true;
 
+      // ★★★ 2026-03-24: DB가 SSoT — 로드 시 오래된 localStorage 캐시 무효화
+      // 근본원인: auto-link/고장수정이 DB에 직접 저장하지만 localStorage에 구 state가 남아
+      //          새로고침 시 캐시 우선 렌더링 → DB 변경 미반영 (FM:146 vs DB:129)
+      try {
+        const cacheKeys = Object.keys(localStorage).filter(k =>
+          k.includes(normalizedFmeaId) && !k.startsWith('pfmea_tab_') && !k.startsWith('pfmea_visibleSteps_')
+        );
+        if (cacheKeys.length > 0) {
+          cacheKeys.forEach(k => localStorage.removeItem(k));
+          console.log(`[WorksheetDataLoader] localStorage 캐시 ${cacheKeys.length}건 클리어 (DB SSoT)`);
+        }
+      } catch (_e) { /* Safari private mode 등 */ }
+
       // ★★★ 2026-02-09: 프로젝트 기초정보에서 L1 완제품명 가져오기 ★★★
       let projectL1Name = '';
       try {
