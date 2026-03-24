@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 import { BizInfoProject } from '@/types/bizinfo';
-import { getAllProjects, saveProject, deleteProject, clearAllBizInfoCache } from '@/lib/bizinfo-db';
+import { getAllProjects, saveProject, deleteProject } from '@/lib/bizinfo-db';
 import { downloadStyledExcel } from '@/lib/excel-utils';
 import * as XLSX from 'xlsx';
 
@@ -55,23 +55,13 @@ export function BizInfoSelectModal({
     }
   };
 
-  // 데이터 로드 - DB 우선, localStorage 폴백 보존
+  // 데이터 로드 — PUBLIC DB 영구저장 전용
   useEffect(() => {
     if (!isOpen) return;
-
     const loadData = async () => {
-      // ★ DB에서 먼저 조회 (캐시 삭제하지 않음)
       const loadedProjects = await getAllProjects(true);
-      if (Array.isArray(loadedProjects) && loadedProjects.length > 0) {
-        // DB에 데이터가 있으면 → 캐시 갱신 + 표시
-        clearAllBizInfoCache();
-        setProjects(loadedProjects);
-      } else {
-        // DB 비어있으면 → localStorage 폴백 유지
-        setProjects(Array.isArray(loadedProjects) ? loadedProjects : []);
-      }
+      setProjects(Array.isArray(loadedProjects) ? loadedProjects : []);
     };
-
     loadData();
   }, [isOpen]);
 
