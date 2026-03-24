@@ -96,10 +96,24 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   // ★★★ 2026-03-12: 고장매칭 로딩 상태 ★★★
   const [isMatching, setIsMatching] = useState(false);
 
-  // ========== 초기 데이터 로드: DB API에서 직접 FL 로드 (★ 2026-03-24) ==========
-  // 근본원인: state.failureLinks는 atomicToLegacy 변환 결과로 DB와 불일치 가능
-  //          auto-link/고장수정 결과가 state에 미반영 → 구 데이터 렌더링
-  // 해결: 탭 마운트 시 DB에서 직접 최신 FL을 로드하여 savedLinks 초기화
+  // ╔═══════════════════════════════════════════════════════════════════════╗
+  // ║  CODEFREEZE — savedLinks 초기화: DB API 직접 로드 (2026-03-24)       ║
+  // ║                                                                     ║
+  // ║  ❌ 절대 금지: state.failureLinks에서 savedLinks를 초기화하지 마시오   ║
+  // ║  ❌ 절대 금지: atomicToLegacy 변환 결과를 savedLinks 소스로 쓰지 마시오║
+  // ║  ❌ 절대 금지: localStorage 캐시에서 savedLinks를 복원하지 마시오      ║
+  // ║                                                                     ║
+  // ║  ✅ 유일한 소스: GET /api/fmea?fmeaId=xxx → db.failureLinks         ║
+  // ║                                                                     ║
+  // ║  사고 이력 (3회 재발):                                                ║
+  // ║  - state.failureLinks는 atomicToLegacy 변환 과정에서 DB와 불일치      ║
+  // ║  - auto-link API가 DB에 FL 571건 저장해도 state는 175건 유지          ║
+  // ║  - localStorage에 구 state 캐시가 남아 새로고침 후에도 구 데이터 렌더링 ║
+  // ║  - 결과: "고장수정 했는데 왜 안 되지?" 반복 재발                       ║
+  // ║                                                                     ║
+  // ║  이 코드를 수정하려면 반드시 사용자 승인 필요:                          ║
+  // ║  "FailureLinkTab savedLinks DB 로드를 수정해도 될까요?"               ║
+  // ╚═══════════════════════════════════════════════════════════════════════╝
   const dbLoadDoneRef = useRef(false);
   useEffect(() => {
     const fmeaId = (state as any)?.fmeaId;
@@ -108,6 +122,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
 
     (async () => {
       try {
+        // ★ DB가 유일한 진실의 원천(SSoT) — state/localStorage/atomicToLegacy 결과 사용 금지
         const res = await fetch(`/api/fmea?fmeaId=${encodeURIComponent(fmeaId)}`);
         if (!res.ok) throw new Error('API error');
         const db = await res.json();
@@ -115,12 +130,12 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
 
         if (dbLinks.length > 0) {
           setSavedLinks(dbLinks);
-          // state도 동기화 (다른 탭/저장에서 참조)
+          // state에도 반영하여 다른 탭/저장 시 DB 값 사용
           const updateFn = (prev: any) => ({ ...prev, failureLinks: dbLinks });
           if (setStateSynced) setStateSynced(updateFn);
           else setState(updateFn);
         } else {
-          // DB에 FL 없으면 기존 state에서 복원
+          // DB에 FL 0건 = 아직 고장연결 미완성 → state fallback 허용
           const stateLinks = (state as any).failureLinks || [];
           if (stateLinks.length > 0) setSavedLinks(stateLinks);
         }
@@ -964,7 +979,10 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
                 const res = await fetch(`/api/fmea/auto-link?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
-                  // DB에서 최신 FL 재로드 → state 직접 갱신 (reload 불필요)
+                  // ★ CODEFREEZE: DB에서 최신 FL 재로드 → state 직접 갱신
+                  // ❌ window.location.reload() 사용 금지 — reload 시 구 캐시로 덮어쓰기됨
+                  // ❌ state.failureLinks 사용 금지 — auto-link 결과 미포함
+                  // ✅ GET /api/fmea → db.failureLinks가 유일한 소스
                   try {
                     const reloadRes = await fetch(`/api/fmea?fmeaId=${encodeURIComponent(fmeaId)}`);
                     const reloaded = await reloadRes.json();
