@@ -354,52 +354,8 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     linkStats,
   });
 
-  // ========== ✅ 탭 진입 시 서버 auto-link → DB 확정 + state 갱신 (★ 2026-03-24) ==========
-  // 근본원인: 클라이언트 매칭만 하면 state에만 반영 → 새로고침 시 소실
-  // 해결: 서버 auto-link API로 DB에 직접 저장 → atomicDB 재로드 → state 갱신
-  useEffect(() => {
-    if (isInitialLoad.current) return;
-    if (autoMatchDoneRef.current) return;
-    autoMatchDoneRef.current = true;
-
-    const fmeaId = (state as any)?.fmeaId;
-    if (!fmeaId) return;
-
-    // 누락 없으면 스킵
-    if (missingFMs.length === 0 && missingFCs.length === 0) return;
-
-    setIsMatching(true);
-    (async () => {
-      try {
-        // 1. 서버 auto-link API 호출 → DB 확정 저장
-        const res = await fetch(`/api/fmea/auto-link?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
-        const data = await res.json();
-        if (!data.success || (data.created?.fl === 0 && data.created?.ra === 0)) {
-          // 새로 생성된 것이 없으면 클라이언트 매칭 시도
-          await handleAutoMatchMissing();
-          return;
-        }
-
-        // 2. DB에서 최신 atomicDB 재로드 → state 갱신
-        const reloadRes = await fetch(`/api/fmea?fmeaId=${encodeURIComponent(fmeaId)}`);
-        const reloaded = await reloadRes.json();
-        if (reloaded.failureLinks?.length > 0) {
-          const newLinks = reloaded.failureLinks;
-          setSavedLinks(newLinks);
-          const updateFn = (prev: any) => ({ ...prev, failureLinks: newLinks });
-          if (setStateSynced) setStateSynced(updateFn);
-          else setState(updateFn);
-        }
-      } catch (e) {
-        console.error('[FailureLinkTab] auto-link 오류:', e);
-        // fallback: 클라이언트 매칭
-        await handleAutoMatchMissing();
-      } finally {
-        setIsMatching(false);
-      }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fmData.length, fcData.length, missingFMs.length, missingFCs.length, savedLinks.length]);
+  // ★ 탭 진입 시 자동 auto-link 제거 (2026-03-24)
+  // DB에 이미 저장된 FL을 그대로 렌더링. 고장수정은 사용자가 버튼 클릭 시에만 실행.
 
   // ========== ✅ 고아(Orphan) 감지 ==========
   const orphanIds = useMemo(() => {
