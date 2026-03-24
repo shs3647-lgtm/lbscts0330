@@ -96,21 +96,44 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   // ★★★ 2026-03-12: 고장매칭 로딩 상태 ★★★
   const [isMatching, setIsMatching] = useState(false);
 
-  // ========== 초기 데이터 로드 (화면 전환 시에도 항상 복원) ==========
-  const stateFailureLinksJson = JSON.stringify((state as any).failureLinks || []);
+  // ========== 초기 데이터 로드: DB API에서 직접 FL 로드 (★ 2026-03-24) ==========
+  // 근본원인: state.failureLinks는 atomicToLegacy 변환 결과로 DB와 불일치 가능
+  //          auto-link/고장수정 결과가 state에 미반영 → 구 데이터 렌더링
+  // 해결: 탭 마운트 시 DB에서 직접 최신 FL을 로드하여 savedLinks 초기화
+  const dbLoadDoneRef = useRef(false);
   useEffect(() => {
-    const stateLinks = (state as any).failureLinks || [];
-    // ✅ 수정: state.failureLinks가 있으면 항상 복원 (savedLinks와 비교하여 중복 방지)
-    if (stateLinks.length > 0 && stateLinks.length !== savedLinks.length) {
-      // 데이터 복원 완료
-      setSavedLinks(stateLinks);
-      isInitialLoad.current = false;
-    } else if (stateLinks.length > 0 && isInitialLoad.current) {
-      // 초기 로드 완료
-      setSavedLinks(stateLinks);
-      isInitialLoad.current = false;
-    }
-  }, [stateFailureLinksJson]); // ✅ JSON 문자열로 깊은 비교
+    const fmeaId = (state as any)?.fmeaId;
+    if (!fmeaId || dbLoadDoneRef.current) return;
+    dbLoadDoneRef.current = true;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/fmea?fmeaId=${encodeURIComponent(fmeaId)}`);
+        if (!res.ok) throw new Error('API error');
+        const db = await res.json();
+        const dbLinks = db.failureLinks || [];
+
+        if (dbLinks.length > 0) {
+          setSavedLinks(dbLinks);
+          // state도 동기화 (다른 탭/저장에서 참조)
+          const updateFn = (prev: any) => ({ ...prev, failureLinks: dbLinks });
+          if (setStateSynced) setStateSynced(updateFn);
+          else setState(updateFn);
+        } else {
+          // DB에 FL 없으면 기존 state에서 복원
+          const stateLinks = (state as any).failureLinks || [];
+          if (stateLinks.length > 0) setSavedLinks(stateLinks);
+        }
+        isInitialLoad.current = false;
+      } catch (e) {
+        console.error('[FailureLinkTab] DB FL 로드 실패, state fallback:', e);
+        const stateLinks = (state as any).failureLinks || [];
+        if (stateLinks.length > 0) setSavedLinks(stateLinks);
+        isInitialLoad.current = false;
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(state as any)?.fmeaId]);
 
   // ✅ 성능 최적화: 편집 중에는 localStorage만 저장, 전체확정에서만 DB 저장
   const saveTemp = saveToLocalStorageOnly ?? saveToLocalStorage;
