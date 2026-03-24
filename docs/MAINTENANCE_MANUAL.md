@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-23
+> **최종 업데이트**: 2026-03-24
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -46,6 +46,8 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 **TemplatePreviewContent `previewLevel` (2026-03-22):** `'L1' \| 'L2' \| 'L3'` 만 — 고장사슬 UI는 `stepState.activeStep === 'FC'` 로 전환. `previewLevel: 'FC'` 는 미사용이었고 부모 `useState`와 불일치해 tsc 오류를 냈음.
 
 **FA 검증바(FAVerificationBar) FM/FC 키 (2026-03-22):** 미매칭·건수는 **`normalizeProcessNo(processNo)|norm(값)`** — 동일 문구라도 **공정이 다르면 별도 항목**. `supplementChainsFromFlatData`도 동일 키·FE는 `norm`으로 chain과 맞춤.
+
+**FA 검증바 행#1·#8 명세-수량 (2026-03-24):** VERIFY수식 `chainCount` vs 파싱 체인 수는 통합 시트·체인 보강 시 1:1이 아닐 수 있음. **`faVerificationSpecRelax.ts`** — 기대>0이고 파싱 체인>0이면 해당 행은 FAIL 배너·NG 제외. 품질은 행5~7(매칭)·미매칭 패널로 확인.
 
 **위치기반 Import 정답 (엑셀 행 = 기준행, 2026-03-22):**
 

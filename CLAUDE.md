@@ -479,6 +479,7 @@ npx tsc --noEmit
 
 # 0c. Import 저장 API: POST /api/fmea/save-from-import — 프로젝트 스키마 단일 $transaction(maxWait 20s, timeout 120s), 커밋 전 FL/RA 0건 불변 검증. 위치 Import: POST /api/fmea/save-position-import — RA는 linkId + fmId/fcId/feId. 위치 파서 상세 로그: POSITION_PARSER_VERBOSE=1
 # 0d. Import 핵심만(DB 불필요): npm run test:import-slice — 7개 스펙 파일·가드·position-parser·atomicToFlat·buildAtomicFromFlat
+# 0d-1. npm run verify:all — tsc + 0d + 파이프라인·고장연결 Vitest 묶음 + verify-import-fe-layout. FA 파싱 검증바 **행#1·#8**(VERIFY수식 chainCount vs 파싱)은 통합시트·보강체인으로 명세 1:1이 아닐 수 있어 **파싱 체인>0이면 빨간 FAIL 배너·NG 제외** (`faVerificationSpecRelax.ts`, `docs/MX5_IMPORT_GAP_DIAGNOSIS.md` §3)
 # 0e. 출시 전 사이드바·타입: npm run release:audit — audit:sidebar-routes(SSoT) + tsc. E2E: playwright tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts
 
 # 1. 파이프라인 검증 (GET = 읽기전용, POST = 자동수정 포함)
@@ -569,6 +570,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-23 | 동일 작업요소기능 하 동일 공정특성명이 한 줄로 합쳐짐 / Import B3 카운트 불일치 | `deduplicateFunctionsL3`·`filterMeaningfulProcessChars(removeDuplicates)`가 **이름** 기준으로 B3 행 제거. `remapFailureCauseCharIds`가 동일 이름의 첫 id로 FC 강제 병합 | `functionL3Utils.ts` 이름 dedup 제거·id 중복만 제거, rowSpan/UI는 `removeDuplicates=false`, `remapFailureCauseCharIds`에 `validCharIds` 가드, `useImportVerify` B2/B3는 행 수 집계 | ✅ `function-l3-dedup-process-chars.test.ts` + tsc |
 | 2026-03-23 | 3L 고장 누락 수십~백건(가짜) — FC는 DB에 있는데 화면 미연결 | `atomicToLegacy`가 `processCharId \|\| l3FuncId` 순서로 legacy FC를 만들어, `failure_causes.processCharId`가 레거시/오염 UUID이면 워크시트 B3 id(`L3Function.id`)와 불일치 | `atomicToLegacyAdapter.ts` **l3FuncId 우선**; `buildL3Functions`의 B3 id = L3Function.id와 SSOT 정합 | ✅ `atomic-to-legacy-fc-processcharid.test.ts` |
 | 2026-03-24 | 고장연결 탭: 다이어그램에 FC 연결됨인데 FM ⚠️ FC 누락·Miss 과대 | `useLinkData` L2 `allCauses` 폴백이 **processCharId만 있으면 무조건 스킵** → primary(charIdsByName)에서 PC FK 불일치 시 `fcData`에 FC 없음 → `computeFailureLinkStats`는 미연결, 다이어그램은 `rawFcById` temp로 표시 | `useLinkData.ts`: 폴백은 **seenIds(fc.id)** 로만 중복 방지, 고아 `processCharId`도 포함 | ✅ `failure-link-pipeline.test.ts` 3.5 |
+| 2026-03-24 | Import FA검증바 M1/M8: VERIFY수식 vs 파싱 체인 수 불일치 시 빨간 FAIL 과다 | 통합 시트·`supplementChainsFromFlatData` 등으로 명세 COUNT ≠ `chainCount` 잦음 | `faVerificationSpecRelax.ts` + `FAVerificationBar` — 기대>0·파싱>0이면 행#1·#8 NG 제외; 연결 품질은 행5~7·미매칭 패널 | ✅ `fa-verification-spec-relax.test.ts`, `npm run verify:all` |
 
 ### 🔴 Rule 1.6: 근본원인 분석 원칙 — UUID/FK/DB/API 설계 우선 (2026-03-21) — 영구 CODEFREEZE
 
