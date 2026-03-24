@@ -1,7 +1,7 @@
 # FMEA OnPremise 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-22
-> **총 테스트**: 78파일 / 1343테스트 ALL PASS | **빌드**: 240페이지 성공 | **tsc**: 에러 0개
+> **최종 업데이트**: 2026-03-23
+> **총 테스트**: 78파일 / 1351테스트 ALL PASS (로컬 `optimization-od-industry` 등) | **빌드**: 240페이지 성공 | **tsc**: 에러 0개
 
 ---
 
@@ -24,6 +24,9 @@
 | 2026-03-22 | - | **FA 검증바 누락 오판 수정**: `FAVerificationBar` FM/FC를 **공정|norm(값)** 키로 비교, `supplementChainsFromFlatData`는 FE **norm**·FM/FC 키 정규화·보충 후 `existingFENorms` 합산. 근본: 타 공정 동일 FM/FC 문구를 한 건으로 오인하거나 FE 대소문자 불일치로 보충 누락. 테스트: `supplement-chains-from-flatdata.test.ts` | Claude |
 | 2026-03-22 | - | **위치기반 Import 정답 원칙**: 엑셀 물리 행(1-based)=**기준행**으로 L1/L2/L3 맵핑, FC 시트는 `L1/L2/L3원본행`으로 **관계(FailureLink)만** 연결(텍스트 재추론 없음). 반영: `cross-sheet-resolver.ts`/`position-parser.ts` 주석, `docs/MAINTENANCE_MANUAL.md`, `docs/Fmea master family part cp pfd architecture.md` §6.4 | Claude |
 | 2026-03-22 | - | **PFMEA→CP 생성 근본 수정**: `POST /api/pfmea/create-cp`가 `public`만 쓰던 문제 → **PFMEA 프로젝트 스키마**(`getPrismaForSchema(getProjectSchemaName(fmeaId))`)에 `control_plans`/`control_plan_items` 저장. `getPrismaForCp`에 `CpRegistration` 폴백. `GET /api/pfmea/[id]`는 프로젝트 `fmea_registrations`와 병합해 `linkedCpNo` 누락 방지. (M001 등에서 CP 워크시트 빈 화면·「연동할 CP 없음」 재발 방지) | Claude |
+| 2026-03-23 | - | **5ST/6ST O·D 설계**: AIAG-VDA 기준(5ST) + 최적화(6ST)에서 산업DB 추천으로 O·D를 4 이하 방향 — `docs/Fmea master family part cp pfd architecture.md` §12, `MAINTENANCE_MANUAL.md` §11.4 | Claude |
+| 2026-03-23 | - | **6ST 개선추천 구현**: `optimizationOdIndustry.ts` + `useRecommendHandlers.handleRecommendImprovement`(산업DB `defaultRating`·키워드, AP 목표와 병합, Import B5/A6 직접매칭 시 §12 newO/newD). 회귀: `optimization-od-industry.test.ts` | Claude |
+| 2026-03-22 | - | **고장매칭(누락 FM·FC 자동연결) 저장**: `useLinkHandlers.handleAutoMatchMissing`이 로컬 `saveTemp`만 호출해 Atomic `failure_links`·마스터 `failureChains` 미갱신 → **전체확정과 동일**하게 `saveToLocalStorage(true)` + `saveAtomicDB(true)`(100ms 지연). 신규 링크에 `uid()` 부여. `upsertActiveMasterFromWorksheetTx`: flat 추출 0건이어도 `failureLinks`가 있으면 `syncMasterChainsInTx`만 수행. | Claude |
 | 2026-03-23 | - | **아키텍처 확정**: Master 포함 모든 PFMEA 행 데이터는 `pfmea_{fmeaId}` — public은 메타 전용. **`POST /api/fmea/sync-cp-pfd`**가 `public`에 쓰던 이중 경로 제거 → **프로젝트 스키마**에만 CP/PFD 행 저장(`create-cp`/`sync-to-cp`와 동일). 레거시 이관: `scripts/migrate-public-cp-pfd-to-project-schema.ts`. 문서: `docs/Fmea master family part cp pfd architecture.md` 갱신. | Claude |
 | 2026-03-23 | - | **구조분석 컨텍스트 메뉴**: React 18 Strict Mode(개발)에서 함수형 `setState`가 동일 `prev`로 두 번 호출되며 `splice`가 이중 적용 → 「아래로 새 행 추가」 시 placeholder가 위·아래 2줄로 보이던 현상. `createStrictModeDedupedUpdater`(`strictModeStateUpdater.ts`)로 첫 계산 결과만 캐시. `StructureTab` 행 추가·병합 추가·삭제 업데이터에 적용. 단위 테스트: `strictModeStateUpdater.test.ts`. | Claude |
 | 2026-03-23 | - | **고장연결**: `computeFailureLinkStats`·`FailureLinkTab`에서 feText/fcText 역매칭 제거 — 누락 집계·선택 FE/FC는 **feId/fcId FK만** 인정. 불일치 시 `repair-fk`/재Import로 ID 정합. 테스트: `failure-link-link-stats.test.ts`. | Claude |
@@ -538,6 +541,7 @@ npx playwright test tests/e2e/manual-mode-guard.spec.ts
 | `failure-link-guard.test.ts` | FailureLink 불변성 | 고장연결 로직 수정 |
 | `b2b3-completeness-guard.test.ts` | B2/B3 완전성 | Import B2/B3 로직 수정 |
 | `failure-chain-injector-completeness.test.ts` | 고장사슬 완전성 | FM-FC 매칭 수정 |
+| `optimization-od-industry.test.ts` | 6ST O/D 산업DB 캡(4)·단조 | `optimizationOdIndustry.ts` / `useRecommendHandlers` 수정 |
 | `isPlaceholder-length-guard.test.ts` | Placeholder 길이 | 등록/저장 로직 수정 |
 
 ### 9.3 최근 추가된 테스트 (2026-03-04 ~ 03-07)

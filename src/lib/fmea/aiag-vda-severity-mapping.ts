@@ -509,6 +509,46 @@ function normKey(s: string): string {
   return s.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+/** 완화 매칭: 공백·슬래시 등으로 토큰 분리 (2글자 이상만) */
+function feTokenSet(norm: string): Set<string> {
+  return new Set(
+    norm
+      .split(/[/\s,.·:;，]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 2),
+  );
+}
+
+/**
+ * 표(FE) 쪽 핵심 토큰이 입력 문장에 얼마나 담겨 있는지 (완화 기준)
+ * — 조사/어미로 토큰이 갈라져도 `feNorm.includes(tb)` 또는 입력 토큰과 부분포함으로 인정
+ */
+function rowCoreTokensCoveredCount(feNorm: string, rowFeNorm: string): number {
+  const rowTok = [...feTokenSet(rowFeNorm)];
+  const inputTok = [...feTokenSet(feNorm)];
+  if (rowTok.length === 0) return 0;
+  let covered = 0;
+  for (const tb of rowTok) {
+    if (tb.length < 2) continue;
+    if (feNorm.includes(tb)) {
+      covered++;
+      continue;
+    }
+    let hit = false;
+    for (const ta of inputTok) {
+      if (ta.length < 2) continue;
+      const short = tb.length <= ta.length ? tb : ta;
+      const long = tb.length > ta.length ? tb : ta;
+      if (short.length >= 2 && long.includes(short)) {
+        hit = true;
+        break;
+      }
+    }
+    if (hit) covered++;
+  }
+  return covered;
+}
+
 /**
  * 매핑표에서 1건 조회 (참고용 — 엔지니어 판단 보조)
  * 우선순위: 전필드 일치 → scope+FE → FE 단독
@@ -544,7 +584,52 @@ export function matchAiagVdaSeverityRow(
   for (const r of rows) {
     if (normKey(r.failureEffect) === fe) return r;
   }
-  return null;
+
+  // --- 완화 기준 (2026-03-23): 사용자가 문구를 손으로 다듬을 것을 전제로 추천만 보조 ---
+  const MIN_SUB = 3;
+
+  // 4단계: 동일 Scope 내 부분문자열 (짧은 FE도 허용)
+  if (sc) {
+    for (const r of rows) {
+      if (normKey(r.scope) !== sc) continue;
+      const rfe = normKey(r.failureEffect);
+      if (rfe.length < MIN_SUB || fe.length < MIN_SUB) continue;
+      if (fe === rfe) continue;
+      if (fe.includes(rfe) || rfe.includes(fe)) return r;
+    }
+  }
+
+  // 5단계: 동일 Scope + 표 핵심어 2개 이상이 입력에 반영된 것으로 볼 것 (문구 자유 편집 전제)
+  if (sc) {
+    let best: AiagVdaSeverityMappingRow | null = null;
+    let bestTok = 0;
+    for (const r of rows) {
+      if (normKey(r.scope) !== sc) continue;
+      const rfe = normKey(r.failureEffect);
+      const tok = rowCoreTokensCoveredCount(fe, rfe);
+      if (tok >= 2 && tok > bestTok) {
+        bestTok = tok;
+        best = r;
+      }
+    }
+    if (best) return best;
+  }
+
+  // 6단계: Scope 무관 부분문자열 — 가장 긴 표 FE와 겹칠 때 우선 (마지막 폴백)
+  let fallback: AiagVdaSeverityMappingRow | null = null;
+  let fallbackLen = 0;
+  for (const r of rows) {
+    const rfe = normKey(r.failureEffect);
+    if (rfe.length < MIN_SUB || fe.length < MIN_SUB) continue;
+    if (fe.includes(rfe) || rfe.includes(fe)) {
+      const len = rfe.length;
+      if (len > fallbackLen) {
+        fallbackLen = len;
+        fallback = r;
+      }
+    }
+  }
+  return fallback;
 }
 
 /** 심각도 셀 배경 (부드러운 톤) */

@@ -324,6 +324,13 @@ export const HEIGHTS = {
   row: '22px',           // 데이터 행 (컴팩트)
 } as const;
 
+/** 1L FE 심각도(S) 추천 — 상단 메뉴 SOD 우측 전용 (탭 스트립 미표시) */
+export const SEVERITY_RECOMMEND_TAB = {
+  id: 'failure-severity-map',
+  label: 'S추천',
+  step: 4,
+} as const;
+
 // 분석 탭 (Analysis) - 개별 단계별 분석
 export const ANALYSIS_TABS = [
   { id: 'structure', label: 'Structure(구조)', step: 2 },
@@ -331,7 +338,6 @@ export const ANALYSIS_TABS = [
   { id: 'function-l2', label: '2L Function(기능)', step: 3 },
   { id: 'function-l3', label: '3L Function(기능)', step: 3 },
   { id: 'failure-l1', label: '1L영향(FE)', step: 4 },
-  { id: 'failure-severity-map', label: 'AIAG S매핑', step: 4 },
   { id: 'failure-l2', label: '2L형태(FM)', step: 4 },
   { id: 'failure-l3', label: '3L원인(FC)', step: 4 },
   { id: 'failure-link', label: 'Failure Link(고장연결)', step: 4 },
@@ -347,7 +353,11 @@ export const EVALUATION_TABS = [
 ] as const;
 
 // 전체 탭 (하위 호환)
-export const TABS = [...ANALYSIS_TABS, ...EVALUATION_TABS.filter(t => t.id === 'risk' || t.id === 'opt')] as const;
+export const TABS = [
+  ...ANALYSIS_TABS,
+  SEVERITY_RECOMMEND_TAB,
+  ...EVALUATION_TABS.filter(t => t.id === 'risk' || t.id === 'opt'),
+] as const;
 
 export const ALL_VIEW_TAB = { id: 'all', label: '전체보기(All View)' } as const;
 

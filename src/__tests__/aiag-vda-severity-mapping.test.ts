@@ -94,4 +94,46 @@ describe('matchAiagVdaSeverityRow', () => {
     });
     expect(hit?.severity).toBe(8);
   });
+
+  it('same scope: longer Import FE contains 표 기본 FE → 매칭 (부분일치)', () => {
+    const rowsSp: AiagVdaSeverityMappingRow[] = [
+      {
+        id: 'sp-y',
+        scope: 'SP',
+        productFunction: '품질',
+        requirement: 'R',
+        failureEffect: '수율 감소/저하',
+        severity: 6,
+        basis: '고객 생산 편의기능 저하',
+      },
+    ];
+    const hit = matchAiagVdaSeverityRow(rowsSp, {
+      scope: 'SP',
+      productFunction: '',
+      requirement: '',
+      failureEffect: 'PKG 공정 수율 감소/저하 및 편차',
+    });
+    expect(hit?.severity).toBe(6);
+    expect(hit?.basis).toContain('고객');
+  });
+
+  it('동일 scope: 문구가 달라도 공통 토큰 2개 이상이면 매칭 (완화)', () => {
+    const rowsTok: AiagVdaSeverityMappingRow[] = [
+      {
+        id: 't1',
+        scope: 'YP',
+        productFunction: 'x',
+        requirement: 'y',
+        failureEffect: 'Wafer 스크래치 수율 저하',
+        severity: 6,
+        basis: '자사 수율',
+      },
+    ];
+    const hit = matchAiagVdaSeverityRow(rowsTok, {
+      scope: 'YP',
+      failureEffect: '입고 Wafer에 스크래치 발생 시 공정 수율이 저하된다',
+    });
+    expect(hit?.severity).toBe(6);
+    expect(hit?.basis).toContain('자사');
+  });
 });

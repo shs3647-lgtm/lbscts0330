@@ -1,6 +1,6 @@
 # FMEA Import 파이프라인 유지보수 매뉴얼
 
-> **최종 업데이트**: 2026-03-22
+> **최종 업데이트**: 2026-03-23
 > **대상**: 171개 커밋 기반 Import 파이프라인 전체 아키텍처
 
 ---
@@ -138,6 +138,8 @@ useImportSteps → parseExcelToFlatData(file) → flatData[]
 2. atomicDB 있으면 → saveAtomicDB() (UUID 보존)
    atomicDB 없으면 → migrateToAtomicDB() (레거시 변환)
 3. POST /api/fmea { atomicDB, legacyData }
+
+**고장연결 탭 — 누락 FM·FC 자동연결 (`handleAutoMatchMissing`)**: 상태 반영 후 **전체확정과 동일**하게 `saveToLocalStorage(true)` + `saveAtomicDB(true)`를 호출해야 한다. 로컬 `saveTemp`만으로는 Atomic·마스터 `failureChains`가 갱신되지 않음 (2026-03-22).
 
 [서버: fmea/route.ts POST]
 1. FK 검증 (FM/FE/FC ID가 실제 존재하는지)
@@ -452,7 +454,13 @@ await pool.query(`SELECT "legacyData" FROM "${schema}"."FmeaLegacyData" WHERE "f
 - [ ] saveAtomicDB() 사용 (migrateToAtomicDB 아님)
 - [ ] React.memo 해제하지 않기 (SelectableCell, AllViewRow 등)
 
-### 11.4 모든 코드 변경 후 (필수)
+### 11.4 5ST/6ST O·D 설계 (AIAG-VDA + 산업DB)
+
+- **5ST**: PC/DC 문구 → AIAG-VDA 키워드(`pcOccurrenceMap`, `detectionRatingMap`)로 O/D; 산업DB `defaultRating`은 매칭 시 보조.
+- **6ST**: 산업DB 후보를 **개선안**으로 제시, `newOccurrence`/`newDetection`은 **현재값 이하**이면서 **목표 상한 4**를 지향 (`min(current, min(industry, 4))` 규칙 등). 상세: `docs/Fmea master family part cp pfd architecture.md` §12.
+- **구현**: `pfmea/worksheet/utils/optimizationOdIndustry.ts` (`computeOptimizedOccurrence`/`Detection`, `findBestPcForSixStep`/`findBestDcForSixStep`); 개선추천 모달 데이터는 `tabs/all/hooks/useRecommendHandlers.ts`의 `handleRecommendImprovement`에서 산업DB `defaultRating` + 키워드 O/D를 병합해 `[추천] 발생도/검출도` 문구·`targetO`/`targetD`에 반영. 회귀: `src/__tests__/optimization-od-industry.test.ts`.
+
+### 11.5 모든 코드 변경 후 (필수)
 
 - [ ] `CLAUDE.md` 룰/아키텍처 갱신 필요 여부 확인 → 해당 시 반영
 - [ ] `docs/MAINTENANCE_MANUAL.md` 핵심 파일맵/데이터 흐름/버그 패턴 갱신

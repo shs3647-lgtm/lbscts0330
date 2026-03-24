@@ -63,6 +63,7 @@ import { useAlertModal } from '../../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
 import { loadAiagVdaSeverityMapping, matchAiagVdaSeverityRow } from '@/lib/fmea/aiag-vda-severity-mapping';
+import { applyBulkSeverityRecommendations } from '@/lib/fmea/s-recommend-bulk-apply';
 
 // ★★★ 컨텍스트 메뉴 수평전개 ★★★
 // ┌──────────────────────────────────────────────────────────────────┐
@@ -179,7 +180,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     return scopes.filter((s: any) => s.effect?.trim()).length;
   }, [state.l1?.failureScopes]);
 
-  // ★ S추천 핸들러 — 전체 FE에 대해 추천 → 확인 후 적용
+  // ★ S추천 핸들러 — AIAG 매핑표(S추천 탭·localStorage) 우선, 키워드표 폴백 → 확인 후 적용
   const handleAutoRecommendS = useCallback(() => {
     const scopes = state.l1?.failureScopes || [];
     const targets = scopes.filter((s: any) => s.effect?.trim());
@@ -188,28 +189,17 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       return;
     }
 
-    // 1단계: 추천값 미리 계산
-    let changeCount = 0;
-    const details: string[] = [];
-    const updatedScopes = scopes.map((scope: any) => {
-      if (!scope.effect?.trim()) return scope;
-      const feScope = scope.scope || scope.category || '';
-      const matches = matchFESeverity(scope.effect, feScope);
-      if (matches.length > 0) {
-        const best = matches[0];
-        const prev = scope.severity || 0;
-        const rationale = best.matchedKeywords.join(', ').replace(/^직접매핑:\s*/, '');
-        if (prev !== best.rating) {
-          changeCount++;
-          details.push(`S=${prev}→${best.rating} "${(scope.effect as string).substring(0, 20)}" — ${rationale}`);
-        }
-        return { ...scope, severity: best.rating, severityRationale: rationale };
-      }
-      return scope;
-    });
+    const { updatedScopes, changeCount, details } = applyBulkSeverityRecommendations(
+      state.l1,
+      fmeaId || '',
+    );
 
     if (changeCount === 0) {
-      alert('모든 FE가 이미 최적 심각도입니다. 변경 없음.');
+      alert(
+        '변경할 S가 없습니다.\n' +
+          '· 이미 추천값과 동일하거나, 매핑표·키워드와 맞는 FE가 없을 수 있습니다.\n' +
+          '· S추천 화면에서 YIELD 추천 추가/엑셀 Import 후 다시 시도하세요.',
+      );
       return;
     }
 

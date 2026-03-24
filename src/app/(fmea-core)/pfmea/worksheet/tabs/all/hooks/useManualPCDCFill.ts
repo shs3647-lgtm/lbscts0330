@@ -13,6 +13,7 @@ import { useCallback, useState } from 'react';
 import type { WorksheetState } from '../../../constants';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 import { fillPCDCFromImport } from '../../../utils/fillPCDCFromImport';
+import { buildIndustryPreventionOMap } from '../../../utils/applyOccurrenceFromPrevention';
 
 interface UseManualPCDCFillParams {
   state: WorksheetState | undefined;
@@ -127,6 +128,10 @@ export function useManualPCDCFill({
       const failureChains: Array<{ processNo?: string; fcValue?: string; pcValue?: string; dcValue?: string }> =
         masterData.dataset?.failureChains || [];
 
+      const industryOMap = buildIndustryPreventionOMap(
+        (krPcData.prevention || []) as Array<{ method?: string; defaultRating?: number | null }>,
+      );
+
       // links 구성
       const links = processedFMGroups.flatMap(g =>
         g.rows.map(r => ({
@@ -140,7 +145,8 @@ export function useManualPCDCFill({
 
       setState((prev: WorksheetState) => {
         const result = fillPCDCFromImport(
-          prev.riskData || {}, links, b5Items, a6Items, b5Pool, a6Pool, failureChains
+          prev.riskData || {}, links, b5Items, a6Items, b5Pool, a6Pool, failureChains,
+          industryOMap.size > 0 ? industryOMap : undefined,
         );
         if (result.pcFilledCount === 0 && result.dcFilledCount === 0) {
           // setTimeout으로 alert를 비동기로 — setState 내부에서 alert 금지

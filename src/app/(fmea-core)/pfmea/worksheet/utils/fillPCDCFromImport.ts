@@ -14,6 +14,11 @@
 import { correctOccurrence } from '../tabs/all/hooks/pcOccurrenceMap';
 import { recommendOccurrence } from '../tabs/all/hooks/occurrenceRecommendMap';
 import { recommendDetection } from '../tabs/all/hooks/detectionRatingMap';
+import {
+  applyOccurrenceFromPrevention,
+  resolveOccurrenceForPc,
+  shouldReevaluateOccurrence,
+} from './applyOccurrenceFromPrevention';
 
 const O_CAP = 4;
 const D_CAP = 4;
@@ -56,7 +61,6 @@ function evaluateOUncapped(pcText: string): number | null {
   if (!pcText || !pcText.trim()) return null;
   const { correctedO } = correctOccurrence(pcText);
   if (correctedO !== null && correctedO > 0) return correctedO;
-  // ★ fallback: recommendOccurrence (관리유형 분석)
   const fallback = recommendOccurrence(pcText);
   if (fallback > 0) return fallback;
   return null;
@@ -89,9 +93,12 @@ function evaluateDCapped(dcText: string): number | null {
 
 function findBestImportPC(
   candidates: MasterItem[],
-  targetM4?: string,
+  targetM4: string | undefined,
+  industryPreventionOByMethod: Map<string, number> | undefined,
 ): { item: MasterItem; o: number } | null {
   if (candidates.length === 0) return null;
+
+  const evalO = (v: string) => resolveOccurrenceForPc(v, industryPreventionOByMethod);
 
   // 1차: m4 매칭 + O 점수 있는 항목
   if (targetM4) {
@@ -99,14 +106,14 @@ function findBestImportPC(
     if (m4Matched.length > 0) {
       let best: { item: MasterItem; o: number } | null = null;
       for (const c of m4Matched) {
-        const o = evaluateOUncapped(c.value);
+        const o = evalO(c.value);
         if (o !== null) {
           if (!best || o < best.o) best = { item: c, o };
         }
       }
       if (best) return best;
       // m4 매칭 항목은 있지만 O 점수 없음 → 첫 번째 사용
-      const oFallback = evaluateOUncapped(m4Matched[0].value);
+      const oFallback = evalO(m4Matched[0].value);
       return { item: m4Matched[0], o: oFallback || 0 };
     }
   }
@@ -114,7 +121,7 @@ function findBestImportPC(
   // 2차: processNo 매칭 (m4 무시) + O 점수 있는 항목
   let best: { item: MasterItem; o: number } | null = null;
   for (const c of candidates) {
-    const o = evaluateOUncapped(c.value);
+    const o = evalO(c.value);
     if (o !== null) {
       if (!best || o < best.o) best = { item: c, o };
     }
@@ -122,7 +129,7 @@ function findBestImportPC(
   if (best) return best;
 
   // 3차: O 점수 없어도 첫 번째 항목 반환 (Import 데이터이므로)
-  const oFallback = evaluateOUncapped(candidates[0].value);
+  const oFallback = evalO(candidates[0].value);
   return { item: candidates[0], o: oFallback || 0 };
 }
 
@@ -184,6 +191,7 @@ function findBestPoolDC(candidates: MasterItem[]): { item: MasterItem; d: number
  * @param b5Pool 전체 PC 후보 풀 (산업DB) — 없으면 import만
  * @param a6Pool 전체 DC 후보 풀 (산업DB) — 없으면 import만
  * @param failureChains Import 고장사슬 (FC↔PC 1:1 매칭용)
+ * @param industryPreventionOByMethod KrIndustryPrevention.method(소문자) → defaultRating(O), 선택
  */
 export function fillPCDCFromImport(
   riskData: Record<string, string | number>,
@@ -193,6 +201,7 @@ export function fillPCDCFromImport(
   b5Pool?: MasterItem[],
   a6Pool?: MasterItem[],
   failureChains?: FailureChainLike[],
+  industryPreventionOByMethod?: Map<string, number>,
 ): FillPCDCResult {
   const updated: Record<string, string | number> = { ...riskData };
   let pcFilledCount = 0;
@@ -290,9 +299,8 @@ export function fillPCDCFromImport(
         updated[`imported-prevention-${uk}`] = 'auto';
         pcFilledCount++;
         pcFilled = true;
-        const existingO = Number(updated[oKey]) || 0;
-        if (existingO === 0) {
-          const o = evaluateOUncapped(directPcList[0]);
+        if (shouldReevaluateOccurrence(Number(updated[oKey]))) {
+          const o = resolveOccurrenceForPc(`P:${directPcList[0]}`, industryPreventionOByMethod);
           if (o !== null && o > 0) {
             updated[oKey] = o;
             updated[`imported-O-${uk}`] = 'auto';
@@ -305,15 +313,14 @@ export function fillPCDCFromImport(
     // ② 전용시트 B5 (공정 레벨 — FC 매칭 실패 시 fallback)
     if (!pcFilled && hasTplB5 && isAutoPC) {
       const importCandidates = b5ByProcess.get(pNo) || [];
-      const bestImport = findBestImportPC(importCandidates, link.m4);
+      const bestImport = findBestImportPC(importCandidates, link.m4, industryPreventionOByMethod);
       if (bestImport) {
         updated[pcKey] = `P:${bestImport.item.value}`;
         updated[`imported-prevention-${uk}`] = 'auto';
         updated[`inferred-prevention-${uk}`] = 'inferred';  // ★ P-1: 추론 플래그
         pcFilledCount++;
         pcFilled = true;
-        const existingO = Number(updated[oKey]) || 0;
-        if (existingO === 0 && bestImport.o > 0) {
+        if (shouldReevaluateOccurrence(Number(updated[oKey])) && bestImport.o > 0) {
           updated[oKey] = bestImport.o;
           updated[`imported-O-${uk}`] = 'auto';
           oEvaluatedCount++;
@@ -324,7 +331,7 @@ export function fillPCDCFromImport(
     // ③ Process-based fallback + Pool (빈 셀만)
     if (!pcFilled && !existPcStr) {
       const importCandidates = b5ByProcess.get(pNo) || [];
-      const bestImport = findBestImportPC(importCandidates, link.m4);
+      const bestImport = findBestImportPC(importCandidates, link.m4, industryPreventionOByMethod);
       let bestPool: { item: MasterItem; o: number } | null = null;
       if (b5Pool && b5Pool.length > 0) {
         bestPool = findBestPoolPC(b5Pool);
@@ -335,8 +342,7 @@ export function fillPCDCFromImport(
         updated[`imported-prevention-${uk}`] = 'auto';
         updated[`inferred-prevention-${uk}`] = 'inferred';  // ★ P-1: 추론 플래그
         pcFilledCount++;
-        const existingO = Number(updated[oKey]) || 0;
-        if (existingO === 0 && chosen.o > 0) {
+        if (shouldReevaluateOccurrence(Number(updated[oKey])) && chosen.o > 0) {
           updated[oKey] = chosen.o;
           updated[`imported-O-${uk}`] = 'auto';
           oEvaluatedCount++;
@@ -425,6 +431,14 @@ export function fillPCDCFromImport(
       }
     }
   }
+
+  // ★ PC는 있는데 O만 Import 기본(1)인 행 — DC 매칭만 한 경우 등 전체 스캔 후 O 보정
+  const linkRefs = links.filter(l => l.fmId && l.fcId).map(l => ({ fmId: l.fmId, fcId: l.fcId }));
+  const oPass = applyOccurrenceFromPrevention(updated, linkRefs, industryPreventionOByMethod);
+  for (const [k, v] of Object.entries(oPass.updates)) {
+    updated[k] = v;
+  }
+  oEvaluatedCount += oPass.filledCount;
 
   return {
     pcFilledCount, dcFilledCount, oEvaluatedCount, dEvaluatedCount,

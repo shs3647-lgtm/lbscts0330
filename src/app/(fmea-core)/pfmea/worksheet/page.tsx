@@ -727,6 +727,13 @@ function FMEAWorksheetPageContent() {
           onDownloadTemplate={handleDownloadTemplate}
           onOpenSpecialChar={() => setIsSpecialCharModalOpen(true)}
           onOpenSOD={() => setIsSODModalOpen(true)}
+          onOpenSRecommend={() => {
+            setState(prev => ({ ...prev, tab: 'failure-severity-map' }));
+            try {
+              const id = selectedFmeaId?.toLowerCase();
+              if (id) localStorage.setItem(`pfmea_tab_${id}`, 'failure-severity-map');
+            } catch { /* ignore */ }
+          }}
           onOpen5AP={() => {
             panelButtonClickedRef.current = true;
             if (state.tab !== 'all') setState(prev => ({ ...prev, tab: 'all' }));

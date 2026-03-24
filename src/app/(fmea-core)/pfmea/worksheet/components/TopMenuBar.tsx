@@ -44,6 +44,8 @@ interface TopMenuBarProps {
   onDownloadTemplate: () => void;
   onOpenSpecialChar: () => void;
   onOpenSOD: () => void;
+  /** 1L FE 심각도(S) 추천 화면 — SOD 우측 */
+  onOpenSRecommend?: () => void;
   onOpen5AP: () => void;
   onOpen6AP: () => void;
   onOpenRPN?: () => void;
@@ -75,8 +77,8 @@ const menuBtn = `
 `;
 
 export default function TopMenuBar({
-  fmeaList, selectedFmeaId, cpNo, dirty, isSaving, syncStatus = 'idle', importMessage, fileInputRef, state,
-  onFmeaChange, onSave, onNavigateToList, onExport, onImportFile, onDownloadTemplate, onOpenSpecialChar, onOpenSOD, onOpen5AP, onOpen6AP, onOpenRPN, showRPN, onOpenPDF, onOpenTree,
+  fmeaList, selectedFmeaId, cpNo, dirty, isSaving, lastSaved, currentTab, syncStatus = 'idle', importMessage, fileInputRef, state,
+  onFmeaChange, onSave, onNavigateToList, onExport, onImportFile, onDownloadTemplate, onOpenSpecialChar, onOpenSOD, onOpenSRecommend, onOpen5AP, onOpen6AP, onOpenRPN, showRPN, onOpenPDF, onOpenTree,
   activePanelId,
   onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, linkedPfdNo, onConfirm, onOpenBackup, onOpenStats,
   isAdmin, onQuickCpSync,
@@ -227,6 +229,16 @@ export default function TopMenuBar({
       <div className="hidden sm:flex items-center gap-0.5 shrink-0">
         <button onClick={onOpenSpecialChar} className={menuBtn} title={t('특별특성')}>SC</button>
         <button onClick={onOpenSOD} className={menuBtn}>SOD</button>
+        {typeof onOpenSRecommend === 'function' && (
+          <button
+            type="button"
+            onClick={onOpenSRecommend}
+            className={`${menuBtn} ${currentTab === 'failure-severity-map' ? 'bg-yellow-500/80 text-black font-bold' : ''}`}
+            title="1L 고장영향(FE) 심각도(S) 추천"
+          >
+            S추천
+          </button>
+        )}
         <button onClick={onOpen5AP} className={menuBtn}>5AP</button>
         <button onClick={onOpen6AP} className={menuBtn}>6AP</button>
         <button onClick={onOpenRPN} className={`${menuBtn} ${showRPN ? 'bg-yellow-500/80 text-black font-bold' : 'bg-blue-600/50'}`}>RPN</button>

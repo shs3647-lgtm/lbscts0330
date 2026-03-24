@@ -14,7 +14,7 @@ interface UseLinkHandlersProps {
   setStateSynced?: (fn: (prev: any) => any) => void;
   setDirty: (dirty: boolean) => void;
   saveTemp?: () => void;
-  saveToLocalStorage?: () => void;
+  saveToLocalStorage?: (force?: boolean) => void;
   saveAtomicDB?: (force?: boolean) => void | Promise<void>;
   drawLines: () => void;
   // 상태
@@ -757,6 +757,7 @@ export function useLinkHandlers({
             existingKeySet.add(key);
 
             newLinks.push({
+              id: uid(),
               fmId: fm.id, fmNo: fm.fmNo, fmText: fm.text,
               fmProcess: fm.processName, fmProcessNo: fm.processNo || '',
               feId: feLink.feId, feNo: feLink.feNo, feScope: feLink.feScope,
@@ -822,6 +823,7 @@ export function useLinkHandlers({
           existingKeySet.add(key);
 
           newLinks.push({
+            id: uid(),
             fmId: fm.id, fmNo: fm.fmNo, fmText: fm.text,
             fmProcess: fm.processName, fmProcessNo: fm.processNo || '',
             feId: feLink.feId, feNo: feLink.feNo, feScope: feLink.feScope,
@@ -855,12 +857,22 @@ export function useLinkHandlers({
       saveTemp?.();
     });
 
+    // ★ 고장매칭(누락 자동연결) → Atomic DB + 마스터 failureChains 동기화 (전체확정과 동일 패턴)
+    setTimeout(async () => {
+      try {
+        saveToLocalStorage?.(true);
+        await saveAtomicDB?.(true);
+      } catch (e) {
+        console.error('[useLinkHandlers] 고장매칭 후 DB/마스터 저장 오류:', e);
+      }
+    }, 100);
+
     setViewMode('result');
     const parts: string[] = [];
     if (fmLinkedCount > 0) parts.push(`FM ${fmLinkedCount}건`);
     if (fcLinkedCount > 0) parts.push(`FC ${fcLinkedCount}건`);
     return { success: true, message: `✅ ${parts.join(' + ')} 자동연결 완료!\n(같은 공정의 FM↔FE↔FC 패턴으로 연결했습니다)` };
-  }, [fmData, fcData, savedLinks, linkStats, getProcessOrder, setState, setStateSynced, setDirty, saveTemp, setViewMode, setSavedLinks]);
+  }, [fmData, fcData, savedLinks, linkStats, getProcessOrder, setState, setStateSynced, setDirty, saveTemp, saveToLocalStorage, saveAtomicDB, setViewMode, setSavedLinks]);
 
   return {
     // FM 관련

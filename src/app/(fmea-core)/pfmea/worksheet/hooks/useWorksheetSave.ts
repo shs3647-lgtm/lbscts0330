@@ -95,6 +95,35 @@ function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWor
     }
   }
 
+  // ★★★ 2026-03-23: L1 failureScopes → failureEffects (심각도·FE 문구) 역동기화
+  // 근본원인: S추천/셀 편집이 state에만 반영되고 atomicDB.failureEffects에 합류하지 않아 POST /api/fmea 시 S 미저장
+  const failureScopes = (state.l1 as any)?.failureScopes as
+    | Array<{ id?: string; effect?: string; severity?: number }>
+    | undefined;
+  if (
+    Array.isArray(failureScopes) &&
+    failureScopes.length > 0 &&
+    Array.isArray(db.failureEffects) &&
+    db.failureEffects.length > 0
+  ) {
+    const byId = new Map(
+      failureScopes.filter((s): s is { id: string; effect?: string; severity?: number } => Boolean(s.id)).map(s => [s.id, s]),
+    );
+    result.failureEffects = db.failureEffects.map(fe => {
+      const sc = byId.get(fe.id);
+      if (!sc) return fe;
+      let next = fe;
+      if (typeof sc.severity === 'number' && sc.severity !== fe.severity) {
+        next = { ...next, severity: sc.severity };
+      }
+      const eff = (sc.effect || '').trim();
+      if (eff && eff !== fe.effect) {
+        next = { ...next, effect: eff };
+      }
+      return next;
+    });
+  }
+
   return result;
 }
 

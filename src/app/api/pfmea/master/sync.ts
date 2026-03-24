@@ -160,13 +160,15 @@ export function extractMasterFlatItemsFromWorksheet(db: FMEAWorksheetDB): FlatIt
 }
 
 export async function upsertActiveMasterFromWorksheetTx(tx: any, db: FMEAWorksheetDB): Promise<void> {
-  const items = extractMasterFlatItemsFromWorksheet(db);
-  if (items.length === 0) return;
-
   // ✅ 방어 코드: 마스터 테이블이 DB에 없으면 (마이그레이션 전) 스킵
   if (!tx.pfmeaMasterDataset) {
     return;
   }
+
+  const items = extractMasterFlatItemsFromWorksheet(db);
+  const hasFailureLinks = Array.isArray(db.failureLinks) && db.failureLinks.length > 0;
+  // ★ flat 추출 0건이어도 고장연결만 갱신된 경우 failureChains 동기화 필요 (고장매칭 저장 등)
+  if (items.length === 0 && !hasFailureLinks) return;
 
   try {
     // ensure active dataset exists for this fmeaId
@@ -177,6 +179,11 @@ export async function upsertActiveMasterFromWorksheetTx(tx: any, db: FMEAWorkshe
       ds = await tx.pfmeaMasterDataset.create({
         data: { name: 'AUTO-MASTER', fmeaId, fmeaType, isActive: true },
       });
+    }
+
+    if (items.length === 0) {
+      await syncMasterChainsInTx(tx, db);
+      return;
     }
 
     // ★★★ 2026-02-08: 기존 마스터 데이터 조회 → 중복 방지 ★★★

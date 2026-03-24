@@ -12,6 +12,7 @@ import type { ProcessedFMGroup } from '../processFailureLinks';
 import { autoFillMissingOccurrence } from '../../../utils/autoFillOccurrence';
 import { autoFillMissingDetection } from '../../../utils/autoFillDetection';
 import { fillPCDCFromImport } from '../../../utils/fillPCDCFromImport';
+import { buildIndustryPreventionOMap } from '../../../utils/applyOccurrenceFromPrevention';
 import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 
 interface UseAutoFillEffectsParams {
@@ -137,6 +138,10 @@ export function useAutoFillEffects({
         const failureChains: Array<{ processNo?: string; fcValue?: string; pcValue?: string; dcValue?: string }> =
           masterData.dataset?.failureChains || [];
 
+        const industryOMap = buildIndustryPreventionOMap(
+          (krPcData.prevention || []) as Array<{ method?: string; defaultRating?: number | null }>,
+        );
+
         const links = processedFMGroups.flatMap(g =>
           g.rows.map(r => ({
             fmId: g.fmId,
@@ -149,7 +154,8 @@ export function useAutoFillEffects({
 
         setState((prev: WorksheetState) => {
           const result = fillPCDCFromImport(
-            prev.riskData || {}, links, b5Items, a6Items, b5Pool, a6Pool, failureChains
+            prev.riskData || {}, links, b5Items, a6Items, b5Pool, a6Pool, failureChains,
+            industryOMap.size > 0 ? industryOMap : undefined,
           );
           if (result.pcFilledCount === 0 && result.dcFilledCount === 0) return prev;
           setDirty?.(true);

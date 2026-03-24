@@ -1,7 +1,8 @@
 # FMEA 계층 구조 + CP/PFD 연동 아키텍처
 
 > **작성일**: 2026-03-23  
-> **최종 확정**: 2026-03-22 — Master 포함 **모든 PFMEA 행 데이터**는 `pfmea_{fmeaId}` 프로젝트 스키마에 저장 (§6.4 검증 레퍼런스 2026-03-22 보강)  
+> **최종 확정**: 2026-03-23 — §12 AIAG-VDA 5ST / 산업DB 6ST O·D 설계 추가  
+> **이전 확정**: 2026-03-22 — Master 포함 **모든 PFMEA 행 데이터**는 `pfmea_{fmeaId}` 프로젝트 스키마에 저장 (§6.4 검증 레퍼런스 2026-03-22 보강)  
 > **목적**: Master/Family/Part FMEA 계층과 CP/PFD 연동 방식 확정  
 > **핵심**: **Master(M001)도 Family/Part와 동일하게 `pfmea_m001` 패턴**. public은 프로젝트 목록·등록정보·사용자 등 **메타 전용**. CP/PFD 행은 **항상 FMEA와 동일 프로젝트 스키마**.
 
@@ -587,3 +588,83 @@ GET  /api/fmea/pfd-items           PFD 항목 조회
 6. Master 변경 → 하위에 알림 → 사용자가 수동 동기화 (§7, 별도 구현 시)
 7. v4 UUID/FK가 CP/PFD FK 참조의 기반 (특히 L3ProcessChar)
 ```
+
+---
+
+## 12. AIAG-VDA(5ST) + 산업DB(6ST) 발생도·검출도 설계
+
+> **목적**: 리스크분석(5ST)에서는 **AIAG-VDA FMEA Handbook 기준**으로 O/D를 산정하고, 최적화(6ST)에서는 **산업 공통 DB**를 **개선안 추천** 소스로 사용하여 **O·D를 4 이하(낮은 값 = 유리)** 로 끌어내린다.  
+> **SSoT**: 5ST의 현재 등급은 `risk_analyses`(프로젝트 스키마). 6ST의 “개선 후” 목표는 `optimizations.newOccurrence` / `newDetection` + 개선 조치 텍스트.
+
+### 12.1 척도 정의 (앱·DB와 동일)
+
+```
+발생도 O (1–10): 숫자가 낮을수록 원인 발생 가능성이 낮음(예방이 효과적).
+검출도 D (1–10): 숫자가 낮을수록 검출이 잘됨(관리가 효과적).
+
+★ “4 이하로 낮춘다” = 목표 구간 O∈[1,4], D∈[1,4] (개선 후 바람직한 상한)
+```
+
+### 12.2 5ST 리스크분석 — AIAG-VDA 우선
+
+| 요소 | 기준 | 코드·데이터 참조 |
+|------|------|------------------|
+| 현재 O | 예방관리(PC) 텍스트 키워드 + (보조) 산업DB `KrIndustryPrevention.defaultRating` | `pcOccurrenceMap`, `occurrenceRecommendMap`, `applyOccurrenceFromPrevention` |
+| 현재 D | 검출관리(DC) 텍스트 키워드 + (보조) 산업DB `KrIndustryDetection.defaultRating` | `detectionRatingMap.recommendDetection`, `useAutoRecommendDC` |
+
+**원칙**
+
+- 5ST에서는 **확정된 PC/DC 문구**를 입력·Import 기준으로 두고, **핸드북 매트릭스**로 O/D를 맞춘다.
+- 산업DB `defaultRating`은 **동일 method명 매칭 시** 보조값으로 쓰되, **FK 자동연결에는 사용하지 않음** (Rule 0.9: 추천 전용).
+
+### 12.3 6ST 최적화 — 산업DB 추천으로 O·D를 4 이하 방향으로
+
+**역할 분리**
+
+- **AIAG-VDA**: “현재 관리가 어떤 등급인가” (5ST 해석).
+- **산업DB (`kr_industry_prevention` / `kr_industry_detection`)**: “업계에서 쓰는 **더 강한** 예방·검출 **방법(문구)** 과 그에 대한 **기대 O/D** (`defaultRating`)” → **6ST 개선안 후보**.
+
+**추천 파이프라인 (설계)**
+
+```
+입력: riskId, 현재 O/D, 현재 PC/DC, FM·FC·공정 컨텍스트
+  ↓
+① 산업DB에서 PC·DC 후보 랭킹 (유사도·키워드·공정 — 기존 useAutoRecommendPC/DC 패턴 재사용)
+  ↓
+② 선택 후보의 defaultRating을 「개선 적용 후 기대 O/D」로 해석
+  ↓
+③ 목표값 산출 (단조 감소 + 상한 4):
+     newO = min( currentO, min( candidateO_industry, 4 ) )
+     newD = min( currentD, min( candidateD_industry, 4 ) )
+   ※ industry 값이 없으면: 추천 PC/DC 문구로 AIAG-VDA만 재평가한 값을 후보로 두고 동일 min 규칙 적용
+  ↓
+④ Optimization 레코드에 기록:
+     newOccurrence, newDetection, recommendedAction(산업 method + 근거),
+     prevention/검출 조치 문구(산업DB method) — 필요 시 riskData 최적화 컬럼과 동기화
+```
+
+**비즈니스 규칙**
+
+- **개선은 등급을 올리지 않는다**: `newO ≤ currentO`, `newD ≤ currentD` (이미 4 이하면 유지 또는 미세 조정만).
+- **목표 상한**: `newO ≤ 4`, `newD ≤ 4` 를 만족하도록 후보를 고른다; 한 번에 못 내려가면 **다단계 개선안**(여러 Optimization 행 또는 일정)으로 쪼갠다.
+- **사용자 확정 전까지** SSoT는 5ST `risk_analyses`; 6ST는 **계획값**(`optimizations`).
+
+### 12.4 구현 매핑 (향후 작업 시)
+
+| 구분 | 파일·API (참고) |
+|------|------------------|
+| 산업DB 조회 | `GET /api/kr-industry?type=all` |
+| 5ST O/D | `fillPCDCFromImport`, `useAutoRecommendDC`, `applyOccurrenceFromPrevention` |
+| 6ST 저장 | `POST /api/fmea` 내 `optimization` upsert (`newOccurrence`, `newDetection`) |
+| 마스터·Living DB | `syncMasterChainsInTx` — 개선 반영 후 체인·`MasterFmeaReference` 갱신 (Rule 18) |
+
+### 12.5 운영 순서 (권장)
+
+```
+Import·고장연결 확정
+  → PC/DC 매칭 (마스터·체인)
+  → O추천·D추천 (AIAG-VDA로 5ST 확정)
+  → 6ST: 산업DB 기반 개선안 추천 → newO/newD ≤ 4 방향 검토·승인 → 저장
+```
+
+이 순서를 지키면 **5ST는 핸드북 정합**, **6ST는 산업 베스트프랙티스로 추가 절감**이 분리되어 Living DB가 쌓인다.

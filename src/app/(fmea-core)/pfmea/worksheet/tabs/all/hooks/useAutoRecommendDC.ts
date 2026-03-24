@@ -19,6 +19,10 @@ import { rankByDetectionRules, getRecommendedDetectionMethods } from './detectio
 import { boostByPCLinkage } from './preventionToDetectionMap';
 import { recommendDetection } from './detectionRatingMap';
 import { generateDCRec2 } from './dcCategoryMap';
+import {
+  applyOccurrenceFromPrevention,
+  buildIndustryPreventionOMap,
+} from '../../../utils/applyOccurrenceFromPrevention';
 
 interface UseAutoRecommendDCParams {
   state?: WorksheetState;
@@ -65,7 +69,7 @@ export function useAutoRecommendDC({
 
       const [masterRes, krRes] = await Promise.all([
         fetch(`/api/pfmea/master?fmeaId=${fmeaId}&includeItems=true`, { cache: 'no-store' }),
-        fetch('/api/kr-industry?type=detection').catch(() => null),
+        fetch('/api/kr-industry?type=all').catch(() => null),
       ]);
 
       if (!masterRes.ok) { if (!silent) alert('마스터 데이터 로드 실패'); return undefined; }
@@ -105,9 +109,14 @@ export function useAutoRecommendDC({
 
       // ★ v2.1: methodType='자동' 후보만 사용
       let krDcItems: MasterA6Item[] = [];
+      let industryOMap = new Map<string, number>();
       if (krRes && krRes.ok) {
-        const krData = await krRes.json();
-        const krDetection: { id?: string; method: string; fmKeyword: string; category: string; methodType?: string; defaultRating?: number }[] = krData.detection || [];
+        const krData = (await krRes.json()) as {
+          detection?: Array<{ id?: string; method: string; fmKeyword: string; category: string; methodType?: string; defaultRating?: number }>;
+          prevention?: Array<{ method?: string; defaultRating?: number | null }>;
+        };
+        industryOMap = buildIndustryPreventionOMap(krData.prevention || []);
+        const krDetection = krData.detection || [];
         const seenMethods = new Set(flatItems.map(i => i.value));
         krDetection.forEach(entry => {
           if (entry.method && !seenMethods.has(entry.method)) {
@@ -342,6 +351,19 @@ export function useAutoRecommendDC({
         });
       });
 
+      // ★ DC 매칭만 실행해도 PC가 있는 행은 O=1(Import 기본) → 산업DB·키워드로 발생도 보정
+      const linkRefs = processedFMGroups.flatMap(g =>
+        g.rows.map(r => ({ fmId: g.fmId, fcId: r.fcId })),
+      );
+      const mergedForO = { ...currentRiskData, ...changes };
+      const oPass = applyOccurrenceFromPrevention(
+        mergedForO,
+        linkRefs,
+        industryOMap.size > 0 ? industryOMap : undefined,
+      );
+      Object.assign(changes, oPass.updates);
+      const oAdjustedCount = oPass.filledCount;
+
       const t1 = performance.now();
       // ★ 경량 setState: 계산 결과만 병합
       setState((prev: WorksheetState) => ({
@@ -366,7 +388,8 @@ export function useAutoRecommendDC({
           `  ┗ 전체풀 fallback: ${fallbackCount}건\n` +
           `- 수동입력 유지: ${manualKept >= 0 ? manualKept : 0}건\n` +
           `- 후보 없음: ${skippedCount}건\n` +
-          `- D값 평가: ${dEvaluatedCount}건 (AIAG-VDA 정규기준)` +
+          `- D값 평가: ${dEvaluatedCount}건 (AIAG-VDA 정규기준)\n` +
+          `- O값 보정: ${oAdjustedCount}건 (PC+산업DB defaultRating·키워드, O=1·미입력만)` +
           (sampleRecommends.length > 0
             ? `\n\n[추천 샘플]\n${sampleRecommends.slice(0, 3).join('\n')}`
             : '')

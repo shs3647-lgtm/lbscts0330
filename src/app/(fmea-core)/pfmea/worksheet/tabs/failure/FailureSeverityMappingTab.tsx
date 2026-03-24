@@ -208,13 +208,6 @@ export default function FailureSeverityMappingTab({ fmeaId }: FailureTabProps) {
         </button>
       </div>
 
-      <p className="text-[10px] text-gray-600 mb-2 leading-relaxed">
-        데스크톱의 <code className="bg-gray-100 px-1">AIAG_VDA_Severity_Mapping.xlsx</code>와 동일한 열 구성으로
-        작성합니다. <strong>AIAG-VDA 근거</strong> 문구는 1L 워크시트에서는 <strong>고장영향(FE) 셀 아래</strong>에
-        표시되며, S를 선택할 때 해당 행에 저장됩니다. 1행은 반드시 헤더입니다. 데이터는 프로젝트({fid}) localStorage에
-        저장됩니다.
-      </p>
-
       <div className="overflow-x-auto border border-gray-300 rounded">
         <table className="w-full border-collapse text-[10px]">
           <thead>
