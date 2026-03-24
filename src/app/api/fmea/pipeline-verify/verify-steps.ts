@@ -1,3 +1,21 @@
+/**
+ * ██████████████████████████████████████████████████████████████
+ * ██  CODEFREEZE v4.6.0 — 이 파일 수정 시 승인 필수!          ██
+ * ██                                                          ██
+ * ██  2026-03-24 검증 완료:                                    ██
+ * ██  - tsc 0에러 / build 성공                                 ██
+ * ██  - p006-i06: FK 0 orphan, Step0-4 ALL OK                ██
+ * ██  - p007-i07: FK 0 orphan, Step0-2 OK                    ██
+ * ██  - orphanPC: L3Structure DB조회 + l2StructId 커버리지     ██
+ * ██  - DC/PC 전량 미입력: info 등급 (status 영향 없음)         ██
+ * ██  - 카데시안/이름매칭/폴백: 없음 확인                       ██
+ * ██                                                          ██
+ * ██  수정 시:                                                 ██
+ * ██  1. 반드시 사용자 승인 후 수정                              ██
+ * ██  2. pipeline-verify API 전체 검증 필수                    ██
+ * ██  3. FK 무결성 9개 체크 ALL PASS 확인                       ██
+ * ██████████████████████████████████████████████████████████████
+ */
 // uuid-rules 삭제됨 (2026-03-22) — 인라인 패턴 감지
 function isL3FunctionIdB2Pattern(id: string): boolean {
   if (!id) return false;
