@@ -1,0 +1,33 @@
+---
+description: "Rule 1 — 카테시안·이름매칭·폴백 금지 (SSoT/FK-only) — 세션마다 필수"
+alwaysApply: true
+---
+
+# Cursor Rule 1 — 카테시안 · 이름매칭 · 폴백 절대 금지
+
+> **이 규칙은 `alwaysApply: true`로 모든 Composer/Agent 대화에 포함된다.**  
+> 프로젝트 `CLAUDE.md` Rule 0 / 1.5 / 1.6 / 1.7과 동일 계열이며, **위반 코드는 작성·제안하지 않는다.**
+
+## 1. 금지 (위반 시 롤백 대상)
+
+| 금지 패턴 | 예시 (하지 말 것) |
+|-----------|-------------------|
+| **카테시안 복제** | 공정/작업요소 루프마다 동일 A4(PC)·동일 엔티티를 새 UUID로 반복 생성 |
+| **이름매칭으로 FK/엔티티 결정** | `.find(x => x.name === y)`, 공정명·FM/FC 텍스트만으로 UUID 연결, 유사도로 `feId`/`fcId` 확정 |
+| **데이터 폴백** | 누락 시 `"${name} 부적합"`, `inferChar()`, `|| '기본값'`으로 DB·화면 채움, 빈 값을 추측으로 메움 |
+
+## 2. 허용 (예외는 문서에 명시된 것만)
+
+- **Import Stage 1**: 퍼지·텍스트 매칭은 **미리보기·참고용** — **FailureLink FK 자동 확정 금지** (`CLAUDE.md` 0.3).
+- **Rule 0.9**: DC/PC/개선안 **추천(Recommendation) UI** 에서만 유사도 — **저장 시에도 사용자 선택·DB 근거** 후 FK.
+- **조회**: `Map.get(확정 id)`, Prisma `where: { id }`, 이미 DB에 있는 FK만 사용.
+
+## 3. 구현 시 체크
+
+- 신규 연동/저장/렌더: **Atomic DB + 확정 FK** 경로인지 확인.
+- “없으면 만들어 넣기” 로직 추가 시 → **Master/산업 DB/사용자 입력** 중 하나인지 검토; 코드 추측이면 **금지**.
+
+## 4. 참조 문서
+
+- `CLAUDE.md` — Rule 0.5 카테시안, 1.5 UUID 중심, 1.6 근본원인, 1.7 ID-only FK  
+- `docs/UUID_FK_SPECIFICATION.md`
