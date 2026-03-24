@@ -32,6 +32,7 @@
     "migrate:public-cp-pfd-to-project:dry": "dotenv -- npx tsx scripts/migrate-public-cp-pfd-to-project-schema.ts --dry-run",
     "verify:pipeline-baseline": "npx tsx scripts/verify-location-fk-baseline.ts",
     "verify:pipeline-baseline:strict": "npx tsx scripts/verify-location-fk-baseline.ts --baseline",
+    "verify:import-fe-layout": "npx tsx scripts/verify-import-fe-chain-layout.ts",
     "audit:sidebar-routes": "npx tsx scripts/audit-fmea-sidebar-routes.ts",
     "release:audit": "npm run audit:sidebar-routes && npx tsc --noEmit",
     "export:validation-excel": "npx tsx scripts/export-fmea-validation-excel.ts",

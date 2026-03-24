@@ -42,7 +42,19 @@
 5. **VERIFY**: Re-Import → `pipeline-verify` POST → 워크시트 고장연결 누락 0 목표.
 6. **COMMIT**: `APPROVED-BY-USER` 및 매뉴얼 동기화.
 
-## 4. PowerShell 검증 (로컬 서버 가동 후)
+## 4. 자동 스크립트 (서버 없이 + 선택 API)
+
+```powershell
+# ① 체인 로직만 (buildFailureChainsFromFlat + assignChainUUIDs) — 항상 실행
+npm run verify:import-fe-layout
+
+# ② + dev 서버 + DB에 올라간 프로젝트 파이프라인까지
+$env:VERIFY_BASE_URL='http://127.0.0.1:3000'
+$env:VERIFY_FMEA_ID='pfm26-mXXX'   # MX5 fmeaId
+npm run verify:import-fe-layout
+```
+
+## 5. PowerShell 수동 검증 (로컬 서버 가동 후)
 
 ```powershell
 $f = 'pfm26-mXXX'   # 실제 MX5 fmeaId로 교체
@@ -54,7 +66,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=$f
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body "{`"fmeaId`":`"$f`"}" -ContentType "application/json" | ConvertTo-Json -Depth 4
 ```
 
-## 5. 수정 후 사용자 액션 (MX5)
+## 6. 수정 후 사용자 액션 (MX5)
 
 1. 동일 엑셀로 **Import 재실행** (또는 `resave-import` 파이프라인이 있으면 규정에 따름).
 2. **고장연결** 탭에서 누락 배너 재확인.
