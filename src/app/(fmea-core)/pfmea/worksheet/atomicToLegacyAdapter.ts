@@ -26,6 +26,7 @@ import type {
   L3Function as AtomicL3Function,
   L2Structure,
   L3Structure,
+  ProcessProductChar,
 } from './schema';
 
 import type {
@@ -156,7 +157,29 @@ function buildFailureScopes(
 
 // ============ L2 기능: L2Function → Process.functions[].productChars[] ============
 
-function buildL2Functions(l2Funcs: AtomicL2Function[]): L2Function[] {
+/**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  CODEFREEZE — buildL2Functions productChars[].id 매핑 절대 변경 금지 ██
+ * ██                                                                     ██
+ * ██  ★ 2026-03-24 FIX: productChars[].id는 ProcessProductChar.id 사용    ██
+ * ██  FM.productCharId = PPC.id(C5), L2Function.id = C4 → 불일치 해결     ██
+ * ██  PPC 없는 레거시 데이터는 L2Function.id로 fallback                   ██
+ * ██                                                                     ██
+ * ██  수정 시 FM 누락 20건 재발 — 사용자 승인 필수                        ██
+ * ██████████████████████████████████████████████████████████████████████████
+ *
+ */
+function buildL2Functions(l2Funcs: AtomicL2Function[], ppcs: ProcessProductChar[]): L2Function[] {
+  // PPC를 l2FuncId로 인덱싱 — 같은 L2Function에 매핑된 PPC를 O(1)로 찾기
+  // 위치기반: L2Function(C4)와 PPC(C5)는 같은 행에 생성되므로 l2FuncId로 연결
+  const ppcByL2FuncId = new Map<string, ProcessProductChar>();
+  for (const ppc of ppcs) {
+    // PPC.l2FuncId가 있으면 사용, 없으면 같은 l2StructId + name 매칭
+    if ((ppc as any).l2FuncId) {
+      ppcByL2FuncId.set((ppc as any).l2FuncId, ppc);
+    }
+  }
+
   const funcGroups = new Map<string, AtomicL2Function[]>();
   for (const f of l2Funcs) {
     const arr = funcGroups.get(f.functionName);
@@ -169,11 +192,19 @@ function buildL2Functions(l2Funcs: AtomicL2Function[]): L2Function[] {
 
   const result: L2Function[] = [];
   funcGroups.forEach((funcs, funcName) => {
-    const productChars: L2ProductChar[] = funcs.map(f => ({
-      id: f.id,
-      name: f.productChar,
-      specialChar: f.specialChar,
-    }));
+    const productChars: L2ProductChar[] = funcs.map(f => {
+      // ★ PPC id 우선: l2FuncId 매칭 → 같은 l2StructId+name 매칭 → fallback L2Function.id
+      const ppcById = ppcByL2FuncId.get(f.id);
+      const ppcByMatch = !ppcById
+        ? ppcs.find(p => p.l2StructId === f.l2StructId && p.name === f.productChar)
+        : undefined;
+      const ppcId = ppcById?.id || ppcByMatch?.id || f.id;
+      return {
+        id: ppcId,
+        name: f.productChar,
+        specialChar: f.specialChar,
+      };
+    });
     result.push({
       id: funcs[0].id,
       name: funcName,
@@ -374,10 +405,14 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
   };
 
   // ─── L2/L3 중첩 구조 ───
+  // PPC를 l2StructId로 그룹핑 (buildL2Functions에 전달)
+  const ppcByL2Id = groupBy(db.processProductChars || [], p => p.l2StructId);
+
   const l2: Process[] = db.l2Structures.map(l2Struct => {
     // L2 기능
     const l2Funcs = l2FuncsByL2Id.get(l2Struct.id) || [];
-    const functions = buildL2Functions(l2Funcs);
+    const l2PPCs = ppcByL2Id.get(l2Struct.id) || [];
+    const functions = buildL2Functions(l2Funcs, l2PPCs);
 
     // FM
     const fms = fmsByL2Id.get(l2Struct.id) || [];

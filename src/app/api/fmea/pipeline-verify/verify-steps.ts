@@ -250,7 +250,7 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   const r: StepResult = { step: 3, name: 'FK', status: 'ok', details: {}, issues: [], fixed: [], fkIntegrity: [] };
 
   // 한 번에 로드 후 메모리에서 집합 검사 — N+1 없음, 순서 무관
-  const [l1Funcs, l2s, l2Funcs, l3s, l3Funcs, fms, fes, fcs, fls, ras] = await Promise.all([
+  const [l1Funcs, l2s, l2Funcs, l3s, l3Funcs, fms, fes, fcs, fls, ras, ppc] = await Promise.all([
     prisma.l1Function.findMany({ where: { fmeaId }, select: { id: true } }).catch(() => []),
     prisma.l2Structure.findMany({ where: { fmeaId }, select: { id: true } }),
     prisma.l2Function.findMany({ where: { fmeaId }, select: { id: true, l2StructId: true, functionName: true } }),
@@ -261,6 +261,9 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
     prisma.failureCause.findMany({ where: { fmeaId }, select: { id: true, cause: true, l3StructId: true, l2StructId: true, l3FuncId: true } }),
     prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, feId: true, fcId: true } }),
     prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true, linkId: true } }),
+    // ★ CODEFREEZE 2026-03-24: FM.productCharId → ProcessProductChar (L2Function이 아님!)
+    // L2Function.id(C4) ≠ PPC.id(C5) — 이 참조 대상을 변경하면 FK orphan 26건 재발
+    prisma.processProductChar.findMany({ where: { fmeaId }, select: { id: true } }).catch(() => []),
   ]);
 
   const idSet = {
@@ -273,6 +276,7 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
     fe: new Set<string>(fes.map((r: any) => r.id)),
     fc: new Set<string>(fcs.map((r: any) => r.id)),
     fl: new Set<string>(fls.map((r: any) => r.id)),
+    ppc: new Set<string>(ppc.map((r: any) => r.id)), // ★ ProcessProductChar
   };
 
   // 관계 라벨은 디버그/ImportValidation 표시용. 검증 로직은 전부 targetSet.has(fkVal).
@@ -282,7 +286,7 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
     { relation: 'L3F.l3StructId → L3', rows: l3Funcs, fkField: 'l3StructId', targetSet: idSet.l3, nameField: 'functionName' },
     { relation: 'L3F.l2StructId → L2', rows: l3Funcs, fkField: 'l2StructId', targetSet: idSet.l2, nameField: 'functionName' },
     { relation: 'FM.l2StructId → L2', rows: fms, fkField: 'l2StructId', targetSet: idSet.l2, nameField: 'mode' },
-    { relation: 'FM.productCharId → L2F', rows: fms, fkField: 'productCharId', targetSet: idSet.l2F, nullable: true, nameField: 'mode' },
+    { relation: 'FM.productCharId → PPC', rows: fms, fkField: 'productCharId', targetSet: idSet.ppc, nullable: true, nameField: 'mode' },
     { relation: 'FC.l3StructId → L3', rows: fcs, fkField: 'l3StructId', targetSet: idSet.l3, nameField: 'cause' },
     { relation: 'FC.l2StructId → L2', rows: fcs, fkField: 'l2StructId', targetSet: idSet.l2, nameField: 'cause' },
     { relation: 'FC.l3FuncId → L3F', rows: fcs, fkField: 'l3FuncId', targetSet: idSet.l3F, nameField: 'cause' },
