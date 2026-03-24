@@ -3,6 +3,10 @@
  * @description Import 3단계 확정 프로세스 React 훅
  * - SA(구조분석) → FC(고장사슬) → FA(통합분석) 순차 확정
  * - flatData/isSaved 변경 시 자동 리셋
+ *
+ * ★ 2026-03-25: 레거시 파서(buildWorksheetState) 제거
+ *   - position-parser 경로로 전환 (save-position-import API)
+ *   - buildWorksheetState 사용 금지
  * @created 2026-02-21
  */
 
@@ -11,7 +15,7 @@ import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import type { CrossTab } from '../utils/template-delete-logic';
-import type { BuildResult } from '../utils/buildWorksheetState';
+import type { BuildResult } from '../utils/saveWorksheetFromImport';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from './useTemplateGenerator';
 import { validateFADataConsistency } from '../utils/faValidation';
@@ -184,10 +188,26 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         console.warn(`[SA 확정] 검증 오류 ${validationReport.errorCount}건 발견 — 데이터 통과 (관대한 정책)`);
       }
 
-      // buildWorksheetState는 동기 함수 (CODEFREEZE → dynamic import 불필요)
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { buildWorksheetState } = require('../utils/buildWorksheetState');
-      const result: BuildResult = buildWorksheetState(enrichedFlatData, { fmeaId, l1Name });
+      // ★ 2026-03-25: 레거시 buildWorksheetState 삭제 — diagnostics stub 사용
+      // 실제 DB 저장은 FA 확정 시 saveWorksheetFromImport → save-position-import에서 수행
+      const countOf = (code: string) => enrichedFlatData.filter(d => d.itemCode === code).length;
+      const result: BuildResult = {
+        success: true,
+        state: null,
+        diagnostics: {
+          l2Count: new Set(enrichedFlatData.filter(d => d.itemCode === 'A1').map(d => d.processNo)).size,
+          l3Count: countOf('B1'),
+          l1TypeCount: countOf('C1'),
+          l2FuncCount: countOf('A3'),
+          l3FuncCount: countOf('B2'),
+          processCharCount: countOf('A4'),
+          productCharCount: countOf('B3'),
+          fmCount: countOf('A5'),
+          fcCount: countOf('B4'),
+          feCount: countOf('C4'),
+          warnings: [],
+        },
+      };
 
       // ★★★ 2026-03-02: IMPORT 계층 체인 검증 ★★★
       // 규칙: 상위 ≤ 하위 (하위가 크거나 같아야 정상)
@@ -558,14 +578,8 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         failureChains: usedChains,
       });
 
-      // ★ FM 갭 피드백: wsState에서 추가 생성된 항목을 flatData에 병합
-      const feedbackItems = wsResult.feedback?.additionalItems || [];
-      const mergedFlatData = feedbackItems.length > 0
-        ? [...flatData, ...feedbackItems]
-        : flatData;
-      if (feedbackItems.length > 0) {
-        console.info(`[FM-Feedback] ${wsResult.feedback?.summary}`);
-      }
+      // ★ 2026-03-25: feedback 제거 (레거시 buildWorksheetState 전용이었음)
+      const mergedFlatData = flatData;
 
       // ★ master DB에 failureChains + flatData(피드백 포함) 저장
       if (fmeaId) {
@@ -614,10 +628,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
           ? `\n\n⚠️ 주의: ${missingParts.join(', ')} 데이터가 0건입니다!\n엑셀 A5/B4/C4 시트를 확인하고 다시 Import 하세요.`
           : '';
 
-        // ★ FM 갭 피드백 알림
-        const feedbackInfo = wsResult.feedback && wsResult.feedback.totalAdded > 0
-          ? `\n\n🔄 피드백: ${wsResult.feedback.summary}`
-          : '';
+        const feedbackInfo = '';
 
         alert(
           `워크시트 생성 완료!\n\n` +

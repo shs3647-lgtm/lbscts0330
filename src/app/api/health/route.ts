@@ -32,6 +32,7 @@ export async function GET() {
       await prisma.$queryRaw`SELECT 1`;
       checks.checks.database = 'ok';
     } else {
+      console.error('[Health Check] getPrisma() returned null. DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'MISSING');
       checks.checks.database = 'not_configured';
       checks.status = 'degraded';
     }
@@ -58,8 +59,8 @@ export async function GET() {
   // 3. 응답 시간 계산
   checks.responseTime = Date.now() - startTime;
 
-  // 4. 상태 코드 결정
-  const statusCode = checks.status === 'healthy' ? 200 : 503;
+  // 4. 상태 코드 결정 — unhealthy만 503, degraded는 200 (서비스 가용)
+  const statusCode = checks.status === 'unhealthy' ? 503 : 200;
 
   return NextResponse.json(checks, {
     status: statusCode,

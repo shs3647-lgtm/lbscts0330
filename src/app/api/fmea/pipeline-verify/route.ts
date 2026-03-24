@@ -97,6 +97,13 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
     await verifyMissing(prisma, fmeaId),
   ];
 
+  // ★ 마지막 루프의 fixed 로그를 최종 결과에 보존 (디버깅/투명성)
+  // fixMissing 재실행으로 진단 정보 확보
+  if (finalSteps[4].status !== 'ok') {
+    const lastFixes = await fixMissing(prisma, fmeaId);
+    if (lastFixes.length > 0) finalSteps[4].fixed = lastFixes;
+  }
+
   const acceptable = finalSteps.every(s => s.status === 'ok' || s.status === 'warn');
   return {
     fmeaId,
@@ -126,7 +133,7 @@ export async function GET(request: NextRequest) {
 
     // ★★★ 2026-03-21 FIX: search_path 강제 설정 — 프로젝트 스키마 우선, public 폴백
     if (!/^[a-z][a-z0-9_]*$/.test(schema)) throw new Error(`Invalid schema: ${schema}`);
-    await prisma.$executeRawUnsafe(`SET search_path TO ${schema}, public`);
+    await prisma.$executeRawUnsafe(`SET search_path TO "${schema}", public`);
 
     const result = await runPipelineVerify(prisma, fmeaId, false);
     return NextResponse.json({ success: true, ...result });
@@ -153,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     // ★★★ 2026-03-21 FIX: search_path 강제 설정
     if (!/^[a-z][a-z0-9_]*$/.test(schema)) throw new Error(`Invalid schema: ${schema}`);
-    await prisma.$executeRawUnsafe(`SET search_path TO ${schema}, public`);
+    await prisma.$executeRawUnsafe(`SET search_path TO "${schema}", public`);
 
     const result = await runPipelineVerify(prisma, fmeaId, true);
 

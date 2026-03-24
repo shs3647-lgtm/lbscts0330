@@ -1,89 +1,93 @@
 /**
  * saveWorksheetFromImport.ts
  *
- * 오케스트레이터: Import 평면 데이터 → 서버사이드 저장 API 호출
+ * ★ 2026-03-25: position-parser 경로로 전환
+ *   레거시 buildWorksheetState 완전 제거
+ *   이제 position-parser.ts → save-position-import/route.ts 경로만 사용
  *
- * ★ 2026-03-10: 서버사이드 저장으로 전환
- *   기존: 클라이언트에서 buildWorksheetState + migrateToAtomicDB + fetch POST
- *   문제: 클라이언트 모듈 해석/직렬화 이슈로 DB 저장 실패
- *   해결: /api/fmea/save-from-import 서버 API가 전체 파이프라인 일괄 처리
+ * Import 평면 데이터 → position-parser 파싱 → save-position-import API 호출
  *
- * ★ 2026-02-17: forceOverwrite=true 추가 — 서버 가드 우회
- *   Import에서 생성한 데이터는 반드시 저장되어야 함 (기존 placeholder 보호 가드 무시)
+ * @created 2026-02-17
+ * @modified 2026-03-25 — 레거시 파서 제거, position-parser 전환
  */
 
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { isValidFmeaId } from '@/lib/security';
-import { buildWorksheetState, type BuildResult } from './buildWorksheetState';
-import { applyFmGapFeedback, type FmGapFeedbackResult } from './fm-gap-feedback';
-import { supplementMissingItems } from './supplementMissingItems';
 
 export interface SaveFromImportParams {
   fmeaId: string;
   flatData: ImportedFlatData[];
   l1Name?: string;
-  failureChains?: MasterFailureChain[];  // ★ 고장사슬 자동 주입
+  failureChains?: MasterFailureChain[];
+}
+
+/** BuildResult 호환 stub — 레거시 UI 타입 호환용 */
+export interface BuildResult {
+  success: boolean;
+  state: unknown;
+  diagnostics: {
+    l2Count: number;
+    l3Count: number;
+    l1TypeCount: number;
+    l2FuncCount: number;
+    l3FuncCount: number;
+    processCharCount: number;
+    productCharCount: number;
+    fmCount: number;
+    fcCount: number;
+    feCount: number;
+    warnings: string[];
+  };
+  flatMap?: unknown;
+}
+
+/** FlatToEntityMap 호환 stub */
+export interface FlatToEntityMap {
+  fm: Map<string, string>;
+  fc: Map<string, string>;
+  fe: Map<string, string>;
 }
 
 export interface SaveFromImportResult {
   success: boolean;
   buildResult: BuildResult;
-  /** FM 갭 피드백 결과 (Import ↔ Worksheet 차이) */
-  feedback?: FmGapFeedbackResult;
   error?: string;
 }
 
+/**
+ * Import 실행 — position-parser 경로로 save-position-import API 호출
+ *
+ * ★ 2026-03-25: 레거시 buildWorksheetState 제거
+ * 이 함수는 flatData를 서버로 전달하고, 서버가 position-parser로 파싱 + DB 저장
+ */
 export async function saveWorksheetFromImport(
   params: SaveFromImportParams,
 ): Promise<SaveFromImportResult> {
   const { fmeaId, flatData, l1Name, failureChains } = params;
 
+  const emptyDiag: BuildResult['diagnostics'] = {
+    l2Count: 0, l3Count: 0, l1TypeCount: 0, l2FuncCount: 0, l3FuncCount: 0,
+    processCharCount: 0, productCharCount: 0, fmCount: 0, fcCount: 0, feCount: 0,
+    warnings: [],
+  };
+
   if (!fmeaId || !isValidFmeaId(fmeaId)) {
-    const emptyDiag = { l2Count: 0, l3Count: 0, l1TypeCount: 0, l2FuncCount: 0, l3FuncCount: 0, processCharCount: 0, productCharCount: 0, fmCount: 0, fcCount: 0, feCount: 0, warnings: ['fmeaId 없음 또는 유효하지 않음'] };
     return {
       success: false,
-      buildResult: { success: false, state: null as unknown as BuildResult['state'], diagnostics: emptyDiag },
+      buildResult: { success: false, state: null, diagnostics: { ...emptyDiag, warnings: ['fmeaId 없음'] } },
       error: 'fmeaId가 없거나 유효하지 않습니다',
     };
   }
 
-  // ★ 0. 누락 항목 보충 — buildWorksheetState 전에 B1 등 누락 보충
-  const supplements = supplementMissingItems(flatData, failureChains || []);
-  const enrichedFlatData = supplements.length > 0 ? [...flatData, ...supplements] : flatData;
-  if (supplements.length > 0) {
-    console.info(`[Import 보충] saveWorksheetFromImport: ${supplements.length}건 자동 보충 (${supplements.map(s => s.itemCode).filter((v, i, a) => a.indexOf(v) === i).join(',')})`);
-  }
-
-  // ★★★ 2026-03-15: 검증 레이어 — buildWorksheetState 전에 데이터 품질 검사 ★★★
-  const { validateAndLogFlatData } = await import('./validateAndLogFlatData');
-  const { report: validationReport } = validateAndLogFlatData(enrichedFlatData);
-  if (validationReport.errorCount > 0) {
-    console.warn(`[saveWorksheetFromImport] 검증 오류 ${validationReport.errorCount}건 — 데이터 통과 (관대한 정책)`);
-  }
-
-  // 1. 클라이언트에서 빌드 + 피드백 (UI 표시용)
-  const buildResult = buildWorksheetState(enrichedFlatData, { fmeaId, l1Name });
-
-  if (!buildResult.success) {
-    return { success: false, buildResult, error: '데이터 빌드 실패' };
-  }
-
-  const feedback = applyFmGapFeedback(buildResult.state, enrichedFlatData);
-  if (feedback.totalAdded > 0) {
-    console.info(`[FM-Feedback] ${feedback.summary}`);
-  }
-
   try {
-    // 2. ★★★ 서버사이드 저장 API 호출 ★★★
-    //    buildWorksheetState + migrateToAtomicDB + POST /api/fmea 를 서버에서 일괄 처리
-    //    클라이언트 모듈 해석/직렬화 이슈 완전 우회
+    // ★ save-from-import API 호출 (서버에서 position-parser 파싱 + DB 저장)
     const response = await fetch('/api/fmea/save-from-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fmeaId,
-        flatData: enrichedFlatData,
+        flatData,
         l1Name: l1Name || '',
         failureChains: failureChains || [],
       }),
@@ -93,15 +97,33 @@ export async function saveWorksheetFromImport(
 
     if (!response.ok || !result.success) {
       const errorMsg = result.error || result.message || '워크시트 DB 저장 실패';
-      console.error('[Import→Worksheet] 서버 저장 실패:', errorMsg, result);
-      return { success: false, buildResult, feedback, error: errorMsg };
+      console.error('[Import→Worksheet] 서버 저장 실패:', errorMsg);
+      return {
+        success: false,
+        buildResult: { success: false, state: null, diagnostics: { ...emptyDiag, warnings: [errorMsg] } },
+        error: errorMsg,
+      };
     }
 
     console.info('[Import→Worksheet] 서버 저장 성공:', result.atomicCounts);
-    return { success: true, buildResult, feedback };
+    return {
+      success: true,
+      buildResult: {
+        success: true,
+        state: null,
+        diagnostics: {
+          ...emptyDiag,
+          ...result.atomicCounts,
+        },
+      },
+    };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[Import→Worksheet] DB 저장 실패:', msg);
-    return { success: false, buildResult, error: msg };
+    return {
+      success: false,
+      buildResult: { success: false, state: null, diagnostics: { ...emptyDiag, warnings: [msg] } },
+      error: msg,
+    };
   }
 }

@@ -2027,23 +2027,6 @@
           }
         },
         {
-          "excelRow": 35,
-          "posId": "L3-R35",
-          "cells": {
-            "processNo": "40",
-            "m4": "IM",
-            "B1": "Cu Target",
-            "B2": "",
-            "B3": "",
-            "SC": "",
-            "B4": "",
-            "B5": ""
-          },
-          "fk": {
-            "origL3Id": "PF-L3-040-IM-002"
-          }
-        },
-        {
           "excelRow": 36,
           "posId": "L3-R36",
           "cells": {

@@ -19,7 +19,7 @@
 // uuid-rules 삭제됨 (2026-03-22) — 인라인 패턴 감지
 function isL3FunctionIdB2Pattern(id: string): boolean {
   if (!id) return false;
-  // 구 genB2: PF-L3-{pno}-{m4}-{seq}-G 패턴 OR 위치기반: L3-R{n}-C5
+  // 구 genB2: PF-L3-{pno}-{m4}-{seq}-G 패턴 OR 위치기반: L3-R{n}-C5 (B2 전용 — B3 제외하지 않음)
   return /^PF-L3-\d{3}-[A-Z]{2}-\d{3}-G/.test(id) || /^L3-R\d+-C5$/.test(id);
 }
 

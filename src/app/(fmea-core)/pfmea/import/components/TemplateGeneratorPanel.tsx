@@ -137,22 +137,53 @@ export function TemplateGeneratorPanel(props: Props) {
     return buildFailureChainsFromFlat(generatedData, crossTab);
   }, [externalChains, templateMode, generatedData, crossTab]);
 
-  // ★ 누락 통계
+  // ★ 누락 통계 — 모든 컬럼 검사 (2026-03-25: 여러건 누락이 1건으로 표시되던 버그 수정)
   const missingStats = useMemo(() => {
-    const l1 = crossTab.cRows.filter(r => r.C1 && !r.C2).length;
-    const l2 = crossTab.aRows.filter(r => r.A1 && !r.A2).length;
-    const l3 = 0;
+    // L1: C1 구분이 있는 행에서 C2/C3/C4 중 하나라도 비어있으면 누락
+    const l1 = crossTab.cRows.filter(r => {
+      if (!r.C1) return false;
+      return !r.C2?.trim() || !r.C3?.trim() || !r.C4?.trim();
+    }).length;
+    // L2: A1 공정번호가 있는 행에서 A2~A5 중 하나라도 비어있으면 누락
+    const l2 = crossTab.aRows.filter(r => {
+      if (!r.A1) return false;
+      return !r.A2?.trim() || !r.A3?.trim() || !r.A4?.trim() || !r.A5?.trim();
+    }).length;
+    // L3: B1 작업요소가 있는 행에서 B2~B4 중 하나라도 비어있으면 누락 (B5는 autoFix 대상)
+    const l3 = crossTab.bRows.filter(r => {
+      if (!r.B1) return false;
+      return !r.B2?.trim() || !r.B3?.trim() || !r.B4?.trim();
+    }).length;
     return { L1: l1, L2: l2, L3: l3, total: l1 + l2 + l3 };
   }, [crossTab]);
 
   const missingDetails = useMemo(() => {
-    const L1 = crossTab.cRows
-      .map((r, i) => (r.C1 && !r.C2 ? `• ${i + 1}행 구분 "${r.C1}": C2(완제품기능) 없음` : null))
-      .filter(Boolean) as string[];
-    const L2 = crossTab.aRows
-      .map((r, i) => (r.A1 && !r.A2 ? `• ${i + 1}행 공정 ${r.A1}: A2(공정명) 없음` : null))
-      .filter(Boolean) as string[];
-    return { L1, L2, L3: [] as string[] };
+    const L1 = crossTab.cRows.flatMap((r, i) => {
+      if (!r.C1) return [];
+      const m: string[] = [];
+      if (!r.C2?.trim()) m.push(`• ${i+1}행 구분 "${r.C1}": C2(제품기능) 없음`);
+      if (!r.C3?.trim()) m.push(`• ${i+1}행 구분 "${r.C1}": C3(요구사항) 없음`);
+      if (!r.C4?.trim()) m.push(`• ${i+1}행 구분 "${r.C1}": C4(고장영향) 없음`);
+      return m;
+    });
+    const L2 = crossTab.aRows.flatMap((r, i) => {
+      if (!r.A1) return [];
+      const m: string[] = [];
+      if (!r.A2?.trim()) m.push(`• ${i+1}행 공정 ${r.A1}: A2(공정명) 없음`);
+      if (!r.A3?.trim()) m.push(`• ${i+1}행 공정 ${r.A1}: A3(공정기능) 없음`);
+      if (!r.A4?.trim()) m.push(`• ${i+1}행 공정 ${r.A1}: A4(제품특성) 없음`);
+      if (!r.A5?.trim()) m.push(`• ${i+1}행 공정 ${r.A1}: A5(고장형태) 없음`);
+      return m;
+    });
+    const L3 = crossTab.bRows.flatMap((r, i) => {
+      if (!r.B1) return [];
+      const m: string[] = [];
+      if (!r.B2?.trim()) m.push(`• ${i+1}행 ${r.processNo}/${r.m4||'-'}/${r.B1}: B2(요소기능) 없음`);
+      if (!r.B3?.trim()) m.push(`• ${i+1}행 ${r.processNo}/${r.m4||'-'}/${r.B1}: B3(공정특성) 없음`);
+      if (!r.B4?.trim()) m.push(`• ${i+1}행 ${r.processNo}/${r.m4||'-'}/${r.B1}: B4(고장원인) 없음`);
+      return m;
+    });
+    return { L1, L2, L3 };
   }, [crossTab]);
 
   // ★ 3단계 확정 프로세스 훅 (SA→FC→FA)

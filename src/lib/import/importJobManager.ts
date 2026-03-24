@@ -13,7 +13,7 @@ import { randomUUID } from 'crypto';
 // Types
 // ============================================================
 
-/** buildWorksheetState가 반환하는 인메모리 매핑 */
+/** Import 파이프라인 인메모리 매핑 (flatData.id → entity.id) */
 export interface FlatToEntityMap {
   fm: Map<string, string>;  // A5 flatData.id → L2FailureMode.id
   fc: Map<string, string>;  // B4 flatData.id → L3FailureCause.id
@@ -59,7 +59,7 @@ const ENTITY_TO_ITEM_CODE: Record<string, string> = {
 /**
  * 인메모리 FlatToEntityMap을 DB 저장용 ImportMappingRecord[] 배열로 변환한다.
  *
- * @param flatMap - buildWorksheetState가 반환한 매핑 (fm/fc/fe 3개 Map)
+ * @param flatMap - Import 파이프라인이 반환한 매핑 (fm/fc/fe 3개 Map)
  * @returns 불변 배열 — DB createMany에 바로 사용 가능
  */
 export function serializeFlatMap(flatMap: FlatToEntityMap): ImportMappingRecord[] {

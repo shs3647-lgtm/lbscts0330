@@ -14,16 +14,10 @@ const globalForPrisma = globalThis as unknown as {
  * - Driver Adapter 필수 사용 (@prisma/adapter-pg)
  */
 export function getPrisma(): PrismaClient | null {
-  // ★ 캐시된 클라이언트가 최신 모델을 지원하는지 확인 — 스테일 캐시 무효화
+  // ★ 2026-03-25: 스테일 캐시 무효화 제거 — Prisma 7 어댑터 기반 클라이언트는
+  // 모델 프로퍼티 존재 여부로 유효성 판단 불가. 캐시 있으면 그대로 반환.
   if (globalForPrisma.prisma) {
-    const p = globalForPrisma.prisma as any;
-    if (!p.cftPublicMember || !p.l1Structure) {
-      console.warn('[Prisma] 캐시된 클라이언트 스테일 → 무효화 후 재생성');
-      globalForPrisma.prisma = undefined;
-      globalForPrisma.pool = undefined;
-    } else {
-      return globalForPrisma.prisma;
-    }
+    return globalForPrisma.prisma;
   }
 
   // ★★★ DATABASE_URL 환경 변수 확인
@@ -75,14 +69,11 @@ export function getPrismaForSchema(schema: string): PrismaClient | null {
     globalForPrisma.schemaClients = new Map();
   }
   const cached = globalForPrisma.schemaClients.get(schema);
+  // ★ 2026-03-25: 스테일 캐시 무효화 제거 — Prisma 7 어댑터 기반 클라이언트는
+  // 모델 프로퍼티(l1Scope 등) 존재 여부로 유효성 판단 불가.
+  // 이전: 매번 새 Pool 생성 → 커넥션 누수 + 트랜잭션 유실 가능
   if (cached) {
-    // ★ 스테일 캐시 탐지: 최신 v4 모델(l1Scope) 없으면 캐시 무효화
-    if (!(cached as any).l1Requirement || !(cached as any).l1Scope) {
-      console.warn(`[Prisma] getPrismaForSchema(${schema}): 캐시 스테일 → 캐시 무효화 후 재생성`);
-      globalForPrisma.schemaClients.delete(schema);
-    } else {
-      return cached;
-    }
+    return cached;
   }
 
   // Base URL (schema 파라미터 제거)

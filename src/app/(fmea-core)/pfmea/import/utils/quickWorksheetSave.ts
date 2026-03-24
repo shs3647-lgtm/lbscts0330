@@ -2,12 +2,17 @@
  * @file quickWorksheetSave.ts
  * @description 워크시트 원클릭 생성 — SA/FC/FA 검증 없이 바로 저장 + 이동
  *
+ * ★ 2026-03-25: 레거시 파서(buildWorksheetState) 제거
+ *   - position-parser 경로로 전환 (save-position-import API)
+ *   - buildWorksheetState 사용 금지
+ *
  * 4개 탭(기존/수동/자동/전처리) 공용:
  *   1. FMEA 프로젝트 존재 확인 → 자동 생성
- *   2. saveWorksheetFromImport() → L2/L3/FM/FC/FE DB 저장
+ *   2. saveWorksheetFromImport() → save-position-import API 호출
  *   3. Master DB에 flatData + failureChains 저장
  *
  * @created 2026-03-10
+ * @modified 2026-03-25 — 레거시 파서 제거
  */
 
 import type { ImportedFlatData } from '../types';
@@ -141,10 +146,8 @@ export async function quickWorksheetSave(params: QuickSaveParams): Promise<Quick
     // ── 4. Master DB에 flatData + failureChains 저장 ──
     if (fmeaId && enrichedFlatData.length > 0) {
       try {
-        const feedbackItems = wsResult.feedback?.additionalItems || [];
-        const mergedFlatData = feedbackItems.length > 0
-          ? [...enrichedFlatData, ...feedbackItems]
-          : enrichedFlatData;
+        // ★ 2026-03-25: feedback 제거 (레거시 buildWorksheetState 전용이었음)
+        const mergedFlatData = enrichedFlatData;
 
         // failureChains PATCH
         if (usedChains.length > 0) {

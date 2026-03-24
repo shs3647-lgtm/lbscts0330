@@ -33,7 +33,7 @@ interface UseWorksheetDBOptions {
   atomicDB: any | null;
   setAtomicDB: React.Dispatch<React.SetStateAction<any | null>>;
   // DB 함수들 (외부 주입)
-  /** @deprecated 워크시트 저장 전용. Import 경로는 buildAtomicFromFlat으로 전환 완료 (2026-03-21). */
+  /** @deprecated 워크시트 저장 전용. Import 경로는 position-parser(save-position-import)로 전환 완료 (2026-03-25). */
   migrateToAtomicDB: (data: any) => any;
   saveWorksheetDB: (db: any) => Promise<void>;
   loadWorksheetDBAtomic: (fmeaId: string) => Promise<any>;

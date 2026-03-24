@@ -23,7 +23,7 @@ import type { MasterFailureChain } from '../types/masterFailureChain';
 import type {
   WorksheetState,
 } from '@/app/(fmea-core)/pfmea/worksheet/constants';
-import type { FlatToEntityMap } from './buildWorksheetState';
+import type { FlatToEntityMap } from './saveWorksheetFromImport';
 
 // ─── 정규화 함수 (NFKC 강화) ───
 

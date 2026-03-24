@@ -11,7 +11,7 @@ import type { FCComparisonResult } from './fcComparison';
 
 // ─── 타입 ───
 
-/** BuildResult 요약 (buildWorksheetState 결과) */
+/** BuildResult 요약 (SA 확정 결과) */
 export interface BuildDiagnostics {
   l2Count: number;
   l3Count: number;

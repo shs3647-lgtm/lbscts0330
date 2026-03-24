@@ -18,6 +18,14 @@
  * FC는 `L1/L2/L3_origRow`로 그 기준행들만 가리켜 **관계(FE–FM–FC 링크)** 만 형성한다.
  *
  * @created 2026-03-22
+ *
+ * @changelog
+ * 2026-03-25: [빈 행 자동 정제] parsePositionBasedJSON 진입부에 Import 데이터 정제 추가
+ *   - L3: B2(요소기능)+B3(공정특성) 둘 다 빈값인 행 → 삭제 (cellId 미생성)
+ *   - L2: A3+A4+A5 모두 빈값인 행 → 삭제
+ *   - FC: FC(고장원인) 빈값인 행 → 삭제
+ *   - 원칙: Import 데이터에서부터 빈 행을 원천 차단 → downstream 누락 방지
+ *   - 빈 행이 들어오면 삭제하고 Import 데이터를 재생성하여 모든 cellId가 유효한 데이터를 가짐
  */
 /**
  * ██████████████████████████████████████████████████████████████████████████
@@ -221,6 +229,55 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     throw new Error(`Missing required sheets: L1=${!!l1Sheet} L2=${!!l2Sheet} L3=${!!l3Sheet} FC=${!!fcSheet}`);
   }
 
+  // ★ 2026-03-25: 빈 행 자동 정제 — Import 데이터에서부터 빈 행 원천 차단
+  // 원칙: 빈 행이 들어오면 삭제하고 Import 데이터를 재생성
+  // 이렇게 하면 모든 cellId가 유효한 데이터를 가짐
+  {
+    let cleaned = 0;
+    // L3: B2+B3 둘 다 빈값인 행 삭제
+    const l3Before = l3Sheet.rows.length;
+    l3Sheet.rows = l3Sheet.rows.filter(r => {
+      const b2 = (r.cells['B2'] || '').trim();
+      const b3 = (r.cells['B3'] || '').trim();
+      if (isEmptyValue(b2) && isEmptyValue(b3)) {
+        ppWarn(`[position-parser] ⚠️ Import 정제: L3 R${r.excelRow} 삭제 — B2+B3 빈값 (pno=${r.cells['processNo']} B1="${r.cells['B1']}")`);
+        return false;
+      }
+      return true;
+    });
+    cleaned += l3Before - l3Sheet.rows.length;
+
+    // L2: A3+A4+A5 모두 빈값인 행 삭제
+    const l2Before = l2Sheet.rows.length;
+    l2Sheet.rows = l2Sheet.rows.filter(r => {
+      const a3 = (r.cells['A3'] || '').trim();
+      const a4 = (r.cells['A4'] || '').trim();
+      const a5 = (r.cells['A5'] || '').trim();
+      if (isEmptyValue(a3) && isEmptyValue(a4) && isEmptyValue(a5)) {
+        ppWarn(`[position-parser] ⚠️ Import 정제: L2 R${r.excelRow} 삭제 — A3+A4+A5 빈값 (A1=${r.cells['A1']})`);
+        return false;
+      }
+      return true;
+    });
+    cleaned += l2Before - l2Sheet.rows.length;
+
+    // FC: FC(고장원인) 빈값인 행 삭제
+    const fcBefore = fcSheet.rows.length;
+    fcSheet.rows = fcSheet.rows.filter(r => {
+      const fc = (r.cells['FC'] || '').trim();
+      if (isEmptyValue(fc)) {
+        ppWarn(`[position-parser] ⚠️ Import 정제: FC R${r.excelRow} 삭제 — FC 빈값`);
+        return false;
+      }
+      return true;
+    });
+    cleaned += fcBefore - fcSheet.rows.length;
+
+    if (cleaned > 0) {
+      console.log(`[position-parser] ★ Import 데이터 정제: ${cleaned}행 삭제 (빈 셀 행 원천 제거 → cellId 무결성 보장)`);
+    }
+  }
+
   const resolver = new CrossSheetResolver();
   const l1StructId = 'L1-STRUCT';
 
@@ -339,6 +396,16 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const a5 = row.cells['A5']?.trim() || '';
 
     if (!a1) continue;
+
+    // ★ 2026-03-25: 빈 셀 검증 — A3+A4+A5 모두 빈값이면 스킵 (cellId 미생성)
+    if (isEmptyValue(a3) && isEmptyValue(a4) && isEmptyValue(a5)) {
+      autoFixes.push({
+        code: 'L2_SKIP_EMPTY_A3A4A5',
+        message: `R${rn}: A1=${a1} A2="${a2}" — A3+A4+A5 모두 빈값 → L2Function 스킵`,
+        row: rn,
+      });
+      // L2Structure는 생성 (공정번호+공정명은 유효), Function만 스킵
+    }
 
     // L2Structure: 공정번호별 1개
     let l2Id: string;
@@ -460,6 +527,19 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const b4 = row.cells['B4']?.trim() || '';
 
     if (!pno) continue;
+
+    // ★ 2026-03-25: 빈 셀 검증 — 모든 cellId가 유효한 데이터를 가져야 함
+    // B2(요소기능)와 B3(공정특성)이 둘 다 비어있는 행은 Import 불가 → 스킵 + 경고
+    // 원칙: Import 데이터에서부터 빈 행을 차단하여 downstream 누락 방지
+    if (isEmptyValue(b2) && isEmptyValue(b3)) {
+      autoFixes.push({
+        code: 'L3_SKIP_EMPTY_B2B3',
+        message: `R${rn}: pno=${pno} m4=${m4} B1="${b1}" — B2+B3 모두 빈값 → L3Function 스킵 (cellId 미생성)`,
+        row: rn,
+      });
+      ppWarn(`[position-parser] ⚠️ L3 R${rn}: B2+B3 빈값 — 스킵 (pno=${pno} B1="${b1}")`);
+      continue;
+    }
 
     // L3Structure: 행마다 독립
     const l2Id = seenPno.get(pno) || '';

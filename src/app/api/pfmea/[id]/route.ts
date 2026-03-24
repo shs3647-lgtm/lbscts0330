@@ -48,14 +48,19 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const prisma = getPrisma();
-  if (!prisma) {
-    return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
-  }
-
   const { id } = await params;
   // ★★★ 2026-02-05: fmeaId 소문자 정규화 ★★★
   const fmeaId = normalizeFmeaId(id) || id;
+
+  // ★★★ 2026-03-25: 프로젝트 스키마 전용 — public 폴백 금지 (Rule 0.8.1) ★★★
+  // 이전: getPrisma() → public 스키마 조회 → 데이터 없음 (프로젝트 스키마에 저장됨)
+  // 수정: getPrismaForSchema(getProjectSchemaName(fmeaId)) → 프로젝트 스키마 조회
+  const schema = getProjectSchemaName(fmeaId);
+  await ensureProjectSchemaReady({ baseDatabaseUrl: getBaseDatabaseUrl(), schema });
+  const prisma = getPrismaForSchema(schema);
+  if (!prisma) {
+    return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
+  }
 
   try {
     // 1. L2 구조 (공정) 조회
