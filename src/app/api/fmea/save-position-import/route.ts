@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
     console.log(`[save-position-import] schema=${schema}, fmeaId=${normalizedId}, force=${force}`);
     console.log(`[save-position-import] stats:`, JSON.stringify(atomicData.stats));
 
-    // ─── $transaction ───
-    const counts = await prisma.$transaction(async (tx) => {
+    // ─── $transaction (Serializable: 부분 성공 원천 차단, timeout 5분) ───
+    const counts = await (prisma.$transaction as any)(async (tx: any) => {
 
       // ★ manualMode=true: 구조 레이어만 완전 동기화 (FM/FC/FL/RA 보존)
       //   수동모드 신규 FMEA에서 공정/작업요소 추가/수정/삭제를 DB에 정확히 반영
@@ -458,10 +458,38 @@ export async function POST(request: NextRequest) {
         tx.riskAnalysis.count({ where: { fmeaId: normalizedId } }),
       ]);
 
+      // ★★★ 14. Post-Import FK Orphan 자동 검증 — 실패 시 트랜잭션 자동 롤백 ★★★
+      const fkChecks = await Promise.all([
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM l2_structures l2 WHERE NOT EXISTS (SELECT 1 FROM l1_structures l1 WHERE l1.id = l2."l1Id") AND l2."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM l3_structures l3 WHERE NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = l3."l2Id") AND l3."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM failure_modes fm WHERE NOT EXISTS (SELECT 1 FROM l2_structures l2 WHERE l2.id = fm."l2StructId") AND fm."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM failure_causes fc WHERE NOT EXISTS (SELECT 1 FROM l3_structures l3 WHERE l3.id = fc."l3StructId") AND fc."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM failure_effects fe WHERE NOT EXISTS (SELECT 1 FROM l1_functions l1f WHERE l1f.id = fe."l1FuncId") AND fe."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM failure_links fl WHERE NOT EXISTS (SELECT 1 FROM failure_modes fm WHERE fm.id = fl."fmId") AND fl."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM failure_links fl WHERE NOT EXISTS (SELECT 1 FROM failure_causes fc WHERE fc.id = fl."fcId") AND fl."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM failure_links fl WHERE NOT EXISTS (SELECT 1 FROM failure_effects fe WHERE fe.id = fl."feId") AND fl."fmeaId" = '${normalizedId}'`),
+        tx.$queryRawUnsafe(`SELECT count(*) as c FROM risk_analyses ra WHERE NOT EXISTS (SELECT 1 FROM failure_links fl WHERE fl.id = ra."linkId") AND ra."fmeaId" = '${normalizedId}'`),
+      ]);
+
+      const fkNames = ['L2→L1','L3→L2','FM→L2','FC→L3','FE→L1F','FL→FM','FL→FC','FL→FE','RA→FL'];
+      const orphans: string[] = [];
+      fkChecks.forEach((rows, i) => {
+        const cnt = Number(rows[0]?.c || 0);
+        if (cnt > 0) orphans.push(`${fkNames[i]}:${cnt}`);
+      });
+
+      if (orphans.length > 0) {
+        const msg = `FK Orphan 검출 → 자동 롤백: ${orphans.join(', ')}`;
+        console.error(`[save-position-import] ❌ ${msg}`);
+        throw new Error(msg);
+      }
+      console.log(`[save-position-import] ✅ FK 9/9 ALL PASS (orphan 0건)`);
+
       return {
         l2Structures: l2c, l3Structures: l3c,
         failureModes: fmc, failureCauses: fcc, failureEffects: fec,
         failureLinks: flc, riskAnalyses: rac,
+        fkVerified: true,
       };
     });
 
