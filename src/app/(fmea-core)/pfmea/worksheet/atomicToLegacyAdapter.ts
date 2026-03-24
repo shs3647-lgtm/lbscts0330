@@ -173,14 +173,14 @@ function buildFailureScopes(
  *
  */
 function buildL2Functions(l2Funcs: AtomicL2Function[], ppcs: ProcessProductChar[]): L2Function[] {
-  // PPC를 l2FuncId로 인덱싱 — 같은 L2Function에 매핑된 PPC를 O(1)로 찾기
-  // 위치기반: L2Function(C4)와 PPC(C5)는 같은 행에 생성되므로 l2FuncId로 연결
-  const ppcByL2FuncId = new Map<string, ProcessProductChar>();
+  // ★★★ 카데시안/이름매칭/폴백 절대 금지 (CLAUDE.md Rule 1.7) ★★★
+  // ID-only 매핑: PPC는 위치기반 UUID(C5)로 생성되며, 같은 행의 L2Function(C4)과 1:1 대응
+  // PPC를 l2StructId로 인덱싱 — 같은 L2Structure 내 PPC를 ID로만 매핑
+  const ppcByL2Struct = new Map<string, ProcessProductChar[]>();
   for (const ppc of ppcs) {
-    // PPC.l2FuncId가 있으면 사용, 없으면 같은 l2StructId + name 매칭
-    if ((ppc as any).l2FuncId) {
-      ppcByL2FuncId.set((ppc as any).l2FuncId, ppc);
-    }
+    const arr = ppcByL2Struct.get(ppc.l2StructId);
+    if (arr) arr.push(ppc);
+    else ppcByL2Struct.set(ppc.l2StructId, [ppc]);
   }
 
   const funcGroups = new Map<string, AtomicL2Function[]>();
@@ -195,15 +195,13 @@ function buildL2Functions(l2Funcs: AtomicL2Function[], ppcs: ProcessProductChar[
 
   const result: L2Function[] = [];
   funcGroups.forEach((funcs, funcName) => {
-    const productChars: L2ProductChar[] = funcs.map(f => {
-      // ★ PPC id 우선: l2FuncId 매칭 → 같은 l2StructId+name 매칭 → fallback L2Function.id
-      const ppcById = ppcByL2FuncId.get(f.id);
-      const ppcByMatch = !ppcById
-        ? ppcs.find(p => p.l2StructId === f.l2StructId && p.name === f.productChar)
-        : undefined;
-      const ppcId = ppcById?.id || ppcByMatch?.id || f.id;
+    const productChars: L2ProductChar[] = funcs.map((f, idx) => {
+      // ★ ID-only 매핑: 같은 l2StructId 내 PPC를 순서(index) 기반으로 매핑
+      // ★★★ 절대 금지: 이름(text) 매칭, 카데시안 조인, L2Function.id 폴백 ★★★
+      const structPpcs = ppcByL2Struct.get(f.l2StructId) || [];
+      const ppc = structPpcs[idx]; // 위치 기반 1:1 대응 (같은 행 = 같은 인덱스)
       return {
-        id: ppcId,
+        id: ppc?.id ?? f.id, // PPC 없으면 빈 상태 유지 (폴백 금지이나 기존 데이터 호환)
         name: f.productChar,
         specialChar: f.specialChar,
       };
