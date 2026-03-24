@@ -132,10 +132,31 @@ export function computeFailureLinkStats(
 
   const feLinkedCount = feData.filter(fe => feLinkedIds.has(fe.id)).length;
   const fcLinkedCount = fcData.filter(fc => fcLinkedIds.has(fc.id)).length;
-  // 배지·fmMissingCount: FC가 링크로 잡히면 해당 FM은 "누락 아님" (표 행 녹색은 여전히 FE+FC 모두 필요)
+
+  // ★ 2026-03-24: FM 연결 판단 완화 — savedLinks에 fmId가 있으면 "연결됨"
+  // 근본원인: fm.id(state.l2에서 추출)와 link.fmId(DB FL)가 UUID 불일치 시
+  //          fmLinkCounts에서 못 찾아 가짜 누락 표시 (M8 "명세서와 수량 불일치" 등)
+  // 해결: (1) UUID 일치 → fmLinkCounts에서 fcCount>0
+  //       (2) UUID 불일치 → fmId가 savedLinks에 존재하면 연결됨으로 간주
+  //       (3) 텍스트+공정 유일 매칭 → 연결됨
+  const linkFmTextMap = new Map<string, boolean>(); // norm(공정|텍스트) → true
+  savedLinks.forEach(link => {
+    if (link.fmId) {
+      const key = norm((link.fmProcess || '') + '|' + (link.fmText || ''));
+      linkFmTextMap.set(key, true);
+    }
+  });
+
   const fmLinkedCount = fmData.filter(fm => {
+    // 1순위: UUID 직접 일치
     const counts = fmLinkCounts.get(fm.id);
-    return counts != null && counts.fcCount > 0;
+    if (counts != null && counts.fcCount > 0) return true;
+    // 2순위: fmId가 savedLinks에 직접 존재
+    if (fmLinkedIds.has(fm.id)) return true;
+    // 3순위: 텍스트+공정 매칭 (연결은 되어 있지만 ID가 다른 경우)
+    const key = norm((fm.processName || '') + '|' + (fm.text || ''));
+    if (linkFmTextMap.has(key)) return true;
+    return false;
   }).length;
 
   return {

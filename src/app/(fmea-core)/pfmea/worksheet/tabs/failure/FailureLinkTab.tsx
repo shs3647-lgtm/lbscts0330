@@ -316,32 +316,78 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
 
   // ========== 누락 FM 상세 목록 계산 (FC 미연결만 누락 — FE는 선택사항) ==========
   // ★ 현재 선택 중(미확정) FC가 있는 FM도 실시간 제외
+  // ★ 2026-03-24: savedLinks의 fmText+공정 맵 (UUID 불일치 시 텍스트 매칭용)
+  const linkFmTextSet = useMemo(() => {
+    const s = new Set<string>();
+    savedLinks.forEach(link => {
+      if (link.fmId) {
+        const key = ((link.fmProcess || '') + '|' + (link.fmText || '')).trim().replace(/\s+/g, ' ').toLowerCase();
+        s.add(key);
+      }
+    });
+    return s;
+  }, [savedLinks]);
+
   const missingFMs = useMemo(() => {
     return fmData.filter(fm => {
       // 현재 FM에 미확정 FC가 있으면 누락에서 제외
       if (fm.id === currentFMId && linkedFCs.size > 0) return false;
+      // 1순위: UUID 매칭
       const counts = linkStats.fmLinkCounts.get(fm.id);
-      if (!counts) return true;  // 연결 없음
-      return counts.fcCount === 0;
+      if (counts && counts.fcCount > 0) return false;
+      // 2순위: fmId가 savedLinks에 직접 존재
+      if (linkStats.fmLinkedIds.has(fm.id)) return false;
+      // 3순위: 텍스트+공정 매칭 (DB FL에는 연결되어 있지만 ID가 다른 경우)
+      const key = ((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
+      if (linkFmTextSet.has(key)) return false;
+      return true;
     }).map(fm => {
       const counts = linkStats.fmLinkCounts.get(fm.id) || { feCount: 0, fcCount: 0 };
       return {
         ...fm,
-        missingFE: counts.feCount === 0,
-        missingFC: counts.fcCount === 0,
+        missingFE: counts.feCount === 0 && !linkStats.fmLinkedIds.has(fm.id) && !linkFmTextSet.has(((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase()),
+        missingFC: counts.fcCount === 0 && !linkStats.fmLinkedIds.has(fm.id) && !linkFmTextSet.has(((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase()),
       };
     });
-  }, [fmData, linkStats, currentFMId, linkedFCs.size]);
+  }, [fmData, linkStats, currentFMId, linkedFCs.size, linkFmTextSet]);
 
   // ========== 누락 FE/FC 목록 계산 ==========
   // ★ 현재 선택 중(미확정) FE/FC도 실시간 제외
+  // ★ 2026-03-24: FC/FE 누락도 텍스트 매칭 완화
+  const linkFcTextSet = useMemo(() => {
+    const s = new Set<string>();
+    savedLinks.forEach(link => {
+      if (link.fcId) s.add(((link.fcProcess || link.fmProcess || '') + '|' + (link.fcText || '')).trim().replace(/\s+/g, ' ').toLowerCase());
+    });
+    return s;
+  }, [savedLinks]);
+  const linkFeTextSet = useMemo(() => {
+    const s = new Set<string>();
+    savedLinks.forEach(link => {
+      if (link.feId) s.add(((link.feScope || '') + '|' + (link.feText || '')).trim().replace(/\s+/g, ' ').toLowerCase());
+    });
+    return s;
+  }, [savedLinks]);
+
   const missingFCs = useMemo(() => {
-    return fcData.filter(fc => !linkStats.fcLinkedIds.has(fc.id) && !linkedFCs.has(fc.id));
-  }, [fcData, linkStats, linkedFCs]);
+    return fcData.filter(fc => {
+      if (linkStats.fcLinkedIds.has(fc.id) || linkedFCs.has(fc.id)) return false;
+      // 텍스트 매칭 fallback
+      const key = ((fc.processName || '') + '|' + (fc.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
+      if (linkFcTextSet.has(key)) return false;
+      return true;
+    });
+  }, [fcData, linkStats, linkedFCs, linkFcTextSet]);
 
   const missingFEs = useMemo(() => {
-    return feData.filter(fe => !linkStats.feLinkedIds.has(fe.id) && !linkedFEs.has(fe.id));
-  }, [feData, linkStats, linkedFEs]);
+    return feData.filter(fe => {
+      if (linkStats.feLinkedIds.has(fe.id) || linkedFEs.has(fe.id)) return false;
+      // 텍스트 매칭 fallback
+      const key = ((fe.scope || '') + '|' + (fe.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
+      if (linkFeTextSet.has(key)) return false;
+      return true;
+    });
+  }, [feData, linkStats, linkedFEs, linkFeTextSet]);
 
   // ★★★ 전체 누락 수 (FM부분연결 + FE미연결 + FC미연결) — 심각도는 선택사항 ★★★
   const totalMissingCount = missingFMs.length + missingFCs.length + missingFEs.length;
