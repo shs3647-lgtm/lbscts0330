@@ -96,6 +96,22 @@ export function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): 
     }
   }
 
+  // ★★★ 2026-03-24: state.failureLinks → atomicDB.failureLinks 역동기화
+  // 근본원인: handleAutoMatchMissing/수동편집이 state에만 반영되고 atomicDB에 전파되지 않아
+  //          saveAtomicDB → POST /api/fmea 시 원래 DB 값만 저장 → 새로고침 시 수정 소실
+  const stateLinks = (state as any).failureLinks;
+  if (Array.isArray(stateLinks) && stateLinks.length > 0) {
+    // state에 failureLinks가 있으면 atomicDB 것을 대체
+    // (고장매칭 수정/자동연결 결과 반영)
+    if (stateLinks.length !== db.failureLinks?.length ||
+        (stateLinks[0]?.id && stateLinks[0].id !== db.failureLinks?.[0]?.id)) {
+      result.failureLinks = stateLinks;
+      // failureLink가 업데이트되면 confirmed.failureLink도 true로 설정
+      // (고장매칭 완료 = 확정 상태)
+      result.confirmed = { ...result.confirmed, failureLink: true };
+    }
+  }
+
   // ★★★ 2026-03-23: L1 failureScopes → failureEffects (심각도·FE 문구) 역동기화
   // 근본원인: S추천/셀 편집이 state에만 반영되고 atomicDB.failureEffects에 합류하지 않아 POST /api/fmea 시 S 미저장
   const failureScopes = (state.l1 as any)?.failureScopes as
