@@ -226,8 +226,9 @@ const adminMenuItems = [
     href: '/admin',
     subItems: [
       { label: '🏠 관리자 홈', href: '/admin' },
-      { label: '👤 사용자관리', href: '/admin/settings/users' },
-      { label: '⚙️ 결제환경설정', href: '/admin/settings/approval' },
+      { label: '👤 사용자관리', href: '/admin/users' },
+      { label: '📋 권한(CSV)', href: '/admin/settings/users' },
+      { label: '⚙️ 결재환경설정', href: '/admin/settings/approval' },
     ],
   },
 ];
