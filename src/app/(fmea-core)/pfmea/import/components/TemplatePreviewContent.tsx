@@ -826,14 +826,36 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </button>
           )}
 
-          {/* ★ 워크시트 이동 — 데이터 있으면 활성화 (FA 완료 불필요) */}
-          {fmeaId && flatData.length > 0 && (
-            <button
-              onClick={() => window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`}
-              className="px-3 py-0.5 rounded text-[10px] font-bold border border-orange-400 text-white bg-orange-500 hover:bg-orange-600 cursor-pointer">
-              워크시트 →
-            </button>
-          )}
+          {/* ★ 워크시트 이동 — pgsql+API 검증 완료 시에만 활성화 */}
+          {fmeaId && flatData.length > 0 && (() => {
+            const isVerified = !!(pgsqlData && apiData);
+            const allPgsqlOk = pgsqlData ? Object.values(pgsqlData).every(v => v.actual > 0 || v.expected === 0) : false;
+            const allApiOk = apiData ? Object.values(apiData).every(v => v.apiCount > 0 || v.expected === 0) : false;
+            const canNavigate = isVerified && allPgsqlOk && allApiOk;
+            return (
+              <button
+                onClick={() => {
+                  if (canNavigate) {
+                    window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`;
+                  } else {
+                    setAlertState({
+                      open: true,
+                      variant: 'warning',
+                      title: '검증 미완료',
+                      summary: 'Import 후 pgsql/API 검증이 완료되어야 워크시트로 이동할 수 있습니다.\n\n[SA+FC+FA 자동확정] 버튼을 먼저 실행하세요.',
+                    });
+                  }
+                }}
+                title={canNavigate ? '검증 완료 — 워크시트 이동' : '검증 미완료 — pgsql/API 확인 필요'}
+                className={`px-3 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                  canNavigate
+                    ? 'border-green-500 text-white bg-green-600 hover:bg-green-700 cursor-pointer'
+                    : 'border-orange-400 text-orange-700 bg-orange-50 cursor-pointer hover:bg-orange-100'
+                }`}>
+                {canNavigate ? '✓ 워크시트 →' : '워크시트 → (검증필요)'}
+              </button>
+            );
+          })()}
           {isAnalysisComplete && (
             <span className="text-[10px] text-green-600 font-bold">✓ 검증 완료</span>
           )}
