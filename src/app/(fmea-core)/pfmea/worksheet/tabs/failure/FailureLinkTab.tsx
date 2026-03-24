@@ -354,21 +354,50 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     linkStats,
   });
 
-  // ========== ✅ 탭 진입 시 누락 FM+FC 자동 고장매칭 — 활성화 (★ 2026-03-24) ==========
-  // 조건: savedLinks 로드 완료(isInitialLoad=false) + 누락 존재 + 1회만
+  // ========== ✅ 탭 진입 시 서버 auto-link → DB 확정 + state 갱신 (★ 2026-03-24) ==========
+  // 근본원인: 클라이언트 매칭만 하면 state에만 반영 → 새로고침 시 소실
+  // 해결: 서버 auto-link API로 DB에 직접 저장 → atomicDB 재로드 → state 갱신
   useEffect(() => {
-    if (isInitialLoad.current) return;           // 아직 초기 로드 전
-    if (autoMatchDoneRef.current) return;        // 이미 실행됨
-    if (missingFMs.length === 0 && missingFCs.length === 0) {
-      autoMatchDoneRef.current = true;
-      return;
-    }
+    if (isInitialLoad.current) return;
+    if (autoMatchDoneRef.current) return;
     autoMatchDoneRef.current = true;
+
+    const fmeaId = (state as any)?.fmeaId;
+    if (!fmeaId) return;
+
+    // 누락 없으면 스킵
+    if (missingFMs.length === 0 && missingFCs.length === 0) return;
+
     setIsMatching(true);
-    setTimeout(async () => {
-      try { await handleAutoMatchMissing(); }
-      finally { setIsMatching(false); }
-    }, 200);
+    (async () => {
+      try {
+        // 1. 서버 auto-link API 호출 → DB 확정 저장
+        const res = await fetch(`/api/fmea/auto-link?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success || (data.created?.fl === 0 && data.created?.ra === 0)) {
+          // 새로 생성된 것이 없으면 클라이언트 매칭 시도
+          await handleAutoMatchMissing();
+          return;
+        }
+
+        // 2. DB에서 최신 atomicDB 재로드 → state 갱신
+        const reloadRes = await fetch(`/api/fmea?fmeaId=${encodeURIComponent(fmeaId)}`);
+        const reloaded = await reloadRes.json();
+        if (reloaded.failureLinks?.length > 0) {
+          const newLinks = reloaded.failureLinks;
+          setSavedLinks(newLinks);
+          const updateFn = (prev: any) => ({ ...prev, failureLinks: newLinks });
+          if (setStateSynced) setStateSynced(updateFn);
+          else setState(updateFn);
+        }
+      } catch (e) {
+        console.error('[FailureLinkTab] auto-link 오류:', e);
+        // fallback: 클라이언트 매칭
+        await handleAutoMatchMissing();
+      } finally {
+        setIsMatching(false);
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fmData.length, fcData.length, missingFMs.length, missingFCs.length, savedLinks.length]);
 
@@ -956,10 +985,22 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
                 const res = await fetch(`/api/fmea/auto-link?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
-                  alert(`✅ 자동연결 완료!\n신규 FL: ${data.created.fl}건\n총 FL: ${data.total.fl}건\n\n페이지를 새로고침하여 결과를 확인하세요.`);
-                  window.location.reload();
+                  // DB에서 최신 FL 재로드 → state 직접 갱신 (reload 불필요)
+                  try {
+                    const reloadRes = await fetch(`/api/fmea?fmeaId=${encodeURIComponent(fmeaId)}`);
+                    const reloaded = await reloadRes.json();
+                    if (reloaded.failureLinks?.length > 0) {
+                      setSavedLinks(reloaded.failureLinks);
+                      const updateFn = (prev: any) => ({ ...prev, failureLinks: reloaded.failureLinks });
+                      if (setStateSynced) setStateSynced(updateFn);
+                      else setState(updateFn);
+                    }
+                  } catch (_e) { /* fallback: reload */ window.location.reload(); }
+                  if (btn) btn.textContent = '✏️ 고장수정';
+                  alert(`✅ 자동연결 완료!\n신규 FL: ${data.created.fl}건\n총 FL: ${data.total.fl}건`);
                 } else {
                   alert('❌ 실패: ' + (data.error || ''));
+                  if (btn) btn.textContent = '✏️ 고장수정';
                 }
               } catch (e) {
                 alert('❌ 오류: ' + e);
