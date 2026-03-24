@@ -45,14 +45,23 @@
 ## 4. 자동 스크립트 (서버 없이 + 선택 API)
 
 ```powershell
-# ① 체인 로직만 (buildFailureChainsFromFlat + assignChainUUIDs) — 항상 실행
+# ① 통합 게이트: tsc + test:import-slice + 파이프라인·고장연결 Vitest 묶음 + 체인 스크립트
+npm run verify:all
+
+# ② 체인 스크립트만 (빠름)
 npm run verify:import-fe-layout
 
-# ② + dev 서버 + DB에 올라간 프로젝트 파이프라인까지
+# ③ dev 서버 + DB — pipeline-verify GET (필요 시 POST)
 $env:VERIFY_BASE_URL='http://127.0.0.1:3000'
-$env:VERIFY_FMEA_ID='pfm26-mXXX'   # MX5 fmeaId
+$env:VERIFY_FMEA_ID='pfm26-mXXX'
+$env:VERIFY_PIPELINE_POST='1'          # 선택: 자동수정 루프
+$env:VERIFY_PIPELINE_WARN_ONLY='1'      # 선택: allGreen=false여도 종료 0
 npm run verify:import-fe-layout
+# 또는 한 번에:
+$env:VERIFY_BASE_URL='http://127.0.0.1:3000'; $env:VERIFY_FMEA_ID='pfm26-mXXX'; $env:VERIFY_PIPELINE_WARN_ONLY='1'; npm run verify:all
 ```
+
+> **전체 `npx vitest run`**: Playwright/E2E·서버 의존 스펙 포함으로 로컬에서 다수 FAIL 가능. 풀 스위트는 `TEST_ENV=FULL_SYSTEM` 등 별도 절차 권장.
 
 ## 5. PowerShell 수동 검증 (로컬 서버 가동 후)
 

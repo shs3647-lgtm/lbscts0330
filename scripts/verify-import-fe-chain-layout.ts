@@ -8,6 +8,8 @@
  * 사용:
  *   npx tsx scripts/verify-import-fe-chain-layout.ts
  *   VERIFY_BASE_URL=http://127.0.0.1:3000 VERIFY_FMEA_ID=pfm26-m066 npx tsx scripts/verify-import-fe-chain-layout.ts
+ *   VERIFY_PIPELINE_POST=1  → GET 후 POST(자동수정 루프)까지 실행
+ *   VERIFY_PIPELINE_WARN_ONLY=1 → allGreen=false여도 종료 0 (리포트만)
  *
  * 종료: 0 = PASS, 1 = FAIL
  */
@@ -189,15 +191,54 @@ async function optionalPipelineVerify(): Promise<void> {
     fail(`pipeline-verify API: ${data.error || res.status}`);
   }
 
-  console.log(`[INFO] pipeline-verify fmeaId=${data.fmeaId} allGreen=${data.allGreen}`);
+  printPipelineSteps(data, 'GET');
+
+  const warnOnly = process.env.VERIFY_PIPELINE_WARN_ONLY === '1';
+  if (data.allGreen !== true) {
+    if (warnOnly) {
+      console.warn('[WARN] pipeline-verify GET allGreen=false (VERIFY_PIPELINE_WARN_ONLY=1 → 종료는 성공)');
+    } else {
+      fail('pipeline-verify GET allGreen=false');
+    }
+  } else {
+    ok(`pipeline-verify GET 전 단계 통과 (${fmeaId})`);
+  }
+
+  if (process.env.VERIFY_PIPELINE_POST === '1') {
+    const postUrl = `${base}/api/fmea/pipeline-verify`;
+    let postRes: Response;
+    try {
+      postRes = await fetch(postUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ fmeaId }),
+      });
+    } catch (e) {
+      fail(`pipeline-verify POST 실패: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    const postData = JSON.parse(await postRes.text()) as PipelineJson;
+    if (!postData.success) {
+      fail(`pipeline-verify POST API: ${postData.error || postRes.status}`);
+    }
+    printPipelineSteps(postData, 'POST');
+    if (postData.allGreen !== true) {
+      if (warnOnly) {
+        console.warn('[WARN] pipeline-verify POST allGreen=false (VERIFY_PIPELINE_WARN_ONLY=1)');
+      } else {
+        fail('pipeline-verify POST allGreen=false');
+      }
+    } else {
+      ok(`pipeline-verify POST 완료 allGreen=true (${fmeaId})`);
+    }
+  }
+}
+
+function printPipelineSteps(data: PipelineJson, label: string): void {
+  console.log(`[INFO] pipeline-verify ${label} fmeaId=${data.fmeaId} allGreen=${data.allGreen}`);
   for (const s of data.steps || []) {
     const iss = (s.issues || []).length ? ` issues=${(s.issues || []).join('; ')}` : '';
     console.log(`       [${s.step}] ${s.name} → ${s.status}${iss}`);
   }
-  if (data.allGreen !== true) {
-    fail('pipeline-verify allGreen=false');
-  }
-  ok(`pipeline-verify GET 전 단계 통과 (${fmeaId})`);
 }
 
 async function main(): Promise<void> {
