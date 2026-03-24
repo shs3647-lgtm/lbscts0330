@@ -52,7 +52,9 @@
     "db:purge:dry": "cross-env DRY_RUN=true node scripts/purge-expired-soft-deletes.js",
     "snapshot": "node scripts/create-snapshot.js",
     "snapshot:list": "node -e \"const fs=require('fs');const p=require('path');const d='snapshots';if(fs.existsSync(d)){fs.readdirSync(d).filter(f=>fs.statSync(p.join(d,f)).isDirectory()).reverse().forEach((f,i)=>console.log((i+1)+'. '+f))}else{console.log('No snapshots found')}\"",
-    "guard:raw-to-atomic": "tsx scripts/guard/check-raw-to-atomic-fields.ts"
+    "guard:raw-to-atomic": "tsx scripts/guard/check-raw-to-atomic-fields.ts",
+    "test:e2e:final": "playwright test tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts tests/e2e/worksheet-failure-tabs-smoke.spec.ts --project=chromium",
+    "test:e2e:final-headed": "playwright test tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts tests/e2e/worksheet-failure-tabs-smoke.spec.ts --project=chromium --headed"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run guard:protected:staged -- --warn-only && npm run guard:raw-to-atomic",
