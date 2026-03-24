@@ -105,6 +105,63 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ─── 미연결 FM → 같은 공정의 기존 FC와 교차 연결 ───
+    // 근본원인: 미연결 FC가 0건이면 위 루프가 이 FM을 건너뜀
+    // 해결: FL에 fmId가 없는 FM을 찾아 같은 공정의 기존 FC 전체와 교차 연결
+    const linkedFmIds = new Set(existingFLs.map((fl: any) => fl.fmId));
+    // 신규 생성된 FL의 fmId도 포함
+    newFLs.forEach(fl => linkedFmIds.add(fl.fmId));
+    const existingKeySet = new Set([
+      ...existingFLs.map((fl: any) => `${fl.fmId}|${fl.feId}|${fl.fcId}`),
+      ...newFLs.map(fl => `${fl.fmId}|${fl.feId}|${fl.fcId}`),
+    ]);
+
+    // l2StructId → FC 전체 (연결 여부 무관)
+    const fcByL2 = new Map<string, string[]>();
+    for (const fc of allFCs) {
+      const list = fcByL2.get(fc.l2StructId) || [];
+      list.push(fc.id);
+      fcByL2.set(fc.l2StructId, list);
+    }
+
+    for (const fm of allFMs) {
+      if (linkedFmIds.has(fm.id)) continue; // 이미 연결됨
+
+      const fcIds = fcByL2.get(fm.l2StructId) || [];
+      if (fcIds.length === 0) continue;
+
+      const feIds = l2ToFeIds.get(fm.l2StructId);
+      let feId = feIds ? [...feIds][0] : '';
+      if (!feId) {
+        const scopeFE = allFEs.find((fe: any) => fe.category === 'YP') ||
+                        allFEs.find((fe: any) => fe.category === 'SP') ||
+                        fallbackFE;
+        feId = scopeFE?.id || '';
+      }
+      if (!feId) continue;
+
+      for (const fcId of fcIds) {
+        const key = `${fm.id}|${feId}|${fcId}`;
+        if (existingKeySet.has(key)) continue;
+        existingKeySet.add(key);
+
+        const flId = `FM-${fm.id.substring(0, 10)}-FC-${fcId.substring(0, 10)}`;
+        newFLs.push({
+          id: flId, fmeaId: normalizedId,
+          fmId: fm.id, feId, fcId,
+          fmText: fm.mode || '',
+          feText: allFEs.find((e: any) => e.id === feId)?.effect || '',
+          fcText: allFCs.find((c: any) => c.id === fcId)?.cause || '',
+        });
+        newRAs.push({
+          id: `${flId}-RA`, fmeaId: normalizedId,
+          linkId: flId, severity: 1, occurrence: 3, detection: 3, ap: 'L',
+          createdAt: now, updatedAt: now,
+        });
+      }
+      linkedFmIds.add(fm.id); // 이제 연결됨
+    }
+
     // ─── 미연결 FE → 기존 FM+FC와 연결 ───
     // 각 scope별로 미연결 FE를 같은 scope의 FM-FC 체인에 추가 연결
     for (const fe of allFEs) {
