@@ -1,0 +1,122 @@
+[
+  {
+    "id": "e34457f8-e469-4316-9b41-5fde4dbb3fae",
+    "rating": 1,
+    "scope": "영향 없음",
+    "effect": "영향 없음",
+    "description": "고객이 인지할 수 없는 수준",
+    "example": "표면 미세 색상 차이 (육안 식별 불가)",
+    "isActive": true,
+    "sortOrder": 9,
+    "createdAt": "2026-03-18T09:42:28.628Z",
+    "updatedAt": "2026-03-18T09:42:28.628Z"
+  },
+  {
+    "id": "cae8584c-dae1-40ef-8a26-138fbd8fafe1",
+    "rating": 2,
+    "scope": "외관/소음",
+    "effect": "경미한 결함",
+    "description": "식별력이 있는 고객만 감지 (25% 이하)",
+    "example": "Bump 표면 미세 스크래치 (기능 무관)",
+    "isActive": true,
+    "sortOrder": 8,
+    "createdAt": "2026-03-18T09:42:28.625Z",
+    "updatedAt": "2026-03-18T09:42:28.625Z"
+  },
+  {
+    "id": "7bda45ef-5183-474c-8d04-d217fa4647f3",
+    "rating": 3,
+    "scope": "외관/소음",
+    "effect": "보통 수준 감지 결함",
+    "description": "50%의 고객이 결함을 감지",
+    "example": "Wafer 가장자리 약간의 막두께 편차 (스펙 이내)",
+    "isActive": true,
+    "sortOrder": 7,
+    "createdAt": "2026-03-18T09:42:28.623Z",
+    "updatedAt": "2026-03-18T09:42:28.623Z"
+  },
+  {
+    "id": "325d7ca2-b46b-4636-8879-a2fd2cfde9e5",
+    "rating": 4,
+    "scope": "외관/소음",
+    "effect": "외관, 소음 등 감지 결함",
+    "description": "대부분의 고객(75% 이상)이 결함을 감지",
+    "example": "Bump 외관 불균일 (고객 외관검사 지적 가능)",
+    "isActive": true,
+    "sortOrder": 6,
+    "createdAt": "2026-03-18T09:42:28.622Z",
+    "updatedAt": "2026-03-18T09:42:28.622Z"
+  },
+  {
+    "id": "0bcd1fe9-aec5-4fcf-82ce-86e7f609ecec",
+    "rating": 5,
+    "scope": "기능 저하",
+    "effect": "편의 기능 저하",
+    "description": "편의 기능 성능 저하. 고객이 불편함을 느낌",
+    "example": "Bump 높이 편차로 Wire bonding 수율 소폭 저하",
+    "isActive": true,
+    "sortOrder": 5,
+    "createdAt": "2026-03-18T09:42:28.619Z",
+    "updatedAt": "2026-03-18T09:42:28.619Z"
+  },
+  {
+    "id": "5571460c-f875-4a76-a55d-878a0ffe1ff3",
+    "rating": 6,
+    "scope": "기능 저하",
+    "effect": "편의 기능 상실",
+    "description": "편의 기능 또는 보조 기능이 작동하지 않음",
+    "example": "도금 두께 부족으로 Bump shear strength 미달",
+    "isActive": true,
+    "sortOrder": 4,
+    "createdAt": "2026-03-18T09:42:28.617Z",
+    "updatedAt": "2026-03-18T09:42:28.617Z"
+  },
+  {
+    "id": "fe98661e-e3f0-46c2-9bc9-f3abb6f7508f",
+    "rating": 7,
+    "scope": "기능 저하",
+    "effect": "주요 기능 저하",
+    "description": "차량/제품이 작동하나 성능 저하",
+    "example": "Sputter 접착력 저하 → 후공정 Delamination 발생",
+    "isActive": true,
+    "sortOrder": 3,
+    "createdAt": "2026-03-18T09:42:28.616Z",
+    "updatedAt": "2026-03-18T09:42:28.616Z"
+  },
+  {
+    "id": "bb81a86a-65b7-4218-bf7b-2fd15ac616bf",
+    "rating": 8,
+    "scope": "기능 상실",
+    "effect": "주요 기능 상실/작동 불능",
+    "description": "차량/제품이 작동하지 않음 (주 기능 상실)",
+    "example": "Bump void → 전기적 open 불량 (Die 기능 상실)",
+    "isActive": true,
+    "sortOrder": 2,
+    "createdAt": "2026-03-18T09:42:28.614Z",
+    "updatedAt": "2026-03-18T09:42:28.614Z"
+  },
+  {
+    "id": "8b04d140-f1f2-4177-a28d-fe4af7756cff",
+    "rating": 9,
+    "scope": "안전/법규",
+    "effect": "경고 있는 안전 관련 고장",
+    "description": "잠재적 안전 문제. 정부 규정 미준수. 경고 있음",
+    "example": "Au 오염물질 혼입 → 신뢰성 시험 중 폭발적 열화",
+    "isActive": true,
+    "sortOrder": 1,
+    "createdAt": "2026-03-18T09:42:28.612Z",
+    "updatedAt": "2026-03-18T09:42:28.612Z"
+  },
+  {
+    "id": "7d7c901f-2582-42e8-8952-4ec51a578d93",
+    "rating": 10,
+    "scope": "안전/법규",
+    "effect": "경고 없이 안전 관련 고장",
+    "description": "잠재적 안전 문제. 정부 규정 미준수. 경고 없음",
+    "example": "Wafer 파손 → 장비 내 비산 → 작업자 안전 위협",
+    "isActive": true,
+    "sortOrder": 0,
+    "createdAt": "2026-03-18T09:42:28.605Z",
+    "updatedAt": "2026-03-18T09:42:28.605Z"
+  }
+]

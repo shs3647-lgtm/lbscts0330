@@ -1,0 +1,112 @@
+[
+  {
+    "id": "ee739464-5058-438f-bac5-4a58af6748a1",
+    "rating": 1,
+    "maturity": "검출 확실",
+    "description": "부적합 발생 자체가 방지됨",
+    "detection": "실수방지 (Error-Proofing) 예방\n[m066] Wafer 방향 센서 자동정지 (물리적 차단)",
+    "isActive": true,
+    "sortOrder": 9,
+    "createdAt": "2026-03-18T09:42:28.670Z",
+    "updatedAt": "2026-03-18T09:42:28.670Z"
+  },
+  {
+    "id": "7891a2de-530b-4540-9b81-9c6212a62386",
+    "rating": 2,
+    "maturity": "매우 높음",
+    "description": "부적합이 확실히 검출됨",
+    "detection": "실수방지 (Error-Proofing) 검출\n[m066] 막두께 In-line 전수 9-point + 자동 Reject",
+    "isActive": true,
+    "sortOrder": 8,
+    "createdAt": "2026-03-18T09:42:28.668Z",
+    "updatedAt": "2026-03-18T09:42:28.668Z"
+  },
+  {
+    "id": "38a35fe2-f456-4ed1-bf88-698f6f4bf3f1",
+    "rating": 3,
+    "maturity": "높음",
+    "description": "부적합이 거의 확실히 검출됨",
+    "detection": "자동 전수검사 + 자동정지\n[m066] AOI 전수검사 + 자동정지 + SEM 확인",
+    "isActive": true,
+    "sortOrder": 7,
+    "createdAt": "2026-03-18T09:42:28.667Z",
+    "updatedAt": "2026-03-18T09:42:28.667Z"
+  },
+  {
+    "id": "fd736332-9dff-4f02-a50c-d8d550b44d1e",
+    "rating": 4,
+    "maturity": "다소 높음",
+    "description": "부적합이 높은 확률로 검출됨",
+    "detection": "자동 검사 (연속)\n[m066] CD-SEM 자동측정 (매 lot 5-point 전수)",
+    "isActive": true,
+    "sortOrder": 6,
+    "createdAt": "2026-03-18T09:42:28.665Z",
+    "updatedAt": "2026-03-18T09:42:28.665Z"
+  },
+  {
+    "id": "70ba8481-60f6-4eab-8584-8bed4fa75f52",
+    "rating": 5,
+    "maturity": "보통",
+    "description": "부적합이 50% 확률로 검출됨",
+    "detection": "자동 검사 (간헐적)\n[m066] X-ray Void 검사 (lot당 3매 샘플링)",
+    "isActive": true,
+    "sortOrder": 5,
+    "createdAt": "2026-03-18T09:42:28.663Z",
+    "updatedAt": "2026-03-18T09:42:28.663Z"
+  },
+  {
+    "id": "a78154dc-0795-4200-86b0-9e861af53bfb",
+    "rating": 6,
+    "maturity": "다소 낮음",
+    "description": "부적합이 간헐적 검출됨",
+    "detection": "SPC + 수동 검사\n[m066] SPC 모니터링 + 수동 현미경 (Shift별 1회)",
+    "isActive": true,
+    "sortOrder": 4,
+    "createdAt": "2026-03-18T09:42:28.662Z",
+    "updatedAt": "2026-03-18T09:42:28.662Z"
+  },
+  {
+    "id": "c699afe5-50f4-4f36-bb03-01020fdae950",
+    "rating": 7,
+    "maturity": "낮음",
+    "description": "부적합이 일부 검출됨",
+    "detection": "수동 치수 검사\n[m066] 육안 + 수동 치수 (작업자 숙련도 의존)",
+    "isActive": true,
+    "sortOrder": 3,
+    "createdAt": "2026-03-18T09:42:28.660Z",
+    "updatedAt": "2026-03-18T09:42:28.660Z"
+  },
+  {
+    "id": "cd31f3cd-7c3a-4fe2-8143-a41be05acf39",
+    "rating": 8,
+    "maturity": "매우 낮음",
+    "description": "부적합이 검출될 가능성 낮음",
+    "detection": "이중 육안 검사\n[m066] 이중 육안검사 (QA+공정, 미세결함 한계)",
+    "isActive": true,
+    "sortOrder": 2,
+    "createdAt": "2026-03-18T09:42:28.659Z",
+    "updatedAt": "2026-03-18T09:42:28.659Z"
+  },
+  {
+    "id": "a8a6db5a-adf7-4e71-afa2-cb2af51c73ee",
+    "rating": 9,
+    "maturity": "거의 불가",
+    "description": "검출될 가능성이 매우 낮음",
+    "detection": "주관적 육안 검사\n[m066] 최종 외관검사만 (공정 중 검사 없음)",
+    "isActive": true,
+    "sortOrder": 1,
+    "createdAt": "2026-03-18T09:42:28.657Z",
+    "updatedAt": "2026-03-18T09:42:28.657Z"
+  },
+  {
+    "id": "946c2857-0ad4-4738-890e-2a6f325f3dd4",
+    "rating": 10,
+    "maturity": "검출 불가",
+    "description": "현재 관리로 검출 불가",
+    "detection": "검출 기준/방법 없음\n[m066] 검사 미수립 (신규 결함, 기준/방법 없음)",
+    "isActive": true,
+    "sortOrder": 0,
+    "createdAt": "2026-03-18T09:42:28.652Z",
+    "updatedAt": "2026-03-18T09:42:28.652Z"
+  }
+]
