@@ -20,7 +20,7 @@ import {
 } from '@/lib/fmea/aiag-vda-severity-mapping';
 import { uid } from '../../constants';
 
-export default function FailureSeverityMappingTab({ fmeaId }: FailureTabProps) {
+export default function FailureSeverityMappingTab({ fmeaId, onClose }: FailureTabProps & { onClose?: () => void }) {
   const fid = fmeaId || 'default';
   const [rows, setRows] = useState<AiagVdaSeverityMappingRow[]>([]);
 
@@ -170,6 +170,11 @@ export default function FailureSeverityMappingTab({ fmeaId }: FailureTabProps) {
         <h2 className="text-sm font-bold text-gray-800 mr-2">
           AIAG-VDA 심각도 매핑 <span className="text-[10px] font-normal text-gray-500">(프로젝트: {fid})</span>
         </h2>
+        {onClose && (
+          <button type="button" onClick={onClose} className="px-2 py-1 text-[10px] font-bold rounded bg-gray-500 text-white hover:bg-gray-600" title="S추천 닫기">
+            ✕ 닫기
+          </button>
+        )}
         <button
           type="button"
           className="px-2 py-1 text-[10px] font-bold rounded bg-green-600 text-white hover:bg-green-700"

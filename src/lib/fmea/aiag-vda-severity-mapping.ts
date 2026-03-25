@@ -615,7 +615,7 @@ export function matchAiagVdaSeverityRow(
     if (best) return best;
   }
 
-  // 6단계: Scope 무관 부분문자열 — 가장 긴 표 FE와 겹칠 때 우선 (마지막 폴백)
+  // 6단계: Scope 무관 부분문자열 — 가장 긴 표 FE와 겹칠 때 우선
   let fallback: AiagVdaSeverityMappingRow | null = null;
   let fallbackLen = 0;
   for (const r of rows) {
@@ -629,7 +629,45 @@ export function matchAiagVdaSeverityRow(
       }
     }
   }
-  return fallback;
+  if (fallback) return fallback;
+
+  // 7단계: ★ 2026-03-25 유사성 키워드 매칭 확대
+  // 3단어 이상 일치 = 재작업/선별 (S=6), 2단어 일치 = 폐기/손실 (S=7~8)
+  // 수율저하/Yield 키워드 포함 = S=7
+  {
+    let bestRow: AiagVdaSeverityMappingRow | null = null;
+    let bestScore = 0;
+    const feTokens = fe.replace(/[()\/,·\-]/g, ' ').split(/\s+/).filter(t => t.length >= 2);
+    for (const r of rows) {
+      const rfe = normKey(r.failureEffect);
+      const rTokens = rfe.replace(/[()\/,·\-]/g, ' ').split(/\s+/).filter(t => t.length >= 2);
+      const matched = feTokens.filter(t => rTokens.some(rt => rt.includes(t) || t.includes(rt)));
+      if (matched.length >= 2 && matched.length > bestScore) {
+        bestScore = matched.length;
+        bestRow = r;
+      }
+    }
+    if (bestRow) return bestRow;
+  }
+
+  // 8단계: 수율/Yield/재작업/폐기 키워드 자동 S 추정 (매핑표에 없어도)
+  const YIELD_KEYWORDS: [RegExp, number, string][] = [
+    [/수율\s*저하|yield\s*drop|yield\s*loss/i, 7, '수율 저하 → S=7 (AIAG-VDA 자동추정)'],
+    [/재작업|rework|선별|sorting/i, 6, '재작업/선별 → S=6 (AIAG-VDA 자동추정)'],
+    [/폐기|scrap|전수.*폐기/i, 8, '폐기 → S=8 (AIAG-VDA 자동추정)'],
+    [/고객.*클레임|customer.*claim|라인\s*정지/i, 9, '고객 클레임/라인정지 → S=9 (AIAG-VDA 자동추정)'],
+    [/capa\s*drop|생산.*감소/i, 7, '생산 Capa 감소 → S=7 (AIAG-VDA 자동추정)'],
+    [/불량\s*유출|outgoing|유출/i, 8, '불량 유출 → S=8 (AIAG-VDA 자동추정)'],
+    [/spec\s*out|규격\s*이탈/i, 7, 'Spec Out → S=7 (AIAG-VDA 자동추정)'],
+    [/오염|particle|contamination/i, 6, '오염/Particle → S=6 (AIAG-VDA 자동추정)'],
+  ];
+  for (const [regex, sev, basis] of YIELD_KEYWORDS) {
+    if (regex.test(fe) || regex.test(input.failureEffect || '')) {
+      return { id: '__auto__', scope: sc, productFunction: '', requirement: '', failureEffect: fe, severity: sev, basis } as AiagVdaSeverityMappingRow;
+    }
+  }
+
+  return null;
 }
 
 /** 심각도 셀 배경 (부드러운 톤) */
