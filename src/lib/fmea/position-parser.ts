@@ -958,6 +958,48 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     }
   }
 
+  // ★ 2026-03-25: 미연결 FE 자동연결 — FC 시트에서 참조되지 않는 FE를 기존 FL에 연결
+  // 근본원인: L1 시트 16종 FE 중 FC 시트에서 11종만 사용 → 5종 FE 미연결
+  {
+    const linkedFeIds = new Set(failureLinks.map(fl => fl.feId).filter(Boolean));
+    const orphanFEs = failureEffects.filter(fe => !linkedFeIds.has(fe.id));
+    if (orphanFEs.length > 0) {
+      ppLog(`[position-parser] ★ 미연결 FE ${orphanFEs.length}건 자동연결 시작`);
+      // 기존 FL에서 같은 scope의 FM을 찾아 연결
+      let feAutoCount = 0;
+      for (const fe of orphanFEs) {
+        // 같은 scope(category)의 FM 찾기
+        const scopeFMs = failureModes.filter(fm => {
+          // FM의 scope는 FL.feScope로 확인 → 같은 scope의 FL이 있는 FM
+          return failureLinks.some(fl => fl.fmId === fm.id && (fl.feScope || '') === (fe.category || ''));
+        });
+        // 못 찾으면 전체 FM 중 첫 번째
+        const targetFMs = scopeFMs.length > 0 ? scopeFMs : failureModes.slice(0, 1);
+        for (const fm of targetFMs) {
+          // 이미 같은 FM+FE 조합의 FL이 있으면 스킵
+          if (failureLinks.some(fl => fl.fmId === fm.id && fl.feId === fe.id)) continue;
+          // 같은 FM의 기존 FL에서 FC를 가져와 새 FL 생성
+          const existFL = failureLinks.find(fl => fl.fmId === fm.id && fl.fcId);
+          if (!existFL) continue;
+          const flId = `AUTO-FE-${feAutoCount++}`;
+          failureLinks.push({
+            id: flId, fmeaId, fmId: fm.id, feId: fe.id, fcId: existFL.fcId,
+            l2StructId: existFL.l2StructId, l3StructId: existFL.l3StructId,
+            fmText: fm.mode, feText: fe.effect, fcText: existFL.fcText,
+            feScope: fe.category,
+          } as any);
+          riskAnalyses.push({
+            id: `${flId}-RA`, fmeaId, linkId: flId, parentId: flId,
+            fmId: fm.id, fcId: existFL.fcId, feId: fe.id,
+            severity: fe.severity || 1, occurrence: 1, detection: 1, ap: 'L',
+          } as any);
+          break; // FM 1개만 연결
+        }
+      }
+      ppLog(`[position-parser] ★ 미연결 FE 자동연결 완료: ${feAutoCount}건`);
+    }
+  }
+
   // ★ 2026-03-25: PC 빈값 보충 — L3 시트의 B5(예방관리)에서 가져오기
   {
     // 같은 L2 공정의 기존 RA에서 PC/DC 복제 + 글로벌 폴백
