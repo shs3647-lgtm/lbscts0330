@@ -1539,16 +1539,21 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     });
   }
 
-  // A6: RiskAnalysis.detectionControl (FL→RA에서 DC 추출, 공정별 고유)
-  const seenA6 = new Set<string>();
+  // A6: RiskAnalysis.detectionControl — L3Function별 1건 (B5와 동일 구조)
+  // FC(l3FuncId)→FL(fcId)→RA(linkId)→detectionControl 경로로 L3Function에 DC 매핑
+  const dcByL3FuncId = new Map<string, string>();
+  const dcByL2Id = new Map<string, string>(); // 공정별 폴백
   for (const ra of data.riskAnalyses) {
+    if (!ra.detectionControl) continue;
     const fl = data.failureLinks.find(l => l.id === ra.linkId);
-    if (!fl || !ra.detectionControl) continue;
-    const pno = fl.fmProcess || '';
-    const key = `${pno}|${ra.detectionControl}`;
-    if (seenA6.has(key)) continue;
-    seenA6.add(key);
-    flat.push({ id: `${ra.id}-A6`, processNo: pno, category: 'A', itemCode: 'A6', value: ra.detectionControl, createdAt: now, rowSpan: 1 });
+    if (!fl) continue;
+    const fc = data.failureCauses.find(c => c.id === fl.fcId);
+    if (fc?.l3FuncId && !dcByL3FuncId.has(fc.l3FuncId)) {
+      dcByL3FuncId.set(fc.l3FuncId, ra.detectionControl);
+    }
+    if (fc?.l2StructId && !dcByL2Id.has(fc.l2StructId)) {
+      dcByL2Id.set(fc.l2StructId, ra.detectionControl);
+    }
   }
 
   // ─── B (L3) ───
@@ -1587,16 +1592,37 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     flat.push({ id: fc.id, processNo: l2?.no || '', category: 'B', itemCode: 'B4', value: fc.cause, m4: l3?.m4 || undefined, parentItemId: b3Id, createdAt: now, rowSpan: 1 });
   }
 
-  // B5: RiskAnalysis.preventionControl (FL→RA에서 PC 추출, 공정별 고유)
-  const seenB5 = new Set<string>();
+  // B5: RiskAnalysis.preventionControl — L3Function별 1건 (B4와 동일 구조)
+  // FC(l3FuncId)→FL(fcId)→RA(linkId)→preventionControl 경로로 L3Function에 PC 매핑
+  const pcByL3FuncId = new Map<string, string>();
+  const pcByL2Id = new Map<string, string>(); // 공정별 폴백
   for (const ra of data.riskAnalyses) {
+    if (!ra.preventionControl) continue;
     const fl = data.failureLinks.find(l => l.id === ra.linkId);
-    if (!fl || !ra.preventionControl) continue;
-    const pno = fl.fmProcess || '';
-    const key = `${pno}|${ra.preventionControl}`;
-    if (seenB5.has(key)) continue;
-    seenB5.add(key);
-    flat.push({ id: `${ra.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: ra.preventionControl, createdAt: now, rowSpan: 1 });
+    if (!fl) continue;
+    const fc = data.failureCauses.find(c => c.id === fl.fcId);
+    if (fc?.l3FuncId && !pcByL3FuncId.has(fc.l3FuncId)) {
+      pcByL3FuncId.set(fc.l3FuncId, ra.preventionControl);
+    }
+    if (fc?.l2StructId && !pcByL2Id.has(fc.l2StructId)) {
+      pcByL2Id.set(fc.l2StructId, ra.preventionControl);
+    }
+  }
+  for (const f of data.l3Functions) {
+    const l3 = l3StructMap.get(f.l3StructId);
+    const l2 = l3 ? data.l2Structures.find(d => d.id === l3.l2Id) : undefined;
+    const pno = l2?.no || '';
+    const m4 = l3?.m4 || undefined;
+    // B5 (예방관리)
+    const pc = pcByL3FuncId.get(f.id) || pcByL2Id.get(l2?.id || '') || '';
+    if (pc) {
+      flat.push({ id: `${f.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: pc, m4, createdAt: now, rowSpan: 1 });
+    }
+    // A6 (검출관리) — L3Function별 1건으로 B5와 동일 구조
+    const dc = dcByL3FuncId.get(f.id) || dcByL2Id.get(l2?.id || '') || '';
+    if (dc) {
+      flat.push({ id: `${f.id}-A6`, processNo: pno, category: 'A', itemCode: 'A6', value: dc, m4, createdAt: now, rowSpan: 1 });
+    }
   }
 
   return flat;

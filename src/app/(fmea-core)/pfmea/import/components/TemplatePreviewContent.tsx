@@ -839,7 +839,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   // Loop 3: MasterData Import (save-from-import API)
                   async () => {
                     try {
-                      const res = await fetch('/api/fmea/save-from-import', {
+                      const res = await fetch('/api/fmea/save-position-import', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ fmeaId, flatData, l1Name: '', failureChains: [] }),

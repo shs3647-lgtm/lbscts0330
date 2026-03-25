@@ -90,7 +90,7 @@ export default function PipelineStep0Detail({ step, fmeaId, onImportComplete }: 
     setImportMsg('Atomic DB 저장 중...');
     try {
       const l1Name = flatData.find(d => d.itemCode === 'C1')?.value || '';
-      const res = await fetch('/api/fmea/save-from-import', {
+      const res = await fetch('/api/fmea/save-position-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fmeaId, flatData, l1Name, failureChains: chains }),

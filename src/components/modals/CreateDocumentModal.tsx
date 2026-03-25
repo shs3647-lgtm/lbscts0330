@@ -164,8 +164,8 @@ export default function CreateDocumentModal({
                 }).catch(() => { /* 무시 */ });
             }
 
-            // 고객사 목록 로드
-            fetch('/api/master/customer')
+            // 고객사 목록 로드 — /api/customers (Customer 마스터 DB)
+            fetch('/api/customers')
                 .then(res => res.json())
                 .then(data => {
                     if (data.success && data.customers) {
@@ -388,11 +388,45 @@ export default function CreateDocumentModal({
                             </td>
                         </tr>
 
-                        {/* 회사명 (작성회사) — datalist 드롭다운 + 직접입력 */}
+                        {/* 회사명 (작성회사) — 고정 */}
                         <tr className="border-b">
                             <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-middle">회사명</td>
                             <td className="py-1">
                                 <span className="w-full px-3 py-1 text-sm">LBS</span>
+                            </td>
+                        </tr>
+
+                        {/* 고객사 — datalist 드롭다운 + 직접입력 */}
+                        <tr className="border-b">
+                            <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-middle">고객사</td>
+                            <td className="py-1">
+                                <input
+                                    type="text"
+                                    list="customer-list"
+                                    value={customer}
+                                    onChange={(e) => setCustomer(e.target.value)}
+                                    placeholder="고객사 선택 또는 직접 입력"
+                                    className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                                />
+                                <datalist id="customer-list">
+                                    {customers.map((c, i) => (
+                                        <option key={i} value={c} />
+                                    ))}
+                                </datalist>
+                            </td>
+                        </tr>
+
+                        {/* 품번 — 자유입력 */}
+                        <tr className="border-b">
+                            <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-middle">품번</td>
+                            <td className="py-1">
+                                <input
+                                    type="text"
+                                    value={partNo}
+                                    onChange={(e) => setPartNo(e.target.value)}
+                                    placeholder="품번 입력 (선택)"
+                                    className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
+                                />
                             </td>
                         </tr>
 

@@ -474,7 +474,7 @@ function PFMEARegisterPageContent() {
       const flatLegacy = convertLegacyParseResultToFlatData(legacyResult);
       setFlatData(flatLegacy);
       if (fmeaId) {
-        const saveRes = await fetch('/api/fmea/save-from-import', {
+        const saveRes = await fetch('/api/fmea/save-position-import', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

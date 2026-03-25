@@ -31,17 +31,39 @@ export async function getAllProjects(_forceRefresh = false): Promise<BizInfoProj
 
 export async function saveProject(project: BizInfoProject): Promise<BizInfoProject> {
   const now = new Date().toISOString();
-  if (!project.id) project.id = `BIZ-${Date.now()}`;
   project.updatedAt = now;
   if (!project.createdAt) project.createdAt = now;
 
-  const res = await fetch('/api/bizinfo/projects', {
-    method: 'PUT',
+  // 신규: POST, 기존(id 있고 DB에 존재): PUT
+  // 먼저 PUT 시도 → 404면 POST로 생성
+  if (project.id) {
+    const putRes = await fetch('/api/bizinfo/projects', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(project),
+    });
+    if (putRes.ok) {
+      const data = await putRes.json();
+      if (data.success && data.project) return data.project;
+    }
+    // PUT 실패(404 등) → POST로 신규 생성
+  }
+
+  const postRes = await fetch('/api/bizinfo/projects', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(project),
+    body: JSON.stringify({
+      customerName: project.customerName,
+      customerCode: project.customerCode,
+      factory: project.factory,
+      modelYear: project.modelYear,
+      program: project.program,
+      productName: project.productName,
+      partNo: project.partNo,
+    }),
   });
-  if (res.ok) {
-    const data = await res.json();
+  if (postRes.ok) {
+    const data = await postRes.json();
     if (data.success && data.project) return data.project;
   }
   throw new Error('프로젝트 저장 실패');

@@ -30,6 +30,7 @@ interface UseImportFileHandlersProps {
   setIsSaved?: React.Dispatch<React.SetStateAction<boolean>>; // ✅ 저장 상태 표시
   setDirty?: React.Dispatch<React.SetStateAction<boolean>>; // ✅ 변경 상태 표시
   setValidationMessage?: (msg: string | null) => void; // ✅ 2026-02-07: 컬럼별 검증 메시지
+  onSaveSuccess?: () => void; // ★ 2026-03-25: DB 저장 성공 후 pgsql/API 검증 트리거
   flatData: ImportedFlatData[];
   pendingData: ImportedFlatData[];
   masterChains?: MasterFailureChain[];  // ★ Import 시 DB 전송용
@@ -53,6 +54,7 @@ export function useImportFileHandlers({
   setIsSaved,
   setDirty,
   setValidationMessage,
+  onSaveSuccess,
   flatData,
   pendingData,
   masterChains,
@@ -129,6 +131,8 @@ export function useImportFileHandlers({
             setImportSuccess(true);
             setIsSaved?.(true);
             setDirty?.(false);
+            // ★ DB 저장 성공 → pgsql/API 검증 자동 트리거
+            onSaveSuccess?.();
 
             // ★ 통계 비교: 엑셀 원본 vs 파싱 결과
             const s = atomicData.stats;

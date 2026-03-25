@@ -82,7 +82,7 @@ export async function saveWorksheetFromImport(
 
   try {
     // ★ save-from-import API 호출 (서버에서 position-parser 파싱 + DB 저장)
-    const response = await fetch('/api/fmea/save-from-import', {
+    const response = await fetch('/api/fmea/save-position-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
