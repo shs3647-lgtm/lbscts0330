@@ -40,6 +40,7 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { getPrismaForSchema } from '@/lib/prisma';
 import type { PositionAtomicData } from '@/types/position-import';
+import { batchCreateMany } from '@/lib/fmea-core/batch-utils';
 
 export const runtime = 'nodejs';
 
@@ -410,17 +411,14 @@ export async function POST(request: NextRequest) {
 
       // 10. FailureCauses: skipDuplicates 추가 (★ 2026-03-25: 재Import 중복 누적 방지)
       if (atomicData.failureCauses.length > 0) {
-        await tx.failureCause.createMany({
-          skipDuplicates: true,
-          data: atomicData.failureCauses.map(fc => ({
-            id: fc.id, fmeaId: normalizedId, l3FuncId: fc.l3FuncId,
-            l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
-            processCharId: fc.l3CharId || fc.l3FuncId || null,
-            cause: fc.cause,
-            parentId: fc.parentId || null,
-          })),
-        });
-        console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성 (skipDuplicates)`);
+        await batchCreateMany(tx.failureCause, atomicData.failureCauses.map(fc => ({
+          id: fc.id, fmeaId: normalizedId, l3FuncId: fc.l3FuncId,
+          l3StructId: fc.l3StructId, l2StructId: fc.l2StructId,
+          processCharId: fc.l3CharId || fc.l3FuncId || null,
+          cause: fc.cause,
+          parentId: fc.parentId || null,
+        })));
+        console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성 (batch)`);
       }
 
       // 11. FailureLinks — 빈 FK 필터링 후 저장 (FK 제약 위반 방지)
@@ -474,24 +472,21 @@ export async function POST(request: NextRequest) {
       const validFlIds = new Set(validFLs.map(fl => fl.id));
       const validRAs = atomicData.riskAnalyses.filter(ra => validFlIds.has(ra.linkId));
       if (validRAs.length > 0) {
-        await tx.riskAnalysis.createMany({
-          skipDuplicates: true,
-          data: validRAs.map(ra => ({
-            id: ra.id,
-            fmeaId: normalizedId,
-            linkId: ra.linkId,
-            fmId: ra.fmId ?? undefined,
-            fcId: ra.fcId ?? undefined,
-            feId: ra.feId ?? undefined,
-            severity: ra.severity,
-            occurrence: ra.occurrence,
-            detection: ra.detection,
-            ap: ra.ap,
-            preventionControl: ra.preventionControl,
-            detectionControl: ra.detectionControl,
-          })),
-        });
-        console.log(`[save-position-import] RiskAnalysis: ${validRAs.length}건 생성`);
+        await batchCreateMany(tx.riskAnalysis, validRAs.map(ra => ({
+          id: ra.id,
+          fmeaId: normalizedId,
+          linkId: ra.linkId,
+          fmId: ra.fmId ?? undefined,
+          fcId: ra.fcId ?? undefined,
+          feId: ra.feId ?? undefined,
+          severity: ra.severity,
+          occurrence: ra.occurrence,
+          detection: ra.detection,
+          ap: ra.ap,
+          preventionControl: ra.preventionControl,
+          detectionControl: ra.detectionControl,
+        })));
+        console.log(`[save-position-import] RiskAnalysis: ${validRAs.length}건 생성 (batch)`);
       }
 
       // 13. Verify counts (핵심 테이블만 — v4 신규 테이블은 safeTx 경유로 skip 가능)
@@ -538,7 +533,7 @@ export async function POST(request: NextRequest) {
         failureLinks: flc, riskAnalyses: rac,
         fkVerified: true,
       };
-    });
+    }, { timeout: 300_000, maxWait: 20_000, isolationLevel: 'Serializable' });
 
     console.log(`[save-position-import] Done:`, JSON.stringify(counts));
 
@@ -657,8 +652,19 @@ export async function POST(request: NextRequest) {
         ra: await prisma.riskAnalysis.count({ where: { fmeaId: normalizedId } }),
         l3: await prisma.l3Structure.count({ where: { fmeaId: normalizedId } }),
       };
+
       forgeLog.push(`최종: FM=${forgeResult.fm} FC=${forgeResult.fc} FE=${forgeResult.fe} FL=${forgeResult.fl} RA=${forgeResult.ra} L3=${forgeResult.l3}`);
       console.log(`[save-position-import] FORGE: ${forgePassed ? 'PASS' : 'FAIL'} (${forgeIteration}회)`, forgeLog.join('\n'));
+
+      // ── ★ 2026-03-25: 전사 공용 심각도 백그라운드 갱신 ──
+      try {
+        const originUrl = request.nextUrl?.origin || 'http://localhost:3000';
+        fetch(`${originUrl}/api/severity-recommend/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fmeaId: normalizedId })
+        }).catch(e => console.error('[save-position-import] Background sync error:', e));
+      } catch (e) {}
 
       return NextResponse.json({
         success: true, fmeaId: normalizedId, schema,
@@ -675,8 +681,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[save-position-import] Error:', err);
+    const isPrisma = err?.constructor?.name?.includes('Prisma');
+    const code = err?.code || '';
+    if (isPrisma && code === 'P2002') {
+      return NextResponse.json({
+        success: false, error: '중복 데이터: 동일한 엔티티가 이미 존재합니다.', prismaCode: code,
+      }, { status: 409 });
+    }
+    if (isPrisma && code === 'P2003') {
+      return NextResponse.json({
+        success: false, error: 'FK 참조 오류: 연결된 구조/기능 항목이 존재하지 않습니다.', prismaCode: code,
+      }, { status: 422 });
+    }
+    if (isPrisma && code === 'P2028') {
+      return NextResponse.json({
+        success: false, error: '트랜잭션 타임아웃: 데이터가 많아 처리 시간이 초과되었습니다.', prismaCode: code,
+      }, { status: 504 });
+    }
     return NextResponse.json({ success: false, error: safeErrorMessage(err) }, { status: 500 });
   }
 }

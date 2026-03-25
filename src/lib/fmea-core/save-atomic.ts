@@ -40,7 +40,6 @@ export async function saveAtomicDBInTransaction(
   options: Partial<ReverseImportOptions> = {}
 ): Promise<{ counts: Record<string, number> }> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const tx = prisma as any;
   const fmeaId = data.fmeaId;
 
   const counts: Record<string, number> = {};
@@ -185,7 +184,7 @@ export async function saveAtomicDBInTransaction(
         `[ROLLBACK] 레코드 수 불일치: ${mismatches.join(', ')}`
       );
     }
-  }, { timeout: 30000, isolationLevel: 'Serializable' as any });
+  }, { timeout: 60_000, maxWait: 10_000, isolationLevel: 'Serializable' as any });
 
   return { counts };
 }

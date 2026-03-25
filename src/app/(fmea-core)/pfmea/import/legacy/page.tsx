@@ -36,6 +36,8 @@ import { BdStatusTable } from '../components/BdStatusTable';
 import { useTemplateGenerator } from '../hooks/useTemplateGenerator';
 import FailureChainPopup from '../FailureChainPopup';
 import ImportStepBar from '../components/ImportStepBar';
+import { quickWorksheetSave } from '../utils/quickWorksheetSave';
+import { buildCrossTab } from '../utils/template-delete-logic';
 
 export default function LegacyImportPage() {
   const { isAdmin } = useAuth();
@@ -144,6 +146,31 @@ export default function LegacyImportPage() {
           if (res.datasetId) setMasterDatasetId(res.datasetId);
           setIsSaved(true);
           setDirty(false);
+
+          // ★ FIX: Master 데이터(Family) 적용 직후 DB atomic 테이블 완벽 클론 및 워크시트 이동
+          try {
+            const rawL1 = selectedFmea?.fmeaInfo?.partName || selectedFmea?.fmeaInfo?.subject || selectedFmea?.project?.productName || '';
+            const calcL1Name = rawL1.replace(/\+?(PFMEA|DFMEA|FMEA|생산공정)\s*$/i, '').trim();
+            
+            const reqRes = await fetch('/api/fmea/clone-master', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sourceFmeaId: data.sourceFmeaId,
+                targetFmeaId: selectedFmeaId,
+                l1Name: calcL1Name
+              })
+            });
+            const buildRes = await reqRes.json();
+
+            if (buildRes.success) {
+              window.location.href = `/pfmea/worksheet?id=${encodeURIComponent(selectedFmeaId)}&fresh=1`;
+            } else {
+              alert('Family 자동 클론에 실패했습니다: ' + buildRes.error);
+            }
+          } catch (e) {
+            console.error('Master FMEA 퀵클론 에러', e);
+          }
         }
       } catch (error) {
         console.error('Master 기초정보 저장 오류:', error);

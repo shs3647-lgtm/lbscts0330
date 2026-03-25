@@ -204,7 +204,7 @@ export async function repairFkIntegrity(
   if (!options.dryRun) {
     await prisma.$transaction(async (tx: any) => {
       await runMutations(tx);
-    });
+    }, { timeout: 30_000, maxWait: 10_000 });
   } else {
     if (orphanOptIds.length) messages.push(`[dryRun] Optimization 고아 삭제 예정 ${orphanOptIds.length}건`);
     if (orphanRaIds.length) messages.push(`[dryRun] RiskAnalysis 고아 삭제 예정 ${orphanRaIds.length}건`);

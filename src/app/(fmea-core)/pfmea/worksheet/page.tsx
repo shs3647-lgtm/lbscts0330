@@ -914,9 +914,9 @@ function FMEAWorksheetPageContent() {
                 dirty={dirty}
                 isSaving={isSaving}
                 lastSaved={lastSaved}
+                fmeaId={selectedFmeaId || ''}
                 fmeaLabel={
                   (currentFmea?.fmeaInfo as { subject?: string } | undefined)?.subject ||
-                  selectedFmeaId ||
                   ''
                 }
                 onSave={() => {

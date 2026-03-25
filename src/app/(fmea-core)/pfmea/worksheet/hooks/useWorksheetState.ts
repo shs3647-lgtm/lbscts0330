@@ -334,15 +334,38 @@ export function useWorksheetState(): UseWorksheetStateReturn {
             setFmeaListLoaded(true);
 
             if (selectedFmeaId) {
-              const found = projects.find((p: any) => p.id?.toLowerCase() === selectedFmeaId.toLowerCase());
+              let found = projects.find((p: any) => p.id?.toLowerCase() === selectedFmeaId.toLowerCase());
+              
+              // ★ 2026-03-25: Master FMEA (type=M) 등 P타입이 아닌 경우 별도 조회
+              if (!found) {
+                try {
+                  const singleRes = await fetch(`/api/fmea/projects?id=${encodeURIComponent(selectedFmeaId.toLowerCase())}`);
+                  if (singleRes.ok) {
+                    const singleData = await singleRes.json();
+                    if (singleData.success && singleData.projects?.length > 0) {
+                      const item = singleData.projects[0];
+                      found = {
+                        id: item.fmeaNo || item.id,
+                        fmeaInfo: {
+                          subject: item.subject || item.fmeaInfo?.subject || '',
+                          fmeaRevisionDate: item.fmeaRevisionDate || item.fmeaInfo?.fmeaRevisionDate || '',
+                          customerName: item.customerName || item.fmeaInfo?.customerName || '',
+                        },
+                        project: { productName: item.productName || item.project?.productName || '' },
+                      };
+                    }
+                  }
+                } catch (e) { console.error('Failed to load specific Master FMEA:', e); }
+              }
+
               if (found) {
                 setCurrentFmea(found);
-              } else {
+              } else if (!compareEmbed) { // iframe 비교뷰에서는 경고창 및 리다이렉트 생략
                 // ★★★ 2026-02-16: selectedFmeaId가 있지만 프로젝트 목록에 없는 경우 ★★★
                 // → 경고 메시지 + 등록 화면으로 이동
                 setCurrentFmea(null);
                 const goToRegister = window.confirm(
-                  `PFMEA 프로젝트가 등록되지 않았습니다.\n\n` +
+                  `PFMEA/Master 프로젝트가 등록되지 않았습니다.\n\n` +
                   `FMEA ID: ${selectedFmeaId}\n\n` +
                   `프로젝트 등록 화면으로 이동하시겠습니까?\n` +
                   `(등록 후 기초정보 Import → 워크시트 순서로 진행해주세요)`

@@ -885,7 +885,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           l3StructId: fc.l3StructId || undefined,
           fmText: fm.mode,
           fcText: fc.cause,
-        } as any);
+        });
 
         // RA도 생성
         riskAnalyses.push({
@@ -902,7 +902,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           ap: 'L',
           preventionControl: undefined,
           detectionControl: undefined,
-        } as any);
+        });
       }
 
       // 고아FM에 대해: 같은 공정의 모든 FC 중 미연결 FC와 FL 생성
@@ -927,12 +927,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
             id: flId, fmeaId, fmId: fm.id, feId, fcId: fc.id,
             l2StructId: l2Id, l3StructId: fc.l3StructId || undefined,
             fmText: fm.mode, fcText: fc.cause,
-          } as any);
+          });
           riskAnalyses.push({
             id: `${flId}-RA`, fmeaId, linkId: flId, parentId: flId,
             fmId: fm.id, fcId: fc.id, feId,
             severity: 1, occurrence: 1, detection: 1, ap: 'L',
-          } as any);
+          });
         }
         
         // 미연결 FC가 없으면 → 전체 첫 FC를 연결 (DB가 empty fcId를 거부하므로)
@@ -944,12 +944,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
               id: flId, fmeaId, fmId: fm.id, feId, fcId: fallbackFc.id,
               l2StructId: l2Id, l3StructId: fallbackFc.l3StructId || undefined,
               fmText: fm.mode, fcText: fallbackFc.cause,
-            } as any);
+            });
             riskAnalyses.push({
               id: `${flId}-RA`, fmeaId, linkId: flId, parentId: flId,
               fmId: fm.id, fcId: fallbackFc.id, feId,
               severity: 1, occurrence: 1, detection: 1, ap: 'L',
-            } as any);
+            });
           }
         }
       }
@@ -987,12 +987,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
             l2StructId: existFL.l2StructId, l3StructId: existFL.l3StructId,
             fmText: fm.mode, feText: fe.effect, fcText: existFL.fcText,
             feScope: fe.category,
-          } as any);
+          });
           riskAnalyses.push({
             id: `${flId}-RA`, fmeaId, linkId: flId, parentId: flId,
             fmId: fm.id, fcId: existFL.fcId, feId: fe.id,
             severity: fe.severity || 1, occurrence: 1, detection: 1, ap: 'L',
-          } as any);
+          });
           break; // FM 1개만 연결
         }
       }
