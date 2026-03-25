@@ -141,6 +141,20 @@ export async function POST(req: NextRequest) {
         if (matched) matchType = 'category';
       }
 
+      // 4순위: fcText로 MasterFmeaReference.b4Causes 역매칭 (AUTO-FL 등 m4/we 빈값 대응)
+      if (!matched) {
+        const fcText = (fl.fcText || '').trim();
+        if (fcText) {
+          for (const ref of masterRefs) {
+            if (ref.b4Causes.some(c => c === fcText || c.includes(fcText) || fcText.includes(c))) {
+              matched = ref;
+              matchType = 'category';
+              break;
+            }
+          }
+        }
+      }
+
       if (matched && (matched.severity ?? 0) > 0) {
         results.push({
           linkId: ra.linkId,
@@ -151,25 +165,38 @@ export async function POST(req: NextRequest) {
           source: `MasterRef:${matched.m4}/${matched.weName}`,
         });
         filled++;
-      } else if (feText && feUsageMap.has(feText)) {
-        // FE 텍스트 fallback (S만)
-        results.push({
-          linkId: ra.linkId,
-          severity: feUsageMap.get(feText)!,
-          occurrence: null,
-          detection: null,
-          matchType: 'feUsage',
-          source: `SeverityUsage:${feText.substring(0, 20)}`,
-        });
-        filled++;
+      } else if (feText) {
+        // FE 텍스트 fallback — 정확일치 + 부분일치
+        let usageSev = feUsageMap.get(feText) ?? null;
+        if (!usageSev) {
+          // 부분 매칭: feUsageMap 키에 feText 포함 또는 feText에 키 포함
+          for (const [key, sev] of feUsageMap) {
+            if (key.includes(feText) || feText.includes(key)) {
+              usageSev = sev;
+              break;
+            }
+          }
+        }
+        if (usageSev) {
+          results.push({
+            linkId: ra.linkId,
+            severity: usageSev,
+            occurrence: null,
+            detection: null,
+            matchType: 'feUsage',
+            source: `SeverityUsage:${feText.substring(0, 20)}`,
+          });
+          filled++;
+        } else {
+          results.push({
+            linkId: ra.linkId, severity: null, occurrence: null, detection: null,
+            matchType: 'none', source: '',
+          });
+        }
       } else {
         results.push({
-          linkId: ra.linkId,
-          severity: null,
-          occurrence: null,
-          detection: null,
-          matchType: 'none',
-          source: '',
+          linkId: ra.linkId, severity: null, occurrence: null, detection: null,
+          matchType: 'none', source: '',
         });
       }
     }

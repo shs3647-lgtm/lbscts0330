@@ -64,9 +64,9 @@ export default function DetectionSectionModal({
 }: DetectionSectionModalProps) {
   // 드래그 가능 모달
   const { position, handleMouseDown } = useDraggableModal({
-    initialPosition: { top: 100, right: 100 },
-    modalWidth: 600,
-    modalHeight: 500,
+    initialPosition: { top: 120, right: 20 },
+    modalWidth: 1020,
+    modalHeight: 380,
     isOpen,
   });
 
@@ -88,9 +88,10 @@ export default function DetectionSectionModal({
   }>>([]);
   const [lldSelectedIds, setLldSelectedIds] = useState<Set<string>>(new Set());
 
-  // ── 섹션별 선택 상태 ──
-  const [fmSelectedIds, setFmSelectedIds] = useState<Set<string>>(new Set());
-  const [fcSelectedIds, setFcSelectedIds] = useState<Set<string>>(new Set());
+  // ── 섹션별 데이터 ──
+  const [krItems, setKrItems] = useState<Array<{id: string, value: string}>>([]);
+  const [sec1SelectedIds, setSec1SelectedIds] = useState<Set<string>>(new Set());
+  const [sec2SelectedIds, setSec2SelectedIds] = useState<Set<string>>(new Set());
 
   // 아이템 풀 로드
   useEffect(() => {
@@ -99,8 +100,9 @@ export default function DetectionSectionModal({
     setLoading(true);
     (async () => {
       try {
-        const [res, lldRes] = await Promise.all([
+        const [res, krRes, lldRes] = await Promise.all([
           fetch('/api/pfmea/master?includeItems=true'),
+          fetch('/api/kr-industry?type=detection'),
           fetch('/api/lld'),
         ]);
         if (!res.ok) throw new Error('fetch failed');
@@ -113,14 +115,12 @@ export default function DetectionSectionModal({
             category: it.category || '',
             processNo: it.processNo || '',
           }));
-        // 공정번호 필터 (해당 공정 + 공통공정)
         const filtered = processNo
           ? flatItems.filter(it => {
               const pn = String(it.processNo ?? '').trim();
               return pn === String(processNo) || pn === '0' || !pn;
             })
           : flatItems;
-        // 중복 제거 (value 기준)
         const seen = new Set<string>();
         const unique = filtered.filter(it => {
           const key = it.value.trim();
@@ -130,12 +130,27 @@ export default function DetectionSectionModal({
         });
         if (!cancelled) setAllItems(unique);
 
+        if (krRes.ok) {
+          const krData = await krRes.json();
+          const det = (krData.detection || []).map((it: { id: string, method: string }) => ({
+            id: it.id || `kr-${it.method}`,
+            value: it.method || '',
+          }));
+          const krSeen = new Set<string>();
+          const krUnique = det.filter((it: { id: string, value: string }) => {
+            if (!it.value || krSeen.has(it.value)) return false;
+            krSeen.add(it.value);
+            return true;
+          });
+          if (!cancelled) setKrItems(krUnique);
+        }
+
         // LLD 추천 아이템 (검출관리)
         if (lldRes.ok) {
           const lldData = await lldRes.json();
           if (lldData.success && lldData.items) {
             const detLlds = (lldData.items as Array<Record<string, unknown>>)
-              .filter(it => it.applyTo === 'detection' && it.status !== 'R')
+              .filter(it => it.applyTo === 'detection' && it.status !== 'R' && String(it.improvement || '').trim().length > 0)
               .map(it => ({
                 id: String(it.id || ''),
                 lldNo: String(it.lldNo || ''),
@@ -165,8 +180,8 @@ export default function DetectionSectionModal({
   useEffect(() => {
     if (!isOpen) return;
     const { fmValues, fcValues } = parseSectionValues(currentValues);
-    setFmSelectedIds(new Set(fmValues.map(v => v.replace(/^D:/, ''))));
-    setFcSelectedIds(new Set(fcValues.map(v => v.replace(/^D:/, ''))));
+    setSec1SelectedIds(new Set(fmValues.map(v => v.replace(/^D:/, ''))));
+    setSec2SelectedIds(new Set(fcValues.map(v => v.replace(/^D:/, ''))));
   }, [isOpen, currentValues]);
 
   // 검색 포커스
@@ -185,14 +200,14 @@ export default function DetectionSectionModal({
 
   // ★ FM에서 선택된 항목들의 최고(최저) D등급 계산
   const fmBestD = useMemo(() => {
-    if (fmSelectedIds.size === 0) return 0;
+    if (sec1SelectedIds.size === 0) return 0;
     let best = 11;
-    fmSelectedIds.forEach(v => {
+    sec1SelectedIds.forEach((v: string) => {
       const d = recommendDetection(v, 'fm');
       if (d > 0 && d < best) best = d;
     });
     return best <= 10 ? best : 0;
-  }, [fmSelectedIds]);
+  }, [sec1SelectedIds]);
 
   // ★ FC 섹션에 표시할 아이템 필터링
   // 규칙: FC 검출은 FM 검출보다 등급이 좋은(낮은) 것만 표시
@@ -206,8 +221,8 @@ export default function DetectionSectionModal({
   }, [filteredItems, fmBestD]);
 
   // ── 핸들러 ──
-  const toggleFm = (value: string) => {
-    setFmSelectedIds(prev => {
+  const toggleSec1 = (value: string) => {
+    setSec1SelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(value)) next.delete(value);
       else next.add(value);
@@ -215,8 +230,8 @@ export default function DetectionSectionModal({
     });
   };
 
-  const toggleFc = (value: string) => {
-    setFcSelectedIds(prev => {
+  const toggleSec2 = (value: string) => {
+    setSec2SelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(value)) next.delete(value);
       else next.add(value);
@@ -224,10 +239,10 @@ export default function DetectionSectionModal({
     });
   };
 
-  const selectAllFm = () => setFmSelectedIds(new Set(filteredItems.map(it => it.value)));
-  const deselectAllFm = () => setFmSelectedIds(new Set());
-  const selectAllFc = () => setFcSelectedIds(new Set(fcFilteredItems.map(it => it.value)));
-  const deselectAllFc = () => setFcSelectedIds(new Set());
+  const selectAllSec1 = () => setSec1SelectedIds(new Set(filteredItems.map(it => it.value)));
+  const deselectAllSec1 = () => setSec1SelectedIds(new Set());
+  const selectAllSec2 = () => setSec2SelectedIds(new Set(fcFilteredItems.map(it => it.value)));
+  const deselectAllSec2 = () => setSec2SelectedIds(new Set());
 
   // LLD 추천 핸들러
   const toggleLld = (id: string) => {
@@ -266,78 +281,66 @@ export default function DetectionSectionModal({
       if (!ws) { alert('시트가 없습니다.'); return; }
       const json = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
       if (json.length === 0) { alert('데이터가 없습니다.'); return; }
-      const CLS = new Set(['RMA','ABN','CIP','ECN','FieldIssue','DevIssue']);
       const imported = json.map((row, idx) => ({
-        lldNo: String(row['LLD_No'] || row['lldNo'] || '').trim() || `LLD${new Date().getFullYear().toString().slice(-2)}-${String(idx + 1).padStart(3, '0')}`,
-        classification: CLS.has(String(row['구분'] || '')) ? String(row['구분']) : 'CIP',
-        applyTo: String(row['적용'] || '').includes('검출') ? 'detection' : 'prevention',
+        lldNo: `DCMAP${new Date().getFullYear().toString().slice(-2)}-${String(idx + 1).padStart(3, '0')}`,
+        classification: 'DC_MAP',
+        applyTo: 'detection',
         processNo: String(row['공정번호'] || '').trim(),
-        processName: String(row['공정명'] || '').trim(),
-        productName: String(row['제품명'] || '').trim(),
+        processName: '',
+        productName: '',
         failureMode: String(row['고장형태'] || '').trim(),
         cause: String(row['고장원인'] || '').trim(),
-        occurrence: row['O값'] ? parseInt(String(row['O값']), 10) || null : null,
+        occurrence: null,
         detection: row['D값'] ? parseInt(String(row['D값']), 10) || null : null,
-        improvement: String(row['개선대책'] || '').trim(),
-        vehicle: String(row['차종'] || '').trim(),
-        target: String(row['대상'] || '제조').trim(),
-        m4Category: String(row['4M'] || '').trim(),
-        location: String(row['발생장소'] || '').trim(),
-        completedDate: String(row['완료일자'] || '').trim(),
-        status: (['G','Y','R'].includes(String(row['상태'] || '').trim()) ? String(row['상태']).trim() : 'R'),
-        sourceType: 'import', priority: 0,
+        improvement: String(row['검출관리내용'] || '').trim(),
+        vehicle: '', target: '', m4Category: '', location: '', completedDate: '',
+        status: 'G', sourceType: 'import', priority: 0,
       }));
       const res = await fetch('/api/lld', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: imported }) });
       const result = await res.json();
-      if (result.success) alert(`LLD Import 완료: ${imported.length}건 저장`);
+      if (result.success) alert(`Import 완료: ${imported.length}건 저장`);
       else alert('Import 저장 실패: ' + (result.error || ''));
-    } catch (error) { console.error('[LLD Import] 오류:', error); alert('엑셀 읽기 오류'); }
+    } catch (error) { console.error('[Import] 오류:', error); alert('엑셀 읽기 오류'); }
     e.target.value = '';
   };
 
   // ── LLD Export ──
   const handleExport = () => {
-    if (lldDetItems.length === 0) { alert('내보낼 LLD 데이터가 없습니다.'); return; }
-    const HEADERS = ['LLD_No','구분','적용','공정번호','공정명','제품명','고장형태','고장원인','O값','D값','개선대책','차종','대상','상태'];
-    const COL_WIDTHS = [12,8,8,10,15,15,25,25,6,6,35,10,8,6];
-    const rows = lldDetItems.map(it => [it.lldNo, '', '검출관리', it.processNo, it.processName, it.productName, it.failureMode, it.cause, it.occurrence ?? '', it.detection ?? '', it.improvement, '', '', it.status]);
+    const HEADERS = ['공정번호','고장형태','고장원인','검출관리내용','D값','비고'];
+    const COL_WIDTHS = [12,20,20,35,8,20];
+    const rows = lldDetItems.length > 0
+      ? lldDetItems.map(it => [it.processNo, it.failureMode, it.cause, it.improvement, it.detection ?? '', ''])
+      : [['', '', '', '', '', '']];
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    downloadStyledExcel(HEADERS, rows, COL_WIDTHS, 'LLD_검출관리', `LLD_Detection_${today}.xlsx`);
+    downloadStyledExcel(HEADERS, rows, COL_WIDTHS, 'DC_Import양식', `DC_ImportTemplate_${today}.xlsx`);
   };
 
   const handleApply = () => {
-    if (viewMode === 'master') {
-      // [FM]D:xxx 형식으로 결합 → onSave에 전달
-      const values: string[] = [];
-      fmSelectedIds.forEach(v => values.push(`[FM]${v}`));
-      fcSelectedIds.forEach(v => values.push(`[FC]${v}`));
-      onSave(values);
-    } else {
-      // LLD 추천에서 선택한 improvement 텍스트를 DC 값으로
-      const values: string[] = [];
-      lldSelectedIds.forEach(id => {
-        const item = lldDetItems.find(it => it.id === id);
-        if (item) values.push(`[FC]${item.improvement}`);
-      });
-      onSave(values);
-    }
+    const values: string[] = [];
+    sec1SelectedIds.forEach(v => values.push(`[FM]${v}`));
+    sec2SelectedIds.forEach(v => values.push(`[FC]${v}`));
+    lldSelectedIds.forEach(id => {
+      const item = lldDetItems.find(it => it.id === id);
+      if (item) values.push(`[FC]${item.improvement}`);
+    });
+    onSave(values);
   };
 
   const handleDeleteAll = () => {
     if (onDelete) onDelete();
   };
 
-  const fmCount = fmSelectedIds.size;
-  const fcCount = fcSelectedIds.size;
+  const fmCount = sec1SelectedIds.size;
+  const fcCount = sec2SelectedIds.size;
   const lldCount = lldSelectedIds.size;
-  const totalCount = viewMode === 'master' ? fmCount + fcCount : lldCount;
+  const totalCount = fmCount + fcCount + lldCount;
 
   if (!isOpen) return null;
 
   return createPortal(
     <div style={{
       position: 'fixed', top: `${position.top}px`, right: `${position.right}px`,
-      width: '600px', maxHeight: '80vh', zIndex: 99990,
+      width: '1020px', height: '380px', maxHeight: '90vh', zIndex: 99990,
       background: '#fff', border: '1px solid #d1d5db', borderRadius: '8px',
       boxShadow: '0 8px 32px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column',
     }}>
@@ -351,7 +354,7 @@ export default function DetectionSectionModal({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700 }}>검출관리 선택</span>
+          <span style={{ fontSize: '13px', fontWeight: 700 }}>검출관리 집중 매핑 (3-Panel)</span>
           {sodInfo && (
             <span style={{ fontSize: '10px', opacity: 0.85 }}>
               S:{sodInfo.s || '-'} O:{sodInfo.o || '-'} D:{sodInfo.d || '-'}
@@ -369,109 +372,75 @@ export default function DetectionSectionModal({
         </div>
       </div>
 
-      {/* ──── 탭 + 검색바 + 버튼 ──── */}
-      <div style={{ padding: '6px 10px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {/* 뷰 모드 탭 */}
-        <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
-          {([['master', '기초정보'], ['recommend', '해당공정'], ['allProcess', '전체공정']] as const).map(([mode, label]) => (
-            <button key={mode} onClick={() => { setViewMode(mode); if (mode !== viewMode) setLldSelectedIds(new Set()); }}
-              style={{
-                fontSize: '10px', padding: '2px 8px', borderRadius: '3px', cursor: 'pointer',
-                border: viewMode === mode ? '1px solid #1e40af' : '1px solid #d1d5db',
-                background: viewMode === mode ? '#1e40af' : '#f3f4f6',
-                color: viewMode === mode ? '#fff' : '#374151',
-                fontWeight: viewMode === mode ? 700 : 400,
-              }}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {viewMode === 'master' && (
-          <input
-            ref={searchRef}
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="검출관리 검색..."
-            style={{ flex: 1, padding: '4px 8px', fontSize: '11px', border: '1px solid #d1d5db', borderRadius: '4px', outline: 'none' }}
-          />
-        )}
-        {viewMode !== 'master' && <div style={{ flex: 1 }} />}
+      {/* ──── 버튼 바 ──── */}
+      <div style={{ padding: '4px 10px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>※ 3단 편집을 통해 신속하게 매핑하세요.</span>
+        <div style={{ flex: 1 }} />
         <button onClick={handleApply} disabled={totalCount === 0}
           style={{ padding: '3px 12px', fontSize: '11px', fontWeight: 600, background: totalCount > 0 ? '#2563eb' : '#9ca3af', color: '#fff', border: 'none', borderRadius: '4px', cursor: totalCount > 0 ? 'pointer' : 'default' }}>
-          적용
+          일괄 적용<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(OK)</span>
         </button>
         <button onClick={handleDeleteAll}
           style={{ padding: '3px 8px', fontSize: '11px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          삭제
+          삭제<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(Del)</span>
         </button>
         <button onClick={handleImport}
           style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 600, background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          ↑Import
+          ↑양식 Import
         </button>
         <button onClick={handleExport}
           style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 600, background: '#f97316', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          ↓Export
+          ↓양식 Export
         </button>
         <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleFileChange} />
       </div>
 
-      {/* ──── 스크롤 영역 ──── */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        {loading ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '12px' }}>로딩 중...</div>
-        ) : allItems.length === 0 ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '12px' }}>
-            검출관리 기초정보가 없습니다.<br />Import에서 검출관리 데이터를 먼저 등록해주세요.
-          </div>
-        ) : (
-          <>
-            {viewMode === 'master' ? (
-              <>
-                {/* ── 1순위: 고장형태(FM) 검출 ── */}
-                <SectionPanel
-                  title="1순위: 고장형태(FM) 검출"
-                  badgeText={fmText || '(미지정)'}
-                  badgeColor="#16a34a"
-                  items={filteredItems}
-                  selectedIds={fmSelectedIds}
-                  onToggle={toggleFm}
-                  onSelectAll={selectAllFm}
-                  onDeselectAll={deselectAllFm}
-                  selectedCount={fmCount}
-                  ratingInfo="D:2~10"
-                />
+      {/* ──── 3 Flex 열 영역 ──── */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, padding: 0 }}>
+        {/* 0순위: 내 매핑 (Import) */}
+        <div style={{ flex: 1, borderRight: '1px solid #d1d5db', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <LldDetRecommendPanel
+            items={filteredLldCurrent}
+            selectedIds={lldSelectedIds}
+            onToggle={toggleLld}
+            onSelectAll={selectAllLld}
+            onDeselectAll={deselectAllLld}
+            processName={processName}
+            isAllProcess={false}
+          />
+        </div>
 
-                {/* ── 구분선 ── */}
-                <div style={{ height: '1px', background: '#d1d5db', margin: '0 10px' }} />
+        {/* 1순위: 표준기반 (발생도/검출도 기준) */}
+        <div style={{ flex: 1, borderRight: '1px solid #d1d5db', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <SectionPanel
+            title="1순위: 표준기반(검출도기준) [FM마커]"
+            badgeText={fmText || '(미지정)'}
+            badgeColor="#16a34a"
+            items={filteredItems}
+            selectedIds={sec1SelectedIds}
+            onToggle={toggleSec1}
+            onSelectAll={selectAllSec1}
+            onDeselectAll={deselectAllSec1}
+            selectedCount={fmCount}
+            ratingInfo="D:2~10"
+          />
+        </div>
 
-                {/* ── 2순위: 고장원인(FC) 검출 ── */}
-                <SectionPanel
-                  title="2순위: 고장원인(FC) 검출"
-                  badgeText={fcText || '(미지정)'}
-                  badgeColor="#ea580c"
-                  items={fcFilteredItems}
-                  selectedIds={fcSelectedIds}
-                  onToggle={toggleFc}
-                  onSelectAll={selectAllFc}
-                  onDeselectAll={deselectAllFc}
-                  selectedCount={fcCount}
-                  ratingInfo={fmBestD > 0 ? `D<${fmBestD} 허용` : 'D:2,5,6,7,8'}
-                />
-              </>
-            ) : (
-              <LldDetRecommendPanel
-                items={viewMode === 'recommend' ? filteredLldCurrent : filteredLldAll}
-                selectedIds={lldSelectedIds}
-                onToggle={toggleLld}
-                onSelectAll={selectAllLld}
-                onDeselectAll={deselectAllLld}
-                processName={processName}
-                isAllProcess={viewMode === 'allProcess'}
-              />
-            )}
-          </>
-        )}
+        {/* 2순위: 산업DB */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <SectionPanel
+            title="2순위: 산업DB [FC마커]"
+            badgeText={fcText || '(미지정)'}
+            badgeColor="#ea580c"
+            items={krItems}
+            selectedIds={sec2SelectedIds}
+            onToggle={toggleSec2}
+            onSelectAll={selectAllSec2}
+            onDeselectAll={deselectAllSec2}
+            selectedCount={fcCount}
+            ratingInfo="산업DB"
+          />
+        </div>
       </div>
 
       {/* ──── 푸터 ──── */}
@@ -521,7 +490,7 @@ function SectionPanel({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div style={{ padding: '6px 10px' }}>
+    <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* 섹션 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
         <button
@@ -561,8 +530,8 @@ function SectionPanel({
       {/* 아이템 그리드 */}
       {!collapsed && (
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '2px',
-          maxHeight: '180px', overflowY: 'auto',
+          display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '4px',
+          flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'start',
         }}>
           {items.map(item => {
             const isSelected = selectedIds.has(item.value);

@@ -478,41 +478,115 @@ export function useRecommendHandlers({
     setRecommendModal(prev => ({ ...prev, isOpen: false }));
   }, []);
 
-  // ★ 발생도(O) 자동추천 — PC 텍스트 기반
-  const autoRecommendO = useCallback(() => {
+  // ★ 발생도(O) 자동추천 — Master SOD API + PC 키워드 기반
+  const autoRecommendO = useCallback(async () => {
     if (!state?.riskData || !setState) return;
+
+    const fmeaId = (state as any).fmeaId || new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('id') || '';
+    let masterFilled = 0;
+
+    // 1차: Master SOD API에서 O값 가져오기
+    if (fmeaId) {
+      try {
+        const res = await fetch('/api/master/sod-recommend', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fmeaId }),
+        });
+        const json = await res.json();
+        if (json.success && json.results) {
+          setState((prev: WorksheetState) => {
+            const rd = { ...(prev.riskData || {}) };
+            for (const r of json.results) {
+              if (!r.occurrence || r.occurrence <= 0 || r.matchType === 'none') continue;
+              const fl = (prev.failureLinks || []).find((l: any) => l.id === r.linkId);
+              if (!fl) continue;
+              const uk = `${fl.fmId}-${fl.fcId}`;
+              const cur = Number(rd[`risk-${uk}-O`]) || 0;
+              if (cur <= 1) {
+                rd[`risk-${uk}-O`] = r.occurrence;
+                rd[`imported-O-${uk}`] = 'auto';
+                masterFilled++;
+              }
+            }
+            return { ...prev, riskData: rd };
+          });
+        }
+      } catch { /* Master API 실패 → 키워드 폴백 */ }
+    }
+
+    // 2차: 키워드 기반 폴백 (Master에서 못 채운 건)
     const fls = (state.failureLinks || []).map((fl) => ({
-      fmId: String(fl.fmId || ''),
-      fcId: String(fl.fcId || ''),
+      fmId: String(fl.fmId || ''), fcId: String(fl.fcId || ''),
     }));
     const result = autoFillMissingOccurrence(state.riskData || {}, fls);
-    if (result.filledCount === 0) {
+    if (result.filledCount > 0) {
+      setState((prev: WorksheetState) => ({ ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } }));
+    }
+
+    const total = masterFilled + result.filledCount;
+    if (total === 0) {
       alert('발생도(O) 누락이 없습니다.');
       return;
     }
-    setState((prev: WorksheetState) => ({ ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } }));
     setDirty?.(true);
     saveAtomicDB?.(true);
-    alert(`발생도(O) ${result.filledCount}건 자동추천 완료\n\n${result.details.slice(0, 5).map(d => `• ${d.reason}`).join('\n')}${result.details.length > 5 ? `\n... 외 ${result.details.length - 5}건` : ''}`);
-  }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB]);
+    alert(`발생도(O) 자동추천 완료!\n\nMaster DB 기반: ${masterFilled}건\n키워드 기반: ${result.filledCount}건\n합계: ${total}건`);
+  }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB, state]);
 
-  // ★ 검출도(D) 자동추천 — DC 텍스트 기반 AIAG-VDA 키워드 매칭
-  const autoRecommendD = useCallback(() => {
+  // ★ 검출도(D) 자동추천 — Master SOD API + DC 키워드 기반
+  const autoRecommendD = useCallback(async () => {
     if (!state?.riskData || !setState) return;
+
+    const fmeaId = (state as any).fmeaId || new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('id') || '';
+    let masterFilled = 0;
+
+    // 1차: Master SOD API에서 D값 가져오기
+    if (fmeaId) {
+      try {
+        const res = await fetch('/api/master/sod-recommend', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fmeaId }),
+        });
+        const json = await res.json();
+        if (json.success && json.results) {
+          setState((prev: WorksheetState) => {
+            const rd = { ...(prev.riskData || {}) };
+            for (const r of json.results) {
+              if (!r.detection || r.detection <= 0 || r.matchType === 'none') continue;
+              const fl = (prev.failureLinks || []).find((l: any) => l.id === r.linkId);
+              if (!fl) continue;
+              const uk = `${fl.fmId}-${fl.fcId}`;
+              const cur = Number(rd[`risk-${uk}-D`]) || 0;
+              if (cur <= 1) {
+                rd[`risk-${uk}-D`] = r.detection;
+                rd[`imported-D-${uk}`] = 'auto';
+                masterFilled++;
+              }
+            }
+            return { ...prev, riskData: rd };
+          });
+        }
+      } catch { /* Master API 실패 → 키워드 폴백 */ }
+    }
+
+    // 2차: 키워드 기반 폴백
     const fls = (state.failureLinks || []).map((fl) => ({
-      fmId: String(fl.fmId || ''),
-      fcId: String(fl.fcId || ''),
+      fmId: String(fl.fmId || ''), fcId: String(fl.fcId || ''),
     }));
     const result = autoFillMissingDetection(state.riskData || {}, fls);
-    if (result.filledCount === 0) {
+    if (result.filledCount > 0) {
+      setState((prev: WorksheetState) => ({ ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } }));
+    }
+
+    const total = masterFilled + result.filledCount;
+    if (total === 0) {
       alert('검출도(D) 누락이 없습니다.');
       return;
     }
-    setState((prev: WorksheetState) => ({ ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } }));
     setDirty?.(true);
     saveAtomicDB?.(true);
-    alert(`검출도(D) ${result.filledCount}건 자동추천 완료\n\n${result.details.slice(0, 5).map(d => `• ${d.reason}`).join('\n')}${result.details.length > 5 ? `\n... 외 ${result.details.length - 5}건` : ''}`);
-  }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB]);
+    alert(`검출도(D) 자동추천 완료!\n\nMaster DB 기반: ${masterFilled}건\n키워드 기반: ${result.filledCount}건\n합계: ${total}건`);
+  }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB, state]);
 
   return {
     handleAPImprove,

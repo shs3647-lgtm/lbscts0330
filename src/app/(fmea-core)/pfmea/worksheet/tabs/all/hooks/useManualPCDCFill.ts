@@ -149,16 +149,64 @@ export function useManualPCDCFill({
           industryOMap.size > 0 ? industryOMap : undefined,
         );
         if (result.pcFilledCount === 0 && result.dcFilledCount === 0) {
-          // setTimeout으로 alert를 비동기로 — setState 내부에서 alert 금지
           setTimeout(() => alert('모든 PC/DC 셀이 이미 채워져 있습니다.'), 0);
           return prev;
         }
         setDirty?.(true);
         setTimeout(() => {
-          alert(`PC/DC 매칭 완료!\n\n예방관리(PC): ${result.pcFilledCount}건 채움\n검출관리(DC): ${result.dcFilledCount}건 채움`);
+          alert(
+            `PC/DC 매칭 완료!\n\n` +
+            `예방관리(PC): ${result.pcFilledCount}건 채움\n` +
+            `검출관리(DC): ${result.dcFilledCount}건 채움\n` +
+            `발생도(O): ${result.oEvaluatedCount}건 평가\n` +
+            `검출도(D): ${result.dEvaluatedCount}건 평가`
+          );
         }, 0);
         return { ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } };
       });
+
+      // ★ Master SOD 재평가: PC/DC 매칭 후 Master DB 기준으로 O/D 점수 보정
+      if (fmeaId) {
+        try {
+          const sodRes = await fetch('/api/master/sod-recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId }),
+          });
+          const sodJson = await sodRes.json();
+          if (sodJson.success && sodJson.results) {
+            setState((prev: WorksheetState) => {
+              const rd = { ...(prev.riskData || {}) };
+              let oFixed = 0;
+              let dFixed = 0;
+              for (const r of sodJson.results) {
+                if (!r.linkId || r.matchType === 'none') continue;
+                // linkId에서 uniqueKey 찾기 — failureLinks에서 역매핑
+                const fl = (prev.failureLinks || []).find((l: any) => l.id === r.linkId);
+                if (!fl) continue;
+                const uk = `${fl.fmId}-${fl.fcId}`;
+                if (r.occurrence && r.occurrence > 0 && (!rd[`risk-${uk}-O`] || Number(rd[`risk-${uk}-O`]) <= 1)) {
+                  rd[`risk-${uk}-O`] = r.occurrence;
+                  rd[`imported-O-${uk}`] = 'auto';
+                  oFixed++;
+                }
+                if (r.detection && r.detection > 0 && (!rd[`risk-${uk}-D`] || Number(rd[`risk-${uk}-D`]) <= 1)) {
+                  rd[`risk-${uk}-D`] = r.detection;
+                  rd[`imported-D-${uk}`] = 'auto';
+                  dFixed++;
+                }
+              }
+              if (oFixed > 0 || dFixed > 0) {
+                console.log(`[PC/DC매칭] Master SOD 보정: O=${oFixed}건, D=${dFixed}건`);
+                return { ...prev, riskData: rd };
+              }
+              return prev;
+            });
+          }
+        } catch (e) {
+          console.warn('[PC/DC매칭] Master SOD 보정 스킵:', e);
+        }
+      }
 
       // DB 저장
       setTimeout(() => { if (saveAtomicDB) saveAtomicDB(true); }, 300);

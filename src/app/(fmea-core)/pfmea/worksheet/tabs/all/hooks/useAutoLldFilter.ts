@@ -120,8 +120,8 @@ function findBestMatch(
   fmText?: string,
   fcText?: string,
 ): { item: LLDFilterItem | null; tier: 1 | 2 | 3 | 0; desc: string } {
-  // G(완료) + Y(진행중) 모두 추천 대상 (R=미완료 제외)
-  const filtered = llds.filter(l => l.applyTo === applyTo && l.status !== 'R');
+  // G(완료) + Y(진행중) 모두 추천 대상 (R=미완료 제외), 개선대책(improvement)이 비어있는 경우 제외
+  const filtered = llds.filter(l => l.applyTo === applyTo && l.status !== 'R' && l.improvement && l.improvement.trim().length > 0);
 
   const byPriority = (a: LLDFilterItem, b: LLDFilterItem) => b.priority - a.priority;
 

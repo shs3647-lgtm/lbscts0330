@@ -230,6 +230,7 @@ export default function PFMEAListPage() {
 
   const { isAdmin } = useAuth();
   const [trashMode, setTrashMode] = useState(false);
+  const [archiveMode, setArchiveMode] = useState(false); // ★ 구본보관함 모드
 
   const { selectedRows, toggleRow, toggleAllRows, clearSelection, isAllSelected } = useListSelection();
   const { confirmDialog, ConfirmDialogUI } = useConfirmDialog();
@@ -249,7 +250,8 @@ export default function PFMEAListPage() {
     setIsLoading(true);
     try {
       const includeDeletedParam = trashMode && isAdmin ? '&includeDeleted=true' : '';
-      const url = `${CONFIG.apiEndpoint}${includeDeletedParam}&page=${page}&size=${PAGE_SIZE}&sortField=${sortField}&sortOrder=${sortOrder}&search=${encodeURIComponent(debouncedSearch)}`;
+      const archiveParam = archiveMode ? '&isArchive=true' : '';
+      const url = `${CONFIG.apiEndpoint}${includeDeletedParam}${archiveParam}&page=${page}&size=${PAGE_SIZE}&sortField=${sortField}&sortOrder=${sortOrder}&search=${encodeURIComponent(debouncedSearch)}`;
 
       const response = await fetch(url);
       const result = await response.json();
@@ -293,7 +295,7 @@ export default function PFMEAListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, sortField, sortOrder, debouncedSearch, trashMode, isAdmin]);
+  }, [page, sortField, sortOrder, debouncedSearch, trashMode, archiveMode, isAdmin]);
 
   // ★ handleSave 제거 - DB Only 방식으로 저장은 등록 페이지에서 직접 API 호출
   const handleSave = useCallback(() => {
@@ -307,12 +309,12 @@ export default function PFMEAListPage() {
     return () => window.removeEventListener('fmea-projects-updated', handleUpdate);
   }, [loadData]);
 
-  // ★ 휴지통 모드 전환 시 데이터 새로 로드
+  // ★ 모드 전환 시 데이터 새로 로드 및 페이지 초기화
   useEffect(() => {
     setPage(1);
     clearSelection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trashMode]);
+  }, [trashMode, archiveMode]);
 
   // ★ 정렬 핸들러 — 정렬 변경 시 1페이지로 리셋
   const handleSort = (field: string) => {
@@ -545,36 +547,58 @@ export default function PFMEAListPage() {
     >
       <div className="font-[Malgun_Gothic]" style={{ padding: '4px 16px 4px 5px' }}>
         {/* 헤더 */}
-        <div className="flex items-center gap-1 mb-1">
-          <span className="text-lg">📋</span>
-          <h1 className="text-base font-bold text-gray-800">{CONFIG.moduleName} 리스트(List)</h1>
-          {isLoading ? (
-            <span className="text-xs text-blue-500 ml-2">⏳ 로딩 중...(Loading...)</span>
-          ) : (
-            <span className="text-xs text-gray-500 ml-2">총(Total) {totalCount}건(Items)</span>
-          )}
-          {/* ★ 관리자 전용: 휴지통 토글 + 복원 버튼 */}
-          {isAdmin && (
-            <div className="flex items-center gap-1 ml-auto">
-              <button
-                onClick={() => { setTrashMode(prev => !prev); clearSelection(); }}
-                className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-colors ${trashMode ? 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200' : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'}`}
-                title={trashMode ? '일반 목록으로 돌아가기(Back to list)' : '삭제된 항목 보기(View deleted items)'}
-              >
-                {trashMode ? '📋 리스트(List)' : '🗑️ 휴지통(Trash)'}
-              </button>
-              {trashMode && (
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1">
+            <span className="text-lg">📋</span>
+            <h1 className="text-base font-bold text-gray-800">{CONFIG.moduleName} 리스트(List)</h1>
+            {isLoading ? (
+              <span className="text-xs text-blue-500 ml-2">⏳ 로딩 중...(Loading...)</span>
+            ) : (
+              <span className="text-xs text-gray-500 ml-2">총(Total) {totalCount}건(Items)</span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* ★ 구본보관함 토글 버튼 (항상 노출) */}
+            <button
+              onClick={() => {
+                setArchiveMode(prev => !prev);
+                if (trashMode) setTrashMode(false);
+                clearSelection();
+              }}
+              className={`px-3 py-1 rounded text-[11px] font-bold border transition-colors ${archiveMode ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' : 'bg-gray-50 text-gray-600 border-gray-300 hover:bg-gray-100'}`}
+              title={archiveMode ? '최신 활성 목록으로 돌아가기(Back to active list)' : '구본보관함(초과된 과거 버전문서) 보기(View archived old versions)'}
+            >
+              {archiveMode ? '📋 활성 FMEA 보기' : '📦 구본보관함(Archive)'}
+            </button>
+
+            {/* ★ 관리자 전용: 휴지통 토글 + 복원 버튼 */}
+            {isAdmin && (
+              <div className="flex items-center gap-1 border-l pl-2 border-gray-300">
                 <button
-                  onClick={handleRestore}
-                  disabled={selectedRows.size === 0}
-                  className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-colors ${selectedRows.size > 0 ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200' : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}
-                  title="선택 항목 복원(Restore selected items)"
+                  onClick={() => { 
+                    setTrashMode(prev => !prev); 
+                    if (archiveMode) setArchiveMode(false);
+                    clearSelection(); 
+                  }}
+                  className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-colors ${trashMode ? 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200' : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'}`}
+                  title={trashMode ? '일반 목록으로 돌아가기(Back to list)' : '삭제된 항목 보기(View deleted items)'}
                 >
-                  ♻️ 복원(Restore) {selectedRows.size > 0 ? `(${selectedRows.size})` : ''}
+                  {trashMode ? '📋 활성 FMEA 보기' : '🗑️ 휴지통(Trash)'}
                 </button>
-              )}
-            </div>
-          )}
+                {trashMode && (
+                  <button
+                    onClick={handleRestore}
+                    disabled={selectedRows.size === 0}
+                    className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-colors ${selectedRows.size > 0 ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200' : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}
+                    title="선택 항목 복원(Restore selected items)"
+                  >
+                    ♻️ 복원(Restore) {selectedRows.size > 0 ? `(${selectedRows.size})` : ''}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 액션 바 + 삭제 도움말 */}

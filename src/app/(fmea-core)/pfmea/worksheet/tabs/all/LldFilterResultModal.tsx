@@ -131,37 +131,86 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
       const wb = XLSX.read(ab, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       if (!ws) { alert('시트가 없습니다.'); return; }
-      const json = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
-      if (json.length === 0) { alert('데이터가 없습니다.'); return; }
-      const CLASSIFICATION_SET = new Set(['RMA','ABN','CIP','ECN','FieldIssue','DevIssue']);
-      const imported = json.map((row, idx) => ({
-        lldNo: String(row['LLD_No'] || row['lldNo'] || '').trim() || `LLD${new Date().getFullYear().toString().slice(-2)}-${String(idx + 1).padStart(3, '0')}`,
-        classification: CLASSIFICATION_SET.has(String(row['구분'] || '')) ? String(row['구분']) : 'CIP',
-        applyTo: String(row['적용'] || '').includes('검출') ? 'detection' : 'prevention',
-        processNo: String(row['공정번호'] || '').trim(),
-        processName: String(row['공정명'] || '').trim(),
-        productName: String(row['제품명'] || '').trim(),
-        failureMode: String(row['고장형태'] || '').trim(),
-        cause: String(row['고장원인'] || '').trim(),
-        occurrence: row['O값'] ? parseInt(String(row['O값']), 10) || null : null,
-        detection: row['D값'] ? parseInt(String(row['D값']), 10) || null : null,
-        improvement: String(row['개선대책'] || '').trim(),
-        vehicle: String(row['차종'] || '').trim(),
-        target: String(row['대상'] || '제조').trim(),
-        m4Category: String(row['4M'] || '').trim(),
-        location: String(row['발생장소'] || '').trim(),
-        completedDate: String(row['완료일자'] || '').trim(),
-        status: (['G','Y','R'].includes(String(row['상태'] || '').trim()) ? String(row['상태']).trim() : 'R'),
-        sourceType: 'import',
-        priority: 0,
-      }));
+      const rawRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+      if (rawRows.length === 0) { alert('데이터가 없습니다.'); return; }
+
+      let headerIdx = -1;
+      for (let i = 0; i < Math.min(rawRows.length, 5); i++) {
+        if (rawRows[i] && typeof rawRows[i][0] === 'string' && rawRows[i][0].includes('LLD')) {
+          headerIdx = i;
+          break;
+        }
+      }
+      if (headerIdx === -1) { alert('헤더(LLD No.)를 찾을 수 없습니다.'); return; }
+
+      const headers = rawRows[headerIdx];
+      let dataStartIdx = headerIdx + 1;
+      if (rawRows[headerIdx + 1] && typeof rawRows[headerIdx + 1][0] === 'string' && rawRows[headerIdx + 1][0].includes('LLD')) {
+        dataStartIdx = headerIdx + 2;
+      }
+
+      const imported: any[] = [];
+      for (let i = dataStartIdx; i < rawRows.length; i++) {
+        const rowArr = rawRows[i];
+        if (!rowArr || rowArr.length === 0 || !rowArr[0]) continue;
+
+        const row = headers.reduce((acc: any, h: string, idx: number) => {
+          if (h) acc[h.trim()] = rowArr[idx];
+          return acc;
+        }, {});
+
+        const rawGubun = String(row['구분'] || row['Category'] || '');
+        const classification = rawGubun.includes('ABN') ? 'ABN' : rawGubun.includes('RMA') ? 'RMA' : rawGubun.includes('CIP') ? 'CIP' : 'CIP';
+        
+        let rawStatus = String(row['상태'] || row['Status'] || '').trim();
+        let statusObj = 'R';
+        if (rawStatus.includes('완료') || rawStatus === 'G') statusObj = 'G';
+        else if (rawStatus.includes('예정') || rawStatus === 'Y' || classification === 'CIP') statusObj = 'Y';
+        
+        const lldNo = String(row['LLD No.'] || row['LLD_No'] || row['LLD No'] || row['lldNo'] || '').trim()
+          || `LLD${new Date().getFullYear().toString().slice(-2)}-${String(i).padStart(3, '0')}`;
+        const processName = String(row['공정명'] || row['Process'] || '').trim();
+        const productName = ''; // AU_BUMP.xlsx 구조
+        const failureMode = String(row['고장형태(FM)'] || row['Failure Mode'] || row['고장형태'] || '').trim();
+        const cause = String(row['고장원인(FC)'] || row['Failure Cause'] || row['고장원인'] || '').trim();
+        const sVal = row['S'] ? parseInt(String(row['S']), 10) || null : null;
+        const oVal = row['O'] ? parseInt(String(row['O']), 10) || null : null;
+        const dVal = row['D'] ? parseInt(String(row['D']), 10) || null : null;
+        const compDate = String(row['개선일자'] || row['완료일자'] || row['Comp. Date'] || '').trim();
+        const owner = String(row['담당자'] || row['Owner'] || '').trim();
+        const attach = String(row['첨부(근거서류)'] || row['Attachment'] || '').trim();
+
+        const prevImpr = String(row['예방관리 개선'] || row['PC Improvement'] || '').trim();
+        const detImpr = String(row['검출관리 개선'] || row['DC Improvement'] || '').trim();
+
+        if (prevImpr) {
+          imported.push({
+            lldNo, classification, applyTo: 'prevention',
+            processNo: '', processName, productName, failureMode, cause,
+            occurrence: oVal, detection: dVal,
+            improvement: prevImpr,
+            vehicle: '', target: '', m4Category: '', location: '', completedDate: compDate,
+            status: statusObj, sourceType: 'import', priority: 0,
+          });
+        }
+        if (detImpr) {
+          imported.push({
+            lldNo, classification, applyTo: 'detection',
+            processNo: '', processName, productName, failureMode, cause,
+            occurrence: oVal, detection: dVal,
+            improvement: detImpr,
+            vehicle: '', target: '', m4Category: '', location: '', completedDate: compDate,
+            status: statusObj, sourceType: 'import', priority: 0,
+          });
+        }
+      }
       const res = await fetch('/api/lld', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: imported }),
       });
       const result = await res.json();
-      if (result.success) alert(`LLD Import 완료: ${imported.length}건 저장`);
+      if (result.success) alert(`LLD Import 완료: ${imported.length}건 분할 저장`);
       else alert('Import 저장 실패: ' + (result.error || '알 수 없는 오류'));
     } catch (error) {
       console.error('[LLD Import] 오류:', error);
@@ -170,30 +219,77 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
     e.target.value = '';
   };
 
-  // ── LLD 엑셀 Export ──
+  // ── LLD 엑셀 Export (통일 양식 - 14컬럼) ──
   const handleExport = () => {
     if (filtered.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
-    const HEADERS = ['#','공정번호','공정명','고장형태','고장원인','AP','대상','등급','LLD No','개선대책','O','D'];
-    const COL_WIDTHS = [5, 10, 15, 25, 25, 5, 8, 8, 12, 35, 5, 5];
-    const rows = filtered.map((c, idx) => {
-      const tier = TIER_META[c.matchTier] || TIER_META[0];
+    
+    // 제품명 제거된 14 컬럼 
+    const NEW_HEADERS = ['LLD No.', '구분', '공정명', '고장형태(FM)', '고장원인(FC)', 'S', 'O', 'D', '예방관리 개선', '검출관리 개선', '개선일자', '상태', '담당자', '첨부(근거서류)'];
+    const EN_HEADERS = ['LLD No.', 'Category', 'Process', 'Failure Mode', 'Failure Cause', 'S', 'O', 'D', 'PC Improvement', 'DC Improvement', 'Comp. Date', 'Status', 'Owner', 'Attachment'];
+    const NEW_WIDTHS = [12, 10, 15, 25, 25, 5, 5, 5, 35, 35, 12, 8, 10, 20];
+
+    const grouped = new Map<string, any>();
+    
+    // c.realUk (FMEA 행 단위)로 예방/검출 묶기
+    for (const c of filtered) {
+      const key = c.realUk;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          realUk: c.realUk,
+          lldNo: c.matchedLld?.lldNo || '',
+          classification: c.matchedLld?.classification || 'CIP',
+          processName: c.processName,
+          failureMode: c.fmText,
+          cause: c.fcText,
+          oVal: c.applyTarget === 'prevention' ? c.matchedLld?.occurrence : '',
+          dVal: c.applyTarget === 'detection' ? c.matchedLld?.detection : '',
+          prevImpr: c.applyTarget === 'prevention' ? (c.matchedLld?.improvement || '') : '',
+          detImpr: c.applyTarget === 'detection' ? (c.matchedLld?.improvement || '') : '',
+          status: c.matchedLld?.status || 'Y'
+        });
+      } else {
+        const existing = grouped.get(key);
+        // LLD 번호가 양쪽에 다 있고 다르면 병합 (보통 같음)
+        if (!existing.lldNo && c.matchedLld?.lldNo) existing.lldNo = c.matchedLld.lldNo;
+        
+        if (c.applyTarget === 'prevention') {
+          existing.prevImpr = c.matchedLld?.improvement || '';
+          if (c.matchedLld?.occurrence) existing.oVal = c.matchedLld.occurrence;
+        } else {
+          existing.detImpr = c.matchedLld?.improvement || '';
+          if (c.matchedLld?.detection) existing.dVal = c.matchedLld.detection;
+        }
+      }
+    }
+
+    if (grouped.size === 0) { alert('내보낼 데이터가 없습니다.'); return; }
+
+    const rows = Array.from(grouped.values()).map(row => {
+      const gubun = row.classification === 'ABN' ? '이상(ABN)' : row.classification === 'CIP' ? '개선(CIP)' : row.classification === 'RMA' ? '반품(RMA)' : row.classification;
+      const status = row.status === 'G' ? '완료' : row.status === 'Y' ? '예정' : '보류';
       return [
-        idx + 1,
-        c.processNo,
-        c.processName,
-        c.fmText,
-        c.fcText,
-        c.ap || '',
-        c.applyTarget === 'prevention' ? '예방' : '검출',
-        tier.label,
-        c.matchedLld?.lldNo || '-',
-        c.matchedLld?.improvement || '-',
-        c.matchedLld?.occurrence ?? '-',
-        c.matchedLld?.detection ?? '-',
+        row.lldNo, gubun, row.processName,
+        row.failureMode, row.cause,
+        '', row.oVal ?? '', row.dVal ?? '',
+        row.prevImpr, row.detImpr,
+        '', status, '', ''
       ];
     });
+
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    downloadStyledExcel(HEADERS, rows, COL_WIDTHS, 'LLD추천결과', `LLD_Recommend_${today}.xlsx`);
+    
+    // 워크북 생성 (Title + KR headers + EN headers + Rows)
+    const wb = XLSX.utils.book_new();
+    const wsData = [
+      ['LLD — 교훈 사례 등록 (통합본)'],
+      NEW_HEADERS,
+      EN_HEADERS,
+      ...rows
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = NEW_WIDTHS.map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, 'LLD추천추출');
+    XLSX.writeFile(wb, `LLD_Recommend_Export_${today}.xlsx`);
   };
 
   // 메뉴 버튼 공통 스타일 — LLD 페이지와 동일

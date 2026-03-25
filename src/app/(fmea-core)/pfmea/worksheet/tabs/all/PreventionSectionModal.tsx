@@ -77,9 +77,9 @@ export default function PreventionSectionModal({
   sodInfo,
 }: PreventionSectionModalProps) {
   const { position, handleMouseDown } = useDraggableModal({
-    initialPosition: { top: 100, right: 100 },
-    modalWidth: 600,
-    modalHeight: 500,
+    initialPosition: { top: 120, right: 20 },
+    modalWidth: 1020,
+    modalHeight: 380,
     isOpen,
   });
 
@@ -173,7 +173,7 @@ export default function PreventionSectionModal({
           const lldData = await lldRes.json();
           if (lldData.success && lldData.items) {
             const prevLlds = (lldData.items as Array<Record<string, unknown>>)
-              .filter(it => it.applyTo === 'prevention' && it.status !== 'R')
+              .filter(it => it.applyTo === 'prevention' && it.status !== 'R' && String(it.improvement || '').trim().length > 0)
               .map(it => ({
                 id: String(it.id || ''),
                 lldNo: String(it.lldNo || ''),
@@ -327,64 +327,55 @@ export default function PreventionSectionModal({
       if (!ws) { alert('시트가 없습니다.'); return; }
       const json = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
       if (json.length === 0) { alert('데이터가 없습니다.'); return; }
-      const CLS = new Set(['RMA','ABN','CIP','ECN','FieldIssue','DevIssue']);
       const imported = json.map((row, idx) => ({
-        lldNo: String(row['LLD_No'] || row['lldNo'] || '').trim() || `LLD${new Date().getFullYear().toString().slice(-2)}-${String(idx + 1).padStart(3, '0')}`,
-        classification: CLS.has(String(row['구분'] || '')) ? String(row['구분']) : 'CIP',
-        applyTo: String(row['적용'] || '').includes('검출') ? 'detection' : 'prevention',
+        lldNo: `PCMAP${new Date().getFullYear().toString().slice(-2)}-${String(idx + 1).padStart(3, '0')}`,
+        classification: 'PC_MAP',
+        applyTo: 'prevention',
         processNo: String(row['공정번호'] || '').trim(),
-        processName: String(row['공정명'] || '').trim(),
-        productName: String(row['제품명'] || '').trim(),
-        failureMode: String(row['고장형태'] || '').trim(),
+        processName: '',
+        productName: '',
+        failureMode: '',
         cause: String(row['고장원인'] || '').trim(),
         occurrence: row['O값'] ? parseInt(String(row['O값']), 10) || null : null,
-        detection: row['D값'] ? parseInt(String(row['D값']), 10) || null : null,
-        improvement: String(row['개선대책'] || '').trim(),
-        vehicle: String(row['차종'] || '').trim(),
-        target: String(row['대상'] || '제조').trim(),
-        m4Category: String(row['4M'] || '').trim(),
-        location: String(row['발생장소'] || '').trim(),
-        completedDate: String(row['완료일자'] || '').trim(),
-        status: (['G','Y','R'].includes(String(row['상태'] || '').trim()) ? String(row['상태']).trim() : 'R'),
-        sourceType: 'import', priority: 0,
+        detection: null,
+        improvement: String(row['예방관리내용'] || '').trim(),
+        vehicle: '', target: '', m4Category: '', location: '', completedDate: '',
+        status: 'G', sourceType: 'import', priority: 0,
       }));
       const res = await fetch('/api/lld', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: imported }) });
       const result = await res.json();
-      if (result.success) alert(`LLD Import 완료: ${imported.length}건 저장`);
+      if (result.success) alert(`Import 완료: ${imported.length}건 저장`);
       else alert('Import 저장 실패: ' + (result.error || ''));
-    } catch (error) { console.error('[LLD Import] 오류:', error); alert('엑셀 읽기 오류'); }
+    } catch (error) { console.error('[Import] 오류:', error); alert('엑셀 읽기 오류'); }
     e.target.value = '';
   };
 
   // ── LLD Export ──
   const handleExport = () => {
-    if (lldPrevItems.length === 0) { alert('내보낼 LLD 데이터가 없습니다.'); return; }
-    const HEADERS = ['LLD_No','구분','적용','공정번호','공정명','제품명','고장형태','고장원인','O값','D값','개선대책','차종','대상','상태'];
-    const COL_WIDTHS = [12,8,8,10,15,15,25,25,6,6,35,10,8,6];
-    const rows = lldPrevItems.map(it => [it.lldNo, '', '예방관리', it.processNo, it.processName, it.productName, it.failureMode, it.cause, it.occurrence ?? '', '', it.improvement, '', '', it.status]);
+    const HEADERS = ['공정번호','고장원인','예방관리내용','O값','비고'];
+    const COL_WIDTHS = [12,25,35,8,20];
+    const rows = lldPrevItems.length > 0 
+      ? lldPrevItems.map(it => [it.processNo, it.cause, it.improvement, it.occurrence ?? '', ''])
+      : [['', '', '', '', '']];
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    downloadStyledExcel(HEADERS, rows, COL_WIDTHS, 'LLD_예방관리', `LLD_Prevention_${today}.xlsx`);
+    downloadStyledExcel(HEADERS, rows, COL_WIDTHS, 'PC_Import양식', `PC_ImportTemplate_${today}.xlsx`);
   };
 
   const handleApply = () => {
     const values: string[] = [];
-    if (viewMode === 'master') {
-      sec1SelectedIds.forEach(v => values.push(v));
-      sec2SelectedIds.forEach(v => values.push(v));
-    } else {
-      // recommend 또는 allProcess
-      lldSelectedIds.forEach(id => {
-        const item = lldPrevItems.find(it => it.id === id);
-        if (item) values.push(item.improvement);
-      });
-    }
+    sec1SelectedIds.forEach(v => values.push(v));
+    sec2SelectedIds.forEach(v => values.push(v));
+    lldSelectedIds.forEach(id => {
+      const item = lldPrevItems.find(it => it.id === id);
+      if (item) values.push(item.improvement);
+    });
     onSave(values);
   };
 
   const sec1Count = sec1SelectedIds.size;
   const sec2Count = sec2SelectedIds.size;
   const lldCount = lldSelectedIds.size;
-  const totalCount = viewMode === 'master' ? sec1Count + sec2Count : lldCount;
+  const totalCount = sec1Count + sec2Count + lldCount;
 
   if (!isOpen) return null;
 
@@ -393,7 +384,7 @@ export default function PreventionSectionModal({
   return createPortal(
     <div style={{
       position: 'fixed', top: `${position.top}px`, right: `${position.right}px`,
-      width: '600px', maxHeight: '80vh', zIndex: 99990,
+      width: '1020px', height: '380px', maxHeight: '90vh', zIndex: 99990,
       background: '#fff', border: '1px solid #d1d5db', borderRadius: '8px',
       boxShadow: '0 8px 32px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column',
     }}>
@@ -407,7 +398,7 @@ export default function PreventionSectionModal({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 700 }}>예방관리 선택</span>
+          <span style={{ fontSize: '13px', fontWeight: 700 }}>예방관리 집중 매핑 (3-Panel)</span>
           {sodInfo && (
             <span style={{ fontSize: '10px', opacity: 0.85 }}>
               S:{sodInfo.s || '-'}{' '}
@@ -430,27 +421,13 @@ export default function PreventionSectionModal({
         </div>
       </div>
 
-      {/* ──── 탭 + 버튼 바 ──── */}
+      {/* ──── 탭 없이 버튼 바만 ──── */}
       <div style={{ padding: '4px 10px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {/* 뷰 모드 탭 */}
-        <div style={{ display: 'flex', gap: '2px' }}>
-          {([['master', '기초정보'], ['recommend', '해당공정'], ['allProcess', '전체공정']] as const).map(([mode, label]) => (
-            <button key={mode} onClick={() => { setViewMode(mode); if (mode !== viewMode) setLldSelectedIds(new Set()); }}
-              style={{
-                fontSize: '10px', padding: '2px 8px', borderRadius: '3px', cursor: 'pointer',
-                border: viewMode === mode ? '1px solid #0d47a1' : '1px solid #d1d5db',
-                background: viewMode === mode ? '#0d47a1' : '#f3f4f6',
-                color: viewMode === mode ? '#fff' : '#374151',
-                fontWeight: viewMode === mode ? 700 : 400,
-              }}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: '#4b5563' }}>※ 3단 편집을 통해 신속하게 매핑하세요.</span>
         <div style={{ flex: 1 }} />
         <button onClick={handleApply} disabled={totalCount === 0}
           style={{ padding: '3px 12px', fontSize: '11px', fontWeight: 600, background: totalCount > 0 ? '#0d47a1' : '#9ca3af', color: '#fff', border: 'none', borderRadius: '4px', cursor: totalCount > 0 ? 'pointer' : 'default' }}>
-          적용<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(OK)</span>
+          일괄 적용<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(OK)</span>
         </button>
         <button onClick={() => onDelete?.()}
           style={{ padding: '3px 8px', fontSize: '11px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
@@ -458,68 +435,59 @@ export default function PreventionSectionModal({
         </button>
         <button onClick={handleImport}
           style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 600, background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          ↑Import
+          ↑양식 Import
         </button>
         <button onClick={handleExport}
           style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 600, background: '#f97316', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          ↓Export
+          ↓양식 Export
         </button>
         <input ref={fileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleFileChange} />
       </div>
 
-      {/* ──── 스크롤 영역 ──── */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        {loading ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '12px' }}>로딩 중...</div>
-        ) : masterItems.length === 0 && krItems.length === 0 ? (
-          <div style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '12px' }}>
-            예방관리 기초정보가 없습니다.<br />Import에서 예방관리 데이터를 먼저 등록해주세요.
-          </div>
-        ) : (
-          <>
-            {viewMode === 'master' ? (
-              <>
-                {/* ── 1순위: 예방관리 효과성 ── */}
-                <Section1Panel
-                  items={masterItems}
-                  selectedIds={sec1SelectedIds}
-                  onToggle={toggleSec1}
-                  onSelectAll={selectAllSec1}
-                  onDeselectAll={deselectAllSec1}
-                  selectedCount={sec1Count}
-                  fcText={fcText}
-                />
+      {/* ──── 3 Flex 열 구조 ──── */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, padding: 0 }}>
+        {/* 0순위: 내 매핑 (Import) */}
+        <div style={{ flex: 1, borderRight: '1px solid #d1d5db', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <LldRecommendPanel
+            items={filteredLldItems} // 우선 해당공정만 보여주되 패널 내부에서 전체 검색 가능
+            selectedIds={lldSelectedIds}
+            onToggle={toggleLld}
+            onSelectAll={selectAllLld}
+            onDeselectAll={deselectAllLld}
+            processName={processName}
+            type="prevention"
+            isAllProcess={false}
+          />
+        </div>
 
-                <div style={{ height: '1px', background: '#d1d5db', margin: '0 10px' }} />
+        {/* 1순위: 표준기반 */}
+        <div style={{ flex: 1, borderRight: '1px solid #d1d5db', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <Section1Panel
+            items={masterItems}
+            selectedIds={sec1SelectedIds}
+            onToggle={toggleSec1}
+            onSelectAll={selectAllSec1}
+            onDeselectAll={deselectAllSec1}
+            selectedCount={sec1Count}
+            fcText={fcText}
+          />
+        </div>
 
-                {/* ── 2순위: 추가 예방관리 추천 ── */}
-                <Section2Panel
-                  items={filteredKrItems}
-                  selectedIds={sec2SelectedIds}
-                  onToggle={toggleSec2}
-                  onSelectAll={selectAllSec2}
-                  onDeselectAll={deselectAllSec2}
-                  selectedCount={sec2Count}
-                  currentO={sec1BestO || currentO}
-                  badgeFilter={badgeFilter}
-                  setBadgeFilter={setBadgeFilter}
-                  fcText={fcText}
-                />
-              </>
-            ) : (
-              <LldRecommendPanel
-                items={viewMode === 'recommend' ? filteredLldItems : filteredLldAll}
-                selectedIds={lldSelectedIds}
-                onToggle={toggleLld}
-                onSelectAll={selectAllLld}
-                onDeselectAll={deselectAllLld}
-                processName={processName}
-                type="prevention"
-                isAllProcess={viewMode === 'allProcess'}
-              />
-            )}
-          </>
-        )}
+        {/* 2순위: 산업DB */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <Section2Panel
+            items={filteredKrItems}
+            selectedIds={sec2SelectedIds}
+            onToggle={toggleSec2}
+            onSelectAll={selectAllSec2}
+            onDeselectAll={deselectAllSec2}
+            selectedCount={sec2Count}
+            currentO={sec1BestO || currentO}
+            badgeFilter={badgeFilter}
+            setBadgeFilter={setBadgeFilter}
+            fcText={fcText}
+          />
+        </div>
       </div>
 
       {/* ──── 푸터 ──── */}
@@ -581,14 +549,14 @@ function Section1Panel({
   }, [items, searchText]);
 
   return (
-    <div style={{ padding: '6px 10px' }}>
+    <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* 헤더 행 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
         <button onClick={() => setCollapsed(!collapsed)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#374151', padding: 0 }}>
           {collapsed ? '▶' : '▼'}
         </button>
-        <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>1순위: 예방관리 효과성</span>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#374151' }}>1순위: 표준기반(발생도기준)</span>
         {fcText && (
           <span style={{
             fontSize: '10px', fontWeight: 600, color: '#fff', background: badgeColor,
@@ -619,11 +587,11 @@ function Section1Panel({
                 borderRadius: '4px', outline: 'none', background: '#f9fafb',
               }}
             />
-            <button onClick={() => onSelectAll(filteredItems.map(it => it.value))} style={miniBtn}>전체<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(All)</span></button>
-            <button onClick={onDeselectAll} style={miniBtn}>해제<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(Clr)</span></button>
+            <button onClick={() => onSelectAll(filteredItems.map(it => it.value))} style={{ fontSize: '9px', padding: '2px 6px', border: '1px solid #d1d5db', borderRadius: '3px', background: '#f3f4f6', cursor: 'pointer' }}>전체<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(All)</span></button>
+            <button onClick={onDeselectAll} style={{ fontSize: '9px', padding: '2px 6px', border: '1px solid #d1d5db', borderRadius: '3px', background: '#f3f4f6', cursor: 'pointer' }}>해제<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(Clr)</span></button>
           </div>
           {/* 아이템 그리드 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '2px', maxHeight: '180px', overflowY: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '4px', flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'start' }}>
             {filteredItems.map(item => {
               const isSelected = selectedIds.has(item.value);
               const oVal = recommendOccurrence(item.value);
@@ -693,7 +661,7 @@ function Section2Panel({
   }, [items, searchText]);
 
   return (
-    <div style={{ padding: '6px 10px' }}>
+    <div style={{ padding: '6px 10px', display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* 헤더 행 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
         <button onClick={() => setCollapsed(!collapsed)}
@@ -739,11 +707,11 @@ function Section2Panel({
                 borderRadius: '4px', outline: 'none', background: '#f9fafb',
               }}
             />
-            <button onClick={() => onSelectAll(filteredItems.map(it => it.method))} style={miniBtn}>전체<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(All)</span></button>
-            <button onClick={onDeselectAll} style={miniBtn}>해제<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(Clr)</span></button>
+            <button onClick={() => onSelectAll(filteredItems.map(it => it.method))} style={{ fontSize: '9px', padding: '2px 6px', border: '1px solid #d1d5db', borderRadius: '3px', background: '#f3f4f6', cursor: 'pointer' }}>전체<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(All)</span></button>
+            <button onClick={onDeselectAll} style={{ fontSize: '9px', padding: '2px 6px', border: '1px solid #d1d5db', borderRadius: '3px', background: '#f3f4f6', cursor: 'pointer' }}>해제<span style={{ fontSize: '8px', opacity: 0.7, marginLeft: '2px' }}>(Clr)</span></button>
           </div>
           {/* 아이템 그리드 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '2px', maxHeight: '180px', overflowY: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '4px', flex: 1, minHeight: 0, overflowY: 'auto', alignContent: 'start' }}>
             {filteredItems.map(item => {
               const isSelected = selectedIds.has(item.method);
               const impO = item.recommendedO;
@@ -833,8 +801,8 @@ function LldRecommendPanel({ items, selectedIds, onToggle, onSelectAll, onDesele
   return (
     <div style={{ padding: '6px 10px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-        <span style={{ fontSize: '11px', fontWeight: 700, color: accentColor }}>
-          LLD 추천 — {type === 'prevention' ? '예방관리(PC)' : '검출관리(DC)'} {isAllProcess ? '(전체공정)' : '(해당공정)'}
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#4b5563', padding: '1px 6px', background: '#f3f4f6', borderRadius: '4px' }}>
+          내 매핑 (Import 정보)
         </span>
         {!isAllProcess && processName && (
           <span style={{ fontSize: '10px', background: `${accentColor}20`, color: accentColor, padding: '1px 6px', borderRadius: '4px' }}>

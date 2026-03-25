@@ -47,7 +47,7 @@ export interface CreateProjectData {
 export async function getProjects(
   fmeaId?: string | null,
   fmeaType?: string | null,
-  options?: { includeDeleted?: boolean },
+  options?: { includeDeleted?: boolean; isArchive?: boolean },
 ): Promise<FMEAProjectData[]> {
   const prisma = getPrisma();
   if (!prisma) {
@@ -56,9 +56,17 @@ export async function getProjects(
 
   const targetId = fmeaId?.toLowerCase() || null;
   const whereClause: Record<string, any> = {};
+  
   // ★ 기본: 삭제 항목 제외 / includeDeleted=true: 전체 반환 (admin 휴지통용)
   if (!options?.includeDeleted) {
     whereClause.deletedAt = null;
+  }
+  
+  // ★ Archived 여부 분기
+  if (options?.isArchive) {
+    whereClause.status = 'archived';
+  } else if (!options?.includeDeleted) {
+    whereClause.status = 'active';
   }
   if (targetId) whereClause.fmeaId = targetId;
   // ★ 2026-02-09: D/P 유형별 필터링
@@ -255,7 +263,7 @@ export async function getProjectsPaginated(
   sortField: string,
   sortOrder: 'asc' | 'desc',
   search: string,
-  options?: { includeDeleted?: boolean },
+  options?: { includeDeleted?: boolean; isArchive?: boolean },
 ): Promise<PaginatedResult> {
   const prisma = getPrisma();
   if (!prisma) {
@@ -267,6 +275,13 @@ export async function getProjectsPaginated(
 
   if (!options?.includeDeleted) {
     whereClause.deletedAt = null;
+  }
+
+  // ★ Archived 여부 분기
+  if (options?.isArchive) {
+    whereClause.status = 'archived';
+  } else if (!options?.includeDeleted) {
+    whereClause.status = 'active';
   }
 
   // 유형 필터 (P → P/F/M 포함)
@@ -726,6 +741,39 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
     });
     if (!verifyProject) {
       throw new Error(`트랜잭션 내 검증 실패: fmeaProject에 ${fmeaId} 없음`);
+    }
+
+    // ★ 6. Auto-Archive (50개 초과분 구본보관함으로 전환)
+    try {
+      const ACTIVE_LIMIT = 50;
+      const activeCount = await tx.fmeaProject.count({
+        where: { status: 'active', deletedAt: null }
+      });
+      
+      if (activeCount > ACTIVE_LIMIT) {
+        const excessCount = activeCount - ACTIVE_LIMIT;
+        const oldestProjects = await tx.fmeaProject.findMany({
+          where: { status: 'active', deletedAt: null },
+          orderBy: [{ updatedAt: 'asc' }, { createdAt: 'asc' }],
+          take: excessCount + 1, // Add 1 just in case current project is the oldest
+          select: { id: true, fmeaId: true }
+        });
+        
+        const idsToArchive = oldestProjects
+          .filter((p: any) => p.fmeaId !== fmeaId)
+          .slice(0, excessCount)
+          .map((p: any) => p.id);
+          
+        if (idsToArchive.length > 0) {
+          await tx.fmeaProject.updateMany({
+            where: { id: { in: idsToArchive } },
+            data: { status: 'archived' }
+          });
+          console.info(`[fmea-project] 자동 아카이브(50개 초과 구본보관함 이동): ${idsToArchive.length}건`);
+        }
+      }
+    } catch (archiveErr) {
+      console.error('[fmea-project] 자동 아카이브 로직 오류:', archiveErr);
     }
   });
 

@@ -68,72 +68,91 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   // ══════════════════════════════════════════
   // S=10: 근로자 건강/안전 리스크 (AIAG: 매우 높음)
   // YP: 제조/조립 근로자의 건강 및/또는 안전 리스크 초래
+  // SP: 고객사 제조/조립 근로자의 건강 및/또는 안전 리스크
+  // EU: 운전자/탑승자의 건강에 영향
   // ══════════════════════════════════════════
   {
     rating: 10,
     level: '매우 높음',
-    keywords: ['사망', '중상', '화재', '폭발', '감전', '중독', '질식'],
+    keywords: ['사망', '중상', '화재', '폭발', '감전', '중독', '질식', '화상'],
     weight: 1.5,
   },
   {
     rating: 10,
     level: '매우 높음',
-    keywords: ['안전', '건강', '인체', '부상', '안전 리스크'],
-    requires: ['위험', '심각', '중대', '리스크', '초래'],
+    keywords: ['안전', '건강', '인체', '부상', '안전 리스크', '보행자', '탑승자'],
+    requires: ['위험', '심각', '중대', '리스크', '초래', '영향'],
     weight: 1.3,
+  },
+  {
+    rating: 10,
+    level: '매우 높음',
+    keywords: ['health', 'safety risk', 'safety hazard'],
+    weight: 1.4,
   },
 
   // ══════════════════════════════════════════
-  // S=9: 공장 내 규제 미준수 (AIAG: 매우 높음)
+  // S=9: 법규/규제 위반 (AIAG: 매우 높음)
   // YP: 공장 내 규제 미준수로 이어질 수 있음
+  // SP: 고객사에 미출하 또는 규제 미준수
+  // EU: 규제사항 미준수
   // ══════════════════════════════════════════
   {
     rating: 9,
     level: '매우 높음',
-    keywords: ['규제', '법규', '인증', '규격위반', '환경규제', '배출기준', '안전규격', '규제 미준수'],
+    keywords: ['법규위반', '법규 위반', '법적 위반', '법률 위반'],
+    weight: 1.6,
+  },
+  {
+    rating: 9,
+    level: '매우 높음',
+    keywords: ['규제', '법규', '인증', '규격위반', '환경규제', '배출기준', '안전규격', '규제 미준수', '규정위반', '규정 위반'],
     weight: 1.4,
   },
   {
     rating: 9,
     level: '매우 높음',
-    keywords: ['규제사항', '법적', '인증취소', '리콜'],
+    keywords: ['규제사항', '법적', '인증취소', '리콜', '미준수', 'noncompliance', 'regulatory'],
     weight: 1.5,
   },
 
   // ══════════════════════════════════════════
-  // S=8: 100% 폐기 / 1shift 이상 라인 중단 (AIAG: 보통 높음)
+  // S=8: 전량 폐기 / 1shift 이상 라인 중단 / 주요기능 상실 (AIAG: 보통 높음)
   // YP: 영향받은 생산 제품의 100%가 폐기될 수 있음
+  //     1 Shift 이상 ~ 전체 생산 라인 중단
+  // SP: 고객사 생산라인 중단, 출하 중단, 필드 수리/교체
+  // EU: 주요 차량 기능 상실 (정상 운행에 필요한 주요 기능)
   // ══════════════════════════════════════════
   {
     rating: 8,
     level: '보통 높음',
-    keywords: ['전량 폐기', '100% 폐기', '전수 폐기', '완전 폐기'],
-    weight: 1.4,
+    keywords: ['전량폐기', '전량 폐기', '100% 폐기', '전수 폐기', '완전 폐기', '전부 폐기'],
+    weight: 1.5,
   },
   {
     rating: 8,
     level: '보통 높음',
-    keywords: ['주요기능 상실', '기능상실', '작동불능', '시동불가'],
+    keywords: ['주요기능 상실', '기능상실', '기능 상실', '작동불능', '시동불가', '주요 기능 상실'],
     weight: 1.3,
   },
   {
     rating: 8,
     level: '보통 높음',
-    keywords: ['출하중단', '출하정지', '납품중단', '출하 중단'],
+    keywords: ['출하중단', '출하정지', '납품중단', '출하 중단', '납품 reject', '납품거부', '납품 거부'],
     weight: 1.3,
   },
   {
     rating: 8,
     level: '보통 높음',
-    keywords: ['라인중단', '라인정지', '생산중단', '라인 중단'],
-    requires: ['1shift', '전체', '장기', '이상'],
+    keywords: ['라인중단', '라인정지', '생산중단', '라인 중단', '생산 중단'],
+    requires: ['1shift', '전체', '장기', '이상', 'shift'],
     weight: 1.2,
   },
   // ── S=8 확장: 파괴적 결함 → 폐기 수준 ──
   {
     rating: 8,
     level: '보통 높음',
-    keywords: ['파손', '파열', '파단', '단선', '절단', '단락'],
+    keywords: ['파손', '파열', '파단', '단선', '절단', '단락', '쇼트'],
     excludes: ['경미', '미세', '약간'],
     weight: 1.1,
   },
@@ -148,18 +167,27 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 8,
     level: '보통 높음',
-    keywords: ['필드 수리', '필드 교체', '현장 수리', '현장 교체'],
+    keywords: ['필드 수리', '필드 교체', '현장 수리', '현장 교체', 'field repair', 'field replacement'],
     weight: 1.2,
+  },
+  // ── S=8 확장: 반도체 공정 특화 ──
+  {
+    rating: 8,
+    level: '보통 높음',
+    keywords: ['wafer 폐기', '웨이퍼 폐기', 'lot 폐기', '로트 폐기', '전량 스크랩', 'scrap'],
+    weight: 1.3,
   },
 
   // ══════════════════════════════════════════
   // S=7: 선별/일부 폐기, 기준이탈, 라인속도 저하 (AIAG: 보통 높음)
   // YP: ① 선별 후 일부(100% 미만) 폐기 ② 기준 이탈; 라인속도 저하, 인력 추가
+  // SP: 1시간~1shift 라인 중단, 100% 미만 선별+일부 폐기
+  // EU: 주요 차량 기능 저하 (정상 운행에 필요한 주요 기능)
   // ══════════════════════════════════════════
   {
     rating: 7,
     level: '보통 높음',
-    keywords: ['이종자재', '오사양', '혼입', '혼류', '오삽입'],
+    keywords: ['이종자재', '오사양', '혼입', '혼류', '오삽입', 'lot 혼입', '로트 혼입'],
     weight: 1.3,
   },
   {
@@ -172,7 +200,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 7,
     level: '보통 높음',
-    keywords: ['일부 폐기', '선별 폐기', '부분 폐기'],
+    keywords: ['일부 폐기', '선별 폐기', '부분 폐기', '일부폐기'],
     weight: 1.3,
   },
   {
@@ -184,7 +212,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 7,
     level: '보통 높음',
-    keywords: ['기준이탈', '기준 이탈', '공정이탈', '공정 이탈', '주요기능 저하'],
+    keywords: ['기준이탈', '기준 이탈', '공정이탈', '공정 이탈', '주요기능 저하', '주요 기능 저하'],
     weight: 1.1,
   },
   {
@@ -198,7 +226,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
     rating: 7,
     level: '보통 높음',
     keywords: ['lot', '로트'],
-    requires: ['불량', '불일치', '생산'],
+    requires: ['불량', '불일치', '생산', '혼입'],
     weight: 1.1,
   },
   // ── S=7 확장: 한국 FMEA 표준 FE 관용구 ──
@@ -239,7 +267,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 7,
     level: '보통 높음',
-    keywords: ['반품', '클레임', '고객불만', '고객 불만'],
+    keywords: ['반품', '클레임', '고객불만', '고객 불만', '고객 클레임'],
     weight: 1.2,
   },
   {
@@ -262,15 +290,42 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
     excludes: ['공정이탈', '기준이탈', '외관'],
     weight: 1.0,
   },
+  // ── S=7 확장: 반도체/제조 특화 ──
+  {
+    rating: 7,
+    level: '보통 높음',
+    keywords: ['수율저하', '수율 저하', '수율 손실', '수율손실', 'yield loss'],
+    weight: 1.3,
+  },
+  {
+    rating: 7,
+    level: '보통 높음',
+    keywords: ['spec out', 'spec 이탈', '스펙 초과', '스펙 이탈', '규격 이탈', '규격이탈'],
+    weight: 1.2,
+  },
+  {
+    rating: 7,
+    level: '보통 높음',
+    keywords: ['접합부 열화', '신뢰성 저하', '신뢰성저하', '수명 단축', '수명단축'],
+    weight: 1.1,
+  },
+  {
+    rating: 7,
+    level: '보통 높음',
+    keywords: ['고객 라인 정지', '고객라인 정지', '고객 라인정지'],
+    weight: 1.3,
+  },
 
   // ══════════════════════════════════════════
   // S=6: 100% 라인 밖 재작업 (AIAG: 중간)
   // YP: 100% 라인 밖에서 재작업 및 승인
+  // SP: 100% 미만 선별+추가 재작업, 라인 중단 없음
+  // EU: 보조 차량 기능 상실 (Loss of secondary vehicle function)
   // ══════════════════════════════════════════
   {
     rating: 6,
     level: '중간',
-    keywords: ['100% 재작업', '전수 재작업', '전량 재작업'],
+    keywords: ['100% 재작업', '전수 재작업', '전량 재작업', '전량재작업'],
     weight: 1.3,
   },
   {
@@ -291,7 +346,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 6,
     level: '중간',
-    keywords: ['보조기능 상실', '부기능 상실', '보조 기능 상실'],
+    keywords: ['보조기능 상실', '부기능 상실', '보조 기능 상실', 'secondary vehicle function'],
     weight: 1.2,
   },
   {
@@ -301,7 +356,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
     excludes: ['1shift', '전체', '장기'],
     weight: 1.0,
   },
-  // ── S=6 확장: 요구사항 미충족 패턴 ──
+  // ── S=6 확장: 요구사항 미충족 / 수율 패턴 ──
   {
     rating: 6,
     level: '중간',
@@ -329,10 +384,19 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
     excludes: ['일부', '부분', '스테이션', '공정내', '라인내', '라인밖', '선별'],
     weight: 0.9,
   },
+  // ── S=6 확장: 반도체/제조 특화 ──
+  {
+    rating: 6,
+    level: '중간',
+    keywords: ['불량 유출', '불량유출', 'outgoing defect', '외부 유출'],
+    weight: 1.2,
+  },
 
   // ══════════════════════════════════════════
   // S=5: 일부 라인 밖 재작업 (AIAG: 중간)
   // YP: 일부 제품을 라인 밖에서 재작업 및 승인
+  // SP: 선별 필요 없음, 추가 재작업 없음 — 생산계획 무영향
+  // EU: 보조 차량 기능 저하 (Degradation of secondary vehicle function)
   // ══════════════════════════════════════════
   {
     rating: 5,
@@ -352,7 +416,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 5,
     level: '중간',
-    keywords: ['보조기능 저하', '부기능 저하', '보조 기능 저하'],
+    keywords: ['보조기능 저하', '부기능 저하', '보조 기능 저하', 'secondary function'],
     weight: 1.1,
   },
   // ── S=5 확장: 손상/발생 패턴 (중간 수준) ──
@@ -374,7 +438,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 5,
     level: '중간',
-    keywords: ['부적합', '부적합품'],
+    keywords: ['부적합', '부적합품', '납품 부적합'],
     excludes: ['경미', '약간', '미세'],
     weight: 0.9,
   },
@@ -384,6 +448,21 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
     keywords: ['결함', '하자'],
     excludes: ['경미', '약간', '미세', '외관'],
     weight: 0.9,
+  },
+  // ── S=5 확장: 반도체/제조 특화 ──
+  {
+    rating: 5,
+    level: '중간',
+    keywords: ['packing', '패킹', '포장'],
+    requires: ['불량', '불일치', '부적합', '기준'],
+    weight: 1.0,
+  },
+  {
+    rating: 5,
+    level: '중간',
+    keywords: ['라벨', 'label', '마킹'],
+    requires: ['불일치', '오류', '불량', '누락'],
+    weight: 1.0,
   },
   {
     rating: 5,
