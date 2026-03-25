@@ -156,10 +156,39 @@ export function useAutoRecommendS({
         return { filledCount: 0, skippedAlready, noMatchCount };
       }
 
-      // 3. state 업데이트 — failureLinks.feSeverity + l1.failureScopes.severity + imported flags
+      // 3. ★★★ 2026-03-25: Master SOD 일괄 추천 — S뿐만 아니라 O, D도 적용 ★★★
+      const fmeaId = state.fmeaId || '';
+      let masterSODCount = 0;
+      const masterSODMap = new Map<string, { s: number; o: number | null; d: number | null }>();
+
+      if (fmeaId) {
+        try {
+          const sodRes = await fetch('/api/master/sod-recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId }),
+          });
+          const sodJson = await sodRes.json();
+          if (sodJson.success && sodJson.results) {
+            for (const r of sodJson.results) {
+              if (r.severity || r.occurrence || r.detection) {
+                masterSODMap.set(r.linkId, {
+                  s: r.severity || 0,
+                  o: r.occurrence || null,
+                  d: r.detection || null,
+                });
+                masterSODCount++;
+              }
+            }
+          }
+        } catch {
+          // Master SOD API 실패 시 기존 키워드 매칭으로 폴백
+        }
+      }
+
       const recMap = new Map(recommendations.map(r => [r.feId, r.rating]));
       // ★ imported flag용 riskData 변경분
-      const importedChanges: Record<string, string> = {};
+      const importedChanges: Record<string, string | number> = {};
       recommendations.forEach(r => {
         importedChanges[`imported-S-fe-${r.feId}`] = 'auto';
       });
@@ -167,14 +196,42 @@ export function useAutoRecommendS({
       setState((prev: WorksheetState) => {
         const prevLinks: FailureLinkWithSeverity[] = prev.failureLinks || [];
         const prevScopes = prev.l1?.failureScopes || [];
+        const prevRiskData = { ...(prev.riskData || {}) };
 
-        // failureLinks 업데이트
+        // failureLinks 업데이트 + Master SOD riskData 적용
         const updatedLinks = prevLinks.map((link) => {
           const rating = link.feId ? recMap.get(link.feId) : undefined;
+          let updatedLink = link;
+
+          // S 적용 (기존 키워드/DB 추천)
           if (rating !== undefined && (!link.feSeverity || link.feSeverity === 0)) {
-            return { ...link, feSeverity: rating, severity: rating };
+            updatedLink = { ...updatedLink, feSeverity: rating, severity: rating };
           }
-          return link;
+
+          // ★ Master SOD 적용 — linkId 기반으로 O, D도 채움
+          const masterSOD = link.id ? masterSODMap.get(link.id) : undefined;
+          if (masterSOD) {
+            const uniqueKey = `${link.fmId}-${link.fcId}`;
+            // S: Master 우선 (키워드보다 정확)
+            if (masterSOD.s > 0 && (!updatedLink.feSeverity || updatedLink.feSeverity === 0)) {
+              updatedLink = { ...updatedLink, feSeverity: masterSOD.s, severity: masterSOD.s };
+            }
+            if (masterSOD.s > 0) {
+              prevRiskData[`risk-${uniqueKey}-S`] = masterSOD.s;
+            }
+            // O: Master 값 적용
+            if (masterSOD.o && masterSOD.o > 0) {
+              prevRiskData[`risk-${uniqueKey}-O`] = masterSOD.o;
+              importedChanges[`imported-O-${uniqueKey}`] = 'auto';
+            }
+            // D: Master 값 적용
+            if (masterSOD.d && masterSOD.d > 0) {
+              prevRiskData[`risk-${uniqueKey}-D`] = masterSOD.d;
+              importedChanges[`imported-D-${uniqueKey}`] = 'auto';
+            }
+          }
+
+          return updatedLink;
         });
 
         // failureScopes 업데이트
@@ -183,7 +240,6 @@ export function useAutoRecommendS({
           if (rating !== undefined && (!scope.severity || scope.severity === 0)) {
             return { ...scope, severity: rating };
           }
-          // feText로 매칭 시도
           if (!scope.severity || scope.severity === 0) {
             const rec = recommendations.find(r => r.feText === scope.effect);
             if (rec) return { ...scope, severity: rec.rating };
@@ -198,13 +254,13 @@ export function useAutoRecommendS({
             ...prev.l1!,
             failureScopes: updatedScopes,
           },
-          riskData: { ...(prev.riskData || {}), ...importedChanges },
+          riskData: { ...prevRiskData, ...importedChanges },
         };
       });
 
       setDirty?.(true);
 
-      // 4. 결과 알림 — 상위 5건 미리보기
+      // 4. 결과 알림
       const preview = recommendations
         .sort((a, b) => b.rating - a.rating)
         .slice(0, 5)
@@ -213,9 +269,10 @@ export function useAutoRecommendS({
 
       if (!silent) {
         alert(
-          `심각도(S) 자동추천 완료 (키워드 기반)\n` +
+          `SOD 자동추천 완료 (Master FMEA + 키워드)\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `• 추천 적용: ${filledCount}건\n` +
+          `• S 추천 적용: ${filledCount}건\n` +
+          `• Master SOD: ${masterSODCount}건 (O, D 포함)\n` +
           `• 이미 입력: ${skippedAlready}건 (스킵)\n` +
           `• 매칭 불가: ${noMatchCount}건\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
@@ -224,7 +281,7 @@ export function useAutoRecommendS({
         );
       }
 
-      // DB 저장 (silent 모드에서는 orchestrator가 일괄 저장)
+      // DB 저장
       if (!silent) saveAtomicDB?.(true);
 
       return { filledCount, skippedAlready, noMatchCount };

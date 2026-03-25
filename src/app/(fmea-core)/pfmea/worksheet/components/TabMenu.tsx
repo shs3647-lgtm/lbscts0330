@@ -141,18 +141,7 @@ export default function TabMenu({
 
       </div>
 
-      {showCompareButton && typeof onCompareClick === 'function' && (
-        <div className="flex shrink-0 items-center">
-          <button
-            type="button"
-            onClick={onCompareClick}
-            className="rounded border border-sky-400/90 bg-indigo-950/90 px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-white shadow-sm hover:bg-indigo-800"
-            title="Master와 나란히 비교"
-          >
-            비교 뷰
-          </button>
-        </div>
-      )}
+      {/* 비교 뷰 버튼은 TopMenuBar 확정 우측으로 이동 (2026-03-25) */}
     </div>
   );
 }

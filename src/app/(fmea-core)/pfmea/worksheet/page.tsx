@@ -809,6 +809,13 @@ function FMEAWorksheetPageContent() {
             }
             router.push(`/pfmea/revision?id=${fmeaId}`);
           }}
+          showCompareButton={Boolean(selectedFmeaId)}
+          onCompareClick={() => {
+            const tab = normalizeCompareTab(state.tab);
+            router.push(
+              `/pfmea/compare?left=${encodeURIComponent(DEFAULT_COMPARE_MASTER_FMEA_ID)}&right=${encodeURIComponent(selectedFmeaId!)}&tab=${encodeURIComponent(tab)}`,
+            );
+          }}
           onOpenBackup={() => setBackupPanelOpen(true)}
           onOpenStats={() => {
             panelButtonClickedRef.current = true;

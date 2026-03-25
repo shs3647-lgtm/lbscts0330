@@ -45,6 +45,67 @@ export async function saveAtomicDBInTransaction(
   const counts: Record<string, number> = {};
 
   await (prisma as any).$transaction(async (tx: any) => {
+    // ── [FEATURE] 0.0 Change History: SOD/AP 변경 이력 기록 (DELETE ALL 전수행) ──
+    try {
+      if (data.riskAnalyses && data.riskAnalyses.length > 0) {
+        // fetch OLD risk analyses with an explicit any type to avoid strict Partial inference
+        const oldRAs = await tx.riskAnalysis.findMany({
+          where: { fmeaId },
+          select: { linkId: true, severity: true, occurrence: true, detection: true, ap: true, fmId: true, fcId: true }
+        });
+        
+        const oldRAMap = new Map<string, any>(oldRAs.map((r: any) => [r.linkId, r]));
+        const sodHistoryRecords: any[] = [];
+
+        const riskAnalyses = data.riskAnalyses as any[];
+        for (const newRA of riskAnalyses) {
+          if (!newRA.linkId) continue;
+          const oldRA: any = oldRAMap.get(newRA.linkId);
+          if (oldRA) {
+            const fmId = oldRA.fmId || newRA.fmId || newRA.linkId;
+            const fcId = oldRA.fcId || newRA.fcId || null;
+            
+            if (oldRA.severity !== newRA.severity && newRA.severity !== undefined) {
+              sodHistoryRecords.push({ fmeaId, fmId, fcId, changeType: 'S', oldValue: oldRA.severity || 0, newValue: newRA.severity || 0 });
+            }
+            if (oldRA.occurrence !== newRA.occurrence && newRA.occurrence !== undefined) {
+              sodHistoryRecords.push({ fmeaId, fmId, fcId, changeType: 'O', oldValue: oldRA.occurrence || 0, newValue: newRA.occurrence || 0 });
+            }
+            if (oldRA.detection !== newRA.detection && newRA.detection !== undefined) {
+              sodHistoryRecords.push({ fmeaId, fmId, fcId, changeType: 'D', oldValue: oldRA.detection || 0, newValue: newRA.detection || 0 });
+            }
+            if (oldRA.ap !== newRA.ap && newRA.ap !== undefined) {
+              sodHistoryRecords.push({ fmeaId, fmId, fcId, changeType: 'AP', oldValue: 0, newValue: 0, changeNote: `${oldRA.ap} -> ${newRA.ap}` });
+            }
+          }
+        }
+
+        if (sodHistoryRecords.length > 0) {
+          const project = await tx.fmeaProject.findUnique({ 
+            where: { id: fmeaId }, 
+            select: { id: true, revMajor: true, revMinor: true } 
+          });
+          if (project) {
+            const newRevMinor = project.revMinor + 1;
+            await tx.fmeaProject.update({ 
+              where: { id: fmeaId }, 
+              data: { revMinor: newRevMinor } 
+            });
+            await tx.fmeaSodHistory.createMany({
+              data: sodHistoryRecords.map(record => ({
+                ...record,
+                revMajor: project.revMajor,
+                revMinor: newRevMinor,
+                changedBy: 'auto-save'
+              }))
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[saveAtomicDBInTransaction] Failed to track SOD History:', err);
+    }
+
     // ── DELETE ALL (자식 → 부모) ──
     await tx.optimization.deleteMany({ where: { fmeaId } });
     await tx.riskAnalysis.deleteMany({ where: { fmeaId } });

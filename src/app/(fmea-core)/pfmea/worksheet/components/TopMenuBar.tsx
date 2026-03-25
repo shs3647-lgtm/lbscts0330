@@ -59,6 +59,8 @@ interface TopMenuBarProps {
   onCreatePfd?: () => void;   // ★ FMEA → PFD 생성
   linkedPfdNo?: string | null; // ★ 연동된 PFD 번호
   onConfirm?: () => void;     // ★ 확정 → 개정관리 현황
+  showCompareButton?: boolean; // ★ 비교 뷰 버튼 표시
+  onCompareClick?: () => void; // ★ 비교 뷰 클릭
   onOpenBackup?: () => void;  // ★ 백업 관리 패널
   onOpenStats?: () => void;   // ★ Import 통계 패널
   inputMode?: 'auto' | 'manual';
@@ -80,7 +82,7 @@ export default function TopMenuBar({
   fmeaList, selectedFmeaId, cpNo, dirty, isSaving, lastSaved, currentTab, syncStatus = 'idle', importMessage, fileInputRef, state,
   onFmeaChange, onSave, onNavigateToList, onExport, onImportFile, onDownloadTemplate, onOpenSpecialChar, onOpenSOD, onOpenSRecommend, onOpen5AP, onOpen6AP, onOpenRPN, showRPN, onOpenPDF, onOpenTree,
   activePanelId,
-  onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, linkedPfdNo, onConfirm, onOpenBackup, onOpenStats,
+  onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, linkedPfdNo, onConfirm, showCompareButton, onCompareClick, onOpenBackup, onOpenStats,
   isAdmin, onQuickCpSync,
 }: TopMenuBarProps) {
   const router = useRouter();
@@ -372,6 +374,16 @@ export default function TopMenuBar({
         >
           {t('확정')}
         </button>
+        {showCompareButton && typeof onCompareClick === 'function' && (
+          <button
+            type="button"
+            onClick={onCompareClick}
+            className="px-1.5 py-0.5 rounded bg-indigo-800 border border-sky-400 text-white text-[9px] font-bold hover:bg-indigo-600 transition-all whitespace-nowrap"
+            title="Master와 나란히 비교"
+          >
+            {t('비교 뷰')}
+          </button>
+        )}
       </div>
 
       {/* ★★★ 2026-02-05: 수동/자동 토글 삭제 - StructureHeader에서 관리 ★★★ */}
