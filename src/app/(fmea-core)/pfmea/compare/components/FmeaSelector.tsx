@@ -25,7 +25,7 @@ export function FmeaSelector({ label, value, onChange, disabled, variant = 'ligh
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/fmea/projects?type=P');
+        const res = await fetch('/api/fmea/projects');
         const data = await res.json();
         const raw = Array.isArray(data) ? data : data?.projects ?? data?.data ?? [];
         if (!cancelled && Array.isArray(raw)) {

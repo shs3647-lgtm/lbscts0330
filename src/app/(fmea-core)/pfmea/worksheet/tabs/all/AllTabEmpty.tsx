@@ -389,34 +389,46 @@ export default function AllTabEmpty({
     ...missingSODCounts,
   }), [structureStats, missingSODCounts]);
 
-  // ★★★ 2026-02-23: O누락/D누락 배지 클릭 → 해당 미평가 행으로 스크롤 ★★★
-  const missingScrollIdxRef = useRef<{ O: number; D: number }>({ O: 0, D: 0 });
+  // ★★★ 2026-02-23: O누락/D누락/S누락 배지 클릭 → 해당 미평가 행으로 스크롤 ★★★
+  const missingScrollIdxRef = useRef<{ S: number; O: number; D: number }>({ S: 0, O: 0, D: 0 });
 
-  const scrollToMissing = useCallback((category: 'O' | 'D') => {
-    const riskData = state?.riskData || {};
-    // 누락 행 목록 수집
+  const scrollToMissing = useCallback((category: 'S' | 'O' | 'D') => {
     const missingKeys: string[] = [];
-    processedFMGroups.forEach(fmGroup => {
-      fmGroup.rows.forEach((row, rowIdx) => {
-        if (fmGroup.fmId && (row.fcId || row.fcRowSpan > 0)) {
-          // ★ fcId 빈값 방어: FMGroupRows와 동일한 키 패턴
-          const uk = row.fcId
-            ? `${fmGroup.fmId}-${row.fcId}`
-            : `${fmGroup.fmId}-r${rowIdx}`;
-          const val = Number(riskData[`risk-${uk}-${category}`]) || 0;
-          if (val === 0) missingKeys.push(uk);
+    
+    if (category === 'S') {
+      // 심각도 누락 수집
+      processedFMGroups.forEach(fmGroup => {
+        if (fmGroup.maxSeverity === 0 && fmGroup.fmId) {
+          missingKeys.push(fmGroup.fmId);
         }
       });
-    });
+    } else {
+      // O, D 누락 수집
+      const riskData = state?.riskData || {};
+      processedFMGroups.forEach(fmGroup => {
+        fmGroup.rows.forEach((row, rowIdx) => {
+          if (fmGroup.fmId && (row.fcId || row.fcRowSpan > 0)) {
+            const uk = row.fcId
+              ? `${fmGroup.fmId}-${row.fcId}`
+              : `${fmGroup.fmId}-r${rowIdx}`;
+            const val = Number(riskData[`risk-${uk}-${category}`]) || 0;
+            if (val === 0) missingKeys.push(uk);
+          }
+        });
+      });
+    }
+
     if (missingKeys.length === 0) return;
 
     // 순환 인덱스
     const idx = missingScrollIdxRef.current[category] % missingKeys.length;
     missingScrollIdxRef.current[category] = idx + 1;
-    const targetUK = missingKeys[idx];
+    const targetKey = missingKeys[idx];
 
-    // data-uk 속성으로 행 찾기 → 스크롤
-    const tr = document.querySelector(`tr[data-uk="${targetUK}"]`) as HTMLElement | null;
+    // data-fm 속성(S누락) 또는 data-uk 속성(O/D누락) 찾기
+    const selector = category === 'S' ? `tr[data-fm="${targetKey}"]` : `tr[data-uk="${targetKey}"]`;
+    const tr = document.querySelector(selector) as HTMLElement | null;
+    
     if (tr) {
       tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
       // 하이라이트 깜빡임
@@ -729,6 +741,7 @@ export default function AllTabEmpty({
           handleManualPCDCFill={handleManualPCDCFill}
           isRunningPCDC={isRunningPCDC}
           handleClearLld5ST={handleClearLld5ST}
+          scrollToMissing={scrollToMissing}
         />
 
         {/* ★ 공정별 지연 로딩: 각 공정이 독립 <tbody>로 렌더링 */}

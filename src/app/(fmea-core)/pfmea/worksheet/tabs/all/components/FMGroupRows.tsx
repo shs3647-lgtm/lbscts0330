@@ -108,6 +108,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
           <tr
             key={`fm-${er.fmGroup.fmId}-${er.rowInFM}-opt${er.optIdx}`}
             data-uk={uk}
+            data-fm={er.fmGroup.fmId}
             data-last-row={er.isLastRowOfFM ? 'true' : undefined}
             style={{ ...er.fmDividerStyle, ...(highlightBg ? { backgroundColor: highlightBg } : {}) }}
           >

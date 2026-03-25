@@ -30,39 +30,13 @@ interface ProjectOption {
   fmeaId: string; label: string; fmeaType: string;
 }
 
-function generateDemoData(): RPNItem[] {
-  const samples = [
-    { process: '프레스', mode: '금형 파손', effect: '외관불량', cause: '금형 마모' },
-    { process: '용접', mode: '용접 불량', effect: '강도 저하', cause: '전류 설정 오류' },
-    { process: '도장', mode: '도막 불량', effect: '내식성 저하', cause: '분사 압력 부족' },
-    { process: '조립', mode: '조립 불량', effect: '기능 저하', cause: '토크 미달' },
-    { process: '검사', mode: '검사 누락', effect: '불량 유출', cause: '검사 기준 누락' },
-    { process: '가공', mode: '치수 불량', effect: '조립 불가', cause: '도구 마모' },
-  ];
-  return samples.map((s, i) => {
-    const sev = 6 + (i % 4); const occ = 4 + (i % 5); const det = 4 + ((i + 2) % 5);
-    const sevA = Math.max(1, sev - 1 - (i % 2)); const occA = Math.max(1, occ - 2 - (i % 2)); const detA = Math.max(1, det - 2 - (i % 2));
-    return {
-      id: `demo-${i}`, fmeaId: 'demo', processName: s.process, failureMode: s.mode, failureEffect: s.effect, failureCause: s.cause,
-      severity: sev, occurrence: occ, detection: det, rpn: sev * occ * det,
-      ap: sev*occ*det > 200 ? 'H' : sev*occ*det > 100 ? 'M' : 'L',
-      preventionControl: '정기 점검', detectionControl: '자동 검사',
-      severityAfter: sevA, occurrenceAfter: occA, detectionAfter: detA,
-      rpnAfter: sevA * occA * detA,
-      apAfter: sevA*occA*detA > 200 ? 'H' : sevA*occA*detA > 100 ? 'M' : 'L',
-      status: ['완료', '진행중', '계획'][i % 3],
-    };
-  });
-}
+
 
 export default function TopRPNView({ visible }: TopRPNViewProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<RPNItem[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [selectedFmeaId, setSelectedFmeaId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(false);
-  const [dataSource, setDataSource] = useState<'db' | 'demo'>('db');
   
   const loadFromDB = useCallback(async (fmeaId?: string) => {
     setLoading(true);
@@ -74,20 +48,16 @@ export default function TopRPNView({ visible }: TopRPNViewProps) {
         setProjects(result.projects || []);
         if (result.items?.length > 0) {
           setData(result.items);
-          setDataSource('db');
           if (!fmeaId && result.fmeaId) setSelectedFmeaId(result.fmeaId);
         } else {
-          setData(generateDemoData());
-          setDataSource('demo');
+          setData([]);
           if (!fmeaId && result.fmeaId) setSelectedFmeaId(result.fmeaId);
         }
       } else {
-        setData(generateDemoData());
-        setDataSource('demo');
+        setData([]);
       }
     } catch {
-      setData(generateDemoData());
-      setDataSource('demo');
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -95,19 +65,14 @@ export default function TopRPNView({ visible }: TopRPNViewProps) {
 
   useEffect(() => {
     if (!visible) return;
-    if (isDemoMode) {
-      setData(generateDemoData());
-      setDataSource('demo');
-    } else {
-      loadFromDB(selectedFmeaId || undefined);
-    }
+    loadFromDB(selectedFmeaId || undefined);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, isDemoMode, loadFromDB]); // selectedFmeaId 의존성 제거 (무한루프 방지)
+  }, [visible, loadFromDB]); // selectedFmeaId 의존성 제거 (무한루프 방지)
 
   const handleProjectChange = useCallback((fmeaId: string) => {
     setSelectedFmeaId(fmeaId);
-    if (!isDemoMode) loadFromDB(fmeaId);
-  }, [isDemoMode, loadFromDB]);
+    loadFromDB(fmeaId);
+  }, [loadFromDB]);
 
   const handleExport = useCallback(() => {
     if (data.length === 0) {
@@ -139,71 +104,7 @@ export default function TopRPNView({ visible }: TopRPNViewProps) {
     XLSX.writeFile(wb, `RPN_Analysis_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }, [data]);
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const result = event.target?.result;
-        const workbook = XLSX.read(result, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
-
-        const importedData: RPNItem[] = jsonData.map((row, i) => {
-          const sev = Number(row['개선전 S'] || row['S'] || 0);
-          const occ = Number(row['개선전 O'] || row['O'] || 0);
-          const det = Number(row['개선전 D'] || row['D'] || 0);
-          const rpn = sev * occ * det;
-          const ap = rpn > 200 ? 'H' : rpn > 100 ? 'M' : 'L';
-          
-          const sevA = Number(row['개선후 S'] || row['S(After)'] || 0);
-          const occA = Number(row['개선후 O'] || row['O(After)'] || 0);
-          const detA = Number(row['개선후 D'] || row['D(After)'] || 0);
-          const rpnAfter = sevA * occA * detA;
-          const apAfter = rpnAfter > 200 ? 'H' : rpnAfter > 100 ? 'M' : 'L';
-
-          return {
-            id: `imported-${i}`,
-            fmeaId: selectedFmeaId || 'imported',
-            processName: row['공정명'] || row['ProcessName'] || '',
-            failureMode: row['고장형태(FM)'] || row['고장형태'] || '',
-            failureEffect: '',
-            failureCause: row['고장원인(FC)'] || row['고장원인'] || '',
-            severity: sev,
-            occurrence: occ,
-            detection: det,
-            rpn: row['개선전 RPN'] ? Number(row['개선전 RPN']) : rpn,
-            ap: row['개선전 AP'] || ap,
-            preventionControl: row['개선대책(예방/검출)'] || row['개선대책'] || '',
-            detectionControl: '',
-            severityAfter: sevA,
-            occurrenceAfter: occA,
-            detectionAfter: detA,
-            rpnAfter: row['개선후 RPN'] ? Number(row['개선후 RPN']) : rpnAfter,
-            apAfter: row['개선후 AP'] || (rpnAfter > 0 ? apAfter : ''),
-            status: row['상태'] || '대기'
-          };
-        });
-
-        setData(importedData);
-        setDataSource('demo');
-        setIsDemoMode(true);
-        alert(`성공적으로 ${importedData.length}건의 데이터를 불러왔습니다.`);
-      } catch (err) {
-        console.error(err);
-        alert('엑셀 파일을 읽는 중 오류가 발생했습니다. 양식을 확인해주세요.');
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-    reader.readAsBinaryString(file);
-  }, [selectedFmeaId]);
 
   // Chart Data
   const rpnChartData = useMemo(() => {
@@ -271,16 +172,13 @@ export default function TopRPNView({ visible }: TopRPNViewProps) {
             {projects.length === 0 && <option value="">프로젝트 없음</option>}
             {projects.map(p => (<option key={p.fmeaId} value={p.fmeaId}>{p.label} ({p.fmeaType})</option>))}
           </select>
-          <button onClick={() => setIsDemoMode(!isDemoMode)} style={{ padding: '3px 8px', background: isDemoMode ? '#10b981' : 'white', color: isDemoMode ? 'white' : 'black', border: '1px solid #D1D5DB', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>{isDemoMode ? '🧪 데모ON' : '🧪 데모OFF'}</button>
           <button onClick={() => loadFromDB(selectedFmeaId || undefined)} style={{ padding: '3px 8px', background: 'white', border: '1px solid #D1D5DB', borderRadius: '3px', fontSize: '11px', cursor: 'pointer' }}>🔄 새로고침</button>
           <div style={{ width: '1px', height: '16px', background: '#D1D5DB', margin: '0 4px' }} />
-          <input type="file" accept=".xlsx, .xls" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-          <button onClick={handleImportClick} style={{ padding: '3px 8px', background: '#FFFFFF', color: '#16A34A', border: '1px solid #16A34A', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}><span>📥</span> Import</button>
           <button onClick={handleExport} style={{ padding: '3px 8px', background: '#16A34A', color: 'white', border: '1px solid #15803D', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}><span>📤</span> Export</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {loading && <span style={{ fontSize: '11px', color: '#f59e0b' }}>⏳ 로딩중...</span>}
-          <span style={{ fontSize: '11px', color: '#666' }}>📊 <strong>{dataSource === 'db' ? 'DB' : '데모'}</strong> ({data.length}건)</span>
+          <span style={{ fontSize: '11px', color: '#666' }}>📊 <strong>DB</strong> ({data.length}건)</span>
         </div>
       </div>
       {stats && (

@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { WorksheetState } from '../constants';
 import { btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '@/styles/worksheet';
 import { triggerAutoBackup } from '@/lib/backup/backup-manager';
+import { calculateAP } from './all/apCalculator';
 
 interface OptTabProps {
   state: WorksheetState;
@@ -34,7 +35,7 @@ interface OptData {
   monitorO: number;  // 발생도
   monitorD: number;  // 검출도
   // 효과 평가 (7개)
-  evalAP: number;  // AP
+  evalAP: string;  // AP
   evalRPN: number;  // RPN
   evalSpecialChar: string;  // 특별특성
   evalSeverity: number;  // 심각도
@@ -163,7 +164,7 @@ export default function OptTabConfirmable({
           monitorS: 0,
           monitorO: 0,
           monitorD: 0,
-          evalAP: 0,
+          evalAP: '',
           evalRPN: 0,
           evalSpecialChar: '',
           evalSeverity: 0,
@@ -185,10 +186,12 @@ export default function OptTabConfirmable({
     setDirty(true);
   }, [setState, setStateSynced, setDirty]);
   
-  // RPN 자동 계산
-  const calculateRPN = useCallback((id: string, s: number, o: number, d: number) => {
+  // RPN, AP 자동 계산
+  const calculateRpnAndAp = useCallback((id: string, s: number, o: number, d: number) => {
     const rpn = s * o * d;
+    const ap = calculateAP(s, o, d);
     updateOptData(id, 'evalRPN', rpn);
+    updateOptData(id, 'evalAP', ap);
   }, [updateOptData]);
   
   // 확정 핸들러
@@ -453,7 +456,7 @@ export default function OptTabConfirmable({
                     onChange={(e) => {
                       const val = parseInt(e.target.value) || 0;
                       updateOptData(fc.id, 'monitorS', val);
-                      calculateRPN(fc.id, val, optItem.monitorO || 0, optItem.monitorD || 0);
+                      calculateRpnAndAp(fc.id, val, optItem.monitorO || 0, optItem.monitorD || 0);
                     }}
                     disabled={isDisabled}
                     className={tw.inputCenter}
@@ -468,7 +471,7 @@ export default function OptTabConfirmable({
                     onChange={(e) => {
                       const val = parseInt(e.target.value) || 0;
                       updateOptData(fc.id, 'monitorO', val);
-                      calculateRPN(fc.id, optItem.monitorS || 0, val, optItem.monitorD || 0);
+                      calculateRpnAndAp(fc.id, optItem.monitorS || 0, val, optItem.monitorD || 0);
                     }}
                     disabled={isDisabled}
                     className={tw.inputCenter}
@@ -483,7 +486,7 @@ export default function OptTabConfirmable({
                     onChange={(e) => {
                       const val = parseInt(e.target.value) || 0;
                       updateOptData(fc.id, 'monitorD', val);
-                      calculateRPN(fc.id, optItem.monitorS || 0, optItem.monitorO || 0, val);
+                      calculateRpnAndAp(fc.id, optItem.monitorS || 0, optItem.monitorO || 0, val);
                     }}
                     disabled={isDisabled}
                     className={tw.inputCenter}
@@ -493,14 +496,8 @@ export default function OptTabConfirmable({
                 </td>
                 
                 {/* 효과 평가 */}
-                <td className={`${tw.cellCenter} ${tw.evalCell}`}>
-                  <input
-                    type="number"
-                    value={optItem.evalAP || ''}
-                    onChange={(e) => updateOptData(fc.id, 'evalAP', parseInt(e.target.value) || 0)}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                  />
+                <td className={`${tw.cellCenter} ${tw.evalCell} font-bold text-[${optItem.evalAP === 'H' ? '#EF4444' : optItem.evalAP === 'M' ? '#F97316' : optItem.evalAP === 'L' ? '#22C55E' : 'inherit'}]`}>
+                  {optItem.evalAP || ''}
                 </td>
                 <td className={`${tw.cellCenter} ${tw.evalCell} font-bold`}>
                   {optItem.evalRPN || 0}
