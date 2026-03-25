@@ -750,8 +750,30 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       processNo: fcPno,
     });
 
+    // ★ 2026-03-25 FIX: L3 시트 B4 빈값 행 → FC 시트에서 즉석 FC 생성
+    // 근본원인: L3 시트에서 B4 빈값이면 FC 미생성(line 674) → resolver에 미등록 → fcId 빈값
+    // 해결: l3RowNoB4에 등록된 행이면 FC 시트의 FC 텍스트로 FC를 즉석 생성하고 FL에 연결
+    let resolvedFcId = fcId;
+    if (!fcId && l3Row && l3RowNoB4.has(l3Row)) {
+      const ctx = l3RowNoB4.get(l3Row)!;
+      const cause = (c['FC'] || '').trim();
+      if (cause) {
+        const newFcId = positionUUID('L3', l3Row, L3_FC_COL);
+        failureCauses.push({
+          id: newFcId, fmeaId,
+          l3FuncId: ctx.l3FuncId, l3StructId: ctx.l3Id, l2StructId: ctx.l2Id,
+          parentId: ctx.l3FuncId, l3CharId: ctx.l3PcId,
+          cause,
+        });
+        resolver.registerFC(l3Row, newFcId, cause, ctx.pno, ctx.m4, ctx.b1, ctx.l3Id);
+        resolvedFcId = newFcId;
+        l3RowNoB4.delete(l3Row);
+        ppLog(`[position-parser] ★ B4빈값 FC 보완: L3 R${l3Row} → FC="${cause.substring(0,25)}" (FC시트 R${rn})`);
+      }
+    }
+
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
-    if (!feId || !fmId || !fcId) {
+    if (!feId || !fmId || !resolvedFcId) {
       ppWarn(`[position-parser] ⚠️ FL R${rn} FK 미해결 (행번호만 사용):`,
         `feId=${feId || '❌'}(L1_origRow=${l1Row})`,
         `fmId=${fmId || '❌'}(L2_origRow=${l2Row})`,
@@ -772,7 +794,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       fmeaId,
       fmId,
       feId,
-      fcId,
+      fcId: resolvedFcId,
       l2StructId: flL2StructId || undefined, // ★v4 EX-38
       l3StructId: flL3StructId || undefined, // ★v4 EX-38
       // parentId는 null (FailureLink는 root 고장사슬 — 상위 엔티티 없음)
@@ -792,7 +814,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       linkId: flId,
       parentId: flId, // E-22: RiskAnalysis.parentId → FailureLink
       fmId: fmId || undefined,  // ★v4 EX-06
-      fcId: fcId || undefined,  // ★v4 EX-06
+      fcId: resolvedFcId || undefined,  // ★v4 EX-06
       feId: feId || undefined,  // ★v4 EX-06
       severity,
       occurrence,
