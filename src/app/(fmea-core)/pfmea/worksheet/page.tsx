@@ -728,7 +728,29 @@ function FMEAWorksheetPageContent() {
           onOpenSpecialChar={() => setIsSpecialCharModalOpen(true)}
           onOpenSOD={() => setIsSODModalOpen(true)}
           onOpenSRecommend={() => {
-            setState(prev => ({ ...prev, tab: 'failure-severity-map' }));
+            // ★ 2026-03-25: S추천 토글 — 이미 열려있으면 닫기, 아니면 열기 + 자동추천 적용
+            if (state.tab === 'failure-severity-map') {
+              setState(prev => ({ ...prev, tab: 'failure-l1' }));
+              return;
+            }
+            // 자동추천 적용 (applyBulkSeverityRecommendations)
+            try {
+              const { applyBulkSeverityRecommendations } = require('@/lib/fmea/s-recommend-bulk-apply');
+              const result = applyBulkSeverityRecommendations(state.l1, selectedFmeaId || 'default');
+              if (result.changeCount > 0) {
+                setState(prev => ({
+                  ...prev,
+                  l1: { ...prev.l1, failureScopes: result.updatedScopes },
+                  tab: 'failure-severity-map',
+                }));
+                console.log(`[S추천] ${result.changeCount}건 자동적용`);
+              } else {
+                setState(prev => ({ ...prev, tab: 'failure-severity-map' }));
+              }
+            } catch (e) {
+              console.error('[S추천] 자동적용 오류:', e);
+              setState(prev => ({ ...prev, tab: 'failure-severity-map' }));
+            }
             try {
               const id = selectedFmeaId?.toLowerCase();
               if (id) localStorage.setItem(`pfmea_tab_${id}`, 'failure-severity-map');
@@ -980,11 +1002,11 @@ function FMEAWorksheetPageContent() {
                   }
                 }}
               >
-                {/* 등록정보 없으면 자동으로 등록화면 리다이렉트 (경고창 없음) */}
+                {/* 등록정보 없으면 자동으로 등록화면 리다이렉트 (경고창 없음) - 비교뷰에서는 리다이렉트 제외 */}
                 {currentFmea && !currentFmea.fmeaInfo?.subject && (
                   <div className="bg-blue-50 border border-blue-200 rounded p-3 m-3 text-sm text-blue-800">
-                    ℹ️ 등록정보 입력이 필요합니다. 등록화면으로 이동합니다...
-                    {(() => {
+                    ℹ️ 등록정보 입력이 필요합니다. {compareEmbed ? '비교 뷰에서는 워크시트를 강제로 표시합니다.' : '등록화면으로 이동합니다...'}
+                    {!compareEmbed && (() => {
                       // 자동 리다이렉트 (1초 후)
                       setTimeout(() => {
                         router.push(`/pfmea/register?id=${currentFmea.id}`);
