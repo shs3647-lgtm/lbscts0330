@@ -481,6 +481,11 @@ export default function WelcomePage() {
             <h4>PFD</h4>
             <p>공정흐름도</p>
           </Link>
+          <Link href={isLoggedIn ? "/rpn-analysis" : "/login"} className="card mini">
+            <span className="lock-badge">📈</span>
+            <h4>RPN 분석<span className="badge">NEW</span></h4>
+            <p>심각도·발생도·검출도 대시보드</p>
+          </Link>
         </div>
 
         {/* External Links Section */}

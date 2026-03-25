@@ -27,6 +27,7 @@ const pfmeaSubItems: SubItem[] = [
   { label: '개정관리', href: '/pfmea/revision' },
   { label: '📋 LLD(필터코드)', href: '/pfmea/lld' },
   { label: '🚀 AP 개선관리', href: '/pfmea/ap-improvement', multiline: true },
+  { label: '📈 RPN 분석', href: '/rpn-analysis' },
 ];
 
 export const FMEA_CORE_MY_JOB_ITEM: MenuItem = {
