@@ -302,6 +302,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const failureEffects: PosFailureEffect[] = [];
   // ★ C1+C2+C3 조합으로 중복제거 — 같은 C2라도 다른 C3 = 다른 L1Function (요구사항 누락 방지)
   const seenC2C3: Map<string, string> = new Map(); // C1|C2|C3 → L1Function id
+  const seenFE: Map<string, string> = new Map();   // C1|C4 → FailureEffect id (★ FE 중복제거)
   let l1ReqOrderIndex = 0;
 
   const autoFixes: AutoFixLog[] = [];
@@ -365,18 +366,27 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
     }
 
-    // FailureEffect: 행마다 독립 (C4가 비어있으면 스킵)
+    // FailureEffect: 같은 C1(구분)+C4(고장영향) 조합은 1건만 생성 (중복제거)
+    // ★ 2026-03-25 FIX: L1 시트에 동일 FE가 반복되면 행마다 별도 UUID 생성 → 카테시안 문제
+    // 수정: seenFE로 C1+C4 dedup, 같은 FE는 같은 feId 공유
     if (c4) {
-      const feId = positionUUID('L1', rn, L1_FE_COL);
-      failureEffects.push({
-        id: feId,
-        fmeaId,
-        l1FuncId,
-        parentId: l1FuncId, // E-03: FE.parentId → L1Function
-        category: c1,
-        effect: c4,
-        severity: 0, // FC시트에서 채움
-      });
+      const feKey = `${c1}|${c4}`;
+      let feId: string;
+      if (!seenFE.has(feKey)) {
+        feId = positionUUID('L1', rn, L1_FE_COL);
+        seenFE.set(feKey, feId);
+        failureEffects.push({
+          id: feId,
+          fmeaId,
+          l1FuncId,
+          parentId: l1FuncId, // E-03: FE.parentId → L1Function
+          category: c1,
+          effect: c4,
+          severity: 0, // FC시트에서 채움
+        });
+      } else {
+        feId = seenFE.get(feKey)!;
+      }
       resolver.registerFE(rn, feId, c4, c1);
     }
   }
