@@ -7,9 +7,15 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { FixedLayout } from '@/components/layout';
-import TopRPNView from '@/components/fmea/TopRPNView';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
+
+// chart.js는 Canvas API를 사용하므로 SSR 비활성화 필수
+const TopRPNView = dynamic(
+  () => import('@/components/fmea/TopRPNView'),
+  { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-gray-400">📊 차트 로딩 중...</div> }
+);
 
 export default function TopRPNPage() {
     return (
@@ -20,7 +26,6 @@ export default function TopRPNPage() {
             contentPadding="p-0"
         >
             <div className="h-full flex flex-col">
-                {/* TopRPNView는 자체적으로 flex-1 및 height:100%를 가짐 */}
                 <TopRPNView visible={true} />
             </div>
         </FixedLayout>

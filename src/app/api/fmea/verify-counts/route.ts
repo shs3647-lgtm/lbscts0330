@@ -78,14 +78,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // --- B3: L3Function with non-empty processChar ---
+    // --- B3: L3Function 전체 (IM 자재 등 processChar 빈값도 카운트)
     const b3 = await prisma.l3Function.count({
-      where: {
-        fmeaId,
-        AND: [
-          { processChar: { not: '' } },
-        ],
-      },
+      where: { fmeaId },
     });
 
     // --- B4: FailureCause count ---

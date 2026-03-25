@@ -1,766 +1,426 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement, Filler } from 'chart.js';
-import ChartDataLabels from 'chartjs-plugin-datalabels';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement,
+  Title, Tooltip, Legend, ArcElement, Filler
+} from 'chart.js';
+import { Chart } from 'react-chartjs-2';
+import * as XLSX from 'xlsx';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement, Filler, ChartDataLabels);
+ChartJS.register(
+  CategoryScale, LinearScale, BarElement, LineElement, PointElement,
+  Title, Tooltip, Legend, ArcElement, Filler
+);
 
 interface TopRPNViewProps {
   visible: boolean;
 }
 
-// FMEA 워크시트 컬럼 인덱스 매핑
-const FMEA_COL = {
-  B_processName: 1,    // 공정명
-  F_category: 5,       // 구분
-  G_failureMode: 6,    // 고장형태
-  H_failureEffect: 7,  // 고장영향
-  I_severity: 8,       // 심각도 (개선 전)
-  L_failureCause: 11,  // 고장원인
-  M_prevention: 12,    // 예방관리
-  N_occurrence: 13,    // 발생도 (개선 전)
-  O_detection: 14,     // 검출관리
-  P_detValue: 15,      // 검출도 값 (개선 전)
-  Q_rpn: 16,           // RPN (개선 전)
-  R_preventionImprove: 17, // 예방관리개선
-  S_detectionImprove: 18,  // 검출관리개선
-  X_sevAfter: 23,      // 심각도 (개선 후)
-  Y_occAfter: 24,      // 발생도 (개선 후)
-  Z_detAfter: 25,      // 검출도 (개선 후)
-  AA_rpnAfter: 26,     // RPN (개선 후)
-};
+interface RPNItem {
+  id: string; fmeaId: string; processName: string; failureMode: string;
+  failureEffect: string; failureCause: string;
+  severity: number; occurrence: number; detection: number; rpn: number; ap: string;
+  preventionControl: string; detectionControl: string;
+  severityAfter: number; occurrenceAfter: number; detectionAfter: number;
+  rpnAfter: number; apAfter: string; status: string;
+}
 
-interface FMEARowData {
-  processName: string;
-  category: string;
-  failureMode: string;
-  failureEffect: string;
-  severity: number;
-  failureCause: string;
-  prevention: string;
-  occurrence: number;
-  detectionControl: string;
-  detection: number;
-  rpn: number;
-  preventionImprove: string;
-  detectionImprove: string;
-  severityAfter: number;
-  occurrenceAfter: number;
-  detectionAfter: number;
-  rpnAfter: number;
-  status: string;
+interface ProjectOption {
+  fmeaId: string; label: string; fmeaType: string;
+}
+
+function generateDemoData(): RPNItem[] {
+  const samples = [
+    { process: '프레스', mode: '금형 파손', effect: '외관불량', cause: '금형 마모' },
+    { process: '용접', mode: '용접 불량', effect: '강도 저하', cause: '전류 설정 오류' },
+    { process: '도장', mode: '도막 불량', effect: '내식성 저하', cause: '분사 압력 부족' },
+    { process: '조립', mode: '조립 불량', effect: '기능 저하', cause: '토크 미달' },
+    { process: '검사', mode: '검사 누락', effect: '불량 유출', cause: '검사 기준 누락' },
+    { process: '가공', mode: '치수 불량', effect: '조립 불가', cause: '도구 마모' },
+  ];
+  return samples.map((s, i) => {
+    const sev = 6 + (i % 4); const occ = 4 + (i % 5); const det = 4 + ((i + 2) % 5);
+    const sevA = Math.max(1, sev - 1 - (i % 2)); const occA = Math.max(1, occ - 2 - (i % 2)); const detA = Math.max(1, det - 2 - (i % 2));
+    return {
+      id: `demo-${i}`, fmeaId: 'demo', processName: s.process, failureMode: s.mode, failureEffect: s.effect, failureCause: s.cause,
+      severity: sev, occurrence: occ, detection: det, rpn: sev * occ * det,
+      ap: sev*occ*det > 200 ? 'H' : sev*occ*det > 100 ? 'M' : 'L',
+      preventionControl: '정기 점검', detectionControl: '자동 검사',
+      severityAfter: sevA, occurrenceAfter: occA, detectionAfter: detA,
+      rpnAfter: sevA * occA * detA,
+      apAfter: sevA*occA*detA > 200 ? 'H' : sevA*occA*detA > 100 ? 'M' : 'L',
+      status: ['완료', '진행중', '계획'][i % 3],
+    };
+  });
 }
 
 export default function TopRPNView({ visible }: TopRPNViewProps) {
-  const chartRefs = {
-    rpn: useRef<HTMLCanvasElement>(null),
-    improvement: useRef<HTMLCanvasElement>(null),
-    trend: useRef<HTMLCanvasElement>(null),
-    severity: useRef<HTMLCanvasElement>(null),
-    occurrence: useRef<HTMLCanvasElement>(null),
-    detection: useRef<HTMLCanvasElement>(null),
-  };
-
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [data, setData] = useState<RPNItem[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [selectedFmeaId, setSelectedFmeaId] = useState('');
+  const [loading, setLoading] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [libsLoaded, setLibsLoaded] = useState(false);
-  const [fmeaData, setFmeaData] = useState<FMEARowData[]>([]);
-  const [dataSource, setDataSource] = useState<'fmea' | 'improvement' | 'demo'>('fmea');
-
-  // FMEA 워크시트에서 데이터 추출
-  const extractFMEAData = useCallback((): FMEARowData[] => {
+  const [dataSource, setDataSource] = useState<'db' | 'demo'>('db');
+  
+  const loadFromDB = useCallback(async (fmeaId?: string) => {
+    setLoading(true);
     try {
-      const stored = localStorage.getItem('fmea_worksheet_data');
-      if (!stored) return [];
-      
-      const rawData = JSON.parse(stored);
-      if (!Array.isArray(rawData)) return [];
-
-      return rawData
-        .filter((row: any[]) => row && row[FMEA_COL.B_processName]) // 공정명이 있는 행만
-        .map((row: any[]) => ({
-          processName: row[FMEA_COL.B_processName] || '',
-          category: row[FMEA_COL.F_category] || '',
-          failureMode: row[FMEA_COL.G_failureMode] || '',
-          failureEffect: row[FMEA_COL.H_failureEffect] || '',
-          severity: Number(row[FMEA_COL.I_severity]) || 0,
-          failureCause: row[FMEA_COL.L_failureCause] || '',
-          prevention: row[FMEA_COL.M_prevention] || '',
-          occurrence: Number(row[FMEA_COL.N_occurrence]) || 0,
-          detectionControl: row[FMEA_COL.O_detection] || '',
-          detection: Number(row[FMEA_COL.P_detValue]) || 0,
-          rpn: Number(row[FMEA_COL.Q_rpn]) || 0,
-          preventionImprove: row[FMEA_COL.R_preventionImprove] || '',
-          detectionImprove: row[FMEA_COL.S_detectionImprove] || '',
-          severityAfter: Number(row[FMEA_COL.X_sevAfter]) || 0,
-          occurrenceAfter: Number(row[FMEA_COL.Y_occAfter]) || 0,
-          detectionAfter: Number(row[FMEA_COL.Z_detAfter]) || 0,
-          rpnAfter: Number(row[FMEA_COL.AA_rpnAfter]) || 0,
-          status: row[FMEA_COL.AA_rpnAfter] ? '완료' : '진행중',
-        }));
-    } catch (e) {
-      console.error('FMEA 데이터 추출 실패:', e);
-      return [];
-    }
-  }, []);
-
-  // 개선결과 시트에서 데이터 추출
-  const extractImprovementData = useCallback((): FMEARowData[] => {
-    try {
-      const stored = localStorage.getItem('improvement_results_data');
-      if (!stored) return [];
-      
-      const rawData = JSON.parse(stored);
-      if (!Array.isArray(rawData)) return [];
-
-      return rawData
-        .filter((row: any[]) => row && (row[0] || row[1])) // 공정 또는 고장형태가 있는 행만
-        .map((row: any[]) => ({
-          processName: row[0] || '',
-          category: '',
-          failureMode: row[1] || '',
-          failureEffect: '',
-          severity: 0,
-          failureCause: '',
-          prevention: '',
-          occurrence: 0,
-          detectionControl: '',
-          detection: 0,
-          rpn: Number(row[2]) || 0, // 개선 전 RPN
-          preventionImprove: '',
-          detectionImprove: row[6] || '', // 개선내용
-          severityAfter: 0,
-          occurrenceAfter: 0,
-          detectionAfter: 0,
-          rpnAfter: Number(row[3]) || 0, // 개선 후 RPN
-          status: row[7] || '진행중',
-        }));
-    } catch (e) {
-      console.error('개선결과 데이터 추출 실패:', e);
-      return [];
-    }
-  }, []);
-
-  // 샘플 데이터 생성
-  const generateDemoData = useCallback((): FMEARowData[] => {
-    const failureModes = [
-      { process: '프레스', mode: '금형 파손', effect: '외관불량' },
-      { process: '용접', mode: '용접 불량', effect: '강도 저하' },
-      { process: '도장', mode: '도막 불량', effect: '내식성 저하' },
-      { process: '조립', mode: '조립 불량', effect: '기능 저하' },
-      { process: '검사', mode: '검사 누락', effect: '불량 유출' },
-      { process: '가공', mode: '치수 불량', effect: '조립 불가' },
-      { process: '열처리', mode: '경도 미달', effect: '내구성 저하' },
-      { process: '세척', mode: '이물질 잔류', effect: '품질 불량' },
-      { process: '포장', mode: '포장 파손', effect: '운송 불량' },
-      { process: '출하', mode: '라벨 오류', effect: '배송 오류' },
-      { process: '입고', mode: '검수 누락', effect: '불량 입고' },
-      { process: '보관', mode: '보관 불량', effect: '품질 저하' },
-      { process: '이송', mode: '이송 손상', effect: '제품 파손' },
-      { process: '성형', mode: '성형 불량', effect: '형상 불량' },
-      { process: '절단', mode: '절단 오차', effect: '치수 불량' },
-    ];
-    
-    return failureModes.map((item) => {
-      const severity = Math.floor(Math.random() * 4) + 6; // 6-9
-      const occurrence = Math.floor(Math.random() * 5) + 4; // 4-8
-      const detection = Math.floor(Math.random() * 5) + 4; // 4-8
-      const rpn = severity * occurrence * detection;
-      
-      const severityAfter = Math.max(1, severity - Math.floor(Math.random() * 2));
-      const occurrenceAfter = Math.max(1, occurrence - Math.floor(Math.random() * 3) - 1);
-      const detectionAfter = Math.max(1, detection - Math.floor(Math.random() * 3) - 1);
-      const rpnAfter = severityAfter * occurrenceAfter * detectionAfter;
-
-      return {
-        processName: item.process,
-        category: 'P',
-        failureMode: item.mode,
-        failureEffect: item.effect,
-        severity,
-        failureCause: '작업 실수',
-        prevention: '정기 점검',
-        occurrence,
-        detectionControl: '검사',
-        detection,
-        rpn,
-        preventionImprove: '개선 조치',
-        detectionImprove: '자동 검사',
-        severityAfter,
-        occurrenceAfter,
-        detectionAfter,
-        rpnAfter,
-        status: ['완료', '진행중', '계획'][Math.floor(Math.random() * 3)],
-      };
-    });
-  }, []);
-
-  // 데이터 로드
-  const loadData = useCallback(() => {
-    if (isDemoMode) {
-      setFmeaData(generateDemoData());
-      setDataSource('demo');
-      return;
-    }
-
-    // 1. FMEA 워크시트 데이터 우선
-    const fmea = extractFMEAData();
-    if (fmea.length >= 3) {
-      setFmeaData(fmea);
-      setDataSource('fmea');
-      return;
-    }
-
-    // 2. 개선결과 데이터 확인
-    const improvement = extractImprovementData();
-    if (improvement.length >= 3) {
-      setFmeaData(improvement);
-      setDataSource('improvement');
-      return;
-    }
-
-    // 3. 데이터 없으면 데모 데이터
-    setFmeaData(generateDemoData());
-    setDataSource('demo');
-  }, [isDemoMode, extractFMEAData, extractImprovementData, generateDemoData]);
-
-  // Chart.js — npm 패키지로 로드 완료 (CDN 제거)
-  useEffect(() => {
-    setLibsLoaded(true);
-  }, []);
-
-  // 데이터 로드 및 차트 렌더링
-  useEffect(() => {
-    if (!visible || !libsLoaded) return;
-    loadData();
-  }, [visible, libsLoaded, isDemoMode, loadData]);
-
-  // 차트 렌더링
-  useEffect(() => {
-    if (!visible || !libsLoaded || fmeaData.length === 0) return;
-    initCharts();
-    
-    return () => {
-      Object.values(chartRefs).forEach(ref => {
-        if (ref.current) {
-          const chart = ChartJS?.getChart(ref.current);
-          if (chart) chart.destroy();
-        }
-      });
-    };
-  }, [visible, libsLoaded, fmeaData]);
-
-  const initCharts = () => {
-    if (fmeaData.length === 0) return;
-
-    // 기존 차트 파괴
-    Object.values(chartRefs).forEach(ref => {
-      if (ref.current) {
-        const chart = ChartJS.getChart(ref.current);
-        if (chart) chart.destroy();
-      }
-    });
-
-    const commonOptions = {
-            responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        datalabels: {
-          display: true,
-          color: 'black',
-          anchor: 'end' as const,
-          align: 'top' as const,
-          offset: -2,
-          font: { weight: 'bold' as const, size: 9 },
-        }
-      }
-    };
-
-    // 1. 개선 전 RPN 분포 (파레토 차트)
-    if (chartRefs.rpn.current) {
-      // 개선 전 RPN 기준 Top 10
-      const top10Before = [...fmeaData]
-        .filter(item => item.rpn > 0)
-        .sort((a, b) => b.rpn - a.rpn)
-        .slice(0, 10);
-
-      const totalRPNBefore = top10Before.reduce((sum, item) => sum + item.rpn, 0);
-      let cumulativeBefore = 0;
-      const cumulativePercentBefore = top10Before.map(item => {
-        cumulativeBefore += item.rpn;
-        return totalRPNBefore > 0 ? Math.round((cumulativeBefore / totalRPNBefore) * 100) : 0;
-      });
-
-      new ChartJS(chartRefs.rpn.current.getContext('2d')!, {
-          type: 'bar',
-          data: {
-          labels: top10Before.map(item => (item.failureMode || item.processName).substring(0, 6)),
-            datasets: [
-              {
-              type: 'bar',
-              label: 'RPN(전)',
-              data: top10Before.map(item => item.rpn),
-              backgroundColor: 'rgba(25, 118, 210, 0.9)',  // 파란색
-              borderColor: 'rgba(25, 118, 210, 1)',
-              borderWidth: 1,
-                yAxisID: 'y',
-              datalabels: { align: 'center' as const, anchor: 'center' as const, color: 'white', font: { size: 8 } }
-              },
-              {
-              type: 'line',
-              label: '누적%',
-              data: cumulativePercentBefore,
-                borderColor: 'rgba(239, 68, 68, 1)',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                yAxisID: 'y1',
-                tension: 0.4,
-              pointRadius: 2,
-              datalabels: { display: false }
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-            legend: { display: true, position: 'top', labels: { font: { size: 8 }, boxWidth: 10 } },
-            datalabels: {
-              display: true,
-              color: 'white',
-              font: { size: 8, weight: 'bold' }
-            }
-            },
-            scales: {
-            x: { ticks: { font: { size: 7 } } },
-            y: { type: 'linear', position: 'left', beginAtZero: true, title: { display: false } },
-            y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { font: { size: 7 } } }
-            }
-          }
-        });
-      }
-
-    // 2. 개선조치 현황 차트
-    if (chartRefs.improvement.current) {
-      const statusCounts = { '완료': 0, '진행중': 0, '계획': 0 };
-      fmeaData.forEach((item) => {
-        const status = item.status || '계획';
-        if (statusCounts[status as keyof typeof statusCounts] !== undefined) {
-          statusCounts[status as keyof typeof statusCounts]++;
+      const url = fmeaId ? `/api/rpn-analysis?fmeaId=${encodeURIComponent(fmeaId)}` : '/api/rpn-analysis';
+      const res = await fetch(url);
+      const result = await res.json();
+      if (result.success) {
+        setProjects(result.projects || []);
+        if (result.items?.length > 0) {
+          setData(result.items);
+          setDataSource('db');
+          if (!fmeaId && result.fmeaId) setSelectedFmeaId(result.fmeaId);
         } else {
-          statusCounts['계획']++;
+          setData(generateDemoData());
+          setDataSource('demo');
+          if (!fmeaId && result.fmeaId) setSelectedFmeaId(result.fmeaId);
         }
-      });
-
-      new ChartJS(chartRefs.improvement.current.getContext('2d')!, {
-          type: 'doughnut',
-          data: {
-          labels: ['완료', '진행중', '계획'],
-            datasets: [{
-            data: [statusCounts['완료'], statusCounts['진행중'], statusCounts['계획']],
-              backgroundColor: [
-                'rgba(34, 197, 94, 0.8)',
-                'rgba(59, 130, 246, 0.8)',
-              'rgba(251, 191, 36, 0.8)'
-              ]
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-          plugins: {
-            datalabels: {
-              color: 'white',
-              font: { weight: 'bold', size: 10 },
-              formatter: (value: number, ctx: any) => {
-                const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
-                const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                return value > 0 ? `${value}건\n(${pct}%)` : '';
-              }
-            }
-          }
-          }
-        });
+      } else {
+        setData(generateDemoData());
+        setDataSource('demo');
       }
-
-    // 3. 개선 후 RPN 분포 (파레토 차트)
-    if (chartRefs.trend.current) {
-      // 개선 후 RPN 기준 Top 10
-      const top10After = [...fmeaData]
-        .filter(item => (item.rpnAfter || 0) > 0)
-        .sort((a, b) => (b.rpnAfter || 0) - (a.rpnAfter || 0))
-        .slice(0, 10);
-
-      const totalRPNAfter = top10After.reduce((sum, item) => sum + (item.rpnAfter || 0), 0);
-      let cumulativeAfter = 0;
-      const cumulativePercentAfter = top10After.map(item => {
-        cumulativeAfter += (item.rpnAfter || 0);
-        return totalRPNAfter > 0 ? Math.round((cumulativeAfter / totalRPNAfter) * 100) : 0;
-      });
-
-      new ChartJS(chartRefs.trend.current.getContext('2d')!, {
-          type: 'bar',
-          data: {
-          labels: top10After.map(item => (item.failureMode || item.processName).substring(0, 6)),
-          datasets: [
-            {
-              type: 'bar',
-              label: 'RPN(후)',
-              data: top10After.map(item => item.rpnAfter || 0),
-              backgroundColor: 'rgba(67, 160, 71, 0.9)',  // 녹색
-              borderColor: 'rgba(67, 160, 71, 1)',
-              borderWidth: 1,
-              yAxisID: 'y',
-              datalabels: { align: 'center' as const, anchor: 'center' as const, color: 'white', font: { size: 8 } }
-            },
-            {
-              type: 'line',
-              label: '누적%',
-              data: cumulativePercentAfter,
-              borderColor: 'rgba(239, 68, 68, 1)',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              yAxisID: 'y1',
-              tension: 0.4,
-              pointRadius: 2,
-              datalabels: { display: false }
-            }
-          ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-          plugins: { 
-            legend: { display: true, position: 'top', labels: { font: { size: 8 }, boxWidth: 10 } },
-            datalabels: {
-              display: true,
-              color: 'white',
-              font: { size: 8, weight: 'bold' }
-            }
-          },
-          scales: {
-            x: { ticks: { font: { size: 7 } } },
-            y: { type: 'linear', position: 'left', beginAtZero: true, title: { display: false } },
-            y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { font: { size: 7 } } }
-          }
-          }
-        });
-      }
-
-    // 심각도, 발생도, 검출도는 HTML 기반 커스텀 차트로 렌더링 (Canvas 사용 안함)
-    // 아래 renderCustomComparisonChart 함수 참조
-  };
-
-  const getDataSourceLabel = () => {
-    switch (dataSource) {
-      case 'fmea': return 'FMEA 워크시트';
-      case 'improvement': return '개선결과 시트';
-      case 'demo': return '데모 데이터';
-      default: return '';
+    } catch {
+      setData(generateDemoData());
+      setDataSource('demo');
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (isDemoMode) {
+      setData(generateDemoData());
+      setDataSource('demo');
+    } else {
+      loadFromDB(selectedFmeaId || undefined);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, isDemoMode, loadFromDB]); // selectedFmeaId 의존성 제거 (무한루프 방지)
+
+  const handleProjectChange = useCallback((fmeaId: string) => {
+    setSelectedFmeaId(fmeaId);
+    if (!isDemoMode) loadFromDB(fmeaId);
+  }, [isDemoMode, loadFromDB]);
+
+  const handleExport = useCallback(() => {
+    if (data.length === 0) {
+      alert('내보낼 데이터가 없습니다.');
+      return;
+    }
+    const exportData = data.map((item, idx) => ({
+      'No.': idx + 1,
+      '공정명': item.processName || '',
+      '고장형태(FM)': item.failureMode || '',
+      '고장원인(FC)': item.failureCause || '',
+      '개선전 S': item.severity || '',
+      '개선전 O': item.occurrence || '',
+      '개선전 D': item.detection || '',
+      '개선전 RPN': item.rpn || '',
+      '개선전 AP': item.ap || '',
+      '개선대책(예방/검출)': item.preventionControl ? item.preventionControl : (item.detectionControl ? `검출: ${item.detectionControl}` : ''),
+      '개선후 S': item.severityAfter || '',
+      '개선후 O': item.occurrenceAfter || '',
+      '개선후 D': item.detectionAfter || '',
+      '개선후 RPN': item.rpnAfter || '',
+      '개선후 AP': item.apAfter || '',
+      '상태': item.status || '대기'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'RPN_Analysis');
+    XLSX.writeFile(wb, `RPN_Analysis_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }, [data]);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
   };
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const result = event.target?.result;
+        const workbook = XLSX.read(result, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        const importedData: RPNItem[] = jsonData.map((row, i) => {
+          const sev = Number(row['개선전 S'] || row['S'] || 0);
+          const occ = Number(row['개선전 O'] || row['O'] || 0);
+          const det = Number(row['개선전 D'] || row['D'] || 0);
+          const rpn = sev * occ * det;
+          const ap = rpn > 200 ? 'H' : rpn > 100 ? 'M' : 'L';
+          
+          const sevA = Number(row['개선후 S'] || row['S(After)'] || 0);
+          const occA = Number(row['개선후 O'] || row['O(After)'] || 0);
+          const detA = Number(row['개선후 D'] || row['D(After)'] || 0);
+          const rpnAfter = sevA * occA * detA;
+          const apAfter = rpnAfter > 200 ? 'H' : rpnAfter > 100 ? 'M' : 'L';
+
+          return {
+            id: `imported-${i}`,
+            fmeaId: selectedFmeaId || 'imported',
+            processName: row['공정명'] || row['ProcessName'] || '',
+            failureMode: row['고장형태(FM)'] || row['고장형태'] || '',
+            failureEffect: '',
+            failureCause: row['고장원인(FC)'] || row['고장원인'] || '',
+            severity: sev,
+            occurrence: occ,
+            detection: det,
+            rpn: row['개선전 RPN'] ? Number(row['개선전 RPN']) : rpn,
+            ap: row['개선전 AP'] || ap,
+            preventionControl: row['개선대책(예방/검출)'] || row['개선대책'] || '',
+            detectionControl: '',
+            severityAfter: sevA,
+            occurrenceAfter: occA,
+            detectionAfter: detA,
+            rpnAfter: row['개선후 RPN'] ? Number(row['개선후 RPN']) : rpnAfter,
+            apAfter: row['개선후 AP'] || (rpnAfter > 0 ? apAfter : ''),
+            status: row['상태'] || '대기'
+          };
+        });
+
+        setData(importedData);
+        setDataSource('demo');
+        setIsDemoMode(true);
+        alert(`성공적으로 ${importedData.length}건의 데이터를 불러왔습니다.`);
+      } catch (err) {
+        console.error(err);
+        alert('엑셀 파일을 읽는 중 오류가 발생했습니다. 양식을 확인해주세요.');
+      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsBinaryString(file);
+  }, [selectedFmeaId]);
+
+  // Chart Data
+  const rpnChartData = useMemo(() => {
+    const top10 = [...data].filter(i => i.rpn > 0).sort((a, b) => b.rpn - a.rpn).slice(0, 10);
+    const totalRPN = top10.reduce((s, i) => s + i.rpn, 0);
+    let cum = 0;
+    const cumPct = top10.map(i => { cum += i.rpn; return totalRPN > 0 ? Math.round((cum / totalRPN) * 100) : 0; });
+    return {
+      labels: top10.map(i => (i.failureMode || i.processName).substring(0, 6)),
+      datasets: [
+        { type: 'bar' as const, label: 'RPN(전)', data: top10.map(i => i.rpn), backgroundColor: 'rgba(25,118,210,0.9)', borderColor: 'rgba(25,118,210,1)', borderWidth: 1, yAxisID: 'y' },
+        { type: 'line' as const, label: '누적%', data: cumPct, borderColor: 'rgba(239,68,68,1)', backgroundColor: 'rgba(239,68,68,0.1)', yAxisID: 'y1', tension: 0.4, pointRadius: 2 }
+      ]
+    };
+  }, [data]);
+
+  const improveChartData = useMemo(() => {
+    const counts: Record<string, number> = { '완료': 0, '진행중': 0, '계획': 0, '미완료': 0 };
+    data.forEach(i => { const s = i.status || '미완료'; counts[s] = (counts[s] || 0) + 1; });
+    return {
+      labels: Object.keys(counts),
+      datasets: [{ data: Object.values(counts), backgroundColor: ['rgba(34,197,94,0.8)', 'rgba(59,130,246,0.8)', 'rgba(251,191,36,0.8)', 'rgba(156,163,175,0.8)'] }]
+    };
+  }, [data]);
+
+  const trendChartData = useMemo(() => {
+    const top10After = [...data].filter(i => (i.rpnAfter || 0) > 0).sort((a, b) => (b.rpnAfter || 0) - (a.rpnAfter || 0)).slice(0, 10);
+    const totalAfter = top10After.reduce((s, i) => s + (i.rpnAfter || 0), 0);
+    let cum2 = 0;
+    const cumPct2 = top10After.map(i => { cum2 += (i.rpnAfter || 0); return totalAfter > 0 ? Math.round((cum2 / totalAfter) * 100) : 0; });
+    return {
+      labels: top10After.map(i => (i.failureMode || i.processName).substring(0, 6)),
+      datasets: [
+        { type: 'bar' as const, label: 'RPN(후)', data: top10After.map(i => i.rpnAfter || 0), backgroundColor: 'rgba(67,160,71,0.9)', borderColor: 'rgba(67,160,71,1)', borderWidth: 1, yAxisID: 'y' },
+        { type: 'line' as const, label: '누적%', data: cumPct2, borderColor: 'rgba(239,68,68,1)', backgroundColor: 'rgba(239,68,68,0.1)', yAxisID: 'y1', tension: 0.4, pointRadius: 2 }
+      ]
+    };
+  }, [data]);
+
+  const chartOptions = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: true, position: 'top' as const, labels: { font: { size: 8 }, boxWidth: 10 } } },
+    scales: { x: { ticks: { font: { size: 7 } } }, y: { type: 'linear' as const, position: 'left' as const, beginAtZero: true }, y1: { type: 'linear' as const, position: 'right' as const, min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { font: { size: 7 } } } }
+  };
+
+  const donutOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' as const, labels: { font: { size: 9 } } } } };
+
+  const stats = useMemo(() => {
+    if (data.length === 0) return null;
+    const rpnValues = data.map(i => i.rpn).filter(v => v > 0);
+    const rpnAfterValues = data.map(i => i.rpnAfter).filter(v => v > 0);
+    const avgBefore = rpnValues.length > 0 ? Math.round(rpnValues.reduce((a, b) => a + b, 0) / rpnValues.length) : 0;
+    const avgAfter = rpnAfterValues.length > 0 ? Math.round(rpnAfterValues.reduce((a, b) => a + b, 0) / rpnAfterValues.length) : 0;
+    const improvementRate = avgBefore > 0 ? Math.round(((avgBefore - avgAfter) / avgBefore) * 100) : 0;
+    return { avgBefore, avgAfter, maxBefore: rpnValues.length > 0 ? Math.max(...rpnValues) : 0, improvementRate, highCount: data.filter(i => i.ap === 'H').length, mediumCount: data.filter(i => i.ap === 'M').length, lowCount: data.filter(i => i.ap === 'L').length, total: data.length };
+  }, [data]);
 
   if (!visible) return null;
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      height: '100%', 
-      background: 'white', 
-      overflow: 'hidden' 
-    }}>
-      {/* Action Bar */}
-      <div style={{
-        height: '32px',
-        minHeight: '32px',
-        background: '#F3F4F6',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 10px',
-        borderBottom: '1px solid #E5E7EB'
-      }}>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button 
-            onClick={() => setIsDemoMode(!isDemoMode)}
-            style={{
-              padding: '3px 8px',
-              background: isDemoMode ? '#10b981' : 'white',
-              color: isDemoMode ? 'white' : 'black',
-              border: '1px solid #D1D5DB',
-              borderRadius: '3px',
-              fontSize: '11px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}>
-            {isDemoMode ? '🧪 데모ON' : '🧪 데모OFF'}
-          </button>
-          <button 
-            onClick={() => loadData()}
-            style={{
-              padding: '3px 8px',
-              background: 'white',
-              border: '1px solid #D1D5DB',
-              borderRadius: '3px',
-              fontSize: '11px',
-              cursor: 'pointer'
-            }}>
-            🔄 새로고침
-          </button>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'white', overflow: 'hidden' }}>
+      <div style={{ height: '36px', minHeight: '36px', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid #E5E7EB' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <select value={selectedFmeaId} onChange={e => handleProjectChange(e.target.value)} style={{ padding: '2px 6px', border: '1px solid #D1D5DB', borderRadius: '3px', fontSize: '11px', maxWidth: '200px' }}>
+            {projects.length === 0 && <option value="">프로젝트 없음</option>}
+            {projects.map(p => (<option key={p.fmeaId} value={p.fmeaId}>{p.label} ({p.fmeaType})</option>))}
+          </select>
+          <button onClick={() => setIsDemoMode(!isDemoMode)} style={{ padding: '3px 8px', background: isDemoMode ? '#10b981' : 'white', color: isDemoMode ? 'white' : 'black', border: '1px solid #D1D5DB', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>{isDemoMode ? '🧪 데모ON' : '🧪 데모OFF'}</button>
+          <button onClick={() => loadFromDB(selectedFmeaId || undefined)} style={{ padding: '3px 8px', background: 'white', border: '1px solid #D1D5DB', borderRadius: '3px', fontSize: '11px', cursor: 'pointer' }}>🔄 새로고침</button>
+          <div style={{ width: '1px', height: '16px', background: '#D1D5DB', margin: '0 4px' }} />
+          <input type="file" accept=".xlsx, .xls" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+          <button onClick={handleImportClick} style={{ padding: '3px 8px', background: '#FFFFFF', color: '#16A34A', border: '1px solid #16A34A', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}><span>📥</span> Import</button>
+          <button onClick={handleExport} style={{ padding: '3px 8px', background: '#16A34A', color: 'white', border: '1px solid #15803D', borderRadius: '3px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}><span>📤</span> Export</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: '#666' }}>
-            📊 데이터: <strong>{getDataSourceLabel()}</strong> ({fmeaData.length}건)
-          </span>
+          {loading && <span style={{ fontSize: '11px', color: '#f59e0b' }}>⏳ 로딩중...</span>}
+          <span style={{ fontSize: '11px', color: '#666' }}>📊 <strong>{dataSource === 'db' ? 'DB' : '데모'}</strong> ({data.length}건)</span>
         </div>
       </div>
-
-      {/* Chart Section (2x3 Grid) */}
-      <div style={{ 
-        flex: 1, 
-        background: 'linear-gradient(135deg, #2E5CB8 0%, #5B9BF5 100%)', 
-        padding: '6px',
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(3, 1fr)', 
-        gridTemplateRows: 'repeat(2, 1fr)', 
-        gap: '6px',
-        overflow: 'hidden',
-        minHeight: 0
-      }}>
-        {/* Row 1 */}
-        <ChartCard title="개선 전 RPN 분포 (파레토)">
-          <canvas ref={chartRefs.rpn}></canvas>
-        </ChartCard>
-        <ChartCard title="개선조치 현황">
-          <canvas ref={chartRefs.improvement}></canvas>
-        </ChartCard>
-        <ChartCard title="개선 후 RPN 분포 (파레토)">
-          <canvas ref={chartRefs.trend}></canvas>
-        </ChartCard>
-
-        {/* Row 2 - HTML 기반 커스텀 비교 차트 */}
-        <ChartCard title="심각도 개선 전후">
-          <ComparisonBarChart data={fmeaData} field="severity" />
-        </ChartCard>
-        <ChartCard title="발생도 개선 전후">
-          <ComparisonBarChart data={fmeaData} field="occurrence" />
-        </ChartCard>
-        <ChartCard title="검출도 개선 전후">
-          <ComparisonBarChart data={fmeaData} field="detection" />
-        </ChartCard>
+      {stats && (
+        <div style={{ height: '28px', minHeight: '28px', background: '#EFF6FF', display: 'flex', alignItems: 'center', gap: '16px', padding: '0 12px', borderBottom: '1px solid #DBEAFE', fontSize: '11px' }}>
+          <span style={{ fontWeight: 'bold', color: '#1e3a8a' }}>📈 요약</span>
+          <span>총 <b>{stats.total}</b>건</span>
+          <span>평균RPN(전): <b style={{ color: '#dc2626' }}>{stats.avgBefore}</b></span>
+          <span>평균RPN(후): <b style={{ color: '#16a34a' }}>{stats.avgAfter}</b></span>
+          <span>개선율: <b style={{ color: stats.improvementRate > 0 ? '#16a34a' : '#dc2626' }}>{stats.improvementRate}%</b></span>
+          <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}><span style={{ color: '#ef4444' }}>H:{stats.highCount}</span>{' '}<span style={{ color: '#f97316' }}>M:{stats.mediumCount}</span>{' '}<span style={{ color: '#22c55e' }}>L:{stats.lowCount}</span></span>
+        </div>
+      )}
+      <div style={{ flex: '0 0 55%', background: 'linear-gradient(135deg, #2E5CB8 0%, #5B9BF5 100%)', padding: '6px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(2, 1fr)', gap: '6px', overflow: 'hidden', minHeight: '300px' }}>
+        <ChartCard title="개선 전 RPN 분포 (파레토)">{data.length > 0 && <Chart type="bar" data={rpnChartData as any} options={chartOptions as any} />}</ChartCard>
+        <ChartCard title="개선조치 현황">{data.length > 0 && <Chart type="doughnut" data={improveChartData as any} options={donutOptions as any} />}</ChartCard>
+        <ChartCard title="개선 후 RPN 분포 (파레토)">{data.length > 0 && <Chart type="bar" data={trendChartData as any} options={chartOptions as any} />}</ChartCard>
+        <ChartCard title="심각도 개선 전후"><ComparisonBarChart data={data} field="severity" /></ChartCard>
+        <ChartCard title="발생도 개선 전후"><ComparisonBarChart data={data} field="occurrence" /></ChartCard>
+        <ChartCard title="검출도 개선 전후"><ComparisonBarChart data={data} field="detection" /></ChartCard>
       </div>
 
-      {/* Status Bar */}
-      <div style={{
-        height: '22px',
-        minHeight: '22px',
-        background: '#1F2937',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 10px',
-        fontSize: '10px'
-      }}>
-        <span>✅ TOP RPN 대시보드 | 데이터 소스: {getDataSourceLabel()}</span>
-        <span>FMEA 컬럼: B,F,G,H,I,L,M,N,O,P,Q,R,S,X,Y,Z,AA</span>
+      {/* 데이터 테이블 섹션 */}
+      <div style={{ flex: '1 1 45%', display: 'flex', flexDirection: 'column', minHeight: '200px', borderTop: '2px solid #2E5CB8', background: 'white' }}>
+        <div style={{ padding: '6px 12px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#0F172A' }}>📑 RPN 상세 현황 및 개선 내역</span>
+          <span style={{ fontSize: '10px', color: '#64748B' }}>* 스크롤하여 전체 목록을 확인할 수 있습니다</span>
+        </div>
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'center', minWidth: '800px' }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+              <tr style={{ background: '#F1F5F9', color: '#334155', borderBottom: '1px solid #CBD5E1' }}>
+                <th rowSpan={2} style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#F1F5F9' }}>#</th>
+                <th rowSpan={2} style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#F1F5F9' }}>공정명</th>
+                <th rowSpan={2} style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#F1F5F9', maxWidth: '140px' }}>고장형태(FM)</th>
+                <th rowSpan={2} style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#F1F5F9', maxWidth: '140px' }}>고장원인(FC)</th>
+                <th colSpan={5} style={{ padding: '4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#DBEAFE', color: '#1E3A8A' }}>개선 전</th>
+                <th rowSpan={2} style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#F1F5F9', maxWidth: '140px' }}>개선대책</th>
+                <th colSpan={5} style={{ padding: '4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#DCFCE7', color: '#14532D' }}>개선 후</th>
+                <th rowSpan={2} style={{ padding: '6px 4px', borderBottom: '1px solid #CBD5E1', background: '#F1F5F9' }}>상태</th>
+              </tr>
+              <tr style={{ background: '#F8FAFC', color: '#475569' }}>
+                <th style={{ padding: '4px', borderRight: '1px dotted #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#EFF6FF', width: '30px' }}>S</th>
+                <th style={{ padding: '4px', borderRight: '1px dotted #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#EFF6FF', width: '30px' }}>O</th>
+                <th style={{ padding: '4px', borderRight: '1px solid #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#EFF6FF', width: '30px' }}>D</th>
+                <th style={{ padding: '4px', borderRight: '1px solid #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#BFDBFE', fontWeight: 'bold', width: '40px' }}>RPN</th>
+                <th style={{ padding: '4px', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #CBD5E1', background: '#EFF6FF', width: '35px' }}>AP</th>
+                
+                <th style={{ padding: '4px', borderRight: '1px dotted #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#F0FDF4', width: '30px' }}>S</th>
+                <th style={{ padding: '4px', borderRight: '1px dotted #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#F0FDF4', width: '30px' }}>O</th>
+                <th style={{ padding: '4px', borderRight: '1px solid #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#F0FDF4', width: '30px' }}>D</th>
+                <th style={{ padding: '4px', borderRight: '1px solid #CBD5E1', borderBottom: '1px solid #CBD5E1', background: '#BBF7D0', fontWeight: 'bold', width: '40px' }}>RPN</th>
+                <th style={{ padding: '4px', borderBottom: '1px solid #CBD5E1', background: '#F0FDF4', width: '35px' }}>AP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #E2E8F0', background: idx % 2 === 0 ? 'white' : '#F8FAFC' }}>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', color: '#64748B' }}>{idx + 1}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', textAlign: 'left', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.processName}>{row.processName}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', textAlign: 'left', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.failureMode}>{row.failureMode}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', textAlign: 'left', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.failureCause}>{row.failureCause}</td>
+                  
+                  <td style={{ padding: '6px 4px', borderRight: '1px dotted #E2E8F0' }}>{row.severity || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px dotted #E2E8F0' }}>{row.occurrence || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0' }}>{row.detection || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', fontWeight: 'bold', color: row.rpn > 100 ? '#DC2626' : (row.rpn >= 50 ? '#EA580C' : '#1E293B'), background: '#EFF6FF' }}>{row.rpn || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0' }}>
+                    <span style={{ display: 'inline-block', width: '18px', height: '18px', borderRadius: '50%', background: row.ap === 'H' ? '#EF4444' : (row.ap === 'M' ? '#F97316' : (row.ap === 'L' ? '#22C55E' : '#94A3B8')), color: 'white', fontSize: '10px', lineHeight: '18px', fontWeight: 'bold' }}>{row.ap || (row.rpn ? (row.rpn > 200 ? 'H' : row.rpn > 100 ? 'M' : 'L') : '-')}</span>
+                  </td>
+                  
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', textAlign: 'left', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.preventionControl || row.detectionControl}>{row.preventionControl ? row.preventionControl : (row.detectionControl ? `검출: ${row.detectionControl}` : '-')}</td>
+                  
+                  <td style={{ padding: '6px 4px', borderRight: '1px dotted #E2E8F0', color: row.severityAfter ? '#334155' : '#CBD5E1' }}>{row.severityAfter || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px dotted #E2E8F0', color: row.occurrenceAfter ? '#334155' : '#CBD5E1' }}>{row.occurrenceAfter || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', color: row.detectionAfter ? '#334155' : '#CBD5E1' }}>{row.detectionAfter || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0', fontWeight: 'bold', color: row.rpnAfter && row.rpnAfter > 100 ? '#DC2626' : '#16A34A', background: '#F0FDF4' }}>{row.rpnAfter || '-'}</td>
+                  <td style={{ padding: '6px 4px', borderRight: '1px solid #E2E8F0' }}>
+                    {row.apAfter ? (
+                      <span style={{ display: 'inline-block', width: '18px', height: '18px', borderRadius: '50%', background: row.apAfter === 'H' ? '#EF4444' : (row.apAfter === 'M' ? '#F97316' : (row.apAfter === 'L' ? '#22C55E' : '#94A3B8')), color: 'white', fontSize: '10px', lineHeight: '18px', fontWeight: 'bold' }}>{row.apAfter}</span>
+                    ) : '-'}
+                  </td>
+                  
+                  <td style={{ padding: '6px 4px' }}>
+                    <span style={{ display: 'inline-block', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold',
+                      background: row.status === '완료' ? '#DCFCE7' : (row.status === '진행중' ? '#DBEAFE' : '#F1F5F9'),
+                      color: row.status === '완료' ? '#16A34A' : (row.status === '진행중' ? '#2563EB' : '#64748B')
+                    }}>
+                      {row.status || '대기'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {data.length === 0 && (
+                <tr>
+                  <td colSpan={16} style={{ padding: '20px', color: '#94A3B8', textAlign: 'center' }}>데이터가 없습니다.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
 
-function ChartCard({ title, children }: { title: string, children: React.ReactNode }) {
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ 
-      background: 'rgba(255, 255, 255, 0.95)', 
-      borderRadius: '6px', 
-      padding: '4px 6px', 
-      boxShadow: '0 2px 4px rgba(0,0,0,0.15)', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      minHeight: 0,
-      overflow: 'hidden' 
-    }}>
-      <div style={{ 
-        fontSize: '11px', 
-        fontWeight: 700, 
-        color: '#1e3a8a', 
-        marginBottom: '2px', 
-        textAlign: 'center' 
-      }}>{title}</div>
-      <div style={{ 
-        flex: 1, 
-        position: 'relative', 
-        minHeight: 0 
-      }}>
-        {children}
-      </div>
+    <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '6px', padding: '4px 6px', boxShadow: '0 2px 4px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ fontSize: '11px', fontWeight: 700, color: '#1e3a8a', marginBottom: '2px', textAlign: 'center' }}>{title}</div>
+      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>{children}</div>
     </div>
   );
 }
 
-// 커스텀 비교 막대 차트 컴포넌트 (HTML 기반)
-interface ComparisonBarChartProps {
-  data: FMEARowData[];
-  field: 'severity' | 'occurrence' | 'detection';
-}
-
-function ComparisonBarChart({ data, field }: ComparisonBarChartProps) {
-  const afterField = (field + 'After') as keyof FMEARowData;
-  
-  // Top 10 데이터 추출
-  const top10 = [...data]
-    .filter(item => item[field] > 0)
-    .sort((a, b) => (b[field] as number) - (a[field] as number))
-    .slice(0, 10);
-
-  if (top10.length === 0) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100%',
-        color: '#999',
-        fontSize: '11px'
-      }}>
-        데이터 없음
-      </div>
-    );
-  }
-
-  // 최대값 계산 (10점 만점)
-  const maxValue = 10;
-
+function ComparisonBarChart({ data, field }: { data: RPNItem[]; field: 'severity' | 'occurrence' | 'detection' }) {
+  const afterField = (field + 'After') as keyof RPNItem;
+  const top10 = [...data].filter(i => (i[field] as number) > 0).sort((a, b) => (b[field] as number) - (a[field] as number)).slice(0, 10);
+  if (top10.length === 0) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#999', fontSize: '11px' }}>데이터 없음</div>;
+  const maxVal = 10;
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      height: '100%',
-      overflow: 'auto',
-      padding: '2px 0'
-    }}>
-      {/* 범례 */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        gap: '10px', 
-        fontSize: '9px',
-        marginBottom: '4px',
-        flexShrink: 0
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <div style={{ width: '10px', height: '10px', background: '#1976d2', borderRadius: '2px' }}></div>
-          <span>개선 전</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <div style={{ width: '10px', height: '10px', background: '#1976d2', borderRadius: '2px' }}></div>
-          <span>동일</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <div style={{ width: '10px', height: '10px', background: '#43a047', borderRadius: '2px' }}></div>
-          <span>개선</span>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'auto', padding: '2px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', fontSize: '9px', marginBottom: '4px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><div style={{ width: '10px', height: '10px', background: '#1976d2', borderRadius: '2px' }} /><span>개선전</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><div style={{ width: '10px', height: '10px', background: '#43a047', borderRadius: '2px' }} /><span>개선후</span></div>
       </div>
-
-      {/* 차트 행들 */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {top10.map((item, idx) => {
-          const beforeValue = item[field] as number;
-          const afterValue = (item[afterField] as number) || 0;
-          const beforeWidth = (beforeValue / maxValue) * 100;
-          const afterWidth = (afterValue / maxValue) * 100;
+          const before = item[field] as number; const after = (item[afterField] as number) || 0;
           const label = (item.failureMode || item.processName).substring(0, 8);
-
           return (
-            <div 
-              key={idx}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 60px 1fr',
-                gap: '4px',
-                alignItems: 'center',
-                padding: '2px 4px',
-                borderBottom: idx < top10.length - 1 ? '1px dashed #e0e0e0' : 'none'
-              }}
-            >
-              {/* 좌측: 개선 전 (파란색) - 오른쪽 정렬 */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'flex-end',
-                gap: '4px'
-              }}>
-                <div style={{ 
-                  position: 'relative',
-                  flex: 1,
-                  height: '14px',
-                  background: '#e0e0e0',
-                  borderRadius: '2px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: `${beforeWidth}%`,
-                    background: '#1976d2',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {beforeValue > 0 && (
-                      <span style={{ color: 'white', fontSize: '9px', fontWeight: 'bold' }}>
-                        {beforeValue}
-                      </span>
-                    )}
-                  </div>
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: '4px', alignItems: 'center', padding: '2px 4px', borderBottom: idx < top10.length - 1 ? '1px dashed #e0e0e0' : 'none' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ position: 'relative', flex: 1, height: '14px', background: '#e0e0e0', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', right: 0, width: `${(before / maxVal) * 100}%`, background: '#1976d2', height: '100%' }}></div>
                 </div>
               </div>
-
-              {/* 중앙: RPN ID / 고장형태 */}
-              <div style={{ 
-                textAlign: 'center',
-                fontSize: '9px',
-                fontWeight: 'bold',
-                color: '#333'
-              }}>
-                {label}
-              </div>
-
-              {/* 우측: 개선 후 - 왼쪽 정렬 */}
-              {/* 색상: 개선 전과 같으면 파란색, 작아졌으면 녹색 */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'flex-start',
-                gap: '4px'
-              }}>
-                <div style={{ 
-                  position: 'relative',
-                  flex: 1,
-                  height: '14px',
-                  background: '#e0e0e0',
-                  borderRadius: '2px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: `${afterWidth}%`,
-                    background: afterValue < beforeValue ? '#43a047' : '#1976d2',  // 개선되면 녹색, 동일하면 파란색
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {afterValue > 0 && (
-                      <span style={{ color: 'white', fontSize: '9px', fontWeight: 'bold' }}>
-                        {afterValue}
-                      </span>
-                    )}
-                  </div>
+              <div style={{ textAlign: 'center', fontSize: '9px', fontWeight: 'bold', color: '#333' }}>{label}</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ position: 'relative', flex: 1, height: '14px', background: '#e0e0e0', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ position: 'absolute', left: 0, width: `${(after / maxVal) * 100}%`, background: after < before ? '#43a047' : '#1976d2', height: '100%' }}></div>
                 </div>
               </div>
             </div>
