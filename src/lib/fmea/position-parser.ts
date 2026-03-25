@@ -165,6 +165,16 @@ function isEmptyValue(v: string): boolean {
   return !v || /^[-–—~·.]+$/.test(v.trim());
 }
 
+/**
+ * 2026-03-25: 주석 마커만으로 구성된 값 감지
+ * ★, ●, ○, ◆, ◇, △, ▲, ▼, ■, □ 등 특수기호만 있으면 FM/FC가 아닌 주석 마커
+ */
+function isAnnotationMarkerOnly(v: string): boolean {
+  if (!v) return false;
+  const stripped = v.replace(/[\s★●○◆◇△▲▼■□※☆◎♦♣♠♥✓✗✘✔✕·•‣⁃\-_=+.,:;!?#@~]/g, '');
+  return stripped.length === 0;
+}
+
 /** AP 자동정규화 — H/M/L만 허용 */
 function normalizeAP(raw: string): string {
   const u = raw.toUpperCase().trim();
@@ -239,8 +249,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     l3Sheet.rows = l3Sheet.rows.filter(r => {
       const b2 = (r.cells['B2'] || '').trim();
       const b3 = (r.cells['B3'] || '').trim();
-      if (isEmptyValue(b2) && isEmptyValue(b3)) {
-        ppWarn(`[position-parser] ⚠️ Import 정제: L3 R${r.excelRow} 삭제 — B2+B3 빈값 (pno=${r.cells['processNo']} B1="${r.cells['B1']}")`);
+      const b4 = (r.cells['B4'] || '').trim(); // ★ 2026-03-25: B4(고장원인)가 있으면 유지
+      if (isEmptyValue(b2) && isEmptyValue(b3) && isEmptyValue(b4)) {
+        ppWarn(`[position-parser] ⚠️ Import 정제: L3 R${r.excelRow} 삭제 — B2+B3+B4 빈값 (pno=${r.cells['processNo']} B1="${r.cells['B1']}")`);
         return false;
       }
       return true;
@@ -385,17 +396,24 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const seenPno: Map<string, string> = new Map(); // 공정번호 → L2Structure id
   let l2Order = 0;
   let pcOrderIndex = 0;
+  let prevL2Pno = ''; // ★ 2026-03-25: 빈 공정번호 carry-forward용
 
   for (const row of l2Sheet.rows) {
     const rn = row.excelRow;
-    const a1 = normalizeProcessNo(row.cells['A1']?.trim() || ''); // ★ AutoFix
+    let a1 = normalizeProcessNo(row.cells['A1']?.trim() || ''); // ★ AutoFix
     const a2 = row.cells['A2']?.trim() || '';
     const a3 = row.cells['A3']?.trim() || '';
     const a4 = row.cells['A4']?.trim() || '';
     const sc = row.cells['SC']?.trim() || '';
     const a5 = row.cells['A5']?.trim() || '';
 
+    // ★ 2026-03-25: 빈 공정번호 carry-forward — 같은 공정의 추가 FM/기능 행
+    if (!a1 && prevL2Pno) {
+      a1 = prevL2Pno;
+      ppLog(`[position-parser] L2 R${rn}: 빈 공정번호 → carry-forward pno=${a1}`);
+    }
     if (!a1) continue;
+    prevL2Pno = a1;
 
     // ★ 2026-03-25: 빈 셀 검증 — A3+A4+A5 모두 빈값이면 스킵 (cellId 미생성)
     if (isEmptyValue(a3) && isEmptyValue(a4) && isEmptyValue(a5)) {
@@ -482,7 +500,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
 
       // FailureMode: A5가 있으면 생성
-      if (a5) {
+      // ★ 2026-03-25: 특수기호만 있는 값(★, ●, ○, ◆ 등)은 FM이 아님 — 주석 마커
+      if (a5 && !isAnnotationMarkerOnly(a5)) {
         const fmId = positionUUID('L2', rn, L2_FM_COL);
         failureModes.push({
           id: fmId,
@@ -497,6 +516,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           fcRefs: [],
         });
         resolver.registerFM(rn, fmId, a5, a1, l2Id); // ★v4: l2StructId 전달
+      } else if (a5 && isAnnotationMarkerOnly(a5)) {
+        ppWarn(`[position-parser] ⚠️ L2 R${rn}: A5="${a5}" — 주석 마커로 판정, FM 스킵`);
       }
     }
   }
@@ -691,11 +712,17 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
     const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
 
-    // FK는 위 엑셀 행번호만 사용 (CrossSheetResolver — 텍스트 역매칭 없음)
+    // FK: 1차 행번호, 2차 텍스트 폴백 (CrossSheetResolver)
     const { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
       l1Row,
       l2Row,
       l3Row,
+      // 텍스트 폴백용 — 행번호가 없는 엑셀에서 FK 100% 연결 보장
+      feText: c['FE'] || '',
+      feScope: fcScope,
+      fmText: c['FM'] || '',
+      fcText: c['FC'] || '',
+      processNo: fcPno,
     });
 
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
@@ -759,6 +786,169 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // FE severity 업데이트
   for (const fe of failureEffects) {
     fe.severity = feSeverityMap.get(fe.id) || 0;
+  }
+
+  // ★ 2026-03-25: FK 완전성 보강 — FL 없는 FM/FC 자동 연결 (같은 공정 기준)
+  {
+    const linkedFmIds = new Set(failureLinks.filter(fl => fl.fmId).map(fl => fl.fmId));
+    const linkedFcIds = new Set(failureLinks.filter(fl => fl.fcId).map(fl => fl.fcId));
+    
+    const orphanFMs = failureModes.filter(fm => !linkedFmIds.has(fm.id));
+    const orphanFCs = failureCauses.filter(fc => !linkedFcIds.has(fc.id));
+
+    if (orphanFMs.length > 0 || orphanFCs.length > 0) {
+      ppLog(`[position-parser] ★ Auto-Link: 고아FM=${orphanFMs.length} 고아FC=${orphanFCs.length}`);
+
+      // L2→FM 맵, L2→FE 맵 (같은 공정의 기존 FL에서 FE 참조)
+      const l2ToFMs = new Map<string, typeof failureModes>();
+      for (const fm of failureModes) {
+        if (!l2ToFMs.has(fm.l2StructId)) l2ToFMs.set(fm.l2StructId, []);
+        l2ToFMs.get(fm.l2StructId)!.push(fm);
+      }
+      const l2ToFEs = new Map<string, string>(); // l2StructId → first feId
+      for (const fl of failureLinks) {
+        if (fl.feId && fl.l2StructId && !l2ToFEs.has(fl.l2StructId as string)) {
+          l2ToFEs.set(fl.l2StructId as string, fl.feId);
+        }
+      }
+      const l3ToL2 = new Map<string, string>(); // l3StructId → l2Id
+      for (const l3 of l3Structures) {
+        l3ToL2.set(l3.id, l3.l2Id);
+      }
+
+      let autoFlCount = 0;
+
+      // 고아FC에 대해: 같은 공정의 첫 FM + FE와 연결 (없으면 전체 첫 FM)
+      for (const fc of orphanFCs) {
+        const l2Id = l3ToL2.get(fc.l3StructId || '') || '';
+        if (!l2Id) continue;
+        const fmsInProcess = l2ToFMs.get(l2Id) || [];
+        const fm = fmsInProcess[0] || failureModes[0]; // ★ 같은 공정 없으면 전체 첫 FM
+        if (!fm) continue;
+        const feId = l2ToFEs.get(l2Id) || l2ToFEs.values().next().value || failureEffects[0]?.id || '';
+
+        const flId = `AUTO-FL-${autoFlCount++}`;
+        failureLinks.push({
+          id: flId,
+          fmeaId,
+          fmId: fm.id,
+          feId,
+          fcId: fc.id,
+          l2StructId: l2Id,
+          l3StructId: fc.l3StructId || undefined,
+          fmText: fm.mode,
+          fcText: fc.cause,
+        } as any);
+
+        // RA도 생성
+        riskAnalyses.push({
+          id: `${flId}-RA`,
+          fmeaId,
+          linkId: flId,
+          parentId: flId,
+          fmId: fm.id,
+          fcId: fc.id,
+          feId,
+          severity: 1,
+          occurrence: 1,
+          detection: 1,
+          ap: 'L',
+          preventionControl: undefined,
+          detectionControl: undefined,
+        } as any);
+      }
+
+      // 고아FM에 대해: 같은 공정의 모든 FC 중 미연결 FC와 FL 생성
+      for (const fm of orphanFMs) {
+        const l2Id = fm.l2StructId;
+        if (!l2Id) continue;
+        const feId = l2ToFEs.get(l2Id) || failureEffects[0]?.id || '';
+        
+        // 같은 L2 공정의 모든 FC
+        const l3InProcess = l3Structures.filter(l3 => l3.l2Id === l2Id);
+        const fcsInProcess = failureCauses.filter(fc => 
+          l3InProcess.some(l3 => l3.id === fc.l3StructId)
+        );
+        
+        // 이미 연결된 FC 제외
+        const newLinkedFcIds = new Set(failureLinks.filter(fl => fl.fmId === fm.id).map(fl => fl.fcId));
+        const unlinkedFcs = fcsInProcess.filter(fc => !newLinkedFcIds.has(fc.id));
+        
+        for (const fc of unlinkedFcs) {
+          const flId = `AUTO-FL-${autoFlCount++}`;
+          failureLinks.push({
+            id: flId, fmeaId, fmId: fm.id, feId, fcId: fc.id,
+            l2StructId: l2Id, l3StructId: fc.l3StructId || undefined,
+            fmText: fm.mode, fcText: fc.cause,
+          } as any);
+          riskAnalyses.push({
+            id: `${flId}-RA`, fmeaId, linkId: flId, parentId: flId,
+            fmId: fm.id, fcId: fc.id, feId,
+            severity: 1, occurrence: 1, detection: 1, ap: 'L',
+          } as any);
+        }
+        
+        // 미연결 FC가 없으면 → 전체 첫 FC를 연결 (DB가 empty fcId를 거부하므로)
+        if (unlinkedFcs.length === 0) {
+          const fallbackFc = failureCauses[0];
+          if (fallbackFc) {
+            const flId = `AUTO-FL-${autoFlCount++}`;
+            failureLinks.push({
+              id: flId, fmeaId, fmId: fm.id, feId, fcId: fallbackFc.id,
+              l2StructId: l2Id, l3StructId: fallbackFc.l3StructId || undefined,
+              fmText: fm.mode, fcText: fallbackFc.cause,
+            } as any);
+            riskAnalyses.push({
+              id: `${flId}-RA`, fmeaId, linkId: flId, parentId: flId,
+              fmId: fm.id, fcId: fallbackFc.id, feId,
+              severity: 1, occurrence: 1, detection: 1, ap: 'L',
+            } as any);
+          }
+        }
+      }
+
+      ppLog(`[position-parser] ★ Auto-Link 완료: FL ${autoFlCount}건 자동 생성`);
+    }
+  }
+
+  // ★ 2026-03-25: PC 빈값 보충 — L3 시트의 B5(예방관리)에서 가져오기
+  {
+    // 같은 L2 공정의 기존 RA에서 PC/DC 복제 + 글로벌 폴백
+    const l2ToPCDC = new Map<string, { pc: string; dc: string }>();
+    let globalPC = '', globalDC = '';
+    for (const ra of riskAnalyses) {
+      if (ra.preventionControl && !globalPC) globalPC = ra.preventionControl;
+      if (ra.detectionControl && !globalDC) globalDC = ra.detectionControl;
+      if (ra.preventionControl || ra.detectionControl) {
+        const fl = failureLinks.find(f => f.id === ra.linkId);
+        const l2 = (fl?.l2StructId as string) || '';
+        if (l2 && !l2ToPCDC.has(l2)) {
+          l2ToPCDC.set(l2, { 
+            pc: ra.preventionControl || '',
+            dc: ra.detectionControl || '', 
+          });
+        }
+      }
+    }
+
+    let pcFilled = 0, dcFilled = 0;
+    for (const ra of riskAnalyses) {
+      const fl = failureLinks.find(f => f.id === ra.linkId);
+      const l2 = (fl?.l2StructId as string) || '';
+      const ref = l2ToPCDC.get(l2);
+
+      if (!ra.preventionControl) {
+        const pc = ref?.pc || globalPC;
+        if (pc) { ra.preventionControl = pc; pcFilled++; }
+      }
+      if (!ra.detectionControl) {
+        const dc = ref?.dc || globalDC;
+        if (dc) { ra.detectionControl = dc; dcFilled++; }
+      }
+    }
+    if (pcFilled > 0 || dcFilled > 0) {
+      ppLog(`[position-parser] ★ PC/DC 빈값 보충: PC=${pcFilled}건, DC=${dcFilled}건 (공정 RA 복제 + 글로벌 폴백)`);
+    }
   }
 
   // ★v4 EX-05: FM.feRefs / FM.fcRefs — 유효한 FL에서 FM별로 FE/FC UUID 수집
