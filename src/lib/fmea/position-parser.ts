@@ -537,15 +537,30 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   let l3Order = 0;
   const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string; l3PcId: string }>();
 
+  // ★ 2026-03-25: L3 시트 병합 셀 CarryForward — 같은 공정+4M+WE 그룹 내에서 B3 빈값 시 이전 행 값 사용
+  let prevL3B3 = '';   // 이전 행 B3 (CarryForward)
+  let prevL3Key = '';  // 이전 행 그룹 키 (공정+4M+WE)
+  let l3B3CarryCount = 0;
+
   for (const row of l3Sheet.rows) {
     const rn = row.excelRow;
     const pno = normalizeProcessNo(row.cells['processNo']?.trim() || ''); // ★ AutoFix
     const m4 = normalizeM4(row.cells['m4']?.trim() || ''); // ★ AutoFix
     const b1 = row.cells['B1']?.trim() || '';
     const b2 = row.cells['B2']?.trim() || '';
-    const b3 = row.cells['B3']?.trim() || '';
+    let b3 = row.cells['B3']?.trim() || '';
     const sc = row.cells['SC']?.trim() || '';
     const b4 = row.cells['B4']?.trim() || '';
+
+    // ★ B3 CarryForward: 같은 공정+4M+WE 그룹에서 B3 빈값이면 이전 행 값 사용 (엑셀 병합 셀 대응)
+    const l3GroupKey = `${pno}|${m4}|${b1}`;
+    if (b3) {
+      prevL3B3 = b3;
+      prevL3Key = l3GroupKey;
+    } else if (!b3 && l3GroupKey === prevL3Key && prevL3B3) {
+      b3 = prevL3B3;
+      l3B3CarryCount++;
+    }
 
     if (!pno) continue;
 

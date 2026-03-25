@@ -128,13 +128,14 @@ export async function GET(req: NextRequest) {
     `);
 
     const keyTables = ['failure_links', 'failure_modes', 'failure_effects', 'failure_causes', 'risk_analyses'];
-    const structTables = ['l1_structures', 'l1_functions', 'l2_structures', 'l2_functions', 'l3_structures', 'l3_functions'];
+    const structTables = ['l1_structures', 'l1_functions', 'l2_structures', 'l2_functions', 'l3_structures', 'l3_functions', 'l3_process_chars', 'process_product_chars'];
     const desc: Record<string, string> = {
       failure_links: '고장사슬 FE↔FM↔FC', failure_modes: 'FM 고장형태', failure_effects: 'FE 고장영향',
       failure_causes: 'FC 고장원인', risk_analyses: '위험분석 S/O/D', failure_analyses: '고장분석',
       l1_structures: 'L1 완제품', l1_functions: 'L1 기능', l2_structures: 'L2 공정',
       l2_functions: 'L2 공정기능', l3_structures: 'L3 작업요소', l3_functions: 'L3 요소기능',
-      optimizations: '최적화', process_product_chars: '특성', control_plan_items: 'CP항목',
+      l3_process_chars: 'B3 공정특성', process_product_chars: 'A4 제품특성',
+      optimizations: '최적화', control_plan_items: 'CP항목',
       pfd_items: 'PFD항목', unified_process_items: '통합공정',
       // LLD
       lld_filter_code: 'LLD 통합 교훈DB', lessons_learned: 'LLD 레거시',
