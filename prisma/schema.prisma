@@ -1451,6 +1451,55 @@ model PfmeaDetectionCriteria {
   @@map("pfmea_detection_criteria")
 }
 
+// ─── DFMEA SOD 기준표 (AIAG-VDA DFMEA 1판 기준, 설계 관점) ───
+
+model DfmeaSeverityCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  scope       String
+  effect      String
+  description String
+  example     String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@index([scope])
+  @@map("dfmea_severity_criteria")
+}
+
+model DfmeaOccurrenceCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  probability String
+  ppm         String?
+  description String
+  prevention  String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("dfmea_occurrence_criteria")
+}
+
+model DfmeaDetectionCriteria {
+  id          String   @id @default(uuid())
+  rating      Int      @unique
+  maturity    String
+  description String
+  detection   String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([rating])
+  @@map("dfmea_detection_criteria")
+}
 
 model SpecialCharacteristicCriteria {
   id          String   @id @default(uuid())
@@ -2894,11 +2943,18 @@ model SeverityUsageRecord {
 // ── Enum definitions (for future use — do not change existing String fields) ──
 
 enum M4Category {
+  // PFMEA 4M
   MC
   MT
   MN
   MP
   EN
+  // DFMEA 5 Interface Types
+  PC  // Physical Connection (물리적 연결)
+  ME  // Material Exchange (재료 교환)
+  ET  // Energy Transfer (에너지 전달)
+  DE  // Data Exchange (데이터 교환)
+  HMI // Human-Machine Interface (휴먼머신)
 }
 
 enum APLevel {

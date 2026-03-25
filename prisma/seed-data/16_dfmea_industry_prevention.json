@@ -1,0 +1,67 @@
+[
+  {
+    "id": "44444444-dfm4-4000-8000-000000000011",
+    "category": "simulation",
+    "fcKeyword": "열",
+    "method": "Thermal CAE 시뮬레이션 평가 (열폭주 마진 검증)",
+    "m4Category": "ET",
+    "defaultRating": 2,
+    "description": "에너지 방출 관점 분석. DVP&R PC 기법",
+    "isActive": true,
+    "sortOrder": 0,
+    "createdAt": "2026-03-25T00:00:00.000Z",
+    "updatedAt": "2026-03-25T00:00:00.000Z"
+  },
+  {
+    "id": "44444444-dfm4-4000-8000-000000000012",
+    "category": "simulation",
+    "fcKeyword": "구조방어",
+    "method": "구조 강성/충돌 해석 (Structural CAE)",
+    "m4Category": "PC",
+    "defaultRating": 3,
+    "description": "물리적 연결/안전성 확보. 설계 예방관리",
+    "isActive": true,
+    "sortOrder": 1,
+    "createdAt": "2026-03-25T00:00:00.000Z",
+    "updatedAt": "2026-03-25T00:00:00.000Z"
+  },
+  {
+    "id": "44444444-dfm4-4000-8000-000000000013",
+    "category": "test",
+    "fcKeyword": "수명/내구성",
+    "method": "환경 스트레스 노출 내구시험 (HALT 적용)",
+    "m4Category": "ME",
+    "defaultRating": 4,
+    "description": "소재 교환부 마모 내구력 한계. 예방 평가 수단",
+    "isActive": true,
+    "sortOrder": 2,
+    "createdAt": "2026-03-25T00:00:00.000Z",
+    "updatedAt": "2026-03-25T00:00:00.000Z"
+  },
+  {
+    "id": "44444444-dfm4-4000-8000-000000000014",
+    "category": "simulation",
+    "fcKeyword": "통신",
+    "method": "데이터 네트워크 시뮬레이션 (Traffic 로드/지연시간 보증)",
+    "m4Category": "DE",
+    "defaultRating": 3,
+    "description": "데이터 전송 안정성 예방. 설계 예방관리",
+    "isActive": true,
+    "sortOrder": 3,
+    "createdAt": "2026-03-25T00:00:00.000Z",
+    "updatedAt": "2026-03-25T00:00:00.000Z"
+  },
+  {
+    "id": "44444444-dfm4-4000-8000-000000000015",
+    "category": "test",
+    "fcKeyword": "UX오작동",
+    "method": "휴먼 에러 시나리오 주행 시뮬레이터 적용",
+    "m4Category": "HMI",
+    "defaultRating": 4,
+    "description": "HMI 직관성 부족, 인지오류 차단 구조 검증 설계",
+    "isActive": true,
+    "sortOrder": 4,
+    "createdAt": "2026-03-25T00:00:00.000Z",
+    "updatedAt": "2026-03-25T00:00:00.000Z"
+  }
+]

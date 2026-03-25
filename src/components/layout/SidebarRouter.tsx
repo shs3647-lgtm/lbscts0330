@@ -35,7 +35,7 @@ function SidebarSkeleton() {
 
 // ─── 경로 매칭 패턴 ───
 
-const FMEA_CORE_PATTERN = /^\/(pfmea|control-plan|pfd|master|myjob|approval|admin|part-fmea)/;
+const FMEA_CORE_PATTERN = /^\/(pfmea|dfmea|control-plan|pfd|master|myjob|approval|admin|part-fmea)/;
 // ─── 라우터 컴포넌트 ───
 
 export const SidebarRouter = React.memo(function SidebarRouter() {

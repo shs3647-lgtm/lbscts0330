@@ -45,6 +45,7 @@
     "tests",
     "scripts",
     "src/app/pfmea/worksheet",
+    "src/app/(fmea-core)/dfmea/worksheet",
     "src/app/pfd",
     "src/app/ws"
   ]

@@ -72,7 +72,24 @@ async function main() {
     console.log(`detectionCriteria:       ${dc.length} 건`);
   }
 
-  // 5. 산업DB (예방/검출)
+  // 4-1. DFMEA SOD Criteria
+  const d_sc = loadJson<any>('13_dfmea_severity_criteria.json');
+  if (d_sc.length > 0) {
+    await p.dfmeaSeverityCriteria.createMany({ data: d_sc, skipDuplicates: true });
+    console.log(`dfmeaSeverityCriteria:   ${d_sc.length} 건`);
+  }
+  const d_oc = loadJson<any>('14_dfmea_occurrence_criteria.json');
+  if (d_oc.length > 0) {
+    await p.dfmeaOccurrenceCriteria.createMany({ data: d_oc, skipDuplicates: true });
+    console.log(`dfmeaOccurrenceCriteria: ${d_oc.length} 건`);
+  }
+  const d_dc = loadJson<any>('15_dfmea_detection_criteria.json');
+  if (d_dc.length > 0) {
+    await p.dfmeaDetectionCriteria.createMany({ data: d_dc, skipDuplicates: true });
+    console.log(`dfmeaDetectionCriteria:  ${d_dc.length} 건`);
+  }
+
+  // 5. 산업DB (예방/검출) - PFMEA + DFMEA 추가재료 병합 적용
   const kp = loadJson<any>('07_kr_industry_prevention.json');
   if (kp.length > 0) {
     await p.krIndustryPrevention.createMany({ data: kp, skipDuplicates: true });
@@ -82,6 +99,18 @@ async function main() {
   if (kd.length > 0) {
     await p.krIndustryDetection.createMany({ data: kd, skipDuplicates: true });
     console.log(`krIndustryDetection:     ${kd.length} 건`);
+  }
+
+  // 5-1. DFMEA 용 산업DB (예방/검출) 추가
+  const d_kp = loadJson<any>('16_dfmea_industry_prevention.json');
+  if (d_kp.length > 0) {
+    await p.krIndustryPrevention.createMany({ data: d_kp, skipDuplicates: true });
+    console.log(`dfmeaIndustryPrevention: ${d_kp.length} 건`);
+  }
+  const d_kd = loadJson<any>('17_dfmea_industry_detection.json');
+  if (d_kd.length > 0) {
+    await p.krIndustryDetection.createMany({ data: d_kd, skipDuplicates: true });
+    console.log(`dfmeaIndustryDetection:  ${d_kd.length} 건`);
   }
 
   // 6. Master FMEA Reference (골든 레퍼런스)
