@@ -5,12 +5,12 @@
 
 import { useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { downloadStyledExcel, downloadTemplate } from '@/lib/excel-utils';
 import { EXCEL_HEADERS, EXCEL_COL_WIDTHS } from '../constants';
 import {
   LLDRow, CLASSIFICATION_OPTIONS, createEmptyLLDRow,
   type Classification,
 } from '../types';
+import { exportLLDExcel, exportLLDTemplate } from '../excel-export';
 
 interface UseLLDImportExportProps {
   data: LLDRow[];
@@ -20,78 +20,14 @@ interface UseLLDImportExportProps {
 export function useLLDImportExport({ data, setData }: UseLLDImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 새로운 14컬럼 기반 헤더 및 너비 (제품명 제거) ──
-  const NEW_HEADERS = ['LLD No.', '구분', '공정명', '고장형태(FM)', '고장원인(FC)', 'S', 'O', 'D', '예방관리 개선', '검출관리 개선', '개선일자', '상태', '담당자', '첨부(근거서류)'];
-  const EN_HEADERS = ['LLD No.', 'Category', 'Process', 'Failure Mode', 'Failure Cause', 'S', 'O', 'D', 'PC Improvement', 'DC Improvement', 'Comp. Date', 'Status', 'Owner', 'Attachment'];
-  const NEW_WIDTHS = [12, 10, 15, 25, 25, 5, 5, 5, 35, 35, 12, 8, 10, 20];
-
-  // ── Export: 현재 데이터 내보내기 ──
+  // ── Export: ExcelJS 기반 스타일링 내보내기 ──
   const handleExport = useCallback(() => {
-    if (data.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
-    
-    // 같은 lldNo를 가진 항목들을 그룹화하여 1행으로 병합 (보여주기 용)
-    const grouped = new Map<string, any>();
-    for (const row of data) {
-      if (!grouped.has(row.lldNo)) {
-        grouped.set(row.lldNo, {
-          ...row,
-          prevImpr: row.applyTo === 'prevention' ? row.preventionImprovement : '',
-          detImpr: row.applyTo === 'detection' ? row.preventionImprovement : '', // LLDTable 뷰에서는 preventionImprovement 필드에 단일 개선안만 들어감
-          oVal: row.applyTo === 'prevention' ? row.occurrence : '',
-          dVal: row.applyTo === 'detection' ? row.detection : '',
-        });
-      } else {
-        const existing = grouped.get(row.lldNo);
-        if (row.applyTo === 'prevention') {
-          existing.prevImpr = row.preventionImprovement;
-          existing.oVal = row.occurrence;
-        } else {
-          existing.detImpr = row.preventionImprovement;
-          existing.dVal = row.detection;
-        }
-      }
-    }
-
-    const rows = Array.from(grouped.values()).map(row => {
-      const gubun = row.classification === 'ABN' ? '이상(ABN)' : row.classification === 'CIP' ? '개선(CIP)' : row.classification === 'RMA' ? '반품(RMA)' : row.classification;
-      const status = row.status === 'G' ? '완료' : row.status === 'Y' ? '예정' : '보류';
-      return [
-        row.lldNo, gubun, row.processName,
-        row.failureMode, row.cause,
-        row.severity ?? '', row.oVal ?? '', row.dVal ?? '',
-        row.prevImpr, row.detImpr,
-        row.completedDate, status, row.owner,
-        row.attachmentUrl || ''
-      ];
-    });
-    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    
-    // 워크북 생성 (Title + KR headers + EN headers + Rows)
-    const wb = XLSX.utils.book_new();
-    const wsData = [
-      ['LLD — 교훈 사례 등록 (통합본)'],
-      NEW_HEADERS,
-      EN_HEADERS,
-      ...rows
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = NEW_WIDTHS.map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, ws, 'LLD통합본');
-    XLSX.writeFile(wb, `LLD_Export_${today}.xlsx`);
+    exportLLDExcel(data);
   }, [data]);
 
   // ── 빈 양식 다운로드 ──
   const handleDownloadTemplate = useCallback(() => {
-    const wb = XLSX.utils.book_new();
-    const wsData = [
-      ['LLD — 교훈 사례 등록 (통합본)'],
-      NEW_HEADERS,
-      EN_HEADERS
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = NEW_WIDTHS.map(w => ({ wch: w }));
-    XLSX.utils.book_append_sheet(wb, ws, 'LLD통합본');
-    XLSX.writeFile(wb, 'LLD_Unified_Template.xlsx');
+    exportLLDTemplate();
   }, []);
 
   // ── Import: 엑셀 파일 가져오기 ──
