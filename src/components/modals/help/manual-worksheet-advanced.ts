@@ -178,8 +178,19 @@ export const WORKSHEET_ADV_ITEMS_KO: ManualItem[] = [
   {
     category: '최적화',
     title: '개선추천 (산업DB 기반)',
-    content: '6ST 최적화 헤더의 "개선추천" 버튼으로 산업DB 기반 개선안을 생성합니다.\n\n■ 프로세스\n1. AP=H/M 항목 자동 수집\n2. 산업DB(kr_industry_prevention/detection) 매칭\n3. Import FC↔PC/DC 직접매칭 (마스터 B5/A6)\n4. AP경로 기반 목표 O/D 산출\n5. 개선추천 모달에서 미리보기 + 선택 적용\n\n■ 적용 방식\n• 전체 적용: 모든 추천안 일괄 반영\n• 선택 적용: 체크된 항목만 반영\n• 책임자: CFT 리더 자동 배정\n• N/A: 불필요한 측면은 자동 N/A 표시',
-    keywords: ['개선추천', '산업DB', 'AP경로', '목표', '일괄', 'CFT'],
+    content: '6ST 최적화 헤더의 "개선추천" 버튼으로 산업DB 기반 개선안을 생성합니다.\n\n■ SRP 프로세스 (SOD Reduction Path)\n1. H/M 항목만 수집 (L 제외 — 이미 목표 달성)\n2. LLD 매칭 항목 제외 (이미 LLD추천으로 배정된 항목)\n3. 남은 H/M 항목에 산업DB 기반 개선안 배정\n4. AP 최소경로(SRP) 기반 O/D 목표 산출\n5. 개선추천 모달에서 미리보기 + 선택 적용\n\n■ SRP 최소경로\n각 H/M 항목에 대해 AP=L 도달 최소경로 자동 계산:\n• O개선: O만 낮추면 L 도달 → D측은 N/A\n• D개선: D만 낮추면 L 도달 → O측은 N/A\n• O&D개선: O와 D 모두 필요 → 양측 모두 추천\n\n■ 적용 방식\n• 선택 적용: 체크된 항목만 반영\n• 책임자: CFT 리더 자동 배정\n• N/A 강제: 경로상 불필요한 측면은 자동 N/A',
+    keywords: ['개선추천', '산업DB', 'AP경로', 'SRP', '최소경로', 'N/A', 'CFT'],
+    paths: ['/pfmea/worksheet'],
+  },
+
+  // ═══════════════════════════════════════════
+  // SRP (SOD Reduction Path)
+  // ═══════════════════════════════════════════
+  {
+    category: '최적화',
+    title: 'SRP (SOD Reduction Path) 프로세스',
+    content: 'SRP는 H/M 등급 항목을 L로 내리기 위한 최소 개선경로를 자동 산출하는 시스템입니다.\n\n■ SRP 경로 유형 (6ST 헤더 배지)\n• O:N — O만 개선하면 L 도달 (주황 배지)\n• D:N — D만 개선하면 L 도달 (파랑 배지)\n• O&D:N — 양쪽 모두 개선 필요 (보라 배지)\n\n■ 최소경로 알고리즘\n• S(심각도)는 고정 — 공정 고유 특성\n• O(발생도)와 D(검출도)만 개선 가능 (최소 2)\n• Cost = |ΔO| + |ΔD| — 총 변화량 최소인 경로 선택\n• AIAG-VDA AP 테이블 기준 L 도달 가능 여부 판정\n\n■ 6ST 최적화 프로세스 순서\n1단계: LLD추천 → LLD 매칭 항목 우선 배정\n2단계: 개선추천 → 나머지 H/M 항목만 배정 (LLD 매칭·L 제외)\n\n■ N/A 처리 규칙\n• O개선 경로: O측 = 추천, D측 = N/A\n• D개선 경로: D측 = 추천, O측 = N/A\n• O&D 경로: 양측 모두 추천\n\n■ 예시\nS=9, O=8, D=6 → AP=H\n• O경로: O=8→2 (cost=6)\n• D경로: D=6→2 (cost=4) ← 최소경로 선택\n• 결과: D측에 개선추천, O측은 N/A',
+    keywords: ['SRP', 'SOD', 'Reduction', 'Path', '최소경로', 'O개선', 'D개선', 'O&D', '배지'],
     paths: ['/pfmea/worksheet'],
   },
 
@@ -189,8 +200,8 @@ export const WORKSHEET_ADV_ITEMS_KO: ManualItem[] = [
   {
     category: '전체보기',
     title: 'ALL 탭 헤더 배지 시스템',
-    content: '5ST/6ST 헤더에 상시 표시되는 배지로 현황을 파악합니다.\n\n■ 5ST 리스크분석 헤더\n• H:N / M:N / L:N — AP 등급별 건수 (항상 표시)\n• O-Miss:N — 발생도 누락 건수 (누락 시만 표시)\n• O-Rec — 발생도 재평가 버튼 (항상 표시)\n• D-Miss:N — 검출도 누락 건수 (누락 시만 표시)\n• D-Rec — 검출도 재평가 버튼 (항상 표시)\n\n■ 4ST 고장분석 헤더\n• FE:N / FM:N / FC:N — 연결 건수\n• S-Miss:N — 심각도 누락 (누락 시만 표시)\n• S-Rec — 심각도 재평가 버튼 (항상 표시)\n\n■ 6ST 최적화 헤더\n• 개선추천 — 산업DB 기반 개선안 생성\n• LLD추천 — LLD 기반 수평전개 추천\n\n■ 설계 원칙\n• Rec 버튼은 항상 표시 (예측 가능한 UI)\n• Miss 배지는 건수 > 0일 때만 표시\n• 버튼 텍스트 최소화: O-Rec, D-Rec, S-Rec',
-    keywords: ['배지', 'badge', 'O-Rec', 'D-Rec', 'S-Rec', 'Miss', '헤더', '항상'],
+    content: '4ST/5ST/6ST 헤더에 상시 표시되는 배지로 현황을 파악합니다.\n\n■ 5ST 리스크분석 헤더\n• H:N / M:N / L:N — AP 등급별 건수 (항상 표시)\n• O-Miss:N — 발생도 누락 건수 (누락 시만 표시)\n• O-Rec — 발생도 재평가 버튼 (항상 표시)\n• D-Miss:N — 검출도 누락 건수 (누락 시만 표시)\n• D-Rec — 검출도 재평가 버튼 (항상 표시)\n\n■ 4ST 고장분석 헤더\n• FE:N / FM:N / FC:N — 연결 건수\n• S-Miss:N — 심각도 누락 (누락 시만 표시)\n• S-Rec — 심각도 재평가 버튼 (항상 표시)\n\n■ 6ST 최적화 헤더\n• LLD추천 — LLD 매칭 항목 우선 배정\n• 개선추천 — 나머지 H/M 산업DB 기반 배정\n• O:N / D:N / O&D:N — SRP 경로별 건수 (H+M 대상)\n\n■ 설계 원칙\n• Rec 버튼은 항상 표시 (예측 가능한 UI)\n• Miss 배지는 건수 > 0일 때만 표시\n• SRP 배지는 H+M > 0일 때만 표시\n• 버튼 텍스트 최소화: O-Rec, D-Rec, S-Rec',
+    keywords: ['배지', 'badge', 'O-Rec', 'D-Rec', 'S-Rec', 'SRP', 'Miss', '헤더'],
     paths: ['/pfmea/worksheet'],
   },
 ];
