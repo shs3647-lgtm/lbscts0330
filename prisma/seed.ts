@@ -141,6 +141,20 @@ async function main() {
     console.log(`lessonsLearned:          ${ll.length} 건`);
   }
 
+  // 10. LLD Filter Code (교훈 DB — LLD26-001~019)
+  const lld = loadJson<any>('18_lld_filter_code.json');
+  if (lld.length > 0) {
+    await p.lLDFilterCode.createMany({ data: lld, skipDuplicates: true });
+    console.log(`lldFilterCode:           ${lld.length} 건`);
+  }
+
+  // 11. Continuous Improvement Plan (지속개선계획 — CIP26-001~008)
+  const cip = loadJson<any>('19_continuous_improvement_plan.json');
+  if (cip.length > 0) {
+    await p.continuousImprovementPlan.createMany({ data: cip, skipDuplicates: true });
+    console.log(`continuousImprovement:   ${cip.length} 건`);
+  }
+
   console.log('\n=== Seed 완료 ===');
 }
 
