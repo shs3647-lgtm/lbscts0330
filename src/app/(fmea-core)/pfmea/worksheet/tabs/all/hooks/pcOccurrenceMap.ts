@@ -1,31 +1,21 @@
 /**
  * @file pcOccurrenceMap.ts
- * @description 발생도(O) AIAG-VDA FMEA Handbook 1st Edition 보수적 기준 — v3.0
+ * @description 발생도(O) 키워드 추론 — v4.0 SOD기준표 + 산업DB 기반
  *
- *   예방관리(PC) 텍스트에서 키워드를 매칭하여 O값 직접 산정.
- *   ★ v3.0: AIAG-VDA 1st Ed. 보수적 기준 전면 적용
+ *   ★ v4.0: SOD기준표(public.pfmea_occurrence_criteria) + 산업DB(kr_industry_prevention) 단어만 사용
+ *   ★ 포카요케/에러프루프/Cpk 키워드 삭제 — AIAG-VDA FMEA에서 미사용
+ *   ★ O=1 추천 금지 (엔지니어만 판단)
  *
  *   ─────────────────────────────────────────────────
- *   O=1  고장 원천 제거 (설계적 원천차단, 자동화 대체)
- *   O=2  에러프루프 / 인터록 (물리적 차단, 사람 개입 無)
- *   O=3  자동식별 + SPC + 환경관리 + 검교정 (기계/시스템 기반)
- *   O=4  MSA + PM + 파라미터관리 + 공구관리 (간접/체계적 관리)
- *   O=5  교육/훈련 + 표준/절차 + 역량인증 + 이종자재관리 (사람/문서 의존)
- *   O≥6  예방관리 없음 / 키워드 미매칭
+ *   O=2  인터록, 자동차단, UPS/AVR, 진공도 인터록 (산업DB)
+ *   O=3  SPC, 실시간 모니터링, 자동검사, 환경관리, 검교정 (산업DB)
+ *   O=4  PM, MSA, 파라미터관리, Recipe 승인, 입고검사 (산업DB)
+ *   O=5  교육/훈련, 작업표준, 역량인증 (산업DB)
+ *   O≥6  키워드 미매칭 → 누락 (추천 안 함)
  *   ─────────────────────────────────────────────────
- *
- *   ★ 핵심 변경 (v2.1 → v3.0):
- *     - SPC: O=4→O=3 (자동 기반 관리)
- *     - MSA: O=3→O=4 (보수적: 간접 관리)
- *     - 교육/훈련: O=4→O=5 (사람 의존 = 보수적)
- *     - 표준/절차/WI/체크리스트: O=4→O=5 (문서 기반 = 보수적)
- *     - 역량인증: O=4→O=5 (사람 의존)
- *     - 이종자재/선입선출/세척: O=4→O=5 (사람 의존)
- *     - PM/정기점검: O=4→O=4 (유지)
- *     - 파라미터관리: O=4→O=4 (유지)
  *
  * @created 2026-02-05
- * @updated 2026-03-02 v3.0 AIAG-VDA 보수적 기준 전면 개편
+ * @updated 2026-03-26 v4.0 SOD기준표+산업DB 기반 전면 개편
  */
 
 interface MaturityRule {
@@ -36,23 +26,23 @@ interface MaturityRule {
 
 const MATURITY_RULES: MaturityRule[] = [
   // ══════════════════════════════════════════════
-  // O=2: 에러프루프 / 인터록 (물리적 차단, 사람 개입 無)
+  // O=2: 실증된 예방관리 (SOD기준표: Cpk≥2.0, 고장이력 0건)
+  // 산업DB: 인터록, UPS/AVR, 진공도 인터록
   // ══════════════════════════════════════════════
-  {
-    keywords: ['Poka-Yoke', 'poka-yoke', '포카요케', '에러프루프', '에러프루핑',
-               '실수방지', '풀프루프', '물리적 차단', '원천차단', 'error-proof'],
-    maturityLevel: '에러프루프 (원인 물리적 차단)',
-    oDefault: 2,
-  },
   {
     keywords: ['인터록', 'interlock', '자동차단', '투입중지', '투입차단',
                '라인정지', '자동정지'],
-    maturityLevel: '인터록/자동차단 (투입중지 연계)',
+    maturityLevel: '인터록/자동차단 (산업DB: O=2)',
     oDefault: 2,
   },
   {
-    keywords: ['물리적 방지', '구조적 방지'],
-    maturityLevel: '구조적 물리 방지',
+    keywords: ['UPS', 'AVR', '전원 안정화', '전원안정화'],
+    maturityLevel: '전원 안정화 장치 (산업DB: O=2)',
+    oDefault: 2,
+  },
+  {
+    keywords: ['진공도 인터록', '진공 인터록', '기밀 점검'],
+    maturityLevel: '진공 챔버 기밀 + 인터록 (산업DB: O=2)',
     oDefault: 2,
   },
 
@@ -72,9 +62,9 @@ const MATURITY_RULES: MaturityRule[] = [
     oDefault: 3,
   },
   {
-    // ★ SPC: O=4→O=3 (자동 기반 통계적 관리 = 기계 기반)
-    keywords: ['SPC', '통계적 관리', '관리도', 'X-bar', 'Cpk', 'Ppk', '공정능력'],
-    maturityLevel: 'SPC/통계적 공정관리 (자동기반)',
+    // 산업DB: SPC 실시간 관리 (X-bar R Chart) → O=3
+    keywords: ['SPC', '통계적 관리', '관리도', 'X-bar', '공정능력'],
+    maturityLevel: 'SPC 실시간 관리 (산업DB: O=3)',
     oDefault: 3,
   },
   {
@@ -136,6 +126,14 @@ const MATURITY_RULES: MaturityRule[] = [
                '로봇', '원점', '소모품', '마모량', '마모 측정', '진동', '소음',
                '유효기간'],
     maturityLevel: '설비/기구 관리',
+    oDefault: 4,
+  },
+  {
+    // 산업DB: 입고 검사 (IQC) + CoA 확인 → O=4
+    keywords: ['입고 검사', '입고검사', 'IQC', '수입검사', '수입품질',
+               'CoA', 'COC', '성적서', '자재 성적서', '자재성적서',
+               '입고품질', '수입품질 관리'],
+    maturityLevel: '입고검사/IQC (산업DB: O=4)',
     oDefault: 4,
   },
 

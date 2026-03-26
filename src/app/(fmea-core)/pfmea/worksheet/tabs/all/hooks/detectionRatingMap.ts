@@ -54,23 +54,15 @@ interface EquipmentRule {
 
 const EQUIPMENT_RULES: EquipmentRule[] = [
   // ════════════════════════════════════════
-  // D=1: 거의 확실히 검출 — 자동 인터락/Poka-Yoke (사람 개입 無, 기계 자동 차단)
+  // D=2: 매우 높은 검출 — 인터록/자동차단 + 기계 검출 (산업DB 기반)
+  // ★ D=1 추천 금지 (엔지니어만 판단) / 포카요케 키워드 삭제
   // ════════════════════════════════════════
   {
-    keywords: ['Poka-Yoke', 'poka-yoke', '포카요케', '에러프루프', '실수방지',
-               '풀프루프', '인터록', 'interlock', '자동차단', '투입중지',
-               '라인정지', '자동정지', '투입방지'],
-    dValue: 1,
-    label: '자동 인터락/Poka-Yoke (D=1)',
-  },
-
-  // ════════════════════════════════════════
-  // D=2: 매우 높은 검출 — 기계 검출 + 사람 확인 (반자동)
-  // ════════════════════════════════════════
-  {
-    keywords: ['반자동', '반자동검사', '자동+수동', '기계확인+작업자'],
+    keywords: ['인터록', 'interlock', '자동차단', '투입중지',
+               '라인정지', '자동정지', '투입방지',
+               '반자동', '반자동검사', '자동+수동', '기계확인+작업자'],
     dValue: 2,
-    label: '기계검출+사람확인 (D=2)',
+    label: '인터록/자동차단 (D=2)',
   },
 
   // ════════════════════════════════════════
@@ -427,6 +419,7 @@ export function recommendDetection(dcText: string, target?: DetectionTarget): nu
   }
 
   if (bestD >= 10) return 0;
+  if (bestD < 2) bestD = 2; // ★ D=1 추천 금지
   if (target) return clampToAllowedRating(bestD, target);
   return bestD;
 }

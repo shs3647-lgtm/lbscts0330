@@ -61,8 +61,8 @@ export const O_RECOMMENDATION_TABLE: OccurrenceRecommendation[] = [
   {
     controlType: 'designPrevent',
     effectiveness: '물리적 생산 불가',
-    recommendedO: [1],
-    description: '설계/공정으로 원인 제거, 물리적 생산 불가 → O=1',
+    recommendedO: [2],
+    description: '설계/공정으로 원인 제거 → O=2 (O=1은 엔지니어만 판단)',
   },
 ];
 
@@ -82,19 +82,19 @@ export const PC_CONTROL_TYPE_KEYWORDS: Record<PCControlType, string[]> = {
     '유효기간', '관리 체계', '판정', '검사',
   ],
   technical: [
-    '센서', '자동', 'PLC', '모니터링', 'Poka-Yoke', '실수방지',
-    '에러프루핑', '인터록', '자동정지', '카운터', '바코드',
+    '센서', '자동', 'PLC', '모니터링',
+    '인터록', '자동정지', '카운터', '바코드',
     '비전', '카메라', '자동검출', '설비', '에어블로우', '집진',
     '필터', '파라미터', '설정값', '이력 관리', '설비 점검',
   ],
   bestPractice: [
-    'SPC', '관리도', 'Cpk', 'PM', '예방유지보전', 'TPM',
+    'SPC', '관리도', 'PM', '예방유지보전', 'TPM',
     '지그설계', '치공구설계', '금형관리', 'FMEA', '공정능력',
     '검교정', 'Calibration', 'MSA', 'Gage R&R', 'GR&R',
     '교정', '교정주기',
   ],
   designPrevent: [
-    '설계변경', '형상변경', '구조변경', '물리적 방지', '원인 제거',
+    '설계변경', '형상변경', '구조변경',
   ],
 };
 

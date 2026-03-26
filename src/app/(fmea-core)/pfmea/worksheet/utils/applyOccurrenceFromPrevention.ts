@@ -67,9 +67,9 @@ export function lookupIndustryOccurrence(
 function evaluateOUncapped(pcPlain: string): number | null {
   if (!pcPlain.trim()) return null;
   const { correctedO } = correctOccurrence(pcPlain);
-  if (correctedO !== null && correctedO > 0) return correctedO;
+  if (correctedO !== null && correctedO >= 2) return correctedO; // ★ O=1 금지
   const fallback = recommendOccurrence(pcPlain);
-  if (fallback > 0) return fallback;
+  if (fallback >= 2) return fallback; // ★ O=1 금지
   return null;
 }
 
@@ -81,7 +81,7 @@ export function resolveOccurrenceForPc(
   if (!pcPlain.trim()) return null;
   if (industryPreventionOByMethod && industryPreventionOByMethod.size > 0) {
     const ind = lookupIndustryOccurrence(pcPlain, industryPreventionOByMethod);
-    if (ind !== undefined && ind >= 1 && ind <= 10) return ind;
+    if (ind !== undefined && ind >= 2 && ind <= 10) return ind; // ★ O=1 금지
   }
   return evaluateOUncapped(pcPlain);
 }
@@ -119,7 +119,7 @@ export function applyOccurrenceFromPrevention(
     const pcPlain = String(rawPc);
     const o = resolveOccurrenceForPc(pcPlain, industryPreventionOByMethod);
 
-    if (o !== null && o > 0 && o !== currentO) {
+    if (o !== null && o >= 2 && o !== currentO) { // ★ O=1 금지
       updates[oKey] = o;
       updates[`imported-O-${uk}`] = 'auto';
       filledCount++;
@@ -138,7 +138,7 @@ export function buildIndustryPreventionOMap(
     const m = (entry.method || '').trim().toLowerCase();
     const r = entry.defaultRating;
     if (!m || r === null || r === undefined) continue;
-    if (r >= 1 && r <= 10 && !map.has(m)) map.set(m, r);
+    if (r >= 2 && r <= 10 && !map.has(m)) map.set(m, r); // ★ O=1 금지
   }
   return map;
 }

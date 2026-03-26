@@ -36,6 +36,7 @@ interface FailureLinkLike {
 export function autoFillMissingDetection(
   riskData: Record<string, unknown> | Record<string, string | number>,
   failureLinks: FailureLinkLike[],
+  forceReevaluate = false,
 ): AutoFillDetectionResult {
   const updated: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(riskData)) {
@@ -51,9 +52,9 @@ export function autoFillMissingDetection(
     const dKey = `risk-${uniqueKey}-D`;
 
     const existingD = updated[dKey];
-    if (existingD !== undefined && existingD !== null && existingD !== '' && existingD !== 0) {
+    if (!forceReevaluate && existingD !== undefined && existingD !== null && existingD !== '' && existingD !== 0) {
       const num = Number(existingD);
-      if (num >= 2 && num <= 10) continue;
+      if (num >= 2 && num <= 10) continue; // 기존 평가 유지 (forceReevaluate=false)
     }
 
     const dcKey = `detection-${uniqueKey}`;
@@ -61,7 +62,7 @@ export function autoFillMissingDetection(
     if (!dcText) continue;
 
     const dValue = recommendDetection(dcText);
-    if (dValue <= 0) continue;
+    if (dValue < 2) continue; // ★ D=1 추천 금지 — 매칭 실패는 누락 유지
 
     updated[dKey] = dValue;
     updated[`imported-D-${uniqueKey}`] = 'auto';

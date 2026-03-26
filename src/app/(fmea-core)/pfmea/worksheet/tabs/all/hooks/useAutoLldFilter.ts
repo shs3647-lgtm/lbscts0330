@@ -410,11 +410,13 @@ export function useAutoLldFilter({
         }
       }
 
-      const totalMatched = candidates.filter(c => c.matchTier > 0).length;
+      // ★ LLD 모달에는 실제 LLD 매칭(matchedLld 있는 행)만 표시 — LLD No 빈 행(산업DB/미매칭) 제외
+      const lldOnlyCandidates = candidates.filter(c => c.matchedLld !== null);
+      const totalMatched = lldOnlyCandidates.filter(c => c.matchTier > 0).length;
       setModal({
         isOpen: true,
-        candidates,
-        totalEligible: candidates.length,
+        candidates: lldOnlyCandidates,
+        totalEligible: lldOnlyCandidates.length,
         totalMatched,
         applyStep: step,
       });

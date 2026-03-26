@@ -41,6 +41,7 @@ interface FailureLinkLike {
 export function autoFillMissingOccurrence(
   riskData: Record<string, unknown> | Record<string, string | number>,
   failureLinks: FailureLinkLike[],
+  forceReevaluate = false,
 ): AutoFillResult {
   const updated: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(riskData)) {
@@ -56,10 +57,9 @@ export function autoFillMissingOccurrence(
     const oKey = `risk-${uniqueKey}-O`;
 
     const existingO = updated[oKey];
-    if (existingO !== undefined && existingO !== null && existingO !== '' && existingO !== 0) {
+    if (!forceReevaluate && existingO !== undefined && existingO !== null && existingO !== '' && existingO !== 0) {
       const num = Number(existingO);
-      // O=1은 import 기본값일 가능성 → 재평가 대상
-      if (num >= 2 && num <= 10) continue;
+      if (num >= 2 && num <= 10) continue; // 기존 평가 유지 (forceReevaluate=false)
     }
 
     const pcKey = `prevention-${uniqueKey}`;
@@ -71,16 +71,16 @@ export function autoFillMissingOccurrence(
     let oValue: number;
     let finalReason: string;
 
-    if (correctedO !== null && correctedO > 0) {
+    if (correctedO !== null && correctedO >= 2) {
       oValue = correctedO;
       finalReason = reason;
     } else {
       const fallback = recommendOccurrence(pcText);
-      if (fallback > 0) {
+      if (fallback >= 2) {
         oValue = fallback;
         finalReason = `PC 키워드 fallback → O=${oValue}`;
       } else {
-        continue;
+        continue; // ★ O=1 추천 금지 — 매칭 실패는 누락 유지
       }
     }
 

@@ -25,9 +25,9 @@ interface Props {
 // 등급 색상 — LLD 페이지 CLASSIFICATION_COLORS와 동일 패턴
 const TIER_META: Record<number, { label: string; color: string }> = {
   1: { label: '정확', color: '#22c55e' },
-  2: { label: '공정명', color: '#3b82f6' },
-  3: { label: '수평전개', color: '#a855f7' },
-  0: { label: '미매칭', color: '#94a3b8' },
+  2: { label: '공정', color: '#3b82f6' },
+  3: { label: '수평', color: '#a855f7' },
+  0: { label: 'Miss', color: '#94a3b8' },
 };
 
 type TierFilter = 'all' | 1 | 2 | 3 | 0;
@@ -35,6 +35,16 @@ type TargetFilter = 'all' | 'prevention' | 'detection';
 type ApFilter = 'all' | 'H' | 'M' | 'L';
 const AP_COLORS: Record<string, string> = { H: '#ef5350', M: '#ffc107', L: '#4caf50' };
 const AP_TEXT: Record<string, string> = { H: '#fff', M: '#000', L: '#fff' };
+
+// 구분(Classification) 배지 색상
+const CLS_META: Record<string, { color: string; bg: string }> = {
+  CIP: { color: '#fff', bg: '#2563eb' },
+  RMA: { color: '#fff', bg: '#dc2626' },
+  ABN: { color: '#fff', bg: '#ea580c' },
+  ECN: { color: '#fff', bg: '#7c3aed' },
+  FieldIssue: { color: '#fff', bg: '#0891b2' },
+  DevIssue: { color: '#fff', bg: '#4f46e5' },
+};
 
 const MODAL_W = 1280;
 const MODAL_H_MAX = 620;
@@ -336,7 +346,7 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
             }}>
               → {modal.applyStep === '6ST' ? '6ST 최적화' : '5ST 리스크분석'}
             </span>
-            <span className="text-[10px] opacity-80">매칭:{matchedTotal} / 미매칭:{tierCounts[0]} / 선택:{checkedCount}</span>
+            <span className="text-[10px] opacity-80">Match:{matchedTotal} / Miss:{tierCounts[0]} / Sel:{checkedCount}</span>
           </div>
           <button onClick={onClose} className="bg-white/20 border-none text-white w-6 h-6 rounded cursor-pointer text-sm hover:bg-white/30">✕</button>
         </div>
@@ -355,11 +365,11 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
             <button className={tabCls(targetFilter === 'prevention', '#14b8a6')}
               style={targetFilter === 'prevention' ? { backgroundColor: '#14b8a6' } : {}}
               onClick={() => setTargetFilter(targetFilter === 'prevention' ? 'all' : 'prevention')}
-            >예방({targetCounts.prevention})</button>
+            >PC({targetCounts.prevention})</button>
             <button className={tabCls(targetFilter === 'detection', '#6366f1')}
               style={targetFilter === 'detection' ? { backgroundColor: '#6366f1' } : {}}
               onClick={() => setTargetFilter(targetFilter === 'detection' ? 'all' : 'detection')}
-            >검출({targetCounts.detection})</button>
+            >DC({targetCounts.detection})</button>
             <span className="text-slate-300">|</span>
             {(['H', 'M', 'L'] as const).map(ap => (
               <button key={ap} className={tabCls(apFilter === ap, AP_COLORS[ap])}
@@ -392,27 +402,28 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
             <colgroup>
               <col style={{ width: 24 }} />
               <col style={{ width: 26 }} />
-              <col style={{ width: 52 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 110 }} />
-              <col style={{ width: 110 }} />
-              <col style={{ width: 20 }} />
-              <col style={{ width: 20 }} />
-              <col style={{ width: 20 }} />
-              <col style={{ width: 30 }} />
-              <col style={{ width: 38 }} />
               <col style={{ width: 48 }} />
-              <col style={{ width: 70 }} />
+              <col style={{ width: 72 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 18 }} />
+              <col style={{ width: 18 }} />
+              <col style={{ width: 18 }} />
+              <col style={{ width: 26 }} />
+              <col style={{ width: 28 }} />
+              <col style={{ width: 32 }} />
+              <col style={{ width: 32 }} />
+              <col style={{ width: 64 }} />
               <col />
               <col />
             </colgroup>
             {/* 그룹 헤더 */}
             <thead className="sticky top-0 z-10">
               <tr>
-                <th colSpan={2} className="bg-slate-600 text-white text-[9px] font-bold text-center border-b border-r border-slate-400 p-0" style={{ width: 50 }}></th>
+                <th colSpan={2} className="bg-slate-600 text-white text-[9px] font-bold text-center border-b border-r border-slate-400 p-0"></th>
                 <th colSpan={4} className="bg-[#1565C0] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">FMEA 정보</th>
                 <th colSpan={3} className="bg-[#C62828] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">현행 SOD</th>
-                <th colSpan={4} className="bg-[#F57C00] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">매칭 정보</th>
+                <th colSpan={5} className="bg-[#F57C00] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">매칭 정보</th>
                 <th colSpan={2} className="bg-[#2E7D32] text-white text-[10px] font-bold text-center border-b border-slate-400 py-0.5">LLD 개선</th>
               </tr>
               {/* 컬럼 헤더 */}
@@ -428,8 +439,9 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
                   { label: 'O', w: 20 },
                   { label: 'D', w: 20 },
                   { label: 'AP', w: 30 },
-                  { label: '대상', w: 38 },
-                  { label: '등급', w: 48 },
+                  { label: '대상', w: 28 },
+                  { label: '등급', w: 32 },
+                  { label: '구분', w: 32 },
                   { label: 'LLD No', w: 70 },
                   { label: '예방관리 개선', w: 0 },
                   { label: '검출관리 개선', w: 0 },
@@ -440,7 +452,7 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={15} className="text-center py-8 text-gray-400">
+                <tr><td colSpan={16} className="text-center py-8 text-gray-400">
                   {candidates.length === 0 ? '매칭 가능한 LLD가 없습니다.' : '필터 조건에 맞는 항목이 없습니다.'}
                 </td></tr>
               )}
@@ -484,13 +496,22 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
                     </td>
                     {/* 대상 */}
                     <td className={`${cellBase} text-center`}>
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white ${c.applyTarget === 'prevention' ? 'bg-teal-500' : 'bg-indigo-500'}`}>
-                        {c.applyTarget === 'prevention' ? '예방' : '검출'}
+                      <span className={`inline-block px-1 py-0 rounded text-[8px] font-bold text-white leading-[14px] ${c.applyTarget === 'prevention' ? 'bg-teal-500' : 'bg-indigo-500'}`}>
+                        {c.applyTarget === 'prevention' ? 'PC' : 'DC'}
                       </span>
                     </td>
                     {/* 등급 */}
                     <td className={`${cellBase} text-center`}>
-                      <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white" style={{ backgroundColor: tier.color }}>{tier.label}</span>
+                      <span className="inline-block px-1 py-0 rounded text-[8px] font-bold text-white leading-[14px]" style={{ backgroundColor: tier.color }}>{tier.label}</span>
+                    </td>
+                    {/* 구분 */}
+                    <td className={`${cellBase} text-center`}>
+                      {(() => {
+                        const cls = c.matchedLld?.classification || '';
+                        const meta = CLS_META[cls];
+                        if (!cls) return <span className="text-gray-300 text-[8px]">-</span>;
+                        return <span className="inline-block px-1 py-0 rounded text-[8px] font-bold leading-[14px]" style={{ backgroundColor: meta?.bg || '#6b7280', color: meta?.color || '#fff' }}>{cls}</span>;
+                      })()}
                     </td>
                     {/* LLD No */}
                     <td className={`${cellBase} text-center font-mono text-[9px]`}>{c.matchedLld?.lldNo || '-'}</td>

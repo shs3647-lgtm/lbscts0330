@@ -478,114 +478,137 @@ export function useRecommendHandlers({
     setRecommendModal(prev => ({ ...prev, isOpen: false }));
   }, []);
 
-  // ★ 발생도(O) 자동추천 — Master SOD API + PC 키워드 기반
+  // ★ 발생도(O) 자동재평가 — 1순위: 산업DB, 2순위: 키워드 → 한 번에 합쳐서 setState
   const autoRecommendO = useCallback(async () => {
     if (!state?.riskData || !setState) return;
 
     const fmeaId = (state as any).fmeaId || new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('id') || '';
-    let masterFilled = 0;
+    let dbFilled = 0;
+    let kwFilled = 0;
+    let unmatched = 0;
 
-    // 1차: Master SOD API에서 O값 가져오기
+    // ★ 모든 결과를 하나의 updates에 수집 → 한 번에 setState
+    const allUpdates: Record<string, string | number> = {};
+
+    // 1순위: 산업DB 매칭
+    const dbMatchedKeys = new Set<string>();
     if (fmeaId) {
       try {
-        const res = await fetch('/api/master/sod-recommend', {
+        const res = await fetch('/api/sod/recommend-correction', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fmeaId }),
+          body: JSON.stringify({ fmeaId, type: 'O' }),
         });
         const json = await res.json();
-        if (json.success && json.results) {
-          setState((prev: WorksheetState) => {
-            const rd = { ...(prev.riskData || {}) };
-            for (const r of json.results) {
-              if (!r.occurrence || r.occurrence <= 0 || r.matchType === 'none') continue;
-              const fl = (prev.failureLinks || []).find((l: any) => l.id === r.linkId);
-              if (!fl) continue;
-              const uk = `${fl.fmId}-${fl.fcId}`;
-              const cur = Number(rd[`risk-${uk}-O`]) || 0;
-              if (cur <= 1) {
-                rd[`risk-${uk}-O`] = r.occurrence;
-                rd[`imported-O-${uk}`] = 'auto';
-                masterFilled++;
-              }
-            }
-            return { ...prev, riskData: rd };
-          });
+        if (json.success && json.oRecommendations?.length > 0) {
+          for (const rec of json.oRecommendations) {
+            if (rec.recommendedValue < 2) continue;
+            allUpdates[`risk-${rec.uniqueKey}-O`] = rec.recommendedValue;
+            allUpdates[`imported-O-${rec.uniqueKey}`] = 'auto';
+            dbMatchedKeys.add(rec.uniqueKey);
+            dbFilled++;
+          }
         }
-      } catch { /* Master API 실패 → 키워드 폴백 */ }
+        unmatched = json.stats?.o?.unmatched || 0;
+      } catch (e) { console.error('[O-Rec] 산업DB API 실패:', e); }
     }
 
-    // 2차: 키워드 기반 폴백 (Master에서 못 채운 건)
+    // 2순위: 키워드 추론 (산업DB에서 이미 매칭된 건은 제외)
     const fls = (state.failureLinks || []).map((fl) => ({
       fmId: String(fl.fmId || ''), fcId: String(fl.fcId || ''),
     }));
-    const result = autoFillMissingOccurrence(state.riskData || {}, fls);
-    if (result.filledCount > 0) {
-      setState((prev: WorksheetState) => ({ ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } }));
+    const result = autoFillMissingOccurrence(state.riskData || {}, fls, true);
+    for (const detail of result.details) {
+      if (detail.oValue < 2) continue;
+      if (dbMatchedKeys.has(detail.uniqueKey)) continue; // 산업DB 우선
+      allUpdates[`risk-${detail.uniqueKey}-O`] = detail.oValue;
+      allUpdates[`imported-O-${detail.uniqueKey}`] = 'auto';
+      kwFilled++;
     }
 
-    const total = masterFilled + result.filledCount;
-    if (total === 0) {
-      alert('발생도(O) 누락이 없습니다.');
-      return;
+    // ★ 한 번에 setState
+    if (Object.keys(allUpdates).length > 0) {
+      setState((prev: WorksheetState) => ({
+        ...prev,
+        riskData: { ...(prev.riskData || {}), ...allUpdates } as Record<string, string | number>,
+      }));
     }
-    setDirty?.(true);
-    saveAtomicDB?.(true);
-    alert(`발생도(O) 자동추천 완료!\n\nMaster DB 기반: ${masterFilled}건\n키워드 기반: ${result.filledCount}건\n합계: ${total}건`);
+
+    const total = dbFilled + kwFilled;
+    const lines = [`[발생도(O) 재평가 완료]`, ``, `산업DB 매칭: ${dbFilled}건`, `키워드 추론: ${kwFilled}건`];
+    if (unmatched > 0) lines.push(`DB 미매칭 (누락): ${unmatched}건 — 수동 입력 필요`);
+    lines.push(``, `합계: ${total}건 수정`);
+    if (total === 0) lines.push(``, `※ 수정 대상이 없습니다.`);
+    alert(lines.join('\n'));
+    if (total > 0) {
+      setDirty?.(true);
+      saveAtomicDB?.(true);
+    }
   }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB, state]);
 
-  // ★ 검출도(D) 자동추천 — Master SOD API + DC 키워드 기반
+  // ★ 검출도(D) 자동재평가 — 1순위: 산업DB, 2순위: 키워드 → 한 번에 합쳐서 setState
   const autoRecommendD = useCallback(async () => {
     if (!state?.riskData || !setState) return;
 
     const fmeaId = (state as any).fmeaId || new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('id') || '';
-    let masterFilled = 0;
+    let dbFilled = 0;
+    let kwFilled = 0;
+    let unmatched = 0;
 
-    // 1차: Master SOD API에서 D값 가져오기
+    const allUpdates: Record<string, string | number> = {};
+    const dbMatchedKeys = new Set<string>();
+
+    // 1순위: 산업DB 매칭
     if (fmeaId) {
       try {
-        const res = await fetch('/api/master/sod-recommend', {
+        const res = await fetch('/api/sod/recommend-correction', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fmeaId }),
+          body: JSON.stringify({ fmeaId, type: 'D' }),
         });
         const json = await res.json();
-        if (json.success && json.results) {
-          setState((prev: WorksheetState) => {
-            const rd = { ...(prev.riskData || {}) };
-            for (const r of json.results) {
-              if (!r.detection || r.detection <= 0 || r.matchType === 'none') continue;
-              const fl = (prev.failureLinks || []).find((l: any) => l.id === r.linkId);
-              if (!fl) continue;
-              const uk = `${fl.fmId}-${fl.fcId}`;
-              const cur = Number(rd[`risk-${uk}-D`]) || 0;
-              if (cur <= 1) {
-                rd[`risk-${uk}-D`] = r.detection;
-                rd[`imported-D-${uk}`] = 'auto';
-                masterFilled++;
-              }
-            }
-            return { ...prev, riskData: rd };
-          });
+        if (json.success && json.dRecommendations?.length > 0) {
+          for (const rec of json.dRecommendations) {
+            if (rec.recommendedValue < 2) continue;
+            allUpdates[`risk-${rec.uniqueKey}-D`] = rec.recommendedValue;
+            allUpdates[`imported-D-${rec.uniqueKey}`] = 'auto';
+            dbMatchedKeys.add(rec.uniqueKey);
+            dbFilled++;
+          }
         }
-      } catch { /* Master API 실패 → 키워드 폴백 */ }
+        unmatched = json.stats?.d?.unmatched || 0;
+      } catch (e) { console.error('[D-Rec] 산업DB API 실패:', e); }
     }
 
-    // 2차: 키워드 기반 폴백
+    // 2순위: 키워드 추론 (산업DB 매칭 건 제외)
     const fls = (state.failureLinks || []).map((fl) => ({
       fmId: String(fl.fmId || ''), fcId: String(fl.fcId || ''),
     }));
-    const result = autoFillMissingDetection(state.riskData || {}, fls);
-    if (result.filledCount > 0) {
-      setState((prev: WorksheetState) => ({ ...prev, riskData: result.updatedRiskData as { [key: string]: string | number } }));
+    const result = autoFillMissingDetection(state.riskData || {}, fls, true);
+    for (const detail of result.details) {
+      if (detail.dValue < 2) continue;
+      if (dbMatchedKeys.has(detail.uniqueKey)) continue;
+      allUpdates[`risk-${detail.uniqueKey}-D`] = detail.dValue;
+      allUpdates[`imported-D-${detail.uniqueKey}`] = 'auto';
+      kwFilled++;
     }
 
-    const total = masterFilled + result.filledCount;
-    if (total === 0) {
-      alert('검출도(D) 누락이 없습니다.');
-      return;
+    // ★ 한 번에 setState
+    if (Object.keys(allUpdates).length > 0) {
+      setState((prev: WorksheetState) => ({
+        ...prev,
+        riskData: { ...(prev.riskData || {}), ...allUpdates } as Record<string, string | number>,
+      }));
     }
-    setDirty?.(true);
-    saveAtomicDB?.(true);
-    alert(`검출도(D) 자동추천 완료!\n\nMaster DB 기반: ${masterFilled}건\n키워드 기반: ${result.filledCount}건\n합계: ${total}건`);
+
+    const total = dbFilled + kwFilled;
+    const lines = [`[검출도(D) 재평가 완료]`, ``, `산업DB 매칭: ${dbFilled}건`, `키워드 추론: ${kwFilled}건`];
+    if (unmatched > 0) lines.push(`DB 미매칭 (누락): ${unmatched}건 — 수동 입력 필요`);
+    lines.push(``, `합계: ${total}건 수정`);
+    if (total === 0) lines.push(``, `※ 수정 대상이 없습니다.`);
+    alert(lines.join('\n'));
+    if (total > 0) {
+      setDirty?.(true);
+      saveAtomicDB?.(true);
+    }
   }, [state?.riskData, state?.failureLinks, setState, setDirty, saveAtomicDB, state]);
 
   return {

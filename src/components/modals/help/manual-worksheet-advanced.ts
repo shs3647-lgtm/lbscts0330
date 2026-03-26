@@ -147,6 +147,52 @@ export const WORKSHEET_ADV_ITEMS_KO: ManualItem[] = [
     keywords: ['인라인', '편집', 'SOD', '모달', 'textarea', 'memo'],
     paths: ['/pfmea/worksheet'],
   },
+  // ═══════════════════════════════════════════
+  // SOD 재평가 (O-Rec / D-Rec)
+  // ═══════════════════════════════════════════
+  {
+    category: '리스크분석',
+    title: 'O-Rec / D-Rec 발생도·검출도 재평가',
+    content: '5ST 리스크분석 헤더의 O-Rec / D-Rec 버튼으로 발생도(O)와 검출도(D)를 재평가합니다.\n\n■ O-Rec (발생도 재평가)\n버튼을 누르면 현재 예방관리(PC) 텍스트를 분석하여 O값을 재산정합니다.\n\n• 1순위: 산업DB 매칭 (public.kr_industry_prevention 25건)\n  → PC 텍스트 ↔ 산업DB method 부분일치/약어매칭\n  → 매칭 성공 시 defaultRating(O=2~5) 적용\n• 2순위: 키워드 추론 (pcOccurrenceMap)\n  → 인터록/UPS → O=2 | SPC/자동검사 → O=3\n  → PM/MSA/IQC → O=4 | 교육/표준 → O=5\n• 미매칭: "DB 미매칭 N건 — 수동 입력 필요" 표시\n\n■ D-Rec (검출도 재평가)\n현재 검출관리(DC) 텍스트를 분석하여 D값을 재산정합니다.\n\n• 1순위: 산업DB 매칭 (public.kr_industry_detection 25건)\n  → DC 텍스트 ↔ 산업DB method 매칭\n  → Particle Counter → D=3 | Open/Short Test → D=2 등\n• 2순위: 키워드 추론 (detectionRatingMap)\n  → 인터록/자동차단 → D=2 | 비전검사/SPC → D=3\n  → CMM/전용검사기 → D=4 | 육안검사 → D=7 등\n\n■ 핵심 규칙\n• O=1, D=1 추천 절대 금지 (엔지니어만 판단)\n• 기존 DB 저장값도 강제 덮어쓰기 (재평가)\n• 산업DB 우선 → 키워드 보충 → 한 번에 저장',
+    keywords: ['O-Rec', 'D-Rec', '재평가', '발생도', '검출도', '산업DB', '키워드', 'SOD'],
+    paths: ['/pfmea/worksheet'],
+  },
+  {
+    category: '리스크분석',
+    title: 'SOD 기준표 (AIAG-VDA)',
+    content: '■ SOD 기준표 API\n• GET /api/pfmea/sod-criteria\n• public 스키마의 S/O/D 평가기준 10건씩 조회\n\n■ 발생도(O) 기준표\n• O=2: 극히 낮음 — 실증된 예방관리\n• O=3: 매우 낮음 — SPC 관리\n• O=4: 낮음 — SPC 관리\n• O=5: 다소 낮음 — 관리계획 효과적 운용\n• O=6: 보통 — 관리계획 수립/준수\n• O=7~10: 관리 미흡~미수립\n\n■ 검출도(D) 기준표\n• D=2: 매우 높음 — 전수검사 + 자동 Reject\n• D=3: 높음 — 자동 전수검사 + 자동정지\n• D=4: 다소 높음 — 자동 검사 (연속)\n• D=5: 보통 — 자동 검사 (간헐적)\n• D=6: 다소 낮음 — SPC + 수동 검사\n• D=7~10: 수동/육안/미수립\n\n■ 산업DB (kr_industry)\n• 예방관리 25건: 장비PM, 인터록, SPC, 입고검사 등\n• 검출관리 25건: 4-Point Probe, AVI, Open/Short Test 등\n• 각 항목에 defaultRating(O/D값) 포함',
+    keywords: ['SOD', '기준표', '산업DB', 'kr_industry', '예방관리', '검출관리', 'API'],
+    paths: ['/pfmea/worksheet'],
+  },
+
+  // ═══════════════════════════════════════════
+  // LLD 추천 모달 개선
+  // ═══════════════════════════════════════════
+  {
+    category: '최적화',
+    title: 'LLD 추천 모달 (6ST)',
+    content: '6단계 최적화에서 LLD(습득교훈) 기반 개선안을 추천합니다.\n\n■ LLD추천 버튼\n• 6ST 최적화 헤더의 "LLD추천" 클릭\n• FailureLink별 LLD DB 매칭 → 예방/검출 개선안 추천\n\n■ 모달 구성 (16컬럼)\n• FMEA 정보: 공정번호, 공정명, FM, FC\n• 현행 SOD: S, O, D\n• 매칭 정보: 대상(PC/DC), 등급(정확/공정/수평/Miss), 구분(CIP/RMA/ABN/ECN)\n• LLD No: 매칭된 LLD 번호\n• LLD 개선: 예방관리 개선, 검출관리 개선\n\n■ 매칭 등급\n• 정확: FC/FM 텍스트 정확 매칭 (녹색)\n• 공정: 동일 공정 내 매칭 (파랑)\n• 수평: 타 공정 수평전개 매칭 (보라)\n• Miss: 미매칭 (회색)\n\n■ 구분 배지\n• CIP: 지속개선 (파랑)\n• RMA: 반품분석 (빨강)\n• ABN: 이상발생 (주황)\n• ECN: 설계변경 (보라)\n\n■ 필터 탭\n• 등급별: 정확/공정/수평/Miss\n• 대상별: PC(예방) / DC(검출)\n• AP별: H/M/L\n\n■ 적용\n• 실제 LLD 매칭 항목만 표시 (산업DB 자동추천 제외)\n• 체크 후 "적용" → 개선안이 6ST 최적화 컬럼에 반영',
+    keywords: ['LLD', '추천', '모달', '6ST', '최적화', 'CIP', 'RMA', 'ABN', '수평전개', '매칭'],
+    paths: ['/pfmea/worksheet'],
+  },
+  {
+    category: '최적화',
+    title: '개선추천 (산업DB 기반)',
+    content: '6ST 최적화 헤더의 "개선추천" 버튼으로 산업DB 기반 개선안을 생성합니다.\n\n■ 프로세스\n1. AP=H/M 항목 자동 수집\n2. 산업DB(kr_industry_prevention/detection) 매칭\n3. Import FC↔PC/DC 직접매칭 (마스터 B5/A6)\n4. AP경로 기반 목표 O/D 산출\n5. 개선추천 모달에서 미리보기 + 선택 적용\n\n■ 적용 방식\n• 전체 적용: 모든 추천안 일괄 반영\n• 선택 적용: 체크된 항목만 반영\n• 책임자: CFT 리더 자동 배정\n• N/A: 불필요한 측면은 자동 N/A 표시',
+    keywords: ['개선추천', '산업DB', 'AP경로', '목표', '일괄', 'CFT'],
+    paths: ['/pfmea/worksheet'],
+  },
+
+  // ═══════════════════════════════════════════
+  // 배지 UI 최적화
+  // ═══════════════════════════════════════════
+  {
+    category: '전체보기',
+    title: 'ALL 탭 헤더 배지 시스템',
+    content: '5ST/6ST 헤더에 상시 표시되는 배지로 현황을 파악합니다.\n\n■ 5ST 리스크분석 헤더\n• H:N / M:N / L:N — AP 등급별 건수 (항상 표시)\n• O-Miss:N — 발생도 누락 건수 (누락 시만 표시)\n• O-Rec — 발생도 재평가 버튼 (항상 표시)\n• D-Miss:N — 검출도 누락 건수 (누락 시만 표시)\n• D-Rec — 검출도 재평가 버튼 (항상 표시)\n\n■ 4ST 고장분석 헤더\n• FE:N / FM:N / FC:N — 연결 건수\n• S-Miss:N — 심각도 누락 (누락 시만 표시)\n• S-Rec — 심각도 재평가 버튼 (항상 표시)\n\n■ 6ST 최적화 헤더\n• 개선추천 — 산업DB 기반 개선안 생성\n• LLD추천 — LLD 기반 수평전개 추천\n\n■ 설계 원칙\n• Rec 버튼은 항상 표시 (예측 가능한 UI)\n• Miss 배지는 건수 > 0일 때만 표시\n• 버튼 텍스트 최소화: O-Rec, D-Rec, S-Rec',
+    keywords: ['배지', 'badge', 'O-Rec', 'D-Rec', 'S-Rec', 'Miss', '헤더', '항상'],
+    paths: ['/pfmea/worksheet'],
+  },
 ];
 
 export const WORKSHEET_ADV_ITEMS_EN: ManualItem[] = [];
