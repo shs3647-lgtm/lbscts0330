@@ -164,8 +164,8 @@ export default function CreateDocumentModal({
                 }).catch(() => { /* 무시 */ });
             }
 
-            // 고객사 목록 로드 — /api/customers (Customer 마스터 DB)
-            fetch('/api/customers')
+            // 고객사 목록 로드
+            fetch('/api/master/customer')
                 .then(res => res.json())
                 .then(data => {
                     if (data.success && data.customers) {
@@ -261,8 +261,14 @@ export default function CreateDocumentModal({
                     responsibleName: managerName.trim(),
                     partNo: partNo.trim(),
                 };
-                // Family/Part 공통: standalone 또는 상위 선택
-                if (docType === 'family' || docType === 'part') {
+                if (docType === 'family') {
+                    if (selectedParentTriplet.startsWith('legacy:')) {
+                        tripletBody.parentFmeaId = selectedParentTriplet.replace('legacy:', '');
+                    } else {
+                        tripletBody.parentTripletId = selectedParentTriplet;
+                    }
+                }
+                if (docType === 'part') {
                     if (partParentMode === 'standalone') {
                         tripletBody.standalone = true;
                     } else if (selectedParentTriplet) {
@@ -274,9 +280,6 @@ export default function CreateDocumentModal({
                         if (partParentMode === 'part-ref') {
                             tripletBody.partRef = true;
                         }
-                    } else {
-                        // 상위 미선택 시 standalone
-                        tripletBody.standalone = true;
                     }
                 }
                 if (docType === 'master') {
@@ -388,45 +391,11 @@ export default function CreateDocumentModal({
                             </td>
                         </tr>
 
-                        {/* 회사명 (작성회사) — 고정 */}
+                        {/* 회사명 (작성회사) — datalist 드롭다운 + 직접입력 */}
                         <tr className="border-b">
                             <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-middle">회사명</td>
                             <td className="py-1">
                                 <span className="w-full px-3 py-1 text-sm">LBS</span>
-                            </td>
-                        </tr>
-
-                        {/* 고객사 — datalist 드롭다운 + 직접입력 */}
-                        <tr className="border-b">
-                            <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-middle">고객사</td>
-                            <td className="py-1">
-                                <input
-                                    type="text"
-                                    list="customer-list"
-                                    value={customer}
-                                    onChange={(e) => setCustomer(e.target.value)}
-                                    placeholder="고객사 선택 또는 직접 입력"
-                                    className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                                />
-                                <datalist id="customer-list">
-                                    {customers.map((c, i) => (
-                                        <option key={i} value={c} />
-                                    ))}
-                                </datalist>
-                            </td>
-                        </tr>
-
-                        {/* 품번 — 자유입력 */}
-                        <tr className="border-b">
-                            <td className="py-1 pr-2 font-medium text-gray-600 text-xs w-24 align-middle">품번</td>
-                            <td className="py-1">
-                                <input
-                                    type="text"
-                                    value={partNo}
-                                    onChange={(e) => setPartNo(e.target.value)}
-                                    placeholder="품번 입력 (선택)"
-                                    className="w-full px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
-                                />
                             </td>
                         </tr>
 
@@ -493,16 +462,46 @@ export default function CreateDocumentModal({
                             </tr>
                         )}
 
-                        {/* ★ 상위 FMEA 선택 — Family/Part 공통 (선택적, 단독 생성 가능) */}
-                        {isTripletApp && (fmeaType === 'F' || fmeaType === 'P') && (
+                        {/* ★ 상위 FMEA 선택 (Family 시 — Master 필수) */}
+                        {isTripletApp && fmeaType === 'F' && (() => {
+                            const filtered = parentCandidates.filter(t => t.typeCode === 'm');
+                            return (
+                            <tr className="border-b">
+                                <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">상위 Master</td>
+                                <td className="py-1">
+                                    <select
+                                        value={selectedParentTriplet}
+                                        onChange={(e) => setSelectedParentTriplet(e.target.value)}
+                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    >
+                                        <option value="">-- 상위 FMEA 선택 --</option>
+                                        {filtered.map(t => (
+                                            <option key={t.id} value={t.id}>
+                                                [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId}{t.source === 'legacy' ? ' (기존)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {!selectedParentTriplet && filtered.length === 0 && (
+                                        <div className="text-[9px] text-orange-600 mt-0.5">Master FMEA가 없습니다. 먼저 Master FMEA를 생성하세요.</div>
+                                    )}
+                                    {!selectedParentTriplet && filtered.length > 0 && (
+                                        <div className="text-[9px] text-red-500 mt-0.5">상위 FMEA를 선택해야 생성 가능합니다.</div>
+                                    )}
+                                </td>
+                            </tr>
+                            );
+                        })()}
+
+                        {/* ★ Part FMEA 생성 모드 선택 (3가지) */}
+                        {isTripletApp && fmeaType === 'P' && (
                             <tr className="border-b">
                                 <td className="py-1 pr-2 font-medium text-gray-600 text-xs align-top">상위 선택</td>
                                 <td className="py-1">
                                     <div className="flex flex-col gap-1">
                                         {[
-                                            { v: 'master-family' as const, label: '상위 FMEA 선택' },
-                                            ...(fmeaType === 'P' ? [{ v: 'part-ref' as const, label: '다른 Part FMEA 참조' }] : []),
-                                            { v: 'standalone' as const, label: '직접 작성 (단독 생성)' },
+                                            { v: 'master-family' as const, label: '상위 Master/Family 선택' },
+                                            { v: 'part-ref' as const, label: '다른 Part FMEA 참조' },
+                                            { v: 'standalone' as const, label: '직접 작성 (상위 없음)' },
                                         ].map(opt => (
                                             <label key={opt.v} className={`flex items-center gap-1.5 px-2 py-0.5 rounded cursor-pointer text-xs ${partParentMode === opt.v ? 'bg-green-50 text-green-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}>
                                                 <input
