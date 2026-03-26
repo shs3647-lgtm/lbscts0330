@@ -47,6 +47,7 @@ export interface RecommendModalState {
     totalRows: number;
     sodMissingCount: number;
     apLCount: number;
+    lldMatchedCount?: number;
   };
 }
 
@@ -228,12 +229,12 @@ export function useRecommendHandlers({
       }
     } catch (err) { console.error('[Recommend] 데이터 로드 실패:', err); }
 
-    // H/M 항목 수집 + 추천안 사전 계산 (산업DB + Import 직접매칭 병합)
+    // ★ SRP: H/M만 대상, L 제외, LLD 매칭 항목 스킵
     const candidates: RecommendCandidate[] = [];
-    // ★ 진단 카운터
     let totalRows = 0;
     let sodMissingCount = 0;
     let apLCount = 0;
+    let lldMatchedCount = 0;
 
     processedFMGroups.forEach(fmGroup => {
       fmGroup.rows.forEach(row => {
@@ -244,9 +245,16 @@ export function useRecommendHandlers({
         const o = getSafeSODValue(riskData, `risk-${uk}-O`);
         const d = getSafeSODValue(riskData, `risk-${uk}-D`);
         const sodComplete = s > 0 && o > 0 && d > 0;
-        if (!sodComplete) sodMissingCount++;
-        const ap: 'H' | 'M' | 'L' = sodComplete ? (calcAP(s, o, d) || 'L') : 'L';
-        if (sodComplete && ap !== 'H' && ap !== 'M') apLCount++;
+        if (!sodComplete) { sodMissingCount++; return; } // SOD 미입력 → 스킵
+        const ap: 'H' | 'M' | 'L' = (calcAP(s, o, d) || 'L');
+        if (ap !== 'H' && ap !== 'M') { apLCount++; return; } // ★ L 제외
+
+        // ★ LLD 매칭 항목 스킵 (이미 LLD추천으로 배정된 항목)
+        const lessonOpt = ((riskData[`lesson-opt-${uk}`] as string) || '').trim();
+        if (lessonOpt && lessonOpt !== '-' && lessonOpt !== 'n/a') {
+          lldMatchedCount++;
+          return;
+        }
 
         const prevOptKey = `prevention-opt-${uk}`;
         const detOptKey = `detection-opt-${uk}`;
@@ -274,34 +282,26 @@ export function useRecommendHandlers({
         let suggestedTargetO: number | null = null;
         let suggestedTargetD: number | null = null;
 
-        if (sodComplete) {
-          // SOD 완비 → AP경로 기반 추천
+        // ★ SRP: AP경로 기반 최소경로 추천 (SOD 완비 보장 — 위에서 미입력은 return)
+        {
           const paths = getAllPaths(s, o, d);
           const effectiveRec = paths.oOnly.feasible ? 'O_ONLY' as const
             : paths.dOnly.feasible ? 'D_ONLY' as const
             : paths.both.feasible ? 'BOTH' as const
             : undefined;
+          const needsO = effectiveRec === 'O_ONLY' || effectiveRec === 'BOTH';
+          const needsD = effectiveRec === 'D_ONLY' || effectiveRec === 'BOTH';
 
           if (!hasPrev) {
-            // Import PC 직접매칭 우선
-            if (directPcList && directPcList.length > 0) {
-              const pathData = effectiveRec === 'O_ONLY' ? paths.oOnly
-                : effectiveRec === 'D_ONLY' ? paths.dOnly
-                  : effectiveRec === 'BOTH' ? paths.both
-                    : null;
-              const needsO = effectiveRec === 'O_ONLY' || effectiveRec === 'BOTH';
-              if (pathData && needsO) {
+            if (needsO) {
+              // O 개선 필요 → 추천안 산출
+              const pathData = effectiveRec === 'O_ONLY' ? paths.oOnly : effectiveRec === 'BOTH' ? paths.both : paths.dOnly;
+              if (directPcList && directPcList.length > 0) {
                 const neo = newOFromPcText(o, directPcList[0], scoredPCs);
                 const showO = Math.min(neo, pathData.targetO);
                 suggestedTargetO = showO;
                 prevRecommend = `${RECOMMEND_PREFIX} 발생도 ${o}→${showO} ${directPcList[0]}`;
               } else {
-                prevRecommend = `${RECOMMEND_PREFIX} ${directPcList[0]}`;
-              }
-            } else if (effectiveRec) {
-              const pathData = effectiveRec === 'O_ONLY' ? paths.oOnly : effectiveRec === 'D_ONLY' ? paths.dOnly : paths.both;
-              const needsO = effectiveRec === 'O_ONLY' || effectiveRec === 'BOTH';
-              if (needsO) {
                 const best = findBestPcForSixStep(o, scoredPCs, pathData.targetO);
                 if (best) {
                   suggestedTargetO = best.newO;
@@ -309,32 +309,23 @@ export function useRecommendHandlers({
                 } else {
                   prevRecommend = `${RECOMMEND_PREFIX} 발생도 ${o}→${pathData.targetO} 개선 필요`;
                 }
-              } else {
-                prevRecommend = PLACEHOLDER_NA;
               }
+            } else {
+              // ★ O 개선 불필요 → N/A
+              prevRecommend = PLACEHOLDER_NA;
             }
           }
 
           if (!hasDet) {
-            // Import DC 직접매칭 우선 (PC와 동일 우선순위)
-            if (directDcList && directDcList.length > 0) {
-              const pathData = effectiveRec === 'O_ONLY' ? paths.oOnly
-                : effectiveRec === 'D_ONLY' ? paths.dOnly
-                  : effectiveRec === 'BOTH' ? paths.both
-                    : null;
-              const needsD = effectiveRec === 'D_ONLY' || effectiveRec === 'BOTH';
-              if (pathData && needsD) {
+            if (needsD) {
+              // D 개선 필요 → 추천안 산출
+              const pathData = effectiveRec === 'D_ONLY' ? paths.dOnly : effectiveRec === 'BOTH' ? paths.both : paths.oOnly;
+              if (directDcList && directDcList.length > 0) {
                 const nd = newDFromDcText(d, directDcList[0], scoredDCs);
                 const showD = Math.min(nd, pathData.targetD);
                 suggestedTargetD = showD;
                 detRecommend = `${RECOMMEND_PREFIX} 검출도 ${d}→${showD} ${directDcList[0]}`;
               } else {
-                detRecommend = `${RECOMMEND_PREFIX} ${directDcList[0]}`;
-              }
-            } else if (effectiveRec) {
-              const pathData = effectiveRec === 'O_ONLY' ? paths.oOnly : effectiveRec === 'D_ONLY' ? paths.dOnly : paths.both;
-              const needsD = effectiveRec === 'D_ONLY' || effectiveRec === 'BOTH';
-              if (needsD) {
                 const best = findBestDcForSixStep(d, scoredDCs, pathData.targetD);
                 if (best) {
                   suggestedTargetD = best.newD;
@@ -342,20 +333,11 @@ export function useRecommendHandlers({
                 } else {
                   detRecommend = `${RECOMMEND_PREFIX} 검출도 ${d}→${pathData.targetD} 개선 필요`;
                 }
-              } else {
-                detRecommend = PLACEHOLDER_NA;
               }
+            } else {
+              // ★ D 개선 불필요 → N/A
+              detRecommend = PLACEHOLDER_NA;
             }
-          }
-        } else {
-          // SOD 미입력 → Import 직접매칭만 표시
-          if (!hasPrev && directPcList && directPcList.length > 0) {
-            prevRecommend = `${RECOMMEND_PREFIX} ${directPcList[0]}`;
-          }
-          if (!hasDet && directDcList && directDcList.length > 0) {
-            const importD = recommendDetection(directDcList[0]);
-            const dDesc = importD > 0 ? D_SCORE_DESCRIPTION[importD] : null;
-            detRecommend = dDesc ? `${RECOMMEND_PREFIX} ${dDesc}` : `${RECOMMEND_PREFIX} ${directDcList[0]}`;
           }
         }
 
@@ -394,7 +376,7 @@ export function useRecommendHandlers({
       });
     });
 
-    // 모달 열기 (진단 정보 포함)
+    // 모달 열기 (진단 정보 포함 — SRP: L 제외, LLD 매칭 제외)
     setRecommendModal({
       isOpen: true, candidates, cftLeaderName,
       diagnostics: {
@@ -402,6 +384,7 @@ export function useRecommendHandlers({
         totalRows,
         sodMissingCount,
         apLCount,
+        lldMatchedCount,
       },
     });
     } catch (err) { console.error('[Recommend] 추천 처리 실패:', err); }
@@ -425,21 +408,20 @@ export function useRecommendHandlers({
       const detKey = `detection-opt-${uk}`;
       const personKey = `person-opt-${uk}`;
 
-      if (options.prevention && !c.hasPrev && c.prevRecommend && c.prevRecommend !== PLACEHOLDER_NA) {
-        updates[prevKey] = c.prevRecommend;
+      // ★ SRP: 경로 기반 N/A 강제 적용 — needsO=false면 O측=N/A, needsD=false면 D측=N/A
+      if (!c.hasPrev) {
+        if (c.prevRecommend === PLACEHOLDER_NA) {
+          updates[prevKey] = PLACEHOLDER_NA; // O 불필요 → N/A
+        } else if (options.prevention && c.prevRecommend) {
+          updates[prevKey] = c.prevRecommend;
+        }
       }
-      if (options.detection && !c.hasDet && c.detRecommend && c.detRecommend !== PLACEHOLDER_NA) {
-        updates[detKey] = c.detRecommend;
-      }
-
-      // ★ N/A 마커 (결과 기반): 한쪽에만 추천 적용 → 반대쪽이 자동생성값이면 N/A 표시
-      const wroteRealPrev = !!updates[prevKey] && updates[prevKey] !== PLACEHOLDER_NA;
-      const wroteRealDet = !!updates[detKey] && updates[detKey] !== PLACEHOLDER_NA;
-      if (wroteRealPrev && !wroteRealDet && !c.hasDet && isAutoGenerated((riskData[detKey] as string) || '')) {
-        updates[detKey] = PLACEHOLDER_NA;
-      }
-      if (wroteRealDet && !wroteRealPrev && !c.hasPrev && isAutoGenerated((riskData[prevKey] as string) || '')) {
-        updates[prevKey] = PLACEHOLDER_NA;
+      if (!c.hasDet) {
+        if (c.detRecommend === PLACEHOLDER_NA) {
+          updates[detKey] = PLACEHOLDER_NA; // D 불필요 → N/A
+        } else if (options.detection && c.detRecommend) {
+          updates[detKey] = c.detRecommend;
+        }
       }
 
       // 책임자 자동 배정

@@ -11,6 +11,7 @@
 
 import { useMemo } from 'react';
 import { calculateAP } from '../apCalculator';
+import { findMinCostToL } from './apMinCostMap';
 import { ProcessedFMGroup, FailureLinkRow } from '../processFailureLinks';
 import type { WorksheetState } from '../../../constants';
 
@@ -34,6 +35,15 @@ interface UseAllTabStatsProps {
   processedFMGroups: ProcessedFMGroup[];
 }
 
+/** SRP(SOD Reduction Path) 경로별 통계 */
+export interface SrpStats {
+  oOnly: number;   // O만 개선하면 L 도달
+  dOnly: number;   // D만 개선하면 L 도달
+  both: number;    // O&D 둘 다 개선 필요
+  unreachable: number; // O=2,D=2에서도 L 미달
+  total: number;   // H+M 전체
+}
+
 interface UseAllTabStatsReturn {
   globalMaxSeverity: number;
   apStats: {
@@ -50,6 +60,7 @@ interface UseAllTabStatsReturn {
     total: number;
     hItems: APItem[];
   };
+  srpStats: SrpStats;
 }
 
 /**
@@ -248,10 +259,43 @@ export function useAllTabStats({ state, failureLinks, processedFMGroups }: UseAl
     return { hCount, mCount, lCount, total: hCount + mCount + lCount, hItems };
   }, [state?.riskData, globalMaxSeverity, fcRowIndex, fmIdSet]);
 
+  // ★★★ SRP(SOD Reduction Path) 통계: H/M → L 최소경로 유형별 건수 ★★★
+  const srpStats = useMemo<SrpStats>(() => {
+    let oOnly = 0, dOnly = 0, both = 0, unreachable = 0;
+    const riskData = state?.riskData || {};
+    const s = globalMaxSeverity;
+    if (s === 0) return { oOnly: 0, dOnly: 0, both: 0, unreachable: 0, total: 0 };
+
+    const seen = new Set<string>();
+    const riskKeys = Object.keys(riskData);
+    for (const key of riskKeys) {
+      if (!key.startsWith('risk-') || (!key.endsWith('-O') && !key.endsWith('-D'))) continue;
+      const uk = key.substring(5, key.length - 2);
+      if (!uk || seen.has(uk)) continue;
+      seen.add(uk);
+
+      const o = Number(riskData[`risk-${uk}-O`]) || 0;
+      const d = Number(riskData[`risk-${uk}-D`]) || 0;
+      if (o === 0 || d === 0) continue;
+
+      const ap = calculateAP(s, o, d);
+      if (ap !== 'H' && ap !== 'M') continue;
+
+      const result = findMinCostToL(s, o, d);
+      if (!result.reachable) { unreachable++; continue; }
+      if (result.path === 'O_ONLY') oOnly++;
+      else if (result.path === 'D_ONLY') dOnly++;
+      else both++;
+    }
+
+    return { oOnly, dOnly, both, unreachable, total: oOnly + dOnly + both + unreachable };
+  }, [state?.riskData, globalMaxSeverity]);
+
   return {
     globalMaxSeverity,
     apStats,
     apStats6,
+    srpStats,
   };
 }
 

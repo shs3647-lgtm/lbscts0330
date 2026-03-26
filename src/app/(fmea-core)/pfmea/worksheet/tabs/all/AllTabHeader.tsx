@@ -116,6 +116,15 @@ export interface FailureStatsForHeader {
   missingDCount: number;
 }
 
+/** SRP(SOD Reduction Path) 경로별 통계 */
+export interface SrpStatsForHeader {
+  oOnly: number;
+  dOnly: number;
+  both: number;
+  unreachable: number;
+  total: number;
+}
+
 export interface AllTabHeaderProps {
   stepSpans: StepSpan[];
   groupSpans: GroupSpan[];
@@ -126,6 +135,7 @@ export interface AllTabHeaderProps {
   failureStats: FailureStatsForHeader;
   apStats: { hCount: number; mCount: number; lCount: number };
   apStats6?: { hCount: number; mCount: number; lCount: number };
+  srpStats?: SrpStatsForHeader;
   // 버튼 핸들러들
   saveAtomicDB?: (force?: boolean) => void | Promise<void>;
   autoRecommendS: () => void;
@@ -153,6 +163,7 @@ export default function AllTabHeader({
   failureStats,
   apStats,
   apStats6,
+  srpStats,
   saveAtomicDB,
   autoRecommendS,
   autoRecommendO,
@@ -209,7 +220,7 @@ export default function AllTabHeader({
             }}
           >
             {span.step === '리스크분석' ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 {handleManualPCDCFill && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleManualPCDCFill(); }}
@@ -217,7 +228,7 @@ export default function AllTabHeader({
                     style={{
                       background: isRunningPCDC ? '#9ca3af' : '#0d9488',
                       color: '#fff', border: '1px solid #5eead4',
-                      padding: '1px 5px', borderRadius: '3px',
+                      padding: '2px 6px', borderRadius: '3px',
                       fontSize: '9px', fontWeight: 700,
                       cursor: isRunningPCDC ? 'not-allowed' : 'pointer',
                       whiteSpace: 'nowrap', lineHeight: '14px',
@@ -233,7 +244,7 @@ export default function AllTabHeader({
                     style={{
                       background: '#7c3aed',
                       color: '#fff', border: '1px solid #a78bfa',
-                      padding: '1px 5px', borderRadius: '3px',
+                      padding: '2px 6px', borderRadius: '3px',
                       fontSize: '9px', fontWeight: 700,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap', lineHeight: '14px',
@@ -248,7 +259,7 @@ export default function AllTabHeader({
                     onClick={(e) => { e.stopPropagation(); handleClearLld5ST(); }}
                     style={{
                       background: '#dc2626', color: '#fff', border: '1px solid #f87171',
-                      padding: '1px 5px', borderRadius: '3px',
+                      padding: '2px 6px', borderRadius: '3px',
                       fontSize: '9px', fontWeight: 700,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap', lineHeight: '14px',
@@ -259,50 +270,50 @@ export default function AllTabHeader({
                   </button>
                 )}
                 <span style={{ fontSize: '10px' }}><StepBiHeader ko="5ST 리스크분석" en="Risk Analysis" /></span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '9px', fontWeight: 600 }}>
-                  <span onClick={() => scrollToAP('H', '5st')} style={{ background: '#ef5350', color: '#fff', padding: '1px 3px', borderRadius: '3px', lineHeight: '13px', cursor: apStats.hCount > 0 ? 'pointer' : 'default' }} title="H 항목으로 이동">H:{apStats.hCount}</span>
-                  <span onClick={() => scrollToAP('M', '5st')} style={{ background: '#ffc107', color: '#000', padding: '1px 3px', borderRadius: '3px', lineHeight: '13px', cursor: apStats.mCount > 0 ? 'pointer' : 'default' }} title="M 항목으로 이동">M:{apStats.mCount}</span>
-                  <span onClick={() => scrollToAP('L', '5st')} style={{ background: '#4caf50', color: '#fff', padding: '1px 3px', borderRadius: '3px', lineHeight: '13px', cursor: apStats.lCount > 0 ? 'pointer' : 'default' }} title="L 항목으로 이동">L:{apStats.lCount}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600 }}>
+                  <span onClick={() => scrollToAP('H', '5st')} style={{ background: '#ef5350', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px', cursor: apStats.hCount > 0 ? 'pointer' : 'default' }} title="H 항목으로 이동">H:{apStats.hCount}</span>
+                  <span onClick={() => scrollToAP('M', '5st')} style={{ background: '#ffc107', color: '#000', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px', cursor: apStats.mCount > 0 ? 'pointer' : 'default' }} title="M 항목으로 이동">M:{apStats.mCount}</span>
+                  <span onClick={() => scrollToAP('L', '5st')} style={{ background: '#4caf50', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px', cursor: apStats.lCount > 0 ? 'pointer' : 'default' }} title="L 항목으로 이동">L:{apStats.lCount}</span>
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '9px', fontWeight: 600, flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600, flexWrap: 'wrap' }}>
                   {failureStats.missingOCount > 0 && (
                     <span
                       onClick={(e) => { e.stopPropagation(); scrollToMissing?.('O'); }}
-                      style={{ background: '#ff9800', color: '#fff', padding: '1px 3px', borderRadius: '3px', border: '1px solid #ffeb3b', lineHeight: '13px', cursor: scrollToMissing ? 'pointer' : 'default' }}
+                      style={{ background: '#ff9800', color: '#fff', padding: '2px 5px', borderRadius: '3px', border: '1px solid #ffeb3b', lineHeight: '13px', cursor: scrollToMissing ? 'pointer' : 'default' }}
                       title={`발생도 미평가: ${failureStats.missingOCount}건 - 클릭 시 해당 항목으로 이동`}
                     >O-Miss:{failureStats.missingOCount}</span>
                   )}
                   {autoRecommendO && (
                     <button
                       onClick={(e) => { e.stopPropagation(); autoRecommendO(); }}
-                      style={{ background: '#e65100', color: '#fff', border: '1px solid #ff9800', padding: '1px 3px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: '13px' }}
+                      style={{ background: '#e65100', color: '#fff', border: '1px solid #ff9800', padding: '2px 5px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: '13px' }}
                       title="발생도(O) 자동추천 — PC 텍스트 AIAG-VDA 키워드 기반"
                     >O-Rec</button>
                   )}
                   {failureStats.missingDCount > 0 && (
                     <span
                       onClick={(e) => { e.stopPropagation(); scrollToMissing?.('D'); }}
-                      style={{ background: '#ff9800', color: '#fff', padding: '1px 3px', borderRadius: '3px', border: '1px solid #ffeb3b', lineHeight: '13px', cursor: scrollToMissing ? 'pointer' : 'default' }}
+                      style={{ background: '#ff9800', color: '#fff', padding: '2px 5px', borderRadius: '3px', border: '1px solid #ffeb3b', lineHeight: '13px', cursor: scrollToMissing ? 'pointer' : 'default' }}
                       title={`검출도 미평가: ${failureStats.missingDCount}건 - 클릭 시 해당 항목으로 이동`}
                     >D-Miss:{failureStats.missingDCount}</span>
                   )}
                   {autoRecommendD && (
                     <button
                       onClick={(e) => { e.stopPropagation(); autoRecommendD(); }}
-                      style={{ background: '#1565c0', color: '#fff', border: '1px solid #42a5f5', padding: '1px 3px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: '13px' }}
+                      style={{ background: '#1565c0', color: '#fff', border: '1px solid #42a5f5', padding: '2px 5px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: '13px' }}
                       title="검출도(D) 자동추천 — DC 텍스트 AIAG-VDA 키워드 기반"
                     >D-Rec</button>
                   )}
                 </span>
               </div>
             ) : span.step === '고장분석' ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '10px' }}><StepBiHeader ko="4ST 고장분석" en="Failure Analysis" /></span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '9px', fontWeight: 600 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600 }}>
                   {(['fe', 'fm', 'fc'] as const).map(t => (
                     <span key={t} style={{
                       background: failureStats.mismatch[t] ? '#f44336' : '#1565c0',
-                      color: '#fff', padding: '1px 3px', borderRadius: '3px', lineHeight: '13px',
+                      color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px',
                       border: failureStats.mismatch[t] ? '2px solid #ffeb3b' : '1px solid rgba(255,255,255,0.3)',
                     }} title={failureStats.mismatch[t] ? `\u26A0\uFE0F 불일치: 고장연결=${failureStats.linked[t]}, 고장분석=${failureStats.state[t]}` : ''}>
                       {t.toUpperCase()}:{failureStats.linked[t]}
@@ -312,38 +323,37 @@ export default function AllTabHeader({
                     <span style={{ color: '#ffeb3b', fontWeight: 700, fontSize: '10px' }} title="고장연결과 고장분석 데이터 불일치">{'\u26A0\uFE0F'}</span>
                   )}
                 </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '9px', fontWeight: 600 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600 }}>
                   {failureStats.missingSevCount > 0 && (
                     <span
                       onClick={(e) => { e.stopPropagation(); scrollToMissing?.('S'); }}
-                      style={{ background: '#ff9800', color: '#fff', padding: '1px 3px', borderRadius: '3px', border: '1px solid #ffeb3b', lineHeight: '13px', cursor: scrollToMissing ? 'pointer' : 'default' }}
+                      style={{ background: '#ff9800', color: '#fff', padding: '2px 5px', borderRadius: '3px', border: '1px solid #ffeb3b', lineHeight: '13px', cursor: scrollToMissing ? 'pointer' : 'default' }}
                       title={`심각도 미평가 FM: ${failureStats.missingSevCount}건 - 클릭 시 해당 항목으로 이동`}
                     >S-Miss:{failureStats.missingSevCount}</span>
                   )}
                   {autoRecommendS && (
                     <button
                       onClick={(e) => { e.stopPropagation(); autoRecommendS(); }}
-                      style={{ background: '#e65100', color: '#fff', border: '1px solid #ff9800', padding: '1px 3px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: '13px' }}
+                      style={{ background: '#e65100', color: '#fff', border: '1px solid #ff9800', padding: '2px 5px', borderRadius: '3px', fontSize: '9px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: '13px' }}
                       title="심각도(S) 자동추천 — FE 텍스트와 SOD 평가기준 유사도 기반 예비평가"
                     >S-Rec</button>
                   )}
                 </span>
               </div>
             ) : span.step === '최적화' ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '13px', fontWeight: 800 }}><StepBiHeader ko="6ST 최적화" en="Optimization" /></span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 {handleAutoLldFilter && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleAutoLldFilter('6ST'); }}
                     style={{
                       background: '#7c3aed',
                       color: '#fff', border: '1px solid #a78bfa',
-                      padding: '1px 5px', borderRadius: '3px',
+                      padding: '2px 6px', borderRadius: '3px',
                       fontSize: '9px', fontWeight: 700,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap', lineHeight: '14px',
                     }}
-                    title="LLD(필터코드) → 6단계 최적화 PC/DC 개선에 적용"
+                    title="LLD 매칭 항목 우선 배정 → 나머지는 개선추천으로"
                   >
                     LLD추천
                   </button>
@@ -352,19 +362,22 @@ export default function AllTabHeader({
                   onClick={handleRecommendImprovement}
                   style={{
                     background: '#e65100', color: '#fff', border: '1px solid #ff9800',
-                    padding: '1px 5px', borderRadius: '3px',
+                    padding: '2px 6px', borderRadius: '3px',
                     fontSize: '9px', fontWeight: 700, cursor: 'pointer',
                     whiteSpace: 'nowrap', lineHeight: '14px',
                   }}
-                  title="PC/DC 매칭 + 산업DB 기반 개선추천 통합 (예방관리개선/검출관리개선에 적용)"
+                  title="LLD 미매칭 H/M 항목에 산업DB 기반 개선추천 배정 (L 제외)"
                 >
                   개선추천
                 </button>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '9px', fontWeight: 600 }}>
-                  <span onClick={() => scrollToAP('H', '6st')} style={{ background: '#ef5350', color: '#fff', padding: '1px 3px', borderRadius: '3px', lineHeight: '13px', cursor: (apStats6 || apStats).hCount > 0 ? 'pointer' : 'default' }} title="H 항목으로 이동">H:{(apStats6 || apStats).hCount}</span>
-                  <span onClick={() => scrollToAP('M', '6st')} style={{ background: '#ffc107', color: '#000', padding: '1px 3px', borderRadius: '3px', lineHeight: '13px', cursor: (apStats6 || apStats).mCount > 0 ? 'pointer' : 'default' }} title="M 항목으로 이동">M:{(apStats6 || apStats).mCount}</span>
-                  <span onClick={() => scrollToAP('L', '6st')} style={{ background: '#4caf50', color: '#fff', padding: '1px 3px', borderRadius: '3px', lineHeight: '13px', cursor: (apStats6 || apStats).lCount > 0 ? 'pointer' : 'default' }} title="L 항목으로 이동">L:{(apStats6 || apStats).lCount}</span>
-                </span>
+                <span style={{ fontSize: '13px', fontWeight: 800 }}><StepBiHeader ko="6ST 최적화" en="Optimization" /></span>
+                {srpStats && srpStats.total > 0 && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600 }}>
+                    <span style={{ background: '#e65100', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px' }} title="O만 개선하면 L 도달 가능한 항목">O:{srpStats.oOnly}</span>
+                    <span style={{ background: '#1565c0', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px' }} title="D만 개선하면 L 도달 가능한 항목">D:{srpStats.dOnly}</span>
+                    <span style={{ background: '#6a1b9a', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px' }} title="O&D 둘 다 개선 필요한 항목">O&D:{srpStats.both}</span>
+                  </span>
+                )}
               </div>
             ) : (
               <StepBiHeader

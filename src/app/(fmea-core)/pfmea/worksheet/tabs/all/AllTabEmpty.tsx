@@ -273,7 +273,7 @@ export default function AllTabEmpty({
   const { feSpanned, fmSpanned, fcSpanned, counts: vCounts, leftStats, rightStats } = useVerificationData(verificationMode, processedFMGroups);
 
   // 통계 계산
-  const { globalMaxSeverity, apStats, apStats6 } = useAllTabStats({
+  const { globalMaxSeverity, apStats, apStats6, srpStats } = useAllTabStats({
     state, failureLinks, processedFMGroups,
   });
 
@@ -731,6 +731,7 @@ export default function AllTabEmpty({
           failureStats={failureStats}
           apStats={apStats}
           apStats6={apStats6}
+          srpStats={srpStats}
           saveAtomicDB={saveAtomicDB}
           autoRecommendS={autoRecommendS}
           autoRecommendO={autoRecommendO}
