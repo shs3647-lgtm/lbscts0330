@@ -1158,6 +1158,15 @@ model LLDFilterCode {
   sourceType      String   @default("manual")    // manual | import | industry
   priority        Int      @default(0)           // 추천 우선순위 (높을수록 우선)
 
+  // -- CIP 개선 결과 --
+  responsible     String?                        // 책임자
+  targetDate      String?                        // 목표 완료일
+  evidence        String?                        // 개선결과 근거
+  newSeverity     Int?                           // 개선 후 S
+  newOccurrence   Int?                           // 개선 후 O
+  newDetection    Int?                           // 개선 후 D
+  newAP           String?                        // 개선 후 AP (H/M/L)
+
   // -- FMEA 적용 추적 --
   fmeaId          String?                        // 적용된 FMEA ID
   appliedDate     String?                        // 적용 날짜

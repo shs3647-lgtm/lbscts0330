@@ -74,6 +74,14 @@ export interface LLDRow {
   fmeaId: string;
   appliedDate: string;
   attachmentUrl: string;
+  // CIP 개선 결과
+  responsible: string;
+  targetDate: string;
+  evidence: string;
+  newSeverity: number | null;
+  newOccurrence: number | null;
+  newDetection: number | null;
+  newAP: string;
 }
 
 // 통계
@@ -116,5 +124,12 @@ export function createEmptyLLDRow(): LLDRow {
     fmeaId: '',
     appliedDate: '',
     attachmentUrl: '',
+    responsible: '',
+    targetDate: '',
+    evidence: '',
+    newSeverity: null,
+    newOccurrence: null,
+    newDetection: null,
+    newAP: '',
   };
 }
