@@ -36,8 +36,22 @@ type ApFilter = 'all' | 'H' | 'M' | 'L';
 const AP_COLORS: Record<string, string> = { H: '#ef5350', M: '#ffc107', L: '#4caf50' };
 const AP_TEXT: Record<string, string> = { H: '#fff', M: '#000', L: '#fff' };
 
-const MODAL_W = 1000;
-const MODAL_H_MAX = 600;
+const MODAL_W = 1280;
+const MODAL_H_MAX = 620;
+
+// SOD 점수 색상 (녹≤2, 노3~4, 주5~6, 빨7~)
+const sodStyle = (v: number | null | undefined): string => {
+  if (v == null) return '';
+  if (v <= 2) return 'bg-[#C6EFCE] text-[#006100]';
+  if (v <= 4) return 'bg-[#FFEB9C] text-[#9C6500]';
+  if (v <= 6) return 'bg-[#FCD5B4] text-[#974706]';
+  return 'bg-[#FFC7CE] text-[#9C0006] font-bold';
+};
+
+// 지브라 행 색상
+const zebraRow = (idx: number) => idx % 2 === 0 ? 'bg-white' : 'bg-[#F0F0F0]';
+// 셀 공통 — 굵은 구분선
+const cellBase = 'px-1 py-[3px] border-b border-r border-slate-300 text-[10px] align-middle';
 
 export default function LldFilterResultModal({ modal, onClose, onApply, onSelectMatchedAndApply, onDelete, onToggleCheck, onToggleAll }: Props) {
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
@@ -243,20 +257,19 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
           cause: c.fcText,
           oVal: c.applyTarget === 'prevention' ? c.matchedLld?.occurrence : '',
           dVal: c.applyTarget === 'detection' ? c.matchedLld?.detection : '',
-          prevImpr: c.applyTarget === 'prevention' ? (c.matchedLld?.improvement || '') : '',
-          detImpr: c.applyTarget === 'detection' ? (c.matchedLld?.improvement || '') : '',
+          prevImpr: c.applyTarget === 'prevention' ? (c.matchedLld?.preventionImprovement || c.matchedLld?.improvement || '') : '',
+          detImpr: c.applyTarget === 'detection' ? (c.matchedLld?.detectionImprovement || c.matchedLld?.improvement || '') : '',
           status: c.matchedLld?.status || 'Y'
         });
       } else {
         const existing = grouped.get(key);
-        // LLD 번호가 양쪽에 다 있고 다르면 병합 (보통 같음)
         if (!existing.lldNo && c.matchedLld?.lldNo) existing.lldNo = c.matchedLld.lldNo;
-        
+
         if (c.applyTarget === 'prevention') {
-          existing.prevImpr = c.matchedLld?.improvement || '';
+          existing.prevImpr = c.matchedLld?.preventionImprovement || c.matchedLld?.improvement || '';
           if (c.matchedLld?.occurrence) existing.oVal = c.matchedLld.occurrence;
         } else {
-          existing.detImpr = c.matchedLld?.improvement || '';
+          existing.detImpr = c.matchedLld?.detectionImprovement || c.matchedLld?.improvement || '';
           if (c.matchedLld?.detection) existing.dVal = c.matchedLld.detection;
         }
       }
@@ -373,65 +386,101 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
           </div>
         </div>
 
-        {/* 테이블 */}
+        {/* 테이블 — 15열, 그룹헤더, 지브라, SOD색상 */}
         <div className="flex-1 overflow-auto">
-          <table className="w-full text-[10px] border-collapse" style={{ tableLayout: 'fixed' }}>
-            <thead className="sticky top-0 z-10 bg-[#00587a] text-white">
+          <table className="w-full text-[10px] border-collapse border border-slate-400" style={{ tableLayout: 'fixed' }}>
+            {/* 그룹 헤더 */}
+            <thead className="sticky top-0 z-10">
               <tr>
+                <th colSpan={2} className="bg-slate-600 text-white text-[9px] font-bold text-center border-b border-r border-slate-400 p-0" style={{ width: 50 }}></th>
+                <th colSpan={4} className="bg-[#1565C0] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">FMEA 정보</th>
+                <th colSpan={3} className="bg-[#C62828] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">현행 SOD</th>
+                <th colSpan={4} className="bg-[#F57C00] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">매칭 정보</th>
+                <th colSpan={2} className="bg-[#2E7D32] text-white text-[10px] font-bold text-center border-b border-slate-400 py-0.5">LLD 개선</th>
+              </tr>
+              {/* 컬럼 헤더 */}
+              <tr className="bg-[#00587a] text-white">
                 {[
-                  { label: <input type="checkbox" checked={allFilteredChecked} onChange={e => handleFilteredToggleAll(e.target.checked)} />, w: 25 },
-                  { label: '#', w: 25 },
-                  { label: <div className="leading-tight"><div>공정번호</div><div className="text-[7px] font-normal opacity-60">(Proc.#)</div></div>, w: 45 },
-                  { label: <div className="leading-tight"><div>공정명</div><div className="text-[7px] font-normal opacity-60">(Proc.)</div></div>, w: 70 },
-                  { label: <div className="leading-tight"><div>고장형태</div><div className="text-[7px] font-normal opacity-60">(FM)</div></div>, w: 100 },
-                  { label: <div className="leading-tight"><div>고장원인</div><div className="text-[7px] font-normal opacity-60">(FC)</div></div>, w: 95 },
-                  { label: 'AP', w: 28 },
-                  { label: <div className="leading-tight"><div>대상</div><div className="text-[7px] font-normal opacity-60">(Tgt)</div></div>, w: 35 },
-                  { label: <div className="leading-tight"><div>등급</div><div className="text-[7px] font-normal opacity-60">(Tier)</div></div>, w: 45 },
-                  { label: 'LLD No', w: 65 },
-                  { label: <div className="leading-tight"><div>개선대책</div><div className="text-[7px] font-normal opacity-60">(Impr.)</div></div>, w: 220 },
-                  { label: 'O', w: 22 },
-                  { label: 'D', w: 22 },
+                  { label: <input type="checkbox" checked={allFilteredChecked} onChange={e => handleFilteredToggleAll(e.target.checked)} className="accent-white" />, w: 24 },
+                  { label: '#', w: 26 },
+                  { label: '공정번호', w: 52 },
+                  { label: '공정명', w: 80 },
+                  { label: '고장형태(FM)', w: 110 },
+                  { label: '고장원인(FC)', w: 110 },
+                  { label: 'S', w: 26 },
+                  { label: 'O', w: 26 },
+                  { label: 'D', w: 26 },
+                  { label: 'AP', w: 30 },
+                  { label: '대상', w: 38 },
+                  { label: '등급', w: 48 },
+                  { label: 'LLD No', w: 70 },
+                  { label: '예방관리 개선', w: 0 },
+                  { label: '검출관리 개선', w: 0 },
                 ].map((col, i) => (
-                  <th key={i} className="p-0.5 border-b border-r border-white/20 font-bold text-center text-[10px]" style={{ width: col.w }}>{col.label}</th>
+                  <th key={i} className="px-1 py-1 border-b border-r border-white/30 font-bold text-center text-[10px] whitespace-nowrap" style={col.w ? { width: col.w } : undefined}>{col.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={13} className="text-center py-8 text-gray-400">
+                <tr><td colSpan={15} className="text-center py-8 text-gray-400">
                   {candidates.length === 0 ? '매칭 가능한 LLD가 없습니다.' : '필터 조건에 맞는 항목이 없습니다.'}
                 </td></tr>
               )}
               {filtered.map((c, idx) => {
                 const tier = TIER_META[c.matchTier] || TIER_META[0];
+                const zb = zebraRow(idx);
+                const sVal = c.matchedLld?.severity ?? null;
+                const oVal = c.matchedLld?.occurrence ?? null;
+                const dVal = c.matchedLld?.detection ?? null;
+                const prevText = c.matchedLld
+                  ? (c.matchedLld.preventionImprovement || '')
+                  : (c.applyTarget === 'prevention' ? (c.autoRecommendValue || '') : '');
+                const detText = c.matchedLld
+                  ? (c.matchedLld.detectionImprovement || '')
+                  : (c.applyTarget === 'detection' ? (c.autoRecommendValue || '') : '');
                 return (
-                  <tr key={c.uniqueKey} className={idx % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-slate-50 hover:bg-blue-50'}>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center">
-                      <input type="checkbox" checked={c.checked} onChange={() => onToggleCheck(c.uniqueKey)} disabled={!c.matchedLld} />
+                  <tr key={c.uniqueKey} className={`${zb} hover:bg-blue-50/60`}>
+                    {/* ☑ */}
+                    <td className={`${cellBase} text-center`}>
+                      <input type="checkbox" checked={c.checked} onChange={() => onToggleCheck(c.uniqueKey)} disabled={!c.matchedLld && !c.autoRecommendValue} />
                     </td>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center text-gray-400">{idx + 1}</td>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center font-mono truncate">{c.processNo}</td>
-                    <td className="p-0.5 border-b border-r border-slate-200 truncate">{c.processName}</td>
-                    <td className="p-0.5 border-b border-r border-slate-200 truncate">{c.fmText}</td>
-                    <td className="p-0.5 border-b border-r border-slate-200 truncate">{c.fcText}</td>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center">
-                      {c.ap && (
-                        <span className="inline-block px-1 rounded text-[9px] font-bold whitespace-nowrap" style={{ backgroundColor: AP_COLORS[c.ap], color: AP_TEXT[c.ap] }}>{c.ap}</span>
-                      )}
+                    {/* # */}
+                    <td className={`${cellBase} text-center text-gray-400`}>{idx + 1}</td>
+                    {/* 공정번호 */}
+                    <td className={`${cellBase} text-center font-mono`}>{c.processNo}</td>
+                    {/* 공정명 */}
+                    <td className={`${cellBase} truncate`}>{c.processName}</td>
+                    {/* FM */}
+                    <td className={`${cellBase} truncate`}>{c.fmText}</td>
+                    {/* FC */}
+                    <td className={`${cellBase} truncate`}>{c.fcText}</td>
+                    {/* S */}
+                    <td className={`${cellBase} text-center font-bold ${sodStyle(sVal)}`}>{sVal ?? '-'}</td>
+                    {/* O */}
+                    <td className={`${cellBase} text-center font-bold ${sodStyle(oVal)}`}>{oVal ?? '-'}</td>
+                    {/* D */}
+                    <td className={`${cellBase} text-center font-bold ${sodStyle(dVal)}`}>{dVal ?? '-'}</td>
+                    {/* AP */}
+                    <td className={`${cellBase} text-center`}>
+                      {c.ap && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ backgroundColor: AP_COLORS[c.ap], color: AP_TEXT[c.ap] }}>{c.ap}</span>}
                     </td>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center">
-                      <span className={`inline-block px-1 rounded text-[8px] font-bold text-white whitespace-nowrap ${c.applyTarget === 'prevention' ? 'bg-teal-500' : 'bg-indigo-500'}`}>
+                    {/* 대상 */}
+                    <td className={`${cellBase} text-center`}>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white ${c.applyTarget === 'prevention' ? 'bg-teal-500' : 'bg-indigo-500'}`}>
                         {c.applyTarget === 'prevention' ? '예방' : '검출'}
                       </span>
                     </td>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center">
-                      <span className="inline-block px-1 rounded text-[8px] font-bold text-white whitespace-nowrap" style={{ backgroundColor: tier.color }}>{tier.label}</span>
+                    {/* 등급 */}
+                    <td className={`${cellBase} text-center`}>
+                      <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-bold text-white" style={{ backgroundColor: tier.color }}>{tier.label}</span>
                     </td>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center font-mono text-[9px] truncate">{c.matchedLld?.lldNo || '-'}</td>
-                    <td className="p-0.5 border-b border-r border-slate-200 truncate">{c.matchedLld?.improvement || '-'}</td>
-                    <td className="p-0.5 border-b border-r border-slate-200 text-center font-bold">{c.matchedLld?.occurrence ?? '-'}</td>
-                    <td className="p-0.5 border-b border-slate-200 text-center font-bold">{c.matchedLld?.detection ?? '-'}</td>
+                    {/* LLD No */}
+                    <td className={`${cellBase} text-center font-mono text-[9px]`}>{c.matchedLld?.lldNo || '-'}</td>
+                    {/* 예방관리 개선 */}
+                    <td className={`${cellBase} truncate ${prevText ? '' : 'text-gray-300'}`} title={prevText || '-'}>{prevText || '-'}</td>
+                    {/* 검출관리 개선 */}
+                    <td className={`${cellBase} truncate border-r-0 ${detText ? '' : 'text-gray-300'}`} title={detText || '-'}>{detText || '-'}</td>
                   </tr>
                 );
               })}

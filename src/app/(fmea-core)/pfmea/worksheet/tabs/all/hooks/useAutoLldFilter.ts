@@ -40,12 +40,16 @@ interface LLDFilterItem {
   productName: string;
   failureMode: string;
   cause: string;
+  severity: number | null;
   occurrence: number | null;
   detection: number | null;
   improvement: string;
+  preventionImprovement?: string;
+  detectionImprovement?: string;
   m4Category: string | null;
   status: string;
   priority: number;
+  completedDate: string | null;
 }
 
 export interface LldFilterCandidate {
@@ -121,6 +125,7 @@ function findBestMatch(
   fcText?: string,
 ): { item: LLDFilterItem | null; tier: 1 | 2 | 3 | 0; desc: string } {
   // G(완료) + Y(진행중) 모두 추천 대상 (R=미완료 제외), 개선대책(improvement)이 비어있는 경우 제외
+  // ★ completedDate 필터는 호출부에서 사전 적용됨 (5ST: ≤오늘, 6ST: >오늘)
   const filtered = llds.filter(l => l.applyTo === applyTo && l.status !== 'R' && l.improvement && l.improvement.trim().length > 0);
 
   const byPriority = (a: LLDFilterItem, b: LLDFilterItem) => b.priority - a.priority;
@@ -212,7 +217,16 @@ export function useAutoLldFilter({
       ]);
 
       const lldResult = await lldRes.json();
-      const allLlds: LLDFilterItem[] = (lldResult.success && lldResult.items) ? lldResult.items : [];
+      const rawLlds: LLDFilterItem[] = (lldResult.success && lldResult.items) ? lldResult.items : [];
+
+      // ★ 5ST/6ST completedDate 필터 — SSoT: lld_filter_code.completedDate
+      //   5ST(리스크분석): completedDate ≤ 오늘 (이미 완료된 교훈만)
+      //   6ST(최적화): completedDate > 오늘 (아직 미완료, 진행중인 개선만)
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const allLlds: LLDFilterItem[] = rawLlds.filter(l => {
+        if (!l.completedDate) return step === '5ST'; // 날짜 없으면 5ST에 포함 (레거시 호환)
+        return step === '5ST' ? l.completedDate <= today : l.completedDate > today;
+      });
 
       // 마스터 A6(검출관리) / B5(예방관리) 로드
       let masterA6: MasterA6Item[] = [];
