@@ -389,6 +389,23 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
         {/* 테이블 — 15열, 그룹헤더, 지브라, SOD색상 */}
         <div className="flex-1 overflow-auto">
           <table className="w-full text-[10px] border-collapse border border-slate-400" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 24 }} />
+              <col style={{ width: 26 }} />
+              <col style={{ width: 52 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 110 }} />
+              <col style={{ width: 110 }} />
+              <col style={{ width: 20 }} />
+              <col style={{ width: 20 }} />
+              <col style={{ width: 20 }} />
+              <col style={{ width: 30 }} />
+              <col style={{ width: 38 }} />
+              <col style={{ width: 48 }} />
+              <col style={{ width: 70 }} />
+              <col />
+              <col />
+            </colgroup>
             {/* 그룹 헤더 */}
             <thead className="sticky top-0 z-10">
               <tr>
@@ -407,9 +424,9 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
                   { label: '공정명', w: 80 },
                   { label: '고장형태(FM)', w: 110 },
                   { label: '고장원인(FC)', w: 110 },
-                  { label: 'S', w: 26 },
-                  { label: 'O', w: 26 },
-                  { label: 'D', w: 26 },
+                  { label: 'S', w: 20 },
+                  { label: 'O', w: 20 },
+                  { label: 'D', w: 20 },
                   { label: 'AP', w: 30 },
                   { label: '대상', w: 38 },
                   { label: '등급', w: 48 },
