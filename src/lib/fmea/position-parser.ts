@@ -594,6 +594,42 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const maxOrigRowL2 = l2Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
   const maxOrigRowL3 = l3Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
 
+  // ★v5.2: L1/L2/L3 텍스트 → 행번호 역인덱스 (FC 시트에 origRow 컬럼이 없을 때 위치기반 매칭용)
+  // FE: scope::text → excelRow (L1 시트)
+  const feTextToRow = new Map<string, number>();
+  for (const r of l1Sheet.rows) {
+    const c4 = r.cells['C4']?.trim();
+    const c1 = r.cells['C1']?.trim();
+    if (c4) {
+      const key = `${normalizeScope(c1 || '')}::${c4}`;
+      if (!feTextToRow.has(key)) feTextToRow.set(key, r.excelRow);
+      // scope 없는 fallback 키도 추가
+      const looseKey = `::${c4}`;
+      if (!feTextToRow.has(looseKey)) feTextToRow.set(looseKey, r.excelRow);
+    }
+  }
+  // FM: processNo::text → excelRow (L2 시트)
+  const fmTextToRow = new Map<string, number>();
+  for (const r of l2Sheet.rows) {
+    const a5 = r.cells['A5']?.trim();
+    const a1 = normalizeProcessNo(r.cells['A1']?.trim() || '');
+    if (a5 && a1) {
+      const key = `${a1}::${a5}`;
+      if (!fmTextToRow.has(key)) fmTextToRow.set(key, r.excelRow);
+    }
+  }
+  // FC: processNo::text → excelRow (L3 시트)
+  const fcTextToRow = new Map<string, number>();
+  for (const r of l3Sheet.rows) {
+    const b4 = r.cells['B4']?.trim();
+    const pno = normalizeProcessNo(r.cells['processNo']?.trim() || '');
+    if (b4 && pno) {
+      const key = `${pno}::${b4}`;
+      if (!fcTextToRow.has(key)) fcTextToRow.set(key, r.excelRow);
+    }
+  }
+  ppLog(`[position-parser] ★v5.2 텍스트→행번호 역인덱스: FE=${feTextToRow.size} FM=${fmTextToRow.size} FC=${fcTextToRow.size}`);
+
   // FE severity 업데이트용 Map
   const feSeverityMap = new Map<string, number>();
 
@@ -623,9 +659,27 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     l2Row = validateFcOrigRow(l2Row, maxOrigRowL2, 'L2', rn);
     l3Row = validateFcOrigRow(l3Row, maxOrigRowL3, 'L3', rn);
 
+    // ★v5.2: origRow가 없을 때 텍스트→행번호 역산 (위치기반 매칭 보강)
     const fcPno = normalizeProcessNo(c['processNo'] || ''); // ★ AutoFix
-    const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
     const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
+
+    if (!l1Row && c['FE']?.trim()) {
+      const feKey = `${fcScope}::${c['FE'].trim()}`;
+      const found = feTextToRow.get(feKey) || feTextToRow.get(`::${c['FE'].trim()}`);
+      if (found) { l1Row = found; }
+    }
+    if (!l2Row && c['FM']?.trim() && fcPno) {
+      const fmKey = `${fcPno}::${c['FM'].trim()}`;
+      const found = fmTextToRow.get(fmKey);
+      if (found) { l2Row = found; }
+    }
+    if (!l3Row && c['FC']?.trim() && fcPno) {
+      const fcKey = `${fcPno}::${c['FC'].trim()}`;
+      const found = fcTextToRow.get(fcKey);
+      if (found) { l3Row = found; }
+    }
+
+    const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
 
     // FK 해결: 1차 행번호 → 2차 텍스트 역매칭 (CrossSheetResolver v5)
     let { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
