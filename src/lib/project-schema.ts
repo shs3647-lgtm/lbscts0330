@@ -86,10 +86,9 @@ const PROJECT_TABLES = [
 
 export function getProjectSchemaName(fmeaId: string): string {
   const base = String(fmeaId || '').trim().toLowerCase();
-  // allow a-z0-9_ only
   const safe = base.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  // prefix ensures it starts with a letter
-  return `pfmea_${safe || 'unknown'}`;
+  const prefix = base.startsWith('dfm') ? 'dfmea' : base.startsWith('cp') ? 'cp' : base.startsWith('pfd') ? 'pfd' : 'pfmea';
+  return `${prefix}_${safe || 'unknown'}`;
 }
 
 function quoteIdent(ident: string): string {
