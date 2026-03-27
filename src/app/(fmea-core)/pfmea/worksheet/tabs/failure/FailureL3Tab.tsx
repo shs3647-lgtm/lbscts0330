@@ -830,18 +830,28 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     return rows;
   }, [state.l2]);
 
-  // FC 건수 — UUID(id) 기반 카운트 (텍스트 매칭 금지)
-  // ★v6.1: FC는 위치기반 UUID로 고유 식별 — id가 있으면 유효한 FC
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ FC 건수 — UUID(id) 기반 복합키 카운트                                │
+  // │                                                                      │
+  // │ ★★★ 이름(텍스트) 매칭 영구 금지 (CLAUDE.md Rule 1.7) ★★★            │
+  // │  - fc.name / fc.cause 텍스트로 카운트·그룹핑·중복제거 금지            │
+  // │  - isMissing(name), name 비교, Set(`pno|name`) 패턴 금지             │
+  // │                                                                      │
+  // │ ★ 복합키 = UUID(fc.id) — 위치기반 UUID로 고유 식별                   │
+  // │  - fc.id가 있으면 유효한 FC (import 시 행 순서로 생성된 UUID)         │
+  // │  - 중복 제거: Set<fc.id>로 UUID 기반 dedup (동일 id = 동일 FC)       │
+  // │  - placeholder 제외: name·cause 모두 빈값이면 UI 생성 빈 행          │
+  // └──────────────────────────────────────────────────────────────────────┘
   const totalCauseCount = useMemo(() => {
+    // ★ 복합키(UUID) 기반 중복 삭제 — 이름(텍스트) 매칭으로 절대 회귀 금지
     const uniqueFCIds = new Set<string>();
     for (const proc of (state.l2 || []) as any[]) {
       for (const fc of (proc.failureCauses || [])) {
         const fid = String(fc?.id || '').trim();
-        if (!fid) continue;
-        // ★ 이름이 비어있어도 UUID가 있으면 유효 (import된 FC)
-        // 단, UI에서 생성한 빈 placeholder는 name도 없고 cause도 없음
+        if (!fid) continue; // UUID 없으면 무효
+        // ★ 콘텐츠 존재 확인 (name 또는 cause) — 이름 매칭이 아닌 빈값 체크
         const hasContent = String(fc?.name || fc?.cause || '').trim();
-        if (hasContent) uniqueFCIds.add(fid);
+        if (hasContent) uniqueFCIds.add(fid); // UUID 기반 dedup
       }
       for (const we of (proc.l3 || [])) {
         for (const fc of (we.failureCauses || [])) {
