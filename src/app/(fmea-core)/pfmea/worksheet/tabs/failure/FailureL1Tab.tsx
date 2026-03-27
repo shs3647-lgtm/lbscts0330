@@ -82,7 +82,7 @@ type L1FailureRowType = 'requirement' | 'effect';
 // ★★★ 2026-02-03: L1 이름에 "생산공정" 접미사 추가 ★★★
 function formatL1Name(name: string | undefined): string {
   const trimmed = (name || '').trim();
-  if (!trimmed || trimmed.includes('입력') || trimmed.includes('클릭') || trimmed.includes('없음')) return trimmed || '(완제품명 없음)';
+  if (!trimmed || trimmed.includes('입력') || trimmed.includes('없음')) return trimmed || '(완제품명 없음)';
   if (trimmed.endsWith('생산공정') || trimmed.endsWith('제조공정') || trimmed.endsWith('공정')) return trimmed;
   return `${trimmed} 생산공정`;
 }
@@ -118,9 +118,6 @@ const isMeaningfulRequirementName = (name: unknown): name is string => {
   if (typeof name !== 'string') return false;
   const n = name.trim();
   if (!n) return false;
-  // Function 탭에서 임시/플레이스홀더로 쓰는 문자열 패턴들
-  if (n.includes('클릭')) return false;
-  if (n === '요구사항 선택') return false;
   if (n.startsWith('(기능분석에서')) return false;
   return true;
 };

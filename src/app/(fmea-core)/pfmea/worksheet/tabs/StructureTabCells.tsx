@@ -13,6 +13,7 @@ import React, { useState, useRef } from 'react';
 import { WorksheetState } from '../constants';
 import { cell } from '../../../../../styles/worksheet';
 import { extractM4FromValue } from '@/lib/constants';
+import { emitSave } from '../hooks/useSaveEvent';
 
 // PFMEA 4M 타입 옵션 (MN/MC/IM/EN)
 export const M4_OPTIONS = [
@@ -34,12 +35,14 @@ interface EditableM4CellProps {
   saveToLocalStorage?: (force?: boolean) => void;
   saveAtomicDB?: (force?: boolean) => Promise<void>;
   isConfirmed?: boolean;
+  fmeaId?: string;
 }
 
 export function EditableM4Cell({
-  value, zebraBg, weId, l2Id, state, setState, setDirty, saveToLocalStorage, saveAtomicDB, isConfirmed
+  value, zebraBg, weId, l2Id, state, setState, setDirty, saveToLocalStorage, saveAtomicDB, isConfirmed, fmeaId
 }: EditableM4CellProps) {
   const handleChange = (newValue: string) => {
+    // 워크시트 state 업데이트
     setState(prev => ({
       ...prev,
       l2: prev.l2.map(proc => ({
@@ -48,12 +51,29 @@ export function EditableM4Cell({
       }))
     }));
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.(true);
-      if (saveAtomicDB) {
-        try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] M4 변경 DB 저장 오류:', e); }
+    emitSave();
+    
+    // ★★★ 2026-03-27: 마스터 DB에도 4M 업데이트 ★★★
+    if (fmeaId && weId) {
+      // 해당 작업요소의 이름 가져오기
+      const parentProc = state.l2.find(p => p.id === l2Id);
+      const we = parentProc?.l3?.find(w => w.id === weId);
+      if (we?.name?.trim()) {
+        fetch('/api/fmea/work-elements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fmeaId,
+            items: [{
+              id: weId,
+              name: we.name,
+              m4: newValue,
+              processNo: parentProc?.no || '',
+            }],
+          }),
+        }).catch(e => console.error('[4M] 마스터 DB 업데이트 오류:', e));
       }
-    }, 100);
+    }
   };
 
   // ★ 2026-01-25: 4M 셀은 zebraBg(L3 주황색) 사용
@@ -182,7 +202,7 @@ export function EditableL2Cell({
   const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const safeName = l2Name || '';
-  const isPlaceholder = safeName.includes('클릭') || safeName.includes('선택') || safeName === '';
+  const isPlaceholder = !safeName.trim();
 
   const handleSave = () => {
     if (editValue.trim() && editValue !== safeName) {
@@ -299,32 +319,96 @@ interface EditableL3CellProps {
   zebraBg: string;
   isConfirmed?: boolean;
   isRevised?: boolean;
+  // ★ 2026-03-27: fmeaId 추가 — 더블클릭 입력 시 마스터 DB 저장용
+  fmeaId?: string;
 }
 
 export function EditableL3Cell({
-  value, l3Id, l2Id, state, setState, setStateSynced, setDirty, handleSelect, setTargetL2Id, setIsWorkElementModalOpen, saveToLocalStorage, saveAtomicDB, zebraBg, isConfirmed, isRevised
+  value, l3Id, l2Id, state, setState, setStateSynced, setDirty, handleSelect, setTargetL2Id, setIsWorkElementModalOpen, saveToLocalStorage, saveAtomicDB, zebraBg, isConfirmed, isRevised, fmeaId
 }: EditableL3CellProps) {
   // ★ 2026-02-20: setStateSynced 사용 (stateRef 즉시 동기화 → DB 저장 안정)
   const updateState = setStateSynced || setState;
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isPlaceholder = value.includes('추가') || value.includes('클릭') || value.includes('필요') || value.includes('없음') || value.includes('삭제');
+  const savingRef = useRef(false); // ★ 중복 실행 방지
+  const isPlaceholder = !value.trim();
 
   const handleSave = () => {
+    // ★ React Strict Mode 중복 실행 방지
+    if (savingRef.current) return;
+    
     if (editValue.trim() && editValue !== value) {
+      // ★ 부모 공정번호 가져오기
+      const parentProc = state.l2.find(p => p.id === l2Id);
+      const procNo = parentProc?.no || '';
+      const rawInput = editValue.trim().replace(/^\d+\s+/, ''); // 중복 접두사 방지
+
+      // ★ 4M 기준변수 분리: MN/MC 등은 value가 아닌 m4 필드로 처리
+      const { m4: extractedM4, name: actualName } = extractM4FromValue(rawInput);
+      if (!actualName) {
+        setIsEditing(false);
+        return; // 순수 4M 코드만 입력 → 저장하지 않음
+      }
+
+      const finalName = procNo ? `${procNo} ${actualName}` : actualName;
+
+      // ★★★ 2026-03-27: 워크시트 내 중복 체크 — 같은 공정에 동일 이름 있으면 차단 ★★★
+      const existingL3s = parentProc?.l3 || [];
+      const duplicateInWorksheet = existingL3s.find(l3 => 
+        l3.id !== l3Id && l3.name?.trim() && l3.name.replace(/^\d+\s+/, '') === actualName
+      );
+      if (duplicateInWorksheet) {
+        savingRef.current = true; // 중복 alert 방지
+        alert(`"${actualName}"은(는) 이미 해당 공정에 존재합니다.`);
+        setEditValue(value); // 원래 값으로 복원
+        setIsEditing(false);
+        setTimeout(() => { savingRef.current = false; }, 100);
+        return;
+      }
+      
+      savingRef.current = true; // 저장 시작
+
+      // ★ 2026-03-27: 마스터 DB 조회 → 기존 항목 있으면 그 ID 사용, 없으면 새로 생성
+      if (fmeaId) {
+        fetch('/api/fmea/work-elements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fmeaId,
+            items: [{
+              id: l3Id,
+              name: finalName,
+              m4: extractedM4 || '',
+              processNo: procNo,
+            }],
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            // ★★★ 중복 항목이면 마스터 ID + m4로 워크시트 항목 교체 ★★★
+            if (data.success && data.results && data.results.length > 0) {
+              const result = data.results[0];
+              if (result.status === 'duplicate' && result.id !== l3Id) {
+                // 마스터 DB의 기존 ID와 m4로 워크시트 항목 교체
+                updateState(prev => ({
+                  ...prev,
+                  l2: prev.l2.map(p => ({
+                    ...p,
+                    l3: p.l3.map(w => w.id === l3Id
+                      ? { ...w, id: result.id, ...(result.m4 ? { m4: result.m4 } : {}) }
+                      : w)
+                  }))
+                }));
+                emitSave();
+              }
+            }
+          })
+          .catch(e => console.error('[작업요소] 마스터 DB 저장 오류:', e));
+      }
+
       // ★ 2026-02-20: updateState(=setStateSynced) 사용 → stateRef 즉시 동기화
       updateState(prev => {
-        // ★ 부모 공정번호 자동 상속 (DB 형식: "30 용접기")
-        const parentProc = prev.l2.find(p => p.id === l2Id);
-        const procNo = parentProc?.no || '';
-        const rawInput = editValue.trim().replace(/^\d+\s+/, ''); // 중복 접두사 방지
-
-        // ★ 4M 기준변수 분리: MN/MC 등은 value가 아닌 m4 필드로 처리
-        const { m4: extractedM4, name: actualName } = extractM4FromValue(rawInput);
-        if (!actualName) return prev; // 순수 4M 코드만 입력 → 저장하지 않음
-
-        const finalName = procNo ? `${procNo} ${actualName}` : actualName;
         return {
           ...prev,
           l2: prev.l2.map(p => ({
@@ -336,12 +420,8 @@ export function EditableL3Cell({
         };
       });
       setDirty(true);
-      setTimeout(async () => {
-        saveToLocalStorage?.(true);
-        if (saveAtomicDB) {
-          try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] L3 편집 DB 저장 오류:', e); }
-        }
-      }, 100);
+      emitSave();
+      setTimeout(() => { savingRef.current = false; }, 100); // 저장 완료
     }
     setIsEditing(false);
   };

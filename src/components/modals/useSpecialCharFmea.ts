@@ -77,13 +77,13 @@ function extractSCFromFmea(
   // L2 공정 순회
   (data?.l2 || []).forEach((proc: any) => {
     const processName = proc.no ? `${proc.no}. ${proc.name}` : proc.name;
-    if (!processName || processName.includes('클릭')) return;
+    if (!processName?.trim()) return;
 
     // 제품특성: proc.functions[].productChars[]
     (proc.functions || []).forEach((func: any) => {
       (func.productChars || []).forEach((pc: any) => {
         const charName = pc.name?.trim();
-        if (!charName || charName.includes('클릭')) return;
+        if (!charName) return;
 
         const symbol = pc.specialChar;
         if (symbol && symbol !== '' && symbol !== '-') {
@@ -114,7 +114,7 @@ function extractSCFromFmea(
       (func.productChars || []).forEach((pc: any) => {
         (pc.failureModes || []).forEach((fm: any) => {
           const fmName = fm.name?.trim();
-          if (!fmName || fmName.includes('클릭')) return;
+          if (!fmName) return;
 
           const symbol = fm.specialChar;
           if (symbol && symbol !== '' && symbol !== '-') {
@@ -144,12 +144,12 @@ function extractSCFromFmea(
 
     // 공정특성: proc.l3[].functions[].processChars[]
     (proc.l3 || []).forEach((we: any) => {
-      if (!we.name || we.name.includes('클릭')) return;
+      if (!we.name?.trim()) return;
 
       (we.functions || []).forEach((func: any) => {
         (func.processChars || []).forEach((pc: any) => {
           const charName = pc.name?.trim();
-          if (!charName || charName.includes('클릭')) return;
+          if (!charName) return;
 
           const symbol = pc.specialChar;
           if (symbol && symbol !== '' && symbol !== '-') {
@@ -257,7 +257,7 @@ export function useSpecialCharFmea({
         Object.values(allData).forEach((data: any) => {
           if (data?.l1?.name && !parts.includes(data.l1.name)) parts.push(data.l1.name);
           (data?.l2 || []).forEach((proc: any) => {
-            if (proc.name && !proc.name.includes('클릭')) {
+            if (proc.name?.trim()) {
               const pName = `${proc.no}. ${proc.name}`;
               if (!processes.includes(pName)) processes.push(pName);
             }
@@ -295,7 +295,7 @@ export function useSpecialCharFmea({
                 (func.productChars || []).forEach((pc: any) => {
                   (pc.failureModes || []).forEach((fm: any) => {
                     const fmName = fm.name?.trim();
-                    if (fmName && !fmName.includes('클릭') && !failureModes.includes(fmName)) {
+                    if (fmName && !failureModes.includes(fmName)) {
                       failureModes.push(fmName);
                     }
                   });

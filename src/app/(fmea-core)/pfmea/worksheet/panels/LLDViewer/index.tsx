@@ -25,7 +25,7 @@ export default function LLDViewer({ state }: LLDViewerProps) {
 
   // L2 공정 목록
   const l2Processes = useMemo(() => {
-    return (state?.l2 || []).filter((p: any) => p.name && !p.name.includes('클릭'));
+    return (state?.l2 || []).filter((p: any) => p.name?.trim());
   }, [state?.l2]);
 
   // 고장연결 수

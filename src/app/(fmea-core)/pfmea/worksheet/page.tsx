@@ -28,6 +28,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSpecialCharVerify } from './hooks/useSpecialCharVerify';
 import { useImportVerify } from './hooks/useImportVerify';
 import { useAutoTabAdvance } from './hooks/useAutoTabAdvance';
+import { useSaveListener } from './hooks/useSaveEvent';
 import { useArrayGuard } from './hooks/useArrayGuard';
 import {
   StructureTab, StructureColgroup, StructureHeader, StructureRow,
@@ -160,7 +161,12 @@ function FMEAWorksheetPageContent() {
     handleInputBlur,
     handleSelect,
     addL2,
+    atomicDB,
+    setAtomicDB,
   } = useWorksheetState();
+
+  // ★★★ 중앙 저장 이벤트 리스너 등록 ★★★
+  useSaveListener(saveAtomicDB);
 
   // ★★★ 2026-03-07: 저장 에러 콜백 등록 + 탭 닫힘 경고 ★★★
   useEffect(() => {
@@ -522,10 +528,8 @@ function FMEAWorksheetPageContent() {
         // 기존 작업요소 목록 복사
         const existingL3 = [...proc.l3];
 
-        // placeholder 행 제거 (클릭하여 추가 메시지가 있는 행)
-        const meaningfulL3 = existingL3.filter(we =>
-          we.name && !we.name.includes('클릭하여') && !we.name.includes('추가')
-        );
+        // placeholder 행 제거
+        const meaningfulL3 = existingL3.filter(we => we.name?.trim());
 
         // 새 작업요소 추가
         const newWorkElement: WorkElement = {
@@ -544,7 +548,7 @@ function FMEAWorksheetPageContent() {
           updatedL3.push({
             id: uid(),
             m4: '',
-            name: '(클릭하여 작업요소 추가)',
+            name: '',
             order: updatedL3.length * 10,
             functions: [],
             processChars: [],
@@ -579,7 +583,7 @@ function FMEAWorksheetPageContent() {
 
           // 모두 삭제되면 최소 1행 유지
           if (remainingL3.length === 0) {
-            remainingL3.push({ id: uid(), m4: '', name: '(클릭하여 작업요소 추가)', order: 10, functions: [], processChars: [] });
+            remainingL3.push({ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] });
           }
 
           return { ...proc, l3: remainingL3 };
@@ -588,7 +592,7 @@ function FMEAWorksheetPageContent() {
           const updatedL3 = proc.l3.map(w => {
             const isMatch = normalizedDeletedNames.includes(w.name.trim());
             if (isMatch) {
-              return { ...w, name: '(클릭하여 작업요소 추가)', m4: '' };
+              return { ...w, name: '', m4: '' };
             }
             return w;
           });
@@ -644,6 +648,8 @@ function FMEAWorksheetPageContent() {
     saveToLocalStorageOnly,
     saveAtomicDB,
     suppressAutoSaveRef,  // ★ 2026-02-18: 데이터 로드 중 저장 차단
+    atomicDB,             // ★ 2026-03-27: atomicDB 단일화
+    setAtomicDB,          // ★ 2026-03-27: atomicDB 직접 편집
     onAPClick: () => setShowAPModal(true),
     fmeaId: selectedFmeaId || undefined, // ★ 2026-02-08: 자동모드 마스터 필터링용
     customerName: (currentFmea?.fmeaInfo as any)?.customerIndustry || currentFmea?.fmeaInfo?.customerName || '', // ★ 특별특성 고객사 필터용 (customerIndustry 우선)

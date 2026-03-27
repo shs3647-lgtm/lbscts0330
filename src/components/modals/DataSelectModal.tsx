@@ -66,6 +66,11 @@ interface DataSelectModalProps {
   sodInfo?: Record<string, unknown>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sodRecommendation?: Record<string, any>;
+  /**
+   * true: 적용 시 체크된 항목만 전달(순서 유지, 해제 반영). false: 기존 currentValues + 신규만 병합.
+   * 2L A3/A4(메인공정 기능·제품특성) 등 워크시트와 선택 상태를 1:1로 맞출 때 사용.
+   */
+  fullSelectionApply?: boolean;
 }
 
 export default function DataSelectModal({
@@ -86,6 +91,7 @@ export default function DataSelectModal({
   parentFunctions = [],
   singleSelect = false,
   fmeaId,  // ✅ 2026-01-25: FMEA ID별 필터링
+  fullSelectionApply = false,
 }: DataSelectModalProps) {
   const [items, setItems] = useState<DataItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -253,26 +259,40 @@ export default function DataSelectModal({
     }
   }, [isOpen]);
 
-  // ✅ 선택 상태 초기화 - 최초 1회만 수행 (items 변경 시 재초기화 방지)
+  // ✅ 선택 상태 초기화 - 최초 1회만 수행
   useEffect(() => {
     if (initialized) return; // 이미 초기화됨
     if (items.length === 0) return; // 아직 items 로드 안됨
 
-    const newSelectedIds = new Set<string>();
-    initialCurrentValuesRef.current.forEach(val => {
-      const found = items.find(item => item.value === val);
-      if (found) newSelectedIds.add(found.id);
-    });
-    setSelectedIds(newSelectedIds);
+    if (fullSelectionApply) {
+      const cur = initialCurrentValuesRef.current;
+      const ids = new Set<string>();
+      items.forEach(i => {
+        const v = (i.value || '').trim();
+        if (!v) return;
+        if (cur.some(c => (c || '').trim() === v)) ids.add(i.id);
+      });
+      setSelectedIds(ids);
+      console.log('📊 [DataSelectModal 초기화] fullSelectionApply', {
+        title,
+        itemCode,
+        itemsCount: items.length,
+        initialCurrentValues: cur,
+        selectedCount: ids.size
+      });
+    } else {
+      // ★ 2026-03-27: 병합 모드 — 빈 Set으로 시작 (미적용 항목만 체크해 추가)
+      setSelectedIds(new Set());
+      console.log('📊 [DataSelectModal 초기화]', {
+        title,
+        itemCode,
+        itemsCount: items.length,
+        initialCurrentValues: initialCurrentValuesRef.current,
+        selectedCount: 0
+      });
+    }
     setInitialized(true);
-    console.log('📊 [DataSelectModal 초기화]', {
-      title,
-      itemCode,
-      itemsCount: items.length,
-      initialCurrentValues: initialCurrentValuesRef.current,
-      selectedCount: newSelectedIds.size
-    });
-  }, [items, initialized, title, itemCode]);
+  }, [items, initialized, title, itemCode, fullSelectionApply]);
 
   // 필터링
   const filteredItems = useMemo(() => {
@@ -371,17 +391,51 @@ export default function DataSelectModal({
   const deselectAll = () => setSelectedIds(new Set());
 
   const handleApply = () => {
-    const selectedValues = items.filter(item => selectedIds.has(item.id)).map(item => item.value);
-    console.log('✅ [DataSelectModal] handleApply 호출', {
-      title,
-      itemCode,
-      currentValues,
-      selectedIds: Array.from(selectedIds),
-      selectedValues,
-      itemsCount: items.length,
-      singleSelect
-    });
-    onSave(selectedValues);
+    if (fullSelectionApply) {
+      const ordered: string[] = [];
+      const seenVal = new Set<string>();
+      for (const item of filteredItems) {
+        if (!selectedIds.has(item.id)) continue;
+        const raw = item.value ?? '';
+        const t = raw.trim();
+        if (!t) continue;
+        if (seenVal.has(t)) continue;
+        seenVal.add(t);
+        ordered.push(t);
+      }
+      console.log('✅ [DataSelectModal] handleApply fullSelectionApply', {
+        title,
+        itemCode,
+        orderedLength: ordered.length,
+        ordered
+      });
+      onSave(ordered);
+    } else {
+      // ★ 2026-03-27: 미적용 섹션에서 선택된 항목만 추가 (기존 currentValues 유지)
+      const selectedValues = items.filter(item => selectedIds.has(item.id)).map(item => item.value);
+
+      const newSelectedValues = selectedValues.filter(v => !currentValues.includes(v));
+
+      if (newSelectedValues.length === 0) {
+        alert('적용할 새 항목을 선택해주세요.');
+        return;
+      }
+
+      const mergedValues = [...new Set([...currentValues, ...newSelectedValues])];
+
+      console.log('✅ [DataSelectModal] handleApply 호출', {
+        title,
+        itemCode,
+        currentValues,
+        selectedIds: Array.from(selectedIds),
+        selectedValues,
+        newSelectedValues,
+        mergedValues,
+        itemsCount: items.length,
+        singleSelect
+      });
+      onSave(mergedValues);
+    }
     // ✅ 2026-01-26: 저장 후 0.5초 뒤에 자동 닫기 (저장 완료 대기)
     setTimeout(() => {
       onClose();
@@ -407,7 +461,10 @@ export default function DataSelectModal({
       onDelete(deletedValues);
       console.log('[DataSelectModal] 선택 삭제:', deletedValues);
     }
-    // 삭제 후 모달 유지 (onClose 제거)
+    // ✅ 2026-03-27: 삭제 후 0.5초 뒤에 자동 닫기
+    setTimeout(() => {
+      onClose();
+    }, 500);
   };
 
   const handleAddSave = () => {
@@ -623,52 +680,54 @@ export default function DataSelectModal({
           />
         </div>
 
-        {/* ===== 버튼 영역 (검색 아래, 가로 배치) ===== */}
-        <div className="px-2 py-1 border-b bg-white flex items-center gap-1">
-          <button onClick={selectAll} className="px-2 py-0.5 text-[10px] font-bold bg-blue-500 text-white rounded hover:bg-blue-600">전체</button>
-          <button onClick={deselectAll} className="px-2 py-0.5 text-[10px] font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400">해제</button>
-          <button onClick={handleApply} className="px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded hover:bg-green-700">적용</button>
-          <button onClick={handleDeleteSelected} className="px-2 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded hover:bg-red-600">삭제</button>
-        </div>
+        {/* ===== 버튼 영역 제거 → 섹션별로 이동 ===== */}
 
-        {/* ===== 하위항목 라벨 ===== */}
-        <div className="px-3 py-1 border-b bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <span className="text-[11px] font-bold text-blue-700">▼ 하위항목: {itemInfo.label}</span>
-        </div>
+        {/* ===== 하위항목 라벨 + 수동입력 (C1 구분 선택 제외) ===== */}
+        {itemCode !== 'C1' && (
+          <>
+            <div className="px-3 py-1 border-b bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <span className="text-[11px] font-bold text-blue-700">▼ 하위항목: {itemInfo.label}</span>
+            </div>
 
-        {/* ===== 하위항목 수동입력 (WorkElementSelectModal 스타일) ===== */}
-        <div className="px-3 py-1.5 border-b bg-green-50 flex items-center gap-1">
-          <span className="text-[10px] font-bold text-green-700 shrink-0">+</span>
-          <select
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            className="px-1 py-0.5 text-[10px] border rounded"
-          >
-            <option value="추가">추가</option>
-            <option value="기본">기본</option>
-            <option value="사용자">사용자</option>
-          </select>
-          <input
-            type="text"
-            value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); handleAddSave(); } }}
-            placeholder={`${itemInfo.label} 입력 후 Enter...`}
-            className="flex-1 px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-          />
-          <button
-            onClick={handleAddSave}
-            disabled={!newValue.trim()}
-            className="px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            저장
-          </button>
-        </div>
+            {/* ===== 하위항목 수동입력 (WorkElementSelectModal 스타일) ===== */}
+            <div className="px-3 py-1.5 border-b bg-green-50 flex items-center gap-1">
+              <span className="text-[10px] font-bold text-green-700 shrink-0">+</span>
+              <select
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                className="px-1 py-0.5 text-[10px] border rounded"
+              >
+                <option value="추가">추가</option>
+                <option value="기본">기본</option>
+                <option value="사용자">사용자</option>
+              </select>
+              <input
+                type="text"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); handleAddSave(); } }}
+                placeholder={`${itemInfo.label} 입력 후 Enter...`}
+                className="flex-1 px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+              <button
+                onClick={handleAddSave}
+                disabled={!newValue.trim()}
+                className="px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                저장
+              </button>
+            </div>
+          </>
+        )}
 
-        {/* ===== 리스트 (고정 높이, 2열 그리드) ===== */}
+        {/* ===== 리스트 (적용됨/미적용 분리, 2열 그리드) ===== */}
         <div className="overflow-auto p-1.5 flex-1 min-h-[200px]">
-          <div className="grid grid-cols-2 gap-1">
-            {filteredItems.map(item => {
+          {(() => {
+            // 적용됨(워크시트에 있음) / 미적용 분리
+            const appliedItems = filteredItems.filter(item => isCurrentlySelected(item.value));
+            const notAppliedItems = filteredItems.filter(item => !isCurrentlySelected(item.value));
+            
+            const renderItem = (item: DataItem) => {
               const isSelected = selectedIds.has(item.id);
               const isCurrent = isCurrentlySelected(item.value);
               const catColor = CATEGORY_COLORS[item.category || '기본'] || CATEGORY_COLORS['기본'];
@@ -687,23 +746,18 @@ export default function DataSelectModal({
                     }`}
                   title="더블클릭으로 수정"
                 >
-                  {/* 체크박스 */}
                   <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected
                     ? isCurrent ? 'bg-green-500 border-green-500' : 'bg-blue-500 border-blue-500'
                     : 'bg-white border-gray-300'
                     }`}>
                     {isSelected && <span className="text-white text-[8px] font-bold">✓</span>}
                   </div>
-
-                  {/* 카테고리 배지 */}
                   <span
                     className="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
                     style={{ background: catColor.bg, color: catColor.text }}
                   >
                     {item.category || '기본'}
                   </span>
-
-                  {/* 이름 또는 편집 입력 */}
                   {isEditing ? (
                     <input
                       type="text"
@@ -719,14 +773,10 @@ export default function DataSelectModal({
                       className="flex-1 text-[10px] px-1 py-0.5 border border-yellow-400 rounded focus:outline-none focus:ring-1 focus:ring-yellow-500 bg-white"
                     />
                   ) : (
-                    <span className={`flex-1 text-[10px] break-words leading-tight ${isSelected ? (isCurrent ? 'text-green-800 font-medium' : 'text-blue-800 font-medium') : 'text-gray-700'
-                      }`}>
+                    <span className={`flex-1 text-[10px] break-words leading-tight ${isSelected ? (isCurrent ? 'text-green-800 font-medium' : 'text-blue-800 font-medium') : 'text-gray-700'}`}>
                       {item.value}
-                      {isCurrent && <span className="ml-1 text-[8px] text-green-600">(현재)</span>}
                     </span>
                   )}
-
-                  {/* 삭제 버튼 */}
                   {isSelected && !isEditing && (
                     <button
                       onClick={(e) => handleDeleteSingle(item, e)}
@@ -737,19 +787,84 @@ export default function DataSelectModal({
                   )}
                 </div>
               );
-            })}
-            {/* 빈 행 채우기 */}
-            {Array.from({ length: Math.max(0, minRows - filteredItems.length) }).map((_, idx) => (
-              <div
-                key={`empty-${idx}`}
-                className="flex items-center gap-1.5 px-1.5 py-1 rounded border border-gray-100 bg-gray-50/50"
-              >
-                <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
-                <span className="text-[9px] text-gray-300">--</span>
-                <span className="flex-1 text-[10px] text-gray-300">-</span>
-              </div>
-            ))}
-          </div>
+            };
+            
+            // 섹션별 선택/해제 함수
+            const selectApplied = () => setSelectedIds(prev => {
+              const newSet = new Set(prev);
+              appliedItems.forEach(i => newSet.add(i.id));
+              return newSet;
+            });
+            const deselectApplied = () => setSelectedIds(prev => {
+              const newSet = new Set(prev);
+              appliedItems.forEach(i => newSet.delete(i.id));
+              return newSet;
+            });
+            const selectNotApplied = () => setSelectedIds(prev => {
+              const newSet = new Set(prev);
+              notAppliedItems.forEach(i => newSet.add(i.id));
+              return newSet;
+            });
+            const deselectNotApplied = () => setSelectedIds(prev => {
+              const newSet = new Set(prev);
+              notAppliedItems.forEach(i => newSet.delete(i.id));
+              return newSet;
+            });
+            
+            return (
+              <>
+                {/* 적용됨 섹션 */}
+                {appliedItems.length > 0 && (
+                  <div className="mb-2">
+                    <div className="sticky top-0 z-10 flex items-center justify-between bg-green-50 px-2 py-1 rounded mb-1">
+                      <span className="text-[10px] font-bold text-green-700">✅ 적용됨 ({appliedItems.filter(i => selectedIds.has(i.id)).length}/{appliedItems.length})</span>
+                      <div className="flex gap-1">
+                        <button onClick={selectApplied} className="text-[9px] px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold">전체</button>
+                        <button onClick={deselectApplied} className="text-[9px] px-1.5 py-0.5 bg-gray-400 text-white rounded hover:bg-gray-500 font-bold">해제</button>
+                        <button onClick={handleDeleteSelected} className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 font-bold">삭제</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {appliedItems.map(renderItem)}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 미적용 섹션 */}
+                {notAppliedItems.length > 0 && (
+                  <div className="mb-1">
+                    <div className="sticky top-0 z-10 flex items-center justify-between bg-gray-100 px-2 py-1 rounded mb-1">
+                      <span className="text-[10px] font-bold text-gray-500">미적용 ({notAppliedItems.filter(i => selectedIds.has(i.id)).length}/{notAppliedItems.length})</span>
+                      <div className="flex gap-1">
+                        <button onClick={selectNotApplied} className="text-[9px] px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold">전체</button>
+                        <button onClick={deselectNotApplied} className="text-[9px] px-1.5 py-0.5 bg-gray-400 text-white rounded hover:bg-gray-500 font-bold">해제</button>
+                        <button onClick={handleApply} className="text-[9px] px-1.5 py-0.5 bg-green-600 text-white rounded hover:bg-green-700 font-bold">적용</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {notAppliedItems.map(renderItem)}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 빈 placeholder */}
+                {filteredItems.length === 0 && (
+                  <div className="grid grid-cols-2 gap-1">
+                    {Array.from({ length: minRows }).map((_, idx) => (
+                      <div
+                        key={`empty-${idx}`}
+                        className="flex items-center gap-1.5 px-1.5 py-1 rounded border border-gray-100 bg-gray-50/50"
+                      >
+                        <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
+                        <span className="text-[9px] text-gray-300">--</span>
+                        <span className="flex-1 text-[10px] text-gray-300">-</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* ===== 푸터: 선택 개수 표시 ===== */}

@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
                 const rawFunctions = l2.functions || [];
                 const filteredFuncNames = rawFunctions
                     .map(f => (f.name || '').trim())
-                    .filter(n => n && !n.includes('클릭') && !n.includes('자동생성') && !n.includes('추가'));
+                    .filter(n => n && !n.includes('자동생성') && !n.includes('추가'));
                 const processDesc = filteredFuncNames.join(', ')
                     || (l2.desc || '').trim()
                     || (l2.name || '').trim()

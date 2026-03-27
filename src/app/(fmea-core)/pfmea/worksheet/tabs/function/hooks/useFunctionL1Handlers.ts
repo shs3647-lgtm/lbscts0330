@@ -1,9 +1,10 @@
 /**
  * @file useFunctionL1Handlers.ts
  * @description FunctionL1Tab 핸들러 로직 분리
- * @status CODEFREEZE 🔒
- * @frozen_date 2026-02-17
- * @freeze_level L2
+ * 
+ * ★★★ 2026-03-27: 인라인 편집 시 마스터 DB 동기화 추가 ★★★
+ * - handleInlineEditFunction: 더블클릭 편집 → /api/fmea/l1-functions에 동기화
+ * - handleInlineEditRequirement: 더블클릭 편집 → /api/fmea/l1-functions에 동기화
  * 
  * ★★★ 2026-02-05: FunctionL1Tab.tsx 최적화 - 핸들러 분리 ★★★
  * 
@@ -389,8 +390,27 @@ export function useFunctionL1Handlers({
     await loadFromMaster();
   }, [isAutoMode, loadFromMaster]);
 
-  // ✅ 인라인 편집 - 요구사항
+  // ✅ 인라인 편집 - 요구사항 (+ 마스터 DB 동기화 + 중복 확인)
   const handleInlineEditRequirement = useCallback((typeId: string, funcId: string, reqId: string, newValue: string) => {
+    // 카테고리 추출 (typeId에서)
+    const types = state.l1?.types || [];
+    const targetType = types.find((t: any) => t.id === typeId);
+    const category = (targetType?.name || 'YP').toUpperCase().trim();
+    const targetFunc = targetType?.functions?.find((f: any) => f.id === funcId);
+    
+    // ★ 2026-03-27: 중복 확인 (같은 기능 내에서 같은 요구사항 이름이 있는지)
+    if (newValue.trim()) {
+      const trimmedValue = newValue.trim().toLowerCase();
+      const existingReqs = targetFunc?.requirements || [];
+      const isDuplicate = existingReqs.some((r: any) => 
+        r.id !== reqId && r.name?.trim().toLowerCase() === trimmedValue
+      );
+      if (isDuplicate) {
+        alert(`"${newValue.trim()}"은(는) 이미 해당 기능에 존재합니다.`);
+        return; // 중복이면 저장하지 않음
+      }
+    }
+    
     updateState((prev: any) => ({
       ...prev,
       l1: {
@@ -413,10 +433,47 @@ export function useFunctionL1Handlers({
       }
     }));
     saveData(100);
-  }, [updateState, saveData]);
+    
+    // ★ 마스터 DB에 동기화 — 기존 항목 업데이트 (reqId + oldName 전달)
+    if (newValue.trim() && fmeaId) {
+      const oldReq = targetFunc?.requirements?.find((r: any) => r.id === reqId);
+      const oldName = oldReq?.name || '';
+      fetch('/api/fmea/l1-functions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmeaId,
+          type: 'C3',
+          category,
+          name: newValue.trim(),
+          parentId: funcId,
+          updateId: reqId,
+          oldName: oldName.trim(),
+        }),
+      }).catch(e => console.error('[L1 요구사항 인라인편집] 마스터 DB 저장 오류:', e));
+    }
+  }, [state.l1?.types, updateState, saveData, fmeaId]);
 
-  // ✅ 인라인 편집 - 기능
+  // ✅ 인라인 편집 - 기능 (+ 마스터 DB 동기화 + 중복 확인)
   const handleInlineEditFunction = useCallback((typeId: string, funcId: string, newValue: string) => {
+    // 카테고리 추출 (typeId에서)
+    const types = state.l1?.types || [];
+    const targetType = types.find((t: any) => t.id === typeId);
+    const category = (targetType?.name || 'YP').toUpperCase().trim();
+    
+    // ★ 2026-03-27: 중복 확인 (같은 카테고리 내에서 같은 이름이 있는지)
+    if (newValue.trim()) {
+      const trimmedValue = newValue.trim().toLowerCase();
+      const existingFuncs = targetType?.functions || [];
+      const isDuplicate = existingFuncs.some((f: any) => 
+        f.id !== funcId && f.name?.trim().toLowerCase() === trimmedValue
+      );
+      if (isDuplicate) {
+        alert(`"${newValue.trim()}"은(는) 이미 ${category}에 존재합니다.`);
+        return; // 중복이면 저장하지 않음
+      }
+    }
+    
     updateState((prev: any) => ({
       ...prev,
       l1: {
@@ -433,7 +490,25 @@ export function useFunctionL1Handlers({
       }
     }));
     saveData(100);
-  }, [updateState, saveData]);
+    
+    // ★ 마스터 DB에 동기화 — 기존 항목 업데이트 (funcId + oldName 전달)
+    if (newValue.trim() && fmeaId) {
+      const oldFunc = targetType?.functions?.find((f: any) => f.id === funcId);
+      const oldName = oldFunc?.name || '';
+      fetch('/api/fmea/l1-functions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmeaId,
+          type: 'C2',
+          category,
+          name: newValue.trim(),
+          updateId: funcId,
+          oldName: oldName.trim(),
+        }),
+      }).catch(e => console.error('[L1 기능 인라인편집] 마스터 DB 저장 오류:', e));
+    }
+  }, [state.l1?.types, updateState, saveData, fmeaId]);
 
   // ✅ 저장 핸들러
   const handleSave = useCallback((selectedValues: string[]) => {
@@ -450,6 +525,11 @@ export function useFunctionL1Handlers({
 
       if (type === 'l1Type') {
         const currentTypes = [...newState.l1.types];
+        
+        // ★ 2026-03-27: 이미 존재하는 타입명 Set (중복 추가 방지)
+        const existingTypeNames = new Set(
+          currentTypes.filter((t: any) => !isPlaceholder(t.name)).map((t: any) => t.name.toUpperCase().trim())
+        );
 
         // ★ 위에서부터 순서대로 빈 타입 슬롯을 채움
         const emptyIndices = currentTypes
@@ -461,25 +541,36 @@ export function useFunctionL1Handlers({
         for (const emptyIdx of emptyIndices) {
           if (valIdx >= filteredValues.length) break;
           const val = filteredValues[valIdx];
+          // ★ 이미 존재하는 타입이면 건너뛰기
+          if (existingTypeNames.has(val.toUpperCase().trim())) {
+            valIdx++;
+            continue;
+          }
           const linkedFunctions = findLinkedFunctionsForType(prev, val);
           const autoLinkedFuncs = linkedFunctions.length > 0
             ? linkedFunctions.map(name => ({ id: uid(), name, requirements: [] }))
             : currentTypes[emptyIdx].functions || [{ id: uid(), name: '', requirements: [] }];
           currentTypes[emptyIdx] = { ...currentTypes[emptyIdx], name: val, functions: autoLinkedFuncs };
+          existingTypeNames.add(val.toUpperCase().trim()); // 추가된 값도 Set에 기록
           valIdx++;
         }
 
-        // 2) 남은 값은 새 타입으로 추가 (★ 중복 이름 허용 - YP/SP/USER 동시 추가 가능)
+        // 2) 남은 값은 새 타입으로 추가 (★ 이미 존재하는 타입명은 건너뛰기)
         // 빈 슬롯이 있던 위치 바로 뒤에 삽입 (위치 유지)
         const insertPos = emptyIndices.length > 0 ? emptyIndices[emptyIndices.length - 1] + 1 : currentTypes.length;
         let insertOffset = 0;
         for (let i = valIdx; i < filteredValues.length; i++) {
           const val = filteredValues[i];
+          // ★ 이미 존재하는 타입이면 건너뛰기
+          if (existingTypeNames.has(val.toUpperCase().trim())) {
+            continue;
+          }
           const linkedFunctions = findLinkedFunctionsForType(prev, val);
           const autoLinkedFuncs = linkedFunctions.length > 0
             ? linkedFunctions.map(name => ({ id: uid(), name, requirements: [] }))
             : [{ id: uid(), name: '', requirements: [] }]; // ★ 빈 기능 1개 기본 포함
           currentTypes.splice(insertPos + insertOffset, 0, { id: uid(), name: val, functions: autoLinkedFuncs });
+          existingTypeNames.add(val.toUpperCase().trim());
           insertOffset++;
         }
 

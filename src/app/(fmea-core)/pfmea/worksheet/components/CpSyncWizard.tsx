@@ -240,7 +240,7 @@ export default function CpSyncWizard({
                                 const processChar = typeof pchar === 'string' ? pchar : (pchar.name || '');
                                 const pcharSpecial = typeof pchar === 'object' ? (pchar.specialChar || '') : '';
 
-                                if (processChar && !processChar.includes('클릭')) {
+                                if (processChar?.trim()) {
                                     processCharsFound = true;
                                     // ★ 중복 체크 후 추가
                                     addRowIfUnique({
@@ -264,7 +264,7 @@ export default function CpSyncWizard({
                                 const processChar = typeof pchar === 'string' ? pchar : (pchar.name || '');
                                 const pcharSpecial = typeof pchar === 'object' ? (pchar.specialChar || '') : '';
 
-                                if (processChar && !processChar.includes('클릭')) {
+                                if (processChar?.trim()) {
                                     processCharsFound = true;
                                     // ★ 중복 체크 후 추가
                                     addRowIfUnique({
@@ -387,7 +387,7 @@ export default function CpSyncWizard({
                 productCharCount += (func.productChars || [])
                     .filter((pc: any) => {
                         const n = typeof pc === 'string' ? pc : (pc.name || '');
-                        return n && !n.includes('클릭');
+                        return !!n?.trim();
                     }).length;
             }
             productCharCount = Math.max(1, productCharCount);
@@ -399,14 +399,14 @@ export default function CpSyncWizard({
                     processCharCount += (l3Func.processChars || [])
                         .filter((pc: any) => {
                             const n = typeof pc === 'string' ? pc : (pc.name || '');
-                            return n && !n.includes('클릭');
+                            return !!n?.trim();
                         }).length;
                 }
                 if (processCharCount === 0) {
                     processCharCount += (l3.processChars || [])
                         .filter((pc: any) => {
                             const n = typeof pc === 'string' ? pc : (pc.name || '');
-                            return n && !n.includes('클릭');
+                            return !!n?.trim();
                         }).length;
                 }
             }

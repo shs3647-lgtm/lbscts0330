@@ -15,26 +15,13 @@
  *
  * @example
  * isMissing('') // true
- * isMissing('(클릭하여 선택)') // true
+ * isMissing('  ') // true (whitespace only)
  * isMissing('프레스') // false
  */
 export function isMissing(name: string | undefined | null): boolean {
   if (!name) return true;
   const trimmed = name.trim();
   if (trimmed === '' || trimmed === '-') return true;
-
-  // 플레이스홀더 패턴들
-  const placeholderPatterns = [
-    '클릭',      // 클릭하여 선택
-    '추가',      // 추가하려면
-    '선택',      // 선택해주세요
-    '입력',      // 입력해주세요
-    '필요',      // 입력 필요
-  ];
-
-  for (const pattern of placeholderPatterns) {
-    if (name.includes(pattern)) return true;
-  }
 
   return false;
 }
@@ -49,9 +36,6 @@ export function isMeaningfulRequirementName(name: unknown): name is string {
   if (typeof name !== 'string') return false;
   const n = name.trim();
   if (!n) return false;
-  // Function 탭에서 임시/플레이스홀더로 쓰는 문자열 패턴들
-  if (n.includes('클릭하여')) return false;
-  if (n === '요구사항 선택') return false;
   if (n.startsWith('(기능분석에서')) return false;
   return true;
 }
@@ -66,9 +50,6 @@ export function isMeaningfulCharName(name: unknown): name is string {
   if (typeof name !== 'string') return false;
   const n = name.trim();
   if (!n) return false;
-  if (n.includes('클릭')) return false;
-  if (n.includes('선택')) return false;
-  if (n.includes('추가')) return false;
   return true;
 }
 

@@ -236,6 +236,110 @@ const MASTER_PROCESSES = [
 ];
 
 // ============================================================
+// 14. L1 Functions (C1/C2/C3) — 구분/완제품기능/요구사항 폴백 데이터
+// ============================================================
+const L1_FUNCTION_FALLBACK = {
+  // C1 구분
+  C1: ['YP', 'SP', 'USER'],
+  
+  // C2 완제품기능 (구분별)
+  C2: {
+    YP: [
+      { name: 'Au Bump 제품특성(높이·순도·외관)이 자사 공정 수율 기준을 충족하는 Wafer를 제공한다', requirements: ['Au Bump 높이 규격 충족', 'Au 순도 99.9% 이상', '외관 결함 0.1% 이하', '공정 수율 95% 이상'] },
+      { name: 'UBM·PR·Etch 공정특성이 규격을 충족하여 Bump 형성 안정성을 확보한다', requirements: ['UBM 두께 규격 충족', 'PR 패턴 정밀도 확보', 'Etch 균일도 98% 이상'] },
+    ],
+    SP: [
+      { name: 'RoHS 등 환경·안전 규제 기준을 준수하는 제품을 제공한다', requirements: ['환경 규제 준수', '안전 기준 충족', 'RoHS 인증 유지'] },
+      { name: 'Wafer 청정도(파티클 수)가 공정 기준을 충족하여 공정 중 오염 없는 환경을 제공한다', requirements: ['파티클 기준 충족', '청정도 검사 통과', '오염 방지 확인'] },
+    ],
+    USER: [
+      { name: '고객 납품 기준(높이·외관·포장)을 충족하는 Wafer를 제공한다', requirements: ['고객 납품 기준 충족', '포장 규격 준수', '외관 검사 통과'] },
+      { name: '고객 요청 사항에 따른 추가 검사/포장 옵션을 제공한다', requirements: ['추가 검사 완료', '특별 포장 옵션', '고객 요청사항 반영'] },
+    ],
+  },
+};
+
+/**
+ * L1 Functions (C1/C2/C3) 폴백 데이터 시드
+ * - 활성 데이터셋에 C1(구분), C2(완제품기능), C3(요구사항) 추가
+ * - C3는 C2에 parentItemId로 연결됨
+ */
+async function seedL1FunctionFallback() {
+  // 활성 데이터셋 조회
+  const activeDatasets = await prisma.pfmeaMasterDataset.findMany({
+    where: { isActive: true },
+  });
+  
+  if (activeDatasets.length === 0) {
+    console.log('  ⚠️ 활성 데이터셋이 없습니다. 폴백 데이터를 추가하지 않습니다.');
+    return;
+  }
+  
+  let c1Count = 0, c2Count = 0, c3Count = 0;
+  
+  for (const dataset of activeDatasets) {
+    // 기존 C1/C2/C3 삭제 (중복 방지)
+    await prisma.pfmeaMasterFlatItem.deleteMany({
+      where: { datasetId: dataset.id, itemCode: { in: ['C1', 'C2', 'C3'] } },
+    });
+    
+    // C1 구분 추가
+    for (const category of L1_FUNCTION_FALLBACK.C1) {
+      await prisma.pfmeaMasterFlatItem.create({
+        data: {
+          datasetId: dataset.id,
+          processNo: category,
+          category: 'L1',
+          itemCode: 'C1',
+          value: category,
+          rowSpan: 1,
+          inherited: false,
+        },
+      });
+      c1Count++;
+    }
+    
+    // C2 완제품기능 + C3 요구사항 추가
+    for (const [category, functions] of Object.entries(L1_FUNCTION_FALLBACK.C2)) {
+      for (const func of functions) {
+        // C2 생성
+        const c2Item = await prisma.pfmeaMasterFlatItem.create({
+          data: {
+            datasetId: dataset.id,
+            processNo: category,
+            category: 'L1',
+            itemCode: 'C2',
+            value: func.name,
+            rowSpan: 1,
+            inherited: false,
+          },
+        });
+        c2Count++;
+        
+        // C3 요구사항 생성 (parentItemId = C2.id)
+        for (const req of func.requirements) {
+          await prisma.pfmeaMasterFlatItem.create({
+            data: {
+              datasetId: dataset.id,
+              processNo: category,
+              category: 'L1',
+              itemCode: 'C3',
+              value: req,
+              rowSpan: 1,
+              inherited: false,
+              parentItemId: c2Item.id, // ★ C2에 연결
+            },
+          });
+          c3Count++;
+        }
+      }
+    }
+  }
+  
+  console.log(`  ✅ C1(구분): ${c1Count}건, C2(완제품기능): ${c2Count}건, C3(요구사항): ${c3Count}건`);
+}
+
+// ============================================================
 // MAIN — Seed 실행
 // ============================================================
 async function main() {
@@ -379,19 +483,24 @@ async function main() {
   }
   console.log(`  ✅ ${MASTER_PROCESSES.length}건`);
 
+  // 14. L1 Function Fallback Data (C1/C2/C3)
+  console.log('📋 L1 Functions (C1/C2/C3) Fallback Data...');
+  await seedL1FunctionFallback();
+
   console.log('\n🎉 기초 데이터 시드 완료!');
   console.log('─'.repeat(50));
   console.log(`  Users:           ${USERS.length}명`);
   console.log(`  Customers:       ${CUSTOMERS.length}사`);
   console.log(`  Special Chars:   ${SPECIAL_CHARS.length}건`);
   console.log(`  S/O/D Criteria:  ${SEVERITY_CRITERIA.length + OCCURRENCE_CRITERIA.length + DETECTION_CRITERIA.length}건`);
-  console.log(`  Detection:       ${INDUSTRY_DETECTION.length}건`);
-  console.log(`  Prevention:      ${INDUSTRY_PREVENTION.length}건`);
+  console.log(`  Detection:       ${INDUSTRY_DETECTION_ROWS.length}건`);
+  console.log(`  Prevention:      ${INDUSTRY_PREVENTION_ROWS.length}건`);
   console.log(`  Eval Methods:    ${EVAL_METHODS.length}건`);
   console.log(`  Control Methods: ${CONTROL_METHODS.length}건`);
   console.log(`  Reaction Plans:  ${REACTION_PLANS.length}건`);
   console.log(`  Parts:           ${PARTS.length}건`);
   console.log(`  Processes:       ${MASTER_PROCESSES.length}건`);
+  console.log(`  L1 Functions:    C1/C2/C3 폴백 데이터 (완제품기능별 요구사항 연결)`);
   console.log('─'.repeat(50));
   console.log('\n다음 단계:');
   console.log('  1. npx tsx scripts/seed-lld-data.mjs     — LLD 50건 시드');

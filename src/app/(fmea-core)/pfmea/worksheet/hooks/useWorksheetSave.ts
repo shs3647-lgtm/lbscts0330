@@ -1,16 +1,13 @@
-// CODEFREEZE-LIFTED: 2026-03-21 legacy round-trip 제거 — atomicDB 직접 저장
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * @file useWorksheetSave.ts
- * @description 워크시트 저장 로직 — Atomic DB 직접 저장 (legacy round-trip 완전 제거)
+ * @description 워크시트 저장 — atomicDB 단일 데이터 소스
  *
- * 핵심 변경 (2026-03-21):
- * - legacy round-trip 완전 제거: stateRef → migrateToAtomicDB → save 경로 삭제
- * - atomicDB를 DB에서 로드된 그대로 저장 (confirmed 플래그만 stateRef에서 동기화)
- * - syncFailureEffectsFromState/syncFailureLinksFromState 등 legacy→atomic 동기화 함수 제거
- * - 자동저장 useEffect 비활성화 (편집 파이프라인 atomic 전환 완료 후 재활성화 예정)
- *
- * 2026-03-20: Legacy fallback 경로 완전 제거 — Atomic DB만 사용
+ * 2026-03-27: 전면 정리
+ * - 저장 경로 1개 (atomicDB → syncConfirmedFlags → POST /api/fmea)
+ * - saveToLocalStorage = saveAtomicDB (동일 함수, 호환성 유지)
+ * - 불필요한 가드/중복 코드 제거
+ * - atomicDBRef로 항상 최신 값 참조
  */
 
 'use client';
@@ -21,11 +18,14 @@ import { FMEAWorksheetDB } from '../schema';
 import { saveAtomicDB as saveAtomicDBDirect } from './atomicDbSaver';
 import { buildManualPositionData } from './manualStructureBuilder';
 
+// ── 타입 ──
+
 interface UseWorksheetSaveParams {
   selectedFmeaId: string | null;
   currentFmea: FMEAProject | null;
   atomicDB: FMEAWorksheetDB | null;
   setAtomicDB: React.Dispatch<React.SetStateAction<FMEAWorksheetDB | null>>;
+  atomicDBRef: React.MutableRefObject<FMEAWorksheetDB | null>;
   stateRef: React.MutableRefObject<WorksheetState>;
   suppressAutoSaveRef: React.MutableRefObject<boolean>;
   setIsSaving: React.Dispatch<React.SetStateAction<boolean>>;
@@ -35,15 +35,274 @@ interface UseWorksheetSaveParams {
 
 interface UseWorksheetSaveReturn {
   saveAtomicDB: (force?: boolean) => Promise<void>;
-  saveToLocalStorage: (force?: boolean) => void;  // ✅ 2026-01-22: force 파라미터 추가
+  saveToLocalStorage: (force?: boolean) => Promise<void>;
   saveToLocalStorageOnly: () => void;
 }
 
-// ── 헬퍼: atomicDB에 현재 stateRef의 confirmed 상태 + riskData 반영 ──
+// ══════════════════════════════════════════════════════════
+// state → atomicDB 동기화 함수 (항목별 독립)
+// ══════════════════════════════════════════════════════════
 
-/** 테스트·도구용 export — S추천 등 failureScopes→failureEffects 역동기화 검증 */
+function syncL2Structures(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l2Structures'] {
+  if (!Array.isArray(state.l2) || !Array.isArray(db.l2Structures)) return db.l2Structures;
+  const stateL2Ids = new Set(state.l2.map((p: any) => p.id));
+  const stateL2Map = new Map(state.l2.map((p: any) => [p.id, p]));
+  return db.l2Structures.filter(l2 => stateL2Ids.has(l2.id)).map(l2 => {
+    const edited = stateL2Map.get(l2.id);
+    if (!edited) return l2;
+    const changed = l2.name !== (edited.name || '') || l2.no !== (edited.no || '') || l2.order !== (edited.order ?? l2.order);
+    return changed ? { ...l2, name: edited.name || '', no: edited.no || '', order: edited.order ?? l2.order } : l2;
+  });
+}
+
+function syncL3Structures(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l3Structures'] {
+  if (!Array.isArray(state.l2) || !Array.isArray(db.l3Structures)) return db.l3Structures;
+  const stateL3Map = new Map<string, any>();
+  for (const proc of state.l2) {
+    for (const we of (proc as any).l3 || []) {
+      if (we.id) stateL3Map.set(we.id, { ...we, l2Id: proc.id });
+    }
+  }
+  const stateL3Ids = new Set(stateL3Map.keys());
+  const synced = db.l3Structures.filter(l3 => stateL3Ids.has(l3.id)).map(l3 => {
+    const edited = stateL3Map.get(l3.id);
+    if (!edited) return l3;
+    const changed = l3.name !== (edited.name || '') || l3.m4 !== (edited.m4 || '') || l3.order !== (edited.order ?? l3.order);
+    return changed ? { ...l3, name: edited.name || '', m4: edited.m4 || '', order: edited.order ?? l3.order } : l3;
+  });
+  const existingL3Ids = new Set(db.l3Structures.map(l3 => l3.id));
+  for (const [id, we] of stateL3Map) {
+    if (!existingL3Ids.has(id) && we.name?.trim()) {
+      synced.push({ id, fmeaId: db.fmeaId, l1Id: db.l1Structure?.id || '', l2Id: we.l2Id || '', m4: we.m4 || '', name: we.name || '', order: we.order ?? 0 } as any);
+    }
+  }
+  return synced;
+}
+
+function syncL2Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l2Functions'] {
+  if (!Array.isArray(state.l2) || !Array.isArray(db.l2Functions)) return db.l2Functions;
+  // L2 기능 저장은 "함수 x 제품특성" 행 단위가 원자성 기준.
+  // 기존 구현은 신규 행 append를 하지 않아(A3 선택 모달에서) 새로고침 시 소실될 수 있었다.
+  const byId = new Map(db.l2Functions.map((f: any) => [f.id, f]));
+  const next: FMEAWorksheetDB['l2Functions'] = [];
+
+  for (const proc of state.l2 as any[]) {
+    const l2StructId = proc.id || '';
+    if (!l2StructId) continue;
+
+    for (const func of (proc.functions || [])) {
+      const functionName = (func.name || '').trim();
+      const pcs = Array.isArray(func.productChars) ? func.productChars : [];
+
+      if (pcs.length === 0) {
+        const id = func.id || '';
+        if (!id) continue;
+        const prev = byId.get(id) as any;
+        next.push({
+          ...(prev || {}),
+          id,
+          fmeaId: db.fmeaId,
+          l2StructId,
+          functionName: functionName || 'N/A',
+          productChar: functionName || 'N/A',
+          specialChar: prev?.specialChar || '',
+        } as any);
+        continue;
+      }
+
+      for (const pc of pcs) {
+        const id = pc.id || func.id || '';
+        if (!id) continue;
+        const prev = byId.get(id) as any;
+        next.push({
+          ...(prev || {}),
+          id,
+          fmeaId: db.fmeaId,
+          l2StructId,
+          functionName: functionName || 'N/A',
+          productChar: (pc.name || '').trim() || functionName || 'N/A',
+          specialChar: pc.specialChar || prev?.specialChar || '',
+        } as any);
+      }
+    }
+  }
+
+  return next;
+}
+
+function syncL3Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l3Functions'] {
+  if (!Array.isArray(state.l2) || !Array.isArray(db.l3Functions)) return db.l3Functions;
+  const stateL3FIds = new Set<string>();
+  const stateL3FMap = new Map<string, any>();
+  for (const proc of state.l2) {
+    for (const we of ((proc as any).l3 || [])) {
+      for (const func of (we.functions || [])) {
+        if (func.id) { stateL3FIds.add(func.id); stateL3FMap.set(func.id, func); }
+      }
+    }
+  }
+  return db.l3Functions.filter(f => stateL3FIds.has(f.id)).map(f => {
+    const edited = stateL3FMap.get(f.id);
+    if (!edited) return f;
+    const changed = f.functionName !== (edited.name || '') || f.processChar !== (edited.processChar || '') || f.specialChar !== (edited.specialChar || '');
+    return changed ? { ...f, functionName: edited.name || '', processChar: edited.processChar || '', specialChar: edited.specialChar || '' } : f;
+  });
+}
+
+function syncL1Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l1Functions'] {
+  const types = (state.l1 as any)?.types;
+  if (!Array.isArray(types) || types.length === 0) return db.l1Functions || [];
+  
+  // state에서 모든 L1Function 정보 수집
+  const stateMap = new Map<string, { functionName: string; requirement: string; category: string }>();
+  const stateIds = new Set<string>();
+  
+  for (const type of types) {
+    const category = (type.name || '').trim();
+    if (!category) continue; // 빈 구분(타입)은 스킵
+    
+    const funcs = type.functions || [];
+    
+    // ★ 2026-03-27: 기능이 전혀 없는 경우만 type.id로 placeholder 저장
+    if (funcs.length === 0 && type.id) {
+      stateIds.add(type.id);
+      stateMap.set(type.id, { functionName: '', requirement: '', category });
+      continue; // 기능이 없으므로 아래 루프 스킵
+    }
+    
+    for (const func of funcs) {
+      const functionName = (func.name || '').trim();
+      
+      // ★ 2026-03-27: 기능 ID는 항상 저장 (요구사항 유무와 관계없이)
+      if (func.id) {
+        stateIds.add(func.id);
+        stateMap.set(func.id, { functionName, requirement: '', category });
+      }
+      
+      // ★ 요구사항 저장 — 작업요소(L3)와 동일 패턴: 빈 행도 ID 기반 유지
+      for (const req of (func.requirements || [])) {
+        if (!req.id) continue;
+        const reqName = (req.name || '').trim();
+        if (req.id === func.id && !reqName) continue; // 기능 ID와 같고 빈값이면 스킵 (중복 방지)
+        stateIds.add(req.id);
+        stateMap.set(req.id, { functionName, requirement: reqName, category });
+      }
+    }
+  }
+  
+  if (stateMap.size === 0) return db.l1Functions || [];
+  
+  // 1. 기존 DB 항목 업데이트
+  const existingIds = new Set((db.l1Functions || []).map(f => f.id));
+  const updatedExisting = (db.l1Functions || [])
+    .filter(f => stateIds.has(f.id)) // state에 있는 것만 유지
+    .map(f => {
+      const edited = stateMap.get(f.id);
+      if (!edited) return f;
+      const changed = f.functionName !== edited.functionName || f.requirement !== edited.requirement || f.category !== edited.category;
+      return changed ? { ...f, ...edited } : f;
+    });
+  
+  // 2. 새 항목 추가 (DB에 없는 것)
+  const l1StructId = db.l1Structure?.id || '';
+  const newItems: FMEAWorksheetDB['l1Functions'] = [];
+  for (const [id, data] of stateMap.entries()) {
+    if (!existingIds.has(id)) {
+      newItems.push({
+        id,
+        fmeaId: db.fmeaId || '',
+        l1StructId,
+        category: data.category,
+        functionName: data.functionName,
+        requirement: data.requirement,
+      });
+    }
+  }
+  
+  return [...updatedExisting, ...newItems];
+}
+
+function syncFailureModes(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['failureModes'] {
+  if (!Array.isArray(state.l2) || !Array.isArray(db.failureModes)) return db.failureModes;
+  const map = new Map<string, any>();
+  for (const proc of state.l2) {
+    for (const fm of ((proc as any).failureModes || [])) {
+      if (fm.id) map.set(fm.id, fm);
+    }
+  }
+  return db.failureModes.filter(fm => map.size === 0 || map.has(fm.id)).map(fm => {
+    const edited = map.get(fm.id);
+    if (!edited) return fm;
+    const newMode = edited.name || edited.mode || '';
+    const changed = fm.mode !== newMode || fm.specialChar !== (edited.specialChar || edited.sc || '');
+    return changed ? { ...fm, mode: newMode, specialChar: edited.specialChar || edited.sc || '' } : fm;
+  });
+}
+
+function syncFailureCauses(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['failureCauses'] {
+  if (!Array.isArray(state.l2) || !Array.isArray(db.failureCauses)) return db.failureCauses;
+  const map = new Map<string, any>();
+  for (const proc of state.l2) {
+    for (const fc of ((proc as any).failureCauses || [])) { if (fc.id) map.set(fc.id, fc); }
+    for (const we of ((proc as any).l3 || [])) {
+      for (const fc of ((we as any).failureCauses || [])) { if (fc.id) map.set(fc.id, fc); }
+    }
+  }
+  return db.failureCauses.filter(fc => map.size === 0 || map.has(fc.id)).map(fc => {
+    const edited = map.get(fc.id);
+    if (!edited) return fc;
+    const newCause = edited.name || edited.cause || '';
+    return fc.cause !== newCause ? { ...fc, cause: newCause } : fc;
+  });
+}
+
+function syncFailureLinks(db: FMEAWorksheetDB, state: WorksheetState): { links: FMEAWorksheetDB['failureLinks']; changed: boolean } {
+  const stateLinks = (state as any).failureLinks;
+  if (!Array.isArray(stateLinks) || stateLinks.length === 0) return { links: db.failureLinks, changed: false };
+  if (stateLinks.length !== db.failureLinks?.length || (stateLinks[0]?.id && stateLinks[0].id !== db.failureLinks?.[0]?.id)) {
+    return { links: stateLinks, changed: true };
+  }
+  return { links: db.failureLinks, changed: false };
+}
+
+function syncFailureEffects(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['failureEffects'] {
+  const scopes = (state.l1 as any)?.failureScopes as Array<{ id?: string; effect?: string; severity?: number }> | undefined;
+  if (!Array.isArray(scopes) || scopes.length === 0 || !Array.isArray(db.failureEffects) || db.failureEffects.length === 0) return db.failureEffects;
+  const byId = new Map(scopes.filter((s): s is { id: string; effect?: string; severity?: number } => Boolean(s.id)).map(s => [s.id, s]));
+  return db.failureEffects.map(fe => {
+    const sc = byId.get(fe.id);
+    if (!sc) return fe;
+    let next = fe;
+    if (typeof sc.severity === 'number' && sc.severity !== fe.severity) next = { ...next, severity: sc.severity };
+    const eff = (sc.effect || '').trim();
+    if (eff && eff !== fe.effect) next = { ...next, effect: eff };
+    return next;
+  });
+}
+
+function syncRiskAnalyses(db: FMEAWorksheetDB, state: WorksheetState, links: any[]): FMEAWorksheetDB['riskAnalyses'] {
+  const rd = (state as any).riskData;
+  if (!rd || typeof rd !== 'object' || !Array.isArray(db.riskAnalyses) || db.riskAnalyses.length === 0) return db.riskAnalyses;
+  return db.riskAnalyses.map(ra => {
+    const link = (links || []).find((fl: any) => fl.id === ra.linkId);
+    if (!link) return ra;
+    const uk = `${link.fmId}-${link.fcId}`;
+    let next = { ...ra }, changed = false;
+    const s = rd[`risk-${uk}-S`]; if (typeof s === 'number' && s !== ra.severity) { next.severity = s; changed = true; }
+    const o = rd[`risk-${uk}-O`]; if (typeof o === 'number' && o !== ra.occurrence) { next.occurrence = o; changed = true; }
+    const d = rd[`risk-${uk}-D`]; if (typeof d === 'number' && d !== ra.detection) { next.detection = d; changed = true; }
+    const pc = rd[`prevention-${uk}`]; if (typeof pc === 'string' && pc !== ra.preventionControl) { next.preventionControl = pc; changed = true; }
+    const dc = rd[`detection-${uk}`]; if (typeof dc === 'string' && dc !== ra.detectionControl) { next.detectionControl = dc; changed = true; }
+    return changed ? next : ra;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// 통합 동기화 함수
+// ══════════════════════════════════════════════════════════
+
 export function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB {
-  const result = {
+  const result: FMEAWorksheetDB = {
     ...db,
     confirmed: {
       ...db.confirmed,
@@ -56,167 +315,45 @@ export function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): 
       l3Failure: (state as any).failureL3Confirmed || false,
       failureLink: (state as any).failureLinkConfirmed || false,
     },
+    l2Structures: syncL2Structures(db, state),
+    l3Structures: syncL3Structures(db, state),
+    l2Functions: syncL2Functions(db, state),
+    l3Functions: syncL3Functions(db, state),
+    l1Functions: syncL1Functions(db, state),
+    failureModes: syncFailureModes(db, state),
+    failureCauses: syncFailureCauses(db, state),
+    failureEffects: syncFailureEffects(db, state),
   };
 
-  // ★★★ 2026-03-22: L1Function 편집 내용을 atomicDB에 역동기화
-  // state.l1.types → atomicDB.l1Functions (functionName, requirement, category)
-  // 근본원인: 사용자 편집이 state에만 반영되고 atomicDB에 전파되지 않아 저장 시 편집 손실
-  const types = (state.l1 as any)?.types;
-  if (Array.isArray(types) && types.length > 0 && Array.isArray(db.l1Functions) && db.l1Functions.length > 0) {
-    // state.l1.types에서 L1Function ID → {functionName, requirement, category} 매핑 구축
-    const stateL1FMap = new Map<string, { functionName: string; requirement: string; category: string }>();
-    for (const type of types) {
-      const category = (type.name || '').trim();
-      if (!category) continue;
-      for (const func of (type.functions || [])) {
-        const functionName = (func.name || '').trim();
-        for (const req of (func.requirements || [])) {
-          if (req.id) {
-            stateL1FMap.set(req.id, { functionName, requirement: (req.name || '').trim(), category });
-          }
-        }
-        // C2 without C3: function ID = L1Function ID
-        if ((func.requirements || []).length === 0 && func.id) {
-          stateL1FMap.set(func.id, { functionName, requirement: '', category });
-        }
-      }
-    }
-
-    // atomicDB.l1Functions에 편집 내용 반영 (ID 기반 매칭, FK 보존)
-    if (stateL1FMap.size > 0) {
-      result.l1Functions = db.l1Functions.map(f => {
-        const edited = stateL1FMap.get(f.id);
-        if (!edited) return f;
-        // 값이 변경된 경우에만 업데이트 (불필요한 mutation 방지)
-        const changed = f.functionName !== edited.functionName ||
-          f.requirement !== edited.requirement ||
-          f.category !== edited.category;
-        return changed ? { ...f, functionName: edited.functionName, requirement: edited.requirement, category: edited.category } : f;
-      });
-    }
-  }
-
-  // ★★★ 2026-03-24: state.failureLinks → atomicDB.failureLinks 역동기화
-  // 근본원인: handleAutoMatchMissing/수동편집이 state에만 반영되고 atomicDB에 전파되지 않아
-  //          saveAtomicDB → POST /api/fmea 시 원래 DB 값만 저장 → 새로고침 시 수정 소실
-  const stateLinks = (state as any).failureLinks;
-  if (Array.isArray(stateLinks) && stateLinks.length > 0) {
-    // state에 failureLinks가 있으면 atomicDB 것을 대체
-    // (고장매칭 수정/자동연결 결과 반영)
-    if (stateLinks.length !== db.failureLinks?.length ||
-        (stateLinks[0]?.id && stateLinks[0].id !== db.failureLinks?.[0]?.id)) {
-      result.failureLinks = stateLinks;
-      // failureLink가 업데이트되면 confirmed.failureLink도 true로 설정
-      // (고장매칭 완료 = 확정 상태)
-      result.confirmed = { ...result.confirmed, failureLink: true };
-    }
-  }
-
-  // ★★★ 2026-03-23: L1 failureScopes → failureEffects (심각도·FE 문구) 역동기화
-  // 근본원인: S추천/셀 편집이 state에만 반영되고 atomicDB.failureEffects에 합류하지 않아 POST /api/fmea 시 S 미저장
-  const failureScopes = (state.l1 as any)?.failureScopes as
-    | Array<{ id?: string; effect?: string; severity?: number }>
-    | undefined;
-  if (
-    Array.isArray(failureScopes) &&
-    failureScopes.length > 0 &&
-    Array.isArray(db.failureEffects) &&
-    db.failureEffects.length > 0
-  ) {
-    const byId = new Map(
-      failureScopes.filter((s): s is { id: string; effect?: string; severity?: number } => Boolean(s.id)).map(s => [s.id, s]),
-    );
-    result.failureEffects = db.failureEffects.map(fe => {
-      const sc = byId.get(fe.id);
-      if (!sc) return fe;
-      let next = fe;
-      if (typeof sc.severity === 'number' && sc.severity !== fe.severity) {
-        next = { ...next, severity: sc.severity };
-      }
-      const eff = (sc.effect || '').trim();
-      if (eff && eff !== fe.effect) {
-        next = { ...next, effect: eff };
-      }
-      return next;
-    });
-  }
+  const { links, changed } = syncFailureLinks(db, state);
+  result.failureLinks = links;
+  if (changed) result.confirmed = { ...result.confirmed, failureLink: true };
+  result.riskAnalyses = syncRiskAnalyses(db, state, result.failureLinks);
 
   return result;
 }
 
-// ── REMOVED: syncFailureEffectsFromState, syncFailureLinksFromState ──
-// These functions synced FROM legacy state TO atomicDB (reverse direction).
-// This round-trip (Atomic → legacy → Atomic) destroyed data because legacy
-// cannot represent all FK relationships (e.g., Cu Target FC merged with Ti Target FC).
-// AtomicDB is now saved directly without going through stateRef/legacy.
-
-// ── REMOVED: syncFailureCausesFromState, syncFailureModesFromState ──
-// These functions synced FROM legacy state TO atomicDB (reverse direction).
-// Removed as part of legacy round-trip elimination (2026-03-21).
-
-// ── REMOVED: syncRiskAnalysesFromState, _calcSimpleAP, _AP_TABLE, syncOptimizationsFromState ──
-// These functions synced FROM legacy riskData TO atomicDB (reverse direction).
-// Removed as part of legacy round-trip elimination (2026-03-21).
+// ══════════════════════════════════════════════════════════
+// Hook
+// ══════════════════════════════════════════════════════════
 
 export function useWorksheetSave({
-  selectedFmeaId,
-  currentFmea,
-  atomicDB,
-  setAtomicDB,
-  stateRef,
-  suppressAutoSaveRef,
-  setIsSaving,
-  setDirty,
-  setLastSaved,
+  selectedFmeaId, currentFmea, atomicDB, setAtomicDB, atomicDBRef,
+  stateRef, suppressAutoSaveRef, setIsSaving, setDirty, setLastSaved,
 }: UseWorksheetSaveParams): UseWorksheetSaveReturn {
 
-  // autoSaveTimeoutRef/lastAutoSaveHashRef removed — auto-save disabled (2026-03-21)
-
-  // ── 원자성 DB 저장 ──
-  const saveAtomicDBCallback = useCallback(async (force?: boolean) => {
-    const targetFmeaId = atomicDB?.fmeaId || selectedFmeaId || currentFmea?.id;
-
-    if (!targetFmeaId) {
-      return;
-    }
-
-    if (!force && suppressAutoSaveRef.current) {
-      return;
-    }
-
-    // ★ P0-3: 완전히 빈 데이터 DB 덮어쓰기 방지
-    const preCheckState = stateRef.current;
-    const preCheckL2Count = preCheckState.l2?.length || 0;
-    const preCheckFMCount = preCheckState.l2?.reduce((acc: number, p: any) => acc + (p.failureModes?.length || 0), 0) || 0;
-    const preCheckFECount = (preCheckState.l1 as any)?.failureScopes?.length || 0;
-    const preCheckL1FuncCount = (preCheckState.l1 as any)?.types?.reduce(
-      (acc: number, t: any) => acc + (t.functions?.length || 0), 0
-    ) || 0;
-    const preCheckStructConfirmed = (preCheckState as any).structureConfirmed === true;
-    if (!force && !preCheckStructConfirmed && preCheckL2Count === 0 && preCheckFMCount === 0 && preCheckFECount === 0 && preCheckL1FuncCount === 0) {
-      return;
-    }
-
-    // ★★★ 2026-03-22: atomicDB 빈 데이터 보호 — L1Function/L2Structure 등 핵심 데이터가 비어있으면 저장 차단
-    // 근본원인: loadAtomicDB() 실패 → emptyDB → autoSave → DELETE ALL → 데이터 소실
-    if (!force && atomicDB) {
-      const atomicL1FCount = atomicDB.l1Functions?.length || 0;
-      const atomicL2Count = atomicDB.l2Structures?.length || 0;
-      if (atomicL1FCount === 0 && atomicL2Count === 0) {
-        console.warn('[useWorksheetSave] atomicDB 빈 데이터 저장 차단 — L1F=0, L2=0');
-        return;
-      }
-    }
+  const save = useCallback(async (force?: boolean) => {
+    const db = atomicDBRef.current; // ★ ref에서 최신 값 (setAtomicDB 시 즉시 갱신됨)
+    const fmeaId = db?.fmeaId || selectedFmeaId || currentFmea?.id;
+    if (!fmeaId) return;
+    if (!force && suppressAutoSaveRef.current) return;
 
     setIsSaving(true);
     try {
-      // ★★★ 2026-03-21: atomicDB 직접 저장 — legacy round-trip 완전 제거 ★★★
-      if (atomicDB && Array.isArray(atomicDB.l2Structures) && atomicDB.l2Structures.length > 0) {
-        // [경로 A] 기존 Import된 FMEA — atomicDB 그대로 저장
-        let dbToSave = syncConfirmedFlags(atomicDB, stateRef.current);
-        if (force) {
-          dbToSave = { ...dbToSave, forceOverwrite: true } as any;
-        }
+      if (db && Array.isArray(db.l2Structures) && db.l2Structures.length > 0) {
+        // atomicDB 있음 → sync + 저장
+        let dbToSave = syncConfirmedFlags(db, stateRef.current);
+        if (force) dbToSave = { ...dbToSave, forceOverwrite: true } as any;
         const result = await saveAtomicDBDirect(dbToSave, false);
         if (result.success) {
           setAtomicDB(dbToSave);
@@ -224,142 +361,37 @@ export function useWorksheetSave({
           setLastSaved(new Date().toLocaleTimeString('ko-KR'));
         }
       } else {
-        // ★★★ [경로 B] 신규 FMEA 수동모드 — atomicDB=null 또는 비어있음 ★★★
-        // state.l2에 수동 추가된 공정을 save-position-import로 DB에 저장
-        const manualL2 = (stateRef.current.l2 || []).filter(
-          (p: any) => p.name?.trim() || p.no?.trim()
-        );
+        // atomicDB 없음 → 수동모드 저장
+        const manualL2 = (stateRef.current.l2 || []).filter((p: any) => p.name?.trim() || p.no?.trim());
         if (manualL2.length > 0) {
           const l1Name =
             (currentFmea as any)?.fmeaInfo?.partName ||
             (currentFmea as any)?.fmeaInfo?.subject ||
-            (stateRef.current.l1 as any)?.name ||
-            '완제품 공정';
-          const posData = buildManualPositionData(targetFmeaId, l1Name, manualL2);
+            (stateRef.current.l1 as any)?.name || '';
+          const posData = buildManualPositionData(fmeaId, l1Name, manualL2);
           if (posData) {
-            console.info(`[useWorksheetSave] 수동모드 저장 — L2=${posData.l2Structures.length}, L3=${posData.l3Structures.length}`);
             const res = await fetch('/api/fmea/save-position-import', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              // manualMode=true: L2/L3 완전 동기화 (삭제+생성) — skipDuplicates 사용 안 함
-              body: JSON.stringify({ fmeaId: targetFmeaId, atomicData: posData, manualMode: true }),
+              body: JSON.stringify({ fmeaId, atomicData: posData, manualMode: true }),
             });
             if (res.ok) {
-              const result = await res.json();
-              if (result.success) {
-                setDirty(false);
-                setLastSaved(new Date().toLocaleTimeString('ko-KR'));
-                console.info(`[useWorksheetSave] 수동모드 저장 완료 — ${targetFmeaId} L2=${result.counts?.l2 ?? '?'}`);
-              }
+              setDirty(false);
+              setLastSaved(new Date().toLocaleTimeString('ko-KR'));
             }
           }
         }
       }
     } catch (e) {
-      console.error('[원자성 DB 저장] 오류:', e);
+      console.error('[useWorksheetSave] 저장 오류:', e);
     } finally {
       setIsSaving(false);
     }
-  }, [atomicDB, selectedFmeaId, currentFmea, setAtomicDB, stateRef, suppressAutoSaveRef, setIsSaving, setDirty, setLastSaved]);
-
-  // ★★★ 2026-02-16: DB Only 정책 - saveToLocalStorageOnly는 saveAtomicDB로 대체 ★★★
-  const saveToLocalStorageOnly = useCallback(() => {
-    // localStorage 저장 제거 - DB 저장은 saveAtomicDB 사용
-  }, []);
-
-  // ★★★ 2026-02-16: DB Only 정책 - localStorage 쓰기/읽기 완전 제거 ★★★
-  // DB 저장만 수행 (saveAtomicDB와 동일 경로)
-  const saveToLocalStorage = useCallback((force?: boolean) => {
-    const targetId = selectedFmeaId || currentFmea?.id;
-    if (!targetId) {
-      return;
-    }
-    if (!force && suppressAutoSaveRef.current) {
-      return;
-    }
-
-    const currentState = stateRef.current;
-
-    // 빈 데이터 DB 덮어쓰기 방지
-    const l2ProcessCount = currentState.l2?.length || 0;
-    const l2FMCount = currentState.l2?.flatMap((p: any) => p.failureModes || []).length || 0;
-    const feScopeCount = (currentState.l1 as any).failureScopes?.length || 0;
-    const l1FuncCount = (currentState.l1 as any)?.types?.reduce(
-      (acc: number, t: any) => acc + (t.functions?.length || 0), 0
-    ) || 0;
-    const isStructureConfirmed = (currentState as any).structureConfirmed === true;
-    if (!force && !isStructureConfirmed && l2ProcessCount === 0 && l2FMCount === 0 && feScopeCount === 0 && l1FuncCount === 0) {
-      return;
-    }
-
-    // ★★★ 2026-03-22: atomicDB 빈 데이터 보호 (saveToLocalStorage 경로)
-    if (!force && atomicDB) {
-      const atomicL1FCount = atomicDB.l1Functions?.length || 0;
-      const atomicL2Count = atomicDB.l2Structures?.length || 0;
-      if (atomicL1FCount === 0 && atomicL2Count === 0) {
-        console.warn('[useWorksheetSave] saveToLocalStorage: atomicDB 빈 데이터 저장 차단');
-        return;
-      }
-    }
-
-    setIsSaving(true);
-    try {
-      if (atomicDB && Array.isArray(atomicDB.l2Structures) && atomicDB.l2Structures.length > 0) {
-        // [경로 A] 기존 Import된 FMEA
-        let dbToSave = syncConfirmedFlags(atomicDB, currentState);
-        if (force) {
-          dbToSave = { ...dbToSave, forceOverwrite: true } as any;
-        }
-        saveAtomicDBDirect(dbToSave, false).then(result => {
-          if (result.success) setAtomicDB(dbToSave);
-        }).catch(e => console.error('[저장] DB 저장 오류:', e));
-      } else {
-        // ★ [경로 B] 신규 FMEA 수동모드 — save-position-import 경로
-        const manualL2 = (currentState.l2 || []).filter(
-          (p: any) => p.name?.trim() || p.no?.trim()
-        );
-        if (manualL2.length > 0) {
-          const targetId = selectedFmeaId || currentFmea?.id;
-          if (targetId) {
-            const l1Name =
-              (currentFmea as any)?.fmeaInfo?.partName ||
-              (currentFmea as any)?.fmeaInfo?.subject ||
-              (currentState.l1 as any)?.name ||
-              '완제품 공정';
-            const posData = buildManualPositionData(targetId, l1Name, manualL2);
-            if (posData) {
-              fetch('/api/fmea/save-position-import', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fmeaId: targetId, atomicData: posData, manualMode: true }),
-              }).then(res => res.json()).then(result => {
-                if (result.success) {
-                  console.info(`[useWorksheetSave] saveToLocalStorage 수동저장 완료 L2=${result.counts?.l2 ?? '?'}`);
-                }
-              }).catch(e => console.error('[수동저장] 오류:', e));
-            }
-          }
-        }
-      }
-
-      setDirty(false);
-      setLastSaved(new Date().toLocaleTimeString('ko-KR'));
-    } catch (e) {
-      console.error('[저장] 오류:', e);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [selectedFmeaId, currentFmea?.id, atomicDB, setAtomicDB, stateRef, suppressAutoSaveRef, setIsSaving, setDirty, setLastSaved]);
-
-  // ★★★ 2026-03-21: 자동저장 useEffect 비활성화 ★★★
-  // 이유: legacy round-trip 제거 후, stateRef 변경으로 자동저장을 트리거하면 안 됨.
-  // atomicDB는 DB에서 로드된 그대로 보존해야 하며, 편집 파이프라인이 완전히
-  // atomic으로 전환된 후에 atomicDB 변경 기반 자동저장을 재활성화할 예정.
-  // 수동 저장(saveAtomicDB(true))은 여전히 정상 동작함.
+  }, [selectedFmeaId, currentFmea, setAtomicDB, stateRef, suppressAutoSaveRef, setIsSaving, setDirty, setLastSaved]);
 
   return {
-    saveAtomicDB: saveAtomicDBCallback,
-    saveToLocalStorage,
-    saveToLocalStorageOnly,
+    saveAtomicDB: save,
+    saveToLocalStorage: save,       // 동일 함수 (호환성)
+    saveToLocalStorageOnly: () => {},  // no-op (호환성)
   };
 }

@@ -27,7 +27,7 @@ export function useL2Deduplication({
 
   useEffect(() => {
     // 빈 데이터(초기 상태)면 스킵
-    const hasValidProcess = (l2 || []).some((proc: any) => proc.name && !proc.name.includes('클릭'));
+    const hasValidProcess = (l2 || []).some((proc: any) => proc.name?.trim());
     const hasFunctions = (l2 || []).some((proc: any) => (proc.functions || []).length > 0);
 
     if (!hasValidProcess || !hasFunctions) {

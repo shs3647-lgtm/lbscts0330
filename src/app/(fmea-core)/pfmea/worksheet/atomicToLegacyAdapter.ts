@@ -91,44 +91,55 @@ function indexById<T extends { id: string }>(items: readonly T[]): Map<string, T
 }
 
 // ============ L1 변환: category → types[].functions[].requirements[] ============
+// ★ 2026-03-27 FIX: functionName 대신 ID 기준으로 그룹핑 (같은 이름이라도 별개 행 유지)
 
 function buildL1Types(l1Functions: readonly AtomicL1Function[]): L1Type[] {
-  // category → functionName → AtomicL1Function[] 이중 그룹핑
-  const categoryMap = new Map<string, Map<string, AtomicL1Function[]>>();
+  // category → AtomicL1Function[] 그룹핑
+  const categoryMap = new Map<string, AtomicL1Function[]>();
 
   for (const f of l1Functions) {
-    let funcMap = categoryMap.get(f.category);
-    if (!funcMap) {
-      funcMap = new Map<string, AtomicL1Function[]>();
-      categoryMap.set(f.category, funcMap);
-    }
-    const arr = funcMap.get(f.functionName);
+    const arr = categoryMap.get(f.category);
     if (arr) {
       arr.push(f);
     } else {
-      funcMap.set(f.functionName, [f]);
+      categoryMap.set(f.category, [f]);
     }
   }
 
   const types: L1Type[] = [];
-  categoryMap.forEach((funcMap, category) => {
-    const functions: L1Function[] = [];
-    funcMap.forEach((funcs, funcName) => {
-      const requirements: L1Requirement[] = funcs.map(f => ({
-        id: f.id,
-        name: f.requirement,
-      }));
-      functions.push({
-        id: funcs[0].id,
-        name: funcName,
-        requirements,
-      });
-    });
+  categoryMap.forEach((funcs, category) => {
+    // ★ 2026-03-27: 같은 functionName끼리 그룹핑 → 요구사항은 배열로 수집
+    // ★ 2026-03-27 FIX: 빈 이름은 ID 기준으로 별도 행 유지 (합쳐지지 않음)
+    const funcNameMap = new Map<string, L1Function>();
+    
+    for (const f of funcs) {
+      const funcName = (f.functionName || '').trim();
+      // ★ 빈 이름이면 ID를 키로 사용 → 별도 행 유지
+      const funcKey = funcName || f.id;
+      
+      if (!funcNameMap.has(funcKey)) {
+        // 첫 번째 레코드 = 기능 정의 → requirement가 있을 때만 요구사항에 추가
+        funcNameMap.set(funcKey, {
+          id: f.id,
+          name: f.functionName,
+          requirements: f.requirement ? [{ id: f.id, name: f.requirement }] : [],
+        });
+      } else {
+        // 이후 레코드 = 요구사항 또는 사용자 추가 빈행 → 항상 추가 (ID 중복 제거)
+        const existing = funcNameMap.get(funcKey)!;
+        if (!existing.requirements.some(r => r.id === f.id)) {
+          existing.requirements.push({ id: f.id, name: f.requirement || '' });
+        }
+      }
+    }
+    
+    const functions = Array.from(funcNameMap.values());
+    
     // type의 id는 첫 번째 함수의 id를 사용 (UUID 재생성 금지)
     types.push({
       id: functions[0]?.id || category,
       name: category,
-      functions,
+      functions: functions.length > 0 ? functions : [{ id: category + '-placeholder', name: '', requirements: [] }],
     });
   });
 

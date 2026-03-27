@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
                 for (const l3Func of l3.functions || []) {
                     for (const pchar of l3Func.processChars || []) {
                         const pcharName = (pchar.name || '').trim();
-                        if (pcharName && !pcharName.includes('클릭')) {
+                        if (pcharName) {
                             collectedChars.push(pchar);
                         }
                     }
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
                 if (collectedChars.length === 0) {
                     for (const pchar of l3.processChars || []) {
                         const pcharName = (pchar.name || '').trim();
-                        if (pcharName && !pcharName.includes('클릭')) {
+                        if (pcharName) {
                             collectedChars.push(pchar);
                         }
                     }

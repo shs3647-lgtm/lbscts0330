@@ -59,11 +59,11 @@ export function useProcessHandlers({
     // 공정 및 작업요소 검사
     state.l2.forEach(proc => {
       const procName = proc.name || '';
-      if (!procName || procName.includes('클릭') || procName.includes('선택')) count++;
+      if (!procName?.trim()) count++;
 
       proc.l3.forEach(we => {
         const weName = we.name || '';
-        if (!weName || weName.includes('클릭') || weName.includes('추가') || weName.includes('필요') || weName.includes('선택')) count++;
+        if (!weName?.trim()) count++;
       });
     });
 
@@ -76,13 +76,13 @@ export function useProcessHandlers({
     setState(prev => {
       const selectedNames = selectedProcesses.map(p => p.name);
 
-      const keepL2 = prev.l2.filter(p => !p.name.includes('클릭') && selectedNames.includes(p.name));
+      const keepL2 = prev.l2.filter(p => p.name?.trim() && selectedNames.includes(p.name));
       const keepNames = keepL2.map(p => p.name);
 
       // 선택된 순서대로 처리 (기존 유지 또는 신규 생성)
       const finalL2: Process[] = selectedProcesses.map((p, idx) => {
         // 기존에 있으면 유지
-        const existing = prev.l2.find(e => e.name === p.name && !e.name.includes('클릭'));
+        const existing = prev.l2.find(e => e.name === p.name && e.name?.trim());
         if (existing) {
           return { ...existing, no: p.no, order: (idx + 1) * 10 };
         }
@@ -94,7 +94,7 @@ export function useProcessHandlers({
           order: (idx + 1) * 10,
           functions: [],
           productChars: [],
-          l3: [{ id: uid(), m4: '', name: '(클릭하여 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+          l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
         };
       });
 
@@ -103,11 +103,11 @@ export function useProcessHandlers({
         finalL2.push({
           id: uid(),
           no: '',
-          name: '(클릭하여 공정 선택)',
+          name: '',
           order: 10,
           functions: [],
           productChars: [],
-          l3: [{ id: uid(), m4: '', name: '(공정 선택 후 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+          l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
         });
       }
 
@@ -156,11 +156,7 @@ export function useProcessHandlers({
       const targetProcess = updated.l2[l2Index];
 
       // 기존 L3 항목들 (placeholder 제외)
-      const existingL3 = targetProcess.l3.filter(l =>
-        !l.name.includes('클릭') &&
-        !l.name.includes('추가') &&
-        !l.name.includes('필요')
-      );
+      const existingL3 = targetProcess.l3.filter(l => l.name?.trim());
       const existingNames = existingL3.map(l => l.name);
 
       // 선택된 순서대로 처리
@@ -186,7 +182,7 @@ export function useProcessHandlers({
         newL3.push({
           id: uid(),
           m4: '',
-          name: '(클릭하여 작업요소 추가)',
+          name: '',
           order: 10,
           functions: [],
           processChars: []

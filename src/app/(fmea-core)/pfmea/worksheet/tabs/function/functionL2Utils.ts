@@ -5,18 +5,9 @@
  * ★★★ 2026-02-05: FunctionL2Tab.tsx 최적화 - 공용 유틸리티 분리 ★★★
  */
 
-/** 플레이스홀더 값 체크 (L2용 - 추가 패턴 포함) */
+/** 플레이스홀더 값 체크 (L2용 - 빈값 체크) */
 export const isPlaceholderL2 = (name: string | undefined | null): boolean => {
   if (!name || !name.trim()) return true;
-  const trimmed = name.trim();
-  // ★ FIX: 20자 초과 = 실제 데이터 (키워드 포함해도 placeholder 아님)
-  if (trimmed.length > 20) return false;
-  if (trimmed.includes('클릭')) return true;
-  if (trimmed.includes('선택')) return true;
-  if (trimmed.includes('입력')) return true;
-  if (trimmed.includes('자동생성')) return true;
-  if (trimmed.includes('필요')) return true;
-  if (trimmed.includes('추가')) return true;
   return false;
 };
 
@@ -102,9 +93,9 @@ export const deduplicateFunctionsL2 = (
 
 /** L2 COUNT 계산 */
 export const calculateL2Counts = (l2: any[]) => {
-  const processCount = (l2 || []).filter(p => p.name && !p.name.includes('클릭')).length;
-  const functionCount = (l2 || []).reduce((sum, proc) => 
-    sum + (proc.functions || []).filter((f: any) => f.name && !f.name.includes('클릭')).length, 0);
+  const processCount = (l2 || []).filter(p => p.name?.trim()).length;
+  const functionCount = (l2 || []).reduce((sum, proc) =>
+    sum + (proc.functions || []).filter((f: any) => f.name?.trim()).length, 0);
   const uniqueChars = new Set<string>();
   for (const proc of (l2 || [])) {
     for (const func of (proc.functions || [])) {

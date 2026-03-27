@@ -118,9 +118,9 @@ export function useFunctionL3Handlers({
               const updatedFuncs = [...currentFuncs];
               
               // 빈 기능 찾기
-              const emptyFuncIdx = updatedFuncs.findIndex((f: any) => !f.name || f.name === '' || f.name.includes('클릭'));
+              const emptyFuncIdx = updatedFuncs.findIndex((f: any) => !f.name?.trim());
               let startIdx = 0;
-              const existingNames = new Set(currentFuncs.filter((f: any) => f.name && !f.name.includes('클릭')).map((f: any) => f.name));
+              const existingNames = new Set(currentFuncs.filter((f: any) => f.name?.trim()).map((f: any) => f.name));
               
               // 빈 기능이 있으면 첫 번째 선택값 할당
               if (emptyFuncIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {
@@ -190,9 +190,9 @@ export function useFunctionL3Handlers({
                   
                   // 다중 선택
                   const updatedChars = [...currentChars];
-                  const existingNames = new Set(currentChars.filter((c: any) => c.name && !c.name.includes('클릭')).map((c: any) => c.name));
+                  const existingNames = new Set(currentChars.filter((c: any) => c.name?.trim()).map((c: any) => c.name));
                   
-                  const emptyCharIdx = updatedChars.findIndex((c: any) => !c.name || c.name === '' || c.name.includes('클릭'));
+                  const emptyCharIdx = updatedChars.findIndex((c: any) => !c.name?.trim());
                   let startIdx = 0;
                   
                   if (emptyCharIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {

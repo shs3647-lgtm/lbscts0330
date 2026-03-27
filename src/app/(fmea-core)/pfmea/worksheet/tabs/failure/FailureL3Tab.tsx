@@ -33,7 +33,7 @@ import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import DataSelectModal from '@/components/modals/DataSelectModal';
 import { AutoMappingPreviewModal } from '../../autoMapping';
-import { COLORS, uid, FONT_SIZES, FONT_WEIGHTS, HEIGHTS, WorksheetState, sortWorkElementsByM4 } from '../../constants';
+import { COLORS, uid, FONT_SIZES, FONT_WEIGHTS, HEIGHTS, WorksheetState } from '../../constants';
 import { S, F, X, cell, cellP0, btnConfirm, btnEdit, btnDisabled, badgeOk, badgeConfirmed, badgeMissing, badgeCount } from '@/styles/worksheet';
 import { getZebra, getZebraColors } from '@/styles/level-colors';
 import { handleEnterBlur } from '../../utils/keyboard';
@@ -94,7 +94,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
   // ✅ 모든 Hook 호출은 여기서 (조건문 없이)
   // 공정 목록 (드롭다운용)
   const processList = useMemo(() =>
-    (state.l2 || []).filter(p => p.name && !p.name.includes('클릭')).map(p => ({ id: p.id, no: p.no, name: `${p.no}. ${p.name}` })),
+    (state.l2 || []).filter(p => p.name?.trim()).map(p => ({ id: p.id, no: p.no, name: `${p.no}. ${p.name}` })),
     [state.l2]
   );
 
@@ -109,14 +109,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
   const isMeaningful = (name: string | undefined | null): boolean => {
     if (!name) return false;
     const trimmed = String(name).trim();
-    if (trimmed === '') return false;
-    const PLACEHOLDERS = [
-      '클릭하여 추가', '여기를 클릭하여 추가', '클릭하여 선택',
-      '요구사항 선택', '고장원인 선택', '고장형태 선택', '고장영향 선택',
-      '선택하세요', '입력하세요', '추가하세요',
-      '고장원인을 입력하세요', '(기능분석에서 입력)', '기능 입력 필요',
-    ];
-    return !PLACEHOLDERS.includes(trimmed);
+    return trimmed !== '';
   };
 
   // ★★★ 2026-02-05 FIX: missingCount — flatRows와 동일 isMeaningful + 공정특성 행별 processCharId ★★★
@@ -704,15 +697,14 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     const rows: any[] = [];
     // ★ 2026-02-18: FunctionL3Tab과 동일한 fallback 패턴
     const allL2 = state.l2 || [];
-    const meaningfulProcs = allL2.filter(p => p.name && !p.name.includes('클릭'));
+    const meaningfulProcs = allL2.filter(p => p.name?.trim());
     const processes = meaningfulProcs.length > 0 ? meaningfulProcs : allL2;
 
     // ✅ 2026-01-19: 공정 레벨 중복 추적 제거 (작업요소별로 공정특성 표시)
 
     processes.forEach(proc => {
-      // ★ 2026-02-17: 4M 순서 정렬 (MN→MC→IM→EN)
-      const allWe = sortWorkElementsByM4(proc.l3 || []);
-      const meaningfulWe = allWe.filter((we: any) => we.name && !we.name.includes('클릭'));
+      const allWe = proc.l3 || [];
+      const meaningfulWe = allWe.filter((we: any) => we.name?.trim());
       const workElements = meaningfulWe.length > 0 ? meaningfulWe : allWe;
       const allCauses = proc.failureCauses || [];  // 공정 레벨에 저장된 고장원인
 
@@ -726,14 +718,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
 
       workElements.forEach((we: any, weIdx: number) => {
         const isMeaningful = (name: string) => {
-          if (!name || name.trim() === '') return false;
-          const PLACEHOLDERS = [
-            '클릭하여 추가', '여기를 클릭하여 추가', '클릭하여 선택',
-            '요구사항 선택', '고장원인 선택', '고장형태 선택', '고장영향 선택',
-            '선택하세요', '입력하세요', '추가하세요',
-            '고장원인을 입력하세요', '(기능분석에서 입력)', '기능 입력 필요',
-          ];
-          return !PLACEHOLDERS.includes(name.trim());
+          return !!name?.trim();
         };
 
         const allProcessChars: any[] = [];

@@ -139,7 +139,7 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
 
   // L2 공정 순회
   ((state.l2 || []) as unknown as Record<string, unknown>[]).forEach((proc: Record<string, unknown>) => {
-    if (!proc.name || String(proc.name).includes('클릭')) return;
+    if (!String(proc.name || '').trim()) return;
 
     const processNo = String(proc.no || '');
     const processName = String(proc.name);
@@ -149,7 +149,7 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
     // 공정설명(D열) = L2 메인공정 기능
     const filteredFuncNames = rawFunctions
       .map((f: Record<string, unknown>) => String(f.name || ''))
-      .filter((n: string) => n && !n.includes('클릭') && !n.includes('자동생성') && !n.includes('추가'));
+      .filter((n: string) => n?.trim());
     const processDesc = filteredFuncNames.join(', ');
 
     const l2StartCount = cpRows.length;
@@ -164,7 +164,7 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
       const productChars = (func.productChars as Record<string, unknown>[]) || [];
       for (const pc of productChars) {
         const pcName = String(pc.name || '').trim();
-        if (!pcName || pcName.includes('클릭')) continue;
+        if (!pcName?.trim()) continue;
         if (productCharDedup.has(pcName)) continue;
         productCharDedup.add(pcName);
 
@@ -221,7 +221,7 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
         const processCharsArr = (l3Func.processChars as Record<string, unknown>[]) || [];
         for (const pchar of processCharsArr) {
           const pcharName = String(pchar.name || '').trim();
-          if (pcharName && !pcharName.includes('클릭')) {
+          if (pcharName?.trim()) {
             l3ProcessChars.push({
               name: pcharName,
               specialChar: String(pchar.specialChar || '').trim(),
@@ -235,7 +235,7 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
         const fallbackChars = (l3.processChars as Record<string, unknown>[]) || [];
         for (const pchar of fallbackChars) {
           const pcharName = String(pchar.name || '').trim();
-          if (pcharName && !pcharName.includes('클릭')) {
+          if (pcharName?.trim()) {
             l3ProcessChars.push({
               name: pcharName,
               specialChar: String(pchar.specialChar || '').trim(),
@@ -351,11 +351,11 @@ export function syncCPToPfmea(
   let rowIndex = 0;
 
   ((state.l2 || []) as unknown as Record<string, unknown>[]).forEach((proc: Record<string, unknown>) => {
-    if (!proc.name || String(proc.name).includes('클릭')) return;
+    if (!String(proc.name || '').trim()) return;
 
     const l3Items = (proc.l3 as Record<string, unknown>[]) || [];
     l3Items.forEach((we: Record<string, unknown>) => {
-      if (!we.name || String(we.name).includes('클릭') || String(we.name).includes('추가')) return;
+      if (!String(we.name || '').trim()) return;
 
       const m4 = String(we.m4 || we.fourM || '');
       // MN 제외 - MC, IM, EN만 처리
@@ -479,7 +479,7 @@ export function checkSyncStatus(state: WorksheetState, cpRows: CPRow[]): {
   let pfmeaCount = 0;
 
   ((state.l2 || []) as unknown as Record<string, unknown>[]).forEach((proc: Record<string, unknown>) => {
-    if (!proc.name || String(proc.name).includes('클릭')) return;
+    if (!String(proc.name || '').trim()) return;
 
     const rawFunctions = (proc.functions as Record<string, unknown>[]) || [];
     const l3Items = (proc.l3 as Record<string, unknown>[]) || [];
@@ -491,7 +491,7 @@ export function checkSyncStatus(state: WorksheetState, cpRows: CPRow[]): {
       const productChars = (func.productChars as Record<string, unknown>[]) || [];
       for (const pc of productChars) {
         const pcName = String(pc.name || '').trim();
-        if (pcName && !pcName.includes('클릭') && !productCharDedup.has(pcName)) {
+        if (pcName?.trim() && !productCharDedup.has(pcName)) {
           productCharDedup.add(pcName);
           procRowCount++;
         }
@@ -514,7 +514,7 @@ export function checkSyncStatus(state: WorksheetState, cpRows: CPRow[]): {
         for (const pchar of processCharsArr) {
           const pcharName = String(pchar.name || '').trim();
           const dedupKey = `${proc.no}|${name}|${pcharName}`;
-          if (pcharName && !pcharName.includes('클릭') && !processCharDedup.has(dedupKey)) {
+          if (pcharName?.trim() && !processCharDedup.has(dedupKey)) {
             processCharDedup.add(dedupKey);
             procRowCount++;
             hasProcessChar = true;
@@ -528,7 +528,7 @@ export function checkSyncStatus(state: WorksheetState, cpRows: CPRow[]): {
         for (const pchar of fallbackChars) {
           const pcharName = String(pchar.name || '').trim();
           const dedupKey = `${proc.no}|${name}|${pcharName}`;
-          if (pcharName && !pcharName.includes('클릭') && !processCharDedup.has(dedupKey)) {
+          if (pcharName?.trim() && !processCharDedup.has(dedupKey)) {
             processCharDedup.add(dedupKey);
             procRowCount++;
             hasProcessChar = true;

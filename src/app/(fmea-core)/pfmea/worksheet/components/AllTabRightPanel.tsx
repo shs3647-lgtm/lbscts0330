@@ -58,10 +58,10 @@ export default function AllTabRightPanel({
             <strong>L1:</strong> {state.l1.name} ({state.l1.types?.length || 0}개 구분)
           </div>
           <div className="text-[10px] text-[#666] mb-2">
-            <strong>L2:</strong> {state.l2.filter(p => !p.name.includes('클릭')).length}개 공정
+            <strong>L2:</strong> {state.l2.filter(p => p.name?.trim()).length}개 공정
           </div>
           <div className="text-[10px] text-[#666]">
-            <strong>L3:</strong> {state.l2.reduce((sum, p) => sum + p.l3.filter(w => !w.name.includes('추가')).length, 0)}개 작업요소
+            <strong>L3:</strong> {state.l2.reduce((sum, p) => sum + p.l3.filter(w => w.name?.trim()).length, 0)}개 작업요소
           </div>
         </div>
       ) : (

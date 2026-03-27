@@ -50,12 +50,12 @@ export default function AllViewRightPanel({
     }> = [];
 
     state.l2.forEach(proc => {
-      if (proc.name.includes('클릭')) return;
+      if (!proc.name?.trim()) return;
       data.push({
         procId: proc.id,
         procNo: proc.no,
         procName: proc.name,
-        workElements: proc.l3.filter(we => !we.name.includes('클릭')).map(we => ({
+        workElements: proc.l3.filter(we => we.name?.trim()).map(we => ({
           id: we.id,
           m4: we.m4 || '',
           name: we.name

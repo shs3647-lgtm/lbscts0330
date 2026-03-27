@@ -157,10 +157,10 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     let counter = 1;
 
     (state.l2 || []).forEach((proc: any) => {
-      if (!proc.name || proc.name.includes('클릭')) return;
+      if (!proc.name?.trim()) return;
 
       (proc.failureModes || []).forEach((fm: any) => {
-        if (!fm.name || fm.name.includes('클릭')) return;
+        if (!fm.name?.trim()) return;
         if (!fm.id) fm.id = uid();
 
         if (seenIds.has(fm.id)) return;
@@ -217,11 +217,11 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     const seenIds = new Set<string>();
     let counter = 1;
 
-    const processes = (state.l2 || []).filter((p: any) => p.name && !p.name.includes('클릭'));
+    const processes = (state.l2 || []).filter((p: any) => p.name?.trim());
 
     processes.forEach((proc: any) => {
       const allCauses = proc.failureCauses || [];
-      const workElements = (proc.l3 || []).filter((we: any) => we.name && !we.name.includes('클릭'));
+      const workElements = (proc.l3 || []).filter((we: any) => we.name?.trim());
 
       // ★★★ 2026-02-05 FIX: 공정 내 동일 이름 공정특성 ID 그룹화 (charIdsByName 패턴) ★★★
       const charIdsByName = new Map<string, Set<string>>();

@@ -99,21 +99,9 @@ export function repairWorksheetState(state: WorksheetState): { repaired: boolean
     }
   }
 
-  // ═══════════════════════════════════════════
-  // 1. l2 배열 자체가 없거나 빈 경우
-  // ═══════════════════════════════════════════
-  if (!newState.l2 || !Array.isArray(newState.l2) || newState.l2.length === 0) {
-    repairs.push('l2 배열 없음 → placeholder 공정 생성');
-    const repairedState: WorksheetState = {
-      ...newState,
-      l2: [{
-        id: guardUid(), no: '', name: '', order: 0,
-        l3: [{ id: guardUid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-        functions: [], failureModes: [], failureCauses: [],
-      }],
-    };
-    console.error('[ArrayGuard] l2 배열 복구:', repairs.join(', '));
-    return { repaired: true, state: repairedState };
+  // ★ 2026-03-27: l2 빈 배열 guard 비활성화 — 빈 상태 허용
+  if (!newState.l2 || !Array.isArray(newState.l2)) {
+    newState = { ...newState, l2: [] };
   }
 
   // ═══════════════════════════════════════════
@@ -132,12 +120,8 @@ export function repairWorksheetState(state: WorksheetState): { repaired: boolean
       };
       procRepaired = true;
     } else if (proc.l3.length === 0) {
-      repairs.push(`l2[${pIdx}].l3 빈배열 → placeholder 추가`);
-      newProc = {
-        ...newProc,
-        l3: [{ id: guardUid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-      };
-      procRepaired = true;
+      // ★ 2026-03-27: 빈 l3 허용 — atomicDB 단일화 전환 중 guard 비활성화
+      // 빈 배열은 정상 상태 (작업요소 미선택)
     } else {
       // 2b. 각 작업요소(l3) 내부 검증
       const newL3 = proc.l3.map((we, wIdx) => {

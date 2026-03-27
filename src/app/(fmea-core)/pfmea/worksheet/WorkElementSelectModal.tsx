@@ -49,21 +49,25 @@ export default function WorkElementSelectModal({
   existingElements = [],
   existingL3 = [],
   onContinuousAdd,
+  fmeaId = '',  // ★★★ 2026-03-27: fmeaId 추가 ★★★
 }: WorkElementSelectModalProps) {
   const {
-    elements, selectedIds, currentProcessNo,
+    elements, selectedIds, currentProcessNo, worksheetItemIds,
     m4Warnings, editingId, editValue, setEditValue,
     inputValue, setInputValue, selectedM4, setSelectedM4,
     filterM4, setFilterM4, inputRef,
     filteredElements, commonMNElements, processElements,
+    appliedElements, notAppliedElements,
     exactMatch,
     toggleSelect, handleEditDoubleClick, handleEditSave,
     selectProcessElements, deselectProcessElements,
     selectCommonElements, deselectCommonElements,
+    selectAppliedElements, deselectAppliedElements,
+    selectNotAppliedElements, deselectNotAppliedElements,
     selectAll, deselectAll,
-    handleApply, handleKeyDown, handleDelete,
+    handleApply, handleKeyDown, handleDelete, handleRemoveFromList,
     getHintMessage, setEmptyM4ToMC, setEditingId,
-  } = useWorkElementSelect({ isOpen, onClose, onSave, processNo, processName, existingL3 });
+  } = useWorkElementSelect({ isOpen, onClose, onSave, processNo, processName, existingL3, fmeaId });  // ★★★ fmeaId 전달 ★★★
 
   const { position: modalPosition, handleMouseDown } =
     useDraggableModal({ initialPosition: { top: 60, right: 360 }, modalWidth: 400, modalHeight: 500, isOpen });
@@ -125,16 +129,6 @@ export default function WorkElementSelectModal({
           <div className="mt-1 text-[9px] text-gray-500 text-center">{getHintMessage()}</div>
         </div>
 
-        {/* ===== 버튼 영역 ===== */}
-        <div className={`${MODAL_COMPACT.searchBar.padding} border-b bg-gray-50 flex items-center gap-1`}>
-          <button onClick={selectAll} className={`${MODAL_COMPACT.button.icon} font-bold bg-blue-500 text-white rounded hover:bg-blue-600`}>{ACTION_ICONS.selectAll} 전체<span className="text-[8px] opacity-70 ml-0.5">(All)</span></button>
-          <button onClick={deselectAll} className={`${MODAL_COMPACT.button.icon} font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400`}>{ACTION_ICONS.deselectAll} 해제<span className="text-[8px] opacity-70 ml-0.5">(Clr)</span></button>
-          <button onClick={handleApply} className={`${MODAL_COMPACT.button.icon} font-bold bg-green-600 text-white rounded hover:bg-green-700`}>{ACTION_ICONS.apply} 적용<span className="text-[8px] opacity-70 ml-0.5">(OK)</span></button>
-          <button onClick={handleDelete} className={`${MODAL_COMPACT.button.icon} font-bold bg-red-500 text-white rounded hover:bg-red-600`} title="선택된 항목을 워크시트에서 제거합니다 (마스터 기초정보는 유지)">
-            {ACTION_ICONS.delete} 삭제<span className="text-[8px] opacity-70 ml-0.5">(Del)</span>
-          </button>
-        </div>
-
         {/* ===== 리스트 ===== */}
         <div className="overflow-auto p-2 min-h-[250px] max-h-[350px]">
           {/* 4M 빈값 경고 */}
@@ -173,50 +167,77 @@ export default function WorkElementSelectModal({
             </div>
           )}
 
-          {/* 해당 공정 작업요소 */}
-          {processElements.length > 0 && (
-            <div className="mb-1">
-              <div className="flex items-center justify-between mb-1.5 px-1">
-                <span className="text-[10px] font-bold text-blue-700">🔧 {currentProcessNo}번 공정 ({processElements.filter(e => selectedIds.has(e.id)).length}/{processElements.length})</span>
+          {/* ★★★ 2026-03-27: 적용됨/미적용 섹션 분리 ★★★ */}
+          {/* 적용됨 섹션 */}
+          {appliedElements.length > 0 && (
+            <div className="mb-3">
+              <div className="sticky top-0 z-10 flex items-center justify-between bg-green-50 px-2 py-1 rounded mb-1">
+                <span className="text-[10px] font-bold text-green-700">✅ 적용됨 ({appliedElements.filter(e => selectedIds.has(e.id)).length}/{appliedElements.length})</span>
                 <div className="flex gap-1">
-                  <button onClick={selectProcessElements} className="text-[8px] px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600">전체<span className="text-[8px] opacity-70 ml-0.5">(All)</span></button>
-                  <button onClick={deselectProcessElements} className="text-[8px] px-1.5 py-0.5 bg-gray-400 text-white rounded hover:bg-gray-500">해제<span className="text-[8px] opacity-70 ml-0.5">(Clr)</span></button>
+                  <button onClick={selectAppliedElements} className="text-[9px] px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold">전체</button>
+                  <button onClick={deselectAppliedElements} className="text-[9px] px-1.5 py-0.5 bg-gray-400 text-white rounded hover:bg-gray-500 font-bold">해제</button>
+                  <button onClick={handleDelete} className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600 font-bold">삭제</button>
                 </div>
+              </div>
+              <div className={`grid grid-cols-2 gap-1 ${notAppliedElements.length > 0 ? 'max-h-[120px] overflow-y-auto' : ''}`}>
+                {appliedElements.map(elem => {
+                  const isHighlighted = exactMatch?.id === elem.id || (filteredElements.length === 1 && filteredElements[0].id === elem.id);
+                  return (
+                    <ElementItem key={elem.id} elem={elem} isSelected={selectedIds.has(elem.id)} isEditing={editingId === elem.id}
+                      editValue={editValue} setEditValue={setEditValue} handleEditSave={handleEditSave} setEditingId={setEditingId}
+                      toggleSelect={toggleSelect} handleEditDoubleClick={handleEditDoubleClick}
+                      colorScheme="green" isHighlighted={isHighlighted} />
+                  );
+                })}
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-1">
-            {processElements.map(elem => {
-              const isHighlighted = exactMatch?.id === elem.id || (filteredElements.length === 1);
-              const isMissing = false;
-              return (
-                <ElementItem key={elem.id} elem={elem} isSelected={selectedIds.has(elem.id)} isEditing={editingId === elem.id}
-                  editValue={editValue} setEditValue={setEditValue} handleEditSave={handleEditSave} setEditingId={setEditingId}
-                  toggleSelect={toggleSelect} handleEditDoubleClick={handleEditDoubleClick}
-                  colorScheme="blue" isHighlighted={isHighlighted} isMissing={isMissing} />
-              );
-            })}
-
-            {inputValue.trim() && filteredElements.length === 0 && (
-              <div className="col-span-2 flex items-center gap-2 px-2 py-2 rounded border-2 border-dashed border-green-400 bg-green-50">
-                <span className="text-green-600 font-bold">+</span>
-                <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={getM4Style(selectedM4)}>{selectedM4}</span>
-                <span className="text-[10px] text-green-700 font-medium">"{inputValue}" 새로 추가</span>
-                <span className="text-[9px] text-gray-400 ml-auto">Enter</span>
-              </div>
-            )}
-
-            {processElements.length < 8 && !inputValue.trim() &&
-              Array.from({ length: Math.max(0, 8 - processElements.length) }).map((_, idx) => (
-                <div key={`empty-${idx}`} className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-100 bg-gray-50/50">
-                  <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
-                  <span className="text-[9px] text-gray-300">--</span>
-                  <span className="flex-1 text-[10px] text-gray-300">-</span>
+          {/* 미적용 섹션 */}
+          {notAppliedElements.length > 0 && (
+            <div className="mb-1">
+              <div className="sticky top-0 z-10 flex items-center justify-between bg-gray-100 px-2 py-1 rounded mb-1">
+                <span className="text-[10px] font-bold text-gray-500">미적용 ({notAppliedElements.filter(e => selectedIds.has(e.id)).length}/{notAppliedElements.length})</span>
+                <div className="flex gap-1">
+                  <button onClick={selectNotAppliedElements} className="text-[9px] px-1.5 py-0.5 bg-blue-500 text-white rounded hover:bg-blue-600 font-bold">전체</button>
+                  <button onClick={deselectNotAppliedElements} className="text-[9px] px-1.5 py-0.5 bg-gray-400 text-white rounded hover:bg-gray-500 font-bold">해제</button>
+                  <button onClick={handleApply} className="text-[9px] px-1.5 py-0.5 bg-green-600 text-white rounded hover:bg-green-700 font-bold">적용</button>
                 </div>
-              ))
-            }
-          </div>
+              </div>
+              <div className={`grid grid-cols-2 gap-1 ${appliedElements.length > 0 ? 'max-h-[150px] overflow-y-auto' : ''}`}>
+                {notAppliedElements.map(elem => {
+                  const isHighlighted = exactMatch?.id === elem.id || (filteredElements.length === 1 && filteredElements[0].id === elem.id);
+                  return (
+                    <ElementItem key={elem.id} elem={elem} isSelected={selectedIds.has(elem.id)} isEditing={editingId === elem.id}
+                      editValue={editValue} setEditValue={setEditValue} handleEditSave={handleEditSave} setEditingId={setEditingId}
+                      toggleSelect={toggleSelect} handleEditDoubleClick={handleEditDoubleClick}
+                      colorScheme="blue" isHighlighted={isHighlighted} onRemove={handleRemoveFromList} />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 새 항목 추가 UI */}
+          {inputValue.trim() && filteredElements.length === 0 && (
+            <div className="col-span-2 flex items-center gap-2 px-2 py-2 rounded border-2 border-dashed border-green-400 bg-green-50">
+              <span className="text-green-600 font-bold">+</span>
+              <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={getM4Style(selectedM4)}>{selectedM4}</span>
+              <span className="text-[10px] text-green-700 font-medium">"{inputValue}" 새로 추가</span>
+              <span className="text-[9px] text-gray-400 ml-auto">Enter</span>
+            </div>
+          )}
+
+          {/* 빈 placeholder */}
+          {processElements.length === 0 && !inputValue.trim() &&
+            Array.from({ length: 8 }).map((_, idx) => (
+              <div key={`empty-${idx}`} className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-100 bg-gray-50/50">
+                <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
+                <span className="text-[9px] text-gray-300">--</span>
+                <span className="flex-1 text-[10px] text-gray-300">-</span>
+              </div>
+            ))
+          }
         </div>
 
         {/* ===== 푸터 ===== */}
@@ -234,7 +255,7 @@ export default function WorkElementSelectModal({
 function ElementItem({
   elem, isSelected, isEditing, editValue, setEditValue,
   handleEditSave, setEditingId, toggleSelect, handleEditDoubleClick,
-  colorScheme, badge, isHighlighted, isMissing,
+  colorScheme, badge, isHighlighted, isMissing, onRemove,
 }: {
   elem: WorkElement; isSelected: boolean; isEditing: boolean;
   editValue: string; setEditValue: (v: string) => void;
@@ -243,6 +264,7 @@ function ElementItem({
   handleEditDoubleClick: (elem: WorkElement, e: React.MouseEvent) => void;
   colorScheme: 'green' | 'blue'; badge?: string;
   isHighlighted?: boolean; isMissing?: boolean;
+  onRemove?: (id: string) => void;
 }) {
   const m4Style = getM4Style(elem.m4);
   const isGreen = colorScheme === 'green';
@@ -288,6 +310,15 @@ function ElementItem({
       )}
       {badge && <span className="text-[8px] px-1 py-0.5 bg-green-600 text-white rounded shrink-0">{badge}</span>}
       {isMissing && <span className="text-[8px] font-bold px-1 py-0.5 bg-red-500 text-white rounded shrink-0">누락</span>}
+      {onRemove && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(elem.id); }}
+          className="text-red-400 hover:text-red-600 text-xs shrink-0"
+          title="목록에서 삭제"
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 }

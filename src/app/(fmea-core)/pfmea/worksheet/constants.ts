@@ -582,9 +582,9 @@ export const createInitialState = (): WorksheetState => ({
     { id: uid(), name: 'USER', functions: [{ id: uid(), name: '', requirements: [] }] },
   ], failureEffect: '', severity: undefined, failureScopes: [] },
   l2: [{
-    id: uid(), no: '', name: '(클릭하여 공정 선택)', order: 10,
+    id: uid(), no: '', name: '', order: 10,
     functions: [], productChars: [], failureModes: [],
-    l3: [{ id: uid(), m4: '', name: '(공정 선택 후 작업요소 추가)', order: 10, functions: [], processChars: [], failureCauses: [] }]
+    l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [], failureCauses: [] }]
   }],
   selected: { type: 'L2', id: null }, tab: 'structure', levelView: '2', search: '', visibleSteps: [2, 3, 4, 5, 6],
   failureLinks: [], structureConfirmed: false, l1Confirmed: false, l2Confirmed: false, l3Confirmed: false,
