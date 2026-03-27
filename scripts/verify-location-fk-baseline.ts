@@ -6,8 +6,8 @@
  *
  * 사용:
  *   npx tsx scripts/verify-location-fk-baseline.ts
- *   VERIFY_BASE_URL=http://localhost:4000 VERIFY_FMEA_ID=pfm26-m066 npx tsx scripts/verify-location-fk-baseline.ts
- *   npx tsx scripts/verify-location-fk-baseline.ts --baseline   # pfm26-m066 골든 카운트 엄격 비교
+ *   VERIFY_BASE_URL=http://localhost:4000 VERIFY_FMEA_ID=pfm26-m002 npx tsx scripts/verify-location-fk-baseline.ts
+ *   npx tsx scripts/verify-location-fk-baseline.ts --baseline   # pfm26-m002 골든 카운트 엄격 비교
  *
  * 종료 코드: 0 = PASS, 1 = FAIL (연결/API/검증 실패)
  */
@@ -29,8 +29,8 @@ type PipelineJson = {
   timestamp?: string;
 };
 
-/** CLAUDE.md 파이프라인 골든 (pfm26-m066, 2026-03-17 기준) — --baseline 시 FK·수량 확인 */
-const GOLDEN_PFM26_M066 = {
+/** CLAUDE.md 파이프라인 골든 (pfm26-m002, 2026-03-17 기준) — --baseline 시 FK·수량 확인 */
+const GOLDEN_PFM26_M002 = {
   fkLinks: 111,
   fkTotalOrphans: 0,
   fkNullFeIdLinks: 0,
@@ -49,7 +49,7 @@ function printSteps(data: PipelineJson): void {
 
 async function main(): Promise<void> {
   const base = (process.env.VERIFY_BASE_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
-  const fmeaId = process.env.VERIFY_FMEA_ID || 'pfm26-m066';
+  const fmeaId = process.env.VERIFY_FMEA_ID || 'pfm26-m002';
   const baseline = process.argv.includes('--baseline');
 
   const url = `${base}/api/fmea/pipeline-verify?fmeaId=${encodeURIComponent(fmeaId)}`;
@@ -88,7 +88,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (baseline && fmeaId === 'pfm26-m066') {
+  if (baseline && fmeaId === 'pfm26-m002') {
     const fk = data.steps?.find((s) => s.step === 3);
     const st0 = data.steps?.find((s) => s.step === 0);
     const d = fk?.details || {};
@@ -98,14 +98,14 @@ async function main(): Promise<void> {
     const l2 = Number(st0?.details?.l2 ?? 0);
 
     const ok =
-      links === GOLDEN_PFM26_M066.fkLinks &&
-      totalOrphans === GOLDEN_PFM26_M066.fkTotalOrphans &&
-      nullFe === GOLDEN_PFM26_M066.fkNullFeIdLinks &&
-      l2 === GOLDEN_PFM26_M066.l2;
+      links === GOLDEN_PFM26_M002.fkLinks &&
+      totalOrphans === GOLDEN_PFM26_M002.fkTotalOrphans &&
+      nullFe === GOLDEN_PFM26_M002.fkNullFeIdLinks &&
+      l2 === GOLDEN_PFM26_M002.l2;
 
     if (!ok) {
-      console.error('[verify-location-fk-baseline] --baseline 골든 불일치 (pfm26-m066)');
-      console.error('  기대:', GOLDEN_PFM26_M066);
+      console.error('[verify-location-fk-baseline] --baseline 골든 불일치 (pfm26-m002)');
+      console.error('  기대:', GOLDEN_PFM26_M002);
       console.error('  실제:', { links, totalOrphans, nullFeIdLinks: nullFe, l2 });
       process.exit(1);
       return;

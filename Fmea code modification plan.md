@@ -40,7 +40,7 @@ Excel → position-parser (위치기반)
 | `src/app/api/fmea/export-master/route.ts` | Atomic DB → JSON 파일 생성 | JSON 파일 불필요 |
 | `src/app/api/fmea/load-master/route.ts` | JSON → DB 로드 | JSON 파일 불필요 |
 | `src/app/api/fmea/import-excel-file/route.ts` | 서버사이드 파싱 + 마스터 JSON 병합 | 마스터 JSON 경유 제거 |
-| `src/app/api/fmea/seed-from-master/` | m066 시딩 | m066 마스터 전용, 불필요 |
+| `src/app/api/fmea/seed-from-master/` | m002 시딩 | m002 마스터 전용, 불필요 |
 | `src/app/api/fmea/reset-master/` | 마스터 리셋 | JSON 파일 불필요 |
 | `data/master-fmea/*.json` | 마스터 JSON 파일들 | 전체 삭제 |
 | `src/lib/sample-data-loader.ts` | sampleData 로딩 | 위치기반에서 불필요 |
@@ -289,7 +289,7 @@ model L2Structure { ... }
 ### Phase 0: 준비 (코드 변경 전)
 
 ```
-□ 현재 pfm26-m066 DB 백업 (pg_dump)
+□ 현재 pfm26-m002 DB 백업 (pg_dump)
 □ 현재 코드 git tag (pre-position-uuid)
 □ aubump.xlsx로 위치기반 UUID 생성 시뮬레이션 (결과 검증)
 ```
@@ -309,7 +309,7 @@ model L2Structure { ... }
 
 ```
 □ 새 fmeaId로 위치기반 Import 테스트 (pfm26-m069 등)
-□ 기존 m066은 그대로 유지 (레거시)
+□ 기존 m002은 그대로 유지 (레거시)
 □ 두 방식의 워크시트 렌더링 결과 비교
 □ Atomic Cell Save (PATCH) 테스트
 ```
@@ -418,14 +418,14 @@ aubump.xlsx 분석 결과: 현재 텍스트 매칭 성공률 100% (118/118)
   → 엑셀 내보내기(excel-template.ts) 수정 시 원본행 컬럼 추가
 ```
 
-### 9.2 기존 m066 데이터 호환성
+### 9.2 기존 m002 데이터 호환성
 
 ```
-위험: 기존 pfm26-m066은 결정론적 UUID (PF-L2-040-MC-001-K-001)
+위험: 기존 pfm26-m002은 결정론적 UUID (PF-L2-040-MC-001-K-001)
      위치기반 UUID (L3-R37-C7)와 형식이 다름
 
 대응:
-  - 기존 m066은 그대로 유지 (레거시 스키마)
+  - 기존 m002은 그대로 유지 (레거시 스키마)
   - 새 프로젝트부터 위치기반 UUID 적용
   - 필요시 마이그레이션 스크립트 작성 (기존 UUID → 위치기반 변환)
   - atomicToLegacy는 ID 형식에 무관하게 동작 (필드값만 참조)

@@ -10,7 +10,7 @@ async function main() {
 
   // Find the correct schema
   const schemaRes = await client.query(
-    `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%m066%'`
+    `SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE '%m002%'`
   );
   if (schemaRes.rows.length === 0) {
     // Try checking tables in public schema
@@ -18,7 +18,7 @@ async function main() {
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE '%Failure%' LIMIT 10`
     );
     console.log('public tables:', pubTables.rows);
-    console.log('No m066 schema found, checking all schemas...');
+    console.log('No m002 schema found, checking all schemas...');
     const allSchemas = await client.query(
       `SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast') ORDER BY schema_name`
     );

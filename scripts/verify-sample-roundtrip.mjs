@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs';
 
 const SAMPLE_PATH = 'tests/temp-master-sample.xlsx';
 const API_BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 function cellStr(v) { return String(v || '').trim(); }
 

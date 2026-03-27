@@ -2,7 +2,7 @@ import pg from 'pg';
 const client = new pg.Client('postgresql://postgres:1234@localhost:5432/fmea_db');
 await client.connect();
 
-const schema = 'pfmea_pfm26_m066';
+const schema = 'pfmea_pfm26_m002';
 
 // 1. FM별 연결된 FE/FC 수
 const fmLinks = await client.query(`
@@ -20,7 +20,7 @@ const fmLinks = await client.query(`
 
 console.log('');
 console.log('='.repeat(80));
-console.log('  FM별 FE:FM:FC 연결 현황 (N:1:N)  — pfm26-m066');
+console.log('  FM별 FE:FM:FC 연결 현황 (N:1:N)  — pfm26-m002');
 console.log('='.repeat(80));
 console.log(`${'FM(고장형태)'.padEnd(48)} FE수  FC수  Link수`);
 console.log('-'.repeat(80));
@@ -109,7 +109,7 @@ const stats = await client.query(`
 const s = stats.rows[0];
 
 console.log('\n' + '='.repeat(80));
-console.log('  DB 저장 통계 (pfm26-m066)');
+console.log('  DB 저장 통계 (pfm26-m002)');
 console.log('='.repeat(80));
 console.log(`  FM(고장형태) : ${s.fm_total}개  (FailureLink 연결: ${s.linked_fm})`);
 console.log(`  FE(고장영향) : ${s.fe_total}개  (FailureLink 연결: ${s.linked_fe})`);

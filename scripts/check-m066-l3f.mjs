@@ -1,4 +1,4 @@
-// Compare L3Function distribution between M066 and M081
+// Compare L3Function distribution between M002 and M081
 const BASE = 'http://localhost:3000';
 
 async function getL3Data(fmeaId) {
@@ -67,5 +67,5 @@ async function queryDB(fmeaId) {
   console.log(`Process-level FCs (not in WE): ${procLevelFCs}`);
 }
 
-await queryDB('pfm26-m066');
+await queryDB('pfm26-m002');
 await queryDB('pfm26-m081');

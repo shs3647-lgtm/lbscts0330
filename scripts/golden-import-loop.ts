@@ -12,7 +12,7 @@
  * 전제: dev 서버가 localhost:3000에서 실행 중이어야 함
  */
 
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const EXCEL_PATH = 'data/master-fmea/master_import_12inch_AuBump.xlsx';
 

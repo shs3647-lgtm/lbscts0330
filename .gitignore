@@ -1,4 +1,4 @@
-﻿# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
@@ -188,7 +188,7 @@ scripts/db-counts.js
 
 # e2e screenshots & test specs (local only)
 tests/e2e/screenshots/*.png
-tests/e2e/m066-full-cycle-verify.spec.ts
+tests/e2e/m002-full-cycle-verify.spec.ts
 tests/e2e/debug-*.spec.ts
 
 # m090 local data

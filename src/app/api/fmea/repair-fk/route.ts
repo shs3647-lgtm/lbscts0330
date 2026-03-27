@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const fmeaId = typeof body.fmeaId === 'string' ? body.fmeaId : '';
     if (!fmeaId || !isValidFmeaId(fmeaId)) {
-      return NextResponse.json({ success: false, error: 'fmeaId 필요 (예: pfm26-m066)' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'fmeaId 필요 (예: pfm26-m002)' }, { status: 400 });
     }
 
     const dryRun = body.dryRun === true;

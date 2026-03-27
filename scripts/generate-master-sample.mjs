@@ -20,7 +20,7 @@ import fs from 'fs';
 import path from 'path';
 
 const API_BASE = 'http://localhost:3000';
-const FMEA_ID = process.argv[2] || 'pfm26-m066';
+const FMEA_ID = process.argv[2] || 'pfm26-m002';
 const OUTPUT_DIR = 'C:/Users/Administrator/Downloads';
 const OUTPUT_PATH = `${OUTPUT_DIR}/PFMEA_Master_${FMEA_ID}_PIPELINE검증_${new Date().toISOString().slice(0, 10)}.xlsx`;
 const MASTER_JSON = path.join(process.cwd(), 'data', 'master-fmea', `${FMEA_ID}.json`);

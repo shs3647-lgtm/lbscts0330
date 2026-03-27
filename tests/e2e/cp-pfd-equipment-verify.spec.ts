@@ -1,6 +1,6 @@
 /**
  * @file cp-pfd-equipment-verify.spec.ts
- * @description pfm26-m066 FMEA↔PFD↔CP 설비명 정합성 검증
+ * @description pfm26-m002 FMEA↔PFD↔CP 설비명 정합성 검증
  *
  * 검증 항목:
  *   1. FMEA→PFD sync 설비명 일치
@@ -13,9 +13,9 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const PFD_NO = 'pfd26-m065';
-const CP_NO = 'cp26-m066';
+const CP_NO = 'cp26-m002';
 
 // 공정번호→설비명 골든 베이스라인 (FMEA L2/L3 기준 21개 공정)
 const GOLDEN_EQUIPMENT: Record<string, string> = {

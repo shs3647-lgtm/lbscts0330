@@ -1,5 +1,5 @@
 /**
- * m066 연결표(Connection Table) JSON 추출
+ * m002 연결표(Connection Table) JSON 추출
  * 
  * FM↔FC↔FE N:M 관계를 FK 기반으로 정리.
  * 이 JSON이 위치기반 import의 FK 매핑 원본(SSoT).
@@ -69,7 +69,7 @@ interface ConnectionTable {
 }
 
 function main() {
-  const d = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m066.json', 'utf8'));
+  const d = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m002.json', 'utf8'));
   const db = d.atomicDB;
 
   // Maps for lookup
@@ -183,7 +183,7 @@ function main() {
   const multiFC = Object.values(fcToFMs).filter(v => v.length > 1).length;
 
   const result: ConnectionTable = {
-    sourceId: 'pfm26-m066',
+    sourceId: 'pfm26-m002',
     exportedAt: new Date().toISOString(),
     entities: {
       fm: fmEntities,
@@ -203,7 +203,7 @@ function main() {
     },
   };
 
-  const outPath = 'data/master-fmea/m066-connection-table.json';
+  const outPath = 'data/master-fmea/m002-connection-table.json';
   fs.writeFileSync(outPath, JSON.stringify(result, null, 2), 'utf8');
   console.log(`→ ${outPath}`);
   console.log('Stats:', JSON.stringify(result.stats, null, 2));

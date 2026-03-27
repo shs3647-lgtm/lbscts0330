@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 
 const wb = new ExcelJS.Workbook();
-await wb.xlsx.readFile('data/test-import-m066-v4.xlsx');
+await wb.xlsx.readFile('data/test-import-m002-v4.xlsx');
 
 const sheets = wb.worksheets;
 // Find L3 sheet (contains B1-B5)

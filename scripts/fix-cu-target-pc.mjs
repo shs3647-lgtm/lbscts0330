@@ -4,7 +4,7 @@
  * Ti Target과 동일한 값으로 설정
  */
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 async function main() {
   // 1. 현재 legacy data 로드

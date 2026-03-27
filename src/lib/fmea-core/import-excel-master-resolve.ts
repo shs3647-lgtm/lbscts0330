@@ -1,6 +1,6 @@
 /**
  * import-excel-file: fmeaId별 마스터 JSON 경로 결정 + JSON이 현재 프로젝트와 일치하는지 검사
- * (다른 프로젝트 m066 골든을 임포트에 재사용하면 Rule 0/1.7 위반)
+ * (다른 프로젝트 m002 골든을 임포트에 재사용하면 Rule 0/1.7 위반)
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,7 +15,7 @@ export function normalizeFmeaId(id: string): string {
 }
 
 /**
- * 명시 경로 → 프로젝트별 파일 순으로 시도. m066 등 타 프로젝트 자동 폴백 없음.
+ * 명시 경로 → 프로젝트별 파일 순으로 시도. m002 등 타 프로젝트 자동 폴백 없음.
  */
 export function resolveMasterJsonPath(
   projectRoot: string,

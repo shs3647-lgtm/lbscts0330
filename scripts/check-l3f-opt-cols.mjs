@@ -1,7 +1,7 @@
 import pg from 'pg';
 const c = new pg.Client('postgresql://postgres:1234@localhost:5432/fmea_db');
 await c.connect();
-const S = 'pfmea_pfm26_m066';
+const S = 'pfmea_pfm26_m002';
 const l3f = await c.query(`SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name='l3_functions' ORDER BY ordinal_position`, [S]);
 console.log('l3_functions:', l3f.rows.map(x=>x.column_name).join(', '));
 const opt = await c.query(`SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name='optimizations' ORDER BY ordinal_position`, [S]);

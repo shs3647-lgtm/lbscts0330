@@ -46,20 +46,20 @@ git checkout -b recover/location-fk-100pct snapshot-location-fk-100pct-2026-03-2
 | 명령 | 설명 |
 |------|------|
 | `npm run verify:pipeline-baseline` | `GET /api/fmea/pipeline-verify?fmeaId=…` 호출 → `success` + `allGreen` 필수 (5단계 모두 `status=ok`) |
-| `npm run verify:pipeline-baseline:strict` | 위 + **`pfm26-m066` 골든**: L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
+| `npm run verify:pipeline-baseline:strict` | 위 + **`pfm26-m002` 골든**: L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
 
 **환경 변수**
 
 | 변수 | 기본값 |
 |------|--------|
 | `VERIFY_BASE_URL` | `http://127.0.0.1:3000` |
-| `VERIFY_FMEA_ID` | `pfm26-m066` |
+| `VERIFY_FMEA_ID` | `pfm26-m002` |
 
 PowerShell 예:
 
 ```powershell
 $env:VERIFY_BASE_URL="http://localhost:3000"
-$env:VERIFY_FMEA_ID="pfm26-m066"
+$env:VERIFY_FMEA_ID="pfm26-m002"
 npm run verify:pipeline-baseline:strict
 ```
 

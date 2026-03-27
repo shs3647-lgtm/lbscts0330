@@ -57,7 +57,7 @@ function makeTestDB(fmeaId: string, overrides?: Partial<FullAtomicDB>): FullAtom
 
 describe('assertFmeaId', () => {
   it('유효한 fmeaId 통과', () => {
-    expect(() => assertFmeaId('pfm26-m066')).not.toThrow();
+    expect(() => assertFmeaId('pfm26-m002')).not.toThrow();
     expect(() => assertFmeaId('test_123')).not.toThrow();
   });
 

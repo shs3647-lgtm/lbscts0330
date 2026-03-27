@@ -1,5 +1,5 @@
 /**
- * Structure Guard Tests for m066 Au Bump FMEA
+ * Structure Guard Tests for m002 Au Bump FMEA
  *
  * Validates STRUCTURAL RULES that must never be violated.
  * Think of this as "building code inspection" — not checking if the
@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 
 // ---------------------------------------------------------------------------
-// Load m066 master JSON
+// Load m002 master JSON
 // ---------------------------------------------------------------------------
 interface MasterJSON {
   atomicDB: {
@@ -34,7 +34,7 @@ interface MasterJSON {
 let data: MasterJSON;
 
 beforeAll(() => {
-  const filePath = path.resolve('data/master-fmea/pfm26-m066.json');
+  const filePath = path.resolve('data/master-fmea/pfm26-m002.json');
   data = JSON.parse(fs.readFileSync(filePath, 'utf8')) as MasterJSON;
 });
 

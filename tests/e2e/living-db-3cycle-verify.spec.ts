@@ -14,7 +14,7 @@
  */
 import { test, expect, Page } from '@playwright/test';
 
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const BASE_URL = 'http://localhost:3000';
 const WAIT_MS = 5000; // 각 화면 5초 대기
 

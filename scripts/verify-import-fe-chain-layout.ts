@@ -7,7 +7,7 @@
  *
  * 사용:
  *   npx tsx scripts/verify-import-fe-chain-layout.ts
- *   VERIFY_BASE_URL=http://127.0.0.1:3000 VERIFY_FMEA_ID=pfm26-m066 npx tsx scripts/verify-import-fe-chain-layout.ts
+ *   VERIFY_BASE_URL=http://127.0.0.1:3000 VERIFY_FMEA_ID=pfm26-m002 npx tsx scripts/verify-import-fe-chain-layout.ts
  *   VERIFY_PIPELINE_POST=1  → GET 후 POST(자동수정 루프)까지 실행
  *   VERIFY_PIPELINE_WARN_ONLY=1 → allGreen=false여도 종료 0 (리포트만)
  *

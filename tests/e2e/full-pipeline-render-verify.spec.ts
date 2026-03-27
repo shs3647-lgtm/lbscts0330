@@ -3,7 +3,7 @@
  * @description 완전한 PFMEA 파이프라인 검증 — Import → 전체 탭 순차 렌더링 확인
  *
  * 검증 범위:
- *   1. Excel Import (m066 골든 샘플)
+ *   1. Excel Import (m002 골든 샘플)
  *   2. SA 확정 → FC 확정 → DB 저장
  *   3. 워크시트 렌더링 검증 (15개 탭 순차):
  *      - 구조분석 (Structure)
@@ -21,13 +21,13 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // ─── 설정 ───
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const EXCEL_PATH = 'data/master-fmea/master_import_12inch_AuBump.xlsx';
 const IMPORT_URL = `http://localhost:3000/pfmea/import/legacy?id=${FMEA_ID}`;
 const WORKSHEET_URL = `http://localhost:3000/pfmea/worksheet?id=${FMEA_ID}`;
 const PAUSE_MS = 5000; // 각 탭에서 5초 정지 (사용자 확인용)
 
-// ─── 골든 베이스라인 (m066) ───
+// ─── 골든 베이스라인 (m002) ───
 const BASELINE = {
   l2: 21,
   l3: 91,
@@ -131,7 +131,7 @@ const ALL_TABS: TabDef[] = [
 test.describe('Full Pipeline Render Verify — Import → 전체 탭 렌더링 검증', () => {
   test.setTimeout(600000); // 10분
 
-  test('m066 Import → 14개 탭 순차 렌더링 + 5초 정지 검증', async ({ page }) => {
+  test('m002 Import → 14개 탭 순차 렌더링 + 5초 정지 검증', async ({ page }) => {
     const results: Array<{
       id: string; name: string; rows: number;
       filled: number; total: number; ratio: number;

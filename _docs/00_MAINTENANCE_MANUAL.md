@@ -295,7 +295,7 @@
 ## 6. 파이프라인 검증 6단계
 
 > **API**: `/api/fmea/pipeline-verify` (GET=조회, POST=자동수정 루프)
-> **골든 베이스라인**: pfm26-m066 (12inch Au Bump)
+> **골든 베이스라인**: pfm26-m002 (12inch Au Bump)
 
 ### 6.1 6단계 검증 항목
 
@@ -309,7 +309,7 @@
 | STEP 5 | WS | Legacy 워크시트 PC 빈칸, orphan PC | ✅ fixStep5Ws | 926be6e |
 | STEP 6 | OPT | AP=H/M Optimization, DC/PC peer fill, SOD sync | ✅ fixStep6Opt | d9610fa |
 
-### 6.2 골든 베이스라인 (pfm26-m066)
+### 6.2 골든 베이스라인 (pfm26-m002)
 
 | 항목 | 기대값 | PASS 기준 |
 |------|--------|-----------|
@@ -336,7 +336,7 @@
 ### 6.4 자동수정 루프 흐름
 
 ```
-POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m066" }
+POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m002" }
 │
 ├── Loop 1: 6단계 검증 실행
 │   ├── 모든 단계 ok → allGreen=true → 종료
@@ -470,16 +470,16 @@ npm run build
 
 # 4단계: 파이프라인 검증 (FMEA 수정 시 필수)
 # PowerShell
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m002" -Method GET | ConvertTo-Json -Depth 5
 
 # 5단계: 파이프라인 자동수정 + 재검증
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m002"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
 
 # 6단계: rebuild-atomic (RiskAnalysis DC/PC 최신화)
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m066" -Method POST | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m002" -Method POST | ConvertTo-Json -Depth 3
 
 # 7단계: 마스터 FMEA 재생성 + DC/PC 104/104 확인
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m002"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
 ```
 
 ### 8.2 모듈별 단위 테스트

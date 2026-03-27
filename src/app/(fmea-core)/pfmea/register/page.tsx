@@ -460,39 +460,8 @@ function PFMEARegisterPageContent() {
         return;
       }
 
-      // 통합시트(L1/L2/L3통합) 등 — excel-parser + save-from-import (Import 화면과 동일 계열)
-      const { parseMultiSheetExcel } = await import('@/app/(fmea-core)/pfmea/import/excel-parser');
-      const { convertLegacyParseResultToFlatData } = await import(
-        '@/app/(fmea-core)/pfmea/import/utils/legacyParseResultToFlatData'
-      );
-      const legacyResult = await parseMultiSheetExcel(file);
-      if (!legacyResult.success) {
-        alert(legacyResult.errors?.length ? legacyResult.errors.join('\n') : '엑셀 파싱에 실패했습니다.');
-        setBdIsSaving(false);
-        return;
-      }
-      const flatLegacy = convertLegacyParseResultToFlatData(legacyResult);
-      setFlatData(flatLegacy);
-      if (fmeaId) {
-        const saveRes = await fetch('/api/fmea/save-position-import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fmeaId: fmeaId.toLowerCase(),
-            flatData: flatLegacy,
-            failureChains: legacyResult.failureChains || [],
-          }),
-        });
-        const saveResult = await saveRes.json();
-        if (saveResult.success) {
-          setBdIsSaved(true);
-          setBdDirty(false);
-          console.log('[Register Import] save-from-import 완료');
-        } else {
-          console.error('[Register Import] save-from-import 실패:', saveResult.error);
-          alert('저장 실패: ' + (saveResult.error || '알 수 없는 오류'));
-        }
-      }
+      // 위치기반 5시트 포맷만 지원
+      alert('❌ 지원하지 않는 엑셀 형식입니다.\n위치기반 5시트 포맷만 지원합니다.');
       setBdIsSaving(false);
       return;
     } catch (err) {

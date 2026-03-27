@@ -2,7 +2,7 @@
  * @file export-master-fmea.ts
  * @description 마스터 FMEA 데이터를 Atomic DB에서 직접 로드하여 JSON 파일로 영구 저장
  *
- * 실행: npx tsx -r tsconfig-paths/register scripts/export-master-fmea.ts pfm26-m066
+ * 실행: npx tsx -r tsconfig-paths/register scripts/export-master-fmea.ts pfm26-m002
  *
  * @created 2026-03-17
  */
@@ -22,7 +22,7 @@ async function main() {
   const fmeaId = process.argv[2];
   if (!fmeaId) {
     console.error('❌ Usage: npx tsx -r tsconfig-paths/register scripts/export-master-fmea.ts <fmeaId>');
-    console.error('   예: npx tsx -r tsconfig-paths/register scripts/export-master-fmea.ts pfm26-m066');
+    console.error('   예: npx tsx -r tsconfig-paths/register scripts/export-master-fmea.ts pfm26-m002');
     process.exit(1);
   }
 

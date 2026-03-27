@@ -1,9 +1,9 @@
 /**
- * Seeds public.master_fmea_reference from pfmea_pfm26_m066 WE chain data,
+ * Seeds public.master_fmea_reference from pfmea_pfm26_m002 WE chain data,
  * then merges KrIndustryDetection / KrIndustryPrevention by m4/category.
  *
- * Usage: node scripts/seed-master-from-m066.mjs
- * Override: MASTER_SEED_DATABASE_URL=... node scripts/seed-master-from-m066.mjs
+ * Usage: node scripts/seed-master-from-m002.mjs
+ * Override: MASTER_SEED_DATABASE_URL=... node scripts/seed-master-from-m002.mjs
  */
 import pg from 'pg';
 import { randomUUID } from "crypto";
@@ -12,9 +12,9 @@ const CONNECTION_STRING =
   process.env.MASTER_SEED_DATABASE_URL ??
   "postgresql://postgres:1234@localhost:5432/fmea_db";
 
-const SOURCE_SCHEMA = "pfmea_pfm26_m066";
-const SOURCE_PROJECT = "pfm26-m066";
-const SOURCE_TYPE = "m066";
+const SOURCE_SCHEMA = "pfmea_pfm26_m002";
+const SOURCE_PROJECT = "pfm26-m002";
+const SOURCE_TYPE = "m002";
 const KEY_SEP = String.fromCharCode(0);
 
 const PRISMA_FIELD_ALIASES = {
@@ -392,7 +392,7 @@ async function main() {
     const { rows: sums } = await client.query(sumSql, [SOURCE_PROJECT, SOURCE_TYPE]);
     const s0 = sums[0] ?? {};
 
-    console.log("--- seed-master-from-m066 summary ---");
+    console.log("--- seed-master-from-m002 summary ---");
     console.log("Source schema: " + SOURCE_SCHEMA);
     console.log("WE groups upserted this run: " + seeded);
     console.log(

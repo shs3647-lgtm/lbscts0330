@@ -2,8 +2,8 @@ import pg from 'pg';
 const { Pool } = pg;
 const pool = new Pool({ connectionString: 'postgresql://postgres:1234@localhost:5432/fmea_db' });
 
-const fmeaId = 'pfm26-m066';
-const schema = 'pfmea_pfm26_m066';
+const fmeaId = 'pfm26-m002';
+const schema = 'pfmea_pfm26_m002';
 
 await pool.query(`SET search_path TO ${schema}, public`);
 

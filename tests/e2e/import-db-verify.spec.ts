@@ -1,11 +1,11 @@
 /**
  * Import 후 전 단계 DB 구축 검증 + 브라우저 3초 대기 확인
- * m066-rt2 프로젝트: 역설계 Excel → Import → 워크시트 렌더링
+ * m002-rt2 프로젝트: 역설계 Excel → Import → 워크시트 렌더링
  */
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066-rt2';
+const FMEA_ID = 'pfm26-m002-rt2';
 const TABS = [
   { id: 'structure', name: '구조분석', check: 'L2=21 L3=91' },
   { id: 'function', name: '기능분석', check: 'L1F=17 L2F=26 L3F=99' },

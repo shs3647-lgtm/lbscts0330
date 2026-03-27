@@ -79,9 +79,9 @@ describe('migration.ts FC 이름 필터 원자성 검증', () => {
 
   test('정상 FC 이름은 atomic DB에 포함되어야 함', () => {
     const legacy = makeMinimalLegacy([
-      { id: 'fc-1', name: '작업 숙련도 부족' },
-      { id: 'fc-2', name: '설비 가동률 저하' },
-      { id: 'fc-3', name: '자재 투입 오류' },
+      { id: 'fc-1', name: '작업 숙련도 부족', processCharId: 'pc-1' },
+      { id: 'fc-2', name: '설비 가동률 저하', processCharId: 'pc-1' },
+      { id: 'fc-3', name: '자재 투입 오류', processCharId: 'pc-1' },
     ]);
 
     const db = migrateToAtomicDB(legacy);
@@ -95,13 +95,13 @@ describe('migration.ts FC 이름 필터 원자성 검증', () => {
 
   test('placeholder FC는 atomic DB에서 필터되어야 함', () => {
     const legacy = makeMinimalLegacy([
-      { id: 'fc-1', name: '작업 숙련도 부족' },
-      { id: 'fc-p1', name: '고장원인 선택' },
-      { id: 'fc-p2', name: '클릭하여 추가' },
-      { id: 'fc-p3', name: '여기를 클릭하여 추가' },
-      { id: 'fc-p4', name: '고장원인을 입력하세요' },
-      { id: 'fc-p5', name: '' },
-      { id: 'fc-p6', name: '   ' },
+      { id: 'fc-1', name: '작업 숙련도 부족', processCharId: 'pc-1' },
+      { id: 'fc-p1', name: '고장원인 선택', processCharId: 'pc-1' },
+      { id: 'fc-p2', name: '클릭하여 추가', processCharId: 'pc-1' },
+      { id: 'fc-p3', name: '여기를 클릭하여 추가', processCharId: 'pc-1' },
+      { id: 'fc-p4', name: '고장원인을 입력하세요', processCharId: 'pc-1' },
+      { id: 'fc-p5', name: '', processCharId: 'pc-1' },
+      { id: 'fc-p6', name: '   ', processCharId: 'pc-1' },
     ]);
 
     const db = migrateToAtomicDB(legacy);
@@ -111,9 +111,9 @@ describe('migration.ts FC 이름 필터 원자성 검증', () => {
 
   test('"추가" 부분 문자열 포함 정상 FC는 보존되어야 함 (이전 버그)', () => {
     const legacy = makeMinimalLegacy([
-      { id: 'fc-1', name: '추가 작업 미수행' },
-      { id: 'fc-2', name: '기름 추가 부족' },
-      { id: 'fc-3', name: '소재 추가 투입 오류' },
+      { id: 'fc-1', name: '추가 작업 미수행', processCharId: 'pc-1' },
+      { id: 'fc-2', name: '기름 추가 부족', processCharId: 'pc-1' },
+      { id: 'fc-3', name: '소재 추가 투입 오류', processCharId: 'pc-1' },
     ]);
 
     const db = migrateToAtomicDB(legacy);
@@ -127,8 +127,8 @@ describe('migration.ts FC 이름 필터 원자성 검증', () => {
 
   test('"클릭" 부분 문자열 포함 정상 FC는 보존되어야 함 (이전 버그)', () => {
     const legacy = makeMinimalLegacy([
-      { id: 'fc-1', name: '클릭 토크 부족' },
-      { id: 'fc-2', name: '더블클릭 오류' },
+      { id: 'fc-1', name: '클릭 토크 부족', processCharId: 'pc-1' },
+      { id: 'fc-2', name: '더블클릭 오류', processCharId: 'pc-1' },
     ]);
 
     const db = migrateToAtomicDB(legacy);
@@ -142,8 +142,8 @@ describe('migration.ts FC 이름 필터 원자성 검증', () => {
   test('FC의 l3FuncId, l3StructId, l2StructId FK가 모두 유효해야 함', () => {
     const legacy = makeMinimalLegacy([
       { id: 'fc-1', name: '작업 숙련도 부족', processCharId: 'pc-1' },
-      { id: 'fc-2', name: '설비 마모', m4: 'MC' },
-      { id: 'fc-3', name: '자재 불량' },
+      { id: 'fc-2', name: '설비 마모', processCharId: 'pc-1', m4: 'MC' },
+      { id: 'fc-3', name: '자재 불량', processCharId: 'pc-1' },
     ]);
 
     const db = migrateToAtomicDB(legacy);
@@ -163,16 +163,16 @@ describe('migration.ts FC 이름 필터 원자성 검증', () => {
 
   test('FC 개수 = Legacy FC 개수 (placeholder 제외)', () => {
     const validFCs = [
-      { id: 'fc-1', name: '용접 불량' },
-      { id: 'fc-2', name: '프레스 과압' },
-      { id: 'fc-3', name: '도장 박리' },
-      { id: 'fc-4', name: '조립 미스' },
-      { id: 'fc-5', name: '검사 누락' },
-      { id: 'fc-6', name: '세척 잔류물' },
+      { id: 'fc-1', name: '용접 불량', processCharId: 'pc-1' },
+      { id: 'fc-2', name: '프레스 과압', processCharId: 'pc-1' },
+      { id: 'fc-3', name: '도장 박리', processCharId: 'pc-1' },
+      { id: 'fc-4', name: '조립 미스', processCharId: 'pc-1' },
+      { id: 'fc-5', name: '검사 누락', processCharId: 'pc-1' },
+      { id: 'fc-6', name: '세척 잔류물', processCharId: 'pc-1' },
     ];
     const placeholderFCs = [
-      { id: 'fc-p1', name: '' },
-      { id: 'fc-p2', name: '고장원인 선택' },
+      { id: 'fc-p1', name: '', processCharId: 'pc-1' },
+      { id: 'fc-p2', name: '고장원인 선택', processCharId: 'pc-1' },
     ];
 
     const legacy = makeMinimalLegacy([...validFCs, ...placeholderFCs]);

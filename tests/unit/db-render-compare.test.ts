@@ -87,11 +87,11 @@ describe('renderCompareHtml', () => {
       totalMismatch: 1,
       hasMismatch: true,
     };
-    const html = renderCompareHtml(result, 'pfm26-m066');
+    const html = renderCompareHtml(result, 'pfm26-m002');
     expect(html).toContain('자동개선 실행');
     expect(html).toContain('rebuild-atomic');
     expect(html).toContain('🔴');
-    expect(html).toContain('pfm26-m066');
+    expect(html).toContain('pfm26-m002');
   });
 
   it('일치 시 자동개선 버튼 미포함', () => {
@@ -100,7 +100,7 @@ describe('renderCompareHtml', () => {
       totalMismatch: 0,
       hasMismatch: false,
     };
-    const html = renderCompareHtml(result, 'pfm26-m066');
+    const html = renderCompareHtml(result, 'pfm26-m002');
     expect(html).not.toContain('자동개선 실행');
     expect(html).toContain('🟢');
     expect(html).toContain('전체 일치');

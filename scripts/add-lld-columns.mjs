@@ -2,7 +2,7 @@ import pg from 'pg';
 const c = new pg.Client({ connectionString: process.env.DATABASE_URL || 'postgresql://fmea_user:fmea_password@localhost:5432/fmea_onpremise' });
 await c.connect();
 
-const schemas = ['pfmea_pfm26_m066', 'pfmea_pfm26_m069', 'pfmea_pfm26_m071'];
+const schemas = ['pfmea_pfm26_m002', 'pfmea_pfm26_m069', 'pfmea_pfm26_m071'];
 
 for (const schema of schemas) {
   console.log(`\n=== ${schema} 컬럼 추가 ===`);

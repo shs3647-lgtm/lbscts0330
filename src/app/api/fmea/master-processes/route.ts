@@ -89,7 +89,7 @@ async function buildProcessesFromDataset(
  *   4단계: 모든 isActive 데이터셋 중 processes > 0 (M→F→P 순)
  *
  * 근본 원인: 현재 FMEA(pfm26-p003-i03)는 직접 BD가 없고,
- *   Master BD는 다른 fmeaId(pfm26-m066)에 저장됨 → fallback으로 찾아야 함
+ *   Master BD는 다른 fmeaId(pfm26-m002)에 저장됨 → fallback으로 찾아야 함
  */
 export async function GET(req: NextRequest) {
   const prisma = getPrisma();

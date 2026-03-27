@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
 
-const file = process.argv[2] || 'data/master-fmea/pfm26-m066-import.xlsx';
+const file = process.argv[2] || 'data/master-fmea/pfm26-m002-import.xlsx';
 const fullPath = path.resolve(file);
 
 async function main() {

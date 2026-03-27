@@ -6,7 +6,7 @@
 import pg from 'pg';
 const { Client } = pg;
 
-const FMEA_ID = process.argv[2] || 'pfm26-m066';
+const FMEA_ID = process.argv[2] || 'pfm26-m002';
 const SCHEMA = `pfmea_${FMEA_ID.replace(/-/g, '_')}`;
 
 const c = new Client({ connectionString: 'postgresql://postgres:1234@localhost:5432/fmea_db' });

@@ -2,7 +2,7 @@
  * @file pipeline-loop-10.test.ts
  * @description 10회 반복 파이프라인 순차 회귀 검증
  *
- * m066 골든 데이터로부터 점점 깊고 넓게 엣지 상황을 반영하여
+ * m002 골든 데이터로부터 점점 깊고 넓게 엣지 상황을 반영하여
  * Import→UUID→FK→WS 전 경로의 무결성을 100% 보장한다.
  *
  * Loop 1-7: 기본 무결성 (카운트→FK→모자→processChar→dedup→SOD→렌더링)
@@ -13,14 +13,14 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
-// ─── m066 마스터 JSON 로드 ───────────────────────────────────
+// ─── m002 마스터 JSON 로드 ───────────────────────────────────
 let data: any;
 let atomicDB: any;
 let chains: any[];
 let stats: any;
 
 beforeAll(() => {
-  const raw = fs.readFileSync(path.resolve('data/master-fmea/pfm26-m066.json'), 'utf8');
+  const raw = fs.readFileSync(path.resolve('data/master-fmea/pfm26-m002.json'), 'utf8');
   data = JSON.parse(raw);
   atomicDB = data.atomicDB;
   chains = data.chains || [];

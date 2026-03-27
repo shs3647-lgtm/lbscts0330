@@ -75,34 +75,39 @@ export function validateFADataConsistency(
   // ★★★ 2026-02-24: 엑셀 수식 기반 3중 검증 (진정한 독립 기준) ★★★
   const excel = expected.excelFormulas;
   if (excel && excel.hasVerifySheet) {
-    // Count 검증: 엑셀 수식 vs 파서 직접 비교
-    if (excel.chainCount > 0 && excel.chainCount !== chainCount) {
-      issues.push(`[엑셀수식↔파서] 체인건수 불일치 (엑셀=${excel.chainCount}, 파서=${chainCount})`);
-      failedItems.push('C0'); // C0 = 엑셀 수식 검증 실패 (새 항목)
-    }
-    if (excel.fmCount > 0 && excel.fmCount !== fmUnique) {
-      issues.push(`[엑셀수식↔파서] FM건수 불일치 (엑셀=${excel.fmCount}, 파서=${fmUnique})`);
+    const eChain = excel.chainCount ?? 0;
+    const eFm = excel.fmCount ?? 0;
+    const eFc = excel.fcCount ?? 0;
+    const eFe = excel.feCount ?? 0;
+    const eS3 = excel.s3Miss ?? 0;
+    const eS4 = excel.s4Miss ?? 0;
+    const eS5 = excel.s5Miss ?? 0;
+    if (eChain > 0 && eChain !== chainCount) {
+      issues.push(`[엑셀수식↔파서] 체인건수 불일치 (엑셀=${eChain}, 파서=${chainCount})`);
       failedItems.push('C0');
     }
-    if (excel.fcCount > 0 && excel.fcCount !== fcUnique) {
-      issues.push(`[엑셀수식↔파서] FC건수 불일치 (엑셀=${excel.fcCount}, 파서=${fcUnique})`);
+    if (eFm > 0 && eFm !== fmUnique) {
+      issues.push(`[엑셀수식↔파서] FM건수 불일치 (엑셀=${eFm}, 파서=${fmUnique})`);
       failedItems.push('C0');
     }
-    if (excel.feCount > 0 && excel.feCount !== feUnique) {
-      issues.push(`[엑셀수식↔파서] FE건수 불일치 (엑셀=${excel.feCount}, 파서=${feUnique})`);
+    if (eFc > 0 && eFc !== fcUnique) {
+      issues.push(`[엑셀수식↔파서] FC건수 불일치 (엑셀=${eFc}, 파서=${fcUnique})`);
       failedItems.push('C0');
     }
-    // Consistency 검증: 엑셀 수식 결과 (0=OK, >0=누락)
-    if (excel.s3Miss > 0) {
-      issues.push(`[엑셀수식] 공정번호 누락 ${excel.s3Miss}건 (FC→A1)`);
+    if (eFe > 0 && eFe !== feUnique) {
+      issues.push(`[엑셀수식↔파서] FE건수 불일치 (엑셀=${eFe}, 파서=${feUnique})`);
+      failedItems.push('C0');
+    }
+    if (eS3 > 0) {
+      issues.push(`[엑셀수식] 공정번호 누락 ${eS3}건 (FC→A1)`);
       failedItems.push('S3');
     }
-    if (excel.s4Miss > 0) {
-      issues.push(`[엑셀수식] FM 누락 ${excel.s4Miss}건 (FC→A5)`);
+    if (eS4 > 0) {
+      issues.push(`[엑셀수식] FM 누락 ${eS4}건 (FC→A5)`);
       failedItems.push('S4');
     }
-    if (excel.s5Miss > 0) {
-      issues.push(`[엑셀수식] FC 누락 ${excel.s5Miss}건 (FC→B4)`);
+    if (eS5 > 0) {
+      issues.push(`[엑셀수식] FC 누락 ${eS5}건 (FC→B4)`);
       failedItems.push('S5');
     }
   }

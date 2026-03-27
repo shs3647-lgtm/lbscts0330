@@ -2,7 +2,7 @@
 
 > **문서 버전**: v2.0 — 2026-03-19  
 > **대상 프로젝트**: Smart FMEA On-Premise (Next.js 14 + PostgreSQL + Prisma + TypeScript)  
-> **핵심 원칙**: **완성된 FMEA(M066) 역설계 → 3단계 전략 (구축 → 검증 → 이관)**
+> **핵심 원칙**: **완성된 FMEA(M002) 역설계 → 3단계 전략 (구축 → 검증 → 이관)**
 
 ---
 
@@ -14,15 +14,15 @@
 
 | 단계 | 목표 | 방법 | 산출물 |
 |------|------|------|--------|
-| **1단계** | 기존데이터전환시스템 구축 | M066 DB → DB 다이렉트 전환. JSON 없음, 레거시 없음 | PgSQL ↔ WS 직통 시스템 |
-| **2단계** | 역설계 완전성 검증 | M066에서 Import 엑셀 역생성 → Import → 원본과 비교 | 원본 = 결과 → 시스템 완전 |
+| **1단계** | 기존데이터전환시스템 구축 | M002 DB → DB 다이렉트 전환. JSON 없음, 레거시 없음 | PgSQL ↔ WS 직통 시스템 |
+| **2단계** | 역설계 완전성 검증 | M002에서 Import 엑셀 역생성 → Import → 원본과 비교 | 원본 = 결과 → 시스템 완전 |
 | **3단계** | 실전: 구버전 FMEA 이관 | 구 시스템 엑셀 다운 → Claude로 Import 형식 변환 → Import 파이프라인 실행 | 신시스템 이관 완성 |
 
 ### 1.2 비유 체계
 
 | 비유 | 시스템 대응 | 설명 |
 |------|-----------|------|
-| 완성된 집 | M066 FMEA (Atomic DB) | 이미 검증된 WS + 고장사슬 전체 |
+| 완성된 집 | M002 FMEA (Atomic DB) | 이미 검증된 WS + 고장사슬 전체 |
 | 3층짜리 집 | 1L / 2L / 3L Structure | 공정 → 공정단계 → 작업요소 (구조트리) |
 | 방, 명칭, 연결 | UUID, Name, FK | 각 항목의 고유ID, 이름, 부모 연결 |
 | 고장연결 | FailureLink (FE←FM←FC) | N:1:N 사슬, FK로만 구성 |
@@ -59,7 +59,7 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**경로 A (1단계)**: PgSQL → WS 직통. 레거시 코드 0줄 경유. M066 역설계로 완전한 전환 시스템 구축. `buildWorksheetState`가 DB FK를 바로 읽어서 렌더링.
+**경로 A (1단계)**: PgSQL → WS 직통. 레거시 코드 0줄 경유. M002 역설계로 완전한 전환 시스템 구축. `buildWorksheetState`가 DB FK를 바로 읽어서 렌더링.
 
 **경로 B (3단계)**: 구버전 엑셀 → Claude 변환 → Import 엑셀 → JSON 검증 → DB → WS. JSON은 이 경로에서만 엑셀(비정형)과 DB(정형) 사이의 정확성 검증 게이트 역할.
 
@@ -94,8 +94,8 @@
 ### 2.2 처리 흐름
 
 ```
-STEP 1: M066 원본 쿼리 (Prisma + Project Schema)
-  │  getPrismaForSchema('pfmea_pfm26_m066')
+STEP 1: M002 원본 쿼리 (Prisma + Project Schema)
+  │  getPrismaForSchema('pfmea_pfm26_m002')
   │  → L1/L2/L3 Structure + Function + FK 관계 전체 로드
   │  → FailureLink (FE↔FM↔FC 확정 FK) 전체 로드
   │  → RiskAnalysis + ProcessProductChar 전체 로드
@@ -124,9 +124,9 @@ STEP 6: WS 직통 렌더링
      자동생성 0건
 ```
 
-### 2.3 M066 골든 베이스라인 — 데이터 수량
+### 2.3 M002 골든 베이스라인 — 데이터 수량
 
-| 테이블 | M066 수량 | 설명 |
+| 테이블 | M002 수량 | 설명 |
 |--------|----------|------|
 | L1Structure | 1 | 완제품 (12INCH AU BUMP) |
 | L2Structure | 21 | 공정 |
@@ -144,7 +144,7 @@ STEP 6: WS 직통 렌더링
 
 ### 2.4 flatData 항목별 수량
 
-| 코드 | 이름 | M066 수량 | FK 근거 |
+| 코드 | 이름 | M002 수량 | FK 근거 |
 |------|------|----------|---------|
 | C1 | 구분(YP/SP/USER) | 3 | L1Function.category distinct |
 | C2 | 완제품기능 | 7 | L1Function.functionName distinct |
@@ -189,7 +189,7 @@ FailureEffect (20) ←─── FailureLink (104) ───→ FailureCause (104
 POST /api/fmea/reverse-import
 
 Body: {
-  sourceFmeaId: string,     // 원본 FMEA ID (예: pfm26-m066)
+  sourceFmeaId: string,     // 원본 FMEA ID (예: pfm26-m002)
   targetFmeaId: string,     // 대상 FMEA ID (예: pfm26-m079)
   options: {
     copySOD: boolean,       // SOD 점수 복사 여부 (기본: false)
@@ -258,11 +258,11 @@ async function reverseImport(
 
 ### 3.1 검증 원리
 
-2단계는 1단계에서 구축한 다이렉트 전환 시스템의 완전성을 증명하는 단계이다. M066 DB에서 Import 엑셀을 역방향으로 생성하고, 이를 Import 파이프라인에 다시 투입하여, 결과가 원본과 동일한지 비교한다.
+2단계는 1단계에서 구축한 다이렉트 전환 시스템의 완전성을 증명하는 단계이다. M002 DB에서 Import 엑셀을 역방향으로 생성하고, 이를 Import 파이프라인에 다시 투입하여, 결과가 원본과 동일한지 비교한다.
 
 ```
 ┌──────────┐     역생성      ┌──────────────┐     Import     ┌──────────┐
-│ M066 DB  │ ──────────────→ │ Import 엑셀  │ ─────────────→ │ 결과 DB  │
+│ M002 DB  │ ──────────────→ │ Import 엑셀  │ ─────────────→ │ 결과 DB  │
 │  (원본)  │                 │ (역생성)      │                │  (재구성) │
 └────┬─────┘                 └──────────────┘                └────┬─────┘
      │                                                            │
@@ -273,16 +273,16 @@ async function reverseImport(
 
 | 단계 | 처리 | 검증 기준 |
 |------|------|----------|
-| 2-1 | M066 DB → Import 엑셀 역생성 (모든 시트에 UUID+명칭+FK) | 시트별 레코드 수 = 골든 베이스라인 |
+| 2-1 | M002 DB → Import 엑셀 역생성 (모든 시트에 UUID+명칭+FK) | 시트별 레코드 수 = 골든 베이스라인 |
 | 2-2 | 역생성 Import 엑셀 → Import 파이프라인 실행 (JSON 검증 포함) | 파이프라인 오류 0건, JSON 검증 통과 |
-| 2-3 | Import 결과 DB ↔ M066 원본 DB 비교 | 원본 = 결과 → 시스템 완전, 불일치 0건 |
+| 2-3 | Import 결과 DB ↔ M002 원본 DB 비교 | 원본 = 결과 → 시스템 완전, 불일치 0건 |
 | 2-4 | 멱등성 검증: 2회 연속 실행 → 동일 결과 확인 | 1차 결과 = 2차 결과, 수량 변동 0건 |
 
 ### 3.2 검증 통과 시 의미
 
 2단계 검증이 통과하면 두 가지가 동시에 증명된다:
 
-1. **1단계의 DB 다이렉트 전환 시스템이 M066의 모든 데이터를 완전하게 추출하고 재현할 수 있다.**
+1. **1단계의 DB 다이렉트 전환 시스템이 M002의 모든 데이터를 완전하게 추출하고 재현할 수 있다.**
 2. **Import 파이프라인(엑셀→JSON→DB) 경로도 역생성 엑셀 기준으로 정상 작동한다.** 3단계에서 이 파이프라인을 신뢰하고 사용할 수 있다.
 
 ---
@@ -424,10 +424,10 @@ function assertQueryResult<T extends { fmeaId: string }>(
 
 | 시나리오 | UUID 처리 | 이유 |
 |---------|----------|------|
-| M066 → M066 재구축 | **동일 UUID 유지** | 같은 프로젝트 → 같은 ID |
-| M066 → M079 복사 | **새 fmeaId + 동일 구조 ID** | fmeaId만 변경, 나머지 동일 |
-| M066 + 사용자 수정 | **수정분만 새 UUID** | 추가된 항목만 결정론적 ID 생성 |
-| M066 전혀 다른 제품 | **구조 참조 + 새 UUID** | 구조만 복사, 내용은 새로 작성 |
+| M002 → M002 재구축 | **동일 UUID 유지** | 같은 프로젝트 → 같은 ID |
+| M002 → M079 복사 | **새 fmeaId + 동일 구조 ID** | fmeaId만 변경, 나머지 동일 |
+| M002 + 사용자 수정 | **수정분만 새 UUID** | 추가된 항목만 결정론적 ID 생성 |
+| M002 전혀 다른 제품 | **구조 참조 + 새 UUID** | 구조만 복사, 내용은 새로 작성 |
 
 ### 6.3 FK 정합성 보장
 
@@ -576,7 +576,7 @@ L3Structure ──┬── L3Function ──── FailureCause
 
 | 함수명 | 기능 | 경로 |
 |--------|------|------|
-| `reverseExtract()` | M066 Atomic DB → 추출 데이터 | 경로 A |
+| `reverseExtract()` | M002 Atomic DB → 추출 데이터 | 경로 A |
 | `remapFmeaId()` | fmeaId 변환 (원본 → 대상) | 경로 A |
 | `assertSourceComplete()` | 원본 완전성 검증 | 공통 |
 | `assertQueryResult()` | 쿼리 결과 fmeaId 검증 | 공통 |
@@ -607,7 +607,7 @@ L3Structure ──┬── L3Function ──── FailureCause
 # 1. 역설계 실행 (경로 A)
 Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/reverse-import" `
   -Method POST `
-  -Body '{"sourceFmeaId":"pfm26-m066","targetFmeaId":"pfm26-m079"}' `
+  -Body '{"sourceFmeaId":"pfm26-m002","targetFmeaId":"pfm26-m079"}' `
   -ContentType "application/json" | ConvertTo-Json -Depth 5
 
 # 2. 파이프라인 검증
@@ -631,7 +631,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm
 | **Phase 1: 핵심 API** | 1주 | `reverseExtract()`, `remapFmeaId()`, Guard 함수, `/api/fmea/reverse-import` 라우트 | DB 다이렉트 전환 시스템 (경로 A 완성) |
 | **Phase 2: 검증 도구** | 3일 | `generateImportExcel()`, 원본↔결과 비교 로직, 멱등성 자동 테스트 | 2단계 검증 통과, 시스템 완전성 증명 |
 | **Phase 3: UI + 워크플로우** | 1주 | Import 페이지 "기존 데이터 활용" 탭, 원본 FMEA 선택 UI, 옵션 설정 + 결과 표시 | 사용자 접근 가능 Import UI |
-| **Phase 4: 안정화** | 3일 | M066→M079 전환 테스트, E01~E13 비발생 확인, Playwright E2E | 프로덕션 배포 가능 |
+| **Phase 4: 안정화** | 3일 | M002→M079 전환 테스트, E01~E13 비발생 확인, Playwright E2E | 프로덕션 배포 가능 |
 
 ### Phase 1 상세 태스크
 
@@ -650,7 +650,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm
 
 | 위험 | 확률 | 영향 | 대응 |
 |------|------|------|------|
-| 원본 M066에 데이터 오류 존재 | 중 | 대상에 오류 전파 | 추출 전 pipeline-verify 실행 |
+| 원본 M002에 데이터 오류 존재 | 중 | 대상에 오류 전파 | 추출 전 pipeline-verify 실행 |
 | UUID 충돌 (다른 프로젝트에 동일 ID) | 저 | FK violation | fmeaId 포함한 복합 유니크 제약 |
 | 대상 프로젝트에 기존 데이터 존재 | 중 | 데이터 충돌 | DELETE ALL → CREATE ALL (덮어쓰기) |
 | Legacy ↔ Atomic 동기화 실패 | 중 | 워크시트 표시 오류 | `syncAtomicToLegacy()` + 재검증 |
@@ -667,7 +667,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm
 | **경로 B (Import)** | 엑셀 → JSON → DB. 외부 데이터 진입. 3단계 이관용 |
 | **SSoT** | Single Source of Truth — 유일한 진실의 원천 (Atomic DB) |
 | **멱등성** | 동일 입력에 대해 몇 번 실행해도 동일 결과를 보장하는 성질 |
-| **골든 베이스라인** | M066의 확정된 데이터 수량 (검증 기준) |
+| **골든 베이스라인** | M002의 확정된 데이터 수량 (검증 기준) |
 | **Guard** | API/함수 진입점에서 입력값 유효성을 강제 검증하는 방어 코드 |
 | **카테시안 복제** | N×M 반복에서 공유 엔티티를 각각 새로 생성하는 버그 패턴 |
 | **orphanPC** | FC(고장원인)가 없는 processChar (공정특성) |
@@ -683,4 +683,4 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm
 | 모듈화 가이드 | `docs/MODULARIZATION_GUIDE.md` | 파일 분리 원칙 |
 | 워크시트 설계 원칙 | `docs/WORKSHEET_DESIGN_PRINCIPLES.md` | UI 레이아웃 |
 | DB 스키마 | `docs/DB_SCHEMA.md` | Prisma 모델 상세 |
-| 마스터 FMEA JSON | `data/master-fmea/pfm26-m066.json` | M066 골든 데이터 |
+| 마스터 FMEA JSON | `data/master-fmea/pfm26-m002.json` | M002 골든 데이터 |

@@ -1,11 +1,11 @@
 /**
- * m066 DB에서 WE별 B2/B3/B4/B5 실제 데이터 구조 덤프
+ * m002 DB에서 WE별 B2/B3/B4/B5 실제 데이터 구조 덤프
  * → sample-lookup API 설계를 위한 데이터 구조 확인
  */
 import pg from 'pg';
 const c = new pg.Client('postgresql://postgres:1234@localhost:5432/fmea_db');
 await c.connect();
-const S = 'pfmea_pfm26_m066';
+const S = 'pfmea_pfm26_m002';
 
 // L3(WE) + L3Function + FC 구조 확인
 const data = await c.query(`
@@ -43,7 +43,7 @@ for (const r of data.rows) {
   if (r.dc) we.a6.add(r.dc);
 }
 
-console.log(`\n═══ m066 WE별 데이터 구조 (${weMap.size}건) ═══\n`);
+console.log(`\n═══ m002 WE별 데이터 구조 (${weMap.size}건) ═══\n`);
 
 // m4별 통계
 const m4Stats = new Map();
@@ -59,7 +59,7 @@ for (const [m4, s] of m4Stats) {
 }
 
 // FC 없는 WE 상세
-console.log('\n━━ FC 없는 WE (m066 기준) ━━');
+console.log('\n━━ FC 없는 WE (m002 기준) ━━');
 let noFcCount = 0;
 for (const [key, we] of weMap) {
   if (we.b4.size === 0) {

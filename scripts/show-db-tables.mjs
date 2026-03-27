@@ -2,12 +2,12 @@ import pg from 'pg';
 const c = new pg.Client('postgresql://postgres:1234@localhost:5432/fmea_db');
 await c.connect();
 
-const schema = 'pfmea_pfm26_m066';
+const schema = 'pfmea_pfm26_m002';
 
 console.log('');
 console.log('='.repeat(90));
 console.log(`  DB: fmea_db / Schema: ${schema}`);
-console.log(`  프로젝트: pfm26-m066 (12inch Au Bump)`);
+console.log(`  프로젝트: pfm26-m002 (12inch Au Bump)`);
 console.log('='.repeat(90));
 
 // 테이블 목록 + 행 수

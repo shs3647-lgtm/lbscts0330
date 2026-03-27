@@ -2,7 +2,7 @@
  * @file extract-atomic-audit.mjs
  * @description fmeaId 기준 PostgreSQL Atomic DB 전체 추출 → JSON + 매칭표 MD
  *
- * Usage: node scripts/extract-atomic-audit.mjs pfm26-m066
+ * Usage: node scripts/extract-atomic-audit.mjs pfm26-m002
  *        node scripts/extract-atomic-audit.mjs pfm26-m069
  *
  * 출력:
@@ -14,7 +14,7 @@ import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 
-const fmeaId = process.argv[2] || 'pfm26-m066';
+const fmeaId = process.argv[2] || 'pfm26-m002';
 const shortId = fmeaId.replace('pfm26-', '');
 const schema = `pfmea_${fmeaId.replace(/-/g, '_')}`;
 

@@ -68,8 +68,8 @@ const FK_TABLES = [
  * FMEA ID를 모든 관련 테이블에서 원자적으로 리네임
  *
  * @param tx - Prisma 트랜잭션 클라이언트 ($transaction 내부에서 호출)
- * @param oldId - 기존 fmeaId (예: pfm26-p004-l05)
- * @param newId - 새 fmeaId (예: pfm26-p004-l05-r00)
+ * @param oldId - 기존 fmeaId (예: pfm26-m002)
+ * @param newId - 새 fmeaId (예: pfm26-m002-r00)
  * @returns 업데이트된 테이블 수
  */
 export async function renameFmeaId(

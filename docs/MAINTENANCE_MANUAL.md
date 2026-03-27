@@ -97,13 +97,13 @@ Excel → parseExcelToFlatData → ImportedFlatData[]
 | 스크립트 / npm | 설명 |
 |----------------|------|
 | `scripts/verify-location-fk-baseline.ts` | `GET /api/fmea/pipeline-verify` — 구조(0)→UUID(1)→fmeaId(2)→**FK(3)**→누락(4), `allGreen` 필수 |
-| `npm run verify:pipeline-baseline` | 기본 URL `http://127.0.0.1:3000`, `VERIFY_FMEA_ID` 기본 `pfm26-m066` |
+| `npm run verify:pipeline-baseline` | 기본 URL `http://127.0.0.1:3000`, `VERIFY_FMEA_ID` 기본 `pfm26-m002` |
 | `npm run verify:pipeline-baseline:strict` | `--baseline`: 골든 L2=21, FailureLink=111, FK 고아 0, `feId` NULL FL 0 |
 | `npm run test:import-slice` | Import 핵심 Vitest: `save-position-import-fk`·`position-format-routing` 가드, `save-from-import` 유도/409, `position-parser`, `atomic-to-flat-c1c4-fk`, `build-atomic-from-flat-fallback` (전체 `test:run` 대체 아님) |
 | `npm run audit:sidebar-routes` | `fmea-core-sidebar-menu.tsx` SSoT 경로 ↔ `src/app/**/page.tsx` 검증 — `docs/FMEA_RELEASE_FORGE_SIDEBAR_AUDIT_REPORT.md` |
 | `npm run release:audit` | `audit:sidebar-routes` + `tsc --noEmit` (출시 전 권장) |
 
-**전제:** 대상 `fmeaId`(기본 `pfm26-m066`)에 **이미 Import·Atomic 저장**이 되어 있어야 STEP0 구조가 통과한다. DB가 비어 있으면 `L2=0`·`allGreen=false`이며, **dev 서버만 기동한 상태로는 녹색이 되지 않는다.**
+**전제:** 대상 `fmeaId`(기본 `pfm26-m002`)에 **이미 Import·Atomic 저장**이 되어 있어야 STEP0 구조가 통과한다. DB가 비어 있으면 `L2=0`·`allGreen=false`이며, **dev 서버만 기동한 상태로는 녹색이 되지 않는다.**
 
 스냅샷·순서: `docs/LOCATION_FK_SNAPSHOT_AND_FREEZE.md` §3·§4 — STEP3 `verifyFk` JSDoc에 FailureLink·고아·미연결 판정 근거 정리
 
@@ -245,8 +245,8 @@ FC 링크:
   - `detection-opt-${uk}` ← `opt.detectionAction`
   - `prevention-opt-${uk}` ← `opt.recommendedAction`
   - 기타: `person-opt-`, `targetDate-opt-`, `completeDate-opt-`, `status-opt-`, `note-opt-`
-- **데이터 동기화**: 3개 프로젝트 스키마(m066/m069/m071) legacy riskData 즉시 갱신
-- **검증**: m066 프로젝트 스키마 `lesson-opt-*: 64, detection-opt-*: 104` 확인
+- **데이터 동기화**: 3개 프로젝트 스키마(m002/m069/m071) legacy riskData 즉시 갱신
+- **검증**: m002 프로젝트 스키마 `lesson-opt-*: 64, detection-opt-*: 104` 확인
 
 **예방 체크리스트**:
 - [ ] ATOMIC DIRECT 경로와 FALLBACK 경로의 riskData 처리가 일관적인지 확인

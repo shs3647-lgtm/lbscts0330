@@ -71,7 +71,7 @@ function findDuplicateIds(records: Array<{ id: string }>): string[] {
  *
  * @param prisma - Prisma client scoped to the project schema
  *                 (obtained via `getPrismaForSchema(schema)`)
- * @param fmeaId - The FMEA project identifier (e.g. "pfm26-m066")
+ * @param fmeaId - The FMEA project identifier (e.g. "pfm26-m002")
  * @returns An ExportValidationReport summarising all checks
  */
 export async function validateBeforeExport(

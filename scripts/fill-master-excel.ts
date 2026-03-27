@@ -14,7 +14,7 @@ import * as path from 'path';
 import ExcelJS from 'exceljs';
 import { normalizeScope, SCOPE_YP } from '@/lib/fmea/scope-constants';
 
-const GOLDEN_PATH = path.resolve(__dirname, '..', 'data/master-fmea/pfm26-m066-golden.json');
+const GOLDEN_PATH = path.resolve(__dirname, '..', 'data/master-fmea/pfm26-m002-golden.json');
 const ORIGINAL_PATH = path.resolve(__dirname, '..', 'data/master-fmea/master_import_12inch_AuBump.xlsx');
 const OUTPUT_PATH = path.resolve(__dirname, '..', 'data/master-fmea/master_import_12inch_AuBump_filled.xlsx');
 

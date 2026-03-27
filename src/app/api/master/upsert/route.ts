@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-const VALID_SOURCE = new Set(['m066', 'import', 'manual', 'worksheet', 'lld', 'industry']);
+const VALID_SOURCE = new Set(['m002', 'import', 'manual', 'worksheet', 'lld', 'industry']);
 
 function asStringArray(v: unknown): string[] {
   if (!Array.isArray(v)) return [];

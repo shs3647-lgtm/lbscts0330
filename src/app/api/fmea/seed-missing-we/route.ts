@@ -1,5 +1,5 @@
 /**
- * POST /api/fmea/seed-missing-we — m066 Cu Target + TiW Etchant 원본 데이터 추가
+ * POST /api/fmea/seed-missing-we — m002 Cu Target + TiW Etchant 원본 데이터 추가
  * 1회용 시딩 API. 누락된 2건의 WE에 L3Function + FC + FL + RA 추가.
  *
  * ⚠️ RULE 0.8.1: 반드시 getPrismaForSchema(프로젝트 스키마)를 사용.

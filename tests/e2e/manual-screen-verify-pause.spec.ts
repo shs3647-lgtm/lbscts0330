@@ -5,12 +5,12 @@
  *   npm run dev
  *   npx playwright test tests/e2e/manual-screen-verify-pause.spec.ts --headed --project=chromium
  *
- * 대상 FMEA (없으면 m066):
+ * 대상 FMEA (없으면 m002):
  *   set PLAYWRIGHT_FMEA_ID=pfm26-m100
  */
 import { test, expect } from '@playwright/test';
 
-const FMEA_ID = process.env.PLAYWRIGHT_FMEA_ID || 'pfm26-m066';
+const FMEA_ID = process.env.PLAYWRIGHT_FMEA_ID || 'pfm26-m002';
 const PAUSE_MS = 5000;
 
 async function pauseForUser(): Promise<void> {

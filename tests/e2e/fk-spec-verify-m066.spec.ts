@@ -1,6 +1,6 @@
 /**
- * @file fk-spec-verify-m066.spec.ts
- * FK 명세서 기준 m066 데이터 정합성 + 브라우저 렌더링 5회 반복 검증
+ * @file fk-spec-verify-m002.spec.ts
+ * FK 명세서 기준 m002 데이터 정합성 + 브라우저 렌더링 5회 반복 검증
  * 
  * 검증 범위:
  *   1. pipeline-verify API 5단계 allGreen
@@ -13,7 +13,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 async function dismissModal(page: import('@playwright/test').Page) {
   try {
@@ -52,7 +52,7 @@ interface PipelineResult {
   loopCount: number;
 }
 
-test.describe('FK 명세서 기준 m066 검증 (5회 반복)', () => {
+test.describe('FK 명세서 기준 m002 검증 (5회 반복)', () => {
   
   // 5회 반복 — 매회 API + 브라우저 검증
   for (let run = 1; run <= 5; run++) {
@@ -130,7 +130,7 @@ test.describe('FK 명세서 기준 m066 검증 (5회 반복)', () => {
       // 스크린샷 (1회차만)
       if (run === 1) {
         await page.screenshot({
-          path: `tests/e2e/screenshots/fk-spec-m066-run${run}.png`,
+          path: `tests/e2e/screenshots/fk-spec-m002-run${run}.png`,
           fullPage: false,
         });
       }

@@ -377,7 +377,7 @@ for (const row of l3Rows) {
     ▼
 [PATCH /api/fmea/atom-map]
     body: {
-      fmeaId: "pfm26-m066",
+      fmeaId: "pfm26-m002",
       atomicId: "L3-R2-C7",          ← 위치기반 UUID
       table: "FailureCause",
       field: "causeText",
@@ -1134,7 +1134,7 @@ function generateNewPositionUUID(
 ### 11.1 기존 데이터 변환
 
 ```
-현재 pfm26-m066 (결정론적 ID: PF-L2-001-...)
+현재 pfm26-m002 (결정론적 ID: PF-L2-001-...)
   → 위치기반 ID로 변환 (L1-R2-C4, L2-R2-C6, ...)
   → 마스터 JSON 재생성
   → 새 ID로 DB 재구축

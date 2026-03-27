@@ -1,7 +1,7 @@
 /**
  * /api/fmea/sample-lookup
  * 
- * m066(fmea_sample) DB에서 m4+WE 기반으로 실제 B2/B3/B4/B5/A6 데이터를 조회.
+ * m002(fmea_sample) DB에서 m4+WE 기반으로 실제 B2/B3/B4/B5/A6 데이터를 조회.
  * Import 시 엑셀에 WE만 있고 하위 데이터가 없을 때, 이 API로 실제 데이터를 가져와 꽂아넣기.
  * 
  * GET ?m4=MC&we=Sputter장비 → 정확 매칭
@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
-const SAMPLE_SCHEMA = 'pfmea_pfm26_m066';
+const SAMPLE_SCHEMA = 'pfmea_pfm26_m002';
 
 let pool: Pool | null = null;
 function getPool(): Pool {

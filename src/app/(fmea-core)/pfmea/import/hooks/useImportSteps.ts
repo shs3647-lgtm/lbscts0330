@@ -3,10 +3,6 @@
  * @description Import 3단계 확정 프로세스 React 훅
  * - SA(구조분석) → FC(고장사슬) → FA(통합분석) 순차 확정
  * - flatData/isSaved 변경 시 자동 리셋
- *
- * ★ 2026-03-25: 레거시 파서(buildWorksheetState) 제거
- *   - position-parser 경로로 전환 (save-position-import API)
- *   - buildWorksheetState 사용 금지
  * @created 2026-02-21
  */
 
@@ -15,7 +11,6 @@ import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import type { CrossTab } from '../utils/template-delete-logic';
-import type { BuildResult } from '../utils/saveWorksheetFromImport';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from './useTemplateGenerator';
 import { validateFADataConsistency } from '../utils/faValidation';
@@ -39,10 +34,16 @@ import {
   type ValidationContext,
   type ValidationResult,
 } from '../utils/importValidationFramework';
-import { quickWorksheetSave } from '../utils/quickWorksheetSave';
 import { supplementMissingItems } from '../utils/supplementMissingItems';
 // 규칙 등록 (import만으로 자동 등록)
 import '../utils/importValidationRules';
+
+type BuildResult = {
+  l2: unknown[];
+  l1: unknown;
+  success: boolean;
+  diagnostics: import('../utils/stepConfirmation').BuildDiagnostics;
+};
 
 // ─── 타입 ───
 
@@ -188,26 +189,10 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         console.warn(`[SA 확정] 검증 오류 ${validationReport.errorCount}건 발견 — 데이터 통과 (관대한 정책)`);
       }
 
-      // ★ 2026-03-25: 레거시 buildWorksheetState 삭제 — diagnostics stub 사용
-      // 실제 DB 저장은 FA 확정 시 saveWorksheetFromImport → save-position-import에서 수행
-      const countOf = (code: string) => enrichedFlatData.filter(d => d.itemCode === code).length;
-      const result: BuildResult = {
-        success: true,
-        state: null,
-        diagnostics: {
-          l2Count: new Set(enrichedFlatData.filter(d => d.itemCode === 'A1').map(d => d.processNo)).size,
-          l3Count: countOf('B1'),
-          l1TypeCount: countOf('C1'),
-          l2FuncCount: countOf('A3'),
-          l3FuncCount: countOf('B2'),
-          processCharCount: countOf('A4'),
-          productCharCount: countOf('B3'),
-          fmCount: countOf('A5'),
-          fcCount: countOf('B4'),
-          feCount: countOf('C4'),
-          warnings: [],
-        },
-      };
+      // buildWorksheetState는 동기 함수 (CODEFREEZE → dynamic import 불필요)
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { buildWorksheetState } = require('../utils/buildWorksheetState');
+      const result: BuildResult = buildWorksheetState(enrichedFlatData, { fmeaId, l1Name });
 
       // ★★★ 2026-03-02: IMPORT 계층 체인 검증 ★★★
       // 규칙: 상위 ≤ 하위 (하위가 크거나 같아야 정상)
@@ -532,119 +517,10 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         return;
       }
 
-      const { saveWorksheetFromImport } = await import('../utils/saveWorksheetFromImport');
-
-      // ★ externalChains = FC 시트에서 파싱한 실제 데이터 (fallback 아님)
-      let fcSheetChains = externalChains && externalChains.length > 0 ? externalChains : null;
-
-      // ★★★ 2026-02-06: state에 없으면 Master DB에서 한 번 더 시도 ★★★
-      if (!fcSheetChains && fmeaId) {
-        try {
-          const dbRes = await fetch(`/api/pfmea/master?fmeaId=${encodeURIComponent(fmeaId)}&includeItems=true`);
-          if (dbRes.ok) {
-            const dbJson = await dbRes.json();
-            const dbChains = dbJson?.dataset?.failureChains;
-            if (Array.isArray(dbChains) && dbChains.length > 0) {
-              fcSheetChains = dbChains as MasterFailureChain[];
-            }
-          }
-        } catch (e) {
-          console.error('[FA 확정] DB 조회 실패:', e);
-        }
-      }
-
-      const displayChains = failureChains.length > 0 ? failureChains : null;
-      const usedChains = fcSheetChains ?? displayChains ?? buildFailureChainsFromFlat(flatData, crossTab);
-
-      const chainSource = fcSheetChains
-        ? `FC시트(${fcSheetChains.length}건)`
-        : displayChains
-          ? `표시용체인(${displayChains.length}건, FC시트없음)`
-          : `flatData fallback(${usedChains.length}건)`;
-
-
-      // ★ 2026-02-24: FC 시트 없어도 fallback 데이터 있으면 바로 진행
-      // ★ 수동모드: 체인 없이도 진행 가능 (워크시트에서 수동 연결)
-      if (usedChains.length === 0 && !isManualMode) {
-        alert('FA 확정 불가: 고장사슬 데이터가 없습니다.');
-        setIsAnalysisImporting(false);
-        return;
-      }
-
-      const wsResult = await saveWorksheetFromImport({
-        fmeaId,
-        flatData,
-        l1Name,
-        failureChains: usedChains,
-      });
-
-      // ★ 2026-03-25: feedback 제거 (레거시 buildWorksheetState 전용이었음)
-      const mergedFlatData = flatData;
-
-      // ★ master DB에 failureChains + flatData(피드백 포함) 저장
-      if (fmeaId) {
-        try {
-          // 1) failureChains PATCH
-          if (usedChains.length > 0) {
-            const patchResp = await fetch(
-              '/api/pfmea/master?fmeaId=' + encodeURIComponent(fmeaId),
-              { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ failureChains: usedChains }) }
-            );
-          }
-          // 2) flatData(BD 기초정보) 저장 — 피드백 항목 포함하여 기초정보 일치성 유지
-          // ★★★ 2026-03-10: failureChains 포함 — PATCH와 POST 사이 timing 이슈로 chains 유실 방지 ★★★
-          if (mergedFlatData.length > 0) {
-            const { saveMasterDataset } = await import('../utils/master-api');
-            const saveRes = await saveMasterDataset({
-              fmeaId,
-              fmeaType: fmeaInfo?.fmeaType || 'P',
-              parentFmeaId: null,
-              replace: true,
-              flatData: mergedFlatData,
-              failureChains: usedChains.length > 0 ? usedChains : undefined,
-            });
-          }
-        } catch (masterErr) {
-          console.error('[FA 확정] Master DB 저장 실패:', masterErr);
-          alert('⚠️ Master DB 저장 실패: ' + (masterErr instanceof Error ? masterErr.message : String(masterErr)));
-        }
-      }
-
-      if (wsResult.success) {
-        const dd = wsResult.buildResult.diagnostics;
-
-        setIsAnalysisComplete(true);
-
-        setStepState(prev => ({
-          ...markFAConfirmed(prev),
-        }));
-
-        const missingParts: string[] = [];
-        if (dd.fmCount === 0) missingParts.push('고장형태(FM)');
-        if (dd.fcCount === 0) missingParts.push('고장원인(FC)');
-        if (dd.feCount === 0) missingParts.push('고장영향(FE)');
-
-        const missingWarning = missingParts.length > 0
-          ? `\n\n⚠️ 주의: ${missingParts.join(', ')} 데이터가 0건입니다!\n엑셀 A5/B4/C4 시트를 확인하고 다시 Import 하세요.`
-          : '';
-
-        const feedbackInfo = '';
-
-        alert(
-          `워크시트 생성 완료!\n\n` +
-          `공정(L2): ${dd.l2Count}개\n` +
-          `작업요소(L3): ${dd.l3Count}개\n` +
-          `L2기능: ${dd.l2FuncCount}개, L3기능: ${dd.l3FuncCount}개\n` +
-          `고장형태: ${dd.fmCount}개, 고장원인: ${dd.fcCount}개, 고장영향: ${dd.feCount}개` +
-          feedbackInfo +
-          missingWarning
-        );
-
-        // ★ 2026-03-10: FA 완료 후 자동 이동 제거 — "FMEA 작성 →" 버튼으로 수동 이동
-        // onWorksheetSaved?.();  // ← 삭제: FA 후 자동 이동하지 않음
-      } else {
-        alert('워크시트 생성 실패: ' + (wsResult.error || '알 수 없는 오류'));
-      }
+      // position-based import: handleFileSelect에서 이미 DB 저장 완료
+      setIsAnalysisComplete(true);
+      setStepState(prev => ({ ...markFAConfirmed(prev) }));
+      alert('✅ FA 확정 완료 — 위치기반 Import에서 이미 DB에 저장되었습니다.');
     } catch (err) {
       console.error('[FA 확정] 오류:', err);
       alert('워크시트 생성 중 오류: ' + (err instanceof Error ? err.message : String(err)));
@@ -710,36 +586,14 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
 
     setIsAnalysisImporting(true);
     try {
-      const result = await quickWorksheetSave({
-        fmeaId,
-        flatData,
-        l1Name,
-        failureChains,
-        externalChains,
-        crossTab,
-        fmeaInfo,
-      });
-
-      if (result.success) {
-        setIsAnalysisComplete(true);
-        // SA+FC+FA 모두 확정 상태로 전환
-        setStepState(prev => ({
-          ...markFAConfirmed(prev),
-          saConfirmed: true,
-          fcConfirmed: true,
-        }));
-
-        const dd = result.diagnostics;
-        if (dd) {
-          console.info(
-            `[quickCreate] 워크시트 생성 완료: L2=${dd.l2Count}, L3=${dd.l3Count}, FM=${dd.fmCount}, FC=${dd.fcCount}, FE=${dd.feCount}`,
-          );
-        }
-
-        onWorksheetSaved?.();
-      } else {
-        alert(result.error || '워크시트 생성 실패');
-      }
+      // position-based import: handleFileSelect에서 이미 DB 저장 완료
+      setIsAnalysisComplete(true);
+      setStepState(prev => ({
+        ...markFAConfirmed(prev),
+        saConfirmed: true,
+        fcConfirmed: true,
+      }));
+      onWorksheetSaved?.();
     } catch (err) {
       console.error('[quickCreate] 오류:', err);
       alert('워크시트 생성 중 오류: ' + (err instanceof Error ? err.message : String(err)));

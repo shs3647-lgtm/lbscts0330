@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 
 test('Import 페이지 간소화 UI 검증', async ({ page }) => {
-  await page.goto('http://localhost:3000/pfmea/import/legacy?id=pfm26-m066', { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto('http://localhost:3000/pfmea/import/legacy?id=pfm26-m002', { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
 
   await page.screenshot({ path: 'tests/e2e/screenshots/verify-import-simplified.png', fullPage: false });
@@ -38,7 +38,7 @@ test('Import 페이지 간소화 UI 검증', async ({ page }) => {
 });
 
 test('워크시트 Verify STEP 0 상세패널 검증', async ({ page }) => {
-  await page.goto('http://localhost:3000/pfmea/worksheet?id=pfm26-m066', { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto('http://localhost:3000/pfmea/worksheet?id=pfm26-m002', { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
 
   // Verify 버튼 클릭

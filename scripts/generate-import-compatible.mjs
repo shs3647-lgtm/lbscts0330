@@ -19,7 +19,7 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
 
-const FMEA_ID = process.argv[2] || 'pfm26-m066';
+const FMEA_ID = process.argv[2] || 'pfm26-m002';
 const MASTER_JSON = path.join(process.cwd(), 'data', 'master-fmea', `${FMEA_ID}.json`);
 const OUTPUT_DIR = 'C:/Users/Administrator/Documents/fc';
 const OUTPUT_PATH = `${OUTPUT_DIR}/PFMEA_Master_Import_${FMEA_ID}_${new Date().toISOString().slice(0, 10)}.xlsx`;

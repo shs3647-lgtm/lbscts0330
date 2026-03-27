@@ -4,8 +4,8 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:1234@localhost:
 const q = async (sql, p = []) => (await pool.query(sql, p)).rows;
 
 async function main() {
-  const fmeaId = 'pfm26-m066';
-  await q(`SET search_path TO pfmea_pfm26_m066, public`);
+  const fmeaId = 'pfm26-m002';
+  await q(`SET search_path TO pfmea_pfm26_m002, public`);
 
   // FC PF-L3-040-IM-002-G-FC의 l3StructId를 IM-002로 바로잡고, l3FuncId도 연결
   const fcId = 'PF-L3-040-IM-002-G-FC';

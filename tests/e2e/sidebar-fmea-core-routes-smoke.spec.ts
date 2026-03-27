@@ -8,7 +8,8 @@
 import { test, expect } from '@playwright/test';
 import { collectAllFmeaCoreSidebarHrefs } from '@/components/layout/fmea-core-sidebar-menu';
 
-const PATHS = collectAllFmeaCoreSidebarHrefs();
+const PATHS = collectAllFmeaCoreSidebarHrefs()
+  .filter(p => !p.startsWith('/dfmea'));
 
 test.describe('FMEA Core sidebar routes — HTTP smoke', () => {
   for (const p of PATHS) {

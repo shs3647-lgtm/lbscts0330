@@ -4,7 +4,7 @@
  */
 import ExcelJS from 'exceljs';
 
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 async function main() {
   // 1. Master API fetch (downloadSampleTemplate과 동일)

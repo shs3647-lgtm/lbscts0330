@@ -1,12 +1,12 @@
 /**
- * fmea_sample DB 생성 — m066의 완전한 골든 레퍼런스 복제
+ * fmea_sample DB 생성 — m002의 완전한 골든 레퍼런스 복제
  * 
  * 복제 대상: L1/L2/L3 구조+기능, FM/FE/FC, FailureLink, RiskAnalysis, Optimization
  * 용도: Import 시 누락 데이터 비교/보충용 마스터 레퍼런스
  */
 import pg from 'pg';
 
-const SRC = 'pfmea_pfm26_m066';
+const SRC = 'pfmea_pfm26_m002';
 const DST = 'pfmea_fmea_sample';
 
 const c = new pg.Client('postgresql://postgres:1234@localhost:5432/fmea_db');
@@ -56,7 +56,7 @@ for (const tbl of tables) {
 console.log(`  복제 완료: ${copied}개 테이블 (스킵: ${skipped})`);
 
 // 3. fmeaId를 'fmea-sample'로 변경
-console.log('\n[3/4] fmeaId 변환 (pfm26-m066 → fmea-sample)...');
+console.log('\n[3/4] fmeaId 변환 (pfm26-m002 → fmea-sample)...');
 const fmeaIdTables = [
   'l1_structures', 'l1_functions', 'l2_structures', 'l2_functions',
   'l3_structures', 'l3_functions', 'failure_modes', 'failure_effects',
@@ -91,7 +91,7 @@ const verify = [
   ['process_product_chars', 'ProductChar'],
 ];
 
-console.log(`  ${'테이블'.padEnd(28)} ${'원본(m066)'.padStart(10)} ${'복제(sample)'.padStart(12)} 일치`);
+console.log(`  ${'테이블'.padEnd(28)} ${'원본(m002)'.padStart(10)} ${'복제(sample)'.padStart(12)} 일치`);
 console.log('  ' + '-'.repeat(65));
 let allMatch = true;
 for (const [tbl, label] of verify) {

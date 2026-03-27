@@ -1,5 +1,5 @@
 /**
- * m066 Import → DB 꽂아넣기 GAP 분석
+ * m002 Import → DB 꽂아넣기 GAP 분석
  * 
  * Excel Import로 들어온 데이터 vs DB에 저장된 데이터 비교
  * 어디서 정보가 빠졌는지, 어디가 부족한지 전수 분석
@@ -8,11 +8,11 @@ import pg from 'pg';
 const c = new pg.Client('postgresql://postgres:1234@localhost:5432/fmea_db');
 await c.connect();
 
-const S = 'pfmea_pfm26_m066';
+const S = 'pfmea_pfm26_m002';
 
 console.log('');
 console.log('='.repeat(80));
-console.log('  m066 Import→DB GAP 분석 — 부족한 정보 전수 조사');
+console.log('  m002 Import→DB GAP 분석 — 부족한 정보 전수 조사');
 console.log('='.repeat(80));
 
 // ═══ 1. L1 (완제품) 분석 ═══

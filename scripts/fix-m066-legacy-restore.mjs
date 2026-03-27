@@ -4,10 +4,10 @@ import fs from 'fs';
 const client = new pg.Client({ connectionString: 'postgresql://postgres:1234@localhost:5432/fmea_db' });
 await client.connect();
 
-const schema = 'pfmea_pfm26_m066';
+const schema = 'pfmea_pfm26_m002';
 
 // Read master JSON (has original 105 chains)
-const master = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m066.json', 'utf8'));
+const master = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m002.json', 'utf8'));
 const chains = master.chains || [];
 console.log('Master chains:', chains.length);
 

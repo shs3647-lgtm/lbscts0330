@@ -137,7 +137,9 @@ export default function FailureLinkTables({
     <div className="bg-white flex flex-col min-w-0" style={{ ...flexContainerStyle('1 1 60%', `2px solid #ccc`), minWidth: 0, overflow: 'hidden' }}>
       <div className="flex items-center justify-between py-0.5 px-2" style={headerStyle('#fff3e0', `1px solid #ccc`, 'clamp(10px, 1vw, 12px)')}>
         <span className="font-semibold whitespace-nowrap">고장연결(Failure Link)</span>
-        <div className="flex items-center gap-2 ml-auto">
+        <span className="text-[8px] text-gray-500 whitespace-nowrap ml-1">FE=고장영향 FM=고장형태 FC=고장원인 S=심각도 Cat=구분 WE=작업요소 FA=고장분석</span>
+
+        <div className="flex items-center gap-2">
         {/* 1st: FM 공정 이동 */}
         <div className="flex items-center gap-0.5">
           <span className="text-[9px] font-bold text-orange-700 whitespace-nowrap">FM:</span>

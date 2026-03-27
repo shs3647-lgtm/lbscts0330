@@ -292,7 +292,7 @@ function rowToEntry(row: Record<string, unknown>): ChangeEntry {
  * Create an UndoRedoService backed by a PostgreSQL schema.
  *
  * @param connectionString - PostgreSQL connection string
- * @param schema - Project schema name (e.g., 'pfmea_pfm26_m066')
+ * @param schema - Project schema name (e.g., 'pfmea_pfm26_m002')
  * @param maxHistory - Maximum entries per project (default 200)
  */
 export function createUndoRedoService(

@@ -1,5 +1,5 @@
 import fs from 'fs';
-const d = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m066.json','utf8'));
+const d = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m002.json','utf8'));
 const ch = d.chains;
 console.log('총 chains:', ch.length);
 

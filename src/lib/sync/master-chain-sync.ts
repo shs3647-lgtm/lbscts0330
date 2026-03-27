@@ -333,7 +333,7 @@ async function syncMasterReferenceFromChains(
     }
 
     // ★ sourceType 결정: 최초 import vs 워크시트 수정
-    const sourceType = fmeaId === 'pfm26-m066' ? 'import' : 'worksheet';
+    const sourceType = fmeaId === 'pfm26-m002' ? 'import' : 'worksheet';
 
     try {
       await tx.masterFmeaReference.upsert({
@@ -384,7 +384,7 @@ async function syncMasterReferenceFromChains(
           optNewSeverity: latestOptNewS,
           optNewOccurrence: latestOptNewO,
           optNewDetection: latestOptNewD,
-          // ★ sourceProject: 마지막 수정 프로젝트 기록 (m066 → m090 → mXXX)
+          // ★ sourceProject: 마지막 수정 프로젝트 기록 (m002 → m090 → mXXX)
           sourceProject: fmeaId,
           sourceType,
           lastUsedAt: new Date(),

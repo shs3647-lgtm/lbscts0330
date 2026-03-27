@@ -263,6 +263,7 @@ export async function saveAtomicFromPosition(
             id: pc.id,
             fmeaId: normalizedId,
             l2StructId: pc.l2StructId,
+            parentId: pc.parentId || null,
             name: pc.name,
             specialChar: pc.specialChar ?? null,
             orderIndex: pc.orderIndex,
@@ -526,7 +527,7 @@ export async function saveAtomicFromPosition(
         failureLinks: flc,
         riskAnalyses: rac,
       };
-    }, { timeout: 60_000, maxWait: 10_000 });
+    });
 
     const validFLs = data.failureLinks.filter((fl) => fl.fmId && fl.feId && fl.fcId);
     const skippedFL = data.failureLinks.length - validFLs.length;

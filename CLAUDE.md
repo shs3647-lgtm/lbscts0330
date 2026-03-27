@@ -176,7 +176,7 @@ npx tsc --noEmit
 
 | 앱 | ID 패턴 | 스키마 이름 | 예시 |
 |----|---------|------------|------|
-| **PFMEA** | `pfm26-m066` | `pfmea_pfm26_m066` | `pfmea_pfm26_m066.l2_structures` |
+| **PFMEA** | `pfm26-m002` | `pfmea_pfm26_m002` | `pfmea_pfm26_m002.l2_structures` |
 | **Control Plan** | `cp26-c001` | `pfmea_cp26_c001` | `pfmea_cp26_c001.control_plan_items` |
 | **PFD** | `pfd26-p001` | `pfmea_pfd26_p001` | `pfmea_pfd26_p001.pfd_items` |
 
@@ -193,7 +193,7 @@ npx tsc --noEmit
 ```typescript
 // ❌ 금지: public에 프로젝트 데이터 저장
 const prisma = getPrisma();
-await prisma.failureCause.create({ data: { fmeaId: 'pfm26-m066', ... } });
+await prisma.failureCause.create({ data: { fmeaId: 'pfm26-m002', ... } });
 
 // ✅ 필수: 프로젝트 스키마 클라이언트 사용
 const schema = getProjectSchemaName(fmeaId);
@@ -238,7 +238,7 @@ const prisma = getPrismaForSchema(schema);
 | 우선순위 | 소스 | 테이블 | 예시 |
 |---------|------|--------|------|
 | 1순위 | **프로젝트 Atomic DB** | L1/L2/L3, FM/FE/FC, FailureLink | 현재 프로젝트 확정 데이터 |
-| 2순위 | **Master FMEA DB** | `MasterFmeaReference` | m066 기반 B2/B3/B4/B5 실제 데이터 |
+| 2순위 | **Master FMEA DB** | `MasterFmeaReference` | m002 기반 B2/B3/B4/B5 실제 데이터 |
 | 3순위 | **산업 DB** | `KrIndustryDetection`, `KrIndustryPrevention` | B6(DC)/B5(PC) 추천 |
 | 4순위 | **LLD DB** | `LLDFilterCode`, `LessonsLearned` | 과거 이력 기반 추천 |
 | ❌ 금지 | **코드 내 자동생성** | 없음 | `"관리 부적합"`, `"설비가..."`, `inferChar()` |
@@ -250,7 +250,7 @@ const prisma = getPrismaForSchema(schema);
     ↓
   ┌─ 데이터 있음 → 새 UUID 생성 + FK 연결 → 꽂아넣기
   │
-  └─ 데이터 없음 → warn.error('M066_MISSING') 누락경고 발송
+  └─ 데이터 없음 → warn.error('MASTER_MISSING') 누락경고 발송
                      ↓
                Import 미리보기 UI에 경고 표시
                      ↓
@@ -282,7 +282,7 @@ const prisma = getPrismaForSchema(schema);
 
 | 소스 | 내용 | 업데이트 시점 |
 |------|------|-------------|
-| **m066 골든 레퍼런스** | 91 WE, 104 FC, 26 FM 등 완전한 데이터 | 초기 시딩 |
+| **m002 골든 레퍼런스** | 91 WE, 104 FC, 26 FM 등 완전한 데이터 | 초기 시딩 |
 | **산업 DB** | DC/PC 산업 공통 관리방법 | 주기적 업데이트 |
 | **SOD 등급** | 사용자가 재평가한 심각도/발생도/검출도 | 워크시트 저장 시 |
 | **LLD Import** | 새로 생성된 과거 이력 데이터 | Import 완료 시 |
@@ -379,8 +379,8 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 
 > **목적**: 코드 수정 전후에 5단계 파이프라인 검증을 실행하여 데이터 정합성을 확인한다.
 > **원본 엑셀**: `data/master-fmea/master_import_12inch_AuBump.xlsx` (통합 PFMEA, 35KB)
-> **대상 fmeaId**: `pfm26-m066` (12inch Au Bump)
-> **마스터 JSON**: `data/master-fmea/pfm26-m066.json`
+> **대상 fmeaId**: `pfm26-m002` (12inch Au Bump)
+> **마스터 JSON**: `data/master-fmea/pfm26-m002.json`
 
 ##### 골든 베이스라인 (2026-03-17 확정)
 
@@ -474,7 +474,7 @@ npx tsc --noEmit
 
 # 0b. 파이프라인 검증 스크립트 (GET 읽기전용, dev 서버 필수)
 # npm run verify:pipeline-baseline
-# npm run verify:pipeline-baseline:strict   # pfm26-m066 골든 (L2=21, FL=111, …)
+# npm run verify:pipeline-baseline:strict   # pfm26-m002 골든 (L2=21, FL=111, …)
 #     전제: 해당 fmeaId에 Import·Atomic 저장 완료(L2>0). 미Import DB면 allGreen=false.
 
 # 0c. Import 저장 API: POST /api/fmea/save-from-import — 프로젝트 스키마 단일 $transaction(maxWait 20s, timeout 120s), 커밋 전 FL/RA 0건 불변 검증. 위치 Import: POST /api/fmea/save-position-import — RA는 linkId + fmId/fcId/feId. 위치 파서 상세 로그: POSITION_PARSER_VERBOSE=1
@@ -483,25 +483,25 @@ npx tsc --noEmit
 # 0e. 출시 전 사이드바·타입: npm run release:audit — audit:sidebar-routes(SSoT) + tsc. E2E: playwright tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts
 
 # 1. 파이프라인 검증 (GET = 읽기전용, POST = 자동수정 포함)
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m002" -Method GET | ConvertTo-Json -Depth 5
 
 # 2. 파이프라인 자동수정 + ImportValidation 저장
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m002"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
 
 # 2b. FK 수선 (rebuild-atomic 없음) — 먼저 dryRun 권장
-# Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/repair-fk" -Method POST -Body '{"fmeaId":"pfm26-m066","dryRun":true}' -ContentType "application/json" | ConvertTo-Json -Depth 5
+# Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/repair-fk" -Method POST -Body '{"fmeaId":"pfm26-m002","dryRun":true}' -ContentType "application/json" | ConvertTo-Json -Depth 5
 
 # 3. rebuild-atomic (RiskAnalysis DC/PC 최신화)
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m066" -Method POST | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m002" -Method POST | ConvertTo-Json -Depth 3
 
 # 4. 마스터 FMEA 재생성 + DB 동기화
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m002"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
 
 # 5. 마스터 DC/PC 검증 (node)
-node -e "const d=JSON.parse(require('fs').readFileSync('data/master-fmea/pfm26-m066.json','utf8')); const r=d.atomicDB.riskAnalyses; const ch=d.chains; console.log('risks:',r.length,'DC:',r.filter(x=>x.detectionControl?.trim()).length,'PC:',r.filter(x=>x.preventionControl?.trim()).length); console.log('chains:',ch.length,'dcChain:',ch.filter(x=>x.dcValue?.trim()).length,'pcChain:',ch.filter(x=>x.pcValue?.trim()).length); console.log('flat:',JSON.stringify(d.stats.flatBreakdown));"
+node -e "const d=JSON.parse(require('fs').readFileSync('data/master-fmea/pfm26-m002.json','utf8')); const r=d.atomicDB.riskAnalyses; const ch=d.chains; console.log('risks:',r.length,'DC:',r.filter(x=>x.detectionControl?.trim()).length,'PC:',r.filter(x=>x.preventionControl?.trim()).length); console.log('chains:',ch.length,'dcChain:',ch.filter(x=>x.dcValue?.trim()).length,'pcChain:',ch.filter(x=>x.pcValue?.trim()).length); console.log('flat:',JSON.stringify(d.stats.flatBreakdown));"
 
 # 6. import-validation 실행 (16개 규칙 검증)
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ForEach-Object { Write-Host "Total=$($_.summary.total) Errors=$($_.summary.errors) Warns=$($_.summary.warns)" }
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Method POST -Body '{"fmeaId":"pfm26-m002"}' -ContentType "application/json" | ForEach-Object { Write-Host "Total=$($_.summary.total) Errors=$($_.summary.errors) Warns=$($_.summary.warns)" }
 ```
 
 > **STEP0 / rebuild-atomic**: `DISABLE_REBUILD_ATOMIC=1` 또는 `FMEA_REPAIR_NO_REBUILD=1` 이면 파이프라인 자동수정(`fixStructure`)이 L2=0일 때도 `rebuild-atomic`을 호출하지 않음 — Import 또는 `repair-fk` 우선.
@@ -558,7 +558,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 | 2026-03-19 | rowSpan NULL 2765건 (전체 FlatItem) | PfmeaMasterFlatItem 생성 시 rowSpan 미설정 | DB UPDATE rowSpan=1 WHERE NULL | ✅ bad rowSpan=0 |
 | 2026-03-19 | m069 Public↔Project riskData 불일치 | Public fmea_legacy_data.riskData 키 12개만 (Project 1638개) | sync-public-legacy 스크립트 실행 | ✅ Public keys=1650 |
 | 2026-03-19 | 자동수정(fixStep3/4/5)이 orphanPC 악화 | placeholder FC/FL/RA 생성 → Atomic↔Legacy 불일치 확대 (FL 126 vs 118) | `pipeline-verify/route.ts` 자동생성 비활성화 → 경고만 표시 | ✅ 데이터 손상 차단 |
-| 2026-03-19 | orphanPC 근본원인: B4.parentItemId=B1 | import-builder에서 B4→B1 연결 → buildWorksheetState에서 B4→B3 매칭 실패 → 순차폴백 → orphanPC | `import-builder.ts` B4.parentItemId → B3 ID로 변경 | ✅ m066 orphanPC=0, m069 orphanPC=0 |
+| 2026-03-19 | orphanPC 근본원인: B4.parentItemId=B1 | import-builder에서 B4→B1 연결 → buildWorksheetState에서 B4→B3 매칭 실패 → 순차폴백 → orphanPC | `import-builder.ts` B4.parentItemId → B3 ID로 변경 | ✅ m002 orphanPC=0, m069 orphanPC=0 |
 | 2026-03-20 | emptyPC=1 재발 (Cu Target L3Function) | B4 dedup key={pno\|m4\|fc}에 WE 미포함 → Cu Target+Ti Target 동일 FC명 공유 → 1건 합침 → FC 미연결 → orphan L3F 삭제 | `import-builder.ts` B4 key에 WE 추가, `types.ts` StepBB4Item.we 필드 추가 | ✅ allGreen, emptyPC=0, 베이스라인 FC=103 갱신 |
 | 2026-03-21 | FL dedup key에 feId 누락 → 유효 체인 8건 삭제 | FL key=`fmId\|fcId`로 동일 FM+FC의 다른 FE 연결 체인 삭제 → FL 103건 (실제 111건) | `rebuild-atomic/route.ts` FL key에 feId 추가 (`fmId\|fcId\|feId`) | ✅ FL=111, RA=111, DC/PC=111 |
 | 2026-03-21 | UUID/FK 설계 원칙 부재 → 반복적 누락 | 모든 dedup key에 공정번호/구분 미포함 → 동일 텍스트 다른 엔티티 삭제 | Rule 1.6(근본원인분석) + Rule 1.7(UUID/FK설계) 추가, 전체 CODEFREEZE | ✅ 영구 CODEFREEZE 적용 |
@@ -1052,9 +1052,9 @@ Select-String -Path "src/lib/fmea/position-parser.ts" -Pattern "hasUnified"
 
 | 프로젝트 유형 | 스키마 패턴 | 예시 |
 |-------------|-----------|------|
-| **PFMEA** | `pfmea_{fmeaId}` (하이픈→언더스코어) | `pfmea_pfm26_m066` |
-| **CP** | `cp_{cpNo}` | `cp_cp26_m066` |
-| **PFD** | `pfd_{pfdNo}` | `pfd_pfd26_m066` |
+| **PFMEA** | `pfmea_{fmeaId}` (하이픈→언더스코어) | `pfmea_pfm26_m002` |
+| **CP** | `cp_{cpNo}` | `cp_cp26_m002` |
+| **PFD** | `pfd_{pfdNo}` | `pfd_pfd26_m002` |
 
 #### 19.2 public vs 프로젝트 스키마 구분
 
@@ -1283,7 +1283,7 @@ Protected paths are enforced via git hooks:
 ### 자동수정 루프 흐름
 
 ```
-POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m066" }
+POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m002" }
 │
 ├── Loop 1: 5단계 검증 실행
 │   ├── 모든 단계 ok → allGreen=true → 종료
@@ -1312,19 +1312,19 @@ POST /api/fmea/pipeline-verify { fmeaId: "pfm26-m066" }
 
 ```bash
 # 현재 상태 조회 (읽기 전용)
-curl "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066"
+curl "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m002"
 
 # 자동수정 루프 실행
 curl -X POST http://localhost:3000/api/fmea/pipeline-verify \
   -H "Content-Type: application/json" \
-  -d '{"fmeaId":"pfm26-m066"}'
+  -d '{"fmeaId":"pfm26-m002"}'
 
 # PowerShell
-$body = @{fmeaId="pfm26-m066"} | ConvertTo-Json
+$body = @{fmeaId="pfm26-m002"} | ConvertTo-Json
 Invoke-WebRequest -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body $body -ContentType "application/json"
 ```
 
-### 기대 결과 (pfm26-m066 Au Bump 기준)
+### 기대 결과 (pfm26-m002 Au Bump 기준)
 
 | 항목 | 기대값 |
 |------|--------|

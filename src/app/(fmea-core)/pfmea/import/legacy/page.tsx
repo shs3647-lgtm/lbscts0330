@@ -10,7 +10,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { ImportedFlatData, FailureChain } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
-import { parseMultiSheetExcel, ParseResult } from '../excel-parser';
+import type { ParseResult } from '../excel-parser';
 import { downloadEmptyTemplate, downloadSampleTemplate, downloadDataTemplate } from '../excel-template';
 import {
   useImportFileHandlers,
@@ -36,7 +36,7 @@ import { BdStatusTable } from '../components/BdStatusTable';
 import { useTemplateGenerator } from '../hooks/useTemplateGenerator';
 import FailureChainPopup from '../FailureChainPopup';
 import ImportStepBar from '../components/ImportStepBar';
-import { quickWorksheetSave } from '../utils/quickWorksheetSave';
+// quickWorksheetSave 제거됨 — position-based import에서 직접 DB 저장
 import { buildCrossTab } from '../utils/template-delete-logic';
 
 export default function LegacyImportPage() {
@@ -196,10 +196,12 @@ export default function LegacyImportPage() {
 
   // ── 파일 핸들러 ──
   const { handleFileSelect, handleImport: _handleImportRaw } = useImportFileHandlers({
-    setFileName, setIsParsing, setImportSuccess, setParseResult, setPendingData,
+    setFileName, setIsParsing, setImportSuccess,
+    setParseResult: (r: unknown) => setParseResult(r as ParseResult | null),
+    setPendingData,
     setFlatData, setIsImporting, setMasterDatasetId, setMasterChains, setIsSaved, setDirty,
     setValidationMessage,
-    flatData, pendingData, masterChains, parseMultiSheetExcel,
+    flatData, pendingData, masterChains,
     masterDatasetId,
     fmeaId: selectedFmeaId || undefined,
     fmeaType: selectedFmea?.fmeaType || 'P',

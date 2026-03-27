@@ -8,7 +8,7 @@
 import ExcelJS from 'exceljs';
 
 const INPUT = 'C:/Users/Administrator/Downloads/PFMEA_Master_au_bump_generated.xlsx';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const L1_NAME = 'au bump';
 
 async function main() {

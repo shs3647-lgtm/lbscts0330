@@ -4,7 +4,6 @@
  */
 
 export { useImportState, type UseImportStateReturn, type FMEAProject } from './useImportState';
-export { useImportHandlers } from './useImportHandlers';
 export { useImportUtils } from './useImportUtils';
 export { useExcelHandlers } from './useExcelHandlers';
 export { useDataHandlers } from './useDataHandlers';

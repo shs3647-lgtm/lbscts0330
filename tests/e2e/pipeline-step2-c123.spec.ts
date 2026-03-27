@@ -5,7 +5,7 @@
  * 근본 원인: verifyParsing이 l1.functions[] (플랫)만 읽고
  *            l1.types[].functions[].requirements[] (계층)은 무시 → 워크시트 저장 후 C1/C2/C3=0
  *
- * 기대값 (pfm26-m066 Au Bump):
+ * 기대값 (pfm26-m002 Au Bump):
  *   C1(구분) = 3 (YP/SP/USER)
  *   C2(완제품기능) = 7
  *   C3(요구사항) = 17
@@ -14,7 +14,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 test.describe('Step 2 C1/C2/C3 Legacy 카운트 검증', () => {
 

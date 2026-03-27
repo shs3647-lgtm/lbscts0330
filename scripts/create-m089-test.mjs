@@ -17,7 +17,7 @@ async function main() {
   const c = new Client('postgresql://postgres:1234@localhost:5432/fmea_db');
   await c.connect();
 
-  // 1. 스키마 생성 (m066 복제)
+  // 1. 스키마 생성 (m002 복제)
   console.log('=== 1. 스키마 생성 ===');
   try {
     await c.query(`CREATE SCHEMA IF NOT EXISTS "${SCHEMA}"`);

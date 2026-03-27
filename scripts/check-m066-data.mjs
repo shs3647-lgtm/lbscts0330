@@ -38,15 +38,15 @@ async function check() {
       console.log(`  ${t.table_name}: ${await safeCount(client, `SELECT count(*)::int as cnt FROM "${t.table_name}"`)}`);
     }
 
-    // 3. m066 관련 public 테이블 데이터
-    console.log('\n=== DELETE: m066 related public data ===');
+    // 3. m002 관련 public 테이블 데이터
+    console.log('\n=== DELETE: m002 related public data ===');
     const publicTables = [
       'fmea_legacy_data', 'pfmea_master_datasets', 'fmea_confirmed_states',
       'master_fmea_reference', 'fmea_registrations', 'fmea_worksheet_data',
       'fmea_cft_members', 'import_validations'
     ];
     for (const t of publicTables) {
-      const cnt = await safeCount(client, `SELECT count(*)::int as cnt FROM "${t}" WHERE "fmeaId" = $1`, ['pfm26-m066']);
+      const cnt = await safeCount(client, `SELECT count(*)::int as cnt FROM "${t}" WHERE "fmeaId" = $1`, ['pfm26-m002']);
       console.log(`  ${t}: ${cnt}`);
     }
 
@@ -58,24 +58,24 @@ async function check() {
     schemas.rows.forEach(s => console.log(`  ${s.schema_name}`));
     if (schemas.rows.length === 0) console.log('  (none)');
 
-    // 5. m066 스키마 테이블
-    const m066s = schemas.rows.find(s => s.schema_name.includes('m066'));
-    if (m066s) {
+    // 5. m002 스키마 테이블
+    const m002s = schemas.rows.find(s => s.schema_name.includes('m002'));
+    if (m002s) {
       const tables = await client.query(
         `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name`,
-        [m066s.schema_name]
+        [m002s.schema_name]
       );
-      console.log(`\n=== DELETE: ${m066s.schema_name} (${tables.rows.length} tables) ===`);
+      console.log(`\n=== DELETE: ${m002s.schema_name} (${tables.rows.length} tables) ===`);
       for (const t of tables.rows) {
-        const cnt = await safeCount(client, `SELECT count(*)::int as cnt FROM "${m066s.schema_name}"."${t.table_name}"`);
+        const cnt = await safeCount(client, `SELECT count(*)::int as cnt FROM "${m002s.schema_name}"."${t.table_name}"`);
         console.log(`  ${t.table_name}: ${cnt}`);
       }
     } else {
-      console.log('\n=== No m066 schema found ===');
+      console.log('\n=== No m002 schema found ===');
     }
 
     // 6. 다른 프로젝트 스키마
-    const otherSchemas = schemas.rows.filter(s => !s.schema_name.includes('m066'));
+    const otherSchemas = schemas.rows.filter(s => !s.schema_name.includes('m002'));
     if (otherSchemas.length > 0) {
       console.log('\n=== Other project schemas ===');
       otherSchemas.forEach(s => console.log(`  ${s.schema_name}`));

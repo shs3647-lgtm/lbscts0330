@@ -1,9 +1,9 @@
 /**
- * Golden Baseline Verification for m066 Au Bump FMEA
+ * Golden Baseline Verification for m002 Au Bump FMEA
  *
  * Loads the master JSON and validates EVERY aspect of data completeness
  * across 10 rounds of assertions. Think of this as a "health checkup"
- * for the m066 dataset — each round examines a different organ system.
+ * for the m002 dataset — each round examines a different organ system.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
@@ -50,7 +50,7 @@ const GOLDEN = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Load m066 master JSON
+// Load m002 master JSON
 // ---------------------------------------------------------------------------
 interface MasterJSON {
   atomicDB: {
@@ -78,7 +78,7 @@ interface MasterJSON {
 let data: MasterJSON;
 
 beforeAll(() => {
-  const filePath = path.resolve('data/master-fmea/pfm26-m066.json');
+  const filePath = path.resolve('data/master-fmea/pfm26-m002.json');
   data = JSON.parse(fs.readFileSync(filePath, 'utf8')) as MasterJSON;
 });
 

@@ -1,13 +1,13 @@
 /**
  * @file sample-data-server.ts
- * @description 서버사이드 전용 — m066 DB에서 직접 WE별 데이터 조회
+ * @description 서버사이드 전용 — m002 DB에서 직접 WE별 데이터 조회
  * 
  * migration.ts / rebuild-atomic에서 사용 (API 호출 대신 직접 DB 쿼리)
  */
 
 import { Pool } from 'pg';
 
-const SAMPLE_SCHEMA = 'pfmea_pfm26_m066';
+const SAMPLE_SCHEMA = 'pfmea_pfm26_m002';
 
 export interface SampleFCData {
   weName: string;
@@ -32,7 +32,7 @@ function getPool(): Pool {
 let cachedData: Map<string, SampleFCData> | null = null;
 
 /**
- * m066 DB에서 m4+WE별 FC 데이터 일괄 로드 (서버사이드 캐시)
+ * m002 DB에서 m4+WE별 FC 데이터 일괄 로드 (서버사이드 캐시)
  */
 export async function loadSampleFCData(): Promise<Map<string, SampleFCData>> {
   if (cachedData) return cachedData;
@@ -70,16 +70,16 @@ export async function loadSampleFCData(): Promise<Map<string, SampleFCData>> {
     }
 
     cachedData = map;
-    console.info(`[sample-data-server] m066 데이터 로드: ${map.size}건 WE`);
+    console.info(`[sample-data-server] m002 데이터 로드: ${map.size}건 WE`);
     return map;
   } catch (e) {
-    console.warn('[sample-data-server] m066 DB 조회 실패:', e);
+    console.warn('[sample-data-server] m002 DB 조회 실패:', e);
     return new Map();
   }
 }
 
 /**
- * m4+WE명으로 m066 FC 데이터 조회
+ * m4+WE명으로 m002 FC 데이터 조회
  * 매칭 우선순위: 1) 정확매칭 2) 부분매칭 3) m4 카테고리 대표
  */
 export function lookupSampleFC(

@@ -7,7 +7,7 @@
 import pg from 'pg';
 const c = new pg.Client('postgresql://postgres:1234@localhost:5432/fmea_db');
 await c.connect();
-const S = 'pfmea_pfm26_m066';
+const S = 'pfmea_pfm26_m002';
 
 console.log('═══ FC 없는 L3 상세 분석 ═══\n');
 

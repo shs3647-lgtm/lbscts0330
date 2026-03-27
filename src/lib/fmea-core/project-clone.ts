@@ -22,7 +22,7 @@ import {
 // ────────────────────────────────────────────
 
 export interface CloneOptions {
-  sourceProjectId: string;    // e.g., 'pfm26-m066'
+  sourceProjectId: string;    // e.g., 'pfm26-m002'
   targetProjectId: string;    // e.g., 'pfm26-m090'
   baseDatabaseUrl: string;
   cloneType: 'full' | 'structure-only' | 'template';

@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 
 async function main() {
-  const res = await fetch('http://localhost:3000/api/fmea/reverse-import/excel?fmeaId=pfm26-m066');
+  const res = await fetch('http://localhost:3000/api/fmea/reverse-import/excel?fmeaId=pfm26-m002');
   const buf = await res.arrayBuffer();
   fs.writeFileSync('c:/autom-fmea/test-reverse-import.xlsx', Buffer.from(buf));
   
@@ -28,7 +28,7 @@ async function main() {
   
   // Now also generate client-side template Excel
   console.log('\n=== Client-side Template 시뮬레이션 ===');
-  const masterRes = await fetch('http://localhost:3000/api/pfmea/master?fmeaId=pfm26-m066&includeItems=true');
+  const masterRes = await fetch('http://localhost:3000/api/pfmea/master?fmeaId=pfm26-m002&includeItems=true');
   const masterData = await masterRes.json();
   const ds = masterData.dataset;
   console.log('flatItems:', ds?.flatItems?.length);

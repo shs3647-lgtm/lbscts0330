@@ -1,15 +1,15 @@
 /**
  * Round-trip Import 검증 (3회 반복)
  *
- * m066 역설계 엑셀 → Import → 워크시트 렌더링 검증
+ * m002 역설계 엑셀 → Import → 워크시트 렌더링 검증
  * 각 라운드: 파일 업로드 → 파싱 확인 → 구조분석 → 고장사슬 → 워크시트 표시
  */
 import { test, expect } from '@playwright/test';
 import path from 'path';
 
 const BASE = 'http://localhost:3000';
-const EXCEL_PATH = path.resolve('data/test-roundtrip-m066.xlsx');
-const FMEA_ID = 'pfm26-m066';
+const EXCEL_PATH = path.resolve('data/test-roundtrip-m002.xlsx');
+const FMEA_ID = 'pfm26-m002';
 
 // 골든 베이스라인
 const GOLDEN = {

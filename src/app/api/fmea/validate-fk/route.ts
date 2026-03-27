@@ -2,7 +2,7 @@
  * @file validate-fk/route.ts
  * FK 정합성 종합 검증 API — FMEA/CP/PFD 모듈 전체 FK 무결성 확인
  *
- * GET /api/fmea/validate-fk?fmeaId=pfm26-m066
+ * GET /api/fmea/validate-fk?fmeaId=pfm26-m002
  *
  * 10가지 FK/커버리지 검증:
  * 1. orphanFailureLinks — FM/FC/FE 미존재 참조
@@ -352,7 +352,7 @@ export async function GET(request: NextRequest) {
   try {
     const fmeaId = request.nextUrl.searchParams.get('fmeaId');
     if (!fmeaId || !isValidFmeaId(fmeaId)) {
-      return NextResponse.json({ success: false, error: 'fmeaId 필요 (예: pfm26-m066)' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'fmeaId 필요 (예: pfm26-m002)' }, { status: 400 });
     }
 
     const baseUrl = getBaseDatabaseUrl();

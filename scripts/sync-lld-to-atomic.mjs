@@ -1,9 +1,9 @@
-// m066 LLD/개선추천 데이터를 legacy riskData → atomic DB optimizations에 동기화
+// m002 LLD/개선추천 데이터를 legacy riskData → atomic DB optimizations에 동기화
 import pg from 'pg';
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-const fmeaId = process.argv[2] || 'pfm26-m066';
+const fmeaId = process.argv[2] || 'pfm26-m002';
 const schema = `pfmea_${fmeaId.replace(/-/g, '_')}`;
 
 console.log(`Syncing LLD/improvement data for ${fmeaId} (schema: ${schema})`);

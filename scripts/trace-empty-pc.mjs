@@ -1,12 +1,12 @@
 const BASE = 'http://localhost:3000';
 const FMEA_ID = 'pfm26-m069';
-const MASTER_ID = 'pfm26-m066';
+const MASTER_ID = 'pfm26-m002';
 
 async function main() {
-  // 1. Master FMEA (pfm26-m066) Au Bump DB - L3Function.processChar 확인
-  console.log('=== 1. Master FMEA (m066) L3Function.processChar ===');
-  const m066s3 = await (await fetch(BASE + '/api/fmea/pipeline-detail?fmeaId=' + MASTER_ID + '&step=3')).json();
-  const masterL3F = m066s3.data?.l3Functions || [];
+  // 1. Master FMEA (pfm26-m002) Au Bump DB - L3Function.processChar 확인
+  console.log('=== 1. Master FMEA (m002) L3Function.processChar ===');
+  const m002s3 = await (await fetch(BASE + '/api/fmea/pipeline-detail?fmeaId=' + MASTER_ID + '&step=3')).json();
+  const masterL3F = m002s3.data?.l3Functions || [];
   const masterEmpty = masterL3F.filter(f => !f.processChar || !f.processChar.trim());
   console.log('Total L3Func:', masterL3F.length, 'Empty processChar:', masterEmpty.length);
   if (masterEmpty.length > 0) {
@@ -44,13 +44,13 @@ async function main() {
 
   // 5. Import 파이프라인에서 B3 카운트 비교
   console.log('\n=== 5. Pipeline B3 카운트 비교 ===');
-  const m066pv = await (await fetch(BASE + '/api/fmea/pipeline-verify?fmeaId=' + MASTER_ID)).json();
+  const m002pv = await (await fetch(BASE + '/api/fmea/pipeline-verify?fmeaId=' + MASTER_ID)).json();
   const m069pv = await (await fetch(BASE + '/api/fmea/pipeline-verify?fmeaId=' + FMEA_ID)).json();
   
-  const m066s2 = m066pv.steps.find(s => s.step === 2);
+  const m002s2 = m002pv.steps.find(s => s.step === 2);
   const m069s2 = m069pv.steps.find(s => s.step === 2);
   
-  console.log('Master (m066) B3:', m066s2?.details?.B3, 'emptyPC:', m066s2?.details?.emptyPC);
+  console.log('Master (m002) B3:', m002s2?.details?.B3, 'emptyPC:', m002s2?.details?.emptyPC);
   console.log('Import (m069) B3:', m069s2?.details?.B3, 'emptyPC:', m069s2?.details?.emptyPC);
   
   // 6. 결론
