@@ -830,28 +830,29 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     return rows;
   }, [state.l2]);
 
-  // FC 건수 — 작업요소가 달라도 동일 FC명 허용: FC id(없으면 proc+pcId+name)로 집계
-  // ⚠️ AI주의: `공정번호|FC명` 만으로 Set 하면 동일 문구가 한 건으로 뭉개짐. 반드시 FC id 우선 키 유지.
+  // FC 건수 — UUID(id) 기반 카운트 (텍스트 매칭 금지)
+  // ★v6.1: FC는 위치기반 UUID로 고유 식별 — id가 있으면 유효한 FC
   const totalCauseCount = useMemo(() => {
-    const uniqueFCs = new Set<string>();
+    const uniqueFCIds = new Set<string>();
     for (const proc of (state.l2 || []) as any[]) {
-      const pno = String(proc.no || proc.id || '');
       for (const fc of (proc.failureCauses || [])) {
-        const name = String(fc?.name || '').trim();
-        if (!name || isMissing(name)) continue;
         const fid = String(fc?.id || '').trim();
-        uniqueFCs.add(fid ? `${pno}|fc:${fid}` : `${pno}|pc:${String(fc.processCharId || '')}|${name}`);
+        if (!fid) continue;
+        // ★ 이름이 비어있어도 UUID가 있으면 유효 (import된 FC)
+        // 단, UI에서 생성한 빈 placeholder는 name도 없고 cause도 없음
+        const hasContent = String(fc?.name || fc?.cause || '').trim();
+        if (hasContent) uniqueFCIds.add(fid);
       }
       for (const we of (proc.l3 || [])) {
         for (const fc of (we.failureCauses || [])) {
-          const name = String(fc?.name || '').trim();
-          if (!name || isMissing(name)) continue;
           const fid = String(fc?.id || '').trim();
-          uniqueFCs.add(fid ? `${pno}|fc:${fid}` : `${pno}|we:${we?.id || ''}|${name}`);
+          if (!fid) continue;
+          const hasContent = String(fc?.name || fc?.cause || '').trim();
+          if (hasContent) uniqueFCIds.add(fid);
         }
       }
     }
-    return uniqueFCs.size;
+    return uniqueFCIds.size;
   }, [state.l2]);
 
   return (
