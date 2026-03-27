@@ -54,35 +54,19 @@ export async function GET(request: NextRequest) {
     // --- A5: FailureMode count ---
     const a5 = await prisma.failureMode.count({ where: { fmeaId } });
 
-    // --- A6 & B5: L3 커버리지 기반 카운트 (L2 폴백 포함) ---
-    // flat data 의미론: L2에 DC/PC가 있으면 해당 L2 하위 모든 L3가 A6/B5 커버리지
-    const [allRAs, allFLs] = await Promise.all([
-      prisma.riskAnalysis.findMany({
-        where: { fmeaId },
-        select: { linkId: true, detectionControl: true, preventionControl: true },
-      }),
-      prisma.failureLink.findMany({
-        where: { fmeaId },
-        select: { id: true, l2StructId: true },
-      }),
-    ]);
-    const flToL2 = new Map(allFLs.map(fl => [fl.id, fl.l2StructId]));
-    const l2WithDC = new Set<string>();
-    const l2WithPC = new Set<string>();
-    for (const ra of allRAs) {
-      const l2Id = flToL2.get(ra.linkId || '');
-      if (l2Id && ra.detectionControl?.trim()) l2WithDC.add(l2Id);
-      if (l2Id && ra.preventionControl?.trim()) l2WithPC.add(l2Id);
-    }
-
-    const allL3s = await prisma.l3Structure.findMany({
-      where: { fmeaId },
-      select: { id: true, l2Id: true },
+    // --- A6: RiskAnalysis with non-empty detectionControl ---
+    const a6 = await prisma.riskAnalysis.count({
+      where: {
+        fmeaId,
+        AND: [
+          { detectionControl: { not: null } },
+          { detectionControl: { not: '' } },
+        ],
+      },
     });
-    const a6 = allL3s.filter(l3 => l2WithDC.has(l3.l2Id || '')).length;
 
     // --- B1: L3Structure count ---
-    const b1 = allL3s.length;
+    const b1 = await prisma.l3Structure.count({ where: { fmeaId } });
 
     // --- B2: L3Function with non-empty functionName ---
     const b2 = await prisma.l3Function.count({
@@ -102,8 +86,16 @@ export async function GET(request: NextRequest) {
     // --- B4: FailureCause count ---
     const b4 = await prisma.failureCause.count({ where: { fmeaId } });
 
-    // --- B5: L3 커버리지 기반 (L2에 PC 있으면 하위 L3 모두 커버)
-    const b5 = allL3s.filter(l3 => l2WithPC.has(l3.l2Id || '')).length;
+    // --- B5: RiskAnalysis with non-empty preventionControl ---
+    const b5 = await prisma.riskAnalysis.count({
+      where: {
+        fmeaId,
+        AND: [
+          { preventionControl: { not: null } },
+          { preventionControl: { not: '' } },
+        ],
+      },
+    });
 
     // --- C1 & C2: distinct categories / distinct product functions from L1Function ---
     const allL1Funcs = await prisma.l1Function.findMany({

@@ -181,19 +181,6 @@ export function mapApiToVerification(
 ): Record<string, ApiVerifyResult> {
   const result: Record<string, ApiVerifyResult> = {};
 
-  // A6/B5: L3 커버리지 기반 — L2에 DC/PC 있으면 하위 L3 전부 커버
-  const flToL2 = new Map(
-    (apiData.failureLinks || []).map((fl: any) => [fl.id, fl.l2StructId]),
-  );
-  const l2WithDC = new Set<string>();
-  const l2WithPC = new Set<string>();
-  for (const ra of (apiData.riskAnalyses || []) as any[]) {
-    const l2Id = flToL2.get(ra.linkId) as string | undefined;
-    if (l2Id && ra.detectionControl?.trim()) l2WithDC.add(l2Id);
-    if (l2Id && ra.preventionControl?.trim()) l2WithPC.add(l2Id);
-  }
-  const l3Structs = (apiData.l3Structures || []) as any[];
-
   // Extract counts from API response (atomic format)
   const apiCounts: Record<string, number> = {
     A1: (apiData.l2Structures || []).length,
@@ -201,12 +188,12 @@ export function mapApiToVerification(
     A3: (apiData.l2Functions || []).length,
     A4: (apiData.processProductChars || []).length,
     A5: (apiData.failureModes || []).length,
-    A6: l3Structs.filter((l3: any) => l2WithDC.has(l3.l2Id)).length,
-    B1: l3Structs.length,
+    A6: (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()).length,
+    B1: (apiData.l3Structures || []).length,
     B2: (apiData.l3Functions || []).filter((f: any) => f.functionName?.trim()).length,
     B3: (apiData.l3Functions || []).filter((f: any) => f.processChar?.trim()).length,
     B4: (apiData.failureCauses || []).length,
-    B5: l3Structs.filter((l3: any) => l2WithPC.has(l3.l2Id)).length,
+    B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
     C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,
     // C2 = 고유 (구분|제품기능) — flat atomicToFlatData C2 행 수와 동일 의미
     C2: new Set(
