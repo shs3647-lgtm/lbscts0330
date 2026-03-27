@@ -88,6 +88,7 @@ export interface PosFailureMode {
   productCharId?: string;
   parentId: string;  // → ProductChar.id (E-11)
   mode: string;      // A5
+  detectionControl?: string; // ★v5: A6 검출관리 (L2 시트 직접 추출)
   feRefs?: string[]; // ★v4 EX-05: 연결된 FE UUID 목록 (크로스시트 매칭 후 채움)
   fcRefs?: string[]; // ★v4 EX-05: 연결된 FC UUID 목록
 }
@@ -138,6 +139,7 @@ export interface PosFailureCause {
   parentId: string;  // → L3Function.id (E-20)
   l3CharId?: string; // ★v4 핵심: → PosL3ProcessChar.id (B-13)
   cause: string;     // B4
+  preventionControl?: string; // ★v5: B5 예방관리 (L3 시트 직접 추출)
 }
 
 // ─── v4 신규 엔티티 ───

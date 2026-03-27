@@ -171,15 +171,114 @@ export async function fixFk(prisma: any, fmeaId: string): Promise<string[]> {
 
   // 깨진 FL 삭제
   let brokenDeleted = 0;
+  const deletedFlIds: string[] = [];
   for (const lk of links) {
     if (!fcSet.has(lk.fcId) || !fmSet.has(lk.fmId) || !feSet.has(lk.feId)) {
       await prisma.failureLink.delete({ where: { id: lk.id } }).catch((e: unknown) => console.error(`[fixFk] FL 삭제 실패 id=${lk.id}:`, e));
+      deletedFlIds.push(lk.id);
       brokenDeleted++;
     }
   }
   if (brokenDeleted > 0) fixed.push(`깨진 FL 삭제 ${brokenDeleted}건`);
 
-  // ★ 2026-03-20: 미연결 FC→FL 자동생성 / RA 자동생성 제거 — no-fallback 원칙
+  // ★ 2026-03-27: CASCADE Phase 1 — 깨진 FL 삭제 후 orphan RA 정리
+  {
+    const validFlIds = new Set(
+      (await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } }))
+        .map((fl: { id: string }) => fl.id)
+    );
+    const allRAs: Array<{ id: string; linkId: string }> = await prisma.riskAnalysis.findMany({
+      where: { fmeaId },
+      select: { id: true, linkId: true },
+    });
+    const orphanRAs = allRAs.filter(ra => !validFlIds.has(ra.linkId));
+    if (orphanRAs.length > 0) {
+      await prisma.riskAnalysis.deleteMany({
+        where: { id: { in: orphanRAs.map(r => r.id) } },
+      }).catch((e: unknown) => console.error('[fixFk] orphan RA 삭제 실패:', e));
+      fixed.push(`고아 RA 삭제 ${orphanRAs.length}건 (FL 삭제 연쇄)`);
+    }
+
+    // ★ CASCADE Phase 2 — orphan Opt (RA 삭제 연쇄)
+    const validRaIds = new Set(
+      (await prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true } }))
+        .map((ra: { id: string }) => ra.id)
+    );
+    const allOpts: Array<{ id: string; riskId: string }> = await prisma.optimization.findMany({
+      where: { fmeaId },
+      select: { id: true, riskId: true },
+    });
+    const orphanOpts = allOpts.filter(o => !validRaIds.has(o.riskId));
+    if (orphanOpts.length > 0) {
+      await prisma.optimization.deleteMany({
+        where: { id: { in: orphanOpts.map(o => o.id) } },
+      }).catch((e: unknown) => console.error('[fixFk] orphan Opt 삭제 실패:', e));
+      fixed.push(`고아 Opt 삭제 ${orphanOpts.length}건 (RA 삭제 연쇄)`);
+    }
+  }
+
+  // ★ 2026-03-27: Phase 3 — nullable FK 무효 참조 정리
+  {
+    // FM.productCharId → ProcessProductChar (nullable)
+    const ppcIds = new Set(
+      (await prisma.processProductChar.findMany({ where: { fmeaId }, select: { id: true } }).catch(() => []))
+        .map((p: { id: string }) => p.id)
+    );
+    const fmsWithBadPPC = fms.filter((fm: any) => fm.productCharId && !ppcIds.has(fm.productCharId));
+    if (fmsWithBadPPC.length > 0) {
+      for (const fm of fmsWithBadPPC) {
+        await prisma.failureMode.update({
+          where: { id: fm.id },
+          data: { productCharId: null },
+        }).catch((e: unknown) => console.error(`[fixFk] FM.productCharId 정리 실패 id=${fm.id}:`, e));
+      }
+      fixed.push(`FM.productCharId 무효참조 정리 ${fmsWithBadPPC.length}건`);
+    }
+
+    // FE.l1FuncId → L1Function (nullable)
+    const l1FIds = new Set(
+      (await prisma.l1Function.findMany({ where: { fmeaId }, select: { id: true } }).catch(() => []))
+        .map((f: { id: string }) => f.id)
+    );
+    const fesWithBadL1F = fes.filter((fe: any) => fe.l1FuncId && !l1FIds.has(fe.l1FuncId));
+    if (fesWithBadL1F.length > 0) {
+      for (const fe of fesWithBadL1F) {
+        await prisma.failureEffect.update({
+          where: { id: fe.id },
+          data: { l1FuncId: null },
+        }).catch((e: unknown) => console.error(`[fixFk] FE.l1FuncId 정리 실패 id=${fe.id}:`, e));
+      }
+      fixed.push(`FE.l1FuncId 무효참조 정리 ${fesWithBadL1F.length}건`);
+    }
+  }
+
+  // ★ 2026-03-27: Phase 4 — FL without RA → 기본 RA 생성 (SOD 미평가 상태, fixMissing에서 peer-fill)
+  {
+    const currentRAs = await prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } });
+    const raLinkIds = new Set(currentRAs.map((ra: { linkId: string }) => ra.linkId));
+    const currentFLs = await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } });
+    const flsWithoutRA = currentFLs.filter((fl: { id: string }) => !raLinkIds.has(fl.id));
+    if (flsWithoutRA.length > 0) {
+      const now = new Date();
+      await prisma.riskAnalysis.createMany({
+        skipDuplicates: true,
+        data: flsWithoutRA.map((fl: { id: string }) => ({
+          id: `${fl.id}-RA`,
+          fmeaId,
+          linkId: fl.id,
+          severity: 1,
+          occurrence: 1,
+          detection: 1,
+          ap: 'L',
+          createdAt: now,
+          updatedAt: now,
+        })),
+      }).catch((e: unknown) => console.error('[fixFk] RA gap-fill 실패:', e));
+      fixed.push(`누락 RA 생성 ${flsWithoutRA.length}건 (FL 1:1 보완)`);
+    }
+  }
+
+  // ★ 2026-03-20: 미연결 FC→FL 자동생성 금지 — no-fallback 원칙 (Rule 1.6)
 
   return fixed;
 }

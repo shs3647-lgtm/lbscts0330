@@ -46,12 +46,27 @@ interface StepResult {
   parentChild?: ParentChildEntry[];
 }
 
+interface AutoFixCategory {
+  type: string;
+  count: number;
+  autoFixable: boolean;
+  description: string;
+}
+
+interface AutoFixSummary {
+  totalIssues: number;
+  autoFixed: number;
+  manualRequired: number;
+  categories: AutoFixCategory[];
+}
+
 interface PipelineResult {
   fmeaId: string;
   steps: StepResult[];
   allGreen: boolean;
   loopCount: number;
   timestamp: string;
+  autoFixSummary?: AutoFixSummary;
 }
 
 interface PipelineVerifyPanelProps {
@@ -109,6 +124,32 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
     setIsFixing(false);
   }, [fmeaId]);
 
+  /** 검증 → 이슈 발견 시 자동수정 → 재검증 (one-click) */
+  const runAutoDetectAndFix = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Phase 1: 검증
+      const verifyRes = await fetch(`/api/fmea/pipeline-verify?fmeaId=${encodeURIComponent(fmeaId)}`);
+      const verifyData = await verifyRes.json();
+      if (verifyData.success) setResult(verifyData);
+
+      // Phase 2: 이슈 발견 시 자동수정
+      const hasIssues = verifyData.steps?.some((s: StepResult) => s.status === 'error' || s.status === 'warn');
+      if (hasIssues && verifyData.success) {
+        setIsFixing(true);
+        const fixRes = await fetch('/api/fmea/pipeline-verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fmeaId }),
+        });
+        const fixData = await fixRes.json();
+        if (fixData.success) setResult(fixData);
+        setIsFixing(false);
+      }
+    } catch { /* ignore */ }
+    setIsLoading(false);
+  }, [fmeaId]);
+
   // 마운트 시 자동 검증
   useEffect(() => { runVerify(); }, [runVerify]);
 
@@ -147,9 +188,16 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
               disabled={isFixing}
               className="px-2 py-0.5 text-[10px] bg-orange-600 text-white rounded hover:bg-orange-500 disabled:opacity-50 font-bold animate-pulse"
             >
-              {isFixing ? '수정중...' : '🔧 자동수정'}
+              {isFixing ? '수정중...' : '자동수정'}
             </button>
           )}
+          <button
+            onClick={runAutoDetectAndFix}
+            disabled={isLoading || isFixing}
+            className="px-2 py-0.5 text-[10px] bg-cyan-700 text-white rounded hover:bg-cyan-600 disabled:opacity-50 font-bold"
+          >
+            {isLoading || isFixing ? '처리중...' : '감지+수정'}
+          </button>
           <button onClick={onClose} className="px-1 py-0.5 text-gray-400 hover:text-white text-[14px]">×</button>
         </div>
       </div>
@@ -179,6 +227,13 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
         </div>
       </div>
 
+      {/* 자동수정 요약 (autoFixSummary) */}
+      {result?.autoFixSummary && result.autoFixSummary.totalIssues > 0 && (
+        <div className="px-3 py-1">
+          <AutoFixSummaryBar summary={result.autoFixSummary} />
+        </div>
+      )}
+
       {/* 선택된 STEP 세부 정보 */}
       {expandedStep !== null && steps.find(s => s.step === expandedStep) && (
         <div className="px-3 pb-2">
@@ -206,7 +261,7 @@ export default function PipelineVerifyPanel({ fmeaId, onClose }: PipelineVerifyP
               </div>
             ))}
             {steps.every(s => s.issues.length === 0 && s.fixed.length === 0) && (
-              <span className="text-green-400 text-[11px] font-bold">✅ 모든 단계 정상 — 이슈 없음</span>
+              <span className="text-green-400 text-[11px] font-bold">모든 단계 정상 — 이슈 없음</span>
             )}
           </div>
         </div>
@@ -387,6 +442,59 @@ function ParentChildTree({ entries }: { entries: ParentChildEntry[] }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** 자동수정 요약 바 — 자동수정/수동필요 분류 표시 */
+function AutoFixSummaryBar({ summary }: { summary: AutoFixSummary }) {
+  const autoItems = summary.categories.filter(c => c.autoFixable);
+  const manualItems = summary.categories.filter(c => !c.autoFixable);
+
+  return (
+    <div className="border border-gray-600 rounded bg-gray-800/80 p-2">
+      {/* 요약 배지 */}
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] text-white font-bold">자동수정 요약</span>
+        {summary.autoFixed > 0 && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-600/80 text-blue-100">
+            자동수정 {summary.autoFixed}건
+          </span>
+        )}
+        {summary.manualRequired > 0 && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-600/80 text-red-100">
+            수동필요 {summary.manualRequired}건
+          </span>
+        )}
+        {summary.totalIssues === 0 && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-600/80 text-green-100">이슈 없음</span>
+        )}
+      </div>
+
+      {/* 자동수정 완료 항목 */}
+      {autoItems.length > 0 && (
+        <div className="mb-1">
+          {autoItems.map((item, i) => (
+            <div key={i} className="text-[9px] text-blue-300 flex items-center gap-1">
+              <span className="text-blue-400 shrink-0">{'\u2714'}</span>
+              <span>{item.description}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 수동 필요 항목 */}
+      {manualItems.length > 0 && (
+        <div>
+          {manualItems.map((item, i) => (
+            <div key={i} className="text-[9px] text-orange-300 flex items-center gap-1">
+              <span className="text-orange-400 shrink-0">{'\u26A0'}</span>
+              <span>{item.description}</span>
+              <span className="text-[8px] text-gray-500 ml-1">(수동)</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
