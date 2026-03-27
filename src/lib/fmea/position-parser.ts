@@ -642,30 +642,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       weText: c['WE']?.trim() || undefined,
     });
 
-    // ★v5.1: fcId 미해결 시 — FC 시트 전용 FailureCause 동적 생성
-    //   근본 원인: FC 시트에만 존재하고 L3 B4에 없는 고장원인 (엑셀 데이터 불일치)
-    //   예: "습도(Humidity, %RH) 부적합" ← FC 시트에만 있고 L3 B4에 없음
+    // ★v5.2: 동적 FC 생성 제거 (Rule 1.5 자동생성 금지)
+    // fcId 미해결 시 경고 로그만 출력 — L3 B4 carry-forward로 근본 해결
     if (!fcId && c['FC']?.trim()) {
-      const dynamicFcId = positionUUID('FC', rn, 7); // FC 시트 행에서 FC용 UUID 생성
-      const fcCause = c['FC'].trim();
-      const l2IdForFc = fmId ? (failureModes.find(fm => fm.id === fmId)?.l2StructId || '') : '';
-      // 같은 공정의 첫번째 L3 구조를 찾아 연결
-      const l3ForFc = l3Structures.find(s => s.l2Id === l2IdForFc);
-      const l3FuncForFc = l3Functions.find(f => f.l3StructId === l3ForFc?.id);
-      failureCauses.push({
-        id: dynamicFcId,
-        fmeaId,
-        l3FuncId: l3FuncForFc?.id || '',
-        l3StructId: l3ForFc?.id || '',
-        l2StructId: l2IdForFc,
-        parentId: l3FuncForFc?.id || '',
-        l3CharId: '',
-        cause: fcCause,
-      });
-      fcId = dynamicFcId;
-      const l3IdForFc = l3ForFc?.id || '';
-      if (l3IdForFc) flL3StructId = flL3StructId || l3IdForFc;
-      ppWarn(`[position-parser] ★ FC 시트 전용 FC 동적생성: R${rn} "${fcCause.substring(0, 30)}" → ${dynamicFcId}`);
+      ppWarn(`[position-parser] ⚠️ FC 시트 R${rn}: fcId 미해결 "${c['FC'].trim().substring(0, 30)}" — L3 B4 매칭 확인 필요`);
     }
 
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
@@ -1041,9 +1021,9 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
     ppWarn('[position-parser] ⚠️ L3 시트 B4(고장원인) 컬럼 감지 실패 — fallback col 7 사용. 헤더 확인 필요');
   }
 
-  // ★v5: L3 시트 carry-forward (병합셀 대응 — FC 시트와 동일 패턴)
-  let prevL3Pno = '', prevL3M4 = '', prevL3B1 = '', prevL3B2 = '', prevL3B3 = '', prevL3SC = '';
-  const l3CarryCount = { pno: 0, m4: 0, b1: 0, b2: 0, b3: 0 };
+  // ★v5.2: L3 시트 carry-forward (병합셀 대응 — B4/B5 포함)
+  let prevL3Pno = '', prevL3M4 = '', prevL3B1 = '', prevL3B2 = '', prevL3B3 = '', prevL3SC = '', prevL3B4 = '', prevL3B5 = '';
+  const l3CarryCount = { pno: 0, m4: 0, b1: 0, b2: 0, b3: 0, b4: 0, b5: 0 };
   const l3Rows: SheetRow[] = [];
   l3WS.eachRow((row: Row, rn: number) => {
     if (rn <= l3Header) return;
@@ -1053,6 +1033,8 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
     const rawB2  = excelCellStr(row, l3ColMap.B2 || 4);
     const rawB3  = excelCellStr(row, l3ColMap.B3 || 5);
     const rawSC  = excelCellStr(row, l3ColMap.SC || 6);
+    const rawB4  = excelCellStr(row, l3ColMap.B4 || 7);
+    const rawB5  = excelCellStr(row, l3ColMap.B5 || 8);
 
     // carry-forward: 병합셀 빈값이면 이전 행 값 유지
     const pno = rawPno || (prevL3Pno ? (l3CarryCount.pno++, prevL3Pno) : '');
@@ -1060,6 +1042,8 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
     const b1  = rawB1  || (prevL3B1  ? (l3CarryCount.b1++,  prevL3B1)  : '');
     const b2  = rawB2  || (prevL3B2  ? (l3CarryCount.b2++,  prevL3B2)  : '');
     const b3  = rawB3  || (prevL3B3  ? (l3CarryCount.b3++,  prevL3B3)  : '');
+    const b4  = rawB4  || (prevL3B4  ? (l3CarryCount.b4++,  prevL3B4)  : '');
+    const b5  = rawB5  || (prevL3B5  ? (l3CarryCount.b5++,  prevL3B5)  : '');
     const sc  = rawSC  || prevL3SC;
 
     if (pno) prevL3Pno = pno;
@@ -1067,6 +1051,8 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
     if (b1)  prevL3B1  = b1;
     if (b2)  prevL3B2  = b2;
     if (b3)  prevL3B3  = b3;
+    if (rawB4) prevL3B4 = rawB4; // ★v5.2: B4 carry-forward (병합셀 하단행 빈값 복원)
+    if (rawB5) prevL3B5 = rawB5; // ★v5.2: B5 carry-forward
     if (rawSC) prevL3SC = rawSC; // SC는 빈값이 정상(해당없음)일 수 있으므로 raw 기준 갱신
 
     l3Rows.push({
@@ -1078,20 +1064,22 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
         B2: b2,
         B3: b3,
         SC: sc,
-        B4: excelCellStr(row, l3ColMap.B4 || 7),
-        B5: excelCellStr(row, l3ColMap.B5 || 8),
+        B4: b4,
+        B5: b5,
       },
     });
   });
-  // ★v5: L3 carry-forward 결과 보고
-  const totalL3Carry = l3CarryCount.pno + l3CarryCount.m4 + l3CarryCount.b1 + l3CarryCount.b2 + l3CarryCount.b3;
+  // ★v5.2: L3 carry-forward 결과 보고 (B4/B5 포함)
+  const totalL3Carry = l3CarryCount.pno + l3CarryCount.m4 + l3CarryCount.b1 + l3CarryCount.b2 + l3CarryCount.b3 + l3CarryCount.b4 + l3CarryCount.b5;
   if (totalL3Carry > 0) {
     ppLog(`[position-parser] ✅ AutoFix L3 carry-forward ${totalL3Carry}건:`,
       `공정번호=${l3CarryCount.pno}`,
       `4M=${l3CarryCount.m4}`,
       `B1=${l3CarryCount.b1}`,
       `B2=${l3CarryCount.b2}`,
-      `B3=${l3CarryCount.b3}`);
+      `B3=${l3CarryCount.b3}`,
+      `B4=${l3CarryCount.b4}`,
+      `B5=${l3CarryCount.b5}`);
   }
 
   // ─── FC 시트 — 헤더 자동감지 ───

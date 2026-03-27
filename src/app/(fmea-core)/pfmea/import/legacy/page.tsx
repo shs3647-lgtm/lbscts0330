@@ -83,9 +83,7 @@ export default function LegacyImportPage() {
   const [masterChains, setMasterChains] = useState<MasterFailureChain[]>([]);
 
   const handleWorksheetSaved = useCallback(() => {
-    if (selectedFmeaId) {
-      window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}&tab=structure&fresh=1`;
-    }
+    // ★v5.2: 자동확정 후 자동이동 제거 — 통계 확인 후 사용자가 직접 "워크시트 이동 →" 버튼으로 이동
   }, [selectedFmeaId]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);

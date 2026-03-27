@@ -44,8 +44,8 @@ export default function ImportStepBar({
   const failureChains = useMemo(() => propChains ?? [], [propChains]);
 
   const onWorksheetSaved = useCallback(() => {
-    // ★ window.location.href로 전체 새로고침 — React stale state 방지
-    window.location.href = `/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}&fresh=1`;
+    // ★v5.2: 자동확정 후 자동이동 제거 — 통계 확인 후 사용자가 직접 "워크시트 →" 버튼으로 이동
+    // (이전: 여기서 window.location.href 이동 → 파이프라인 검증/통계 확인 불가)
   }, [fmeaId]);
 
   const {
