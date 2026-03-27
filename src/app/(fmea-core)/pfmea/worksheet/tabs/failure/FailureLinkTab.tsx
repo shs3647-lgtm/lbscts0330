@@ -328,16 +328,20 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     return s;
   }, [savedLinks]);
 
+  // ★v6.3: FC import 기준 누락 판정
+  // FC 시트에 참조된 FM만 검사 대상. FC 시트에 없는 FM은 '미정의'이므로 누락 아님.
   const missingFMs = useMemo(() => {
+    // savedLinks(FC import)에 참조된 fmId 집합
+    const flReferencedFmIds = new Set(savedLinks.map(l => l.fmId).filter(Boolean));
     return fmData.filter(fm => {
+      // ★ FC import에 참조되지 않은 FM은 누락 아님 (미정의)
+      if (!flReferencedFmIds.has(fm.id)) return false;
       // 현재 FM에 미확정 FC가 있으면 누락에서 제외
       if (fm.id === currentFMId && linkedFCs.size > 0) return false;
-      // 1순위: fmId가 savedLinks(DB FL)에 존재 → 연결됨 (DB가 SSoT)
+      // fmId가 savedLinks에 FE+FC 모두 연결 → 누락 아님
       if (linkStats.fmLinkedIds.has(fm.id)) return false;
-      // 2순위: fmLinkCounts UUID 매칭
       const counts = linkStats.fmLinkCounts.get(fm.id);
       if (counts && (counts.fcCount > 0 || counts.feCount > 0)) return false;
-      // 3순위: 텍스트+공정 매칭 (DB FL에는 연결되어 있지만 ID가 다른 경우)
       const key = ((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
       if (linkFmTextSet.has(key)) return false;
       return true;
@@ -349,7 +353,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
         missingFC: counts.fcCount === 0 && !linkStats.fmLinkedIds.has(fm.id) && !linkFmTextSet.has(((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase()),
       };
     });
-  }, [fmData, linkStats, currentFMId, linkedFCs.size, linkFmTextSet]);
+  }, [fmData, linkStats, currentFMId, linkedFCs.size, linkFmTextSet, savedLinks]);
 
   // ========== 누락 FE/FC 목록 계산 ==========
   // ★ 현재 선택 중(미확정) FE/FC도 실시간 제외
@@ -379,15 +383,17 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     });
   }, [fcData, linkStats, linkedFCs, linkFcTextSet]);
 
+  // ★v6.3: FC import 기준 — savedLinks에 참조된 FE만 검사
   const missingFEs = useMemo(() => {
+    const flReferencedFeIds = new Set(savedLinks.map(l => l.feId).filter(Boolean));
     return feData.filter(fe => {
+      if (!flReferencedFeIds.has(fe.id)) return false; // FC에 없는 FE는 누락 아님
       if (linkStats.feLinkedIds.has(fe.id) || linkedFEs.has(fe.id)) return false;
-      // 텍스트 매칭 fallback
       const key = ((fe.scope || '') + '|' + (fe.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
       if (linkFeTextSet.has(key)) return false;
       return true;
     });
-  }, [feData, linkStats, linkedFEs, linkFeTextSet]);
+  }, [feData, linkStats, linkedFEs, linkFeTextSet, savedLinks]);
 
   // ★★★ 전체 누락 수 (FM부분연결 + FE미연결 + FC미연결) — 심각도는 선택사항 ★★★
   const totalMissingCount = missingFMs.length + missingFCs.length + missingFEs.length;
