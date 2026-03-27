@@ -194,3 +194,6 @@ tests/e2e/debug-*.spec.ts
 # m090 local data
 data/master-fmea/pfm26-m090*.json
 *.sql
+
+tmp_*.txt
+tsc_errors*.txt
