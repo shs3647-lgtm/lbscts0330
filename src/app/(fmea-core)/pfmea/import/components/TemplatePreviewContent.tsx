@@ -295,6 +295,29 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     statUniqueByCode,
   );
 
+  // ★★★ 2026-03-27: 통계표가 열렸고 fmeaId 존재 + 미검증 상태면 자동 실행
+  // Import → 파싱 → DB 저장 직후 pgsql/API 통계가 즉시 표시됨
+  const autoVerifyRanRef = useRef(false);
+  useEffect(() => {
+    if (showStats && fmeaId && !pgsqlData && !apiData && !autoVerifyRanRef.current) {
+      autoVerifyRanRef.current = true;
+      runFullVerify();
+    }
+    // 통계표 닫으면 다음에 열 때 다시 실행 가능하도록 리셋
+    if (!showStats) autoVerifyRanRef.current = false;
+  }, [showStats, fmeaId, pgsqlData, apiData, runFullVerify]);
+
+  // ★★★ 2026-03-27: DB 저장 완료 시(isSaving → false) 통계표가 열려있으면 pgsql/API 재검증
+  const prevSavingRef = useRef(false);
+  useEffect(() => {
+    if (prevSavingRef.current && !isSaving && showStats && fmeaId) {
+      // 저장이 방금 완료됨 → DB에 데이터가 들어갔으므로 즉시 검증
+      autoVerifyRanRef.current = false; // 리셋하여 재실행 허용
+      setTimeout(() => runFullVerify(), 500); // DB commit 대기
+    }
+    prevSavingRef.current = !!isSaving;
+  }, [isSaving, showStats, fmeaId, runFullVerify]);
+
   // ── ★ 2026-03-15: 누락 항목코드 자동 보충 (A1-A3, B1-B2, C1-C4) ──
   const supplementedRef = useRef(false);
   useEffect(() => {
@@ -801,16 +824,25 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </button>
           )}
 
-          {/* 통계표 토글 */}
+          {/* 통계표 토글 — ★ 열 때 pgsql/API 미검증이면 자동 실행 */}
           {effectiveStatistics && effectiveStatistics.itemStats.length > 0 && (
             <button
-              onClick={() => setShowStats(v => !v)}
+              onClick={() => {
+                setShowStats(v => {
+                  const willOpen = !v;
+                  if (willOpen && fmeaId && !pgsqlData && !apiData) {
+                    // 통계표를 처음 열 때 자동으로 pgsql/API 검증 실행
+                    runFullVerify();
+                  }
+                  return willOpen;
+                });
+              }}
               className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border cursor-pointer ${
                 showStats
                   ? 'bg-indigo-600 text-white border-indigo-600'
                   : 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100'
               }`}
-              title="아이템코드별 Import 통계표 토글">
+              title="아이템코드별 Import 통계표 토글 (pgsql/API 검증 자동실행)">
               통계
             </button>
           )}
@@ -873,8 +905,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
               <th className="bg-emerald-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-emerald-600" style={{width:32}} title="SA(구조확정) 시점 카운트">SA</th>
               <th className="bg-purple-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-purple-600" style={{width:40}} title="FK 무결성 (parentItemId 체인)">FK</th>
-              <th className="bg-teal-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-teal-600" style={{width:40}} title="PostgreSQL 프로젝트 스키마 저장 건수">pgsql</th>
-              <th className="bg-rose-700 text-white font-bold px-1.5 py-0.5 text-center" style={{width:40}} title="GET API 응답 건수 일치 여부">API</th>
+              <th className="bg-teal-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-teal-600 cursor-pointer hover:bg-teal-600" style={{width:40}} title="클릭하면 PostgreSQL 프로젝트 스키마 저장 건수를 검증합니다" onClick={() => fmeaId && runFullVerify()}>pgsql{!pgsqlData && fmeaId ? ' ▶' : ''}</th>
+              <th className="bg-rose-700 text-white font-bold px-1.5 py-0.5 text-center cursor-pointer hover:bg-rose-600" style={{width:40}} title="클릭하면 GET API 응답 건수를 검증합니다" onClick={() => fmeaId && runFullVerify()}>API{!apiData && fmeaId ? ' ▶' : ''}</th>
             </tr></thead>
             <tbody>
               {effectiveStatistics.itemStats.map((s, i) => {
