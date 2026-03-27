@@ -839,7 +839,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
         <FailureL1Header
           isConfirmed={isConfirmed}
           missingCount={missingCount}
-          effectCount={missingCount}
+          effectCount={(state.l1?.failureScopes || []).filter((s: any) => s.effect?.trim()).length}
           confirmedCount={(state.l1?.failureScopes || []).filter((s: any) => s.effect).length}
           functionCount={(() => { let c = 0; for (const t of (state.l1?.types || [])) { for (const f of (t.functions || [])) { if (f.name?.trim()) c++; } } return c; })()}
           requirementCount={meaningfulRequirementsFromFunction.length}

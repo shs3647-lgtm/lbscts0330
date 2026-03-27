@@ -150,12 +150,7 @@ export function FailureL1Header({
           <BiHeader ko="요구사항" en="Requirements" />{requirementCount != null && <span className={`font-bold ${requirementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({requirementCount})</span>}
         </th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="고장영향" en="Failure Effect/FE" />
-          {effectCount > 0 && (
-            <span className="ml-1 bg-white text-orange-800 px-1 py-0 rounded text-[10px] font-bold">
-              {effectCount}
-            </span>
-          )}
+          <BiHeader ko="고장영향" en="Failure Effect/FE" /><span className={`font-bold ${effectCount > 0 ? 'text-orange-800' : 'text-red-500'}`}>({effectCount})</span>
         </th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ width: '30px', minWidth: '30px', maxWidth: '30px', boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           S
