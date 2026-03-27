@@ -345,7 +345,7 @@ export function supplementMissingItems(
       feSeen.add(key);
       supplements.push({
         id: uuidv4(), processNo: scope, category: 'C', itemCode: 'C4',
-        value: fe, createdAt: now,
+        value: fe, inherited: true, createdAt: now,
       });
     }
 

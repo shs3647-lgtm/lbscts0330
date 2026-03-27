@@ -18,14 +18,14 @@ export interface FKVerifyResult {
 }
 
 export interface PgsqlVerifyResult {
-  expected: number;    // UUID count from import
+  expected: number;    // 비교 기준 건수(통계 '고유' 우선, 없으면 flat UUID 행 수)
   actual: number;      // DB count from project schema
   match: boolean;
   status: VerifyStatus;
 }
 
 export interface ApiVerifyResult {
-  expected: number;    // UUID count from import
+  expected: number;    // 비교 기준 건수(통계 '고유' 우선 — DB 엔티티와 동일 스케일)
   apiCount: number;    // count from GET API response
   match: boolean;
   status: VerifyStatus;
@@ -52,6 +52,27 @@ export interface VerificationData {
 // C2: parent = C1 (category)
 // C3: parent = C2 (L1Function)
 // C4: parent = C3 (requirement)
+
+const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'] as const;
+
+/**
+ * pgsql/API 검증용 기대 건수: 통계표「고유」열이 있으면 DB·API(엔티티 수)와 같은 눈금으로 맞춤.
+ * 없으면 Import「UUID」열(flat 행 수)과 동일하게 uuidCounts만 사용.
+ */
+export function mergeImportExpectedCounts(
+  uuidCounts: Record<string, number>,
+  uniqueByCode?: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const code of ALL_ITEM_CODES) {
+    const raw = uuidCounts[code] || 0;
+    const u = uniqueByCode?.[code];
+    // 통계에 코드만 채워 넣고 고유=0인 placeholder는 무시 → UUID(행) 기준 유지
+    if (u !== undefined && (u > 0 || raw === 0)) out[code] = u;
+    else out[code] = raw;
+  }
+  return out;
+}
 
 const FK_PARENT_RULES: Record<string, string[] | null> = {
   A1: null,           // no FK check
@@ -96,9 +117,7 @@ export function verifyFK(flatData: ImportedFlatData[]): Record<string, FKVerifyR
     byCode.get(item.itemCode)!.push(item);
   }
 
-  const ALL_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'];
-
-  for (const code of ALL_CODES) {
+  for (const code of ALL_ITEM_CODES) {
     const items = byCode.get(code) || [];
     const parentRule = FK_PARENT_RULES[code];
 
@@ -117,11 +136,17 @@ export function verifyFK(flatData: ImportedFlatData[]): Record<string, FKVerifyR
     let valid = 0;
     let orphans = 0;
     let noParentId = 0;
+    /** 자동 보충(inherited) 행은 parentItemId 없이 들어올 수 있음 — 저장/원자DB에서 정합; FK 표시만 과대 실패 방지 */
+    let inheritedSkipped = 0;
 
     for (const item of items) {
+      if (item.inherited === true) {
+        inheritedSkipped++;
+        valid++;
+        continue;
+      }
       const pid = item.parentItemId;
       if (!pid || !pid.trim()) {
-        // No parentItemId set → orphan
         noParentId++;
         continue;
       }
@@ -133,14 +158,13 @@ export function verifyFK(flatData: ImportedFlatData[]): Record<string, FKVerifyR
     }
 
     const total = items.length;
-    // Items without parentItemId count as orphans for strict FK check
     orphans += noParentId;
 
     result[code] = {
       total,
       valid,
       orphans,
-      status: orphans === 0 ? 'pass' : orphans > total * 0.5 ? 'error' : 'warn',
+      status: orphans === 0 ? 'pass' : orphans > (total - inheritedSkipped) * 0.5 ? 'error' : 'warn',
     };
   }
 
@@ -152,13 +176,11 @@ export function verifyFK(flatData: ImportedFlatData[]): Record<string, FKVerifyR
  */
 export function mapCountsToPgsql(
   dbCounts: Record<string, number>,
-  uuidCounts: Record<string, number>
+  expectedCounts: Record<string, number>,
 ): Record<string, PgsqlVerifyResult> {
   const result: Record<string, PgsqlVerifyResult> = {};
-  const ALL_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'];
-
-  for (const code of ALL_CODES) {
-    const expected = uuidCounts[code] || 0;
+  for (const code of ALL_ITEM_CODES) {
+    const expected = expectedCounts[code] || 0;
     const actual = dbCounts[code] ?? -1;
 
     if (actual === -1) {
@@ -177,7 +199,7 @@ export function mapCountsToPgsql(
  */
 export function mapApiToVerification(
   apiData: any,
-  uuidCounts: Record<string, number>
+  expectedCounts: Record<string, number>,
 ): Record<string, ApiVerifyResult> {
   const result: Record<string, ApiVerifyResult> = {};
 
@@ -203,10 +225,8 @@ export function mapApiToVerification(
     C4: (apiData.failureEffects || []).length,
   };
 
-  const ALL_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'];
-
-  for (const code of ALL_CODES) {
-    const expected = uuidCounts[code] || 0;
+  for (const code of ALL_ITEM_CODES) {
+    const expected = expectedCounts[code] || 0;
     const apiCount = apiCounts[code] || 0;
     result[code] = {
       expected,

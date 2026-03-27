@@ -23,7 +23,6 @@ import type { FCComparisonResult } from '../utils/fcComparison';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from '../hooks/useTemplateGenerator';
 import { FailureChainPreview } from './FailureChainPreview';
-import { FailureChainCompare } from './FailureChainCompare';
 // FullAnalysisPreview 삭제됨 (사용자 요청)
 import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
@@ -247,19 +246,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return Object.values(ids).some(id => id && revisedItemIds.has(id));
   }, [revisedItemIds]);
 
-  // ── ★ MasterData로 채워진 항목 이탤릭 표시 ──
-  const [masterFilledIds, setMasterFilledIds] = useState<Set<string>>(new Set());
-  const isMasterFilled = useCallback((id: string | undefined): boolean => {
-    return !!(id && masterFilledIds.has(id));
-  }, [masterFilledIds]);
-  // 사용자 수정 시 masterFilled에서 제거 → 정상 글씨체로 변경
-  const handleUpdateItemWithMasterClear = useCallback((id: string, value: string) => {
-    if (masterFilledIds.has(id)) {
-      setMasterFilledIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-    }
-    onUpdateItem?.(id, value);
-  }, [onUpdateItem, masterFilledIds]);
-
   // ── 편집 후 자동저장 (2초 디바운스) ──
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -290,8 +276,24 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return counts;
   }, [flatData]);
 
-  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 + 자가개선루프
-  const { fkData, pgsqlData, apiData, loopCount, loopLog, runFullVerify, runSelfImprovementLoop } = useImportVerification(fmeaId, flatData, uuidCounts);
+  /** 통계「고유」→ pgsql/API 비교 기대치를 워크시트(원자 DB) 엔티티 수와 같은 눈금으로 */
+  const statUniqueByCode = useMemo((): Record<string, number> | undefined => {
+    const rows = effectiveStatistics?.itemStats;
+    if (!rows?.length) return undefined;
+    const m: Record<string, number> = {};
+    for (const s of rows) {
+      m[s.itemCode] = s.uniqueCount;
+    }
+    return m;
+  }, [effectiveStatistics]);
+
+  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅
+  const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(
+    fmeaId,
+    flatData,
+    uuidCounts,
+    statUniqueByCode,
+  );
 
   // ── ★ 2026-03-15: 누락 항목코드 자동 보충 (A1-A3, B1-B2, C1-C4) ──
   const supplementedRef = useRef(false);
@@ -828,40 +830,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           {/* ─── 원클릭 Import→워크시트 (SA/FC/FA 자동 확정) ─── */}
           {hasStepProcess && fmeaId && quickCreateWorksheet && (
             <button
-              onClick={async () => {
-                await quickCreateWorksheet();
-                await new Promise(r => setTimeout(r, 2000));
-                const result = await runSelfImprovementLoop(
-                  // Loop 2: force ReImport
-                  async () => {
-                    try { await quickCreateWorksheet(); return true; } catch { return false; }
-                  },
-                  // Loop 3: MasterData Import (save-from-import API)
-                  async () => {
-                    try {
-                      const res = await fetch('/api/fmea/save-position-import', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ fmeaId, flatData, l1Name: '', failureChains: [] }),
-                      });
-                      if (res.ok) {
-                        // MasterData로 채워진 항목 ID 등록 → 이탤릭 표시
-                        const ids = new Set<string>();
-                        flatData.forEach(d => { if (d.id) ids.add(d.id); });
-                        setMasterFilledIds(ids);
-                      }
-                      return res.ok;
-                    } catch { return false; }
-                  }
-                );
-                if (result.pass) {
-                  setAlertState({ open: true, variant: 'success', title: '✅ 자가검증 완료',
-                    summary: `${result.loops}회 루프 (${result.strategy}) — pgsql/API ALL PASS\n워크시트로 이동할 수 있습니다.` });
-                } else {
-                  setAlertState({ open: true, variant: 'warning', title: '⚠️ 자가개선 한계',
-                    summary: `3단계 루프 완료 후에도 불일치가 있습니다.\n통계표를 확인하세요.` });
-                }
-              }}
+              onClick={async () => { await quickCreateWorksheet(); setTimeout(() => runFullVerify(), 500); }}
               disabled={!canSA || isAnalysisImporting || isAnalysisComplete}
               className={`px-3 py-0.5 rounded text-[10px] font-bold transition-colors border ${
                 isAnalysisComplete ? BTN_CONFIRMED
@@ -873,36 +842,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </button>
           )}
 
-          {/* ★ 워크시트 이동 — pgsql+API 검증 완료 시에만 활성화 */}
-          {fmeaId && flatData.length > 0 && (() => {
-            const isVerified = !!(pgsqlData && apiData);
-            const allPgsqlOk = pgsqlData ? Object.values(pgsqlData).every(v => v.actual > 0 || v.expected === 0) : false;
-            const allApiOk = apiData ? Object.values(apiData).every(v => v.apiCount > 0 || v.expected === 0) : false;
-            const canNavigate = isVerified && allPgsqlOk && allApiOk;
-            return (
-              <button
-                onClick={() => {
-                  if (canNavigate) {
-                    window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`;
-                  } else {
-                    setAlertState({
-                      open: true,
-                      variant: 'warning',
-                      title: '검증 미완료',
-                      summary: 'Import 후 pgsql/API 검증이 완료되어야 워크시트로 이동할 수 있습니다.\n\n[SA+FC+FA 자동확정] 버튼을 먼저 실행하세요.',
-                    });
-                  }
-                }}
-                title={canNavigate ? '검증 완료 — 워크시트 이동' : '검증 미완료 — pgsql/API 확인 필요'}
-                className={`px-3 py-0.5 rounded text-[10px] font-bold border transition-colors ${
-                  canNavigate
-                    ? 'border-green-500 text-white bg-green-600 hover:bg-green-700 cursor-pointer'
-                    : 'border-orange-400 text-orange-700 bg-orange-50 cursor-pointer hover:bg-orange-100'
-                }`}>
-                {canNavigate ? '✓ 워크시트 →' : '워크시트 → (검증필요)'}
-              </button>
-            );
-          })()}
+          {/* ★ 워크시트 이동 — 데이터 있으면 활성화 (FA 완료 불필요) */}
+          {fmeaId && flatData.length > 0 && (
+            <button
+              onClick={() => window.location.href = `/pfmea/worksheet?id=${fmeaId}&fresh=1`}
+              className="px-3 py-0.5 rounded text-[10px] font-bold border border-orange-400 text-white bg-orange-500 hover:bg-orange-600 cursor-pointer">
+              워크시트 →
+            </button>
+          )}
           {isAnalysisComplete && (
             <span className="text-[10px] text-green-600 font-bold">✓ 검증 완료</span>
           )}
@@ -1029,15 +976,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               </tr>
             </tbody>
           </table>
-          {/* ★ 자가개선루프 로그 */}
-          {loopLog.length > 0 && (
-            <div className="mt-1 px-2 py-1 bg-gray-900 rounded text-[9px] font-mono text-gray-300 max-h-[80px] overflow-y-auto">
-              <div className="text-[8px] text-gray-500 mb-0.5">자가개선루프 (Loop {loopCount}/3)</div>
-              {loopLog.map((log, i) => (
-                <div key={i} className={log.includes('✅') ? 'text-green-400' : log.includes('❌') ? 'text-red-400' : log.includes('🔄') ? 'text-yellow-400' : ''}>{log}</div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -1075,18 +1013,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </span>
           )}
         </div>
-        {/* ★ 기존 7컬럼 테이블 + FMEA 연결표 대조뷰 토글 */}
         <FailureChainPreview chains={failureChains} isFullscreen={isFullscreen} hideStats />
-        {failureChains.length > 0 && (
-          <details className="mt-1">
-            <summary className="text-[10px] text-blue-600 cursor-pointer hover:text-blue-800 font-bold">
-              ▼ FMEA 연결표 대조뷰 (3패널: FE | FM | FC)
-            </summary>
-            <div className="mt-1">
-              <FailureChainCompare chains={failureChains} isFullscreen={isFullscreen} />
-            </div>
-          </details>
-        )}
         {fcComparison && (fcComparison.missing.length > 0 || fcComparison.incomplete.length > 0 || fcComparison.apMismatch.length > 0) && (
           <div className="mt-2 p-2 border border-orange-200 rounded bg-orange-50/50 text-[10px]">
             {fcComparison.missing.length > 0 && (
@@ -1262,19 +1189,19 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       {isEditing && <td className={`${TD} text-center`}><input type="checkbox" checked={selectedRows.has(i)} onChange={() => toggleRow(i)} className="cursor-pointer" /></td>}
                       <td className={`${TD_NO} ${cRevised ? 'border-l-2 border-l-red-500' : ''}`}>{cRevised ? <span title="수정본">🔴</span> : (i+1)}</td>
                       <td className={`${isEditing ? TD_EDIT : TD} text-center font-medium ${cRevised ? 'text-red-600 font-bold' : ''}`}>
-                        <EditCell value={r.C1} itemId={r._ids.C1} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                        <EditCell value={r.C1} itemId={r._ids.C1} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C1 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C1', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
-                        <EditCell value={r.C2} itemId={r._ids.C2} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                        <EditCell value={r.C2} itemId={r._ids.C2} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C2 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C2', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
-                        <EditCell value={r.C3} itemId={r._ids.C3} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                        <EditCell value={r.C3} itemId={r._ids.C3} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C3 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C3', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
-                        <EditCell value={r.C4} itemId={r._ids.C4} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                        <EditCell value={r.C4} itemId={r._ids.C4} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C4 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C4', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
                     </tr>
@@ -1314,19 +1241,19 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       {isEditing && <td className={`${TD} text-center`}><input type="checkbox" checked={selectedRows.has(i)} onChange={() => toggleRow(i)} className="cursor-pointer" /></td>}
                       <td className={`${TD_NO} ${aMissing ? 'border-l-2 border-l-orange-400' : aRevised ? 'border-l-2 border-l-red-500' : ''}`}>{aRevised ? <span title="수정본">🔴</span> : (i+1)}</td>
                       <td className={`${isEditing ? TD_EDIT : TD} text-center font-mono font-medium ${aRevised ? 'text-red-600 font-bold' : ''}`}>
-                        <EditCell value={r.A1} itemId={r._ids.A1} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                        <EditCell value={r.A1} itemId={r._ids.A1} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.A1 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A1', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A2} itemId={r._ids.A2} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A2} itemId={r._ids.A2} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A2 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A2', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A3} itemId={r._ids.A3} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A3} itemId={r._ids.A3} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A3 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A3', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A4} itemId={r._ids.A4} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A4} itemId={r._ids.A4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A4 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A4', value: val, createdAt: new Date() }]) : undefined} /></td>
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.A4SC ? 'text-red-700' : 'text-gray-300'}`}>{r.A4SC || '-'}</span></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A5} itemId={r._ids.A5} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A5} itemId={r._ids.A5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A5 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A5', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`} style={{background: aRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`} style={{background: aRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A6 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A6', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
@@ -1376,16 +1303,16 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                           <span className={`text-[7px] px-0.5 rounded font-bold ${M4_BADGE[r.m4] || ''}`}>{r.m4}</span>
                         ) : null}
                       </td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B1} itemId={r._ids.B1} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B1} itemId={r._ids.B1} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B1 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B1', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B2} itemId={r._ids.B2} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B2} itemId={r._ids.B2} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B2 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B2', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B3} itemId={r._ids.B3} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B3} itemId={r._ids.B3} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B3 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B3', value: val, createdAt: new Date() }]) : undefined} /></td>
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.B3SC ? 'text-red-700' : 'text-gray-300'}`}>{r.B3SC || '-'}</span></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B4} itemId={r._ids.B4} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B4} itemId={r._ids.B4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B4 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B4', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`} style={{background: bRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.B5} itemId={r._ids.B5} onSave={handleUpdateItemWithMasterClear} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`} style={{background: bRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.B5} itemId={r._ids.B5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B5 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B5', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
