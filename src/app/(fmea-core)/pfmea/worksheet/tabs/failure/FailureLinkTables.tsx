@@ -303,10 +303,12 @@ export default function FailureLinkTables({
                   const isSelected = currentFMId === fm.id;
                   const counts = linkStats.fmLinkCounts.get(fm.id) || { feCount: 0, fcCount: 0 };
                   const isLinked = counts.feCount > 0 && counts.fcCount > 0;
-                  // ★ 누락 판정: 부분 연결 OR 미연결(savedLinks 존재 시)
+                  // ★v6.3: FC import 기준 — savedLinks에 참조된 FM만 누락 판정
                   const hasAnySavedLinks = linkStats.fmLinkedCount > 0;
-                  const isMissing = (counts.feCount === 0 || counts.fcCount === 0) &&
-                    (linkStats.fmLinkedIds.has(fm.id) || hasAnySavedLinks);
+                  const isReferencedByFL = linkStats.fmLinkedIds.has(fm.id) ||
+                    counts.feCount > 0 || counts.fcCount > 0;
+                  const isMissing = isReferencedByFL && (counts.feCount === 0 || counts.fcCount === 0) &&
+                    hasAnySavedLinks;
 
                   // ★ 고아 FM 감지: fmNo가 "🗑️"로 시작하면 고아
                   const isOrphanFm = fm.fmNo.startsWith('🗑️');
