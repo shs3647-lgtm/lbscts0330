@@ -5,7 +5,7 @@
 const ExcelJS = require('exceljs');
 const path = require('path');
 
-const FMEA_ID = 'pfm26-m004';
+const FMEA_ID = 'pfm26-m005';
 const BASE_URL = 'http://localhost:3000';
 const EXCEL_PATH = String.raw`D:\00 fmea개발\00_LB세미콘FMEA\등록양식\new115_00_260327_PFMEA_Master_v5.xlsx`;
 
@@ -48,8 +48,8 @@ async function buildPositionJSON() {
           if (i === 2) cells.C3 = val;
           if (i === 3) cells.C4 = val;
         } else if (key === 'L2') {
-          if (i === 0) cells.processNo = val;
-          if (i === 1) cells.processName = val;
+          if (i === 0) { cells.A1 = val; cells.processNo = val; }  // 양쪽 키
+          if (i === 1) { cells.A2 = val; cells.processName = val; }
           if (i === 2) cells.A3 = val;
           if (i === 3) cells.A4 = val;
           if (i === 4) cells.SC = val;
@@ -128,8 +128,8 @@ async function main() {
   };
   console.log(`\n📊 FM=${c.FM} FC=${c.FC} FE=${c.FE} FL=${c.FL} RA=${c.RA}`);
   
-  const pass = c.FE >= 20 && c.FM >= 26 && c.FC >= 100 && c.FL >= 100;
-  console.log(`\n${pass ? '✅ PASS' : '❌ FAIL — 기대: FE≥20, FM≥26, FC≥100, FL≥100'}`);
+  const pass = c.FE >= 20 && c.FM >= 28 && c.FC >= 115 && c.FL >= 115 && c.RA >= 115;
+  console.log(`\n${pass ? '✅ PASS' : '❌ FAIL — 기대: FE≥20, FM≥28, FC≥115, FL≥115, RA≥115'}`);
   return c;
 }
 
