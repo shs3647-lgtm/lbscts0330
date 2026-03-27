@@ -38,20 +38,25 @@ export interface VerificationData {
 }
 
 // ── Item codes that need FK parent validation ──
+// ★v5 parentId 체인 (지침서 Section 2-2):
+// C1→C2→C3→C4: C4.parentId=C3 (고장영향→요구사항)
+// A1→A4→A5→A6: A5.parentId=A4, A6.parentId=A5
+// B1→B2→B3→B4→B5: B4.parentId=B3, B5.parentId=B4
+//
 // A1/A2: no parent (top-level L2Structure)
 // A3: parent = A1 (L2Structure)
-// A4: parent = A3 (L2Function) or A1 (L2Structure)
+// A4: parent = A1 (L2Structure)
 // A5: parent = A4 (ProductChar)
-// A6: special (via riskData, no direct parentItemId)
+// A6: parent = A5 (FailureMode) — Phase2 독립엔티티
 // B1: parent = A1 (L2Structure processNo match)
-// B2: parent = B1 (L3Structure)
-// B3: parent = B1 (L3Structure)
-// B4: parent = B3 (L3Function)
-// B5: special (via riskData)
+// B2: parent = B1 (L3Structure/WorkElement)
+// B3: parent = B2 (L3Function)
+// B4: parent = B3 (L3ProcessChar)
+// B5: parent = B4 (FailureCause) — Phase2 독립엔티티
 // C1: no parent (category marker)
 // C2: parent = C1 (category)
 // C3: parent = C2 (L1Function)
-// C4: parent = C3 (requirement)
+// C4: parent = C3 (L1Requirement)
 
 const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'] as const;
 
@@ -78,18 +83,18 @@ const FK_PARENT_RULES: Record<string, string[] | null> = {
   A1: null,           // no FK check
   A2: null,           // shares with A1
   A3: ['A1', 'A2'],   // parent should be L2Structure
-  A4: ['A3', 'A1'],   // parent should be L2Function or L2Structure
+  A4: ['A1'],          // ★v5: A4.parentId = A1 (L2Structure)
   A5: ['A4', 'A3'],   // parent should be ProductChar or L2Function
-  A6: null,           // special (riskData)
+  A6: null,           // ★v5: Phase2 — A6.parentId = A5 (독립엔티티 후 검증)
   B1: null,           // processNo-based, not parentItemId
-  B2: ['B1'],         // parent should be L3Structure
-  B3: ['B1'],         // parent should be L3Structure
-  B4: ['B3', 'B2', 'B1'], // parent should be L3Function or L3Structure
-  B5: null,           // special (riskData)
+  B2: ['B1'],         // parent should be L3Structure/WorkElement
+  B3: ['B2', 'B1'],   // ★v5: B3.parentId = B2 (L3Function)
+  B4: ['B3', 'B2'],   // ★v5: B4.parentId = B3 (L3ProcessChar)
+  B5: null,           // ★v5: Phase2 — B5.parentId = B4 (독립엔티티 후 검증)
   C1: null,           // category marker, no parent
   C2: ['C1'],         // parent should be category
   C3: ['C2'],         // parent should be L1Function
-  C4: ['C3', 'C2'],   // parent should be requirement or L1Function
+  C4: ['C3', 'C2'],   // ★v5: C4.parentId = C3 (L1Requirement)
 };
 
 /**

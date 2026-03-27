@@ -1,14 +1,17 @@
 /**
  * @file FailureChainPreview.tsx
- * @description FC(Failure Chain) 미리보기 — N:1:N 구조 (Process→FM→FE/FC)
+ * @description FC(Failure Chain) 미리보기 — 엑셀 FC 시트 양식 동일 구조
  * @created 2026-02-21
- * @updated 2026-03-09 — N:1:N 구조 (Process-first, FM 중심축)
+ * @updated 2026-03-27 — v5: 엑셀 FC 시트 양식 일치화
  *
- * N:1:N 병합 규칙 (FM = 중심축):
- *   Process 병합: key = processNo (1차 축)
- *   FM 병합: key = processNo|fmText (2차 축, Process 내 경계)
- *   Cat 병합: key = processNo|fmText|feScope (FM 내 경계)
- *   FE 병합: key = processNo|fmText|feScope|feText (FM 내 경계)
+ * 컬럼 순서 (FC 시트 = Import 엑셀과 동일):
+ *   FE구분 | FE(고장영향) | L2-1.공정번호 | FM(고장형태) | 4M | 작업요소(WE) | FC(고장원인)
+ *
+ * 병합 규칙 (FC 시트 forward-fill 기준):
+ *   FE구분: key = feScope (1차 축)
+ *   FE: key = feScope|feText (2차 축)
+ *   공정번호: key = feScope|feText|processNo (3차 축)
+ *   FM: key = feScope|feText|processNo|fmText (4차 축)
  *   4M, WE, FC: 행별 독립 (병합 없음)
  */
 
@@ -18,20 +21,20 @@ import React, { useMemo } from 'react';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
 
-// ─── 색상 상수 ───
+// ─── 색상 상수 (FC 시트 스타일) ───
 
-const FM_BG = ['#fff3e0', '#ffe0b2'];   // 주황 (Process, FM 영역)
-const FE_BG = ['#e3f2fd', '#bbdefb'];   // 파란 (Cat, FE 영역)
-const FC_BG = ['#e8f5e9', '#c8e6c9'];   // 녹색 (4M, WE, FC 영역)
+const FE_BG = ['#f3e8ff', '#e9d5ff'];   // 보라 (FE구분, FE 영역)
+const FM_BG = ['#fff7ed', '#ffedd5'];   // 주황 (공정번호, FM 영역)
+const FC_BG = ['#ecfdf5', '#d1fae5'];   // 녹색 (4M, WE, FC 영역)
 
-const HEADER_FM = '#3a2a10';
-const HEADER_FE = '#1a3050';
-const HEADER_FC = '#1a3520';
-const BORDER_FM = '#5a4a2a';
-const BORDER_FE = '#2a4a6a';
-const BORDER_FC = '#2a5530';
+const HEADER_FE = '#6b21a8';
+const HEADER_FM = '#9a3412';
+const HEADER_FC = '#065f46';
+const BORDER_FE = '#9333ea';
+const BORDER_FM = '#c2410c';
+const BORDER_FC = '#047857';
 
-const COL_COUNT = 7; // Process, FM, Cat, FE, 4M, WE, FC
+const COL_COUNT = 7;
 
 // ─── Props ───
 
@@ -45,7 +48,7 @@ interface Props {
 
 function cellStyle(bg: string, extra?: React.CSSProperties): React.CSSProperties {
   return {
-    border: '0.5px solid #60a5fa',
+    border: '0.5px solid #a78bfa',
     padding: '2px 4px',
     verticalAlign: 'middle',
     background: bg,
@@ -58,7 +61,6 @@ function cellCenterStyle(bg: string, extra?: React.CSSProperties): React.CSSProp
   return cellStyle(bg, { textAlign: 'center', whiteSpace: 'nowrap', ...extra });
 }
 
-// ─── FE scope 약어 변환 (중앙 상수 사용) ───
 const scopeAbbr = (scope: string): string => normalizeScope(scope);
 
 // ─── flat row 타입 ───
@@ -69,7 +71,7 @@ interface FlatRow {
   fc: { m4: string; workElement: string; text: string };
 }
 
-// ─── 연속 span 계산 (범용) ───
+// ─── 연속 span 계산 ───
 
 function calcSpans(len: number, keyFn: (i: number) => string): number[] {
   const spans = new Array<number>(len).fill(0);
@@ -89,61 +91,49 @@ function calcSpans(len: number, keyFn: (i: number) => string): number[] {
 export function FailureChainPreview({ chains, isFullscreen, hideStats }: Props) {
   const tableMaxH = isFullscreen ? 'max-h-[calc(100vh-180px)]' : 'max-h-[400px]';
 
-  // 1. Process-first 정렬 → flat rows 생성 (N:1:N — FM 중심축)
   const renderRows = useMemo(() => {
-    // ★ Process-first 정렬: processNo → fmText → feScope → feText
+    // FC 시트 순서: feScope → feText → processNo → fmText
     const sorted = [...chains].sort((a, b) => {
+      const sCmp = (a.feScope || '').localeCompare(b.feScope || '');
+      if (sCmp !== 0) return sCmp;
+      const feCmp = (a.feValue || '').localeCompare(b.feValue || '');
+      if (feCmp !== 0) return feCmp;
       const pCmp = (a.processNo || '').localeCompare(b.processNo || '', undefined, { numeric: true });
       if (pCmp !== 0) return pCmp;
       const fmCmp = (a.fmValue || '').localeCompare(b.fmValue || '');
       if (fmCmp !== 0) return fmCmp;
-      const scopeCmp = (a.feScope || '').localeCompare(b.feScope || '');
-      if (scopeCmp !== 0) return scopeCmp;
-      return (a.feValue || '').localeCompare(b.feValue || '');
+      return 0;
     });
 
     const flatRows: FlatRow[] = sorted.map(c => ({
-      fe: {
-        scope: c.feScope || '',
-        text: c.feValue || '',
-      },
+      fe: { scope: c.feScope || '', text: c.feValue || '' },
       fm: { processNo: c.processNo || '', text: c.fmValue || '' },
-      fc: {
-        m4: c.m4 || '',
-        workElement: c.workElement || '',
-        text: c.fcValue || '',
-      },
+      fc: { m4: c.m4 || '', workElement: c.workElement || '', text: c.fcValue || '' },
     }));
 
     const len = flatRows.length;
 
-    // ★ N:1:N 계층적 span 계산 (FM 경계로 FE 제한)
-    // Process: 1차 축 (가장 넓은 merge)
-    const processSpans = calcSpans(len, i => flatRows[i].fm.processNo);
-    // FM: 2차 축 (Process 내 경계)
-    const fmSpans = calcSpans(len, i =>
-      `${flatRows[i].fm.processNo}|${flatRows[i].fm.text}`);
-    // Cat: FM 경계 내 (FM key 포함 → FM 변경 시 자동 분리)
-    const catSpans = calcSpans(len, i =>
-      `${flatRows[i].fm.processNo}|${flatRows[i].fm.text}|${flatRows[i].fe.scope}`);
-    // FE: FM 경계 내 (FM key + scope 포함)
+    const scopeSpans = calcSpans(len, i => flatRows[i].fe.scope);
     const feSpans = calcSpans(len, i =>
-      `${flatRows[i].fm.processNo}|${flatRows[i].fm.text}|${flatRows[i].fe.scope}|${flatRows[i].fe.text}`);
+      `${flatRows[i].fe.scope}|${flatRows[i].fe.text}`);
+    const processSpans = calcSpans(len, i =>
+      `${flatRows[i].fe.scope}|${flatRows[i].fe.text}|${flatRows[i].fm.processNo}`);
+    const fmSpans = calcSpans(len, i =>
+      `${flatRows[i].fe.scope}|${flatRows[i].fe.text}|${flatRows[i].fm.processNo}|${flatRows[i].fm.text}`);
 
     return flatRows.map((row, idx) => ({
       ...row,
+      scopeRowSpan: scopeSpans[idx],
+      showScope: scopeSpans[idx] > 0,
+      feRowSpan: feSpans[idx],
+      showFe: feSpans[idx] > 0,
       processRowSpan: processSpans[idx],
       showProcess: processSpans[idx] > 0,
       fmRowSpan: fmSpans[idx],
       showFm: fmSpans[idx] > 0,
-      catRowSpan: catSpans[idx],
-      showCat: catSpans[idx] > 0,
-      feRowSpan: feSpans[idx],
-      showFe: feSpans[idx] > 0,
     }));
   }, [chains]);
 
-  // 통계
   const stats = useMemo(() => {
     const uniqueFM = new Set(chains.map(c => `${c.processNo}|${c.fmValue}`).filter(Boolean)).size;
     const uniqueFC = new Set(chains.map(c => c.fcValue).filter(Boolean)).size;
@@ -167,30 +157,27 @@ export function FailureChainPreview({ chains, isFullscreen, hideStats }: Props) 
     <table className="w-full border-collapse" style={{ fontSize: fs }}>
       <thead className="sticky top-0 z-10">
         <tr>
-          {/* FM 영역 (주황) — Process, FM */}
-          <th className={`w-[7%] ${thPad} font-semibold sticky top-0`}
-            style={{ background: HEADER_FM, color: '#fff', border: `1px solid ${BORDER_FM}` }}
-            title="Process: 공정번호">Process</th>
-          <th className={`w-[16%] ${thPad} font-semibold sticky top-0`}
-            style={{ background: HEADER_FM, color: '#fff', border: `1px solid ${BORDER_FM}` }}
-            title="Failure Mode: 고장형태">FM</th>
-          {/* FE 영역 (파란) — Cat, FE */}
           <th className={`w-[5%] ${thPad} font-semibold sticky top-0`}
             style={{ background: HEADER_FE, color: '#fff', border: `1px solid ${BORDER_FE}` }}
-            title="Category: 구분 (YP=자사공장, SP=후공정, USER=사용자)">Cat</th>
+            title="FE구분: YP/SP/USER">FE구분</th>
           <th className={`w-[18%] ${thPad} font-semibold sticky top-0`}
             style={{ background: HEADER_FE, color: '#fff', border: `1px solid ${BORDER_FE}` }}
-            title="Failure Effect: 고장영향">FE</th>
-          {/* FC 영역 (녹색) — 4M, WE, FC */}
-          <th className={`w-[5%] ${thPad} font-semibold sticky top-0`}
+            title="Failure Effect: 고장영향 (L1 C4)">FE(고장영향)</th>
+          <th className={`w-[6%] ${thPad} font-semibold sticky top-0`}
+            style={{ background: HEADER_FM, color: '#fff', border: `1px solid ${BORDER_FM}` }}
+            title="L2 A1 공정번호">L2-1.공정번호</th>
+          <th className={`w-[16%] ${thPad} font-semibold sticky top-0`}
+            style={{ background: HEADER_FM, color: '#fff', border: `1px solid ${BORDER_FM}` }}
+            title="Failure Mode: 고장형태 (L2 A5)">FM(고장형태)</th>
+          <th className={`w-[4%] ${thPad} font-semibold sticky top-0`}
             style={{ background: HEADER_FC, color: '#fff', border: `1px solid ${BORDER_FC}` }}
-            title="4M: Man/Machine/Material/Environment">4M</th>
+            title="4M: MN/MC/MT/EN">4M</th>
           <th className={`w-[12%] ${thPad} font-semibold sticky top-0`}
             style={{ background: HEADER_FC, color: '#fff', border: `1px solid ${BORDER_FC}` }}
-            title="Work Element: 작업요소">WE</th>
+            title="Work Element: 작업요소 (L3 B1)">작업요소(WE)</th>
           <th className={`${thPad} font-semibold sticky top-0`}
             style={{ background: HEADER_FC, color: '#fff', border: `1px solid ${BORDER_FC}` }}
-            title="Failure Cause: 고장원인">FC</th>
+            title="Failure Cause: 고장원인 (L3 B4)">FC(고장원인)</th>
         </tr>
       </thead>
       <tbody>
@@ -203,38 +190,33 @@ export function FailureChainPreview({ chains, isFullscreen, hideStats }: Props) 
           </tr>
         ) : renderRows.map((row, idx) => {
           const isOdd = idx % 2 === 1 ? 1 : 0;
-          const fmBg = FM_BG[isOdd];
           const feBg = FE_BG[isOdd];
+          const fmBg = FM_BG[isOdd];
           const fcBg = FC_BG[isOdd];
           const isFmFirst = row.showFm;
           return (
             <tr key={`r-${idx}`}
-              style={isFmFirst && idx > 0 ? { borderTop: '1.5px solid #d97706' } : {}}>
-              {/* Process: processNo 기준 병합 (1차 축) */}
-              {row.showProcess && (
-                <td rowSpan={row.processRowSpan} style={cellCenterStyle(fmBg, { fontWeight: 600 })}>
-                  {row.fm.processNo}
-                </td>
-              )}
-              {/* FM: processNo+fmText 기준 병합 (2차 축, FM 중심) */}
-              {row.showFm && (
-                <td rowSpan={row.fmRowSpan} style={cellStyle(fmBg)}>
-                  {row.fm.text}
-                </td>
-              )}
-              {/* Cat: FM 경계 내 scope 병합 */}
-              {row.showCat && (
-                <td rowSpan={row.catRowSpan} style={cellCenterStyle(feBg, { fontSize: fs - 1 })}>
+              style={isFmFirst && idx > 0 ? { borderTop: '1.5px solid #c2410c' } : {}}>
+              {row.showScope && (
+                <td rowSpan={row.scopeRowSpan} style={cellCenterStyle(feBg, { fontWeight: 600 })}>
                   {scopeAbbr(row.fe.scope)}
                 </td>
               )}
-              {/* FE: FM 경계 내 scope+text 병합 */}
               {row.showFe && (
                 <td rowSpan={row.feRowSpan} style={cellStyle(feBg)}>
                   {row.fe.text}
                 </td>
               )}
-              {/* 4M, WE, FC: 행별 독립 */}
+              {row.showProcess && (
+                <td rowSpan={row.processRowSpan} style={cellCenterStyle(fmBg, { fontWeight: 600 })}>
+                  {row.fm.processNo}
+                </td>
+              )}
+              {row.showFm && (
+                <td rowSpan={row.fmRowSpan} style={cellStyle(fmBg)}>
+                  {row.fm.text}
+                </td>
+              )}
               <td style={cellCenterStyle(fcBg, { fontSize: fs - 1 })}>
                 {row.fc.m4}
               </td>
@@ -253,14 +235,13 @@ export function FailureChainPreview({ chains, isFullscreen, hideStats }: Props) 
 
   return (
     <div>
-      {/* 통계 바 */}
       {!hideStats && (
         <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px]">
-            <b className="text-blue-700">{stats.total}</b><span className="text-blue-500">체인</span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 border border-purple-200 rounded text-[11px]">
+            <b className="text-purple-700">{stats.total}</b><span className="text-purple-500">체인</span>
           </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px]">
-            <b className="text-blue-700">{stats.processes}</b><span className="text-blue-500">공정</span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 border border-orange-200 rounded text-[11px]">
+            <b className="text-orange-700">{stats.processes}</b><span className="text-orange-500">공정</span>
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 border border-gray-200 rounded text-[11px]">
             <span className="text-gray-500">FM</span><b className="text-gray-700">{stats.uniqueFM}</b>
@@ -274,14 +255,12 @@ export function FailureChainPreview({ chains, isFullscreen, hideStats }: Props) 
         </div>
       )}
 
-      {/* 테이블 */}
       <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`}>
         {tableBody}
       </div>
 
-      {/* 푸터 */}
       <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-600">
-        <strong>연결 현황:</strong> FM {stats.uniqueFM}개 | FE {stats.uniqueFE}개 | FC {stats.uniqueFC}개
+        <strong>연결 현황:</strong> FM {stats.uniqueFM}개 | FE {stats.uniqueFE}개 | FC {stats.uniqueFC}개 | 체인 {stats.total}행
       </div>
     </div>
   );

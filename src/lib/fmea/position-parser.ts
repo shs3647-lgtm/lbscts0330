@@ -131,13 +131,13 @@ function validateFcOrigRow(
 
 // C1 scope 정규화 — normalizeScope from @/lib/fmea/scope-constants (상단 import)
 
-/** 4M 자동정규화 */
+/** 4M 자동정규화 — ★v5: MT(Material) 추가, IM→MT 호환 매핑 */
 function normalizeM4(raw: string): string {
   const u = raw.toUpperCase().trim();
   if (u === 'MN' || u === 'MAN' || u.includes('사람') || u.includes('작업자')) return 'MN';
   if (u === 'MC' || u === 'MACHINE' || u.includes('설비') || u.includes('기계')) return 'MC';
   if (u === 'EN' || u === 'ENVIRONMENT' || u.includes('환경')) return 'EN';
-  if (u === 'IM' || u === 'MATERIAL' || u.includes('재료') || u.includes('자재')) return 'IM';
+  if (u === 'MT' || u === 'IM' || u === 'MATERIAL' || u.includes('재료') || u.includes('자재')) return 'MT';
   return u || 'MN';
 }
 
@@ -232,8 +232,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const l1Requirements: PosL1Requirement[] = []; // ★v4: C3 독립 엔티티
   const l1Scopes: PosL1Scope[] = [];             // ★v4: C1 구분 독립 엔티티
   const failureEffects: PosFailureEffect[] = [];
-  // ★ C1+C4 조합으로 FE 중복제거 — 같은 scope+effect = 동일 FE (Rule 1.7.1 dedup key)
-  const seenFE: Map<string, string> = new Map(); // C1|C4 → FE id
+  // ★v5: C4 텍스트만으로 FE 중복제거 — 20행=20UUID (지침서 Section 3)
+  const seenFE: Map<string, string> = new Map(); // C4 → FE id
   // ★ C1+C2+C3 조합으로 중복제거 — 같은 C2라도 다른 C3 = 다른 L1Function (요구사항 누락 방지)
   const seenC2C3: Map<string, string> = new Map(); // C1|C2|C3 → L1Function id
   let l1ReqOrderIndex = 0;
@@ -299,17 +299,19 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
     }
 
-    // FailureEffect: C1+C4 기준 중복제거 (Rule 1.7.1: scope|effect dedup key)
+    // ★v5: FailureEffect — C4 텍스트만으로 중복제거 (지침서: 20행=20UUID, 중복 시 오류)
     if (c4) {
-      const feKey = `${c1}|${c4}`;
+      const feKey = c4;
       const existingFeId = seenFE.get(feKey);
       if (!existingFeId) {
+        // ★v5: l1ReqId가 있으면 C3(L1Requirement)를 부모로 설정
+        const l1ReqId = l1Requirements.length > 0 ? l1Requirements[l1Requirements.length - 1].id : '';
         const feId = positionUUID('L1', rn, L1_FE_COL);
         failureEffects.push({
           id: feId,
           fmeaId,
           l1FuncId,
-          parentId: l1FuncId, // E-03: FE.parentId → L1Function
+          parentId: l1ReqId || l1FuncId, // ★v5: FE.parentId → C3(L1Requirement) 우선, C3없으면 C2 fallback
           category: c1,
           effect: c4,
           severity: 0, // FC시트에서 채움
@@ -564,7 +566,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         l3FuncId,
         l3StructId: l3Id,
         l2StructId: l2Id,
-        parentId: l3FuncId, // E-20: FC.parentId → L3Function
+        parentId: l3PcId,   // ★v5: FC.parentId → B3(L3ProcessChar) (지침서 Section 2-2)
         l3CharId: l3PcId,   // ★v4: B-13 FK → L3ProcessChar
         cause: b4,
       });

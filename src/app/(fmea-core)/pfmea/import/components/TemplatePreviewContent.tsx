@@ -31,7 +31,6 @@ import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type A
 import { validateStructuralCompleteness, summarizeStructuralIssues } from '../utils/structural-validation';
 import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integrity-validation';
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
-import { autoFixMissingA6, autoFixMissingB5 } from '../utils/autoFixMissing';
 import { useImportVerification } from '../hooks/useImportVerification';
 import { supplementMissingItems } from '../utils/supplementMissingItems';
 import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
@@ -146,29 +145,35 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   // ── parseStatistics 없을 때 flatData/crossTab에서 통계 자동 생성 ──
   const effectiveStatistics = useMemo<ParseStatistics | undefined>(() => {
     if (parseStatistics) {
+      // ★v5: 지침서 Section 2-2 parentId 체인 반영 — 엑셀 시트 순서 (L1→L2→L3)
       const ALL_CODES_PS: [string, string][] = [
+        ['C1', '구분'], ['C2', '제품기능'], ['C3', '요구사항'], ['C4', '★고장영향(FE)'],
         ['A1', '공정번호'], ['A2', '공정명'], ['A3', '공정기능'],
-        ['A4', '제품특성'], ['A5', '고장형태'], ['A6', '검출관리'],
+        ['A4', '제품특성'], ['A5', '★고장형태(FM)'], ['A6', '검출관리'],
         ['B1', '작업요소'], ['B2', '요소기능'], ['B3', '공정특성'],
-        ['B4', '고장원인'], ['B5', '예방관리'],
-        ['C1', '구분'], ['C2', '제품기능'], ['C3', '요구사항'], ['C4', '고장영향'],
+        ['B4', '★고장원인(FC)'], ['B5', '예방관리'],
       ];
+      // 엑셀 시트 순서 정렬 (L1 C→L2 A→L3 B)
+      const SHEET_ORDER: Record<string, number> = {
+        C1:1,C2:2,C3:3,C4:4, A1:5,A2:6,A3:7,A4:8,A5:9,A6:10, B1:11,B2:12,B3:13,B4:14,B5:15
+      };
       const existing = new Set(parseStatistics.itemStats.map(s => s.itemCode));
       const filled = [...parseStatistics.itemStats];
       for (const [code, label] of ALL_CODES_PS) {
         if (!existing.has(code)) filled.push({ itemCode: code, label, rawCount: 0, uniqueCount: 0, dupSkipped: 0 });
       }
-      filled.sort((a, b) => a.itemCode.localeCompare(b.itemCode));
+      filled.sort((a, b) => (SHEET_ORDER[a.itemCode] ?? 99) - (SHEET_ORDER[b.itemCode] ?? 99));
       return { ...parseStatistics, itemStats: filled };
     }
     if (crossTab.total === 0 && flatData.length === 0) return undefined;
 
+    // ★v5: 지침서 Section 2-2 parentId 체인 반영 — 엑셀 시트 순서 (L1→L2→L3)
     const ALL_CODES: [string, string][] = [
+      ['C1', '구분'], ['C2', '제품기능'], ['C3', '요구사항'], ['C4', '★고장영향(FE)'],
       ['A1', '공정번호'], ['A2', '공정명'], ['A3', '공정기능'],
-      ['A4', '제품특성'], ['A5', '고장형태'], ['A6', '검출관리'],
+      ['A4', '제품특성'], ['A5', '★고장형태(FM)'], ['A6', '검출관리'],
       ['B1', '작업요소'], ['B2', '요소기능'], ['B3', '공정특성'],
-      ['B4', '고장원인'], ['B5', '예방관리'],
-      ['C1', '구분'], ['C2', '제품기능'], ['C3', '요구사항'], ['C4', '고장영향'],
+      ['B4', '★고장원인(FC)'], ['B5', '예방관리'],
     ];
     const ITEM_LABELS: Record<string, string> = Object.fromEntries(ALL_CODES);
 
@@ -621,39 +626,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     resetToSA();
   }, [resetToSA]);
 
-  // ── 누락 항목 자동 FIX (A6 검출관리 / B5 예방관리) ──
-  const missingA6Count = useMemo(() => crossTab.aRows.filter(r => !r.A6?.trim() && r.A5?.trim()).length, [crossTab.aRows]);
-  const missingB5Count = useMemo(() => crossTab.bRows.filter(r => !r.B5?.trim() && r.B4?.trim()).length, [crossTab.bRows]);
-
-  const handleAutoFix = useCallback(() => {
-    const a6Result = autoFixMissingA6(crossTab, onUpdateItem, onAddItems);
-    const b5Result = autoFixMissingB5(crossTab, onUpdateItem, onAddItems);
-    const totalFixed = a6Result.fixed + b5Result.fixed;
-    const totalSkipped = a6Result.skipped + b5Result.skipped;
-    const allDetails = [...a6Result.details, ...b5Result.details].map(d =>
-      `[${d.processNo}] ${d.itemCode}: ${d.value} ← ${d.source}`
-    );
-
-    // ★★★ 2026-03-22: autofix 결과 즉시 staging DB 저장 (재로그인 시 재발 방지)
-    if (totalFixed > 0 && onSave) {
-      // onAddItems/onUpdateItem이 setFlatData를 동기적으로 호출하므로
-      // 다음 tick에서 onSave 호출하면 최신 flatData가 DB에 저장됨
-      setTimeout(() => onSave(), 100);
-    }
-
-    setAlertState({
-      open: true,
-      variant: totalFixed > 0 ? 'success' : 'warning',
-      title: `자동 FIX 완료 — ${totalFixed}건 수정 (DB 저장됨)`,
-      summary: [
-        `A6(검출관리): ${a6Result.fixed}건 추론 채움${a6Result.skipped > 0 ? `, ${a6Result.skipped}건 스킵(A5 비어있음)` : ''}`,
-        `B5(예방관리): ${b5Result.fixed}건 추론 채움${b5Result.skipped > 0 ? `, ${b5Result.skipped}건 스킵(B4 비어있음)` : ''}`,
-      ].join('\n'),
-      details: allDetails.length > 0 ? allDetails : undefined,
-      footer: totalSkipped > 0 ? `스킵 ${totalSkipped}건 — 원본 데이터(A5/B4)가 비어있어 추론 불가` : undefined,
-    });
-  }, [crossTab, onUpdateItem, onAddItems, onSave]);
-
   // ── FC 확정 핸들러 (미확정 시 전진) ──
   const handleFCConfirm = useCallback(() => {
     if (fcComparison && fcComparison.missing.length > 0) {
@@ -681,33 +653,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   return (
     <div className={`flex-1 min-w-0 ${isFullscreen ? '' : 'border-l border-blue-200 pl-3'}`}>
-      {/* ─── 데이터/고장사슬 서브탭 ─── */}
-      {hasStepProcess && (
-        <div className="flex items-center gap-0 mb-1.5 border-b border-gray-200">
-          {visibleSteps.map((tab, idx) => {
-            const labels = { SA: '데이터 미리보기', FC: 'FC 고장사슬' };
-            const counts = { SA: crossTab.total, FC: failureChains.length };
-            const isActive = stepState.activeStep === tab;
-            return (
-              <React.Fragment key={tab}>
-                {idx > 0 && <span className="text-gray-300 text-[10px] mx-0.5">|</span>}
-                <button onClick={() => setActiveStep(tab)}
-                  className={`px-3 py-1 text-[11px] font-bold cursor-pointer transition-colors border-b-2 ${
-                    isActive
-                      ? 'text-blue-700 border-blue-600 bg-blue-50/60'
-                      : 'text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50'
-                  }`}>
-                  {labels[tab]} <span className="text-[9px] font-normal">({counts[tab]})</span>
-                </button>
-              </React.Fragment>
-            );
-          })}
-          {/* 워크시트 검증 안내 */}
-          <span className="ml-auto text-[9px] text-gray-400 pr-2">
-            상세 검증/편집: 워크시트 → Verify → STEP 0
-          </span>
-        </div>
-      )}
+      {/* ★v5: 상단 서브탭 제거 — FC 탭은 L3 우측으로 이동됨 */}
 
       {/* ─── 통합 액션 바 (항상 고정 표시, 활성화/비활성화) ─── */}
       <div>
@@ -771,22 +717,33 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
           <span className="w-px h-4 bg-blue-300 mx-0.5" />
 
-          {/* L1/L2/L3 레벨 전환 (상태별 적색/경고 색상 제거 — 카운트만 표시) */}
+          {/* L1/L2/L3/FC 레벨 전환 — 엑셀 시트 순서 (★v5: FC 탭 L3 우측 배치) */}
           {(['L1','L2','L3'] as const).map(lvl => {
             const count = lvl === 'L1' ? crossTab.cRows.length : lvl === 'L2' ? crossTab.aRows.length : crossTab.bRows.length;
             const miss = missingStats[lvl];
             return (
-              <button key={lvl} onClick={() => setPreviewLevel(lvl)}
+              <button key={lvl} onClick={() => { setPreviewLevel(lvl); setActiveStep('SA'); }}
                 className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
-                  previewLevel === lvl
+                  previewLevel === lvl && stepState.activeStep === 'SA'
                     ? 'bg-blue-600 text-white border-blue-600 cursor-pointer'
                     : 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100 cursor-pointer'
                 }`}>
                 {lvl} <span className="text-[9px]">{count}</span>
-                {miss > 0 && <span className={`ml-0.5 text-[8px] ${previewLevel === lvl ? 'text-orange-200' : 'text-orange-500'}`}>({miss})</span>}
+                {miss > 0 && <span className={`ml-0.5 text-[8px] ${previewLevel === lvl && stepState.activeStep === 'SA' ? 'text-orange-200' : 'text-orange-500'}`}>({miss})</span>}
               </button>
             );
           })}
+          {/* ★v5: FC 고장사슬 탭 — L3 우측 배치 */}
+          {!isManualMode && (
+            <button onClick={() => setActiveStep('FC')}
+              className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
+                stepState.activeStep === 'FC'
+                  ? 'bg-purple-600 text-white border-purple-600 cursor-pointer'
+                  : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100 cursor-pointer'
+              }`}>
+              FC 고장사슬 <span className="text-[9px]">({failureChains.length})</span>
+            </button>
+          )}
 
           {missingStats[previewLevel] > 0 && (
             <button
@@ -812,16 +769,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               title="클릭하면 누락 항목 상세를 보고 첫 누락 행으로 이동합니다"
               className="text-[10px] text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 cursor-pointer hover:bg-orange-100">
               누락 {missingStats[previewLevel]}건
-            </button>
-          )}
-
-          {/* 자동 FIX — A6/B5 누락 자동 채움 */}
-          {(missingA6Count > 0 || missingB5Count > 0) && (
-            <button
-              onClick={handleAutoFix}
-              title={`A6(검출관리) ${missingA6Count}건 + B5(예방관리) ${missingB5Count}건 자동 추론 채움`}
-              className="px-2.5 py-0.5 rounded text-[10px] font-bold border border-purple-400 text-white bg-purple-600 hover:bg-purple-700 cursor-pointer transition-colors">
-              자동FIX ({missingA6Count + missingB5Count})
             </button>
           )}
 
@@ -903,6 +850,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>원본</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>고유</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>중복</th>
+              <th className="bg-amber-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-amber-600" style={{width:55}} title="지침서 parentId 체인 (C1→C2→C3→C4, A1→A4→A5→A6, B1→B2→B3→B4→B5)">parentId</th>
               <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
               <th className="bg-emerald-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-emerald-600" style={{width:32}} title="SA(구조확정) 시점 카운트">SA</th>
               <th className="bg-purple-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-purple-600" style={{width:40}} title="FK 무결성 (parentItemId 체인)">FK</th>
@@ -938,6 +886,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       ) : (
                         <span className="text-gray-300">0</span>
                       )}
+                    </td>
+                    {/* ★v5: parentId 체인 (지침서 Section 2-2) */}
+                    <td className="px-1 py-0.5 text-center text-[8px] border-r border-gray-200 text-amber-700 font-mono" title={`${s.itemCode}.parentId`}>
+                      {({
+                        C1: '—', C2: 'C1', C3: 'C2', C4: 'C3',
+                        A1: '—', A2: 'A1', A3: 'A1', A4: 'A1', A5: 'A4', A6: 'A5',
+                        B1: 'A1', B2: 'B1', B3: 'B2', B4: 'B3', B5: 'B4',
+                      } as Record<string, string>)[s.itemCode] || '—'}
                     </td>
                     {/* ★ UUID / SA / FA / 차이 */}
                     <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700 border-r border-gray-200">{uuid || <span className="text-gray-300">0</span>}</td>
@@ -978,6 +934,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-red-600">{effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}</td>
+                <td className="px-1 py-0.5 text-center text-amber-700 text-[8px]">—</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-emerald-600">
                   {saSnapshot ? Object.values(saSnapshot).reduce((s, c) => s + c, 0) : <span className="text-gray-300">-</span>}

@@ -442,7 +442,31 @@ function PFMEARegisterPageContent() {
         const flatFromAtomic = atomicToFlatData(atomicData) as any[];
         setFlatData(flatFromAtomic);
 
+        // ★v5: parseStatistics 설정 → Import 통계표 즉시 렌더링
+        if (atomicData.stats) {
+          const s = atomicData.stats;
+          const itemStats: { itemCode: string; label: string; rawCount: number; uniqueCount: number; dupSkipped: number }[] = [
+            { itemCode: 'C1', label: '구분', rawCount: s.excelL1Rows, uniqueCount: new Set(atomicData.l1Functions.map(f => f.category)).size, dupSkipped: 0 },
+            { itemCode: 'C2', label: '제품기능', rawCount: s.excelL1Rows, uniqueCount: new Set(atomicData.l1Functions.map(f => f.functionName)).size, dupSkipped: 0 },
+            { itemCode: 'C3', label: '요구사항', rawCount: s.excelL1Rows, uniqueCount: atomicData.l1Functions.length, dupSkipped: 0 },
+            { itemCode: 'C4', label: '★고장영향(FE)', rawCount: s.excelL1Rows, uniqueCount: atomicData.failureEffects.length, dupSkipped: 0 },
+            { itemCode: 'A1', label: '공정번호', rawCount: s.excelL2Rows, uniqueCount: atomicData.l2Structures.length, dupSkipped: 0 },
+            { itemCode: 'A2', label: '공정명', rawCount: s.excelL2Rows, uniqueCount: atomicData.l2Structures.length, dupSkipped: 0 },
+            { itemCode: 'A3', label: '공정기능', rawCount: s.excelL2Rows, uniqueCount: atomicData.l2Functions.length, dupSkipped: 0 },
+            { itemCode: 'A4', label: '제품특성', rawCount: s.excelL2Rows, uniqueCount: atomicData.processProductChars.length, dupSkipped: 0 },
+            { itemCode: 'A5', label: '★고장형태(FM)', rawCount: s.excelL2Rows, uniqueCount: atomicData.failureModes.length, dupSkipped: 0 },
+            { itemCode: 'A6', label: '검출관리', rawCount: 0, uniqueCount: 0, dupSkipped: 0 },
+            { itemCode: 'B1', label: '작업요소', rawCount: s.excelL3Rows, uniqueCount: atomicData.l3Structures.length, dupSkipped: 0 },
+            { itemCode: 'B2', label: '요소기능', rawCount: s.excelL3Rows, uniqueCount: atomicData.l3Functions.length, dupSkipped: 0 },
+            { itemCode: 'B3', label: '공정특성', rawCount: s.excelL3Rows, uniqueCount: atomicData.l3Functions.length, dupSkipped: 0 },
+            { itemCode: 'B4', label: '★고장원인(FC)', rawCount: s.excelL3Rows, uniqueCount: atomicData.failureCauses.length, dupSkipped: 0 },
+            { itemCode: 'B5', label: '예방관리', rawCount: 0, uniqueCount: 0, dupSkipped: 0 },
+          ];
+          setBdParseStatistics({ itemStats, totalRawRows: s.excelL1Rows + s.excelL2Rows + s.excelL3Rows + s.excelFCRows });
+        }
+
         if (fmeaId) {
+          // (1) Atomic 구조 DB 저장 (L2/L3/FM/FC/FL 등)
           const saveRes = await fetch('/api/fmea/save-position-import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -450,8 +474,40 @@ function PFMEARegisterPageContent() {
           });
           const saveResult = await saveRes.json();
           if (saveResult.success) {
+            console.log('[Register Import] Atomic 저장 완료:', saveResult.atomicCounts);
+
+            // (2) ★v5: MasterDataset(flatData)도 동시 저장 — 페이지 재방문 시 데이터 복원용
+            try {
+              const { saveMasterDataset } = await getMasterApi();
+              const masterRes = await saveMasterDataset({
+                fmeaId: fmeaId.toLowerCase(),
+                fmeaType: fmeaInfo.fmeaType as 'M' | 'F' | 'P' || 'P',
+                name: 'MASTER',
+                replace: true,
+                mode: 'import',
+                flatData: flatFromAtomic,
+              });
+              if (masterRes.ok) {
+                if (masterRes.datasetId) setBdDatasetId(masterRes.datasetId);
+                console.log('[Register Import] MasterDataset 동시 저장 완료');
+              }
+            } catch (mdErr) {
+              console.warn('[Register Import] MasterDataset 저장 실패 (비치명적):', mdErr);
+            }
+
+            // (3) ★v5: UI 상태 동기화 — 기초정보 패널 자동 펼침 + 데이터 로드 표시
             setBdIsSaved(true); setBdDirty(false);
-            console.log('[Register Import] 저장 완료:', saveResult.atomicCounts);
+            setBdLoadedFmeaId(fmeaId);
+            setBdLoadedFmeaName(fmeaInfo.subject || fmeaId);
+            setBdExpandTrigger(prev => prev + 1); // 패널 자동 펼침
+            templateGen.setTemplateMode('download');
+
+            // (4) ★v5: DB 카운트 설정 — 통계표에서 DB 저장 건수 표시
+            const dbCounts: Record<string, number> = {};
+            for (const item of flatFromAtomic) {
+              dbCounts[item.itemCode] = (dbCounts[item.itemCode] || 0) + 1;
+            }
+            setBdDbCounts(dbCounts);
           } else {
             console.error('[Register Import] 저장 실패:', saveResult.error);
           }
