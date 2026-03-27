@@ -124,42 +124,6 @@ export const M4_CATEGORIES = {
 export type M4Category = typeof M4_CATEGORIES[keyof typeof M4_CATEGORIES];
 
 /**
- * DFMEA 5 Interface Types
- * - PC: Physical Connection (물리적 연결)
- * - ME: Mechanical (기계적)
- * - ET: Electrical (전기적)
- * - DE: Data Exchange (데이터 교환)
- * - HMI: Human-Machine Interface (인간-기계 인터페이스)
- */
-export const DFMEA_INTERFACE_TYPES = {
-  PHYSICAL_CONNECTION: 'PC',
-  MECHANICAL: 'ME',
-  ELECTRICAL: 'ET',
-  DATA_EXCHANGE: 'DE',
-  HMI: 'HMI',
-} as const;
-
-export type DfmeaInterfaceType = typeof DFMEA_INTERFACE_TYPES[keyof typeof DFMEA_INTERFACE_TYPES];
-
-export const DFMEA_INTERFACE_LABELS: Record<string, string> = {
-  PC: 'Physical Connection (물리적 연결)',
-  ME: 'Mechanical (기계적)',
-  ET: 'Electrical (전기적)',
-  DE: 'Data Exchange (데이터 교환)',
-  HMI: 'Human-Machine Interface (인간-기계)',
-};
-
-/**
- * FMEA 타입에 따른 L3 분류 체계 반환
- * PFMEA: 4M+1E (MN, MC, MT, MD, EN)
- * DFMEA: 5 Interface Types (PC, ME, ET, DE, HMI)
- */
-export function getL3Categories(fmeaType: string): Record<string, string> {
-  if (fmeaType === 'D') return DFMEA_INTERFACE_LABELS;
-  return M4_LABELS;
-}
-
-/**
  * 4M+1E 표시명
  */
 export const M4_LABELS: Record<string, string> = {

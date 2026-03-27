@@ -19,8 +19,7 @@ export async function GET(request: NextRequest) {
 
   const year = new Date().getFullYear().toString().slice(-2);
   const typeChar = fmeaType.toLowerCase();
-  const idPrefix = fmeaType === 'D' ? 'dfm' : 'pfm';
-  const prefix = `${idPrefix}${year}-${typeChar}`;
+  const prefix = `pfm${year}-${typeChar}`;
 
   // 연동 접미사: Part FMEA만 사용 (Master/Family는 접미사 없음)
   const needsSuffix = fmeaType === 'P';

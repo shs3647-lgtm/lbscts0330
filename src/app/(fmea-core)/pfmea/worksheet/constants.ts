@@ -602,19 +602,8 @@ export const createInitialState = (): WorksheetState => ({
   riskData: {}  // ✅ SOD 점수 저장용 초기값
 });
 
-export const DFMEA_COLORS = {
-  PC: { bg: '#e8f4fd', border: '#b3d9f2', color: '#0d4f8b' },
-  ME: { bg: '#fff3e0', border: '#ffcc80', color: '#e65100' },
-  ET: { bg: '#e8f5e9', border: '#a5d6a7', color: '#1b5e20' },
-  DE: { bg: '#ede7f6', border: '#b39ddb', color: '#4527a0' },
-  HMI: { bg: '#fce4ec', border: '#ef9a9a', color: '#b71c1c' },
-};
-
 export const get4MBadgeStyle = (m4: string) => {
-  const colorMap: Record<string, { bg: string; border: string; color: string }> = {
-    MN: COLORS.mn, MC: COLORS.mc, IM: COLORS.im, EN: COLORS.en,
-    ...DFMEA_COLORS,
-  };
+  const colorMap: any = { MN: COLORS.mn, MC: COLORS.mc, IM: COLORS.im, EN: COLORS.en };
   return colorMap[m4] || { bg: '#f5f5f5', border: '#ddd', color: '#666' };
 };
 
