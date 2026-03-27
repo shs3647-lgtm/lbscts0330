@@ -586,6 +586,24 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // ═══════════════════════════════════════════
   // Sheet 4: FC (고장사슬) → FailureLink + RiskAnalysis
   // ═══════════════════════════════════════════
+  //
+  // ██████████████████████████████████████████████████████████████
+  // ★★★ 절대 규칙: FC 고장사슬 FK 해결은 행번호/위치 인덱스 전용 ★★★
+  // ██████████████████████████████████████████████████████████████
+  //
+  // ■ 텍스트 매칭(scope::text, processNo::text 등)으로 FK를 해결하는 것은
+  //   영구 금지(PERMANENTLY BANNED)합니다.
+  //   - 정규화 불일치, 공백·괄호 차이로 누락이 반복 발생했음 (v5.2까지의 교훈)
+  //   - FC 시트가 완전한 115행 데이터로 확정되어 텍스트 매칭이 불필요
+  //
+  // ■ 허용되는 FK 해결 방식:
+  //   1차: origRow 컬럼 (L1_origRow, L2_origRow, L3_origRow)이 있으면 직접 사용
+  //   2차: 위치 인덱스 매핑 — FC row[i] = L3 row[i] (1:1 대응)
+  //        → processNo별 FM 순서로 l2Row 역산
+  //        → FE scope 순서로 l1Row 역산
+  //
+  // ■ 이 규칙을 위반하는 PR은 무조건 리젝트 대상입니다.
+  // ██████████████████████████████████████████████████████████████
 
   const failureLinks: PosFailureLink[] = [];
   const riskAnalyses: PosRiskAnalysis[] = [];
@@ -594,41 +612,36 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const maxOrigRowL2 = l2Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
   const maxOrigRowL3 = l3Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
 
-  // ★v5.2: L1/L2/L3 텍스트 → 행번호 역인덱스 (FC 시트에 origRow 컬럼이 없을 때 위치기반 매칭용)
-  // FE: scope::text → excelRow (L1 시트)
-  const feTextToRow = new Map<string, number>();
-  for (const r of l1Sheet.rows) {
-    const c4 = r.cells['C4']?.trim();
-    const c1 = r.cells['C1']?.trim();
-    if (c4) {
-      const key = `${normalizeScope(c1 || '')}::${c4}`;
-      if (!feTextToRow.has(key)) feTextToRow.set(key, r.excelRow);
-      // scope 없는 fallback 키도 추가
-      const looseKey = `::${c4}`;
-      if (!feTextToRow.has(looseKey)) feTextToRow.set(looseKey, r.excelRow);
-    }
-  }
-  // FM: processNo::text → excelRow (L2 시트)
-  const fmTextToRow = new Map<string, number>();
+  // ★v6: 위치 인덱스 기반 행번호 역산 (텍스트 매칭 완전 삭제)
+  // FC 115행 = L3 115행 → 위치 인덱스로 1:1 대응
+  // ═══════════════════════════════════════════
+
+  // (1) L3 valid rows → FC row[i] = L3 valid row[i] 매핑용
+  const l3ValidRows = l3Sheet.rows; // 이미 processNo notna 필터링 완료된 순서
+  ppLog(`[position-parser] ★v6 위치 인덱스 매핑: FC=${fcSheet.rows.length}행 ↔ L3=${l3ValidRows.length}행`);
+
+  // (2) processNo별 L2 FM 행 목록 (순서 보장) — FM 그룹 인덱스로 l2Row 역산용
+  const l2FmRowsByPno = new Map<string, number[]>(); // processNo → [L2 excelRow, ...]
   for (const r of l2Sheet.rows) {
     const a5 = r.cells['A5']?.trim();
     const a1 = normalizeProcessNo(r.cells['A1']?.trim() || '');
     if (a5 && a1) {
-      const key = `${a1}::${a5}`;
-      if (!fmTextToRow.has(key)) fmTextToRow.set(key, r.excelRow);
+      if (!l2FmRowsByPno.has(a1)) l2FmRowsByPno.set(a1, []);
+      l2FmRowsByPno.get(a1)!.push(r.excelRow);
     }
   }
-  // FC: processNo::text → excelRow (L3 시트)
-  const fcTextToRow = new Map<string, number>();
-  for (const r of l3Sheet.rows) {
-    const b4 = r.cells['B4']?.trim();
-    const pno = normalizeProcessNo(r.cells['processNo']?.trim() || '');
-    if (b4 && pno) {
-      const key = `${pno}::${b4}`;
-      if (!fcTextToRow.has(key)) fcTextToRow.set(key, r.excelRow);
+
+  // (3) FE L1 행 목록 (순서 보장) — FE 그룹 인덱스로 l1Row 역산용
+  const l1FeRows: number[] = []; // L1 excelRow 순서대로
+  const l1FeRowByIndex = new Map<number, number>(); // feIndex → L1 excelRow
+  let feIdx = 0;
+  for (const r of l1Sheet.rows) {
+    const c4 = r.cells['C4']?.trim();
+    if (c4) {
+      l1FeRows.push(r.excelRow);
+      l1FeRowByIndex.set(feIdx++, r.excelRow);
     }
   }
-  ppLog(`[position-parser] ★v5.2 텍스트→행번호 역인덱스: FE=${feTextToRow.size} FM=${fmTextToRow.size} FC=${fcTextToRow.size}`);
 
   // FE severity 업데이트용 Map
   const feSeverityMap = new Map<string, number>();
@@ -636,6 +649,15 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // ★ JSON 파서 FC carry-forward (parsePositionBasedJSON 경로)
   let prevJsonFEscope = '', prevJsonFE = '', prevJsonPno = '', prevJsonFM = '';
   let jsonCarryCount = 0;
+
+  // ★v6: FM/FE 그룹 변경 추적 — 위치 인덱스 기반 l2Row/l1Row 역산
+  let prevFmGroup = ''; // processNo|FM — 변경 시 FM 인덱스 증가
+  let prevFeGroup = ''; // FE_scope|FE — 변경 시 FE 인덱스 증가
+  let currentFmIdxInPno = -1; // 현재 공정 내 FM 인덱스
+  let currentFeIdx = -1; // 전체 FE 인덱스
+  let currentPno = ''; // 현재 공정번호
+
+  let fcIndex = 0; // FC valid row 인덱스 (L3와 1:1 매핑)
 
   for (const row of fcSheet.rows) {
     const rn = row.excelRow;
@@ -651,7 +673,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (c['processNo'])prevJsonPno     = c['processNo'];
     if (c['FM'])       prevJsonFM      = c['FM'];
 
-    // L1/L2/L3_origRow = 각 시트 **엑셀 물리 행(1-based)**; registerFE/FM/FC의 excelRow와 동일해야 함
+    // ★v6: 행번호 역산 — 위치 인덱스 기반 (텍스트 매칭 없음)
+    // 1차: origRow 컬럼이 있으면 그대로 사용
     let l1Row = parseInt(c['L1_origRow'] || '', 10) || 0;
     let l2Row = parseInt(c['L2_origRow'] || '', 10) || 0;
     let l3Row = parseInt(c['L3_origRow'] || '', 10) || 0;
@@ -659,41 +682,53 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     l2Row = validateFcOrigRow(l2Row, maxOrigRowL2, 'L2', rn);
     l3Row = validateFcOrigRow(l3Row, maxOrigRowL3, 'L3', rn);
 
-    // ★v5.2: origRow가 없을 때 텍스트→행번호 역산 (위치기반 매칭 보강)
-    const fcPno = normalizeProcessNo(c['processNo'] || ''); // ★ AutoFix
-    const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
+    const fcPno = normalizeProcessNo(c['processNo'] || '');
+    const fcScope = normalizeScope(c['FE_scope'] || '');
 
-    if (!l1Row && c['FE']?.trim()) {
-      const feKey = `${fcScope}::${c['FE'].trim()}`;
-      const found = feTextToRow.get(feKey) || feTextToRow.get(`::${c['FE'].trim()}`);
-      if (found) { l1Row = found; }
+    // 2차: origRow 없으면 위치 인덱스로 역산
+    // (a) L3 행번호: FC row[fcIndex] = L3 valid row[fcIndex]
+    if (!l3Row && fcIndex < l3ValidRows.length) {
+      l3Row = l3ValidRows[fcIndex].excelRow;
     }
-    if (!l2Row && c['FM']?.trim() && fcPno) {
-      const fmKey = `${fcPno}::${c['FM'].trim()}`;
-      const found = fmTextToRow.get(fmKey);
-      if (found) { l2Row = found; }
+
+    // (b) L2 행번호: FM 그룹 변경 추적 → 같은 공정 내 FM 순서
+    const fmGroup = `${fcPno}|${c['FM'] || ''}`;
+    if (fmGroup !== prevFmGroup) {
+      prevFmGroup = fmGroup;
+      if (fcPno !== currentPno) {
+        // 공정 변경 → FM 인덱스 리셋
+        currentPno = fcPno;
+        currentFmIdxInPno = 0;
+      } else {
+        // 같은 공정 내 새 FM 그룹
+        currentFmIdxInPno++;
+      }
     }
-    if (!l3Row && c['FC']?.trim() && fcPno) {
-      const fcKey = `${fcPno}::${c['FC'].trim()}`;
-      const found = fcTextToRow.get(fcKey);
-      if (found) { l3Row = found; }
+    if (!l2Row && fcPno) {
+      const fmRows = l2FmRowsByPno.get(fcPno);
+      if (fmRows && currentFmIdxInPno < fmRows.length) {
+        l2Row = fmRows[currentFmIdxInPno];
+      }
+    }
+
+    // (c) L1 행번호: FE 그룹 변경 추적 → 전체 FE 순서
+    const feGroup = `${fcScope}|${c['FE'] || ''}`;
+    if (feGroup !== prevFeGroup) {
+      prevFeGroup = feGroup;
+      currentFeIdx++;
+    }
+    if (!l1Row) {
+      const feRow = l1FeRowByIndex.get(currentFeIdx);
+      if (feRow) l1Row = feRow;
     }
 
     const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
 
-    // FK 해결: 1차 행번호 → 2차 텍스트 역매칭 (CrossSheetResolver v5)
+    // FK 해결: 행번호 기반 직접 매칭 (★v6: 텍스트 매칭 삭제)
     let { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
       l1Row,
       l2Row,
       l3Row,
-      // ★v5: 텍스트 역매칭 — origRow 컬럼 없는 엑셀에서 UUID FK 직접 생성
-      feText: c['FE']?.trim() || undefined,
-      feScope: fcScope || undefined,
-      fmText: c['FM']?.trim() || undefined,
-      fcText: c['FC']?.trim() || undefined,
-      processNo: fcPno || undefined,
-      m4: normalizeM4(c['m4'] || ''),
-      weText: c['WE']?.trim() || undefined,
     });
 
     // ★v5.2: 동적 FC 생성 제거 (Rule 1.5 자동생성 금지)
@@ -758,6 +793,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (feId && severity > (feSeverityMap.get(feId) || 0)) {
       feSeverityMap.set(feId, severity);
     }
+
+    fcIndex++; // ★v6: 위치 인덱스 증가 (L3와 1:1 매핑)
   }
 
   // FE severity 업데이트
