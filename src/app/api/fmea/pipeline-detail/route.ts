@@ -163,7 +163,7 @@ function buildCrossCheckMatrixFromAtomic(
   const cats = new Set<string>(), fns = new Set<string>();
   for (const fn of l1Funcs) {
     if (fn.category?.trim()) cats.add(fn.category);
-    if (fn.functionName?.trim()) fns.add(`${fn.category}|${fn.functionName}`);
+    if (fn.functionName?.trim()) fns.add(fn.functionName);
   }
   atm.C1 = cats.size;
   atm.C2 = fns.size;

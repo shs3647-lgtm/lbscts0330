@@ -297,48 +297,10 @@ export default function PFMEAListPage() {
     }
   }, [page, sortField, sortOrder, debouncedSearch, trashMode, archiveMode, isAdmin]);
 
-  // ★ handleSave — 선택된 프로젝트 DB 동기화 저장
-  const handleSave = useCallback(async () => {
-    const ids = Array.from(selectedRows);
-    if (ids.length === 0) {
-      toast.warn('저장할 항목을 선택해주세요.(Please select items to save.)');
-      return;
-    }
-    setSaveStatus('saving');
-    let successCount = 0;
-    let failCount = 0;
-    for (const id of ids) {
-      const proj = projects.find(p => p.id === id);
-      if (!proj) continue;
-      try {
-        const res = await fetch('/api/fmea/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fmeaId: proj.id,
-            fmeaType: proj.fmeaType,
-            project: proj.project,
-            fmeaInfo: proj.fmeaInfo,
-            cftMembers: proj.cftMembers,
-            parentFmeaId: proj.parentFmeaId,
-            revisionNo: proj.revisionNo,
-          }),
-        });
-        if (res.ok) successCount++;
-        else failCount++;
-      } catch {
-        failCount++;
-      }
-    }
-    await loadData();
-    setSaveStatus('saved');
-    if (failCount > 0) {
-      toast.error(`${successCount}건 저장, ${failCount}건 실패`);
-    } else {
-      toast.success(`${successCount}건 저장 완료(Saved)`);
-    }
-    setTimeout(() => setSaveStatus('idle'), 2000);
-  }, [selectedRows, projects, loadData]);
+  // ★ handleSave 제거 - DB Only 방식으로 저장은 등록 페이지에서 직접 API 호출
+  const handleSave = useCallback(() => {
+    // DB 저장은 등록 페이지에서 처리 - 리스트에서는 실행하지 않음
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -656,24 +618,7 @@ export default function PFMEAListPage() {
               deleteCount={selectedRows.size}
               registerUrl={CONFIG.registerUrl}
               themeColor={CONFIG.themeColor}
-              showRegisterButton
             />
-            {/* ListActionBar CODEFREEZE 보완: 새로고침 + 수정 버튼 */}
-            <div className="flex gap-1.5 mt-1">
-              <button
-                onClick={loadData}
-                className="px-2.5 py-1 text-[11px] rounded bg-gray-100 border border-gray-400 text-gray-700 hover:bg-gray-200 cursor-pointer whitespace-nowrap"
-              >
-                🔄 새로고침
-              </button>
-              <button
-                onClick={() => { if (selectedProjectId) handleOpenRegister(selectedProjectId); }}
-                disabled={selectedRows.size !== 1}
-                className="px-2.5 py-1 text-[11px] rounded bg-blue-100 border border-blue-400 text-blue-700 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
-              >
-                ✏️ 수정
-              </button>
-            </div>
           </div>
           <DeleteHelpBadge />
         </div>

@@ -1005,20 +1005,16 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     // 같은 L2 공정의 기존 RA에서 PC/DC 복제 + 글로벌 폴백
     const l2ToPCDC = new Map<string, { pc: string; dc: string }>();
     let globalPC = '', globalDC = '';
-    const isAutoLinked = (linkId: string | undefined) =>
-      linkId?.startsWith('AUTO-FL-') || linkId?.startsWith('AUTO-FE-');
-
     for (const ra of riskAnalyses) {
-      if (isAutoLinked(ra.linkId)) continue; // ★ 자동링크 RA는 PC/DC 소스맵에서 제외
       if (ra.preventionControl && !globalPC) globalPC = ra.preventionControl;
       if (ra.detectionControl && !globalDC) globalDC = ra.detectionControl;
       if (ra.preventionControl || ra.detectionControl) {
         const fl = failureLinks.find(f => f.id === ra.linkId);
         const l2 = (fl?.l2StructId as string) || '';
         if (l2 && !l2ToPCDC.has(l2)) {
-          l2ToPCDC.set(l2, {
+          l2ToPCDC.set(l2, { 
             pc: ra.preventionControl || '',
-            dc: ra.detectionControl || '',
+            dc: ra.detectionControl || '', 
           });
         }
       }
@@ -1026,7 +1022,6 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
     let pcFilled = 0, dcFilled = 0;
     for (const ra of riskAnalyses) {
-      if (isAutoLinked(ra.linkId)) continue; // ★ 자동링크 RA는 백필 대상에서 제외
       const fl = failureLinks.find(f => f.id === ra.linkId);
       const l2 = (fl?.l2StructId as string) || '';
       const ref = l2ToPCDC.get(l2);

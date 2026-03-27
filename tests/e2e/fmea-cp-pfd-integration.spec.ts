@@ -55,31 +55,25 @@ test.describe('Smart System 연동 통합 검증', () => {
     }
   });
 
-  test('Step 1: FMEA pipeline 응답 정상 (5단계 존재)', async ({ request }) => {
-    const resp = await request.get(`${BASE}/api/fmea/pipeline-verify?fmeaId=${FMEA_ID}`);
+  test('Step 1: FMEA pipeline allGreen=true', async ({ request }) => {
+    // POST로 자동수정 포함 검증 (반복 실행 시 안정성)
+    const resp = await request.post(`${BASE}/api/fmea/pipeline-verify`, {
+      data: { fmeaId: FMEA_ID },
+    });
     expect(resp.ok()).toBeTruthy();
     const data = await resp.json();
-    expect(data.success).toBe(true);
-    expect(data.steps).toHaveLength(5);
+    expect(data.allGreen).toBe(true);
 
-    const statuses = data.steps.map((s: { step: number; status: string }) => `S${s.step}:${s.status}`).join(' ');
-    console.log(`FMEA pipeline: allGreen=${data.allGreen} ${statuses}`);
+    console.log(`FMEA pipeline: allGreen=${data.allGreen}`);
   });
 
   test('Step 2: sync-cp-pfd 실행 → CP/PFD 생성 (결정론적)', async ({ request }) => {
     const resp = await request.post(`${BASE}/api/fmea/sync-cp-pfd`, {
       data: { fmeaId: FMEA_ID, mode: 'CREATE' },
     });
-    if (!resp.ok()) {
-      console.log(`sync-cp-pfd: status=${resp.status()} (Atomic 데이터 부재)`);
-      test.skip(true, `sync-cp-pfd: HTTP ${resp.status()} (프로젝트 스키마 Atomic 데이터 부재)`);
-      return;
-    }
+    expect(resp.ok()).toBeTruthy();
     const data = await resp.json();
-    if (!data.ok || !data.data?.cpItems) {
-      test.skip(true, 'sync-cp-pfd: Atomic 데이터 부재 (프로젝트 스키마 미설정)');
-      return;
-    }
+    expect(data.ok).toBe(true);
     expect(data.data.cpItems).toBeGreaterThan(0);
     expect(data.data.pfdItems).toBeGreaterThan(0);
     expect(data.validation.allPass).toBe(true);
@@ -89,16 +83,10 @@ test.describe('Smart System 연동 통합 검증', () => {
 
   test('Step 3: cp-pfd-verify → 7 FK orphan=0', async ({ request }) => {
     const resp = await request.get(`${BASE}/api/fmea/cp-pfd-verify?fmeaId=${FMEA_ID}`);
-    if (!resp.ok()) {
-      test.skip(true, 'cp-pfd-verify API 미응답');
-      return;
-    }
+    expect(resp.ok()).toBeTruthy();
     const data = await resp.json();
-    if (!data.ok || !data.fmea?.l2) {
-      test.skip(true, 'cp-pfd-verify: Atomic 데이터 부재');
-      return;
-    }
 
+    expect(data.ok).toBe(true);
     expect(data.allGreen).toBe(true);
     expect(data.totalOrphans).toBe(0);
 
@@ -132,19 +120,15 @@ test.describe('Smart System 연동 통합 검증', () => {
     // 4.0 sync 결과에서 cpNo 조회
     const verifyResp0 = await request.get(`${BASE}/api/fmea/cp-pfd-verify?fmeaId=${FMEA_ID}`);
     const verifyData0 = await verifyResp0.json();
-    if (!verifyData0.ok || !verifyData0.cp?.cpNo) {
-      test.skip(true, 'CP 데이터 부재');
-      return;
-    }
-    const cpNo = verifyData0.cp.cpNo;
+    const cpNo = verifyData0.cp?.cpNo || 'cp26-m066';
     console.log(`Using cpNo: ${cpNo}`);
 
     // 4.1 현재 CP items 조회
     const getResp = await request.get(`${BASE}/api/control-plan/${cpNo}/items`);
-    if (!getResp.ok()) { test.skip(true, 'CP items API 미응답'); return; }
+    expect(getResp.ok()).toBeTruthy();
     const getData = await getResp.json();
     const items = getData.data;
-    if (!items || items.length === 0) { test.skip(true, 'CP items 0건'); return; }
+    expect(items.length).toBeGreaterThan(0);
 
     // 4.2 FK 필드가 설정된 항목 확인
     const itemsWithLinkId = items.filter((i: any) => i.linkId);
@@ -184,9 +168,10 @@ test.describe('Smart System 연동 통합 검증', () => {
   test('Step 5: PFD 워크시트 저장 후 FK 보존', async ({ request }) => {
     // 5.1 PFD 조회
     const pfdListResp = await request.get(`${BASE}/api/pfd?fmeaId=${FMEA_ID}`);
-    if (!pfdListResp.ok()) { test.skip(true, 'PFD API 미응답'); return; }
+    expect(pfdListResp.ok()).toBeTruthy();
     const pfdListData = await pfdListResp.json();
 
+    // PFD가 있는지 확인
     let pfdNo: string | null = null;
     if (pfdListData.data?.pfdNo) {
       pfdNo = pfdListData.data.pfdNo;
@@ -196,12 +181,14 @@ test.describe('Smart System 연동 통합 검증', () => {
     }
 
     if (!pfdNo) {
+      console.log('PFD not found for direct save test, using verify result');
+      // cp-pfd-verify에서 PFD 번호 가져오기
       const vResp = await request.get(`${BASE}/api/fmea/cp-pfd-verify?fmeaId=${FMEA_ID}`);
       const vData = await vResp.json();
-      pfdNo = vData.pfd?.pfdNo || null;
+      pfdNo = vData.pfd?.pfdNo;
     }
 
-    if (!pfdNo) { test.skip(true, 'PFD 데이터 부재'); return; }
+    expect(pfdNo).toBeTruthy();
 
     // 5.2 PFD items 조회
     const pfdItemsResp = await request.get(`${BASE}/api/pfd/${pfdNo}`);

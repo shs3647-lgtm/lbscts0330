@@ -34,7 +34,7 @@ import { Pool } from 'pg';
 // migrateToAtomicDB, convertToLegacyFormat, convertFMEAStructuresToUnifiedItems, bulkSyncToUnifiedItems 제거
 // POST handler는 클라이언트(atomicDbSaver.ts)에서 받은 FMEAWorksheetDB를 직접 DB에 저장
 import { preserveFailureLinks, filterValidLinks } from '@/lib/failure-link-utils';
-import { pickLegacyFcProcessCharId } from '@/app/(fmea-core)/pfmea/worksheet/schema/utils/fcProcessCharPicker';
+import { pickLegacyFcProcessCharId } from '@/app/(fmea-core)/pfmea/worksheet/atomicToLegacyAdapter';
 
 // ✅ Prisma는 Node.js 런타임에서만 안정적으로 동작 (edge/browser 번들 방지)
 export const runtime = 'nodejs';

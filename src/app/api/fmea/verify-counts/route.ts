@@ -97,13 +97,16 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // --- C1 & C2: distinct categories / distinct product functions from L1Function ---
-    const allL1Funcs = await prisma.l1Function.findMany({
+    // --- C1: distinct categories from L1Function ---
+    const distinctCategories = await prisma.l1Function.findMany({
       where: { fmeaId },
-      select: { category: true, functionName: true },
+      select: { category: true },
+      distinct: ['category'],
     });
-    const c1 = new Set(allL1Funcs.map(f => f.category)).size;
-    const c2 = new Set(allL1Funcs.map(f => `${f.category}|${f.functionName}`)).size;
+    const c1 = distinctCategories.length;
+
+    // --- C2: L1Function count ---
+    const c2 = await prisma.l1Function.count({ where: { fmeaId } });
 
     // --- C3: L1Function with non-empty requirement ---
     const c3 = await prisma.l1Function.count({
