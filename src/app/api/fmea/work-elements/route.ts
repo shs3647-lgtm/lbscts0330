@@ -21,13 +21,27 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const processNo = searchParams.get('processNo') || '';
+    const fmeaId = searchParams.get('fmeaId') || '';
 
     try {
-        // 1. 활성화된 Master Dataset 조회
-        const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
-            where: { isActive: true },
-            orderBy: { updatedAt: 'desc' }
-        });
+        // ★★★ 2026-03-27: fmeaId가 있으면 해당 FMEA의 데이터셋 조회, 없으면 활성 데이터셋 폴백 ★★★
+        let activeDataset: any = null;
+        
+        if (fmeaId) {
+            // fmeaId로 해당 FMEA의 데이터셋 조회
+            activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+                where: { fmeaId },
+                orderBy: { updatedAt: 'desc' }
+            });
+        }
+        
+        // fmeaId가 없거나 해당 데이터셋이 없으면 활성 데이터셋 폴백
+        if (!activeDataset) {
+            activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+                where: { isActive: true },
+                orderBy: { updatedAt: 'desc' }
+            });
+        }
 
         if (!activeDataset) {
             return NextResponse.json({
@@ -187,6 +201,149 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ success: true, deletedCount: result.count });
     } catch (error: any) {
         console.error('작업요소 삭제 오류:', error.message);
+        return NextResponse.json({ success: false, error: error.message });
+    }
+}
+
+/**
+ * POST: 새 작업요소 추가/업데이트 (배치 지원)
+ * Body: { fmeaId?: string, processNo?: string, name?: string, m4?: string, items?: Array<{id, name, m4, processNo}> }
+ * - 단일 항목: processNo, name, m4 사용
+ * - 배치 항목: items 배열 사용 (더블클릭 입력 등)
+ * - items에 id가 있으면 upsert (기존 항목 업데이트 또는 새 항목 생성)
+ */
+export async function POST(req: NextRequest) {
+    const prisma = getPrisma();
+    if (!prisma) {
+        return NextResponse.json({ success: false, error: 'DB 연결 실패' });
+    }
+
+    try {
+        const body = await req.json();
+        const { fmeaId, processNo, name, m4, items } = body;
+
+        // ★★★ 2026-03-27: fmeaId로 해당 FMEA의 데이터셋 조회 ★★★
+        let activeDataset: any = null;
+        if (fmeaId) {
+            activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+                where: { fmeaId },
+                orderBy: { updatedAt: 'desc' }
+            });
+        }
+        if (!activeDataset) {
+            activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+                where: { isActive: true },
+                orderBy: { updatedAt: 'desc' }
+            });
+        }
+
+        if (!activeDataset) {
+            return NextResponse.json({ success: false, error: '활성 Master Dataset이 없습니다.' });
+        }
+
+        // ★★★ 배치 처리 (items 배열이 있을 때) ★★★
+        if (items && Array.isArray(items) && items.length > 0) {
+            const results: Array<{ id: string; status: string; m4?: string }> = [];
+            
+            for (const item of items) {
+                const itemName = (item.name || '').trim();
+                if (!itemName) continue;
+                
+                // 공정번호 제거한 rawName 추출
+                const rawName = itemName.replace(/^\d+\s+/, '');
+                const itemProcessNo = item.processNo || '';
+                
+                // ID로 기존 항목 조회
+                if (item.id) {
+                    const existing = await prisma.pfmeaMasterFlatItem.findFirst({
+                        where: { id: item.id, itemCode: 'B1' }
+                    });
+                    
+                    if (existing) {
+                        // 기존 항목 업데이트
+                        await prisma.pfmeaMasterFlatItem.update({
+                            where: { id: item.id },
+                            data: {
+                                value: rawName,
+                                m4: item.m4 || existing.m4 || '',
+                                processNo: itemProcessNo || existing.processNo || '',
+                            }
+                        });
+                        results.push({ id: item.id, status: 'updated' });
+                        continue;
+                    }
+                }
+                
+                // 중복 체크 (같은 데이터셋, 같은 공정, 같은 이름)
+                const duplicate = await prisma.pfmeaMasterFlatItem.findFirst({
+                    where: {
+                        datasetId: activeDataset.id,
+                        itemCode: 'B1',
+                        processNo: itemProcessNo,
+                        value: rawName,
+                    }
+                });
+                
+                if (duplicate) {
+                    // ★★★ 중복 항목의 m4도 반환 → 워크시트에서 4M 정보 동기화 가능 ★★★
+                    results.push({ id: duplicate.id, status: 'duplicate', m4: duplicate.m4 || '' });
+                    continue;
+                }
+                
+                // 새 항목 생성 (워크시트 ID 사용)
+                const newItem = await prisma.pfmeaMasterFlatItem.create({
+                    data: {
+                        id: item.id || undefined, // 워크시트 L3 ID 사용
+                        datasetId: activeDataset.id,
+                        category: 'B1-작업요소',
+                        itemCode: 'B1',
+                        processNo: itemProcessNo,
+                        value: rawName,
+                        m4: item.m4 || '',
+                        rowSpan: 1,
+                    }
+                });
+                results.push({ id: newItem.id, status: 'created' });
+            }
+            
+            return NextResponse.json({ success: true, results, count: results.length });
+        }
+
+        // ★★★ 단일 항목 처리 (기존 로직) ★★★
+        if (!name || !name.trim()) {
+            return NextResponse.json({ success: false, error: '작업요소명이 없습니다.' });
+        }
+
+        // 중복 체크 (같은 공정에 같은 이름)
+        const existing = await prisma.pfmeaMasterFlatItem.findFirst({
+            where: {
+                datasetId: activeDataset.id,
+                itemCode: 'B1',
+                processNo: processNo || '',
+                value: name.trim(),
+            },
+        });
+
+        if (existing) {
+            return NextResponse.json({ success: true, duplicate: true, id: existing.id });
+        }
+
+        // 새 항목 생성
+        const newItem = await prisma.pfmeaMasterFlatItem.create({
+            data: {
+                datasetId: activeDataset.id,
+                category: 'B1-작업요소',
+                itemCode: 'B1',
+                processNo: processNo || '',
+                value: name.trim(),
+                m4: m4 || '',
+                rowSpan: 1,
+            },
+        });
+
+        return NextResponse.json({ success: true, id: newItem.id });
+    } catch (error: any) {
+        console.error('작업요소 추가 오류:', error.message);
         return NextResponse.json({ success: false, error: error.message });
     }
 }

@@ -45,33 +45,42 @@ async function buildProcessesFromDataset(
     orderBy: { processNo: 'asc' },
   });
 
-  const processMap = new Map<string, Record<string, string>>();
+  // ★★★ 2026-03-27: 실제 UUID 사용 — A2(공정명) 항목의 ID를 공정 ID로 사용 ★★★
+  const processMap = new Map<string, { id: string; data: Record<string, string> }>();
   flatItems.forEach((item: any) => {
     const processNo = item.processNo || '';
     if (!processMap.has(processNo)) {
       processMap.set(processNo, {
-        processNo: '', processName: '', processDesc: '',
-        workElement: '', productChar: '', processChar: '',
-        specialChar: '', specTolerance: '', evalMethod: '',
-        sampleSize: '', controlMethod: '', reactionPlan: '',
+        id: '', // A2 항목의 ID로 설정됨
+        data: {
+          processNo: '', processName: '', processDesc: '',
+          workElement: '', productChar: '', processChar: '',
+          specialChar: '', specTolerance: '', evalMethod: '',
+          sampleSize: '', controlMethod: '', reactionPlan: '',
+        },
       });
     }
     const proc = processMap.get(processNo)!;
     const cpField = ITEM_CODE_MAPPING[item.itemCode];
-    if (cpField && item.value) proc[cpField] = item.value;
+    if (cpField && item.value) proc.data[cpField] = item.value;
+    // A2(공정명) 항목의 실제 UUID를 공정 ID로 사용
+    if (item.itemCode === 'A2' && item.id) {
+      proc.id = item.id;
+    }
   });
 
   return Array.from(processMap.entries())
-    .filter(([_, proc]) => proc.processName?.trim())
+    .filter(([_, proc]) => proc.data.processName?.trim())
     .map(([processNo, proc], idx) => ({
-      id: `master_proc_${processNo}_${idx}`,
-      no: proc.processNo || String((idx + 1) * 10),
-      name: proc.processName,
+      // ★ 실제 UUID 사용 (없으면 폴백)
+      id: proc.id || `master_proc_${processNo}_${idx}`,
+      no: proc.data.processNo || String((idx + 1) * 10),
+      name: proc.data.processName,
       cpData: {
-        processNo: proc.processNo || String((idx + 1) * 10),
-        processName: proc.processName,
-        processDesc: proc.processDesc || '',
-        workElement: proc.workElement || '',
+        processNo: proc.data.processNo || String((idx + 1) * 10),
+        processName: proc.data.processName,
+        processDesc: proc.data.processDesc || '',
+        workElement: proc.data.workElement || '',
         productChar: '', processChar: '', specialChar: '',
         specTolerance: '', evalMethod: '', sampleSize: '',
         controlMethod: '', reactionPlan: '',

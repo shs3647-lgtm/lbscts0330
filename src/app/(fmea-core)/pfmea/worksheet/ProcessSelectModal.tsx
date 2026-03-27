@@ -314,13 +314,16 @@ export default function ProcessSelectModal({
     }
   };
 
+  // ★★★ 2026-03-27: ID 기반 매칭만 사용 (이름/번호 매칭 제거) ★★★
+  const existingProcessIds = new Set(existingProcesses.map(p => p.id));
+  const isInWorksheet = (proc: ProcessItem) => existingProcessIds.has(proc.id);
+
   // ★★★ 2026-02-07: X 버튼 = 워크시트에서 해당 공정 삭제 (onDelete 콜백 사용) ★★★
   const handleDeleteSingle = (proc: ProcessItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    // ★★★ 2026-03-27: ID 기반 매칭만 사용 ★★★
     // 워크시트에 없는 공정이면 무시
-    const isInWorksheet = existingProcessNames.includes(proc.name) ||
-      existingProcesses.some(p => p.no === proc.no);
-    if (!isInWorksheet) return;
+    if (!existingProcessIds.has(proc.id)) return;
 
     const procInfo = existingProcessesInfo.find(p => p.name === proc.name);
     const l3Count = procInfo?.l3Count || 0;
@@ -337,10 +340,6 @@ export default function ProcessSelectModal({
     }
     // 모달 유지
   };
-
-  // ★ 워크시트에 등록된 공정인지 확인 (이름 또는 번호 매칭)
-  const isInWorksheet = (proc: ProcessItem) =>
-    existingProcessNames.includes(proc.name) || existingProcesses.some(p => p.no === proc.no);
 
   // ★ 미적용 항목을 이 FMEA 데이터셋에서 삭제
   const handleDeleteFromDataset = async (proc: ProcessItem, e: React.MouseEvent) => {
@@ -361,58 +360,47 @@ export default function ProcessSelectModal({
     }
   };
 
-  // 신규 공정 추가
+  // 신규 공정 추가 → DB 저장 → 워크시트 저장
   const handleAddNew = () => {
     if (!newName.trim()) return;
 
-    // 중복 확인 - 이름 또는 번호가 이미 존재하면 경고
     const trimmedName = newName.trim();
     const trimmedNo = newNo.trim();
+    
     if (processes.some(p => p.name === trimmedName)) {
       alert(`"${trimmedName}" 공정이 이미 목록에 있습니다.`);
       return;
     }
 
-    // 공정번호 자동 생성 — 기존 최대값 + 10
-    const maxNo = processes.reduce((max, p) => {
-      const n = parseInt(p.no.replace(/\D/g, '') || '0', 10);
-      return n > max ? n : max;
-    }, 0);
+    // 공정번호 자동 생성
+    const maxNo = processes.reduce((max, p) => Math.max(max, parseInt(p.no.replace(/\D/g, '') || '0', 10)), 0);
     const procNo = trimmedNo || String(maxNo + 10 || 10);
 
-    const newProc: ProcessItem = {
-      id: `proc_new_${Date.now()}`,
-      no: procNo,
-      name: trimmedName,
-    };
+    setNewNo('');
+    setNewName('');
 
-    // ★ 목록에 추가 + 자동 선택 (모달 유지 — 사용자가 목록에서 확인 후 "적용" 클릭)
-    setProcesses(prev => [newProc, ...prev]);
-    setSelectedIds(prev => new Set([...prev, newProc.id]));
-
-    // ★ 마스터 DB에 즉시 저장 (fire-and-forget)
+    // DB에 저장 후 ID 받아서 사용
     fetch('/api/fmea/master-processes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ processNo: procNo, processName: trimmedName, fmeaId }),
-    }).then(res => res.json()).then(data => {
-      if (!data.success && !data.duplicate) {
-        console.error('[ProcessSelectModal] DB 저장 실패:', data.error);
-      }
-    }).catch(e => {
-      console.error('[ProcessSelectModal] DB 저장 오류:', e);
-    });
-
-    // ✅ 연속입력 모드: 워크시트에 즉시 반영 + 새 행 추가
-    if (continuousMode && onContinuousAdd) {
-      onContinuousAdd(newProc, true);
-      setAddedCount(prev => prev + 1);
-    }
-    // ★ 비연속 모드: 모달 유지 — 목록에 선택 상태로 추가됨 (사용자가 "✓ 적용" 클릭으로 반영)
-    // 이전 동작(즉시 onSave+onClose)은 사용자가 결과를 확인할 수 없어 제거
-
-    setNewNo('');
-    setNewName('');
+    })
+      .then(res => res.json())
+      .then(data => {
+        const dbId = data.id || `proc_new_${Date.now()}`;
+        const newProc: ProcessItem = { id: dbId, no: procNo, name: trimmedName };
+        
+        setProcesses(prev => [newProc, ...prev]);
+        
+        // 워크시트에 저장
+        onSave([...existingProcesses, newProc]);
+        
+        if (continuousMode && onContinuousAdd) {
+          onContinuousAdd(newProc, true);
+          setAddedCount(prev => prev + 1);
+        }
+      })
+      .catch(e => console.error('[ProcessSelectModal] DB 저장 오류:', e));
   };
 
   if (!isOpen) return null;

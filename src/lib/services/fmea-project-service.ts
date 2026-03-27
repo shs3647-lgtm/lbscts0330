@@ -765,6 +765,7 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
                   category: item.category,
                   itemCode: item.itemCode,
                   value: item.value,
+                  m4: item.m4 || undefined,  // ★★★ 2026-03-27: m4 필드 복사 추가 ★★★
                   rowSpan: item.rowSpan ?? 1,
                 })),
                 skipDuplicates: true,
@@ -799,6 +800,7 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
                   category: item.category,
                   itemCode: item.itemCode,
                   value: item.value,
+                  m4: item.m4 || undefined,  // ★★★ 2026-03-27: m4 필드 복사 추가 ★★★
                   rowSpan: item.rowSpan ?? 1,
                 })),
                 skipDuplicates: true,

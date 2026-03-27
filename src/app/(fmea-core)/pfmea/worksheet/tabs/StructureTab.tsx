@@ -56,7 +56,7 @@ import { useAlertModal } from '../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
 import { createStrictModeDedupedUpdater } from '../utils/strictModeStateUpdater';
 import { emitSave, saveNow } from '../hooks/useSaveEvent';
-import { replaceL3Structures, addL2Structure, addL3Structure, deleteL2Structure, deleteL3Structure } from '../hooks/useAtomicView';
+import { replaceL3Structures, addL2Structure, addL3Structure, deleteL2Structure, deleteL3Structure, removeEmptyL2Structures, updateL2Structure, updateL3Structure } from '../hooks/useAtomicView';
 
 /**
  * ★★★ 2026-01-12 리팩토링 ★★★
@@ -115,9 +115,11 @@ interface StructureHeaderProps {
   isAutoMode?: boolean;
   onToggleMode?: () => void;
   isLoadingMaster?: boolean;
+  // ★★★ 2026-03-27: 공정번호 정렬 버튼 ★★★
+  onSortByProcessNo?: () => void;
 }
 
-export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed, onConfirm, onEdit, workElementCount = 0, l1Name = '', s2Count = 0, s3Count = 0, onMissingClick, isAutoMode, onToggleMode, isLoadingMaster }: StructureHeaderProps) {
+export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed, onConfirm, onEdit, workElementCount = 0, l1Name = '', s2Count = 0, s3Count = 0, onMissingClick, isAutoMode, onToggleMode, isLoadingMaster, onSortByProcessNo }: StructureHeaderProps) {
   // 확정된 경우 돋보기 숨김
   const showSearchIcon = !isConfirmed && missingCounts && missingCounts.l2Count > 0;
 
@@ -194,13 +196,27 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
             </span>
           )}
         </th>
-        <th onClick={onProcessModalOpen} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center cursor-pointer hover:bg-green-600">
-          <BiHeader ko="2. 메인 공정명" en="Main Process" /> {showSearchIcon && '🔍'}
-          {missingCounts && missingCounts.l2Count > 0 && (
-            <span className="ml-1 bg-red-600 text-white px-1.5 py-0 rounded-full text-[10px] font-bold">
-              {missingCounts.l2Count}
+        <th className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
+          <div className="flex items-center justify-center gap-1">
+            <span onClick={onProcessModalOpen} className="cursor-pointer hover:underline">
+              <BiHeader ko="2. 메인 공정명" en="Main Process" /> {showSearchIcon && '🔍'}
             </span>
-          )}
+            {missingCounts && missingCounts.l2Count > 0 && (
+              <span className="bg-red-600 text-white px-1.5 py-0 rounded-full text-[10px] font-bold">
+                {missingCounts.l2Count}
+              </span>
+            )}
+            {onSortByProcessNo && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onSortByProcessNo(); }}
+                className="ml-1 px-1 py-0 text-[9px] bg-white/20 hover:bg-white/40 rounded border border-white/40"
+                title="공정번호 순 정렬"
+              >
+                정렬↕
+              </button>
+            )}
+          </div>
         </th>
         <th colSpan={2} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <BiHeader ko="3. 작업 요소명" en="Work Element" /> {!isConfirmed && missingCounts && missingCounts.l3Count > 0 && '🔍'}
@@ -230,7 +246,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
 
 // ✅ 2026-01-19: saveAtomicDB 추가 (DB 저장 보장)
 export function StructureRow({
-  row, idx, l2Spans, state, setState, setStateSynced, setDirty, handleInputBlur, handleInputKeyDown, handleSelect, setIsProcessModalOpen, setIsWorkElementModalOpen, setTargetL2Id, saveToLocalStorage, saveAtomicDB, zebraBg, isConfirmed,
+  row, idx, l2Spans, state, setState, setStateSynced, setDirty, handleInputBlur, handleInputKeyDown, handleSelect, setIsProcessModalOpen, setIsWorkElementModalOpen, setTargetL2Id, saveToLocalStorage, saveAtomicDB, zebraBg, isConfirmed, fmeaId,
 }: StructureTabProps & { row: FlatRow; idx: number; zebraBg: string; isConfirmed?: boolean }) {
   // ★★★ 2026-02-05: L1 완제품명 인라인 편집 상태 ★★★
   const [isEditingL1, setIsEditingL1] = useState(false);
@@ -347,9 +363,11 @@ export function StructureRow({
         saveToLocalStorage={saveToLocalStorage}
         saveAtomicDB={saveAtomicDB}
         isConfirmed={isConfirmed}
+        fmeaId={fmeaId}
       />
       {/* ★ 2026-02-20: setStateSynced 전달 (stateRef 즉시 동기화 → DB 저장 안정) */}
-      <EditableL3Cell value={row.l3Name} l3Id={row.l3Id} l2Id={row.l2Id} state={state} setState={setState} setStateSynced={setStateSynced} setDirty={setDirty} handleSelect={handleSelect} setTargetL2Id={setTargetL2Id || (() => { })} setIsWorkElementModalOpen={setIsWorkElementModalOpen || (() => { })} saveToLocalStorage={saveToLocalStorage} saveAtomicDB={saveAtomicDB} zebraBg={zebraBg} isConfirmed={isConfirmed} isRevised={row.l3IsRevised} />
+      {/* ★ 2026-03-27: fmeaId 추가 — 더블클릭 입력 시 마스터 DB 저장용 */}
+      <EditableL3Cell value={row.l3Name} l3Id={row.l3Id} l2Id={row.l2Id} state={state} setState={setState} setStateSynced={setStateSynced} setDirty={setDirty} handleSelect={handleSelect} setTargetL2Id={setTargetL2Id || (() => { })} setIsWorkElementModalOpen={setIsWorkElementModalOpen || (() => { })} saveToLocalStorage={saveToLocalStorage} saveAtomicDB={saveAtomicDB} zebraBg={zebraBg} isConfirmed={isConfirmed} isRevised={row.l3IsRevised} fmeaId={fmeaId} />
     </>
   );
 }
@@ -771,14 +789,23 @@ export default function StructureTab(props: StructureTabProps) {
     // L3(작업요소) 삭제
     if (weName && !window.confirm(`작업요소 "${weName}"을(를) 삭제하시겠습니까?`)) return;
 
-    const newDB = deleteL3Structure(props.atomicDB, l3Id);
+    let newDB = deleteL3Structure(props.atomicDB, l3Id);
+    // L3가 0개가 되면 빈 L3 1개 자동 추가
+    const remainingL3 = newDB.l3Structures.filter(l3 => l3.l2Id === l2Id);
+    const autoL3Id = remainingL3.length === 0 ? uid() : null;
+    if (autoL3Id) {
+      newDB = addL3Structure(newDB, l2Id, { id: autoL3Id, name: '', m4: '', order: 0 });
+    }
     props.setAtomicDB(newDB);
     saveNow(newDB);
 
     (setStateSynced || setState)((prev: WorksheetState) => {
       const newL2 = prev.l2.map(p => {
         if (p.id !== l2Id) return p;
-        const newL3 = (p.l3 || []).filter(w => w.id !== l3Id);
+        let newL3 = (p.l3 || []).filter(w => w.id !== l3Id);
+        if (newL3.length === 0 && autoL3Id) {
+          newL3 = [{ id: autoL3Id, name: '', m4: '', order: 0, functions: [], processChars: [] }];
+        }
         newL3.forEach((w, i) => { w.order = i; });
         return { ...p, l3: newL3 };
       });
@@ -965,6 +992,36 @@ export default function StructureTab(props: StructureTabProps) {
     emitSave();
   }, [setState, setStateSynced, setDirty, saveToLocalStorage]);
 
+  // ★★★ 2026-03-27: 공정번호 순 정렬 핸들러 ★★★
+  const handleSortByProcessNo = useCallback(() => {
+    if (!props.atomicDB || !props.setAtomicDB) return;
+
+    // atomicDB.l2Structures 정렬
+    const sortedL2 = [...props.atomicDB.l2Structures].sort((a, b) => {
+      const numA = parseInt(a.no?.replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(b.no?.replace(/\D/g, '') || '0', 10);
+      return numA - numB;
+    });
+    // order 재부여
+    sortedL2.forEach((l2, idx) => { l2.order = idx; });
+
+    const newDB = { ...props.atomicDB, l2Structures: sortedL2 };
+    props.setAtomicDB(newDB);
+    saveNow(newDB);
+
+    // state 동기화
+    (setStateSynced || setState)((prev: WorksheetState) => {
+      const sortedStateL2 = [...prev.l2].sort((a, b) => {
+        const numA = parseInt(a.no?.replace(/\D/g, '') || '0', 10);
+        const numB = parseInt(b.no?.replace(/\D/g, '') || '0', 10);
+        return numA - numB;
+      });
+      sortedStateL2.forEach((p, idx) => { p.order = idx; });
+      return { ...prev, l2: sortedStateL2 };
+    });
+    setDirty(true);
+  }, [props.atomicDB, props.setAtomicDB, setState, setStateSynced, setDirty]);
+
   // ★★★ 2026-02-02: 누락 클릭 시 해당 공정 작업요소 모달 열기 ★★★
   const handleMissingClick = useCallback(() => {
     // ★ 누락 우선순위: L1 이름 → L2 이름 → L3 4M 빈 항목
@@ -1027,6 +1084,7 @@ export default function StructureTab(props: StructureTabProps) {
           isAutoMode={isAutoMode}
           onToggleMode={handleToggleMode}
           isLoadingMaster={isLoadingMaster}
+          onSortByProcessNo={handleSortByProcessNo}
         />
       </thead>
       <tbody onKeyDown={handleEnterBlur}>
@@ -1132,94 +1190,71 @@ export default function StructureTab(props: StructureTabProps) {
         atomicDB={props.atomicDB}
         setAtomicDB={props.setAtomicDB}
         onSave={(selectedProcesses) => {
+          if (!props.atomicDB || !props.setAtomicDB) return;
 
-          // 선택 공정 0개 = 전체 삭제
+          // 전체 삭제
           if (selectedProcesses.length === 0) {
+            const newDB = { ...props.atomicDB, l2Structures: [], l3Structures: [] };
+            props.setAtomicDB(newDB);
+            saveNow(newDB);
             (setStateSynced || setState)((prev: WorksheetState) => ({ ...prev, l2: [] }));
-            if (props.atomicDB && props.setAtomicDB) {
-              const newDB = { ...props.atomicDB, l2Structures: [], l3Structures: [] };
-              props.setAtomicDB(newDB);
-              saveNow(newDB);
-            }
             setDirty(true);
             return;
           }
 
-          // ★★★ 2026-02-07: 적용 = 추가 + 기존 공정명 업데이트 ★★★
-          const updateFn = (prev: WorksheetState) => {
-            // 수정된 공정명 반영 (no 기준 매칭)
-            const nameUpdateMap = new Map(selectedProcesses.map(sp => [sp.no, sp.name]));
+          // ★ atomicDB 먼저 수정
+          let newDB = { ...props.atomicDB };
+          const existingL2Nos = new Set(
+            newDB.l2Structures.filter(l2 => l2.no?.trim() || l2.name?.trim()).map(l2 => l2.no)
+          );
+          const emptyL2s = newDB.l2Structures.filter(l2 => !l2.no?.trim() && !l2.name?.trim());
+          const newProcs = selectedProcesses.filter(sp => !existingL2Nos.has(sp.no));
 
-            const existingNos = new Set(prev.l2.map(p => p.no).filter(Boolean));
-            const existingNames = new Set(prev.l2.map(p => p.name).filter(Boolean));
-
-            // 기존 공정 유지 (빈 행 제외) + 이름 업데이트 적용
-            const keepL2 = prev.l2.filter(p => p.name?.trim() || p.no?.trim()).map(p => {
-              const updatedName = nameUpdateMap.get(p.no);
-              if (updatedName && updatedName !== p.name) {
-                return { ...p, name: updatedName };
-              }
-              return p;
-            });
-
-            // 선택된 공정 중 기존에 없는 것만 추가
-            const newProcs = selectedProcesses.filter(sp =>
-              !existingNos.has(sp.no) && !existingNames.has(sp.name)
-            );
-
-
-            // 기존 유지 + 새 공정 추가
-            const finalL2 = [...keepL2];
-            newProcs.forEach(np => {
-              finalL2.push({
-                id: np.id,
-                no: np.no,
-                name: np.name,
-                order: finalL2.length,
-                l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-                functions: [],
-                failureModes: [],
-                failureCauses: [],
-              });
-            });
-
-
-            // ✅ 공정번호 숫자 정렬 (10, 20, 100, 110 순서)
-            finalL2.sort((a, b) => {
-              const numA = parseInt(a.no?.replace(/\D/g, '') || '0', 10);
-              const numB = parseInt(b.no?.replace(/\D/g, '') || '0', 10);
-              return numA - numB;
-            });
-
-            return { ...prev, l2: finalL2, structureConfirmed: false };
-          };
-
-          // ✅ setStateSynced 사용 (있으면), 없으면 setState 폴백
-          if (setStateSynced) {
-            setStateSynced(updateFn);
-          } else {
-            setState(updateFn);
-          }
-          setDirty(true);
-
-          // ★ 2026-03-27: atomicDB 직접 수정 + 즉시 저장
-          if (props.atomicDB && props.setAtomicDB) {
-            let newDB = { ...props.atomicDB };
-            const existingL2Nos = new Set(newDB.l2Structures.map(l2 => l2.no));
-            for (const sp of selectedProcesses) {
-              if (!existingL2Nos.has(sp.no)) {
-                newDB = addL2Structure(newDB, { id: sp.id || uid(), no: sp.no, name: sp.name, order: newDB.l2Structures.length });
-                newDB = addL3Structure(newDB, newDB.l2Structures[newDB.l2Structures.length - 1].id, { id: uid(), name: '', m4: '', order: 0 });
-              }
+          // 빈 행부터 채우기
+          let emptyIdx = 0;
+          const filledIds = new Map<string, { no: string; name: string }>(); // emptyL2.id → 채워진 값
+          for (const sp of newProcs) {
+            if (emptyIdx < emptyL2s.length) {
+              const emptyL2 = emptyL2s[emptyIdx];
+              newDB = updateL2Structure(newDB, emptyL2.id, { no: sp.no, name: sp.name });
+              filledIds.set(emptyL2.id, { no: sp.no, name: sp.name });
+              emptyIdx++;
+            } else {
+              const newId = sp.id || uid();
+              newDB = addL2Structure(newDB, { id: newId, no: sp.no, name: sp.name, order: newDB.l2Structures.length });
+              newDB = addL3Structure(newDB, newId, { id: uid(), name: '', m4: '', order: 0 });
             }
-            const nameMap = new Map(selectedProcesses.map(sp => [sp.no, sp.name]));
-            newDB.l2Structures = newDB.l2Structures.map(l2 => {
-              const newName = nameMap.get(l2.no);
-              return (newName && newName !== l2.name) ? { ...l2, name: newName } : l2;
-            });
-            props.setAtomicDB(newDB);
-            saveNow(newDB);
           }
+
+          // 기존 공정명 업데이트
+          const nameMap = new Map(selectedProcesses.map(sp => [sp.no, sp.name]));
+          newDB.l2Structures = newDB.l2Structures.map(l2 => {
+            const newName = nameMap.get(l2.no);
+            return (newName && newName !== l2.name) ? { ...l2, name: newName } : l2;
+          });
+
+          props.setAtomicDB(newDB);
+          saveNow(newDB);
+
+          // ★★★ 2026-03-27: state 동기화 — 단순화 ★★★
+          (setStateSynced || setState)((prev: WorksheetState) => {
+            // newDB.l2Structures를 기준으로 state 재구성 (ID 기반)
+            const prevL2Map = new Map(prev.l2.map(p => [p.id, p]));
+            const newL2 = newDB.l2Structures
+              .filter(l2 => l2.no?.trim() || l2.name?.trim())
+              .map((l2, idx) => {
+                const existing = prevL2Map.get(l2.id);
+                return existing
+                  ? { ...existing, no: l2.no, name: l2.name, order: idx }
+                  : {
+                      id: l2.id, no: l2.no, name: l2.name, order: idx,
+                      l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
+                      functions: [], failureModes: [], failureCauses: [],
+                    } as any;
+              });
+            return { ...prev, l2: newL2 };
+          });
+          setDirty(true);
         }}
         existingProcessNames={state.l2.map(p => p.name)}
         existingProcesses={state.l2.map(p => ({ id: p.id, no: p.no || '', name: p.name || '' }))}
@@ -1260,35 +1295,91 @@ export default function StructureTab(props: StructureTabProps) {
           if (!effectiveTargetL2Id) { showAlert('먼저 공정을 선택해주세요.'); return; }
           if (!props.atomicDB || !props.setAtomicDB) return;
 
-          // ★ atomicDB 직접 수정 + 즉시 저장
-          const newL3s = selectedElements.map((elem: any, idx: number) => ({
-            id: elem.id || uid(),
-            name: elem.name,
-            m4: elem.m4 || '',
-            order: idx,
-          }));
-          const newDB = replaceL3Structures(props.atomicDB, effectiveTargetL2Id, newL3s);
+          // ★★★ 2026-03-27: 전체 교체 방식 — 선택된 항목만 유지, 나머지는 행 삭제 ★★★
+          let newDB = { ...props.atomicDB };
+          
+          // state에서 현재 L2의 기존 L3 목록
+          const targetProc = state.l2.find(p => p.id === effectiveTargetL2Id);
+          const stateL3s = targetProc?.l3 || [];
+          
+          // 선택된 항목 ID 집합
+          const selectedIds = new Set(selectedElements.map((elem: any) => elem.id));
+          
+          // 1. 삭제 대상: 기존에 있었는데 선택에서 빠진 항목 + 빈 행 → 행 삭제
+          const toDeleteIds = new Set(
+            stateL3s.filter(l3 => {
+              // 빈 행은 무조건 삭제
+              if (!l3.name?.trim()) return true;
+              // 이름 있는데 선택에서 빠진 항목도 삭제
+              return !selectedIds.has(l3.id);
+            }).map(l3 => l3.id)
+          );
+          
+          // 2. 유지 대상: 선택된 항목 중 기존에 있던 것
+          const existingL3Ids = new Set(stateL3s.filter(l3 => l3.name?.trim()).map(l3 => l3.id));
+          
+          // 3. 추가 대상: 선택된 항목 중 기존에 없던 것
+          const newElems = selectedElements.filter((elem: any) => !existingL3Ids.has(elem.id));
+          
+          // atomicDB에서 삭제 대상 L3 제거 (행 삭제)
+          newDB.l3Structures = newDB.l3Structures.filter(l3 => !toDeleteIds.has(l3.id));
+          
+          // 새 항목 추가
+          const addedElems: Array<{ id: string; name: string; m4: string; order: number }> = [];
+          for (const elem of newElems) {
+            const masterId = elem.id || uid();
+            addedElems.push({
+              id: masterId,
+              name: elem.name,
+              m4: elem.m4 || '',
+              order: stateL3s.length - toDeleteIds.size + addedElems.length,
+            });
+            newDB = addL3Structure(newDB, effectiveTargetL2Id, {
+              id: masterId,
+              name: elem.name,
+              m4: elem.m4 || '',
+              order: stateL3s.length - toDeleteIds.size + addedElems.length - 1,
+            });
+          }
+          
+          // 기존 L3 이름 업데이트 (선택된 항목 중 기존에 있던 것)
+          const nameMap = new Map(selectedElements.map((elem: any) => [elem.id, { name: elem.name, m4: elem.m4 || '' }]));
+          newDB.l3Structures = newDB.l3Structures.map(l3 => {
+            if (l3.l2Id !== effectiveTargetL2Id) return l3;
+            const update = nameMap.get(l3.id);
+            return update ? { ...l3, name: update.name, m4: update.m4 } : l3;
+          });
+
           props.setAtomicDB(newDB);
           saveNow(newDB);
 
-          // state 동기화 (화면 렌더링용)
+          // ★★★ state 동기화 ★★★
           (setStateSynced || setState)(prev => {
             const newL2 = prev.l2.map(proc => {
               if (proc.id !== effectiveTargetL2Id) return proc;
-              const existingL3ById = new Map((proc.l3 || []).map(l3 => [l3.id, l3]));
-              const existingL3ByName = new Map((proc.l3 || []).map(l3 => [l3.name, l3]));
-              const newL3 = selectedElements.map((elem: any, idx: number) => {
-                const existing = existingL3ById.get(elem.id) || existingL3ByName.get(elem.name);
-                return {
-                  id: existing?.id || elem.id || uid(),
-                  name: elem.name,
-                  m4: elem.m4 || existing?.m4 || '',
-                  order: idx,
-                  functions: existing?.functions || [],
-                  processChars: existing?.processChars || [],
-                };
-              });
-              return { ...proc, l3: newL3 };
+              
+              // 삭제 대상 제외, 유지 항목만
+              let updatedL3 = (proc.l3 || [])
+                .filter(l3 => !toDeleteIds.has(l3.id))
+                .map(l3 => {
+                  const update = nameMap.get(l3.id);
+                  if (update) return { ...l3, name: update.name, m4: update.m4 };
+                  return l3;
+                });
+              
+              // 새로 추가된 L3 항목
+              for (const added of addedElems) {
+                updatedL3.push({
+                  id: added.id,
+                  name: added.name,
+                  m4: added.m4,
+                  order: added.order,
+                  functions: [],
+                  processChars: [],
+                });
+              }
+              
+              return { ...proc, l3: updatedL3 };
             });
             return { ...prev, l2: newL2 };
           });
@@ -1301,6 +1392,7 @@ export default function StructureTab(props: StructureTabProps) {
         existingL3={(state.l2.find(p => p.id === targetL2Id)?.l3 || state.l2[0]?.l3 || [])
           .filter(w => w.name?.trim())
           .map(w => ({ id: w.id, name: w.name, m4: w.m4 || '' }))}
+        fmeaId={props.fmeaId}  // ★★★ 2026-03-27: fmeaId 전달 — 해당 FMEA의 데이터셋에서 조회 ★★★
       />
 
       {/* ★★★ 2026-02-05: 컨텍스트 메뉴 (수동모드 행 추가/삭제) ★★★ */}
