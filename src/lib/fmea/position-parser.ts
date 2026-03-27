@@ -623,17 +623,19 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
     const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
 
-    // FK 해결: 1차 행번호 → 2차 텍스트 fallback (CrossSheetResolver)
+    // FK 해결: 1차 행번호 → 2차 텍스트 역매칭 (CrossSheetResolver v5)
     const { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
       l1Row,
       l2Row,
       l3Row,
-      // ★ 2026-03-27 FORGE FIX: 텍스트 fallback 전달 — 행번호 실패 시 텍스트 기반 매칭
+      // ★v5: 텍스트 역매칭 — origRow 컬럼 없는 엑셀에서 UUID FK 직접 생성
       feText: c['FE']?.trim() || undefined,
       feScope: fcScope || undefined,
       fmText: c['FM']?.trim() || undefined,
       fcText: c['FC']?.trim() || undefined,
       processNo: fcPno || undefined,
+      m4: normalizeM4(c['m4'] || ''),
+      weText: c['WE']?.trim() || undefined,
     });
 
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
