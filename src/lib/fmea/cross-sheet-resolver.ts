@@ -134,13 +134,29 @@ export class CrossSheetResolver {
     }
     if (ref.fmText) {
       const normFM = normalizeText(ref.fmText);
-      // Level 2: 정확 매칭 (공정+FM)
       if (ref.processNo) {
-        const key = `${ref.processNo.trim()}::${normFM}`;
+        const pno = ref.processNo.trim();
+        // Level 2a: 정확 매칭 (공정번호 원본 + FM)
+        const key = `${pno}::${normFM}`;
         const found = this.fmTextMap.get(key);
         if (found) return found;
-        // ★v5.1: 공정번호 있는데 매칭 실패 → 크로스프로세스 fallback 금지 (Rule 1.7)
-        // 다른 공정의 동일 텍스트 FM을 반환하면 거짓 데이터 생성
+
+        // Level 2b: 공정번호 정규화 재시도 (선행0 제거: "035"→"35")
+        const normPno = String(parseInt(pno, 10));
+        if (normPno !== pno && !isNaN(parseInt(pno, 10))) {
+          const normKey = `${normPno}::${normFM}`;
+          const normFound = this.fmTextMap.get(normKey);
+          if (normFound) return normFound;
+        }
+        // Level 2c: 등록된 키에서 정규화된 공정번호가 일치하는 것 탐색
+        for (const [k, v] of this.fmTextMap) {
+          const [regPno, regFM] = k.split('::');
+          if (regFM === normFM && String(parseInt(regPno, 10)) === normPno) {
+            return v;
+          }
+        }
+
+        // ★v5.1: processNo 있으면 해당 공정만 매칭 — 크로스프로세스 fallback 금지 (Rule 1.7)
         return { fmId: '', l2StructId: '' };
       }
       // Level 3: 공정번호 없을 때만 텍스트 매칭 허용
@@ -157,16 +173,29 @@ export class CrossSheetResolver {
       return { fcId: this.l3RowToFcId.get(ref.l3Row)!, l3StructId: this.l3RowToL3StructId.get(ref.l3Row) || '' };
     }
     if (ref.fcText && ref.processNo) {
+      const pno = ref.processNo.trim();
       const normFC = normalizeText(ref.fcText);
       // Level 2: 정밀 매칭 (공정+m4+WE+FC)
-      const preciseKey = `${ref.processNo.trim()}::${normalizeText(ref.m4 || '')}::${normalizeText(ref.weText || '')}::${normFC}`;
+      const preciseKey = `${pno}::${normalizeText(ref.m4 || '')}::${normalizeText(ref.weText || '')}::${normFC}`;
       const preciseFound = this.fcTextMap.get(preciseKey);
       if (preciseFound) return preciseFound;
       // Level 3: Loose 매칭 (공정+FC)
-      const looseKey = `${ref.processNo.trim()}::${normFC}`;
+      const looseKey = `${pno}::${normFC}`;
       const looseFound = this.fcLooseMap.get(looseKey);
       if (looseFound) return looseFound;
-      // ★v5.1: 공정번호 있는데 매칭 실패 → 크로스프로세스 fallback 금지 (Rule 1.7)
+
+      // Level 3b: 공정번호 정규화 재시도 (선행0 제거)
+      const normPno = String(parseInt(pno, 10));
+      if (normPno !== pno && !isNaN(parseInt(pno, 10))) {
+        for (const [k, v] of this.fcLooseMap) {
+          const [regPno, regFC] = k.split('::');
+          if (regFC === normFC && String(parseInt(regPno, 10)) === normPno) {
+            return v;
+          }
+        }
+      }
+
+      // ★v5.1: processNo 있으면 해당 공정만 매칭 — 크로스프로세스 fallback 금지 (Rule 1.7)
       return { fcId: '', l3StructId: '' };
     }
     // 공정번호 없을 때만 텍스트 매칭 허용
