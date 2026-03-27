@@ -29,7 +29,7 @@ export function validateStructure(db: FMEAWorksheetDB): ValidationResult {
     } else {
         db.l2Structures.forEach((l2, idx) => {
             totalCount++;
-            if (!l2.name || l2.name.trim() === '' || l2.name.includes('클릭') || l2.name.includes('선택')) {
+            if (!l2.name?.trim()) {
                 errors.push({ level: 'error', field: `l2Structures[${idx}].name`, message: `${idx + 1}번 공정명이 누락되었습니다.`, itemId: l2.id });
                 missingCount++;
             }
@@ -42,7 +42,7 @@ export function validateStructure(db: FMEAWorksheetDB): ValidationResult {
     // L3 검증
     db.l3Structures.forEach((l3, idx) => {
         totalCount++;
-        if (!l3.name || l3.name.trim() === '' || l3.name.includes('클릭') || l3.name.includes('추가')) {
+        if (!l3.name?.trim()) {
             errors.push({ level: 'error', field: `l3Structures[${idx}].name`, message: `작업요소명이 누락되었습니다.`, itemId: l3.id });
             missingCount++;
         }

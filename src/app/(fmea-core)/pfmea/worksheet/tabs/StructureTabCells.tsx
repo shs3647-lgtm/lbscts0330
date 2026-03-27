@@ -13,6 +13,7 @@ import React, { useState, useRef } from 'react';
 import { WorksheetState } from '../constants';
 import { cell } from '../../../../../styles/worksheet';
 import { extractM4FromValue } from '@/lib/constants';
+import { emitSave } from '../hooks/useSaveEvent';
 
 // PFMEA 4M 타입 옵션 (MN/MC/IM/EN)
 export const M4_OPTIONS = [
@@ -48,12 +49,7 @@ export function EditableM4Cell({
       }))
     }));
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.(true);
-      if (saveAtomicDB) {
-        try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] M4 변경 DB 저장 오류:', e); }
-      }
-    }, 100);
+    emitSave();
   };
 
   // ★ 2026-01-25: 4M 셀은 zebraBg(L3 주황색) 사용
@@ -182,7 +178,7 @@ export function EditableL2Cell({
   const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const safeName = l2Name || '';
-  const isPlaceholder = safeName.includes('클릭') || safeName.includes('선택') || safeName === '';
+  const isPlaceholder = !safeName.trim();
 
   const handleSave = () => {
     if (editValue.trim() && editValue !== safeName) {
@@ -309,7 +305,7 @@ export function EditableL3Cell({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isPlaceholder = value.includes('추가') || value.includes('클릭') || value.includes('필요') || value.includes('없음') || value.includes('삭제');
+  const isPlaceholder = !value.trim();
 
   const handleSave = () => {
     if (editValue.trim() && editValue !== value) {
@@ -336,12 +332,7 @@ export function EditableL3Cell({
         };
       });
       setDirty(true);
-      setTimeout(async () => {
-        saveToLocalStorage?.(true);
-        if (saveAtomicDB) {
-          try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] L3 편집 DB 저장 오류:', e); }
-        }
-      }, 100);
+      emitSave();
     }
     setIsEditing(false);
   };

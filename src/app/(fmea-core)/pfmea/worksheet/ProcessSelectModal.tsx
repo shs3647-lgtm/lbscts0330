@@ -12,6 +12,8 @@ import { createPortal } from 'react-dom';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDraggableModal } from '@/components/modals/useDraggableModal';
 import { MODAL_COMPACT, MODAL_CONTAINER, ACTION_ICONS } from '@/styles/modal-compact';
+import { deleteL2Structure } from './hooks/useAtomicView';
+import { saveNow } from './hooks/useSaveEvent';
 
 interface ProcessItem {
   id: string;
@@ -28,15 +30,16 @@ interface ProcessSelectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (selectedProcesses: ProcessItem[]) => void;
-  onDelete?: (processIds: string[]) => void;
+  onDelete?: (processIds: string[]) => void | Promise<void>;
   existingProcessNames?: string[];
   existingProcessesInfo?: ProcessWithL3Info[];
-  /** ★ 워크시트 현재 공정 목록 (no 기준 매칭 + 수정된 이름 반영) */
   existingProcesses?: ProcessItem[];
-  productLineName?: string;  // 완제품공정명 (상위항목)
-  fmeaId?: string;  // ★ 2026-03-19: 프로젝트별 마스터 분리
-  // ✅ 연속입력 모드: 저장 시 워크시트에 즉시 반영 + 새 행 추가
+  productLineName?: string;
+  fmeaId?: string;
   onContinuousAdd?: (process: ProcessItem, addNewRow: boolean) => void;
+  // ★ 2026-03-27: atomicDB 직접 수정용
+  atomicDB?: any;
+  setAtomicDB?: (db: any) => void;
 }
 
 // DB에서 마스터 FMEA 공정 로드 (4단계 fallback 체인 — API 레벨에서 처리)
@@ -78,6 +81,8 @@ export default function ProcessSelectModal({
   fmeaId,
   onContinuousAdd,
   existingProcesses = [],
+  atomicDB,
+  setAtomicDB,
 }: ProcessSelectModalProps) {
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -101,7 +106,7 @@ export default function ProcessSelectModal({
 
   const { position: modalPosition, handleMouseDown } =
     // ★★★ 2026-02-05: WorkElementSelectModal과 위치/크기 통일 ★★★
-    useDraggableModal({ initialPosition: { top: 60, right: 360 }, modalWidth: 400, modalHeight: 500, isOpen });
+    useDraggableModal({ initialPosition: { top: 40, right: 360 }, modalWidth: 400, modalHeight: 700, isOpen });
 
   // ★★★ 2026-02-07: 데이터 로딩은 모달 열릴 때만 (isOpen만 의존) ★★★
   // existingProcessNames 변경 시 재로딩하면 삭제가 무효화되므로 제거
@@ -196,56 +201,45 @@ export default function ProcessSelectModal({
   const deselectAll = () => setSelectedIds(new Set());
 
   // ★★★ 2026-02-16: 삭제 = 워크시트에서만 삭제 (마스터 DB 유지) ★★★
-  const clearAndSave = () => {
-    // 선택된 항목이 있으면 → 선택된 항목만 워크시트에서 삭제
-    if (selectedIds.size > 0) {
-      const selectedToDelete = processes.filter(p => selectedIds.has(p.id));
-      const selectedNames = selectedToDelete.map(p => p.name);
-
-      // 워크시트에 있는 항목 분류
-      const worksheetTargets = selectedToDelete.filter(p =>
-        existingProcessNames.includes(p.name) || existingProcesses.some(ep => ep.no === p.no)
-      );
-
-      if (worksheetTargets.length === 0) {
-        alert('워크시트에 등록된 공정만 삭제할 수 있습니다.\n(Only processes registered in the worksheet can be deleted.)');
-        return;
-      }
-
-      // 삭제 대상 중 하위 데이터가 있는 것 확인
-      const deleteTargetsWithL3 = existingProcessesInfo.filter(p =>
-        selectedNames.includes(p.name) && p.l3Count > 0
-      );
-      const totalL3ToDelete = deleteTargetsWithL3.reduce((sum, p) => sum + p.l3Count, 0);
-
-      const parts: string[] = [];
-      parts.push(`선택된 ${worksheetTargets.length}개 공정을 워크시트에서 삭제하시겠습니까?\n(Delete ${worksheetTargets.length} selected processes from worksheet?)`);
-      if (totalL3ToDelete > 0) parts.push(`• 하위 작업요소: ${totalL3ToDelete}개도 함께 삭제(${totalL3ToDelete} sub-elements will also be deleted)`);
-      parts.push(`※ 마스터 기초정보는 유지됩니다.(Master data will be preserved.)`);
-
-      if (!window.confirm(`⚠️ ${parts.join('\n')}`)) return;
-
-      // 워크시트에서만 삭제 (마스터 DB는 건드리지 않음)
-      if (onDelete) {
-        const deleteNos = worksheetTargets.map(p => p.no);
-        onDelete(deleteNos);
-      }
-
-      setSelectedIds(new Set());
-      onClose();
+  const clearAndSave = async () => {
+    if (selectedIds.size === 0) {
+      if (!window.confirm('워크시트의 모든 공정을 삭제하시겠습니까?')) return;
+      onSave([]);
       return;
     }
 
-    // 선택된 항목이 없으면 → 전체 삭제
-    const totalL3Count = existingProcessesInfo.reduce((sum, p) => sum + p.l3Count, 0);
-    const message = `⚠️ 워크시트의 모든 공정을 삭제하시겠습니까?\n(Delete all processes from worksheet?)\n\n` +
-      `• 공정(Processes): ${existingProcessNames.length}개\n` +
-      `• 하위 작업요소(Sub-elements): ${totalL3Count}개\n` +
-      `※ 마스터 기초정보는 유지됩니다.(Master data will be preserved.)`;
+    // 선택된 항목 중 워크시트에 있는 것만 삭제
+    const selectedToDelete = processes.filter(p => selectedIds.has(p.id));
+    const worksheetTargets = selectedToDelete.filter(p =>
+      existingProcessNames.includes(p.name) || existingProcesses.some(ep => ep.no === p.no)
+    );
+    if (worksheetTargets.length === 0) {
+      alert('워크시트에 등록된 공정만 삭제할 수 있습니다.');
+      return;
+    }
+    if (!window.confirm(`선택된 ${worksheetTargets.length}개 공정을 삭제하시겠습니까?`)) return;
 
-    if (!window.confirm(message)) return;
-    onSave([]);  // 빈 배열 → StructureTab에서 전체 삭제 처리
-    onClose();
+    // ★ atomicDB 직접 수정 + 즉시 저장
+    if (atomicDB && setAtomicDB) {
+      const deleteNos = new Set(worksheetTargets.map(p => p.no));
+      const deleteL2Ids = (atomicDB.l2Structures || [])
+        .filter((l2: any) => deleteNos.has(l2.no))
+        .map((l2: any) => l2.id);
+      let newDB = atomicDB;
+      for (const id of deleteL2Ids) {
+        newDB = deleteL2Structure(newDB, id);
+      }
+      setAtomicDB(newDB);
+      await saveNow(newDB);
+    }
+
+    // state 동기화는 onDelete로
+    if (onDelete) onDelete(worksheetTargets.map(p => p.no));
+
+    setSelectedIds(new Set());
+    // 모달 목록에서도 제거
+    const deletedNos = new Set(worksheetTargets.map(p => p.no));
+    setProcesses(prev => prev.filter(p => !deletedNos.has(p.no)));
   };
 
   // ★★★ 2026-02-07: 적용 = 선택된 새 공정만 추가 (기존 공정 건드리지 않음) ★★★
@@ -348,6 +342,25 @@ export default function ProcessSelectModal({
   const isInWorksheet = (proc: ProcessItem) =>
     existingProcessNames.includes(proc.name) || existingProcesses.some(p => p.no === proc.no);
 
+  // ★ 미적용 항목을 이 FMEA 데이터셋에서 삭제
+  const handleDeleteFromDataset = async (proc: ProcessItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm(`"${proc.no} ${proc.name}" 을(를) 목록에서 삭제하시겠습니까?`)) return;
+    try {
+      const res = await fetch('/api/fmea/master-processes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ processNos: [proc.no], fmeaId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProcesses(prev => prev.filter(p => p.no !== proc.no));
+      }
+    } catch (err) {
+      console.error('데이터셋 삭제 오류:', err);
+    }
+  };
+
   // 신규 공정 추가
   const handleAddNew = () => {
     if (!newName.trim()) return;
@@ -413,7 +426,7 @@ export default function ProcessSelectModal({
         className="fixed inset-0 z-[9998] pointer-events-none"
       />
       <div
-        className="fixed bg-white rounded-lg shadow-2xl w-[400px] max-w-[400px] min-w-[400px] flex flex-col overflow-hidden max-h-[calc(100vh-80px)] cursor-move z-[9999] pointer-events-auto"
+        className="fixed bg-white rounded-lg shadow-2xl w-[400px] max-w-[400px] min-w-[400px] flex flex-col overflow-hidden max-h-[calc(100vh-40px)] cursor-move z-[9999] pointer-events-auto"
         style={{
           top: `${modalPosition.top}px`,
           right: `${modalPosition.right}px`
@@ -516,27 +529,11 @@ export default function ProcessSelectModal({
               className={`w-full px-2 py-0.5 ${MODAL_COMPACT.searchBar.fontSize} border rounded focus:ring-1 focus:ring-blue-500 outline-none`}
             />
           </div>
-          {/* 두 번째 줄: 버튼들 (컴팩트: 가로 배치) */}
-          <div className="flex items-center gap-1">
-            <button onClick={selectAll} className={`${MODAL_COMPACT.button.icon} font-bold bg-blue-500 text-white rounded hover:bg-blue-600`}>{ACTION_ICONS.selectAll} 전체</button>
-            <button onClick={deselectAll} className={`${MODAL_COMPACT.button.icon} font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400`}>{ACTION_ICONS.deselectAll} 해제</button>
-            <button onClick={handleSave} className={`${MODAL_COMPACT.button.icon} font-bold bg-green-600 text-white rounded hover:bg-green-700`}>{ACTION_ICONS.apply} 적용</button>
-            <button
-              onClick={handleSaveModified}
-              disabled={modifiedProcesses.size === 0 || saving}
-              className={`${MODAL_COMPACT.button.icon} font-bold rounded ${modifiedProcesses.size > 0
-                ? 'bg-orange-500 text-white hover:bg-orange-600 ring-2 ring-orange-300'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {saving ? '⏳' : '💾'} 저장{modifiedProcesses.size > 0 ? `(${modifiedProcesses.size})` : ''}
-            </button>
-            <button onClick={clearAndSave} className={`${MODAL_COMPACT.button.icon} font-bold bg-red-500 text-white rounded hover:bg-red-600`}>{ACTION_ICONS.delete} 삭제</button>
-          </div>
+          {/* 버튼 영역 제거 — 각 섹션(적용됨/미적용)에 개별 버튼 배치 */}
         </div>
 
         {/* 컴팩트 테이블 - 고정 높이 */}
-        <div className="overflow-auto p-2 h-80 min-h-[320px]">
+        <div className="overflow-auto p-2 flex-1 min-h-[400px]">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -552,9 +549,11 @@ export default function ProcessSelectModal({
                 <p className="text-[10px] text-gray-400">위 입력창에서 직접 추가해주세요(Add manually above)</p>
               </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-1">
-              {filteredProcesses.map(proc => {
+          ) : (() => {
+            const inWorksheet = filteredProcesses.filter(p => isInWorksheet(p));
+            const notInWorksheet = filteredProcesses.filter(p => !isInWorksheet(p));
+
+            const renderRow = (proc: ProcessItem) => {
                 const isSelected = selectedIds.has(proc.id);
                 const isCurrent = isInWorksheet(proc);
                 const isEditing = editingId === proc.id;
@@ -574,20 +573,15 @@ export default function ProcessSelectModal({
                         : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
                       }`}
                   >
-                    {/* 체크박스 */}
                     <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected
                       ? isCurrent ? 'bg-green-500 border-green-500' : 'bg-blue-500 border-blue-500'
                       : 'bg-white border-gray-300'
                       }`}>
                       {isSelected && <span className="text-white text-[8px] font-bold">✓</span>}
                     </div>
-
-                    {/* 번호 */}
                     <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded min-w-[28px] text-center">
                       {proc.no}
                     </span>
-
-                    {/* 이름 (수정 모드 or 표시 모드) */}
                     <div className="flex-1 min-w-0">
                       {isEditing ? (
                         <input
@@ -610,33 +604,72 @@ export default function ProcessSelectModal({
                         </span>
                       )}
                     </div>
-
-                    {/* 삭제 버튼 */}
-                    {isCurrent && (
+                    {/* 미적용 항목에만 X 삭제 (이 FMEA 데이터셋에서 삭제) */}
+                    {!isCurrent && (
                       <button
-                        onClick={(e) => handleDeleteSingle(proc, e)}
+                        onClick={(e) => handleDeleteFromDataset(proc, e)}
                         className="text-red-400 hover:text-red-600 text-xs shrink-0"
-                        title="삭제"
+                        title="목록에서 삭제"
                       >
                         ✕
                       </button>
                     )}
                   </div>
                 );
-              })}
-              {/* 빈 행 채우기 - 최소 12개 행 유지 */}
-              {Array.from({ length: Math.max(0, 12 - filteredProcesses.length) }).map((_, idx) => (
-                <div
-                  key={`empty-${idx}`}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-100 bg-gray-50/50"
-                >
-                  <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
-                  <span className="text-[10px] font-bold text-gray-300 bg-gray-100 px-1.5 py-0.5 rounded min-w-[28px] text-center">--</span>
-                  <span className="flex-1 text-xs text-gray-300">-</span>
-                </div>
-              ))}
-            </div>
-          )}
+            };
+
+            return (
+              <div>
+                {/* 워크시트에 있는 공정 */}
+                {inWorksheet.length > 0 && (
+                  <div className="mb-2">
+                    <div className="sticky top-0 z-10 flex items-center justify-between bg-green-50 px-2 py-1 rounded mb-1">
+                      <span className="text-[10px] font-bold text-green-700">✅ 적용됨 ({inWorksheet.length}개)</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => { const ids = new Set(selectedIds); inWorksheet.forEach(p => ids.add(p.id)); setSelectedIds(ids); }} className="text-[11px] px-2.5 py-1 font-bold bg-blue-500 text-white rounded hover:bg-blue-600">전체</button>
+                        <button onClick={() => { const ids = new Set(selectedIds); inWorksheet.forEach(p => ids.delete(p.id)); setSelectedIds(ids); }} className="text-[11px] px-2.5 py-1 font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400">해제</button>
+                        <button onClick={clearAndSave} className="text-[11px] px-2.5 py-1 font-bold bg-red-500 text-white rounded hover:bg-red-600">삭제</button>
+                      </div>
+                    </div>
+                    <div className={`overflow-y-auto ${notInWorksheet.length > 0 ? 'max-h-[180px]' : 'max-h-[400px]'}`}>
+                      <div className="grid grid-cols-2 gap-1">
+                        {inWorksheet.map(renderRow)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* 워크시트에 없는 공정 */}
+                {notInWorksheet.length > 0 && (
+                  <div>
+                    <div className="sticky top-0 z-10 flex items-center justify-between bg-gray-100 px-2 py-1 rounded mb-1">
+                      <span className="text-[10px] font-bold text-gray-500">미적용 ({notInWorksheet.length}개)</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => { const ids = new Set(selectedIds); notInWorksheet.forEach(p => ids.add(p.id)); setSelectedIds(ids); }} className="text-[11px] px-2.5 py-1 font-bold bg-blue-500 text-white rounded hover:bg-blue-600">전체</button>
+                        <button onClick={() => { const ids = new Set(selectedIds); notInWorksheet.forEach(p => ids.delete(p.id)); setSelectedIds(ids); }} className="text-[11px] px-2.5 py-1 font-bold bg-gray-300 text-gray-700 rounded hover:bg-gray-400">해제</button>
+                        <button onClick={handleSave} className="text-[11px] px-2.5 py-1 font-bold bg-green-600 text-white rounded hover:bg-green-700">적용</button>
+                      </div>
+                    </div>
+                    <div className={`overflow-y-auto ${inWorksheet.length > 0 ? 'max-h-[220px]' : 'max-h-[400px]'}`}>
+                      <div className="grid grid-cols-2 gap-1">
+                        {notInWorksheet.map(renderRow)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {inWorksheet.length === 0 && notInWorksheet.length === 0 && (
+                  <div className="grid grid-cols-2 gap-1">
+                    {Array.from({ length: 12 }).map((_, idx) => (
+                      <div key={`empty-${idx}`} className="flex items-center gap-2 px-2 py-1.5 rounded border border-gray-100 bg-gray-50/50">
+                        <div className="w-4 h-4 rounded border border-gray-200 bg-white shrink-0" />
+                        <span className="text-[10px] font-bold text-gray-300 bg-gray-100 px-1.5 py-0.5 rounded min-w-[28px] text-center">--</span>
+                        <span className="flex-1 text-xs text-gray-300">-</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* 푸터 - 선택 수 표시만 */}

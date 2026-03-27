@@ -174,7 +174,7 @@ export async function verifyUuid(prisma: any, fmeaId: string): Promise<StepResul
   const missingL3Children: ParentChildEntry['missingChildren'] = [];
   for (const l3 of l3s) {
     const name = ((l3 as any).name || '').trim();
-    if (!name || name.includes('공정 선택 후')) continue;
+    if (!name) continue;
     if ((l3FuncByL3.get(l3.id) || 0) === 0) {
       missingL3Children.push({ parentId: l3.id, parentName: name });
     }

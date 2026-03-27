@@ -346,7 +346,7 @@ export async function POST(request: NextRequest) {
         // ★ m4 누락 경고 (재발 방지 — 2026-02-22)
         const m4Missing = db.l3Structures.filter(l3 => {
           const name = (l3.name || '').trim();
-          return name && !name.includes('클릭') && !name.includes('추가') && !name.includes('선택') && (!l3.m4 || l3.m4.trim() === '');
+          return name && (!l3.m4 || l3.m4.trim() === '');
         });
         if (m4Missing.length > 0) {
         }

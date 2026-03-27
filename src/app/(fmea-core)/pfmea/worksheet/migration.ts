@@ -259,7 +259,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
   const l2Data = oldData.l2 || [];
   l2Data.forEach((proc: any, pIdx: number) => {
     // 빈 공정 스킵
-    if (!proc.name || proc.name.includes('클릭') || proc.name.includes('선택')) {
+    if (!proc.name?.trim()) {
       return;
     }
     
@@ -317,7 +317,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     let fmIdx = 0; // FM 항목 인덱스 (1-based)
     
     failureModes.forEach((fm: any, fmLocalIdx: number) => {
-      if (!fm.name || fm.name.includes('클릭') || fm.name.includes('추가')) {
+      if (!fm.name?.trim()) {
         return; // 빈 FM 스킵
       }
       
@@ -374,7 +374,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     const l3Data = proc.l3 || [];
     l3Data.forEach((we: any, weIdx: number) => {
       // 빈 작업요소 스킵
-      if (!we.name || we.name.includes('클릭') || we.name.includes('추가')) {
+      if (!we.name?.trim()) {
         return;
       }
       
@@ -446,11 +446,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     
     procFailureCauses.forEach((fc: any, fcLocalIdx: number) => {
       const fcNameTrimmed = (fc.name || '').trim();
-      if (!fcNameTrimmed
-        || fcNameTrimmed === '고장원인 선택'
-        || fcNameTrimmed === '클릭하여 추가'
-        || fcNameTrimmed === '여기를 클릭하여 추가'
-        || fcNameTrimmed === '고장원인을 입력하세요') {
+      if (!fcNameTrimmed) {
         return;
       }
       
@@ -541,7 +537,7 @@ export function migrateToAtomicDB(oldData: OldWorksheetData | any): FMEAWorkshee
     
     // ★★★ 2026-02-05: 공정 처리 완료 후 globalRowIndex 업데이트 ★★★
     const l3CountForProc = l3Data.filter((we: any) => 
-      we.name && !we.name.includes('클릭') && !we.name.includes('추가')
+      we.name?.trim()
     ).length;
     globalRowIndex += Math.max(1, l3CountForProc);
   });

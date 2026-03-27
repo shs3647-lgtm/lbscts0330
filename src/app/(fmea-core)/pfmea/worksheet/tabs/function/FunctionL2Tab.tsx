@@ -69,7 +69,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     let count = 0;
     const meaningfulProcs = (state.l2 || []).filter((p: any) => {
       const name = (p.name || '').trim();
-      return name !== '' && !name.includes('클릭') && !name.includes('선택');
+      return !!name;
     });
     meaningfulProcs.forEach((proc: any) => {
       const funcs = filterMeaningfulFunctionsL2(proc.functions || []);
@@ -645,7 +645,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
           processList={(state.l2 || []).map(p => ({ id: p.id, no: p.no, name: p.name }))}
           onProcessChange={(procId) => setModal(prev => prev ? { ...prev, procId } : null)}
           currentValues={(() => {
-            const isPlaceholderName = (n: string) => !n || !n.trim() || n.includes('클릭') || n.includes('미입력');
+            const isPlaceholderName = (n: string) => !n?.trim();
             const proc = (state.l2 || []).find(p => p.id === modal.procId);
             if (!proc) return [];
             if (modal.type === 'l2Function') return (proc.functions || []).map(f => f.name).filter(n => !isPlaceholderName(n));
@@ -725,7 +725,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
   // ★★★ 2026-02-18: placeholder 공정 중복 제거 (실제 공정 있으면 placeholder 제외) ★★★
   const isPlaceholderProc = (p: any) => {
     const name = (p.name || '').trim();
-    return !name || name.includes('클릭') || name.includes('선택');
+    return !name?.trim();
   };
   const meaningfulProcs = l2.filter((p: any) => !isPlaceholderProc(p));
   const effectiveL2 = meaningfulProcs.length > 0 ? meaningfulProcs : l2;

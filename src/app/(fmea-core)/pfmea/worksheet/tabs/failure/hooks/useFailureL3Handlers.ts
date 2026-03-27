@@ -461,7 +461,7 @@ export function useFailureL3Handlers({
           (we.functions || []).forEach((f: any) => {
             (f.processChars || []).forEach((pc: any) => {
               const name = (pc.name || '').trim();
-              if (name && !seenCharNames.has(name) && (name.length > 20 || (!name.includes('클릭') && !name.includes('선택')))) {
+              if (name?.trim() && !seenCharNames.has(name)) {
                 seenCharNames.add(name);
                 processChars.push({ id: pc.id, name });
               }

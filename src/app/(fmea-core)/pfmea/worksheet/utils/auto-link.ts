@@ -28,7 +28,7 @@ export function findLinkedFunctionsForType(state: WorksheetState, typeName: stri
   (state.l1?.types || []).forEach((t: AnyRecord) => {
     if (t.name === typeName) {
       (t.functions || []).forEach((f: AnyRecord) => {
-        if (f.name && !f.name.includes('클릭') && !f.name.includes('선택')) {
+        if (f.name?.trim()) {
           linkedFunctions.push(f.name);
         }
       });
@@ -48,7 +48,7 @@ export function findLinkedRequirementsForFunction(state: WorksheetState, functio
     (t.functions || []).forEach((f: AnyRecord) => {
       if (f.name === functionName) {
         (f.requirements || []).forEach((r: AnyRecord) => {
-          if (r.name && !r.name.includes('클릭') && !r.name.includes('선택')) {
+          if (r.name?.trim()) {
             linkedRequirements.push(r.name);
           }
         });
@@ -69,7 +69,7 @@ export function findLinkedProductCharsForFunction(state: WorksheetState, functio
     (proc.functions || []).forEach((f: AnyRecord) => {
       if (f.name === functionName) {
         (f.productChars || []).forEach((c: AnyRecord) => {
-          if (c.name && !c.name.includes('클릭') && !c.name.includes('선택')) {
+          if (c.name?.trim()) {
             linkedChars.push(c.name);
           }
         });
@@ -91,7 +91,7 @@ export function findLinkedProcessCharsForFunction(state: WorksheetState, functio
       (we.functions || []).forEach((f: AnyRecord) => {
         if (f.name === functionName) {
           (f.processChars || []).forEach((c: AnyRecord) => {
-            if (c.name && !c.name.includes('클릭') && !c.name.includes('선택')) {
+            if (c.name?.trim()) {
               linkedChars.push(c.name);
             }
           });
@@ -205,7 +205,7 @@ export function findLinkedPreventionControlsForFailureCause(
  * @returns 새로 추가해야 할 항목들
  */
 export function getAutoLinkItems(existingItems: string[], linkedItems: string[]): string[] {
-  const existingSet = new Set(existingItems.filter(item => item && !item.includes('클릭') && !item.includes('선택')));
+  const existingSet = new Set(existingItems.filter(item => item?.trim()));
   return linkedItems.filter(item => !existingSet.has(item));
 }
 

@@ -572,13 +572,13 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
   // ✅ 1L COUNT 계산 (완제품기능, 요구사항)
   const functionCount = useMemo(() => {
     return (state.l1?.types || []).reduce((sum, type) =>
-      sum + (type.functions || []).filter((f: any) => f.name && !f.name.includes('클릭')).length, 0);
+      sum + (type.functions || []).filter((f: any) => f.name?.trim()).length, 0);
   }, [state.l1?.types]);
 
   const requirementCount = useMemo(() => {
     return (state.l1?.types || []).reduce((sum, type) =>
       sum + (type.functions || []).reduce((funcSum, func) =>
-        funcSum + (func.requirements || []).filter((r: any) => r.name && !r.name.includes('클릭')).length, 0), 0);
+        funcSum + (func.requirements || []).filter((r: any) => r.name?.trim()).length, 0), 0);
   }, [state.l1?.types]);
 
   return (

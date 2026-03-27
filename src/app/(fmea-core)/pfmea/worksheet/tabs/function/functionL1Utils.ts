@@ -60,7 +60,7 @@ export const calculateFunctionRowSpan = (
 /** L1 이름 포맷팅 (생산공정 접미사 추가) */
 export const formatL1Name = (name: string | undefined | null): string => {
   const trimmed = (name || '').trim();
-  if (!trimmed || trimmed.includes('입력') || trimmed.includes('클릭') || trimmed.includes('구조분석')) {
+  if (!trimmed || trimmed.includes('입력') || trimmed.includes('구조분석')) {
     return trimmed || '(구조분석에서 입력)';
   }
   if (trimmed.endsWith('생산공정') || trimmed.endsWith('제조공정') || trimmed.endsWith('공정')) {

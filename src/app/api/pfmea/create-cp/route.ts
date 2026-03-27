@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
                 // 공정설명 생성 (functions 이름 조합)
                 const filteredFuncNames = functions
                     .map(f => (f.name || '').trim())
-                    .filter(n => n && !n.includes('클릭') && !n.includes('자동생성') && !n.includes('추가'));
+                    .filter(n => n && !n.includes('자동생성') && !n.includes('추가'));
                 const processDesc = filteredFuncNames.join(', ') || l2.desc || `${processName} 공정`;
 
                 const l2StartCount = cpItems.length;
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
                 for (const func of functions) {
                     for (const pc of func.productChars || []) {
                         const pcName = (pc.name || '').trim();
-                        if (!pcName || pcName.includes('클릭')) continue;
+                        if (!pcName) continue;
                         if (productCharDedup.has(pcName)) continue;
                         productCharDedup.add(pcName);
 
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
                     for (const l3Func of l3.functions || []) {
                         for (const pchar of l3Func.processChars || []) {
                             const pcharName = (pchar.name || '').trim();
-                            if (pcharName && !pcharName.includes('클릭')) {
+                            if (pcharName) {
                                 l3ProcessChars.push({
                                     name: pcharName,
                                     specialChar: (pchar.specialChar || '').trim(),
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
                     if (l3ProcessChars.length === 0) {
                         for (const pchar of l3.processChars || []) {
                             const pcharName = (pchar.name || '').trim();
-                            if (pcharName && !pcharName.includes('클릭')) {
+                            if (pcharName) {
                                 l3ProcessChars.push({
                                     name: pcharName,
                                     specialChar: (pchar.specialChar || '').trim(),

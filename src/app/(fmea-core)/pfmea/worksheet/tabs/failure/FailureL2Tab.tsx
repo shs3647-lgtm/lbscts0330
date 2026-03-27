@@ -109,7 +109,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
 
   // ✅ 모든 Hook 호출은 여기서 (조건문 없이)
   const processList = useMemo(() =>
-    (state.l2 || []).filter(p => p.name && !p.name.includes('클릭')).map(p => ({ id: p.id, no: p.no, name: `${p.no}. ${p.name}` })),
+    (state.l2 || []).filter(p => p.name?.trim()).map(p => ({ id: p.id, no: p.no, name: `${p.no}. ${p.name}` })),
     [state.l2]
   );
 
@@ -241,7 +241,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
         (proc.functions || []).forEach((f: any) => {
           (f.productChars || []).forEach((pc: any) => {
             const name = (pc.name || '').trim();
-            if (name && (name.length > 20 || (!name.includes('클릭') && !name.includes('선택')))) {
+            if (name?.trim()) {
               productChars.push({ id: pc.id, name });
             }
           });

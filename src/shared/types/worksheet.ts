@@ -292,14 +292,14 @@ export function createInitialState(): WorksheetState {
     l2: [{
       id: uid(),
       no: '',
-      name: '(클릭하여 공정 선택)',
+      name: '',
       order: 10,
       functions: [],
       productChars: [],
       l3: [{
         id: uid(),
         m4: '',
-        name: '(공정 선택 후 작업요소 추가)',
+        name: '',
         order: 10,
         functions: [],
         processChars: [],

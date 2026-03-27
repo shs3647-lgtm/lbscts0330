@@ -234,14 +234,14 @@ export function useWorksheetDataLoader({
           optimizationConfirmed: legacyFromAtomic.optimizationConfirmed,
         };
 
-        // placeholder 공정 정리 (Rule 10.5 준수: 별도 후처리)
-        const rawL2 = newState.l2 || [];
-        const realProcesses = rawL2.filter((p: any) => {
-          const n = (p.name || '').trim();
-          return n && !n.includes('클릭하여') && !n.includes('공정 선택');
-        });
-        if (realProcesses.length > 0 && realProcesses.length < rawL2.length) {
-          newState.l2 = realProcesses;
+        // ★ 2026-03-27: L3 빈 공정에 실제 빈 L3 1개 추가 (편집/행추가 매칭용)
+        if (Array.isArray(newState.l2)) {
+          newState.l2 = newState.l2.map((proc: any) => {
+            if (!proc.l3 || proc.l3.length === 0) {
+              return { ...proc, l3: [{ id: `init-l3-${proc.id}-${Date.now()}`, name: '', m4: '', order: 0, functions: [], processChars: [] }] };
+            }
+            return proc;
+          });
         }
 
         setStateSynced(prev => ({
@@ -262,8 +262,6 @@ export function useWorksheetDataLoader({
       }
 
       // ── Atomic 데이터 없음 → 빈 상태로 초기화 ──
-      // ★★★ 2026-03-22: emptyDB 설정 시 autoSave 영구 차단 (빈 데이터로 기존 DB 덮어쓰기 방지)
-      suppressAutoSaveRef.current = true;
       const emptyDB = createEmptyDB(normalizedFmeaId);
       setAtomicDB(emptyDB);
 
@@ -293,8 +291,8 @@ export function useWorksheetDataLoader({
         ...prev,
         l1: ensureL1Types({ id: uid(), name: projectL1Name, types: [], failureScopes: [] }),
         l2: [{
-          id: uid(), no: '', name: '(클릭하여 공정 선택)', order: 10, functions: [], productChars: [],
-          l3: [{ id: uid(), m4: '', name: '(공정 선택 후 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+          id: uid(), no: '', name: '', order: 10, functions: [], productChars: [],
+          l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
         }],
         failureLinks: [],
         structureConfirmed: false

@@ -33,11 +33,7 @@ const isPlaceholderL3 = (name: string | undefined | null): boolean => {
     }
   }
   if (trimmed.length > 20) return false;
-  if (trimmed.includes('클릭')) return true;
-  if (trimmed.includes('선택')) return true;
-  if (trimmed.includes('입력')) return true;
-  if (trimmed.includes('추가')) return true;
-  if (trimmed.includes('필요')) return true;
+  // Empty string already handled above
   if (trimmed.includes('[object')) return true;
   return false;
 };

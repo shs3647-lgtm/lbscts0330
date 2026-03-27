@@ -400,7 +400,7 @@ export function useFailureL1Handlers({
         (type.functions || []).forEach((func: any) => {
           (func.requirements || []).forEach((req: any) => {
             const reqName = (req.name || '').trim();
-            if (!reqName || reqName.includes('클릭하여') || reqName === '요구사항 선택') return;
+            if (!reqName?.trim()) return;
 
             categoryEffects.forEach((effect: string) => {
               const key = `${req.id}::${effect}`;

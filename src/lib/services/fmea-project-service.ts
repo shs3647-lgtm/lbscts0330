@@ -735,7 +735,84 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
       }
     }
 
-    // ★ 5. 트랜잭션 내에서 저장 검증
+    // ★ 5. 마스터 FMEA 생성 시 폴백 공정 데이터 DB 복사
+    try {
+      const effectiveType = fmeaType || (fmeaId.includes('-m') ? 'M' : fmeaId.includes('-f') ? 'F' : 'P');
+      // 마스터(M) 생성 시: 기존 마스터에서 폴백 데이터 복사
+      if (effectiveType === 'M') {
+        const existingDataset = await tx.pfmeaMasterDataset.findFirst({
+          where: { fmeaId, isActive: true },
+        });
+        if (!existingDataset) {
+          // 새 데이터셋 생성
+          const newDataset = await tx.pfmeaMasterDataset.create({
+            data: { fmeaId, isActive: true, name: `Master-${fmeaId}`, fmeaType: 'M' },
+          });
+          // 기존 마스터에서 폴백 데이터 복사
+          const fallbackDataset = await tx.pfmeaMasterDataset.findFirst({
+            where: { isActive: true, fmeaType: 'M', fmeaId: { not: fmeaId } },
+            orderBy: { updatedAt: 'desc' },
+          });
+          if (fallbackDataset) {
+            const fallbackItems = await tx.pfmeaMasterFlatItem.findMany({
+              where: { datasetId: fallbackDataset.id },
+            });
+            if (fallbackItems.length > 0) {
+              await tx.pfmeaMasterFlatItem.createMany({
+                data: fallbackItems.map((item: any) => ({
+                  datasetId: newDataset.id,
+                  processNo: item.processNo,
+                  category: item.category,
+                  itemCode: item.itemCode,
+                  value: item.value,
+                  rowSpan: item.rowSpan ?? 1,
+                })),
+                skipDuplicates: true,
+              });
+              console.info(`[fmea-project] 마스터 폴백 데이터 ${fallbackItems.length}건 복사 → ${fmeaId}`);
+            }
+          }
+        }
+      }
+      // 파트(P)/패밀리(F) 생성 시: 연결된 마스터에서 데이터 복사
+      if ((effectiveType === 'P' || effectiveType === 'F') && parentId) {
+        const existingDataset = await tx.pfmeaMasterDataset.findFirst({
+          where: { fmeaId, isActive: true },
+        });
+        if (!existingDataset) {
+          const parentDataset = await tx.pfmeaMasterDataset.findFirst({
+            where: { fmeaId: parentId, isActive: true },
+            orderBy: { updatedAt: 'desc' },
+          });
+          if (parentDataset) {
+            const newDataset = await tx.pfmeaMasterDataset.create({
+              data: { fmeaId, isActive: true, name: `${effectiveType}-${fmeaId}`, fmeaType: effectiveType },
+            });
+            const parentItems = await tx.pfmeaMasterFlatItem.findMany({
+              where: { datasetId: parentDataset.id },
+            });
+            if (parentItems.length > 0) {
+              await tx.pfmeaMasterFlatItem.createMany({
+                data: parentItems.map((item: any) => ({
+                  datasetId: newDataset.id,
+                  processNo: item.processNo,
+                  category: item.category,
+                  itemCode: item.itemCode,
+                  value: item.value,
+                  rowSpan: item.rowSpan ?? 1,
+                })),
+                skipDuplicates: true,
+              });
+              console.info(`[fmea-project] 마스터→${effectiveType} 데이터 ${parentItems.length}건 복사: ${parentId} → ${fmeaId}`);
+            }
+          }
+        }
+      }
+    } catch (copyErr: any) {
+      console.error('[fmea-project] 공정 데이터 복사 오류 (무시):', copyErr?.message);
+    }
+
+    // ★ 6. 트랜잭션 내에서 저장 검증
     const verifyProject = await tx.fmeaProject.findUnique({
       where: { fmeaId }
     });

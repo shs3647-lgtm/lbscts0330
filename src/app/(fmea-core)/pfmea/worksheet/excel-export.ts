@@ -282,12 +282,12 @@ export async function exportFunctionL2(state: WorksheetState, fmeaName: string, 
   }
   const flatData: FlatData[] = [];
 
-  const processes = (state.l2 || []).filter((p: any) => p.name && !p.name.includes('클릭'));
+  const processes = (state.l2 || []).filter((p: any) => p.name?.trim());
 
   const isMeaningful = (name: string | undefined | null) => {
     if (!name) return false;
     const t = String(name).trim();
-    return t !== '' && !t.includes('클릭') && !t.includes('선택') && !t.includes('입력') && !t.includes('필요');
+    return t !== '';
   };
 
   processes.forEach((proc: any) => {
@@ -472,10 +472,10 @@ export async function exportFunctionL3(state: WorksheetState, fmeaName: string, 
   }
   const flatData: FlatData[] = [];
 
-  const processes = (state.l2 || []).filter((p: any) => p.name && !p.name.includes('클릭'));
+  const processes = (state.l2 || []).filter((p: any) => p.name?.trim());
 
   processes.forEach((proc: any) => {
-    const l3List = (proc.l3 || []).filter((we: any) => we.name && !we.name.includes('클릭') && !we.name.includes('추가'));
+    const l3List = (proc.l3 || []).filter((we: any) => we.name?.trim());
 
     l3List.forEach((we: any) => {
       const functions = we.functions || [];

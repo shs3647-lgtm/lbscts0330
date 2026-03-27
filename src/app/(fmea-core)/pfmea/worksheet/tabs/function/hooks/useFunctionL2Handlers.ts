@@ -235,7 +235,7 @@ export function useFunctionL2Handlers({
     // ★★★ 2026-03-15 FIX: missingCount와 동일한 필터 사용 (filterMeaningfulFunctionsL2/filterMeaningfulProductChars) ★★★
     const meaningfulProcs = (state.l2 || []).filter((p: any) => {
       const name = (p.name || '').trim();
-      return name !== '' && !name.includes('클릭') && !name.includes('선택');
+      return !!name;
     });
     let missing = 0;
     meaningfulProcs.forEach((proc: any) => {
@@ -395,9 +395,9 @@ export function useFunctionL2Handlers({
           }
 
           const updatedFuncs = [...currentFuncs];
-          const existingNames = new Set(currentFuncs.filter((f: any) => f.name && !f.name.includes('클릭') && !f.name.includes('미입력')).map((f: any) => f.name));
+          const existingNames = new Set(currentFuncs.filter((f: any) => f.name?.trim()).map((f: any) => f.name));
 
-          const emptyFuncIdx = updatedFuncs.findIndex((f: any) => !f.name || f.name === '' || f.name.includes('클릭') || f.name.includes('미입력'));
+          const emptyFuncIdx = updatedFuncs.findIndex((f: any) => !f.name?.trim());
           let startIdx = 0;
 
           if (emptyFuncIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {
@@ -429,7 +429,7 @@ export function useFunctionL2Handlers({
           }
 
           // ★ FIX: 의미 있는 함수가 있으면 빈 placeholder 함수 제거 (🔍 아이콘 잔존 버그 해결)
-          const meaningfulFuncs = updatedFuncs.filter((f: any) => f.name && f.name.trim() && !f.name.includes('클릭') && !f.name.includes('미입력'));
+          const meaningfulFuncs = updatedFuncs.filter((f: any) => f.name?.trim());
           return { ...proc, functions: meaningfulFuncs.length > 0 ? meaningfulFuncs : updatedFuncs };
         });
       } else if (type === 'l2ProductChar') {
@@ -462,9 +462,9 @@ export function useFunctionL2Handlers({
               }
 
               const updatedChars = [...currentChars];
-              const existingNames = new Set(currentChars.filter((c: any) => c.name && !c.name.includes('클릭') && !c.name.includes('미입력')).map((c: any) => c.name));
+              const existingNames = new Set(currentChars.filter((c: any) => c.name?.trim()).map((c: any) => c.name));
 
-              const emptyCharIdx = updatedChars.findIndex((c: any) => !c.name || c.name === '' || c.name.includes('클릭') || c.name.includes('미입력'));
+              const emptyCharIdx = updatedChars.findIndex((c: any) => !c.name?.trim());
               let startIdx = 0;
 
               if (emptyCharIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {
@@ -482,7 +482,7 @@ export function useFunctionL2Handlers({
               }
 
               // ★ FIX: 의미 있는 제품특성이 있으면 빈 placeholder 제거
-              const meaningfulChars = updatedChars.filter((c: any) => c.name && c.name.trim() && !c.name.includes('클릭') && !c.name.includes('미입력'));
+              const meaningfulChars = updatedChars.filter((c: any) => c.name?.trim());
               return { ...f, productChars: meaningfulChars.length > 0 ? meaningfulChars : updatedChars };
             })
           };

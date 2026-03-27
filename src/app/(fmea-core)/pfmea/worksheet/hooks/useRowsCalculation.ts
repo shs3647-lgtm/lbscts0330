@@ -8,12 +8,12 @@
  * - calculateSpans: 병합 span 계산
  */
 
-import { WorksheetState, FlatRow, sortWorkElementsByM4 } from '../constants';
+import { WorksheetState, FlatRow } from '../constants';
 
 // ★★★ 2026-02-03: L1 이름에 "생산공정" 접미사 추가 ★★★
 function formatL1Name(name: string): string {
   const trimmed = (name || '').trim();
-  if (!trimmed || trimmed.includes('입력') || trimmed.includes('클릭')) return trimmed;
+  if (!trimmed || trimmed.includes('입력')) return trimmed;
   if (trimmed.endsWith('생산공정') || trimmed.endsWith('제조공정') || trimmed.endsWith('공정')) return trimmed;
   return `${trimmed} 생산공정`;
 }
@@ -141,15 +141,9 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
   const result: FlatRow[] = [];
   const l2Data = state.l2 || [];
 
-  // ★★★ 2026-02-09: placeholder 공정 필터링 (빈 행 재발 방지) ★★★
-  // 실제 공정이 있으면 "클릭하여 공정 선택" 같은 placeholder 공정은 제외
-  // ★★★ 2026-03-11 FIX: 빈 이름('')은 수동모드에서 추가된 행이므로 제거하지 않음 (컨텍스트 메뉴 행추가 버그 수정)
-  const isPlaceholder = (p: any) => {
-    const name = (p.name || '').trim();
-    return name.includes('클릭') || name.includes('선택');
-  };
-  const meaningfulProcs = l2Data.filter(p => !isPlaceholder(p));
-  const effectiveL2 = meaningfulProcs.length > 0 ? meaningfulProcs : l2Data;
+  // ★★★ 2026-03-27: placeholder 필터링 제거 — 빈 이름('')은 수동모드 추가 행
+  // 모든 l2를 그대로 렌더링 (빈 이름 공정도 표시)
+  const effectiveL2 = l2Data;
 
   let rowIdx = 0;
   const l1Types = state.l1?.types || [];
@@ -174,8 +168,7 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
   });
 
   effectiveL2.forEach(proc => {
-    // ★ 2026-02-17: 4M 순서 정렬 (MN→MC→IM→EN)
-    const l3Data = sortWorkElementsByM4(proc.l3 || []);
+    const l3Data = proc.l3 || [];
     if (l3Data.length === 0) {
       const l1Item = l1FlatData[rowIdx % Math.max(l1FlatData.length, 1)] || { typeId: '', type: '', funcId: '', func: '', reqId: '', req: '' };
       result.push({
@@ -187,7 +180,7 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
         l2Id: proc.id, l2No: proc.no, l2Name: proc.name, l2Functions: proc.functions || [],
         l2ProductChars: (proc.functions || []).flatMap((f: any) => f.productChars || []),
         l2FailureMode: (proc.failureModes || []).map((m: any) => m.name).join(', '),
-        l3Id: '', m4: '', l3Name: '(작업요소 없음)', l3Functions: [], l3ProcessChars: [], l3FailureCause: '',
+        l3Id: '', m4: '', l3Name: '', l3Functions: [], l3ProcessChars: [], l3FailureCause: '',
         l2IsRevised: proc.isRevised,
       });
       rowIdx++;

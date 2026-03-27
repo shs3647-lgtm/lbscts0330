@@ -117,50 +117,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ─── 2단계: fmeaType='M' Master 데이터셋 ────────────────────────
-    if (processes.length === 0) {
-      const mDatasets = await prisma.pfmeaMasterDataset.findMany({
-        where: { isActive: true, fmeaType: 'M' },
-        orderBy: { updatedAt: 'desc' },
-      });
-      for (const ds of mDatasets) {
-        const p = await buildProcessesFromDataset(prisma, ds.id);
-        if (p.length > 0) { activeDataset = ds; processes = p; break; }
-      }
-      if (processes.length > 0) {
-        console.info(`[master-processes] 2단계 fmeaType='M' 매칭: fmeaId=${activeDataset?.fmeaId} → ${processes.length}건`);
-      }
-    }
-
-    // ─── 3단계: fmeaType='F' Family 데이터셋 ────────────────────────
-    if (processes.length === 0) {
-      const fDatasets = await prisma.pfmeaMasterDataset.findMany({
-        where: { isActive: true, fmeaType: 'F' },
-        orderBy: { updatedAt: 'desc' },
-      });
-      for (const ds of fDatasets) {
-        const p = await buildProcessesFromDataset(prisma, ds.id);
-        if (p.length > 0) { activeDataset = ds; processes = p; break; }
-      }
-      if (processes.length > 0) {
-        console.info(`[master-processes] 3단계 fmeaType='F' 매칭: fmeaId=${activeDataset?.fmeaId} → ${processes.length}건`);
-      }
-    }
-
-    // ─── 4단계: 모든 isActive 데이터셋 (어떤 타입이든 processes 있는 것) ─
-    if (processes.length === 0) {
-      const allDatasets = await prisma.pfmeaMasterDataset.findMany({
-        where: { isActive: true },
-        orderBy: [{ fmeaType: 'asc' }, { updatedAt: 'desc' }], // M→F→P 순
-      });
-      for (const ds of allDatasets) {
-        const p = await buildProcessesFromDataset(prisma, ds.id);
-        if (p.length > 0) { activeDataset = ds; processes = p; break; }
-      }
-      if (processes.length > 0) {
-        console.info(`[master-processes] 4단계 전체 매칭: fmeaId=${activeDataset?.fmeaId} → ${processes.length}건`);
-      }
-    }
+    // ★ 2~4단계 폴백 삭제 (2026-03-27)
+    // FMEA 생성 시 공정 데이터가 DB에 복사되므로 런타임 폴백 불필요
+    // → 자기 데이터만 표시
 
     if (processes.length === 0) {
       return NextResponse.json({
@@ -326,13 +285,14 @@ export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json();
     const processNos: string[] = body.processNos;
+    const fmeaId = body.fmeaId || '';
 
     if (!processNos || processNos.length === 0) {
       return NextResponse.json({ success: false, error: '삭제할 공정번호가 없습니다.' });
     }
 
     const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, ...(fmeaId ? { fmeaId } : {}) },
       orderBy: { updatedAt: 'desc' }
     });
 

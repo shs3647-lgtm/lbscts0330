@@ -122,7 +122,7 @@ export function useWorkElementSelect({
       const loadedNames = new Set(loaded.map(e => extractName(e.name).toLowerCase()));
       const customItems = currentExistingL3.filter(item => {
         const name = item.name || '';
-        if (name.includes('없음') || name.includes('삭제') || name.includes('추가') || name.includes('클릭')) return false;
+        if (!name?.trim() || name.includes('없음') || name.includes('삭제')) return false;
         const extractedName = extractName(name).toLowerCase();
         return !loadedNames.has(extractedName);
       });
@@ -142,7 +142,7 @@ export function useWorkElementSelect({
       const existingNames = new Set(currentExistingL3
         .filter(item => {
           const name = item.name || '';
-          return !name.includes('없음') && !name.includes('삭제') && !name.includes('추가') && !name.includes('클릭');
+          return !!name?.trim() && !name.includes('없음') && !name.includes('삭제');
         })
         .map(item => extractName(item.name).toLowerCase())
       );
@@ -190,7 +190,9 @@ export function useWorkElementSelect({
       const q = inputValue.toLowerCase();
       result = result.filter(e => e.name.toLowerCase().includes(q));
     }
-    return result;
+    // 4M 순서 정렬: MN → MC → IM → EN
+    const m4Order: Record<string, number> = { MN: 0, MC: 1, IM: 2, EN: 3 };
+    return [...result].sort((a, b) => (m4Order[a.m4] ?? 99) - (m4Order[b.m4] ?? 99));
   }, [elements, filterM4, inputValue]);
 
   // ★★★ 공통/공정 분류 ★★★

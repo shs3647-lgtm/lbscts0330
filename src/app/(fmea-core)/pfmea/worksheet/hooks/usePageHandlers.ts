@@ -74,11 +74,11 @@ export function usePageHandlers({
     // 공정 및 작업요소 검사
     state.l2.forEach(proc => {
       const procName = proc.name || '';
-      if (!procName || procName.includes('클릭') || procName.includes('선택')) count++;
+      if (!procName?.trim()) count++;
 
       proc.l3.forEach(we => {
         const weName = we.name || '';
-        if (!weName || weName.includes('클릭') || weName.includes('추가') || weName.includes('필요') || weName.includes('선택')) count++;
+        if (!weName?.trim()) count++;
       });
     });
 
@@ -90,11 +90,11 @@ export function usePageHandlers({
 
     setState(prev => {
       const selectedNames = selectedProcesses.map(p => p.name);
-      const keepL2 = prev.l2.filter(p => !p.name.includes('클릭') && selectedNames.includes(p.name));
+      const keepL2 = prev.l2.filter(p => p.name?.trim() && selectedNames.includes(p.name));
 
       // 선택된 순서대로 처리 (기존 유지 또는 신규 생성)
       const finalL2: Process[] = selectedProcesses.map((p, idx) => {
-        const existing = prev.l2.find(e => e.name === p.name && !e.name.includes('클릭'));
+        const existing = prev.l2.find(e => e.name === p.name && e.name?.trim());
         if (existing) {
           return { ...existing, no: p.no, order: (idx + 1) * 10 };
         }
@@ -105,7 +105,7 @@ export function usePageHandlers({
           order: (idx + 1) * 10,
           functions: [],
           productChars: [],
-          l3: [{ id: uid(), m4: '', name: '(클릭하여 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+          l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
         };
       });
 
@@ -114,11 +114,11 @@ export function usePageHandlers({
         finalL2.push({
           id: uid(),
           no: '',
-          name: '(클릭하여 공정 선택)',
+          name: '',
           order: 10,
           functions: [],
           productChars: [],
-          l3: [{ id: uid(), m4: '', name: '(공정 선택 후 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+          l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
         });
       }
 
@@ -157,7 +157,7 @@ export function usePageHandlers({
           newL3.push({
             id: proc.l3[0]?.id || uid(),
             m4: '',
-            name: '(클릭하여 작업요소 추가)',
+            name: '',
             order: 10,
             functions: [],
             processChars: []
@@ -166,7 +166,7 @@ export function usePageHandlers({
 
         // 최소 1행 보장
         if (newL3.length === 0) {
-          newL3.push({ id: uid(), m4: '', name: '(클릭하여 작업요소 추가)', order: 10, functions: [], processChars: [] });
+          newL3.push({ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] });
         }
 
         return { ...proc, l3: newL3 };
@@ -191,13 +191,13 @@ export function usePageHandlers({
         if (currentCount > 1) {
           const remainingL3 = proc.l3.filter(w => !normalizedDeletedNames.includes(w.name.trim()));
           if (remainingL3.length === 0) {
-            remainingL3.push({ id: uid(), m4: '', name: '(클릭하여 작업요소 추가)', order: 10, functions: [], processChars: [] });
+            remainingL3.push({ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] });
           }
           return { ...proc, l3: remainingL3 };
         } else {
           const updatedL3 = proc.l3.map(w => {
             if (normalizedDeletedNames.includes(w.name.trim())) {
-              return { ...w, name: '(클릭하여 작업요소 추가)', m4: '' };
+              return { ...w, name: '', m4: '' };
             }
             return w;
           });

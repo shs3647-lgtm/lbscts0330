@@ -338,11 +338,10 @@ export function PfmeaContextMenu({
                     {fmId && <span className="ml-1 text-blue-600">(FM: {fmId.slice(-6)})</span>}
                 </div>
 
-                {/* ★ 행 추가 (위/아래) - L3(작업요소)에서는 비활성화 (병합 추가 사용) */}
+                {/* ★ 행 추가 (위/아래) — L3에서도 활성화 */}
                 {(() => {
-                    const isL3 = columnType === 'l3';
-                    const canInsertAbove = onInsertAbove && !isL3;
-                    const canInsertBelow = onInsertBelow && !isL3;
+                    const canInsertAbove = !!onInsertAbove;
+                    const canInsertBelow = !!onInsertBelow;
                     return (
                         <>
                             <button type="button"
@@ -366,29 +365,6 @@ export function PfmeaContextMenu({
                         </>
                     );
                 })()}
-
-                {/* ★★★ 2026-02-05: 병합 추가 (작업요소 추가 - 상위 병합 확장) ★★★ */}
-                {(onAddMergedAbove || onAddMergedBelow) && (
-                    <div className="border-t border-gray-100 my-0.5" />
-                )}
-                {onAddMergedAbove && (
-                    <button type="button"
-                        onClick={handleAddMergedAbove}
-                        className="w-full text-left px-2 py-1 text-[10px] hover:bg-green-50 text-green-700 flex items-center gap-1.5 transition-colors"
-                    >
-                        <span>⬆️➕</span>
-                        <span>위로 병합 추가</span>
-                    </button>
-                )}
-                {onAddMergedBelow && (
-                    <button type="button"
-                        onClick={handleAddMergedBelow}
-                        className="w-full text-left px-2 py-1 text-[10px] hover:bg-green-50 text-green-700 flex items-center gap-1.5 transition-colors"
-                    >
-                        <span>⬇️➕</span>
-                        <span>아래로 병합 추가</span>
-                    </button>
-                )}
 
                 {/* ★ 행 삭제 */}
                 <div className="border-t border-gray-100 my-0.5" />

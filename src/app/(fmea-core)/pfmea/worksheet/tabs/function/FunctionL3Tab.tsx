@@ -23,7 +23,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { uid, WorksheetState, sortWorkElementsByM4 } from '../../constants';
+import { uid, WorksheetState } from '../../constants';
 import { ensurePlaceholder } from '../../utils/safeMutate';
 import { FunctionTabProps } from './types';
 import { cellP0 } from '@/styles/worksheet';
@@ -514,7 +514,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
 
   // ✅ 공정/작업요소 rowSpan 계산
   const getProcRowSpan = (proc: any) => {
-    const l3List = sortWorkElementsByM4(proc.l3 || []);
+    const l3List = (proc.l3 || []);
     if (l3List.length === 0) return 1;
     return l3List.reduce((acc: number, we: any) => {
       const funcs = (we.functions || []).filter(isMeaningfulFunc);
@@ -600,7 +600,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
           processList={(state.l2 || []).map(p => ({ id: p.id, no: p.no, name: p.name }))}
           onProcessChange={(procId) => setModal(prev => prev ? { ...prev, procId } : null)}
           currentValues={(() => {
-            const isPlaceholderName = (n: string) => !n || !n.trim() || n.includes('클릭') || n.includes('미입력');
+            const isPlaceholderName = (n: string) => !n?.trim();
             const proc = (state.l2 || []).find(p => p.id === modal.procId);
             if (!proc) return [];
             const we = (proc.l3 || []).find(w => w.id === modal.l3Id);
@@ -702,7 +702,7 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
   // ★★★ 2026-02-18: placeholder 공정 중복 제거 (실제 공정 있으면 placeholder 제외) ★★★
   const isPlaceholderProc = (p: any) => {
     const name = (p.name || '').trim();
-    return !name || name.includes('클릭') || name.includes('선택');
+    return !name?.trim();
   };
   const meaningfulProcs = l2.filter((p: any) => !isPlaceholderProc(p));
   const effectiveL2 = meaningfulProcs.length > 0 ? meaningfulProcs : l2;
@@ -710,7 +710,7 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
   return (
     <>
       {effectiveL2.flatMap((proc: any, procIdx: number) => {
-        const l3List = sortWorkElementsByM4(proc.l3 || []);
+        const l3List = (proc.l3 || []);
         if (l3List.length === 0) return [];
 
         const procFirstRowIdx = globalRowIdx;

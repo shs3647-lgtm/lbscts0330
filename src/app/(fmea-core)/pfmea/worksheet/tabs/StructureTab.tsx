@@ -32,7 +32,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { WorksheetState, COLORS, FlatRow, FONT_SIZES, FONT_WEIGHTS, HEIGHTS, uid, sortWorkElementsByM4 } from '../constants';
+import { WorksheetState, COLORS, FlatRow, FONT_SIZES, FONT_WEIGHTS, HEIGHTS, uid } from '../constants';
 import { S, F, X, L1, L2, L3, cell, cellCenter, border, btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '../../../../../styles/worksheet';
 import { handleEnterBlur } from '../utils/keyboard';
 import { getZebraColors } from '../../../../../styles/level-colors';
@@ -55,6 +55,8 @@ import { BiHeader } from './shared/BaseWorksheetComponents';
 import { useAlertModal } from '../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
 import { createStrictModeDedupedUpdater } from '../utils/strictModeStateUpdater';
+import { emitSave, saveNow } from '../hooks/useSaveEvent';
+import { replaceL3Structures, addL2Structure, addL3Structure, deleteL2Structure, deleteL3Structure } from '../hooks/useAtomicView';
 
 /**
  * ★★★ 2026-01-12 리팩토링 ★★★
@@ -73,15 +75,16 @@ interface StructureTabProps {
   handleInputBlur: () => void;
   handleInputKeyDown: (e: React.KeyboardEvent) => void;
   handleSelect: (type: 'L1' | 'L2' | 'L3', id: string | null) => void;
-  saveToLocalStorage?: (force?: boolean) => void;  // ✅ 2026-01-22: force 파라미터 추가
+  saveToLocalStorage?: (force?: boolean) => void;
   saveAtomicDB?: (force?: boolean) => Promise<void>;
-  suppressAutoSaveRef?: React.MutableRefObject<boolean>;  // ★ 2026-02-18: 데이터 로드 중 저장 차단
-  fmeaId?: string;  // ★ 2026-02-10: 자동모드 부모 FMEA 관계 조회용
-  // ★ 모달 상태: 외부에서 전달받을 필요 없음 (내부 관리)
-  // 단, page.tsx 호환성을 위해 optional로 남겨둠
+  suppressAutoSaveRef?: React.MutableRefObject<boolean>;
+  fmeaId?: string;
   setIsProcessModalOpen?: (open: boolean) => void;
   setIsWorkElementModalOpen?: (open: boolean) => void;
   setTargetL2Id?: (id: string | null) => void;
+  // ★ 2026-03-27: atomicDB 단일화
+  atomicDB?: import('../schema').FMEAWorksheetDB | null;
+  setAtomicDB?: React.Dispatch<React.SetStateAction<import('../schema').FMEAWorksheetDB | null>>;
 }
 
 // ✅ 2026-01-19: EditableM4Cell → StructureTabCells.tsx로 분리됨
@@ -394,7 +397,7 @@ export default function StructureTab(props: StructureTabProps) {
   // ★★★ 2026-03-10: Import 데이터가 있으면 자동모드로 시작 (공정 2개 이상 = 수동 입력 아님)
   const hasImportedData = (state.l2 || []).filter((p: any) => {
     const n = (p.name || '').trim();
-    return n && !n.includes('클릭') && !n.includes('선택');
+    return !!n;
   }).length >= 2;
   const [isAutoMode, setIsAutoMode] = useState(hasImportedData);
   const [isLoadingMaster, setIsLoadingMaster] = useState(false);
@@ -404,7 +407,7 @@ export default function StructureTab(props: StructureTabProps) {
   useEffect(() => {
     const realProcessCount = (state.l2 || []).filter((p: any) => {
       const n = (p.name || '').trim();
-      return n && !n.includes('클릭') && !n.includes('선택');
+      return !!n;
     }).length;
     if (realProcessCount >= 2 && !isAutoMode) {
       setIsAutoMode(true);
@@ -473,8 +476,7 @@ export default function StructureTab(props: StructureTabProps) {
               functions: [],
               failureModes: [],
               failureCauses: [],
-              // ★ 2026-02-17: 4M 순서 정렬 (MN→MC→IM→EN)
-              l3: sortWorkElementsByM4(proc.l3 || []).map((we: any, weIdx: number) => ({
+              l3: (proc.l3 || []).map((we: any, weIdx: number) => ({
                 id: `l3_${proc.no || idx}_${weIdx}_${ts}`,
                 name: we.name || '',
                 m4: we.m4 || '',
@@ -534,8 +536,7 @@ export default function StructureTab(props: StructureTabProps) {
             functions: [],
             failureModes: [],
             failureCauses: [],
-            // ★ 2026-02-17: 4M 순서 정렬 (MN→MC→IM→EN)
-            l3: sortWorkElementsByM4(unique).map((we: any, weIdx: number) => ({
+            l3: unique.map((we: any, weIdx: number) => ({
               id: `l3_${proc.no}_${weIdx}_${ts}`,
               name: we.name,
               m4: we.m4,
@@ -562,17 +563,8 @@ export default function StructureTab(props: StructureTabProps) {
       else setState(updateFn);
       setDirty?.(true);
 
-      // DB 저장 (기존 패턴: setTimeout → localStorage + atomicDB)
-      setTimeout(async () => {
-        saveToLocalStorage?.(true);
-        if (saveAtomicDB) {
-          try {
-            await saveAtomicDB(true);
-          } catch (e) {
-            console.error('[자동모드] DB 저장 오류:', e);
-          }
-        }
-      }, 100);
+      // DB 저장
+      emitSave();
 
       // ─── STEP 5: 사용자 피드백 ───
       const totalWE = newL2.reduce((sum: number, p: any) => sum + (p.l3?.length || 0), 0);
@@ -653,325 +645,147 @@ export default function StructureTab(props: StructureTabProps) {
     setContextMenuExtra({ l2Id: '', l3Id: '', l3Idx: -1, procIdx: -1, clickedColumn: undefined });
   }, []);
 
-  // ★★★ 2026-03-06: 열 단위 분기 — 위로 새 행 추가 (L2 열→새 공정, L3 열→새 작업요소) ★★★
+  // ★ 위로 새 행 추가 — atomicDB 직접 수정 + 즉시 저장
   const handleInsertAbove = useCallback(() => {
     const { procIdx, l2Id, l3Idx, clickedColumn } = contextMenuExtra;
+    if (!props.atomicDB || !props.setAtomicDB) { closeContextMenu(); return; }
 
-    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
-      const newState = JSON.parse(JSON.stringify(prev));
-      if (!newState.l2) return prev;
+    let newDB = props.atomicDB;
+    const newL3Id = uid();
+    const newL2Id = uid();
 
-      // L3(작업요소) 열 우클릭 → 같은 공정 내 새 L3 추가
+    if (clickedColumn === 'workElement') {
+      newDB = addL3Structure(newDB, l2Id, { id: newL3Id, name: '', m4: '', order: l3Idx >= 0 ? l3Idx : 0 });
+    } else {
+      newDB = addL2Structure(newDB, { id: newL2Id, no: '', name: '', order: procIdx >= 0 ? procIdx : 0 });
+      newDB = addL3Structure(newDB, newL2Id, { id: uid(), name: '', m4: '', order: 0 });
+    }
+
+    props.setAtomicDB(newDB);
+    saveNow(newDB);
+
+    // state도 동기화 (화면 렌더링용)
+    (setStateSynced || setState)((prev: WorksheetState) => {
+      const ns = JSON.parse(JSON.stringify(prev));
       if (clickedColumn === 'workElement') {
-        const pIdx = newState.l2.findIndex((p: any) => p.id === l2Id);
-        if (pIdx < 0) return prev;
-        const proc = newState.l2[pIdx];
-        if (!proc.l3) proc.l3 = [];
-        const insertAt = l3Idx >= 0 ? l3Idx : 0;
-        proc.l3.splice(insertAt, 0, {
-          id: uid(), name: '', m4: '', order: insertAt, functions: [], processChars: [],
-        });
-        proc.l3.forEach((w: any, i: number) => { w.order = i; });
-        newState.structureConfirmed = false;
-        return newState;
-      }
-
-      // L1/L2(공정) 열 우클릭 → 새 공정(L2) 추가
-      // ★★★ 2026-03-11 FIX: placeholder 공정 이름 초기화 (필터링으로 인한 행 소실 방지)
-      newState.l2.forEach((p: any) => {
-        const nm = (p.name || '').trim();
-        if (nm.includes('클릭') || nm.includes('선택')) {
-          p.name = '';
+        const proc = ns.l2.find((p: any) => p.id === l2Id);
+        if (proc) {
+          if (!proc.l3) proc.l3 = [];
+          proc.l3.splice(l3Idx >= 0 ? l3Idx : 0, 0, { id: newL3Id, name: '', m4: '', order: 0, functions: [], processChars: [] });
+          proc.l3.forEach((w: any, i: number) => { w.order = i; });
         }
-      });
-      const insertIdx = procIdx >= 0 ? procIdx : 0;
-      const newProc = {
-        id: uid(),
-        no: '',
-        name: '',
-        order: insertIdx,
-        l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-        functions: [],
-        failureModes: [],
-        failureCauses: [],
-      };
-
-      newState.l2.splice(insertIdx, 0, newProc);
-      newState.l2.forEach((p: any, i: number) => { p.order = i; });
-      newState.structureConfirmed = false;
-      return newState;
+      } else {
+        ns.l2.splice(procIdx >= 0 ? procIdx : 0, 0, {
+          id: newL2Id, no: '', name: '', order: 0,
+          l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
+          functions: [], failureModes: [], failureCauses: [],
+        });
+        ns.l2.forEach((p: any, i: number) => { p.order = i; });
+      }
+      return ns;
     });
-
-    if (setStateSynced) setStateSynced(updateFn);
-    else setState(updateFn);
     setDirty(true);
-    setTimeout(async () => { saveToLocalStorage?.(true); if (saveAtomicDB) { try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] DB 저장 오류:', e); } } }, 100);
     closeContextMenu();
-  }, [contextMenuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
+  }, [contextMenuExtra, setState, setStateSynced, setDirty, closeContextMenu, props.atomicDB, props.setAtomicDB]);
 
-  // ★★★ 2026-03-06: 열 단위 분기 — 아래로 새 행 추가 (L2 열→새 공정, L3 열→새 작업요소) ★★★
+  // ★ 아래로 새 행 추가 — atomicDB 직접 수정 + 즉시 저장
   const handleInsertBelow = useCallback(() => {
     const { procIdx, l2Id, l3Idx, clickedColumn } = contextMenuExtra;
-    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
-      const newState = JSON.parse(JSON.stringify(prev));
-      if (!newState.l2) return prev;
+    if (!props.atomicDB || !props.setAtomicDB) { closeContextMenu(); return; }
 
-      // L3(작업요소) 열 우클릭 → 같은 공정 내 새 L3 추가
+    let newDB = props.atomicDB;
+    const newL3Id = uid();
+    const newL2Id = uid();
+
+    if (clickedColumn === 'workElement') {
+      newDB = addL3Structure(newDB, l2Id, { id: newL3Id, name: '', m4: '', order: l3Idx >= 0 ? l3Idx + 1 : 0 });
+    } else {
+      newDB = addL2Structure(newDB, { id: newL2Id, no: '', name: '', order: procIdx >= 0 ? procIdx + 1 : 0 });
+      newDB = addL3Structure(newDB, newL2Id, { id: uid(), name: '', m4: '', order: 0 });
+    }
+
+    props.setAtomicDB(newDB);
+    saveNow(newDB);
+
+    // state 동기화 (화면 렌더링용)
+    (setStateSynced || setState)((prev: WorksheetState) => {
+      const ns = JSON.parse(JSON.stringify(prev));
       if (clickedColumn === 'workElement') {
-        const pIdx = newState.l2.findIndex((p: any) => p.id === l2Id);
-        if (pIdx < 0) return prev;
-        const proc = newState.l2[pIdx];
-        if (!proc.l3) proc.l3 = [];
-        const insertAt = l3Idx >= 0 ? l3Idx + 1 : proc.l3.length;
-        proc.l3.splice(insertAt, 0, {
-          id: uid(), name: '', m4: '', order: insertAt, functions: [], processChars: [],
-        });
-        proc.l3.forEach((w: any, i: number) => { w.order = i; });
-        newState.structureConfirmed = false;
-        return newState;
-      }
-
-      // L1/L2(공정) 열 우클릭 → 새 공정(L2) 추가
-      // ★★★ 2026-03-11 FIX: placeholder 공정 이름 초기화 (필터링으로 인한 행 소실 방지)
-      newState.l2.forEach((p: any) => {
-        const nm = (p.name || '').trim();
-        if (nm.includes('클릭') || nm.includes('선택')) {
-          p.name = '';
+        const proc = ns.l2.find((p: any) => p.id === l2Id);
+        if (proc) {
+          if (!proc.l3) proc.l3 = [];
+          proc.l3.splice(l3Idx >= 0 ? l3Idx + 1 : proc.l3.length, 0, { id: newL3Id, name: '', m4: '', order: 0, functions: [], processChars: [] });
+          proc.l3.forEach((w: any, i: number) => { w.order = i; });
         }
-      });
-      const insertIdx = procIdx >= 0 ? procIdx + 1 : newState.l2.length;
-      const newProc = {
-        id: uid(),
-        no: '',
-        name: '',
-        order: insertIdx,
-        l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-        functions: [],
-        failureModes: [],
-        failureCauses: [],
-      };
-
-      newState.l2.splice(insertIdx, 0, newProc);
-      newState.l2.forEach((p: any, i: number) => { p.order = i; });
-      newState.structureConfirmed = false;
-      return newState;
-    });
-
-    if (setStateSynced) setStateSynced(updateFn);
-    else setState(updateFn);
-    setDirty(true);
-    setTimeout(async () => { saveToLocalStorage?.(true); if (saveAtomicDB) { try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] DB 저장 오류:', e); } } }, 100);
-    closeContextMenu();
-  }, [contextMenuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
-
-  // ★★★ 2026-03-06 FIX: 병합 위로 추가 — clickedColumn별 분기 (L1→새L2, L2/L3→새L3) ★★★
-  const handleAddMergedAbove = useCallback(() => {
-    const { l2Id, l3Idx, procIdx, clickedColumn } = contextMenuExtra;
-    if (!l2Id) {
-      showAlert('공정을 먼저 선택해주세요.');
-      return;
-    }
-
-    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
-      const newState = JSON.parse(JSON.stringify(prev));
-      if (!newState.l2) return prev;
-
-      // L1 열 우클릭 → 새 L2(공정) 추가 (L1 병합 영역 확장)
-      if (clickedColumn === 'l1') {
-        const insertAt = procIdx >= 0 ? procIdx : 0;
-        const newProc = {
-          id: uid(), no: '', name: '', order: insertAt,
+      } else {
+        ns.l2.splice(procIdx >= 0 ? procIdx + 1 : ns.l2.length, 0, {
+          id: newL2Id, no: '', name: '', order: 0,
           l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
           functions: [], failureModes: [], failureCauses: [],
-        };
-        newState.l2.splice(insertAt, 0, newProc);
-        newState.l2.forEach((p: any, i: number) => { p.order = i; });
-        newState.structureConfirmed = false;
-        return newState;
+        });
+        ns.l2.forEach((p: any, i: number) => { p.order = i; });
       }
-
-      // L2/L3 열 우클릭 → 같은 공정 내 새 L3(작업요소) 추가
-      const pIdx = newState.l2.findIndex((p: any) => p.id === l2Id);
-      if (pIdx < 0) return prev;
-
-      const proc = newState.l2[pIdx];
-      if (!proc.l3) proc.l3 = [];
-
-      const insertAt = l3Idx >= 0 ? l3Idx : 0;
-      proc.l3.splice(insertAt, 0, {
-        id: uid(), name: '', m4: '', order: insertAt, functions: [], processChars: [],
-      });
-      proc.l3.forEach((w: any, i: number) => { w.order = i; });
-      newState.structureConfirmed = false;
-      return newState;
+      return ns;
     });
-
-    if (setStateSynced) setStateSynced(updateFn);
-    else setState(updateFn);
     setDirty(true);
-    setTimeout(async () => { saveToLocalStorage?.(true); if (saveAtomicDB) { try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] DB 저장 오류:', e); } } }, 100);
     closeContextMenu();
-  }, [contextMenuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
+  }, [contextMenuExtra, setState, setStateSynced, setDirty, closeContextMenu, props.atomicDB, props.setAtomicDB]);
 
-  // ★★★ 2026-03-06 FIX: 병합 아래 추가 — clickedColumn별 분기 (L1→새L2, L2/L3→새L3) ★★★
-  const handleAddMergedBelow = useCallback(() => {
-    const { l2Id, l3Idx, procIdx, clickedColumn } = contextMenuExtra;
-    if (!l2Id) {
-      showAlert('공정을 먼저 선택해주세요.');
-      return;
-    }
+  // ★ 병합 추가 함수 삭제 — 위로/아래로 추가로 통합
 
-    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
-      const newState = JSON.parse(JSON.stringify(prev));
-      if (!newState.l2) return prev;
-
-      // L1 열 우클릭 → 새 L2(공정) 추가 (L1 병합 영역 확장)
-      if (clickedColumn === 'l1') {
-        const insertAt = procIdx >= 0 ? procIdx + 1 : newState.l2.length;
-        const newProc = {
-          id: uid(), no: '', name: '', order: insertAt,
-          l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-          functions: [], failureModes: [], failureCauses: [],
-        };
-        newState.l2.splice(insertAt, 0, newProc);
-        newState.l2.forEach((p: any, i: number) => { p.order = i; });
-        newState.structureConfirmed = false;
-        return newState;
-      }
-
-      // L2/L3 열 우클릭 → 같은 공정 내 새 L3(작업요소) 추가
-      const pIdx = newState.l2.findIndex((p: any) => p.id === l2Id);
-      if (pIdx < 0) return prev;
-
-      const proc = newState.l2[pIdx];
-      if (!proc.l3) proc.l3 = [];
-
-      const insertAt = l3Idx >= 0 ? l3Idx + 1 : proc.l3.length;
-      proc.l3.splice(insertAt, 0, {
-        id: uid(), name: '', m4: '', order: insertAt, functions: [], processChars: [],
-      });
-      proc.l3.forEach((w: any, i: number) => { w.order = i; });
-      newState.structureConfirmed = false;
-      return newState;
-    });
-
-    if (setStateSynced) setStateSynced(updateFn);
-    else setState(updateFn);
-    setDirty(true);
-    setTimeout(async () => { saveToLocalStorage?.(true); if (saveAtomicDB) { try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] DB 저장 오류:', e); } } }, 100);
-    closeContextMenu();
-  }, [contextMenuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
+  // ★ handleAddMergedBelow 삭제 — 위로/아래로 추가로 통합
 
   // ★★★ 작업요소(L3) 또는 빈 공정(L2) 삭제 ★★★
+  // ★ 행 삭제 — atomicDB 직접 수정 + 즉시 저장
   const handleDeleteRow = useCallback(() => {
-    const { l2Id, l3Id, l3Idx, procIdx, clickedColumn } = contextMenuExtra;
-    if (!l2Id) return;
+    const { l2Id, l3Id, l3Idx, clickedColumn } = contextMenuExtra;
+    if (!l2Id || !props.atomicDB || !props.setAtomicDB) return;
 
     const proc = state.l2.find(p => p.id === l2Id);
     if (!proc) return;
 
     const procName = proc.name?.trim() || '';
-    const weName = proc.l3?.[l3Idx]?.name?.trim() || '';
     const procNo = proc.no?.trim() || '';
+    const weName = proc.l3?.[l3Idx]?.name?.trim() || '';
 
-    // ★★★ 2026-03-06: L1/L2 열 우클릭 → 공정 전체 삭제 우선 처리 ★★★
+    // L2(공정) 삭제
     if (clickedColumn === 'process' || clickedColumn === 'l1') {
-      const confirmMsg = procName
+      const msg = procName
         ? `공정 "${procNo} ${procName}" 전체를 삭제하시겠습니까?\n(하위 작업요소 ${proc.l3?.length || 0}개 포함)`
         : '빈 공정 행을 삭제하시겠습니까?';
-      if (!window.confirm(confirmMsg)) return;
+      if (!window.confirm(msg)) return;
 
-      const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
-        if (prev.l2.length <= 1) {
-          // ★ 마지막 공정: 빈 공정으로 초기화 (행 유지)
-          // ★ 마지막 공정 초기화 시 failureLinks도 초기화 (orphan 방지)
-          return {
-            ...prev,
-            l2: [{
-              id: uid(), no: '', name: '', order: 0,
-              l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-              functions: [], failureModes: [], failureCauses: []
-            }],
-            failureLinks: [],
-            structureConfirmed: false,
-          };
-        }
-        // ★ 삭제 대상 L2의 FM/FC ID 수집 → failureLinks orphan 방지
-        const deletedProc = prev.l2.find(p => p.id === l2Id);
-        const deletedFmIds = new Set<string>();
-        const deletedFcIds = new Set<string>();
-        if (deletedProc) {
-          (deletedProc.failureModes || []).forEach(m => { if (m.id) deletedFmIds.add(m.id); });
-          (deletedProc.failureCauses || []).forEach(c => { if (c.id) deletedFcIds.add(c.id); });
-        }
+      const newDB = deleteL2Structure(props.atomicDB, l2Id);
+      props.setAtomicDB(newDB);
+      saveNow(newDB);
+
+      (setStateSynced || setState)((prev: WorksheetState) => {
         const newL2 = prev.l2.filter(p => p.id !== l2Id);
         newL2.forEach((p, i) => { p.order = i; });
-        const cleanedLinks = (deletedFmIds.size > 0 || deletedFcIds.size > 0)
-          ? (prev.failureLinks || []).filter(link => {
-              if (link.fmId && deletedFmIds.has(link.fmId)) return false;
-              if (link.fcId && deletedFcIds.has(link.fcId)) return false;
-              return true;
-            })
-          : prev.failureLinks;
-        return { ...prev, l2: newL2, failureLinks: cleanedLinks, structureConfirmed: false };
+        return { ...prev, l2: newL2 };
       });
-      if (setStateSynced) setStateSynced(updateFn);
-      else setState(updateFn);
       setDirty(true);
-      setTimeout(async () => {
-        saveToLocalStorage?.(true);
-        if (saveAtomicDB) {
-          try { await saveAtomicDB(true); } catch (e) { console.error('[ContextMenu] 공정 삭제 DB 저장 오류:', e); }
-        }
-      }, 100);
       return;
     }
 
-    // ★★★ 2026-03-06 FIX: L3(작업요소) 삭제 — 절대 공정을 삭제하지 않음 ★★★
-    // 원칙: L3 열 삭제는 해당 L3 1개만 삭제, 빈 행/입력 행 동일 처리
-    const isWeEmpty = !weName;
+    // L3(작업요소) 삭제
+    if (weName && !window.confirm(`작업요소 "${weName}"을(를) 삭제하시겠습니까?`)) return;
 
-    // 이름 있는 작업요소는 확인 후 삭제
-    if (!isWeEmpty) {
-      if (!window.confirm(`작업요소 "${weName}"을(를) 삭제하시겠습니까?`)) return;
-    }
+    const newDB = deleteL3Structure(props.atomicDB, l3Id);
+    props.setAtomicDB(newDB);
+    saveNow(newDB);
 
-    const updateFn = createStrictModeDedupedUpdater((prev: WorksheetState) => {
-      // ★ 삭제 대상 L3의 processChar ID 수집 → 연결된 FC의 failureLinks orphan 방지
-      const targetProc = prev.l2.find(p => p.id === l2Id);
-      const deletedCharIds = new Set<string>();
-      const targetL3 = (targetProc?.l3 || []).find(w => w.id === l3Id);
-      (targetL3?.functions || []).forEach((f: any) =>
-        (f.processChars || []).forEach((pc: any) => { if (pc.id) deletedCharIds.add(pc.id); })
-      );
-      const deletedFcIds = new Set<string>();
-      if (deletedCharIds.size > 0) {
-        (targetProc?.failureCauses || []).forEach((c: any) => {
-          if (c.processCharId && deletedCharIds.has(c.processCharId) && c.id) deletedFcIds.add(c.id);
-        });
-      }
-
+    (setStateSynced || setState)((prev: WorksheetState) => {
       const newL2 = prev.l2.map(p => {
         if (p.id !== l2Id) return p;
         const newL3 = (p.l3 || []).filter(w => w.id !== l3Id);
-        // 마지막 L3 삭제 시 빈 L3 1개 자동 추가 (공정은 유지)
-        if (newL3.length === 0) {
-          newL3.push({ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] });
-        }
         newL3.forEach((w, i) => { w.order = i; });
         return { ...p, l3: newL3 };
       });
-
-      const cleanedLinks = deletedFcIds.size > 0
-        ? (prev.failureLinks || []).filter(link => !(link.fcId && deletedFcIds.has(link.fcId)))
-        : prev.failureLinks;
-      return { ...prev, l2: newL2, failureLinks: cleanedLinks, structureConfirmed: false };
+      return { ...prev, l2: newL2 };
     });
-    if (setStateSynced) setStateSynced(updateFn);
-    else setState(updateFn);
     setDirty(true);
-    setTimeout(async () => { saveToLocalStorage?.(true); if (saveAtomicDB) { try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] L3 삭제 DB 저장 오류:', e); } } }, 100);
-  }, [contextMenuExtra, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+  }, [contextMenuExtra, state.l2, setState, setStateSynced, setDirty, props.atomicDB, props.setAtomicDB]);
 
   // ✅ 구조 데이터 변경 감지용 ref (고장분석 패턴 적용)
   const structureDataRef = useRef<string>('');
@@ -1016,7 +830,7 @@ export default function StructureTab(props: StructureTabProps) {
     // ✅ 의미 있는 공정만 필터링 (화면 표시 필터와 일치 — '클릭' 광범위 매치)
     const meaningfulProcs = state.l2.filter((p) => {
       const name = (p.name || '').trim();
-      return name !== '' && !name.includes('클릭') && !name.includes('선택');
+      return !!name;
     });
 
     // 중복 제거를 위한 Set
@@ -1038,7 +852,7 @@ export default function StructureTab(props: StructureTabProps) {
       const validL3 = l3List.filter((we) => {
         const name = (we.name || '').trim();
         if (name === '' || name === '-') return false;
-        if (name.includes('추가') || name.includes('삭제') || name.includes('클릭') || name.includes('선택') || name.includes('없음')) return false;
+        if (!name) return false;
         return true;
       });
 
@@ -1072,7 +886,7 @@ export default function StructureTab(props: StructureTabProps) {
       if (!name) return false;
       const trimmed = String(name).trim();
       if (trimmed === '' || trimmed === '-') return false;
-      if (name.includes('클릭') || name.includes('선택') || name.includes('입력')) return false;
+      if (!name) return false;
       return true;
     };
 
@@ -1131,25 +945,8 @@ export default function StructureTab(props: StructureTabProps) {
     }
     setDirty(true);
 
-    // ✅ 저장 보장 (stateRef가 동기적으로 업데이트되었으므로 즉시 저장 가능)
-    // 렌더링 완료 후 저장하도록 requestAnimationFrame + setTimeout 사용
-    requestAnimationFrame(() => {
-      setTimeout(async () => {
-        if (saveToLocalStorage) {
-          saveToLocalStorage();
-          if (saveAtomicDB) {
-            try {
-              await saveAtomicDB(true);  // ✅ await로 완료 대기
-            } catch (e) {
-              console.error('[StructureTab] ❌ saveAtomicDB(true) 오류:', e);
-            }
-          } else {
-          }
-        } else {
-          console.error('[StructureTab] saveToLocalStorage가 없습니다!');
-        }
-      }, 50); // 동기 업데이트로 인해 지연 시간 단축 가능
-    });
+    // ✅ 저장 보장
+    emitSave();
 
     showAlert('구조분석(2단계)이 확정되었습니다.\n\n이제 기능분석(3단계) 탭이 활성화되었습니다.');
   }, [missingCounts, isConfirmed, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, workElementCount]);
@@ -1164,8 +961,8 @@ export default function StructureTab(props: StructureTabProps) {
       setState(updateFn);
     }
     setDirty(true);
-    // ✅ 저장 보장 (stateRef가 동기적으로 업데이트되었으므로 즉시 저장 가능)
-    requestAnimationFrame(() => setTimeout(() => saveToLocalStorage?.(), 50));
+    // ✅ 저장 보장
+    emitSave();
   }, [setState, setStateSynced, setDirty, saveToLocalStorage]);
 
   // ★★★ 2026-02-02: 누락 클릭 시 해당 공정 작업요소 모달 열기 ★★★
@@ -1191,7 +988,7 @@ export default function StructureTab(props: StructureTabProps) {
       for (const we of l3List) {
         const name = (we.name || '').trim();
         if (name === '' || name === '-') continue;
-        if (name.includes('추가') || name.includes('삭제') || name.includes('클릭') || name.includes('선택') || name.includes('없음')) continue;
+        if (!name) continue;
         if (isMissing(we.m4)) {
           // 해당 행으로 스크롤
           const row = document.querySelector(`tr[data-l3-id="${we.id}"]`);
@@ -1332,26 +1129,19 @@ export default function StructureTab(props: StructureTabProps) {
       <ProcessSelectModal
         isOpen={isProcessModalOpen}
         onClose={() => setIsProcessModalOpen(false)}
+        atomicDB={props.atomicDB}
+        setAtomicDB={props.setAtomicDB}
         onSave={(selectedProcesses) => {
 
-          // ★ 선택 공정 0개 = 전체 삭제 요청 → 빈 행 1개만 유지
+          // 선택 공정 0개 = 전체 삭제
           if (selectedProcesses.length === 0) {
-            const updateFn = (prev: WorksheetState) => ({
-              ...prev,
-              l2: [{
-                id: uid(), no: '', name: '', order: 0,
-                l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-                functions: [], failureModes: [], failureCauses: [],
-              }],
-              structureConfirmed: false,
-            });
-            if (setStateSynced) setStateSynced(updateFn);
-            else setState(updateFn);
+            (setStateSynced || setState)((prev: WorksheetState) => ({ ...prev, l2: [] }));
+            if (props.atomicDB && props.setAtomicDB) {
+              const newDB = { ...props.atomicDB, l2Structures: [], l3Structures: [] };
+              props.setAtomicDB(newDB);
+              saveNow(newDB);
+            }
             setDirty(true);
-            setTimeout(async () => {
-              saveToLocalStorage?.();
-              if (saveAtomicDB) await saveAtomicDB(true);
-            }, 200);
             return;
           }
 
@@ -1363,7 +1153,7 @@ export default function StructureTab(props: StructureTabProps) {
             const existingNos = new Set(prev.l2.map(p => p.no).filter(Boolean));
             const existingNames = new Set(prev.l2.map(p => p.name).filter(Boolean));
 
-            // 기존 공정은 모두 유지 (빈 행만 제거) + 이름 업데이트 적용
+            // 기존 공정 유지 (빈 행 제외) + 이름 업데이트 적용
             const keepL2 = prev.l2.filter(p => p.name?.trim() || p.no?.trim()).map(p => {
               const updatedName = nameUpdateMap.get(p.no);
               if (updatedName && updatedName !== p.name) {
@@ -1411,46 +1201,53 @@ export default function StructureTab(props: StructureTabProps) {
             setState(updateFn);
           }
           setDirty(true);
-          // ✅ 2026-01-22: setStateSynced로 동기 업데이트되므로 즉시 저장 가능
-          // ★★★ 2026-02-07: force=true 사용 (suppressAutoSave 무시) ★★★
-          setTimeout(async () => {
-            saveToLocalStorage?.(true);
-            if (saveAtomicDB) {
-              try {
-                await saveAtomicDB(true);  // ★ force=true
-              } catch (e) {
-                console.error('[StructureTab] DB 저장 오류:', e);
+
+          // ★ 2026-03-27: atomicDB 직접 수정 + 즉시 저장
+          if (props.atomicDB && props.setAtomicDB) {
+            let newDB = { ...props.atomicDB };
+            const existingL2Nos = new Set(newDB.l2Structures.map(l2 => l2.no));
+            for (const sp of selectedProcesses) {
+              if (!existingL2Nos.has(sp.no)) {
+                newDB = addL2Structure(newDB, { id: sp.id || uid(), no: sp.no, name: sp.name, order: newDB.l2Structures.length });
+                newDB = addL3Structure(newDB, newDB.l2Structures[newDB.l2Structures.length - 1].id, { id: uid(), name: '', m4: '', order: 0 });
               }
             }
-          }, 200);
+            const nameMap = new Map(selectedProcesses.map(sp => [sp.no, sp.name]));
+            newDB.l2Structures = newDB.l2Structures.map(l2 => {
+              const newName = nameMap.get(l2.no);
+              return (newName && newName !== l2.name) ? { ...l2, name: newName } : l2;
+            });
+            props.setAtomicDB(newDB);
+            saveNow(newDB);
+          }
         }}
         existingProcessNames={state.l2.map(p => p.name)}
         existingProcesses={state.l2.map(p => ({ id: p.id, no: p.no || '', name: p.name || '' }))}
         existingProcessesInfo={state.l2.map(p => ({ name: p.name, l3Count: p.l3?.length || 0 }))}
         productLineName={formatL1Name(state.l1?.name)}
         fmeaId={fmeaId}
-        onDelete={(processNos) => {
-          // ★ 모달 X 버튼 삭제: 공정번호 기준으로 워크시트에서 제거
+        onDelete={async (processNos) => {
+          if (!props.atomicDB || !props.setAtomicDB) return;
           const deleteNos = new Set(processNos);
-          const updateFn = (prev: WorksheetState) => {
+
+          // atomicDB에서 삭제
+          const deleteL2Ids = props.atomicDB.l2Structures
+            .filter(l2 => deleteNos.has(l2.no))
+            .map(l2 => l2.id);
+          let newDB = props.atomicDB;
+          for (const id of deleteL2Ids) {
+            newDB = deleteL2Structure(newDB, id);
+          }
+          props.setAtomicDB(newDB);
+          await saveNow(newDB); // ★ await로 저장 완료 대기
+
+          // state 동기화
+          (setStateSynced || setState)((prev: WorksheetState) => {
             const newL2 = prev.l2.filter(p => !deleteNos.has(p.no));
-            if (newL2.length === 0) {
-              newL2.push({
-                id: uid(), no: '', name: '', order: 0,
-                l3: [{ id: uid(), name: '', m4: '', order: 0, functions: [], processChars: [] }],
-                functions: [], failureModes: [], failureCauses: []
-              });
-            }
             newL2.forEach((p, i) => p.order = i);
-            return { ...prev, l2: newL2, structureConfirmed: false };
-          };
-          if (setStateSynced) setStateSynced(updateFn);
-          else setState(updateFn);
+            return { ...prev, l2: newL2 };
+          });
           setDirty(true);
-          setTimeout(async () => {
-            saveToLocalStorage?.(true);
-            if (saveAtomicDB) await saveAtomicDB(true);  // ★ force=true
-          }, 200);
         }}
       />
 
@@ -1458,114 +1255,51 @@ export default function StructureTab(props: StructureTabProps) {
         isOpen={isWorkElementModalOpen}
         onClose={() => { setIsWorkElementModalOpen(false); setTargetL2Id(null); }}
         onSave={(selectedElements) => {
+          // targetL2Id 결정
+          const effectiveTargetL2Id = targetL2Id || (state.l2.length > 0 ? state.l2[0].id : null);
+          if (!effectiveTargetL2Id) { showAlert('먼저 공정을 선택해주세요.'); return; }
+          if (!props.atomicDB || !props.setAtomicDB) return;
 
-          // ✅ targetL2Id가 없으면 첫 번째 공정에 저장 시도
-          let effectiveTargetL2Id = targetL2Id;
-          if (!effectiveTargetL2Id && state.l2.length > 0) {
-            effectiveTargetL2Id = state.l2[0].id;
-          }
+          // ★ atomicDB 직접 수정 + 즉시 저장
+          const newL3s = selectedElements.map((elem: any, idx: number) => ({
+            id: elem.id || uid(),
+            name: elem.name,
+            m4: elem.m4 || '',
+            order: idx,
+          }));
+          const newDB = replaceL3Structures(props.atomicDB, effectiveTargetL2Id, newL3s);
+          props.setAtomicDB(newDB);
+          saveNow(newDB);
 
-          if (!effectiveTargetL2Id) {
-            showAlert('먼저 공정을 선택해주세요.');
-            return;
-          }
-
-          /**
-           * ⚠️⚠️⚠️ 코드 프리즈 (CODE FREEZE) ⚠️⚠️⚠️
-           * =====================================================
-           * 이 작업요소 저장 로직은 절대 수정 금지!
-           * 
-           * ❌ 수정 금지 이유:
-           * - 기존 functions/processChars 데이터를 반드시 유지해야 함
-           * - 배열을 덮어쓰면 UI가 깨지는 심각한 오류 발생
-           * - 이 로직은 여러 번 수정 이력이 있음
-           * 
-           * ✅ 핵심 규칙:
-           * - existingL3Map에서 기존 데이터를 가져와서 유지
-           * - functions, processChars는 항상 기존 값 사용
-           * - 빈 배열([])로 초기화하면 안 됨!
-           * 
-           * 📅 프리즈 일자: 2026-02-01
-           * =====================================================
-           */
-          // ★ 2026-02-20: setState → setStateSynced (stateRef 즉시 동기화 → DB 저장 안정)
+          // state 동기화 (화면 렌더링용)
           (setStateSynced || setState)(prev => {
             const newL2 = prev.l2.map(proc => {
               if (proc.id !== effectiveTargetL2Id) return proc;
-
-              // ★★★ 2026-02-01 수정: ID Map + 이름 Map 이중 조회로 데이터 유실 방지 ★★★
-              // - ID가 변경되어도 이름으로 기존 데이터를 찾아 functions/processChars 유지
-              const existingL3ById = new Map(
-                (proc.l3 || []).map(l3 => [l3.id, l3])
-              );
-              const existingL3ByName = new Map(
-                (proc.l3 || []).map(l3 => [l3.name, l3])
-              );
-
-              // ★★★ 코드프리즈: 빈 배열일 경우 그대로 유지 (플레이스홀더 제거) ★★★
-              // ★★★ 2026-02-03: 공정번호+이름 기준 중복 제거 (공정별 고유성 보장) ★★★
-              // ★★★ 2026-02-03: 삭제 시 플레이스홀더 메시지 제거 - 깨끗이 삭제 ★★★
-              const seenKeys = new Set<string>();
-              const uniqueElements = selectedElements.filter(elem => {
-                // ★★★ 공정번호 + 이름을 유일 키로 사용 ★★★
-                const processNo = elem.processNo || proc.no || '';
-                const uniqueKey = `${processNo}|${elem.name}`;
-                if (seenKeys.has(uniqueKey)) {
-                  return false;
-                }
-                seenKeys.add(uniqueKey);
-                return true;
+              const existingL3ById = new Map((proc.l3 || []).map(l3 => [l3.id, l3]));
+              const existingL3ByName = new Map((proc.l3 || []).map(l3 => [l3.name, l3]));
+              const newL3 = selectedElements.map((elem: any, idx: number) => {
+                const existing = existingL3ById.get(elem.id) || existingL3ByName.get(elem.name);
+                return {
+                  id: existing?.id || elem.id || uid(),
+                  name: elem.name,
+                  m4: elem.m4 || existing?.m4 || '',
+                  order: idx,
+                  functions: existing?.functions || [],
+                  processChars: existing?.processChars || [],
+                };
               });
-
-              // ★★★ 2026-02-03: 빈 배열이면 빈 배열 유지 (플레이스홀더 추가 안 함) ★★★
-              const newL3 = uniqueElements.length === 0
-                ? []  // ★ 깨끗이 삭제 (플레이스홀더 없음)
-                : uniqueElements.map((elem, idx) => {
-                  // ★★★ 2026-02-01 수정: ID로 찾고, 없으면 이름으로 찾기 (데이터 유실 방지) ★★★
-                  const existingById = existingL3ById.get(elem.id);
-                  const existingByName = existingL3ByName.get(elem.name);
-                  const existing = existingById || existingByName;
-
-                  // ID 불일치 시 기존 ID 우선 사용 (기능분석 연결 유지)
-                  const finalId = existing?.id || elem.id;
-
-                  if (existingByName && !existingById) {
-                  }
-
-                  return {
-                    id: finalId,  // ★ 기존 ID 우선 유지 (기능분석 FK 보존)
-                    name: elem.name,
-                    m4: elem.m4 || existing?.m4 || '',
-                    order: idx,
-                    functions: existing?.functions || [],  // ★ 절대 수정 금지: 기존 유지
-                    processChars: existing?.processChars || [],  // ★ 절대 수정 금지: 기존 유지
-                  };
-                });
-
               return { ...proc, l3: newL3 };
             });
-            return { ...prev, l2: newL2, structureConfirmed: false };
+            return { ...prev, l2: newL2 };
           });
           setDirty(true);
-          // ✅ 2026-01-16: 적용 시 localStorage + DB 저장
-          // ★★★ 2026-02-07: force=true 사용 (suppressAutoSave 무시) ★★★
-          setTimeout(async () => {
-            saveToLocalStorage?.(true);
-            if (saveAtomicDB) {
-              try {
-                await saveAtomicDB(true);  // ★ force=true: 삭제/적용 시 반드시 DB 저장
-              } catch (e) {
-                console.error('[StructureTab] DB 저장 오류:', e);
-              }
-            }
-          }, 200);  // ★ 100ms → 200ms (stateRef 업데이트 안전 마진)
         }}
         processNo={state.l2.find(p => p.id === targetL2Id)?.no || (state.l2[0]?.no || '')}
         processName={state.l2.find(p => p.id === targetL2Id)?.name || (state.l2[0]?.name || '')}
-        existingElements={state.l2.find(p => p.id === targetL2Id)?.l3?.filter(w => w.name && !w.name.includes('추가')).map(w => w.name) || (state.l2[0]?.l3?.filter(w => w.name && !w.name.includes('추가')).map(w => w.name) || [])}
+        existingElements={state.l2.find(p => p.id === targetL2Id)?.l3?.filter(w => w.name?.trim()).map(w => w.name) || (state.l2[0]?.l3?.filter(w => w.name?.trim()).map(w => w.name) || [])}
         // ✅ 기존 저장된 작업요소 전체 전달 (이전에 추가한 항목 유지용)
         existingL3={(state.l2.find(p => p.id === targetL2Id)?.l3 || state.l2[0]?.l3 || [])
-          .filter(w => w.name && !w.name.includes('추가') && !w.name.includes('클릭'))
+          .filter(w => w.name?.trim())
           .map(w => ({ id: w.id, name: w.name, m4: w.m4 || '' }))}
       />
 
@@ -1575,8 +1309,6 @@ export default function StructureTab(props: StructureTabProps) {
         onClose={closeContextMenu}
         onInsertAbove={() => handleInsertAbove()}
         onInsertBelow={() => handleInsertBelow()}
-        onAddMergedAbove={contextMenu.columnType !== 'l2' ? () => handleAddMergedAbove() : undefined}
-        onAddMergedBelow={contextMenu.columnType !== 'l2' ? () => handleAddMergedBelow() : undefined}
         onDeleteRow={() => handleDeleteRow()}
       />
 

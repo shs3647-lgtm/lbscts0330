@@ -57,7 +57,7 @@ export function convertToFmea4(state: WorksheetState): Fmea4Row[] {
   // 3. L2 공정 순회
    
   ((state.l2 || []) as unknown as Record<string, unknown>[]).forEach((proc: Record<string, unknown>, procIdx: number) => {
-    if (!proc.name || String(proc.name).includes('클릭')) return;
+    if (!String(proc.name || '').trim()) return;
 
     const processNo = String(proc.no || String((procIdx + 1) * 10));
     const processName = String(proc.name);
@@ -66,7 +66,7 @@ export function convertToFmea4(state: WorksheetState): Fmea4Row[] {
     const procFunctions = (proc.functions as Record<string, unknown>[]) || [];
     const processFunction = procFunctions
       .map((f: Record<string, unknown>) => String(f.name || ''))
-      .filter((n: string) => n && !n.includes('클릭'))
+      .filter((n: string) => n?.trim())
       .join(', ');
 
     // 제품특성에서 특별특성 추출
@@ -84,7 +84,7 @@ export function convertToFmea4(state: WorksheetState): Fmea4Row[] {
       // FM이 없으면 L3 직접 순회
       const l3Items = (proc.l3 as Record<string, unknown>[]) || [];
       l3Items.forEach((we: Record<string, unknown>) => {
-        if (!we.name || String(we.name).includes('클릭')) return;
+        if (!String(we.name || '').trim()) return;
 
         // L3의 riskData 배열 처리
         const weRiskData = (we.riskData as Record<string, unknown>[]) || [];
@@ -102,7 +102,7 @@ export function convertToFmea4(state: WorksheetState): Fmea4Row[] {
     } else {
       // FM이 있으면 FM 순회
       failureModes.forEach((fm: Record<string, unknown>) => {
-        if (!fm.name || String(fm.name).includes('클릭') || String(fm.name).includes('추가')) return;
+        if (!String(fm.name || '').trim()) return;
 
         const failureMode = String(fm.name);
         const fmId = String(fm.id);
@@ -133,7 +133,7 @@ export function convertToFmea4(state: WorksheetState): Fmea4Row[] {
         // 5. L3 작업요소 순회
         const l3Items = (proc.l3 as Record<string, unknown>[]) || [];
         l3Items.forEach((we: Record<string, unknown>) => {
-          if (!we.name || String(we.name).includes('클릭') || String(we.name).includes('추가')) return;
+          if (!String(we.name || '').trim()) return;
 
           const workElement = String(we.name);
           const m4 = String(we.m4 || we.fourM || '');
@@ -182,7 +182,7 @@ export function convertToFmea4(state: WorksheetState): Fmea4Row[] {
           const weFailureCauses = (we.failureCauses as Record<string, unknown>[]) || [];
           if (!weRiskData.length && Array.isArray(weFailureCauses) && weFailureCauses.length > 0) {
             weFailureCauses.forEach((fc: Record<string, unknown>) => {
-              if (!fc.name || String(fc.name).includes('클릭') || String(fc.name).includes('추가')) return;
+              if (!String(fc.name || '').trim()) return;
 
               const row = createEmptyFmea4Row(processNo, processName);
               row.processFunction = processFunction || workElement;

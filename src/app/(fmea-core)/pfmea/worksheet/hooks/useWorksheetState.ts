@@ -66,6 +66,7 @@ interface UseWorksheetStateReturn {
   deleteL3: (l2Id: string, l3Id: string) => void;
   handleProcessSelect: (selectedProcesses: Array<{ processNo: string; processName: string }>) => void;
   atomicDB: FMEAWorksheetDB | null;
+  setAtomicDB: React.Dispatch<React.SetStateAction<FMEAWorksheetDB | null>>;
   flattenedRows: FlattenedRow[];
   saveAtomicDB: (force?: boolean) => void;
   suppressAutoSaveRef: React.MutableRefObject<boolean>;  // ★ 2026-02-18
@@ -204,7 +205,16 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     } catch (e) { console.error('[visibleSteps 저장 오류]', e); }
   }, [state.visibleSteps, isHydrated, selectedFmeaId, compareEmbed]);
 
-  const [atomicDB, setAtomicDB] = useState<FMEAWorksheetDB | null>(null);
+  const [atomicDB, _setAtomicDB] = useState<FMEAWorksheetDB | null>(null);
+  const atomicDBRef = useRef<FMEAWorksheetDB | null>(null);
+  // setAtomicDB: state + ref 동시 갱신 (save에서 ref로 최신 값 읽음)
+  const setAtomicDB: React.Dispatch<React.SetStateAction<FMEAWorksheetDB | null>> = useCallback((action) => {
+    _setAtomicDB(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      atomicDBRef.current = next;
+      return next;
+    });
+  }, []);
   const [dirty, setDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState('');
@@ -241,6 +251,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     currentFmea,
     atomicDB,
     setAtomicDB,
+    atomicDBRef,
     stateRef,
     suppressAutoSaveRef,
     setIsSaving,
@@ -508,9 +519,9 @@ export function useWorksheetState(): UseWorksheetStateReturn {
 
   const addL2 = useCallback(() => {
     const newProcess: Process = {
-      id: uid(), no: '', name: '(클릭하여 공정 선택)', order: (state.l2.length + 1) * 10,
+      id: uid(), no: '', name: '', order: (state.l2.length + 1) * 10,
       functions: [], productChars: [],
-      l3: [{ id: uid(), m4: '', name: '(공정 선택 후 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+      l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
     };
     // ★ 2026-02-20: setState → setStateSynced (stateRef 즉시 동기화 → DB 저장 타이밍 안정)
     setStateSynced(prev => ({ ...prev, l2: [...prev.l2, newProcess] }));
@@ -519,7 +530,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
 
   const addL3 = useCallback((l2Id: string) => {
     const newElement: WorkElement = {
-      id: uid(), m4: '', name: '(클릭하여 작업요소 추가)', order: 10,
+      id: uid(), m4: '', name: '', order: 10,
       functions: [], processChars: []
     };
     // ★ 2026-02-20: setState → setStateSynced (stateRef 즉시 동기화 → DB 저장 타이밍 안정)
@@ -611,7 +622,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     // ★ 2026-02-20: setState → setStateSynced (stateRef 즉시 동기화)
     setStateSynced(prev => {
       const keptProcesses = prev.l2.filter(p => {
-        if (!p.name || p.name.includes('클릭') || p.name.includes('선택')) {
+        if (!p.name?.trim()) {
           return false;
         }
         return selectedNames.has(p.name);
@@ -627,7 +638,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
           order: (keptProcesses.length + idx + 1) * 10,
           functions: [],
           productChars: [],
-          l3: [{ id: uid(), m4: '', name: '(클릭하여 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+          l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
         }));
 
       const result = [...keptProcesses, ...newProcesses];
@@ -645,11 +656,11 @@ export function useWorksheetState(): UseWorksheetStateReturn {
           l2: [{
             id: uid(),
             no: '',
-            name: '(클릭하여 공정 선택)',
+            name: '',
             order: 10,
             functions: [],
             productChars: [],
-            l3: [{ id: uid(), m4: '', name: '(공정 선택 후 작업요소 추가)', order: 10, functions: [], processChars: [] }]
+            l3: [{ id: uid(), m4: '', name: '', order: 10, functions: [], processChars: [] }]
           }]
         };
       }
@@ -670,31 +681,8 @@ export function useWorksheetState(): UseWorksheetStateReturn {
   const rows = useMemo(() => {
     const currentTab = state.tab || '';
     const failureLinks = (state as any).failureLinks || [];
-
-    // ★ state.l2에서 placeholder 공정 제거 후 계산
-    // ★★★ 2026-02-16 FIX: 빈 이름('')은 수동모드에서 추가된 행이므로 제거하지 않음
-    // 실제 placeholder 텍스트('클릭', '선택')만 제거
-    const isPlaceholderProc = (p: any) => {
-      const name = (p.name || '').trim();
-      return name.includes('클릭') || name.includes('선택');
-    };
-    const realProcs = state.l2.filter((p: any) => !isPlaceholderProc(p));
-    const cleanedState = realProcs.length > 0
-      ? { ...state, l2: realProcs }
-      : state;  // 실제 공정 없으면 원본 유지 (빈 화면 표시용)
-
-    const result = calculateFlatRows(cleanedState, currentTab, failureLinks);
-
-    // ★ 이중 안전장치: 결과 rows에서도 placeholder 행 제거
-    // ★★★ 2026-02-16 FIX: 빈 l2Name은 수동모드 추가행이므로 유지
-    if (result.length > 1) {
-      const filtered = result.filter(row => {
-        const l2Name = (row.l2Name || '').trim();
-        return !l2Name.includes('클릭') && !l2Name.includes('선택');
-      });
-      if (filtered.length > 0) return filtered;
-    }
-    return result;
+    // ★★★ 2026-03-27: placeholder 필터링 완전 제거 — 빈 이름도 수동 추가 행
+    return calculateFlatRows(state, currentTab, failureLinks);
   }, [state.l1, state.l2, state.tab, (state as any).failureLinks]);
 
   // Span 계산
@@ -710,6 +698,6 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     saveToLocalStorageOnly,
     suppressAutoSaveRef,  // ★ 2026-02-18: 데이터 로드 중 저장 차단
     handleInputKeyDown, handleInputBlur, handleSelect, addL2, addL3, deleteL2, deleteL3, handleProcessSelect,
-    atomicDB, flattenedRows, saveAtomicDB,
+    atomicDB, setAtomicDB, flattenedRows, saveAtomicDB,
   };
 }
