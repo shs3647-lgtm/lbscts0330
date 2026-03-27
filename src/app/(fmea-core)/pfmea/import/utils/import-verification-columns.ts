@@ -182,17 +182,28 @@ export function mapApiToVerification(
   const result: Record<string, ApiVerifyResult> = {};
 
   // A6/B5: L3 커버리지 기반 — L2에 DC/PC 있으면 하위 L3 전부 커버
-  const flToL2 = new Map(
-    (apiData.failureLinks || []).map((fl: any) => [fl.id, fl.l2StructId]),
+  // ★ 다중 폴백: FL.l2StructId → FC.l2StructId → L3Structure.l2Id 경로
+  const l3Structs = (apiData.l3Structures || []) as any[];
+  const l3ToL2 = new Map<string, string>(
+    l3Structs.map((l3: any) => [l3.id, l3.l2Id]),
   );
+  const fcToL2 = new Map<string, string>();
+  for (const fc of (apiData.failureCauses || []) as any[]) {
+    const l2 = fc.l2StructId || l3ToL2.get(fc.l3StructId);
+    if (l2) fcToL2.set(fc.id, l2);
+  }
+  const flToL2 = new Map<string, string>();
+  for (const fl of (apiData.failureLinks || []) as any[]) {
+    const l2 = fl.l2StructId || fcToL2.get(fl.fcId) || '';
+    if (l2) flToL2.set(fl.id, l2);
+  }
   const l2WithDC = new Set<string>();
   const l2WithPC = new Set<string>();
   for (const ra of (apiData.riskAnalyses || []) as any[]) {
-    const l2Id = flToL2.get(ra.linkId) as string | undefined;
+    const l2Id = flToL2.get(ra.linkId);
     if (l2Id && ra.detectionControl?.trim()) l2WithDC.add(l2Id);
     if (l2Id && ra.preventionControl?.trim()) l2WithPC.add(l2Id);
   }
-  const l3Structs = (apiData.l3Structures || []) as any[];
 
   // Extract counts from API response (atomic format)
   const apiCounts: Record<string, number> = {

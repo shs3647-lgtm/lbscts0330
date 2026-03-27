@@ -1663,6 +1663,8 @@ export async function GET(request: NextRequest) {
         fmId: link.fmId,
         feId: link.feId,
         fcId: link.fcId,
+        l2StructId: link.l2StructId || link.failureMode?.l2StructId || '',  // ★ A6/B5 L3커버리지 산출용
+        l3StructId: link.l3StructId || '',
         fmText: link.fmText || '',
         feText: link.feText || '',
         fcText: link.fcText || '',
