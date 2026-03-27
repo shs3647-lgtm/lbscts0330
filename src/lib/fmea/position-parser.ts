@@ -621,14 +621,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   ppLog(`[position-parser] ★v6 위치 인덱스 매핑: FC=${fcSheet.rows.length}행 ↔ L3=${l3ValidRows.length}행`);
 
   // (2) processNo별 L2 FM 행 목록 (순서 보장) — FM 그룹 인덱스로 l2Row 역산용
-  // ★ A1(공정번호)은 병합셀이므로 첫 행에만 값이 있음 → carry-forward 필수
+  // L1/L2/L3 시트는 병합 없음 — 모든 행에 값이 있음 (MD Section 4)
   const l2FmRowsByPno = new Map<string, number[]>(); // processNo → [L2 excelRow, ...]
-  let l2CarryPno = '';
   for (const r of l2Sheet.rows) {
     const a5 = r.cells['A5']?.trim();
-    const rawA1 = normalizeProcessNo(r.cells['A1']?.trim() || '');
-    if (rawA1) l2CarryPno = rawA1; // carry-forward
-    const a1 = rawA1 || l2CarryPno;
+    const a1 = normalizeProcessNo(r.cells['A1']?.trim() || '');
     if (a5 && a1) {
       if (!l2FmRowsByPno.has(a1)) l2FmRowsByPno.set(a1, []);
       l2FmRowsByPno.get(a1)!.push(r.excelRow);
