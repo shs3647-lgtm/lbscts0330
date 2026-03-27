@@ -31,6 +31,8 @@ interface FailureL1HeaderProps {
   missingCount: number;
   effectCount: number;
   confirmedCount: number;
+  functionCount?: number;
+  requirementCount?: number;
   onConfirm: () => void;
   onEdit: () => void;
   isAutoMode?: boolean;
@@ -47,6 +49,8 @@ export function FailureL1Header({
   missingCount,
   effectCount,
   confirmedCount,
+  functionCount,
+  requirementCount,
   onConfirm,
   onEdit,
   isAutoMode,
@@ -140,10 +144,10 @@ export function FailureL1Header({
           <BiHeader ko="구분" en="Type" />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="완제품기능" en="Product Function" />
+          <BiHeader ko="완제품기능" en="Product Function" />{functionCount != null && <span className={`font-bold ${functionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({functionCount})</span>}
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="요구사항" en="Requirements" />
+          <BiHeader ko="요구사항" en="Requirements" />{requirementCount != null && <span className={`font-bold ${requirementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({requirementCount})</span>}
         </th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="고장영향" en="Failure Effect/FE" />
