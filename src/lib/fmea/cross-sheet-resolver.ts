@@ -2,25 +2,33 @@
  * @file cross-sheet-resolver.ts
  * @description FC 시트 → L1/L2/L3 크로스시트 FK 해결
  *
- * ■ v5 리팩토링: 위치기반 UUID FK 직접 꽂아넣기
- *   1차: 엑셀 물리 행번호 (L1_origRow, L2_origRow, L3_origRow)
- *   2차: 텍스트 역매칭 — FC 시트 텍스트 → L1/L2/L3 원본 행 역추적 → UUID 생성
- *
- * ## 변경 이력
- * - 2026-03-22: 초기 구현 (행번호만)
- * - 2026-03-25: 텍스트 폴백 추가
- * - 2026-03-27: ★v5 리팩토링 — 텍스트 매칭을 "행번호 역추적" 방식으로 변경
- *   FC 시트에 origRow 컬럼 없어도 100% FK 연결 보장
+ * ■ v5.1 리팩토링: 텍스트 정규화 매칭
+ *   - 공백 정규화 (연속공백→단일, 괄호앞뒤 공백 제거)
+ *   - 1차: 행번호 직접 매칭
+ *   - 2차: 정규화 텍스트 매칭 → UUID FK 직접 생성
  *
  * @created 2026-03-22
  */
+
+/**
+ * ★v5.1: 텍스트 정규화 — 공백 차이로 인한 매칭 실패 방지
+ * "혼입(ID" vs "혼입 (ID" → 둘 다 "혼입(ID"로 정규화
+ */
+function normalizeText(text: string): string {
+  return text
+    .trim()
+    .replace(/\s+/g, ' ')         // 연속 공백 → 단일
+    .replace(/\s*\(\s*/g, '(')    // 괄호 앞뒤 공백 제거: " ( " → "("
+    .replace(/\s*\)\s*/g, ')')    // "혼입 (ID" → "혼입(ID"
+    .replace(/\s*\/\s*/g, '/')    // 슬래시 앞뒤 공백 제거
+    .replace(/\s*·\s*/g, '·');    // 중점 앞뒤 공백
+}
 
 /** FC 시트 한 행에서 추출한 크로스시트 참조 */
 export interface CrossSheetRef {
   l1Row?: number;
   l2Row?: number;
   l3Row?: number;
-  // 텍스트 역매칭용 — origRow 컬럼 없는 Excel 대응
   feText?: string;
   feScope?: string;
   fmText?: string;
@@ -32,12 +40,8 @@ export interface CrossSheetRef {
 
 /**
  * 크로스시트 FK 해결기 — 위치기반 UUID FK 직접 생성
- *
- * 1차: 엑셀 물리 행(1-based) → UUID
- * 2차: 텍스트 → 원본 행 역추적 → UUID (origRow 컬럼 없는 Excel 대응)
  */
 export class CrossSheetResolver {
-  // 행번호 → UUID 맵
   private l1RowToFeId = new Map<number, string>();
   private l2RowToFmId = new Map<number, string>();
   private l3RowToFcId = new Map<number, string>();
@@ -45,62 +49,47 @@ export class CrossSheetResolver {
   private l2RowToL2StructId = new Map<number, string>();
   private l3RowToL3StructId = new Map<number, string>();
 
-  // ★v5: 텍스트 → {id, row, l2/l3StructId} 맵 (역매칭 + 위치기반 UUID)
-  // FE: `${scope}::${feText}` → { feId, row }
-  private feTextMap = new Map<string, { feId: string; row: number }>();
-  // FM: `${processNo}::${fmText}` → { fmId, l2StructId, row }
-  private fmTextMap = new Map<string, { fmId: string; l2StructId: string; row: number }>();
-  // FC: `${processNo}::${m4}::${weText}::${fcText}` → { fcId, l3StructId, row }
-  // ★v5: m4+WE를 키에 포함하여 동일 공정 내 동일 원인 텍스트도 정확 구별
-  private fcTextMap = new Map<string, { fcId: string; l3StructId: string; row: number }>();
-  // FC loose: `${processNo}::${fcText}` (m4/WE 무시) — 위 정밀 매칭 실패 시 폴백
-  private fcLooseMap = new Map<string, { fcId: string; l3StructId: string; row: number }>();
+  // ★v5.1: 정규화 텍스트 → {id, l2/l3StructId} 맵
+  private feTextMap = new Map<string, { feId: string }>();
+  private fmTextMap = new Map<string, { fmId: string; l2StructId: string }>();
+  private fcTextMap = new Map<string, { fcId: string; l3StructId: string }>();
+  private fcLooseMap = new Map<string, { fcId: string; l3StructId: string }>();
 
-  /** L1 시트 FE 등록 */
   registerFE(row: number, feId: string, feText?: string, scope?: string): void {
     this.l1RowToFeId.set(row, feId);
     if (feText) {
-      const key = `${(scope || '').trim()}::${feText.trim()}`;
+      const key = `${normalizeText(scope || '')}::${normalizeText(feText)}`;
       if (!this.feTextMap.has(key)) {
-        this.feTextMap.set(key, { feId, row });
+        this.feTextMap.set(key, { feId });
       }
     }
   }
 
-  /** L2 시트 FM 등록 */
   registerFM(row: number, fmId: string, fmText?: string, processNo?: string, l2StructId?: string): void {
     this.l2RowToFmId.set(row, fmId);
     if (l2StructId) this.l2RowToL2StructId.set(row, l2StructId);
     if (fmText && processNo) {
-      const key = `${processNo.trim()}::${fmText.trim()}`;
+      const key = `${processNo.trim()}::${normalizeText(fmText)}`;
       if (!this.fmTextMap.has(key)) {
-        this.fmTextMap.set(key, { fmId, l2StructId: l2StructId || '', row });
+        this.fmTextMap.set(key, { fmId, l2StructId: l2StructId || '' });
       }
     }
   }
 
-  /** L3 시트 FC 등록 */
   registerFC(
-    row: number,
-    fcId: string,
-    fcText?: string,
-    processNo?: string,
-    m4?: string,
-    we?: string,
-    l3StructId?: string,
+    row: number, fcId: string, fcText?: string, processNo?: string,
+    m4?: string, we?: string, l3StructId?: string,
   ): void {
     this.l3RowToFcId.set(row, fcId);
     if (l3StructId) this.l3RowToL3StructId.set(row, l3StructId);
     if (fcText && processNo) {
-      // 정밀 키: 공정+4M+WE+원인
-      const preciseKey = `${processNo.trim()}::${(m4 || '').trim()}::${(we || '').trim()}::${fcText.trim()}`;
+      const preciseKey = `${processNo.trim()}::${normalizeText(m4 || '')}::${normalizeText(we || '')}::${normalizeText(fcText)}`;
       if (!this.fcTextMap.has(preciseKey)) {
-        this.fcTextMap.set(preciseKey, { fcId, l3StructId: l3StructId || '', row });
+        this.fcTextMap.set(preciseKey, { fcId, l3StructId: l3StructId || '' });
       }
-      // Loose 키: 공정+원인 (4M/WE 무시)
-      const looseKey = `${processNo.trim()}::${fcText.trim()}`;
+      const looseKey = `${processNo.trim()}::${normalizeText(fcText)}`;
       if (!this.fcLooseMap.has(looseKey)) {
-        this.fcLooseMap.set(looseKey, { fcId, l3StructId: l3StructId || '', row });
+        this.fcLooseMap.set(looseKey, { fcId, l3StructId: l3StructId || '' });
       }
     }
   }
@@ -119,26 +108,23 @@ export class CrossSheetResolver {
   }
 
   private resolveFE(ref: CrossSheetRef): string {
-    // 1차: 행번호 직접 매칭
     if (ref.l1Row && this.l1RowToFeId.has(ref.l1Row)) {
       return this.l1RowToFeId.get(ref.l1Row)!;
     }
-    // 2차: 텍스트 → 원본 행 역추적 → UUID
     if (ref.feText) {
-      // scope+FE 정확 매칭
-      const key = `${(ref.feScope || '').trim()}::${ref.feText.trim()}`;
+      const key = `${normalizeText(ref.feScope || '')}::${normalizeText(ref.feText)}`;
       const found = this.feTextMap.get(key);
       if (found) return found.feId;
-      // scope 무시 매칭 (FE 텍스트만)
+      // scope 무시 매칭
+      const normFE = normalizeText(ref.feText);
       for (const [k, v] of this.feTextMap) {
         const feTextPart = k.split('::')[1];
-        if (feTextPart === ref.feText.trim()) return v.feId;
+        if (feTextPart === normFE) return v.feId;
       }
-      // 부분 포함 매칭 (최후 수단)
+      // 부분 포함 매칭
       for (const [k, v] of this.feTextMap) {
         const feTextPart = k.split('::')[1];
-        if (feTextPart && ref.feText &&
-          (feTextPart.includes(ref.feText.trim()) || ref.feText.trim().includes(feTextPart))) {
+        if (feTextPart && (feTextPart.includes(normFE) || normFE.includes(feTextPart))) {
           return v.feId;
         }
       }
@@ -147,31 +133,25 @@ export class CrossSheetResolver {
   }
 
   private resolveFM(ref: CrossSheetRef): { fmId: string; l2StructId: string } {
-    // 1차: 행번호 직접 매칭
     if (ref.l2Row && this.l2RowToFmId.has(ref.l2Row)) {
-      return {
-        fmId: this.l2RowToFmId.get(ref.l2Row)!,
-        l2StructId: this.l2RowToL2StructId.get(ref.l2Row) || '',
-      };
+      return { fmId: this.l2RowToFmId.get(ref.l2Row)!, l2StructId: this.l2RowToL2StructId.get(ref.l2Row) || '' };
     }
-    // 2차: 텍스트 → 원본 행 역추적
-    if (ref.fmText && ref.processNo) {
-      // 정확 매칭 (공정번호+FM텍스트)
-      const key = `${ref.processNo.trim()}::${ref.fmText.trim()}`;
-      const found = this.fmTextMap.get(key);
-      if (found) return found;
-    }
-    // 3차: 공정번호 무시, FM 텍스트만으로 매칭 (공정번호 형식 차이 대응)
     if (ref.fmText) {
+      const normFM = normalizeText(ref.fmText);
+      // 정확 매칭 (공정+FM)
+      if (ref.processNo) {
+        const key = `${ref.processNo.trim()}::${normFM}`;
+        const found = this.fmTextMap.get(key);
+        if (found) return found;
+      }
+      // 공정번호 무시 매칭
       for (const [k, v] of this.fmTextMap) {
-        const fmTextPart = k.split('::')[1];
-        if (fmTextPart === ref.fmText.trim()) return v;
+        if (k.split('::')[1] === normFM) return v;
       }
       // 부분 포함 매칭
       for (const [k, v] of this.fmTextMap) {
         const fmTextPart = k.split('::')[1];
-        if (fmTextPart && ref.fmText &&
-          (fmTextPart.includes(ref.fmText.trim()) || ref.fmText.trim().includes(fmTextPart))) {
+        if (fmTextPart && (fmTextPart.includes(normFM) || normFM.includes(fmTextPart))) {
           return v;
         }
       }
@@ -180,28 +160,25 @@ export class CrossSheetResolver {
   }
 
   private resolveFC(ref: CrossSheetRef): { fcId: string; l3StructId: string } {
-    // 1차: 행번호 직접 매칭
     if (ref.l3Row && this.l3RowToFcId.has(ref.l3Row)) {
-      return {
-        fcId: this.l3RowToFcId.get(ref.l3Row)!,
-        l3StructId: this.l3RowToL3StructId.get(ref.l3Row) || '',
-      };
+      return { fcId: this.l3RowToFcId.get(ref.l3Row)!, l3StructId: this.l3RowToL3StructId.get(ref.l3Row) || '' };
     }
-    // 2차: 정밀 텍스트 매칭 (공정+4M+WE+원인)
     if (ref.fcText && ref.processNo) {
-      const preciseKey = `${ref.processNo.trim()}::${(ref.m4 || '').trim()}::${(ref.weText || '').trim()}::${ref.fcText.trim()}`;
+      const normFC = normalizeText(ref.fcText);
+      // 정밀 매칭
+      const preciseKey = `${ref.processNo.trim()}::${normalizeText(ref.m4 || '')}::${normalizeText(ref.weText || '')}::${normFC}`;
       const preciseFound = this.fcTextMap.get(preciseKey);
       if (preciseFound) return preciseFound;
-      // 3차: Loose 매칭 (공정+원인, 4M/WE 무시)
-      const looseKey = `${ref.processNo.trim()}::${ref.fcText.trim()}`;
+      // Loose 매칭
+      const looseKey = `${ref.processNo.trim()}::${normFC}`;
       const looseFound = this.fcLooseMap.get(looseKey);
       if (looseFound) return looseFound;
     }
-    // 4차: 공정번호 무시, FC 텍스트만으로 매칭
+    // 텍스트만으로 매칭
     if (ref.fcText) {
+      const normFC = normalizeText(ref.fcText);
       for (const [k, v] of this.fcLooseMap) {
-        const fcTextPart = k.split('::')[1];
-        if (fcTextPart === ref.fcText.trim()) return v;
+        if (k.split('::')[1] === normFC) return v;
       }
     }
     return { fcId: '', l3StructId: '' };
