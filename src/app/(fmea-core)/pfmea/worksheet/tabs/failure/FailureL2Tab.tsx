@@ -1037,6 +1037,10 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
           isUpstreamConfirmed={isUpstreamConfirmed}
           missingCount={missingCount}
           confirmedCount={confirmedCount}
+          l2FunctionCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const f of (p.functions || [])) { if (f.name?.trim()) c++; } } return c; })()}
+          productCharCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const f of (p.functions || [])) { for (const pc of (f.productChars || [])) { if ((pc as any).name?.trim()) c++; } } } return c; })()}
+          specialCharCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const f of (p.functions || [])) { for (const pc of (f.productChars || [])) { if ((pc as any).specialChar?.trim()) c++; } } } return c; })()}
+          failureModeCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const m of (p.failureModes || [])) { if ((m as any).name?.trim()) c++; } } return c; })()}
           onConfirm={handleConfirm}
           onEdit={handleEdit}
           isAutoMode={isAutoMode}

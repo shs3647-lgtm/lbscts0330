@@ -19,6 +19,10 @@ interface FailureL2HeaderProps {
   isUpstreamConfirmed: boolean;
   missingCount: number;
   confirmedCount: number;
+  l2FunctionCount?: number;
+  productCharCount?: number;
+  specialCharCount?: number;
+  failureModeCount?: number;
   onConfirm: () => void;
   onEdit: () => void;
   isAutoMode?: boolean;
@@ -33,6 +37,10 @@ export function FailureL2Header({
   isUpstreamConfirmed,
   missingCount,
   confirmedCount,
+  l2FunctionCount,
+  productCharCount,
+  specialCharCount,
+  failureModeCount,
   onConfirm,
   onEdit,
   isAutoMode,
@@ -120,16 +128,16 @@ export function FailureL2Header({
           <BiHeader ko="NO+공정명" en="Process" />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="메인공정기능" en="Main Function" />
+          <BiHeader ko="메인공정기능" en="Main Function" />{l2FunctionCount != null && <span className={`font-bold ${l2FunctionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({l2FunctionCount})</span>}
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] border-r-[2px] border-r-orange-500 p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="제품특성" en="Product Char." />
+          <BiHeader ko="제품특성" en="Product Char." />{productCharCount != null && <span className={`font-bold ${productCharCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({productCharCount})</span>}
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ color: '#2e7d32', boxShadow: 'inset 0 -2px 0 #2196f3' }} title="Special Characteristic">
-          <BiHeader ko="특별특성" en="SC" />
+          <BiHeader ko="특별특성" en="SC" />{specialCharCount != null && <span className="font-bold text-green-700">({specialCharCount})</span>}
         </th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="고장형태" en="Failure Mode/FM" />
+          <BiHeader ko="고장형태" en="Failure Mode/FM" />{failureModeCount != null && <span className={`font-bold ${failureModeCount > 0 ? 'text-orange-800' : 'text-red-500'}`}>({failureModeCount})</span>}
         </th>
       </tr>
     </thead>
