@@ -478,6 +478,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
     // L3Structure: 행마다 독립
     const l2Id = seenPno.get(pno) || '';
+    if (!l2Id) {
+      ppWarn(`[position-parser] ⚠️ L3 R${rn}: processNo="${pno}" → L2 매핑 실패. seenPno keys=[${[...seenPno.keys()].join(',')}]`);
+    }
     const l3Id = positionUUID('L3', rn);
     l3Structures.push({
       id: l3Id,
@@ -612,32 +615,14 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const maxOrigRowL2 = l2Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
   const maxOrigRowL3 = l3Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
 
-  // ★v6.1: 물리적 행 순서 기반 행번호 역산
-  // L2 FM 28행, L1 FE 20행은 엑셀 물리적 행 순서와 FC 순서가 동일
-  // FM/FE 그룹이 변경될 때마다 인덱스+1로 다음 행 매칭
+  // ★v6.3: 복합키 기반 매칭
+  // FM/FE는 resolver의 textMap으로 직접 UUID 조회 → 행번호 역산 불필요
+  // FC만 위치 인덱스(FC[i]=L3[i])로 l3Row 확정
   // ═══════════════════════════════════════════
 
-  // (1) L3 valid rows → FC row[i] = L3 valid row[i] 매핑용
+  // L3 valid rows → FC row[i] = L3 valid row[i] 매핑용
   const l3ValidRows = l3Sheet.rows;
-  ppLog(`[position-parser] ★v6.1 위치 인덱스: FC=${fcSheet.rows.length}행, L3=${l3ValidRows.length}행`);
-
-  // (2) L2 FM 행: 물리적 순서 flat 배열 (A5 있는 행만, 28개)
-  const l2FmFlatRows: number[] = [];
-  for (const r of l2Sheet.rows) {
-    if (r.cells['A5']?.trim()) {
-      l2FmFlatRows.push(r.excelRow);
-    }
-  }
-  ppLog(`[position-parser] ★v6.1 L2 FM flat: ${l2FmFlatRows.length}행`);
-
-  // (3) L1 FE 행: 물리적 순서 flat 배열 (C4 있는 행만, 20개)
-  const l1FeFlatRows: number[] = [];
-  for (const r of l1Sheet.rows) {
-    if (r.cells['C4']?.trim()) {
-      l1FeFlatRows.push(r.excelRow);
-    }
-  }
-  ppLog(`[position-parser] ★v6.1 L1 FE flat: ${l1FeFlatRows.length}행`);
+  ppLog(`[position-parser] ★v6.3 복합키 매칭: FC=${fcSheet.rows.length}행, L3=${l3ValidRows.length}행`);
 
   // FE severity 업데이트용 Map
   const feSeverityMap = new Map<string, number>();
@@ -645,12 +630,6 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   // ★ JSON 파서 FC carry-forward (FC 시트만 forward-fill 필요 — MD Section 6-2)
   let prevJsonFEscope = '', prevJsonFE = '', prevJsonPno = '', prevJsonFM = '';
   let jsonCarryCount = 0;
-
-  // ★v6.1: 물리적 행 인덱스 (글로벌) — FM/FE 그룹 변경 시 +1
-  let l2FmIdx = 0;   // L2 FM flat 배열 인덱스 (0~27)
-  let l1FeIdx = 0;   // L1 FE flat 배열 인덱스 (0~19)
-  let prevFmKey = ''; // FM 그룹 변경 감지용 (processNo|FM)
-  let prevFeKey = ''; // FE 그룹 변경 감지용 (FE_scope|FE)
 
   let fcIndex = 0; // FC valid row 인덱스 (L3와 1:1 매핑)
 
@@ -668,34 +647,23 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (c['processNo'])prevJsonPno     = c['processNo'];
     if (c['FM'])       prevJsonFM      = c['FM'];
 
-    // ★v6.1: 물리적 행번호 확정 — 엑셀 행 순서 기반
-    // (a) L3 행번호: FC row[fcIndex] = L3 row[fcIndex] (1:1 위치 매핑)
+    // ★v6.3: 복합키 기반 FK 해결
+    // - FC(고장원인) → 위치 인덱스 (l3Row): FC[i] = L3[i] 1:1 매핑
+    // - FM(고장형태) → 복합키 (processNo + FM): resolver의 fmTextMap에서 직접 UUID 조회
+    // - FE(고장영향) → 복합키 (scope + FE): resolver의 feTextMap에서 직접 UUID 조회
+    // ★★★ L2/L1 행번호 역산 불필요 — 복합키로 UUID 직접 확정 ★★★
+    const fcPno = normalizeProcessNo(c['processNo'] || '');
+    const fcFM = c['FM'] || '';
+    const fcScope = normalizeScope(c['FE_scope'] || '');
+    const fcFE = c['FE'] || '';
     const l3Row = fcIndex < l3ValidRows.length ? l3ValidRows[fcIndex].excelRow : 0;
 
-    // (b) L2 행번호: FM 그룹 변경 시 다음 L2 물리적 행
-    const fmKey = `${c['processNo'] || ''}|${c['FM'] || ''}`;
-    if (fmKey !== prevFmKey) {
-      if (prevFmKey !== '') l2FmIdx++; // 첫 그룹은 idx=0, 이후 변경마다 +1
-      prevFmKey = fmKey;
-    }
-    const l2Row = l2FmIdx < l2FmFlatRows.length ? l2FmFlatRows[l2FmIdx] : 0;
-
-    // (c) L1 행번호: FE 그룹 변경 시 다음 L1 물리적 행
-    const feKey = `${c['FE_scope'] || ''}|${c['FE'] || ''}`;
-    if (feKey !== prevFeKey) {
-      if (prevFeKey !== '') l1FeIdx++; // 첫 그룹은 idx=0, 이후 변경마다 +1
-      prevFeKey = feKey;
-    }
-    const l1Row = l1FeIdx < l1FeFlatRows.length ? l1FeFlatRows[l1FeIdx] : 0;
-
-    const fcPno = normalizeProcessNo(c['processNo'] || '');
-    const fcScope = normalizeScope(c['FE_scope'] || '');
-
-    // FK 해결: 행번호 기반 직접 매칭 (★v6: 텍스트 매칭 삭제)
     let { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
-      l1Row,
-      l2Row,
-      l3Row,
+      l3Row,                    // FC: 위치 인덱스 (행번호 기반)
+      fmText: fcFM,             // FM: 복합키 (processNo + FM텍스트)
+      processNo: fcPno,
+      feText: fcFE,             // FE: 복합키 (scope + FE텍스트)
+      feScope: fcScope,
     });
 
     // ★v5.2: 동적 FC 생성 제거 (Rule 1.5 자동생성 금지)
@@ -707,10 +675,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
     if (!feId || !fmId || !fcId) {
       ppWarn(`[position-parser] ⚠️ FL R${rn} FK 미해결:`,
-        `feId=${feId || '❌'}(L1_origRow=${l1Row})`,
-        `fmId=${fmId || '❌'}(L2_origRow=${l2Row})`,
-        `fcId=${fcId || '❌'}(L3_origRow=${l3Row})`,
-        `셀참고 FE="${(c['FE'] || '').substring(0, 20)}" FM="${(c['FM'] || '').substring(0, 15)}" FC="${(c['FC'] || '').substring(0, 15)}"`,
+        `feId=${feId || '❌'}(scope=${fcScope}|FE="${fcFE.substring(0, 20)}")`,
+        `fmId=${fmId || '❌'}(pno=${fcPno}|FM="${fcFM.substring(0, 20)}")`,
+        `fcId=${fcId || '❌'}(l3Row=${l3Row})`,
       );
     }
 

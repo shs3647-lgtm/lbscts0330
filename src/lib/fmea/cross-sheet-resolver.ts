@@ -155,11 +155,9 @@ export class CrossSheetResolver {
             return v;
           }
         }
-
-        // ★v5.1: processNo 있으면 해당 공정만 매칭 — 크로스프로세스 fallback 금지 (Rule 1.7)
-        return { fmId: '', l2StructId: '' };
       }
-      // Level 3: 공정번호 없을 때만 텍스트 매칭 허용
+      // ★v6.3: cross-process fallback — processNo 불일치 시 FM 텍스트로 매칭
+      // FC 시트의 processNo가 L2에 없어도, 동일 FM 텍스트를 가진 다른 공정의 FM UUID로 연결
       for (const [k, v] of this.fmTextMap) {
         if (k.split('::')[1] === normFM) return v;
       }
