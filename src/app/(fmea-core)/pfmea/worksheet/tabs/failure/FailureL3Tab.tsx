@@ -870,8 +870,10 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
           isConfirmed={isConfirmed}
           isUpstreamConfirmed={isUpstreamConfirmed}
           missingCount={missingCount}
-          failureCauseCount={missingCount}
+          failureCauseCount={totalCauseCount}
           totalCauseCount={totalCauseCount}
+          processCharCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const we of (p.l3 || [])) { for (const f of (we.functions || [])) { for (const pc of (f.processChars || [])) { if ((pc as any).name?.trim()) c++; } } } } return c; })()}
+          specialCharCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const we of (p.l3 || [])) { for (const f of (we.functions || [])) { for (const pc of (f.processChars || [])) { if ((pc as any).specialChar?.trim()) c++; } } } } return c; })()}
           onConfirm={handleConfirm}
           onEdit={handleEdit}
           isAutoMode={isAutoMode}
