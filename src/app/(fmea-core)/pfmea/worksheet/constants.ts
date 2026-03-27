@@ -148,42 +148,49 @@ export interface WorksheetFailureLink {
   fcM4?: string;
 }
 
+/**
+ * WorksheetState — DB 다이렉트 연동 (2026-03-27 레거시 제거)
+ *
+ * ★ Atomic DB 필드(FMEAWorksheetDB)가 SSoT.
+ * ★ 레거시 필드(l1, l2, riskData, failureLinks)는 하위호환을 위해 유지하되,
+ *   atomicToLegacy() 변환 없이 로더에서 직접 생성.
+ *   향후 탭 마이그레이션 완료 시 제거 예정.
+ */
 export interface WorksheetState {
+  // ═══ Atomic DB 필드 (SSoT) — DB 테이블 직접 참조 ═══
+  atomicDB?: import('./schema').FMEAWorksheetDB;
+
+  // ═══ 레거시 필드 (하위호환 — 탭 마이그레이션 후 제거 예정) ═══
   l1: L1Data;
   l2: Process[];
+  failureLinks?: WorksheetFailureLink[];
+  riskData?: { [key: string]: number | string };
+
+  // ═══ UI 상태 ═══
   selected: { type: 'L1' | 'L2' | 'L3'; id: string | null };
   tab: string;
   levelView: string;
   search: string;
   visibleSteps: number[];
-  // ★ FMEA 프로젝트 ID (워크시트 로드 시 설정)
   fmeaId?: string;
-  // 확정 상태
+
+  // ═══ 확정 상태 ═══
   structureConfirmed?: boolean;
   l1Confirmed?: boolean;
   l2Confirmed?: boolean;
   l3Confirmed?: boolean;
-  // 고장분석 확정 상태
   failureL1Confirmed?: boolean;
   failureL2Confirmed?: boolean;
   failureL3Confirmed?: boolean;
-  // 고장연결 확정 상태
   failureLinkConfirmed?: boolean;
-  // 고장연결 결과
-  failureLinks?: WorksheetFailureLink[];
-  // 리스크 분석 데이터 (SOD 점수 + 예방/검출관리 저장)
-  riskData?: { [key: string]: number | string };
-  // 확정 상태 추가
   riskConfirmed?: boolean;
   optimizationConfirmed?: boolean;
-  // ★ 고장연결검증 모드 (null = 일반 ALL view, 'FE'|'FM'|'FC' = 검증 뷰)
+
+  // ═══ 검증/네비게이션 ═══
   verificationMode?: 'FE' | 'FM' | 'FC' | null;
-  // ★ 검증 뷰 → 분석 탭 이동 후 복귀용
   previousTab?: string;
   previousVerificationMode?: string;
-  // ★ 검증 뷰 더블클릭 → 분석 탭 해당 항목 스크롤용
   scrollToItemId?: string;
-  // ★★★ 2026-02-10: FMEA 4판 데이터 ★★★
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fmea4Rows?: any[];
 }

@@ -467,10 +467,19 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
       return;
     }
 
-    // FA 검증 (경고만, 차단하지 않음)
+    // FA 검증 — 에러 시 사용자 확인 필요 (PRD: FA 실패 시 차단)
     const validation = validateFADataConsistency(parsedChains, flatData, expectedByStats);
     if (!validation.pass) {
       const itemRef = validation.failedItems?.length ? ` [${validation.failedItems.join(', ')}]` : '';
+      const issueList = validation.issues.slice(0, 5).join('\n  - ');
+      const proceed = confirm(
+        `⚠️ FA 검증에서 문제가 발견되었습니다.${itemRef}\n\n` +
+        `  - ${issueList}\n` +
+        (validation.issues.length > 5 ? `  ... 외 ${validation.issues.length - 5}건\n` : '') +
+        `\n이 상태로 FA를 확정하면 데이터 정합성에 문제가 생길 수 있습니다.\n` +
+        `그래도 계속 진행하시겠습니까?`
+      );
+      if (!proceed) return;
     }
 
     setIsAnalysisImporting(true);

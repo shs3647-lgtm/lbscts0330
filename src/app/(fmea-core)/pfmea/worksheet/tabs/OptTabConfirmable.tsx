@@ -6,12 +6,13 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorksheetState } from '../constants';
-import { btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '@/styles/worksheet';
+import { btnConfirm, btnEdit, badgeConfirmed } from '@/styles/worksheet';
 import { triggerAutoBackup } from '@/lib/backup/backup-manager';
 import { calculateAP } from './all/apCalculator';
+import { useAtomicLookup } from '../hooks/useAtomicLookup';
 
 interface OptTabProps {
   state: WorksheetState;
@@ -22,27 +23,6 @@ interface OptTabProps {
   saveAtomicDB?: (force?: boolean) => void | Promise<void>;
 }
 
-// 최적화 데이터 타입
-interface OptData {
-  id: string;  // failureCauseId
-  // 계획 (4개)
-  planAction: string;  // 조치(개선)
-  planPerson: string;  // 책임자
-  planTarget: string;  // 목표완료일
-  planComplete: string;  // 조치완료일
-  // 결과 모니터링 (3개)
-  monitorS: number;  // 심각도
-  monitorO: number;  // 발생도
-  monitorD: number;  // 검출도
-  // 효과 평가 (7개)
-  evalAP: string;  // AP
-  evalRPN: number;  // RPN
-  evalSpecialChar: string;  // 특별특성
-  evalSeverity: number;  // 심각도
-  evalLessonLearned: string;  // 습득교훈
-  evalRemark: string;  // 비고
-  evalDate: string;  // 평가일
-}
 
 /** 공통 스타일 */
 const tw = {
@@ -71,128 +51,105 @@ export default function OptTabConfirmable({
   saveAtomicDB 
 }: OptTabProps) {
   const router = useRouter();
-  
-  // 확정 상태
-   
-  const isConfirmed = ((state as unknown as Record<string, unknown>).optConfirmed as boolean) || false;
-   
-  const isUpstreamConfirmed = ((state as unknown as Record<string, unknown>).riskConfirmed as boolean) || false;
+  // ★★★ 2026-03-27: atomicDB 직접 참조 (riskData 딕셔너리 제거)
+  const lookup = useAtomicLookup(state);
 
-  // 최적화 데이터 - state에서 관리
-   
-  const optData = ((state as unknown as Record<string, unknown>).optimization as OptData[]) || [];
-  
-  // 자동 저장 ref + debounce timer
+  const isConfirmed = state.optimizationConfirmed || false;
+  const isUpstreamConfirmed = state.riskConfirmed || false;
+
+  const [showHighOnly, setShowHighOnly] = useState(false);
+
+  // ★ atomicDB.optimizations 직접 사용
+  const dbOptimizations = lookup.optimizations;
+  const dbRiskAnalyses = lookup.riskAnalyses;
+  const dbFailureLinks = lookup.failureLinks;
+
   const optDataRef = useRef<string>('');
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // ✅ 2026-01-19: 최적화 데이터 변경 시 자동 저장 (localStorage + DB)
+
   useEffect(() => {
-    const dataKey = JSON.stringify(optData);
+    const dataKey = JSON.stringify(dbOptimizations);
     if (optDataRef.current && dataKey !== optDataRef.current) {
-      
-      // 즉시 localStorage 저장
       saveToLocalStorage?.();
-      
-      // debounce로 DB 저장 (500ms 후)
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-      saveTimerRef.current = setTimeout(() => {
-        saveAtomicDB?.();
-      }, 500);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => { saveAtomicDB?.(); }, 500);
     }
     optDataRef.current = dataKey;
-  }, [optData, saveToLocalStorage, saveAtomicDB]);
-  
-  // cleanup
+  }, [dbOptimizations, saveToLocalStorage, saveAtomicDB]);
+
   useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-    };
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, []);
-  
-  // 고장원인 목록 가져오기 - ✅ completionStatus 전에 정의 필요
-   
-  const failureCauses = React.useMemo(() =>
-    state.l2.flatMap(proc => ((proc as unknown as Record<string, unknown>).failureCauses as Array<{ id: string }>) || [])
-  , [state.l2]);
-  
-  // ✅ 2026-01-19: 완료 상태 계산 - 모든 필수 필드가 채워졌는지 확인
-  const completionStatus = React.useMemo(() => {
-    const total = failureCauses.length;
-    if (total === 0) return { complete: 0, total: 0, isReady: false };
-    
-    let complete = 0;
-    failureCauses.forEach((fc: { id: string }) => {
-      const optItem = optData.find((o: OptData) => o.id === fc.id);
-      // 필수: 조치(개선), 책임자만 체크 (날짜/모니터링은 선택)
-      if (optItem && 
-          optItem.planAction && 
-          optItem.planPerson) {
-        complete++;
-      }
+
+  // ★ DB FailureLink + RiskAnalysis 기반 행 목록
+  const allOptRows = useMemo(() => {
+    return dbFailureLinks.map(link => {
+      const risk = lookup.getRisk(link.id);
+      const opts = risk ? lookup.getOptsForRisk(risk.id) : [];
+      const opt = opts[0];
+      return {
+        linkId: link.id,
+        riskId: risk?.id ?? '',
+        ap: risk?.ap ?? '',
+        severity: risk?.severity ?? 0,
+        occurrence: risk?.occurrence ?? 0,
+        detection: risk?.detection ?? 0,
+        recommendedAction: opt?.recommendedAction ?? '',
+        responsible: opt?.responsible ?? '',
+        targetDate: opt?.targetDate ?? '',
+        completedDate: opt?.completedDate ?? '',
+        newSeverity: opt?.newSeverity ?? 0,
+        newOccurrence: opt?.newOccurrence ?? 0,
+        newDetection: opt?.newDetection ?? 0,
+        newAP: opt?.newAP ?? '',
+        status: opt?.status ?? '',
+        remarks: opt?.remarks ?? '',
+        detectionAction: opt?.detectionAction ?? '',
+        lldOptReference: opt?.lldOptReference ?? '',
+      };
     });
-    
+  }, [dbFailureLinks, lookup]);
+
+  // AP=H 필터
+  const optRows = useMemo(() => {
+    if (!showHighOnly) return allOptRows;
+    return allOptRows.filter(r => r.ap === 'H');
+  }, [allOptRows, showHighOnly]);
+
+  const highCount = useMemo(() =>
+    allOptRows.filter(r => r.ap === 'H').length
+  , [allOptRows]);
+
+  const completionStatus = useMemo(() => {
+    const total = optRows.length;
+    if (total === 0) return { complete: 0, total: 0, isReady: false };
+    let complete = 0;
+    for (const r of optRows) {
+      if (r.recommendedAction && r.responsible) complete++;
+    }
     return { complete, total, isReady: complete === total && total > 0 };
-  }, [failureCauses, optData]);
-  
-  // ✅ 2026-01-19: 최적화 데이터 업데이트 - setStateSynced 사용
-   
-  const updateOptData = useCallback((id: string, field: keyof OptData, value: unknown) => {
+  }, [optRows]);
+
+  // ★ atomicDB.optimizations 직접 업데이트
+  const updateOptField = useCallback((riskId: string, field: string, value: unknown) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateFn = (prev: any) => {
-      const optimization = ((prev as Record<string, unknown>).optimization as OptData[]) || [];
-      const existing = optimization.find((o: OptData) => o.id === id);
-      
+      const prevDB = prev.atomicDB;
+      if (!prevDB) return prev;
+      const opts = (prevDB.optimizations || []) as typeof dbOptimizations;
+      const existing = opts.find(o => o.riskId === riskId);
+      let updated;
       if (existing) {
-        // 업데이트
-        const updated = optimization.map((o: OptData) => 
-          o.id === id ? { ...o, [field]: value } : o
-        );
-        return { ...prev, optimization: updated } as WorksheetState;
+        updated = opts.map(o => o.riskId === riskId ? { ...o, [field]: value } : o);
       } else {
-        // 신규 추가
-        const newOpt: OptData = {
-          id,
-          planAction: '',
-          planPerson: '',
-          planTarget: '',
-          planComplete: '',
-          monitorS: 0,
-          monitorO: 0,
-          monitorD: 0,
-          evalAP: '',
-          evalRPN: 0,
-          evalSpecialChar: '',
-          evalSeverity: 0,
-          evalLessonLearned: '',
-          evalRemark: '',
-          evalDate: '',
-          [field]: value,
-        };
-        return { ...prev, optimization: [...optimization, newOpt] } as WorksheetState;
+        updated = [...opts, { id: `opt-${Date.now()}`, fmeaId: prevDB.fmeaId, riskId, recommendedAction: '', responsible: '', targetDate: '', status: 'planned', [field]: value }];
       }
+      return { ...prev, atomicDB: { ...prevDB, optimizations: updated } } as WorksheetState;
     };
-    
-    // ✅ setStateSynced 우선 사용
-    if (setStateSynced) {
-      setStateSynced(updateFn);
-    } else {
-      setState(updateFn);
-    }
+    if (setStateSynced) setStateSynced(updateFn);
+    else setState(updateFn);
     setDirty(true);
-  }, [setState, setStateSynced, setDirty]);
-  
-  // RPN, AP 자동 계산
-  const calculateRpnAndAp = useCallback((id: string, s: number, o: number, d: number) => {
-    const rpn = s * o * d;
-    const ap = calculateAP(s, o, d);
-    updateOptData(id, 'evalRPN', rpn);
-    updateOptData(id, 'evalAP', ap);
-  }, [updateOptData]);
+  }, [setState, setStateSynced, setDirty, dbOptimizations]);
   
   // 확정 핸들러
   const handleConfirm = useCallback(() => {
@@ -203,16 +160,9 @@ export default function OptTabConfirmable({
 
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateFn = (prev: any) => {
-      const newState = { ...prev, optConfirmed: true };
-      return newState;
-    };
-    
-    if (setStateSynced) {
-      setStateSynced(updateFn);
-    } else {
-      setState(updateFn);
-    }
+    const updateFn = (prev: any) => ({ ...prev, optimizationConfirmed: true });
+    if (setStateSynced) setStateSynced(updateFn);
+    else setState(updateFn);
     setDirty(true);
     
     // ★★★ 2026-02-16 FIX: force=true (suppressAutoSave 무시) ★★★
@@ -226,7 +176,7 @@ export default function OptTabConfirmable({
     }, 50);
     
     // ✅ 2026-01-19: 변경 히스토리 기록 + 자동 백업 (6ST 확정)
-    const fmeaId = ((state as unknown as Record<string, unknown>).fmeaId as string) || ((state.l1 as unknown as Record<string, unknown> | undefined)?.fmeaId as string) || '';
+    const fmeaId = state.fmeaId || '';
     try {
       if (fmeaId) {
         // 로컬 히스토리에 기록 (개정관리 화면에서 표시) - SODHistoryTable 형식과 일치
@@ -249,7 +199,7 @@ export default function OptTabConfirmable({
     
     // ✅ 자동 백업 트리거 (최적화 확정 시) + 버전 백업
     setTimeout(async () => {
-      const fmeaName = ((state as unknown as Record<string, unknown>).fmeaName as string) || state.l1?.name || fmeaId;
+      const fmeaName = lookup.l1Structure?.name || fmeaId;
       try {
         // 기존 자동 백업
         const backupResult = await triggerAutoBackup(fmeaId, fmeaName, state);
@@ -287,25 +237,23 @@ export default function OptTabConfirmable({
     
     // 🚀 FMEA 완성 후 승인 확인
     setTimeout(() => {
-      const fmeaIdLocal = ((state as unknown as Record<string, unknown>).fmeaId as string) || '';
       if (confirm('🎉 FMEA 작성이 완료되었습니다!\n\nFMEA를 승인하시겠습니까?\n\n[확인] → 개정관리 화면으로 이동\n[취소] → 현재 화면 유지')) {
-        router.push(`/pfmea/revision?id=${fmeaIdLocal}`);
+        router.push(`/pfmea/revision?id=${fmeaId}`);
       }
     }, 200);
   }, [isUpstreamConfirmed, state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, router]);
   
   // 승인 버튼 클릭 핸들러 (개정관리 화면 이동)
   const handleApproval = useCallback(() => {
-    const fmeaIdLocal = ((state as unknown as Record<string, unknown>).fmeaId as string) || '';
     if (confirm('🔏 FMEA 승인 프로세스를 시작합니다.\n\n개정관리 화면으로 이동하시겠습니까?')) {
-      router.push(`/pfmea/revision?id=${fmeaIdLocal}`);
+      router.push(`/pfmea/revision?id=${state.fmeaId || ''}`);
     }
-  }, [state, router]);
+  }, [state.fmeaId, router]);
   
   // 수정 핸들러
   const handleEdit = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateFn = (prev: any) => ({ ...prev, optConfirmed: false });
+    const updateFn = (prev: any) => ({ ...prev, optimizationConfirmed: false });
     if (setStateSynced) {
       setStateSynced(updateFn);
     } else {
@@ -320,10 +268,25 @@ export default function OptTabConfirmable({
       <thead className={tw.thead}>
         {/* 1행: 대분류 */}
         <tr>
-          <th colSpan={14} className={tw.mainHeader}>
+          <th colSpan={15} className={tw.mainHeader}>
             <div className="flex items-center justify-between">
               <span className="flex-1 text-center">P-FMEA 최적화(6단계)</span>
               <div className="flex gap-1 absolute right-2">
+                {/* AP=H 필터 토글 */}
+                {allOptRows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowHighOnly(v => !v)}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded border ${
+                      showHighOnly
+                        ? 'bg-red-500 text-white border-red-600'
+                        : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
+                    }`}
+                    title={showHighOnly ? '전체 표시' : 'AP=H 항목만 표시'}
+                  >
+                    AP=H {showHighOnly ? `(${highCount})` : `필터`}
+                  </button>
+                )}
                 {/* 완료 상태 표시 */}
                 {!isConfirmed && completionStatus.total > 0 && (
                   <span className={`text-[10px] px-2 py-0.5 rounded ${
@@ -372,7 +335,7 @@ export default function OptTabConfirmable({
         <tr>
           <th colSpan={4} className={`${tw.subHeader} ${tw.planHeader}`}>계획</th>
           <th colSpan={3} className={`${tw.subHeader} ${tw.monitorHeader}`}>결과 모니터링</th>
-          <th colSpan={7} className={`${tw.subHeader} ${tw.evalHeader}`}>효과 평가</th>
+          <th colSpan={8} className={`${tw.subHeader} ${tw.evalHeader}`}>효과 평가</th>
         </tr>
 
         {/* 3행: 컬럼명 */}
@@ -386,6 +349,7 @@ export default function OptTabConfirmable({
           <th className={`${tw.colHeader} ${tw.monitorCell}`}>D</th>
           <th className={`${tw.colHeader} ${tw.evalCell}`}>AP</th>
           <th className={`${tw.colHeader} ${tw.evalCell}`}>RPN</th>
+          <th className={`${tw.colHeader} ${tw.evalCell}`} title="조치결과/개선결과근거">조치결과</th>
           <th className={`${tw.colHeader} ${tw.evalCell}`} title="Special Characteristic">특별특성(SC)</th>
           <th className={`${tw.colHeader} ${tw.evalCell}`} title="Severity">심각도(S)</th>
           <th className={`${tw.colHeader} ${tw.evalCell}`} title="Lessons Learned Database">LLD</th>
@@ -395,162 +359,65 @@ export default function OptTabConfirmable({
       </thead>
       
       <tbody>
-        {failureCauses.length === 0 ? (
+        {optRows.length === 0 ? (
           <tr>
-            <td colSpan={14} className="text-center p-10 text-gray-500 text-xs">
+            <td colSpan={15} className="text-center p-10 text-gray-500 text-xs">
               리스크평가를 먼저 완료해주세요.
             </td>
           </tr>
         ) : (
-          failureCauses.map((fc: { id: string }, idx: number) => {
-            const optItem = optData.find((o: OptData) => o.id === fc.id) || {} as Partial<OptData>;
+          optRows.map((row, idx) => {
             const isDisabled = isConfirmed;
-            
+            const newRpn = row.newSeverity * row.newOccurrence * row.newDetection;
+
             return (
-              <tr key={`opt-${fc.id}-${idx}`} className={`h-6 ${idx % 2 === 1 ? 'bg-gray-100' : 'bg-white'}`}>
-                {/* 계획 */}
+              <tr key={`opt-${row.linkId}-${idx}`} className={`h-6 ${idx % 2 === 1 ? 'bg-gray-100' : 'bg-white'}`}>
                 <td className={`${tw.cell} ${tw.planCell}`}>
-                  <input
-                    type="text"
-                    value={optItem.planAction || ''}
-                    onChange={(e) => updateOptData(fc.id, 'planAction', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.input}
-                    placeholder="조치"
-                  />
+                  <input type="text" value={row.recommendedAction} onChange={(e) => updateOptField(row.riskId, 'recommendedAction', e.target.value)} disabled={isDisabled} className={tw.input} placeholder="조치" />
                 </td>
                 <td className={`${tw.cell} ${tw.planCell}`}>
-                  <input
-                    type="text"
-                    value={optItem.planPerson || ''}
-                    onChange={(e) => updateOptData(fc.id, 'planPerson', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.input}
-                    placeholder="책임자"
-                  />
+                  <input type="text" value={row.responsible} onChange={(e) => updateOptField(row.riskId, 'responsible', e.target.value)} disabled={isDisabled} className={tw.input} placeholder="책임자" />
                 </td>
                 <td className={`${tw.cell} ${tw.planCell}`}>
-                  <input
-                    type="date"
-                    value={optItem.planTarget || ''}
-                    onChange={(e) => updateOptData(fc.id, 'planTarget', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.input}
-                  />
+                  <input type="date" value={row.targetDate} onChange={(e) => updateOptField(row.riskId, 'targetDate', e.target.value)} disabled={isDisabled} className={tw.input} />
                 </td>
                 <td className={`${tw.cell} ${tw.planCell}`}>
-                  <input
-                    type="date"
-                    value={optItem.planComplete || ''}
-                    onChange={(e) => updateOptData(fc.id, 'planComplete', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.input}
-                  />
+                  <input type="date" value={row.completedDate} onChange={(e) => updateOptField(row.riskId, 'completedDate', e.target.value)} disabled={isDisabled} className={tw.input} />
                 </td>
-                
-                {/* 결과 모니터링 */}
+
                 <td className={`${tw.cellCenter} ${tw.monitorCell}`}>
-                  <input
-                    type="number"
-                    value={optItem.monitorS || ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      updateOptData(fc.id, 'monitorS', val);
-                      calculateRpnAndAp(fc.id, val, optItem.monitorO || 0, optItem.monitorD || 0);
-                    }}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                    min="1"
-                    max="10"
-                  />
+                  <input type="number" value={row.newSeverity || ''} onChange={(e) => updateOptField(row.riskId, 'newSeverity', parseInt(e.target.value) || 0)} disabled={isDisabled} className={tw.inputCenter} min="1" max="10" />
                 </td>
                 <td className={`${tw.cellCenter} ${tw.monitorCell}`}>
-                  <input
-                    type="number"
-                    value={optItem.monitorO || ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      updateOptData(fc.id, 'monitorO', val);
-                      calculateRpnAndAp(fc.id, optItem.monitorS || 0, val, optItem.monitorD || 0);
-                    }}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                    min="1"
-                    max="10"
-                  />
+                  <input type="number" value={row.newOccurrence || ''} onChange={(e) => updateOptField(row.riskId, 'newOccurrence', parseInt(e.target.value) || 0)} disabled={isDisabled} className={tw.inputCenter} min="1" max="10" />
                 </td>
                 <td className={`${tw.cellCenter} ${tw.monitorCell}`}>
-                  <input
-                    type="number"
-                    value={optItem.monitorD || ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      updateOptData(fc.id, 'monitorD', val);
-                      calculateRpnAndAp(fc.id, optItem.monitorS || 0, optItem.monitorO || 0, val);
-                    }}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                    min="1"
-                    max="10"
-                  />
+                  <input type="number" value={row.newDetection || ''} onChange={(e) => updateOptField(row.riskId, 'newDetection', parseInt(e.target.value) || 0)} disabled={isDisabled} className={tw.inputCenter} min="1" max="10" />
                 </td>
-                
-                {/* 효과 평가 */}
-                <td className={`${tw.cellCenter} ${tw.evalCell} font-bold text-[${optItem.evalAP === 'H' ? '#EF4444' : optItem.evalAP === 'M' ? '#F97316' : optItem.evalAP === 'L' ? '#22C55E' : 'inherit'}]`}>
-                  {optItem.evalAP || ''}
+
+                <td className={`${tw.cellCenter} ${tw.evalCell} font-bold`} style={{ color: row.newAP === 'H' ? '#EF4444' : row.newAP === 'M' ? '#F97316' : row.newAP === 'L' ? '#22C55E' : 'inherit' }}>
+                  {row.newAP || row.ap || ''}
                 </td>
                 <td className={`${tw.cellCenter} ${tw.evalCell} font-bold`}>
-                  {optItem.evalRPN || 0}
+                  {newRpn || 0}
+                </td>
+                <td className={`${tw.cell} ${tw.evalCell}`}>
+                  <input type="text" value={row.detectionAction || ''} onChange={(e) => updateOptField(row.riskId, 'detectionAction', e.target.value)} disabled={isDisabled} className={tw.input} placeholder="조치결과" />
                 </td>
                 <td className={`${tw.cellCenter} ${tw.evalCell}`}>
-                  <input
-                    type="text"
-                    value={optItem.evalSpecialChar || ''}
-                    onChange={(e) => updateOptData(fc.id, 'evalSpecialChar', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                    maxLength={3}
-                  />
+                  {row.status || ''}
                 </td>
                 <td className={`${tw.cellCenter} ${tw.evalCell}`}>
-                  <input
-                    type="number"
-                    value={optItem.evalSeverity || ''}
-                    onChange={(e) => updateOptData(fc.id, 'evalSeverity', parseInt(e.target.value) || 0)}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                    min="1"
-                    max="10"
-                  />
+                  {row.severity || ''}
                 </td>
                 <td className={`${tw.cell} ${tw.evalCell}`}>
-                  <input
-                    type="text"
-                    value={optItem.evalLessonLearned || ''}
-                    onChange={(e) => updateOptData(fc.id, 'evalLessonLearned', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.input}
-                    placeholder="습득교훈"
-                  />
+                  <input type="text" value={row.lldOptReference || ''} onChange={(e) => updateOptField(row.riskId, 'lldOptReference', e.target.value)} disabled={isDisabled} className={tw.input} placeholder="LLD" />
                 </td>
                 <td className={`${tw.cell} ${tw.evalCell}`}>
-                  <input
-                    type="text"
-                    value={optItem.evalRemark || ''}
-                    onChange={(e) => updateOptData(fc.id, 'evalRemark', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.input}
-                    placeholder="비고"
-                  />
+                  <input type="text" value={row.remarks || ''} onChange={(e) => updateOptField(row.riskId, 'remarks', e.target.value)} disabled={isDisabled} className={tw.input} placeholder="비고" />
                 </td>
                 <td className={`${tw.cell} ${tw.evalCell}`}>
-                  <input
-                    type="date"
-                    value={optItem.evalDate || ''}
-                    onChange={(e) => updateOptData(fc.id, 'evalDate', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.input}
-                  />
+                  <input type="date" value={row.completedDate || ''} onChange={(e) => updateOptField(row.riskId, 'completedDate', e.target.value)} disabled={isDisabled} className={tw.input} />
                 </td>
               </tr>
             );

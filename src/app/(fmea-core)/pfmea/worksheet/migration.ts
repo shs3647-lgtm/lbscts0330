@@ -37,7 +37,7 @@ import { buildFailureAnalyses } from './utils/failure-analysis-builder';
 import { calculateAP } from './tabs/all/apCalculator';
 import type { RiskAnalysis } from './schema';
 import { SCOPE_LABEL_EN, SCOPE_YP, normalizeScope } from '@/lib/fmea/scope-constants';
-import { pickLegacyFcProcessCharId } from './atomicToLegacyAdapter';
+import { pickLegacyFcProcessCharId } from './schema/utils/fcProcessCharPicker';
 
 // Re-export for external use
 export { getLinkedDataByFK, linkFunctionToStructure, linkFailureToFunction };

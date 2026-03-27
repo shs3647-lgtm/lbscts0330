@@ -6,10 +6,10 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { WorksheetState } from '../constants';
-import { btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '@/styles/worksheet';
-import { buildRiskAnalysisFromData } from '../utils/riskDataSync';
+import { btnConfirm, btnEdit, badgeConfirmed } from '@/styles/worksheet';
+import { useAtomicLookup } from '../hooks/useAtomicLookup';
 
 interface RiskTabProps {
   state: WorksheetState;
@@ -20,18 +20,6 @@ interface RiskTabProps {
   saveAtomicDB?: (force?: boolean) => void | Promise<void>;
 }
 
-// 리스크 데이터 타입
-interface RiskData {
-  id: string;  // failureCauseId
-  preventionControl: string;  // 예방관리(PC)
-  occurrence: number;  // 발생도
-  detectionControl: string;  // 검출관리(DC)
-  detection: number;  // 검출도
-  ap: number;  // AP
-  rpn: number;  // RPN
-  specialChar: string;  // 특별특성
-  lessonLearned: string;  // 습득교훈
-}
 
 /** 공통 스타일 */
 const tw = {
@@ -60,147 +48,80 @@ export default function RiskTabConfirmable({
   saveAtomicDB 
 }: RiskTabProps) {
   
-  // 확정 상태
-   
-  const isConfirmed = ((state as unknown as Record<string, unknown>).riskConfirmed as boolean) || false;
-   
-  const isUpstreamConfirmed = ((state as unknown as Record<string, unknown>).failureLinkConfirmed as boolean) || false;
+  // ★★★ 2026-03-27: atomicDB 직접 참조 (riskData 딕셔너리 제거)
+  const lookup = useAtomicLookup(state);
 
-  // 리스크 데이터 - state에서 관리
-   
-  const riskAnalysis = ((state as unknown as Record<string, unknown>).riskAnalysis as RiskData[]) || [];
-  const stateRiskData = ((state as unknown as Record<string, unknown>).riskData as Record<string, unknown>) || {};
-  const failureLinks = (state.failureLinks || []) as Array<{ id: string; fmId: string; fcId: string; severity?: number; [key: string]: unknown }>;
+  const isConfirmed = state.riskConfirmed || false;
+  const isUpstreamConfirmed = state.failureLinkConfirmed || false;
 
-  // riskAnalysis가 비어있고 riskData/failureLinks가 있으면 자동 초기화
-  const initDoneRef = useRef(false);
-  useEffect(() => {
-    if (initDoneRef.current) return;
-    if (failureLinks.length === 0) return;
-    const hasRiskDataKeys = Object.keys(stateRiskData).some(k => k.endsWith('-O'));
-    if (!hasRiskDataKeys) return;
-
-    // riskAnalysis에서 발생도가 하나라도 있으면 이미 초기화된 것
-    const hasOccurrence = riskAnalysis.some(r => r.occurrence > 0);
-    if (hasOccurrence) { initDoneRef.current = true; return; }
-
-    const synced = buildRiskAnalysisFromData(failureLinks, stateRiskData, riskAnalysis);
-    const hasSyncedData = synced.some(r => r.occurrence > 0 || r.detection > 0 || r.preventionControl || r.detectionControl);
-    if (!hasSyncedData) return;
-
-    initDoneRef.current = true;
-    const updateFn = (prev: WorksheetState) => ({ ...prev, riskAnalysis: synced } as WorksheetState);
-    if (setStateSynced) setStateSynced(updateFn);
-    else setState(updateFn);
-  }, [failureLinks, stateRiskData, riskAnalysis, setState, setStateSynced]);
-
-  // riskData 참조 (하위 호환: riskAnalysis 사용)
-  const riskData = riskAnalysis;
+  // DB RiskAnalysis[] 직접 사용 — riskData 딕셔너리 미사용
+  const dbRiskAnalyses = lookup.riskAnalyses;
+  const dbFailureLinks = lookup.failureLinks;
   
-  // 자동 저장 ref + debounce timer
+  // 자동 저장 debounce
   const riskDataRef = useRef<string>('');
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // ✅ 2026-01-19: 리스크 데이터 변경 시 자동 저장 (localStorage + DB)
+
   useEffect(() => {
-    const dataKey = JSON.stringify(riskData);
+    const dataKey = JSON.stringify(dbRiskAnalyses);
     if (riskDataRef.current && dataKey !== riskDataRef.current) {
-      
-      // 즉시 localStorage 저장
       saveToLocalStorage?.();
-      
-      // debounce로 DB 저장 (500ms 후)
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-      saveTimerRef.current = setTimeout(() => {
-        saveAtomicDB?.();
-      }, 500);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => { saveAtomicDB?.(); }, 500);
     }
     riskDataRef.current = dataKey;
-  }, [riskData, saveToLocalStorage, saveAtomicDB]);
-  
-  // cleanup
+  }, [dbRiskAnalyses, saveToLocalStorage, saveAtomicDB]);
+
   useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-    };
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, []);
-  
-  // ✅ 2026-01-19: 리스크 데이터 업데이트 - setStateSynced 사용
-   
-  const updateRiskData = useCallback((id: string, field: keyof RiskData, value: unknown) => {
+
+  // ★ atomicDB.riskAnalyses 직접 업데이트
+  const updateRiskField = useCallback((linkId: string, field: string, value: unknown) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateFn = (prev: any) => {
-      const analysis = ((prev as Record<string, unknown>).riskAnalysis as RiskData[]) || [];
-      const existing = analysis.find((r: RiskData) => r.id === id);
-      
-      if (existing) {
-        // 업데이트
-        const updated = analysis.map((r: RiskData) => 
-          r.id === id ? { ...r, [field]: value } : r
-        );
-        return { ...prev, riskAnalysis: updated } as WorksheetState;
-      } else {
-        // 신규 추가
-        const newRisk: RiskData = {
-          id,
-          preventionControl: '',
-          occurrence: 0,
-          detectionControl: '',
-          detection: 0,
-          ap: 0,
-          rpn: 0,
-          specialChar: '',
-          lessonLearned: '',
-          [field]: value,
-        };
-        return { ...prev, riskAnalysis: [...analysis, newRisk] } as WorksheetState;
-      }
+      const prevDB = prev.atomicDB;
+      if (!prevDB) return prev;
+      const risks = (prevDB.riskAnalyses || []) as typeof dbRiskAnalyses;
+      const updated = risks.map(r =>
+        r.linkId === linkId ? { ...r, [field]: value } : r
+      );
+      return { ...prev, atomicDB: { ...prevDB, riskAnalyses: updated } } as WorksheetState;
     };
-    
-    // ✅ setStateSynced 우선 사용
-    if (setStateSynced) {
-      setStateSynced(updateFn);
-    } else {
-      setState(updateFn);
-    }
+    if (setStateSynced) setStateSynced(updateFn);
+    else setState(updateFn);
     setDirty(true);
-  }, [setState, setStateSynced, setDirty]);
-  
-  // 고장원인 목록 가져오기 (고장연결 기반) - ✅ completionStatus 전에 정의 필요
-   
-  const failureCauses = React.useMemo(() =>
-    state.l2.flatMap(proc => ((proc as unknown as Record<string, unknown>).failureCauses as Array<{ id: string; severity?: number }>) || [])
-  , [state.l2]);
-  
-  // ✅ 2026-01-19: 완료 상태 계산 - 모든 필수 필드가 채워졌는지 확인
-  const completionStatus = React.useMemo(() => {
-    const total = failureCauses.length;
-    if (total === 0) return { complete: 0, total: 0, isReady: false };
-    
-    let complete = 0;
-    failureCauses.forEach((fc: { id: string; severity?: number }) => {
-      const riskItem = riskData.find((r: RiskData) => r.id === fc.id);
-      if (riskItem && 
-          riskItem.preventionControl && 
-          riskItem.occurrence > 0 && 
-          riskItem.detectionControl && 
-          riskItem.detection > 0) {
-        complete++;
-      }
+  }, [setState, setStateSynced, setDirty, dbRiskAnalyses]);
+
+  // ★ DB FailureLink 기반 행 목록 (riskData 딕셔너리 미사용)
+  const riskRows = useMemo(() => {
+    return dbFailureLinks.map(link => {
+      const risk = lookup.getRisk(link.id);
+      const fm = lookup.fmMap.get(link.fmId);
+      const fe = lookup.feMap.get(link.feId);
+      return {
+        linkId: link.id,
+        severity: risk?.severity ?? fe?.severity ?? 0,
+        occurrence: risk?.occurrence ?? 0,
+        detection: risk?.detection ?? 0,
+        ap: risk?.ap ?? '',
+        preventionControl: risk?.preventionControl ?? '',
+        detectionControl: risk?.detectionControl ?? '',
+        lldReference: risk?.lldReference ?? '',
+        fmText: fm?.mode ?? '',
+      };
     });
-    
+  }, [dbFailureLinks, lookup]);
+
+  const completionStatus = useMemo(() => {
+    const total = riskRows.length;
+    if (total === 0) return { complete: 0, total: 0, isReady: false };
+    let complete = 0;
+    for (const r of riskRows) {
+      if (r.preventionControl && r.occurrence > 0 && r.detectionControl && r.detection > 0) complete++;
+    }
     return { complete, total, isReady: complete === total && total > 0 };
-  }, [failureCauses, riskData]);
-  
-  // RPN 자동 계산
-  const calculateRPN = useCallback((id: string, severity: number, occurrence: number, detection: number) => {
-    const rpn = severity * occurrence * detection;
-    updateRiskData(id, 'rpn', rpn);
-  }, [updateRiskData]);
+  }, [riskRows]);
   
   // 확정 핸들러
   const handleConfirm = useCallback(() => {
@@ -304,114 +225,85 @@ export default function RiskTabConfirmable({
       </thead>
       
       <tbody>
-        {failureCauses.length === 0 ? (
+        {riskRows.length === 0 ? (
           <tr>
             <td colSpan={8} className="text-center p-10 text-gray-500 text-xs">
               고장연결을 먼저 완료해주세요.
             </td>
           </tr>
         ) : (
-          failureCauses.map((fc: { id: string; severity?: number }, idx: number) => {
-            const riskItem = riskData.find((r: RiskData) => r.id === fc.id) || {} as Partial<RiskData>;
+          riskRows.map((row, idx) => {
             const isDisabled = isConfirmed;
-            
+            const rpn = row.severity * row.occurrence * row.detection;
+
             return (
-              <tr key={`risk-${fc.id}-${idx}`} className={`${idx % 2 === 1 ? 'bg-gray-100' : 'bg-white'}`}>
-                {/* 예방관리 */}
+              <tr key={`risk-${row.linkId}-${idx}`} className={`${idx % 2 === 1 ? 'bg-gray-100' : 'bg-white'}`}>
                 <td className={`${tw.cell} ${tw.preventionCell}`}>
                   <input
                     type="text"
-                    value={riskItem.preventionControl || ''}
-                    onChange={(e) => updateRiskData(fc.id, 'preventionControl', e.target.value)}
+                    value={row.preventionControl}
+                    onChange={(e) => updateRiskField(row.linkId, 'preventionControl', e.target.value)}
                     disabled={isDisabled}
                     className={tw.input}
                     placeholder="예방관리"
                   />
                 </td>
-                
-                {/* 발생도 */}
+
                 <td className={`${tw.cellCenter} ${tw.preventionCell}`}>
                   <input
                     type="number"
-                    value={riskItem.occurrence || ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      updateRiskData(fc.id, 'occurrence', val);
-                      calculateRPN(fc.id, fc.severity || 0, val, riskItem.detection || 0);
-                    }}
+                    value={row.occurrence || ''}
+                    onChange={(e) => updateRiskField(row.linkId, 'occurrence', parseInt(e.target.value) || 0)}
                     disabled={isDisabled}
                     className={tw.inputCenter}
                     min="1"
                     max="10"
                   />
                 </td>
-                
-                {/* 검출관리 */}
+
                 <td className={`${tw.cell} ${tw.detectionCell}`}>
                   <input
                     type="text"
-                    value={riskItem.detectionControl || ''}
-                    onChange={(e) => updateRiskData(fc.id, 'detectionControl', e.target.value)}
+                    value={row.detectionControl}
+                    onChange={(e) => updateRiskField(row.linkId, 'detectionControl', e.target.value)}
                     disabled={isDisabled}
                     className={tw.input}
                     placeholder="검출관리"
                   />
                 </td>
-                
-                {/* 검출도 */}
+
                 <td className={`${tw.cellCenter} ${tw.detectionCell}`}>
                   <input
                     type="number"
-                    value={riskItem.detection || ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      updateRiskData(fc.id, 'detection', val);
-                      calculateRPN(fc.id, fc.severity || 0, riskItem.occurrence || 0, val);
-                    }}
+                    value={row.detection || ''}
+                    onChange={(e) => updateRiskField(row.linkId, 'detection', parseInt(e.target.value) || 0)}
                     disabled={isDisabled}
                     className={tw.inputCenter}
                     min="1"
                     max="10"
                   />
                 </td>
-                
-                {/* AP */}
+
                 <td className={`${tw.cellCenter} ${tw.evaluationCell}`}>
-                  <input
-                    type="number"
-                    value={riskItem.ap || ''}
-                    onChange={(e) => updateRiskData(fc.id, 'ap', parseInt(e.target.value) || 0)}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                  />
+                  {row.ap || '-'}
                 </td>
-                
-                {/* RPN (자동 계산) */}
+
                 <td className={`${tw.cellCenter} ${tw.evaluationCell} font-bold`}>
-                  {riskItem.rpn || 0}
+                  {rpn || 0}
                 </td>
-                
-                {/* 특별특성 */}
+
                 <td className={`${tw.cellCenter} ${tw.evaluationCell}`}>
-                  <input
-                    type="text"
-                    value={riskItem.specialChar || ''}
-                    onChange={(e) => updateRiskData(fc.id, 'specialChar', e.target.value)}
-                    disabled={isDisabled}
-                    className={tw.inputCenter}
-                    maxLength={3}
-                  />
+                  {row.fmText?.substring(0, 10) || ''}
                 </td>
-                
-                {/* 습득교훈 */}
+
                 <td className={`${tw.cell} ${tw.evaluationCell}`}>
                   <input
                     type="text"
-                    value={riskItem.lessonLearned || ''}
-                    onChange={(e) => updateRiskData(fc.id, 'lessonLearned', e.target.value)}
+                    value={row.lldReference}
+                    onChange={(e) => updateRiskField(row.linkId, 'lldReference', e.target.value)}
                     disabled={isDisabled}
                     className={tw.input}
-                    placeholder="습득교훈"
+                    placeholder="LLD"
                   />
                 </td>
               </tr>

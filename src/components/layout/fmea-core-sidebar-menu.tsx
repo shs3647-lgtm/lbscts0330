@@ -19,15 +19,6 @@ export function createCpPfdSubItems(basePath: string): SubItem[] {
   ];
 }
 
-const dfmeaSubItems: SubItem[] = [
-  { label: '📊 대시보드', href: '/dfmea/dashboard' },
-  { label: '등록', href: '/dfmea/register' },
-  { label: '리스트', href: '/dfmea/list' },
-  { label: 'New DFMEA', href: '/dfmea/worksheet' },
-  { label: '개정관리', href: '/dfmea/revision' },
-  { label: '📋 설계 LLD', href: '/dfmea/lld' },
-];
-
 const pfmeaSubItems: SubItem[] = [
   { label: '📊 대시보드', href: '/pfmea/dashboard' },
   { label: '등록', href: '/pfmea/register' },
@@ -64,14 +55,6 @@ export const FMEA_CORE_MAIN_MENU_ITEMS: MenuItem[] = [
     subItems: pfmeaSubItems,
   },
   {
-    id: 'dfmea',
-    label: 'DFMEA',
-    shortLabel: 'D',
-    Icon: ColorIcons.List,
-    href: '/dfmea',
-    subItems: dfmeaSubItems,
-  },
-  {
     id: 'cp',
     label: 'Control Plan',
     shortLabel: 'C',
@@ -100,7 +83,6 @@ export const FMEA_CORE_BOTTOM_MENU_ITEMS: MenuItem[] = [
       { label: '고객사정보', href: '/master/customer' },
       { label: '사용자정보', href: '/master/user' },
       { label: 'PFMEA 임포트', href: '/pfmea/import' },
-      { label: 'DFMEA 임포트', href: '/dfmea/import' },
       { label: 'CP 기초정보', href: '/control-plan/import' },
       { label: 'PFD 기초정보', href: '/pfd/import' },
       { label: '데이타 복구 관리', href: '/master/trash' },

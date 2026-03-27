@@ -575,7 +575,9 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fmeaId: tgtId })
       }).catch(e => console.error('[clone-master] Background sync error:', e));
-    } catch (e) {}
+    } catch (e) {
+      console.error('[clone-master] Background sync trigger error:', e);
+    }
 
     return NextResponse.json({
       success: true,

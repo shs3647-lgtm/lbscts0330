@@ -40,6 +40,7 @@ const UserSelectModal = dynamic(
   { ssr: false }
 );
 import { FmeaSelectModal } from '@/components/modals/FmeaSelectModal';
+import { toast } from '@/hooks/useToast';
 // ApqpSelectModal 삭제됨 (APQP 모듈 제거)
 import { DatePickerModal } from '@/components/DatePickerModal';
 import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
@@ -532,6 +533,27 @@ function PFMEARegisterPageContent() {
               else if (fmeaId) { router.push(`/pfmea/register?id=${fmeaId}`); }
               else { openFmeaSelectModal('LOAD'); }
             }} className={`px-3 py-1.5 text-white text-xs rounded font-semibold ${isEditMode ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-amber-500 hover:bg-amber-600'}`}>✏️ 편집(Edit)</button>
+            <button
+              onClick={async () => {
+                if (!fmeaId) { alert('복제할 FMEA를 먼저 선택해주세요.'); return; }
+                if (!confirm(`현재 FMEA를 복제(개정)하시겠습니까?\n\n원본: ${fmeaId}\n→ 기존 데이터를 복제하여 새 개정판을 생성합니다.`)) return;
+                try {
+                  const res = await fetch('/api/fmea/revision-clone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourceFmeaId: fmeaId }),
+                  });
+                  const result = await res.json();
+                  if (!result.success) { alert('복제 실패: ' + (result.error || '알 수 없는 오류')); return; }
+                  toast.success(`${result.revisionNo || '새 개정'} 복제 완료`);
+                  router.push(`/pfmea/register?id=${result.newFmeaId}&mode=revision`);
+                } catch { alert('복제 중 네트워크 오류가 발생했습니다.'); }
+              }}
+              disabled={!fmeaId}
+              className={`px-3 py-1.5 text-xs font-semibold rounded ${fmeaId ? 'bg-purple-500 text-white hover:bg-purple-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            >
+              📋 복제(Clone)
+            </button>
             <button onClick={handleSave} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 text-xs font-bold rounded ${saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' : saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
               {saveStatus === 'saving' ? '⏳ 저장 중...(Saving)' : saveStatus === 'saved' ? '✓ 저장됨(Saved)' : '💾 저장(Save)'}
             </button>
