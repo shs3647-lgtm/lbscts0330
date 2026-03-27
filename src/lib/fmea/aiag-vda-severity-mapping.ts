@@ -660,6 +660,19 @@ export function matchAiagVdaSeverityRow(
     [/불량\s*유출|outgoing|유출/i, 8, '불량 유출 → S=8 (AIAG-VDA 자동추정)'],
     [/spec\s*out|규격\s*이탈/i, 7, 'Spec Out → S=7 (AIAG-VDA 자동추정)'],
     [/오염|particle|contamination/i, 6, '오염/Particle → S=6 (AIAG-VDA 자동추정)'],
+    // ★ 2026-03-27: 반도체 공정 특화 키워드 확장 (Au Bump/Wafer 공정)
+    [/open\s*[\/·]?\s*short|전기적\s*(open|short)|단락|단선/i, 8, '전기적 Open/Short → S=8 (AIAG-VDA 자동추정)'],
+    [/lift[\s-]*off|리프트[\s-]*오프|박리/i, 7, 'Lift-off/박리 → S=7 (AIAG-VDA 자동추정)'],
+    [/bridge|브릿지|bump\s*간\s*(bridge|단락)/i, 8, 'Bridge/단락 → S=8 (AIAG-VDA 자동추정)'],
+    [/신뢰[도성]\s*(하락|저하|열화)|reliability\s*(degrad|drop|decreas)/i, 7, '신뢰도 하락 → S=7 (AIAG-VDA 자동추정)'],
+    [/접합\s*부?\s*(열화|파괴|불량)|bonding\s*(fail|degrad)/i, 7, '접합부 열화 → S=7 (AIAG-VDA 자동추정)'],
+    [/imc\s*(과성장|과도|열화)|intermetallic/i, 7, 'IMC 과성장 → S=7 (AIAG-VDA 자동추정)'],
+    [/리콜|recall|법적\s*조치|legal/i, 9, '리콜/법적 조치 → S=9 (AIAG-VDA 자동추정)'],
+    [/reject|납품\s*(reject|반려|거부)/i, 7, '납품 Reject → S=7 (AIAG-VDA 자동추정)'],
+    [/부적합|non[\s-]*conform/i, 5, '부적합 → S=5 (AIAG-VDA 자동추정)'],
+    [/패턴\s*불량|pattern\s*(defect|fail)/i, 7, '패턴 불량 → S=7 (AIAG-VDA 자동추정)'],
+    [/혼입|mix[\s-]*up|lot\s*혼입/i, 7, 'Lot 혼입 → S=7 (AIAG-VDA 자동추정)'],
+    [/형성\s*불량|formation\s*(defect|fail)/i, 7, '형성 불량 → S=7 (AIAG-VDA 자동추정)'],
   ];
   for (const [regex, sev, basis] of YIELD_KEYWORDS) {
     if (regex.test(fe) || regex.test(input.failureEffect || '')) {

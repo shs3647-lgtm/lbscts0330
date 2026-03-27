@@ -57,7 +57,7 @@ function buildAutoFixSummary(steps: StepResult[]): AutoFixSummary {
       const count = countMatch ? parseInt(countMatch[1], 10) : 1;
 
       // FK orphan / cascade / nullable 정리는 자동수정 가능
-      const autoFixable = /고아|orphan|NULL|cascade|연쇄|리매핑|RA 없는|무효/i.test(issue);
+      const autoFixable = /고아|orphan|NULL|cascade|연쇄|리매핑|RA 없는|무효|심각도|DC.*미입력|PC.*미입력/i.test(issue);
       // 미연결 FC/FM, Import 필요, fmeaId 불일치는 수동 필요
       const isManual = /FL 없는 (FC|FM)|Import 필요|수동|리매핑 필요|FailureLink 0건/i.test(issue);
 

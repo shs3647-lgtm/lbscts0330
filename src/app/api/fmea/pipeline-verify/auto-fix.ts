@@ -11,6 +11,7 @@
 
 import { getPrisma } from '@/lib/prisma';
 import { calcAPServer } from './verify-steps';
+import { matchAiagVdaSeverityRow } from '@/lib/fmea/aiag-vda-severity-mapping';
 
 /** `1` 이면 L2=0일 때도 rebuild-atomic 호출 안 함 — FK 수선·재import 우선 (repair-fk) */
 function isRebuildAtomicDisabled(): boolean {
@@ -539,13 +540,80 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
 
   const [ras, fls, opts] = await Promise.all([
     prisma.riskAnalysis.findMany({ where: { fmeaId } }),
-    prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } }),
+    prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true, feId: true } }),
     prisma.optimization.findMany({ where: { fmeaId }, select: { id: true, riskId: true } }),
   ]);
 
   const raSet = new Set(ras.map((ra: any) => ra.id));
-  const flById = new Map<string, { fmId: string; fcId: string }>();
-  for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId });
+  const flById = new Map<string, { fmId: string; fcId: string; feId: string }>();
+  for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId, feId: fl.feId });
+
+  // ★ 2026-03-27: S(심각도) 자동추정 — FE 텍스트 기반 AIAG-VDA 매칭
+  {
+    const missS = ras.filter((ra: any) => !ra.severity || ra.severity <= 0);
+    if (missS.length > 0) {
+      // FE 테이블 로드 (feId → effect/scope)
+      const fes = await prisma.failureEffect.findMany({
+        where: { fmeaId },
+        select: { id: true, effect: true, scope: true },
+      });
+      const feById = new Map<string, { effect: string; scope: string }>();
+      for (const fe of fes) feById.set(fe.id, { effect: fe.effect || '', scope: fe.scope || '' });
+
+      // L1Function 로드 (scope/category)
+      const l1Funcs = await prisma.l1Function.findMany({
+        where: { fmeaId },
+        select: { id: true, category: true },
+      }).catch(() => []);
+      const l1CatById = new Map<string, string>();
+      for (const l1f of l1Funcs as any[]) l1CatById.set(l1f.id, l1f.category || '');
+
+      let sFilled = 0;
+      for (const ra of missS) {
+        const fl = flById.get(ra.linkId);
+        if (!fl) continue;
+
+        // FL.feId → FE 텍스트 + scope 추출
+        const feData = feById.get(fl.feId);
+        if (!feData || !feData.effect?.trim()) continue;
+
+        // scope 결정: FE.scope 또는 L1Function.category
+        let scope = feData.scope || '';
+        if (!scope) {
+          // FE → l1FuncId로 scope 추적 (가능하면)
+          for (const fe of fes) {
+            if (fe.id === fl.feId && (fe as any).l1FuncId) {
+              scope = l1CatById.get((fe as any).l1FuncId) || '';
+              break;
+            }
+          }
+        }
+
+        // AIAG-VDA 키워드 매칭 (rows=[] → 8단계 YIELD_KEYWORDS 직행)
+        const match = matchAiagVdaSeverityRow([], {
+          failureEffect: feData.effect,
+          scope: scope,
+        });
+        if (match && match.severity > 0) {
+          await prisma.riskAnalysis.update({
+            where: { id: ra.id },
+            data: {
+              severity: match.severity,
+              severityRationale: match.basis || `AIAG-VDA 자동추정: S=${match.severity}`,
+            },
+          }).catch((e: unknown) => console.error(`[fixMissing] S 자동추정 업데이트 실패 id=${ra.id}:`, e));
+          // AP 재계산
+          const newAP = calcAPServer(match.severity, ra.occurrence || 1, ra.detection || 1);
+          if (newAP) {
+            await prisma.riskAnalysis.update({ where: { id: ra.id }, data: { ap: newAP } }).catch(() => {});
+          }
+          sFilled++;
+        }
+      }
+      if (sFilled > 0) fixed.push(`S(심각도) 자동추정 ${sFilled}건 (AIAG-VDA 키워드 매칭)`);
+      if (missS.length - sFilled > 0) fixed.push(`[진단] S 미추정 잔여 ${missS.length - sFilled}건 (FE 텍스트 매칭 실패)`);
+    }
+  }
 
   // Opt → RA FK 고아 삭제
   const orphanOpts = opts.filter((o: any) => !raSet.has(o.riskId));
