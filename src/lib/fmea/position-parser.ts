@@ -349,6 +349,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const a4 = row.cells['A4']?.trim() || '';
     const sc = row.cells['SC']?.trim() || '';
     const a5 = row.cells['A5']?.trim() || '';
+    const a6 = row.cells['A6']?.trim() || ''; // ★v5: 검출관리 (L2 시트 직접 추출)
 
     if (!a1) continue;
 
@@ -437,6 +438,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           productCharId: pcId,
           parentId: pcId, // E-11: FM.parentId → ProductChar
           mode: a5,
+          detectionControl: a6 || undefined, // ★v5: A6 검출관리 (L2 시트 직접 추출)
           // feRefs/fcRefs: FC 시트 파싱 후 채움 (초기 빈 배열)
           feRefs: [],
           fcRefs: [],
@@ -470,6 +472,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const b3 = row.cells['B3']?.trim() || '';
     const sc = row.cells['SC']?.trim() || '';
     const b4 = row.cells['B4']?.trim() || '';
+    const b5 = row.cells['B5']?.trim() || ''; // ★v5: 예방관리 (L3 시트 직접 추출)
 
     if (!pno) continue;
 
@@ -569,6 +572,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         parentId: l3PcId,   // ★v5: FC.parentId → B3(L3ProcessChar) (지침서 Section 2-2)
         l3CharId: l3PcId,   // ★v4: B-13 FK → L3ProcessChar
         cause: b4,
+        preventionControl: b5 || undefined, // ★v5: B5 예방관리 (L3 시트 직접 추출)
       });
       resolver.registerFC(rn, fcId, b4, pno, m4, b1, l3Id); // ★v4: l3StructId 전달
     }
@@ -1011,23 +1015,58 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
     ppWarn('[position-parser] ⚠️ L3 시트 B4(고장원인) 컬럼 감지 실패 — fallback col 7 사용. 헤더 확인 필요');
   }
 
+  // ★v5: L3 시트 carry-forward (병합셀 대응 — FC 시트와 동일 패턴)
+  let prevL3Pno = '', prevL3M4 = '', prevL3B1 = '', prevL3B2 = '', prevL3B3 = '', prevL3SC = '';
+  const l3CarryCount = { pno: 0, m4: 0, b1: 0, b2: 0, b3: 0 };
   const l3Rows: SheetRow[] = [];
   l3WS.eachRow((row: Row, rn: number) => {
     if (rn <= l3Header) return;
+    const rawPno = excelCellStr(row, l3ColMap.processNo || 1);
+    const rawM4  = excelCellStr(row, l3ColMap.m4 || 2);
+    const rawB1  = excelCellStr(row, l3ColMap.B1 || 3);
+    const rawB2  = excelCellStr(row, l3ColMap.B2 || 4);
+    const rawB3  = excelCellStr(row, l3ColMap.B3 || 5);
+    const rawSC  = excelCellStr(row, l3ColMap.SC || 6);
+
+    // carry-forward: 병합셀 빈값이면 이전 행 값 유지
+    const pno = rawPno || (prevL3Pno ? (l3CarryCount.pno++, prevL3Pno) : '');
+    const m4  = rawM4  || (prevL3M4  ? (l3CarryCount.m4++,  prevL3M4)  : '');
+    const b1  = rawB1  || (prevL3B1  ? (l3CarryCount.b1++,  prevL3B1)  : '');
+    const b2  = rawB2  || (prevL3B2  ? (l3CarryCount.b2++,  prevL3B2)  : '');
+    const b3  = rawB3  || (prevL3B3  ? (l3CarryCount.b3++,  prevL3B3)  : '');
+    const sc  = rawSC  || prevL3SC;
+
+    if (pno) prevL3Pno = pno;
+    if (m4)  prevL3M4  = m4;
+    if (b1)  prevL3B1  = b1;
+    if (b2)  prevL3B2  = b2;
+    if (b3)  prevL3B3  = b3;
+    if (rawSC) prevL3SC = rawSC; // SC는 빈값이 정상(해당없음)일 수 있으므로 raw 기준 갱신
+
     l3Rows.push({
       excelRow: rn, posId: `L3-R${rn}`,
       cells: {
-        processNo: excelCellStr(row, l3ColMap.processNo || 1),
-        m4: excelCellStr(row, l3ColMap.m4 || 2),
-        B1: excelCellStr(row, l3ColMap.B1 || 3),
-        B2: excelCellStr(row, l3ColMap.B2 || 4),
-        B3: excelCellStr(row, l3ColMap.B3 || 5),
-        SC: excelCellStr(row, l3ColMap.SC || 6),
+        processNo: pno,
+        m4,
+        B1: b1,
+        B2: b2,
+        B3: b3,
+        SC: sc,
         B4: excelCellStr(row, l3ColMap.B4 || 7),
         B5: excelCellStr(row, l3ColMap.B5 || 8),
       },
     });
   });
+  // ★v5: L3 carry-forward 결과 보고
+  const totalL3Carry = l3CarryCount.pno + l3CarryCount.m4 + l3CarryCount.b1 + l3CarryCount.b2 + l3CarryCount.b3;
+  if (totalL3Carry > 0) {
+    ppLog(`[position-parser] ✅ AutoFix L3 carry-forward ${totalL3Carry}건:`,
+      `공정번호=${l3CarryCount.pno}`,
+      `4M=${l3CarryCount.m4}`,
+      `B1=${l3CarryCount.b1}`,
+      `B2=${l3CarryCount.b2}`,
+      `B3=${l3CarryCount.b3}`);
+  }
 
   // ─── FC 시트 — 헤더 자동감지 ───
   const fcWS = wb.getWorksheet(fcName);
@@ -1289,8 +1328,19 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     });
   }
 
-  // A6: RiskAnalysis.detectionControl (FL→RA에서 DC 추출, 공정별 고유)
+  // ★v5: A6 — Primary: FailureMode.detectionControl (L2 시트 A6 직접), Fallback: RiskAnalysis.detectionControl (FC 시트 DC)
   const seenA6 = new Set<string>();
+  // (1) L2 시트 A6: FM.detectionControl → 공정별 텍스트고유 dedup, parentItemId = FM.id
+  for (const fm of data.failureModes) {
+    if (!fm.detectionControl) continue;
+    const l2 = data.l2Structures.find(s => s.id === fm.l2StructId);
+    const pno = l2?.no || '';
+    const key = `${pno}|${fm.detectionControl}`;
+    if (seenA6.has(key)) continue;
+    seenA6.add(key);
+    flat.push({ id: `${fm.id}-A6`, processNo: pno, category: 'A', itemCode: 'A6', value: fm.detectionControl, parentItemId: fm.id, createdAt: now, rowSpan: 1 });
+  }
+  // (2) Fallback: FC 시트 RiskAnalysis.detectionControl (L2 A6 미존재 시 보충)
   for (const ra of data.riskAnalyses) {
     const fl = data.failureLinks.find(l => l.id === ra.linkId);
     if (!fl || !ra.detectionControl) continue;
@@ -1337,13 +1387,26 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     flat.push({ id: fc.id, processNo: l2?.no || '', category: 'B', itemCode: 'B4', value: fc.cause, m4: l3?.m4 || undefined, parentItemId: b3Id, createdAt: now, rowSpan: 1 });
   }
 
-  // B5: RiskAnalysis.preventionControl (FL→RA에서 PC 추출, 공정별 고유)
+  // ★v5: B5 — Primary: FailureCause.preventionControl (L3 시트 B5 직접), Fallback: RiskAnalysis.preventionControl (FC 시트 PC)
   const seenB5 = new Set<string>();
+  // (1) L3 시트 B5: FC.preventionControl → 복합키(pno|b1|b4|b5) dedup, parentItemId = FC.id
+  for (const fc of data.failureCauses) {
+    if (!fc.preventionControl) continue;
+    const l2 = data.l2Structures.find(s => s.id === fc.l2StructId);
+    const l3 = l3StructMap.get(fc.l3StructId);
+    const pno = l2?.no || '';
+    const m4 = l3?.m4 || undefined;
+    const key = `${pno}|${l3?.name || ''}|${fc.cause}|${fc.preventionControl}`;
+    if (seenB5.has(key)) continue;
+    seenB5.add(key);
+    flat.push({ id: `${fc.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: fc.preventionControl, m4, parentItemId: fc.id, createdAt: now, rowSpan: 1 });
+  }
+  // (2) Fallback: FC 시트 RiskAnalysis.preventionControl (L3 B5 미존재 시 보충)
   for (const ra of data.riskAnalyses) {
     const fl = data.failureLinks.find(l => l.id === ra.linkId);
     if (!fl || !ra.preventionControl) continue;
     const pno = fl.fmProcess || '';
-    const key = `${pno}|${ra.preventionControl}`;
+    const key = `${pno}|${fl.fcWorkElem || ''}|${fl.fcText || ''}|${ra.preventionControl}`;
     if (seenB5.has(key)) continue;
     seenB5.add(key);
     flat.push({ id: `${ra.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: ra.preventionControl, createdAt: now, rowSpan: 1 });
