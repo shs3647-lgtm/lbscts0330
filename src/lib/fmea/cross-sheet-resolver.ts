@@ -108,26 +108,21 @@ export class CrossSheetResolver {
   }
 
   private resolveFE(ref: CrossSheetRef): string {
+    // Level 1: 행번호 직접 매칭
     if (ref.l1Row && this.l1RowToFeId.has(ref.l1Row)) {
       return this.l1RowToFeId.get(ref.l1Row)!;
     }
     if (ref.feText) {
-      const key = `${normalizeText(ref.feScope || '')}::${normalizeText(ref.feText)}`;
+      const normFE = normalizeText(ref.feText);
+      // Level 2: scope + FE 텍스트 정확 매칭
+      const key = `${normalizeText(ref.feScope || '')}::${normFE}`;
       const found = this.feTextMap.get(key);
       if (found) return found.feId;
-      // scope 무시 매칭
-      const normFE = normalizeText(ref.feText);
+      // Level 3: scope 무시, FE 텍스트 정확 매칭 (FE는 공정 구분 없으므로 허용)
       for (const [k, v] of this.feTextMap) {
-        const feTextPart = k.split('::')[1];
-        if (feTextPart === normFE) return v.feId;
+        if (k.split('::')[1] === normFE) return v.feId;
       }
-      // 부분 포함 매칭
-      for (const [k, v] of this.feTextMap) {
-        const feTextPart = k.split('::')[1];
-        if (feTextPart && (feTextPart.includes(normFE) || normFE.includes(feTextPart))) {
-          return v.feId;
-        }
-      }
+      // ★v5.1: 부분 포함 매칭 제거 — 거짓 연결 방지 (Rule 1.7)
     }
     return '';
   }
@@ -157,21 +152,24 @@ export class CrossSheetResolver {
   }
 
   private resolveFC(ref: CrossSheetRef): { fcId: string; l3StructId: string } {
+    // Level 1: 행번호 직접 매칭
     if (ref.l3Row && this.l3RowToFcId.has(ref.l3Row)) {
       return { fcId: this.l3RowToFcId.get(ref.l3Row)!, l3StructId: this.l3RowToL3StructId.get(ref.l3Row) || '' };
     }
     if (ref.fcText && ref.processNo) {
       const normFC = normalizeText(ref.fcText);
-      // 정밀 매칭
+      // Level 2: 정밀 매칭 (공정+m4+WE+FC)
       const preciseKey = `${ref.processNo.trim()}::${normalizeText(ref.m4 || '')}::${normalizeText(ref.weText || '')}::${normFC}`;
       const preciseFound = this.fcTextMap.get(preciseKey);
       if (preciseFound) return preciseFound;
-      // Loose 매칭
+      // Level 3: Loose 매칭 (공정+FC)
       const looseKey = `${ref.processNo.trim()}::${normFC}`;
       const looseFound = this.fcLooseMap.get(looseKey);
       if (looseFound) return looseFound;
+      // ★v5.1: 공정번호 있는데 매칭 실패 → 크로스프로세스 fallback 금지 (Rule 1.7)
+      return { fcId: '', l3StructId: '' };
     }
-    // 텍스트만으로 매칭
+    // 공정번호 없을 때만 텍스트 매칭 허용
     if (ref.fcText) {
       const normFC = normalizeText(ref.fcText);
       for (const [k, v] of this.fcLooseMap) {
