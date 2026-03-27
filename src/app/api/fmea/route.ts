@@ -773,6 +773,9 @@ export async function POST(request: NextRequest) {
         }
 
         if (validFMs.length > 0) {
+          // ★v5.1: deleteMany + createMany — localStorage 캐시 구 FM 누적 방지
+          // skipDuplicates 방식은 이전 Import의 FM이 DB에 남아 누적됨
+          await tx.failureMode.deleteMany({ where: { fmeaId: db.fmeaId } });
           await tx.failureMode.createMany({
             data: validFMs.map(fm => ({
               id: fm.id,
@@ -788,7 +791,6 @@ export async function POST(request: NextRequest) {
               rowSpan: fm.rowSpan || 1,
               colSpan: fm.colSpan || 1,
             })),
-            skipDuplicates: true,
           });
         }
       }
