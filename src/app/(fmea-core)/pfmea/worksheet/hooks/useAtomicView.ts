@@ -5,6 +5,9 @@
 'use client';
 
 import { FMEAWorksheetDB } from '../schema';
+import { normalize4M } from '../tabs/all/hooks/preventionKeywordMap';
+
+type M4Type = 'MN' | 'MC' | 'IM' | 'EN' | '';
 
 // ── L2 Structure (공정) ──
 
@@ -57,14 +60,22 @@ export function addL3Structure(db: FMEAWorksheetDB, l2Id: string, newL3: { id: s
     ...db,
     l3Structures: [...db.l3Structures, {
       id: newL3.id, fmeaId: db.fmeaId, l1Id: db.l1Structure?.id || '', l2Id,
-      m4: (newL3.m4 || '') as any, name: newL3.name, order: newL3.order,
+      m4: normalize4M(newL3.m4), name: newL3.name, order: newL3.order,
     }],
   };
 }
 
 /** L3 수정 */
 export function updateL3Structure(db: FMEAWorksheetDB, id: string, updates: Partial<{ name: string; m4: string; order: number }>): FMEAWorksheetDB {
-  return { ...db, l3Structures: db.l3Structures.map(l3 => l3.id === id ? { ...l3, ...updates } : l3) };
+  return { ...db, l3Structures: db.l3Structures.map(l3 => {
+    if (l3.id !== id) return l3;
+    return {
+      ...l3,
+      ...(updates.name !== undefined && { name: updates.name }),
+      ...(updates.order !== undefined && { order: updates.order }),
+      ...(updates.m4 !== undefined && { m4: normalize4M(updates.m4) }),
+    };
+  }) };
 }
 
 /** L3 삭제 (+ 하위 cascade) */
@@ -82,7 +93,9 @@ export function replaceL3Structures(db: FMEAWorksheetDB, l2Id: string, newL3s: A
   const oldL3Ids = new Set(db.l3Structures.filter(l3 => l3.l2Id === l2Id).map(l3 => l3.id));
   const kept = db.l3Structures.filter(l3 => l3.l2Id !== l2Id);
   const added = newL3s.map(l3 => ({
-    ...l3, fmeaId: db.fmeaId, l1Id: db.l1Structure?.id || '', l2Id,
+    id: l3.id, name: l3.name, order: l3.order,
+    m4: normalize4M(l3.m4),
+    fmeaId: db.fmeaId, l1Id: db.l1Structure?.id || '', l2Id,
   } as any));
   const newL3Ids = new Set(newL3s.map(l3 => l3.id));
   const removedL3Ids = new Set([...oldL3Ids].filter(id => !newL3Ids.has(id)));

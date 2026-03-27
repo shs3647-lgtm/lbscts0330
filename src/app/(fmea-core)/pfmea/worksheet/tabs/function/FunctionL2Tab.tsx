@@ -30,6 +30,10 @@ import { cellP0 } from '@/styles/worksheet';
 import { handleEnterBlur } from '../../utils/keyboard';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import DataSelectModal from '@/components/modals/DataSelectModal';
+import { L2FunctionSelectModal } from '../../L2FunctionSelectModal';
+import type { L2FunctionItem } from '../../useL2FunctionSelect';
+import { mergeRowsByMasterSelection } from '../../utils/mergeRowsByMasterSelection';
+import { findLinkedProductCharsForFunction } from '../../utils/auto-link';
 import SpecialCharSelectModal from '@/components/modals/SpecialCharSelectModal';
 import { AutoMappingPreviewModal } from '../../autoMapping';
 import SpecialCharBadge from '@/components/common/SpecialCharBadge';
@@ -56,8 +60,24 @@ import AlertModal from '@/components/modals/AlertModal';
 import { PfmeaContextMenu, initialPfmeaContextMenu, PfmeaContextMenuState } from '../../components/PfmeaContextMenu';
 type L2RowType = 'process' | 'function' | 'productChar';
 
+/** 제품특성(A4) `DataSelectModal` 전용 — 메인공정기능(A3)은 `L2FunctionSelectModal` */
+type L2ProductCharModal = {
+  type: string;
+  procId: string;
+  funcId?: string;
+  charId?: string;
+  title: string;
+  itemCode: string;
+};
+
 export default function FunctionL2Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, customerName, importCounts }: FunctionTabProps) {
-  const [modal, setModal] = useState<{ type: string; procId: string; funcId?: string; charId?: string; title: string; itemCode: string } | null>(null);
+  const [modal, setModal] = useState<L2ProductCharModal | null>(null);
+  const [l2FuncModal, setL2FuncModal] = useState<{
+    procId: string;
+    funcId?: string;
+    processNo: string;
+    processName: string;
+  } | null>(null);
   const [specialCharModal, setSpecialCharModal] = useState<{ procId: string; funcId: string; charId: string; charName: string; currentValue: string } | null>(null);
   const { alertProps, showAlert } = useAlertModal();
 
@@ -114,6 +134,36 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
   } = useFunctionL2Handlers({
     state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, modal, setModal, isConfirmed, fmeaId, showAlert,
   });
+
+  /** 메인공정기능(A3): L2FunctionSelectModal — 그 외는 기존 handleCellClick */
+  const handleCellClickForTab = useCallback(
+    (config: { type: string; procId: string; funcId?: string; title: string; itemCode: string }) => {
+      if (config.type === 'l2Function') {
+        const proc = (state.l2 || []).find((p: any) => p.id === config.procId);
+        const processNo = String(proc?.no ?? '').trim();
+        const processName = String(proc?.name ?? '').trim();
+        if (!processNo) {
+          showAlert('구조분석에서 공정번호가 있는 공정만 메인공정기능 선택을 사용할 수 있습니다.');
+          return;
+        }
+        if (isConfirmed) {
+          const updateFn = (prev: any) => ({ ...prev, l2Confirmed: false });
+          if (setStateSynced) setStateSynced(updateFn);
+          else setState(updateFn);
+          setDirty(true);
+        }
+        setL2FuncModal({
+          procId: config.procId,
+          funcId: config.funcId,
+          processNo,
+          processName,
+        });
+        return;
+      }
+      handleCellClick(config);
+    },
+    [state.l2, isConfirmed, setStateSynced, setState, setDirty, handleCellClick, showAlert]
+  );
 
   // ✅ 중복 제거 훅
   useL2Deduplication({ l2: state.l2 || [], setState, setStateSynced, setDirty, saveToLocalStorage });
@@ -621,7 +671,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
           ) : (
             <L2ProcessRows
               l2={state.l2 || []}
-              handleCellClick={handleCellClick}
+              handleCellClick={handleCellClickForTab}
               handleInlineEditFunction={handleInlineEditFunction}
               handleInlineEditProductChar={handleInlineEditProductChar}
               setSpecialCharModal={setSpecialCharModal}
@@ -631,7 +681,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         </tbody>
       </table>
 
-      {modal && (
+      {modal && modal.type === 'l2ProductChar' && (
         <DataSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
@@ -643,19 +693,121 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
           processName={(state.l2 || []).find(p => p.id === modal.procId)?.name}
           processNo={(state.l2 || []).find(p => p.id === modal.procId)?.no}
           processList={(state.l2 || []).map(p => ({ id: p.id, no: p.no, name: p.name }))}
-          onProcessChange={(procId) => setModal(prev => prev ? { ...prev, procId } : null)}
+          onProcessChange={(procId) =>
+            setModal((prev: L2ProductCharModal | null) => (prev ? { ...prev, procId } : null))
+          }
           currentValues={(() => {
             const isPlaceholderName = (n: string) => !n?.trim();
             const proc = (state.l2 || []).find(p => p.id === modal.procId);
             if (!proc) return [];
-            if (modal.type === 'l2Function') return (proc.functions || []).map(f => f.name).filter(n => !isPlaceholderName(n));
-            if (modal.type === 'l2ProductChar') {
-              const func = (proc.functions || []).find(f => f.id === modal.funcId);
-              return func ? (func.productChars || []).map(c => c.name).filter(n => !isPlaceholderName(n)) : [];
-            }
-            return [];
+            const func = (proc.functions || []).find(f => f.id === modal.funcId);
+            return func ? (func.productChars || []).map(c => c.name).filter(n => !isPlaceholderName(n)) : [];
           })()}
+          fullSelectionApply
           fmeaId={fmeaId}
+        />
+      )}
+
+      {l2FuncModal && (
+        <L2FunctionSelectModal
+          isOpen={!!l2FuncModal}
+          onClose={() => setL2FuncModal(null)}
+          processNo={l2FuncModal.processNo}
+          processName={l2FuncModal.processName}
+          fmeaId={fmeaId}
+          existingItems={
+            (state.l2 || [])
+              .find((p: any) => p.id === l2FuncModal.procId)
+              ?.functions?.filter((f: any) => f.name?.trim())
+              .map((f: any) => ({ id: f.id, name: f.name })) ?? []
+          }
+          onSave={(selectedItems: L2FunctionItem[]) => {
+            const proc = (state.l2 || []).find((p: any) => p.id === l2FuncModal.procId);
+            if (!proc) {
+              setL2FuncModal(null);
+              return;
+            }
+            const selectedNames = new Set(selectedItems.map((i) => i.name.trim()).filter(Boolean));
+            const funcsToRemove = (proc.functions || []).filter((f: any) => {
+              const nm = (f.name || '').trim();
+              return nm && !selectedNames.has(nm);
+            });
+            const funcsWithChildren = funcsToRemove.filter(
+              (f: any) => (f.productChars || []).filter((c: any) => (c.name || '').trim()).length > 0
+            );
+            if (funcsWithChildren.length > 0) {
+              const childCounts = funcsWithChildren
+                .map((f: any) => {
+                  const n = (f.productChars || []).filter((c: any) => (c.name || '').trim()).length;
+                  return `• ${f.name}: 제품특성 ${n}개`;
+                })
+                .join('\n');
+              if (
+                !window.confirm(
+                  `⚠️ 적용에서 제외한 기능에 하위 데이터가 있습니다.\n\n${childCounts}\n\n제품특성도 함께 삭제됩니다. 계속할까요?`
+                )
+              ) {
+                return;
+              }
+            }
+
+            const picks = selectedItems.map((item) => ({ id: item.id, name: item.name }));
+            const currentFuncs = proc.functions || [];
+
+            const updateFn = (prev: WorksheetState) => {
+              const newState = JSON.parse(JSON.stringify(prev));
+              const pIdx = newState.l2.findIndex((p: any) => p.id === l2FuncModal.procId);
+              if (pIdx < 0) return prev;
+              const p = newState.l2[pIdx];
+              const cfs = p.functions || [];
+
+              const merged = mergeRowsByMasterSelection(cfs as any[], picks, {
+                isEmpty: (f: any) => !f.name?.trim(),
+                patchNamed: (f: any, item) => ({ ...f, name: item.name }),
+                patchEmpty: (f: any, item) => ({ ...f, id: item.id, name: item.name }),
+                append: (item) => {
+                  const linkedChars = findLinkedProductCharsForFunction(prev, item.name);
+                  const seenChars = new Set<string>();
+                  const autoLinkedChars = linkedChars
+                    .filter((cn: string) => {
+                      if (seenChars.has(cn)) return false;
+                      seenChars.add(cn);
+                      return true;
+                    })
+                    .map((cn: string) => ({ id: uid(), name: cn, specialChar: null as string | null }));
+                  return {
+                    id: item.id,
+                    name: item.name,
+                    productChars:
+                      autoLinkedChars.length > 0
+                        ? autoLinkedChars
+                        : [{ id: uid(), name: '', specialChar: '' }],
+                  };
+                },
+              });
+
+              p.functions =
+                merged.length > 0
+                  ? merged
+                  : [{ id: uid(), name: '', productChars: [{ id: uid(), name: '', specialChar: '' }] }];
+              newState.l2[pIdx] = p;
+              newState.l2Confirmed = false;
+              return newState;
+            };
+
+            if (setStateSynced) setStateSynced(updateFn);
+            else setState(updateFn);
+            setDirty(true);
+            setL2FuncModal(null);
+            setTimeout(async () => {
+              saveToLocalStorage?.();
+              try {
+                await saveAtomicDB?.(true);
+              } catch (e) {
+                console.error('[FunctionL2Tab] 메인공정기능 적용 후 저장 오류:', e);
+              }
+            }, 100);
+          }}
         />
       )}
 

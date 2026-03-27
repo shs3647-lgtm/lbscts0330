@@ -168,23 +168,13 @@ export default function ProcessSelectModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // 정렬 없음 — DB/로드 순서 그대로 (공정번호 재정렬 시 화면과 적용 순서가 달라져 혼동 방지)
   const filteredProcesses = useMemo(() => {
-    let result = processes;
-
-    // 검색 필터링
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = processes.filter(p =>
-        p.no.includes(q) || p.name.toLowerCase().includes(q)
-      );
-    }
-
-    // 공정 번호 기준 숫자 정렬 (10, 20, 30 순서)
-    return [...result].sort((a, b) => {
-      const numA = parseInt(a.no.replace(/\D/g, '')) || 0; // 숫자만 추출
-      const numB = parseInt(b.no.replace(/\D/g, '')) || 0;
-      return numA - numB; // 오름차순 정렬
-    });
+    if (!search.trim()) return processes;
+    const q = search.toLowerCase();
+    return processes.filter(p =>
+      p.no.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
+    );
   }, [processes, search]);
 
   const toggleSelect = useCallback((id: string) => {
@@ -244,7 +234,8 @@ export default function ProcessSelectModal({
 
   // ★★★ 2026-02-07: 적용 = 선택된 새 공정만 추가 (기존 공정 건드리지 않음) ★★★
   const handleSave = () => {
-    const selected = processes.filter(p => selectedIds.has(p.id));
+    // 화면( filteredProcesses ) 순서 = 적용 순서 — 별도 공정번호 정렬 없음
+    const selected = filteredProcesses.filter(p => selectedIds.has(p.id));
 
     if (selected.length === 0) {
       alert('추가할 공정을 선택해주세요.\n(Please select processes to add.)');

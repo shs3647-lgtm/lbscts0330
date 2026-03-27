@@ -7,4 +7,5 @@ export * from './types';
 export * from './failure-link-grouping';
 export * from './row-merge-logic';
 export * from './process-grouping';
+export * from './mergeRowsByMasterSelection';
 

@@ -1,44 +1,17 @@
 /**
- * ██████████████████████████████████████████████████████████████
- * ██  CODEFREEZE v3.1.0 — 이 파일을 수정하지 마세요!          ██
- * ██                                                          ██
- * ██  상태: DB중심 고장연결 + v3.0 아키텍처 완성 (2026-02-28)  ██
- * ██  검증: 270테스트 PASS / tsc 에러 0개                      ██
- * ██                                                          ██
- * ██  수정이 필요하면:                                         ██
- * ██  1. 반드시 별도 브랜치에서 작업                            ██
- * ██  2. 270 골든 테스트 전체 통과 필수                         ██
- * ██  3. 사용자 승인 후 머지                                   ██
- * ██████████████████████████████████████████████████████████████
- */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/**
  * @file FunctionL1Tab.tsx
  * @description 완제품(L1) 기능 분석 - 3행 헤더 구조 (구조분석 + 기능분석)
  *
- * ⚠️⚠️⚠️ 코드프리즈 (CODE FREEZE) ⚠️⚠️⚠️
- * ============================================
- * 이 파일은 완전히 프리즈되었습니다.
- *
- * ❌ 절대 수정 금지:
- * - 코드 변경 금지
- * - 주석 변경 금지
- * - 스타일 변경 금지
- * - 로직 변경 금지
- *
- * ✅ 수정 허용 조건:
- * 1. 사용자가 명시적으로 수정 요청
- * 2. 수정 사유와 범위를 명확히 지시
- * 3. 코드프리즈 경고를 확인하고 진행
- *
- * 📅 프리즈 일자: 2026-01-05
- * 📌 프리즈 범위: 구조분석부터 3L원인분석까지 전체
+ * ★★★ 2026-03-27: L1FunctionSelectModal 연동 (작업요소 패턴 벤치마킹) ★★★
+ * - DataSelectModal → L1FunctionSelectModal 교체
+ * - 적용됨/미적용 구분, 삭제 시 워크시트만 제거, 마스터 DB 유지
+ * - 더블클릭 인라인 편집 → 마스터 DB 동기화
  * 
  * ★★★ 2026-02-05: 최적화 리팩토링 (854줄 → 500줄 이하) ★★★
  * - 유틸리티 함수 분리: functionL1Utils.ts
  * - 핸들러 로직 분리: hooks/useFunctionL1Handlers.ts
- * ============================================
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 'use client';
 
@@ -46,9 +19,12 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { FunctionTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import DataSelectModal from '@/components/modals/DataSelectModal';
+import { L1FunctionSelectModal } from '../../L1FunctionSelectModal';
+import type { L1FunctionItem } from '../../useL1FunctionSelect';
 import { AutoMappingPreviewModal } from '../../autoMapping';
 import { COLORS, uid, WorksheetState } from '../../constants';
 import { ensurePlaceholder } from '../../utils/safeMutate';
+import { mergeRowsByMasterSelection } from '../../utils/mergeRowsByMasterSelection';
 import { handleEnterBlur } from '../../utils/keyboard';
 import { getL1TypeColor, getZebra, getZebraColors } from '@/styles/level-colors';
 
@@ -88,7 +64,20 @@ function normalizeCategoryToProcessNo(cat?: string): string | undefined {
 }
 
 export default function FunctionL1Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId }: FunctionTabProps) {
+  // ★ 기존 DataSelectModal용 모달 상태 (C1 구분 선택용)
   const [modal, setModal] = useState<{ type: string; id: string; title: string; itemCode: string; funcId?: string; reqId?: string; parentFunction?: string; parentCategory?: string } | null>(null);
+  
+  // ★★★ 2026-03-27: L1FunctionSelectModal용 상태 (C2 기능 / C3 요구사항) ★★★
+  const [l1FuncModal, setL1FuncModal] = useState<{
+    isOpen: boolean;
+    type: 'C2' | 'C3';
+    category: string;
+    typeId: string;
+    funcId?: string;
+    parentId?: string;
+    parentName?: string;
+  } | null>(null);
+  
   const { alertProps, showAlert } = useAlertModal();
 
   // ★★★ 핸들러 훅 사용 ★★★
@@ -133,6 +122,10 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
   const handleContextMenu = useCallback((e: React.MouseEvent, rowType: L1RowType, typeId: string, funcId?: string, reqId?: string) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // ★ 2026-03-27: 구분(type) 행에서는 컨텍스트 메뉴 표시 안 함
+    if (rowType === 'type') return;
+    
     // ★ 2026-03-04: 확정 상태에서도 컨텍스트 메뉴 허용 (자동 확정해제 — 다른 탭과 패턴 통일)
     if (isConfirmed) {
       const updateFn = (prev: any) => ({ ...prev, l1Confirmed: false });
@@ -150,7 +143,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       x: e.clientX,
       y: e.clientY,
       rowIdx: 0,
-      columnType: rowType === 'type' ? 'l1' : rowType === 'function' ? 'l2' : 'l3',
+      columnType: rowType === 'function' ? 'l2' : 'l3',
     });
   }, [isConfirmed, setState, setStateSynced, setDirty]);
   
@@ -612,11 +605,14 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
             handleContextMenu={handleContextMenu}
             isConfirmed={isConfirmed}
             highlightIds={highlightIds}
+            setL1FuncModal={setL1FuncModal}
+            fmeaId={fmeaId}
           />
         </tbody>
       </table>
 
-      {modal && (
+      {/* ★ C1 구분 선택용 기존 DataSelectModal */}
+      {modal && modal.itemCode === 'C1' && (
         <DataSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
@@ -626,43 +622,101 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
           itemCode={modal.itemCode}
           currentValues={(() => {
             const types = state.l1?.types || [];
-            if (modal.type === 'l1Type') {
-              return types.filter((t: any) => t.name && t.name.trim()).map((t: any) => t.name);
-            }
-            if (modal.type === 'l1Function') {
-              const targetType = types.find((t: any) => t.id === modal.id);
-              if (targetType) {
-                const funcs = targetType.functions || [];
-                if (modal.funcId) {
-                  const func = funcs.find((f: any) => f.id === modal.funcId);
-                  return func?.name ? [func.name] : [];
-                }
-                return funcs.filter((f: any) => f.name && f.name.trim()).map((f: any) => f.name);
-              }
-              return [];
-            }
-            if (modal.type === 'l1Requirement') {
-              const targetType = types.find((t: any) => (t.functions || []).some((f: any) => f.id === modal.id));
-              if (targetType) {
-                const func = (targetType.functions || []).find((f: any) => f.id === modal.id);
-                if (func) {
-                  const reqs = func.requirements || [];
-                  if (modal.reqId) {
-                    const req = reqs.find((r: any) => r.id === modal.reqId);
-                    return req?.name ? [req.name] : [];
-                  }
-                  return reqs.filter((r: any) => r.name && r.name.trim()).map((r: any) => r.name);
-                }
-              }
-              return [];
-            }
-            return [];
+            return types.filter((t: any) => t.name && t.name.trim()).map((t: any) => t.name);
           })()}
           singleSelect={false}
           processName={formatL1Name(state.l1?.name)}
           parentFunction={modal.parentFunction}
           parentCategory={modal.parentCategory}
           processNo={normalizeCategoryToProcessNo(modal.parentCategory)}
+          fmeaId={fmeaId}
+        />
+      )}
+
+      {/* ★★★ 2026-03-27: C2 완제품기능 / C3 요구사항 전용 모달 (작업요소 패턴) ★★★ */}
+      {l1FuncModal && (
+        <L1FunctionSelectModal
+          isOpen={l1FuncModal.isOpen}
+          onClose={() => setL1FuncModal(null)}
+          onSave={(selectedItems: L1FunctionItem[]) => {
+            const { type, category, typeId, funcId, parentId } = l1FuncModal;
+            
+            const updateFn = (prev: WorksheetState) => {
+              const newState = JSON.parse(JSON.stringify(prev));
+              if (!newState.l1) return prev;
+              const types = newState.l1.types || [];
+              const typeIdx = types.findIndex((t: { id: string }) => t.id === typeId);
+              if (typeIdx < 0) return prev;
+              
+              if (type === 'C2') {
+                const currentFuncs = types[typeIdx].functions || [];
+                const picks = selectedItems.map(item => ({ id: item.id, name: item.name }));
+                const merged = mergeRowsByMasterSelection(currentFuncs as any[], picks, {
+                  isEmpty: (f: any) => !f.name?.trim(),
+                  patchNamed: (f: any, item) => ({ ...f, name: item.name }),
+                  patchEmpty: (f: any, item) => ({ ...f, id: item.id, name: item.name }),
+                  append: item => ({ id: item.id, name: item.name, requirements: [] }),
+                });
+                types[typeIdx].functions =
+                  merged.length > 0 ? merged : [{ id: uid(), name: '', requirements: [] }];
+              } else {
+                const funcIdx = types[typeIdx].functions?.findIndex((f: { id: string }) => f.id === funcId) ?? -1;
+                if (funcIdx < 0) return prev;
+
+                const currentReqs = types[typeIdx].functions[funcIdx].requirements || [];
+                const picks = selectedItems.map(item => ({ id: item.id, name: item.name }));
+                const merged = mergeRowsByMasterSelection(currentReqs as any[], picks, {
+                  isEmpty: (r: any) => !r.name?.trim(),
+                  patchNamed: (r: any, item) => ({ ...r, name: item.name }),
+                  patchEmpty: (r: any, item) => ({ ...r, id: item.id, name: item.name }),
+                  append: item => ({ id: item.id, name: item.name }),
+                });
+                types[typeIdx].functions[funcIdx].requirements =
+                  merged.length > 0 ? merged : [{ id: uid(), name: '' }];
+              }
+              
+              newState.l1.types = types;
+              newState.l1Confirmed = false;
+              return newState;
+            };
+            
+            if (setStateSynced) setStateSynced(updateFn);
+            else setState(updateFn);
+            setDirty(true);
+            setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+          }}
+          type={l1FuncModal.type}
+          category={l1FuncModal.category}
+          parentId={l1FuncModal.parentId}
+          parentName={l1FuncModal.parentName}
+          existingItems={(() => {
+            const types = state.l1?.types || [];
+            const typeIdx = types.findIndex((t: any) => t.id === l1FuncModal.typeId);
+            if (typeIdx < 0) return [];
+            
+            if (l1FuncModal.type === 'C2') {
+              // 해당 구분의 기능 목록
+              return (types[typeIdx].functions || [])
+                .filter((f: any) => f.name?.trim())
+                .map((f: any) => ({
+                  id: f.id,
+                  name: f.name,
+                  category: l1FuncModal.category,
+                }));
+            } else {
+              // 해당 기능의 요구사항 목록
+              const funcIdx = types[typeIdx].functions?.findIndex((f: any) => f.id === l1FuncModal.funcId) ?? -1;
+              if (funcIdx < 0) return [];
+              return (types[typeIdx].functions[funcIdx].requirements || [])
+                .filter((r: any) => r.name?.trim())
+                .map((r: any) => ({
+                  id: r.id,
+                  name: r.name,
+                  category: l1FuncModal.category,
+                  parentId: l1FuncModal.funcId,
+                }));
+            }
+          })()}
           fmeaId={fmeaId}
         />
       )}
@@ -687,6 +741,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       )}
 
       {/* ★★★ 2026-02-05: 컨텍스트 메뉴 (수동모드 행 추가/삭제) ★★★ */}
+      {/* ★ 2026-03-27: 구분(type) 행에서는 handleContextMenu에서 early return → 메뉴 자체가 안 열림 */}
       <PfmeaContextMenu
         contextMenu={contextMenu}
         onClose={closeContextMenu}
@@ -735,7 +790,7 @@ function EmptyRow({ state, handleCellClick, handleContextMenu, isConfirmed }: {
 }
 
 /** 타입 행들 렌더링 */
-function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInlineEditRequirement, handleContextMenu, isConfirmed, highlightIds }: {
+function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInlineEditRequirement, handleContextMenu, isConfirmed, highlightIds, setL1FuncModal, fmeaId }: {
   state: any;
   handleCellClick: (config: any) => void;
   handleInlineEditFunction: (typeId: string, funcId: string, newValue: string) => void;
@@ -743,6 +798,8 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
   handleContextMenu: (e: React.MouseEvent, rowType: L1RowType, typeId: string, funcId?: string, reqId?: string) => void;
   isConfirmed: boolean;
   highlightIds?: Set<string>;
+  setL1FuncModal: (modal: { isOpen: boolean; type: 'C2' | 'C3'; category: string; typeId: string; funcId?: string; parentId?: string; parentName?: string } | null) => void;
+  fmeaId?: string;
 }) {
   let globalRowIdx = 0;
   let funcCounter = 0;
@@ -775,6 +832,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
           const failZebraBg = getZebra('failure', rowIdx);
           const firstFuncId = t.functions?.[0]?.id || '';
           const isHighlighted = highlightIds?.has(t.id);
+          const category = (t.name || '').toUpperCase().trim() || 'YP';
 
           return (
             <tr key={t.id} style={{ background: isHighlighted ? '#FFFDE7' : funcZebraBg, outline: isHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
@@ -785,10 +843,10 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                 {getTypeColor(t.name).short || t.name || '(빈 타입)'}
               </td>
               <td className="border border-[#ccc] p-0 align-middle" style={{ background: funcZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, firstFuncId)}>
-                <SelectableCell fontSize="10px" value="" placeholder="기능 선택" bgColor={funcZebraBg} onClick={() => handleCellClick({ type: 'l1Function', id: t.id, title: '완제품 기능 선택', itemCode: 'C2', parentCategory: t.name })} />
+                <SelectableCell fontSize="10px" value="" placeholder="기능 선택" bgColor={funcZebraBg} onClick={() => setL1FuncModal({ isOpen: true, type: 'C2', category, typeId: t.id })} />
               </td>
               <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, firstFuncId, '')}>
-                <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={failZebraBg} textColor={COLORS.failure.text} onClick={() => handleCellClick({ type: 'l1Requirement', id: t.functions?.[0]?.id || '', title: '요구사항 선택', itemCode: 'C3', parentFunction: '', parentCategory: t.name })} />
+                <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={failZebraBg} textColor={COLORS.failure.text} onClick={() => setL1FuncModal({ isOpen: true, type: 'C3', category, typeId: t.id, funcId: firstFuncId, parentId: firstFuncId, parentName: '' })} />
               </td>
             </tr>
           );
@@ -809,6 +867,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
             const rowIdx = globalRowIdx++;
             const failZebraBg = getZebra('failure', rowIdx);
             const isFuncHighlighted = highlightIds?.has(f.id);
+            const category = (t.name || '').toUpperCase().trim() || 'YP';
 
             return (
               <tr key={f.id} style={{ background: isFuncHighlighted ? '#FFFDE7' : funcBlockZebra, outline: isFuncHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
@@ -823,16 +882,17 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                   </td>
                 )}
                 <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcBlockZebra }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
-                  <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l1Function', id: t.id, funcId: f.id, title: '완제품 기능 선택', itemCode: 'C2', parentCategory: t.name })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
+                  <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" isRevised={f.isRevised} onClick={() => setL1FuncModal({ isOpen: true, type: 'C2', category, typeId: t.id, funcId: f.id })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
                 </td>
                 <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, f.id, '')}>
-                  <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={failZebraBg} textColor={COLORS.failure.text} onClick={() => handleCellClick({ type: 'l1Requirement', id: f.id, title: '요구사항 선택', itemCode: 'C3', parentFunction: f.name, parentCategory: t.name })} />
+                  <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={failZebraBg} textColor={COLORS.failure.text} onClick={() => setL1FuncModal({ isOpen: true, type: 'C3', category, typeId: t.id, funcId: f.id, parentId: f.id, parentName: f.name })} />
                 </td>
               </tr>
             );
           }
 
           // 요구사항이 있는 경우 (reqsToRender 순회)
+          const category = (t.name || '').toUpperCase().trim() || 'YP';
           return reqsToRender.map((r: any, rIdx: number) => {
             const rowIdx = globalRowIdx++;
             const failZebraBg = getZebra('failure', rowIdx);
@@ -852,7 +912,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                 )}
                 {rIdx === 0 && (
                   <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcBlockZebra }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
-                    <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l1Function', id: t.id, funcId: f.id, title: '완제품 기능 선택', itemCode: 'C2', parentCategory: t.name })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
+                    <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" isRevised={f.isRevised} onClick={() => setL1FuncModal({ isOpen: true, type: 'C2', category, typeId: t.id, funcId: f.id })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
                   </td>
                 )}
                 <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, f.id, r.id)}>
@@ -862,7 +922,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                     bgColor={failZebraBg}
                     textColor={COLORS.failure.text}
                     isRevised={r.isRevised}
-                    onClick={() => handleCellClick({ type: 'l1Requirement', id: f.id, reqId: r.id, title: '요구사항 선택', itemCode: 'C3', parentFunction: f.name, parentCategory: t.name })}
+                    onClick={() => setL1FuncModal({ isOpen: true, type: 'C3', category, typeId: t.id, funcId: f.id, parentId: f.id, parentName: f.name })}
                     onDoubleClickEdit={(newValue) => handleInlineEditRequirement(t.id, f.id, r.id, newValue)}
                   />
                 </td>

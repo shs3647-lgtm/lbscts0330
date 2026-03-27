@@ -10,7 +10,6 @@
 import { useCallback, useState } from 'react';
 import { uid } from '../../../constants';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
-import { findLinkedProductCharsForFunction, getAutoLinkMessage } from '../../../utils/auto-link';
 import { filterMeaningfulFunctionsL2, filterMeaningfulProductChars } from '../functionL2Utils';
 import { validateAutoMapping, groupMatchedByRoom, groupMatchedByRoomMeta, protectStructure, ensureMinimumL2Functions } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
@@ -289,32 +288,64 @@ export function useFunctionL2Handlers({
     requestAnimationFrame(() => setTimeout(() => saveToLocalStorage?.(true), 50));
   }, [setState, setStateSynced, setDirty, saveToLocalStorage]);
 
-  // 인라인 편집 - 기능
-  const handleInlineEditFunction = useCallback((procId: string, funcId: string, newValue: string) => {
-    const updateFn = (prev: any) => ({
-      ...prev,
-      l2: prev.l2.map((proc: any) => {
-        if (proc.id !== procId) return proc;
-        return {
-          ...proc,
-          functions: (proc.functions || []).map((f: any) => {
-            if (f.id !== funcId) return f;
-            return { ...f, name: newValue };
-          })
-        };
-      })
-    });
-    if (setStateSynced) {
-      setStateSynced(updateFn);
-    } else {
-      setState(updateFn);
-    }
-    setDirty(true);
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.();
-    }, 100);
-  }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+  // 인라인 편집 - 기능 (+ 마스터 A3 플랫 동기화)
+  const handleInlineEditFunction = useCallback(
+    (procId: string, funcId: string, newValue: string) => {
+      const proc = (state.l2 || []).find((p: any) => p.id === procId);
+      const processNo = String(proc?.no ?? '').trim();
+      const oldFunc = proc?.functions?.find((f: any) => f.id === funcId);
+      const oldName = (oldFunc?.name || '').trim();
+
+      if (newValue.trim()) {
+        const t = newValue.trim().toLowerCase();
+        const dup = (proc?.functions || []).some(
+          (f: any) => f.id !== funcId && (f.name || '').trim().toLowerCase() === t
+        );
+        if (dup) {
+          _alert(`"${newValue.trim()}"은(는) 이미 해당 공정에 존재합니다.`);
+          return;
+        }
+      }
+
+      const updateFn = (prev: any) => ({
+        ...prev,
+        l2: prev.l2.map((p: any) => {
+          if (p.id !== procId) return p;
+          return {
+            ...p,
+            functions: (p.functions || []).map((f: any) =>
+              f.id === funcId ? { ...f, name: newValue } : f
+            ),
+          };
+        }),
+      });
+      if (setStateSynced) {
+        setStateSynced(updateFn);
+      } else {
+        setState(updateFn);
+      }
+      setDirty(true);
+      setTimeout(() => {
+        saveToLocalStorage?.();
+        saveAtomicDB?.();
+      }, 100);
+
+      if (newValue.trim() && fmeaId && processNo) {
+        fetch('/api/fmea/l2-functions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fmeaId,
+            processNo,
+            name: newValue.trim(),
+            updateId: funcId,
+            oldName,
+          }),
+        }).catch((e) => console.error('[L2 A3 인라인편집] 마스터 동기화 오류:', e));
+      }
+    },
+    [state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, _alert]
+  );
 
   // 인라인 편집 - 제품특성
   const handleInlineEditProductChar = useCallback((procId: string, funcId: string, charId: string, newValue: string) => {
@@ -349,95 +380,28 @@ export function useFunctionL2Handlers({
     }, 100);
   }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
-  // 저장 핸들러
+  // 저장 핸들러 (제품특성 A4 — 메인공정기능 A3는 L2FunctionSelectModal)
   const handleSave = useCallback((selectedValues: string[]) => {
     if (!modal) return;
     const { type, procId, funcId } = modal;
 
-    // 하위 데이터가 있는 기능 삭제 시 경고
-    if (type === 'l2Function') {
-      const proc = (state.l2 || []).find((p: any) => p.id === procId);
-      if (proc) {
-        const currentFuncs = proc.functions || [];
-        const selectedSet = new Set(selectedValues);
-        const funcsToRemove = currentFuncs.filter((f: any) => !selectedSet.has(f.name));
-        const funcsWithChildren = funcsToRemove.filter((f: any) => (f.productChars || []).length > 0);
-
-        if (funcsWithChildren.length > 0) {
-          const childCounts = funcsWithChildren.map((f: any) =>
-            `• ${f.name}: 제품특성 ${(f.productChars || []).length}개`
-          ).join('\n');
-
-          const confirmed = confirm(
-            `⚠️ 해제한 기능에 하위 데이터가 있습니다.\n\n${childCounts}\n\n적용하면 하위 데이터(제품특성)도 함께 삭제됩니다.\n정말 적용하시겠습니까?`
-          );
-
-          if (!confirmed) return;
-        }
-      }
+    if (type !== 'l2ProductChar') {
+      return;
     }
+
+    if (!funcId) {
+      _alert('먼저 공정기능을 선택해주세요.');
+      return;
+    }
+
+    const selectedNameSet = new Set(
+      selectedValues.map((v: string) => (v || '').trim()).filter(Boolean)
+    );
 
     const updateFn = (prev: any) => {
       const newState = JSON.parse(JSON.stringify(prev));
 
-      if (type === 'l2Function') {
-        newState.l2 = newState.l2.map((proc: any) => {
-          if (proc.id !== procId) return proc;
-          const currentFuncs = proc.functions || [];
-
-          if (funcId && selectedValues.length === 1) {
-            return {
-              ...proc,
-              functions: currentFuncs.map((f: any) =>
-                f.id === funcId ? { ...f, name: selectedValues[0] || f.name } : f
-              )
-            };
-          }
-
-          const updatedFuncs = [...currentFuncs];
-          const existingNames = new Set(currentFuncs.filter((f: any) => f.name?.trim()).map((f: any) => f.name));
-
-          const emptyFuncIdx = updatedFuncs.findIndex((f: any) => !f.name?.trim());
-          let startIdx = 0;
-
-          if (emptyFuncIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {
-            updatedFuncs[emptyFuncIdx] = { ...updatedFuncs[emptyFuncIdx], name: selectedValues[0] };
-            existingNames.add(selectedValues[0]);
-            startIdx = 1;
-          }
-
-          for (let i = startIdx; i < selectedValues.length; i++) {
-            const val = selectedValues[i];
-            if (!existingNames.has(val)) {
-              const linkedChars = findLinkedProductCharsForFunction(prev, val);
-              const seenChars = new Set<string>();
-              const autoLinkedChars = linkedChars
-                .filter(name => {
-                  if (seenChars.has(name)) return false;
-                  seenChars.add(name);
-                  return true;
-                })
-                .map(name => ({ id: uid(), name, specialChar: null }));
-
-              updatedFuncs.push({ id: uid(), name: val, productChars: autoLinkedChars });
-              existingNames.add(val);
-
-              if (autoLinkedChars.length > 0) {
-                const message = getAutoLinkMessage(autoLinkedChars.map(c => c.name), '제품특성');
-              }
-            }
-          }
-
-          // ★ FIX: 의미 있는 함수가 있으면 빈 placeholder 함수 제거 (🔍 아이콘 잔존 버그 해결)
-          const meaningfulFuncs = updatedFuncs.filter((f: any) => f.name?.trim());
-          return { ...proc, functions: meaningfulFuncs.length > 0 ? meaningfulFuncs : updatedFuncs };
-        });
-      } else if (type === 'l2ProductChar') {
-        if (!funcId) {
-          _alert('먼저 공정기능을 선택해주세요.');
-          return;
-        }
-
+      if (type === 'l2ProductChar') {
         const charId = (modal as any).charId;
         newState.l2 = newState.l2.map((proc: any) => {
           if (proc.id !== procId) return proc;
@@ -449,42 +413,58 @@ export function useFunctionL2Handlers({
 
               if (charId && selectedValues.length <= 1) {
                 if (selectedValues.length === 0) {
-                  // ★ 방어: productChars 배열이 완전히 비는 것 방지
                   const filtered = currentChars.filter((c: any) => c.id !== charId);
-                  return { ...f, productChars: ensurePlaceholder(filtered, () => ({ id: uid(), name: '', specialChar: '' }), 'L2 productChars') };
+                  return {
+                    ...f,
+                    productChars: ensurePlaceholder(
+                      filtered,
+                      () => ({ id: uid(), name: '', specialChar: '' }),
+                      'L2 productChars'
+                    ),
+                  };
                 }
+                const one = (selectedValues[0] || '').trim() || (currentChars.find((x: any) => x.id === charId)?.name ?? '');
                 return {
                   ...f,
                   productChars: currentChars.map((c: any) =>
-                    c.id === charId ? { ...c, name: selectedValues[0] || c.name } : c
-                  )
+                    c.id === charId ? { ...c, name: one } : c
+                  ),
                 };
               }
 
-              const updatedChars = [...currentChars];
-              const existingNames = new Set(currentChars.filter((c: any) => c.name?.trim()).map((c: any) => c.name));
+              const ordered = [...selectedNameSet];
+              const used = new Set<string>();
+              const nextChars: any[] = [];
 
-              const emptyCharIdx = updatedChars.findIndex((c: any) => !c.name?.trim());
-              let startIdx = 0;
-
-              if (emptyCharIdx !== -1 && selectedValues.length > 0 && !existingNames.has(selectedValues[0])) {
-                updatedChars[emptyCharIdx] = { ...updatedChars[emptyCharIdx], name: selectedValues[0] };
-                existingNames.add(selectedValues[0]);
-                startIdx = 1;
-              }
-
-              for (let i = startIdx; i < selectedValues.length; i++) {
-                const val = selectedValues[i];
-                if (!existingNames.has(val)) {
-                  updatedChars.push({ id: uid(), name: val, specialChar: '' });
-                  existingNames.add(val);
+              for (const name of ordered) {
+                const match = currentChars.find(
+                  (c: any) => c.id && !used.has(c.id) && (c.name || '').trim() === name
+                );
+                if (match) {
+                  used.add(match.id);
+                  nextChars.push(match);
+                } else {
+                  nextChars.push({ id: uid(), name, specialChar: '' });
                 }
               }
 
-              // ★ FIX: 의미 있는 제품특성이 있으면 빈 placeholder 제거
-              const meaningfulChars = updatedChars.filter((c: any) => c.name?.trim());
-              return { ...f, productChars: meaningfulChars.length > 0 ? meaningfulChars : updatedChars };
-            })
+              for (const c of currentChars) {
+                if (used.has(c.id)) continue;
+                if (!(c.name || '').trim()) {
+                  used.add(c.id);
+                  nextChars.push(c);
+                }
+              }
+
+              return {
+                ...f,
+                productChars: ensurePlaceholder(
+                  nextChars,
+                  () => ({ id: uid(), name: '', specialChar: '' }),
+                  'L2 productChars'
+                ),
+              };
+            }),
           };
         });
       }
@@ -511,46 +491,18 @@ export function useFunctionL2Handlers({
     }, 100);
   }, [modal, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
-  // 삭제 핸들러
+  // 삭제 핸들러 (제품특성 A4)
   const handleDelete = useCallback((deletedValues: string[]) => {
     if (!modal) return;
+    if (modal.type !== 'l2ProductChar') return;
+
     const deletedSet = new Set(deletedValues);
     const { type, procId, funcId } = modal;
-
-    if (type === 'l2Function') {
-      const proc = (state.l2 || []).find((p: any) => p.id === procId);
-      if (proc) {
-        const funcsToDelete = (proc.functions || []).filter((f: any) => deletedSet.has(f.name));
-        const funcsWithChildren = funcsToDelete.filter((f: any) => (f.productChars || []).length > 0);
-
-        if (funcsWithChildren.length > 0) {
-          const childCounts = funcsWithChildren.map((f: any) =>
-            `• ${f.name}: 제품특성 ${(f.productChars || []).length}개`
-          ).join('\n');
-
-          const confirmed = confirm(
-            `⚠️ 선택한 기능에 하위 데이터가 있습니다.\n\n${childCounts}\n\n삭제하면 하위 데이터(제품특성)도 함께 삭제됩니다.\n정말 삭제하시겠습니까?`
-          );
-
-          if (!confirmed) return;
-        }
-      }
-    }
 
     const updateFn = (prev: any) => {
       const newState = JSON.parse(JSON.stringify(prev));
 
-      if (type === 'l2Function') {
-        newState.l2 = newState.l2.map((proc: any) => {
-          if (proc.id !== procId) return proc;
-          // ★ 방어: L2 functions 배열이 완전히 비는 것 방지
-          const filtered = proc.functions.filter((f: any) => !deletedSet.has(f.name));
-          return {
-            ...proc,
-            functions: ensurePlaceholder(filtered, () => ({ id: uid(), name: '', productChars: [{ id: uid(), name: '', specialChar: '' }] }), 'L2 functions')
-          };
-        });
-      } else if (type === 'l2ProductChar') {
+      if (type === 'l2ProductChar') {
         newState.l2 = newState.l2.map((proc: any) => {
           if (proc.id !== procId) return proc;
           return {

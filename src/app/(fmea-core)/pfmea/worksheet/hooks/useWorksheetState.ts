@@ -68,7 +68,7 @@ interface UseWorksheetStateReturn {
   atomicDB: FMEAWorksheetDB | null;
   setAtomicDB: React.Dispatch<React.SetStateAction<FMEAWorksheetDB | null>>;
   flattenedRows: FlattenedRow[];
-  saveAtomicDB: (force?: boolean) => void;
+  saveAtomicDB: (force?: boolean) => Promise<void>;
   suppressAutoSaveRef: React.MutableRefObject<boolean>;  // ★ 2026-02-18
 }
 

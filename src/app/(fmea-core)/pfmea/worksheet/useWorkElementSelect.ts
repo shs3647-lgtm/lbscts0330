@@ -107,11 +107,14 @@ export function useWorkElementSelect({
 
     const initModal = async () => {
       setCurrentProcessNo(processNo);
+      console.log('[모달 초기화] processNo:', processNo, 'fmeaId:', fmeaId);
 
       // 1. DB에서 작업요소 로드 (SSoT) — fmeaId 전달
       const { items: loaded, warnings } = processNo?.trim()
         ? await loadWorkElementsFromDB(processNo, fmeaId)
         : { items: [], warnings: [] };
+      
+      console.log('[모달] 마스터 DB 로드:', loaded.length, '개 -', loaded.map(e => e.name).join(', '));
       
       if (canceled) return;
       setM4Warnings(warnings);
@@ -119,6 +122,7 @@ export function useWorkElementSelect({
       const worksheetItems = existingL3Ref.current
         .filter(item => item.name?.trim() && !item.name.includes('없음'));
       const existingIds = new Set(worksheetItems.map(item => item.id));
+      console.log('[모달] 워크시트 항목:', worksheetItems.length, '개 -', worksheetItems.map(e => e.name).join(', '));
 
       // 3. 마스터 DB에 없는 워크시트 항목도 elements에 추가 (더블클릭 입력 등)
       const loadedIds = new Set(loaded.map(e => e.id));
@@ -130,6 +134,7 @@ export function useWorkElementSelect({
           m4: item.m4 || '',
           processNo: processNo || '',
         }));
+      console.log('[모달] 워크시트만 있는 항목:', worksheetOnlyItems.length, '개');
       
       setElements([...loaded, ...worksheetOnlyItems]);
 
@@ -147,7 +152,7 @@ export function useWorkElementSelect({
     return () => { canceled = true; };
   }, [isOpen, processNo]);
 
-  // ✅ 필터링
+  // ✅ 필터링만 (정렬 없음 — 로드/목록 순서 유지, 공정 선택 모달과 동일)
   const filteredElements = useMemo(() => {
     let result = elements;
     if (filterM4 !== 'all') result = result.filter(e => e.m4 === filterM4);
@@ -155,9 +160,7 @@ export function useWorkElementSelect({
       const q = inputValue.toLowerCase();
       result = result.filter(e => e.name.toLowerCase().includes(q));
     }
-    // 4M 순서 정렬: MN → MC → IM → EN
-    const m4Order: Record<string, number> = { MN: 0, MC: 1, IM: 2, EN: 3 };
-    return [...result].sort((a, b) => (m4Order[a.m4] ?? 99) - (m4Order[b.m4] ?? 99));
+    return result;
   }, [elements, filterM4, inputValue]);
 
   // ★★★ 공통/공정 분류 ★★★
@@ -275,9 +278,11 @@ export function useWorkElementSelect({
 
   // ★★★ 2026-03-27: handleApply — 기존 적용됨 + 새로 선택된 항목 합치기 ★★★
   const handleApply = () => {
-    // 기존 적용됨 항목 유지 + 새로 선택된 미적용 항목 추가
+    // 기존 적용됨 = elements 순서 / 새 선택 = 화면(filteredElements) 순서
     const existingApplied = elements.filter(e => worksheetItemIds.has(e.id));
-    const newlySelected = elements.filter(e => selectedIds.has(e.id) && !worksheetItemIds.has(e.id));
+    const newlySelected = filteredElements.filter(
+      e => selectedIds.has(e.id) && !worksheetItemIds.has(e.id)
+    );
     const allApplied = [...existingApplied, ...newlySelected];
     
     // 중복 제거 (ID 기준)
@@ -341,13 +346,15 @@ export function useWorkElementSelect({
     setFilterM4('all');
 
     // DB에 저장 후 ID 받아서 사용
+    console.log('[작업요소 추가] fmeaId:', fmeaId, 'processNo:', currentProcessNo, 'name:', cleanName);
     fetch('/api/fmea/work-elements', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ processNo: currentProcessNo, name: cleanName, m4: finalM4 }),
+      body: JSON.stringify({ fmeaId, processNo: currentProcessNo, name: cleanName, m4: finalM4 }),
     })
       .then(res => res.json())
       .then(data => {
+        console.log('[작업요소 추가] API 응답:', data);
         const dbId = data.id || `new_${Date.now()}`;
         const newElem: WorkElement = { id: dbId, m4: finalM4, name: displayName, processNo: currentProcessNo };
         

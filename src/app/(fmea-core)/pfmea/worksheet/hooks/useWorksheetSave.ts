@@ -35,7 +35,7 @@ interface UseWorksheetSaveParams {
 
 interface UseWorksheetSaveReturn {
   saveAtomicDB: (force?: boolean) => Promise<void>;
-  saveToLocalStorage: (force?: boolean) => void;
+  saveToLocalStorage: (force?: boolean) => Promise<void>;
   saveToLocalStorageOnly: () => void;
 }
 
@@ -81,22 +81,53 @@ function syncL3Structures(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorks
 
 function syncL2Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l2Functions'] {
   if (!Array.isArray(state.l2) || !Array.isArray(db.l2Functions)) return db.l2Functions;
-  const stateL2FIds = new Set<string>();
-  const stateL2FMap = new Map<string, any>();
-  for (const proc of state.l2) {
-    for (const func of ((proc as any).functions || [])) {
-      if (func.id) { stateL2FIds.add(func.id); stateL2FMap.set(func.id, func); }
-      for (const pc of (func.productChars || [])) {
-        if (pc.id) { stateL2FIds.add(pc.id); stateL2FMap.set(pc.id, { ...pc, _isPC: true }); }
+  // L2 기능 저장은 "함수 x 제품특성" 행 단위가 원자성 기준.
+  // 기존 구현은 신규 행 append를 하지 않아(A3 선택 모달에서) 새로고침 시 소실될 수 있었다.
+  const byId = new Map(db.l2Functions.map((f: any) => [f.id, f]));
+  const next: FMEAWorksheetDB['l2Functions'] = [];
+
+  for (const proc of state.l2 as any[]) {
+    const l2StructId = proc.id || '';
+    if (!l2StructId) continue;
+
+    for (const func of (proc.functions || [])) {
+      const functionName = (func.name || '').trim();
+      const pcs = Array.isArray(func.productChars) ? func.productChars : [];
+
+      if (pcs.length === 0) {
+        const id = func.id || '';
+        if (!id) continue;
+        const prev = byId.get(id) as any;
+        next.push({
+          ...(prev || {}),
+          id,
+          fmeaId: db.fmeaId,
+          l2StructId,
+          functionName: functionName || 'N/A',
+          productChar: functionName || 'N/A',
+          specialChar: prev?.specialChar || '',
+        } as any);
+        continue;
+      }
+
+      for (const pc of pcs) {
+        const id = pc.id || func.id || '';
+        if (!id) continue;
+        const prev = byId.get(id) as any;
+        next.push({
+          ...(prev || {}),
+          id,
+          fmeaId: db.fmeaId,
+          l2StructId,
+          functionName: functionName || 'N/A',
+          productChar: (pc.name || '').trim() || functionName || 'N/A',
+          specialChar: pc.specialChar || prev?.specialChar || '',
+        } as any);
       }
     }
   }
-  return db.l2Functions.filter(f => stateL2FIds.has(f.id)).map(f => {
-    const edited = stateL2FMap.get(f.id);
-    if (!edited || edited._isPC) return f;
-    const changed = f.functionName !== (edited.name || '') || f.specialChar !== (edited.specialChar || '');
-    return changed ? { ...f, functionName: edited.name || '', specialChar: edited.specialChar || '' } : f;
-  });
+
+  return next;
 }
 
 function syncL3Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l3Functions'] {
@@ -120,28 +151,75 @@ function syncL3Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksh
 
 function syncL1Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l1Functions'] {
   const types = (state.l1 as any)?.types;
-  if (!Array.isArray(types) || types.length === 0 || !Array.isArray(db.l1Functions) || db.l1Functions.length === 0) return db.l1Functions;
-  const map = new Map<string, { functionName: string; requirement: string; category: string }>();
+  if (!Array.isArray(types) || types.length === 0) return db.l1Functions || [];
+  
+  // state에서 모든 L1Function 정보 수집
+  const stateMap = new Map<string, { functionName: string; requirement: string; category: string }>();
+  const stateIds = new Set<string>();
+  
   for (const type of types) {
     const category = (type.name || '').trim();
-    if (!category) continue;
-    for (const func of (type.functions || [])) {
+    if (!category) continue; // 빈 구분(타입)은 스킵
+    
+    const funcs = type.functions || [];
+    
+    // ★ 2026-03-27: 기능이 전혀 없는 경우만 type.id로 placeholder 저장
+    if (funcs.length === 0 && type.id) {
+      stateIds.add(type.id);
+      stateMap.set(type.id, { functionName: '', requirement: '', category });
+      continue; // 기능이 없으므로 아래 루프 스킵
+    }
+    
+    for (const func of funcs) {
       const functionName = (func.name || '').trim();
-      for (const req of (func.requirements || [])) {
-        if (req.id) map.set(req.id, { functionName, requirement: (req.name || '').trim(), category });
+      
+      // ★ 2026-03-27: 기능 ID는 항상 저장 (요구사항 유무와 관계없이)
+      if (func.id) {
+        stateIds.add(func.id);
+        stateMap.set(func.id, { functionName, requirement: '', category });
       }
-      if ((func.requirements || []).length === 0 && func.id) {
-        map.set(func.id, { functionName, requirement: '', category });
+      
+      // ★ 요구사항 저장 — 작업요소(L3)와 동일 패턴: 빈 행도 ID 기반 유지
+      for (const req of (func.requirements || [])) {
+        if (!req.id) continue;
+        const reqName = (req.name || '').trim();
+        if (req.id === func.id && !reqName) continue; // 기능 ID와 같고 빈값이면 스킵 (중복 방지)
+        stateIds.add(req.id);
+        stateMap.set(req.id, { functionName, requirement: reqName, category });
       }
     }
   }
-  if (map.size === 0) return db.l1Functions;
-  return db.l1Functions.map(f => {
-    const edited = map.get(f.id);
-    if (!edited) return f;
-    const changed = f.functionName !== edited.functionName || f.requirement !== edited.requirement || f.category !== edited.category;
-    return changed ? { ...f, ...edited } : f;
-  });
+  
+  if (stateMap.size === 0) return db.l1Functions || [];
+  
+  // 1. 기존 DB 항목 업데이트
+  const existingIds = new Set((db.l1Functions || []).map(f => f.id));
+  const updatedExisting = (db.l1Functions || [])
+    .filter(f => stateIds.has(f.id)) // state에 있는 것만 유지
+    .map(f => {
+      const edited = stateMap.get(f.id);
+      if (!edited) return f;
+      const changed = f.functionName !== edited.functionName || f.requirement !== edited.requirement || f.category !== edited.category;
+      return changed ? { ...f, ...edited } : f;
+    });
+  
+  // 2. 새 항목 추가 (DB에 없는 것)
+  const l1StructId = db.l1Structure?.id || '';
+  const newItems: FMEAWorksheetDB['l1Functions'] = [];
+  for (const [id, data] of stateMap.entries()) {
+    if (!existingIds.has(id)) {
+      newItems.push({
+        id,
+        fmeaId: db.fmeaId || '',
+        l1StructId,
+        category: data.category,
+        functionName: data.functionName,
+        requirement: data.requirement,
+      });
+    }
+  }
+  
+  return [...updatedExisting, ...newItems];
 }
 
 function syncFailureModes(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['failureModes'] {

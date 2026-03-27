@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     try {
         // ★★★ 2026-03-27: fmeaId가 있으면 해당 FMEA의 데이터셋 조회, 없으면 활성 데이터셋 폴백 ★★★
         let activeDataset: any = null;
+        let datasetSource = '';
         
         if (fmeaId) {
             // fmeaId로 해당 FMEA의 데이터셋 조회
@@ -33,6 +34,7 @@ export async function GET(req: NextRequest) {
                 where: { fmeaId },
                 orderBy: { updatedAt: 'desc' }
             });
+            if (activeDataset) datasetSource = 'fmeaId';
         }
         
         // fmeaId가 없거나 해당 데이터셋이 없으면 활성 데이터셋 폴백
@@ -41,7 +43,10 @@ export async function GET(req: NextRequest) {
                 where: { isActive: true },
                 orderBy: { updatedAt: 'desc' }
             });
+            if (activeDataset) datasetSource = 'isActive fallback';
         }
+        
+        console.log('[work-elements GET] fmeaId:', fmeaId, '| datasetSource:', datasetSource, '| datasetId:', activeDataset?.id);
 
         if (!activeDataset) {
             return NextResponse.json({
@@ -130,14 +135,15 @@ export async function GET(req: NextRequest) {
         }).filter((we: any) => {
             const name = (we.name || '').trim();
             const rawName = (we.rawName || '').trim();
-            // ★★★ 2026-02-03: 공란 및 잘못된 데이터 필터링 강화 ★★★
+            // ★★★ 2026-02-03: 공란 및 잘못된 데이터 필터링 ★★★
             if (!name || name === '') return false;
             if (!rawName || rawName === '') return false;  // 원본 이름도 체크
             if (name.startsWith('{')) return false;
             if (name === '[object Object]') return false;
-            if (/^\d+$/.test(name)) return false;  // 숫자만 있는 경우 제외
-            if (/^\d+\s*$/.test(rawName)) return false;  // 원본이 숫자만
-            if (rawName.length < 2) return false;  // 너무 짧은 이름 제외
+            // ★★★ 2026-03-27: 숫자만 있는 항목도 유효 — 필터 제거 ★★★
+            // if (/^\d+$/.test(name)) return false;  // 숫자만 있는 경우 제외 → 제거
+            // if (/^\d+\s*$/.test(rawName)) return false;  // 원본이 숫자만 → 제거
+            // if (rawName.length < 2) return false;  // 너무 짧은 이름 제외 → 제거
             return true;
         });
 
@@ -222,20 +228,39 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { fmeaId, processNo, name, m4, items } = body;
 
-        // ★★★ 2026-03-27: fmeaId로 해당 FMEA의 데이터셋 조회 ★★★
+        // ★★★ 2026-03-27: fmeaId로 해당 FMEA의 데이터셋 조회 (없으면 생성) ★★★
         let activeDataset: any = null;
+        let datasetSource = '';
         if (fmeaId) {
             activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                 where: { fmeaId },
                 orderBy: { updatedAt: 'desc' }
             });
+            if (activeDataset) {
+                datasetSource = 'fmeaId';
+            } else {
+                // fmeaId에 해당하는 데이터셋이 없으면 새로 생성
+                activeDataset = await prisma.pfmeaMasterDataset.create({
+                    data: {
+                        name: `Master Dataset for ${fmeaId}`,
+                        fmeaId: fmeaId,
+                        fmeaType: 'PFMEA',
+                        isActive: false,
+                    }
+                });
+                datasetSource = 'created for fmeaId';
+                console.log('[work-elements POST] 새 데이터셋 생성:', activeDataset.id, 'for fmeaId:', fmeaId);
+            }
         }
         if (!activeDataset) {
             activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                 where: { isActive: true },
                 orderBy: { updatedAt: 'desc' }
             });
+            if (activeDataset) datasetSource = 'isActive fallback';
         }
+        
+        console.log('[work-elements POST] fmeaId:', fmeaId, '| datasetSource:', datasetSource, '| datasetId:', activeDataset?.id, '| datasetFmeaId:', activeDataset?.fmeaId);
 
         if (!activeDataset) {
             return NextResponse.json({ success: false, error: '활성 Master Dataset이 없습니다.' });
