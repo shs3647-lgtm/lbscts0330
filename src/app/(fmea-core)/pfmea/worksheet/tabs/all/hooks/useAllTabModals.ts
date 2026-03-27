@@ -10,6 +10,7 @@ import type { SODItem } from '@/components/modals/SODMasterData';
 import { getRecommendedDetectionMethods } from './detectionKeywordMap';
 import { recordSeverityUsage } from '@/hooks/useSeverityRecommend';
 import { normalizeScope as normalizeScopeFromConstants } from '@/lib/fmea/scope-constants';
+import { emitSave } from '../../../hooks/useSaveEvent';
 
 /** WorksheetFailureLink + feSeverity (런타임에 존재하는 확장 필드) */
 interface FailureLinkWithSeverity extends WorksheetFailureLink {
@@ -270,9 +271,7 @@ export function useAllTabModals(
         setDirty(true);
       }
       // ★★★ 2026-02-11: SOD 선택 후 즉시 DB 저장 (다른 화면 이동 시 데이터 손실 방지)
-      if (saveAtomicDB) {
-        setTimeout(() => { Promise.resolve(saveAtomicDB(true)).catch((e: unknown) => console.error('[SOD 저장] 오류:', e)); }, 150);
-      }
+      emitSave();
 
       // ★★★ 2026-03-17: 심각도 개선루프 — FE-S 쌍 DB 기록 + fmeaId (마스터→F/P 전파) ★★★
       if (sodModal.feText && rating > 0) {

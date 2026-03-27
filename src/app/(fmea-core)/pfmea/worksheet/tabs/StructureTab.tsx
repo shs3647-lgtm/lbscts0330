@@ -55,7 +55,6 @@ import { HelpPopup } from './shared/HelpPopup';
 import { BiHeader } from './shared/BaseWorksheetComponents';
 import { useAlertModal } from '../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
-import { createStrictModeDedupedUpdater } from '../utils/strictModeStateUpdater';
 import { emitSave, saveNow } from '../hooks/useSaveEvent';
 import { replaceL3Structures, addL2Structure, addL3Structure, deleteL2Structure, deleteL3Structure, removeEmptyL2Structures, updateL2Structure, updateL3Structure } from '../hooks/useAtomicView';
 

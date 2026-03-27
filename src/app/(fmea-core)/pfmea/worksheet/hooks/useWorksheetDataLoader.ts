@@ -193,11 +193,12 @@ export function useWorksheetDataLoader({
           }
         }
 
-        // ensureL1Types 인라인
+        // ensureL1Types — types가 비어있으면 기본 타입 생성 (YP/SP/USER)
         const l1 = legacyFromAtomic.l1 || createInitialState().l1;
         const types = l1.types || [];
         let finalL1 = l1;
         if (types.length === 0) {
+          // 신규 FMEA — 기본 타입 생성
           const ts = Date.now();
           finalL1 = {
             ...l1,

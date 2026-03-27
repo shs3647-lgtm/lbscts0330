@@ -25,8 +25,9 @@ import { AutoMappingPreviewModal } from '../../autoMapping';
 import { COLORS, uid, WorksheetState } from '../../constants';
 import { ensurePlaceholder } from '../../utils/safeMutate';
 import { mergeRowsByMasterSelection } from '../../utils/mergeRowsByMasterSelection';
+import { emitSave } from '../../hooks/useSaveEvent';
 import { handleEnterBlur } from '../../utils/keyboard';
-import { getL1TypeColor, getZebra, getZebraColors } from '@/styles/level-colors';
+import { getL1TypeColor, getZebra } from '@/styles/level-colors';
 
 // ★★★ 2026-02-05: 최적화 - 유틸리티 및 핸들러 분리 ★★★
 import { formatL1Name, filterMeaningfulFunctions, filterMeaningfulRequirements, calculateTypeRowSpan, calculateFunctionRowSpan } from './functionL1Utils';
@@ -192,7 +193,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 2026-03-06: 열 단위 분기 — 아래로 새 행 추가 (type→구분, function→기능, requirement→요구사항) ★★★
@@ -235,7 +236,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 행 삭제 (구조분석 벤치마킹: 빈 행만 삭제 가능, 데이터 있으면 확인) ★★★
@@ -270,7 +271,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
       } else {
         showAlert('데이터가 있는 구분은 삭제할 수 없습니다.\n먼저 기능과 요구사항을 삭제해 주세요.');
       }
@@ -304,7 +305,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       if (setStateSynced) setStateSynced(updateFn);
       else setState(updateFn);
       setDirty(true);
-      setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+      emitSave();
       return;
     }
     
@@ -314,29 +315,8 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
 
       const currentFunc = currentType.functions[funcIdx];
       const reqIdx = currentFunc.requirements?.findIndex((r: { id: string }) => r.id === reqId) ?? -1;
-      // ★ reqId가 비어있으면 (플레이스홀더 셀) → 기능 행 삭제로 폴백
-      if (reqIdx < 0) {
-        const funcName = currentFunc?.name?.trim() || '';
-        if (funcName && !window.confirm(`기능 "${funcName}"을(를) 삭제하시겠습니까?`)) return;
-        const updateFn = (prev: WorksheetState) => {
-          const newState = JSON.parse(JSON.stringify(prev));
-          const tIdx = newState.l1.types.findIndex((t: { id: string }) => t.id === typeId);
-          if (tIdx >= 0) {
-            if (newState.l1.types[tIdx].functions.length <= 1) {
-              newState.l1.types[tIdx].functions = [{ id: uid(), name: '', requirements: [{ id: uid(), name: '' }] }];
-            } else {
-              newState.l1.types[tIdx].functions = newState.l1.types[tIdx].functions.filter((f: { id: string }) => f.id !== funcId);
-            }
-          }
-          newState.l1Confirmed = false;
-          return newState;
-        };
-        if (setStateSynced) setStateSynced(updateFn);
-        else setState(updateFn);
-        setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
-        return;
-      }
+      // reqId 없으면 삭제 대상 없음
+      if (reqIdx < 0) return;
       
       const reqName = currentFunc.requirements[reqIdx]?.name?.trim() || '';
       
@@ -361,7 +341,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
       } else {
         // 데이터가 있는 요구사항은 확인 후 삭제
         if (!window.confirm(`요구사항 "${reqName}"을(를) 삭제하시겠습니까?`)) return;
@@ -384,7 +364,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
       }
     }
   }, [menuExtra, state.l1?.types, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
@@ -641,8 +621,9 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
           isOpen={l1FuncModal.isOpen}
           onClose={() => setL1FuncModal(null)}
           onSave={(selectedItems: L1FunctionItem[]) => {
+            if (!l1FuncModal) return;
             const { type, category, typeId, funcId, parentId } = l1FuncModal;
-            
+
             const updateFn = (prev: WorksheetState) => {
               const newState = JSON.parse(JSON.stringify(prev));
               if (!newState.l1) return prev;
@@ -685,7 +666,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
             if (setStateSynced) setStateSynced(updateFn);
             else setState(updateFn);
             setDirty(true);
-            setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+            emitSave();
           }}
           type={l1FuncModal.type}
           category={l1FuncModal.category}
@@ -763,33 +744,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
 // ★★★ 2026-02-05: Row 컴포넌트 분리 (가독성 개선) ★★★
 
 /** 빈 행 (타입이 없을 때) */
-function EmptyRow({ state, handleCellClick, handleContextMenu, isConfirmed }: {
-  state: any;
-  handleCellClick: (config: any) => void;
-  handleContextMenu: (e: React.MouseEvent, rowType: L1RowType, typeId: string, funcId?: string, reqId?: string) => void;
-  isConfirmed: boolean;
-}) {
-  const zebra = getZebraColors(0);
-  const firstTypeId = (state.l1?.types || [])[0]?.id || '';
-  const firstFuncId = (state.l1?.types || [])[0]?.functions?.[0]?.id || '';
-  
-  return (
-    <tr onContextMenu={(e) => handleContextMenu(e, 'type', firstTypeId)}>
-      <td className="border border-[#ccc] p-1 text-center font-semibold text-[10px] break-words" style={{ background: zebra.structure }}>
-        {formatL1Name(state.l1?.name)}
-      </td>
-      <td className="border border-[#ccc] p-0 align-middle" onContextMenu={(e) => handleContextMenu(e, 'type', firstTypeId)}>
-        <SelectableCell fontSize="10px" value="" placeholder="YP / SP / USER" bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} />
-      </td>
-      <td className="border border-[#ccc] p-0 align-middle" onContextMenu={(e) => handleContextMenu(e, 'function', firstTypeId, firstFuncId)}>
-        <SelectableCell fontSize="10px" value="" placeholder="기능 선택" bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l1Function', id: (state.l1?.types || [])[0]?.id || '', title: '완제품 기능 선택', itemCode: 'C2' })} />
-      </td>
-      <td className="border border-[#ccc] p-0 align-middle" onContextMenu={(e) => handleContextMenu(e, 'requirement', firstTypeId, firstFuncId, '')}>
-        <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={zebra.failure} textColor={COLORS.failure.text} onClick={() => handleCellClick({ type: 'l1Requirement', id: (state.l1?.types || [])[0]?.functions?.[0]?.id || '', title: '요구사항 선택', itemCode: 'C3', parentFunction: '' })} />
-      </td>
-    </tr>
-  );
-}
+// EmptyRow 삭제 — TypeRows로 통일 (2026-03-27)
 
 /** 타입 행들 렌더링 */
 function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInlineEditRequirement, handleContextMenu, isConfirmed, highlightIds, setL1FuncModal, fmeaId }: {
@@ -920,7 +875,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                 <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, f.id, r.id)}>
                   <SelectableCell
                     value={r.name}
-                    placeholder="요구사항"
+                    placeholder="요구사항 선택"
                     bgColor={failZebraBg}
                     textColor={COLORS.failure.text}
                     isRevised={r.isRevised}

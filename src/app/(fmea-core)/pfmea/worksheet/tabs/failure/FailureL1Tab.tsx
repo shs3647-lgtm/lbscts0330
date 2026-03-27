@@ -53,6 +53,7 @@ import { S, F, X, cell, cellP0, btnConfirm, btnEdit, btnDisabled, badgeOk, badge
 import { findLinkedFailureEffectsForRequirement, getAutoLinkMessage } from '../../utils/auto-link';
 import { L1_TYPE_COLORS, getL1TypeColor, getZebraColors, getZebra } from '@/styles/level-colors';
 import { handleEnterBlur } from '../../utils/keyboard';
+import { emitSave } from '../../hooks/useSaveEvent';
 
 // ✅ 공용 스타일/색상 (2026-01-19 리팩토링)
 import { BORDER, cellBase, headerStyle, dataCell, STRUCTURE_COLORS, FUNCTION_COLORS, FAILURE_COLORS, INDICATOR_COLORS } from '../shared/tabStyles';
@@ -351,7 +352,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -375,7 +376,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -406,7 +407,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       if (setStateSynced) setStateSynced(updateFn);
       else setState(updateFn);
       setDirty(true);
-      setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+      emitSave();
       closeContextMenu();
       return;
     }
@@ -434,7 +435,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, state.l1, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu, showAlert]);
   
@@ -464,7 +465,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -494,7 +495,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 

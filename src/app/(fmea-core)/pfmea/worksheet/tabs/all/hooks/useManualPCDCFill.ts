@@ -14,6 +14,7 @@ import type { WorksheetState } from '../../../constants';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 import { fillPCDCFromImport } from '../../../utils/fillPCDCFromImport';
 import { buildIndustryPreventionOMap } from '../../../utils/applyOccurrenceFromPrevention';
+import { emitSave } from '../../../hooks/useSaveEvent';
 
 interface UseManualPCDCFillParams {
   state: WorksheetState | undefined;
@@ -209,7 +210,7 @@ export function useManualPCDCFill({
       }
 
       // DB 저장
-      setTimeout(() => { if (saveAtomicDB) saveAtomicDB(true); }, 300);
+      emitSave();
 
     } catch (error) {
       console.error('[ManualPCDCFill] 오류:', error);
@@ -247,7 +248,7 @@ export function useManualPCDCFill({
     }
     setState((prev: WorksheetState) => ({ ...prev, riskData: cleaned }));
     if (setDirty) setDirty(true);
-    setTimeout(() => { if (saveAtomicDB) saveAtomicDB(true); }, 200);
+    emitSave();
     alert(`5ST LLD ${lldUks.size}건 삭제 완료`);
   }, [setState, setDirty, saveAtomicDB, state?.riskData]);
 
