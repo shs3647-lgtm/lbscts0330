@@ -67,6 +67,7 @@ import {
 } from './allTabConstants';
 import AllTabHeader from './AllTabHeader';
 import type { WorksheetState, L1FailureScope, Process, L2FailureMode, L3FailureCauseExtended } from '../../constants';
+import { emitSave } from '../../hooks/useSaveEvent';
 
 // ============ 컴포넌트 ============
 interface AllTabEmptyProps {
@@ -529,7 +530,7 @@ export default function AllTabEmpty({
     if (setDirty) setDirty(true);
 
     // DB 저장
-    setTimeout(() => { if (saveAtomicDB) saveAtomicDB(true); }, 200);
+    emitSave();
 
     // API — LLD 적용결과 기록
     const fmeaId = state?.fmeaId || '';
@@ -559,7 +560,7 @@ export default function AllTabEmpty({
     }));
 
     if (setDirty) setDirty(true);
-    setTimeout(() => { if (saveAtomicDB) saveAtomicDB(true); }, 200);
+    emitSave();
 
     const fmeaId = state?.fmeaId || '';
     for (const lldNo of appliedLldNos) {
@@ -598,7 +599,7 @@ export default function AllTabEmpty({
     }
     setState((prev: WorksheetState) => ({ ...prev, riskData: cleaned }));
     if (setDirty) setDirty(true);
-    setTimeout(() => { if (saveAtomicDB) saveAtomicDB(true); }, 200);
+    emitSave();
   }, [setState, setDirty, saveAtomicDB, state?.riskData]);
 
   // ★ 자동수정 통합 오케스트레이터 (S→PC→DC 순차실행)

@@ -30,6 +30,7 @@ import { cellP0 } from '@/styles/worksheet';
 import { handleEnterBlur } from '../../utils/keyboard';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import DataSelectModal from '@/components/modals/DataSelectModal';
+import { emitSave } from '../../hooks/useSaveEvent';
 import { L2FunctionSelectModal } from '../../L2FunctionSelectModal';
 import type { L2FunctionItem } from '../../useL2FunctionSelect';
 import { mergeRowsByMasterSelection } from '../../utils/mergeRowsByMasterSelection';
@@ -237,7 +238,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 2026-03-06: 열 단위 분기 — 아래로 새 행 추가 (function→기능, productChar→제품특성) ★★★
@@ -277,7 +278,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 병합 위로 추가 - L1 벤치마킹 (rowType별 분기: 공정=새공정, 기능=새기능, 제품특성=새제품특성) ★★★
@@ -345,11 +346,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     else setState(updateFn);
     setDirty(true);
     
-    // ★ L1처럼 저장 호출
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.(true);
-    }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 병합 아래로 추가 - L1 벤치마킹 (rowType별 분기: 공정=새공정, 기능=새기능, 제품특성=새제품특성) ★★★
@@ -414,11 +411,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     else setState(updateFn);
     setDirty(true);
     
-    // ★ L1처럼 저장 호출
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.(true);
-    }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 행 삭제 (빈 행만 삭제 가능) ★★★
@@ -454,7 +447,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
       if (setStateSynced) setStateSynced(updateFn);
       else setState(updateFn);
       setDirty(true);
-      setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+      emitSave();
       return;
     }
     
@@ -484,7 +477,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
         return;
       }
       
@@ -510,7 +503,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
       } else {
         if (!window.confirm(`제품특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
         const updateFn = (prev: WorksheetState) => {
@@ -532,7 +525,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
       }
     }
   }, [menuExtra, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
@@ -576,10 +569,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     else setState(updateFn);
     setDirty(true);
 
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.(true);
-    }, 300);
+    emitSave();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);  // 마운트 시 1회만 실행
 
@@ -636,7 +626,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
 
     setDirty(true);
     setSpecialCharModal(null);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 200);
+    emitSave();
   }, [specialCharModal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   return (
@@ -799,14 +789,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
             else setState(updateFn);
             setDirty(true);
             setL2FuncModal(null);
-            setTimeout(async () => {
-              saveToLocalStorage?.();
-              try {
-                await saveAtomicDB?.(true);
-              } catch (e) {
-                console.error('[FunctionL2Tab] 메인공정기능 적용 후 저장 오류:', e);
-              }
-            }, 100);
+            emitSave();
           }}
         />
       )}

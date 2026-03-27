@@ -52,6 +52,7 @@ import { handleEnterBlur } from '../../utils/keyboard';
 import { autoSetSCForFailureMode, syncSCToMaster } from '../../utils/special-char-sync';
 import { validateAutoMapping, groupMatchedByRoom, AutoMappingPreviewModal } from '../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../autoMapping';
+import { emitSave } from '../../hooks/useSaveEvent';
 
 // ✅ 공용 스타일/유틸리티 (2026-01-19 리팩토링)
 import { BORDER, cellBase, headerStyle, dataCell, FAILURE_COLORS } from '../shared/tabStyles';
@@ -158,7 +159,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
       setState(updateFn);
     }
     setDirty(true);
-    setTimeout(() => saveToLocalStorage?.(), 100);
+    emitSave();
   }, [setState, setStateSynced, setDirty, saveToLocalStorage]);
 
   // ★★★ 2026-02-08: 마스터 데이터 로드 (A5=고장형태) — Gatekeeper + 구조불변 ★★★
@@ -371,7 +372,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -396,7 +397,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -443,7 +444,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
       if (setStateSynced) setStateSynced(updateFn);
       else setState(updateFn);
       setDirty(true);
-      setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+      emitSave();
       closeContextMenu();
       return;
     }
@@ -478,7 +479,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu, showAlert]);
   
@@ -508,7 +509,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -538,7 +539,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -762,7 +763,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     else setState(updateFn);
     setDirty(true);
     setSpecialCharModal(null);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 200);
+    emitSave();
   }, [specialCharModal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   /**

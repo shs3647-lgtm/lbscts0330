@@ -205,52 +205,8 @@ export async function POST(request: NextRequest) {
         }
       };
 
-      // ★★★ 2026-02-07: 기능/고장 데이터 보호 - incoming이 비어있으면 기존 DB에서 보존 ★★★
-      // 구조 삭제 시 기능 데이터가 비어서 전송되는 경우 기존 DB 데이터를 유지
-      const remainingL2StructIds = new Set(db.l2Structures.map(s => s.id));
-      const remainingL3StructIds = new Set(db.l3Structures.map(s => s.id));
-
-      if (db.l1Functions.length === 0) {
-        const existing = await tx.l1Function.findMany(deleteCondition);
-        if (existing.length > 0) {
-          db.l1Functions = existing;
-        }
-      }
-      if (db.l2Functions.length === 0) {
-        const existing = await tx.l2Function.findMany(deleteCondition);
-        if (existing.length > 0) {
-          const preserved = existing.filter((f: any) => remainingL2StructIds.has(f.l2StructId));
-          db.l2Functions = preserved;
-        }
-      }
-      if (db.l3Functions.length === 0) {
-        const existing = await tx.l3Function.findMany(deleteCondition);
-        if (existing.length > 0) {
-          const preserved = existing.filter((f: any) => remainingL3StructIds.has(f.l3StructId));
-          db.l3Functions = preserved;
-        }
-      }
-      // Atomic DB 기반 빈 데이터 복원
-      if (db.failureEffects.length === 0) {
-        const existing = await tx.failureEffect.findMany(deleteCondition);
-        if (existing.length > 0) {
-          db.failureEffects = existing;
-        }
-      }
-      if (db.failureModes.length === 0) {
-        const existing = await tx.failureMode.findMany(deleteCondition);
-        if (existing.length > 0) {
-          const preserved = existing.filter((m: any) => remainingL2StructIds.has(m.l2StructId));
-          db.failureModes = preserved;
-        }
-      }
-      if (db.failureCauses.length === 0) {
-        const existing = await tx.failureCause.findMany(deleteCondition);
-        if (existing.length > 0) {
-          const preserved = existing.filter((c: any) => remainingL3StructIds.has(c.l3StructId));
-          db.failureCauses = preserved;
-        }
-      }
+      // ★ 2026-03-27: 빈 배열 복원 보호 코드 삭제
+      // syncConfirmedFlags가 state→atomicDB 동기화 담당, 서버에서 복원 불필요
       {
         // soft-deleted 링크 제외하고 활성 링크만 조회
         const existingDbLinks = await tx.failureLink.findMany({

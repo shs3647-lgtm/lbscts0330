@@ -39,6 +39,7 @@ import { getZebra, getZebraColors } from '@/styles/level-colors';
 import { handleEnterBlur } from '../../utils/keyboard';
 import { getAutoLinkMessage } from '../../utils/auto-link';
 import { autoSetSCForFailureCause, syncSCToMaster } from '../../utils/special-char-sync';
+import { emitSave } from '../../hooks/useSaveEvent';
 
 // ✅ 공용 스타일/유틸리티 (2026-01-19 리팩토링)
 import { BORDER, cellBase, headerStyle, dataCell, FAILURE_COLORS } from '../shared/tabStyles';
@@ -360,7 +361,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -385,7 +386,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -401,7 +402,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     const applyUpdate = (updateFn: (prev: WorksheetState) => WorksheetState) => {
       if (setStateSynced) setStateSynced(updateFn); else setState(updateFn);
       setDirty(true);
-      setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+      emitSave();
       closeContextMenu();
     };
 
@@ -568,7 +569,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -598,7 +599,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
     closeContextMenu();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, closeContextMenu]);
 
@@ -645,7 +646,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     else setState(updateFn);
     setDirty(true);
     setSpecialCharModal(null);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 200);
+    emitSave();
   }, [specialCharModal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ✅ 발생도 업데이트 - 공정 레벨에서 수정 (CASCADE)

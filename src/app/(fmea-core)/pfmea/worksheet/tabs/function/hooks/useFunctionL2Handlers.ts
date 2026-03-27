@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { emitSave } from '../../../hooks/useSaveEvent';
 import { uid } from '../../../constants';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { filterMeaningfulFunctionsL2, filterMeaningfulProductChars } from '../functionL2Utils';
@@ -260,17 +261,7 @@ export function useFunctionL2Handlers({
     }
     setDirty(true);
 
-    requestAnimationFrame(() => {
-      setTimeout(async () => {
-        // ★★★ 2026-02-16 FIX: force=true (suppressAutoSave 무시) ★★★
-        try {
-          saveToLocalStorage?.(true);
-          await saveAtomicDB?.(true);
-        } catch (e) {
-          console.error('[FunctionL2Tab] 확정 후 DB 저장 오류:', e);
-        }
-      }, 50);
-    });
+    emitSave();
 
     _alert('2L 메인공정 기능분석이 확정되었습니다.');
   }, [state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
@@ -285,7 +276,7 @@ export function useFunctionL2Handlers({
     }
     setDirty(true);
     // ★★★ 2026-02-16 FIX: force=true (suppressAutoSave 무시) ★★★
-    requestAnimationFrame(() => setTimeout(() => saveToLocalStorage?.(true), 50));
+    emitSave();
   }, [setState, setStateSynced, setDirty, saveToLocalStorage]);
 
   // 인라인 편집 - 기능 (+ 마스터 A3 플랫 동기화)
@@ -325,10 +316,7 @@ export function useFunctionL2Handlers({
         setState(updateFn);
       }
       setDirty(true);
-      setTimeout(() => {
-        saveToLocalStorage?.();
-        saveAtomicDB?.();
-      }, 100);
+      emitSave();
 
       if (newValue.trim() && fmeaId && processNo) {
         fetch('/api/fmea/l2-functions', {
@@ -374,11 +362,8 @@ export function useFunctionL2Handlers({
       setState(updateFn);
     }
     setDirty(true);
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.();
-    }, 100);
-  }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+  }, [setState, setStateSynced, setDirty]);
 
   // 저장 핸들러 (제품특성 A4 — 메인공정기능 A3는 L2FunctionSelectModal)
   const handleSave = useCallback((selectedValues: string[]) => {
@@ -479,16 +464,7 @@ export function useFunctionL2Handlers({
     }
 
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FunctionL2Tab] DB 저장 오류:', e);
-        }
-      }
-    }, 100);
+    emitSave();
   }, [modal, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // 삭제 핸들러 (제품특성 A4)
@@ -530,16 +506,7 @@ export function useFunctionL2Handlers({
     }
 
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FunctionL2Tab] 삭제 후 DB 저장 오류:', e);
-        }
-      }
-    }, 200);
+    emitSave();
   }, [modal, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   return {

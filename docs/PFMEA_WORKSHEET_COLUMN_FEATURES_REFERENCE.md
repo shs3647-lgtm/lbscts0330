@@ -135,6 +135,49 @@
 - **결과**: A3 팝업 적용값이 새로고침 후에도 유지됨.
 - **관련 파일**: `worksheet/hooks/useWorksheetSave.ts`, `worksheet/tabs/function/FunctionL2Tab.tsx`, `worksheet/useL2FunctionSelect.ts`
 
+### 6.2 atomicDB 단일화 저장 패턴 (2026-03-27)
+
+> **문제**: 메모리에 `atomicDB`(DB 형태)와 `state`(트리 형태) 2벌이 존재.
+> 편집은 state에서, 저장은 atomicDB에서 → 편집 내용 누락.
+>
+> **해결 방향**: atomicDB 1벌로 통일. 편집 → atomicDB 직접 수정 → `saveNow(db)` 즉시 저장 → state 동기화(화면용).
+
+| 탭/열 | 저장 패턴 | 상태 |
+|-------|-----------|------|
+| **구조분석 — 공정(L2)** | `addL2Structure` / `deleteL2Structure` / `updateL2Structure` / `removeEmptyL2Structures` → `saveNow(newDB)` → state 동기화 | ✅ 전환 완료 |
+| **구조분석 — 작업요소(L3)** | `replaceL3Structures` / `addL3Structure` / `deleteL3Structure` → `saveNow(newDB)` → state 동기화 | ✅ 전환 완료 |
+| **구조분석 — 4M/셀 편집** | state 수정 → `emitSave()` → `syncConfirmedFlags` → DB 저장 | ⚠️ 기존 패턴 (emitSave 경유) |
+| **2기능 — A3(메인공정기능)** | `mergeRowsByMasterSelection` → `setStateSynced` → `emitSave()` + `syncL2Functions` state 기반 재구성 | ✅ emitSave 전환 완료 |
+| **1기능 — C1/C2/C3** | state 수정 → `emitSave()` → `syncL1Functions` state 기반 재구성 → DB 저장 | ✅ emitSave 전환 완료 |
+| **나머지 탭** | state 수정 → `emitSave()` 또는 `saveAtomicDB(true)` → `syncConfirmedFlags` → DB 저장 | ⚠️ 기존 패턴 |
+
+**핵심 파일**:
+
+| 파일 | 역할 |
+|------|------|
+| `hooks/useAtomicView.ts` | atomicDB immutable 편집 헬퍼 (add/update/delete/replace) |
+| `hooks/useSaveEvent.ts` | `saveNow(db)` 직접 저장 + `emitSave()` 이벤트 방식 |
+| `hooks/useWorksheetSave.ts` | `syncConfirmedFlags` (state→atomicDB 10개 항목 동기화) + `save` 함수 |
+
+**전환 원칙**:
+1. 새 기능은 반드시 `atomicDB 직접 수정 → saveNow(newDB) → state 동기화` 패턴 사용
+2. 기존 탭은 점진적으로 전환 (state 수정 + emitSave → atomicDB 직접 + saveNow)
+3. state는 화면 렌더링 전용으로만 유지, 최종 목표는 state 제거
+4. 서버 API(`/api/fmea`)의 빈 배열 복원 보호 코드 삭제 완료 — `syncConfirmedFlags`가 동기화 담당
+5. 불필요한 레거시 보호/가드 코드는 스킵이 아닌 **완전 삭제** 원칙
+
+### 6.3 구조분석 작업요소(L3) 저장 상세
+
+| 동작 | 함수 | atomicDB | state | DB |
+|------|------|----------|-------|----|
+| 작업요소 모달 적용 | `replaceL3Structures` | 해당 L2의 L3 전체 교체 | 동기화 | `saveNow` |
+| 행 추가 (위/아래) | `addL3Structure` | L3 1개 추가 | 동기화 | `saveNow` |
+| 행 삭제 | `deleteL3Structure` | L3 1개 삭제 (0개 시 빈 L3 자동 추가) | 동기화 | `saveNow` |
+| 4M 변경 | state 수정 | `emitSave` → `syncL3Structures` | 직접 수정 | `syncConfirmedFlags` |
+| 더블클릭 이름 편집 | state 수정 | `emitSave` → `syncL3Structures` | 직접 수정 | `syncConfirmedFlags` |
+
+**빈 L3 자동 생성**: 데이터 로더(`useWorksheetDataLoader`)에서 L3 없는 공정에 빈 L3 1개를 state + atomicDB 양쪽에 추가. 셀 편집/행추가 시 ID 매칭 보장.
+
 ---
 
 ## 7. 코드로 “공통화”할 때의 현실적인 순서

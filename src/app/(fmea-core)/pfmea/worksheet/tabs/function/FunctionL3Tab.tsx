@@ -28,6 +28,7 @@ import { ensurePlaceholder } from '../../utils/safeMutate';
 import { FunctionTabProps } from './types';
 import { cellP0 } from '@/styles/worksheet';
 import { handleEnterBlur } from '../../utils/keyboard';
+import { emitSave } from '../../hooks/useSaveEvent';
 import { getZebraColors } from '@/styles/level-colors';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import DataSelectModal from '@/components/modals/DataSelectModal';
@@ -215,7 +216,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 2026-03-06: 열 단위 분기 — 아래로 새 행 추가 (function→기능, processChar→공정특성) ★★★
@@ -258,7 +259,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 2026-03-06 FIX: 병합 위로 추가 — rowType별 분기 (workElement/function→기능, processChar→공정특성) ★★★
@@ -300,7 +301,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 2026-03-06 FIX: 병합 아래로 추가 — rowType별 분기 (workElement/function→기능, processChar→공정특성) ★★★
@@ -342,7 +343,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     if (setStateSynced) setStateSynced(updateFn);
     else setState(updateFn);
     setDirty(true);
-    setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+    emitSave();
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
   // ★★★ 행 삭제 (빈 행만 삭제 가능) ★★★
@@ -384,7 +385,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
       if (setStateSynced) setStateSynced(updateFn);
       else setState(updateFn);
       setDirty(true);
-      setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+      emitSave();
       return;
     }
     
@@ -417,7 +418,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
         return;
       }
       
@@ -446,7 +447,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
       } else {
         if (!window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
         const updateFn = (prev: WorksheetState) => {
@@ -471,7 +472,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
         if (setStateSynced) setStateSynced(updateFn);
         else setState(updateFn);
         setDirty(true);
-        setTimeout(() => { saveToLocalStorage?.(); saveAtomicDB?.(true); }, 100);
+        emitSave();
       }
     }
   }, [menuExtra, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);

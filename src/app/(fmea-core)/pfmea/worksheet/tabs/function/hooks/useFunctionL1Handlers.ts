@@ -96,19 +96,15 @@ export function useFunctionL1Handlers({
     setDirty(true);
   }, [setState, setStateSynced, setDirty]);
 
-  // ✅ 공통 저장 함수
-  const saveData = useCallback(async (delay = 100) => {
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FunctionL1Tab] DB 저장 오류:', e);
-        }
+  // ✅ 공통 저장 함수 — saveAtomicDB 직접 호출
+  const saveData = useCallback((_delay?: number) => {
+    if (saveAtomicDB) {
+      const result = saveAtomicDB(true);
+      if (result && typeof (result as any).catch === 'function') {
+        (result as any).catch((e: any) => console.error('[FunctionL1Tab] 저장 오류:', e));
       }
-    }, delay);
-  }, [saveToLocalStorage, saveAtomicDB]);
+    }
+  }, [saveAtomicDB]);
 
   // ✅ 누락 건수 계산
   const missingCounts = calculateMissingCounts(state.l1?.types || [], isMissingUtil);
