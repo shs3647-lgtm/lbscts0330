@@ -628,7 +628,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const fcScope = normalizeScope(c['FE_scope'] || ''); // ★ AutoFix
 
     // FK 해결: 1차 행번호 → 2차 텍스트 역매칭 (CrossSheetResolver v5)
-    const { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
+    let { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
       l1Row,
       l2Row,
       l3Row,
@@ -642,9 +642,35 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       weText: c['WE']?.trim() || undefined,
     });
 
+    // ★v5.1: fcId 미해결 시 — FC 시트 전용 FailureCause 동적 생성
+    //   근본 원인: FC 시트에만 존재하고 L3 B4에 없는 고장원인 (엑셀 데이터 불일치)
+    //   예: "습도(Humidity, %RH) 부적합" ← FC 시트에만 있고 L3 B4에 없음
+    if (!fcId && c['FC']?.trim()) {
+      const dynamicFcId = positionUUID('FC', rn, 7); // FC 시트 행에서 FC용 UUID 생성
+      const fcCause = c['FC'].trim();
+      const l2IdForFc = fmId ? (failureModes.find(fm => fm.id === fmId)?.l2StructId || '') : '';
+      // 같은 공정의 첫번째 L3 구조를 찾아 연결
+      const l3ForFc = l3Structures.find(s => s.l2Id === l2IdForFc);
+      const l3FuncForFc = l3Functions.find(f => f.l3StructId === l3ForFc?.id);
+      failureCauses.push({
+        id: dynamicFcId,
+        fmeaId,
+        l3FuncId: l3FuncForFc?.id || '',
+        l3StructId: l3ForFc?.id || '',
+        l2StructId: l2IdForFc,
+        parentId: l3FuncForFc?.id || '',
+        l3CharId: '',
+        cause: fcCause,
+      });
+      fcId = dynamicFcId;
+      const l3IdForFc = l3ForFc?.id || '';
+      if (l3IdForFc) flL3StructId = flL3StructId || l3IdForFc;
+      ppWarn(`[position-parser] ★ FC 시트 전용 FC 동적생성: R${rn} "${fcCause.substring(0, 30)}" → ${dynamicFcId}`);
+    }
+
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
     if (!feId || !fmId || !fcId) {
-      ppWarn(`[position-parser] ⚠️ FL R${rn} FK 미해결 (행번호만 사용):`,
+      ppWarn(`[position-parser] ⚠️ FL R${rn} FK 미해결:`,
         `feId=${feId || '❌'}(L1_origRow=${l1Row})`,
         `fmId=${fmId || '❌'}(L2_origRow=${l2Row})`,
         `fcId=${fcId || '❌'}(L3_origRow=${l3Row})`,

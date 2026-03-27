@@ -133,27 +133,24 @@ export class CrossSheetResolver {
   }
 
   private resolveFM(ref: CrossSheetRef): { fmId: string; l2StructId: string } {
+    // Level 1: 행번호 직접 매칭 (가장 정확)
     if (ref.l2Row && this.l2RowToFmId.has(ref.l2Row)) {
       return { fmId: this.l2RowToFmId.get(ref.l2Row)!, l2StructId: this.l2RowToL2StructId.get(ref.l2Row) || '' };
     }
     if (ref.fmText) {
       const normFM = normalizeText(ref.fmText);
-      // 정확 매칭 (공정+FM)
+      // Level 2: 정확 매칭 (공정+FM)
       if (ref.processNo) {
         const key = `${ref.processNo.trim()}::${normFM}`;
         const found = this.fmTextMap.get(key);
         if (found) return found;
+        // ★v5.1: 공정번호 있는데 매칭 실패 → 크로스프로세스 fallback 금지 (Rule 1.7)
+        // 다른 공정의 동일 텍스트 FM을 반환하면 거짓 데이터 생성
+        return { fmId: '', l2StructId: '' };
       }
-      // 공정번호 무시 매칭
+      // Level 3: 공정번호 없을 때만 텍스트 매칭 허용
       for (const [k, v] of this.fmTextMap) {
         if (k.split('::')[1] === normFM) return v;
-      }
-      // 부분 포함 매칭
-      for (const [k, v] of this.fmTextMap) {
-        const fmTextPart = k.split('::')[1];
-        if (fmTextPart && (fmTextPart.includes(normFM) || normFM.includes(fmTextPart))) {
-          return v;
-        }
       }
     }
     return { fmId: '', l2StructId: '' };
