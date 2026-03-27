@@ -612,52 +612,45 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const maxOrigRowL2 = l2Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
   const maxOrigRowL3 = l3Sheet.rows.reduce((m, r) => Math.max(m, r.excelRow), 0);
 
-  // ★v6: 위치 인덱스 기반 행번호 역산 (텍스트 매칭 완전 삭제)
-  // FC 115행 = L3 115행 → 위치 인덱스로 1:1 대응
+  // ★v6.1: 물리적 행 순서 기반 행번호 역산
+  // L2 FM 28행, L1 FE 20행은 엑셀 물리적 행 순서와 FC 순서가 동일
+  // FM/FE 그룹이 변경될 때마다 인덱스+1로 다음 행 매칭
   // ═══════════════════════════════════════════
 
   // (1) L3 valid rows → FC row[i] = L3 valid row[i] 매핑용
-  const l3ValidRows = l3Sheet.rows; // 이미 processNo notna 필터링 완료된 순서
-  ppLog(`[position-parser] ★v6 위치 인덱스 매핑: FC=${fcSheet.rows.length}행 ↔ L3=${l3ValidRows.length}행`);
+  const l3ValidRows = l3Sheet.rows;
+  ppLog(`[position-parser] ★v6.1 위치 인덱스: FC=${fcSheet.rows.length}행, L3=${l3ValidRows.length}행`);
 
-  // (2) processNo별 L2 FM 행 목록 (순서 보장) — FM 그룹 인덱스로 l2Row 역산용
-  // L1/L2/L3 시트는 병합 없음 — 모든 행에 값이 있음 (MD Section 4)
-  const l2FmRowsByPno = new Map<string, number[]>(); // processNo → [L2 excelRow, ...]
+  // (2) L2 FM 행: 물리적 순서 flat 배열 (A5 있는 행만, 28개)
+  const l2FmFlatRows: number[] = [];
   for (const r of l2Sheet.rows) {
-    const a5 = r.cells['A5']?.trim();
-    const a1 = normalizeProcessNo(r.cells['A1']?.trim() || '');
-    if (a5 && a1) {
-      if (!l2FmRowsByPno.has(a1)) l2FmRowsByPno.set(a1, []);
-      l2FmRowsByPno.get(a1)!.push(r.excelRow);
+    if (r.cells['A5']?.trim()) {
+      l2FmFlatRows.push(r.excelRow);
     }
   }
-  ppLog(`[position-parser] ★v6 L2 FM 행: ${[...l2FmRowsByPno.entries()].map(([k,v])=>`${k}:${v.length}`).join(', ')}`);
+  ppLog(`[position-parser] ★v6.1 L2 FM flat: ${l2FmFlatRows.length}행`);
 
-  // (3) FE L1 행 목록 (순서 보장) — FE 그룹 인덱스로 l1Row 역산용
-  const l1FeRows: number[] = []; // L1 excelRow 순서대로
-  const l1FeRowByIndex = new Map<number, number>(); // feIndex → L1 excelRow
-  let feIdx = 0;
+  // (3) L1 FE 행: 물리적 순서 flat 배열 (C4 있는 행만, 20개)
+  const l1FeFlatRows: number[] = [];
   for (const r of l1Sheet.rows) {
-    const c4 = r.cells['C4']?.trim();
-    if (c4) {
-      l1FeRows.push(r.excelRow);
-      l1FeRowByIndex.set(feIdx++, r.excelRow);
+    if (r.cells['C4']?.trim()) {
+      l1FeFlatRows.push(r.excelRow);
     }
   }
+  ppLog(`[position-parser] ★v6.1 L1 FE flat: ${l1FeFlatRows.length}행`);
 
   // FE severity 업데이트용 Map
   const feSeverityMap = new Map<string, number>();
 
-  // ★ JSON 파서 FC carry-forward (parsePositionBasedJSON 경로)
+  // ★ JSON 파서 FC carry-forward (FC 시트만 forward-fill 필요 — MD Section 6-2)
   let prevJsonFEscope = '', prevJsonFE = '', prevJsonPno = '', prevJsonFM = '';
   let jsonCarryCount = 0;
 
-  // ★v6: FM/FE 그룹 변경 추적 — 위치 인덱스 기반 l2Row/l1Row 역산
-  let prevFmGroup = ''; // processNo|FM — 변경 시 FM 인덱스 증가
-  let prevFeGroup = ''; // FE_scope|FE — 변경 시 FE 인덱스 증가
-  let currentFmIdxInPno = -1; // 현재 공정 내 FM 인덱스
-  let currentFeIdx = -1; // 전체 FE 인덱스
-  let currentPno = ''; // 현재 공정번호
+  // ★v6.1: 물리적 행 인덱스 (글로벌) — FM/FE 그룹 변경 시 +1
+  let l2FmIdx = 0;   // L2 FM flat 배열 인덱스 (0~27)
+  let l1FeIdx = 0;   // L1 FE flat 배열 인덱스 (0~19)
+  let prevFmKey = ''; // FM 그룹 변경 감지용 (processNo|FM)
+  let prevFeKey = ''; // FE 그룹 변경 감지용 (FE_scope|FE)
 
   let fcIndex = 0; // FC valid row 인덱스 (L3와 1:1 매핑)
 
@@ -665,7 +658,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const rn = row.excelRow;
     const c = row.cells;
 
-    // AutoFix: 빈 셀 carry-forward
+    // AutoFix: FC 시트 forward-fill (FE_scope, FE, processNo, FM — 첫 행만 기재, 이하 공란)
     if (!c['FE_scope'] && prevJsonFEscope) { c['FE_scope'] = prevJsonFEscope; jsonCarryCount++; }
     if (!c['FE'] && prevJsonFE)            { c['FE'] = prevJsonFE;            jsonCarryCount++; }
     if (!c['processNo'] && prevJsonPno)    { c['processNo'] = prevJsonPno;    jsonCarryCount++; }
@@ -675,56 +668,28 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (c['processNo'])prevJsonPno     = c['processNo'];
     if (c['FM'])       prevJsonFM      = c['FM'];
 
-    // ★v6: 행번호 역산 — 위치 인덱스 기반 (텍스트 매칭 없음)
-    // 1차: origRow 컬럼이 있으면 그대로 사용
-    let l1Row = parseInt(c['L1_origRow'] || '', 10) || 0;
-    let l2Row = parseInt(c['L2_origRow'] || '', 10) || 0;
-    let l3Row = parseInt(c['L3_origRow'] || '', 10) || 0;
-    l1Row = validateFcOrigRow(l1Row, maxOrigRowL1, 'L1', rn);
-    l2Row = validateFcOrigRow(l2Row, maxOrigRowL2, 'L2', rn);
-    l3Row = validateFcOrigRow(l3Row, maxOrigRowL3, 'L3', rn);
+    // ★v6.1: 물리적 행번호 확정 — 엑셀 행 순서 기반
+    // (a) L3 행번호: FC row[fcIndex] = L3 row[fcIndex] (1:1 위치 매핑)
+    const l3Row = fcIndex < l3ValidRows.length ? l3ValidRows[fcIndex].excelRow : 0;
+
+    // (b) L2 행번호: FM 그룹 변경 시 다음 L2 물리적 행
+    const fmKey = `${c['processNo'] || ''}|${c['FM'] || ''}`;
+    if (fmKey !== prevFmKey) {
+      if (prevFmKey !== '') l2FmIdx++; // 첫 그룹은 idx=0, 이후 변경마다 +1
+      prevFmKey = fmKey;
+    }
+    const l2Row = l2FmIdx < l2FmFlatRows.length ? l2FmFlatRows[l2FmIdx] : 0;
+
+    // (c) L1 행번호: FE 그룹 변경 시 다음 L1 물리적 행
+    const feKey = `${c['FE_scope'] || ''}|${c['FE'] || ''}`;
+    if (feKey !== prevFeKey) {
+      if (prevFeKey !== '') l1FeIdx++; // 첫 그룹은 idx=0, 이후 변경마다 +1
+      prevFeKey = feKey;
+    }
+    const l1Row = l1FeIdx < l1FeFlatRows.length ? l1FeFlatRows[l1FeIdx] : 0;
 
     const fcPno = normalizeProcessNo(c['processNo'] || '');
     const fcScope = normalizeScope(c['FE_scope'] || '');
-
-    // 2차: origRow 없으면 위치 인덱스로 역산
-    // (a) L3 행번호: FC row[fcIndex] = L3 valid row[fcIndex]
-    if (!l3Row && fcIndex < l3ValidRows.length) {
-      l3Row = l3ValidRows[fcIndex].excelRow;
-    }
-
-    // (b) L2 행번호: FM 그룹 변경 추적 → 같은 공정 내 FM 순서
-    const fmGroup = `${fcPno}|${c['FM'] || ''}`;
-    if (fmGroup !== prevFmGroup) {
-      prevFmGroup = fmGroup;
-      if (fcPno !== currentPno) {
-        // 공정 변경 → FM 인덱스 리셋
-        currentPno = fcPno;
-        currentFmIdxInPno = 0;
-      } else {
-        // 같은 공정 내 새 FM 그룹
-        currentFmIdxInPno++;
-      }
-    }
-    if (!l2Row && fcPno) {
-      const fmRows = l2FmRowsByPno.get(fcPno);
-      if (fmRows && currentFmIdxInPno < fmRows.length) {
-        l2Row = fmRows[currentFmIdxInPno];
-      }
-    }
-
-    // (c) L1 행번호: FE 그룹 변경 추적 → 전체 FE 순서
-    const feGroup = `${fcScope}|${c['FE'] || ''}`;
-    if (feGroup !== prevFeGroup) {
-      prevFeGroup = feGroup;
-      currentFeIdx++;
-    }
-    if (!l1Row) {
-      const feRow = l1FeRowByIndex.get(currentFeIdx);
-      if (feRow) l1Row = feRow;
-    }
-
-    const fcM4 = normalizeM4(c['m4'] || ''); // ★ AutoFix
 
     // FK 해결: 행번호 기반 직접 매칭 (★v6: 텍스트 매칭 삭제)
     let { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
