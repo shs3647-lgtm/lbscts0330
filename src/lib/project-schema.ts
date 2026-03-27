@@ -2,10 +2,31 @@
  * @file project-schema.ts
  * @description 프로젝트별 DB(스키마) 자동 생성/초기화 유틸
  *
- * 정책:
- * - 프로젝트 등록/저장 시 프로젝트 ID 기준으로 schema를 생성하여 "프로젝트별 DB"처럼 분리 저장
- * - 스키마명 규칙: pfmea_{projectId} (안전한 sanitize 후 소문자)
- * - public 스키마의 테이블 구조를 프로젝트 스키마로 복제하여 Prisma가 즉시 사용할 수 있게 함
+ * ═══════════════════════════════════════════════════════════════
+ * ★ DB 스키마 운영 정책 (혼선 방지)
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * ■ public 스키마 — 공통·글로벌 데이터
+ *   - PfmeaMasterDataset / PfmeaMasterFlatItem (Import 기초정보)
+ *   - FmeaProject / FmeaRegistration / FmeaCftMember (FMEA 프로젝트 메타)
+ *   - ProjectLinkage, TripletGroup (문서 연동)
+ *   - LLD / SOD 기준 / 업종 DB (공유 마스터)
+ *   - APQPProject (APQP 프로젝트)
+ *
+ * ■ 프로젝트 스키마 (pfmea_{fmeaId}) — FMEA 프로젝트별 Atomic 데이터
+ *   - L1/L2/L3 Structure, Function, 독립 엔티티
+ *   - FailureMode / FailureCause / FailureEffect
+ *   - FailureLink / FailureAnalysis / RiskAnalysis / Optimization
+ *   - CP / PFD 관련 테이블
+ *   → FMEA 프로젝트가 늘어나도 스키마 분리로 성능·격리 보장
+ *   → save-position-import API가 이 스키마에 저장
+ *   → 조회 시 반드시 getPrismaForSchema(getProjectSchemaName(fmeaId)) 사용
+ *
+ * ⚠️ 디버그 스크립트 작성 시 public이 아닌 프로젝트 스키마 조회 필수!
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * 스키마명 규칙: pfmea_{projectId} (안전한 sanitize 후 소문자)
+ * public 스키마의 테이블 구조를 프로젝트 스키마로 복제하여 Prisma가 즉시 사용할 수 있게 함
  */
 
 import { Client } from 'pg';
