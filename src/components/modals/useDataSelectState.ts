@@ -194,8 +194,8 @@ export function useDataSelectState({
       // ★★★ 2026-02-03: C2/C3/C4, A3, B5/B6는 fmeaId 없어도 로드 (기초정보 전체) ★★★
       if (!isL1FunctionOrReq && (fmeaId || isDbOnlyItem || isControlItem)) {
         try {
-          // ★★★ 2026-02-16: PFMEA/DFMEA 자동 감지 - 올바른 master API 호출 ★★★
-          const masterApiPath = isPFMEA ? '/api/pfmea/master' : '/api/dfmea/master';
+          // ★★★ 2026-02-16: PFMEA master API 호출 ★★★
+          const masterApiPath = '/api/pfmea/master';
           const res = await fetch(`${masterApiPath}?includeItems=true`);
           if (res.ok) {
             const data = await res.json();

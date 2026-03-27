@@ -3,7 +3,7 @@
  * @description 기초정보 Import + BD 현황 화면 도움말
  *
  * 카테고리: 기초정보 Import
- * 관련 화면: /pfmea/import, /dfmea/import
+ * 관련 화면: /pfmea/import
  */
 
 import { ManualItem } from './types';

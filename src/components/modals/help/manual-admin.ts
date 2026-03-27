@@ -113,8 +113,8 @@ export const ADMIN_ITEMS_KO: ManualItem[] = [
       '• PFD 기초정보 Import\n' +
       '• 공정 분류/설비 데이터\n\n' +
       '[사용자 정보 제공 후 상세 내용 추가 예정]',
-    keywords: ['기초정보', 'import', '임포트', 'DFMEA', 'CP', 'PFD'],
-    paths: ['/dfmea/import', '/control-plan/import', '/pfd/import'],
+    keywords: ['기초정보', 'import', '임포트', 'CP', 'PFD'],
+    paths: ['/control-plan/import', '/pfd/import'],
   },
 
   // ═══════════════════════════════════════════

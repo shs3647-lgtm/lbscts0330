@@ -78,7 +78,7 @@ function PipelineVerifyNavInner() {
   const searchParams = useSearchParams();
   const [showVerify, setShowVerify] = useState(false);
   const fmeaId = searchParams.get('fmeaId') || searchParams.get('id') || '';
-  const isFmeaPage = pathname?.includes('/pfmea') || pathname?.includes('/dfmea') || false;
+  const isFmeaPage = pathname?.includes('/pfmea') || false;
   if (!isFmeaPage || !fmeaId) return null;
   return (
     <div className="relative">

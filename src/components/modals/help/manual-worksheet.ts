@@ -3,7 +3,7 @@
  * @description 워크시트 도움말 — 개요 + 구조분석(2ST) + 기능분석(3ST) + 편집 기능
  *
  * 카테고리: 워크시트, 구조분석, 기능분석, 편집 기능
- * 관련 화면: /pfmea/worksheet, /dfmea/worksheet
+ * 관련 화면: /pfmea/worksheet
  *
  * ★ 고장분석/리스크분석/최적화/ALL탭은 manual-worksheet-advanced.ts 참조
  */
