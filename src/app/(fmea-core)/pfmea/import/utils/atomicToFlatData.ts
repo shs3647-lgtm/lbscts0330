@@ -357,15 +357,11 @@ export function atomicToFlatData(
       }
 
       // B3: 공정특성 — L3Function 1:1 매핑 (동일 processChar도 별도 B3 생성)
-      // ★ 2026-03-21 FIX: seenProcessChar dedup 제거
-      // 근본원인: 같은 processChar를 가진 서로 다른 L3Function(다른 functionName)이
-      // IM(소재)/MN(작업자) 카테고리에서 자주 발생. dedup이 두 번째 것을 드롭하여
-      // B2(요소기능)/B4(고장원인) 연결이 끊어지는 반복 버그 유발.
-      // 수정: L3Function마다 독립 B3 행 생성 (processChar 중복 허용)
+      // ★ MBD-26-009: processChar 빈값이어도 B3 항목 생성 (구조적 자리 보존)
+      //   빈값 스킵 → B4 FK 끊김 → 렌더링 실패의 고질적 원인이었음
       const l3FuncIdToB3Id = new Map<string, string>();
       let cseq = 0;
       for (const l3Func of l3Funcs) {
-        if (!l3Func.processChar) continue;
         cseq++;
         const b3Id = genB3(doc, pnoNum, m4, b1seq, cseq);
         l3FuncIdToB3Id.set(l3Func.id, b3Id);
@@ -375,7 +371,7 @@ export function atomicToFlatData(
           processNo: l2.no,
           category: 'B',
           itemCode: 'B3',
-          value: l3Func.processChar,
+          value: l3Func.processChar || '',  // ★ 빈값도 보존 (0처리 금지)
           m4: m4 || undefined,
           specialChar: l3Func.specialChar || undefined,
           parentItemId: b1Id,
@@ -383,7 +379,7 @@ export function atomicToFlatData(
         }));
       }
 
-      // B4: 고장원인 — genB4 재계산 + parentItemId(B3) FK 추가
+      // B4: 고장원인 — genB4 재계산 + parentItemId(B3) FK 3단계 폴백
       const fcs = fcsByL3.get(l3.id) || [];
       let kseq = 0;
       for (const fc of fcs) {
@@ -391,9 +387,18 @@ export function atomicToFlatData(
         const b4Id = genB4(doc, pnoNum, m4, b1seq, kseq);
         idRemap.fc.set(fc.id, b4Id);
 
-        // ★★★ 2026-03-21 FIX-3: B4→B3 FK — DB UUID 정확 매칭만 허용, fallback 삭제 ★★★
-        // FC.l3FuncId → L3Function → B3 정확 매칭. 매칭 실패 시 undefined (잘못된 FK 방지)
-        const parentB3Id = l3FuncIdToB3Id.get(fc.l3FuncId) || undefined;
+        // ★★★ MBD-26-009: B4→B3 FK 3단계 폴백 (0처리 금지) ★★★
+        // Plan A: FC.l3FuncId → L3Function → B3 정확 매칭
+        let parentB3Id = l3FuncIdToB3Id.get(fc.l3FuncId);
+        // Plan B: 같은 L3Structure 내 인덱스 기반 매칭 (B4 순번 = B3 순번)
+        if (!parentB3Id && l3Funcs.length > 0) {
+          const idxMatch = Math.min(kseq - 1, l3Funcs.length - 1);
+          parentB3Id = l3FuncIdToB3Id.get(l3Funcs[idxMatch].id);
+        }
+        // Plan C: 같은 L3Structure의 첫 번째 B3
+        if (!parentB3Id && l3FuncIdToB3Id.size > 0) {
+          parentB3Id = [...l3FuncIdToB3Id.values()][0];
+        }
 
         result.push(makeFlatItem({
           id: b4Id,
