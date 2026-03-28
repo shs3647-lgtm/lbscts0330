@@ -154,4 +154,87 @@ describe('parsePositionBasedJSON', () => {
     const anyBrokenFc = r.failureLinks.some((fl) => !fl.fcId);
     expect(anyBrokenFc).toBe(true);
   });
+
+});
+
+/** L2 carry — m102 무관 최소 4시트 (대형 fixture 확장 시 보완 FL·FK 카운트가 흔들리지 않게 함) */
+describe('parsePositionBasedJSON — L2 carry-forward', () => {
+  const minimalCarryJson = {
+    targetId: 'pfm26-carry-test',
+    sourceId: 'pfm26-carry-test',
+    sheets: {
+      L1: {
+        sheetName: 'L1',
+        headers: [],
+        rows: [
+          {
+            excelRow: 2,
+            posId: 'L1-R2',
+            cells: { C1: 'YP', C2: '기능F', C3: '요구R', C4: '영향FE1' },
+          },
+        ],
+      },
+      L2: {
+        sheetName: 'L2',
+        headers: [],
+        rows: [
+          {
+            excelRow: 10,
+            posId: 'L2-R10',
+            cells: { A1: '1', A2: '공정P', A3: 'L2기능', A4: 'pcA', SC: '', A5: 'fmA', A6: '병합검출관리' },
+          },
+          {
+            excelRow: 11,
+            posId: 'L2-R11',
+            cells: { A1: '', A2: '', A3: '', A4: 'pcB', SC: '', A5: 'fmB', A6: '' },
+          },
+        ],
+      },
+      L3: {
+        sheetName: 'L3',
+        headers: [],
+        rows: [
+          {
+            excelRow: 20,
+            posId: 'L3-R20',
+            cells: { processNo: '1', m4: 'MN', B1: 'WE1', B2: 'B2', B3: 'B3', SC: '', B4: '원인FC', B5: '' },
+          },
+        ],
+      },
+      FC: {
+        sheetName: 'FC',
+        headers: [],
+        rows: [
+          {
+            excelRow: 30,
+            posId: 'FC-R30',
+            cells: {
+              FE_scope: 'YP',
+              FE: '영향FE1',
+              processNo: '1',
+              FM: 'fmA',
+              m4: 'MN',
+              WE: 'WE1',
+              FC: '원인FC',
+              PC: '',
+              DC: '',
+              S: '5',
+              O: '3',
+              D: '2',
+              AP: 'M',
+              L1_origRow: '2',
+              L2_origRow: '10',
+              L3_origRow: '20',
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  it('병합으로 빈 A1·빈 A6인 행이 이전 행 공정번호·검출관리를 상속', () => {
+    const r = parsePositionBasedJSON(minimalCarryJson as Parameters<typeof parsePositionBasedJSON>[0]);
+    const fmB = r.failureModes.find((fm) => fm.id === 'L2-R11-C6');
+    expect(fmB?.detectionControl).toBe('병합검출관리');
+  });
 });

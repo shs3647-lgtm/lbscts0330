@@ -152,6 +152,88 @@ function normalizeProcessNo(raw: string): string {
   return nums ? nums[0] : trimmed;
 }
 
+/**
+ * L2 시트 병합셀 대응: 빈 A1·A2…A6은 동일 공정 블록 내 이전 행 값을 상속 (L3·FC carry와 동일 계열).
+ * 공정번호(A1)가 바뀌면 A2~A6 carry 버킷을 리셋해 이전 공정의 검출관리 등이 새 공정으로 새지 않게 함.
+ * 통계의 excelA* 는 호출부에서 **carry 전 원본 행**으로 계산해야 물리 셀 수와 일치함.
+ */
+function applyL2RowCarryForward(rows: SheetRow[]): SheetRow[] {
+  let prevL2Pno = '';
+  let prevA2 = '';
+  let prevA3 = '';
+  let prevA4 = '';
+  let prevL2SC = '';
+  let prevA5 = '';
+  let prevA6 = '';
+  const l2CarryCount = { a1: 0, a2: 0, a3: 0, a4: 0, sc: 0, a5: 0, a6: 0 };
+  const out: SheetRow[] = [];
+
+  for (const row of rows) {
+    const rawA1 = row.cells.A1?.trim() || '';
+    if (rawA1) {
+      const np = normalizeProcessNo(rawA1);
+      if (prevL2Pno && np !== prevL2Pno) {
+        prevA2 = '';
+        prevA3 = '';
+        prevA4 = '';
+        prevL2SC = '';
+        prevA5 = '';
+        prevA6 = '';
+      }
+      prevL2Pno = np;
+    }
+
+    const a1 = rawA1
+      ? normalizeProcessNo(rawA1)
+      : (prevL2Pno ? (l2CarryCount.a1++, prevL2Pno) : '');
+    if (!a1) continue;
+
+    const rawA2 = row.cells.A2?.trim() || '';
+    const rawA3 = row.cells.A3?.trim() || '';
+    const rawA4 = row.cells.A4?.trim() || '';
+    const rawSC = row.cells.SC?.trim() || '';
+    const rawA5 = row.cells.A5?.trim() || '';
+    const rawA6 = row.cells.A6?.trim() || '';
+
+    const a2 = rawA2 || (prevA2 ? (l2CarryCount.a2++, prevA2) : '');
+    const a3 = rawA3 || (prevA3 ? (l2CarryCount.a3++, prevA3) : '');
+    const a4 = rawA4 || (prevA4 ? (l2CarryCount.a4++, prevA4) : '');
+    const sc = rawSC || (prevL2SC ? (l2CarryCount.sc++, prevL2SC) : '');
+    const a5 = rawA5 || (prevA5 ? (l2CarryCount.a5++, prevA5) : '');
+    const a6 = rawA6 || (prevA6 ? (l2CarryCount.a6++, prevA6) : '');
+
+    if (rawA2) prevA2 = rawA2;
+    if (rawA3) prevA3 = rawA3;
+    if (rawA4) prevA4 = rawA4;
+    if (rawSC) prevL2SC = rawSC;
+    if (rawA5) prevA5 = rawA5;
+    if (rawA6) prevA6 = rawA6;
+
+    out.push({
+      excelRow: row.excelRow,
+      posId: row.posId,
+      cells: { A1: a1, A2: a2, A3: a3, A4: a4, SC: sc, A5: a5, A6: a6 },
+      fk: row.fk,
+    });
+  }
+
+  const totalL2Carry =
+    l2CarryCount.a1 +
+    l2CarryCount.a2 +
+    l2CarryCount.a3 +
+    l2CarryCount.a4 +
+    l2CarryCount.sc +
+    l2CarryCount.a5 +
+    l2CarryCount.a6;
+  if (totalL2Carry > 0) {
+    ppLog(
+      `[position-parser] ✅ L2 carry-forward ${totalL2Carry}건:`,
+      `A1=${l2CarryCount.a1} A2=${l2CarryCount.a2} A3=${l2CarryCount.a3} A4=${l2CarryCount.a4} SC=${l2CarryCount.sc} A5=${l2CarryCount.a5} A6=${l2CarryCount.a6}`,
+    );
+  }
+  return out;
+}
+
 /** 빈값/대시 판별 — "-", "—", "~", "." 등을 빈값으로 취급 */
 function isEmptyValue(v: string): boolean {
   return !v || /^[-–—~·.]+$/.test(v.trim());
@@ -341,7 +423,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   let l2Order = 0;
   let pcOrderIndex = 0;
 
-  for (const row of l2Sheet.rows) {
+  /** 물리 셀 기준 통계용 (병합 빈칸 carry 전) */
+  const l2RowsRaw = l2Sheet.rows;
+  const l2RowsEffective = applyL2RowCarryForward(l2Sheet.rows);
+
+  for (const row of l2RowsEffective) {
     const rn = row.excelRow;
     const a1 = normalizeProcessNo(row.cells['A1']?.trim() || ''); // ★ AutoFix
     const a2 = row.cells['A2']?.trim() || '';
@@ -826,7 +912,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const stats: Record<string, number> = {
     // 엑셀 원본 행수 (전체)
     excelL1Rows: l1Sheet.rows.length,
-    excelL2Rows: l2Sheet.rows.length,
+    excelL2Rows: l2RowsRaw.length,
     excelL3Rows: l3Sheet.rows.length,
     excelFCRows: fcSheet.rows.length,
     // 엑셀 원본 항목별 카운트 (빈값/대시 제외)
@@ -834,12 +920,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelC2: countNonEmpty(l1Sheet.rows, 'C2'),
     excelC3: countNonEmpty(l1Sheet.rows, 'C3'),
     excelC4: countNonEmpty(l1Sheet.rows, 'C4'),
-    excelA1: countNonEmpty(l2Sheet.rows, 'A1'),
-    excelA2: countNonEmpty(l2Sheet.rows, 'A2'),
-    excelA3: countNonEmpty(l2Sheet.rows, 'A3'),
-    excelA4: countNonEmpty(l2Sheet.rows, 'A4'),
-    excelA5: countNonEmpty(l2Sheet.rows, 'A5'),
-    excelA6: countNonEmpty(l2Sheet.rows, 'A6'),
+    excelA1: countNonEmpty(l2RowsRaw, 'A1'),
+    excelA2: countNonEmpty(l2RowsRaw, 'A2'),
+    excelA3: countNonEmpty(l2RowsRaw, 'A3'),
+    excelA4: countNonEmpty(l2RowsRaw, 'A4'),
+    excelA5: countNonEmpty(l2RowsRaw, 'A5'),
+    excelA6: countNonEmpty(l2RowsRaw, 'A6'),
     excelB1: countNonEmpty(l3Sheet.rows, 'B1'),
     excelB2: countNonEmpty(l3Sheet.rows, 'B2'),
     excelB3: countNonEmpty(l3Sheet.rows, 'B3'),
@@ -1424,27 +1510,41 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     });
   }
 
-  // ★v5: A6 — Primary: FailureMode.detectionControl (L2 시트 A6 직접), Fallback: RiskAnalysis.detectionControl (FC 시트 DC)
-  const seenA6 = new Set<string>();
-  // (1) L2 시트 A6: FM.detectionControl → 공정별 텍스트고유 dedup, parentItemId = FM.id
+  // ★v5.1: A6 — FM당 1행 (L2 A6 ↔ FM 1:1, 엑셀 행·flat 검증 정합). 동일 공정·동일 DC 문자열이 여러 FM이면 행도 여러 개.
+  // Fallback: 해당 FM에 L2 DC 없을 때만 RiskAnalysis.detectionControl(FC DC)로 보충 (FM에 이미 있으면 스킵).
+  const fmIdsWithA6FromL2 = new Set<string>();
   for (const fm of data.failureModes) {
-    if (!fm.detectionControl) continue;
+    const dc = fm.detectionControl?.trim();
+    if (!dc) continue;
     const l2 = data.l2Structures.find(s => s.id === fm.l2StructId);
     const pno = l2?.no || '';
-    const key = `${pno}|${fm.detectionControl}`;
-    if (seenA6.has(key)) continue;
-    seenA6.add(key);
-    flat.push({ id: `${fm.id}-A6`, processNo: pno, category: 'A', itemCode: 'A6', value: fm.detectionControl, parentItemId: fm.id, createdAt: now, rowSpan: 1 });
+    fmIdsWithA6FromL2.add(fm.id);
+    flat.push({
+      id: `${fm.id}-A6`,
+      processNo: pno,
+      category: 'A',
+      itemCode: 'A6',
+      value: dc,
+      parentItemId: fm.id,
+      createdAt: now,
+      rowSpan: 1,
+    });
   }
-  // (2) Fallback: FC 시트 RiskAnalysis.detectionControl (L2 A6 미존재 시 보충)
   for (const ra of data.riskAnalyses) {
     const fl = data.failureLinks.find(l => l.id === ra.linkId);
-    if (!fl || !ra.detectionControl) continue;
+    const raDc = ra.detectionControl?.trim();
+    if (!fl || !raDc) continue;
+    if (fl.fmId && fmIdsWithA6FromL2.has(fl.fmId)) continue;
     const pno = fl.fmProcess || '';
-    const key = `${pno}|${ra.detectionControl}`;
-    if (seenA6.has(key)) continue;
-    seenA6.add(key);
-    flat.push({ id: `${ra.id}-A6`, processNo: pno, category: 'A', itemCode: 'A6', value: ra.detectionControl, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: `${ra.id}-A6`,
+      processNo: pno,
+      category: 'A',
+      itemCode: 'A6',
+      value: raDc,
+      createdAt: now,
+      rowSpan: 1,
+    });
   }
 
   // ─── B (L3) ───

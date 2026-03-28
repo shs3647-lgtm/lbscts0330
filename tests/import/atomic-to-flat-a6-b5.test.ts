@@ -3,7 +3,7 @@
  * @description A6(검출관리) / B5(예방관리) flatData 생성 + FK 검증
  *  - A6: L2 시트 FailureMode.detectionControl → flatData (parentItemId = FM.id)
  *  - B5: L3 시트 FailureCause.preventionControl → flatData (parentItemId = FC.id)
- *  - 지침서 Section 4/5 기준: A6 텍스트고유 dedup, B5 복합키 dedup
+ *  - A6: FM당 1행(동일 DC 문자열이 여러 FM이면 여러 A6). B5: 복합키 dedup
  */
 import { describe, it, expect } from 'vitest';
 import { atomicToFlatData } from '@/lib/fmea/position-parser';
@@ -67,12 +67,10 @@ describe('atomicToFlatData A6(검출관리)', () => {
     const flat = atomicToFlatData(data);
     const a6Items = flat.filter(f => f.itemCode === 'A6');
 
-    // 동일 공정+동일 텍스트 → 1개로 dedup
-    expect(a6Items.length).toBe(1);
-    expect(a6Items[0].value).toBe('SPC 모니터링');
-    expect(a6Items[0].processNo).toBe('10');
-    // parentItemId = FM.id (첫 번째 FM)
-    expect(a6Items[0].parentItemId).toBe('fm-10-1');
+    // 동일 공정·동일 DC라도 FM이 다르면 A6 행도 각각 (엑셀 L2 행·FM 수와 정합)
+    expect(a6Items.length).toBe(2);
+    expect(a6Items.every(a => a.value === 'SPC 모니터링')).toBe(true);
+    expect(a6Items.map(a => a.parentItemId).sort()).toEqual(['fm-10-1', 'fm-10-2']);
   });
 
   it('다른 공정 동일 DC 텍스트 → 별도 A6 항목 생성', () => {
@@ -155,6 +153,36 @@ describe('atomicToFlatData A6(검출관리)', () => {
     // RiskAnalysis fallback → 1건
     expect(a6Items.length).toBe(1);
     expect(a6Items[0].value).toBe('RA 기반 DC');
+  });
+
+  it('FM에 L2 DC가 있으면 RA detectionControl으로 A6를 추가하지 않음', () => {
+    const data = minimalPositionData({
+      l2Structures: [
+        { id: 'l2-10', fmeaId: 'pfm26-m-test', l1Id: 'L1-STRUCT', parentId: 'L1-STRUCT', no: '10', name: 'Coat', order: 0 },
+      ],
+      failureModes: [
+        {
+          id: 'fm-10', fmeaId: 'pfm26-m-test', l2FuncId: 'lf-10', l2StructId: 'l2-10',
+          parentId: 'l2-10', mode: 'FM-10',
+          detectionControl: 'L2 DC',
+        },
+      ],
+      failureLinks: [
+        { id: 'fl-1', fmeaId: 'pfm26-m-test', fmId: 'fm-10', feId: 'fe-1', fcId: 'fc-1', fmProcess: '10' },
+      ],
+      riskAnalyses: [
+        {
+          id: 'ra-1', fmeaId: 'pfm26-m-test', linkId: 'fl-1', parentId: 'fl-1',
+          severity: 0, occurrence: 0, detection: 0, ap: '',
+          detectionControl: 'RA 전용 DC',
+        },
+      ],
+    });
+
+    const flat = atomicToFlatData(data);
+    const a6Items = flat.filter(f => f.itemCode === 'A6');
+    expect(a6Items.length).toBe(1);
+    expect(a6Items[0].value).toBe('L2 DC');
   });
 });
 
