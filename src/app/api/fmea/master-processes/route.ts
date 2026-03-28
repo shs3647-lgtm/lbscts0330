@@ -260,18 +260,67 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Master Dataset이 없습니다.' });
     }
 
-    // 공정명(A2) 일괄 업데이트
+    // ★ 2026-03-28: itemCode별 값 업데이트/추가 지원 (A2 공정명 + A4 제품특성 등)
     let updatedCount = 0;
     for (const upd of updates) {
-      const result = await prisma.pfmeaMasterFlatItem.updateMany({
-        where: {
+      const itemCode = upd.itemCode || 'A2';
+      const category = itemCode.charAt(0); // A, B, C 등
+
+      if (upd.oldValue) {
+        // 기존 값 업데이트 (oldValue → newValue)
+        const whereClause: any = {
           datasetId: activeDataset.id,
           processNo: upd.processNo,
-          itemCode: 'A2',
-        },
-        data: { value: upd.name },
-      });
-      updatedCount += result.count;
+          itemCode,
+          value: upd.oldValue,
+        };
+        const updateData: any = { value: upd.newValue || upd.name || '' };
+        // belongsTo도 같이 업데이트 (기존 null → 작업요소명 세팅)
+        if (upd.belongsTo) updateData.belongsTo = upd.belongsTo;
+        const result = await prisma.pfmeaMasterFlatItem.updateMany({
+          where: whereClause,
+          data: updateData,
+        });
+        updatedCount += result.count;
+      } else if (upd.name || upd.newValue) {
+        // A2 호환 (기존 name 필드) 또는 신규 추가
+        const value = upd.newValue || upd.name || '';
+        if (itemCode === 'A2') {
+          // 공정명 업데이트 (기존 동작)
+          const result = await prisma.pfmeaMasterFlatItem.updateMany({
+            where: {
+              datasetId: activeDataset.id,
+              processNo: upd.processNo,
+              itemCode: 'A2',
+            },
+            data: { value },
+          });
+          updatedCount += result.count;
+        } else {
+          // 해당 itemCode로 이미 존재하는지 확인
+          const findWhere: any = {
+            datasetId: activeDataset.id,
+            processNo: upd.processNo,
+            itemCode,
+            value,
+          };
+          if (upd.belongsTo) findWhere.belongsTo = upd.belongsTo;
+          const existing = await prisma.pfmeaMasterFlatItem.findFirst({ where: findWhere });
+          if (!existing) {
+            await prisma.pfmeaMasterFlatItem.create({
+              data: {
+                datasetId: activeDataset.id,
+                processNo: upd.processNo,
+                category,
+                itemCode,
+                value,
+                ...(upd.belongsTo ? { belongsTo: upd.belongsTo } : {}),
+              },
+            });
+            updatedCount++;
+          }
+        }
+      }
     }
 
     return NextResponse.json({ success: true, updatedCount });

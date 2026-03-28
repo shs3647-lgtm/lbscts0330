@@ -693,7 +693,6 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
             const func = (proc.functions || []).find(f => f.id === modal.funcId);
             return func ? (func.productChars || []).map(c => c.name).filter(n => !isPlaceholderName(n)) : [];
           })()}
-          fullSelectionApply
           fmeaId={fmeaId}
         />
       )}

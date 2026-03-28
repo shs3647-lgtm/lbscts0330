@@ -335,15 +335,21 @@ export function useFunctionL2Handlers({
     [state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, _alert]
   );
 
-  // 인라인 편집 - 제품특성
+  // 인라인 편집 - 제품특성 (+ 마스터 A4 플랫 동기화)
   const handleInlineEditProductChar = useCallback((procId: string, funcId: string, charId: string, newValue: string) => {
+    const proc = (state.l2 || []).find((p: any) => p.id === procId);
+    const processNo = String(proc?.no ?? '').trim();
+    const func = proc?.functions?.find((f: any) => f.id === funcId);
+    const oldChar = func?.productChars?.find((c: any) => c.id === charId);
+    const oldName = (oldChar?.name || '').trim();
+
     const updateFn = (prev: any) => ({
       ...prev,
-      l2: prev.l2.map((proc: any) => {
-        if (proc.id !== procId) return proc;
+      l2: prev.l2.map((p: any) => {
+        if (p.id !== procId) return p;
         return {
-          ...proc,
-          functions: (proc.functions || []).map((f: any) => {
+          ...p,
+          functions: (p.functions || []).map((f: any) => {
             if (f.id !== funcId) return f;
             return {
               ...f,
@@ -363,7 +369,21 @@ export function useFunctionL2Handlers({
     }
     setDirty(true);
     emitSave();
-  }, [setState, setStateSynced, setDirty]);
+
+    // ★ 2026-03-28: 마스터 A4 플랫 동기화 (이전 값 업데이트, 신규면 추가)
+    if (newValue.trim() && fmeaId && processNo) {
+      fetch('/api/fmea/master-processes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmeaId,
+          updates: oldName
+            ? [{ processNo, itemCode: 'A4', oldValue: oldName, newValue: newValue.trim() }]
+            : [{ processNo, itemCode: 'A4', newValue: newValue.trim() }],
+        }),
+      }).catch((e) => console.error('[L2 A4 인라인편집] 마스터 동기화 오류:', e));
+    }
+  }, [state.l2, setState, setStateSynced, setDirty, fmeaId]);
 
   // 저장 핸들러 (제품특성 A4 — 메인공정기능 A3는 L2FunctionSelectModal)
   const handleSave = useCallback((selectedValues: string[]) => {
@@ -417,34 +437,55 @@ export function useFunctionL2Handlers({
                 };
               }
 
-              const ordered = [...selectedNameSet];
-              const used = new Set<string>();
-              const nextChars: any[] = [];
+              // ★ 2026-03-28: 빈행부터 채우고, 부족하면 행추가
+              const selected = [...selectedNameSet];
 
-              for (const name of ordered) {
-                const match = currentChars.find(
-                  (c: any) => c.id && !used.has(c.id) && (c.name || '').trim() === name
-                );
-                if (match) {
-                  used.add(match.id);
-                  nextChars.push(match);
-                } else {
-                  nextChars.push({ id: uid(), name, specialChar: '' });
-                }
-              }
-
+              // 1) 이미 있는 이름은 유지 (매칭)
+              const kept = new Set<string>(); // 사용된 char id
+              const existingNames = new Set<string>();
               for (const c of currentChars) {
-                if (used.has(c.id)) continue;
-                if (!(c.name || '').trim()) {
-                  used.add(c.id);
-                  nextChars.push(c);
+                const nm = (c.name || '').trim();
+                if (nm && selectedNameSet.has(nm) && !existingNames.has(nm)) {
+                  kept.add(c.id);
+                  existingNames.add(nm);
                 }
               }
+
+              // 2) 신규 값 = 선택됐지만 기존에 없는 값
+              const newNames = selected.filter(n => !existingNames.has(n));
+
+              // 3) 빈 행 목록 (채울 대상)
+              const emptyRows = currentChars.filter(
+                (c: any) => !kept.has(c.id) && !(c.name || '').trim()
+              );
+
+              // 4) 빈 행에 신규 값 채움
+              const fillMap = new Map<string, string>(); // charId → name
+              let ei = 0;
+              const extraRows: any[] = [];
+              for (const name of newNames) {
+                if (ei < emptyRows.length) {
+                  fillMap.set(emptyRows[ei].id, name);
+                  kept.add(emptyRows[ei].id);
+                  ei++;
+                } else {
+                  extraRows.push({ id: uid(), name, specialChar: '' });
+                }
+              }
+
+              // 5) 결과 조합: 매칭된 행 + 채워진 빈행 + 남은 빈행 유지 + 신규 행
+              const result = currentChars
+                .filter((c: any) => kept.has(c.id) || !(c.name || '').trim())
+                .map((c: any) => {
+                  const fill = fillMap.get(c.id);
+                  return fill ? { ...c, name: fill } : c;
+                });
+              result.push(...extraRows);
 
               return {
                 ...f,
                 productChars: ensurePlaceholder(
-                  nextChars,
+                  result,
                   () => ({ id: uid(), name: '', specialChar: '' }),
                   'L2 productChars'
                 ),
