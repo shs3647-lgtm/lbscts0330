@@ -74,7 +74,30 @@ export async function POST(request: NextRequest) {
       .map((fl) => fl.id);
     const validFlIdSet = new Set(validFLs.map((fl) => fl.id));
     const raPayload = atomicData.riskAnalyses ?? [];
-    const validRAs = raPayload.filter((ra) => validFlIdSet.has(ra.linkId));
+    // ★ MBD-26-009: FC.preventionControl (L3 시트 B5) → RA 폴백 복사
+    // FailureCause 스키마에 preventionControl 없으므로 RA에 저장해야 함
+    const fcPcMap = new Map<string, string>();
+    for (const fc of (atomicData.failureCauses ?? [])) {
+      if ((fc as any).preventionControl?.trim()) {
+        fcPcMap.set(fc.id, (fc as any).preventionControl.trim());
+      }
+    }
+    const flFcIdMap = new Map<string, string>();
+    for (const fl of validFLs) {
+      if (fl.fcId) flFcIdMap.set(fl.id, fl.fcId);
+    }
+    const validRAs = raPayload
+      .filter((ra) => validFlIdSet.has(ra.linkId))
+      .map((ra) => {
+        // RA에 preventionControl 없으면 FC에서 가져옴
+        if (!ra.preventionControl?.trim()) {
+          const fcId = flFcIdMap.get(ra.linkId);
+          if (fcId && fcPcMap.has(fcId)) {
+            return { ...ra, preventionControl: fcPcMap.get(fcId) };
+          }
+        }
+        return ra;
+      });
     const riskAnalysesSkippedNoValidFl = raPayload.length - validRAs.length;
     const saveImportMeta: SavePositionImportMeta = {
       failureLinksPayload: flPayload.length,
