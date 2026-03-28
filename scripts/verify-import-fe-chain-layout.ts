@@ -17,7 +17,7 @@
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
 import { buildFailureChainsFromFlat } from '@/app/(fmea-core)/pfmea/import/types/masterFailureChain';
 import { assignEntityUUIDsToChains } from '@/app/(fmea-core)/pfmea/import/utils/assignChainUUIDs';
-import type { FlatToEntityMap } from '@/app/(fmea-core)/pfmea/import/utils/buildWorksheetState';
+import type { FlatToEntityMap } from '@/lib/import/importJobManager';
 import type { CrossTab } from '@/app/(fmea-core)/pfmea/import/utils/template-delete-logic';
 import type { WorksheetState } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 

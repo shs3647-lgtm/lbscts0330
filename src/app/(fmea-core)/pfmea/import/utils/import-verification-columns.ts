@@ -69,9 +69,10 @@ const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B
 export function flatRowCountsForVerification(item: ImportedFlatData): boolean {
   if (!item.itemCode || !String(item.id ?? '').trim()) return false;
   const code = item.itemCode;
+  // B3: 빈 processChar도 PG l3_functions 1행과 맞출 수 있음
   if (code === 'B3') return true;
-  if (code === 'C3' || code === 'B2') return Boolean(item.value?.trim());
-  return true;
+  // 그 외(A1~C4 등): 공백만인 행은 통계·PG 기대에서 제외 (★9 post-save 정합)
+  return Boolean(item.value?.trim());
 }
 
 /** Import 미리보기 UUID 열 — flatRowCountsForVerification과 동일 */
