@@ -943,24 +943,24 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <col style={{ width: 44 }} />
               <col />
               <col style={{ width: 240 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 56 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 34 }} />
-              <col style={{ width: 42 }} />
-              <col style={{ width: 42 }} />
-              <col style={{ width: 42 }} />
+              <col style={{ width: 64 }} />{/* 엑셀행수 */}
+              <col style={{ width: 40 }} />{/* 원본 */}
+              <col style={{ width: 40 }} />{/* 파싱 */}
+              <col style={{ width: 40 }} />{/* DB */}
+              <col style={{ width: 40 }} />{/* 중복 */}
+              <col style={{ width: 56 }} />{/* parentId */}
+              <col style={{ width: 40 }} />{/* UUID */}
+              <col style={{ width: 42 }} />{/* 복합키 */}
+              <col style={{ width: 42 }} />{/* FK */}
+              <col style={{ width: 42 }} />{/* pgsql */}
+              <col style={{ width: 42 }} />{/* API */}
             </colgroup>
             <thead><tr>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:30}}>레벨</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>코드</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-left border-r border-indigo-500">항목</th>
               <th className="bg-rose-800 text-white font-bold px-1 py-0.5 text-left border-r border-rose-600" title="원본·파싱·DB·FK·API 불일치 시 요약">오류 메시지</th>
-              <th className="bg-orange-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-orange-600" style={{width:54}} title="엑셀 시트 비어있지 않은 셀 총 수 (non-distinct). DB entity 수와 비교 근거">엑셀행수</th>
+              <th className="bg-orange-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-orange-600" style={{width:64}} title="엑셀 시트 비어있지 않은 셀 총 수 (non-distinct). DB entity 수와 비교 근거">엑셀행수</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="엑셀 distinct 값 수 (고유한 텍스트 수)">원본</th>
               <th className="bg-violet-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-violet-600" style={{width:40}} title="파서 excelX* distinct 값 = 원본과 동일">파싱</th>
               <th className="bg-red-900 text-white font-bold px-1 py-0.5 text-center border-r border-red-700" style={{width:40}} title="프로젝트 PG 스키마 저장 건수(verify-counts). 엑셀행수(총 entity)와 비교">DB</th>
