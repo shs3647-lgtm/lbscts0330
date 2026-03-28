@@ -132,7 +132,20 @@ export function TemplateGeneratorPanel(props: Props) {
   // ── 미리보기 데이터 ──
   const generatedData = useMemo(() => flatData, [flatData]);
 
-  const crossTab = useMemo(() => buildCrossTab(generatedData), [generatedData]);
+  const crossTab = useMemo(() => {
+    const raw = buildCrossTab(generatedData);
+    // ★ 공정번호 오름차순 정렬 (buildCrossTab은 flatData 삽입 순서 유지 → 정렬 필요)
+    const sortByPNo = (a: { processNo: string }, b: { processNo: string }) => {
+      const na = parseInt(a.processNo, 10), nb = parseInt(b.processNo, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return (a.processNo || '').localeCompare(b.processNo || '');
+    };
+    return {
+      ...raw,
+      aRows: [...raw.aRows].sort(sortByPNo),
+      bRows: [...raw.bRows].sort(sortByPNo),
+    };
+  }, [generatedData]);
 
   // ★ 고장사슬: 외부(DB)에서 온 데이터 우선, 없으면 flat 데이터에서 자동 도출
   const failureChains = useMemo(() => {
