@@ -217,13 +217,14 @@ export function atomicToFlatData(
       createdAt: now,
     }));
 
-    // A3: 공정기능 — genA3 재계산
+    // A3: 공정기능 — genA3 재계산 (ID 기반 dedup만)
+    // ★ MBD-26-009: 이름 기반 dedup 제거 → ID 기준만
     const l2Funcs = l2FuncsByL2.get(l2.id) || [];
-    const seenFuncNames = new Set<string>();
+    const seenL2FuncIds = new Set<string>();
     let a3seq = 0;
     for (const l2Func of l2Funcs) {
-      if (seenFuncNames.has(l2Func.functionName)) continue;
-      seenFuncNames.add(l2Func.functionName);
+      if (seenL2FuncIds.has(l2Func.id)) continue;
+      seenL2FuncIds.add(l2Func.id);
       a3seq++;
       const a3Id = genA3(doc, pnoNum, a3seq);
       idRemap.l2Func.set(l2Func.id, a3Id);
@@ -239,15 +240,16 @@ export function atomicToFlatData(
       }));
     }
 
-    // A4: 제품특성 — genA4 재계산 (공정 단위 중복 제거)
-    const seenPC = new Set<string>();
+    // A4: 제품특성 — genA4 재계산 (ID 기반 dedup만)
+    // ★ MBD-26-009: productChar 이름 기반 dedup 제거 → ID 기준만
+    const seenPCIds = new Set<string>();
     let a4seq = 0;
     for (const l2Func of l2Funcs) {
-      if (!l2Func.productChar || seenPC.has(l2Func.productChar)) continue;
-      seenPC.add(l2Func.productChar);
+      if (!l2Func.productChar || seenPCIds.has(l2Func.id)) continue;
+      seenPCIds.add(l2Func.id);
       a4seq++;
       const a4Id = genA4(doc, pnoNum, a4seq);
-      idRemap.pc.set(l2Func.id, a4Id); // L2Function.id → A4 genXxx ID
+      idRemap.pc.set(l2Func.id, a4Id);
 
       result.push(makeFlatItem({
         id: a4Id,
@@ -420,25 +422,37 @@ export function atomicToFlatData(
         }));
       }
 
-      // B5: 예방관리
-      const l3FcIds = new Set(fcs.map(fc => fc.id));
-      const pcValues = new Set<string>();
-      for (const link of db.failureLinks) {
-        if (l3FcIds.has(link.fcId)) {
-          const risk = riskByLink.get(link.id);
-          if (risk?.preventionControl?.trim() && !pcValues.has(risk.preventionControl.trim())) {
-            pcValues.add(risk.preventionControl.trim());
-            result.push(makeFlatItem({
-              id: `${b1Id}-V-${pcValues.size}`,
-              processNo: l2.no,
-              category: 'B',
-              itemCode: 'B5',
-              value: risk.preventionControl.trim(),
-              m4: m4 || undefined,
-              createdAt: now,
-            }));
+      // B5: 예방관리 — FailureCause.preventionControl에서 직접 읽기 (B4와 1:1)
+      // ★ MBD-26-009: RiskAnalysis 경유 대신 FC에서 직접 읽기 → B5 count = B4 count
+      let b5seq = 0;
+      for (const fc of fcs) {
+        const pcText = ((fc as any).preventionControl as string)?.trim() || '';
+        // Plan B: RiskAnalysis에서 폴백
+        let b5Value = pcText;
+        if (!b5Value) {
+          for (const link of db.failureLinks) {
+            if (link.fcId === fc.id) {
+              const risk = riskByLink.get(link.id);
+              if (risk?.preventionControl?.trim()) {
+                b5Value = risk.preventionControl.trim();
+                break;
+              }
+            }
           }
         }
+        if (!b5Value) continue; // 예방관리 데이터 없으면 스킵
+        b5seq++;
+        const parentB4Id = idRemap.fc.get(fc.id);
+        result.push(makeFlatItem({
+          id: `${b1Id}-V-${b5seq}`,
+          processNo: l2.no,
+          category: 'B',
+          itemCode: 'B5',
+          value: b5Value,
+          m4: m4 || undefined,
+          parentItemId: parentB4Id,
+          createdAt: now,
+        }));
       }
     }
 
