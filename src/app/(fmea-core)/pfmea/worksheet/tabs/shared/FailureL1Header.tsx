@@ -42,6 +42,7 @@ interface FailureL1HeaderProps {
   onAutoRecommendS?: () => void;
   /** 심각도 미평가 FE 건수 */
   missingSeverityCount?: number;
+  onMissingClick?: () => void;
 }
 
 export function FailureL1Header({
@@ -58,6 +59,7 @@ export function FailureL1Header({
   isLoadingMaster,
   onAutoRecommendS,
   missingSeverityCount,
+  onMissingClick,
 }: FailureL1HeaderProps) {
   const { t } = useLocale();
   const [showHelp, setShowHelp] = useState(false);
@@ -101,9 +103,9 @@ export function FailureL1Header({
               ) : (
                 <button type="button" onClick={onConfirm} className={btnConfirm}>미확정(Unconfirmed)</button>
               )}
-              {missingCount > 0 && (
-                <span className={badgeMissing}>누락(Missing) {missingCount}건(cases)</span>
-              )}
+              {missingCount > 0 ? (
+                <button type="button" onClick={onMissingClick} className={`${badgeMissing} cursor-pointer hover:opacity-80`} title="클릭하여 누락 항목으로 이동">누락(Missing) {missingCount}건(cases)</button>
+              ) : null}
             </div>
           </div>
         </th>

@@ -295,7 +295,7 @@ export const deduplicateProcessCharsAfterWeMerge = (
     const uniqueChars: any[] = [];
     for (const c of chars) {
       const name = (c?.name || '').trim();
-      // 빈 이름은 placeholder — 개별 보존 (dedup 안 함)
+      // 빈 이름은 placeholder — 일단 임시 보존
       if (!name) {
         uniqueChars.push(c);
         continue;
@@ -313,7 +313,13 @@ export const deduplicateProcessCharsAfterWeMerge = (
         uniqueChars.push(copy);
       }
     }
-    return { ...f, processChars: uniqueChars };
+    // ★ 2026-03-28 FIX: 유의미 공정특성이 있으면 빈 placeholder 제거 (빈행 버그 수정)
+    const meaningfulChars = uniqueChars.filter(c => (c?.name || '').trim());
+    const finalChars = meaningfulChars.length > 0
+      ? meaningfulChars  // 유의미한 것만 남김
+      : uniqueChars;     // 전부 빈 값 → placeholder 1개 유지
+    if (finalChars.length < uniqueChars.length) cleaned = true;
+    return { ...f, processChars: finalChars };
   });
   return { functions: result, cleaned };
 };

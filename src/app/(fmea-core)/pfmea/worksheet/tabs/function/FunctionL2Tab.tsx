@@ -42,6 +42,7 @@ import { getZebraColors } from '@/styles/level-colors';
 // ★★★ 2026-02-05: 최적화 - 유틸리티 및 훅 분리 ★★★
 import { isPlaceholderL2, filterMeaningfulFunctionsL2, filterMeaningfulProductChars, calculateProcRowSpanL2, calculateL2Counts } from './functionL2Utils';
 import { FunctionL2Header } from '../shared/FunctionL2Header';
+import { scrollToFirstMissingRow } from '../shared/scrollToMissing';
 import { useFunctionL2Handlers } from './hooks/useFunctionL2Handlers';
 import { useL2Deduplication } from './hooks/useL2Deduplication';
 import { useAlertModal } from '../../hooks/useAlertModal';
@@ -663,6 +664,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
           importProductCharCount={importCounts?.productCharCount}
           importProcessCount={importCounts?.processCount}
           importLoaded={importCounts?.loaded}
+          onMissingClick={scrollToFirstMissingRow}
         />
 
         <tbody>

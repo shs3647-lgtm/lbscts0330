@@ -57,6 +57,7 @@ import type { DataKey, GatekeeperResult } from '../../autoMapping';
 import { BORDER, cellBase, headerStyle, dataCell, FAILURE_COLORS } from '../shared/tabStyles';
 import { isMissing } from '../shared/tabUtils';
 import { FailureL2Header } from '../shared/FailureL2Header';
+import { scrollToFirstMissingRow } from '../shared/scrollToMissing';
 
 // ★★★ 컨텍스트 메뉴 수평전개 ★★★
 // ┌──────────────────────────────────────────────────────────────────┐
@@ -1048,6 +1049,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
           isLoadingMaster={isLoadingMaster}
           importFmCount={importCounts?.fmCount}
           importLoaded={importCounts?.loaded}
+          onMissingClick={scrollToFirstMissingRow}
         />
 
         {missingCount > 0 && (
@@ -1110,7 +1112,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
               const charStripeIdx = charIdxMap.get(`${row.procId}:${row.charId || ''}`) ?? 0;  // ★ 제품특성 줄무늬 인덱스
 
               return (
-                <tr key={`row-${idx}`} data-mode-id={row.modeId} onContextMenu={(e) => handleContextMenu(e, 'failureMode', row.procId, row.charId, row.modeId)}>
+                <tr key={`row-${idx}`} data-mode-id={row.modeId} data-missing-row={(!row.modeName && row.charName) ? 'true' : undefined} onContextMenu={(e) => handleContextMenu(e, 'failureMode', row.procId, row.charId, row.modeId)}>
                   {/* 공정명 - rowSpan (파란색) ★ 읽기전용: 컨텍스트 메뉴 차단 */}
                   {row.showProc && (
                     <td rowSpan={row.procRowSpan} className="border border-[#ccc] px-0.5 py-0.5 text-center font-semibold text-[10px] align-middle break-words" style={{ background: getZebra('structure', procStripeIdx) }} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>

@@ -57,6 +57,7 @@ import { handleEnterBlur } from '../../utils/keyboard';
 // ✅ 공용 스타일/색상 (2026-01-19 리팩토링)
 import { BORDER, cellBase, headerStyle, dataCell, STRUCTURE_COLORS, FUNCTION_COLORS, FAILURE_COLORS, INDICATOR_COLORS } from '../shared/tabStyles';
 import { FailureL1Header } from '../shared/FailureL1Header';
+import { scrollToFirstMissingRow } from '../shared/scrollToMissing';
 import { matchFESeverity } from '../all/hooks/severityKeywordMap';
 import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 import { useFailureL1Handlers } from './hooks/useFailureL1Handlers';
@@ -853,6 +854,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
           isLoadingMaster={isLoadingMaster}
           onAutoRecommendS={handleAutoRecommendS}
           missingSeverityCount={missingSeverityCount}
+          onMissingClick={scrollToFirstMissingRow}
         />
 
         <tbody>

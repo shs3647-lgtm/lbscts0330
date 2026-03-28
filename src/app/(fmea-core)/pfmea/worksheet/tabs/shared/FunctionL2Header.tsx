@@ -40,6 +40,7 @@ interface FunctionL2HeaderProps {
   importProductCharCount?: number;
   importProcessCount?: number;
   importLoaded?: boolean;
+  onMissingClick?: () => void;
 }
 
 export function FunctionL2Header({
@@ -56,6 +57,7 @@ export function FunctionL2Header({
   importProductCharCount,
   importProcessCount,
   importLoaded,
+  onMissingClick,
 }: FunctionL2HeaderProps) {
   const [showHelp, setShowHelp] = useState(false);
 
@@ -88,7 +90,11 @@ export function FunctionL2Header({
               ) : (
                 <button type="button" onClick={onConfirm} className={btnConfirm}>미확정(Unconfirmed)</button>
               )}
-              <span className={missingCount > 0 ? badgeMissing : badgeOk}>누락(Missing) {missingCount}건(cases)</span>
+              {missingCount > 0 ? (
+                <button type="button" onClick={onMissingClick} className={`${badgeMissing} cursor-pointer hover:opacity-80`} title="클릭하여 누락 항목으로 이동">누락(Missing) {missingCount}건(cases)</button>
+              ) : (
+                <span className={badgeOk}>누락(Missing) 0건(cases)</span>
+              )}
               {importLoaded && importProductCharCount !== undefined && importProductCharCount > 0 && productCharCount !== importProductCharCount && (
                 <ImportVerifyBadge label="제품특성" importCount={importProductCharCount} currentCount={productCharCount} loaded={importLoaded} />
               )}

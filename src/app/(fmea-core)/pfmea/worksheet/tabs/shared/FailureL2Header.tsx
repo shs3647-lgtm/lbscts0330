@@ -30,6 +30,7 @@ interface FailureL2HeaderProps {
   isLoadingMaster?: boolean;
   importFmCount?: number;
   importLoaded?: boolean;
+  onMissingClick?: () => void;
 }
 
 export function FailureL2Header({
@@ -48,6 +49,7 @@ export function FailureL2Header({
   isLoadingMaster,
   importFmCount,
   importLoaded,
+  onMissingClick,
 }: FailureL2HeaderProps) {
   const { t } = useLocale();
   const [showHelp, setShowHelp] = useState(false);
@@ -93,7 +95,11 @@ export function FailureL2Header({
               ) : (
                 <button type="button" onClick={onConfirm} className={btnConfirm}>미확정(Unconfirmed)</button>
               )}
-              <span className={missingCount > 0 ? badgeMissing : badgeOk}>누락(Missing) {missingCount}건(cases)</span>
+              {missingCount > 0 ? (
+                <button type="button" onClick={onMissingClick} className={`${badgeMissing} cursor-pointer hover:opacity-80`} title="클릭하여 누락 항목으로 이동">누락(Missing) {missingCount}건(cases)</button>
+              ) : (
+                <span className={badgeOk}>누락(Missing) 0건(cases)</span>
+              )}
               {importLoaded && importFmCount !== undefined && importFmCount > 0 && confirmedCount !== importFmCount && (
                 <ImportVerifyBadge label="FM" importCount={importFmCount} currentCount={confirmedCount} loaded={importLoaded} />
               )}
@@ -116,7 +122,7 @@ export function FailureL2Header({
           <div className="flex items-center justify-center gap-1">
             <span><BiHeader ko="2. 고장형태" en="Failure Mode" /></span>
             {missingCount > 0 && (
-              <span className="bg-orange-500 text-white px-1.5 py-0 rounded-full text-[10px]">누락(Missing) {missingCount}건(cases)</span>
+              <button type="button" onClick={onMissingClick} className="bg-orange-500 text-white px-1.5 py-0 rounded-full text-[10px] cursor-pointer hover:opacity-80" title="클릭하여 누락 항목으로 이동">누락(Missing) {missingCount}건(cases)</button>
             )}
           </div>
         </th>

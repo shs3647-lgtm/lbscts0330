@@ -52,6 +52,7 @@ type L1RowType = 'type' | 'function' | 'requirement';
 
 // ✅ 공용 스타일/유틸리티 (2026-01-19 리팩토링)
 import { FunctionL1Header } from '../shared/FunctionL1Header';
+import { scrollToFirstMissingRow } from '../shared/scrollToMissing';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 const getTypeColor = getL1TypeColor;
@@ -594,6 +595,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
           isAutoMode={isAutoMode}
           onToggleMode={handleToggleMode}
           isLoadingMaster={isLoadingMaster}
+          onMissingClick={scrollToFirstMissingRow}
         />
 
         <tbody>
