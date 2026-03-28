@@ -569,9 +569,23 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (!pno) continue;
 
     // ★★★ L3Structure: 복합키(l2Id|m4|b1) 기준 중복제거 (seenPno 패턴 수평전개) ★★★
-    const l2Id = seenPno.get(pno) || '';
+    // ★ MBD-26-009: l2Id 매핑 3단계 폴백 (0처리 금지)
+    let l2Id = seenPno.get(pno) || '';
     if (!l2Id) {
-      ppWarn(`[position-parser] ⚠️ L3 R${rn}: processNo="${pno}" → L2 매핑 실패. seenPno keys=[${[...seenPno.keys()].join(',')}]`);
+      // Plan B: 정규화된 pno로 재시도 (앞자리 0, 공백 등)
+      const pnoNorm = pno.replace(/^0+/, '');
+      for (const [k, v] of seenPno) {
+        if (k.replace(/^0+/, '') === pnoNorm) { l2Id = v; break; }
+      }
+    }
+    if (!l2Id) {
+      // Plan C: seenPno에서 부분 매칭 시도 (pno가 key에 포함됨)
+      for (const [k, v] of seenPno) {
+        if (k.includes(pno) || pno.includes(k)) { l2Id = v; break; }
+      }
+    }
+    if (!l2Id) {
+      ppWarn(`[position-parser] ⚠️ L3 R${rn}: processNo="${pno}" → L2 매핑 실패 (3단계 폴백 후). seenPno keys=[${[...seenPno.keys()].join(',')}]`);
     }
     const l3Key = `${l2Id}|${m4}|${b1}`;
     let l3Id: string;
@@ -674,6 +688,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
     }
 
+    // ★ MBD-26-009: FailureCause — parentId 3단계 폴백 (0처리 금지)
+    // Plan A: l3PcId (B3 공정특성), Plan B: l3FuncId (B2 요소기능), Plan C: l3Id (B1 작업요소)
+    const fcParentId = l3PcId || l3FuncId || l3Id;
+
     // FailureCause: B4가 있으면 생성 (없으면 FC 시트에서 보완)
     if (b4) {
       const fcId = positionUUID('L3', rn, L3_FC_COL);
@@ -683,8 +701,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
         l3FuncId,
         l3StructId: l3Id,
         l2StructId: l2Id,
-        parentId: l3PcId,   // ★v5: FC.parentId → B3(L3ProcessChar) (지침서 Section 2-2)
-        l3CharId: l3PcId,   // ★v4: B-13 FK → L3ProcessChar
+        parentId: fcParentId,   // ★ MBD-26-009: 3단계 폴백 (l3PcId → l3FuncId → l3Id)
+        l3CharId: l3PcId || l3FuncId,   // ★v4: B-13 FK → L3ProcessChar (폴백: L3Function)
         cause: b4,
         preventionControl: b5 || undefined, // ★v5: B5 예방관리 (L3 시트 직접 추출)
       });
