@@ -468,13 +468,35 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   // ★★★ MBD-26-009: FK/pgsql저장/API적합 검증 훅
   // verify-counts는 distinct 카운트 → expected도 distinct(parseExcelCounts)로 통일
-  const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(
+  const { fkData: fkDataRaw, pgsqlData, apiData, runFullVerify } = useImportVerification(
     fmeaId,
     flatData,
     uuidCounts,
     undefined,
     parseExcelCounts,  // ★ distinct 기준으로 기대값 설정 (verifyScaleRowCounts가 아님)
   );
+
+  // ★ MBD-26-009: D 코드 FK = FL의 broken FK 통계 (파서 stats에서)
+  const fkData = useMemo(() => {
+    const data = { ...fkDataRaw };
+    if (positionParserStats) {
+      const totalFl = positionParserStats.failureLinks ?? 0;
+      const brokenFE = positionParserStats.brokenFE ?? 0;
+      const brokenFM = positionParserStats.brokenFM ?? 0;
+      const brokenFC = positionParserStats.brokenFC ?? 0;
+      // D1(FE): FL 중 feId 누락
+      data.D1 = { total: totalFl, valid: totalFl - brokenFE, orphans: brokenFE, status: brokenFE === 0 ? 'pass' : 'error' };
+      // D2(공정명): 텍스트 참조 — FK 대상 아님
+      data.D2 = { total: totalFl, valid: totalFl, orphans: 0, status: 'pass' };
+      // D3(FM): FL 중 fmId 누락
+      data.D3 = { total: totalFl, valid: totalFl - brokenFM, orphans: brokenFM, status: brokenFM === 0 ? 'pass' : 'error' };
+      // D4(작업요소): 텍스트 참조
+      data.D4 = { total: totalFl, valid: totalFl, orphans: 0, status: 'pass' };
+      // D5(FC): FL 중 fcId 누락
+      data.D5 = { total: totalFl, valid: totalFl - brokenFC, orphans: brokenFC, status: brokenFC === 0 ? 'pass' : 'error' };
+    }
+    return data;
+  }, [fkDataRaw, positionParserStats]);
 
   // ★★★ 2026-03-27: 통계표가 열렸고 fmeaId 존재 + 미검증 상태면 자동 실행
   // Import → 파싱 → DB 저장 직후 pgsql/API 통계가 즉시 표시됨
