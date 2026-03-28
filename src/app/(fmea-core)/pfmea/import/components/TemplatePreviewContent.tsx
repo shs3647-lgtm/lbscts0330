@@ -162,7 +162,9 @@ function importStatRowErrorMessage(input: {
   const skipUuidVsPipe =
     ITEM_CODES_SKIP_UUID_VS_PIPELINE.has(input.itemCode) ||
     input.verifyScale === undefined;
-  if (!skipUuidVsPipe && input.uuidCount !== input.verifyScale) {
+  // 미리보기 flat에 해당 코드 행이 없으면(재방문·마스터 부분 로드 등) 파이프라인 대비 UUID 비교는 무의미 — DB·API는 이미 일치할 수 있음
+  const hasFlatSignal = input.parsedFlatN > 0 || input.uuidCount > 0;
+  if (!skipUuidVsPipe && hasFlatSignal && input.uuidCount !== input.verifyScale) {
     parts.push(`UUID≠파이프라인(${input.uuidCount}/${input.verifyScale})`);
   }
   if (input.rawRowCount !== input.uuidCount) {
