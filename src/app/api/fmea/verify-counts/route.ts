@@ -163,13 +163,11 @@ export async function GET(request: NextRequest) {
     const d3Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fmId: true } });
     const d3 = new Set(d3Rows.map(r => r.fmId).filter(Boolean)).size;
 
-    // --- D4: FC시트→B1(작업요소) distinct fcWorkElem ---
-    const d4Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fcWorkElem: true } });
-    const d4 = new Set(d4Rows.map(r => (r.fcWorkElem ?? '').trim()).filter(Boolean)).size;
+    // --- D4: 작업요소 = L3Structure 엔티티 수 (고장사슬 헤더와 일치) ---
+    const d4 = await prisma.l3Structure.count({ where: { fmeaId } });
 
-    // --- D5: FC시트→B4(고장원인) distinct fcId ---
-    const d5Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } });
-    const d5 = new Set(d5Rows.map(r => r.fcId).filter(Boolean)).size;
+    // --- D5: 고장원인 = FailureCause 엔티티 수 (고장사슬 헤더와 일치) ---
+    const d5 = await prisma.failureCause.count({ where: { fmeaId } });
 
     const counts = {
       A1: a1, A2: a1, A3: a3, A4: a4, A5: a5, A6: a6,

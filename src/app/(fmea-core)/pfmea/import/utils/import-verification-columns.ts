@@ -497,12 +497,12 @@ export function mapApiToVerification(
       'requirement',
     ),
     C4: distinctSize(apiData.failureEffects || [], 'effect'),
-    // ★ MBD-26-009: FC 레벨 (D1~D5) — FailureLink 참조 엔티티 distinct
+    // ★ MBD-26-009: FC 레벨 (D1~D3: FL distinct, D4~D5: 엔티티 수)
     D1: new Set((apiData.failureLinks || []).map((fl: any) => fl.feId).filter(Boolean)).size,
     D2: new Set((apiData.failureLinks || []).map((fl: any) => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
     D3: new Set((apiData.failureLinks || []).map((fl: any) => fl.fmId).filter(Boolean)).size,
-    D4: new Set((apiData.failureLinks || []).map((fl: any) => (fl.fcWorkElem ?? fl.l3StructId ?? '').trim()).filter(Boolean)).size,
-    D5: new Set((apiData.failureLinks || []).map((fl: any) => fl.fcId).filter(Boolean)).size,
+    D4: (apiData.l3Structures || apiData.l3Functions || []).length,  // WE 엔티티 수 = 고장사슬 91
+    D5: (apiData.failureCauses || []).length,                        // FC 엔티티 수 = 고장사슬 115
   };
 
   for (const code of ALL_ITEM_CODES) {

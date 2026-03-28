@@ -1133,13 +1133,13 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     verifyB2L3FuncNamed: l3Functions.filter(f => f.functionName?.trim()).length,
     verifyA6RiskWithDc: riskAnalyses.filter(r => r.detectionControl?.trim()).length,
     verifyB5RiskWithPc: riskAnalyses.filter(r => r.preventionControl?.trim()).length,
-    // ★ MBD-26-009: FC 시트 관점 distinct (valid FL = fmId+feId+fcId 모두 있는 것만)
-    // DB 저장 시 broken FK FL은 필터되므로, expected도 valid FL 기준으로 통일
+    // ★ MBD-26-009: FC 시트 관점 — 고장사슬 헤더와 일치
+    // D1~D3: distinct (FL 기준), D4~D5: 엔티티 테이블 총 수 (고장사슬 헤더와 일치)
     verifyD1FcFe: new Set(failureLinks.filter(fl => fl.fmId && fl.feId && fl.fcId).map(fl => fl.feId).filter(Boolean)).size,
     verifyD2FcProcess: new Set(failureLinks.filter(fl => fl.fmId && fl.feId && fl.fcId).map(fl => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
     verifyD3FcFm: new Set(failureLinks.filter(fl => fl.fmId && fl.feId && fl.fcId).map(fl => fl.fmId).filter(Boolean)).size,
-    verifyD4FcWorkElem: new Set(failureLinks.filter(fl => fl.fmId && fl.feId && fl.fcId).map(fl => (fl.fcWorkElem ?? '').trim()).filter(Boolean)).size,
-    verifyD5FcFc: new Set(failureLinks.filter(fl => fl.fmId && fl.feId && fl.fcId).map(fl => fl.fcId).filter(Boolean)).size,
+    verifyD4FcWorkElem: l3Structures.length,   // ★ 엔티티 수 = 고장사슬 WE(작업요소):91
+    verifyD5FcFc: failureCauses.length,         // ★ 엔티티 수 = 고장사슬 FC(고장원인):115
   };
 
   // ★ Import 파싱 결과 로그 (항목별 엑셀 원본 vs 파싱 결과) — verbose 게이트
