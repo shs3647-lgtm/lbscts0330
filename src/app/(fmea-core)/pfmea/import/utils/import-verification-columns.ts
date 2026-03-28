@@ -60,6 +60,45 @@ export interface VerificationData {
 
 const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'] as const;
 
+/** Import 미리보기·★9와 동일 규칙: id + 비어있지 않은 value 만 행으로 센다 */
+export function countFlatRowsByItemCode(flatData: ImportedFlatData[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of flatData) {
+    if (!item.itemCode || !item.id || !item.value?.trim()) continue;
+    counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
+  }
+  return counts;
+}
+
+/** mapCountsToPgsql 결과 중 불일치 코드만 사람이 읽을 줄로 (이름매칭 없음) */
+export function formatPgsqlCodeMismatchLines(
+  pgsql: Record<string, PgsqlVerifyResult>,
+  maxLines = 12,
+): string[] {
+  const lines: string[] = [];
+  for (const code of ALL_ITEM_CODES) {
+    const r = pgsql[code];
+    if (!r || r.match) continue;
+    lines.push(`${code}: flat·고유 기대 ${r.expected}건 / PG ${r.actual}건 (${r.status})`);
+    if (lines.length >= maxLines) break;
+  }
+  return lines;
+}
+
+/** save-position-import 삼중 FK와 동일 기준 */
+export function countTripleFkFailureLinks(
+  links: ReadonlyArray<{ fmId?: string | null; feId?: string | null; fcId?: string | null }>,
+): number {
+  let n = 0;
+  for (const fl of links) {
+    const fm = fl.fmId?.trim();
+    const fe = fl.feId?.trim();
+    const fc = fl.fcId?.trim();
+    if (fm && fe && fc) n++;
+  }
+  return n;
+}
+
 /**
  * pgsql/API 검증용 기대 건수: 통계표「고유」열이 있으면 DB·API(엔티티 수)와 같은 눈금으로 맞춤.
  * 없으면 Import「UUID」열(flat 행 수)과 동일하게 uuidCounts만 사용.

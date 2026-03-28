@@ -34,6 +34,7 @@ import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from '.
 import { useImportVerification } from '../hooks/useImportVerification';
 import { supplementMissingItems } from '../utils/supplementMissingItems';
 import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
+import { countFlatRowsByItemCode } from '../utils/import-verification-columns';
 
 // ─── Props ───
 
@@ -273,14 +274,10 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   const [saSnapshot, setSaSnapshot] = useState<Record<string, number> | null>(null);
 
   // ── UUID 카운트 (itemCode별) ──
-  const uuidCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const item of flatData) {
-      if (!item.itemCode || !item.id || !item.value?.trim()) continue;
-      counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
-    }
-    return counts;
-  }, [flatData]);
+  const uuidCounts = useMemo(
+    () => countFlatRowsByItemCode(flatData),
+    [flatData],
+  );
 
   /** 통계「고유」→ pgsql/API 비교 기대치를 워크시트(원자 DB) 엔티티 수와 같은 눈금으로 */
   const statUniqueByCode = useMemo((): Record<string, number> | undefined => {

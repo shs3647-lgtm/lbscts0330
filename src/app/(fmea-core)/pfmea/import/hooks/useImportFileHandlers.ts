@@ -8,6 +8,13 @@ import { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { saveMasterDataset } from '../utils/master-api';
 import { validateExcelFileWithAlert } from '@/lib/excel-validation';
+import {
+  countFlatRowsByItemCode,
+  countTripleFkFailureLinks,
+  formatPgsqlCodeMismatchLines,
+  mergeImportExpectedCounts,
+  mapCountsToPgsql,
+} from '../utils/import-verification-columns';
 
 interface UseImportFileHandlersProps {
   setFileName: (name: string) => void;
@@ -118,12 +125,50 @@ export function useImportFileHandlers({
           setDirty?.(false);
 
           const s = atomicData.stats;
+          let postSaveVerify = '';
+          try {
+            const vRes = await fetch(
+              `/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId.toLowerCase())}&t=${Date.now()}`,
+            );
+            const vJson = (await vRes.json()) as {
+              success?: boolean;
+              counts?: Record<string, number>;
+              error?: string;
+            };
+            if (vJson.success && vJson.counts) {
+              const uuidCounts = countFlatRowsByItemCode(flatFromAtomic);
+              const expected = mergeImportExpectedCounts(uuidCounts, undefined);
+              const pgsql = mapCountsToPgsql(vJson.counts, expected);
+              const misLines = formatPgsqlCodeMismatchLines(pgsql);
+              postSaveVerify =
+                misLines.length > 0
+                  ? `\n⚠️ 저장 직후 PG vs flat(A1–C4) 불일치:\n${misLines.join('\n')}`
+                  : `\n✅ 저장 직후 PG vs flat(A1–C4) 코드별 건수 일치`;
+            } else {
+              postSaveVerify = `\n(직후 verify-counts: ${vJson.error || `HTTP ${vRes.status}`})`;
+            }
+          } catch (ve) {
+            console.error('[Import] verify-counts after save:', ve);
+            postSaveVerify = '\n(직후 verify-counts 호출 오류 — 통계표에서 수동 확인)';
+          }
+
+          const tripleFl = countTripleFkFailureLinks(atomicData.failureLinks || []);
+          const dbFl = saveResult.atomicCounts?.failureLinks ?? 0;
+          const flLine =
+            tripleFl !== dbFl
+              ? `\n⚠️ 고장사슬(FL): 파싱 삼중FK ${tripleFl}건 vs PG ${dbFl}건`
+              : tripleFl > 0
+                ? `\n✅ FL 삼중FK ${tripleFl}건 = PG ${dbFl}건`
+                : '';
+
           setValidationMessage?.(
             `✅ 위치기반 Import 완료\n` +
-            `📊 엑셀: L1=${s.excelL1Rows}행, L2=${s.excelL2Rows}행, L3=${s.excelL3Rows}행, FC=${s.excelFCRows}행\n` +
-            `📊 파싱: L2=${saveResult.atomicCounts?.l2Structures || 0}, FM=${saveResult.atomicCounts?.failureModes || 0}, ` +
-            `FC=${saveResult.atomicCounts?.failureCauses || 0}, FL=${saveResult.atomicCounts?.failureLinks || 0}\n` +
-            `📊 flatData: ${flatFromAtomic.length}건 (미리보기용)`
+              `📊 엑셀: L1=${s.excelL1Rows}행, L2=${s.excelL2Rows}행, L3=${s.excelL3Rows}행, FC=${s.excelFCRows}행\n` +
+              `📊 파싱: L2=${saveResult.atomicCounts?.l2Structures || 0}, FM=${saveResult.atomicCounts?.failureModes || 0}, ` +
+              `FC=${saveResult.atomicCounts?.failureCauses || 0}, FL=${saveResult.atomicCounts?.failureLinks || 0}\n` +
+              `📊 flatData: ${flatFromAtomic.length}건 (미리보기용)` +
+              postSaveVerify +
+              flLine,
           );
         } else {
           console.error('[Import] save-position-import 실패:', saveResult);
