@@ -48,6 +48,7 @@ import {
   countsFromPositionExcelStats,
   countsFromParseStatisticsItemRaw,
   countsVerifyAlignedFromPipelineStats,
+  flatRowCountsForVerification,
 } from '../utils/import-verification-columns';
 
 // ─── Props ───
@@ -313,21 +314,18 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     ALL_CODES.forEach(([code]) => codeCounts.set(code, { raw: 0, vals: new Set() }));
     flatData.forEach(d => {
       const code = d.itemCode;
-      if (!code) return;
+      if (!code || !flatRowCountsForVerification(d)) return;
       if (!codeCounts.has(code)) codeCounts.set(code, { raw: 0, vals: new Set() });
       const entry = codeCounts.get(code)!;
       entry.raw++;
-      // 고유 = `countCompositeKeysByItemCode`와 동일. B3는 빈 공정특성도 L3Function 1행(PG와 정합).
-      const allowEmptyValue = d.itemCode === 'B3';
-      if (d.id && (allowEmptyValue || d.value?.trim())) {
-        const pno = String(d.processNo ?? '').trim();
-        const c = String(d.itemCode ?? '').trim();
-        const v = String(d.value ?? '').trim();
-        const m4 = String(d.m4 ?? '').trim();
-        const pid = String(d.parentItemId ?? '').trim();
-        const uniqueKey = `${pno}\x1f${c}\x1f${v}\x1f${m4}\x1f${pid}`;
-        entry.vals.add(uniqueKey);
-      }
+      // 고유 = `countCompositeKeysByItemCode`와 동일 척도
+      const c = String(d.itemCode ?? '').trim();
+      const v = c === 'B3' ? String(d.value ?? '').trim() : (d.value?.trim() ?? '');
+      const pno = String(d.processNo ?? '').trim();
+      const m4 = String(d.m4 ?? '').trim();
+      const pid = String(d.parentItemId ?? '').trim();
+      const uniqueKey = `${pno}\x1f${c}\x1f${v}\x1f${m4}\x1f${pid}`;
+      entry.vals.add(uniqueKey);
     });
 
     const itemStats: import('../excel-parser').ItemCodeStat[] = [];
@@ -346,6 +344,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     const procMap = new Map<string, { name: string; items: Record<string, { raw: number; unique: Set<string> }> }>();
     flatData.forEach(d => {
       if (!d.processNo || d.category === 'C') return;
+      if (!flatRowCountsForVerification(d)) return;
       if (!procMap.has(d.processNo)) {
         const nameItem = flatData.find(f => f.processNo === d.processNo && f.itemCode === 'A2');
         procMap.set(d.processNo, { name: nameItem?.value || '', items: {} });
@@ -353,14 +352,11 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       const proc = procMap.get(d.processNo)!;
       if (!proc.items[d.itemCode]) proc.items[d.itemCode] = { raw: 0, unique: new Set() };
       proc.items[d.itemCode].raw++;
-      const procAllowEmpty = d.itemCode === 'B3';
-      if (d.id && (procAllowEmpty || d.value?.trim())) {
-        const c = String(d.itemCode ?? '').trim();
-        const v = String(d.value ?? '').trim();
-        const m4 = String(d.m4 ?? '').trim();
-        const pid = String(d.parentItemId ?? '').trim();
-        proc.items[d.itemCode].unique.add(`${c}\x1f${v}\x1f${m4}\x1f${pid}`);
-      }
+      const c = String(d.itemCode ?? '').trim();
+      const v = c === 'B3' ? String(d.value ?? '').trim() : (d.value?.trim() ?? '');
+      const m4 = String(d.m4 ?? '').trim();
+      const pid = String(d.parentItemId ?? '').trim();
+      proc.items[d.itemCode].unique.add(`${c}\x1f${v}\x1f${m4}\x1f${pid}`);
     });
 
     const processStats: import('../excel-parser').ProcessItemStat[] = [];

@@ -621,7 +621,8 @@ model PfmeaMasterFlatItem {
   belongsTo      String?            // 소속 작업요소 이름 (B2/B3)
   dataset        PfmeaMasterDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
 
-  @@unique([datasetId, processNo, itemCode, parentItemId, value])
+  // ★ 2026-03-28: 동일 C2·C3·C4 문구+부모의 서로 다른 L1 행 보존 — 사업 키 unique 제거, PK(id)만 고유
+  @@index([datasetId, processNo, itemCode, parentItemId, value])
   @@index([datasetId])
   @@index([parentItemId])
   @@index([mergeGroupId])

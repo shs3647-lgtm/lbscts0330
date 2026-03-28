@@ -114,10 +114,11 @@ export function atomicToFlatData(
 
   for (const category of categories) {
     const div = category === 'User' ? 'US' : (category === 'Ship to Plant' ? 'SP' : 'YP');
+    const c1Id = genC1(doc, div);
 
     // C1: 구분
     result.push(makeFlatItem({
-      id: genC1(doc, div),
+      id: c1Id,
       processNo: category,
       category: 'C',
       itemCode: 'C1',
@@ -138,6 +139,7 @@ export function atomicToFlatData(
         category: 'C',
         itemCode: 'C2',
         value: lf.functionName,
+        parentItemId: c1Id,
         createdAt: now,
       }));
 
@@ -193,10 +195,11 @@ export function atomicToFlatData(
     const pnoNum = parseInt(l2.no) || 0;
     const l2NewId = genA1(doc, pnoNum);
     idRemap.l2.set(l2.id, l2NewId);
+    const a1RowId = `${l2NewId}-A1`;
 
     // A1: 공정번호
     result.push(makeFlatItem({
-      id: `${l2NewId}-A1`,
+      id: a1RowId,
       processNo: l2.no,
       category: 'A',
       itemCode: 'A1',
@@ -231,6 +234,7 @@ export function atomicToFlatData(
         category: 'A',
         itemCode: 'A3',
         value: l2Func.functionName,
+        parentItemId: a1RowId,
         createdAt: now,
       }));
     }
@@ -252,6 +256,7 @@ export function atomicToFlatData(
         itemCode: 'A4',
         value: l2Func.productChar,
         specialChar: l2Func.specialChar || undefined,
+        parentItemId: a1RowId,
         createdAt: now,
       }));
     }
@@ -336,6 +341,7 @@ export function atomicToFlatData(
       // L3Function이 존재할 수 있음 (IM/MN 카테고리). ID 기준 dedup만 유지.
       const l3Funcs = l3FuncsByL3.get(l3.id) || [];
       const seenL3FuncIds = new Set<string>();
+      const l3FuncIdToB2Id = new Map<string, string>();
       let funcIdx = 0;
       for (const l3Func of l3Funcs) {
         if (seenL3FuncIds.has(l3Func.id)) continue;
@@ -343,6 +349,7 @@ export function atomicToFlatData(
         funcIdx++;
         const b2Id = genB2(doc, pnoNum, m4, b1seq, funcIdx);
         idRemap.l3Func.set(l3Func.id, b2Id);
+        l3FuncIdToB2Id.set(l3Func.id, b2Id);
 
         result.push(makeFlatItem({
           id: b2Id,
@@ -365,6 +372,7 @@ export function atomicToFlatData(
         cseq++;
         const b3Id = genB3(doc, pnoNum, m4, b1seq, cseq);
         l3FuncIdToB3Id.set(l3Func.id, b3Id);
+        const b2ForB3 = l3FuncIdToB2Id.get(l3Func.id);
 
         result.push(makeFlatItem({
           id: b3Id,
@@ -374,7 +382,7 @@ export function atomicToFlatData(
           value: l3Func.processChar || '',  // ★ 빈값도 보존 (0처리 금지)
           m4: m4 || undefined,
           specialChar: l3Func.specialChar || undefined,
-          parentItemId: b1Id,
+          parentItemId: b2ForB3 || b1Id,
           createdAt: now,
         }));
       }

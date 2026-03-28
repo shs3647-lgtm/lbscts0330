@@ -73,4 +73,24 @@ describe('countAllFlatRowsByItemCode', () => {
     // B3는 빈 value도 검증 행으로 포함( PG l3_functions 1:1 )
     expect(countFlatRowsByItemCode(flat).B3).toBe(2);
   });
+
+  it('C3·B2는 빈 value는 verify-counts와 맞춰 제외', () => {
+    const flat: ImportedFlatData[] = [
+      row({ id: 'c3a', itemCode: 'C3', value: '요구', processNo: 'YP', parentItemId: 'lf' }),
+      row({ id: 'c3b', itemCode: 'C3', value: '', processNo: 'YP', parentItemId: 'lf' }),
+      row({ id: 'b2a', itemCode: 'B2', value: '기능', processNo: '10', category: 'B', parentItemId: 'b1' }),
+      row({ id: 'b2b', itemCode: 'B2', value: '', processNo: '10', category: 'B', parentItemId: 'b1' }),
+    ];
+    expect(countFlatRowsByItemCode(flat).C3).toBe(1);
+    expect(countFlatRowsByItemCode(flat).B2).toBe(1);
+    expect(countAllFlatRowsByItemCode(flat).C3).toBe(1);
+  });
+
+  it('id 없는 행은 파싱·UUID 집계에서 제외', () => {
+    const flat: ImportedFlatData[] = [
+      { processNo: '10', category: 'A', createdAt: new Date(), id: '', itemCode: 'A1', value: '10' } as ImportedFlatData,
+      row({ id: 'ok', itemCode: 'A1', value: '20', processNo: '20', category: 'A' }),
+    ];
+    expect(countFlatRowsByItemCode(flat).A1).toBe(1);
+  });
 });

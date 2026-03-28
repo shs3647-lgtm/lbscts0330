@@ -60,14 +60,21 @@ export interface VerificationData {
 
 const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'] as const;
 
-/** B3: verify-counts·PG는 processChar 빈 L3Function 행도 1행으로 센다 — flat 행 존재만으로 집계 */
-function flatRowCountsForVerification(item: ImportedFlatData): boolean {
-  if (!item.itemCode || !item.id) return false;
-  if (item.itemCode === 'B3') return true;
-  return Boolean(item.value?.trim());
+/**
+ * 통계「파싱」·UUID·PG/API 기대와 동일 스케일로 flat 행을 센다.
+ * - id 필수
+ * - B3: 빈 processChar도 PG l3_functions 1행
+ * - C3·B2: verify-counts와 동일 — 비어 있으면 제외(requirement / functionName)
+ */
+export function flatRowCountsForVerification(item: ImportedFlatData): boolean {
+  if (!item.itemCode || !String(item.id ?? '').trim()) return false;
+  const code = item.itemCode;
+  if (code === 'B3') return true;
+  if (code === 'C3' || code === 'B2') return Boolean(item.value?.trim());
+  return true;
 }
 
-/** Import 미리보기·★9: id + (B3는 value 생략 가능) + 그 외 코드는 trim value */
+/** Import 미리보기 UUID 열 — flatRowCountsForVerification과 동일 */
 export function countFlatRowsByItemCode(flatData: ImportedFlatData[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const item of flatData) {
@@ -77,14 +84,9 @@ export function countFlatRowsByItemCode(flatData: ImportedFlatData[]): Record<st
   return counts;
 }
 
-/** 통계표「파싱」열 rawCount: itemCode가 있으면 1행 (빈 value·무id 포함) */
+/** 통계표「파싱」열 rawCount — countFlatRows와 동일(드리프트 방지) */
 export function countAllFlatRowsByItemCode(flatData: ImportedFlatData[]): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const item of flatData) {
-    if (!item.itemCode) continue;
-    counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
-  }
-  return counts;
+  return countFlatRowsByItemCode(flatData);
 }
 
 /**

@@ -15,6 +15,7 @@ import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma'
 import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import {
   pfmeaMasterFlatDataMapKey,
+  pfmeaMasterFlatIncomingRowDedupKey,
   pfmeaMasterFlatExistingRowKey,
 } from '@/lib/fmea/master-flat-save-dedup';
 
@@ -33,6 +34,11 @@ type SaveBody = {
   failureChains?: unknown[];   // ★ 고장사슬 데이터 (FC/FA 미리보기용)
   /** ★ 2026-03-02: 저장 모드 분리 — 'template' 시 failureChains 강제 무시 (DB 오염 방지) */
   mode?: 'import' | 'template';
+  /**
+   * replace=true 일 때만 의미 있음. true면 수신 행이 기존 대비 과소해도 전체 삭제 후 교체(의도적 초기화).
+   * 생략 시 기존 대비 유효 행이 30% 미만이면 전체 삭제를 건너뛰고 병합(insert만)한다.
+   */
+  forceFullReplace?: boolean;
   // v3.0: preventionPool(B5), detectionPool(A6) 제거 — 리스크 탭에서 입력
   flatData: Array<{
     id?: string;
@@ -64,6 +70,23 @@ function ensureStringValue(value: unknown): string {
     return '';
   }
   return String(value);
+}
+
+/** POST 본문 flatData 중 실제로 DB에 넣을 수 있는 행 수(아래 forEach 스킵 규칙과 동일) */
+function countIncomingMasterFlatRows(
+  flatData: SaveBody['flatData'],
+): number {
+  let n = 0;
+  for (const d of flatData) {
+    const processNo = String(d.processNo ?? '').trim();
+    const itemCode = String(d.itemCode ?? '').trim().toUpperCase();
+    const value = ensureStringValue(d.value).trim();
+    const rowId = String((d as { id?: string }).id ?? '').trim();
+    if (processNo.length === 0 || itemCode.length === 0) continue;
+    if (value.length === 0 && !(itemCode === 'B3' && rowId)) continue;
+    n++;
+  }
+  return n;
 }
 
 /**
@@ -162,6 +185,31 @@ export async function GET(req: NextRequest) {
       }
       if (backfilled > 0) {
         console.info(`[master GET] C3 parentItemId 백필: ${backfilled}/${orphanC3.length}건 (fmeaId=${fmeaId})`);
+      }
+    }
+
+    // ★ C2 parentItemId 백필 — 구형 데이터(C1 id는 있으나 C2→C1 미연결) FK 통계 정합
+    const orphanC2 = includeItems
+      ? flatItems.filter((item: any) => item.itemCode === 'C2' && !item.parentItemId)
+      : [];
+    if (orphanC2.length > 0) {
+      const c1IdByProcessNo = new Map<string, string>();
+      for (const item of flatItems) {
+        if ((item as any).itemCode === 'C1' && (item as any).id) {
+          c1IdByProcessNo.set(String((item as any).processNo ?? '').trim(), (item as any).id);
+        }
+      }
+      let c2Backfilled = 0;
+      for (const c2 of orphanC2) {
+        const pno = String((c2 as any).processNo ?? '').trim();
+        const pid = c1IdByProcessNo.get(pno);
+        if (pid) {
+          (c2 as any).parentItemId = pid;
+          c2Backfilled++;
+        }
+      }
+      if (c2Backfilled > 0) {
+        console.info(`[master GET] C2 parentItemId 백필: ${c2Backfilled}/${orphanC2.length}건 (fmeaId=${fmeaId})`);
       }
     }
 
@@ -320,7 +368,8 @@ export async function POST(req: NextRequest) {
   const fmeaType = body.fmeaType || 'P';
   const parentFmeaId = body.parentFmeaId || null;
   const name = (body.name || '').trim() || 'MASTER';
-  const replace = Boolean(body.replace);
+  const replaceRequested = Boolean(body.replace);
+  const forceFullReplace = Boolean(body.forceFullReplace);
 
   try {
   const result = await prisma.$transaction(async (tx: any) => {
@@ -358,7 +407,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (replace) {
+    const existingFlatCount = await tx.pfmeaMasterFlatItem.count({ where: { datasetId: ds.id } });
+    const incomingEligibleCount = countIncomingMasterFlatRows(body.flatData);
+    let mergePreservedExisting = false;
+    let effectiveReplace = replaceRequested;
+    if (
+      replaceRequested &&
+      !forceFullReplace &&
+      !body.replaceItemCodes &&
+      existingFlatCount >= 50 &&
+      incomingEligibleCount > 0 &&
+      incomingEligibleCount / existingFlatCount < 0.3
+    ) {
+      effectiveReplace = false;
+      mergePreservedExisting = true;
+      console.warn(
+        `[PFMEA Master] 전체 삭제 생략·병합 저장: 기존 ${existingFlatCount}행 → 수신 유효 ${incomingEligibleCount}행 (forceFullReplace로 강제 전체 교체 가능) fmeaId=${fmeaId}`,
+      );
+    }
+
+    if (effectiveReplace) {
       const itemCodesToReplace = body.replaceItemCodes
         ? Array.isArray(body.replaceItemCodes)
           ? body.replaceItemCodes
@@ -397,12 +465,16 @@ export async function POST(req: NextRequest) {
       const processNo = String(d.processNo ?? '').trim();
       const itemCode = String(d.itemCode ?? '').trim().toUpperCase();
       const value = ensureStringValue(d.value).trim();
+      const rowId = String((d as { id?: string }).id ?? '').trim();
 
-      if (processNo.length === 0 || itemCode.length === 0 || value.length === 0) return;
+      if (processNo.length === 0 || itemCode.length === 0) return;
+      // B3 공정특성 빈값 + id 있으면 PG l3_functions 1행과 맞춰 저장 (processChar 빈 행)
+      if (value.length === 0 && !(itemCode === 'B3' && rowId)) return;
       // ★ B1 작업요소명이 4M 코드와 동일해도 삭제하지 않음 (2026-03-10 버그수정)
       // 기존: B1 value가 MN/MC/MD 등이면 필터링 → 작업요소 누락 버그
 
-      const key = pfmeaMasterFlatDataMapKey({
+      const key = pfmeaMasterFlatIncomingRowDedupKey({
+        id: (d as { id?: string }).id,
         processNo,
         itemCode,
         value,
@@ -437,7 +509,7 @@ export async function POST(req: NextRequest) {
     let data = Array.from(dataMap.values());
 
     // DB 기존 항목 대비 중복 체크 (B항목은 m4도 키에 포함 — Stage 1과 동일 기준)
-    if (replace && data.length > 0) {
+    if (effectiveReplace && data.length > 0) {
       const existingAfterDelete = await tx.pfmeaMasterFlatItem.findMany({
         where: { datasetId: ds.id },
         select: { processNo: true, itemCode: true, value: true, m4: true },
@@ -486,7 +558,15 @@ export async function POST(req: NextRequest) {
       data: { version: { increment: 1 } },
     });
 
-    return { id: ds.id, fmeaId: ds.fmeaId, fmeaType: ds.fmeaType, name: ds.name, isActive: ds.isActive, version: ds.version };
+    return {
+      id: ds.id,
+      fmeaId: ds.fmeaId,
+      fmeaType: ds.fmeaType,
+      name: ds.name,
+      isActive: ds.isActive,
+      version: ds.version,
+      mergePreservedExisting,
+    };
   });
 
   return jsonOk({ success: true, dataset: result });
