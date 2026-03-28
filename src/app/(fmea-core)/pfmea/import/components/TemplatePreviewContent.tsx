@@ -169,7 +169,9 @@ function importStatRowErrorMessage(input: {
   if (!skipUuidVsPipe && hasFlatSignal && input.uuidCount !== input.verifyScale) {
     parts.push(`UUID≠파이프라인(${input.uuidCount}/${input.verifyScale})`);
   }
-  if (input.rawRowCount !== input.uuidCount) {
+  // ★ MBD-26-009: rawCount=distinct, uuidCount=총행(flatData). 스케일이 다르므로
+  // uuidCount가 0인데 rawCount>0이면 실제 데이터 손실 (flatData에 해당 코드 없음)
+  if (input.uuidCount === 0 && input.rawRowCount > 0) {
     parts.push('빈값·파싱행');
   }
   if (input.excelVsParse && input.excelSourceN != null) {
@@ -438,13 +440,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return { uniqueByCode: compositeKeyCounts, uniqueM4FromFlat: m4 };
   }, [effectiveStatistics?.itemStats?.length, compositeKeyCounts, flatData]);
 
-  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅 — 서버 통계「고유」는 제외, 복합키+UUID+파이프라인만으로 기대치 산출(네 열 정합)
+  // ★★★ MBD-26-009: FK/pgsql저장/API적합 검증 훅
+  // verify-counts는 distinct 카운트 → expected도 distinct(parseExcelCounts)로 통일
   const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(
     fmeaId,
     flatData,
     uuidCounts,
     undefined,
-    verifyScaleRowCounts,
+    parseExcelCounts,  // ★ distinct 기준으로 기대값 설정 (verifyScaleRowCounts가 아님)
   );
 
   // ★★★ 2026-03-27: 통계표가 열렸고 fmeaId 존재 + 미검증 상태면 자동 실행
