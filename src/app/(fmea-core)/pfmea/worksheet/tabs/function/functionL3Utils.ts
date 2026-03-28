@@ -119,43 +119,56 @@ export const calculateProcRowSpanL3 = (l3: any[]): number => {
  *   서로 다른 B3 id는 동일 텍스트 허용. 이름 중복 제거는 별도 Step 2.5에서 처리.
  *   기존 파이프라인 보호를 위해 Step별 분리 유지. (L2와 동일 패턴)
  */
+/**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  금지: 이름(텍스트) 기반 병합/dedup 절대 복원 금지!                   ██
+ * ██                                                                     ██
+ * ██  사고 이력 (MBD-26-009, 2026-03-28):                               ██
+ * ██  이름 기반 병합(funcMap.has(name) → merge) 적용 시:                  ██
+ * ██  - 같은 B2 이름의 서로 다른 행이 하나로 합쳐짐                       ██
+ * ██  - B3(공정특성) 덮어쓰기 → B4(고장원인) FK 끊김                     ██
+ * ██  - 엑셀 원본 115행 중 다수가 렌더링에서 소멸                        ██
+ * ██  - 빈 함수명 스킵(if !name return) → B3/B4 전체 드롭                ██
+ * ██                                                                     ██
+ * ██  올바른 정책: 복합키(ID) 기준 dedup만 허용.                          ██
+ * ██  같은 이름이어도 다른 ID면 별도 엔티티. (CLAUDE.md Rule 1.7)        ██
+ * ██████████████████████████████████████████████████████████████████████████
+ */
 export const deduplicateFunctionsL3 = (
   functions: Array<{ id: string; name: string; processChars?: any[] }>
 ): { functions: any[]; cleaned: boolean } => {
   let cleaned = false;
-  const funcMap = new Map<string, any>();
-  
-  functions.forEach((f) => {
-    const name = f.name?.trim() || '';
-    // 이름 없는 함수: processChars가 없으면 스킵 (placeholder만 있는 경우)
-    // processChars가 있으면 보존 (effectiveB3 fallback으로 생성된 함수)
-    if (!name && !(f.processChars || []).some((c: any) => c?.name?.trim())) return;
-    if (funcMap.has(name)) {
-      const existing = funcMap.get(name);
-      const allChars = [...(existing.processChars || []), ...(f.processChars || [])];
-      existing.processChars = allChars;
-      cleaned = true;
-    } else {
-      funcMap.set(name, { ...f });
-    }
-  });
 
-  // 동일 공정특성명 복수 행 허용 — 이름 기준 dedup 금지. 동일 id만 제거(병합 시 중복 id).
-  const uniqueFuncs = Array.from(funcMap.values()).map((f: any) => {
+  // ★★★ MBD-26-009: 이름 기반 병합 제거 — 복합키(ID) 기준 dedup만 유지 ★★★
+  // 이전: 같은 이름의 함수 → 병합 → B3/B4 덮어쓰기 → 데이터 누락
+  // 수정: 동일 ID만 제거, 이름이 같아도 다른 ID면 별도 항목으로 보존
+  const seenFuncIds = new Set<string>();
+  const uniqueFuncs: any[] = [];
+
+  for (const f of functions) {
+    const fid = f.id?.trim() || '';
+    // ID 기반 dedup: 같은 ID면 스킵 (WE 병합으로 생긴 복제본)
+    if (fid && seenFuncIds.has(fid)) {
+      cleaned = true;
+      continue;
+    }
+    if (fid) seenFuncIds.add(fid);
+
+    // processChars도 ID 기반 dedup만
     const chars = f.processChars || [];
-    const seenIds = new Set<string>();
+    const seenCharIds = new Set<string>();
     const uniqueChars = chars.filter((c: any) => {
       const id = c?.id != null && String(c.id).trim() !== '' ? String(c.id) : '';
       if (!id) return true;
-      if (seenIds.has(id)) {
+      if (seenCharIds.has(id)) {
         cleaned = true;
         return false;
       }
-      seenIds.add(id);
+      seenCharIds.add(id);
       return true;
     });
-    return { ...f, processChars: uniqueChars };
-  });
+    uniqueFuncs.push({ ...f, processChars: uniqueChars });
+  }
 
   return { functions: uniqueFuncs, cleaned };
 };
@@ -283,43 +296,47 @@ export const remapFailureCauseCharIds = (
  *
  * ⚠️ AI주의: 이 함수를 deduplicateFunctionsL3 안에 넣지 말 것 — 별도 step으로만 호출.
  */
+/**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  금지: 이름(텍스트) 기반 공정특성 dedup 절대 복원 금지!              ██
+ * ██                                                                     ██
+ * ██  사고 이력 (MBD-26-009, 2026-03-28):                               ██
+ * ██  이름 기반 dedup(seenNames.has(name)) 적용 시:                      ██
+ * ██  - 같은 B3 이름의 서로 다른 공정특성이 하나만 남음                   ██
+ * ██  - 나머지 B3에 연결된 B4(고장원인) 전부 고아화                      ██
+ * ██  - 워크시트 렌더링에서 B4 0건 표시                                  ██
+ * ██                                                                     ██
+ * ██  올바른 정책: 복합키(ID) 기준 dedup만 허용.                          ██
+ * ██████████████████████████████████████████████████████████████████████████
+ */
 export const deduplicateProcessCharsAfterWeMerge = (
   functions: Array<{ id: string; name?: string; processChars?: any[]; [k: string]: any }>
 ): { functions: any[]; cleaned: boolean } => {
   let cleaned = false;
+
+  // ★★★ MBD-26-009: 이름 기반 dedup 제거 — 복합키(ID) 기준만 유지 ★★★
+  // 이전: 같은 이름의 공정특성 → 하나만 남김 → B4 고아화
+  // 수정: 동일 ID만 제거, 이름이 같아도 다른 ID면 별도 항목으로 보존
   const result = functions.map((f) => {
     const chars = f.processChars || [];
     if (chars.length <= 1) return f;
 
-    const seenNames = new Map<string, any>();
+    const seenIds = new Set<string>();
     const uniqueChars: any[] = [];
     for (const c of chars) {
-      const name = (c?.name || '').trim();
-      // 빈 이름은 placeholder — 일단 임시 보존
-      if (!name) {
+      const id = c?.id != null && String(c.id).trim() !== '' ? String(c.id) : '';
+      if (!id) {
         uniqueChars.push(c);
         continue;
       }
-      if (seenNames.has(name)) {
-        // 중복 — 첫 번째 항목의 specialChar가 비어있으면 후속 값으로 보충
-        const first = seenNames.get(name);
-        if (!first.specialChar && c.specialChar) {
-          first.specialChar = c.specialChar;
-        }
+      if (seenIds.has(id)) {
         cleaned = true;
-      } else {
-        const copy = { ...c };
-        seenNames.set(name, copy);
-        uniqueChars.push(copy);
+        continue;
       }
+      seenIds.add(id);
+      uniqueChars.push(c);
     }
-    // ★ 2026-03-28 FIX: 유의미 공정특성이 있으면 빈 placeholder 제거 (빈행 버그 수정)
-    const meaningfulChars = uniqueChars.filter(c => (c?.name || '').trim());
-    const finalChars = meaningfulChars.length > 0
-      ? meaningfulChars  // 유의미한 것만 남김
-      : uniqueChars;     // 전부 빈 값 → placeholder 1개 유지
-    if (finalChars.length < uniqueChars.length) cleaned = true;
-    return { ...f, processChars: finalChars };
+    return { ...f, processChars: uniqueChars };
   });
   return { functions: result, cleaned };
 };
