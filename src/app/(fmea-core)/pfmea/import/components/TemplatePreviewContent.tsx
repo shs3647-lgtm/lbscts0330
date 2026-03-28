@@ -371,6 +371,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
     return {
       source: 'import' as const,
+      dataSourceLine: '출처: flatData·체인 파생(통계 보강). 위치기반 파일 선택 시 파서 통계로 교체됩니다.',
       totalRows: flatData.length,
       itemStats: itemStats.map(normalizeItemStatRow),
       processStats,
@@ -922,6 +923,11 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       {/* ─── Import 통계표 — 전체 표시, 현재 레벨 강조 ─── */}
       {showStats && effectiveStatistics && effectiveStatistics.itemStats.length > 0 && (
         <div className="mb-1.5 border border-indigo-200 rounded bg-indigo-50/30">
+          {effectiveStatistics.dataSourceLine ? (
+            <div className="px-1.5 py-0.5 text-[9px] text-indigo-900 bg-indigo-100/80 border-b border-indigo-200 rounded-t">
+              {effectiveStatistics.dataSourceLine}
+            </div>
+          ) : null}
           <table className="w-full border-collapse text-[9px] table-fixed">
             <colgroup>
               <col style={{ width: 30 }} />

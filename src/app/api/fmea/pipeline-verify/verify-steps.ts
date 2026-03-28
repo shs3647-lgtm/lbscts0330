@@ -256,7 +256,7 @@ export async function verifyFmeaId(prisma: any, fmeaId: string): Promise<StepRes
  *   모두 유효한 UUID이고 해당 엔티티 행이 존재해야 한다. `feId` NULL 은 Rule 1.7(3요소) 위반으로 error.
  * - **고아(orphan):** FK 값이 NULL이거나(비 nullable인 경우), 부모 집합에 없으면 error.
  *   `FM.productCharId`·`FE.l1FuncId` 는 nullable — NULL 은 허용.
- * - **미연결 FC/FM:** FC/FM 행이 어느 FL에도 안 묶이면 warn (데이터는 있으나 사슬 미완성).
+ * - **미연결 FC/FM/FE:** FC/FM/FE 행이 어느 FL에도(해당 fkId로) 안 묶이면 warn (데이터는 있으나 사슬 미완성).
  *   단, FM은 있는데 **FL이 0건**이면 완전 누락으로 **error** (Import/재구축 필요).
  * - **RA.linkId → FL:** RiskAnalysis 가 가리키는 링크가 존재해야 함. FL 대비 RA 없음은 warn.
  * - **FC 중복:** 동일 `l2StructId|l3StructId|cause` 가 2회 이상이면 warn (dedup/Import 점검 힌트).
@@ -341,8 +341,10 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   // 사슬 커버리지: FC/FM 이 최소 1개의 FL에 등장하는지 (역은 아님 — FL만 있고 고아 부모는 위에서 걸림)
   const linkedFcIds = new Set(fls.map((l: any) => l.fcId));
   const linkedFmIds = new Set(fls.map((l: any) => l.fmId));
+  const linkedFeIds = new Set(fls.map((l: any) => l.feId).filter(Boolean));
   const unlinkedFC = fcs.filter((fc: any) => !linkedFcIds.has(fc.id)).length;
   const unlinkedFM = fms.filter((fm: any) => !linkedFmIds.has(fm.id)).length;
+  const unlinkedFE = fes.filter((fe: any) => !linkedFeIds.has(fe.id)).length;
 
   // RA ↔ FL 1:1 커버리지
   const flWithRA = new Set(ras.map((ra: any) => ra.linkId));
@@ -350,10 +352,11 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
 
   r.details = {
     fkRelations: integrity.length, totalOrphans,
-    links: fls.length, unlinkedFC, unlinkedFM, flWithoutRA: flNoRA,
+    links: fls.length, unlinkedFC, unlinkedFM, unlinkedFE, flWithoutRA: flNoRA,
     totalFM: fms.length, totalFC: fcs.length, totalFE: fes.length, totalRA: ras.length,
   };
 
+  if (unlinkedFE > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`FL 없는 FE ${unlinkedFE}건`); }
   if (unlinkedFC > 0) { r.status = worst(r.status, 'warn'); r.issues.push(`FL 없는 FC ${unlinkedFC}건`); }
   // ★ FM 있는데 FL=0 → ERROR (완전 누락, warn이 아님)
   if (unlinkedFM > 0 && fls.length === 0) { r.status = 'error'; r.issues.push(`FL 없는 FM ${unlinkedFM}건 ← Import 필요 (FailureLink=0)`); }

@@ -21,6 +21,9 @@ import {
   mergeImportExpectedCounts,
   mapCountsToPgsql,
 } from '../utils/import-verification-columns';
+import { parseStatisticsFromPositionAtomic } from '../utils/position-parse-statistics';
+import type { ParseResult } from '../excel-parser';
+import type { PositionImportPgSnapshot, SavePositionImportMeta } from '@/types/position-import';
 
 interface UseImportFileHandlersProps {
   setFileName: (name: string) => void;
@@ -37,6 +40,8 @@ interface UseImportFileHandlersProps {
   setValidationMessage?: (msg: string | null) => void;
   /** 위치기반 파싱 직후 엑셀 셀 카운트(stats) — 통계표「파싱」열 */
   setPositionParserStats?: (stats: Record<string, number> | null) => void;
+  /** save-position-import 성공 직후 PG 실측(★11) */
+  onPositionImportSnapshot?: (snapshot: PositionImportPgSnapshot | null) => void;
   flatData: ImportedFlatData[];
   pendingData: ImportedFlatData[];
   masterChains?: MasterFailureChain[];
@@ -61,6 +66,7 @@ export function useImportFileHandlers({
   setDirty,
   setValidationMessage,
   setPositionParserStats,
+  onPositionImportSnapshot,
   flatData,
   pendingData,
   masterChains,
@@ -85,6 +91,7 @@ export function useImportFileHandlers({
     setIsParsing(true);
     setImportSuccess(false);
     setPositionParserStats?.(null);
+    onPositionImportSnapshot?.(null);
 
     try {
       const ExcelJS = (await import('exceljs')).default;
@@ -104,6 +111,13 @@ export function useImportFileHandlers({
       const atomicData = parsePositionBasedWorkbook(wb, fmeaId?.toLowerCase());
       console.log('[Import] position-parser stats:', JSON.stringify(atomicData.stats));
       setPositionParserStats?.(atomicData.stats as Record<string, number>);
+      setParseResult({
+        success: true,
+        errors: [],
+        processes: [],
+        products: [],
+        statistics: parseStatisticsFromPositionAtomic(atomicData),
+      } satisfies ParseResult);
 
       const flatFromAtomic = atomicToFlatData(atomicData) as ImportedFlatData[];
       setPendingData(flatFromAtomic);
@@ -147,12 +161,8 @@ export function useImportFileHandlers({
           let saveResult: {
             success?: boolean;
             error?: string;
-            atomicCounts?: {
-              l2Structures?: number;
-              failureModes?: number;
-              failureCauses?: number;
-              failureLinks?: number;
-            };
+            atomicCounts?: PositionImportPgSnapshot['atomicCounts'];
+            saveImportMeta?: SavePositionImportMeta;
           } = {};
           try {
             saveResult = rawText ? (JSON.parse(rawText) as typeof saveResult) : {};
@@ -255,6 +265,22 @@ export function useImportFileHandlers({
                 : tripleFl > 0
                   ? `\n✅ FL 삼중FK ${tripleFl}건 = PG ${dbFl}건`
                   : '';
+            const meta = saveResult.saveImportMeta;
+            const metaLine =
+              meta && (meta.failureLinksSkippedIncomplete > 0 || meta.riskAnalysesSkippedNoValidFl > 0)
+                ? `\n📌 저장 메타: FL 페이로드 ${meta.failureLinksPayload}건 중 불완전삼중 스킵 ${meta.failureLinksSkippedIncomplete}건` +
+                  (meta.failureLinksSkippedSampleIds.length > 0
+                    ? ` (샘플 id: ${meta.failureLinksSkippedSampleIds.slice(0, 3).join(', ')}${meta.failureLinksSkippedSampleIds.length > 3 ? '…' : ''})`
+                    : '') +
+                  ` | RA 페이로드 ${meta.riskAnalysesPayload}건, 유효 FL 없어 스킵 ${meta.riskAnalysesSkippedNoValidFl}건`
+                : meta
+                  ? `\n📌 저장 메타: FL 삽입시도(삼중완전) ${meta.failureLinksValidTripleForInsert}/${meta.failureLinksPayload}, RA ${meta.riskAnalysesValidForInsert}/${meta.riskAnalysesPayload}`
+                  : '';
+
+            onPositionImportSnapshot?.({
+              atomicCounts: saveResult.atomicCounts ?? {},
+              saveImportMeta: saveResult.saveImportMeta,
+            });
 
             setValidationMessage?.(
               `✅ 위치기반 Import 완료 (Atomic + 마스터 평면 자동 저장)\n` +
@@ -264,6 +290,7 @@ export function useImportFileHandlers({
                 `📊 flatData: DB 재로드 기준 표시` +
                 postSaveVerify +
                 flLine +
+                metaLine +
                 masterSyncNote,
             );
           } else {

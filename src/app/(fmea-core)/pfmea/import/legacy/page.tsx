@@ -12,6 +12,7 @@ import { usePathname } from 'next/navigation';
 import { ImportedFlatData, FailureChain } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import type { ParseResult } from '../excel-parser';
+import type { PositionImportPgSnapshot } from '@/types/position-import';
 import { downloadEmptyTemplate, downloadSampleTemplate, downloadDataTemplate } from '../excel-template';
 import {
   useImportFileHandlers,
@@ -66,6 +67,7 @@ export default function LegacyImportPage() {
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   /** 위치기반 파일 선택 시 position-parser 엑셀 셀 카운트 — 통계「파싱」열 */
   const [positionParserStats, setPositionParserStats] = useState<Record<string, number> | null>(null);
+  const [positionPgSnapshot, setPositionPgSnapshot] = useState<PositionImportPgSnapshot | null>(null);
   const [pendingData, setPendingData] = useState<ImportedFlatData[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -226,6 +228,7 @@ export default function LegacyImportPage() {
     setFlatData, setIsImporting, setMasterDatasetId, setMasterChains, setIsSaved, setDirty,
     setValidationMessage,
     setPositionParserStats,
+    onPositionImportSnapshot: setPositionPgSnapshot,
     flatData, pendingData, masterChains,
     masterDatasetId,
     fmeaId: selectedFmeaId || undefined,
@@ -593,6 +596,7 @@ export default function LegacyImportPage() {
             flatData={flatData}
             fmeaId={selectedFmeaId}
             failureChains={masterChains}
+            pgSnapshot={positionPgSnapshot}
             l1Name={l1Name}
             fmeaInfo={selectedFmea ? {
               subject: selectedFmea.fmeaInfo?.subject || '',

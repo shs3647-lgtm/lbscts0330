@@ -41,6 +41,10 @@ export interface VerificationResult {
 
 export interface ParseStatistics {
   itemStats: ItemCodeStat[];
+  /** 위치기반 등 — 통계표 상단 출처 한 줄 */
+  dataSourceLine?: string;
+  /** 통계 생성 경로 구분 */
+  source?: string;
   processStats?: ProcessItemStat[];
   chainCount?: number;
   verification?: VerificationResult;

@@ -24,7 +24,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { getPrismaForSchema } from '@/lib/prisma';
-import type { PositionAtomicData } from '@/types/position-import';
+import type { PositionAtomicData, SavePositionImportMeta } from '@/types/position-import';
 
 export const runtime = 'nodejs';
 
@@ -64,6 +64,27 @@ export async function POST(request: NextRequest) {
 
     console.log(`[save-position-import] schema=${schema}, fmeaId=${normalizedId}, force=${force}`);
     console.log(`[save-position-import] stats:`, JSON.stringify(atomicData.stats));
+
+    const flPayload = atomicData.failureLinks ?? [];
+    const validFLs = flPayload.filter((fl) => !!(fl.fmId && fl.feId && fl.fcId));
+    const failureLinksSkippedIncomplete = flPayload.length - validFLs.length;
+    const failureLinksSkippedSampleIds = flPayload
+      .filter((fl) => !(fl.fmId && fl.feId && fl.fcId))
+      .slice(0, 8)
+      .map((fl) => fl.id);
+    const validFlIdSet = new Set(validFLs.map((fl) => fl.id));
+    const raPayload = atomicData.riskAnalyses ?? [];
+    const validRAs = raPayload.filter((ra) => validFlIdSet.has(ra.linkId));
+    const riskAnalysesSkippedNoValidFl = raPayload.length - validRAs.length;
+    const saveImportMeta: SavePositionImportMeta = {
+      failureLinksPayload: flPayload.length,
+      failureLinksValidTripleForInsert: validFLs.length,
+      failureLinksSkippedIncomplete,
+      failureLinksSkippedSampleIds,
+      riskAnalysesPayload: raPayload.length,
+      riskAnalysesValidForInsert: validRAs.length,
+      riskAnalysesSkippedNoValidFl,
+    };
 
     // ─── $transaction ───
     const counts = await prisma.$transaction(async (tx) => {
@@ -376,9 +397,8 @@ export async function POST(request: NextRequest) {
         console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성`);
       }
 
-      // 11. FailureLinks — 빈 FK 필터링 후 저장 (FK 제약 위반 방지)
-      const validFLs = atomicData.failureLinks.filter(fl => fl.fmId && fl.feId && fl.fcId);
-      const brokenFLs = atomicData.failureLinks.length - validFLs.length;
+      // 11. FailureLinks — 빈 FK 필터링 후 저장 (FK 제약 위반 방지) — validFLs는 트랜잭션 밖에서 산출(saveImportMeta와 동일)
+      const brokenFLs = flPayload.length - validFLs.length;
       if (brokenFLs > 0) {
         console.warn(`[save-position-import] ⚠️ FL FK 불완전 ${brokenFLs}건 스킵 (fmId/feId/fcId 빈값)`);
         console.warn('[save-position-import] 원인: FC 시트의 L1/L2/L3 원본행 컬럼 확인 필요');
@@ -422,10 +442,8 @@ export async function POST(request: NextRequest) {
         console.log(`[save-position-import] FailureLink: ${validFLs.length}건 생성`);
       }
 
-      // 12. RiskAnalyses — 유효한 FL만 참조
+      // 12. RiskAnalyses — 유효한 FL만 참조 (validRAs는 트랜잭션 밖과 동일)
       // E-22 parentId: PosRiskAnalysis.parentId === FailureLink.id — Prisma는 linkId FK만 보관(EX-06: fmId/fcId/feId 병행).
-      const validFlIds = new Set(validFLs.map(fl => fl.id));
-      const validRAs = atomicData.riskAnalyses.filter(ra => validFlIds.has(ra.linkId));
       if (validRAs.length > 0) {
         await tx.riskAnalysis.createMany({
           skipDuplicates: true,
@@ -469,7 +487,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true, fmeaId: normalizedId, schema,
-      atomicCounts: counts, stats: atomicData.stats,
+      atomicCounts: counts, stats: atomicData.stats, saveImportMeta,
     });
 
   } catch (err) {

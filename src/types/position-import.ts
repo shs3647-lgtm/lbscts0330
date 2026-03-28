@@ -282,3 +282,28 @@ export interface PositionAtomicData {
   riskAnalyses: PosRiskAnalysis[];
   stats: Record<string, number>;
 }
+
+/** save-position-import 성공 응답 — payload 대비 FL/RA 스킵·삽입 시도 건수 (★10) */
+export interface SavePositionImportMeta {
+  failureLinksPayload: number;
+  failureLinksValidTripleForInsert: number;
+  failureLinksSkippedIncomplete: number;
+  failureLinksSkippedSampleIds: string[];
+  riskAnalysesPayload: number;
+  riskAnalysesValidForInsert: number;
+  riskAnalysesSkippedNoValidFl: number;
+}
+
+/** Import UI — 저장 직후 PG 실측 스냅샷 (★11) */
+export interface PositionImportPgSnapshot {
+  atomicCounts: Partial<{
+    l2Structures: number;
+    l3Structures: number;
+    failureModes: number;
+    failureCauses: number;
+    failureEffects: number;
+    failureLinks: number;
+    riskAnalyses: number;
+  }>;
+  saveImportMeta?: SavePositionImportMeta;
+}

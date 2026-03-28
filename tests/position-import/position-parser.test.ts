@@ -1,6 +1,8 @@
 /**
  * @file position-parser.test.ts
- * @description TDD RED: 위치기반 파서 테스트 (m102 JSON fixture 기반)
+ * @description 위치기반 파서 테스트 (m102 JSON fixture 기반)
+ * @updated 2026-03-28 — 파서 v5/v6: FE=C4 텍스트 중복제거, L3Structure=l2Id|m4|B1 복합키 dedup,
+ *   FC 복합키 매칭으로 미해결 fcId 허용 → FK 검증은 삼중 완전 FL만 대상
  */
 import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
@@ -33,12 +35,14 @@ describe('parsePositionBasedJSON', () => {
 
   // ── L1 시트 → FailureEffect + L1Function ──
 
-  it('L1 시트 → FailureEffect 생성 (행마다 독립)', () => {
+  it('L1 시트 → FailureEffect 생성 (C4 텍스트 기준 중복제거)', () => {
     result = parsePositionBasedJSON(fixture);
-    // 63행 중 C4가 비어있는 22행 제외 → 41개 FE
-    const c4Rows = fixture.sheets.L1.rows.filter((r: any) => r.cells.C4?.trim());
-    expect(result.failureEffects.length).toBe(c4Rows.length);
-    // 각 FE의 id가 L1-R{n}-C4 형식
+    const uniqueC4 = new Set(
+      fixture.sheets.L1.rows
+        .map((r: any) => r.cells.C4?.trim())
+        .filter((t: string | undefined) => !!t),
+    );
+    expect(result.failureEffects.length).toBe(uniqueC4.size);
     expect(result.failureEffects[0].id).toMatch(/^L1-R\d+-C4$/);
   });
 
@@ -68,9 +72,10 @@ describe('parsePositionBasedJSON', () => {
 
   // ── L3 시트 → L3Structure + L3Function + FailureCause ──
 
-  it('L3 시트 → L3Structure 생성 (행마다 독립)', () => {
+  it('L3 시트 → L3Structure 생성 (복합키 l2Id|m4|B1 중복제거)', () => {
     result = parsePositionBasedJSON(fixture);
-    expect(result.l3Structures.length).toBe(112);
+    // 물리 행 112≠구조체 수 — 동일 공정·4M·작업요소는 단일 L3Structure (position-parser 2026-03-28)
+    expect(result.l3Structures.length).toBe(90);
   });
 
   it('L3 시트 → FailureCause 생성 (B4 열 기준)', () => {
@@ -118,21 +123,21 @@ describe('parsePositionBasedJSON', () => {
 
   // ── 전체 정합성 ──
 
-  it('모든 FailureLink의 FK가 실제 엔티티를 참조', () => {
+  it('삼중 FK가 채워진 FailureLink는 실제 FE/FM/FC 엔티티를 참조', () => {
     result = parsePositionBasedJSON(fixture);
     const feIds = new Set(result.failureEffects.map(e => e.id));
     const fmIds = new Set(result.failureModes.map(e => e.id));
     const fcIds = new Set(result.failureCauses.map(e => e.id));
 
-    let brokenFE = 0, brokenFM = 0, brokenFC = 0;
-    for (const fl of result.failureLinks) {
-      if (!feIds.has(fl.feId)) brokenFE++;
-      if (!fmIds.has(fl.fmId)) brokenFM++;
-      if (!fcIds.has(fl.fcId)) brokenFC++;
+    const tripleComplete = result.failureLinks.filter(
+      (fl) => fl.feId && fl.fmId && fl.fcId,
+    );
+    expect(tripleComplete.length).toBeGreaterThan(0);
+    for (const fl of tripleComplete) {
+      expect(feIds.has(fl.feId)).toBe(true);
+      expect(fmIds.has(fl.fmId)).toBe(true);
+      expect(fcIds.has(fl.fcId)).toBe(true);
     }
-    expect(brokenFE).toBe(0);
-    expect(brokenFM).toBe(0);
-    expect(brokenFC).toBe(0);
   });
 
   it('모든 L3Structure의 l2Id가 실제 L2Structure를 참조', () => {

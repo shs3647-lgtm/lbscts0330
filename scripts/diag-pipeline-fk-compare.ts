@@ -9,6 +9,8 @@
  *   npx tsx scripts/diag-pipeline-fk-compare.ts pfm26-m008
  *   $env:FMEA_BASE_URL="http://localhost:3000"; npx tsx scripts/diag-pipeline-fk-compare.ts pfm26-m008
  *
+ * ★ verify-counts: A1–C4 코드맵과 PG 실측(Import 통계표 pgsql 열과 동일 척도) — STEP1 L2/L3/L3F와 병기
+ *
  * 스냅샷 저장 (UTF-8):
  *   npx tsx scripts/diag-pipeline-fk-compare.ts pfm26-m008 --save-snapshots
  */
@@ -47,6 +49,12 @@ interface ValidateFkBody {
   error?: string;
 }
 
+interface VerifyCountsBody {
+  success?: boolean;
+  counts?: Record<string, number>;
+  error?: string;
+}
+
 function stepDetails(steps: PipelineStep[] | undefined, n: number): Record<string, number | string> {
   return steps?.find((s) => s.step === n)?.details ?? {};
 }
@@ -63,17 +71,21 @@ async function main() {
 
   const pipelineUrl = `${base}/api/fmea/pipeline-verify?fmeaId=${encodeURIComponent(fmeaId)}`;
   const validateUrl = `${base}/api/fmea/validate-fk?fmeaId=${encodeURIComponent(fmeaId)}`;
+  const verifyCountsUrl = `${base}/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId)}`;
 
   let pipeline: PipelineBody;
   let validate: ValidateFkBody;
+  let verifyCounts: VerifyCountsBody = {};
 
   try {
-    const [pr, vr] = await Promise.all([
+    const [pr, vr, vc] = await Promise.all([
       fetch(pipelineUrl, { headers: { Accept: 'application/json' } }),
       fetch(validateUrl, { headers: { Accept: 'application/json' } }),
+      fetch(verifyCountsUrl, { headers: { Accept: 'application/json' } }),
     ]);
     pipeline = (await pr.json()) as PipelineBody;
     validate = (await vr.json()) as ValidateFkBody;
+    verifyCounts = (await vc.json()) as VerifyCountsBody;
   } catch (e) {
     console.error('[diag] fetch 실패 — dev 서버가 떠 있는지 확인:', e);
     process.exit(1);
@@ -104,6 +116,7 @@ async function main() {
   const fl = Number(d1.FL ?? 0);
   const unlinkedFM = Number(d3.unlinkedFM ?? 0);
   const unlinkedFC = Number(d3.unlinkedFC ?? 0);
+  const unlinkedFE = Number(d3.unlinkedFE ?? 0);
   const nullFeIdLinks = Number(d3.nullFeIdLinks ?? 0);
   const fcDup = Number(d3.fcDuplicates ?? 0);
 
@@ -115,10 +128,22 @@ async function main() {
   console.log('═'.repeat(72));
   console.log(`  diag-pipeline-fk-compare  |  fmeaId=${fmeaId}  |  base=${base}`);
   console.log('═'.repeat(72));
-  console.log('\n[1] 파이프라인 STEP1(수량) — Atomic DB 카운트');
+  console.log('\n[1] 파이프라인 STEP1(수량) — Atomic DB 엔티티(PG)');
+  console.log(
+    `  L2=${d1.L2 ?? '?'}  L3=${d1.L3 ?? '?'}  L3F=${d1.L3F ?? '?'}  L2F=${d1.L2F ?? '?'}  L1F=${d1.L1F ?? '?'}`,
+  );
   console.log(`  FM=${fm}  FE=${fe}  FC=${fc}  FL=${fl}  RA=${d1.RA ?? '?'}`);
+  if (verifyCounts.success && verifyCounts.counts && Object.keys(verifyCounts.counts).length > 0) {
+    const c = verifyCounts.counts;
+    console.log('\n[1b] verify-counts — Import 통계표 pgsql 열과 동일 API');
+    console.log(
+      `  샘플: L2=${c.l2Structures ?? c.L2 ?? '—'} L3=${c.l3Structures ?? c.L3 ?? '—'} FM=${c.failureModes ?? c.FM ?? '—'} … (전체 키 ${Object.keys(c).length}개)`,
+    );
+  } else if (!verifyCounts.success) {
+    console.log('\n[1b] verify-counts: 실패 또는 미지원 —', verifyCounts.error || '(no body)');
+  }
   console.log('\n[2] 파이프라인 STEP3(FK) — 미연결·품질');
-  console.log(`  FL 없는 FM: ${unlinkedFM}  |  FL 없는 FC: ${unlinkedFC}`);
+  console.log(`  FL 없는 FM: ${unlinkedFM}  |  FL 없는 FC: ${unlinkedFC}  |  FL 없는 FE: ${unlinkedFE}`);
   console.log(`  nullFeId 링크: ${nullFeIdLinks}  |  FC중복(l2+cause): ${fcDup}`);
   if (steps?.[2]?.issues?.length) console.log(`  STEP3 issues: ${JSON.stringify(steps[2].issues)}`);
 
