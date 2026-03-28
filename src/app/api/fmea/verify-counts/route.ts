@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
     // --- A5: FailureMode count ---
     const a5 = await prisma.failureMode.count({ where: { fmeaId } });
 
-    // --- A6: RiskAnalysis with non-empty detectionControl ---
-    const a6 = await prisma.riskAnalysis.count({
+    // --- A6: distinct non-empty detectionControl values (L2 시트 A6 칼럼 distinct와 동일 척도) ---
+    const a6Rows = await prisma.riskAnalysis.findMany({
       where: {
         fmeaId,
         AND: [
@@ -63,7 +63,9 @@ export async function GET(request: NextRequest) {
           { detectionControl: { not: '' } },
         ],
       },
+      select: { detectionControl: true },
     });
+    const a6 = new Set(a6Rows.map(r => (r.detectionControl ?? '').trim()).filter(Boolean)).size;
 
     // --- B1: L3Structure count ---
     const b1 = await prisma.l3Structure.count({ where: { fmeaId } });
@@ -86,8 +88,8 @@ export async function GET(request: NextRequest) {
     // --- B4: FailureCause count ---
     const b4 = await prisma.failureCause.count({ where: { fmeaId } });
 
-    // --- B5: RiskAnalysis with non-empty preventionControl ---
-    const b5 = await prisma.riskAnalysis.count({
+    // --- B5: distinct non-empty preventionControl values (L3 시트 B5 칼럼 distinct와 동일 척도) ---
+    const b5Rows = await prisma.riskAnalysis.findMany({
       where: {
         fmeaId,
         AND: [
@@ -95,7 +97,9 @@ export async function GET(request: NextRequest) {
           { preventionControl: { not: '' } },
         ],
       },
+      select: { preventionControl: true },
     });
+    const b5 = new Set(b5Rows.map(r => (r.preventionControl ?? '').trim()).filter(Boolean)).size;
 
     // --- C1: distinct categories from L1Function ---
     const distinctCategories = await prisma.l1Function.findMany({
