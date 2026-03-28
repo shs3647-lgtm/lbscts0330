@@ -359,10 +359,18 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   // ========== 누락 FE/FC 목록 계산 ==========
   // ★ 현재 선택 중(미확정) FE/FC도 실시간 제외
   // ★ 2026-03-24: FC/FE 누락도 텍스트 매칭 완화
+  // 링크에 fcId가 없어도 fcText+공정이 있으면 집계 (computeFailureLinkStats와 동일 축)
+  // 공정|원인문구 중복 건은 공정|m4|we|원인 복합키로 구분 (가짜 FC 누락 완화)
   const linkFcTextSet = useMemo(() => {
     const s = new Set<string>();
+    const rowKey = (proc: string, m4: string, we: string, text: string) =>
+      [proc, m4, we, text].join('|').trim().replace(/\s+/g, ' ').toLowerCase();
     savedLinks.forEach(link => {
-      if (link.fcId) s.add(((link.fcProcess || link.fmProcess || '') + '|' + (link.fcText || '')).trim().replace(/\s+/g, ' ').toLowerCase());
+      const t = (link.fcText || '').trim();
+      if (!t) return;
+      const proc = (link.fcProcess || link.fmProcess || '').trim();
+      s.add(`${proc}|${t}`.replace(/\s+/g, ' ').toLowerCase());
+      s.add(rowKey(proc, (link.fcM4 || '').trim(), (link.fcWorkElem || '').trim(), t));
     });
     return s;
   }, [savedLinks]);
@@ -375,11 +383,15 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   }, [savedLinks]);
 
   const missingFCs = useMemo(() => {
+    const rowKey = (proc: string, m4: string, we: string, text: string) =>
+      [proc, m4, we, text].join('|').trim().replace(/\s+/g, ' ').toLowerCase();
     return fcData.filter(fc => {
       if (linkStats.fcLinkedIds.has(fc.id) || linkedFCs.has(fc.id)) return false;
-      // 텍스트 매칭 fallback
-      const key = ((fc.processName || '') + '|' + (fc.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
+      const proc = (fc.processName || '').trim();
+      const text = (fc.text || '').trim();
+      const key = `${proc}|${text}`.replace(/\s+/g, ' ').toLowerCase();
       if (linkFcTextSet.has(key)) return false;
+      if (linkFcTextSet.has(rowKey(proc, (fc.m4 || '').trim(), (fc.workElem || '').trim(), text))) return false;
       return true;
     });
   }, [fcData, linkStats, linkedFCs, linkFcTextSet]);

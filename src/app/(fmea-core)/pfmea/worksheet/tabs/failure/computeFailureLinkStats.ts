@@ -86,7 +86,7 @@ function resolveFeId(link: LinkResult, feData: FEItem[], feIdSet: Set<string>): 
   return undefined;
 }
 
-/** 링크 → fcData id (UUID 일치 우선, 실패 시 fcNo+공정+텍스트로 유일 후보만) */
+/** 링크 → fcData id (UUID 일치 우선, 다건 시 fcM4+fcWorkElem → fcNo → 단일 후보) */
 function resolveFcId(link: LinkResult, fcData: FCItem[], fcIdSet: Set<string>): string | undefined {
   const id = (link.fcId || '').trim();
   if (id && fcIdSet.has(id)) return id;
@@ -101,6 +101,19 @@ function resolveFcId(link: LinkResult, fcData: FCItem[], fcIdSet: Set<string>): 
     fc => norm(fc.text) === nt && procMatch(fc.processName, linkFcProc, linkFmProc),
   );
   if (cand.length === 0) return undefined;
+
+  // 동일 공정·동일 원인문구 여러 건(Rule1.7) — 링크에 실린 4M·작업요소로 축소 (DB FL 메타, FK 추측 아님)
+  const linkM4 = (link.fcM4 || '').trim();
+  const linkWe = (link.fcWorkElem || '').trim();
+  if (cand.length > 1 && (linkM4 || linkWe)) {
+    const byMeta = cand.filter(
+      fc =>
+        (!linkM4 || (fc.m4 || '').trim() === linkM4) &&
+        (!linkWe || (fc.workElem || '').trim() === linkWe),
+    );
+    if (byMeta.length === 1) return byMeta[0]!.id;
+    if (byMeta.length > 0) cand = byMeta;
+  }
 
   const fcNo = (link.fcNo || '').trim();
   if (fcNo) {

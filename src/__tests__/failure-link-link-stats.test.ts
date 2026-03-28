@@ -137,4 +137,36 @@ describe('computeFailureLinkStats (UUID + 링크 메타데이터 보강)', () =>
     expect(s.fcLinkedIds.has('fc-real')).toBe(true);
     expect(s.fmLinkCounts.get(fm.id)?.fcCount).toBe(1);
   });
+
+  it('동일 공정·동일 fcText 다건 — fcM4+fcWorkElem으로 특정 (stale fcId·잘못된 fcNo)', () => {
+    const feData: FEItem[] = [{ id: 'fe-1', scope: 'YP', feNo: '1', text: 'E1' }];
+    const fcData: FCItem[] = [
+      { id: 'fc-a', fcNo: 'C9', processName: 'Sorter', m4: 'MN', workElem: 'WE-A', text: '작업 숙련도 부족' },
+      { id: 'fc-b', fcNo: 'C10', processName: 'Sorter', m4: 'MC', workElem: 'WE-B', text: '작업 숙련도 부족' },
+    ];
+    const links: LinkResult[] = [
+      {
+        fmId: fm.id,
+        fmText: fm.text,
+        fmProcess: fm.processName,
+        fmProcessNo: fm.processNo,
+        feId: 'fe-1',
+        feNo: '1',
+        feScope: 'YP',
+        feText: 'E1',
+        severity: 1,
+        fcId: 'stale-fc-uuid',
+        fcNo: 'C999',
+        fcProcess: 'Sorter',
+        fcM4: 'MC',
+        fcWorkElem: 'WE-B',
+        fcText: '작업 숙련도 부족',
+      },
+    ];
+
+    const s = computeFailureLinkStats(links, feData, [fm], fcData);
+    expect(s.fcLinkedIds.has('fc-b')).toBe(true);
+    expect(s.fcMissingCount).toBe(1);
+    expect(s.fmLinkCounts.get(fm.id)?.fcCount).toBe(1);
+  });
 });
