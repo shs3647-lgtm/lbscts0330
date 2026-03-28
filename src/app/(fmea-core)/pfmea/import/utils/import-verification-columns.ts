@@ -447,25 +447,38 @@ export function mapApiToVerification(
 ): Record<string, ApiVerifyResult> {
   const result: Record<string, ApiVerifyResult> = {};
 
-  // Extract counts from API response (atomic format)
+  // ★ MBD-26-009: API 카운트도 distinct로 통일 (verify-counts/expected와 동일 척도)
+  const distinctSize = (arr: any[], key: string) =>
+    new Set((arr || []).map((r: any) => (r[key] ?? '').toString().trim()).filter(Boolean)).size;
+
   const apiCounts: Record<string, number> = {
-    A1: (apiData.l2Structures || []).length,
-    A2: (apiData.l2Structures || []).length,
-    A3: (apiData.l2Functions || []).length,
-    A4: (apiData.processProductChars || []).length,
-    A5: (apiData.failureModes || []).length,
-    A6: (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()).length,
-    B1: (apiData.l3Structures || []).length,
-    B2: (apiData.l3Functions || []).filter((f: any) => f.functionName?.trim()).length,
-    // verify-counts·PG와 동일: L3Function 전체 행 (빈 processChar 포함)
-    B3: (apiData.l3Functions || []).length,
-    B4: (apiData.failureCauses || []).length,
-    B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
+    A1: distinctSize(apiData.l2Structures || [], 'no'),
+    A2: distinctSize(apiData.l2Structures || [], 'no'),
+    A3: distinctSize(apiData.l2Functions || [], 'functionName'),
+    A4: distinctSize(apiData.processProductChars || [], 'name'),
+    A5: distinctSize(apiData.failureModes || [], 'mode'),
+    A6: distinctSize(
+      (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()),
+      'detectionControl',
+    ),
+    B1: distinctSize(apiData.l3Structures || [], 'name'),
+    B2: distinctSize(
+      (apiData.l3Functions || []).filter((f: any) => f.functionName?.trim()),
+      'functionName',
+    ),
+    B3: distinctSize(apiData.l3Functions || [], 'processChar'),
+    B4: distinctSize(apiData.failureCauses || [], 'cause'),
+    B5: distinctSize(
+      (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()),
+      'preventionControl',
+    ),
     C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,
-    // C2 = L1Function 전체 건수 — verify-counts `l1Function.count` 및 파이프라인 stats.l1Functions 와 동일
-    C2: (apiData.l1Functions || []).length,
-    C3: (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()).length,
-    C4: (apiData.failureEffects || []).length,
+    C2: distinctSize(apiData.l1Functions || [], 'functionName'),
+    C3: distinctSize(
+      (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()),
+      'requirement',
+    ),
+    C4: distinctSize(apiData.failureEffects || [], 'effect'),
   };
 
   for (const code of ALL_ITEM_CODES) {
