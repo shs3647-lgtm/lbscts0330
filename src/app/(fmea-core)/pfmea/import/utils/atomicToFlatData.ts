@@ -440,7 +440,7 @@ export function atomicToFlatData(
             }
           }
         }
-        if (!b5Value) continue; // 예방관리 데이터 없으면 스킵
+        // ★ MBD-26-009: 빈값이어도 B5 생성 (B4와 1:1 보장)
         b5seq++;
         const parentB4Id = idRemap.fc.get(fc.id);
         result.push(makeFlatItem({

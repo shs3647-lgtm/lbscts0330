@@ -1714,17 +1714,18 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
 
   // ★v5: B5 — Primary: FailureCause.preventionControl (L3 시트 B5 직접), Fallback: RiskAnalysis.preventionControl (FC 시트 PC)
   const seenB5 = new Set<string>();
-  // (1) L3 시트 B5: FC.preventionControl → 복합키(pno|b1|b4|b5) dedup, parentItemId = FC.id
+  // (1) L3 시트 B5: FC.preventionControl → B4와 1:1 (빈값도 생성)
   for (const fc of data.failureCauses) {
-    if (!fc.preventionControl) continue;
     const l2 = data.l2Structures.find(s => s.id === fc.l2StructId);
     const l3 = l3StructMap.get(fc.l3StructId);
     const pno = l2?.no || '';
     const m4 = l3?.m4 || undefined;
-    const key = `${pno}|${l3?.name || ''}|${fc.cause}|${fc.preventionControl}`;
+    // ★ MBD-26-009: preventionControl 비어있어도 B5 생성 (B4와 1:1 보장)
+    const pcValue = fc.preventionControl || '';
+    const key = `${pno}|${l3?.name || ''}|${fc.cause}|${pcValue}`;
     if (seenB5.has(key)) continue;
     seenB5.add(key);
-    flat.push({ id: `${fc.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: fc.preventionControl, m4, parentItemId: fc.id, createdAt: now, rowSpan: 1 });
+    flat.push({ id: `${fc.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: pcValue, m4, parentItemId: fc.id, createdAt: now, rowSpan: 1 });
   }
   // (2) Fallback: FC 시트 RiskAnalysis.preventionControl (L3 B5 미존재 시 보충)
   for (const ra of data.riskAnalyses) {
