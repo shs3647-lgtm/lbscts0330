@@ -468,10 +468,8 @@ export function mapApiToVerification(
     ),
     B3: distinctSize(apiData.l3Functions || [], 'processChar'),
     B4: distinctSize(apiData.failureCauses || [], 'cause'),
-    B5: distinctSize(
-      (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()),
-      'preventionControl',
-    ),
+    // ★ MBD-26-009: B5 = preventionControl 보유 RA 수 (distinct text가 아닌 총 건수)
+    B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
     C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,
     C2: distinctSize(apiData.l1Functions || [], 'functionName'),
     C3: distinctSize(

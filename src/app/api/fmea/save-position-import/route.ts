@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
         fcPcMap.set(fc.id, (fc as any).preventionControl.trim());
       }
     }
+    console.log(`[save-position-import] FC→RA preventionControl: FC총=${atomicData.failureCauses?.length}, FC with PC=${fcPcMap.size}`);
     const flFcIdMap = new Map<string, string>();
     for (const fl of validFLs) {
       if (fl.fcId) flFcIdMap.set(fl.id, fl.fcId);

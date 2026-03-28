@@ -110,8 +110,10 @@ export async function GET(request: NextRequest) {
     });
     const b4 = new Set(b4Rows.map((r: any) => ((r.cause ?? '') as string).trim()).filter(Boolean)).size;
 
-    // --- B5: distinct preventionControl ---
-    const b5Rows = await prisma.riskAnalysis.findMany({
+    // --- B5: RiskAnalysis preventionControl 보유 건수 (distinct text가 아닌 총 건수) ---
+    // ★ MBD-26-009: parseExcelCounts B5 = 비어있지 않은 L3 B5 셀 수 (81)
+    //   → DB에서도 preventionControl 보유 RA 수 (81)로 비교해야 일치
+    const b5 = await prisma.riskAnalysis.count({
       where: {
         fmeaId,
         AND: [
@@ -119,9 +121,7 @@ export async function GET(request: NextRequest) {
           { preventionControl: { not: '' } },
         ],
       },
-      select: { preventionControl: true },
     });
-    const b5 = new Set(b5Rows.map(r => (r.preventionControl ?? '').trim()).filter(Boolean)).size;
 
     // --- C1: distinct L1Function.category ---
     const c1Rows = await prisma.l1Function.findMany({
