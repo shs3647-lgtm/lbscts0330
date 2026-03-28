@@ -13,6 +13,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
 import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
+import {
+  pfmeaMasterFlatDataMapKey,
+  pfmeaMasterFlatExistingRowKey,
+} from '@/lib/fmea/master-flat-save-dedup';
 
 export const runtime = 'nodejs';
 
@@ -398,9 +402,13 @@ export async function POST(req: NextRequest) {
       // ★ B1 작업요소명이 4M 코드와 동일해도 삭제하지 않음 (2026-03-10 버그수정)
       // 기존: B1 value가 MN/MC/MD 등이면 필터링 → 작업요소 누락 버그
 
-      // ★ B항목은 m4도 키에 포함 (같은 공정+값이라도 m4가 다르면 별도 항목)
-      const m4Part = (itemCode.startsWith('B') && d.m4) ? `|${String(d.m4).trim()}` : '';
-      const key = `${processNo}|${itemCode}|${value}${m4Part}`;
+      const key = pfmeaMasterFlatDataMapKey({
+        processNo,
+        itemCode,
+        value,
+        m4: d.m4,
+        parentItemId: (d as { parentItemId?: string | null }).parentItemId,
+      });
       if (!dataMap.has(key)) {
         dataMap.set(key, {
           // ★★★ 2026-03-10: 클라이언트 UUID 보존 — parentItemId FK 무결성 보장 ★★★
@@ -436,15 +444,24 @@ export async function POST(req: NextRequest) {
       });
       if (existingAfterDelete.length > 0) {
         const existingKeySet = new Set(
-          existingAfterDelete.map((e: any) => {
-            const ic = String(e.itemCode || '').trim().toUpperCase();
-            const m4Part = (ic.startsWith('B') && e.m4) ? `|${String(e.m4).trim()}` : '';
-            return `${e.processNo}|${ic}|${String(e.value || '').trim().toLowerCase()}${m4Part}`;
-          })
+          existingAfterDelete.map((e: any) =>
+            pfmeaMasterFlatExistingRowKey({
+              processNo: e.processNo,
+              itemCode: e.itemCode,
+              value: e.value,
+              m4: e.m4,
+              parentItemId: e.parentItemId,
+            }),
+          ),
         );
         data = data.filter(d => {
-          const m4Part = (d.itemCode.startsWith('B') && d.m4) ? `|${d.m4}` : '';
-          const key = `${d.processNo}|${d.itemCode}|${String(d.value || '').trim().toLowerCase()}${m4Part}`;
+          const key = pfmeaMasterFlatExistingRowKey({
+            processNo: d.processNo,
+            itemCode: d.itemCode,
+            value: d.value,
+            m4: d.m4,
+            parentItemId: (d as { parentItemId?: string | null }).parentItemId,
+          });
           return !existingKeySet.has(key);
         });
       }

@@ -76,6 +76,10 @@ export default function DbVerifyPanel({ parseStats, dbCounts, flatData }: Props)
           {allMatch ? 'PASS' : 'FAIL'}
         </span>
       </button>
+      <p className="px-2 py-0.5 text-[9px] text-gray-600 bg-gray-50 border-x border-b border-gray-200">
+        검증 기준: <strong>메모리(flat)</strong>와 <strong>DB</strong> 건수 일치. &quot;파싱&quot; 합계는 엑셀 원본 셀 수라
+        dedup·FM·A4 단위 flat 행 수(메모리)와 다를 수 있습니다.
+      </p>
 
       {expanded && (
         <table className="w-full border-collapse text-[9px]">
