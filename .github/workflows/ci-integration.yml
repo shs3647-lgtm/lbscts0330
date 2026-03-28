@@ -1,0 +1,103 @@
+# ★8 2단계: Postgres + Next 프로덕션 기동 후 API 스모크 (골든 Import 불필요)
+# 메인 CI(ci.yml)와 병행 — 변경 빈도 낮은 경로·수동 실행 위주로 부하 완화
+
+name: CI Integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # 매주 월 06:00 UTC
+  push:
+    branches: [master, main]
+    paths:
+      - 'prisma/schema.prisma'
+      - 'src/lib/prisma.ts'
+      - 'src/lib/project-schema.ts'
+      - 'src/app/api/fmea/pipeline-verify/**'
+      - 'src/app/api/health/**'
+      - 'scripts/ci/**'
+      - '.github/workflows/ci-integration.yml'
+
+concurrency:
+  group: ci-integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-pipeline-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: fmea_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fmea_ci
+      NODE_OPTIONS: --max-old-space-size=6144
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma — DB 스키마 반영 (마이그레이션 폴더 없음 → db push)
+        run: npx prisma db push
+
+      - name: Prisma client
+        run: npx prisma generate
+
+      - name: Next.js production build
+        run: npm run build
+
+      - name: Start Next.js (background)
+        run: |
+          nohup npm run start -- -p 3000 > next-ci.log 2>&1 &
+          echo $! > next-ci.pid
+          sleep 3
+          tail -n 30 next-ci.log || true
+
+      - name: Wait for /api/health
+        run: |
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:3000/api/health | grep -q '"database":"ok"'; then
+              echo "health ok (attempt $i)"
+              exit 0
+            fi
+            echo "waiting health ($i/45)..."
+            sleep 2
+          done
+          echo "--- next-ci.log ---"
+          cat next-ci.log || true
+          exit 1
+
+      - name: Smoke — pipeline-verify GET
+        run: npx tsx scripts/ci/smoke-pipeline-api.ts
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:3000
+          SMOKE_FMEA_ID: pfm26-m002
+
+      - name: Upload Next log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-ci-log
+          path: next-ci.log
+          if-no-files-found: ignore

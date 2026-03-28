@@ -35,6 +35,7 @@
     "verify:import-fe-layout": "npx tsx scripts/verify-import-fe-chain-layout.ts",
     "diag:pipeline-fk": "npx tsx scripts/diag-pipeline-fk-compare.ts",
     "verify:all": "npx tsx scripts/verify-all.ts",
+    "ci:smoke-api": "npx tsx scripts/ci/smoke-pipeline-api.ts",
     "audit:sidebar-routes": "npx tsx scripts/audit-fmea-sidebar-routes.ts",
     "release:audit": "npm run audit:sidebar-routes && npx tsc --noEmit",
     "export:validation-excel": "npx tsx scripts/export-fmea-validation-excel.ts",
