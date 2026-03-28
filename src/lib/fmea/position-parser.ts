@@ -820,7 +820,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           l1Id: l1StructId,
           parentId: l1StructId,
           no: fcPno,
-          name: '', // FC 시트에 공정명 없음 — 추후 보완
+          name: fcPno, // ★ 공정명 = 공정번호 (FC 시트에 공정명 없음)
           order: l2Order++,
         });
         ppLog(`[position-parser] ★ FC시트 L2 자동생성: pno=${fcPno} → ${l2Id}`);
