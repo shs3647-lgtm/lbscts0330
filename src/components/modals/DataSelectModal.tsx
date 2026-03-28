@@ -207,31 +207,7 @@ export default function DataSelectModal({
         }
       }
 
-      // localStorage에서 추가 데이터 로드 (폴백)
-      try {
-        const savedData = localStorage.getItem('pfmea_master_data');
-        if (savedData) {
-          const parsedData = JSON.parse(savedData);
-          let filteredData = parsedData.filter((item: any) => item.itemCode === itemCode);
-          if (processNo) filteredData = filteredData.filter((item: any) => item.processNo === processNo);
-
-          filteredData.forEach((item: any, idx: number) => {
-            if (item.value && item.value.trim()) {
-              const value = item.value.trim();
-              if (!allItems.find(i => i.value === value)) {
-                allItems.push({
-                  id: `${itemCode}_added_${idx}`,
-                  value,
-                  category: '추가',
-                  processNo: item.processNo,
-                });
-              }
-            }
-          });
-        }
-      } catch (e) {
-        console.error('데이터 로드 오류:', e);
-      }
+      // ★ 2026-03-28: localStorage 폴백 제거 — DB Only 정책
 
       // 현재 워크시트에 있는 값 (초기값 사용)
       initialCurrentValuesRef.current.forEach((val, idx) => {
@@ -264,33 +240,8 @@ export default function DataSelectModal({
     if (initialized) return; // 이미 초기화됨
     if (items.length === 0) return; // 아직 items 로드 안됨
 
-    if (fullSelectionApply) {
-      const cur = initialCurrentValuesRef.current;
-      const ids = new Set<string>();
-      items.forEach(i => {
-        const v = (i.value || '').trim();
-        if (!v) return;
-        if (cur.some(c => (c || '').trim() === v)) ids.add(i.id);
-      });
-      setSelectedIds(ids);
-      console.log('📊 [DataSelectModal 초기화] fullSelectionApply', {
-        title,
-        itemCode,
-        itemsCount: items.length,
-        initialCurrentValues: cur,
-        selectedCount: ids.size
-      });
-    } else {
-      // ★ 2026-03-27: 병합 모드 — 빈 Set으로 시작 (미적용 항목만 체크해 추가)
-      setSelectedIds(new Set());
-      console.log('📊 [DataSelectModal 초기화]', {
-        title,
-        itemCode,
-        itemsCount: items.length,
-        initialCurrentValues: initialCurrentValuesRef.current,
-        selectedCount: 0
-      });
-    }
+    // ★ 2026-03-28: 자동 체크 제거 — 빈 Set으로 시작
+    setSelectedIds(new Set());
     setInitialized(true);
   }, [items, initialized, title, itemCode, fullSelectionApply]);
 
@@ -363,19 +314,7 @@ export default function DataSelectModal({
       item.id === editingId ? { ...item, value: trimmed } : item
     ));
 
-    // localStorage 업데이트
-    try {
-      const savedData = localStorage.getItem('pfmea_master_data');
-      const dataList = savedData ? JSON.parse(savedData) : [];
-      const existingIdx = dataList.findIndex((d: any) => d.itemCode === itemCode && d.value === oldItem.value);
-      if (existingIdx >= 0) {
-        dataList[existingIdx].value = trimmed;
-        dataList[existingIdx].updatedAt = new Date().toISOString();
-      }
-      localStorage.setItem('pfmea_master_data', JSON.stringify(dataList));
-    } catch (e) {
-      console.error('편집 저장 오류:', e);
-    }
+    // ★ localStorage 제거 — DB Only
 
     setEditingId(null);
     setEditingValue('');
@@ -486,23 +425,7 @@ export default function DataSelectModal({
     setItems(prev => [newItem, ...prev]); // 맨 위에 추가
     setSelectedIds(prev => new Set([...prev, newItem.id]));
 
-    // localStorage에 저장 (WorkElementSelectModal 스타일)
-    try {
-      const savedData = localStorage.getItem('pfmea_master_data');
-      const masterData = savedData ? JSON.parse(savedData) : [];
-      masterData.unshift({
-        id: newItem.id,
-        itemCode,
-        value: trimmedValue,
-        category: newCategory || '추가',
-        processNo: processNo || undefined,
-        createdAt: new Date().toISOString()
-      });
-      localStorage.setItem('pfmea_master_data', JSON.stringify(masterData));
-      console.log('[수동입력] 저장 완료:', trimmedValue, '카테고리:', newCategory || '추가');
-    } catch (e) {
-      console.error('[수동입력] 저장 오류:', e);
-    }
+    // ★ localStorage 제거 — DB Only
 
     // ✅ 2026-01-16: 엔터 시 워크시트에 즉시 반영 (모달 유지)
     // 현재 선택된 항목들 + 새 항목을 워크시트에 전달
@@ -513,13 +436,32 @@ export default function DataSelectModal({
     setNewValue('');
   };
 
-  const handleDeleteSingle = (item: DataItem, e: React.MouseEvent) => {
+  const handleDeleteSingle = async (item: DataItem, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
+    // 목록에서 제거
+    setItems(prev => prev.filter(i => i.id !== item.id));
     setSelectedIds(prev => {
       const newSet = new Set(prev);
       newSet.delete(item.id);
       return newSet;
     });
+    // DB에서도 삭제 (마스터 flat items)
+    if (fmeaId && item.value) {
+      try {
+        await fetch('/api/fmea/master-processes', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fmeaId,
+            processNos: [],
+            deleteByValue: { itemCode, processNo: processNo || '', value: item.value },
+          }),
+        });
+      } catch (err) {
+        console.error('[DataSelectModal] DB 삭제 오류:', err);
+      }
+    }
   };
 
   const isCurrentlySelected = (value: string) => currentValues.includes(value);
@@ -648,13 +590,7 @@ export default function DataSelectModal({
                   setSelectedIds(prev => new Set([...prev, newItem.id]));
                   // 필터를 초기화하여 추가된 항목이 보이게
                   setCategoryFilter('All');
-                  // localStorage에 저장
-                  try {
-                    const savedData = localStorage.getItem('pfmea_master_data');
-                    const dataList = savedData ? JSON.parse(savedData) : [];
-                    dataList.unshift({ id: newItem.id, itemCode, value: trimmed, category: '추가', createdAt: new Date().toISOString() }); // 맨 위에
-                    localStorage.setItem('pfmea_master_data', JSON.stringify(dataList));
-                  } catch (err) { console.error(err); }
+                  // ★ localStorage 제거 — DB Only
                   // ✅ 2026-01-16: 엔터 시 워크시트에 즉시 반영 (모달 유지)
                   const allSelectedValues = [...currentValues.filter(v => v !== trimmed), trimmed];
                   onSave(allSelectedValues);
@@ -674,7 +610,7 @@ export default function DataSelectModal({
                 }
               }
             }}
-            placeholder={`🔍 ${itemInfo.label} 검색 또는 입력 후 Enter...`}
+            placeholder={`🔍 ${itemInfo.label} 검색 또는 새 항목 입력...`}
             className="w-full px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
             autoFocus
           />
@@ -682,40 +618,12 @@ export default function DataSelectModal({
 
         {/* ===== 버튼 영역 제거 → 섹션별로 이동 ===== */}
 
-        {/* ===== 하위항목 라벨 + 수동입력 (C1 구분 선택 제외) ===== */}
+        {/* 하위항목 라벨 */}
         {itemCode !== 'C1' && (
           <>
             <div className="px-3 py-1 border-b bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
               <span className="text-[11px] font-bold text-blue-700">▼ 하위항목: {itemInfo.label}</span>
-            </div>
-
-            {/* ===== 하위항목 수동입력 (WorkElementSelectModal 스타일) ===== */}
-            <div className="px-3 py-1.5 border-b bg-green-50 flex items-center gap-1">
-              <span className="text-[10px] font-bold text-green-700 shrink-0">+</span>
-              <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                className="px-1 py-0.5 text-[10px] border rounded"
-              >
-                <option value="추가">추가</option>
-                <option value="기본">기본</option>
-                <option value="사용자">사용자</option>
-              </select>
-              <input
-                type="text"
-                value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); handleAddSave(); } }}
-                placeholder={`${itemInfo.label} 입력 후 Enter...`}
-                className="flex-1 px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
-              <button
-                onClick={handleAddSave}
-                disabled={!newValue.trim()}
-                className="px-2 py-0.5 text-[10px] font-bold bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                저장
-              </button>
+              <span className="text-[9px] text-blue-400 ml-2">검색창에서 입력 후 Enter로 추가</span>
             </div>
           </>
         )}
@@ -777,10 +685,13 @@ export default function DataSelectModal({
                       {item.value}
                     </span>
                   )}
-                  {isSelected && !isEditing && (
+                  {!isEditing && !isCurrent && (
                     <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                       onClick={(e) => handleDeleteSingle(item, e)}
-                      className="text-red-400 hover:text-red-600 text-xs shrink-0"
+                      className="text-red-400 hover:text-red-600 text-xs shrink-0 px-1"
+                      title="목록에서 삭제"
                     >
                       ✕
                     </button>

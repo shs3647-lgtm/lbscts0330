@@ -167,29 +167,14 @@ export const PFMEA_DEFAULT_ITEMS: Record<string, DataItem[]> = {
   C3: PFMEA_C3,
   FE1: PFMEA_C1,
   FE2: PFMEA_FAILURE_EFFECTS,
-  A3: [
-    { id: 'A3_G1', value: '규격에 맞게 가공', category: '기본' },
-    { id: 'A3_G2', value: '품질 검사 수행', category: '기본' },
-  ],
-  A4: [
-    { id: 'A4_G1', value: '치수', category: '기본' },
-    { id: 'A4_G2', value: '외관', category: '기본' },
-  ],
-  B2: [
-    { id: 'B2_MN1', value: '작업 표준에 따라 작업 수행', category: '기본', belongsTo: 'MN' },
-  ],
-  B3: [
-    { id: 'B3_MC1', value: '설비 압력', category: '기본', belongsTo: 'MC' },
-  ],
-  B4: [
-    { id: 'B4_MN1', value: '작업자 실수', category: '기본', belongsTo: 'MN' },
-  ],
-  B5: [
-    { id: 'B5_1', value: '작업 표준서 교육', category: '기본' },
-  ],
-  B6: [
-    { id: 'B6_1', value: '육안 검사', category: '기본' },
-  ],
+  // ★ 2026-03-28: 하드코딩 제거 — 시드 데이터(seed_master_items)로 대체
+  A3: [],
+  A4: [],
+  B2: [],
+  B3: [],
+  B4: [],
+  B5: [],
+  B6: [],
 };
 
 // 하위 호완성 유지 (기존 DEFAULT_ITEMS는 DFMEA 위주 또는 섞인 상태이므로 점진적 폐기 권장)

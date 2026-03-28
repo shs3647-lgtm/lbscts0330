@@ -748,30 +748,34 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
           const newDataset = await tx.pfmeaMasterDataset.create({
             data: { fmeaId, isActive: true, name: `Master-${fmeaId}`, fmeaType: 'M' },
           });
-          // 기존 마스터에서 폴백 데이터 복사
-          const fallbackDataset = await tx.pfmeaMasterDataset.findFirst({
-            where: { isActive: true, fmeaType: 'M', fmeaId: { not: fmeaId } },
-            orderBy: { updatedAt: 'desc' },
-          });
-          if (fallbackDataset) {
-            const fallbackItems = await tx.pfmeaMasterFlatItem.findMany({
-              where: { datasetId: fallbackDataset.id },
-            });
-            if (fallbackItems.length > 0) {
+          // ★ 시드 테이블에서 복사 — ID 재생성 + parentItemId 재매핑
+          try {
+            const seedRows: any[] = await (tx as any).$queryRawUnsafe(`SELECT * FROM seed_master_items ORDER BY "processNo", "itemCode"`);
+            if (seedRows.length > 0) {
+              const idMap = new Map<string, string>(); // 원본 ID → 새 ID
+              const newRows = seedRows.map((row: any) => {
+                const newId = require('crypto').randomUUID();
+                idMap.set(row.id, newId);
+                return { ...row, newId };
+              });
               await tx.pfmeaMasterFlatItem.createMany({
-                data: fallbackItems.map((item: any) => ({
+                data: newRows.map((row: any) => ({
+                  id: row.newId,
                   datasetId: newDataset.id,
-                  processNo: item.processNo,
-                  category: item.category,
-                  itemCode: item.itemCode,
-                  value: item.value,
-                  m4: item.m4 || undefined,  // ★★★ 2026-03-27: m4 필드 복사 추가 ★★★
-                  rowSpan: item.rowSpan ?? 1,
+                  processNo: row.processNo || '',
+                  category: row.category,
+                  itemCode: row.itemCode,
+                  value: row.value,
+                  m4: row.m4 || undefined,
+                  parentItemId: row.parentItemId ? (idMap.get(row.parentItemId) || row.parentItemId) : undefined,
+                  rowSpan: 1,
                 })),
                 skipDuplicates: true,
               });
-              console.info(`[fmea-project] 마스터 폴백 데이터 ${fallbackItems.length}건 복사 → ${fmeaId}`);
+              console.info(`[fmea-project] 시드 데이터 ${newRows.length}건 복사 → ${fmeaId}`);
             }
+          } catch (seedErr: any) {
+            console.error(`[fmea-project] 시드 복사 오류:`, seedErr?.message);
           }
         }
       }
@@ -795,12 +799,14 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
             if (parentItems.length > 0) {
               await tx.pfmeaMasterFlatItem.createMany({
                 data: parentItems.map((item: any) => ({
+                  id: item.id,
                   datasetId: newDataset.id,
                   processNo: item.processNo,
                   category: item.category,
                   itemCode: item.itemCode,
                   value: item.value,
-                  m4: item.m4 || undefined,  // ★★★ 2026-03-27: m4 필드 복사 추가 ★★★
+                  m4: item.m4 || undefined,
+                  parentItemId: item.parentItemId || undefined,
                   rowSpan: item.rowSpan ?? 1,
                 })),
                 skipDuplicates: true,

@@ -293,12 +293,9 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const processNos: string[] = body.processNos;
+    const processNos: string[] = body.processNos || [];
     const fmeaId = body.fmeaId || '';
-
-    if (!processNos || processNos.length === 0) {
-      return NextResponse.json({ success: false, error: '삭제할 공정번호가 없습니다.' });
-    }
+    const deleteByValue = body.deleteByValue; // { itemCode, processNo, value }
 
     const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
       where: { isActive: true, ...(fmeaId ? { fmeaId } : {}) },
@@ -307,6 +304,23 @@ export async function DELETE(req: NextRequest) {
 
     if (!activeDataset) {
       return NextResponse.json({ success: false, error: 'Master Dataset이 없습니다.' });
+    }
+
+    // ★ 값 기준 삭제 (DataSelectModal에서 사용)
+    if (deleteByValue && deleteByValue.value) {
+      const result = await prisma.pfmeaMasterFlatItem.deleteMany({
+        where: {
+          datasetId: activeDataset.id,
+          itemCode: deleteByValue.itemCode,
+          ...(deleteByValue.processNo ? { processNo: deleteByValue.processNo } : {}),
+          value: deleteByValue.value,
+        },
+      });
+      return NextResponse.json({ success: true, deletedCount: result.count });
+    }
+
+    if (processNos.length === 0) {
+      return NextResponse.json({ success: false, error: '삭제할 대상이 없습니다.' });
     }
 
     // 해당 processNo의 모든 flat items 삭제
