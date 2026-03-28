@@ -147,7 +147,12 @@
     "src/app/(fmea-core)/pfmea/import/components/TemplatePreviewContent.tsx",
     "src/app/(fmea-core)/pfmea/import/utils/faValidation.ts",
     "src/app/(fmea-core)/pfmea/import/types/masterFailureChain.ts",
-    "src/app/(fmea-core)/pfmea/worksheet/hooks/useWorksheetSave.ts"
+    "src/app/(fmea-core)/pfmea/worksheet/hooks/useWorksheetSave.ts",
+    "src/app/api/severity-recommend/route.ts",
+    "src/app/api/severity-recommend/sync/route.ts",
+    "src/app/(fmea-core)/pfmea/worksheet/tabs/failure/FailureSeverityMappingTab.tsx",
+    "src/lib/fmea/aiag-vda-severity-mapping.ts",
+    "src/lib/fmea/s-recommend-bulk-apply.ts"
   ],
   "approvalToken": "APPROVED-BY-USER",
   "overrideEnvVar": "FMEA_GUARD_OVERRIDE",

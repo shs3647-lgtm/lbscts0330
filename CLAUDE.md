@@ -15,6 +15,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 #### 0.1 중앙 DB 아키텍처 개요
 
+> **S추천 SSoT**: `SeverityUsageRecord` (Public DB) — localStorage 사용 금지. 상세: README.md 참조.
+
 비유: **중앙 DB는 "회사의 공식 장부"**다. 각 부서(PFMEA/CP/PFD/WS/PM)가 자기 수첩에 적는 게 아니라, 공식 장부 하나를 참조하고 기록한다. 수첩(메모리/JSON blob)은 임시 메모일 뿐, 공식 장부(Atomic DB)만 진실이다.
 
 ```

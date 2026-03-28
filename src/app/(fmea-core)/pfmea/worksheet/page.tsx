@@ -733,7 +733,7 @@ function FMEAWorksheetPageContent() {
           onDownloadTemplate={handleDownloadTemplate}
           onOpenSpecialChar={() => setIsSpecialCharModalOpen(true)}
           onOpenSOD={() => setIsSODModalOpen(true)}
-          onOpenSRecommend={() => {
+          onOpenSRecommend={async () => {
             // ★ 2026-03-25: S추천 토글 — 이미 열려있으면 닫기, 아니면 열기 + 자동추천 적용
             if (state.tab === 'failure-severity-map') {
               setState(prev => ({ ...prev, tab: 'failure-l1' }));
@@ -742,7 +742,7 @@ function FMEAWorksheetPageContent() {
             // 자동추천 적용 (applyBulkSeverityRecommendations)
             try {
               const { applyBulkSeverityRecommendations } = require('@/lib/fmea/s-recommend-bulk-apply');
-              const result = applyBulkSeverityRecommendations(state.l1, selectedFmeaId || 'default');
+              const result = await applyBulkSeverityRecommendations(state.l1, selectedFmeaId || 'default');
               if (result.changeCount > 0) {
                 setState(prev => ({
                   ...prev,

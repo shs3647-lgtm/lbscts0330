@@ -111,6 +111,26 @@ fmea-onpremise/
 └── docs/               # 문서
 ```
 
+## 🔒 S추천 (Severity Recommendation) 아키텍처
+
+S추천 시스템은 **Public DB 단일 소스(SSoT)** 로 운영됩니다.
+
+| 구성요소 | 설명 |
+|---|---|
+| DB 모델 | `SeverityUsageRecord` (prisma/schema.prisma) |
+| API | `/api/severity-recommend` (GET/POST/PUT) |
+| Sync API | `/api/severity-recommend/sync` (워크시트 저장 후 자동 동기화) |
+| UI | 워크시트 → 고장분석 → S추천 탭 |
+
+**운영 규칙:**
+- localStorage 사용 **금지** — 모든 읽기/쓰기는 DB API 경유
+- FMEA 작성 시 새 고장영향-심각도 사례가 자동 DB 누적
+- 모든 프로젝트가 동일 S추천 DB 공유 (전사 지식 활용)
+- 관련 파일은 **CODEFREEZE L4** — `scripts/guard/protected-paths.config.json` 참조
+- 스냅샷 백업: `prisma/snapshots/2026-03-28_pre-severity-db-migration/`
+
+---
+
 ## 📖 관련 문서
 
 - [로컬 개발 환경 구축 가이드](./docs/LOCAL_DEVELOPMENT_SETUP.md)
