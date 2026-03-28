@@ -1713,28 +1713,25 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
   }
 
   // ★v5: B5 — Primary: FailureCause.preventionControl (L3 시트 B5 직접), Fallback: RiskAnalysis.preventionControl (FC 시트 PC)
-  const seenB5 = new Set<string>();
-  // (1) L3 시트 B5: FC.preventionControl → B4와 1:1 (빈값도 생성)
+  const seenB5FcIds = new Set<string>();
+  // (1) L3 시트 B5: FC 1개 = B5 1개 (B4와 1:1, dedup 없음)
   for (const fc of data.failureCauses) {
+    if (seenB5FcIds.has(fc.id)) continue;  // ID 기반 중복만 방지
+    seenB5FcIds.add(fc.id);
     const l2 = data.l2Structures.find(s => s.id === fc.l2StructId);
     const l3 = l3StructMap.get(fc.l3StructId);
     const pno = l2?.no || '';
     const m4 = l3?.m4 || undefined;
-    // ★ MBD-26-009: preventionControl 비어있어도 B5 생성 (B4와 1:1 보장)
     const pcValue = fc.preventionControl || '';
-    const key = `${pno}|${l3?.name || ''}|${fc.cause}|${pcValue}`;
-    if (seenB5.has(key)) continue;
-    seenB5.add(key);
     flat.push({ id: `${fc.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: pcValue, m4, parentItemId: fc.id, createdAt: now, rowSpan: 1 });
   }
-  // (2) Fallback: FC 시트 RiskAnalysis.preventionControl (L3 B5 미존재 시 보충)
+  // (2) Fallback: FC 시트 RiskAnalysis.preventionControl (L3 B5 미존재 FC만 보충)
   for (const ra of data.riskAnalyses) {
     const fl = data.failureLinks.find(l => l.id === ra.linkId);
     if (!fl || !ra.preventionControl) continue;
+    // FC에서 이미 B5가 생성된 경우 스킵
+    if (fl.fcId && seenB5FcIds.has(fl.fcId)) continue;
     const pno = fl.fmProcess || '';
-    const key = `${pno}|${fl.fcWorkElem || ''}|${fl.fcText || ''}|${ra.preventionControl}`;
-    if (seenB5.has(key)) continue;
-    seenB5.add(key);
     flat.push({ id: `${ra.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: ra.preventionControl, createdAt: now, rowSpan: 1 });
   }
 
