@@ -240,7 +240,15 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const updates: { processNo: string; name: string }[] = body.updates;
+    type MasterProcessPatchRow = {
+      processNo: string;
+      name?: string;
+      itemCode?: string;
+      oldValue?: string;
+      newValue?: string;
+      belongsTo?: string | null;
+    };
+    const updates: MasterProcessPatchRow[] = body.updates;
     const fmeaId = body.fmeaId || '';
 
     if (!updates || updates.length === 0) {
