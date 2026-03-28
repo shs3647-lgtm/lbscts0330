@@ -926,7 +926,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelA4: countNonEmpty(l2RowsRaw, 'A4'),
     excelA5: countNonEmpty(l2RowsRaw, 'A5'),
     excelA6: countNonEmpty(l2RowsRaw, 'A6'),
-    excelB1: countNonEmpty(l3Sheet.rows, 'B1'),
+    excelB1: new Set(l3Sheet.rows.map(r => r.cells['B1']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct B1 이름 수 (115행→81고유)
     excelB2: countNonEmpty(l3Sheet.rows, 'B2'),
     excelB3: countNonEmpty(l3Sheet.rows, 'B3'),
     excelB4: countNonEmpty(l3Sheet.rows, 'B4'),
