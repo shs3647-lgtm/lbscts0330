@@ -42,6 +42,7 @@ function main(): void {
     'src/__tests__/aiag-vda-severity-mapping.test.ts',
     'src/__tests__/failure-link-link-stats.test.ts',
     'src/__tests__/auto-match-missing-fc.test.ts',
+    'src/__tests__/collect-auto-match-fc-entries.test.ts',
     'src/__tests__/import/v3-masterfc-no-pcdc.test.ts',
     'src/__tests__/import/fa-verification-spec-relax.test.ts',
     'src/__tests__/import/linkage-sheet-parse.test.ts',
