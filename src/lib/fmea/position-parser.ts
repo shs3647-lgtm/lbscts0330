@@ -806,6 +806,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
     // ★★★ MBD-26-009: FM 복합키 자동 생성
     // L2 시트에 없는 (processNo+FM) 조합이 FC 시트에 있으면 새 FM 생성
+    let fcAutoCreatedFm = false;
     if (!fmId && fcPno && fcFM.trim()) {
       let l2Id = seenPno.get(fcPno) || '';
 
@@ -842,14 +843,16 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       }
       fmId = newFmId;
       flL2StructId = l2Id;
+      fcAutoCreatedFm = true;
     }
 
     if (fmId) fmIdsSeenFromFcResolve.add(fmId);
     if (fcId) fcIdsSeenFromFcResolve.add(fcId);
 
-    // ★ crossProcessFk: FM·FC가 서로 다른 공정(L2)이면 FL/RA를 넣지 않음 (repair-fk 삭제 대상과 동일 의미)
+    // ★ crossProcessFk: FM·FC가 서로 다른 공정(L2)이면 FL/RA를 넣지 않음
+    // ★★ MBD-26-009: FC 시트에서 자동 생성된 FM은 교차공정 채인이 의도된 것이므로 스킵 안 함
     let skipFlCrossProcess = false;
-    if (fmId && fcId) {
+    if (fmId && fcId && !fcAutoCreatedFm) {
       const fmEnt = failureModes.find((f) => f.id === fmId);
       const fcEnt = failureCauses.find((f) => f.id === fcId);
       const fmL2 = (fmEnt?.l2StructId || '').trim();
