@@ -902,10 +902,9 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
         }
 
         return funcsToRender.map((f: any, fIdx: number) => {
-          // ★★★ 2026-02-05: 수동모드에서는 모든 제품특성 표시 ★★★
+          // ★ 2026-03-28: 빈 행 포함 전체 표시
           const allChars = f.productChars || [];
-          const meaningfulChars = filterMeaningfulProductChars(allChars, true);
-          const charsToRender = meaningfulChars.length > 0 ? allChars : allChars.slice(0, 1);
+          const charsToRender = allChars;
           const funcRowSpan = Math.max(1, charsToRender.length);
           const funcFirstRowIdx = globalRowIdx;
 
@@ -923,7 +922,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                 <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, f.id)}>
                   <SelectableCell value={f.name} placeholder="공정기능" bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: '메인공정 기능 선택', itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
                 </td>
-                <td className={cellP0} style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'productChar', proc.id, f.id, '')}>
+                <td className={cellP0} style={{ background: zebra.function }} onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e, 'productChar', proc.id, f.id, ''); }}>
                   <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, title: '제품특성 선택', itemCode: 'A4' })} />
                 </td>
                 <td className="border border-[#ccc] p-1 text-center text-[#999] text-xs align-middle" style={{ background: zebra.function }}>-</td>

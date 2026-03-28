@@ -99,8 +99,8 @@ export const FMEA_CORE_BOTTOM_MENU_ITEMS: MenuItem[] = [
     subItems: [
       { label: '고객사정보', href: '/master/customer' },
       { label: '사용자정보', href: '/master/user' },
+      { label: '시드 데이터 관리', href: '/master/seed-data' },
       { label: 'PFMEA 임포트', href: '/pfmea/import' },
-      { label: 'DFMEA 임포트', href: '/dfmea/import' },
       { label: 'CP 기초정보', href: '/control-plan/import' },
       { label: 'PFD 기초정보', href: '/pfd/import' },
       { label: '데이타 복구 관리', href: '/master/trash' },

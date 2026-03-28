@@ -103,26 +103,37 @@ function syncL2Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksh
           id,
           fmeaId: db.fmeaId,
           l2StructId,
-          functionName: functionName || 'N/A',
-          productChar: functionName || 'N/A',
+          functionName: functionName || '',
+          productChar: '',
           specialChar: prev?.specialChar || '',
         } as any);
         continue;
       }
 
-      for (const pc of pcs) {
+      // ★ 2026-03-28: productChars 배열을 첫 번째 행에 첨부 → save API step 4.5에서 PPC 생성 가능
+      const pcEntries = pcs.map(pc => ({
+        id: pc.id || '',
+        name: (pc.name || '').trim(),
+        specialChar: pc.specialChar || '',
+      })).filter(p => p.id);
+
+      for (let i = 0; i < pcs.length; i++) {
+        const pc = pcs[i];
         const id = pc.id || func.id || '';
         if (!id) continue;
         const prev = byId.get(id) as any;
-        next.push({
+        const row: any = {
           ...(prev || {}),
           id,
           fmeaId: db.fmeaId,
           l2StructId,
-          functionName: functionName || 'N/A',
-          productChar: (pc.name || '').trim() || functionName || 'N/A',
+          functionName: functionName || '',
+          productChar: (pc.name || '').trim(),
           specialChar: pc.specialChar || prev?.specialChar || '',
-        } as any);
+        };
+        // 첫 번째 pc 행에 전체 productChars 배열 첨부 (save API가 PPC 생성에 사용)
+        if (i === 0) row.productChars = pcEntries;
+        next.push(row);
       }
     }
   }

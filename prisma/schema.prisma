@@ -629,6 +629,25 @@ model PfmeaMasterFlatItem {
   @@map("pfmea_master_flat_items")
 }
 
+// ★ 2026-03-27: 시드 데이터 전용 테이블 — 마스터 FMEA 생성 시 pfmea_master_flat_items로 복사
+model SeedMasterItem {
+  id             String   @id @default(uuid())
+  processNo      String   @default("")
+  category       String   // A, B, C
+  itemCode       String   // A1~A5, B1~B4, C1~C4
+  value          String
+  m4             String?  // 4M 분류
+  parentItemId   String?  // 부모 아이템 ID (C2↔C3 연결)
+  orderIndex     Int?     // 같은 processNo+itemCode 내 순서
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([itemCode])
+  @@index([processNo])
+  @@index([parentItemId])
+  @@map("seed_master_items")
+}
+
 model FailureLink {
   id              String           @id @default(uuid())
   fmeaId          String

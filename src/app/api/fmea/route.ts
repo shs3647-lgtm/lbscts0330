@@ -489,7 +489,7 @@ export async function POST(request: NextRequest) {
           const pcs = (func as any).productChars;
           if (Array.isArray(pcs)) {
             pcs.forEach((pc: any, idx: number) => {
-              if (!pc?.id || !pc?.name) return;
+              if (!pc?.id) return;
               // 중복 방지 (공유 ID 패턴으로 동일 PC가 여러 function에 있을 수 있음)
               if (pcRows.some(r => r.id === pc.id)) return;
               pcRows.push({
