@@ -1043,16 +1043,18 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       <span className="line-clamp-4 break-words">{err.text}</span>
                     </td>
                     <td
-                      className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80"
+                      className={`px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80 ${
+                        excelN != null && excelN !== parsedFlatN ? 'text-orange-700 bg-orange-50/60' : ''
+                      }`}
                       title={[
-                        `원본 = 고유(${s.uniqueCount}) + 중복(${dupCanon})`,
-                        excelN != null ? `엑셀 비어있지 않은 셀: ${excelN}` : '엑셀 셀 통계 없음(레거시/재선택)',
+                        excelN != null ? `엑셀 원본 distinct: ${excelN}` : '엑셀 통계 없음',
+                        `파싱 행(raw): ${originalTotal}`,
                         scaled !== undefined ? `파이프라인(verify) ${scaled}` : '',
                       ]
                         .filter(Boolean)
                         .join(' · ')}
                     >
-                      {originalTotal}
+                      {excelN != null ? excelN : originalTotal}
                     </td>
                     <td
                       className={`px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80 ${
@@ -1167,10 +1169,15 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 <td colSpan={3} className="px-1.5 py-0.5 font-bold text-indigo-900">합계</td>
                 <td className="px-1 py-0.5 text-[8px] text-indigo-700 border-r border-indigo-200/80">오류 행은 붉은/주황 셀 참고</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">
-                  {effectiveStatistics.itemStats.reduce(
-                    (acc, r) => acc + itemStatOriginalTotal(r),
-                    0,
-                  )}
+                  {parseExcelCounts
+                    ? effectiveStatistics.itemStats.reduce(
+                        (acc, r) => acc + (parseExcelCounts[r.itemCode] ?? itemStatOriginalTotal(r)),
+                        0,
+                      )
+                    : effectiveStatistics.itemStats.reduce(
+                        (acc, r) => acc + itemStatOriginalTotal(r),
+                        0,
+                      )}
                 </td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-violet-800">
                   {effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}
