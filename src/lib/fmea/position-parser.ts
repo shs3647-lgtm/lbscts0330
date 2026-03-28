@@ -934,16 +934,16 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelL3Rows: l3Sheet.rows.length,
     excelFCRows: fcSheet.rows.length,
     // 엑셀 원본 항목별 카운트 (빈값/대시 제외)
-    excelC1: countNonEmpty(l1Sheet.rows, 'C1'),
-    excelC2: countNonEmpty(l1Sheet.rows, 'C2'),
-    excelC3: countNonEmpty(l1Sheet.rows, 'C3'),
-    excelC4: countNonEmpty(l1Sheet.rows, 'C4'),
-    excelA1: countNonEmpty(l2RowsRaw, 'A1'),
-    excelA2: countNonEmpty(l2RowsRaw, 'A2'),
-    excelA3: countNonEmpty(l2RowsRaw, 'A3'),
-    excelA4: countNonEmpty(l2RowsRaw, 'A4'),
-    excelA5: countNonEmpty(l2RowsRaw, 'A5'),
-    excelA6: countNonEmpty(l2RowsRaw, 'A6'),
+    excelC1: new Set(l1Sheet.rows.map(r => r.cells['C1']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelC2: new Set(l1Sheet.rows.map(r => r.cells['C2']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelC3: new Set(l1Sheet.rows.map(r => r.cells['C3']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelC4: new Set(l1Sheet.rows.map(r => r.cells['C4']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelA1: new Set(l2RowsRaw.map(r => r.cells['A1']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelA2: new Set(l2RowsRaw.map(r => r.cells['A2']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelA3: new Set(l2RowsRaw.map(r => r.cells['A3']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelA4: new Set(l2RowsRaw.map(r => r.cells['A4']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelA5: new Set(l2RowsRaw.map(r => r.cells['A5']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelA6: new Set(l2RowsRaw.map(r => r.cells['A6']?.trim()).filter(v => v && !isEmptyValue(v))).size,
     excelB1: new Set(l3Sheet.rows.map(r => r.cells['B1']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct B1 이름 수 (115행→81고유)
     excelB2: new Set(l3Sheet.rows.map(r => r.cells['B2']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
     excelB3: new Set(l3Sheet.rows.map(r => r.cells['B3']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
