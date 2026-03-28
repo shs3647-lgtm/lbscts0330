@@ -487,7 +487,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true, fmeaId: normalizedId, schema,
-      atomicCounts: counts, stats: atomicData.stats, saveImportMeta,
+      atomicCounts: counts,
+      stats: atomicData.stats,
+      saveImportMeta,
+      importDiagnostics: atomicData.diagnostics ?? { fmsWithoutFailureLink: [], fcsWithoutFailureLink: [] },
     });
 
   } catch (err) {

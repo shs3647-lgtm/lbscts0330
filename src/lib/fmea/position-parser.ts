@@ -59,6 +59,7 @@ import type {
   PosFailureLink,
   PosRiskAnalysis,
   FmWithoutFailureLinkDiagnostic,
+  FcWithoutFailureLinkDiagnostic,
   PositionImportDiagnostics,
 } from '@/types/position-import';
 
@@ -766,7 +767,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   let crossProcessFlSkipped = 0; // FM.L2 ≠ FC.L2 → FL/RA 미생성 (validate-fk crossProcessFk 정렬)
   /** FC 시트 각 행 resolve()로 도출된 fmId (교차 스킵 전) — ★3 FL 없는 FM 분류 */
   const fmIdsSeenFromFcResolve = new Set<string>();
+  const fcIdsSeenFromFcResolve = new Set<string>();
   const crossProcessSkipRowsByFm = new Map<string, number[]>();
+  const crossProcessSkipRowsByFc = new Map<string, number[]>();
 
   for (const row of fcSheet.rows) {
     const rn = row.excelRow;
@@ -802,6 +805,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     });
 
     if (fmId) fmIdsSeenFromFcResolve.add(fmId);
+    if (fcId) fcIdsSeenFromFcResolve.add(fcId);
 
     // ★ crossProcessFk: FM·FC가 서로 다른 공정(L2)이면 FL/RA를 넣지 않음 (repair-fk 삭제 대상과 동일 의미)
     let skipFlCrossProcess = false;
@@ -817,6 +821,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           const prev = crossProcessSkipRowsByFm.get(fmId) || [];
           prev.push(rn);
           crossProcessSkipRowsByFm.set(fmId, prev);
+        }
+        if (fcId) {
+          const prevFc = crossProcessSkipRowsByFc.get(fcId) || [];
+          prevFc.push(rn);
+          crossProcessSkipRowsByFc.set(fcId, prevFc);
         }
         ppWarn(
           `[position-parser] ⚠️ FL R${rn} 교차공정 스킵 (crossProcessFk): FM.L2=${fmL2} FC.L2=${fcL2} ` +
@@ -957,7 +966,48 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
     }
   }
-  const diagnostics: PositionImportDiagnostics = { fmsWithoutFailureLink };
+
+  // ★4: FL 없는 FC — FC 시트 resolve·교차 스킵 관점
+  const fcWithFl = new Set(failureLinks.map((fl) => fl.fcId).filter(Boolean) as string[]);
+  const fcsWithoutFailureLink: FcWithoutFailureLinkDiagnostic[] = [];
+  for (const fc of failureCauses) {
+    if (fcWithFl.has(fc.id)) continue;
+    const l2 = l2ById.get(fc.l2StructId);
+    const processNo = l2?.no ?? '';
+    const skipFcRows = crossProcessSkipRowsByFc.get(fc.id);
+    if (skipFcRows && skipFcRows.length > 0) {
+      fcsWithoutFailureLink.push({
+        fcId: fc.id,
+        l2StructId: fc.l2StructId,
+        l3StructId: fc.l3StructId,
+        processNo,
+        cause: fc.cause,
+        reason: 'CROSS_PROCESS_SKIPPED',
+        fcSheetExcelRows: skipFcRows.slice(),
+      });
+      continue;
+    }
+    if (!fcIdsSeenFromFcResolve.has(fc.id)) {
+      fcsWithoutFailureLink.push({
+        fcId: fc.id,
+        l2StructId: fc.l2StructId,
+        l3StructId: fc.l3StructId,
+        processNo,
+        cause: fc.cause,
+        reason: 'NO_FC_SHEET_REFERENCE',
+      });
+    } else {
+      fcsWithoutFailureLink.push({
+        fcId: fc.id,
+        l2StructId: fc.l2StructId,
+        l3StructId: fc.l3StructId,
+        processNo,
+        cause: fc.cause,
+        reason: 'UNEXPECTED_NO_FL_AFTER_FC_RESOLVE',
+      });
+    }
+  }
+  const diagnostics: PositionImportDiagnostics = { fmsWithoutFailureLink, fcsWithoutFailureLink };
 
   // ─── 통계 (엑셀 원본 항목별 정확한 카운트) ───
 
@@ -1030,6 +1080,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     brokenFC: failureLinks.filter(fl => !fl.fcId).length,
     crossProcessFlSkipped,
     fmsWithoutFailureLink: diagnostics.fmsWithoutFailureLink.length,
+    fcsWithoutFailureLink: diagnostics.fcsWithoutFailureLink.length,
     autoFixes: autoFixes.length,
     // ── Import 통계표·verify-counts API와 동일 척도 (엑셀 셀 수 excelC* 와 별개) ──
     verifyC1DistinctCategories: new Set(

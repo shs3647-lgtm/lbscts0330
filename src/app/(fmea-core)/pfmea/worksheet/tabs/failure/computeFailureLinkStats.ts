@@ -6,21 +6,36 @@
  *   링크에 실린 feText/fcText + feNo/fcNo + 공정명으로 feData/fcData 행을 **유일하게** 특정할 수 있으면
  *   "연결됨"으로 본다 (Import·재로드 후 feId/fcId 불일치로 가짜 누락이 쌓이는 문제 방지).
  *   유일하지 않으면 매칭하지 않음(오연결 방지).
+ *
+ * ★7 (2026-03-28) — 파이프라인 `unlinked*` 와의 관계 (`verify-steps.ts` verifyFk, GET pipeline-verify STEP3):
+ *   - **unlinkedFE**: DB `failure_effects` 중 어떤 `failure_links.feId`에도 안 나타남.
+ *   - **unlinkedFC / unlinkedFM**: 동일하게 FL의 `fcId` / `fmId` 커버리지만 본다 (Atomic PG).
+ *   - **본 모듈의 `feMissingCount` 등**: 입력은 워크시트 `savedLinks`(LinkResult[]) + 레거시 fe/fm/fc 배열.
+ *     텍스트·공정 보강, FM 연결 휴리스틱(아래 fmLinkedCount), FailureLinkTab의 FC시트 참조 필터는 **파이프라인에 없음**.
+ *   → 숫자가 STEP3와 다르면 정상일 수 있음. 비교·감사는 **DB pipeline-verify**를 SSoT로 쓴다.
  */
 
 import type { FEItem, FCItem, FMItem, LinkResult } from './FailureLinkTypes';
+
+/** 고장연결 배너 등 tooltip — 파이프라인 대비 (★7) */
+export const FAILURE_LINK_STATS_VS_PIPELINE_HINT =
+  '이 화면의 누락·연결 수: 워크시트 savedLinks + 텍스트/공정 보강 + FC시트 참조 규칙 기준입니다. ' +
+  'API GET /api/fmea/pipeline-verify STEP3의 unlinkedFM·unlinkedFC·unlinkedFE는 DB FailureLink FK만 집계하므로 수치가 다를 수 있습니다.';
 
 export interface FailureLinkStats {
   feLinkedIds: Set<string>;
   feLinkedTexts: Set<string>;
   feLinkedCount: number;
+  /** 레거시 FE 중 링크(및 보강)로 연결된 것으로 본 개수의 보수 */
   feMissingCount: number;
   fcLinkedIds: Set<string>;
   fcLinkedTexts: Set<string>;
   fcLinkedCount: number;
+  /** 레거시 FC 중 링크(및 보강)로 연결된 것으로 본 개수의 보수 — ≠ pipeline unlinkedFC 역수(정의 상이) */
   fcMissingCount: number;
   fmLinkedIds: Set<string>;
   fmLinkedCount: number;
+  /** FM: savedLinks fmId + fc/fe 카운트 + 텍스트 매칭 등 — ≠ pipeline unlinkedFM 역수 */
   fmMissingCount: number;
   fmLinkCounts: Map<string, { feCount: number; fcCount: number }>;
 }

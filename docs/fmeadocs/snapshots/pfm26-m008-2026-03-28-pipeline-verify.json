@@ -95,7 +95,7 @@
       "issues": [
         "FL 없는 FC 11건",
         "FL 없는 FM 2건",
-        "FC 중복 (l2+cause) 12건"
+        "FC 중복 (l2|l3|cause, Rule1.7) 12건"
       ],
       "fixed": [],
       "fkIntegrity": [
@@ -236,7 +236,7 @@
         "type": "step3_issue",
         "count": 12,
         "autoFixable": false,
-        "description": "FC 중복 (l2+cause) 12건"
+        "description": "FC 중복 (l2|l3|cause, Rule1.7) 12건"
       },
       {
         "type": "step4_issue",

@@ -23,6 +23,7 @@ interface PipelineStep {
   status: string;
   details: Record<string, number | string>;
   issues: string[];
+  fcDuplicateGroups?: { dedupKey: string; idCount: number; fcIds: string[]; causeSnippet: string }[];
 }
 
 interface PipelineBody {
@@ -144,8 +145,16 @@ async function main() {
   }
   console.log('\n[2] 파이프라인 STEP3(FK) — 미연결·품질');
   console.log(`  FL 없는 FM: ${unlinkedFM}  |  FL 없는 FC: ${unlinkedFC}  |  FL 없는 FE: ${unlinkedFE}`);
-  console.log(`  nullFeId 링크: ${nullFeIdLinks}  |  FC중복(l2+cause): ${fcDup}`);
-  if (steps?.[2]?.issues?.length) console.log(`  STEP3 issues: ${JSON.stringify(steps[2].issues)}`);
+  console.log(`  nullFeId 링크: ${nullFeIdLinks}  |  FC중복(l2|l3|cause): ${fcDup}`);
+  const step3 = steps?.find((s) => s.step === 3);
+  if (step3?.issues?.length) console.log(`  STEP3 issues: ${JSON.stringify(step3.issues)}`);
+  if (step3?.fcDuplicateGroups && step3.fcDuplicateGroups.length > 0) {
+    console.log('\n[2c] FC 중복 그룹 샘플 (Rule1.7 dedupKey, 최대 8그룹)');
+    step3.fcDuplicateGroups.slice(0, 8).forEach((g) => {
+      const idStr = g.fcIds.join(', ');
+      console.log(`  • n=${g.idCount}  cause="${g.causeSnippet}"  fcIds=${idStr.length > 140 ? `${idStr.slice(0, 140)}…` : idStr}`);
+    });
+  }
 
   console.log('\n[3] validate-fk — 가설 대조');
   console.log(`  orphanFailureLinks: ${orphanFL}  (가설: 저장 후 깨진 FL 참조)`);

@@ -281,6 +281,45 @@ export interface PositionAtomicData {
   failureLinks: PosFailureLink[];
   riskAnalyses: PosRiskAnalysis[];
   stats: Record<string, number>;
+  /** Import 직후 진단(★3·★4) — FL 없는 FM/FC 분류 */
+  diagnostics?: PositionImportDiagnostics;
+}
+
+/** ★3: FC 시트 관점에서 FM이 FL에 연결되지 않은 이유 (파서 출력 — DB 재조회 아님) */
+export type FmWithoutFailureLinkReason =
+  | 'CROSS_PROCESS_SKIPPED'
+  | 'NO_FC_SHEET_REFERENCE'
+  | 'UNEXPECTED_NO_FL_AFTER_FC_RESOLVE';
+
+export interface FmWithoutFailureLinkDiagnostic {
+  fmId: string;
+  l2StructId: string;
+  processNo: string;
+  mode: string;
+  reason: FmWithoutFailureLinkReason;
+  /** FC 시트 excelRow (교차공정 스킵 시) */
+  fcSheetExcelRows?: number[];
+}
+
+/** ★4: FC(고장원인) 엔티티가 어떤 FL의 fcId에도 안 잡힐 때 (파서 출력) */
+export type FcWithoutFailureLinkReason =
+  | 'CROSS_PROCESS_SKIPPED'
+  | 'NO_FC_SHEET_REFERENCE'
+  | 'UNEXPECTED_NO_FL_AFTER_FC_RESOLVE';
+
+export interface FcWithoutFailureLinkDiagnostic {
+  fcId: string;
+  l2StructId: string;
+  l3StructId: string;
+  processNo: string;
+  cause: string;
+  reason: FcWithoutFailureLinkReason;
+  fcSheetExcelRows?: number[];
+}
+
+export interface PositionImportDiagnostics {
+  fmsWithoutFailureLink: FmWithoutFailureLinkDiagnostic[];
+  fcsWithoutFailureLink: FcWithoutFailureLinkDiagnostic[];
 }
 
 /** save-position-import 성공 응답 — payload 대비 FL/RA 스킵·삽입 시도 건수 (★10) */

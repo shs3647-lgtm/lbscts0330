@@ -56,6 +56,14 @@ export interface ParentChildEntry {
   missingChildren: { parentId: string; parentName: string }[];
 }
 
+/** STEP3 FC dedup 충돌 샘플 — Rule 1.7: l2StructId|l3StructId|cause (★6) */
+export interface FcDuplicateGroupSample {
+  dedupKey: string;
+  idCount: number;
+  fcIds: string[];
+  causeSnippet: string;
+}
+
 export interface StepResult {
   step: number;
   name: string;
@@ -65,6 +73,8 @@ export interface StepResult {
   fixed: string[];
   fkIntegrity?: FkIntegrityEntry[];
   parentChild?: ParentChildEntry[];
+  /** STEP3 verifyFk 전용 — details.fcDuplicates>0 일 때 채움 */
+  fcDuplicateGroups?: FcDuplicateGroupSample[];
 }
 
 export interface PipelineResult {
@@ -374,19 +384,39 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   }
   r.details.nullFeIdLinks = nullFeIdLinks;
 
-  // FC 중복 검증 (same l2StructId + l3StructId + cause — 같은 WE의 동일 원인만 중복)
-  const fcDupKey = new Set<string>();
-  let fcDuplicates = 0;
+  // FC 중복 검증 — Rule 1.7 / UUID_FK: dedupKey = l2StructId|l3StructId|cause (이슈 문구 예전 "l2+cause"는 부정확했음)
+  const fcKeyToIds = new Map<string, string[]>();
   for (const fc of fcs) {
-    const key = `${(fc as any).l2StructId}|${(fc as any).l3StructId || ''}|${(fc as any).cause}`;
-    if (fcDupKey.has(key)) fcDuplicates++;
-    fcDupKey.add(key);
+    const l2 = String((fc as any).l2StructId || '');
+    const l3 = String((fc as any).l3StructId || '');
+    const cause = String((fc as any).cause || '');
+    const key = `${l2}|${l3}|${cause}`;
+    const ids = fcKeyToIds.get(key) || [];
+    ids.push(String((fc as any).id));
+    fcKeyToIds.set(key, ids);
+  }
+  let fcDuplicates = 0;
+  const fcDuplicateGroups: FcDuplicateGroupSample[] = [];
+  for (const [dedupKey, fcIds] of fcKeyToIds) {
+    if (fcIds.length <= 1) continue;
+    fcDuplicates += fcIds.length - 1;
+    if (fcDuplicateGroups.length < 12) {
+      const first = fcs.find((x: any) => x.id === fcIds[0]);
+      const causeSnippet = String(first?.cause || '').slice(0, 48);
+      fcDuplicateGroups.push({
+        dedupKey,
+        idCount: fcIds.length,
+        fcIds: fcIds.slice(0, 8),
+        causeSnippet,
+      });
+    }
   }
   if (fcDuplicates > 0) {
     r.status = worst(r.status, 'warn');
-    r.issues.push(`FC 중복 (l2+cause) ${fcDuplicates}건`);
+    r.issues.push(`FC 중복 (l2|l3|cause, Rule1.7) ${fcDuplicates}건`);
   }
   r.details.fcDuplicates = fcDuplicates;
+  if (fcDuplicateGroups.length > 0) r.fcDuplicateGroups = fcDuplicateGroups;
 
   r.fkIntegrity = integrity;
   return r;

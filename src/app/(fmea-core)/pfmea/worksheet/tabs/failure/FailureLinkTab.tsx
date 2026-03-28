@@ -59,7 +59,7 @@ import {
   fullscreenOverlayStyle
 } from './FailureLinkStyles';
 import { FEItem, FMItem, FCItem, LinkResult } from './FailureLinkTypes';
-import { computeFailureLinkStats } from './computeFailureLinkStats';
+import { computeFailureLinkStats, FAILURE_LINK_STATS_VS_PIPELINE_HINT } from './computeFailureLinkStats';
 
 export default function FailureLinkTab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveToLocalStorageOnly, saveAtomicDB }: FailureTabProps) {
   // ========== 상태 관리 ==========
@@ -308,6 +308,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   }, []);
 
   // ========== 연결 통계 계산 ==========
+  // ★7: 파이프라인 STEP3 unlinked*는 DB FL FK만 봄. 여기서는 savedLinks+보강 — 수치 1:1 아님(computeFailureLinkStats.ts 상단 참고)
   // 연결 통계: UUID 일치 + 링크에 실린 feText/fcText·번호·공정으로 유일 보강 (가짜 누락 완화)
   const linkStats = useMemo(
     () => computeFailureLinkStats(savedLinks, feData, fmData, fcData),
@@ -764,14 +765,17 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
       <div style={rightPanelStyle}>
         {/* ⚠️ 누락 경고 배너 (FM부분연결 + FE/FC 미연결) - 컴팩트 */}
         {totalMissingCount > 0 && !isConfirmed && (
-          <div style={{
+          <div
+            title={FAILURE_LINK_STATS_VS_PIPELINE_HINT}
+            style={{
             background: 'linear-gradient(135deg, #ff9800, #e65100)',
             color: '#fff',
             padding: '4px 8px',
             borderRadius: '4px',
             margin: '4px 8px',
             boxShadow: '0 2px 6px rgba(255, 152, 0, 0.3)',
-          }}>
+          }}
+          >
             <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>⚠️ 누락: {[
                 missingFMs.length > 0 ? `FM ${missingFMs.length}건` : '',

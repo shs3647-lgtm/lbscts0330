@@ -3,6 +3,7 @@
  * @description 위치기반 파서 테스트 (m102 JSON fixture 기반)
  * @updated 2026-03-28 — 파서 v5/v6: FE=C4 텍스트 중복제거, L3Structure=l2Id|m4|B1 복합키 dedup,
  *   FC 복합키 매칭으로 미해결 fcId 허용 → FK 검증은 삼중 완전 FL만 대상
+ * @updated 2026-03-28 — FM.L2≠FC.L2 교차공정 FL 미생성 (crossProcessFlSkipped); m102 FL=286 / FC행=338
  */
 import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
@@ -87,15 +88,16 @@ describe('parsePositionBasedJSON', () => {
 
   // ── FC 시트 → FailureLink + RiskAnalysis ──
 
-  it('FC 시트 → FailureLink 생성 (행마다 독립)', () => {
+  it('FC 시트 → FailureLink 생성 (교차공정 제외·행마다 최대 1)', () => {
     result = parsePositionBasedJSON(fixture);
-    expect(result.failureLinks.length).toBe(338);
+    expect(result.failureLinks.length).toBe(286);
+    expect(result.stats.crossProcessFlSkipped).toBe(52);
     expect(result.failureLinks[0].id).toMatch(/^FC-R\d+$/);
   });
 
   it('FC 시트 → RiskAnalysis 생성 (FailureLink 1:1)', () => {
     result = parsePositionBasedJSON(fixture);
-    expect(result.riskAnalyses.length).toBe(338);
+    expect(result.riskAnalyses.length).toBe(286);
     // 각 RA의 linkId = 해당 FL의 id
     for (let i = 0; i < result.riskAnalyses.length; i++) {
       expect(result.riskAnalyses[i].linkId).toBe(result.failureLinks[i].id);
@@ -122,6 +124,22 @@ describe('parsePositionBasedJSON', () => {
   });
 
   // ── 전체 정합성 ──
+
+  it('★3 diagnostics: FL 없는 FM 건수 = 진단 배열 길이', () => {
+    result = parsePositionBasedJSON(fixture);
+    const linkedFm = new Set(result.failureLinks.map((fl) => fl.fmId).filter(Boolean));
+    const expectUnlinked = result.failureModes.filter((fm) => !linkedFm.has(fm.id)).length;
+    expect(result.diagnostics?.fmsWithoutFailureLink.length).toBe(expectUnlinked);
+    expect(result.stats.fmsWithoutFailureLink).toBe(expectUnlinked);
+  });
+
+  it('★4 diagnostics: FL 없는 FC 건수 = 진단 배열 길이', () => {
+    result = parsePositionBasedJSON(fixture);
+    const linkedFc = new Set(result.failureLinks.map((fl) => fl.fcId).filter(Boolean));
+    const expectUnlinked = result.failureCauses.filter((fc) => !linkedFc.has(fc.id)).length;
+    expect(result.diagnostics?.fcsWithoutFailureLink.length).toBe(expectUnlinked);
+    expect(result.stats.fcsWithoutFailureLink).toBe(expectUnlinked);
+  });
 
   it('삼중 FK가 채워진 FailureLink는 실제 FE/FM/FC 엔티티를 참조', () => {
     result = parsePositionBasedJSON(fixture);
@@ -241,5 +259,125 @@ describe('parsePositionBasedJSON — L2 carry-forward', () => {
     const r = parsePositionBasedJSON(minimalCarryJson as Parameters<typeof parsePositionBasedJSON>[0]);
     const fmB = r.failureModes.find((fm) => fm.id === 'L2-R11-C6');
     expect(fmB?.detectionControl).toBe('병합검출관리');
+  });
+});
+
+/** 교차공정 FL: FC 시트가 공정1 FM + 공정2 FC(위치 인덱스)를 묶으면 FL/RA 미생성·stats 반영 */
+describe('parsePositionBasedJSON — crossProcessFk 스킵', () => {
+  const crossProcessJson = {
+    targetId: 'pfm26-cross-fl-test',
+    sourceId: 'pfm26-cross-fl-test',
+    sheets: {
+      L1: {
+        sheetName: 'L1',
+        headers: [],
+        rows: [
+          { excelRow: 2, posId: 'L1-R2', cells: { C1: 'YP', C2: 'F', C3: 'R', C4: 'FE1' } },
+        ],
+      },
+      L2: {
+        sheetName: 'L2',
+        headers: [],
+        rows: [
+          {
+            excelRow: 10,
+            posId: 'L2-R10',
+            cells: { A1: '1', A2: 'P1', A3: 'L2f', A4: 'pc1', SC: '', A5: 'fmP1', A6: '' },
+          },
+          {
+            excelRow: 12,
+            posId: 'L2-R12',
+            cells: { A1: '2', A2: 'P2', A3: 'L2f', A4: 'pc2', SC: '', A5: 'fmP2', A6: '' },
+          },
+        ],
+      },
+      L3: {
+        sheetName: 'L3',
+        headers: [],
+        rows: [
+          {
+            excelRow: 20,
+            posId: 'L3-R20',
+            cells: { processNo: '1', m4: 'MN', B1: 'WE1', B2: 'B2', B3: 'B3', SC: '', B4: 'causeP1', B5: '' },
+          },
+          {
+            excelRow: 21,
+            posId: 'L3-R21',
+            cells: { processNo: '2', m4: 'MN', B1: 'WE2', B2: 'B2', B3: 'B3', SC: '', B4: 'causeP2', B5: '' },
+          },
+        ],
+      },
+      FC: {
+        sheetName: 'FC',
+        headers: [],
+        rows: [
+          {
+            excelRow: 30,
+            posId: 'FC-R30',
+            cells: {
+              FE_scope: 'YP',
+              FE: 'FE1',
+              processNo: '1',
+              FM: 'fmP1',
+              m4: 'MN',
+              WE: 'WE1',
+              FC: 'causeP1',
+              PC: '',
+              DC: '',
+              S: '5',
+              O: '3',
+              D: '2',
+              AP: 'M',
+            },
+          },
+          {
+            excelRow: 31,
+            posId: 'FC-R31',
+            cells: {
+              FE_scope: 'YP',
+              FE: 'FE1',
+              processNo: '1',
+              FM: 'fmP1',
+              m4: 'MN',
+              WE: 'WE2',
+              FC: 'causeP2',
+              PC: '',
+              DC: '',
+              S: '4',
+              O: '2',
+              D: '2',
+              AP: 'M',
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  it('FM·FC L2 불일치 행은 FL·RA를 만들지 않고 crossProcessFlSkipped=1', () => {
+    const r = parsePositionBasedJSON(crossProcessJson as Parameters<typeof parsePositionBasedJSON>[0]);
+    expect(r.failureLinks.length).toBe(1);
+    expect(r.riskAnalyses.length).toBe(1);
+    expect(r.stats.crossProcessFlSkipped).toBe(1);
+    const fm = r.failureModes.find((m) => m.mode === 'fmP1');
+    const fc = r.failureCauses.find((c) => c.cause === 'causeP2');
+    expect(fm?.l2StructId).toBeDefined();
+    expect(fc?.l2StructId).toBeDefined();
+    expect(fm!.l2StructId).not.toBe(fc!.l2StructId);
+  });
+
+  it('★3 diagnostics: FL 없는 fmP2는 NO_FC_SHEET_REFERENCE', () => {
+    const r = parsePositionBasedJSON(crossProcessJson as Parameters<typeof parsePositionBasedJSON>[0]);
+    const d = r.diagnostics?.fmsWithoutFailureLink ?? [];
+    const p2 = d.find((x) => x.mode === 'fmP2');
+    expect(p2?.reason).toBe('NO_FC_SHEET_REFERENCE');
+  });
+
+  it('★4 diagnostics: FL 없는 causeP2는 CROSS_PROCESS_SKIPPED', () => {
+    const r = parsePositionBasedJSON(crossProcessJson as Parameters<typeof parsePositionBasedJSON>[0]);
+    const d = r.diagnostics?.fcsWithoutFailureLink ?? [];
+    const c2 = d.find((x) => x.cause === 'causeP2');
+    expect(c2?.reason).toBe('CROSS_PROCESS_SKIPPED');
+    expect(c2?.fcSheetExcelRows).toEqual([31]);
   });
 });
