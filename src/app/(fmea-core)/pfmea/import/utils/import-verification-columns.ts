@@ -18,14 +18,14 @@ export interface FKVerifyResult {
 }
 
 export interface PgsqlVerifyResult {
-  expected: number;    // 비교 기준 건수(통계 '고유' 우선, 없으면 flat UUID 행 수)
+  expected: number;    // 비교 기준: 복합키 고유·flat 행·파이프라인 척도 병합(값만 dedup 고유는 보조)
   actual: number;      // DB count from project schema
   match: boolean;
   status: VerifyStatus;
 }
 
 export interface ApiVerifyResult {
-  expected: number;    // 비교 기준 건수(통계 '고유' 우선 — DB 엔티티와 동일 스케일)
+  expected: number;    // 비교 기준: 복합키·flat 행·파이프라인 척도 병합(DB 엔티티 스케일)
   apiCount: number;    // count from GET API response
   match: boolean;
   status: VerifyStatus;
@@ -68,6 +68,41 @@ export function countFlatRowsByItemCode(flatData: ImportedFlatData[]): Record<st
     counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
   }
   return counts;
+}
+
+/** 통계표「파싱」열 rawCount: itemCode가 있으면 1행 (빈 value·무id 포함) */
+export function countAllFlatRowsByItemCode(flatData: ImportedFlatData[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of flatData) {
+    if (!item.itemCode) continue;
+    counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * 항목코드별 복합키 고유 개수 (flat 기준, ID-only).
+ * 키 = processNo + itemCode + value + m4 + parentItemId (각 trim) — 동일 문구라도 부모·공정·4M이 다르면 별도 키.
+ * 통계「고유」가 값 텍스트만 보거나 파서 dedup 척도와 다를 때 누락·중복을 짚기 위함.
+ */
+export function countCompositeKeysByItemCode(flatData: ImportedFlatData[]): Record<string, number> {
+  const byCode = new Map<string, Set<string>>();
+  for (const item of flatData) {
+    if (!item.itemCode || !item.id || !item.value?.trim()) continue;
+    const code = item.itemCode;
+    const processNo = String(item.processNo ?? '').trim();
+    const v = item.value.trim();
+    const m4 = String(item.m4 ?? '').trim();
+    const pid = String(item.parentItemId ?? '').trim();
+    const key = `${processNo}\x1f${code}\x1f${v}\x1f${m4}\x1f${pid}`;
+    if (!byCode.has(code)) byCode.set(code, new Set());
+    byCode.get(code)!.add(key);
+  }
+  const out: Record<string, number> = {};
+  for (const code of ALL_ITEM_CODES) {
+    out[code] = byCode.get(code)?.size ?? 0;
+  }
+  return out;
 }
 
 /** mapCountsToPgsql 결과 중 불일치 코드만 사람이 읽을 줄로 (이름매칭 없음) */
@@ -210,19 +245,48 @@ export function countTripleFkFailureLinks(
  * pgsql/API 검증용 기대 건수: 통계표「고유」열이 있으면 DB·API(엔티티 수)와 같은 눈금으로 맞춤.
  * 없으면 Import「UUID」열(flat 행 수)과 동일하게 uuidCounts만 사용.
  */
+/**
+ * PG/API 기대 건수 병합.
+ * - **B1–B5**: 복합키가 있으면 `max(flat행, 복합키)` — parentId 생략으로 복합키만 작아진 경우 행 수가 저장 척도.
+ * - A·C 계열: 복합키 고유 = 엔티티 척도(C4 등 flat>고유 시 복합키로 DB 스케일 맞춤).
+ * - B에서 통계 고유 < flat 행이면 값·4M만 본 dedup으로 보고 flat 행 수 사용.
+ * - `verifyScaleOverride`: 파이프라인 척도; 항목별 blended가 더 크면 상향(과소 기대 방지).
+ */
 export function mergeImportExpectedCounts(
   uuidCounts: Record<string, number>,
   uniqueByCode?: Record<string, number>,
+  compositeByCode?: Record<string, number>,
+  verifyScaleOverride?: Record<string, number> | null,
 ): Record<string, number> {
-  const out: Record<string, number> = {};
+  const blended: Record<string, number> = {};
   for (const code of ALL_ITEM_CODES) {
     const raw = uuidCounts[code] || 0;
+    const comp = compositeByCode?.[code];
     const u = uniqueByCode?.[code];
-    // 통계에 코드만 채워 넣고 고유=0인 placeholder는 무시 → UUID(행) 기준 유지
-    if (u !== undefined && (u > 0 || raw === 0)) out[code] = u;
-    else out[code] = raw;
+    const isB = code.startsWith('B');
+
+    let chosen = raw;
+    // B: 복합키가 parent·m4를 포함 — 행 수보다 작으면 flat 행(저장 단위) 우선. A/C: 복합키 고유 = 엔티티 척도.
+    if (comp !== undefined && comp > 0) {
+      chosen = isB ? Math.max(raw, comp) : comp;
+    } else if (isB && u !== undefined && raw > 0 && u < raw) {
+      chosen = raw;
+    } else if (u !== undefined && (u > 0 || raw === 0)) {
+      chosen = u;
+    }
+    blended[code] = chosen;
   }
-  return out;
+
+  if (verifyScaleOverride && typeof verifyScaleOverride.A1 === 'number') {
+    const out = { ...verifyScaleOverride };
+    for (const code of ALL_ITEM_CODES) {
+      const b = blended[code] ?? 0;
+      const v = out[code] ?? 0;
+      if (b > v) out[code] = b;
+    }
+    return out;
+  }
+  return blended;
 }
 
 const FK_PARENT_RULES: Record<string, string[] | null> = {

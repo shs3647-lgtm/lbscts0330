@@ -20,6 +20,7 @@ import {
   mergeImportExpectedCounts,
   mapCountsToPgsql,
   mapApiToVerification,
+  countCompositeKeysByItemCode,
   type FKVerifyResult,
   type PgsqlVerifyResult,
   type ApiVerifyResult,
@@ -53,11 +54,14 @@ export function useImportVerification(
   const fkData = useMemo(() => verifyFK(flatData), [flatData]);
 
   const dbExpectedCounts = useMemo(() => {
-    if (verifyScaleExpected && typeof verifyScaleExpected.A1 === 'number') {
-      return verifyScaleExpected;
-    }
-    return mergeImportExpectedCounts(uuidCounts, uniqueByCode);
-  }, [verifyScaleExpected, uuidCounts, uniqueByCode]);
+    const composite = countCompositeKeysByItemCode(flatData);
+    return mergeImportExpectedCounts(
+      uuidCounts,
+      uniqueByCode,
+      composite,
+      verifyScaleExpected ?? null,
+    );
+  }, [verifyScaleExpected, uuidCounts, uniqueByCode, flatData]);
 
   const [pgsqlData, setPgsqlData] = useState<Record<string, PgsqlVerifyResult> | null>(null);
   const [isVerifyingPgsql, setIsVerifyingPgsql] = useState(false);

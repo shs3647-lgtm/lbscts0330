@@ -69,6 +69,31 @@ describe('mergeImportExpectedCounts', () => {
     const m = mergeImportExpectedCounts(uuid, unique);
     expect(m.C4).toBe(50);
   });
+
+  it('uses flat row count when unique undercounts (e.g. B3 stat omits parentItemId in dedup)', () => {
+    const uuid = { B3: 115 };
+    const unique = { B3: 51 };
+    const m = mergeImportExpectedCounts(uuid, unique);
+    expect(m.B3).toBe(115);
+  });
+
+  it('composite key count aligns with max(raw, comp) when provided', () => {
+    const uuid = { B3: 100 };
+    const unique = { B3: 51 };
+    const comp = { B3: 115 };
+    const m = mergeImportExpectedCounts(uuid, unique, comp);
+    expect(m.B3).toBe(115);
+  });
+
+  it('verifyScaleOverride is raised when blended flat/composite exceeds pipeline stat', () => {
+    const uuid = { B3: 115 };
+    const unique = { B3: 51 };
+    const comp = { B3: 115 };
+    const verify = { A1: 21, B3: 51 } as Record<string, number>;
+    const m = mergeImportExpectedCounts(uuid, unique, comp, verify);
+    expect(m.B3).toBe(115);
+    expect(m.A1).toBe(21);
+  });
 });
 
 describe('verifyFK inherited', () => {

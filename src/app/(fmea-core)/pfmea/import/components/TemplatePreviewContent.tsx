@@ -7,7 +7,7 @@
  * @created 2026-02-26
  * @updated 2026-02-27 — 통합 툴바 (메뉴 고정 + 활성화/비활성화, 저장버튼 제거)
  * @updated 2026-03-27 — pgsql/API 자동검증 (통계표 열기/DB저장 완료 시 자동 실행)
- * @updated 2026-03-28 — FC 미리보기 헤더 고유 건수를 통계 표(statUniqueByCode)와 동일하게 전달
+ * @updated 2026-03-28 — FC 미리보기 헤더 고유 건수 = 통계 표; 통계표 SA 열 → 복합키 열
  *
  * CODEFREEZE — 최고단계 (2026-03-27 갱신)
  * 수정 조건: "IMPORT 통계검증 수정해"라고 명시적으로 지시할 때만 수정
@@ -43,6 +43,8 @@ import { useImportVerification } from '../hooks/useImportVerification';
 import { supplementMissingItems } from '../utils/supplementMissingItems';
 import {
   countFlatRowsByItemCode,
+  countAllFlatRowsByItemCode,
+  countCompositeKeysByItemCode,
   countsFromPositionExcelStats,
   countsFromParseStatisticsItemRaw,
   countsVerifyAlignedFromPipelineStats,
@@ -272,7 +274,26 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         if (!existing.has(code)) filled.push({ itemCode: code, label, rawCount: 0, uniqueCount: 0, dupSkipped: 0 });
       }
       filled.sort((a, b) => (SHEET_ORDER[a.itemCode] ?? 99) - (SHEET_ORDER[b.itemCode] ?? 99));
-      return { ...parseStatistics, itemStats: filled.map(normalizeItemStatRow) };
+      // flat이 있으면 고유·파싱·복합키·pgsql/API 기대(복합키 기반)와 같은 눈금 — 서버 unique/raw와 어긋남 방지
+      const comp = flatData.length > 0 ? countCompositeKeysByItemCode(flatData) : null;
+      const rawAll = flatData.length > 0 ? countAllFlatRowsByItemCode(flatData) : null;
+      return {
+        ...parseStatistics,
+        itemStats: filled.map(s => {
+          let row = normalizeItemStatRow(s);
+          if (comp && rawAll) {
+            const raw = rawAll[s.itemCode] ?? row.rawCount;
+            const u = comp[s.itemCode] ?? 0;
+            row = normalizeItemStatRow({
+              ...row,
+              rawCount: raw,
+              uniqueCount: u,
+              dupSkipped: Math.max(0, raw - u),
+            });
+          }
+          return row;
+        }),
+      };
     }
     if (crossTab.total === 0 && flatData.length === 0) return undefined;
 
@@ -294,11 +315,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       if (!codeCounts.has(code)) codeCounts.set(code, { raw: 0, vals: new Set() });
       const entry = codeCounts.get(code)!;
       entry.raw++;
-      if (d.value?.trim()) {
-        // B-레벨: 같은 공정·다른 4M의 동일 텍스트는 별개 항목 → m4 포함
-        const uniqueKey = d.category === 'B' && d.m4
-          ? `${d.processNo || ''}|${d.m4}|${d.value.trim()}`
-          : `${d.processNo || ''}|${d.value.trim()}`;
+      // 고유 = `countCompositeKeysByItemCode`와 동일 척도: 공정·코드·값·m4·parentItemId (비어있지 않은 value + id 있는 행만)
+      if (d.id && d.value?.trim()) {
+        const pno = String(d.processNo ?? '').trim();
+        const c = String(d.itemCode ?? '').trim();
+        const v = d.value.trim();
+        const m4 = String(d.m4 ?? '').trim();
+        const pid = String(d.parentItemId ?? '').trim();
+        const uniqueKey = `${pno}\x1f${c}\x1f${v}\x1f${m4}\x1f${pid}`;
         entry.vals.add(uniqueKey);
       }
     });
@@ -326,7 +350,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       const proc = procMap.get(d.processNo)!;
       if (!proc.items[d.itemCode]) proc.items[d.itemCode] = { raw: 0, unique: new Set() };
       proc.items[d.itemCode].raw++;
-      if (d.value?.trim()) proc.items[d.itemCode].unique.add(d.value.trim());
+      if (d.id && d.value?.trim()) {
+        const c = String(d.itemCode ?? '').trim();
+        const v = d.value.trim();
+        const m4 = String(d.m4 ?? '').trim();
+        const pid = String(d.parentItemId ?? '').trim();
+        proc.items[d.itemCode].unique.add(`${c}\x1f${v}\x1f${m4}\x1f${pid}`);
+      }
     });
 
     const processStats: import('../excel-parser').ProcessItemStat[] = [];
@@ -377,41 +407,33 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   // ── 통계표/FC검증 토글 ──
   const [showStats, setShowStats] = useState(false);
 
-  // ── ★ SA/FA 단계별 스냅샷 (통계 컬럼용) ──
-  const [saSnapshot, setSaSnapshot] = useState<Record<string, number> | null>(null);
-
   // ── UUID 카운트 (itemCode별) ──
   const uuidCounts = useMemo(
     () => countFlatRowsByItemCode(flatData),
     [flatData],
   );
 
-  /** 통계「고유」→ pgsql/API 비교 기대치를 워크시트(원자 DB) 엔티티 수와 같은 눈금으로 */
-  const statUniqueByCode = useMemo((): Record<string, number> | undefined => {
-    const rows = effectiveStatistics?.itemStats;
-    if (!rows?.length) return undefined;
-    const m: Record<string, number> = {};
-    for (const s of rows) {
-      m[s.itemCode] = s.uniqueCount;
-    }
-    return m;
-  }, [effectiveStatistics]);
+  /** 복합키 고유 수 — parentItemId·공정·m4까지 구분 (통계 고유와 불일치 시 누락·중복 점검) */
+  const compositeKeyCounts = useMemo(
+    () => countCompositeKeysByItemCode(flatData),
+    [flatData],
+  );
 
-  /** FC 미리보기 열 헤더 고유 건수 = 통계 표 uniqueCount (체인·병합과 별개) */
+  /** FC 미리보기 열 헤더 — 복합키·통계 고유와 동일 척도(flat·parent·m4) */
   const fcMatrixHeaderCounts = useMemo((): FailureChainPreviewMatrixHeaderCounts | undefined => {
-    if (!statUniqueByCode) return undefined;
+    if (!effectiveStatistics?.itemStats?.length) return undefined;
     const m4 = new Set(
       flatData.filter(d => d.category === 'B' && d.m4?.trim()).map(d => d.m4!.trim()),
     ).size;
-    return { uniqueByCode: statUniqueByCode, uniqueM4FromFlat: m4 };
-  }, [statUniqueByCode, flatData]);
+    return { uniqueByCode: compositeKeyCounts, uniqueM4FromFlat: m4 };
+  }, [effectiveStatistics?.itemStats?.length, compositeKeyCounts, flatData]);
 
-  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅
+  // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅 — 서버 통계「고유」는 제외, 복합키+UUID+파이프라인만으로 기대치 산출(네 열 정합)
   const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(
     fmeaId,
     flatData,
     uuidCounts,
-    statUniqueByCode,
+    undefined,
     verifyScaleRowCounts,
   );
 
@@ -574,8 +596,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   const executeSAConfirm = useCallback(() => {
     const result = confirmSA();
     if (result?.success) {
-      // ★ SA 확정 시점의 UUID 카운트 스냅샷 저장 (검증 통계용)
-      setSaSnapshot({ ...uuidCounts });
       const d = result.diagnostics;
       const accWarnings = validateAccuracy(generatedData);
       const fcAccWarnings = failureChains.length > 0
@@ -639,7 +659,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         summary: '데이터를 먼저 저장해주세요.',
       });
     }
-  }, [confirmSA, generatedData, failureChains, uuidCounts]);
+  }, [confirmSA, generatedData, failureChains]);
 
   // ── SA 확정 핸들러 (미확정 시 전진) ──
   const handleSAConfirm = useCallback(() => {
@@ -673,7 +693,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   // ── SA 되돌리기 핸들러 (확정 후 리셋+SA탭 이동) ──
   const handleSAReset = useCallback(() => {
-    setSaSnapshot(null);  // SA 스냅샷 초기화
     resetToSA();
   }, [resetToSA]);
 
@@ -929,11 +948,11 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="고유+중복 = 총 파싱 행(raw). 엑셀 비어있지 않은 셀 수는 셀 title로 참고">원본</th>
               <th className="bg-violet-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-violet-600" style={{width:40}} title="flat 해당 코드 총 행 수(rawCount). 원본과 같으면 총량 일치">파싱</th>
               <th className="bg-red-900 text-white font-bold px-1 py-0.5 text-center border-r border-red-700" style={{width:40}} title="프로젝트 PG 스키마 저장 건수(verify-counts). 파싱(flat)보다 적으면 저장 누락 의심(치명). 기대값 불일치 시에도 경고">DB</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>고유</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="flat 복합키 고유와 동일 척도(저장 정상 시 복합키·pgsql·API와 숫자 일치)">고유</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="flat 기준: 파싱 행 − 고유키">중복</th>
               <th className="bg-amber-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-amber-600" style={{width:55}} title="지침서 parentId 체인 (C1→C2→C3→C4, A1→A4→A5→A6, B1→B2→B3→B4→B5)">parentId</th>
               <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
-              <th className="bg-emerald-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-emerald-600" style={{width:32}} title="SA(구조확정) 시점 카운트">SA</th>
+              <th className="bg-emerald-700 text-white font-bold px-1 py-0.5 text-center border-r border-emerald-600" style={{width:40}} title="flat 기준 복합키 고유 수: processNo|코드|값|m4|parentItemId (trim). 통계「고유」와 다르면 부모·공정 구분 없이 값만 맞춘 중복 또는 파서 척도 차이를 의심">복합키</th>
               <th className="bg-purple-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-purple-600" style={{width:40}} title="FK 무결성 (parentItemId 체인)">FK</th>
               <th className="bg-teal-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-teal-600 cursor-pointer hover:bg-teal-600" style={{width:40}} title="클릭하면 PostgreSQL 프로젝트 스키마 저장 건수를 검증합니다" onClick={() => fmeaId && runFullVerify()}>pgsql{!pgsqlData && fmeaId ? ' ▶' : ''}</th>
               <th className="bg-rose-700 text-white font-bold px-1.5 py-0.5 text-center cursor-pointer hover:bg-rose-600" style={{width:40}} title="클릭하면 GET API 응답 건수를 검증합니다" onClick={() => fmeaId && runFullVerify()}>API{!apiData && fmeaId ? ' ▶' : ''}</th>
@@ -1097,12 +1116,19 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         B1: 'A1', B2: 'B1', B3: 'B2', B4: 'B3', B5: 'B4',
                       } as Record<string, string>)[s.itemCode] || '—'}
                     </td>
-                    {/* ★ UUID / SA / FA / 차이 */}
+                    {/* ★ UUID / 복합키 고유 */}
                     <td className="px-1.5 py-0.5 text-center font-bold text-cyan-800 border-r border-slate-200/80">{uuid || <span className="text-gray-300">0</span>}</td>
-                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
-                      {saSnapshot ? (
-                        <span className={saSnapshot[s.itemCode] === uuid ? 'text-emerald-600' : 'text-orange-600'}>{saSnapshot[s.itemCode] ?? 0}</span>
-                      ) : <span className="text-gray-300">-</span>}
+                    <td
+                      className={`px-1 py-0.5 text-center font-bold text-[9px] border-r border-slate-200/80 ${
+                        !ITEM_CODES_SKIP_UUID_VS_PIPELINE.has(s.itemCode) &&
+                        compositeKeyCounts[s.itemCode] !== s.uniqueCount &&
+                        s.uniqueCount > 0
+                          ? 'text-amber-800 bg-amber-50/90'
+                          : 'text-emerald-800'
+                      }`}
+                      title={`복합키 고유 ${compositeKeyCounts[s.itemCode] ?? 0} · 통계 고유 ${s.uniqueCount} · UUID ${uuid}`}
+                    >
+                      {compositeKeyCounts[s.itemCode] ?? 0}
                     </td>
                     {/* FK */}
                     <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
@@ -1157,8 +1183,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 </td>
                 <td className="px-1 py-0.5 text-center text-amber-700 text-[8px]">—</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
-                <td className="px-1.5 py-0.5 text-center font-bold text-emerald-600">
-                  {saSnapshot ? Object.values(saSnapshot).reduce((s, c) => s + c, 0) : <span className="text-gray-300">-</span>}
+                <td className="px-1.5 py-0.5 text-center font-bold text-emerald-800 text-[9px]" title="항목코드별 복합키 고유 수 합(코드 간 키 공유 없음)">
+                  {effectiveStatistics.itemStats.reduce((s, r) => s + (compositeKeyCounts[r.itemCode] ?? 0), 0)}
                 </td>
                 {/* FK 합계 */}
                 <td className="px-1.5 py-0.5 text-center font-bold text-purple-700">

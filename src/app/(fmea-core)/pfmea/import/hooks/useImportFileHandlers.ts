@@ -15,6 +15,7 @@ import { loadDatasetByFmeaId, saveMasterDataset } from '../utils/master-api';
 import { validateExcelFileWithAlert } from '@/lib/excel-validation';
 import {
   countFlatRowsByItemCode,
+  countCompositeKeysByItemCode,
   countTripleFkFailureLinks,
   formatPgsqlCodeMismatchLines,
   mergeImportExpectedCounts,
@@ -230,7 +231,8 @@ export function useImportFileHandlers({
               };
               if (vJson.success && vJson.counts) {
                 const uuidCounts = countFlatRowsByItemCode(flatFromAtomic);
-                const expected = mergeImportExpectedCounts(uuidCounts, undefined);
+                const composite = countCompositeKeysByItemCode(flatFromAtomic);
+                const expected = mergeImportExpectedCounts(uuidCounts, undefined, composite);
                 const pgsql = mapCountsToPgsql(vJson.counts, expected);
                 const misLines = formatPgsqlCodeMismatchLines(pgsql);
                 postSaveVerify =
