@@ -143,21 +143,58 @@ function syncL2Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksh
 
 function syncL3Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l3Functions'] {
   if (!Array.isArray(state.l2) || !Array.isArray(db.l3Functions)) return db.l3Functions;
-  const stateL3FIds = new Set<string>();
-  const stateL3FMap = new Map<string, any>();
-  for (const proc of state.l2) {
-    for (const we of ((proc as any).l3 || [])) {
+  // ★ 2026-03-28: state 기반 재구성 — 새로 추가된 B2도 포함 (syncL2Functions와 동일 패턴)
+  const byId = new Map(db.l3Functions.map((f: any) => [f.id, f]));
+  const next: FMEAWorksheetDB['l3Functions'] = [];
+
+  for (const proc of state.l2 as any[]) {
+    const l2StructId = proc.id || '';
+    if (!l2StructId) continue;
+
+    for (const we of (proc.l3 || [])) {
+      const l3StructId = we.id || '';
+      if (!l3StructId) continue;
+
       for (const func of (we.functions || [])) {
-        if (func.id) { stateL3FIds.add(func.id); stateL3FMap.set(func.id, func); }
+        const id = func.id || '';
+        if (!id) continue;
+        const functionName = (func.name || '').trim();
+        const pcs = Array.isArray(func.processChars) ? func.processChars : [];
+
+        if (pcs.length === 0) {
+          const prev = byId.get(id) as any;
+          next.push({
+            ...(prev || {}),
+            id,
+            fmeaId: db.fmeaId,
+            l3StructId,
+            l2StructId,
+            functionName,
+            processChar: '',
+            specialChar: prev?.specialChar || '',
+          } as any);
+          continue;
+        }
+
+        for (const pc of pcs) {
+          const pcId = pc.id || id;
+          const prev = byId.get(pcId) as any;
+          next.push({
+            ...(prev || {}),
+            id: pcId,
+            fmeaId: db.fmeaId,
+            l3StructId,
+            l2StructId,
+            functionName,
+            processChar: (pc.name || '').trim(),
+            specialChar: pc.specialChar || prev?.specialChar || '',
+          } as any);
+        }
       }
     }
   }
-  return db.l3Functions.filter(f => stateL3FIds.has(f.id)).map(f => {
-    const edited = stateL3FMap.get(f.id);
-    if (!edited) return f;
-    const changed = f.functionName !== (edited.name || '') || f.processChar !== (edited.processChar || '') || f.specialChar !== (edited.specialChar || '');
-    return changed ? { ...f, functionName: edited.name || '', processChar: edited.processChar || '', specialChar: edited.specialChar || '' } : f;
-  });
+
+  return next;
 }
 
 function syncL1Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l1Functions'] {

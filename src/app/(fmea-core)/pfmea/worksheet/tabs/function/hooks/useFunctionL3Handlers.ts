@@ -9,6 +9,7 @@
 
 import { useCallback, useState } from 'react';
 import { uid } from '../../../constants';
+import { emitSave } from '../../../hooks/useSaveEvent';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { validateAutoMapping, groupMatchedByRoom, groupMatchedByRoomMeta, protectStructure, ensureMinimumFunctions } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
@@ -270,18 +271,25 @@ export function useFunctionL3Handlers({
   }, [setState, setStateSynced, setDirty, saveToLocalStorage]);
 
   // 인라인 편집: 기능
+  // 인라인 편집: 작업요소기능 (B2) + 마스터 동기화
   const handleInlineEditFunction = useCallback((procId: string, l3Id: string, funcId: string, newValue: string) => {
+    const proc = (state.l2 || []).find((p: any) => p.id === procId);
+    const processNo = String(proc?.no ?? '').trim();
+    const we = (proc?.l3 || []).find((w: any) => w.id === l3Id);
+    const oldFunc = we?.functions?.find((f: any) => f.id === funcId);
+    const oldName = (oldFunc?.name || '').trim();
+
     const updateFn = (prev: any) => {
       const newState = JSON.parse(JSON.stringify(prev));
-      newState.l2 = newState.l2.map((proc: any) => {
-        if (proc.id !== procId) return proc;
+      newState.l2 = newState.l2.map((p: any) => {
+        if (p.id !== procId) return p;
         return {
-          ...proc,
-          l3: (proc.l3 || []).map((we: any) => {
-            if (we.id !== l3Id) return we;
+          ...p,
+          l3: (p.l3 || []).map((w: any) => {
+            if (w.id !== l3Id) return w;
             return {
-              ...we,
-              functions: (we.functions || []).map((f: any) => {
+              ...w,
+              functions: (w.functions || []).map((f: any) => {
                 if (f.id !== funcId) return f;
                 return { ...f, name: newValue };
               })
@@ -298,25 +306,44 @@ export function useFunctionL3Handlers({
       setState(updateFn);
     }
     setDirty(true);
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.();
-    }, 200);
-  }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
 
-  // 인라인 편집: 공정특성
+    // ★ 2026-03-28: 마스터 B2 동기화 (belongsTo = 작업요소명)
+    const weName = (we?.name || '').trim();
+    if (newValue.trim() && fmeaId && processNo) {
+      fetch('/api/fmea/master-processes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmeaId,
+          updates: oldName
+            ? [{ processNo, itemCode: 'B2', oldValue: oldName, newValue: newValue.trim(), belongsTo: weName }]
+            : [{ processNo, itemCode: 'B2', newValue: newValue.trim(), belongsTo: weName }],
+        }),
+      }).catch((e) => console.error('[L3 B2 인라인편집] 마스터 동기화 오류:', e));
+    }
+  }, [state.l2, setState, setStateSynced, setDirty, fmeaId]);
+
+  // 인라인 편집: 공정특성 (B3) + 마스터 동기화
   const handleInlineEditProcessChar = useCallback((procId: string, l3Id: string, funcId: string, charId: string, newValue: string) => {
+    const proc = (state.l2 || []).find((p: any) => p.id === procId);
+    const processNo = String(proc?.no ?? '').trim();
+    const we = (proc?.l3 || []).find((w: any) => w.id === l3Id);
+    const func = we?.functions?.find((f: any) => f.id === funcId);
+    const oldChar = func?.processChars?.find((c: any) => c.id === charId);
+    const oldName = (oldChar?.name || '').trim();
+
     const updateFn = (prev: any) => {
       const newState = JSON.parse(JSON.stringify(prev));
-      newState.l2 = newState.l2.map((proc: any) => {
-        if (proc.id !== procId) return proc;
+      newState.l2 = newState.l2.map((p: any) => {
+        if (p.id !== procId) return p;
         return {
-          ...proc,
-          l3: (proc.l3 || []).map((we: any) => {
-            if (we.id !== l3Id) return we;
+          ...p,
+          l3: (p.l3 || []).map((w: any) => {
+            if (w.id !== l3Id) return w;
             return {
-              ...we,
-              functions: (we.functions || []).map((f: any) => {
+              ...w,
+              functions: (w.functions || []).map((f: any) => {
                 if (f.id !== funcId) return f;
                 return {
                   ...f,
@@ -339,11 +366,23 @@ export function useFunctionL3Handlers({
       setState(updateFn);
     }
     setDirty(true);
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.();
-    }, 200);
-  }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+
+    // ★ 2026-03-28: 마스터 B3 동기화 (belongsTo = 작업요소명)
+    const weName3 = (we?.name || '').trim();
+    if (newValue.trim() && fmeaId && processNo) {
+      fetch('/api/fmea/master-processes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmeaId,
+          updates: oldName
+            ? [{ processNo, itemCode: 'B3', oldValue: oldName, newValue: newValue.trim(), belongsTo: weName3 }]
+            : [{ processNo, itemCode: 'B3', newValue: newValue.trim(), belongsTo: weName3 }],
+        }),
+      }).catch((e) => console.error('[L3 B3 인라인편집] 마스터 동기화 오류:', e));
+    }
+  }, [state.l2, setState, setStateSynced, setDirty, fmeaId]);
 
   // 저장 핸들러
   const handleSave = useCallback((selectedValues: string[], isAutoLink?: boolean) => {
@@ -353,6 +392,9 @@ export function useFunctionL3Handlers({
       const newState = JSON.parse(JSON.stringify(prev));
       const { type, procId, l3Id, funcId } = modal;
 
+      // ★ 2026-03-28: 빈행 우선 채움 + 부족하면 행추가 (A4와 동일 패턴)
+      const selectedSet = new Set(selectedValues.map(v => (v || '').trim()).filter(Boolean));
+
       if (type === 'l3Function') {
         newState.l2 = newState.l2.map((proc: any) => {
           if (proc.id !== procId) return proc;
@@ -360,16 +402,43 @@ export function useFunctionL3Handlers({
             ...proc,
             l3: proc.l3.map((we: any) => {
               if (we.id !== l3Id) return we;
-              const existing = (we.functions || []).map((f: any) => f.name);
-              const newFuncs = [...(we.functions || [])];
-              selectedValues.forEach(v => {
-                if (!existing.includes(v)) {
-                  newFuncs.push({ id: uid(), name: v, processChars: [] });
+              const currentFuncs = we.functions || [];
+
+              // 1) 이미 있는 이름 유지
+              const kept = new Set<string>();
+              const existingNames = new Set<string>();
+              for (const f of currentFuncs) {
+                const nm = (f.name || '').trim();
+                if (nm && selectedSet.has(nm) && !existingNames.has(nm)) {
+                  kept.add(f.id);
+                  existingNames.add(nm);
                 }
-              });
-              // ★ FIX: 의미 있는 함수가 있으면 빈 placeholder 함수 제거 (🔍 아이콘 잔존 버그 해결)
-              const meaningful = newFuncs.filter((f: any) => f.name && f.name.trim() && !f.name.includes('미입력'));
-              return { ...we, functions: meaningful.length > 0 ? meaningful : newFuncs };
+              }
+              // 2) 신규 값
+              const newNames = [...selectedSet].filter(n => !existingNames.has(n));
+              // 3) 빈 행에 채움
+              const emptyFuncs = currentFuncs.filter((f: any) => !kept.has(f.id) && !(f.name || '').trim());
+              const fillMap = new Map<string, string>();
+              let ei = 0;
+              const extraFuncs: any[] = [];
+              for (const name of newNames) {
+                if (ei < emptyFuncs.length) {
+                  fillMap.set(emptyFuncs[ei].id, name);
+                  kept.add(emptyFuncs[ei].id);
+                  ei++;
+                } else {
+                  extraFuncs.push({ id: uid(), name, processChars: [{ id: uid(), name: '', specialChar: '' }] });
+                }
+              }
+              // 4) 결과: 매칭+채움+남은빈행 + 신규
+              const result = currentFuncs
+                .filter((f: any) => kept.has(f.id) || !(f.name || '').trim())
+                .map((f: any) => {
+                  const fill = fillMap.get(f.id);
+                  return fill ? { ...f, name: fill } : f;
+                });
+              result.push(...extraFuncs);
+              return { ...we, functions: result.length > 0 ? result : [{ id: uid(), name: '', processChars: [{ id: uid(), name: '', specialChar: '' }] }] };
             })
           };
         });
@@ -384,16 +453,43 @@ export function useFunctionL3Handlers({
                 ...we,
                 functions: (we.functions || []).map((f: any) => {
                   if (f.id !== funcId) return f;
-                  const existing = (f.processChars || []).map((c: any) => c.name);
-                  const newChars = [...(f.processChars || [])];
-                  selectedValues.forEach(v => {
-                    if (!existing.includes(v)) {
-                      newChars.push({ id: uid(), name: v, specialChar: '' });
+                  const currentChars = f.processChars || [];
+
+                  // 1) 이미 있는 이름 유지
+                  const kept = new Set<string>();
+                  const existingNames = new Set<string>();
+                  for (const c of currentChars) {
+                    const nm = (c.name || '').trim();
+                    if (nm && selectedSet.has(nm) && !existingNames.has(nm)) {
+                      kept.add(c.id);
+                      existingNames.add(nm);
                     }
-                  });
-                  // ★ FIX: 의미 있는 공정특성이 있으면 빈 placeholder 제거
-                  const meaningfulChars = newChars.filter((c: any) => c.name && c.name.trim() && !c.name.includes('미입력'));
-                  return { ...f, processChars: meaningfulChars.length > 0 ? meaningfulChars : newChars };
+                  }
+                  // 2) 신규 값
+                  const newNames = [...selectedSet].filter(n => !existingNames.has(n));
+                  // 3) 빈 행에 채움
+                  const emptyChars = currentChars.filter((c: any) => !kept.has(c.id) && !(c.name || '').trim());
+                  const fillMap = new Map<string, string>();
+                  let ei = 0;
+                  const extraChars: any[] = [];
+                  for (const name of newNames) {
+                    if (ei < emptyChars.length) {
+                      fillMap.set(emptyChars[ei].id, name);
+                      kept.add(emptyChars[ei].id);
+                      ei++;
+                    } else {
+                      extraChars.push({ id: uid(), name, specialChar: '' });
+                    }
+                  }
+                  // 4) 결과
+                  const result = currentChars
+                    .filter((c: any) => kept.has(c.id) || !(c.name || '').trim())
+                    .map((c: any) => {
+                      const fill = fillMap.get(c.id);
+                      return fill ? { ...c, name: fill } : c;
+                    });
+                  result.push(...extraChars);
+                  return { ...f, processChars: result.length > 0 ? result : [{ id: uid(), name: '', specialChar: '' }] };
                 })
               };
             })
@@ -414,17 +510,8 @@ export function useFunctionL3Handlers({
 
     setDirty(true);
     setModal(null);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FunctionL3Tab] DB 저장 오류:', e);
-        }
-      }
-    }, 100);
-  }, [modal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, setModal]);
+    emitSave();
+  }, [modal, setState, setStateSynced, setDirty, setModal]);
 
   // 삭제 핸들러
   const handleDelete = useCallback((deletedValues: string[]) => {
@@ -484,17 +571,8 @@ export function useFunctionL3Handlers({
     }
 
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FunctionL3Tab] 삭제 후 DB 저장 오류:', e);
-        }
-      }
-    }, 200);
-  }, [modal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+  }, [modal, setState, setStateSynced, setDirty]);
 
   // 특별특성 선택 핸들러
   const handleSpecialCharSelect = useCallback((symbol: string) => {

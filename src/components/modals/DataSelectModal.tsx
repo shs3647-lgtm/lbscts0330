@@ -186,6 +186,12 @@ export default function DataSelectModal({
             if (processNo) {
               fmeaItems = fmeaItems.filter((item: any) => item.processNo === processNo);
             }
+            // ★ 2026-03-28: B2/B3는 작업요소별 필터링 (belongsTo = workElementName)
+            if (workElementName && (itemCode === 'B2' || itemCode === 'B3')) {
+              fmeaItems = fmeaItems.filter((item: any) =>
+                item.belongsTo === workElementName || !item.belongsTo
+              );
+            }
             fmeaItems.forEach((item: any, idx: number) => {
               if (item.value && item.value.trim()) {
                 const value = item.value.trim();
@@ -226,7 +232,7 @@ export default function DataSelectModal({
     };
 
     loadData();
-  }, [isOpen, itemCode, processNo, fmeaId]);
+  }, [isOpen, itemCode, processNo, fmeaId, workElementName]);
 
   // ✅ 모달이 닫힐 때 초기화 플래그 리셋
   useEffect(() => {

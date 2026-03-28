@@ -11,6 +11,7 @@
 
 import { useCallback, useState } from 'react';
 import { uid } from '../../../constants';
+import { emitSave } from '../../../hooks/useSaveEvent';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { autoSetSCForFailureCause, syncSCToMaster } from '../../../utils/special-char-sync';
 import { validateAutoMapping, groupMatchedByRoom } from '../../../autoMapping';
@@ -342,15 +343,20 @@ export function useFailureL3Handlers({
     }, 200);
   }, [modal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
-  // 인라인 편집 핸들러
+  // 인라인 편집 핸들러 (B4 고장원인) + 마스터 동기화
   const handleInlineEdit = useCallback((processId: string, processCharId: string, causeId: string, newValue: string) => {
+    const proc = (state.l2 || []).find((p: any) => p.id === processId);
+    const processNo = String(proc?.no ?? '').trim();
+    const oldCause = (proc?.failureCauses || []).find((c: any) => c.id === causeId);
+    const oldName = (oldCause?.name || '').trim();
+
     const updateFn = (prev: any) => ({
       ...prev,
-      l2: prev.l2.map((proc: any) => {
-        if (proc.id !== processId) return proc;
+      l2: prev.l2.map((p: any) => {
+        if (p.id !== processId) return p;
         return {
-          ...proc,
-          failureCauses: (proc.failureCauses || []).map((c: any) => {
+          ...p,
+          failureCauses: (p.failureCauses || []).map((c: any) => {
             if (c.id !== causeId) return c;
             return { ...c, name: newValue };
           })
@@ -363,11 +369,22 @@ export function useFailureL3Handlers({
       setState(updateFn);
     }
     setDirty(true);
-    setTimeout(() => {
-      saveToLocalStorage?.();
-      saveAtomicDB?.();
-    }, 100);
-  }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+
+    // ★ 2026-03-28: 마스터 B4 동기화
+    if (newValue.trim() && fmeaId && processNo) {
+      fetch('/api/fmea/master-processes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fmeaId,
+          updates: oldName
+            ? [{ processNo, itemCode: 'B4', oldValue: oldName, newValue: newValue.trim() }]
+            : [{ processNo, itemCode: 'B4', newValue: newValue.trim() }],
+        }),
+      }).catch((e) => console.error('[L3 B4 인라인편집] 마스터 동기화 오류:', e));
+    }
+  }, [state.l2, setState, setStateSynced, setDirty, fmeaId]);
 
   // ★★★ 2026-02-08: 마스터 데이터 로드 (B4=고장원인) — Gatekeeper + 구조불변 ★★★
   const loadFromMaster = useCallback(async () => {

@@ -514,20 +514,21 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
   const getMeaningfulChars = (chars: any[]) => filterMeaningfulProcessChars(chars, false);
 
   // ✅ 공정/작업요소 rowSpan 계산
+  // ★ 2026-03-28: 빈 행 포함 전체 표시 — 렌더링과 동일하게 계산
   const getProcRowSpan = (proc: any) => {
     const l3List = (proc.l3 || []);
     if (l3List.length === 0) return 1;
     return l3List.reduce((acc: number, we: any) => {
-      const funcs = (we.functions || []).filter(isMeaningfulFunc);
+      const funcs = we.functions || [];
       if (funcs.length === 0) return acc + 1;
-      return acc + funcs.reduce((a: number, f: any) => a + Math.max(1, getMeaningfulChars(f.processChars).length), 0);
+      return acc + funcs.reduce((a: number, f: any) => a + Math.max(1, (f.processChars || []).length), 0);
     }, 0);
   };
 
   const getWeRowSpan = (we: any) => {
-    const funcs = (we.functions || []).filter(isMeaningfulFunc);
+    const funcs = we.functions || [];
     if (funcs.length === 0) return 1;
-    return funcs.reduce((a: number, f: any) => a + Math.max(1, getMeaningfulChars(f.processChars).length), 0);
+    return funcs.reduce((a: number, f: any) => a + Math.max(1, (f.processChars || []).length), 0);
   };
 
   const hasAnyL3 = (state.l2 || []).some(p => (p.l3 || []).length > 0);
@@ -719,14 +720,12 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
         let isFirstProcRow = true;
 
         return l3List.flatMap((we: any, weIdx: number) => {
-          // ★★★ 2026-02-05: 수동모드에서는 모든 기능 표시 ★★★
+          // ★ 2026-03-28: 빈 행 포함 전체 표시
           const allFuncs = we.functions || [];
-          const meaningfulFuncs = allFuncs.filter(isMeaningfulFunc);
-          const funcsToRender = meaningfulFuncs.length > 0 ? allFuncs : allFuncs.slice(0, 1);
+          const funcsToRender = allFuncs;
+          // ★ 2026-03-28: 빈 행 포함 전체 — getProcRowSpan/getWeRowSpan과 동일 계산
           const weRowSpan = funcsToRender.length === 0 ? 1 : funcsToRender.reduce((sum: number, f: any) => {
-            const chars = f.processChars || [];
-            const meaningfulChars = getMeaningfulChars(chars);
-            return sum + Math.max(1, meaningfulChars.length > 0 ? chars.length : 1);
+            return sum + Math.max(1, (f.processChars || []).length);
           }, 0);
           const weFirstRowIdx = globalRowIdx;
 
@@ -764,12 +763,15 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
           // 기능이 있는 경우
           const isMissingWeFunc = missingWeIds?.has(we.id);
           return funcsToRender.flatMap((f: any, fIdx: number) => {
-            // ★★★ 2026-02-05: 수동모드에서는 모든 공정특성 표시 ★★★
+            // ★ 2026-03-28: 빈 행 포함 전체 표시
             const allChars = f.processChars || [];
-            const meaningfulChars = getMeaningfulChars(allChars);
-            const charsToRender = meaningfulChars.length > 0 ? allChars : allChars.slice(0, 1);
+            const charsToRender = allChars;
             const funcRowSpan = Math.max(1, charsToRender.length);
             const funcFirstRowIdx = globalRowIdx;
+            // ★ 2026-03-28: 상위 작업요소기능에 실제 값이 있는지 — state에서 직접 조회
+            const actualWe = (proc.l3 || []).find((w: any) => w.id === we.id);
+            const actualFunc = (actualWe?.functions || []).find((fn: any) => fn.id === f.id);
+            const hasFuncValue = !!(actualFunc && actualFunc.name && String(actualFunc.name).trim().length > 0);
 
             // 공정특성이 없는 경우
             if (charsToRender.length === 0) {
@@ -793,8 +795,8 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
                   <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, we.id, f.id)}>
                     <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
                   </td>
-                  <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={(e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, '')}>
-                    <SelectableCell value="" placeholder="공정특성 선택" bgColor={zebra.failure} onClick={() => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 })} />
+                  <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={hasFuncValue ? undefined : (e) => e.stopPropagation()}>
+                    <SelectableCell value="" placeholder="공정특성 선택" bgColor={zebra.failure} onClick={hasFuncValue ? () => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 }) : () => {}} />
                   </td>
                   <td className="border border-[#ccc] border-l-0 p-1 text-center align-middle" style={{ background: zebra.failure }}>
                     <SpecialCharBadge value="" onClick={() => { }} />
@@ -813,7 +815,7 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
               const weZebra = getZebraColors(weFirstRowIdx);
               const funcZebra = getZebraColors(funcFirstRowIdx);
               const row = (
-                <tr key={`${proc.id}_${we.id}_${f.id}_${c.id}`} data-missing-we={isMissingWeFunc && fIdx === 0 && cIdx === 0 ? "true" : undefined} onContextMenu={(e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, c.id)}>
+                <tr key={`${proc.id}_${we.id}_${f.id}_${c.id}`} data-missing-we={isMissingWeFunc && fIdx === 0 && cIdx === 0 ? "true" : undefined} onContextMenu={hasFuncValue ? (e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, c.id) : undefined}>
                   {isFirstProcRow && (
                     <td rowSpan={procRowSpan} className="border border-[#ccc] px-0.5 py-0.5 text-center text-[10px] font-semibold align-middle" style={{ background: procZebra.structure }}>
                       {proc.no}. {proc.name}
@@ -830,8 +832,8 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
                       <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={funcZebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
                     </td>
                   )}
-                  <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={(e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, c.id)}>
-                    <SelectableCell value={c.name} placeholder="공정특성" bgColor={zebra.failure} isRevised={c.isRevised} onClick={() => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditProcessChar(proc.id, we.id, f.id, c.id, newValue)} />
+                  <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={hasFuncValue ? (e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, c.id) : undefined}>
+                    <SelectableCell value={c.name} placeholder="공정특성 선택" bgColor={zebra.failure} isRevised={c.isRevised} onClick={hasFuncValue ? () => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 }) : () => {}} onDoubleClickEdit={hasFuncValue ? (newValue) => handleInlineEditProcessChar(proc.id, we.id, f.id, c.id, newValue) : undefined} />
                   </td>
                   <td className="border border-[#ccc] border-l-0 p-1 text-center align-middle" style={{ background: zebra.failure }}>
                     <SpecialCharBadge value={c.specialChar || ''} onClick={() => setSpecialCharModal({ procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id })} />
