@@ -426,14 +426,35 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   // ── UUID 카운트 (itemCode별) ──
   const uuidCounts = useMemo(
-    () => countFlatRowsByItemCode(flatData),
-    [flatData],
+    () => {
+      const base = countFlatRowsByItemCode(flatData);
+      // ★ MBD-26-009: D 코드는 flatData에 없으므로 파서 stats에서 주입
+      if (positionParserStats) {
+        base.D1 = positionParserStats.verifyD1FcFe ?? 0;
+        base.D2 = positionParserStats.verifyD2FcProcess ?? 0;
+        base.D3 = positionParserStats.verifyD3FcFm ?? 0;
+        base.D4 = positionParserStats.verifyD4FcWorkElem ?? 0;
+        base.D5 = positionParserStats.verifyD5FcFc ?? 0;
+      }
+      return base;
+    },
+    [flatData, positionParserStats],
   );
 
   /** 복합키 고유 수 — parentItemId·공정·m4까지 구분 (통계 고유와 불일치 시 누락·중복 점검) */
   const compositeKeyCounts = useMemo(
-    () => countCompositeKeysByItemCode(flatData),
-    [flatData],
+    () => {
+      const base = countCompositeKeysByItemCode(flatData);
+      if (positionParserStats) {
+        base.D1 = positionParserStats.verifyD1FcFe ?? 0;
+        base.D2 = positionParserStats.verifyD2FcProcess ?? 0;
+        base.D3 = positionParserStats.verifyD3FcFm ?? 0;
+        base.D4 = positionParserStats.verifyD4FcWorkElem ?? 0;
+        base.D5 = positionParserStats.verifyD5FcFc ?? 0;
+      }
+      return base;
+    },
+    [flatData, positionParserStats],
   );
 
   /** FC 미리보기 열 헤더 — 복합키·통계 고유와 동일 척도(flat·parent·m4) */
