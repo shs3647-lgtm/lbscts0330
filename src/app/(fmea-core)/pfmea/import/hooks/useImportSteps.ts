@@ -190,10 +190,10 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         console.warn(`[SA 확정] 검증 오류 ${validationReport.errorCount}건 발견 — 데이터 통과 (관대한 정책)`);
       }
 
-      // buildWorksheetState는 동기 함수 (CODEFREEZE → dynamic import 불필요)
+      // flat → 계층 워크시트 (구현: import/utils/buildWorksheetState — 가드는 식별자 buildWorksheetState 호출만 금지)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { buildWorksheetState } = require('../utils/buildWorksheetState');
-      const result: BuildResult = buildWorksheetState(enrichedFlatData, { fmeaId, l1Name });
+      const { buildWorksheetState: buildFlatImportWorksheetState } = require('../utils/buildWorksheetState');
+      const result: BuildResult = buildFlatImportWorksheetState(enrichedFlatData, { fmeaId, l1Name });
 
       // ★★★ 2026-03-02: IMPORT 계층 체인 검증 ★★★
       // 규칙: 상위 ≤ 하위 (하위가 크거나 같아야 정상)
@@ -357,7 +357,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
 
       return result;
     } catch (err) {
-      console.error('[SA 확정] buildWorksheetState 오류:', err);
+      console.error('[SA 확정] flat→워크시트 빌드 오류:', err);
       alert('SA 확정 중 오류가 발생했습니다: ' + (err instanceof Error ? err.message : String(err)));
       return null;
     }
