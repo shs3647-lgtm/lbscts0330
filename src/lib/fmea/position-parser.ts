@@ -804,6 +804,32 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       feScope: fcScope,
     });
 
+    // ★★★ MBD-26-009: FM 복합키 자동 생성
+    // L2 시트에 없는 (processNo+FM) 조합이 FC 시트에 있으면 새 FM 생성
+    if (!fmId && fcPno && fcFM.trim()) {
+      const l2Id = seenPno.get(fcPno) || '';
+      if (l2Id) {
+        const newFmId = positionUUID('FC', rn, 99); // FC 시트 기반 FM UUID (col=99로 FL과 구분)
+        failureModes.push({
+          id: newFmId,
+          fmeaId,
+          l2FuncId: '', // L2 시트에 없으므로 빈값
+          l2StructId: l2Id,
+          parentId: l2Id,
+          mode: fcFM.trim(),
+          feRefs: [],
+          fcRefs: [],
+        });
+        // resolver에 등록하여 같은 (processNo+FM) 후속 행에서 재사용
+        const isNew = resolver.registerFMIfNew(fcPno, fcFM, newFmId, l2Id);
+        if (isNew) {
+          ppLog(`[position-parser] ★ FC시트 FM 자동생성: pno=${fcPno} FM="${fcFM.substring(0, 30)}" → ${newFmId}`);
+        }
+        fmId = newFmId;
+        flL2StructId = l2Id;
+      }
+    }
+
     if (fmId) fmIdsSeenFromFcResolve.add(fmId);
     if (fcId) fcIdsSeenFromFcResolve.add(fcId);
 

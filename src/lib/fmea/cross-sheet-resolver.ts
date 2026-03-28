@@ -156,13 +156,24 @@ export class CrossSheetResolver {
           }
         }
       }
-      // ★v6.3: cross-process fallback — processNo 불일치 시 FM 텍스트로 매칭
-      // FC 시트의 processNo가 L2에 없어도, 동일 FM 텍스트를 가진 다른 공정의 FM UUID로 연결
-      for (const [k, v] of this.fmTextMap) {
-        if (k.split('::')[1] === normFM) return v;
-      }
+      // ★★★ MBD-26-009: cross-process fallback 제거
+      // 다른 공정의 FM UUID를 반환하면 FL의 FM·FC가 서로 다른 공정 → crossProcessFk 스킵 → FC 누락
+      // 대신 registerFMIfNew()로 해당 공정에 새 FM을 생성해야 함
     }
     return { fmId: '', l2StructId: '' };
+  }
+
+  /**
+   * ★ MBD-26-009: FC 시트 파싱 중 (processNo+FM) 복합키로 FM 미발견 시 새 FM 등록
+   * L2 시트에 없는 (processNo+FM) 조합이 FC 시트에 있으면 자동 생성
+   */
+  registerFMIfNew(processNo: string, fmText: string, fmId: string, l2StructId: string): boolean {
+    const pno = processNo.trim();
+    const normFM = normalizeText(fmText);
+    const key = `${pno}::${normFM}`;
+    if (this.fmTextMap.has(key)) return false; // 이미 존재
+    this.fmTextMap.set(key, { fmId, l2StructId });
+    return true; // 신규 등록됨
   }
 
   private resolveFC(ref: CrossSheetRef): { fcId: string; l3StructId: string } {
