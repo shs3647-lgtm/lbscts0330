@@ -11,7 +11,7 @@
  */
 
 import { WorksheetState } from './constants';
-import { groupFailureLinksByFM, calculateLastRowMerge } from './utils';
+import { calculateLastRowMerge } from './utils';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
 
 // ExcelJS 네임스페이스 타입 (동적 import)
@@ -85,13 +85,12 @@ const SHARED_ALIGN_LEFT: Partial<import('exceljs').Alignment> = {
 };
 
 // =====================================================
-// 그룹 데이터 구조 (FailureLinkResult.tsx 동일 로직)
+// 그룹 데이터 구조 (processFailureLinks 기반)
 // =====================================================
 interface FMGroupForExcel {
   fmId: string;
   fmText: string;
   fmProcess: string;
-  /** L2 공정번호(A1) — Process 열 비어 있을 때 Import·연결표 병합 정합 */
   fmProcessNo: string;
   fmNo: string;
   fes: { feNo: string; scope: string; text: string; severity: number }[];
@@ -99,109 +98,69 @@ interface FMGroupForExcel {
 }
 
 /**
- * state.failureLinks를 FM별 그룹으로 변환 (FailureLinkResult.tsx와 동일 로직)
+ * ★ state.failureLinks → processFailureLinks() 기반 FM 그룹 변환
+ * ALL탭/화면과 완전 동일한 정렬·번호 사용
  */
-function buildGroupsFromState(state: WorksheetState): FMGroupForExcel[] {
+async function buildGroupsFromState(state: WorksheetState): Promise<FMGroupForExcel[]> {
   const links = state.failureLinks || [];
   if (links.length === 0) return [];
 
-  // LinkResult 형태로 변환
-  const linkResults = links.map(link => ({
-    fmId: link.fmId,
-    fmNo: link.fmText ? '' : '',
-    fmText: link.fmText || '',
-    fmProcess: link.fmProcessName || link.fmProcess || '',
-    fmProcessNo: link.fmProcessNo || '',
-    feId: link.feId || '',
-    feNo: '',
-    feScope: link.feScope || link.feCategory || '',
-    feText: link.feText || '',
-    severity: link.severity || 0,
-    fcId: link.fcId || '',
-    fcNo: '',
-    fcProcess: link.fcProcess || '',
-    fcM4: link.fcM4 || '',
-    fcWorkElem: link.fcWorkElem || '',
-    fcText: link.fcText || '',
-  }));
+  const { processFailureLinks } = await import('./tabs/all/processFailureLinks');
+  const failureScopes = (state.l1 as any)?.failureScopes || [];
 
-  const fmGroupsMap = groupFailureLinksByFM(linkResults);
+  // processFailureLinks는 공정번호 기준 정렬 후 M1,M2... 재할당 → 화면과 1:1
+  const fmGroups = processFailureLinks(links as any, state.l2 as any, failureScopes);
 
-  // fmData 재구성 (state에서 FM 정보 가져오기)
-  const fmDataMap = new Map<string, { text: string; processName: string; processNo: string; fmNo: string }>();
-  for (const l2 of (state.l2 || [])) {
-    const failureModes = l2.failureModes || [];
-    const processNo = String(l2.no ?? '').trim();
-    failureModes.forEach((fm, fmIdx) => {
-      if (fm.id) {
-        fmDataMap.set(fm.id, {
-          text: fm.name || '',
-          processName: l2.name || '',
-          processNo,
-          fmNo: `M${fmIdx + 1}`,
-        });
-      }
-    });
+  // 원본 링크에서 fcId → fcNo(C1,C2...), fcProcess 빠른 조회용 맵
+  // ★ 화면(useLinkData)은 C1, C2... 형태로 FC 번호를 표시하므로 동일하게 맞춤
+  const fcInfoMap = new Map<string, { fcNo: string; processName: string }>();
+  let globalFcCounter = 1;
+  for (const link of links) {
+    const fcId = (link as any).fcId;
+    if (fcId && !fcInfoMap.has(fcId)) {
+      fcInfoMap.set(fcId, {
+        fcNo: `C${globalFcCounter++}`,
+        processName: (link as any).fcProcess || '',
+      });
+    }
   }
 
-  const result: FMGroupForExcel[] = [];
-  let fmCounter = 0;
+  return fmGroups.map(group => {
+    const fes = group.rows
+      .filter((r: any, idx: number) => r.feRowSpan !== 0 && idx === group.rows.findIndex((rr: any) => rr.feId === r.feId))
+      .map((r: any, i: number) => ({
+        feNo: `FE${i + 1}`,
+        scope: r.feCategory || '',
+        text: r.feText || '',
+        severity: r.feSeverity || 0,
+      }));
 
-  fmGroupsMap.forEach((group) => {
-    fmCounter++;
-    const fmInfo = fmDataMap.get(group.fmId);
+    // 중복 제거된 FC 목록 — 화면과 동일한 C번호, 공정명 사용
+    const seenFcIds = new Set<string>();
+    const fcs: FMGroupForExcel['fcs'] = [];
+    for (const r of group.rows) {
+      if (r.fcId && !seenFcIds.has(r.fcId)) {
+        seenFcIds.add(r.fcId);
+        const fcInfo = fcInfoMap.get(r.fcId);
+        fcs.push({
+          fcNo: fcInfo?.fcNo || `C${fcs.length + 1}`,
+          processName: fcInfo?.processName || group.fmProcessName || '',
+          workElem: r.fcWorkElem || '',
+          text: r.fcText || '',
+        });
+      }
+    }
 
-    let feCounter = 0;
-    let fcCounter = 0;
-
-    result.push({
+    return {
       fmId: group.fmId,
-      fmText: fmInfo?.text || group.fmText,
-      fmProcess: fmInfo?.processName || group.fmProcess,
-      fmProcessNo: fmInfo?.processNo || '',
-      fmNo: fmInfo?.fmNo || group.fmNo || `M${fmCounter}`,
-      fes: group.fes.map(fe => {
-        feCounter++;
-        return {
-          feNo: fe.no || `FE${feCounter}`,
-          scope: fe.scope,
-          text: fe.text,
-          severity: fe.severity,
-        };
-      }),
-      fcs: group.fcs.map(fc => {
-        fcCounter++;
-        return {
-          fcNo: fc.no || `FC${fcCounter}`,
-          processName: fc.process,
-          workElem: fc.workElem,
-          text: fc.text,
-        };
-      }),
-    });
+      fmText: group.fmText,
+      fmProcess: group.fmProcessName,
+      fmProcessNo: group.fmProcessNo || '',
+      fmNo: group.fmNo,  // ★ processFailureLinks가 화면과 동일하게 M1,M2... 부여
+      fes,
+      fcs,
+    };
   });
-
-  // FM 번호 기준 정렬이 아니라 공정번호 기준으로 먼저 정렬 후 글로벌하게 M1, M2... 할당 (UI와 동일)
-  const getProcessNoInt = (procNo: string) => {
-    const num = Number.parseInt(procNo, 10);
-    return Number.isNaN(num) ? Number.MAX_SAFE_INTEGER : num;
-  };
-
-  result.sort((a, b) => {
-    // 1순위: 공정번호
-    const aProcNo = getProcessNoInt(a.fmProcessNo);
-    const bProcNo = getProcessNoInt(b.fmProcessNo);
-    if (aProcNo !== bProcNo) return aProcNo - bProcNo;
-    // 2순위: 텍스트
-    return a.fmText.localeCompare(b.fmText, 'ko');
-  });
-
-  // UI(ALL탭)과 동일하게 정렬 후 글로벌 fmNo 번호 재할당
-  result.forEach((group, idx) => {
-    group.fmNo = `M${idx + 1}`;
-  });
-
-  return result;
 }
 
 /**
@@ -287,8 +246,8 @@ export async function exportLinkageExcel(
     };
   }
 
-  // ── 데이터 행 생성 ──
-  const groups = buildGroupsFromState(state);
+  // ── 데이터 행 생성 ── (화면과 동일한 FM 번호·정렬)
+  const groups = await buildGroupsFromState(state);
 
   if (groups.length === 0) {
     // 빈 데이터
