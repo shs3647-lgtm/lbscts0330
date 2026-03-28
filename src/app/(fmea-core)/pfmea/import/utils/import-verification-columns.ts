@@ -310,14 +310,10 @@ export function mergeImportExpectedCounts(
     blended[code] = chosen;
   }
 
+  // ★ MBD-26-009: verifyScaleOverride(distinct)가 있으면 그대로 사용
+  // verify-counts가 distinct를 반환하므로 expected도 distinct로 통일
   if (verifyScaleOverride && typeof verifyScaleOverride.A1 === 'number') {
-    const out = { ...verifyScaleOverride };
-    for (const code of ALL_ITEM_CODES) {
-      const b = blended[code] ?? 0;
-      const v = out[code] ?? 0;
-      if (b > v) out[code] = b;
-    }
-    return out;
+    return { ...verifyScaleOverride };
   }
   return blended;
 }
