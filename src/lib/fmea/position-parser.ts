@@ -58,6 +58,8 @@ import type {
   PosFailureCause,
   PosFailureLink,
   PosRiskAnalysis,
+  FmWithoutFailureLinkDiagnostic,
+  PositionImportDiagnostics,
 } from '@/types/position-import';
 
 // ─── JSON 입력 타입 ───
@@ -762,6 +764,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
   let fcIndex = 0; // FC valid row 인덱스 (L3와 1:1 매핑)
   let crossProcessFlSkipped = 0; // FM.L2 ≠ FC.L2 → FL/RA 미생성 (validate-fk crossProcessFk 정렬)
+  /** FC 시트 각 행 resolve()로 도출된 fmId (교차 스킵 전) — ★3 FL 없는 FM 분류 */
+  const fmIdsSeenFromFcResolve = new Set<string>();
+  const crossProcessSkipRowsByFm = new Map<string, number[]>();
 
   for (const row of fcSheet.rows) {
     const rn = row.excelRow;
@@ -796,6 +801,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       feScope: fcScope,
     });
 
+    if (fmId) fmIdsSeenFromFcResolve.add(fmId);
+
     // ★ crossProcessFk: FM·FC가 서로 다른 공정(L2)이면 FL/RA를 넣지 않음 (repair-fk 삭제 대상과 동일 의미)
     let skipFlCrossProcess = false;
     if (fmId && fcId) {
@@ -806,6 +813,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       if (fmL2 && fcL2 && fmL2 !== fcL2) {
         skipFlCrossProcess = true;
         crossProcessFlSkipped++;
+        if (fmId) {
+          const prev = crossProcessSkipRowsByFm.get(fmId) || [];
+          prev.push(rn);
+          crossProcessSkipRowsByFm.set(fmId, prev);
+        }
         ppWarn(
           `[position-parser] ⚠️ FL R${rn} 교차공정 스킵 (crossProcessFk): FM.L2=${fmL2} FC.L2=${fcL2} ` +
             `(processNo=${fcPno} FM="${fcFM.substring(0, 24)}" L3원본행=${l3Row})`,
@@ -907,6 +919,46 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     fm.fcRefs = Array.from(fmFcRefsMap.get(fm.id) || []);
   }
 
+  // ★3: FL 없는 FM — FC 시트 resolve 관점 이유 코드 (카테시안 보정 없음)
+  const fmWithFl = new Set(failureLinks.map((fl) => fl.fmId).filter(Boolean) as string[]);
+  const l2ById = new Map(l2Structures.map((s) => [s.id, s] as const));
+  const fmsWithoutFailureLink: FmWithoutFailureLinkDiagnostic[] = [];
+  for (const fm of failureModes) {
+    if (fmWithFl.has(fm.id)) continue;
+    const l2 = l2ById.get(fm.l2StructId);
+    const processNo = l2?.no ?? '';
+    const skipRows = crossProcessSkipRowsByFm.get(fm.id);
+    if (skipRows && skipRows.length > 0) {
+      fmsWithoutFailureLink.push({
+        fmId: fm.id,
+        l2StructId: fm.l2StructId,
+        processNo,
+        mode: fm.mode,
+        reason: 'CROSS_PROCESS_SKIPPED',
+        fcSheetExcelRows: skipRows.slice(),
+      });
+      continue;
+    }
+    if (!fmIdsSeenFromFcResolve.has(fm.id)) {
+      fmsWithoutFailureLink.push({
+        fmId: fm.id,
+        l2StructId: fm.l2StructId,
+        processNo,
+        mode: fm.mode,
+        reason: 'NO_FC_SHEET_REFERENCE',
+      });
+    } else {
+      fmsWithoutFailureLink.push({
+        fmId: fm.id,
+        l2StructId: fm.l2StructId,
+        processNo,
+        mode: fm.mode,
+        reason: 'UNEXPECTED_NO_FL_AFTER_FC_RESOLVE',
+      });
+    }
+  }
+  const diagnostics: PositionImportDiagnostics = { fmsWithoutFailureLink };
+
   // ─── 통계 (엑셀 원본 항목별 정확한 카운트) ───
 
   // 엑셀 원본 항목별 카운트 (빈값/대시 제외)
@@ -919,7 +971,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelL2Rows: l2RowsRaw.length,
     excelL3Rows: l3Sheet.rows.length,
     excelFCRows: fcSheet.rows.length,
-    // 엑셀 원본 항목별 카운트 (빈값/대시 제외)
+    // 엑셀 원본 항목별 distinct 카운트 (빈값/대시 제외)
     excelC1: new Set(l1Sheet.rows.map(r => r.cells['C1']?.trim()).filter(v => v && !isEmptyValue(v))).size,
     excelC2: new Set(l1Sheet.rows.map(r => r.cells['C2']?.trim()).filter(v => v && !isEmptyValue(v))).size,
     excelC3: new Set(l1Sheet.rows.map(r => r.cells['C3']?.trim()).filter(v => v && !isEmptyValue(v))).size,
@@ -930,11 +982,27 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelA4: new Set(l2RowsRaw.map(r => r.cells['A4']?.trim()).filter(v => v && !isEmptyValue(v))).size,
     excelA5: new Set(l2RowsRaw.map(r => r.cells['A5']?.trim()).filter(v => v && !isEmptyValue(v))).size,
     excelA6: new Set(l2RowsRaw.map(r => r.cells['A6']?.trim()).filter(v => v && !isEmptyValue(v))).size,
-    excelB1: new Set(l3Sheet.rows.map(r => r.cells['B1']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct B1 이름 수 (115행→81고유)
-    excelB2: new Set(l3Sheet.rows.map(r => r.cells['B2']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
-    excelB3: new Set(l3Sheet.rows.map(r => r.cells['B3']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
-    excelB4: new Set(l3Sheet.rows.map(r => r.cells['B4']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
-    excelB5: new Set(l3Sheet.rows.map(r => r.cells['B5']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
+    excelB1: new Set(l3Sheet.rows.map(r => r.cells['B1']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelB2: new Set(l3Sheet.rows.map(r => r.cells['B2']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelB3: new Set(l3Sheet.rows.map(r => r.cells['B3']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelB4: new Set(l3Sheet.rows.map(r => r.cells['B4']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    excelB5: new Set(l3Sheet.rows.map(r => r.cells['B5']?.trim()).filter(v => v && !isEmptyValue(v))).size,
+    // ★ MBD-26-009: 엑셀 총 행수 (non-distinct, countNonEmpty)
+    excelTotalC1: countNonEmpty(l1Sheet.rows, 'C1'),
+    excelTotalC2: countNonEmpty(l1Sheet.rows, 'C2'),
+    excelTotalC3: countNonEmpty(l1Sheet.rows, 'C3'),
+    excelTotalC4: countNonEmpty(l1Sheet.rows, 'C4'),
+    excelTotalA1: countNonEmpty(l2RowsRaw, 'A1'),
+    excelTotalA2: countNonEmpty(l2RowsRaw, 'A2'),
+    excelTotalA3: countNonEmpty(l2RowsRaw, 'A3'),
+    excelTotalA4: countNonEmpty(l2RowsRaw, 'A4'),
+    excelTotalA5: countNonEmpty(l2RowsRaw, 'A5'),
+    excelTotalA6: countNonEmpty(l2RowsRaw, 'A6'),
+    excelTotalB1: countNonEmpty(l3Sheet.rows, 'B1'),
+    excelTotalB2: countNonEmpty(l3Sheet.rows, 'B2'),
+    excelTotalB3: countNonEmpty(l3Sheet.rows, 'B3'),
+    excelTotalB4: countNonEmpty(l3Sheet.rows, 'B4'),
+    excelTotalB5: countNonEmpty(l3Sheet.rows, 'B5'),
     // 파싱 결과 (DB 저장 대상)
     l1Functions: l1Functions.length,
     l1Requirements: l1Requirements.length,     // ★v4
@@ -961,6 +1029,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     brokenFM: failureLinks.filter(fl => !fl.fmId).length,
     brokenFC: failureLinks.filter(fl => !fl.fcId).length,
     crossProcessFlSkipped,
+    fmsWithoutFailureLink: diagnostics.fmsWithoutFailureLink.length,
     autoFixes: autoFixes.length,
     // ── Import 통계표·verify-counts API와 동일 척도 (엑셀 셀 수 excelC* 와 별개) ──
     verifyC1DistinctCategories: new Set(
@@ -1020,6 +1089,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     failureLinks,
     riskAnalyses,
     stats,
+    diagnostics,
   };
 }
 

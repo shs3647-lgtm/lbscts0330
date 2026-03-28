@@ -170,6 +170,28 @@ export function countsFromPositionExcelStats(
 /** 별칭 — 통계「엑셀 원본」건수 (위와 동일). */
 export const excelSourceItemCountsFromParserStats = countsFromPositionExcelStats;
 
+/** ★ MBD-26-009: excelTotalX* → 항목코드 (엑셀 시트 총 행수, non-distinct) */
+const ITEM_CODE_TO_POSITION_EXCEL_TOTAL_STAT: Record<string, string> = {
+  C1: 'excelTotalC1', C2: 'excelTotalC2', C3: 'excelTotalC3', C4: 'excelTotalC4',
+  A1: 'excelTotalA1', A2: 'excelTotalA2', A3: 'excelTotalA3', A4: 'excelTotalA4',
+  A5: 'excelTotalA5', A6: 'excelTotalA6',
+  B1: 'excelTotalB1', B2: 'excelTotalB2', B3: 'excelTotalB3', B4: 'excelTotalB4', B5: 'excelTotalB5',
+};
+
+/** 위치기반 Import — 엑셀 총 행수 (non-distinct countNonEmpty). DB 115개의 근거 확인용. */
+export function countsFromPositionExcelTotalStats(
+  stats: Record<string, number> | null | undefined,
+): Record<string, number> | null {
+  if (!stats || typeof stats !== 'object') return null;
+  const out: Record<string, number> = {};
+  for (const code of ALL_ITEM_CODES) {
+    const sk = ITEM_CODE_TO_POSITION_EXCEL_TOTAL_STAT[code];
+    const v = sk != null ? stats[sk] : undefined;
+    out[code] = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  }
+  return out;
+}
+
 /**
  * 레거시 Import — 통계표「원본」열 참고: 파서가 1차 산출한 rawCount(별도 엑셀 스캔 없을 때).
  * 위치기반은 `countsFromPositionExcelStats`가 엑셀 직접 집계.

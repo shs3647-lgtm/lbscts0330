@@ -46,6 +46,7 @@ import {
   countAllFlatRowsByItemCode,
   countCompositeKeysByItemCode,
   countsFromPositionExcelStats,
+  countsFromPositionExcelTotalStats,
   countsFromParseStatisticsItemRaw,
   countsVerifyAlignedFromPipelineStats,
   flatRowCountsForVerification,
@@ -241,6 +242,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     }
     return countsFromParseStatisticsItemRaw(parseStatistics);
   }, [positionParserStats, parseStatistics]);
+
+  /** ★ MBD-26-009: 엑셀 총 행수 (non-distinct) — DB 115개의 근거 확인용 */
+  const parseExcelTotalCounts = useMemo((): Record<string, number> | null => {
+    if (positionParserStats && Object.keys(positionParserStats).length > 0) {
+      return countsFromPositionExcelTotalStats(positionParserStats);
+    }
+    return null;
+  }, [positionParserStats]);
 
   /** verify-counts API와 동일 척도 — 통계표 원본/파싱·pgsql 기대값 통일 */
   const verifyScaleRowCounts = useMemo(
@@ -951,14 +960,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>코드</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-left border-r border-indigo-500">항목</th>
               <th className="bg-rose-800 text-white font-bold px-1 py-0.5 text-left border-r border-rose-600" title="원본·파싱·DB·FK·API 불일치 시 요약">오류 메시지</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="고유+중복 = 총 파싱 행(raw). 엑셀 비어있지 않은 셀 수는 셀 title로 참고">원본</th>
-              <th className="bg-violet-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-violet-600" style={{width:40}} title="flat 해당 코드 총 행 수(rawCount). 원본과 같으면 총량 일치">파싱</th>
-              <th className="bg-red-900 text-white font-bold px-1 py-0.5 text-center border-r border-red-700" style={{width:40}} title="프로젝트 PG 스키마 저장 건수(verify-counts). 파싱(flat)보다 적으면 저장 누락 의심(치명). 기대값 불일치 시에도 경고">DB</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="flat 복합키 고유와 동일 척도(저장 정상 시 복합키·pgsql·API와 숫자 일치)">고유</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="flat 기준: 파싱 행 − 고유키">중복</th>
+              <th className="bg-orange-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-orange-600" style={{width:54}} title="엑셀 시트 비어있지 않은 셀 총 수 (non-distinct). DB entity 수와 비교 근거">엑셀행수</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="엑셀 distinct 값 수 (고유한 텍스트 수)">원본</th>
+              <th className="bg-violet-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-violet-600" style={{width:40}} title="파서 excelX* distinct 값 = 원본과 동일">파싱</th>
+              <th className="bg-red-900 text-white font-bold px-1 py-0.5 text-center border-r border-red-700" style={{width:40}} title="프로젝트 PG 스키마 저장 건수(verify-counts). 엑셀행수(총 entity)와 비교">DB</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="엑셀행수 − 원본(distinct) = 텍스트 중복 수">중복</th>
               <th className="bg-amber-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-amber-600" style={{width:55}} title="지침서 parentId 체인 (C1→C2→C3→C4, A1→A4→A5→A6, B1→B2→B3→B4→B5)">parentId</th>
               <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
-              <th className="bg-emerald-700 text-white font-bold px-1 py-0.5 text-center border-r border-emerald-600" style={{width:40}} title="flat 기준 복합키 고유 수: processNo|코드|값|m4|parentItemId (trim). 통계「고유」와 다르면 부모·공정 구분 없이 값만 맞춘 중복 또는 파서 척도 차이를 의심">복합키</th>
+              <th className="bg-emerald-700 text-white font-bold px-1 py-0.5 text-center border-r border-emerald-600" style={{width:40}} title="flat 기준 복합키 고유 수">복합키</th>
               <th className="bg-purple-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-purple-600" style={{width:40}} title="FK 무결성 (parentItemId 체인)">FK</th>
               <th className="bg-teal-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-teal-600 cursor-pointer hover:bg-teal-600" style={{width:40}} title="클릭하면 PostgreSQL 프로젝트 스키마 저장 건수를 검증합니다" onClick={() => fmeaId && runFullVerify()}>pgsql{!pgsqlData && fmeaId ? ' ▶' : ''}</th>
               <th className="bg-rose-700 text-white font-bold px-1.5 py-0.5 text-center cursor-pointer hover:bg-rose-600" style={{width:40}} title="클릭하면 GET API 응답 건수를 검증합니다" onClick={() => fmeaId && runFullVerify()}>API{!apiData && fmeaId ? ' ▶' : ''}</th>
@@ -1042,32 +1051,32 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                     >
                       <span className="line-clamp-4 break-words">{err.text}</span>
                     </td>
+                    {/* ★ 엑셀행수 (non-distinct total) */}
+                    <td
+                      className="px-1.5 py-0.5 text-center font-bold text-orange-800 border-r border-slate-200/80"
+                      title={`엑셀 총 행수 (non-distinct): ${parseExcelTotalCounts?.[s.itemCode] ?? '-'}`}
+                    >
+                      {parseExcelTotalCounts?.[s.itemCode] ?? <span className="text-gray-300">-</span>}
+                    </td>
+                    {/* ★ 원본 (distinct) */}
                     <td
                       className={`px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80 ${
                         excelN != null && excelN !== parsedFlatN ? 'text-orange-700 bg-orange-50/60' : ''
                       }`}
-                      title={[
-                        excelN != null ? `엑셀 원본 distinct: ${excelN}` : '엑셀 통계 없음',
-                        `파싱 행(raw): ${originalTotal}`,
-                        scaled !== undefined ? `파이프라인(verify) ${scaled}` : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      title={excelN != null ? `엑셀 distinct: ${excelN}` : '엑셀 통계 없음'}
                     >
                       {excelN != null ? excelN : originalTotal}
                     </td>
+                    {/* 파싱 */}
                     <td
                       className={`px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80 ${
                         excelVsParse ? 'text-orange-700 bg-orange-50/90' : 'text-violet-900'
                       }`}
-                      title={
-                        excelN != null
-                          ? `총 파싱 행 ${parsedFlatN}. 엑셀 ${excelN}과 다르면 누락/과전개`
-                          : `총 파싱 행 ${parsedFlatN} (UUID 유효 ${uuid})`
-                      }
+                      title={`파싱 distinct = ${parsedFlatN}`}
                     >
                       {parsedFlatN}
                     </td>
+                    {/* DB */}
                     <td
                       className={[
                         'px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80',
@@ -1083,13 +1092,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         .join(' ')}
                       title={
                         pg && pg.status !== 'pending'
-                          ? `PG 저장 ${dbActual}건 · 기대 ${pg.expected}건 · 파싱 raw ${parsedFlatN}행${
-                              dbUnderSaved
-                                ? ' · ⚠ DB < 기대 → 저장 누락 의심'
-                                : ''
-                            }${dbExpectedMismatch && !dbUnderSaved ? ' · 기대값과 불일치' : ''}`
+                          ? `PG 저장 ${dbActual}건 · 기대 ${pg.expected}건`
                           : fmeaId
-                            ? '통계 열림 시 자동 조회 · 없으면 pgsql 열 클릭'
+                            ? '통계 열림 시 자동 조회'
                             : 'FMEA 선택 후 조회'
                       }
                     >
@@ -1103,18 +1108,23 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         <span className="text-gray-300">-</span>
                       )}
                     </td>
-                    <td className="px-1.5 py-0.5 text-center font-bold text-blue-700 border-r border-slate-200/80">{s.uniqueCount}</td>
+                    {/* ★ 중복 = 엑셀행수 - 원본(distinct) */}
                     <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
-                      {hasDup ? (
-                        <button onClick={() => handleDupClick(s.itemCode)}
-                          className={`px-1.5 rounded cursor-pointer font-bold ${
-                            isHighlighted ? 'bg-amber-500 text-white' : 'text-red-600 bg-red-50 hover:bg-red-100'
-                          }`}>
-                          {displayDup}
-                        </button>
-                      ) : (
-                        <span className="text-gray-300">0</span>
-                      )}
+                      {(() => {
+                        const total = parseExcelTotalCounts?.[s.itemCode] ?? 0;
+                        const distinct = excelN ?? 0;
+                        const dup = Math.max(0, total - distinct);
+                        return dup > 0 ? (
+                          <button onClick={() => handleDupClick(s.itemCode)}
+                            className={`px-1.5 rounded cursor-pointer font-bold ${
+                              isHighlighted ? 'bg-amber-500 text-white' : 'text-red-600 bg-red-50 hover:bg-red-100'
+                            }`}>
+                            {dup}
+                          </button>
+                        ) : (
+                          <span className="text-gray-300">0</span>
+                        );
+                      })()}
                     </td>
                     {/* ★v5: parentId 체인 (지침서 Section 2-2) */}
                     <td className="px-1 py-0.5 text-center text-[8px] border-r border-slate-200/80 text-amber-800 font-mono" title={`${s.itemCode}.parentId`}>
@@ -1168,6 +1178,16 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <tr className="border-t-2 border-indigo-400 bg-indigo-100/90 font-semibold">
                 <td colSpan={3} className="px-1.5 py-0.5 font-bold text-indigo-900">합계</td>
                 <td className="px-1 py-0.5 text-[8px] text-indigo-700 border-r border-indigo-200/80">오류 행은 붉은/주황 셀 참고</td>
+                {/* 엑셀행수 합계 */}
+                <td className="px-1.5 py-0.5 text-center font-bold text-orange-800">
+                  {parseExcelTotalCounts
+                    ? effectiveStatistics.itemStats.reduce(
+                        (acc, r) => acc + (parseExcelTotalCounts[r.itemCode] ?? 0),
+                        0,
+                      )
+                    : <span className="text-gray-400 font-normal">-</span>}
+                </td>
+                {/* 원본(distinct) 합계 */}
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">
                   {parseExcelCounts
                     ? effectiveStatistics.itemStats.reduce(
@@ -1179,9 +1199,11 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         0,
                       )}
                 </td>
+                {/* 파싱 합계 */}
                 <td className="px-1.5 py-0.5 text-center font-bold text-violet-800">
                   {effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}
                 </td>
+                {/* DB 합계 */}
                 <td className="px-1.5 py-0.5 text-center font-bold text-red-950">
                   {pgsqlData
                     ? effectiveStatistics.itemStats.reduce(
@@ -1190,9 +1212,16 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       )
                     : <span className="text-gray-400 font-normal">-</span>}
                 </td>
-                <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
+                {/* 중복 합계 = 엑셀행수 합계 - 원본 합계 */}
                 <td className="px-1.5 py-0.5 text-center font-bold text-red-600">
-                  {effectiveStatistics.itemStats.reduce((s, r) => s + itemStatDupCanonical(r), 0)}
+                  {(() => {
+                    if (!parseExcelTotalCounts || !parseExcelCounts) return 0;
+                    return effectiveStatistics.itemStats.reduce((s, r) => {
+                      const t = parseExcelTotalCounts[r.itemCode] ?? 0;
+                      const d = parseExcelCounts[r.itemCode] ?? 0;
+                      return s + Math.max(0, t - d);
+                    }, 0);
+                  })()}
                 </td>
                 <td className="px-1 py-0.5 text-center text-amber-700 text-[8px]">—</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
