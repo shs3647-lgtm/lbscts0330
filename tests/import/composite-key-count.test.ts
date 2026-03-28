@@ -36,6 +36,25 @@ describe('countCompositeKeysByItemCode', () => {
   });
 });
 
+describe('B3 빈 공정특성 (PG l3_functions 전체 행)', () => {
+  it('countFlatRows·복합키가 빈 value B3도 1행으로 센다', () => {
+    const flat: ImportedFlatData[] = [
+      {
+        processNo: '10',
+        category: 'B',
+        createdAt: new Date(),
+        rowSpan: 1,
+        id: 'lf-x-B3',
+        itemCode: 'B3',
+        value: '',
+        parentItemId: 'lf-x',
+      } as ImportedFlatData,
+    ];
+    expect(countFlatRowsByItemCode(flat).B3).toBe(1);
+    expect(countCompositeKeysByItemCode(flat).B3).toBe(1);
+  });
+});
+
 describe('countAllFlatRowsByItemCode', () => {
   it('빈 value 행도 itemCode 있으면 파싱 행으로 센다', () => {
     const flat: ImportedFlatData[] = [
@@ -51,6 +70,7 @@ describe('countAllFlatRowsByItemCode', () => {
       } as ImportedFlatData,
     ];
     expect(countAllFlatRowsByItemCode(flat).B3).toBe(2);
-    expect(countFlatRowsByItemCode(flat).B3).toBe(1);
+    // B3는 빈 value도 검증 행으로 포함( PG l3_functions 1:1 )
+    expect(countFlatRowsByItemCode(flat).B3).toBe(2);
   });
 });

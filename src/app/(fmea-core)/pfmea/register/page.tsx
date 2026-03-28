@@ -146,6 +146,8 @@ function PFMEARegisterPageContent() {
   const [bdExpandTrigger, setBdExpandTrigger] = useState(0);
   const bdFileInputRef = useRef<HTMLInputElement>(null);
   const [bdParseStatistics, setBdParseStatistics] = useState<import('@/app/(fmea-core)/pfmea/import/excel-parser').ParseStatistics | undefined>(undefined);
+  /** 위치기반 파싱 stats — 통계표 verify 척도·pgsql/API 기대값 (등록 페이지는 Import 시에만 설정) */
+  const [bdPositionParserStats, setBdPositionParserStats] = useState<Record<string, number> | null>(null);
   const [bdDbCounts, setBdDbCounts] = useState<Record<string, number> | null>(null);
   const templateGen = useTemplateGenerator({ setFlatData, setPreviewColumn: setBdPreviewCol, setDirty: setBdDirty, setIsSaved: setBdIsSaved });
 
@@ -344,6 +346,7 @@ function PFMEARegisterPageContent() {
             setBdIsSaved(true); setBdDirty(false);
             setBdLoadedFmeaId(targetId);
             setBdLoadedFmeaName(fmeaInfo.subject || fmeaId || '');
+            setBdPositionParserStats(null);
             templateGen.setTemplateMode('download');
             setBdExpandTrigger(prev => prev + 1);
             setBdNavConfirm({ open: true, name: fmeaInfo.subject || targetId });
@@ -372,6 +375,7 @@ function PFMEARegisterPageContent() {
         setBdIsSaved(true); setBdDirty(false);
         setBdLoadedFmeaId(targetId);
         setBdLoadedFmeaName(targetName);
+        setBdPositionParserStats(null);
         templateGen.setTemplateMode('download');
         setBdExpandTrigger(prev => prev + 1);
         setBdNavConfirm({ open: true, name: targetName });
@@ -419,6 +423,7 @@ function PFMEARegisterPageContent() {
     if (bdLoadedFmeaId && fmeaIds.includes(bdLoadedFmeaId)) {
       setFlatData([]); setBdLoadedFmeaId(''); setBdLoadedFmeaName(''); setBdDatasetId(null);
       setBdIsSaved(false); setBdDirty(false);
+      setBdPositionParserStats(null);
     }
   };
 
@@ -463,6 +468,7 @@ function PFMEARegisterPageContent() {
             { itemCode: 'B5', label: '예방관리', rawCount: s.excelB5 || 0, uniqueCount: 0, dupSkipped: 0 },
           ];
           setBdParseStatistics({ itemStats, totalRawRows: s.excelL1Rows + s.excelL2Rows + s.excelL3Rows + s.excelFCRows });
+          setBdPositionParserStats({ ...s });
         }
 
         if (fmeaId) {
@@ -885,6 +891,7 @@ function PFMEARegisterPageContent() {
             updateWorkElement={templateGen.updateWorkElement}
             flatData={flatData}
             parseStatistics={bdParseStatistics}
+            positionParserStats={bdPositionParserStats}
             onDownloadSample={async () => {
               if (fmeaId) {
                 try {

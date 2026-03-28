@@ -60,11 +60,18 @@ export interface VerificationData {
 
 const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'] as const;
 
-/** Import 미리보기·★9와 동일 규칙: id + 비어있지 않은 value 만 행으로 센다 */
+/** B3: verify-counts·PG는 processChar 빈 L3Function 행도 1행으로 센다 — flat 행 존재만으로 집계 */
+function flatRowCountsForVerification(item: ImportedFlatData): boolean {
+  if (!item.itemCode || !item.id) return false;
+  if (item.itemCode === 'B3') return true;
+  return Boolean(item.value?.trim());
+}
+
+/** Import 미리보기·★9: id + (B3는 value 생략 가능) + 그 외 코드는 trim value */
 export function countFlatRowsByItemCode(flatData: ImportedFlatData[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const item of flatData) {
-    if (!item.itemCode || !item.id || !item.value?.trim()) continue;
+    if (!flatRowCountsForVerification(item)) continue;
     counts[item.itemCode] = (counts[item.itemCode] || 0) + 1;
   }
   return counts;
@@ -88,10 +95,11 @@ export function countAllFlatRowsByItemCode(flatData: ImportedFlatData[]): Record
 export function countCompositeKeysByItemCode(flatData: ImportedFlatData[]): Record<string, number> {
   const byCode = new Map<string, Set<string>>();
   for (const item of flatData) {
-    if (!item.itemCode || !item.id || !item.value?.trim()) continue;
+    if (!item.itemCode || !item.id) continue;
+    if (!flatRowCountsForVerification(item)) continue;
     const code = item.itemCode;
     const processNo = String(item.processNo ?? '').trim();
-    const v = item.value.trim();
+    const v = code === 'B3' ? String(item.value ?? '').trim() : (item.value?.trim() ?? '');
     const m4 = String(item.m4 ?? '').trim();
     const pid = String(item.parentItemId ?? '').trim();
     const key = `${processNo}\x1f${code}\x1f${v}\x1f${m4}\x1f${pid}`;
@@ -428,7 +436,8 @@ export function mapApiToVerification(
     A6: (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()).length,
     B1: (apiData.l3Structures || []).length,
     B2: (apiData.l3Functions || []).filter((f: any) => f.functionName?.trim()).length,
-    B3: (apiData.l3Functions || []).filter((f: any) => f.processChar?.trim()).length,
+    // verify-counts·PG와 동일: L3Function 전체 행 (빈 processChar 포함)
+    B3: (apiData.l3Functions || []).length,
     B4: (apiData.failureCauses || []).length,
     B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
     C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,

@@ -315,11 +315,12 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       if (!codeCounts.has(code)) codeCounts.set(code, { raw: 0, vals: new Set() });
       const entry = codeCounts.get(code)!;
       entry.raw++;
-      // 고유 = `countCompositeKeysByItemCode`와 동일 척도: 공정·코드·값·m4·parentItemId (비어있지 않은 value + id 있는 행만)
-      if (d.id && d.value?.trim()) {
+      // 고유 = `countCompositeKeysByItemCode`와 동일. B3는 빈 공정특성도 L3Function 1행(PG와 정합).
+      const allowEmptyValue = d.itemCode === 'B3';
+      if (d.id && (allowEmptyValue || d.value?.trim())) {
         const pno = String(d.processNo ?? '').trim();
         const c = String(d.itemCode ?? '').trim();
-        const v = d.value.trim();
+        const v = String(d.value ?? '').trim();
         const m4 = String(d.m4 ?? '').trim();
         const pid = String(d.parentItemId ?? '').trim();
         const uniqueKey = `${pno}\x1f${c}\x1f${v}\x1f${m4}\x1f${pid}`;
@@ -350,9 +351,10 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       const proc = procMap.get(d.processNo)!;
       if (!proc.items[d.itemCode]) proc.items[d.itemCode] = { raw: 0, unique: new Set() };
       proc.items[d.itemCode].raw++;
-      if (d.id && d.value?.trim()) {
+      const procAllowEmpty = d.itemCode === 'B3';
+      if (d.id && (procAllowEmpty || d.value?.trim())) {
         const c = String(d.itemCode ?? '').trim();
-        const v = d.value.trim();
+        const v = String(d.value ?? '').trim();
         const m4 = String(d.m4 ?? '').trim();
         const pid = String(d.parentItemId ?? '').trim();
         proc.items[d.itemCode].unique.add(`${c}\x1f${v}\x1f${m4}\x1f${pid}`);

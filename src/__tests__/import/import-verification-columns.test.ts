@@ -181,6 +181,28 @@ describe('mapApiToVerification expected scale', () => {
     expect(r.C2.match).toBe(true);
   });
 
+  it('B3 apiCount = l3Functions 전체 (빈 processChar 포함, verify-counts 정합)', () => {
+    const apiData = {
+      l1Functions: [],
+      l2Structures: [],
+      l2Functions: [],
+      processProductChars: [],
+      failureModes: [],
+      riskAnalyses: [],
+      l3Structures: [],
+      l3Functions: [
+        { functionName: 'a', processChar: '' },
+        { functionName: 'b', processChar: 'x' },
+      ],
+      failureCauses: [],
+      failureEffects: [],
+    };
+    const expected = { ...ZERO_EXPECT, B3: 2 };
+    const r = mapApiToVerification(apiData, expected);
+    expect(r.B3.apiCount).toBe(2);
+    expect(r.B3.match).toBe(true);
+  });
+
   it('uses merged expected for C4', () => {
     const apiData = {
       l2Structures: [],

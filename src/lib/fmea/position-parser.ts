@@ -1562,11 +1562,11 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     const pno = l2?.no || '';
     const m4 = l3?.m4 || undefined;
     const b1Id = f.l3StructId; // B1.id = L3Structure.id (Rule 1.7.5)
-    // B2
+    // B2 — id = L3Function.id (B3·B4 parent 체인의 부모)
     flat.push({ id: f.id, processNo: pno, category: 'B', itemCode: 'B2', value: f.functionName, m4, parentItemId: b1Id, createdAt: now, rowSpan: 1 });
-    // B3 (공정특성)
+    // B3 (공정특성) — parentItemId = B2 (= L3Function.id). 이전 B1 연결은 verifyFK B3→B2 위반·고아 대량 발생 원인.
     const sc = f.specialChar || undefined;
-    flat.push({ id: `${f.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f.processChar, specialChar: sc, m4, parentItemId: b1Id, createdAt: now, rowSpan: 1 });
+    flat.push({ id: `${f.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f.processChar, specialChar: sc, m4, parentItemId: f.id, createdAt: now, rowSpan: 1 });
     // SC: 특별특성 별도 itemCode
     if (sc) {
       flat.push({ id: `${f.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC', value: sc, m4, createdAt: now, rowSpan: 1 });
