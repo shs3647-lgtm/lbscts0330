@@ -807,27 +807,41 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     // ★★★ MBD-26-009: FM 복합키 자동 생성
     // L2 시트에 없는 (processNo+FM) 조합이 FC 시트에 있으면 새 FM 생성
     if (!fmId && fcPno && fcFM.trim()) {
-      const l2Id = seenPno.get(fcPno) || '';
-      if (l2Id) {
-        const newFmId = positionUUID('FC', rn, 99); // FC 시트 기반 FM UUID (col=99로 FL과 구분)
-        failureModes.push({
-          id: newFmId,
+      let l2Id = seenPno.get(fcPno) || '';
+
+      // ★ L2에 해당 공정이 없으면 L2Structure도 자동 생성
+      if (!l2Id) {
+        l2Id = positionUUID('FC', rn, 98); // FC 기반 L2 UUID
+        seenPno.set(fcPno, l2Id);
+        l2Structures.push({
+          id: l2Id,
           fmeaId,
-          l2FuncId: '', // L2 시트에 없으므로 빈값
-          l2StructId: l2Id,
-          parentId: l2Id,
-          mode: fcFM.trim(),
-          feRefs: [],
-          fcRefs: [],
+          l1Id: l1StructId,
+          parentId: l1StructId,
+          no: fcPno,
+          name: '', // FC 시트에 공정명 없음 — 추후 보완
+          order: l2Order++,
         });
-        // resolver에 등록하여 같은 (processNo+FM) 후속 행에서 재사용
-        const isNew = resolver.registerFMIfNew(fcPno, fcFM, newFmId, l2Id);
-        if (isNew) {
-          ppLog(`[position-parser] ★ FC시트 FM 자동생성: pno=${fcPno} FM="${fcFM.substring(0, 30)}" → ${newFmId}`);
-        }
-        fmId = newFmId;
-        flL2StructId = l2Id;
+        ppLog(`[position-parser] ★ FC시트 L2 자동생성: pno=${fcPno} → ${l2Id}`);
       }
+
+      const newFmId = positionUUID('FC', rn, 99);
+      failureModes.push({
+        id: newFmId,
+        fmeaId,
+        l2FuncId: '',
+        l2StructId: l2Id,
+        parentId: l2Id,
+        mode: fcFM.trim(),
+        feRefs: [],
+        fcRefs: [],
+      });
+      const isNew = resolver.registerFMIfNew(fcPno, fcFM, newFmId, l2Id);
+      if (isNew) {
+        ppLog(`[position-parser] ★ FC시트 FM 자동생성: pno=${fcPno} FM="${fcFM.substring(0, 30)}" → ${newFmId}`);
+      }
+      fmId = newFmId;
+      flL2StructId = l2Id;
     }
 
     if (fmId) fmIdsSeenFromFcResolve.add(fmId);
