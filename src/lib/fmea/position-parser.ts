@@ -860,42 +860,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     fcIndex++; // ★v6: 위치 인덱스 증가 (L3와 1:1 매핑)
   }
 
-  // ★v6.3: FL 미생성 FM 보완 — L2에 있지만 FC 시트에 참조 안 된 FM에 FL 생성
-  // 모든 FM은 최소 1개 FL을 가져야 함 (복합키 매칭 완전성 보장)
-  const flLinkedFmIds = new Set(failureLinks.map(fl => fl.fmId).filter(Boolean));
-  let supplementCount = 0;
-  for (const fm of failureModes) {
-    if (flLinkedFmIds.has(fm.id)) continue; // 이미 FL 있음
-    // FE: 같은 l2StructId를 가진 다른 FL의 feId 택 1
-    let bestFeId = '';
-    for (const fl of failureLinks) {
-      if (fl.feId && fl.fmId) {
-        const otherFm = failureModes.find(f => f.id === fl.fmId);
-        if (otherFm && otherFm.l2StructId === fm.l2StructId) {
-          bestFeId = fl.feId;
-          break;
-        }
-      }
-    }
-    failureLinks.push({
-      id: `supp-fl-${fm.id.substring(0, 8)}-${supplementCount}`,
-      fmeaId,
-      feId: bestFeId,
-      fmId: fm.id,
-      fcId: '',           // FC 미정의 — 워크시트에서 수동 연결 가능
-      l2StructId: fm.l2StructId || '',
-      l3StructId: '',
-      severity: 0,
-      occurrence: 0,
-      detection: 0,
-      ap: '',
-    } as any);
-    supplementCount++;
-    ppWarn(`[position-parser] ★ 보완 FL 생성: FM="${(fm as any).text?.substring(0, 30) || fm.id}" feId=${bestFeId ? '✅' : '❌'}`);
-  }
-  if (supplementCount > 0) {
-    ppLog(`[position-parser] ★v6.3 보완 FL: ${supplementCount}건 (FC 시트에 없는 FM)`);
-  }
+  // ★ 2026-03-28: FC 시트에 없는 FM에 대한 「보완 FL」 생성 제거 (CLAUDE.md Rule 0.5·1.6)
+  // 공정 내 다른 FL의 feId를 빌려 fcId 빈 링크를 양산하는 것은 사실 기반 FL 원칙 위반·카테시안에 준함.
 
   // FE severity 업데이트
   for (const fe of failureEffects) {
