@@ -1094,7 +1094,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     verifyD1FcFe: new Set(failureLinks.map(fl => fl.feId).filter(Boolean)).size,
     verifyD2FcProcess: new Set(failureLinks.map(fl => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
     verifyD3FcFm: new Set(failureLinks.map(fl => fl.fmId).filter(Boolean)).size,
-    verifyD4FcWorkElem: new Set(failureLinks.map(fl => (fl.l3StructId ?? '').trim()).filter(Boolean)).size,
+    verifyD4FcWorkElem: new Set(failureLinks.map(fl => (fl.fcWorkElem ?? '').trim()).filter(Boolean)).size,
     verifyD5FcFc: new Set(failureLinks.map(fl => fl.fcId).filter(Boolean)).size,
   };
 

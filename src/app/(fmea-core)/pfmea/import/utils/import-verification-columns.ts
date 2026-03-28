@@ -501,7 +501,7 @@ export function mapApiToVerification(
     D1: new Set((apiData.failureLinks || []).map((fl: any) => fl.feId).filter(Boolean)).size,
     D2: new Set((apiData.failureLinks || []).map((fl: any) => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
     D3: new Set((apiData.failureLinks || []).map((fl: any) => fl.fmId).filter(Boolean)).size,
-    D4: new Set((apiData.failureLinks || []).map((fl: any) => (fl.l3StructId ?? '').trim()).filter(Boolean)).size,
+    D4: new Set((apiData.failureLinks || []).map((fl: any) => (fl.fcWorkElem ?? fl.l3StructId ?? '').trim()).filter(Boolean)).size,
     D5: new Set((apiData.failureLinks || []).map((fl: any) => fl.fcId).filter(Boolean)).size,
   };
 

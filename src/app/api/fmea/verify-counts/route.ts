@@ -163,9 +163,9 @@ export async function GET(request: NextRequest) {
     const d3Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fmId: true } });
     const d3 = new Set(d3Rows.map(r => r.fmId).filter(Boolean)).size;
 
-    // --- D4: FC시트→B1(작업요소) distinct l3StructId ---
-    const d4Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { l3StructId: true } });
-    const d4 = new Set(d4Rows.map(r => (r.l3StructId ?? '').trim()).filter(Boolean)).size;
+    // --- D4: FC시트→B1(작업요소) distinct fcWorkElem ---
+    const d4Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fcWorkElem: true } });
+    const d4 = new Set(d4Rows.map(r => (r.fcWorkElem ?? '').trim()).filter(Boolean)).size;
 
     // --- D5: FC시트→B4(고장원인) distinct fcId ---
     const d5Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } });
