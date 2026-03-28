@@ -624,7 +624,26 @@ export default function LegacyImportPage() {
         updateWorkElement={templateGen.updateWorkElement}
         flatData={flatData}
         onDownloadSample={async () => {
-          // 0순위: 현재 flatData가 있으면 (자동FIX/편집 반영) 즉시 내보내기
+          // 1순위: reverse-import API — DB의 L1·L2·L3·FC사슬 완전 반영 (SSoT)
+          if (selectedFmeaId) {
+            try {
+              const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
+              if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const cd = res.headers.get('content-disposition');
+                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
+                a.download = fnMatch?.[1] || `PFMEA_${selectedFmeaId}_현재데이터.xlsx`;
+                a.href = url;
+                a.click();
+                URL.revokeObjectURL(url);
+                return;
+              }
+            } catch (_e) { /* server-side 실패 시 flatData fallback */ }
+          }
+
+          // 2순위: 현재 flatData (마스터 데이터셋)
           if (flatData.length > 0) {
             const exportData = flatData.map(d => ({
               processNo: d.processNo || '',
@@ -652,40 +671,8 @@ export default function LegacyImportPage() {
             await downloadDataTemplate(exportData, fileName, chains);
             return;
           }
-          if (selectedFmeaId) {
-            // 1순위: 빈칸 0건 filled Excel (서버에 생성된 파일)
-            try {
-              const filledRes = await fetch(`/api/fmea/download-filled-excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
-              if (filledRes.ok) {
-                const blob = await filledRes.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                const cd = filledRes.headers.get('content-disposition');
-                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                a.download = fnMatch?.[1] || `PFMEA_Sample_${selectedFmeaId}.xlsx`;
-                a.href = url;
-                a.click();
-                URL.revokeObjectURL(url);
-                return;
-              }
-            } catch (_e) { /* filled 파일 없으면 다음 시도 */ }
-            // 2순위: reverse-import (서버사이드 생성)
-            try {
-              const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
-              if (res.ok) {
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                const cd = res.headers.get('content-disposition');
-                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                a.download = fnMatch?.[1] || `PFMEA_Sample_${selectedFmeaId}.xlsx`;
-                a.href = url;
-                a.click();
-                URL.revokeObjectURL(url);
-                return;
-              }
-            } catch (_e) { /* server-side 실패 시 client-side fallback */ }
-          }
+
+          // 3순위: static 샘플 fallback
           downloadSampleTemplate(undefined, templateGen.templateMode === 'manual', selectedFmeaId || undefined);
         }}
         onDownloadEmpty={downloadEmptyTemplate}

@@ -893,6 +893,11 @@ function PFMEARegisterPageContent() {
             parseStatistics={bdParseStatistics}
             positionParserStats={bdPositionParserStats}
             onDownloadSample={async () => {
+              const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
+              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
+              const masterName = subject ? `PFMEA_${subject}_현재데이터` : undefined;
+
+              // 1순위: reverse-import API — DB의 L1·L2·L3·FC사슬 완전 반영 (SSoT)
               if (fmeaId) {
                 try {
                   const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
@@ -902,23 +907,23 @@ function PFMEARegisterPageContent() {
                     const a = document.createElement('a');
                     const cd = res.headers.get('content-disposition');
                     const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                    const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
-                    a.download = fnMatch?.[1] || `PFMEA_Master_${subject || fmeaId}.xlsx`;
+                    a.download = fnMatch?.[1] || `PFMEA_${subject || fmeaId}_현재데이터.xlsx`;
                     a.href = url;
                     a.click();
                     URL.revokeObjectURL(url);
                     return;
                   }
-                } catch (_e) { /* server-side 실패 시 client-side fallback */ }
+                } catch (_e) { /* server-side 실패 시 flatData fallback */ }
               }
-              const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
-              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
-              const masterName = subject ? `PFMEA_Master_${subject}` : undefined;
+
+              // 2순위: 현재 flatData (마스터 데이터셋, reverse-import 실패 시)
               if (flatData.length > 0) {
                 downloadDataTemplate(flatData, masterName);
-              } else {
-                downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
+                return;
               }
+
+              // 3순위: static 샘플 fallback
+              downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
             }}
             onDownloadEmpty={async () => {
               const { downloadEmptyTemplate } = await getExcelTemplate();
