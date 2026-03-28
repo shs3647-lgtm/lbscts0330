@@ -285,13 +285,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         itemStats: filled.map(s => {
           let row = normalizeItemStatRow(s);
           if (comp && rawAll) {
-            const raw = rawAll[s.itemCode] ?? row.rawCount;
+            // ★ MBD-26-009: rawCount는 파서의 excelX* distinct 값 유지 (flatData 행수는 atomicToFlatData 구조에 따라 변동)
             const u = comp[s.itemCode] ?? 0;
             row = normalizeItemStatRow({
               ...row,
-              rawCount: raw,
+              // rawCount 유지 (excelX* distinct 값 = 원본과 동일)
               uniqueCount: u,
-              dupSkipped: Math.max(0, raw - u),
+              dupSkipped: Math.max(0, row.rawCount - u),
             });
           }
           return row;

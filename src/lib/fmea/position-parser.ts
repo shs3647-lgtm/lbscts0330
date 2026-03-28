@@ -761,6 +761,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   let jsonCarryCount = 0;
 
   let fcIndex = 0; // FC valid row 인덱스 (L3와 1:1 매핑)
+  let crossProcessFlSkipped = 0; // FM.L2 ≠ FC.L2 → FL/RA 미생성 (validate-fk crossProcessFk 정렬)
 
   for (const row of fcSheet.rows) {
     const rn = row.excelRow;
@@ -795,6 +796,23 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       feScope: fcScope,
     });
 
+    // ★ crossProcessFk: FM·FC가 서로 다른 공정(L2)이면 FL/RA를 넣지 않음 (repair-fk 삭제 대상과 동일 의미)
+    let skipFlCrossProcess = false;
+    if (fmId && fcId) {
+      const fmEnt = failureModes.find((f) => f.id === fmId);
+      const fcEnt = failureCauses.find((f) => f.id === fcId);
+      const fmL2 = (fmEnt?.l2StructId || '').trim();
+      const fcL2 = (fcEnt?.l2StructId || '').trim();
+      if (fmL2 && fcL2 && fmL2 !== fcL2) {
+        skipFlCrossProcess = true;
+        crossProcessFlSkipped++;
+        ppWarn(
+          `[position-parser] ⚠️ FL R${rn} 교차공정 스킵 (crossProcessFk): FM.L2=${fmL2} FC.L2=${fcL2} ` +
+            `(processNo=${fcPno} FM="${fcFM.substring(0, 24)}" L3원본행=${l3Row})`,
+        );
+      }
+    }
+
     // ★v5.2: 동적 FC 생성 제거 (Rule 1.5 자동생성 금지)
     // fcId 미해결 시 경고 로그만 출력 — L3 B4 carry-forward로 근본 해결
     if (!fcId && c['FC']?.trim()) {
@@ -802,7 +820,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     }
 
     // ★ 디버그: FK 해결 실패 행 로그 (원본행·셀값 참고용 — 매칭에는 미사용)
-    if (!feId || !fmId || !fcId) {
+    if (!skipFlCrossProcess && (!feId || !fmId || !fcId)) {
       ppWarn(`[position-parser] ⚠️ FL R${rn} FK 미해결:`,
         `feId=${feId || '❌'}(scope=${fcScope}|FE="${fcFE.substring(0, 20)}")`,
         `fmId=${fmId || '❌'}(pno=${fcPno}|FM="${fcFM.substring(0, 20)}")`,
@@ -815,46 +833,48 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const detection = parseInt(c['D'] || '0', 10) || 0;
     const ap = normalizeAP(c['AP']?.trim() || ''); // ★ AutoFix
 
-    // FailureLink
-    const flId = positionUUID('FC', rn);
-    failureLinks.push({
-      id: flId,
-      fmeaId,
-      fmId,
-      feId,
-      fcId,
-      l2StructId: flL2StructId || undefined, // ★v4 EX-38
-      l3StructId: flL3StructId || undefined, // ★v4 EX-38
-      // parentId는 null (FailureLink는 root 고장사슬 — 상위 엔티티 없음)
-      fmText: c['FM'] || undefined,
-      feText: c['FE'] || undefined,
-      fcText: c['FC'] || undefined,
-      feScope: fcScope || undefined,
-      fmProcess: fcPno || undefined,
-      fcWorkElem: c['WE'] || undefined,
-      fcM4: c['m4'] || undefined,
-    });
+    if (!skipFlCrossProcess) {
+      // FailureLink
+      const flId = positionUUID('FC', rn);
+      failureLinks.push({
+        id: flId,
+        fmeaId,
+        fmId,
+        feId,
+        fcId,
+        l2StructId: flL2StructId || undefined, // ★v4 EX-38
+        l3StructId: flL3StructId || undefined, // ★v4 EX-38
+        // parentId는 null (FailureLink는 root 고장사슬 — 상위 엔티티 없음)
+        fmText: c['FM'] || undefined,
+        feText: c['FE'] || undefined,
+        fcText: c['FC'] || undefined,
+        feScope: fcScope || undefined,
+        fmProcess: fcPno || undefined,
+        fcWorkElem: c['WE'] || undefined,
+        fcM4: c['m4'] || undefined,
+      });
 
-    // RiskAnalysis (★v4 EX-06: fmId/fcId/feId 직접참조)
-    riskAnalyses.push({
-      id: `${flId}-RA`,
-      fmeaId,
-      linkId: flId,
-      parentId: flId, // E-22: RiskAnalysis.parentId → FailureLink
-      fmId: fmId || undefined,  // ★v4 EX-06
-      fcId: fcId || undefined,  // ★v4 EX-06
-      feId: feId || undefined,  // ★v4 EX-06
-      severity,
-      occurrence,
-      detection,
-      ap,
-      preventionControl: c['PC'] || undefined,
-      detectionControl: c['DC'] || undefined,
-    });
+      // RiskAnalysis (★v4 EX-06: fmId/fcId/feId 직접참조)
+      riskAnalyses.push({
+        id: `${flId}-RA`,
+        fmeaId,
+        linkId: flId,
+        parentId: flId, // E-22: RiskAnalysis.parentId → FailureLink
+        fmId: fmId || undefined,  // ★v4 EX-06
+        fcId: fcId || undefined,  // ★v4 EX-06
+        feId: feId || undefined,  // ★v4 EX-06
+        severity,
+        occurrence,
+        detection,
+        ap,
+        preventionControl: c['PC'] || undefined,
+        detectionControl: c['DC'] || undefined,
+      });
 
-    // FE severity 추적 (최대값)
-    if (feId && severity > (feSeverityMap.get(feId) || 0)) {
-      feSeverityMap.set(feId, severity);
+      // FE severity 추적 (최대값)
+      if (feId && severity > (feSeverityMap.get(feId) || 0)) {
+        feSeverityMap.set(feId, severity);
+      }
     }
 
     fcIndex++; // ★v6: 위치 인덱스 증가 (L3와 1:1 매핑)
@@ -940,6 +960,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     brokenFE: failureLinks.filter(fl => !fl.feId).length,
     brokenFM: failureLinks.filter(fl => !fl.fmId).length,
     brokenFC: failureLinks.filter(fl => !fl.fcId).length,
+    crossProcessFlSkipped,
     autoFixes: autoFixes.length,
     // ── Import 통계표·verify-counts API와 동일 척도 (엑셀 셀 수 excelC* 와 별개) ──
     verifyC1DistinctCategories: new Set(
@@ -962,6 +983,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   ppLog(`  FC: 엑셀 ${stats.excelFCRows}행 → FL=${stats.failureLinks}, RA=${stats.riskAnalyses}`);
   if (stats.brokenFE > 0 || stats.brokenFM > 0 || stats.brokenFC > 0) {
     ppWarn(`  ⚠️ 깨진 FK: FE=${stats.brokenFE} FM=${stats.brokenFM} FC=${stats.brokenFC}`);
+  }
+  if (stats.crossProcessFlSkipped > 0) {
+    ppWarn(`  ⚠️ 교차공정 FL 스킵: ${stats.crossProcessFlSkipped}건 (crossProcessFk)`);
   }
   if (jsonCarryCount > 0) {
     ppLog(`  AutoFix FC carry-forward: ${jsonCarryCount}건 (FE/FM/공정번호 병합셀 자동복원)`);
