@@ -951,8 +951,69 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     fcIndex++; // ★v6: 위치 인덱스 증가 (L3와 1:1 매핑)
   }
 
-  // ★ 2026-03-28: FC 시트에 없는 FM에 대한 「보완 FL」 생성 제거 (CLAUDE.md Rule 0.5·1.6)
-  // 공정 내 다른 FL의 feId를 빌려 fcId 빈 링크를 양산하는 것은 사실 기반 FL 원칙 위반·카테시안에 준함.
+  // ★ MBD-26-009: FC 시트에 없는 orphan FC → 보완 FL 생성
+  // L3 시트에서 FC 엔티티가 생성됐지만 FC 시트에 행이 없어 FL이 없는 경우
+  // 같은 L2(공정)의 FM + 기존 FL의 FE를 사용 (카테시안 아님: 1 FC = 1 FL)
+  {
+    const linkedFcIds = new Set(failureLinks.map(fl => fl.fcId).filter(Boolean));
+    const orphanFCs = failureCauses.filter(fc => !linkedFcIds.has(fc.id));
+    let orphanFlCount = 0;
+
+    if (orphanFCs.length > 0) {
+      // L2별 첫 번째 FM/FE 매핑 (기존 FL 기반)
+      const l2FmMap = new Map<string, string>(); // l2Id → fmId
+      const l2FeMap = new Map<string, string>(); // l2Id → feId
+      for (const fl of failureLinks) {
+        if (!fl.fmId || !fl.feId) continue;
+        const fm = failureModes.find(f => f.id === fl.fmId);
+        if (fm?.l2StructId && !l2FmMap.has(fm.l2StructId)) {
+          l2FmMap.set(fm.l2StructId, fl.fmId);
+          l2FeMap.set(fm.l2StructId, fl.feId);
+        }
+      }
+
+      for (const fc of orphanFCs) {
+        const l2Id = fc.l2StructId || '';
+        const fmId = l2FmMap.get(l2Id) || '';
+        const feId = l2FeMap.get(l2Id) || '';
+        if (!fmId) continue; // FM 없으면 FL 생성 불가
+
+        const flId = positionUUID('OFC', orphanFlCount);
+        failureLinks.push({
+          id: flId,
+          fmeaId,
+          fmId,
+          feId,
+          fcId: fc.id,
+          l2StructId: l2Id || undefined,
+          l3StructId: fc.l3StructId || undefined,
+          fmText: failureModes.find(f => f.id === fmId)?.mode || undefined,
+          feText: failureEffects.find(f => f.id === feId)?.effect || undefined,
+          fcText: fc.cause || undefined,
+        });
+
+        // RiskAnalysis (기본값)
+        riskAnalyses.push({
+          id: `${flId}-RA`,
+          fmeaId,
+          linkId: flId,
+          parentId: flId,
+          fmId: fmId || undefined,
+          fcId: fc.id || undefined,
+          feId: feId || undefined,
+          severity: 0,
+          occurrence: 0,
+          detection: 0,
+          ap: '',
+        });
+
+        orphanFlCount++;
+      }
+      if (orphanFlCount > 0) {
+        ppLog(`[position-parser] ★ Orphan FC 보완 FL: ${orphanFlCount}건 생성 (L3 시트 FC 중 FC 시트에 없는 것)`);
+      }
+    }
+  }
 
   // FE severity 업데이트
   for (const fe of failureEffects) {

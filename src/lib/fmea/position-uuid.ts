@@ -8,7 +8,7 @@
  * @created 2026-03-22
  */
 
-export type SheetCode = 'L1' | 'L2' | 'L3' | 'FC';
+export type SheetCode = 'L1' | 'L2' | 'L3' | 'FC' | 'OFC';
 
 /**
  * 위치기반 UUID 생성
