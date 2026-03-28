@@ -1090,6 +1090,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     verifyB2L3FuncNamed: l3Functions.filter(f => f.functionName?.trim()).length,
     verifyA6RiskWithDc: riskAnalyses.filter(r => r.detectionControl?.trim()).length,
     verifyB5RiskWithPc: riskAnalyses.filter(r => r.preventionControl?.trim()).length,
+    // ★ MBD-26-009: FC 시트 관점 distinct (FailureLink 참조 기준)
+    verifyD1FcFe: new Set(failureLinks.map(fl => fl.feId).filter(Boolean)).size,
+    verifyD2FcProcess: new Set(failureLinks.map(fl => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
+    verifyD3FcFm: new Set(failureLinks.map(fl => fl.fmId).filter(Boolean)).size,
+    verifyD4FcWorkElem: new Set(failureLinks.map(fl => (fl.l3StructId ?? '').trim()).filter(Boolean)).size,
+    verifyD5FcFc: new Set(failureLinks.map(fl => fl.fcId).filter(Boolean)).size,
   };
 
   // ★ Import 파싱 결과 로그 (항목별 엑셀 원본 vs 파싱 결과) — verbose 게이트

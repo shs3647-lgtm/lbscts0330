@@ -257,12 +257,12 @@ export function countsVerifyAlignedFromPipelineStats(
   out.B3 = stats.l3Functions ?? 0;
   out.B4 = stats.failureCauses ?? 0;
   out.B5 = b5;
-  // ★ MBD-26-009: FC 레벨 (D1~D5) — FC시트 참조 엔티티 distinct
-  out.D1 = stats.failureEffects ?? 0;     // D1: C4(고장영향) distinct feId
-  out.D2 = stats.l2Structures ?? 0;       // D2: A2(공정명) distinct process
-  out.D3 = stats.failureModes ?? 0;       // D3: A5(고장형태) distinct fmId
-  out.D4 = stats.l3Structures ?? 0;       // D4: B1(작업요소) distinct l3StructId
-  out.D5 = stats.failureCauses ?? 0;       // D5: B4(고장원인) distinct fcId
+  // ★ MBD-26-009: FC 레벨 (D1~D5) — FC시트 참조 엔티티 distinct (파서 verifyD* 사용)
+  out.D1 = stats.verifyD1FcFe ?? stats.failureEffects ?? 0;
+  out.D2 = stats.verifyD2FcProcess ?? stats.l2Structures ?? 0;
+  out.D3 = stats.verifyD3FcFm ?? stats.failureModes ?? 0;
+  out.D4 = stats.verifyD4FcWorkElem ?? stats.l3Structures ?? 0;
+  out.D5 = stats.verifyD5FcFc ?? stats.failureCauses ?? 0;
   return out;
 }
 
