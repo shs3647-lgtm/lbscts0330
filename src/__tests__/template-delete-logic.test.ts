@@ -98,6 +98,17 @@ describe('buildCrossTab', () => {
     // ID도 다름
     expect(row20MN._ids.B2).not.toBe(row20MC._ids.B2);
   });
+
+  test('1-5. A6: 동일 공정에 여러 flat 행 → 고유값 줄바꿈 합침, _ids.A6는 첫 행', () => {
+    const extra: ImportedFlatData[] = [
+      mkItem('a6b', '10', 'A', 'A6', '두번째 검출'),
+      mkItem('a6c', '10', 'A', 'A6', '길이 측정'), // 공정10 첫 A6과 동일 텍스트 → 1줄로 dedup
+    ];
+    const ct2 = buildCrossTab([...SAMPLE_DATA, ...extra]);
+    const r10 = ct2.aRows.find(r => r.processNo === '10')!;
+    expect(r10.A6).toBe('길이 측정\n두번째 검출');
+    expect(r10._ids.A6).toBe('s6');
+  });
 });
 
 // ═══════════════════════════════════════

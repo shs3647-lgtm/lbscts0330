@@ -97,7 +97,7 @@ async function generate() {
     { header: '공정명', key: 'processName', width: 18 },
     { header: 'FM(고장형태)', key: 'fmMode', width: 35 },
     { header: '4M', key: 'm4', width: 5 },
-    { header: '작업요소(WE)', key: 'workElement', width: 22 },
+    { header: 'WE(작업요소)', key: 'workElement', width: 22 },
     { header: 'FC(고장원인)', key: 'fcCause', width: 30 },
     { header: 'B5.예방관리(발생 전 방지)', key: 'pc', width: 45 },
     { header: 'A6.검출관리(발생 후 검출)', key: 'dc', width: 45 },

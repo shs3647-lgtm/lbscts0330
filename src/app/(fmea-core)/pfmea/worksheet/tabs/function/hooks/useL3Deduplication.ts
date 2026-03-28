@@ -75,7 +75,7 @@ export function useL3Deduplication({
         });
       });
 
-      // ━━━ Step 1: 작업요소(WE) 복합키(m4|name) 중복 제거 ━━━
+      // ━━━ Step 1: WE(작업요소) 복합키(m4|name) 중복 제거 ━━━
       const { workElements: dedupedL3, cleaned: weCleaned } = deduplicateWorkElementsL3(proc.l3 || []);
       if (weCleaned) anyClean = true;
 

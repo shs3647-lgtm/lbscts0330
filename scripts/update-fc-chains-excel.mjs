@@ -77,7 +77,7 @@ async function main() {
   // ═══════════════════════════════════════════════════════
   const ws1 = wb.addWorksheet('FC_Chain_Data');
   const H1 = ['No','FE구분','FE(고장영향)','S(심각도)','L2-1.공정번호','공정명',
-    'FM(고장형태)','4M','작업요소(WE)','FC(고장원인)',
+    'FM(고장형태)','4M','WE(작업요소)','FC(고장원인)',
     'B5.예방관리(발생 전 방지)','A6.검출관리(발생 후 검출)',
     'O','D','AP','LinkID','FM_ID','FE_ID','FC_ID'];
   ws1.columns = H1.map(h => ({ header: h, width: h.includes('관리') ? 30 : h.includes('고장') ? 22 : Math.max(12, h.length*1.5+2) }));
@@ -135,7 +135,7 @@ async function main() {
     ['공정명 빈칸', `COUNTBLANK(FC_Chain_Data!F2:F${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!F2:F${LAST})` }, 0, { formula: `IF(C7=D7,"✅ PASS","❌ FAIL")` }],
     ['FM(고장형태) 빈칸', `COUNTBLANK(FC_Chain_Data!G2:G${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!G2:G${LAST})` }, 0, { formula: `IF(C8=D8,"✅ PASS","❌ FAIL")` }],
     ['4M 빈칸', `COUNTBLANK(FC_Chain_Data!H2:H${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!H2:H${LAST})` }, 0, { formula: `IF(C9=D9,"✅ PASS","❌ FAIL")` }],
-    ['작업요소(WE) 빈칸', `COUNTBLANK(FC_Chain_Data!I2:I${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!I2:I${LAST})` }, 0, { formula: `IF(C10=D10,"✅ PASS","❌ FAIL")` }],
+    ['WE(작업요소) 빈칸', `COUNTBLANK(FC_Chain_Data!I2:I${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!I2:I${LAST})` }, 0, { formula: `IF(C10=D10,"✅ PASS","❌ FAIL")` }],
     ['FC(고장원인) 빈칸', `COUNTBLANK(FC_Chain_Data!J2:J${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!J2:J${LAST})` }, 0, { formula: `IF(C11=D11,"✅ PASS","❌ FAIL")` }],
     ['B5(예방관리) 빈칸', `COUNTBLANK(FC_Chain_Data!K2:K${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!K2:K${LAST})` }, 0, { formula: `IF(C12=D12,"✅ PASS","❌ FAIL")` }],
     ['A6(검출관리) 빈칸', `COUNTBLANK(FC_Chain_Data!L2:L${LAST})`, { formula: `COUNTBLANK(FC_Chain_Data!L2:L${LAST})` }, 0, { formula: `IF(C13=D13,"✅ PASS","❌ FAIL")` }],

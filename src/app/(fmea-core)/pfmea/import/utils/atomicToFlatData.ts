@@ -105,12 +105,12 @@ export function atomicToFlatData(
   }
   const l1FuncById = indexById(db.l1Functions);
 
-  // ─── C 계열: L1 (완제품 공정) ───
+  // ─── C 계열: L1 (완제품 공정) — L1Function 1행 = C2 1행 + C3 1행 (verify-counts·DB와 1:1) ───
   const l1FuncsByCategory = groupBy(db.l1Functions, f => f.category);
-  const categories = [...l1FuncsByCategory.keys()];
+  const categories = [...l1FuncsByCategory.keys()].sort((a, b) => a.localeCompare(b));
 
-  // C4 seq 카운터 (전체)
-  const feSeqByDiv = new Map<string, number>();
+  const l1FuncIdToC2Seq = new Map<string, number>();
+  const l1FuncIdToC3GenId = new Map<string, string>();
 
   for (const category of categories) {
     const div = category === 'User' ? 'US' : (category === 'Ship to Plant' ? 'SP' : 'YP');
@@ -125,68 +125,62 @@ export function atomicToFlatData(
       createdAt: now,
     }));
 
-    const funcs = l1FuncsByCategory.get(category) || [];
-    const funcsByName = groupBy(funcs, f => f.functionName);
-    const funcNames = [...funcsByName.keys()];
-
+    const funcs = [...(l1FuncsByCategory.get(category) || [])].sort((a, b) => a.id.localeCompare(b.id));
     let c2seq = 0;
-    for (const funcName of funcNames) {
+    for (const lf of funcs) {
       c2seq++;
-      const funcGroup = funcsByName.get(funcName) || [];
+      l1FuncIdToC2Seq.set(lf.id, c2seq);
       const c2Id = genC2(doc, div, c2seq);
 
-      // C2: 기능
       result.push(makeFlatItem({
         id: c2Id,
         processNo: category,
         category: 'C',
         itemCode: 'C2',
-        value: funcName,
+        value: lf.functionName,
         createdAt: now,
       }));
 
-      // C3: 요구사항
-      let c3seq = 0;
-      for (const req of funcGroup) {
-        c3seq++;
-        const c3Id = genC3(doc, div, c2seq, c3seq);
-        result.push(makeFlatItem({
-          id: c3Id,
-          processNo: category,
-          category: 'C',
-          itemCode: 'C3',
-          value: req.requirement,
-          parentItemId: c2Id,
-          createdAt: now,
-        }));
-      }
+      const c3Id = genC3(doc, div, c2seq, 1);
+      l1FuncIdToC3GenId.set(lf.id, c3Id);
+      result.push(makeFlatItem({
+        id: c3Id,
+        processNo: category,
+        category: 'C',
+        itemCode: 'C3',
+        value: lf.requirement,
+        parentItemId: c2Id,
+        createdAt: now,
+      }));
     }
   }
 
-  // C4: 고장영향 (FailureEffect) — genC4 재계산
-  // FE를 category별로 그룹핑하여 seq 계산
+  // C4: 고장영향 — L1Function별 c2·c3 슬롯 + 동일 LF 내 FE 순번으로 genC4
   const fesByCategory = groupBy(db.failureEffects, fe => fe.category);
   for (const [category, fes] of fesByCategory) {
     const div = category === 'User' ? 'US' : (category === 'Ship to Plant' ? 'SP' : 'YP');
-    // C2/C3 seq를 역추적하여 정확한 genC4 계산
-    const catFuncs = l1FuncsByCategory.get(category) || [];
-    const catFuncsByName = groupBy(catFuncs, f => f.functionName);
-    const c2Count = catFuncsByName.size;
-    const c3Count = catFuncs.length;
+    const fesSorted = [...fes].sort((a, b) => a.id.localeCompare(b.id));
+    const c4SlotByL1Func = new Map<string, number>();
 
-    let c4seq = 0;
-    for (const fe of fes) {
-      c4seq++;
-      const feNewId = genC4(doc, div, c2Count || 1, c3Count > 0 ? c3Count : 1, c4seq);
+    for (const fe of fesSorted) {
+      let c2seq = l1FuncIdToC2Seq.get(fe.l1FuncId);
+      if (c2seq === undefined) {
+        c2seq = 1;
+        console.warn('[atomicToFlatData] C4: l1FuncId 미매칭 FE', fe.id, 'l1FuncId=', fe.l1FuncId);
+      }
+      const slot = (c4SlotByL1Func.get(fe.l1FuncId) ?? 0) + 1;
+      c4SlotByL1Func.set(fe.l1FuncId, slot);
+      const feNewId = genC4(doc, div, c2seq, 1, slot);
       idRemap.fe.set(fe.id, feNewId);
 
+      const c3GenId = l1FuncIdToC3GenId.get(fe.l1FuncId);
       result.push(makeFlatItem({
         id: feNewId,
         processNo: category,
         category: 'C',
         itemCode: 'C4',
         value: fe.effect,
-        parentItemId: fe.l1FuncId, // L1Function FK
+        parentItemId: c3GenId || fe.l1FuncId,
         createdAt: now,
       }));
     }

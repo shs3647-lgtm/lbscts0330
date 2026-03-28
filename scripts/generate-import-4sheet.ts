@@ -127,7 +127,7 @@ function addL3Sheet(wb: ExcelJS.Workbook, rows: L3Row[]) {
 function addFCSheet(wb: ExcelJS.Workbook, rows: FCRow[]) {
   const ws = wb.addWorksheet('FC 고장사슬');
   // ★ 단순화: PC/DC는 L2(A6)/L3(B5)에 있으므로 제외, O/D/AP도 제외, S(심각도)만 유지
-  ws.addRow(['FE구분', 'FE(고장영향)', 'S', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)']);
+  ws.addRow(['FE구분', 'FE(고장영향)', 'S', 'L2-1.공정번호', 'FM(고장형태)', '4M', 'WE(작업요소)', 'FC(고장원인)']);
   ws.columns = [
     { width: 8 }, { width: 45 }, { width: 5 }, { width: 12 }, { width: 35 },
     { width: 6 }, { width: 22 }, { width: 35 },

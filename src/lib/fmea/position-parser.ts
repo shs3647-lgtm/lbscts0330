@@ -871,6 +871,14 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     brokenFM: failureLinks.filter(fl => !fl.fmId).length,
     brokenFC: failureLinks.filter(fl => !fl.fcId).length,
     autoFixes: autoFixes.length,
+    // ── Import 통계표·verify-counts API와 동일 척도 (엑셀 셀 수 excelC* 와 별개) ──
+    verifyC1DistinctCategories: new Set(
+      l1Functions.map(f => String(f.category || '').trim()).filter(Boolean),
+    ).size,
+    verifyC3L1FuncWithRequirement: l1Functions.filter(f => f.requirement?.trim()).length,
+    verifyB2L3FuncNamed: l3Functions.filter(f => f.functionName?.trim()).length,
+    verifyA6RiskWithDc: riskAnalyses.filter(r => r.detectionControl?.trim()).length,
+    verifyB5RiskWithPc: riskAnalyses.filter(r => r.preventionControl?.trim()).length,
   };
 
   // ★ Import 파싱 결과 로그 (항목별 엑셀 원본 vs 파싱 결과) — verbose 게이트
@@ -1178,7 +1186,7 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
     processNo: ['공정번호', '공정 번호', 'PROCESS NO', 'L2-1.공정번호'],
     FM: ['FM(', 'FM(고장', '고장형태', 'FAILURE MODE'],  // ★ 'FM' 단독 제거
     m4: ['4M', 'M4'],
-    WE: ['WE', '작업요소', 'WORK ELEMENT'],
+    WE: ['WE(작업요소)', '작업요소(WE)', 'WE', '작업요소', 'WORK ELEMENT'],
     FC: ['FC', '고장원인', 'FAILURE CAUSE'],
     PC: ['PC', '예방관리', 'PREVENTION'],
     DC: ['DC', '검출관리', 'DETECTION'],
@@ -1296,19 +1304,16 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
   const now = new Date();
   const l1RootId = data.l1Structure?.id || '';
 
-  // C2 대표 id: (구분|제품기능)당 첫 L1Function id — C3.parentItemId는 항상 이 id를 가리킴 (verifyFK C3→C2)
-  const c2IdByCategoryFunction = new Map<string, string>();
-  for (const f of data.l1Functions) {
-    const key = `${f.category}|${f.functionName}`;
-    if (!c2IdByCategoryFunction.has(key)) {
-      c2IdByCategoryFunction.set(key, f.id);
-    }
-  }
+  const l1Sorted = [...data.l1Functions].sort((a, b) => {
+    const c = a.category.localeCompare(b.category);
+    if (c !== 0) return c;
+    return a.id.localeCompare(b.id);
+  });
 
   // ─── C (L1) ───
   // C1: L1Function.category (고유 scope별 1개)
   const seenC1 = new Set<string>();
-  for (const f of data.l1Functions) {
+  for (const f of l1Sorted) {
     if (!seenC1.has(f.category)) {
       seenC1.add(f.category);
       flat.push({
@@ -1324,35 +1329,25 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     }
   }
 
-  // C2: L1Function.functionName (고유값별 1개)
-  const seenC2 = new Set<string>();
-  for (const f of data.l1Functions) {
-    const key = `${f.category}|${f.functionName}`;
-    if (!seenC2.has(key)) {
-      seenC2.add(key);
-      flat.push({
-        id: c2IdByCategoryFunction.get(key)!,
-        processNo: f.category,
-        category: 'C',
-        itemCode: 'C2',
-        value: f.functionName,
-        parentItemId: `C1-${f.category}`,
-        createdAt: now,
-        rowSpan: 1,
-      });
-    }
-  }
-
-  // C3: L1Function.requirement (모든 L1Function = 고유 C1+C2+C3 조합)
-  for (const f of data.l1Functions) {
-    const c2Canon = c2IdByCategoryFunction.get(`${f.category}|${f.functionName}`) || f.id;
+  // C2/C3: L1Function 행마다 C2·C3 각 1행 (DB l1_functions·verify-counts와 1:1)
+  for (const f of l1Sorted) {
+    flat.push({
+      id: f.id,
+      processNo: f.category,
+      category: 'C',
+      itemCode: 'C2',
+      value: f.functionName,
+      parentItemId: `C1-${f.category}`,
+      createdAt: now,
+      rowSpan: 1,
+    });
     flat.push({
       id: `${f.id}-C3`,
       processNo: f.category,
       category: 'C',
       itemCode: 'C3',
       value: f.requirement,
-      parentItemId: c2Canon,
+      parentItemId: f.id,
       createdAt: now,
       rowSpan: 1,
     });

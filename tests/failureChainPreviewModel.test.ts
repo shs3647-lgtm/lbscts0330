@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { MasterFailureChain } from '@/app/(fmea-core)/pfmea/import/types/masterFailureChain';
 import {
   buildFailureChainPreviewRenderRows,
+  chainWeFcContextKey,
   compareChainsForFcDisplay,
+  getFailureChainPreviewDisplayChains,
 } from '@/app/(fmea-core)/pfmea/import/components/failureChainPreviewModel';
 
 function chain(partial: Partial<MasterFailureChain> & Pick<MasterFailureChain, 'id'>): MasterFailureChain {
@@ -92,5 +94,60 @@ describe('failureChainPreviewModel', () => {
     expect(rendered[1].showFm).toBe(false);
     expect(rendered[1].showScope).toBe(false);
     expect(rendered[1].showFe).toBe(false);
+  });
+
+  it('dedupes same workElement+fc under same process, FM, FE (keeps first row, incl. 4M)', () => {
+    const rows: MasterFailureChain[] = [
+      chain({
+        id: 'a',
+        processNo: '01',
+        feScope: 'YP',
+        feValue: '영향A',
+        fmValue: 'FM-A',
+        m4: 'MC',
+        workElement: '항온항습기',
+        fcValue: '설비 가동률 저하',
+      }),
+      chain({
+        id: 'b',
+        processNo: '01',
+        feScope: 'YP',
+        feValue: '영향A',
+        fmValue: 'FM-A',
+        m4: 'MC',
+        workElement: '항온항습기',
+        fcValue: '설비 가동률 저하',
+      }),
+    ];
+    expect(chainWeFcContextKey(rows[0])).toBe(chainWeFcContextKey(rows[1]));
+    const display = getFailureChainPreviewDisplayChains(rows);
+    expect(display).toHaveLength(1);
+    expect(display[0].id).toBe('a');
+    const rendered = buildFailureChainPreviewRenderRows(rows);
+    expect(rendered).toHaveLength(1);
+  });
+
+  it('does not merge same WE+FC across different FM', () => {
+    const rows: MasterFailureChain[] = [
+      chain({
+        id: '1',
+        processNo: '01',
+        feScope: 'YP',
+        feValue: 'E',
+        fmValue: 'FM-1',
+        workElement: 'WE-X',
+        fcValue: 'FC-Y',
+      }),
+      chain({
+        id: '2',
+        processNo: '01',
+        feScope: 'YP',
+        feValue: 'E',
+        fmValue: 'FM-2',
+        workElement: 'WE-X',
+        fcValue: 'FC-Y',
+      }),
+    ];
+    expect(getFailureChainPreviewDisplayChains(rows)).toHaveLength(2);
   });
 });

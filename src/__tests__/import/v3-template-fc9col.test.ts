@@ -55,7 +55,7 @@ describe('v3.2.1: excel-template.ts — A6/B5 별도시트 제거 유지, FC 4�
     expect(fcLine).toContain('FE(고장영향)');
     expect(fcLine).toContain('FM(고장형태)');
     expect(fcLine).toContain('FC(고장원인)');
-    expect(fcLine).toContain('작업요소(WE)');
+    expect(fcLine).toContain('WE(작업요소)');
     expect(fcLine).toContain('B5.예방관리');
     expect(fcLine).toContain('A6.검출관리');
   });

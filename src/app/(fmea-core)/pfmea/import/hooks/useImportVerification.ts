@@ -47,13 +47,17 @@ export function useImportVerification(
   uuidCounts: Record<string, number>,
   /** 통계표「고유」열 — 있으면 pgsql/API 기대 건수를 DB 엔티티 스케일에 맞춤 */
   uniqueByCode?: Record<string, number>,
+  /** 위치기반 파서 stats 기반 — verify-counts와 동일 척도(있으면 기대값 전부 이걸로) */
+  verifyScaleExpected?: Record<string, number> | null,
 ): UseImportVerificationReturn {
   const fkData = useMemo(() => verifyFK(flatData), [flatData]);
 
-  const dbExpectedCounts = useMemo(
-    () => mergeImportExpectedCounts(uuidCounts, uniqueByCode),
-    [uuidCounts, uniqueByCode],
-  );
+  const dbExpectedCounts = useMemo(() => {
+    if (verifyScaleExpected && typeof verifyScaleExpected.A1 === 'number') {
+      return verifyScaleExpected;
+    }
+    return mergeImportExpectedCounts(uuidCounts, uniqueByCode);
+  }, [verifyScaleExpected, uuidCounts, uniqueByCode]);
 
   const [pgsqlData, setPgsqlData] = useState<Record<string, PgsqlVerifyResult> | null>(null);
   const [isVerifyingPgsql, setIsVerifyingPgsql] = useState(false);

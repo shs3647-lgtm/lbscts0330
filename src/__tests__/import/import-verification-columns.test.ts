@@ -5,7 +5,14 @@ import {
   mapApiToVerification,
   countsFromPositionExcelStats,
   countsFromParseStatisticsItemRaw,
+  countsVerifyAlignedFromPipelineStats,
 } from '@/app/(fmea-core)/pfmea/import/utils/import-verification-columns';
+
+const ZERO_EXPECT: Record<string, number> = {
+  A1: 0, A2: 0, A3: 0, A4: 0, A5: 0, A6: 0,
+  B1: 0, B2: 0, B3: 0, B4: 0, B5: 0,
+  C1: 0, C2: 0, C3: 0, C4: 0,
+};
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
 
 describe('countsFromPositionExcelStats', () => {
@@ -83,7 +90,72 @@ describe('verifyFK inherited', () => {
   });
 });
 
+describe('countsVerifyAlignedFromPipelineStats', () => {
+  it('maps pipeline stats to verify-counts scale (A6/B5 = RA with DC/PC)', () => {
+    const m = countsVerifyAlignedFromPipelineStats({
+      l2Structures: 17,
+      l1Functions: 13,
+      l1Requirements: 99,
+      failureEffects: 16,
+      l2Functions: 26,
+      processProductChars: 26,
+      failureModes: 26,
+      l3Structures: 88,
+      l3Functions: 115,
+      failureCauses: 115,
+      riskAnalyses: 120,
+      verifyC1DistinctCategories: 3,
+      verifyC3L1FuncWithRequirement: 13,
+      verifyB2L3FuncNamed: 115,
+      verifyA6RiskWithDc: 115,
+      verifyB5RiskWithPc: 110,
+    });
+    expect(m).not.toBeNull();
+    expect(m!.C1).toBe(3);
+    expect(m!.C2).toBe(13);
+    expect(m!.C3).toBe(13);
+    expect(m!.A1).toBe(17);
+    expect(m!.A2).toBe(17);
+    expect(m!.A6).toBe(115);
+    expect(m!.B5).toBe(110);
+    expect(m!.B2).toBe(115);
+  });
+
+  it('returns null without verify* markers (legacy stats)', () => {
+    expect(
+      countsVerifyAlignedFromPipelineStats({
+        l2Structures: 5,
+        l1Functions: 2,
+        riskAnalyses: 1,
+      }),
+    ).toBeNull();
+  });
+});
+
 describe('mapApiToVerification expected scale', () => {
+  it('C2 = L1Function 배열 길이 (verify-counts와 동일), 동일 구분|기능 중복 행 포함', () => {
+    const apiData = {
+      l1Functions: [
+        { category: 'YP', functionName: 'F1', requirement: 'r1' },
+        { category: 'YP', functionName: 'F1', requirement: 'r2' },
+        { category: 'YP', functionName: 'F2', requirement: '' },
+      ],
+      l2Structures: [],
+      l2Functions: [],
+      processProductChars: [],
+      failureModes: [],
+      riskAnalyses: [],
+      l3Structures: [],
+      l3Functions: [],
+      failureCauses: [],
+      failureEffects: [],
+    };
+    const expected = { ...ZERO_EXPECT, C2: 3 };
+    const r = mapApiToVerification(apiData, expected);
+    expect(r.C2.apiCount).toBe(3);
+    expect(r.C2.match).toBe(true);
+  });
+
   it('uses merged expected for C4', () => {
     const apiData = {
       l2Structures: [],

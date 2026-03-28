@@ -75,7 +75,7 @@ async function main() {
     ]);
     
     const wb2 = new ExcelJS.Workbook();
-    const headers = ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리', 'A6.검출관리', 'O', 'D', 'AP'];
+    const headers = ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', 'WE(작업요소)', 'FC(고장원인)', 'B5.예방관리', 'A6.검출관리', 'O', 'D', 'AP'];
     const ws2 = wb2.addWorksheet('FC 고장사슬');
     ws2.columns = headers.map((h, i) => ({ header: h, key: `col${i}`, width: 20 }));
     

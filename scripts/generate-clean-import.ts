@@ -90,7 +90,7 @@ function main() {
 
   // ── Sheet 4: B4 (FC 별도 엔티티, 111개) ──
   const b4ws = wb.addWorksheet('B4 고장원인(FC)');
-  const b4h = ['No', '공정번호', '4M', '작업요소(WE)', '고장원인(B4)', '공정특성', '예방관리(B5)'];
+  const b4h = ['No', '공정번호', '4M', 'WE(작업요소)', '고장원인(B4)', '공정특성', '예방관리(B5)'];
   b4ws.addRow(b4h);
   styleHeader(b4ws, b4h.length);
 

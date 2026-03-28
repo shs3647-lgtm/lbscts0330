@@ -39,7 +39,7 @@ function minimalPositionData(overrides: Partial<PositionAtomicData>): PositionAt
 }
 
 describe('atomicToFlatData L1 FK (verifyFK)', () => {
-  it('동일 C2에 여러 C3 → C3.parentItemId는 대표 C2 id를 가리킴 (verifyFK C2/C3 통과)', () => {
+  it('동일 functionName의 서로 다른 L1Function → C2 행도 각각 1행, C3는 자기 C2(f.id)를 parent로 (verifyFK 통과)', () => {
     const data = minimalPositionData({
       l1Functions: [
         {
@@ -93,7 +93,10 @@ describe('atomicToFlatData L1 FK (verifyFK)', () => {
     expect(fk.C3?.valid).toBe(fk.C3?.total);
     expect(fk.C4?.valid).toBe(fk.C4?.total);
 
+    const c2Rows = flat.filter((x) => x.itemCode === 'C2');
+    expect(c2Rows.length).toBe(2);
+
     const c3b = flat.find((x) => x.id === 'lf-b-C3');
-    expect(c3b?.parentItemId).toBe('lf-a');
+    expect(c3b?.parentItemId).toBe('lf-b');
   });
 });

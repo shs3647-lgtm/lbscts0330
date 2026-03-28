@@ -140,6 +140,58 @@ export function countsFromParseStatisticsItemRaw(
   return out;
 }
 
+/**
+ * 위치기반 `position-parser`의 `stats` → `/api/fmea/verify-counts`와 동일한 항목코드 척도.
+ * 통계표「원본」「파싱」과 DB(pgsql) 기대값을 맞출 때 사용한다.
+ * (엑셀 비어있지 않은 셀 수 excelC1…excelB5 는 병합·중복·RA 전개와 스케일이 달라 별도)
+ */
+export function countsVerifyAlignedFromPipelineStats(
+  stats: Record<string, number> | null | undefined,
+): Record<string, number> | null {
+  if (!stats || typeof stats !== 'object') return null;
+  if (typeof stats.l2Structures !== 'number' || !Number.isFinite(stats.l2Structures)) return null;
+  // 신규 verify* 필드 없으면 레거시 stats — 엑셀 셀 척도로 되돌림
+  if (
+    typeof stats.verifyC1DistinctCategories !== 'number' ||
+    typeof stats.verifyA6RiskWithDc !== 'number' ||
+    typeof stats.verifyB5RiskWithPc !== 'number'
+  ) {
+    return null;
+  }
+
+  const l2 = stats.l2Structures;
+  const a6 = stats.verifyA6RiskWithDc;
+  const b5 = stats.verifyB5RiskWithPc;
+  const c1 = stats.verifyC1DistinctCategories;
+  const c3 =
+    typeof stats.verifyC3L1FuncWithRequirement === 'number' && Number.isFinite(stats.verifyC3L1FuncWithRequirement)
+      ? stats.verifyC3L1FuncWithRequirement
+      : stats.l1Requirements ?? 0;
+  const b2 =
+    typeof stats.verifyB2L3FuncNamed === 'number' && Number.isFinite(stats.verifyB2L3FuncNamed)
+      ? stats.verifyB2L3FuncNamed
+      : stats.l3Functions ?? 0;
+
+  const out: Record<string, number> = {};
+  for (const code of ALL_ITEM_CODES) out[code] = 0;
+  out.C1 = c1;
+  out.C2 = stats.l1Functions ?? 0;
+  out.C3 = c3;
+  out.C4 = stats.failureEffects ?? 0;
+  out.A1 = l2;
+  out.A2 = l2;
+  out.A3 = stats.l2Functions ?? 0;
+  out.A4 = stats.processProductChars ?? 0;
+  out.A5 = stats.failureModes ?? 0;
+  out.A6 = a6;
+  out.B1 = stats.l3Structures ?? 0;
+  out.B2 = b2;
+  out.B3 = stats.l3Functions ?? 0;
+  out.B4 = stats.failureCauses ?? 0;
+  out.B5 = b5;
+  return out;
+}
+
 /** save-position-import 삼중 FK와 동일 기준 */
 export function countTripleFkFailureLinks(
   links: ReadonlyArray<{ fmId?: string | null; feId?: string | null; fcId?: string | null }>,
@@ -316,10 +368,8 @@ export function mapApiToVerification(
     B4: (apiData.failureCauses || []).length,
     B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
     C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,
-    // C2 = 고유 (구분|제품기능) — flat atomicToFlatData C2 행 수와 동일 의미
-    C2: new Set(
-      (apiData.l1Functions || []).map((f: any) => `${f.category}|${String(f.functionName || '').trim()}`),
-    ).size,
+    // C2 = L1Function 전체 건수 — verify-counts `l1Function.count` 및 파이프라인 stats.l1Functions 와 동일
+    C2: (apiData.l1Functions || []).length,
     C3: (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()).length,
     C4: (apiData.failureEffects || []).length,
   };

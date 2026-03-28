@@ -7,6 +7,7 @@
  * @created 2026-02-26
  * @updated 2026-02-27 — 통합 툴바 (메뉴 고정 + 활성화/비활성화, 저장버튼 제거)
  * @updated 2026-03-27 — pgsql/API 자동검증 (통계표 열기/DB저장 완료 시 자동 실행)
+ * @updated 2026-03-28 — FC 미리보기 헤더 고유 건수를 통계 표(statUniqueByCode)와 동일하게 전달
  *
  * CODEFREEZE — 최고단계 (2026-03-27 갱신)
  * 수정 조건: "IMPORT 통계검증 수정해"라고 명시적으로 지시할 때만 수정
@@ -31,7 +32,7 @@ import {
 import type { FCComparisonResult } from '../utils/fcComparison';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from '../hooks/useTemplateGenerator';
-import { FailureChainPreview } from './FailureChainPreview';
+import { FailureChainPreview, type FailureChainPreviewMatrixHeaderCounts } from './FailureChainPreview';
 // FullAnalysisPreview 삭제됨 (사용자 요청)
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
 import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
@@ -44,6 +45,7 @@ import {
   countFlatRowsByItemCode,
   countsFromPositionExcelStats,
   countsFromParseStatisticsItemRaw,
+  countsVerifyAlignedFromPipelineStats,
 } from '../utils/import-verification-columns';
 
 // ─── Props ───
@@ -129,6 +131,85 @@ export interface TemplatePreviewContentProps {
 const BTN_DISABLED = 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed';
 const BTN_CONFIRMED = 'bg-green-50 text-green-700 border-green-300 cursor-default';
 
+/** A6/B5: flat 행 수 ≠ RA(DC/PC) 건수가 정상(공정·L3 전개 vs 체인 단위). UUID−파이프 비교 생략 */
+const ITEM_CODES_SKIP_UUID_VS_PIPELINE: ReadonlySet<string> = new Set(['A6', 'B5']);
+
+/** 위치기반 excelC*: 물리 셀 수 — flat raw(병합·엔티티)와 척도가 달라 엑셀↔파싱 직접 비교 오탐 */
+function excelCellCountsComparableToFlatRowCount(
+  positionParserStats: Record<string, number> | null | undefined,
+): boolean {
+  return !(positionParserStats && Object.keys(positionParserStats).length > 0);
+}
+
+/** 통계표「오류 메시지」열 — 원본/파싱/DB/FK/API 불일치 요약 (이름매칭 없음) */
+function importStatRowErrorMessage(input: {
+  itemCode: string;
+  excelVsParse: boolean;
+  excelSourceN: number | null;
+  parsedFlatN: number;
+  rawRowCount: number;
+  uuidCount: number;
+  verifyScale?: number;
+  dbUnderSaved: boolean;
+  dbExpectedMismatch: boolean;
+  fkOrphans: number;
+  apiMismatch: boolean;
+}): { text: string; severity: 'ok' | 'warn' | 'error' } {
+  const parts: string[] = [];
+
+  const skipUuidVsPipe =
+    ITEM_CODES_SKIP_UUID_VS_PIPELINE.has(input.itemCode) ||
+    input.verifyScale === undefined;
+  if (!skipUuidVsPipe && input.uuidCount !== input.verifyScale) {
+    parts.push(`UUID≠파이프라인(${input.uuidCount}/${input.verifyScale})`);
+  }
+  if (input.rawRowCount !== input.uuidCount) {
+    parts.push('빈값·파싱행');
+  }
+  if (input.excelVsParse && input.excelSourceN != null) {
+    parts.push(
+      input.excelSourceN > input.parsedFlatN ? '엑셀>파싱(누락)' : '파싱>엑셀(과전개)',
+    );
+  }
+  if (input.dbUnderSaved) {
+    parts.push('DB저장 부족');
+  } else if (input.dbExpectedMismatch) {
+    parts.push('DB≠기대');
+  }
+  if (input.fkOrphans > 0) {
+    parts.push(`FK고아 ${input.fkOrphans}`);
+  }
+  if (input.apiMismatch) {
+    parts.push('API≠기대');
+  }
+
+  const severity: 'ok' | 'warn' | 'error' =
+    input.fkOrphans > 0 || input.dbUnderSaved ? 'error' : parts.length > 0 ? 'warn' : 'ok';
+
+  return {
+    text: parts.length ? parts.join(' · ') : '—',
+    severity,
+  };
+}
+
+/**
+ * 통계표: 중복 = 총 파싱 행(raw) − 고유(값 키). 레거시 dupSkipped 누락 시에도 raw−고유로 맞춤.
+ * 원본(열) = 고유 + 중복 (= rawCount, raw ≥ unique 일 때).
+ */
+function itemStatDupCanonical(s: { rawCount: number; uniqueCount: number }): number {
+  return Math.max(0, s.rawCount - s.uniqueCount);
+}
+
+function itemStatOriginalTotal(s: { rawCount: number; uniqueCount: number }): number {
+  return s.uniqueCount + itemStatDupCanonical(s);
+}
+
+/** 레거시/서버 itemStats의 dupSkipped 누락·불일치 보정: 중복 = raw − 고유 */
+function normalizeItemStatRow(s: import('../excel-parser').ItemCodeStat): import('../excel-parser').ItemCodeStat {
+  const dup = Math.max(0, s.rawCount - s.uniqueCount);
+  return { ...s, dupSkipped: dup };
+}
+
 // ─── 컴포넌트 ───
 
 export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
@@ -148,13 +229,19 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     l1Name, bdFmeaName, parseStatistics, positionParserStats, fmeaId,
   } = props;
 
-  /** 엑셀/레거시 파서가 항목별로 읽은 건수 —「원본」(flat)과 비교해 누락·전개 의심 */
+  /** 엑셀 물리 셀 수(excelC*) — 레거시·진단용. verify 척도는 verifyScaleRowCounts */
   const parseExcelCounts = useMemo((): Record<string, number> | null => {
     if (positionParserStats && Object.keys(positionParserStats).length > 0) {
       return countsFromPositionExcelStats(positionParserStats);
     }
     return countsFromParseStatisticsItemRaw(parseStatistics);
   }, [positionParserStats, parseStatistics]);
+
+  /** verify-counts API와 동일 척도 — 통계표 원본/파싱·pgsql 기대값 통일 */
+  const verifyScaleRowCounts = useMemo(
+    () => countsVerifyAlignedFromPipelineStats(positionParserStats ?? null),
+    [positionParserStats],
+  );
 
   const isDownload = templateMode === 'download';
   const isManualMode = templateMode === 'manual';
@@ -185,7 +272,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         if (!existing.has(code)) filled.push({ itemCode: code, label, rawCount: 0, uniqueCount: 0, dupSkipped: 0 });
       }
       filled.sort((a, b) => (SHEET_ORDER[a.itemCode] ?? 99) - (SHEET_ORDER[b.itemCode] ?? 99));
-      return { ...parseStatistics, itemStats: filled };
+      return { ...parseStatistics, itemStats: filled.map(normalizeItemStatRow) };
     }
     if (crossTab.total === 0 && flatData.length === 0) return undefined;
 
@@ -255,7 +342,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return {
       source: 'import' as const,
       totalRows: flatData.length,
-      itemStats,
+      itemStats: itemStats.map(normalizeItemStatRow),
       processStats,
       chainCount: failureChains.length,
     };
@@ -310,12 +397,22 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return m;
   }, [effectiveStatistics]);
 
+  /** FC 미리보기 열 헤더 고유 건수 = 통계 표 uniqueCount (체인·병합과 별개) */
+  const fcMatrixHeaderCounts = useMemo((): FailureChainPreviewMatrixHeaderCounts | undefined => {
+    if (!statUniqueByCode) return undefined;
+    const m4 = new Set(
+      flatData.filter(d => d.category === 'B' && d.m4?.trim()).map(d => d.m4!.trim()),
+    ).size;
+    return { uniqueByCode: statUniqueByCode, uniqueM4FromFlat: m4 };
+  }, [statUniqueByCode, flatData]);
+
   // ★★★ 2026-03-22: FK/pgsql저장/API적합 검증 훅
   const { fkData, pgsqlData, apiData, runFullVerify } = useImportVerification(
     fmeaId,
     flatData,
     uuidCounts,
     statUniqueByCode,
+    verifyScaleRowCounts,
   );
 
   // ★★★ 2026-03-27: 통계표가 열렸고 fmeaId 존재 + 미검증 상태면 자동 실행
@@ -357,7 +454,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   const [highlightDupCode, setHighlightDupCode] = useState<string | null>(null);
   const firstDupRef = useRef<HTMLTableRowElement | null>(null);
 
-  /** 중복 행 인덱스 계산: 같은 processNo 내 동일 값 2회 이상 → 중복 */
+  /** 중복 행 인덱스: 동일 값이 2회 이상인 행 (B는 공정별, A/C는 전역 값 키) */
   const dupRowIndices = useMemo<Set<number>>(() => {
     if (!highlightDupCode) return new Set();
     const code = highlightDupCode;
@@ -366,7 +463,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     if (code.startsWith('B')) {
       const groups = new Map<string, { idx: number; val: string }[]>();
       crossTab.bRows.forEach((r, i) => {
-        const val = (code === 'B1' ? r.B1 : code === 'B2' ? r.B2 : code === 'B3' ? r.B3 : r.B4).trim();
+        const val = (
+          code === 'B1' ? r.B1
+            : code === 'B2' ? r.B2
+              : code === 'B3' ? r.B3
+                : code === 'B4' ? r.B4
+                  : r.B5
+        ).trim();
         if (!val) return;
         if (!groups.has(r.processNo)) groups.set(r.processNo, []);
         groups.get(r.processNo)!.push({ idx: i, val });
@@ -384,7 +487,30 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     } else if (code.startsWith('A')) {
       const valMap = new Map<string, number[]>();
       crossTab.aRows.forEach((r, i) => {
-        const val = (code === 'A1' ? r.A1 : code === 'A2' ? r.A2 : code === 'A3' ? r.A3 : code === 'A4' ? r.A4 : r.A5).trim();
+        const val = (
+          code === 'A1' ? r.A1
+            : code === 'A2' ? r.A2
+              : code === 'A3' ? r.A3
+                : code === 'A4' ? r.A4
+                  : code === 'A5' ? r.A5
+                    : r.A6
+        ).trim();
+        if (!val) return;
+        if (!valMap.has(val)) valMap.set(val, []);
+        valMap.get(val)!.push(i);
+      });
+      valMap.forEach(idxs => {
+        if (idxs.length > 1) idxs.forEach(idx => indices.add(idx));
+      });
+    } else if (code.startsWith('C')) {
+      const valMap = new Map<string, number[]>();
+      crossTab.cRows.forEach((r, i) => {
+        const val = (
+          code === 'C1' ? r.C1
+            : code === 'C2' ? r.C2
+              : code === 'C3' ? r.C3
+                : r.C4
+        ).trim();
         if (!val) return;
         if (!valMap.has(val)) valMap.set(val, []);
         valMap.get(val)!.push(i);
@@ -782,6 +908,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <col style={{ width: 30 }} />
               <col style={{ width: 44 }} />
               <col />
+              <col style={{ width: 240 }} />
               <col style={{ width: 40 }} />
               <col style={{ width: 40 }} />
               <col style={{ width: 40 }} />
@@ -798,8 +925,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:30}}>레벨</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>코드</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-left border-r border-indigo-500">항목</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="엑셀 원본: 시트에서 항목별 비어있지 않은 셀 수(position-parser excelC*…). 레거시는 파서 1차 raw. 없으면 '-'">원본</th>
-              <th className="bg-violet-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-violet-600" style={{width:40}} title="실제 파싱 반영: flat 미리보기 해당 코드 행 수. 원본과 비교 → 파싱 누락/과전개">파싱</th>
+              <th className="bg-rose-800 text-white font-bold px-1 py-0.5 text-left border-r border-rose-600" title="원본·파싱·DB·FK·API 불일치 시 요약">오류 메시지</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="고유+중복 = 총 파싱 행(raw). 엑셀 비어있지 않은 셀 수는 셀 title로 참고">원본</th>
+              <th className="bg-violet-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-violet-600" style={{width:40}} title="flat 해당 코드 총 행 수(rawCount). 원본과 같으면 총량 일치">파싱</th>
               <th className="bg-red-900 text-white font-bold px-1 py-0.5 text-center border-r border-red-700" style={{width:40}} title="프로젝트 PG 스키마 저장 건수(verify-counts). 파싱(flat)보다 적으면 저장 누락 의심(치명). 기대값 불일치 시에도 경고">DB</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>고유</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="flat 기준: 파싱 행 − 고유키">중복</th>
@@ -816,19 +944,45 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 const isCurrentLevel = level === previewLevel;
                 const isHighlighted = highlightDupCode === s.itemCode;
                 const uuid = uuidCounts[s.itemCode] ?? 0;
-                const excelSourceN =
-                  parseExcelCounts != null ? (parseExcelCounts[s.itemCode] ?? 0) : null;
+                const scaled = verifyScaleRowCounts?.[s.itemCode];
+                const dupCanon = itemStatDupCanonical(s);
+                const originalTotal = itemStatOriginalTotal(s);
+                const excelN =
+                  parseExcelCounts != null ? (parseExcelCounts[s.itemCode] ?? null) : null;
                 const parsedFlatN = s.rawCount;
+                const excelComparable = excelCellCountsComparableToFlatRowCount(positionParserStats);
                 const excelVsParse =
-                  excelSourceN != null && excelSourceN !== parsedFlatN;
+                  excelComparable && excelN != null && excelN !== parsedFlatN;
                 const pg = pgsqlData?.[s.itemCode];
                 const dbActual = pg && pg.status !== 'pending' ? pg.actual : null;
-                /** flat 행보다 DB 건수가 적으면 저장 누락 의심 */
-                const dbUnderSaved = dbActual != null && dbActual < parsedFlatN;
+                const dbExpectedForRow =
+                  pg && pg.status !== 'pending' ? pg.expected : null;
+                /** DB < pgsql 기대(저장 스케일). flat raw>DB는 A6/B5 등에서 정상일 수 있음 */
+                const dbUnderSaved =
+                  dbActual != null &&
+                  dbExpectedForRow != null &&
+                  dbActual < dbExpectedForRow;
                 /** 검증 기대치와 PG 실제 불일치 */
                 const dbExpectedMismatch = pg != null && pg.status !== 'pending' && !pg.match;
-                const displayDup = s.dupSkipped;
+                const displayDup = dupCanon;
                 const hasDup = displayDup > 0;
+                const fkOrphans = fkData?.[s.itemCode]?.orphans ?? 0;
+                const apiRow = apiData?.[s.itemCode];
+                const apiMismatch =
+                  !!apiRow && apiRow.status !== 'na' && !apiRow.match;
+                const err = importStatRowErrorMessage({
+                  itemCode: s.itemCode,
+                  excelVsParse,
+                  excelSourceN: excelN,
+                  parsedFlatN,
+                  rawRowCount: s.rawCount,
+                  uuidCount: uuid,
+                  verifyScale: scaled,
+                  dbUnderSaved,
+                  dbExpectedMismatch,
+                  fkOrphans,
+                  apiMismatch,
+                });
                 const zebraBg = i % 2 === 0 ? 'bg-slate-100' : 'bg-white';
                 return (
                   <tr
@@ -851,27 +1005,38 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                     <td className="px-1.5 py-0.5 text-center font-mono font-bold text-[10px] border-r border-slate-200/80">{s.itemCode}</td>
                     <td className="px-1.5 py-0.5 border-r border-slate-200/80 text-left">{s.label}</td>
                     <td
-                      className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80"
-                      title={
-                        excelSourceN != null
-                          ? `엑셀 시트 비어있지 않은 셀 수 · flat 파싱 ${parsedFlatN}행`
-                          : '엑셀 원본 통계 없음(파일 재선택 또는 레거시)'
-                      }
+                      className={[
+                        'px-1.5 py-0.5 text-left text-[8px] leading-snug border-r border-slate-200/80 align-top min-w-0 w-full',
+                        err.severity === 'error' ? 'text-red-800 bg-red-50/80' : '',
+                        err.severity === 'warn' ? 'text-amber-900 bg-amber-50/70' : '',
+                        err.severity === 'ok' ? 'text-gray-400' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      title={err.text === '—' ? '불일치 없음' : err.text}
                     >
-                      {excelSourceN != null ? (
-                        excelSourceN
-                      ) : (
-                        <span className="text-gray-300 font-normal">-</span>
-                      )}
+                      <span className="line-clamp-4 break-words">{err.text}</span>
+                    </td>
+                    <td
+                      className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80"
+                      title={[
+                        `원본 = 고유(${s.uniqueCount}) + 중복(${dupCanon})`,
+                        excelN != null ? `엑셀 비어있지 않은 셀: ${excelN}` : '엑셀 셀 통계 없음(레거시/재선택)',
+                        scaled !== undefined ? `파이프라인(verify) ${scaled}` : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    >
+                      {originalTotal}
                     </td>
                     <td
                       className={`px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80 ${
                         excelVsParse ? 'text-orange-700 bg-orange-50/90' : 'text-violet-900'
                       }`}
                       title={
-                        excelSourceN != null
-                          ? `flat 행 수. 원본 ${excelSourceN}과 다르면 파싱 누락 또는 과전개`
-                          : 'flat 미리보기 행 수'
+                        excelN != null
+                          ? `총 파싱 행 ${parsedFlatN}. 엑셀 ${excelN}과 다르면 누락/과전개`
+                          : `총 파싱 행 ${parsedFlatN} (UUID 유효 ${uuid})`
                       }
                     >
                       {parsedFlatN}
@@ -891,9 +1056,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         .join(' ')}
                       title={
                         pg && pg.status !== 'pending'
-                          ? `PG 저장 ${dbActual}건 · 파싱 flat ${parsedFlatN}행 · 기대 ${pg.expected}건${
+                          ? `PG 저장 ${dbActual}건 · 기대 ${pg.expected}건 · 파싱 raw ${parsedFlatN}행${
                               dbUnderSaved
-                                ? ' · ⚠ 파싱보다 DB가 적음 → 저장 누락 가능(즉시 점검)'
+                                ? ' · ⚠ DB < 기대 → 저장 누락 의심'
                                 : ''
                             }${dbExpectedMismatch && !dbUnderSaved ? ' · 기대값과 불일치' : ''}`
                           : fmeaId
@@ -968,10 +1133,12 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               })}
               <tr className="border-t-2 border-indigo-400 bg-indigo-100/90 font-semibold">
                 <td colSpan={3} className="px-1.5 py-0.5 font-bold text-indigo-900">합계</td>
+                <td className="px-1 py-0.5 text-[8px] text-indigo-700 border-r border-indigo-200/80">오류 행은 붉은/주황 셀 참고</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">
-                  {parseExcelCounts != null
-                    ? Object.values(parseExcelCounts).reduce((a, b) => a + b, 0)
-                    : <span className="text-gray-400 font-normal">-</span>}
+                  {effectiveStatistics.itemStats.reduce(
+                    (acc, r) => acc + itemStatOriginalTotal(r),
+                    0,
+                  )}
                 </td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-violet-800">
                   {effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}
@@ -986,7 +1153,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 </td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-red-600">
-                  {effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}
+                  {effectiveStatistics.itemStats.reduce((s, r) => s + itemStatDupCanonical(r), 0)}
                 </td>
                 <td className="px-1 py-0.5 text-center text-amber-700 text-[8px]">—</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
@@ -1025,7 +1192,12 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
       {/* ─── FC 콘텐츠: 고장사슬 미리보기 ─── */}
       {stepState.activeStep === 'FC' && (
-        <FailureChainPreview chains={failureChains} isFullscreen={isFullscreen} hideStats />
+        <FailureChainPreview
+          chains={failureChains}
+          isFullscreen={isFullscreen}
+          hideStats
+          matrixHeaderCounts={fcMatrixHeaderCounts}
+        />
       )}
 
       {/* FA 통합분석 미리보기 삭제됨 (사용자 요청) */}
@@ -1274,7 +1446,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A5} itemId={r._ids.A5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A5 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A5', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`} style={{background: aRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
+                      <td className={`${isEditing ? TD_EDIT : TD} ${!isEditing ? 'whitespace-pre-line' : ''} ${aRevised ? 'text-red-600 font-bold' : ''}`} style={{background: aRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A6 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A6', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );

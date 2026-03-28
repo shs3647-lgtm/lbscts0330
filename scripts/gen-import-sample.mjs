@@ -118,7 +118,7 @@ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([l3H, ...l3R]), 'L3 통
 // === FC 시트 (고장사슬, fill-down 완전) ===
 const fcH = [
   'FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)',
-  '4M', '작업요소(WE)', 'FC(고장원인)',
+  '4M', 'WE(작업요소)', 'FC(고장원인)',
   'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)',
   'O', 'D', 'AP',
 ];

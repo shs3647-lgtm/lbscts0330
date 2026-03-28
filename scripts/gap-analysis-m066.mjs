@@ -197,7 +197,7 @@ if (parseInt(rg.no_s) > 0) gaps.push(`Severity ${rg.no_s}건 없음`);
 if (parseInt(rg.no_o) > 0) gaps.push(`Occurrence ${rg.no_o}건 없음`);
 if (parseInt(rg.no_d) > 0) gaps.push(`Detection ${rg.no_d}건 없음`);
 if (parseInt(fg.no_fescope) > 0) gaps.push(`FE구분(YP/SP/USER) ${fg.no_fescope}건 비어있음`);
-if (parseInt(fg.no_fcwe) > 0) gaps.push(`작업요소(WE) ${fg.no_fcwe}건 비어있음`);
+if (parseInt(fg.no_fcwe) > 0) gaps.push(`WE(작업요소) ${fg.no_fcwe}건 비어있음`);
 if (parseInt(fg.no_fcm4) > 0) gaps.push(`4M ${fg.no_fcm4}건 비어있음`);
 if (l3NoFunc > 0) gaps.push(`L3 요소기능 ${l3NoFunc}건 없음`);
 if (parseInt(lg.no_pc) > 0) gaps.push(`공정특성 ${lg.no_pc}건 비어있음`);

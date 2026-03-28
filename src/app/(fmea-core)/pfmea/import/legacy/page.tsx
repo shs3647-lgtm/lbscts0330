@@ -40,6 +40,9 @@ import ImportStepBar from '../components/ImportStepBar';
 // quickWorksheetSave 제거됨 — position-based import에서 직접 DB 저장
 import { buildCrossTab } from '../utils/template-delete-logic';
 
+/** 새로고침 시 프로젝트 선택 복원 — URL ?id= > sessionStorage > React 초기상태(SSR은 빈 문자열) > 목록 첫 항목 */
+const PFMEA_IMPORT_LAST_FMEA_KEY = 'pfmea-import-last-fmea-id';
+
 export default function LegacyImportPage() {
   const { isAdmin } = useAuth();
 
@@ -91,7 +94,7 @@ export default function LegacyImportPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 훅 연결 ──
+  // ── 훅 연결 (fmeaChangeRef는 아래 초기 loadData에서 동기화) ──
   const {
     bdStatusList, setBdStatusList,
     masterItemCount, setMasterItemCount, masterDataCount, setMasterDataCount,
@@ -102,6 +105,16 @@ export default function LegacyImportPage() {
     setIsSaved, setDirty, setFileName, isLoaded,
     setMasterChains,
   });
+
+  // 마지막 작업 FMEA — ?id= 없이 /pfmea/import 만 연 경우 새로고침 후에도 동일 프로젝트 로드
+  useEffect(() => {
+    if (!selectedFmeaId || typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(PFMEA_IMPORT_LAST_FMEA_KEY, selectedFmeaId);
+    } catch {
+      /* private mode 등 */
+    }
+  }, [selectedFmeaId]);
 
   const { getBackupList, restoreBackup, deleteBackup } = useAutoSave({ flatData, isLoaded });
 
@@ -377,6 +390,8 @@ export default function LegacyImportPage() {
   useEffect(() => {
     const loadData = async () => {
       let loadedProjects: FMEAProject[] = [];
+      /** 마스터 평면 GET에 쓸 ID — setState 이전에 확정(클로저 버그 방지) */
+      let effectiveFmeaIdForDataset = '';
       try {
         const res = await fetch('/api/fmea/projects?type=P');
         if (res.ok) {
@@ -393,9 +408,33 @@ export default function LegacyImportPage() {
             cftMembers: Array.isArray(p.cftMembers) ? (p.cftMembers as FMEAProject['cftMembers']) : [],
           })) as FMEAProject[];
           setFmeaList(loadedProjects);
-          if (!selectedFmeaId && loadedProjects.length > 0) {
-            fmeaChangeRef.current = loadedProjects[0].id;
-            setSelectedFmeaId(loadedProjects[0].id);
+
+          // ★ 근본원인: SSR/하이드레이션 시 useState(urlFmeaId)가 ''로 고정되고, 이 effect의 selectedFmeaId 클로저도 '' →
+          // 항상 목록 첫 프로젝트만 로드되어 ?id=·저장 데이터와 불일치. window·sessionStorage로 실제 대상 결정.
+          if (loadedProjects.length > 0) {
+            const byNormId = (raw: string) => {
+              const n = raw.trim().toLowerCase();
+              return loadedProjects.find(p => p.id.toLowerCase() === n);
+            };
+            let urlParam = '';
+            try {
+              urlParam = (new URLSearchParams(window.location.search).get('id') || '').trim();
+            } catch {
+              /* noop */
+            }
+            let storedParam = '';
+            try {
+              storedParam = (sessionStorage.getItem(PFMEA_IMPORT_LAST_FMEA_KEY) || '').trim();
+            } catch {
+              /* noop */
+            }
+            const fromUrl = urlParam ? byNormId(urlParam) : undefined;
+            const fromStored = storedParam ? byNormId(storedParam) : undefined;
+            const fromState = selectedFmeaId.trim() ? byNormId(selectedFmeaId) : undefined;
+            const chosen = fromUrl ?? fromState ?? fromStored ?? loadedProjects[0];
+            effectiveFmeaIdForDataset = chosen.id;
+            fmeaChangeRef.current = effectiveFmeaIdForDataset;
+            setSelectedFmeaId(effectiveFmeaIdForDataset);
           }
         }
       } catch (e) { console.error('FMEA 목록 로드 오류:', e); }
@@ -411,17 +450,21 @@ export default function LegacyImportPage() {
       } catch (e) { console.error('BD 현황 로드 오류:', e); }
 
       try {
-        const currentFmeaId = selectedFmeaId || (loadedProjects.length > 0 ? loadedProjects[0].id : '');
-        if (currentFmeaId) {
-          const loaded = await loadDatasetByFmeaId(currentFmeaId);
+        if (effectiveFmeaIdForDataset) {
+          const loaded = await loadDatasetByFmeaId(effectiveFmeaIdForDataset.toLowerCase());
           if (loaded.datasetId) setMasterDatasetId(loaded.datasetId);
           if (loaded.datasetName) setMasterDatasetName(loaded.datasetName);
           if (loaded.flatData.length > 0) {
             setFlatData(loaded.flatData);
             setIsSaved(true);
+          } else {
+            setFlatData([]);
+            setIsSaved(false);
           }
           if (loaded.failureChains && Array.isArray(loaded.failureChains) && loaded.failureChains.length > 0) {
             setMasterChains(loaded.failureChains as MasterFailureChain[]);
+          } else {
+            setMasterChains([]);
           }
         }
       } catch (e) { console.error('기존 데이터 로드 오류:', e); }
