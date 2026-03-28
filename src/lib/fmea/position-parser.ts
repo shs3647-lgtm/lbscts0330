@@ -556,6 +556,8 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const seenL3PnoKey = new Set<string>(); // L3ProcessNo 중복 방지
   const seenL3FourMKey = new Set<string>(); // L3FourM 중복 방지  
   const seenL3WEKey = new Set<string>(); // L3WorkElement 중복 방지
+  // ★ MBD-26-009: L3 시트 processNo → 공정명 매핑 (FC 자동생성 L2에 사용)
+  const l3PnoName = new Map<string, string>();
   const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string; l3PcId: string }>();
 
   for (const row of l3Sheet.rows) {
@@ -570,6 +572,11 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     const b5 = row.cells['B5']?.trim() || ''; // ★v5: 예방관리 (L3 시트 직접 추출)
 
     if (!pno) continue;
+    // ★ L3 B1에서 공정명 추출 (첫 번째 단어, 예: "Scrubber2 작업자" → "Scrubber2")
+    if (b1 && !l3PnoName.has(pno)) {
+      const firstWord = b1.split(/\s+/)[0] || b1;
+      l3PnoName.set(pno, firstWord);
+    }
 
     // ★★★ L3Structure: 복합키(l2Id|m4|b1) 기준 중복제거 (seenPno 패턴 수평전개) ★★★
     // ★ MBD-26-009: l2Id 매핑 3단계 폴백 (0처리 금지)
@@ -820,7 +827,7 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
           l1Id: l1StructId,
           parentId: l1StructId,
           no: fcPno,
-          name: fcPno, // ★ 공정명 = 공정번호 (FC 시트에 공정명 없음)
+          name: l3PnoName.get(fcPno) || fcPno, // ★ L3 시트 B1에서 공정명 추출, 없으면 공정번호
           order: l2Order++,
         });
         ppLog(`[position-parser] ★ FC시트 L2 자동생성: pno=${fcPno} → ${l2Id}`);
