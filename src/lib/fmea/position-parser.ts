@@ -927,10 +927,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     excelA5: countNonEmpty(l2RowsRaw, 'A5'),
     excelA6: countNonEmpty(l2RowsRaw, 'A6'),
     excelB1: new Set(l3Sheet.rows.map(r => r.cells['B1']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct B1 이름 수 (115행→81고유)
-    excelB2: countNonEmpty(l3Sheet.rows, 'B2'),
-    excelB3: countNonEmpty(l3Sheet.rows, 'B3'),
-    excelB4: countNonEmpty(l3Sheet.rows, 'B4'),
-    excelB5: countNonEmpty(l3Sheet.rows, 'B5'),
+    excelB2: new Set(l3Sheet.rows.map(r => r.cells['B2']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
+    excelB3: new Set(l3Sheet.rows.map(r => r.cells['B3']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
+    excelB4: new Set(l3Sheet.rows.map(r => r.cells['B4']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
+    excelB5: new Set(l3Sheet.rows.map(r => r.cells['B5']?.trim()).filter(v => v && !isEmptyValue(v))).size,  // ★ MBD-26-009: distinct
     // 파싱 결과 (DB 저장 대상)
     l1Functions: l1Functions.length,
     l1Requirements: l1Requirements.length,     // ★v4
