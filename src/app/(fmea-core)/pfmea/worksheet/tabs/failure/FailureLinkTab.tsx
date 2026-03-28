@@ -60,6 +60,7 @@ import {
 } from './FailureLinkStyles';
 import { FEItem, FMItem, FCItem, LinkResult } from './FailureLinkTypes';
 import { computeFailureLinkStats, FAILURE_LINK_STATS_VS_PIPELINE_HINT } from './computeFailureLinkStats';
+import { fcCompositeRowKey, fcLooseProcTextKey } from './failureLinkFcKey';
 
 export default function FailureLinkTab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveToLocalStorageOnly, saveAtomicDB }: FailureTabProps) {
   // ========== 상태 관리 ==========
@@ -363,14 +364,12 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   // 공정|원인문구 중복 건은 공정|m4|we|원인 복합키로 구분 (가짜 FC 누락 완화)
   const linkFcTextSet = useMemo(() => {
     const s = new Set<string>();
-    const rowKey = (proc: string, m4: string, we: string, text: string) =>
-      [proc, m4, we, text].join('|').trim().replace(/\s+/g, ' ').toLowerCase();
     savedLinks.forEach(link => {
       const t = (link.fcText || '').trim();
       if (!t) return;
       const proc = (link.fcProcess || link.fmProcess || '').trim();
-      s.add(`${proc}|${t}`.replace(/\s+/g, ' ').toLowerCase());
-      s.add(rowKey(proc, (link.fcM4 || '').trim(), (link.fcWorkElem || '').trim(), t));
+      s.add(fcLooseProcTextKey(proc, t));
+      s.add(fcCompositeRowKey(proc, (link.fcM4 || '').trim(), (link.fcWorkElem || '').trim(), t));
     });
     return s;
   }, [savedLinks]);
@@ -383,15 +382,17 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   }, [savedLinks]);
 
   const missingFCs = useMemo(() => {
-    const rowKey = (proc: string, m4: string, we: string, text: string) =>
-      [proc, m4, we, text].join('|').trim().replace(/\s+/g, ' ').toLowerCase();
     return fcData.filter(fc => {
       if (linkStats.fcLinkedIds.has(fc.id) || linkedFCs.has(fc.id)) return false;
       const proc = (fc.processName || '').trim();
       const text = (fc.text || '').trim();
-      const key = `${proc}|${text}`.replace(/\s+/g, ' ').toLowerCase();
-      if (linkFcTextSet.has(key)) return false;
-      if (linkFcTextSet.has(rowKey(proc, (fc.m4 || '').trim(), (fc.workElem || '').trim(), text))) return false;
+      if (linkFcTextSet.has(fcLooseProcTextKey(proc, text))) return false;
+      if (
+        linkFcTextSet.has(
+          fcCompositeRowKey(proc, (fc.m4 || '').trim(), (fc.workElem || '').trim(), text),
+        )
+      )
+        return false;
       return true;
     });
   }, [fcData, linkStats, linkedFCs, linkFcTextSet]);

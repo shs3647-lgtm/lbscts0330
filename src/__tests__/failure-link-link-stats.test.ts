@@ -169,4 +169,36 @@ describe('computeFailureLinkStats (UUID + 링크 메타데이터 보강)', () =>
     expect(s.fcMissingCount).toBe(1);
     expect(s.fmLinkCounts.get(fm.id)?.fcCount).toBe(1);
   });
+
+  it('복합키(공정|m4|we|원인)가 fcNo·stale fcId보다 우선', () => {
+    const feData: FEItem[] = [{ id: 'fe-1', scope: 'YP', feNo: '1', text: 'E1' }];
+    const fcData: FCItem[] = [
+      { id: 'fc-wrong', fcNo: 'C9', processName: 'IQA(수입검사)', m4: 'MN', workElem: 'WE-X', text: '판정 기준 오적용' },
+      { id: 'fc-right', fcNo: 'C10', processName: 'IQA(수입검사)', m4: 'MC', workElem: 'WE-Y', text: '판정 기준 오적용' },
+    ];
+    const links: LinkResult[] = [
+      {
+        fmId: fm.id,
+        fmText: fm.text,
+        fmProcess: fm.processName,
+        fmProcessNo: fm.processNo,
+        feId: 'fe-1',
+        feNo: '1',
+        feScope: 'YP',
+        feText: 'E1',
+        severity: 1,
+        fcId: 'stale',
+        fcNo: 'C9',
+        fcProcess: 'IQA(수입검사)',
+        fcM4: 'MC',
+        fcWorkElem: 'WE-Y',
+        fcText: '판정 기준 오적용',
+      },
+    ];
+
+    const s = computeFailureLinkStats(links, feData, [fm], fcData);
+    expect(s.fcLinkedIds.has('fc-right')).toBe(true);
+    expect(s.fcLinkedIds.has('fc-wrong')).toBe(false);
+    expect(s.fcMissingCount).toBe(1);
+  });
 });

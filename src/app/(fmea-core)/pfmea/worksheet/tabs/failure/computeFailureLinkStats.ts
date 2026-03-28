@@ -16,6 +16,7 @@
  */
 
 import type { FEItem, FCItem, FMItem, LinkResult } from './FailureLinkTypes';
+import { fcCompositeRowKey } from './failureLinkFcKey';
 
 /** 고장연결 배너 등 tooltip — 파이프라인 대비 (★7) */
 export const FAILURE_LINK_STATS_VS_PIPELINE_HINT =
@@ -86,7 +87,7 @@ function resolveFeId(link: LinkResult, feData: FEItem[], feIdSet: Set<string>): 
   return undefined;
 }
 
-/** 링크 → fcData id (UUID 일치 우선, 다건 시 fcM4+fcWorkElem → fcNo → 단일 후보) */
+/** 링크 → fcData id (UUID → 복합키 공정|m4|we|원인 → 텍스트+공정 후보 축소) */
 function resolveFcId(link: LinkResult, fcData: FCItem[], fcIdSet: Set<string>): string | undefined {
   const id = (link.fcId || '').trim();
   if (id && fcIdSet.has(id)) return id;
@@ -96,15 +97,25 @@ function resolveFcId(link: LinkResult, fcData: FCItem[], fcIdSet: Set<string>): 
   const nt = norm(t);
   const linkFcProc = (link.fcProcess || '').trim();
   const linkFmProc = (link.fmProcess || '').trim();
+  const procForKey = linkFcProc || linkFmProc;
+  const linkM4 = (link.fcM4 || '').trim();
+  const linkWe = (link.fcWorkElem || '').trim();
+
+  // 1) 복합키 일치 — 링크에 실린 공정·4M·작업요소·원인 (DB/FL 메타, 텍스트로 FK 추측 아님)
+  const keyLink = fcCompositeRowKey(procForKey, linkM4, linkWe, t);
+  const byKey = fcData.filter(
+    fc =>
+      procMatch(fc.processName, linkFcProc, linkFmProc) &&
+      fcCompositeRowKey(fc.processName, (fc.m4 || '').trim(), (fc.workElem || '').trim(), fc.text) === keyLink,
+  );
+  if (byKey.length === 1) return byKey[0]!.id;
+  if (byKey.length > 1) return undefined;
 
   let cand = fcData.filter(
     fc => norm(fc.text) === nt && procMatch(fc.processName, linkFcProc, linkFmProc),
   );
   if (cand.length === 0) return undefined;
 
-  // 동일 공정·동일 원인문구 여러 건(Rule1.7) — 링크에 실린 4M·작업요소로 축소 (DB FL 메타, FK 추측 아님)
-  const linkM4 = (link.fcM4 || '').trim();
-  const linkWe = (link.fcWorkElem || '').trim();
   if (cand.length > 1 && (linkM4 || linkWe)) {
     const byMeta = cand.filter(
       fc =>
