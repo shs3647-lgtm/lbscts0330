@@ -85,6 +85,61 @@ export function formatPgsqlCodeMismatchLines(
   return lines;
 }
 
+/** 위치기반 position-parser `stats`의 excelC1…excelB5 → 항목코드 (엑셀 시트 비어있지 않은 셀 수) */
+const ITEM_CODE_TO_POSITION_EXCEL_STAT: Record<string, string> = {
+  C1: 'excelC1',
+  C2: 'excelC2',
+  C3: 'excelC3',
+  C4: 'excelC4',
+  A1: 'excelA1',
+  A2: 'excelA2',
+  A3: 'excelA3',
+  A4: 'excelA4',
+  A5: 'excelA5',
+  A6: 'excelA6',
+  B1: 'excelB1',
+  B2: 'excelB2',
+  B3: 'excelB3',
+  B4: 'excelB4',
+  B5: 'excelB5',
+};
+
+/**
+ * 위치기반 Import — 통계표「원본」열: `position-parser`가 L1/L2/L3 물리 시트를 훑어
+ * 항목별 비어있지 않은 셀 수(excelC1…excelB5)를 집계한 값. (flat/파싱 행 수와 별개)
+ */
+export function countsFromPositionExcelStats(
+  stats: Record<string, number> | null | undefined,
+): Record<string, number> | null {
+  if (!stats || typeof stats !== 'object') return null;
+  const out: Record<string, number> = {};
+  for (const code of ALL_ITEM_CODES) {
+    const sk = ITEM_CODE_TO_POSITION_EXCEL_STAT[code];
+    const v = sk != null ? stats[sk] : undefined;
+    out[code] = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  }
+  return out;
+}
+
+/** 별칭 — 통계「엑셀 원본」건수 (위와 동일). */
+export const excelSourceItemCountsFromParserStats = countsFromPositionExcelStats;
+
+/**
+ * 레거시 Import — 통계표「원본」열 참고: 파서가 1차 산출한 rawCount(별도 엑셀 스캔 없을 때).
+ * 위치기반은 `countsFromPositionExcelStats`가 엑셀 직접 집계.
+ */
+export function countsFromParseStatisticsItemRaw(
+  st: { itemStats: ReadonlyArray<{ itemCode: string; rawCount: number }> } | null | undefined,
+): Record<string, number> | null {
+  if (!st?.itemStats?.length) return null;
+  const out: Record<string, number> = {};
+  for (const code of ALL_ITEM_CODES) out[code] = 0;
+  for (const row of st.itemStats) {
+    if (row.itemCode && row.itemCode in out) out[row.itemCode] = row.rawCount ?? 0;
+  }
+  return out;
+}
+
 /** save-position-import 삼중 FK와 동일 기준 */
 export function countTripleFkFailureLinks(
   links: ReadonlyArray<{ fmId?: string | null; feId?: string | null; fcId?: string | null }>,

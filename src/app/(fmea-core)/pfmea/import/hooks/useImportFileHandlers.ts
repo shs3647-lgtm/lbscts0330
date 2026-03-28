@@ -6,7 +6,12 @@
 import { useRef } from 'react';
 import { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
-import { saveMasterDataset } from '../utils/master-api';
+import { dedupeFailureChainsWeakL3 } from '../utils/dedupeFailureChainsWeakL3';
+import {
+  dedupeFailureChainsByFkTriplet,
+  enrichPositionChainsFromAtomicData,
+} from '../utils/enrichPositionFailureChains';
+import { loadDatasetByFmeaId, saveMasterDataset } from '../utils/master-api';
 import { validateExcelFileWithAlert } from '@/lib/excel-validation';
 import {
   countFlatRowsByItemCode,
@@ -29,6 +34,8 @@ interface UseImportFileHandlersProps {
   setIsSaved?: React.Dispatch<React.SetStateAction<boolean>>;
   setDirty?: React.Dispatch<React.SetStateAction<boolean>>;
   setValidationMessage?: (msg: string | null) => void;
+  /** 위치기반 파싱 직후 엑셀 셀 카운트(stats) — 통계표「파싱」열 */
+  setPositionParserStats?: (stats: Record<string, number> | null) => void;
   flatData: ImportedFlatData[];
   pendingData: ImportedFlatData[];
   masterChains?: MasterFailureChain[];
@@ -52,6 +59,7 @@ export function useImportFileHandlers({
   setIsSaved,
   setDirty,
   setValidationMessage,
+  setPositionParserStats,
   flatData,
   pendingData,
   masterChains,
@@ -75,6 +83,7 @@ export function useImportFileHandlers({
     setFileName(file.name);
     setIsParsing(true);
     setImportSuccess(false);
+    setPositionParserStats?.(null);
 
     try {
       const ExcelJS = (await import('exceljs')).default;
@@ -93,86 +102,181 @@ export function useImportFileHandlers({
       console.log('[Import] 위치기반 5시트 포맷 감지:', sheetNames.join(', '));
       const atomicData = parsePositionBasedWorkbook(wb, fmeaId?.toLowerCase());
       console.log('[Import] position-parser stats:', JSON.stringify(atomicData.stats));
+      setPositionParserStats?.(atomicData.stats as Record<string, number>);
 
       const flatFromAtomic = atomicToFlatData(atomicData) as ImportedFlatData[];
       setPendingData(flatFromAtomic);
       setFlatData(flatFromAtomic);
 
-      const chains = atomicData.failureLinks.map(fl => ({
+      const mapped = atomicData.failureLinks.map((fl) => ({
         id: fl.id,
         processNo: fl.fmProcess || '',
         fmValue: fl.fmText || '',
         fcValue: fl.fcText || '',
         feValue: fl.feText || '',
         feScope: fl.feScope || '',
+        m4: fl.fcM4?.trim() || undefined,
+        workElement: fl.fcWorkElem?.trim() || undefined,
         fmId: fl.fmId,
         fcId: fl.fcId,
         feId: fl.feId,
-      }));
-      setMasterChains?.(chains as MasterFailureChain[]);
+      })) as MasterFailureChain[];
 
-      if (fmeaId) {
-        const saveRes = await fetch('/api/fmea/save-position-import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData, force: true }),
-        });
-        const saveResult = await saveRes.json();
-        if (saveResult.success) {
-          console.log('[Import] save-position-import 성공:', saveResult.atomicCounts);
-          setImportSuccess(true);
-          setIsSaved?.(true);
-          setDirty?.(false);
+      let chains = enrichPositionChainsFromAtomicData(mapped, atomicData);
+      chains = dedupeFailureChainsByFkTriplet(chains);
+      chains = dedupeFailureChainsWeakL3(chains);
+      setMasterChains?.(chains);
 
-          const s = atomicData.stats;
-          let postSaveVerify = '';
-          try {
-            const vRes = await fetch(
-              `/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId.toLowerCase())}&t=${Date.now()}`,
-            );
-            const vJson = (await vRes.json()) as {
-              success?: boolean;
-              counts?: Record<string, number>;
-              error?: string;
+      if (!fmeaId?.trim()) {
+        setImportSuccess(false);
+        setIsSaved?.(false);
+        setValidationMessage?.(
+          '⚠️ FMEA 프로젝트가 선택되지 않아 DB(Atomic)에 저장하지 않았습니다.\n' +
+            '상단에서 프로젝트를 선택한 뒤 같은 파일을 다시 선택하세요.\n' +
+            '(목록 로딩 직후라면 잠시 후 다시 시도하세요.)',
+        );
+      } else {
+        try {
+          const saveRes = await fetch('/api/fmea/save-position-import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData, force: true }),
+          });
+          const rawText = await saveRes.text();
+          let saveResult: {
+            success?: boolean;
+            error?: string;
+            atomicCounts?: {
+              l2Structures?: number;
+              failureModes?: number;
+              failureCauses?: number;
+              failureLinks?: number;
             };
-            if (vJson.success && vJson.counts) {
-              const uuidCounts = countFlatRowsByItemCode(flatFromAtomic);
-              const expected = mergeImportExpectedCounts(uuidCounts, undefined);
-              const pgsql = mapCountsToPgsql(vJson.counts, expected);
-              const misLines = formatPgsqlCodeMismatchLines(pgsql);
-              postSaveVerify =
-                misLines.length > 0
-                  ? `\n⚠️ 저장 직후 PG vs flat(A1–C4) 불일치:\n${misLines.join('\n')}`
-                  : `\n✅ 저장 직후 PG vs flat(A1–C4) 코드별 건수 일치`;
-            } else {
-              postSaveVerify = `\n(직후 verify-counts: ${vJson.error || `HTTP ${vRes.status}`})`;
-            }
-          } catch (ve) {
-            console.error('[Import] verify-counts after save:', ve);
-            postSaveVerify = '\n(직후 verify-counts 호출 오류 — 통계표에서 수동 확인)';
+          } = {};
+          try {
+            saveResult = rawText ? (JSON.parse(rawText) as typeof saveResult) : {};
+          } catch {
+            console.error('[Import] save-position-import non-JSON:', saveRes.status, rawText.slice(0, 400));
+            setValidationMessage?.(
+              `저장 API 응답을 해석할 수 없습니다 (HTTP ${saveRes.status}). 개발자 도구 Network 탭에서 /api/fmea/save-position-import 응답을 확인하세요.`,
+            );
+            return;
           }
+          if (saveResult.success) {
+            console.log('[Import] save-position-import 성공:', saveResult.atomicCounts);
+            setImportSuccess(true);
+            setIsSaved?.(true);
+            setDirty?.(false);
 
-          const tripleFl = countTripleFkFailureLinks(atomicData.failureLinks || []);
-          const dbFl = saveResult.atomicCounts?.failureLinks ?? 0;
-          const flLine =
-            tripleFl !== dbFl
-              ? `\n⚠️ 고장사슬(FL): 파싱 삼중FK ${tripleFl}건 vs PG ${dbFl}건`
-              : tripleFl > 0
-                ? `\n✅ FL 삼중FK ${tripleFl}건 = PG ${dbFl}건`
-                : '';
+            /** Atomic 저장 후 마스터 평면 DB 동기화 + 서버 기준 flat 재로드 (미리보기·BD와 SSoT 정합) */
+            let masterSyncNote = '';
+            try {
+              const masterRes = await saveMasterDataset({
+                fmeaId: fmeaId.toLowerCase(),
+                fmeaType: fmeaType || 'P',
+                datasetId: masterDatasetId ?? undefined,
+                name: 'MASTER',
+                replace: true,
+                mode: 'import',
+                flatData: flatFromAtomic,
+                failureChains: chains.length > 0 ? chains : undefined,
+              });
+              if (masterRes.ok) {
+                if (masterRes.datasetId && setMasterDatasetId) {
+                  setMasterDatasetId(masterRes.datasetId);
+                }
+                try {
+                  const loaded = await loadDatasetByFmeaId(fmeaId.toLowerCase());
+                  const fc = loaded.failureChains;
+                  if (loaded.flatData.length > 0) {
+                    setFlatData(loaded.flatData);
+                    setPendingData(loaded.flatData);
+                    if (setMasterChains) {
+                      setMasterChains(Array.isArray(fc) ? (fc as MasterFailureChain[]) : []);
+                    }
+                  } else if (Array.isArray(fc) && fc.length > 0 && setMasterChains) {
+                    /** 평면 재로드 0건이어도 DB에 고장사슬만 있으면 동기화(Import 직후 타이밍) */
+                    setMasterChains(fc as MasterFailureChain[]);
+                  }
+                  if (loaded.flatData.length === 0 && flatFromAtomic.length > 0) {
+                    console.warn(
+                      '[Import] 마스터 평면 GET이 0건 — 메모리 미리보기 유지. /api/pfmea/master flatItems·POST 저장 필터를 점검하세요.',
+                      { inMemory: flatFromAtomic.length, chains: Array.isArray(fc) ? fc.length : 0 },
+                    );
+                  }
+                } catch (reloadErr) {
+                  console.error('[Import] loadDatasetByFmeaId after position+master:', reloadErr);
+                  masterSyncNote = '\n⚠️ DB에서 평면 재로드 실패 — 메모리 미리보기 유지 (새로고침 또는 프로젝트 재선택 시 재시도)';
+                }
+              } else {
+                masterSyncNote =
+                  '\n⚠️ 마스터 평면 DB 동기화 실패 — Atomic은 저장됨. [저장] 또는 프로젝트 재선택으로 평면을 맞추세요.';
+              }
+            } catch (masterErr) {
+              console.error('[Import] saveMasterDataset after position:', masterErr);
+              masterSyncNote = `\n⚠️ 마스터 평면 동기화 오류: ${(masterErr as Error).message}`;
+            }
 
-          setValidationMessage?.(
-            `✅ 위치기반 Import 완료\n` +
-              `📊 엑셀: L1=${s.excelL1Rows}행, L2=${s.excelL2Rows}행, L3=${s.excelL3Rows}행, FC=${s.excelFCRows}행\n` +
-              `📊 파싱: L2=${saveResult.atomicCounts?.l2Structures || 0}, FM=${saveResult.atomicCounts?.failureModes || 0}, ` +
-              `FC=${saveResult.atomicCounts?.failureCauses || 0}, FL=${saveResult.atomicCounts?.failureLinks || 0}\n` +
-              `📊 flatData: ${flatFromAtomic.length}건 (미리보기용)` +
-              postSaveVerify +
-              flLine,
-          );
-        } else {
-          console.error('[Import] save-position-import 실패:', saveResult);
-          setValidationMessage?.(`Import 실패: ${saveResult.error || ''}`);
+            const s = atomicData.stats;
+            let postSaveVerify = '';
+            try {
+              const vRes = await fetch(
+                `/api/fmea/verify-counts?fmeaId=${encodeURIComponent(fmeaId.toLowerCase())}&t=${Date.now()}`,
+              );
+              const vJson = (await vRes.json()) as {
+                success?: boolean;
+                counts?: Record<string, number>;
+                error?: string;
+              };
+              if (vJson.success && vJson.counts) {
+                const uuidCounts = countFlatRowsByItemCode(flatFromAtomic);
+                const expected = mergeImportExpectedCounts(uuidCounts, undefined);
+                const pgsql = mapCountsToPgsql(vJson.counts, expected);
+                const misLines = formatPgsqlCodeMismatchLines(pgsql);
+                postSaveVerify =
+                  misLines.length > 0
+                    ? `\n⚠️ 저장 직후 PG vs flat(A1–C4) 불일치:\n${misLines.join('\n')}`
+                    : `\n✅ 저장 직후 PG vs flat(A1–C4) 코드별 건수 일치`;
+              } else {
+                postSaveVerify = `\n(직후 verify-counts: ${vJson.error || `HTTP ${vRes.status}`})`;
+              }
+            } catch (ve) {
+              console.error('[Import] verify-counts after save:', ve);
+              postSaveVerify = '\n(직후 verify-counts 호출 오류 — 통계표에서 수동 확인)';
+            }
+
+            const tripleFl = countTripleFkFailureLinks(atomicData.failureLinks || []);
+            const dbFl = saveResult.atomicCounts?.failureLinks ?? 0;
+            const flLine =
+              tripleFl !== dbFl
+                ? `\n⚠️ 고장사슬(FL): 파싱 삼중FK ${tripleFl}건 vs PG ${dbFl}건`
+                : tripleFl > 0
+                  ? `\n✅ FL 삼중FK ${tripleFl}건 = PG ${dbFl}건`
+                  : '';
+
+            setValidationMessage?.(
+              `✅ 위치기반 Import 완료 (Atomic + 마스터 평면 자동 저장)\n` +
+                `📊 엑셀: L1=${s.excelL1Rows}행, L2=${s.excelL2Rows}행, L3=${s.excelL3Rows}행, FC=${s.excelFCRows}행\n` +
+                `📊 파싱: L2=${saveResult.atomicCounts?.l2Structures || 0}, FM=${saveResult.atomicCounts?.failureModes || 0}, ` +
+                `FC=${saveResult.atomicCounts?.failureCauses || 0}, FL=${saveResult.atomicCounts?.failureLinks || 0}\n` +
+                `📊 flatData: DB 재로드 기준 표시` +
+                postSaveVerify +
+                flLine +
+                masterSyncNote,
+            );
+          } else {
+            console.error('[Import] save-position-import 실패:', saveResult);
+            setValidationMessage?.(
+              `Import DB 저장 실패: ${saveResult.error || saveRes.statusText || 'unknown'} (HTTP ${saveRes.status})`,
+            );
+            setImportSuccess(false);
+            setIsSaved?.(false);
+          }
+        } catch (fetchErr) {
+          console.error('[Import] save-position-import 요청 오류:', fetchErr);
+          setValidationMessage?.(`저장 요청 실패: ${(fetchErr as Error).message}`);
+          setImportSuccess(false);
+          setIsSaved?.(false);
         }
       }
     } catch (error) {
@@ -256,6 +360,19 @@ export function useImportFileHandlers({
             }
             setIsSaved?.(true);
             setDirty?.(false);
+            try {
+              const loaded = await loadDatasetByFmeaId(fmeaId || '');
+              if (loaded.flatData.length > 0) {
+                setFlatData(loaded.flatData);
+                setPendingData([]);
+                const fc = loaded.failureChains;
+                if (fc && Array.isArray(fc) && fc.length > 0 && setMasterChains) {
+                  setMasterChains(fc as MasterFailureChain[]);
+                }
+              }
+            } catch (reloadErr) {
+              console.error('[Import] loadDatasetByFmeaId after handleImport:', reloadErr);
+            }
           }
         } catch (dbError) {
           console.error('DB 저장 실패:', dbError);

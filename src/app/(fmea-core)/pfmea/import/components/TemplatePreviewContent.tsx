@@ -19,13 +19,20 @@ import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react'
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import type { ImportStepState } from '../utils/stepConfirmation';
-import type { CrossTab, CrossTabIds } from '../utils/template-delete-logic';
+import type { ARow, BRow, CRow, CrossTab, CrossTabIds } from '../utils/template-delete-logic';
+import {
+  l1ItemKeyCellTooltip,
+  l1ItemKeyDisplayTail4,
+  l2ItemKeyCellTooltip,
+  l2ItemKeyDisplayTail4,
+  l3ItemKeyCellTooltip,
+  l3ItemKeyDisplayTail4,
+} from '../utils/templatePreviewKeys';
 import type { FCComparisonResult } from '../utils/fcComparison';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from '../hooks/useTemplateGenerator';
 import { FailureChainPreview } from './FailureChainPreview';
 // FullAnalysisPreview 삭제됨 (사용자 요청)
-import { FAVerificationBar } from './FAVerificationBar';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
 import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
 import { validateStructuralCompleteness, summarizeStructuralIssues } from '../utils/structural-validation';
@@ -33,8 +40,11 @@ import { validateUUIDIntegrity, summarizeUUIDIssues } from '../utils/uuid-integr
 import { ImportAlertDialog, INITIAL_ALERT_STATE, type ImportAlertState } from './ImportAlertDialog';
 import { useImportVerification } from '../hooks/useImportVerification';
 import { supplementMissingItems } from '../utils/supplementMissingItems';
-import { supplementChainsFromFlatData } from '../utils/supplementChainsFromFlatData';
-import { countFlatRowsByItemCode } from '../utils/import-verification-columns';
+import {
+  countFlatRowsByItemCode,
+  countsFromPositionExcelStats,
+  countsFromParseStatisticsItemRaw,
+} from '../utils/import-verification-columns';
 
 // ─── Props ───
 
@@ -109,6 +119,8 @@ export interface TemplatePreviewContentProps {
   l1Name?: string;
   bdFmeaName?: string;
   parseStatistics?: ParseStatistics;
+  /** 위치기반 Import 직후 엑셀 항목별 셀 수 —「파싱」열 */
+  positionParserStats?: Record<string, number> | null;
   fmeaId?: string;
 }
 
@@ -132,8 +144,17 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     toggleRow, toggleAll, handleDeleteSelected, handleAddFromSelected,
     handleAddL2Row, handleAddL3Row, handleAddL1Row,
     addPNo, setAddPNo, addM4, setAddM4,
-    l1Name, bdFmeaName, parseStatistics, fmeaId,
+    addCat, setAddCat,
+    l1Name, bdFmeaName, parseStatistics, positionParserStats, fmeaId,
   } = props;
+
+  /** 엑셀/레거시 파서가 항목별로 읽은 건수 —「원본」(flat)과 비교해 누락·전개 의심 */
+  const parseExcelCounts = useMemo((): Record<string, number> | null => {
+    if (positionParserStats && Object.keys(positionParserStats).length > 0) {
+      return countsFromPositionExcelStats(positionParserStats);
+    }
+    return countsFromParseStatisticsItemRaw(parseStatistics);
+  }, [positionParserStats, parseStatistics]);
 
   const isDownload = templateMode === 'download';
   const isManualMode = templateMode === 'manual';
@@ -268,7 +289,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
   // ── 통계표/FC검증 토글 ──
   const [showStats, setShowStats] = useState(false);
-  const [showVerification, setShowVerification] = useState(false);
 
   // ── ★ SA/FA 단계별 스냅샷 (통계 컬럼용) ──
   const [saSnapshot, setSaSnapshot] = useState<Record<string, number> | null>(null);
@@ -332,98 +352,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       console.log(`[Import 보충] 누락 항목 ${newItems.length}건 자동 생성`);
     }
   }, [flatData, failureChains, onAddItems]);
-
-  // ── ★ 2026-03-16: FC시트 chains를 메인시트 flatData로 보충 (FAVerificationBar 검증 통과) ──
-  const supplementedChains = useMemo(() => {
-    if (failureChains.length === 0 || flatData.length === 0) return failureChains;
-    return supplementChainsFromFlatData(failureChains, flatData);
-  }, [failureChains, flatData]);
-
-  // ── ★ 2026-03-16: scanner 공정 수를 보충된 chains 기준으로 보정 ──
-  const verificationStatistics = useMemo(() => {
-    if (!effectiveStatistics) return effectiveStatistics;
-    const suppProcs = new Set(supplementedChains.map(c => c.processNo).filter(Boolean));
-    const rf = effectiveStatistics.rawFingerprint;
-    if (!rf || rf.processes.length >= suppProcs.size) return effectiveStatistics;
-    // scanner 공정 수가 보충 후 체인보다 적으면 보정
-    const existingPnos = new Set(rf.processes.map(p => p.processNo));
-    const newProcs = [...suppProcs]
-      .filter(pno => !existingPnos.has(pno))
-      .map(pno => ({
-        processNo: pno, processName: pno, fmCount: 0,
-        fcByFm: {} as Record<string, number>,
-        feByFm: {} as Record<string, number>,
-        chainRows: 0,
-      }));
-    return {
-      ...effectiveStatistics,
-      rawFingerprint: {
-        ...rf,
-        processes: [...rf.processes, ...newProcs],
-      },
-    };
-  }, [effectiveStatistics, supplementedChains]);
-
-  // ── 미매칭 항목 스크롤 ──
-  const [scrollTarget, setScrollTarget] = useState<{ type: 'FE' | 'FM' | 'FC'; text: string } | null>(null);
-
-  /** 미매칭 항목 클릭 → SA탭 + 해당 레벨 전환 + 스크롤 예약 */
-  const handleScrollToUnmatched = useCallback((type: 'FE' | 'FM' | 'FC', text: string) => {
-    const level: 'L1' | 'L2' | 'L3' = type === 'FE' ? 'L1' : type === 'FM' ? 'L2' : 'L3';
-    if (stepState.activeStep !== 'SA') setActiveStep('SA');
-    setPreviewLevel(level);
-    setScrollTarget({ type, text });
-  }, [stepState.activeStep, setActiveStep, setPreviewLevel]);
-
-  /** 스크롤 실행 — previewLevel 전환 후 DOM 렌더 완료 시 */
-  useEffect(() => {
-    if (!scrollTarget) return;
-    const timer = setTimeout(() => {
-      const { type, text } = scrollTarget;
-      const level = type === 'FE' ? 'L1' : type === 'FM' ? 'L2' : 'L3';
-      const container = document.querySelector(`[data-preview-level="${level}"]`);
-      if (!container) { setScrollTarget(null); return; }
-
-      let rowIndex = -1;
-      const normT = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase();
-
-      if (type === 'FE') {
-        // FE 텍스트 = 원본 C4 값 (processNo 없음)
-        rowIndex = crossTab.cRows.findIndex(r =>
-          r.C4 && normT(r.C4) === normT(text)
-        );
-      } else {
-        // FM/FC 텍스트 = "[processNo] value" 형식
-        const m = text.match(/^\[(\S+)\]\s*(.+)$/);
-        if (m) {
-          const [, pno, val] = m;
-          if (type === 'FM') {
-            rowIndex = crossTab.aRows.findIndex(r =>
-              r.processNo === pno && r.A5 && normT(r.A5) === normT(val)
-            );
-          } else {
-            rowIndex = crossTab.bRows.findIndex(r =>
-              r.processNo === pno && r.B4 && normT(r.B4) === normT(val)
-            );
-          }
-        }
-      }
-
-      if (rowIndex >= 0) {
-        const rows = container.querySelectorAll('tbody tr');
-        const row = rows[rowIndex] as HTMLElement | undefined;
-        if (row) {
-          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          row.classList.add('ring-2', 'ring-red-400', 'bg-yellow-100');
-          setTimeout(() => {
-            row.classList.remove('ring-2', 'ring-red-400', 'bg-yellow-100');
-          }, 3000);
-        }
-      }
-      setScrollTarget(null);
-    }, 120); // DOM 렌더 대기
-    return () => clearTimeout(timer);
-  }, [scrollTarget, crossTab]);
 
   // ── 중복행 하이라이트 ──
   const [highlightDupCode, setHighlightDupCode] = useState<string | null>(null);
@@ -719,7 +647,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             const count = lvl === 'L1' ? crossTab.cRows.length : lvl === 'L2' ? crossTab.aRows.length : crossTab.bRows.length;
             const miss = missingStats[lvl];
             return (
-              <button key={lvl} onClick={() => { setPreviewLevel(lvl); setActiveStep('SA'); }}
+              <button
+                key={lvl}
+                onClick={() => { setPreviewLevel(lvl); setActiveStep('SA'); }}
+                title={
+                  lvl === 'L3'
+                    ? '파싱 flat → 교차표. L3는 B1(작업요소)마다 B2~B5를 공정번호+4M으로 매칭합니다. 빈칸·누락은 파싱 미전개 또는 매칭/parent 단절 가능. 엑셀 물리 행과 1:1 아님.'
+                    : '파싱된 flat을 항목코드별로 묶은 미리보기. 엑셀 셀과 행 순서는 다를 수 있음.'
+                }
                 className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
                   previewLevel === lvl && stepState.activeStep === 'SA'
                     ? 'bg-blue-600 text-white border-blue-600 cursor-pointer'
@@ -732,7 +667,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           })}
           {/* ★v5: FC 고장사슬 탭 — L3 우측 배치 */}
           {!isManualMode && (
-            <button onClick={() => setActiveStep('FC')}
+            <button
+              onClick={() => setActiveStep('FC')}
+              title="파싱된 고장사슬. 공정→FM→FE→FC 정렬·FM블록 병합은 엑셀 FC(개별셀)과 동일 눈금. 상단 표는 메인시트·FC시트·VERIFY 기대 건수 교차검증."
               className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
                 stepState.activeStep === 'FC'
                   ? 'bg-purple-600 text-white border-purple-600 cursor-pointer'
@@ -751,7 +688,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                     open: true,
                     variant: 'warning',
                     title: `${previewLevel} 누락 ${details.length}건`,
-                    summary: '확인 후 해당 행을 편집해 주세요.',
+                    summary:
+                      '필수 칸이 비어 있습니다. L3는 B1만 있고 B2~B4가 비면 누락으로 잡힙니다. 원인: 파싱 미전개, flat 부재, 공정+4M 매칭/parent 단절. 저장은 atomic 기준이며 일반적으로 atomic에 없으면 DB에도 없습니다.',
                     details,
                   });
                 }
@@ -763,7 +701,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   setTimeout(() => { (missingRow as HTMLElement).style.outline = ''; }, 2000);
                 }
               }}
-              title="클릭하면 누락 항목 상세를 보고 첫 누락 행으로 이동합니다"
+              title="누락: 필수 칸이 비어 있음(L3는 B1 있는데 B2~B4 중 공백). 원인 후보 — 파싱 미전개, flat 부재, 공정+4M 매칭/parent 단절. 위치기반 저장은 atomic 기준(미리보기와 드물게 불일치 가능)."
               className="text-[10px] text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 cursor-pointer hover:bg-orange-100">
               누락 {missingStats[previewLevel]}건
             </button>
@@ -839,14 +777,32 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       {/* ─── Import 통계표 — 전체 표시, 현재 레벨 강조 ─── */}
       {showStats && effectiveStatistics && effectiveStatistics.itemStats.length > 0 && (
         <div className="mb-1.5 border border-indigo-200 rounded bg-indigo-50/30">
-          <table className="w-full border-collapse text-[9px]">
+          <table className="w-full border-collapse text-[9px] table-fixed">
+            <colgroup>
+              <col style={{ width: 30 }} />
+              <col style={{ width: 44 }} />
+              <col />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 56 }} />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 34 }} />
+              <col style={{ width: 42 }} />
+              <col style={{ width: 42 }} />
+              <col style={{ width: 42 }} />
+            </colgroup>
             <thead><tr>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:30}}>레벨</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>코드</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-left border-r border-indigo-500">항목</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>원본</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="엑셀 원본: 시트에서 항목별 비어있지 않은 셀 수(position-parser excelC*…). 레거시는 파서 1차 raw. 없으면 '-'">원본</th>
+              <th className="bg-violet-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-violet-600" style={{width:40}} title="실제 파싱 반영: flat 미리보기 해당 코드 행 수. 원본과 비교 → 파싱 누락/과전개">파싱</th>
+              <th className="bg-red-900 text-white font-bold px-1 py-0.5 text-center border-r border-red-700" style={{width:40}} title="프로젝트 PG 스키마 저장 건수(verify-counts). 파싱(flat)보다 적으면 저장 누락 의심(치명). 기대값 불일치 시에도 경고">DB</th>
               <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>고유</th>
-              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}}>중복</th>
+              <th className="bg-indigo-600 text-white font-bold px-1.5 py-0.5 text-center border-r border-indigo-500" style={{width:40}} title="flat 기준: 파싱 행 − 고유키">중복</th>
               <th className="bg-amber-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-amber-600" style={{width:55}} title="지침서 parentId 체인 (C1→C2→C3→C4, A1→A4→A5→A6, B1→B2→B3→B4→B5)">parentId</th>
               <th className="bg-cyan-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-cyan-600" style={{width:40}} title="파싱된 유효 UUID 수">UUID</th>
               <th className="bg-emerald-700 text-white font-bold px-1.5 py-0.5 text-center border-r border-emerald-600" style={{width:32}} title="SA(구조확정) 시점 카운트">SA</th>
@@ -858,34 +814,118 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               {effectiveStatistics.itemStats.map((s, i) => {
                 const level = s.itemCode.startsWith('C') ? 'L1' : s.itemCode.startsWith('A') ? 'L2' : 'L3';
                 const isCurrentLevel = level === previewLevel;
-                const hasDup = s.dupSkipped > 0;
                 const isHighlighted = highlightDupCode === s.itemCode;
                 const uuid = uuidCounts[s.itemCode] ?? 0;
+                const excelSourceN =
+                  parseExcelCounts != null ? (parseExcelCounts[s.itemCode] ?? 0) : null;
+                const parsedFlatN = s.rawCount;
+                const excelVsParse =
+                  excelSourceN != null && excelSourceN !== parsedFlatN;
+                const pg = pgsqlData?.[s.itemCode];
+                const dbActual = pg && pg.status !== 'pending' ? pg.actual : null;
+                /** flat 행보다 DB 건수가 적으면 저장 누락 의심 */
+                const dbUnderSaved = dbActual != null && dbActual < parsedFlatN;
+                /** 검증 기대치와 PG 실제 불일치 */
+                const dbExpectedMismatch = pg != null && pg.status !== 'pending' && !pg.match;
+                const displayDup = s.dupSkipped;
+                const hasDup = displayDup > 0;
+                const zebraBg = i % 2 === 0 ? 'bg-slate-100' : 'bg-white';
                 return (
-                  <tr key={s.itemCode} className={`${
-                    isHighlighted ? 'bg-amber-100'
-                    : isCurrentLevel ? 'bg-blue-50 font-semibold'
-                    : i % 2 ? 'bg-white' : 'bg-gray-50/50'
-                  }`}>
-                    <td className={`px-1 py-0.5 text-center text-[9px] border-r border-gray-200 ${isCurrentLevel ? 'text-blue-700 font-bold' : 'text-gray-400'}`}>{level}</td>
-                    <td className="px-1.5 py-0.5 text-center font-mono font-bold text-[10px] border-r border-gray-200">{s.itemCode}</td>
-                    <td className="px-1.5 py-0.5 border-r border-gray-200">{s.label}</td>
-                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">{s.rawCount}</td>
-                    <td className="px-1.5 py-0.5 text-center font-bold text-blue-700 border-r border-gray-200">{s.uniqueCount}</td>
-                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                  <tr
+                    key={s.itemCode}
+                    className={[
+                      'border-b border-slate-200/90 transition-colors',
+                      zebraBg,
+                      isHighlighted ? '!bg-amber-100 shadow-[inset_0_0_0_1px_theme(colors.amber.400)]' : '',
+                      isCurrentLevel && !isHighlighted ? 'shadow-[inset_3px_0_0_0_theme(colors.blue.500)]' : '',
+                      'hover:bg-slate-200/90',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    <td
+                      className={`px-1 py-0.5 text-center text-[9px] border-r border-slate-200/80 ${isCurrentLevel ? 'text-blue-700 font-bold' : 'text-gray-500'}`}
+                    >
+                      {level}
+                    </td>
+                    <td className="px-1.5 py-0.5 text-center font-mono font-bold text-[10px] border-r border-slate-200/80">{s.itemCode}</td>
+                    <td className="px-1.5 py-0.5 border-r border-slate-200/80 text-left">{s.label}</td>
+                    <td
+                      className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80"
+                      title={
+                        excelSourceN != null
+                          ? `엑셀 시트 비어있지 않은 셀 수 · flat 파싱 ${parsedFlatN}행`
+                          : '엑셀 원본 통계 없음(파일 재선택 또는 레거시)'
+                      }
+                    >
+                      {excelSourceN != null ? (
+                        excelSourceN
+                      ) : (
+                        <span className="text-gray-300 font-normal">-</span>
+                      )}
+                    </td>
+                    <td
+                      className={`px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80 ${
+                        excelVsParse ? 'text-orange-700 bg-orange-50/90' : 'text-violet-900'
+                      }`}
+                      title={
+                        excelSourceN != null
+                          ? `flat 행 수. 원본 ${excelSourceN}과 다르면 파싱 누락 또는 과전개`
+                          : 'flat 미리보기 행 수'
+                      }
+                    >
+                      {parsedFlatN}
+                    </td>
+                    <td
+                      className={[
+                        'px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80',
+                        dbUnderSaved
+                          ? 'bg-red-100 text-red-800 ring-1 ring-red-400'
+                          : dbExpectedMismatch
+                            ? 'bg-amber-50 text-amber-900'
+                            : dbActual != null
+                              ? 'text-slate-900'
+                              : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      title={
+                        pg && pg.status !== 'pending'
+                          ? `PG 저장 ${dbActual}건 · 파싱 flat ${parsedFlatN}행 · 기대 ${pg.expected}건${
+                              dbUnderSaved
+                                ? ' · ⚠ 파싱보다 DB가 적음 → 저장 누락 가능(즉시 점검)'
+                                : ''
+                            }${dbExpectedMismatch && !dbUnderSaved ? ' · 기대값과 불일치' : ''}`
+                          : fmeaId
+                            ? '통계 열림 시 자동 조회 · 없으면 pgsql 열 클릭'
+                            : 'FMEA 선택 후 조회'
+                      }
+                    >
+                      {pgsqlData ? (
+                        pg && pg.status !== 'pending' ? (
+                          dbActual
+                        ) : (
+                          <span className="text-gray-300">…</span>
+                        )
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-1.5 py-0.5 text-center font-bold text-blue-700 border-r border-slate-200/80">{s.uniqueCount}</td>
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
                       {hasDup ? (
                         <button onClick={() => handleDupClick(s.itemCode)}
                           className={`px-1.5 rounded cursor-pointer font-bold ${
                             isHighlighted ? 'bg-amber-500 text-white' : 'text-red-600 bg-red-50 hover:bg-red-100'
                           }`}>
-                          {s.dupSkipped}
+                          {displayDup}
                         </button>
                       ) : (
                         <span className="text-gray-300">0</span>
                       )}
                     </td>
                     {/* ★v5: parentId 체인 (지침서 Section 2-2) */}
-                    <td className="px-1 py-0.5 text-center text-[8px] border-r border-gray-200 text-amber-700 font-mono" title={`${s.itemCode}.parentId`}>
+                    <td className="px-1 py-0.5 text-center text-[8px] border-r border-slate-200/80 text-amber-800 font-mono" title={`${s.itemCode}.parentId`}>
                       {({
                         C1: '—', C2: 'C1', C3: 'C2', C4: 'C3',
                         A1: '—', A2: 'A1', A3: 'A1', A4: 'A1', A5: 'A4', A6: 'A5',
@@ -893,14 +933,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       } as Record<string, string>)[s.itemCode] || '—'}
                     </td>
                     {/* ★ UUID / SA / FA / 차이 */}
-                    <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700 border-r border-gray-200">{uuid || <span className="text-gray-300">0</span>}</td>
-                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                    <td className="px-1.5 py-0.5 text-center font-bold text-cyan-800 border-r border-slate-200/80">{uuid || <span className="text-gray-300">0</span>}</td>
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
                       {saSnapshot ? (
                         <span className={saSnapshot[s.itemCode] === uuid ? 'text-emerald-600' : 'text-orange-600'}>{saSnapshot[s.itemCode] ?? 0}</span>
                       ) : <span className="text-gray-300">-</span>}
                     </td>
                     {/* FK */}
-                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
                       {fkData ? (() => {
                         const fk = fkData[s.itemCode];
                         if (!fk || fk.status === 'na') return <span className="text-gray-300">-</span>;
@@ -908,7 +948,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       })() : <span className="text-gray-300">-</span>}
                     </td>
                     {/* pgsql */}
-                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-gray-200">
+                    <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
                       {pgsqlData ? (() => {
                         const pg = pgsqlData[s.itemCode];
                         if (!pg || pg.status === 'pending') return <span className="text-gray-300">…</span>;
@@ -926,11 +966,28 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   </tr>
                 );
               })}
-              <tr className="border-t border-indigo-300 bg-indigo-50">
-                <td colSpan={3} className="px-1.5 py-0.5 font-bold text-indigo-800">합계</td>
-                <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}</td>
+              <tr className="border-t-2 border-indigo-400 bg-indigo-100/90 font-semibold">
+                <td colSpan={3} className="px-1.5 py-0.5 font-bold text-indigo-900">합계</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">
+                  {parseExcelCounts != null
+                    ? Object.values(parseExcelCounts).reduce((a, b) => a + b, 0)
+                    : <span className="text-gray-400 font-normal">-</span>}
+                </td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-violet-800">
+                  {effectiveStatistics.itemStats.reduce((s, r) => s + r.rawCount, 0)}
+                </td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-red-950">
+                  {pgsqlData
+                    ? effectiveStatistics.itemStats.reduce(
+                        (sum, r) => sum + (pgsqlData[r.itemCode]?.actual ?? 0),
+                        0,
+                      )
+                    : <span className="text-gray-400 font-normal">-</span>}
+                </td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">{effectiveStatistics.itemStats.reduce((s, r) => s + r.uniqueCount, 0)}</td>
-                <td className="px-1.5 py-0.5 text-center font-bold text-red-600">{effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}</td>
+                <td className="px-1.5 py-0.5 text-center font-bold text-red-600">
+                  {effectiveStatistics.itemStats.reduce((s, r) => s + r.dupSkipped, 0)}
+                </td>
                 <td className="px-1 py-0.5 text-center text-amber-700 text-[8px]">—</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-cyan-700">{Object.values(uuidCounts).reduce((s, c) => s + c, 0)}</td>
                 <td className="px-1.5 py-0.5 text-center font-bold text-emerald-600">
@@ -966,65 +1023,10 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         </div>
       )}
 
-      {/* ─── FC검증 통계 — 토글 시 항상 표시 ─── */}
-      {showVerification && failureChains.length > 0 && (
-        <FAVerificationBar chains={supplementedChains} parseStatistics={verificationStatistics} flatData={flatData} onScrollToItem={handleScrollToUnmatched} />
-      )}
-
-      {/* ─── FC 콘텐츠: 고장사슬 미리보기 + 비교 결과 (4개 모드 공통) ─── */}
-      {stepState.activeStep === 'FC' && (<>
-        <div className="flex items-center justify-end gap-1.5 mb-1.5 flex-wrap">
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px]">
-            <b className="text-blue-700">{failureChains.length}</b><span className="text-blue-500">체인</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-[10px]">
-            <b className="text-blue-700">{new Set(failureChains.map(c => c.processNo)).size}</b><span className="text-blue-500">공정</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px]">
-            <span className="text-gray-500">FM</span><b className="text-gray-700">{new Set(failureChains.map(c => c.fmValue).filter(Boolean)).size}</b>
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px]">
-            <span className="text-gray-500">FC</span><b className="text-gray-700">{new Set(failureChains.map(c => c.fcValue).filter(Boolean)).size}</b>
-          </span>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px]">
-            <span className="text-gray-500">FE</span><b className="text-gray-700">{new Set(failureChains.map(c => c.feValue).filter(Boolean)).size}</b>
-          </span>
-          {fcComparison && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-              fcComparison.stats.matchRate >= 90 ? 'bg-green-100 text-green-700 border border-green-300'
-              : fcComparison.stats.matchRate >= 70 ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
-              : 'bg-red-100 text-red-700 border border-red-300'
-            }`}>
-              매칭률: {fcComparison.stats.matchRate.toFixed(0)}%
-              ({fcComparison.matched.length}/{fcComparison.stats.total})
-            </span>
-          )}
-        </div>
+      {/* ─── FC 콘텐츠: 고장사슬 미리보기 ─── */}
+      {stepState.activeStep === 'FC' && (
         <FailureChainPreview chains={failureChains} isFullscreen={isFullscreen} hideStats />
-        {fcComparison && (fcComparison.missing.length > 0 || fcComparison.incomplete.length > 0 || fcComparison.apMismatch.length > 0) && (
-          <div className="mt-2 p-2 border border-orange-200 rounded bg-orange-50/50 text-[10px]">
-            {fcComparison.missing.length > 0 && (
-              <div className="mb-0.5 text-orange-700">
-                <span className="font-bold">누락 {fcComparison.missing.length}건:</span>{' '}
-                {fcComparison.missing.slice(0, 3).map((c, i) => (
-                  <span key={i} className="mr-1">{c.processNo}-{c.fmValue}</span>
-                ))}
-                {fcComparison.missing.length > 3 && <span>... 외 {fcComparison.missing.length - 3}건</span>}
-              </div>
-            )}
-            {fcComparison.incomplete.length > 0 && (
-              <div className="mb-0.5 text-orange-600">
-                <span className="font-bold">SOD 미입력 {fcComparison.incomplete.length}건</span>
-              </div>
-            )}
-            {fcComparison.apMismatch.length > 0 && (
-              <div className="text-red-600">
-                <span className="font-bold">AP 불일치 {fcComparison.apMismatch.length}건</span>
-              </div>
-            )}
-          </div>
-        )}
-      </>)}
+      )}
 
       {/* FA 통합분석 미리보기 삭제됨 (사용자 요청) */}
 
@@ -1152,20 +1154,24 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
           <>
             {/* L1 테이블 */}
             {previewLevel === 'L1' && (
-              <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`} data-preview-level="L1">
+              <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`} data-preview-level="L1" data-testid="import-preview-l1">
                 <table className="w-full border-collapse text-[9px]"><thead className="sticky top-0 z-10"><tr>
                   {isEditing && <th className={TH} style={{width:24}}>
                     <input type="checkbox" checked={selectedRows.size === crossTab.cRows.length && crossTab.cRows.length > 0}
                       onChange={() => toggleAll(crossTab.cRows)} className="cursor-pointer" />
                   </th>}
                   <th className={TH} style={{width:24}}>No</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">C1키</th>
                   <th className={TH} style={{width:45}}>C1 구분</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">C2키</th>
                   <th className={TH}>C2 제품기능</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">C3키</th>
                   <th className={TH}>C3 요구사항</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">C4키</th>
                   <th className={TH}>C4 고장영향</th>
                 </tr></thead><tbody>
                   {crossTab.cRows.length === 0 ? (
-                    <tr><td colSpan={isEditing ? 6 : 5} className="text-center py-3 text-gray-400 text-[10px]">
+                    <tr><td colSpan={isEditing ? 10 : 9} className="text-center py-3 text-gray-400 text-[10px]">
                       L1 데이터 없음 — L2({crossTab.aRows.length}건) 또는 L3({crossTab.bRows.length}건) 탭을 확인하세요
                     </td></tr>
                   ) : crossTab.cRows.map((r, i) => {
@@ -1175,17 +1181,29 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                     <tr key={i} data-missing={cMissing ? 'true' : undefined} data-revised={cRevised ? 'true' : undefined} className={`${selectedRows.has(i) ? 'bg-red-50' : cMissing ? 'bg-orange-50/60' : cRevised ? 'bg-red-50/40' : i % 2 ? 'bg-gray-50/50' : ''}`}>
                       {isEditing && <td className={`${TD} text-center`}><input type="checkbox" checked={selectedRows.has(i)} onChange={() => toggleRow(i)} className="cursor-pointer" /></td>}
                       <td className={`${TD_NO} ${cRevised ? 'border-l-2 border-l-red-500' : ''}`}>{cRevised ? <span title="수정본">🔴</span> : (i+1)}</td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l1ItemKeyCellTooltip(r, 'C1')}>
+                        <span className="block truncate">{l1ItemKeyDisplayTail4(r, 'C1')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} text-center font-medium ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C1} itemId={r._ids.C1} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C1 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C1', value: val, createdAt: new Date() }]) : undefined} />
+                      </td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l1ItemKeyCellTooltip(r, 'C2')}>
+                        <span className="block truncate">{l1ItemKeyDisplayTail4(r, 'C2')}</span>
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C2} itemId={r._ids.C2} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C2 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C2', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l1ItemKeyCellTooltip(r, 'C3')}>
+                        <span className="block truncate">{l1ItemKeyDisplayTail4(r, 'C3')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C3} itemId={r._ids.C3} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.C3 ? (val) => onAddItems?.([{ processNo: r.category, category: 'C', itemCode: 'C3', value: val, createdAt: new Date() }]) : undefined} />
+                      </td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l1ItemKeyCellTooltip(r, 'C4')}>
+                        <span className="block truncate">{l1ItemKeyDisplayTail4(r, 'C4')}</span>
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${cRevised ? 'text-red-600 font-bold' : ''}`}>
                         <EditCell value={r.C4} itemId={r._ids.C4} onSave={onUpdateItem} editing={isEditing}
@@ -1200,7 +1218,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
             {/* L2 테이블 */}
             {previewLevel === 'L2' && (
-              <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`} data-preview-level="L2">
+              <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`} data-preview-level="L2" data-testid="import-preview-l2">
                 <table className="w-full border-collapse text-[9px]"><thead className="sticky top-0 z-10"><tr>
                   {isEditing && <th className={TH} style={{width:24}}>
                     <input type="checkbox" checked={selectedRows.size === crossTab.aRows.length && crossTab.aRows.length > 0}
@@ -1208,15 +1226,19 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   </th>}
                   <th className={TH} style={{width:24}}>No</th>
                   <th className={TH} style={{width:48}}>A1 공정번호</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">A2키</th>
                   <th className={TH}>A2 공정명</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">A3키</th>
                   <th className={TH}>A3 공정기능</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">A4키</th>
                   <th className={TH}>A4 제품특성</th>
                   <th className={TH} style={{width:38}}>특별특성</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">A5키</th>
                   <th className={TH}>A5 고장형태</th>
                   <th className={TH} style={{background:'#ff6600',color:'#fff'}}>A6 검출관리</th>
                 </tr></thead><tbody>
                   {crossTab.aRows.length === 0 ? (
-                    <tr><td colSpan={isEditing ? 9 : 8} className="text-center py-3 text-gray-400 text-[10px]">
+                    <tr><td colSpan={isEditing ? 13 : 12} className="text-center py-3 text-gray-400 text-[10px]">
                       L2 데이터 없음 — L1({crossTab.cRows.length}건) 또는 L3({crossTab.bRows.length}건) 탭을 확인하세요
                     </td></tr>
                   ) : crossTab.aRows.map((r, i) => {
@@ -1231,13 +1253,25 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         <EditCell value={r.A1} itemId={r._ids.A1} onSave={onUpdateItem} editing={isEditing}
                           onCreateNew={!r._ids.A1 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A1', value: val, createdAt: new Date() }]) : undefined} />
                       </td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l2ItemKeyCellTooltip(r, 'A2')}>
+                        <span className="block truncate">{l2ItemKeyDisplayTail4(r, 'A2')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A2} itemId={r._ids.A2} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A2 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A2', value: val, createdAt: new Date() }]) : undefined} /></td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l2ItemKeyCellTooltip(r, 'A3')}>
+                        <span className="block truncate">{l2ItemKeyDisplayTail4(r, 'A3')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A3} itemId={r._ids.A3} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A3 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A3', value: val, createdAt: new Date() }]) : undefined} /></td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l2ItemKeyCellTooltip(r, 'A4')}>
+                        <span className="block truncate">{l2ItemKeyDisplayTail4(r, 'A4')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A4} itemId={r._ids.A4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A4 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A4', value: val, createdAt: new Date() }]) : undefined} /></td>
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.A4SC ? 'text-red-700' : 'text-gray-300'}`}>{r.A4SC || '-'}</span></td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l2ItemKeyCellTooltip(r, 'A5')}>
+                        <span className="block truncate">{l2ItemKeyDisplayTail4(r, 'A5')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A5} itemId={r._ids.A5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A5 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A5', value: val, createdAt: new Date() }]) : undefined} /></td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`} style={{background: aRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
@@ -1251,7 +1285,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
 
             {/* L3 테이블 */}
             {previewLevel === 'L3' && (
-              <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`} data-preview-level="L3">
+              <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`} data-preview-level="L3" data-testid="import-preview-l3">
                 <table className="w-full border-collapse text-[9px]"><thead className="sticky top-0 z-10"><tr>
                   {isEditing && <th className={TH} style={{width:24}}>
                     <input type="checkbox" checked={selectedRows.size === crossTab.bRows.length && crossTab.bRows.length > 0}
@@ -1260,15 +1294,20 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH} style={{width:24}}>No</th>
                   <th className={TH} style={{width:38}}>공정</th>
                   <th className={TH} style={{width:28}}>4M</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금·행 전체">B1키</th>
                   <th className={TH}>B1 작업요소</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금·행 전체">B2키</th>
                   <th className={TH}>B2 요소기능</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금·행 전체">B3키</th>
                   <th className={TH}>B3 공정특성</th>
                   <th className={TH} style={{width:38}}>특별특성</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금·행 전체">B4키</th>
                   <th className={TH}>B4 고장원인</th>
+                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금·행 전체">B5키</th>
                   <th className={TH} style={{background:'#ff6600',color:'#fff'}}>B5 예방관리</th>
                 </tr></thead><tbody>
                   {crossTab.bRows.length === 0 ? (
-                    <tr><td colSpan={isEditing ? 11 : 10} className="text-center py-3 text-gray-400 text-[10px]">
+                    <tr><td colSpan={isEditing ? 15 : 14} className="text-center py-3 text-gray-400 text-[10px]">
                       L3 데이터 없음 — L1({crossTab.cRows.length}건) 또는 L2({crossTab.aRows.length}건) 탭을 확인하세요
                     </td></tr>
                   ) : crossTab.bRows.slice(0, 100).map((r, i) => {
@@ -1290,21 +1329,36 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                           <span className={`text-[7px] px-0.5 rounded font-bold ${M4_BADGE[r.m4] || ''}`}>{r.m4}</span>
                         ) : null}
                       </td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l3ItemKeyCellTooltip(r, 'B1')}>
+                        <span className="block truncate">{l3ItemKeyDisplayTail4(r, 'B1')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B1} itemId={r._ids.B1} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B1 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B1', value: val, createdAt: new Date() }]) : undefined} /></td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l3ItemKeyCellTooltip(r, 'B2')}>
+                        <span className="block truncate">{l3ItemKeyDisplayTail4(r, 'B2')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B2} itemId={r._ids.B2} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B2 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B2', value: val, createdAt: new Date() }]) : undefined} /></td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l3ItemKeyCellTooltip(r, 'B3')}>
+                        <span className="block truncate">{l3ItemKeyDisplayTail4(r, 'B3')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B3} itemId={r._ids.B3} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B3 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B3', value: val, createdAt: new Date() }]) : undefined} /></td>
                       <td className={`${TD} text-center`}><span className={`text-[10px] font-bold ${r.B3SC ? 'text-red-700' : 'text-gray-300'}`}>{r.B3SC || '-'}</span></td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l3ItemKeyCellTooltip(r, 'B4')}>
+                        <span className="block truncate">{l3ItemKeyDisplayTail4(r, 'B4')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B4} itemId={r._ids.B4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B4 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B4', value: val, createdAt: new Date() }]) : undefined} /></td>
+                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l3ItemKeyCellTooltip(r, 'B5')}>
+                        <span className="block truncate">{l3ItemKeyDisplayTail4(r, 'B5')}</span>
+                      </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`} style={{background: bRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.B5} itemId={r._ids.B5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B5 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B5', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
                   })}
-                  {crossTab.bRows.length > 100 && <tr><td colSpan={isEditing ? 12 : 11} className="text-center text-gray-400 text-[9px] py-0.5">... 외 {crossTab.bRows.length - 100}행</td></tr>}
+                  {crossTab.bRows.length > 100 && <tr><td colSpan={isEditing ? 15 : 14} className="text-center text-gray-400 text-[9px] py-0.5">... 외 {crossTab.bRows.length - 100}행</td></tr>}
                 </tbody></table>
               </div>
             )}

@@ -166,8 +166,8 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     [state.l2, isConfirmed, setStateSynced, setState, setDirty, handleCellClick, showAlert]
   );
 
-  // ✅ 중복 제거 훅
-  useL2Deduplication({ l2: state.l2 || [], setState, setStateSynced, setDirty, saveToLocalStorage });
+  // ★★★ 2026-03-28: page.tsx 최상위에서 호출로 이동 (이중 dedup 방지) ★★★
+  // useL2Deduplication({ l2: state.l2 || [], setState, setStateSynced, setDirty, saveToLocalStorage });
 
   // ★★★ 2026-02-05: 컨텍스트 메뉴 상태 및 핸들러 ★★★
   const [contextMenu, setContextMenu] = useState<PfmeaContextMenuState>(initialPfmeaContextMenu);

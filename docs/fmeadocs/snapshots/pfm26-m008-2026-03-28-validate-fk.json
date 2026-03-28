@@ -1,0 +1,96 @@
+{
+  "success": true,
+  "fmeaId": "pfm26-m008",
+  "allGreen": false,
+  "checks": [
+    {
+      "name": "orphanFailureLinks",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    },
+    {
+      "name": "orphanRiskAnalyses",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    },
+    {
+      "name": "orphanProductChars",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    },
+    {
+      "name": "orphanProcessChars",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    },
+    {
+      "name": "crossProcessFk",
+      "status": "ERROR",
+      "count": 42,
+      "details": [
+        "FL FC-R16: FM→L2=L2-R5, FC→L2=L2-R3",
+        "FL FC-R17: FM→L2=L2-R5, FC→L2=L2-R3",
+        "FL FC-R18: FM→L2=L2-R5, FC→L2=L2-R3",
+        "FL FC-R19: FM→L2=L2-R5, FC→L2=L2-R3",
+        "FL FC-R31: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R32: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R33: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R34: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R35: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R36: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R37: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R38: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R39: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R40: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R41: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R42: FM→L2=L2-R7, FC→L2=L2-R8",
+        "FL FC-R52: FM→L2=L2-R8, FC→L2=L2-R10",
+        "FL FC-R53: FM→L2=L2-R8, FC→L2=L2-R10",
+        "FL FC-R54: FM→L2=L2-R8, FC→L2=L2-R10",
+        "FL FC-R55: FM→L2=L2-R8, FC→L2=L2-R10"
+      ]
+    },
+    {
+      "name": "duplicateUuids",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    },
+    {
+      "name": "missingUuids",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    },
+    {
+      "name": "flTripleCheck",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    },
+    {
+      "name": "failureLinkCoverage",
+      "status": "ERROR",
+      "count": 2,
+      "details": [
+        "FM L2-R24-C6: no FailureLink",
+        "FM L2-R26-C6: no FailureLink"
+      ]
+    },
+    {
+      "name": "riskAnalysisCoverage",
+      "status": "OK",
+      "count": 0,
+      "details": []
+    }
+  ],
+  "summary": {
+    "total": 10,
+    "passed": 8,
+    "failed": 2
+  }
+}

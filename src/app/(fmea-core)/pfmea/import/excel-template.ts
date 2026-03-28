@@ -6,12 +6,13 @@
  * @created 2025-12-26
  * @updated 2025-12-26 - 다중 시트 방식으로 변경
  * 
- * 시트 구조 (v5.1: FC 12열 N:1:N — S 삭제, Process-first 계층적 병합):
+ * 시트 구조 (v5.1: FC 12열 — S 삭제, Process-first):
  * A1: 공정번호 + 공정명
  * A3-A5: 공정번호 + 해당 항목
  * B1-B4: 공정번호 + 해당 항목
  * C1-C4: 구분(YP/SP/USER — see scope-constants.ts) + 해당 항목
- * FC 고장사슬: FE구분, FE, 공정번호, FM, 4M, WE, FC, PC, DC, O, D, AP (12열)
+ * FC 고장사슬: 12열 — Import 엑셀은 행마다 FE구분·FE·공정·FM 값을 채운 개별셀 권장(물리 병합 없음).
+ *   앱 내 고장사슬 미리보기(FailureChainPreview)는 rowspan으로 병합 표시.
  */
 /**
  * ██████████████████████████████████████████████████████████████
@@ -91,7 +92,7 @@ const SHEET_DEFINITIONS = [
   { name: 'L2 통합(A1-A6)', headers: ['A1.공정번호', 'A2.공정명', 'A3.공정기능', 'A4.제품특성', '특별특성', 'A5.고장형태', 'A6.검출관리'], color: HEADER_COLOR, required: [true, true, false, false, false, false, false], legacyName: 'L2_UNIFIED', guide: '공정번호+공정명 필수 | 제품특성·고장형태가 여러 건이면 공정번호·공정명 중복 기입 (Ctrl+D)', legacy: false },
   { name: 'L3 통합(B1-B5)', headers: ['공정번호', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성', '고장원인(B4)', '예방관리(B5)'], color: HEADER_COLOR, required: [true, true, false, false, false, false, false, false], legacyName: 'L3_UNIFIED', guide: '4M: MC/MN/IM/EN | 작업요소별 기능·공정특성·고장원인·예방관리를 한 행에 기입 | 1:N은 상위값 중복 기입', legacy: false },
   // ★★★ FC 고장사슬 + FA 통합분석 ★★★
-  { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'O', 'D', 'AP'], color: 'B91C1C', required: [false, false, true, true, false, false, false, false, false, false, false, false], legacyName: 'FC', guide: 'B5=원인 발생 전 방지 장치·시스템·절차 | A6=발생 후 출하 전 검출 장비+방법+빈도', legacy: false },
+  { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'O', 'D', 'AP'], color: 'B91C1C', required: [false, false, true, true, false, false, false, false, false, false, false, false], legacyName: 'FC', guide: '매 행에 FE구분·FE·공정번호·FM을 반복 기입(개별셀). B5/A6/O·D·AP | 앱 미리보기는 병합 표시', legacy: false },
   { name: 'FA 통합분석', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '공정No(A1)', '공정명(A2)', '공정기능(A3)', '제품특성(A4)', '특별특성(A4)', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'DC추천1', 'DC추천2', 'PC추천1', 'PC추천2', 'O추천', 'D추천'], color: '1E40AF', required: [false, false, false, true, false, false, false, false, true, false, false, false, false, false, true, true, false, false, false, false, false, false, false, false, false, false], legacyName: 'FA', guide: '', legacy: false },
   // ★★★ 개별시트 (하위호환 — Import 파서에서 참조, 다운로드 시 제외) ★★★
   { name: 'L2-1(A1) 공정번호', headers: ['L2-1.공정번호', 'L2-2.공정명', '공정유형코드(선택)'], color: HEADER_COLOR, required: [true, true, false], legacyName: 'A1', guide: '', legacy: true },
@@ -475,7 +476,9 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
       if (fmCmp !== 0) return fmCmp;
       const scopeCmp = (a.feScope || '').localeCompare(b.feScope || '');
       if (scopeCmp !== 0) return scopeCmp;
-      return (a.feValue || '').localeCompare(b.feValue || '');
+      const feCmp = (a.feValue || '').localeCompare(b.feValue || '');
+      if (feCmp !== 0) return feCmp;
+      return (a.fcValue || '').localeCompare(b.fcValue || '');
     });
     sheetData['FC 고장사슬'] = sortedChains.map(fc => [
       fc.feScope || '',
@@ -555,7 +558,11 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
       properties: { tabColor: { argb: def.color } },
     });
 
-    const rows = sheetData[def.name] || [];
+    const rawRows = sheetData[def.name] || [];
+    const rows =
+      def.name === 'FC 고장사슬' && rawRows.length > 0
+        ? expandFcRowsToIndividualCells(rawRows)
+        : rawRows;
     const minWidths = def.headers.map((h, i) => {
       if (h === '4M') return 8;
       if (i === 0) return 12;
@@ -588,10 +595,6 @@ export async function downloadDataTemplate(flatData: FlatDataItem[], customFileN
         const row = worksheet.addRow(def.headers.map(() => ''));
         row.eachCell((cell) => applyDataStyle(cell));
       }
-    }
-
-    if (def.name === 'FC 고장사슬' && rows.length > 1) {
-      applyFCSheetMergeCells(worksheet, rows);
     }
 
     worksheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }];
@@ -1761,68 +1764,31 @@ const SAMPLE_DATA: Record<string, string[][]> = {
 };
 
 /**
- * ★★★ 2026-03-09: FC 시트 병합셀 적용 (v5.1 — N:1:N 계층적 병합) ★★★
- *
- * FC 고장사슬 시트 — 12컬럼 (FE구분, FE, 공정번호, FM, 4M, WE, FC, PC, DC, O, D, AP)
- *
- * N:1:N 병합 규칙 (Process-first, FM 중심축):
- *   1) Process 병합: col3(C:공정번호) — processNo (1차 축)
- *   2) FM 병합: col4(D:FM) — processNo|fmText (2차 축, Process 내 경계)
- *   3) Cat 병합: col1(A:FE구분) — processNo|fmText|scope (FM 내 경계)
- *   4) FE 병합: col2(B:FE) — processNo|fmText|scope|feText (FM 내 경계)
+ * FC 고장사슬 12열: 앞 4열(FE구분, FE, 공정번호, FM)을 행마다 채움(이전 행 carry-forward).
+ * 템플릿·다운로드는 물리 병합 없이 개별셀만 사용 — Import 파싱 안정화.
  */
-function applyFCSheetMergeCells(
-  worksheet: ExcelJS.Worksheet,
-  rows: string[][],
-) {
-  if (rows.length < 2) return;
-
-  /** 연속 span 계산 (범용) */
-  function calcSpans(keyFn: (r: string[]) => string): Array<{ start: number; end: number }> {
-    const spans: Array<{ start: number; end: number }> = [];
-    let i = 0;
-    while (i < rows.length) {
-      const key = keyFn(rows[i]);
-      let j = i + 1;
-      while (j < rows.length && keyFn(rows[j]) === key) j++;
-      if (j - i >= 2) {
-        spans.push({ start: i, end: j - 1 });
-      }
-      i = j;
-    }
-    return spans;
-  }
-
-  /** 병합 실행 헬퍼 */
-  function mergeCol(spans: Array<{ start: number; end: number }>, excelCol: number) {
-    for (const { start, end } of spans) {
-      const startExcelRow = start + 2;   // header=row1, data starts row2
-      const endExcelRow = end + 2;
-      worksheet.mergeCells(startExcelRow, excelCol, endExcelRow, excelCol);
-      const masterCell = worksheet.getCell(startExcelRow, excelCol);
-      masterCell.alignment = {
-        ...masterCell.alignment,
-        vertical: 'middle',
-        horizontal: 'center',
-      };
-    }
-  }
-
-  // ★ N:1:N 계층적 병합 (FM 중심축, FM 경계로 FE 제한)
-  // 12열: [0]FE구분, [1]FE, [2]공정번호, [3]FM, [4]4M, [5]WE, [6]FC, [7]PC, [8]DC, [9]O, [10]D, [11]AP
-
-  // 1) Process 병합: col3(C:공정번호) — 1차 축
-  mergeCol(calcSpans(r => r[2] || ''), 3);
-
-  // 2) FM 병합: col4(D:FM) — processNo|fmText (Process 내 경계)
-  const fmSpans = calcSpans(r => `${r[2] || ''}|${r[3] || ''}`);
-  mergeCol(fmSpans, 4);
-
-  // 3) Cat 병합: col1(A:FE구분) — processNo|fmText|scope (FM 내 경계)
-  mergeCol(calcSpans(r => `${r[2] || ''}|${r[3] || ''}|${r[0] || ''}`), 1);
-
-  // 4) FE 병합: col2(B:FE) — processNo|fmText|scope|feText (FM 내 경계)
-  mergeCol(calcSpans(r => `${r[2] || ''}|${r[3] || ''}|${r[0] || ''}|${r[1] || ''}`), 2);
+function expandFcRowsToIndividualCells(rows: string[][]): string[][] {
+  let last0 = '';
+  let last1 = '';
+  let last2 = '';
+  let last3 = '';
+  return rows.map((r) => {
+    const out = r.slice();
+    while (out.length < 12) out.push('');
+    const t0 = String(out[0] ?? '').trim();
+    const t1 = String(out[1] ?? '').trim();
+    const t2 = String(out[2] ?? '').trim();
+    const t3 = String(out[3] ?? '').trim();
+    if (t0) last0 = t0;
+    if (t1) last1 = t1;
+    if (t2) last2 = t2;
+    if (t3) last3 = t3;
+    out[0] = last0;
+    out[1] = last1;
+    out[2] = last2;
+    out[3] = last3;
+    return out;
+  });
 }
 
 /**
@@ -1886,7 +1852,10 @@ export async function downloadSampleTemplate(customFileName?: string, manualMode
       properties: { tabColor: { argb: def.color } },
     });
 
-    const sampleRows = SAMPLE_DATA[def.name] || [];
+    let sampleRows = SAMPLE_DATA[def.name] || [];
+    if (def.name === 'FC 고장사슬' && sampleRows.length > 0) {
+      sampleRows = expandFcRowsToIndividualCells(sampleRows);
+    }
     const minWidths = def.headers.map((h, i) => {
       if (h === '4M') return 8;
       if (i === 0) return 12;
@@ -1913,10 +1882,6 @@ export async function downloadSampleTemplate(customFileName?: string, manualMode
         applyDataCellStyle(cell, colWidths[colNumber - 1] ?? 20, bg);
       });
     });
-
-    if (def.name === 'FC 고장사슬' && sampleRows.length > 1) {
-      applyFCSheetMergeCells(worksheet, sampleRows);
-    }
 
     worksheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }];
   });

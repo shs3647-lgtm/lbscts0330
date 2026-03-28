@@ -3,16 +3,14 @@
  * @description FC(Failure Chain) 미리보기 — 엑셀 FC 시트 양식 동일 구조
  * @created 2026-02-21
  * @updated 2026-03-27 — v5: 엑셀 FC 시트 양식 일치화
+ * @updated 2026-03-28 — Import 엑셀 FC는 행마다 개별셀(병합 없음), 본 화면만 rowspan 병합 표시
+ * @updated 2026-03-28 — 정렬·병합: 공정번호→FM→FE→FC (FM 중심 n:1:n, 실제 고장사슬과 동일 축)
  *
  * 컬럼 순서 (FC 시트 = Import 엑셀과 동일):
  *   FE구분 | FE(고장영향) | L2-1.공정번호 | FM(고장형태) | 4M | 작업요소(WE) | FC(고장원인)
  *
- * 병합 규칙 (FC 시트 forward-fill 기준):
- *   FE구분: key = feScope (1차 축)
- *   FE: key = feScope|feText (2차 축)
- *   공정번호: key = feScope|feText|processNo (3차 축)
- *   FM: key = feScope|feText|processNo|fmText (4차 축)
- *   4M, WE, FC: 행별 독립 (병합 없음)
+ * 화면 병합(rowspan): 공정번호+FM 동일 블록 세로 병합; FE구분은 FM 블록 내 동일 구분만 병합;
+ *   FE(텍스트)는 행별(동일 FE 연속 시만 병합). 4M·WE·FC는 항상 1행.
  */
 
 'use client';
@@ -20,6 +18,7 @@
 import React, { useMemo } from 'react';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
+import { buildFailureChainPreviewRenderRows } from './failureChainPreviewModel';
 
 // ─── 색상 상수 (FC 시트 스타일) ───
 
@@ -63,76 +62,15 @@ function cellCenterStyle(bg: string, extra?: React.CSSProperties): React.CSSProp
 
 const scopeAbbr = (scope: string): string => normalizeScope(scope);
 
-// ─── flat row 타입 ───
-
-interface FlatRow {
-  fe: { scope: string; text: string };
-  fm: { processNo: string; text: string };
-  fc: { m4: string; workElement: string; text: string };
-}
-
-// ─── 연속 span 계산 ───
-
-function calcSpans(len: number, keyFn: (i: number) => string): number[] {
-  const spans = new Array<number>(len).fill(0);
-  let i = 0;
-  while (i < len) {
-    const key = keyFn(i);
-    let span = 1;
-    while (i + span < len && keyFn(i + span) === key) span++;
-    spans[i] = span;
-    i += span;
-  }
-  return spans;
-}
-
 // ─── 컴포넌트 ───
 
 export function FailureChainPreview({ chains, isFullscreen, hideStats }: Props) {
   const tableMaxH = isFullscreen ? 'max-h-[calc(100vh-180px)]' : 'max-h-[400px]';
 
-  const renderRows = useMemo(() => {
-    // FC 시트 순서: feScope → feText → processNo → fmText
-    const sorted = [...chains].sort((a, b) => {
-      const sCmp = (a.feScope || '').localeCompare(b.feScope || '');
-      if (sCmp !== 0) return sCmp;
-      const feCmp = (a.feValue || '').localeCompare(b.feValue || '');
-      if (feCmp !== 0) return feCmp;
-      const pCmp = (a.processNo || '').localeCompare(b.processNo || '', undefined, { numeric: true });
-      if (pCmp !== 0) return pCmp;
-      const fmCmp = (a.fmValue || '').localeCompare(b.fmValue || '');
-      if (fmCmp !== 0) return fmCmp;
-      return 0;
-    });
-
-    const flatRows: FlatRow[] = sorted.map(c => ({
-      fe: { scope: c.feScope || '', text: c.feValue || '' },
-      fm: { processNo: c.processNo || '', text: c.fmValue || '' },
-      fc: { m4: c.m4 || '', workElement: c.workElement || '', text: c.fcValue || '' },
-    }));
-
-    const len = flatRows.length;
-
-    const scopeSpans = calcSpans(len, i => flatRows[i].fe.scope);
-    const feSpans = calcSpans(len, i =>
-      `${flatRows[i].fe.scope}|${flatRows[i].fe.text}`);
-    const processSpans = calcSpans(len, i =>
-      `${flatRows[i].fe.scope}|${flatRows[i].fe.text}|${flatRows[i].fm.processNo}`);
-    const fmSpans = calcSpans(len, i =>
-      `${flatRows[i].fe.scope}|${flatRows[i].fe.text}|${flatRows[i].fm.processNo}|${flatRows[i].fm.text}`);
-
-    return flatRows.map((row, idx) => ({
-      ...row,
-      scopeRowSpan: scopeSpans[idx],
-      showScope: scopeSpans[idx] > 0,
-      feRowSpan: feSpans[idx],
-      showFe: feSpans[idx] > 0,
-      processRowSpan: processSpans[idx],
-      showProcess: processSpans[idx] > 0,
-      fmRowSpan: fmSpans[idx],
-      showFm: fmSpans[idx] > 0,
-    }));
-  }, [chains]);
+  const renderRows = useMemo(
+    () => buildFailureChainPreviewRenderRows(chains),
+    [chains],
+  );
 
   const stats = useMemo(() => {
     const uniqueFM = new Set(chains.map(c => `${c.processNo}|${c.fmValue}`).filter(Boolean)).size;
@@ -255,13 +193,15 @@ export function FailureChainPreview({ chains, isFullscreen, hideStats }: Props) 
         </div>
       )}
 
-      <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`}>
+      <div className={`overflow-y-auto ${tableMaxH} border border-gray-200 rounded`} data-testid="import-fc-chain-preview">
         {tableBody}
       </div>
 
-      <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-600">
-        <strong>연결 현황:</strong> FM {stats.uniqueFM}개 | FE {stats.uniqueFE}개 | FC {stats.uniqueFC}개 | 체인 {stats.total}행
-      </div>
+      {!hideStats && (
+        <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 border-t border-gray-200 text-[10px] text-gray-600">
+          <strong>연결 현황:</strong> FM {stats.uniqueFM}개 | FE {stats.uniqueFE}개 | FC {stats.uniqueFC}개 | 체인 {stats.total}행
+        </div>
+      )}
     </div>
   );
 }

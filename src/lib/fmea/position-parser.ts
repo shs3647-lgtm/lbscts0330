@@ -461,6 +461,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const l3SpecialChars: PosL3SpecialChar[] = []; // ★v4: SC 특별특성 독립 엔티티
   const failureCauses: PosFailureCause[] = [];
   let l3Order = 0;
+  // ★★★ 2026-03-28: L3Structure 복합키 중복제거 (L2 seenPno 패턴 수평전개) ★★★
+  // 복합키: l2Id|m4|b1 — 동일 공정+4M+작업요소명 = 동일 L3Structure
+  const seenL3Key: Map<string, string> = new Map();
+  const seenL3PnoKey = new Set<string>(); // L3ProcessNo 중복 방지
+  const seenL3FourMKey = new Set<string>(); // L3FourM 중복 방지  
+  const seenL3WEKey = new Set<string>(); // L3WorkElement 중복 방지
   const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string; l3PcId: string }>();
 
   for (const row of l3Sheet.rows) {
@@ -476,52 +482,71 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
 
     if (!pno) continue;
 
-    // L3Structure: 행마다 독립
+    // ★★★ L3Structure: 복합키(l2Id|m4|b1) 기준 중복제거 (seenPno 패턴 수평전개) ★★★
     const l2Id = seenPno.get(pno) || '';
     if (!l2Id) {
       ppWarn(`[position-parser] ⚠️ L3 R${rn}: processNo="${pno}" → L2 매핑 실패. seenPno keys=[${[...seenPno.keys()].join(',')}]`);
     }
-    const l3Id = positionUUID('L3', rn);
-    l3Structures.push({
-      id: l3Id,
-      fmeaId,
-      l1Id: l1StructId,
-      l2Id,
-      parentId: l2Id, // E-13: L3Structure.parentId → L2Structure
-      m4: m4 || undefined,
-      name: b1,
-      order: l3Order++,
-    });
+    const l3Key = `${l2Id}|${m4}|${b1}`;
+    let l3Id: string;
+    if (!seenL3Key.has(l3Key)) {
+      l3Id = positionUUID('L3', rn);
+      seenL3Key.set(l3Key, l3Id);
+      l3Structures.push({
+        id: l3Id,
+        fmeaId,
+        l1Id: l1StructId,
+        l2Id,
+        parentId: l2Id, // E-13: L3Structure.parentId → L2Structure
+        m4: m4 || undefined,
+        name: b1,
+        order: l3Order++,
+      });
+    } else {
+      l3Id = seenL3Key.get(l3Key)!;
+    }
 
-    // ★v4: L3ProcessNo — processNo 독립 엔티티 (행마다)
-    l3ProcessNos.push({
-      id: positionUUID('L3', rn, L3_PNO_COL),
-      fmeaId,
-      l3StructId: l3Id,
-      parentId: l3Id,
-      no: pno,
-    });
-
-    // ★v4: L3FourM — 4M 독립 엔티티 (m4가 있는 행만)
-    if (m4) {
-      l3FourMs.push({
-        id: positionUUID('L3', rn, L3_FM4_COL),
+    // ★v4: L3ProcessNo — processNo 독립 엔티티 (L3Structure당 1개만)
+    const l3PnoKey = `${l3Id}|${pno}`;
+    if (!seenL3PnoKey.has(l3PnoKey)) {
+      seenL3PnoKey.add(l3PnoKey);
+      l3ProcessNos.push({
+        id: positionUUID('L3', rn, L3_PNO_COL),
         fmeaId,
         l3StructId: l3Id,
         parentId: l3Id,
-        m4,
+        no: pno,
       });
     }
 
-    // ★v4: L3WorkElement — B1 작업요소 독립 엔티티 (b1이 있는 행만)
+    // ★v4: L3FourM — 4M 독립 엔티티 (L3Structure당 1개만)
+    if (m4) {
+      const l3FourMKey = `${l3Id}|${m4}`;
+      if (!seenL3FourMKey.has(l3FourMKey)) {
+        seenL3FourMKey.add(l3FourMKey);
+        l3FourMs.push({
+          id: positionUUID('L3', rn, L3_FM4_COL),
+          fmeaId,
+          l3StructId: l3Id,
+          parentId: l3Id,
+          m4,
+        });
+      }
+    }
+
+    // ★v4: L3WorkElement — B1 작업요소 독립 엔티티 (L3Structure당 1개만)
     if (b1) {
-      l3WorkElements.push({
-        id: positionUUID('L3', rn, L3_WE_COL),
-        fmeaId,
-        l3StructId: l3Id,
-        parentId: l3Id,
-        name: b1,
-      });
+      const l3WEKey = `${l3Id}|${b1}`;
+      if (!seenL3WEKey.has(l3WEKey)) {
+        seenL3WEKey.add(l3WEKey);
+        l3WorkElements.push({
+          id: positionUUID('L3', rn, L3_WE_COL),
+          fmeaId,
+          l3StructId: l3Id,
+          parentId: l3Id,
+          name: b1,
+        });
+      }
     }
 
     // L3Function: 행마다 독립

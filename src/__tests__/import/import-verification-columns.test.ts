@@ -3,8 +3,50 @@ import {
   mergeImportExpectedCounts,
   verifyFK,
   mapApiToVerification,
+  countsFromPositionExcelStats,
+  countsFromParseStatisticsItemRaw,
 } from '@/app/(fmea-core)/pfmea/import/utils/import-verification-columns';
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
+
+describe('countsFromPositionExcelStats', () => {
+  it('maps excelA4 etc. to item codes', () => {
+    const m = countsFromPositionExcelStats({
+      excelA4: 26,
+      excelC4: 20,
+      excelB3: 101,
+    });
+    expect(m).not.toBeNull();
+    expect(m!.A4).toBe(26);
+    expect(m!.C4).toBe(20);
+    expect(m!.B3).toBe(101);
+    expect(m!.A1).toBe(0);
+  });
+
+  it('returns null for null/undefined stats', () => {
+    expect(countsFromPositionExcelStats(null)).toBeNull();
+    expect(countsFromPositionExcelStats(undefined)).toBeNull();
+  });
+});
+
+describe('countsFromParseStatisticsItemRaw', () => {
+  it('maps itemStats rawCount by code', () => {
+    const m = countsFromParseStatisticsItemRaw({
+      itemStats: [
+        { itemCode: 'A4', rawCount: 17 },
+        { itemCode: 'B4', rawCount: 104 },
+      ],
+    });
+    expect(m).not.toBeNull();
+    expect(m!.A4).toBe(17);
+    expect(m!.B4).toBe(104);
+    expect(m!.A1).toBe(0);
+  });
+
+  it('returns null when no itemStats', () => {
+    expect(countsFromParseStatisticsItemRaw(null)).toBeNull();
+    expect(countsFromParseStatisticsItemRaw({ itemStats: [] })).toBeNull();
+  });
+});
 
 describe('mergeImportExpectedCounts', () => {
   it('uses unique when > 0 to align with entity counts', () => {

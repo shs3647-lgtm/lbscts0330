@@ -10,6 +10,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
+import { dedupeFailureChainsWeakL3 } from '../utils/dedupeFailureChainsWeakL3';
 import type { CrossTab } from '../utils/template-delete-logic';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from './useTemplateGenerator';
@@ -325,7 +326,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
 
       // FC 자동 비교 실행: FC시트(589) 기준으로 메인시트 자동도출에서 찾기
       if (result.success) {
-        const derived = buildFailureChainsFromFlat(flatData, crossTab);
+        const derived = dedupeFailureChainsWeakL3(buildFailureChainsFromFlat(flatData, crossTab));
         // ★ 파라미터 순서 수정: compareFCChains(derived, existing)
         const comparison = compareFCChains(derived, failureChains);
         setFcCompResult(comparison);
@@ -439,7 +440,7 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
       ? externalChains
       : failureChains && failureChains.length > 0
         ? failureChains
-        : buildFailureChainsFromFlat(flatData, crossTab);
+        : dedupeFailureChainsWeakL3(buildFailureChainsFromFlat(flatData, crossTab));
 
 
     // 체인 데이터 없으면 차단 (수동모드 제외 — FC 시트 없음)

@@ -1,7 +1,8 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
+/* globals.css lives in src/app — scan repo UI from src (not non-existent root /components) */
 @source "../../src";
-@source "../../components";
+@source "../components";
 
 @custom-variant dark (&:is(.dark *));
 

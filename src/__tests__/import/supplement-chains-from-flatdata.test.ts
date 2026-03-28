@@ -1,5 +1,5 @@
 /**
- * supplementChainsFromFlatData — FAVerificationBar 정합 (FM/FC 공정키, FE norm)
+ * supplementChainsFromFlatData — 메인↔FC 체인 보충 (FM/FC 공정키, FE norm)
  */
 import { describe, it, expect } from 'vitest';
 import { supplementChainsFromFlatData } from '@/app/(fmea-core)/pfmea/import/utils/supplementChainsFromFlatData';

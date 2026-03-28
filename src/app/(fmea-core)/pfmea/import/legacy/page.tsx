@@ -8,6 +8,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { ImportedFlatData, FailureChain } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import type { ParseResult } from '../excel-parser';
@@ -60,6 +61,8 @@ export default function LegacyImportPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  /** 위치기반 파일 선택 시 position-parser 엑셀 셀 카운트 — 통계「파싱」열 */
+  const [positionParserStats, setPositionParserStats] = useState<Record<string, number> | null>(null);
   const [pendingData, setPendingData] = useState<ImportedFlatData[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -97,6 +100,7 @@ export default function LegacyImportPage() {
     fmeaList, selectedFmeaId, setSelectedFmeaId,
     flatData, setFlatData, masterDatasetId, setMasterDatasetId,
     setIsSaved, setDirty, setFileName, isLoaded,
+    setMasterChains,
   });
 
   const { getBackupList, restoreBackup, deleteBackup } = useAutoSave({ flatData, isLoaded });
@@ -122,6 +126,7 @@ export default function LegacyImportPage() {
     sourceName: string;
   }) => {
     setFlatData(data.flatData);
+    setPositionParserStats(null);
     if (data.failureChains.length > 0) {
       setMasterChains(data.failureChains);
     }
@@ -186,6 +191,14 @@ export default function LegacyImportPage() {
   const templateGen = useTemplateGenerator({
     setFlatData, setPreviewColumn, setDirty, setIsSaved,
   });
+  const { setTemplateMode } = templateGen;
+
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname?.includes('/pfmea/import/auto')) {
+      setTemplateMode('auto');
+    }
+  }, [pathname, setTemplateMode]);
 
   // ── IM 원자재 블랙리스트 ──
   const IM_RAW_MATERIAL_KEYWORDS = [
@@ -199,6 +212,7 @@ export default function LegacyImportPage() {
     setPendingData,
     setFlatData, setIsImporting, setMasterDatasetId, setMasterChains, setIsSaved, setDirty,
     setValidationMessage,
+    setPositionParserStats,
     flatData, pendingData, masterChains,
     masterDatasetId,
     fmeaId: selectedFmeaId || undefined,
@@ -302,7 +316,11 @@ export default function LegacyImportPage() {
   };
 
   const doSave = useCallback(async () => {
-    if (!selectedFmeaId || isSaving) return;
+    if (isSaving) return;
+    if (!selectedFmeaId) {
+      setValidationMessage('⚠️ FMEA 프로젝트를 선택한 뒤 저장하세요. (선택 없이는 마스터 데이터가 저장되지 않습니다.)');
+      return;
+    }
     setIsSaving(true);
     try {
       // ★★★ 2026-03-22: 엑셀에 있는 itemCode만 교체 — autofix B5/A6 보존
@@ -336,7 +354,7 @@ export default function LegacyImportPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [selectedFmeaId, selectedFmea, masterDatasetId, masterDatasetName, flatData, masterChains, isSaving, setBdStatusList]);
+  }, [selectedFmeaId, selectedFmea, masterDatasetId, masterDatasetName, flatData, masterChains, isSaving, setBdStatusList, setValidationMessage]);
 
   // ── 수동입력 후 자동저장 (dirty → 1초 디바운스) ──
   doSaveRef.current = doSave;
@@ -666,56 +684,8 @@ export default function LegacyImportPage() {
         fmeaList={fmeaList}
         failureChains={masterChains}
         parseStatistics={parseResult?.statistics}
+        positionParserStats={positionParserStats}
       />
-
-      {/* CFT 읽기전용 테이블 */}
-      {selectedFmea && (
-        <div className="bg-white rounded border border-gray-300 mt-2">
-          <div className="flex items-center px-3 py-1.5 border-b border-gray-300 bg-[#e8f5e9]">
-            <span className="mr-2">👥</span>
-            <h2 className="text-xs font-bold text-gray-700">CFT (Cross Functional Team)</h2>
-            <span className="ml-2 text-[10px] text-gray-500">{selectedFmea.cftMembers?.length || 0}명</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr style={{ backgroundColor: '#00587a', height: '26px' }} className="text-white">
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-10">No</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-24">CFT역할(Role)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-28">성명(Name)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-24">부서(Dept.)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-16">직급(Position)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-32">담당업무(Task)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-36">Email</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-28">전화번호(Phone)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(selectedFmea.cftMembers && selectedFmea.cftMembers.length > 0) ? (
-                  selectedFmea.cftMembers.map((m, i) => (
-                    <tr key={m.id} className="hover:bg-blue-50" style={{ height: '28px', backgroundColor: i % 2 === 0 ? '#e3f2fd' : 'white' }}>
-                      <td className="border border-gray-300 px-2 py-1 text-center font-bold text-[#00587a]">{i + 1}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center font-semibold">{m.role}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.name}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.department}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.position}</td>
-                      <td className="border border-gray-300 px-2 py-1">{m.task}</td>
-                      <td className="border border-gray-300 px-2 py-1">{m.email}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.phone}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="border border-gray-300 px-4 py-3 text-center text-gray-400 text-xs">
-                      등록된 CFT 멤버가 없습니다. 등록화면에서 CFT를 등록해주세요.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Master 기초정보 사용 */}
       {selectedFmeaId && (

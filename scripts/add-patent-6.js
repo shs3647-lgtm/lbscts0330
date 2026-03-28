@@ -601,8 +601,8 @@ async function main() {
       'dupRowIndices (useMemo)',
       '  → 공정별 중복행 인덱스',
       '',
-      'FAVerificationBar',
-      '  → 교차검증 결과 표시',
+      'FailureChainPreview',
+      '  → FC 고장사슬 미리보기',
       '',
       'exportFAVerification()',
       '  → A2/A4/A5/B3/B4 교차검증'

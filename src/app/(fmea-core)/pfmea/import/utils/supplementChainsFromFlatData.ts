@@ -2,9 +2,7 @@
  * @file supplementChainsFromFlatData.ts
  * @description 메인시트(flatData)에 있지만 FC시트 chains에 없는 FM/FC/FE 항목을 보충
  *
- * FAVerificationBar에서 chainFM vs fdFM, chainFC vs fdFC, chainFE vs fdFE 비교 시
- * FC시트가 메인시트의 일부만 커버하는 경우 미매칭이 발생한다.
- * 이 함수는 메인시트의 누락 항목을 chains에 추가하여 검증을 통과시킨다.
+ * FC시트가 메인시트의 일부만 커버할 때, 메인에만 있는 FM/FC/FE를 체인 목록에 보충한다.
  *
  * @created 2026-03-16
  */
@@ -23,7 +21,7 @@ function normalizeProcessNo(pNo: string | undefined): string {
   return n;
 }
 
-/** FAVerificationBar.norm 과 동일 — FE 중복·누락 판정 일치 */
+/** faVerificationMetrics.normFaVerify 와 동일 — FE 중복·누락 판정 일치 */
 function normText(s: string): string {
   return s.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -62,7 +60,7 @@ export function supplementChainsFromFlatData(
     return m;
   }
 
-  // ── 1. 기존 chain에서 FE 정규화 키 Set (FAVerificationBar·검증행 5와 동일 기준)
+  // ── 1. 기존 chain에서 FE 정규화 키 Set
   const existingFENorms = new Set<string>();
   for (const chain of chains) {
     if (chain.feValue?.trim()) {

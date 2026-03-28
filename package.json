@@ -33,6 +33,7 @@
     "verify:pipeline-baseline": "npx tsx scripts/verify-location-fk-baseline.ts",
     "verify:pipeline-baseline:strict": "npx tsx scripts/verify-location-fk-baseline.ts --baseline",
     "verify:import-fe-layout": "npx tsx scripts/verify-import-fe-chain-layout.ts",
+    "diag:pipeline-fk": "npx tsx scripts/diag-pipeline-fk-compare.ts",
     "verify:all": "npx tsx scripts/verify-all.ts",
     "audit:sidebar-routes": "npx tsx scripts/audit-fmea-sidebar-routes.ts",
     "release:audit": "npm run audit:sidebar-routes && npx tsc --noEmit",
