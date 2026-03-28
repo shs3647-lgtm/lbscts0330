@@ -181,12 +181,25 @@ function buildGroupsFromState(state: WorksheetState): FMGroupForExcel[] {
     });
   });
 
-  // FM 번호 기준 정렬
-  const parseFmNo = (fmNo: string) => {
-    const match = fmNo.match(/\d+/);
-    return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
+  // FM 번호 기준 정렬이 아니라 공정번호 기준으로 먼저 정렬 후 글로벌하게 M1, M2... 할당 (UI와 동일)
+  const getProcessNoInt = (procNo: string) => {
+    const num = Number.parseInt(procNo, 10);
+    return Number.isNaN(num) ? Number.MAX_SAFE_INTEGER : num;
   };
-  result.sort((a, b) => parseFmNo(a.fmNo) - parseFmNo(b.fmNo));
+
+  result.sort((a, b) => {
+    // 1순위: 공정번호
+    const aProcNo = getProcessNoInt(a.fmProcessNo);
+    const bProcNo = getProcessNoInt(b.fmProcessNo);
+    if (aProcNo !== bProcNo) return aProcNo - bProcNo;
+    // 2순위: 텍스트
+    return a.fmText.localeCompare(b.fmText, 'ko');
+  });
+
+  // UI(ALL탭)과 동일하게 정렬 후 글로벌 fmNo 번호 재할당
+  result.forEach((group, idx) => {
+    group.fmNo = `M${idx + 1}`;
+  });
 
   return result;
 }
