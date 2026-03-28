@@ -148,6 +148,12 @@ const ITEM_CODE_TO_POSITION_EXCEL_STAT: Record<string, string> = {
   B3: 'excelB3',
   B4: 'excelB4',
   B5: 'excelB5',
+  // ★ MBD-26-009: FC 레벨 — FC시트 참조 기준 distinct (파서 verifyD* stats)
+  D1: 'verifyD1FcFe',
+  D2: 'verifyD2FcProcess',
+  D3: 'verifyD3FcFm',
+  D4: 'verifyD4FcWorkElem',
+  D5: 'verifyD5FcFc',
 };
 
 /**
@@ -176,6 +182,9 @@ const ITEM_CODE_TO_POSITION_EXCEL_TOTAL_STAT: Record<string, string> = {
   A1: 'excelTotalA1', A2: 'excelTotalA2', A3: 'excelTotalA3', A4: 'excelTotalA4',
   A5: 'excelTotalA5', A6: 'excelTotalA6',
   B1: 'excelTotalB1', B2: 'excelTotalB2', B3: 'excelTotalB3', B4: 'excelTotalB4', B5: 'excelTotalB5',
+  // FC 레벨: total = distinct와 동일 (참조 엔티티 기준)
+  D1: 'verifyD1FcFe', D2: 'verifyD2FcProcess', D3: 'verifyD3FcFm',
+  D4: 'verifyD4FcWorkElem', D5: 'verifyD5FcFc',
 };
 
 /** 위치기반 Import — 엑셀 총 행수 (non-distinct countNonEmpty). DB 115개의 근거 확인용. */
