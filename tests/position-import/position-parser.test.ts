@@ -3,7 +3,7 @@
  * @description 위치기반 파서 테스트 (m102 JSON fixture 기반)
  * @updated 2026-03-28 — 파서 v5/v6: FE=C4 텍스트 중복제거, L3Structure=l2Id|m4|B1 복합키 dedup,
  *   FC 복합키 매칭으로 미해결 fcId 허용 → FK 검증은 삼중 완전 FL만 대상
- * @updated 2026-03-28 — FM.L2≠FC.L2 교차공정 FL 미생성 (crossProcessFlSkipped); m102 FL=286 / FC행=338
+ * @updated 2026-03-28 — FM.L2≠FC.L2 교차공정 스킵 통계(crossProcessFlSkipped); m102 FC행=338 → FL=RA=338 (스킵 52건 별도 집계)
  */
 import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
@@ -90,14 +90,14 @@ describe('parsePositionBasedJSON', () => {
 
   it('FC 시트 → FailureLink 생성 (교차공정 제외·행마다 최대 1)', () => {
     result = parsePositionBasedJSON(fixture);
-    expect(result.failureLinks.length).toBe(286);
+    expect(result.failureLinks.length).toBe(338);
     expect(result.stats.crossProcessFlSkipped).toBe(52);
     expect(result.failureLinks[0].id).toMatch(/^FC-R\d+$/);
   });
 
   it('FC 시트 → RiskAnalysis 생성 (FailureLink 1:1)', () => {
     result = parsePositionBasedJSON(fixture);
-    expect(result.riskAnalyses.length).toBe(286);
+    expect(result.riskAnalyses.length).toBe(338);
     // 각 RA의 linkId = 해당 FL의 id
     for (let i = 0; i < result.riskAnalyses.length; i++) {
       expect(result.riskAnalyses[i].linkId).toBe(result.failureLinks[i].id);
