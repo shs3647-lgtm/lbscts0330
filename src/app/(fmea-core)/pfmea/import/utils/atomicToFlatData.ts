@@ -1,4 +1,4 @@
-// CODEFREEZE — 2026-03-18 au bump DB/UUID/FK 무결성 100% 검증 완료
+// ★ MBD-26-009: CODEFREEZE 해제 — distinct 엔티티 + FK 매핑 정규화 진행 중
 /**
  * @file atomicToFlatData.ts
  * @description Atomic DB → ImportedFlatData[] + ID 매핑 역변환 (리버스엔지니어링)

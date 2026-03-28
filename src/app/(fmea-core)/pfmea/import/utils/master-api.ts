@@ -1,4 +1,4 @@
-/* CODEFREEZE – 2026-02-16 FMEA Master Data 독립 DB 아키텍처 */
+/* ★ MBD-26-009: CODEFREEZE 해제 — distinct 엔티티 + FK 매핑 정규화 진행 중 */
 /**
  * @file master-api.ts
  * @description PFMEA Master Dataset 클라이언트 API (독립 DB 아키텍처)

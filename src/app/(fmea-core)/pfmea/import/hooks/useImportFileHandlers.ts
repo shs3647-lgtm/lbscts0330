@@ -199,21 +199,30 @@ export function useImportFileHandlers({
                 try {
                   const loaded = await loadDatasetByFmeaId(fmeaId.toLowerCase());
                   const fc = loaded.failureChains;
-                  if (loaded.flatData.length > 0) {
-                    setFlatData(loaded.flatData);
-                    setPendingData(loaded.flatData);
-                    if (setMasterChains) {
-                      setMasterChains(Array.isArray(fc) ? (fc as MasterFailureChain[]) : []);
-                    }
-                  } else if (Array.isArray(fc) && fc.length > 0 && setMasterChains) {
-                    /** 평면 재로드 0건이어도 DB에 고장사슬만 있으면 동기화(Import 직후 타이밍) */
-                    setMasterChains(fc as MasterFailureChain[]);
-                  }
-                  if (loaded.flatData.length === 0 && flatFromAtomic.length > 0) {
+                  // ★★★ MBD-26-009: 마스터 DB flatData가 파서 원본보다 현저히 적으면 교체하지 않음
+                  // 마스터 DB의 keepRowForPfmeaMasterSave 필터 또는 서버 저장 로직에 의해
+                  // flatItems가 크게 줄어들 수 있음 → 파서 원본 flatData 유지
+                  const dbFlat = loaded.flatData;
+                  const parserItemCodes = new Set(flatFromAtomic.map(d => d.itemCode));
+                  const dbItemCodes = new Set(dbFlat.map(d => d.itemCode));
+                  const missingCodes = [...parserItemCodes].filter(c => !dbItemCodes.has(c));
+                  
+                  if (dbFlat.length > 0 && missingCodes.length === 0) {
+                    // DB 로드 정상: 모든 itemCode 포함
+                    setFlatData(dbFlat);
+                    setPendingData(dbFlat);
+                  } else if (dbFlat.length > 0 && dbFlat.length >= flatFromAtomic.length * 0.8) {
+                    // DB 로드 약간 부족하지만 80% 이상: 사용
+                    setFlatData(dbFlat);
+                    setPendingData(dbFlat);
+                  } else {
+                    // DB 로드 불완전: 파서 원본 유지
                     console.warn(
-                      '[Import] 마스터 평면 GET이 0건 — 메모리 미리보기 유지. /api/pfmea/master flatItems·POST 저장 필터를 점검하세요.',
-                      { inMemory: flatFromAtomic.length, chains: Array.isArray(fc) ? fc.length : 0 },
+                      `[Import] 마스터 DB flatData 불완전 (${dbFlat.length}/${flatFromAtomic.length}건, 누락코드: ${missingCodes.join(',')}). 파서 원본 유지.`,
                     );
+                  }
+                  if (setMasterChains) {
+                    setMasterChains(Array.isArray(fc) ? (fc as MasterFailureChain[]) : []);
                   }
                 } catch (reloadErr) {
                   console.error('[Import] loadDatasetByFmeaId after position+master:', reloadErr);
