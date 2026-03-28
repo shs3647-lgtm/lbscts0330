@@ -58,6 +58,26 @@ function matchGlob(pattern: string, filePath: string): boolean {
   return regex.test(norm);
 }
 
+/** 원격 기본 브랜치 (origin/master 우선 — 이 저장소는 main 미사용) */
+function resolveOriginMergeBase(): string {
+  try {
+    const sym = execSync('git symbolic-ref -q refs/remotes/origin/HEAD', { encoding: 'utf8' }).trim();
+    const m = sym.match(/^refs\/remotes\/(origin\/.+)$/);
+    if (m) return m[1];
+  } catch {
+    /* origin/HEAD 미설정 */
+  }
+  for (const b of ['origin/master', 'origin/main']) {
+    try {
+      execSync(`git rev-parse -q --verify ${b}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+      return b;
+    } catch {
+      /* 다음 후보 */
+    }
+  }
+  return 'HEAD';
+}
+
 /** 변경된 파일 목록 가져오기 */
 function getChangedFiles(mode: Mode): string[] {
   try {
@@ -65,7 +85,7 @@ function getChangedFiles(mode: Mode): string[] {
       const out = execSync('git diff --cached --name-only', { encoding: 'utf8' });
       return out.split('\n').filter(Boolean);
     } else {
-      const base = execSync('git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo origin/main', { encoding: 'utf8' }).trim();
+      const base = resolveOriginMergeBase();
       const out = execSync(`git diff ${base}...HEAD --name-only`, { encoding: 'utf8' });
       return out.split('\n').filter(Boolean);
     }
