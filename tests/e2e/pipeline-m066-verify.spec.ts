@@ -1,8 +1,8 @@
 /**
- * @file pipeline-m066-verify.spec.ts
- * @description m066 기준 0~5단계 파이프라인 검증 (FK 100% 꽂아넣기)
+ * @file pipeline-m002-verify.spec.ts
+ * @description m002 기준 0~5단계 파이프라인 검증 (FK 100% 꽂아넣기)
  *
- * 검증 기준 (m066 baseline):
+ * 검증 기준 (m002 baseline):
  *   STEP 0: flatData≥670, chains≥104, B4(FC)≥104
  *   STEP 1: l1Name="au bump", l2Count=21
  *   STEP 2: A5≥26, B4≥104, C1≥3, C4≥20, emptyPC=0
@@ -35,7 +35,7 @@ async function clickTab(page: import('@playwright/test').Page, label: string) {
   }
 }
 
-test.describe('m066 기준 파이프라인 0~5단계 검증 (FK 꽂아넣기)', () => {
+test.describe('m002 기준 파이프라인 0~5단계 검증 (FK 꽂아넣기)', () => {
 
   test('STEP 0~5 ALL GREEN (API 검증)', async ({ request }) => {
     const res = await request.post(`${BASE}/api/fmea/pipeline-verify`, {
@@ -70,7 +70,7 @@ test.describe('m066 기준 파이프라인 0~5단계 검증 (FK 꽂아넣기)', 
     expect(s1.details.l2Count).toBe(21);
   });
 
-  test('STEP 2: 파싱 카운트 (m066 기준)', async ({ request }) => {
+  test('STEP 2: 파싱 카운트 (m002 기준)', async ({ request }) => {
     const res = await request.post(`${BASE}/api/fmea/pipeline-verify`, {
       data: { fmeaId: FMEA_ID },
     });
@@ -121,7 +121,7 @@ test.describe('m066 기준 파이프라인 0~5단계 검증 (FK 꽂아넣기)', 
     await dismissModal(page);
 
     await page.screenshot({
-      path: 'tests/e2e/screenshots/m066-verify-ws.png',
+      path: 'tests/e2e/screenshots/m002-verify-ws.png',
       fullPage: false,
     });
 
@@ -143,7 +143,7 @@ test.describe('m066 기준 파이프라인 0~5단계 검증 (FK 꽂아넣기)', 
     expect(pcCount).toBeGreaterThanOrEqual(90);
 
     await page.screenshot({
-      path: 'tests/e2e/screenshots/m066-verify-3l.png',
+      path: 'tests/e2e/screenshots/m002-verify-3l.png',
       fullPage: false,
     });
   });

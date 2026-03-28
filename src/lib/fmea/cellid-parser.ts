@@ -316,7 +316,7 @@ export function parseIL3Sheet(
       b1CellId = maps.b1Map.get(keyB1)!;
     } else {
       b1CellId = '';
-      errors.push(`IL3[${rowIdx + 1}]: 작업요소(WE) 빈 셀`);
+      errors.push(`IL3[${rowIdx + 1}]: WE(작업요소) 빈 셀`);
       continue;
     }
 

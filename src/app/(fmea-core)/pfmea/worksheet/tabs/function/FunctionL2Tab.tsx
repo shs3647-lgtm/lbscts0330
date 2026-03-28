@@ -43,6 +43,7 @@ import { getZebraColors } from '@/styles/level-colors';
 // ★★★ 2026-02-05: 최적화 - 유틸리티 및 훅 분리 ★★★
 import { isPlaceholderL2, filterMeaningfulFunctionsL2, filterMeaningfulProductChars, calculateProcRowSpanL2, calculateL2Counts } from './functionL2Utils';
 import { FunctionL2Header } from '../shared/FunctionL2Header';
+import { scrollToFirstMissingRow } from '../shared/scrollToMissing';
 import { useFunctionL2Handlers } from './hooks/useFunctionL2Handlers';
 import { useL2Deduplication } from './hooks/useL2Deduplication';
 import { useAlertModal } from '../../hooks/useAlertModal';
@@ -166,8 +167,8 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     [state.l2, isConfirmed, setStateSynced, setState, setDirty, handleCellClick, showAlert]
   );
 
-  // ✅ 중복 제거 훅
-  useL2Deduplication({ l2: state.l2 || [], setState, setStateSynced, setDirty, saveToLocalStorage });
+  // ★★★ 2026-03-28: page.tsx 최상위에서 호출로 이동 (이중 dedup 방지) ★★★
+  // useL2Deduplication({ l2: state.l2 || [], setState, setStateSynced, setDirty, saveToLocalStorage });
 
   // ★★★ 2026-02-05: 컨텍스트 메뉴 상태 및 핸들러 ★★★
   const [contextMenu, setContextMenu] = useState<PfmeaContextMenuState>(initialPfmeaContextMenu);
@@ -653,6 +654,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
           importProductCharCount={importCounts?.productCharCount}
           importProcessCount={importCounts?.processCount}
           importLoaded={importCounts?.loaded}
+          onMissingClick={scrollToFirstMissingRow}
         />
 
         <tbody>

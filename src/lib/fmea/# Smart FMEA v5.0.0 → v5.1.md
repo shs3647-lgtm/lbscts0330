@@ -327,7 +327,7 @@ try {
 
 ```
 [ ] tsc --noEmit — 타입 에러 0건
-[ ] pipeline-verify GET pfm26-m066 — allGreen=true
+[ ] pipeline-verify GET pfm26-m002 — allGreen=true
 [ ] Excel Import 정상 완료 (master_import_12inch_AuBump.xlsx)
 [ ] Import 후 워크시트 렌더링 정상 (L2=21, FL=111, RA=111)
 [ ] 고장연결 다이어그램 정상 (FM→FE→FC 라인 표시)

@@ -152,7 +152,7 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
   {
     rating: 8,
     level: '보통 높음',
-    keywords: ['파손', '파열', '파단', '단선', '절단', '단락', '쇼트'],
+    keywords: ['파손', '파열', '파단', '단선', '절단', '단락', '쇼트', 'open', 'short', 'bridge'],
     excludes: ['경미', '미세', '약간'],
     weight: 1.1,
   },
@@ -162,6 +162,14 @@ export const PFMEA_SEVERITY_RULES: SeverityRule[] = [
     keywords: ['균열', '크랙', '깨짐', '파괴'],
     excludes: ['미세', '마이크로'],
     weight: 1.1,
+  },
+  // ★ 2026-03-27: 반도체 공정 물리적 결함 (Bump/Wafer)
+  {
+    rating: 7,
+    level: '보통',
+    keywords: ['lift-off', 'lift off', '리프트오프', '박리', '열화', '과성장'],
+    excludes: [],
+    weight: 1.0,
   },
   // ── S=8 확장: 필드 수리/교체 (고객사/최종사용자 관점) ──
   {
@@ -730,6 +738,25 @@ const FE_DIRECT_MAP: FEDirectEntry[] = [
   { fe: '불량 유출', severity: 8, scope: 'YP', rationale: '불량 Wafer 후공정 유출 → 고객 영향' },
   { fe: '외관 불량', severity: 5, scope: 'YP', rationale: '자사 외관 결함 인지 (불편)' },
   { fe: '환경 이상', severity: 4, scope: 'YP', rationale: '환경 기준 이탈 → 경미 결함 가능' },
+  // ★ 2026-03-27: Au Bump/Wafer 반도체 공정 FE 직접 매핑
+  // YP — 전기적/물리적 결함
+  { fe: '전기적 Open/Short', severity: 8, scope: 'YP', rationale: '전기적 단락/단선 → 제품 기능 상실' },
+  { fe: 'Bump Lift-off', severity: 7, scope: 'YP', rationale: 'Bump 박리 → 접합 신뢰성 심각 저하' },
+  { fe: 'Bump간 Bridge', severity: 8, scope: 'YP', rationale: 'Bump 간 단락 → 전기적 기능 상실' },
+  { fe: 'Bump 형성 불량', severity: 7, scope: 'YP', rationale: 'Bump 형성 실패 → 공정 기능 심각 저하' },
+  { fe: 'Au Bump 형성 불량', severity: 7, scope: 'YP', rationale: 'Au Bump 형성 실패 → 공정 기능 심각 저하' },
+  { fe: '패턴 불량', severity: 7, scope: 'YP', rationale: 'PR 패턴 결함 → 후공정 전수 영향' },
+  // SP — 고객 영향
+  { fe: '고객 신뢰도 하락', severity: 7, scope: 'SP', rationale: '고객 신뢰 저하 → 거래 관계 심각 위험' },
+  { fe: '고객 기능 이상', severity: 7, scope: 'SP', rationale: '고객 제품 기능 심각 저하' },
+  { fe: '납품 Reject', severity: 7, scope: 'SP', rationale: '고객 납품 거부 → 재작업/재납품' },
+  // SP — 접합/IMC
+  { fe: 'IMC 과성장에 의한 접합부 열화', severity: 7, scope: 'SP', rationale: '접합부 신뢰성 심각 저하 (IMC 열화)' },
+  { fe: '접합부 신뢰성 저하', severity: 7, scope: 'SP', rationale: '접합부 열화 → 필드 고장 위험' },
+  // USER — 최종 사용자
+  { fe: '고객 라인 정지, 클레임', severity: 9, scope: 'USER', rationale: '고객 생산 라인 정지 + 클레임 → 최고 심각도' },
+  { fe: '고객 신뢰도 하락', severity: 7, scope: 'USER', rationale: '최종 사용자 신뢰 저하' },
+  { fe: 'RoHS 부적합으로 인한 리콜·법적 조치', severity: 9, scope: 'USER', rationale: '법규 위반/리콜 → 최고 수준 심각도' },
 ];
 
 /** 정규화된 FE 텍스트로 직접 매핑 조회 (scope 우선, 없으면 scope 무관 매칭) */

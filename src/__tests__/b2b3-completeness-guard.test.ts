@@ -178,7 +178,7 @@ describe('filterB1ByCompleteness — B2+B3 모두 누락', () => {
 
 describe('filterB1ByCompleteness — 실전 사고 재현', () => {
   test('6-1. 전처리 공정(50) 설비 3건 B2/B3 누락 → 제외', () => {
-    // 실제 사고: pfm26-p004-l05-r01, 공정50의 MC 3건에 B2/B3 없음
+    // 실제 사고: pfm26-t001-l05-r01, 공정50의 MC 3건에 B2/B3 없음
     const b1Items: B2B3CheckItem[] = [
       mkB1('b1-ok1', '10', 'MN', '작업자'),
       mkB1('b1-ok2', '10', 'MC', '프레스 기계'),

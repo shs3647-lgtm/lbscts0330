@@ -1,5 +1,5 @@
 /**
- * @file clean-slate-reimport-m066.spec.ts
+ * @file clean-slate-reimport-m002.spec.ts
  * 
  * 100% 완벽성 증명 테스트: DB 완전 삭제 → 원본 Excel 재임포트 → FK 전수 검증
  * 
@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const EXCEL_PATH = path.resolve('data/master-fmea/master_import_12inch_AuBump.xlsx');
 
 async function dismissModal(page: import('@playwright/test').Page) {

@@ -161,7 +161,7 @@ const SelectableCell = React.memo(function SelectableCell({
       {value ? (
         isMissing ? <span style={{ wordBreak: 'break-word' }}>🔍 {value}</span> : <span style={{ wordBreak: 'break-word' }}>{value}</span>
       ) : placeholder ? (
-        <span style={{ wordBreak: 'break-word' }}>🔍 {placeholder}</span>
+        <span style={{ wordBreak: 'break-word' }}>⚠ 누락 — {placeholder}</span>
       ) : null}
     </div>
   );

@@ -164,13 +164,11 @@ describe('migrateToAtomicDB ID 고유성', () => {
   });
 });
 
-// ── 3. 자동생성 폴백 경로 — FM/FE/FC 누락 시 uid() 사용 확인 ──
+// ── 3. FK-only 정책: FM/FE/FC FK 불일치 시 FailureLink 스킵 검증 ──
+// Rule 1.5(자동생성 금지) + Rule 1.7(FK-only) 적용 후 자동생성 제거됨
 
-describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
-  it('FM 누락 + fmText 있으면 FM 자동생성 (uid 사용)', () => {
-    // FM이 기존 failureModes에 없고, fmText만 있는 link를 넣어서
-    // FM 자동생성 경로를 타게 함
-    // 핵심: fmText가 기존 FM 어디에도 매칭되지 않아야 자동생성 발생
+describe('FK-only 정책 — FM/FE/FC FK 불일치 시 FailureLink 스킵', () => {
+  it('FM FK 불일치 → FailureLink 스킵 (자동생성 금지)', () => {
     const oldData = {
       fmeaId: 'PFMEA-FALLBACK-001-r00',
       l1: {
@@ -192,16 +190,15 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
           name: '공정1',
           processNo: 'P10',
           productChars: [{ id: 'pc1', name: '제품특성' }],
-          // FM 1개는 있어야 l2Functions가 생성됨 (자동생성 조건: db.l2Functions.length > 0)
           failureModes: [{ id: 'fm-existing', name: '기존고장모드', specialChar: false }],
           l3: [
             {
               id: 'we1',
               name: '작업',
-              processChars: [{ id: 'pch1', name: '공정특성' }],
-              failureCauses: [{ id: 'fc-fallback', cause: '원인' }],
+              functions: [{ name: '기능', processChars: [{ id: 'pch1', name: '공정특성' }] }],
             },
           ],
+          failureCauses: [{ id: 'fc-fallback', name: '원인', processCharId: 'pch1' }],
         },
       ],
       failureLinks: [
@@ -209,7 +206,7 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
           fmId: 'non-existent-fm',
           feId: 'fe-1',
           fcId: 'fc-fallback',
-          fmText: '자동생성될_고장모드_UNIQUE',  // 기존 FM mode와 불일치 → 자동생성
+          fmText: '존재하지않는FM',
           feText: '영향',
           fcText: '원인',
           severity: 5,
@@ -219,14 +216,14 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
 
     const db = migrateToAtomicDB(oldData);
 
-    // FM이 자동생성되어야 함
-    const autoFm = db.failureModes.find(m => m.mode === '자동생성될_고장모드_UNIQUE');
-    expect(autoFm).toBeDefined();
-    // 자동생성 FM ID는 uid() 형식 (id_ 접두사)
-    expect(autoFm!.id).toMatch(/^id_/);
+    // FK-only: fmId 불일치 → FailureLink 생성되지 않음
+    expect(db.failureLinks.length).toBe(0);
+    // FM 자동생성도 없음
+    const autoFm = db.failureModes.find(m => m.mode === '존재하지않는FM');
+    expect(autoFm).toBeUndefined();
   });
 
-  it('FE 누락 시 자동생성 ID가 uid() 형식', () => {
+  it('FE FK 불일치 → FailureLink 스킵 (자동생성 금지)', () => {
     const oldData = {
       fmeaId: 'PFMEA-FE-FALLBACK-001-r00',
       l1: {
@@ -238,7 +235,7 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
             functions: [{ name: '기능', requirements: [{ id: 'r1', name: '요구' }] }],
           },
         ],
-        failureScopes: [],  // FE 없음
+        failureScopes: [],
       },
       l2: [
         {
@@ -251,10 +248,10 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
             {
               id: 'we1',
               name: '작업',
-              processChars: [{ id: 'pch1', name: '공정특성' }],
-              failureCauses: [{ id: 'fc-exists', cause: '원인' }],
+              functions: [{ name: '기능', processChars: [{ id: 'pch1', name: '공정특성' }] }],
             },
           ],
+          failureCauses: [{ id: 'fc-exists', name: '원인', processCharId: 'pch1' }],
         },
       ],
       failureLinks: [
@@ -263,7 +260,7 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
           feId: 'non-existent-fe',
           fcId: 'fc-exists',
           fmText: '고장',
-          feText: '자동생성될 영향',
+          feText: '존재하지않는FE',
           fcText: '원인',
           severity: 7,
           feScope: 'YP',
@@ -273,17 +270,14 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
 
     const db = migrateToAtomicDB(oldData);
 
-    // FE가 자동생성되어야 함
-    const autoFe = db.failureEffects.find(e => e.effect === '자동생성될 영향');
-    expect(autoFe).toBeDefined();
-    // 자동생성 FE ID는 uid() 형식
-    expect(autoFe!.id).toMatch(/^id_/);
+    // FK-only: feId 불일치 → FailureLink 생성되지 않음
+    expect(db.failureLinks.length).toBe(0);
+    // FE 자동생성도 없음
+    const autoFe = db.failureEffects.find(e => e.effect === '존재하지않는FE');
+    expect(autoFe).toBeUndefined();
   });
 
-  it('FC 누락 시 자동생성 ID가 uid() 형식', () => {
-    // FC가 기존 failureCauses에 없고, fcId만 있는 link를 넣어서
-    // FC 자동생성 경로를 타게 함
-    // 핵심: fcId가 존재하지 않는 ID + fcText도 기존 cause와 불일치 → 자동생성
+  it('FC FK 불일치 → FailureLink 스킵 (자동생성 금지)', () => {
     const oldData = {
       fmeaId: 'PFMEA-FC-FALLBACK-001-r00',
       l1: {
@@ -306,13 +300,11 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
           processNo: 'P10',
           productChars: [{ id: 'pc1', name: '제품특성' }],
           failureModes: [{ id: 'fm-exists', name: '고장', specialChar: false }],
-          // proc.failureCauses: L2 수준 FC (migration L468)
-          failureCauses: [{ id: 'fc-existing', name: '기존원인' }],
+          failureCauses: [{ id: 'fc-existing', name: '기존원인', processCharId: 'pch1' }],
           l3: [
             {
               id: 'we1',
               name: '작업',
-              // functions에 processChars가 있어야 l3Functions가 생성됨
               functions: [
                 {
                   name: '작업기능',
@@ -330,7 +322,7 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
           fcId: 'non-existent-fc',
           fmText: '고장',
           feText: '영향',
-          fcText: '자동생성될_원인_UNIQUE',  // 기존 cause와 불일치 → 자동생성
+          fcText: '존재하지않는FC',
           severity: 5,
         },
       ],
@@ -338,32 +330,11 @@ describe('자동생성 폴백 경로 (FM/FE/FC 누락 시)', () => {
 
     const db = migrateToAtomicDB(oldData);
 
-    // 디버그: FC 목록 + Link 목록 확인
-    const fcList = db.failureCauses.map(c => ({ id: c.id, cause: c.cause }));
-    const linkList = db.failureLinks.map(l => ({ id: l.id, fcId: l.fcId }));
-
-    // FC 자동생성 경로 검증:
-    // link의 fcId='non-existent-fc' → DB에서 ID 매칭 실패
-    // link의 fcText='자동생성될_원인_UNIQUE' → cause 매칭 실패
-    // → FC 자동생성 (uid 형식)
-    // 또는 기존 FC를 찾지 못해 link 자체가 생성 안 됨 (l3Functions 부족)
-
-    // l3Functions가 충분한지 확인
-    expect(db.l3Functions.length).toBeGreaterThan(0);
-
-    // link가 생성되었는지 확인 (FM+FE+FC 모두 있어야)
-    if (db.failureLinks.length > 0) {
-      // FC 자동생성된 경우: cause가 link의 fcText여야 함
-      const autoFc = db.failureCauses.find(c => c.cause === '자동생성될_원인_UNIQUE');
-      expect(autoFc).toBeDefined();
-      expect(autoFc!.id).toMatch(/^id_/);
-    } else {
-      // link가 안 만들어졌다면, 테스트 데이터 구성이 부족
-      // FC 자동생성 경로: !fc && oldLink.fcId && db.l3Functions.length > 0
-      // 이 조건이 맞는데도 link가 없다면, FM이나 FE 문제
-      console.log('FC test debug:', { fcList, linkList, l3FuncCount: db.l3Functions.length });
-      expect.fail(`FailureLink가 생성되지 않음. FC 자동생성 경로를 탈 수 없음. FC목록: ${JSON.stringify(fcList)}`);
-    }
+    // FK-only: fcId 불일치 → FailureLink 생성되지 않음
+    expect(db.failureLinks.length).toBe(0);
+    // FC 자동생성도 없음
+    const autoFc = db.failureCauses.find(c => c.cause === '존재하지않는FC');
+    expect(autoFc).toBeUndefined();
   });
 });
 

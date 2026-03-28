@@ -16,7 +16,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 test.describe('Smart System 연동 통합 검증', () => {
 
@@ -120,7 +120,7 @@ test.describe('Smart System 연동 통합 검증', () => {
     // 4.0 sync 결과에서 cpNo 조회
     const verifyResp0 = await request.get(`${BASE}/api/fmea/cp-pfd-verify?fmeaId=${FMEA_ID}`);
     const verifyData0 = await verifyResp0.json();
-    const cpNo = verifyData0.cp?.cpNo || 'cp26-m066';
+    const cpNo = verifyData0.cp?.cpNo || 'cp26-m002';
     console.log(`Using cpNo: ${cpNo}`);
 
     // 4.1 현재 CP items 조회
@@ -220,7 +220,7 @@ test.describe('Smart System 연동 통합 검증', () => {
   test('Step 6: CP 워크시트 브라우저 렌더링', async ({ page }) => {
     const vResp = await page.request.get(`${BASE}/api/fmea/cp-pfd-verify?fmeaId=${FMEA_ID}`);
     const vData = await vResp.json();
-    const cpNo = vData.cp?.cpNo || 'cp26-m066';
+    const cpNo = vData.cp?.cpNo || 'cp26-m002';
     await page.goto(`${BASE}/control-plan/worksheet?cpNo=${cpNo}&fmeaId=${FMEA_ID}`, {
       waitUntil: 'networkidle',
       timeout: 30000,

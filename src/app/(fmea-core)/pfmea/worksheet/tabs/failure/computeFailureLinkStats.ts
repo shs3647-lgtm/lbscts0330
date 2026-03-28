@@ -6,21 +6,37 @@
  *   링크에 실린 feText/fcText + feNo/fcNo + 공정명으로 feData/fcData 행을 **유일하게** 특정할 수 있으면
  *   "연결됨"으로 본다 (Import·재로드 후 feId/fcId 불일치로 가짜 누락이 쌓이는 문제 방지).
  *   유일하지 않으면 매칭하지 않음(오연결 방지).
+ *
+ * ★7 (2026-03-28) — 파이프라인 `unlinked*` 와의 관계 (`verify-steps.ts` verifyFk, GET pipeline-verify STEP3):
+ *   - **unlinkedFE**: DB `failure_effects` 중 어떤 `failure_links.feId`에도 안 나타남.
+ *   - **unlinkedFC / unlinkedFM**: 동일하게 FL의 `fcId` / `fmId` 커버리지만 본다 (Atomic PG).
+ *   - **본 모듈의 `feMissingCount` 등**: 입력은 워크시트 `savedLinks`(LinkResult[]) + 레거시 fe/fm/fc 배열.
+ *     텍스트·공정 보강, FM 연결 휴리스틱(아래 fmLinkedCount), FailureLinkTab의 FC시트 참조 필터는 **파이프라인에 없음**.
+ *   → 숫자가 STEP3와 다르면 정상일 수 있음. 비교·감사는 **DB pipeline-verify**를 SSoT로 쓴다.
  */
 
 import type { FEItem, FCItem, FMItem, LinkResult } from './FailureLinkTypes';
+import { fcCompositeRowKey } from './failureLinkFcKey';
+
+/** 고장연결 배너 등 tooltip — 파이프라인 대비 (★7) */
+export const FAILURE_LINK_STATS_VS_PIPELINE_HINT =
+  '이 화면의 누락·연결 수: 워크시트 savedLinks + 텍스트/공정 보강 + FC시트 참조 규칙 기준입니다. ' +
+  'API GET /api/fmea/pipeline-verify STEP3의 unlinkedFM·unlinkedFC·unlinkedFE는 DB FailureLink FK만 집계하므로 수치가 다를 수 있습니다.';
 
 export interface FailureLinkStats {
   feLinkedIds: Set<string>;
   feLinkedTexts: Set<string>;
   feLinkedCount: number;
+  /** 레거시 FE 중 링크(및 보강)로 연결된 것으로 본 개수의 보수 */
   feMissingCount: number;
   fcLinkedIds: Set<string>;
   fcLinkedTexts: Set<string>;
   fcLinkedCount: number;
+  /** 레거시 FC 중 링크(및 보강)로 연결된 것으로 본 개수의 보수 — ≠ pipeline unlinkedFC 역수(정의 상이) */
   fcMissingCount: number;
   fmLinkedIds: Set<string>;
   fmLinkedCount: number;
+  /** FM: savedLinks fmId + fc/fe 카운트 + 텍스트 매칭 등 — ≠ pipeline unlinkedFM 역수 */
   fmMissingCount: number;
   fmLinkCounts: Map<string, { feCount: number; fcCount: number }>;
 }
@@ -71,7 +87,7 @@ function resolveFeId(link: LinkResult, feData: FEItem[], feIdSet: Set<string>): 
   return undefined;
 }
 
-/** 링크 → fcData id (UUID 일치 우선, 실패 시 fcNo+공정+텍스트로 유일 후보만) */
+/** 링크 → fcData id (UUID → 복합키 공정|m4|we|원인 → 텍스트+공정 후보 축소) */
 function resolveFcId(link: LinkResult, fcData: FCItem[], fcIdSet: Set<string>): string | undefined {
   const id = (link.fcId || '').trim();
   if (id && fcIdSet.has(id)) return id;
@@ -81,11 +97,34 @@ function resolveFcId(link: LinkResult, fcData: FCItem[], fcIdSet: Set<string>): 
   const nt = norm(t);
   const linkFcProc = (link.fcProcess || '').trim();
   const linkFmProc = (link.fmProcess || '').trim();
+  const procForKey = linkFcProc || linkFmProc;
+  const linkM4 = (link.fcM4 || '').trim();
+  const linkWe = (link.fcWorkElem || '').trim();
+
+  // 1) 복합키 일치 — 링크에 실린 공정·4M·작업요소·원인 (DB/FL 메타, 텍스트로 FK 추측 아님)
+  const keyLink = fcCompositeRowKey(procForKey, linkM4, linkWe, t);
+  const byKey = fcData.filter(
+    fc =>
+      procMatch(fc.processName, linkFcProc, linkFmProc) &&
+      fcCompositeRowKey(fc.processName, (fc.m4 || '').trim(), (fc.workElem || '').trim(), fc.text) === keyLink,
+  );
+  if (byKey.length === 1) return byKey[0]!.id;
+  if (byKey.length > 1) return undefined;
 
   let cand = fcData.filter(
     fc => norm(fc.text) === nt && procMatch(fc.processName, linkFcProc, linkFmProc),
   );
   if (cand.length === 0) return undefined;
+
+  if (cand.length > 1 && (linkM4 || linkWe)) {
+    const byMeta = cand.filter(
+      fc =>
+        (!linkM4 || (fc.m4 || '').trim() === linkM4) &&
+        (!linkWe || (fc.workElem || '').trim() === linkWe),
+    );
+    if (byMeta.length === 1) return byMeta[0]!.id;
+    if (byMeta.length > 0) cand = byMeta;
+  }
 
   const fcNo = (link.fcNo || '').trim();
   if (fcNo) {

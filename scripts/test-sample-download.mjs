@@ -4,7 +4,7 @@
  */
 import ExcelJS from 'exceljs';
 
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 async function main() {
   // 1. Master API fetch (downloadSampleTemplate과 동일)
@@ -75,7 +75,7 @@ async function main() {
 
   // 4. ExcelJS 워크북 생성
   const wb = new ExcelJS.Workbook();
-  const headers = ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리', 'A6.검출관리', 'O', 'D', 'AP'];
+  const headers = ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', 'WE(작업요소)', 'FC(고장원인)', 'B5.예방관리', 'A6.검출관리', 'O', 'D', 'AP'];
   const ws = wb.addWorksheet('FC 고장사슬');
   ws.columns = headers.map(h => ({ header: h, width: 20 }));
 

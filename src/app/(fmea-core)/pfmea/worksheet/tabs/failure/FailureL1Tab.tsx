@@ -58,13 +58,14 @@ import { emitSave } from '../../hooks/useSaveEvent';
 // ✅ 공용 스타일/색상 (2026-01-19 리팩토링)
 import { BORDER, cellBase, headerStyle, dataCell, STRUCTURE_COLORS, FUNCTION_COLORS, FAILURE_COLORS, INDICATOR_COLORS } from '../shared/tabStyles';
 import { FailureL1Header } from '../shared/FailureL1Header';
+import { scrollToFirstMissingRow } from '../shared/scrollToMissing';
 import { matchFESeverity } from '../all/hooks/severityKeywordMap';
 import { recommendSeverity } from '@/hooks/useSeverityRecommend';
 import { useFailureL1Handlers } from './hooks/useFailureL1Handlers';
 import { useAlertModal } from '../../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
-import { loadAiagVdaSeverityMapping, matchAiagVdaSeverityRow } from '@/lib/fmea/aiag-vda-severity-mapping';
+import { loadSeverityFromDB, matchAiagVdaSeverityRow } from '@/lib/fmea/aiag-vda-severity-mapping';
 import { applyBulkSeverityRecommendations } from '@/lib/fmea/s-recommend-bulk-apply';
 
 // ★★★ 컨텍스트 메뉴 수평전개 ★★★
@@ -179,8 +180,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     return scopes.filter((s: any) => s.effect?.trim()).length;
   }, [state.l1?.failureScopes]);
 
-  // ★ S추천 핸들러 — AIAG 매핑표(S추천 탭·localStorage) 우선, 키워드표 폴백 → 확인 후 적용
-  const handleAutoRecommendS = useCallback(() => {
+  // ★ S추천 핸들러 — Public DB (SeverityUsageRecord) 우선, 키워드표 폴백 → 확인 후 적용
+  const handleAutoRecommendS = useCallback(async () => {
     const scopes = state.l1?.failureScopes || [];
     const targets = scopes.filter((s: any) => s.effect?.trim());
     if (targets.length === 0) {
@@ -188,7 +189,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       return;
     }
 
-    const { updatedScopes, changeCount, details } = applyBulkSeverityRecommendations(
+    const { updatedScopes, changeCount, details } = await applyBulkSeverityRecommendations(
       state.l1,
       fmeaId || '',
     );
@@ -587,6 +588,12 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     }
   }, [meaningfulRequirementsFromFunction.length, showAlert]);
 
+  // ★ DB에서 S추천 매핑표 로드 (renderRows + SOD모달에서 사용)
+  const [cachedMapRows, setCachedMapRows] = useState<import('@/lib/fmea/aiag-vda-severity-mapping').AiagVdaSeverityMappingRow[]>([]);
+  useEffect(() => {
+    loadSeverityFromDB(500).then(rows => setCachedMapRows(rows));
+  }, [fmeaId]);
+
   // 고장영향 데이터 (localStorage에서)
   const failureEffects: FailureEffect[] = useMemo(() => {
     // ✅ 2026-01-12: 옵셔널 체이닝 사용 (state.l1이 없을 수 있음)
@@ -718,7 +725,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
 
   // 렌더링할 행 데이터 생성 (완제품 공정명은 구분별로 1:1 매칭, 완제품기능은 기능별로 병합)
   const renderRows = useMemo(() => {
-    const mapRows = loadAiagVdaSeverityMapping(fmeaId || 'default');
+    const mapRows = cachedMapRows;
     const rows: {
       key: string;
       showProduct: boolean;
@@ -818,7 +825,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     });
 
     return rows;
-  }, [typeGroups, getFeNo, fmeaId]);
+  }, [typeGroups, getFeNo, fmeaId, cachedMapRows]);
 
   return (
     <div className="p-0 overflow-auto h-full" style={{ paddingBottom: '50px' }} onKeyDown={handleEnterBlur}>
@@ -837,8 +844,10 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
         <FailureL1Header
           isConfirmed={isConfirmed}
           missingCount={missingCount}
-          effectCount={missingCount}
+          effectCount={(state.l1?.failureScopes || []).filter((s: any) => s.effect?.trim()).length}
           confirmedCount={(state.l1?.failureScopes || []).filter((s: any) => s.effect).length}
+          functionCount={(() => { let c = 0; for (const t of (state.l1?.types || [])) { for (const f of (t.functions || [])) { if (f.name?.trim()) c++; } } return c; })()}
+          requirementCount={meaningfulRequirementsFromFunction.length}
           onConfirm={handleConfirm}
           onEdit={handleEdit}
           isAutoMode={isAutoMode}
@@ -846,6 +855,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
           isLoadingMaster={isLoadingMaster}
           onAutoRecommendS={handleAutoRecommendS}
           missingSeverityCount={missingSeverityCount}
+          onMissingClick={scrollToFirstMissingRow}
         />
 
         <tbody>
@@ -1060,7 +1070,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                           // ✅ scope 값 정규화 — 중앙 normalizeScope() 사용 (2026-03-22)
                           const scopeValue = row.typeName ? normalizeScope(row.typeName) : undefined;
 
-                          const mapHit = matchAiagVdaSeverityRow(loadAiagVdaSeverityMapping(fmeaId || 'default'), {
+                          const mapHit = matchAiagVdaSeverityRow(cachedMapRows, {
                             scope: scopeValue || '',
                             productFunction: row.funcName || '',
                             requirement: row.reqName || '',

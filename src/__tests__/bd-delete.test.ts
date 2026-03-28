@@ -158,9 +158,9 @@ describe('BD 삭제 후 프로젝트 필터링 로직', () => {
     const bdFmeaList: FMEAProject[] = [
       mkProject('pfm26-p001-l18', 'P'),
       mkProject('pfm26-p002-l20', 'P'),
-      mkProject('pfm26-p004-l22', 'P'),
+      mkProject('pfm26-t004-l22', 'P'),
     ];
-    const fmeaIds = ['pfm26-p001-l18', 'pfm26-p004-l22'];
+    const fmeaIds = ['pfm26-p001-l18', 'pfm26-t004-l22'];
 
     const deletedSet = new Set(fmeaIds.map(id => id.toLowerCase()));
     const updatedFmeaList = bdFmeaList.filter(f => !deletedSet.has(f.id.toLowerCase()));
@@ -209,7 +209,7 @@ describe('API soft delete 호출 테스트', () => {
     });
     global.fetch = mockFetch;
 
-    const fmeaIds = ['pfm26-p001-l18', 'pfm26-p004-l22'];
+    const fmeaIds = ['pfm26-p001-l18', 'pfm26-t004-l22'];
     const res = await fetch('/api/pfmea/master', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -224,7 +224,7 @@ describe('API soft delete 호출 테스트', () => {
 
     const body = JSON.parse(options.body);
     expect(body.action).toBe('softDelete');
-    expect(body.fmeaIds).toEqual(['pfm26-p001-l18', 'pfm26-p004-l22']);
+    expect(body.fmeaIds).toEqual(['pfm26-p001-l18', 'pfm26-t004-l22']);
     expect(result.success).toBe(true);
   });
 
@@ -276,7 +276,7 @@ describe('loadAllDatasetSummaries deletedFmeaIds 연동', () => {
           mkDataset('pfm26-p002-l02'),
           mkDataset('pfm26-p003-l03'),
         ],
-        deletedFmeaIds: ['pfm26-p001-l18', 'pfm26-p004-l22'],
+        deletedFmeaIds: ['pfm26-p001-l18', 'pfm26-t004-l22'],
       }),
     });
     global.fetch = mockFetch;
@@ -289,7 +289,7 @@ describe('loadAllDatasetSummaries deletedFmeaIds 연동', () => {
       mkProject('pfm26-p001-l18', 'P'),
       mkProject('pfm26-p002-l02', 'P'),
       mkProject('pfm26-p003-l03', 'P'),
-      mkProject('pfm26-p004-l22', 'P'),
+      mkProject('pfm26-t004-l22', 'P'),
     ];
 
     const activeProjects = projects.filter(p => !deletedFmeaIds.includes(p.id.toLowerCase()));
@@ -299,7 +299,7 @@ describe('loadAllDatasetSummaries deletedFmeaIds 연동', () => {
     const result = buildBdStatusList(activeProjects, json.datasets);
     expect(result).toHaveLength(2);
     expect(result.map(r => r.fmeaId)).not.toContain('pfm26-p001-l18');
-    expect(result.map(r => r.fmeaId)).not.toContain('pfm26-p004-l22');
+    expect(result.map(r => r.fmeaId)).not.toContain('pfm26-t004-l22');
   });
 
   it('deletedFmeaIds가 비어있으면 모든 프로젝트 유지', async () => {

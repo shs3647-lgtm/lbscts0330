@@ -328,7 +328,7 @@ describe('Invariant 5: FE-FM-FC 완전 연결 — dangling reference 없음', ()
 // ═══════════════════════════════════════════════════════════════════
 
 describe('Invariant 6: parentItemId 해결 — 모든 부모 참조가 유효', () => {
-  test('B2/B3 parentItemId가 B1 항목을 정확히 참조', () => {
+  test('B2→B1, B3→B2 parentItemId 체인 (지침서 B1→B2→B3)', () => {
     const b1Items = [
       { id: '10-B1-0', processNo: '10', name: 'WE-A' },
       { id: '10-B1-1', processNo: '10', name: 'WE-B' },
@@ -338,17 +338,18 @@ describe('Invariant 6: parentItemId 해결 — 모든 부모 참조가 유효', 
       { id: '10-B2-1', parentItemId: '10-B1-1' },
     ];
     const b3Items = [
-      { id: '10-B3-0', parentItemId: '10-B1-0' },
-      { id: '10-B3-1', parentItemId: '10-B1-1' },
+      { id: '10-B3-0', parentItemId: '10-B2-0' },
+      { id: '10-B3-1', parentItemId: '10-B2-1' },
     ];
 
     const b1IdSet = new Set(b1Items.map(b => b.id));
+    const b2IdSet = new Set(b2Items.map(b => b.id));
 
     for (const b2 of b2Items) {
       expect(b1IdSet.has(b2.parentItemId)).toBe(true);
     }
     for (const b3 of b3Items) {
-      expect(b1IdSet.has(b3.parentItemId)).toBe(true);
+      expect(b2IdSet.has(b3.parentItemId)).toBe(true);
     }
   });
 

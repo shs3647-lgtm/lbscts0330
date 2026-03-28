@@ -18,6 +18,8 @@ interface FailureL3HeaderProps {
   missingCount: number;
   failureCauseCount: number;
   totalCauseCount: number;
+  processCharCount?: number;
+  specialCharCount?: number;
   onConfirm: () => void;
   onEdit: () => void;
   isAutoMode?: boolean;
@@ -34,6 +36,8 @@ export function FailureL3Header({
   missingCount,
   failureCauseCount,
   totalCauseCount,
+  processCharCount,
+  specialCharCount,
   onConfirm,
   onEdit,
   isAutoMode,
@@ -132,18 +136,13 @@ export function FailureL3Header({
           WE
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] border-r-[2px] border-r-orange-500 p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="공정특성" en="Process Char." />
+          <BiHeader ko="공정특성" en="Process Char." />{processCharCount != null && <span className={`font-bold ${processCharCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({processCharCount})</span>}
         </th>
         <th className="bg-orange-500 text-white border border-[#ccc] border-l-0 p-1 text-[10px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }} title="Special Characteristic">
-          <BiHeader ko="특별특성" en="SC" />
+          <BiHeader ko="특별특성" en="SC" />{specialCharCount != null && <span className="font-bold">({specialCharCount})</span>}
         </th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="고장원인" en="Failure Cause/FC" />
-          {failureCauseCount > 0 && (
-            <span className="ml-1 bg-red-600 text-white px-1 py-0 rounded text-[10px] font-bold">
-              {failureCauseCount}건
-            </span>
-          )}
+          <BiHeader ko="고장원인" en="Failure Cause/FC" /><span className={`font-bold ${failureCauseCount > 0 ? 'text-orange-800' : 'text-red-500'}`}>({failureCauseCount})</span>
         </th>
       </tr>
     </thead>

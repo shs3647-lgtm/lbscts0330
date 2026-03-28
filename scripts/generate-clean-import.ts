@@ -1,5 +1,5 @@
 /**
- * 연결표 JSON + m066 Atomic DB → 정제된 5시트 Import 엑셀 생성
+ * 연결표 JSON + m002 Atomic DB → 정제된 5시트 Import 엑셀 생성
  * 
  * Sheet 1: L1(C1-C4) — FE 엔티티 (20개, scope+effect 정제)
  * Sheet 2: L2(A1-A6) — FM 엔티티 (26개)
@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import ExcelJS from 'exceljs';
 
 function main() {
-  const conn = JSON.parse(fs.readFileSync('data/master-fmea/m066-connection-table.json', 'utf8'));
+  const conn = JSON.parse(fs.readFileSync('data/master-fmea/m002-connection-table.json', 'utf8'));
   const pos = JSON.parse(fs.readFileSync('data/master-fmea/m102-position-based.json', 'utf8'));
 
   const wb = new ExcelJS.Workbook();
@@ -90,7 +90,7 @@ function main() {
 
   // ── Sheet 4: B4 (FC 별도 엔티티, 111개) ──
   const b4ws = wb.addWorksheet('B4 고장원인(FC)');
-  const b4h = ['No', '공정번호', '4M', '작업요소(WE)', '고장원인(B4)', '공정특성', '예방관리(B5)'];
+  const b4h = ['No', '공정번호', '4M', 'WE(작업요소)', '고장원인(B4)', '공정특성', '예방관리(B5)'];
   b4ws.addRow(b4h);
   styleHeader(b4ws, b4h.length);
 

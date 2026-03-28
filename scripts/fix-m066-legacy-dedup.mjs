@@ -7,7 +7,7 @@ const client = new Client({
 
 async function main() {
   await client.connect();
-  const schema = 'pfmea_pfm26_m066';
+  const schema = 'pfmea_pfm26_m002';
 
   // First find the actual legacy ID
   const allLegacy = await client.query(
@@ -15,7 +15,7 @@ async function main() {
   );
   console.log('Legacy IDs:', allLegacy.rows.map(r => r.id));
   
-  const fmeaId = allLegacy.rows.length > 0 ? allLegacy.rows[0].id : 'pfm26-m066';
+  const fmeaId = allLegacy.rows.length > 0 ? allLegacy.rows[0].id : 'pfm26-m002';
   console.log('Using fmeaId:', fmeaId);
   
   const legacyRes = await client.query(

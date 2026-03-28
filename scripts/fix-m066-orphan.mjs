@@ -4,8 +4,8 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:1234@localhost:
 const q = async (sql, p = []) => (await pool.query(sql, p)).rows;
 
 async function main() {
-  const fmeaId = 'pfm26-m066';
-  await q(`SET search_path TO pfmea_pfm26_m066, public`);
+  const fmeaId = 'pfm26-m002';
+  await q(`SET search_path TO pfmea_pfm26_m002, public`);
 
   // auto-fix FL 확인
   const autoFLs = await q(`SELECT id, "fmId", "fcId", "feId" FROM failure_links WHERE "fmeaId" = $1 AND id LIKE 'auto-%'`, [fmeaId]);

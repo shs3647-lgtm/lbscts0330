@@ -122,8 +122,20 @@ export default function RelationPreview({ data, onDataChange }: RelationPreviewP
     return Array.from(names);
   }, [data]);
 
-  // 특정 공정번호의 특정 항목 값 가져오기
+  // 특정 공정번호의 특정 항목 값 가져오기 (A6는 공정당 여러 flat 행 → 고유값 줄바꿈 합침)
   const getValue = (processNo: string, itemCode: string) => {
+    if (itemCode === 'A6') {
+      const list = data.filter(d => d.processNo === processNo && d.itemCode === 'A6');
+      const seen = new Set<string>();
+      const lines: string[] = [];
+      for (const d of list) {
+        const v = String(d.value || '').trim();
+        if (!v || seen.has(v)) continue;
+        seen.add(v);
+        lines.push(v);
+      }
+      return lines.join('\n');
+    }
     const item = data.find(d => d.processNo === processNo && d.itemCode === itemCode);
     return item?.value || '';
   };
@@ -573,7 +585,7 @@ export default function RelationPreview({ data, onDataChange }: RelationPreviewP
                       {currentTab?.columns.map((col) => (
                         <td
                           key={col.code}
-                          className={`px-3 py-2 ${col.code === 'A1' ? 'text-center font-bold text-[#00587a]' : ''} border border-[#ddd]`}
+                          className={`px-3 py-2 ${col.code === 'A1' ? 'text-center font-bold text-[#00587a]' : ''} ${col.code === 'A6' ? 'whitespace-pre-line text-left' : ''} border border-[#ddd]`}
                         >
                           {col.code === 'A1' ? processNo : getValue(processNo, col.code) || '-'}
                         </td>

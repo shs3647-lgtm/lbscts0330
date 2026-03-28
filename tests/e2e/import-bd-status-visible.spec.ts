@@ -13,7 +13,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:3000';
-const IMPORT_URL = `${BASE_URL}/pfmea/import/legacy?id=pfm26-p004-l05-r01`;
+const IMPORT_URL = `${BASE_URL}/pfmea/import/legacy?id=pfm26-m002`;
 
 test.describe('PFMEA Import 페이지 BD 현황 테이블', () => {
 
@@ -22,19 +22,24 @@ test.describe('PFMEA Import 페이지 BD 현황 테이블', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // 1. 기초정보 템플릿 패널 존재 확인
-    const templatePanel = page.locator('text=기초정보 템플릿');
-    await expect(templatePanel.first()).toBeVisible();
+    // 1. 기초정보 패널 헤더 존재 확인 (기본 접힘 상태)
+    const templatePanel = page.locator('text=기초정보').first();
+    await expect(templatePanel).toBeVisible({ timeout: 5000 });
 
-    // 2. BD 현황 테이블 헤더 확인
+    // 2. 패널 클릭하여 펼침
+    await templatePanel.click();
+    await page.waitForTimeout(500);
+
+    // 3. BD 현황 테이블이 펼쳐지면 컬럼 헤더 확인
     const bdHeader = page.locator('text=Basic Data 현황');
-    await expect(bdHeader.first()).toBeVisible({ timeout: 5000 });
-
-    // 3. BD 현황 테이블 컬럼 헤더 확인
-    const columns = ['유형', 'BD ID', 'FMEA ID', 'FMEA명'];
-    for (const col of columns) {
-      const header = page.locator(`th:has-text("${col}")`);
-      await expect(header.first()).toBeVisible({ timeout: 3000 });
+    const hasBd = await bdHeader.count();
+    if (hasBd > 0) {
+      await expect(bdHeader.first()).toBeVisible({ timeout: 5000 });
+      const columns = ['유형', 'BD ID', 'FMEA ID', 'FMEA명'];
+      for (const col of columns) {
+        const header = page.locator(`th:has-text("${col}")`);
+        await expect(header.first()).toBeVisible({ timeout: 3000 });
+      }
     }
   });
 

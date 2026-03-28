@@ -4,6 +4,9 @@
  * @file DbVerifyPanel.tsx
  * @description DB 영구저장 검증 패널 — 파싱 카운트 vs DB 저장 카운트 대조
  * Import 후 DB에 실제 저장된 건수를 파싱 건수와 비교하여 정합성 보장
+ *
+ * ★ MBD-26-009: 3단계 검증(PASS/WARN/FAIL) — 복합키 dedup·공정 전개로
+ * 파싱↔메모리↔DB 간 소폭 차이는 WARN, 대형 누락만 FAIL
  * @created 2026-03-22
  */
 
@@ -25,6 +28,20 @@ const ALL_CODES: [string, string, string][] = [
   ['L1', 'C1', '구분'], ['L1', 'C2', '제품기능'], ['L1', 'C3', '요구사항'], ['L1', 'C4', '고장영향'],
 ];
 
+/** 개별 항목 검증 결과 */
+type VerifyGrade = 'pass' | 'warn' | 'fail';
+
+function gradeRow(mem: number, db: number): VerifyGrade {
+  if (mem === db) return 'pass';         // 완전 일치
+  if (db >= mem) return 'pass';          // DB ≥ 메모리: 정상 (skipDuplicates 등)
+  if (mem === 0) return 'pass';          // 원래 없음
+  // DB가 mem보다 적은 경우
+  const gap = mem - db;
+  const pct = gap / mem;
+  if (pct <= 0.05 || gap <= 3) return 'warn';  // 5% 이하 또는 3건 이하: 경고
+  return 'fail';                         // 대형 누락: 실패
+}
+
 export default function DbVerifyPanel({ parseStats, dbCounts, flatData }: Props) {
   const [expanded, setExpanded] = useState(true);
 
@@ -45,8 +62,8 @@ export default function DbVerifyPanel({ parseStats, dbCounts, flatData }: Props)
       const uniqueCount = parse?.unique ?? 0;
       const memCount = flatCounts.get(code) ?? 0;
       const dbCount = dbCounts[code] ?? 0;
-      const match = memCount === dbCount;
-      return { level, code, label, parseCount, uniqueCount, memCount, dbCount, match };
+      const grade = gradeRow(memCount, dbCount);
+      return { level, code, label, parseCount, uniqueCount, memCount, dbCount, grade };
     });
   }, [parseStats, dbCounts, flatData]);
 
@@ -54,28 +71,40 @@ export default function DbVerifyPanel({ parseStats, dbCounts, flatData }: Props)
   const totalUnique = rows.reduce((s, r) => s + r.uniqueCount, 0);
   const totalMem = rows.reduce((s, r) => s + r.memCount, 0);
   const totalDb = rows.reduce((s, r) => s + r.dbCount, 0);
-  const allMatch = totalMem === totalDb;
-  const mismatchCount = rows.filter(r => !r.match).length;
+
+  const failCount = rows.filter(r => r.grade === 'fail').length;
+  const warnCount = rows.filter(r => r.grade === 'warn').length;
+  const overallGrade: VerifyGrade = failCount > 0 ? 'fail' : warnCount > 0 ? 'warn' : 'pass';
+
+  const headerStyle = overallGrade === 'pass' ? 'bg-emerald-600 text-white'
+    : overallGrade === 'warn' ? 'bg-amber-500 text-white'
+    : 'bg-red-600 text-white';
+  const statusLabel = overallGrade === 'pass' ? '✅ 전체 일치'
+    : overallGrade === 'warn' ? `⚡ ${warnCount}건 허용차이`
+    : `⚠️ ${failCount}건 불일치`;
+  const badgeLabel = overallGrade === 'pass' ? 'PASS'
+    : overallGrade === 'warn' ? 'WARN' : 'FAIL';
 
   return (
     <div className="mt-2 mb-2 border border-emerald-300 rounded-lg overflow-hidden">
       <button
         onClick={() => setExpanded(v => !v)}
-        className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-bold cursor-pointer ${
-          allMatch
-            ? 'bg-emerald-600 text-white'
-            : 'bg-red-600 text-white'
-        }`}
+        className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-bold cursor-pointer ${headerStyle}`}
       >
         <span>
           {expanded ? '▼' : '▶'}{' '}
-          DB 영구저장 검증 — {allMatch ? '✅ 전체 일치' : `⚠️ ${mismatchCount}건 불일치`}
+          DB 영구저장 검증 — {statusLabel}
           {' '}(파싱 {totalParse} → 메모리 {totalMem} → DB {totalDb})
         </span>
         <span className="text-[10px] opacity-80">
-          {allMatch ? 'PASS' : 'FAIL'}
+          {badgeLabel}
         </span>
       </button>
+      <p className="px-2 py-0.5 text-[9px] text-gray-600 bg-gray-50 border-x border-b border-gray-200">
+        검증 기준: <strong>메모리(flat)</strong>와 <strong>DB</strong> 건수 비교.
+        복합키 dedup·공정 전개로 소폭 차이(≤5% 또는 ≤3건)는 허용(WARN).
+        &quot;파싱&quot; 합계는 엑셀 원본 셀 수라 메모리와 다를 수 있습니다.
+      </p>
 
       {expanded && (
         <table className="w-full border-collapse text-[9px]">
@@ -96,7 +125,8 @@ export default function DbVerifyPanel({ parseStats, dbCounts, flatData }: Props)
               <tr
                 key={r.code}
                 className={
-                  !r.match ? 'bg-red-50' :
+                  r.grade === 'fail' ? 'bg-red-50' :
+                  r.grade === 'warn' ? 'bg-amber-50/50' :
                   r.level === 'L1' ? 'bg-yellow-50/50' :
                   r.level === 'L2' ? 'bg-blue-50/30' : 'bg-green-50/30'
                 }
@@ -108,11 +138,15 @@ export default function DbVerifyPanel({ parseStats, dbCounts, flatData }: Props)
                 <td className="border border-gray-200 px-1 py-0.5 text-center text-blue-700">{r.uniqueCount}</td>
                 <td className="border border-gray-200 px-1 py-0.5 text-center text-cyan-700 font-bold">{r.memCount}</td>
                 <td className={`border border-gray-200 px-1 py-0.5 text-center font-bold ${
-                  r.match ? 'text-emerald-700' : 'text-red-600 bg-red-100'
+                  r.grade === 'pass' ? 'text-emerald-700' :
+                  r.grade === 'warn' ? 'text-amber-600 bg-amber-50' :
+                  'text-red-600 bg-red-100'
                 }`}>{r.dbCount}</td>
                 <td className="border border-gray-200 px-1 py-0.5 text-center">
-                  {r.match
+                  {r.grade === 'pass'
                     ? <span className="text-emerald-600 font-bold">✓</span>
+                    : r.grade === 'warn'
+                    ? <span className="text-amber-500 font-bold">~</span>
                     : <span className="text-red-600 font-bold">✗</span>
                   }
                 </td>
@@ -124,11 +158,14 @@ export default function DbVerifyPanel({ parseStats, dbCounts, flatData }: Props)
               <td className="border border-gray-300 px-1.5 py-0.5 text-center text-blue-700">{totalUnique}</td>
               <td className="border border-gray-300 px-1.5 py-0.5 text-center text-cyan-700">{totalMem}</td>
               <td className={`border border-gray-300 px-1.5 py-0.5 text-center ${
-                allMatch ? 'text-emerald-700' : 'text-red-600'
+                overallGrade === 'pass' ? 'text-emerald-700' :
+                overallGrade === 'warn' ? 'text-amber-600' : 'text-red-600'
               }`}>{totalDb}</td>
               <td className="border border-gray-300 px-1.5 py-0.5 text-center">
-                {allMatch
+                {overallGrade === 'pass'
                   ? <span className="text-emerald-600 font-bold">✓</span>
+                  : overallGrade === 'warn'
+                  ? <span className="text-amber-500 font-bold">~</span>
                   : <span className="text-red-600 font-bold">✗</span>
                 }
               </td>

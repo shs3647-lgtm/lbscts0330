@@ -1,4 +1,4 @@
-// Check which L3Structures lack L3Functions in M081 vs M066
+// Check which L3Structures lack L3Functions in M081 vs M002
 const BASE = 'http://localhost:3000';
 
 async function check(fmeaId) {
@@ -21,5 +21,5 @@ async function check(fmeaId) {
   }
 }
 
-await check('pfm26-m066');
+await check('pfm26-m002');
 await check('pfm26-m081');

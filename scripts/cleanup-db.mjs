@@ -9,7 +9,7 @@ async function main() {
   try {
     await client.query('BEGIN');
 
-    // === 1. 중복 CP 삭제: cp-26-m066 (하이픈 포함, AUTO-GEN) ===
+    // === 1. 중복 CP 삭제: cp-26-m002 (하이픈 포함, AUTO-GEN) ===
     const cpDupRes = await client.query(`SELECT id, "cpNo" FROM control_plans WHERE "cpNo" LIKE 'cp-%' AND "fmeaId" IS NOT NULL`);
     for (const cp of cpDupRes.rows) {
       const correctCpNo = cp.cpNo.replace(/^cp-/, 'cp');
@@ -21,7 +21,7 @@ async function main() {
       }
     }
 
-    // === 2. 중복 PFD 삭제: pfd-26-m066 (하이픈 포함, AUTO-GEN, tripletGroupId=NULL) ===
+    // === 2. 중복 PFD 삭제: pfd-26-m002 (하이픈 포함, AUTO-GEN, tripletGroupId=NULL) ===
     const pfdDupRes = await client.query(`
       SELECT id, "pfdNo", "fmeaId" FROM pfd_registrations 
       WHERE "tripletGroupId" IS NULL AND "pfdNo" LIKE 'pfd-%'

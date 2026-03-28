@@ -5,7 +5,7 @@
  * - 그 외 열: 병합 대비 — 빈 셀은 바로 위 행 값으로 forward-fill
  *
  * 사용: npx tsx scripts/export-fmea-validation-excel.ts
- * 환경: MASTER_JSON (기본 data/master-fmea/pfm26-m066.json)
+ * 환경: MASTER_JSON (기본 data/master-fmea/pfm26-m002.json)
  *       OUT_DIR (기본 C:\Users\Administrator\Desktop\fmea검증)
  */
 import * as fs from 'fs';
@@ -305,7 +305,7 @@ function sortChainsForSheet<T extends { feScope?: string; processNo?: string; fm
 async function main() {
   const root = process.cwd();
   const masterPath =
-    process.env.MASTER_JSON || path.join(root, 'data', 'master-fmea', 'pfm26-m066.json');
+    process.env.MASTER_JSON || path.join(root, 'data', 'master-fmea', 'pfm26-m002.json');
   const outDir = process.env.OUT_DIR || DEFAULT_OUT;
 
   const raw = fs.readFileSync(masterPath, 'utf8');
@@ -359,7 +359,7 @@ async function main() {
     'L2-1.공정번호',
     'FM(고장형태)',
     '4M',
-    '작업요소(WE)',
+    'WE(작업요소)',
     'FC(고장원인)',
     'B5.예방관리(발생 전 방지)',
     'A6.검출관리(발생 후 검출)',

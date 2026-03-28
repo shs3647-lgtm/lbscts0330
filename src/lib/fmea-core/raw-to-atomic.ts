@@ -75,7 +75,7 @@ export async function saveAtomicFromPosition(
   const stats = data.stats;
   if (stats) {
     const flCount = data.failureLinks.length;
-    const validFL = data.failureLinks.filter((fl) => fl.fmId && fl.feId && fl.fcId).length;
+    const validFL = data.failureLinks.filter((fl) => fl.fmId).length;
     if (flCount === 0 || validFL === 0) {
       console.warn(
         `[raw-to-atomic] ⚠️ EX-53: FL=${flCount}, validFL=${validFL} — raw-complete 미달. 계속 진행.`,
@@ -263,6 +263,7 @@ export async function saveAtomicFromPosition(
             id: pc.id,
             fmeaId: normalizedId,
             l2StructId: pc.l2StructId,
+            parentId: pc.parentId || null,
             name: pc.name,
             specialChar: pc.specialChar ?? null,
             orderIndex: pc.orderIndex,
@@ -445,12 +446,12 @@ export async function saveAtomicFromPosition(
         console.log(`[raw-to-atomic] FailureCause: ${data.failureCauses.length}건 생성`);
       }
 
-      // 17. FailureLinks — 빈 FK 필터링 후 저장 (validFLs only, skipDuplicates)
-      const validFLs = data.failureLinks.filter((fl) => fl.fmId && fl.feId && fl.fcId);
+      // 17. FailureLinks — fmId 필수, feId/fcId 선택 (FC 미정의 FL 허용)
+      // ★v6.3: fcId 없어도 fmId만 있으면 유효 — FC 시트에 없는 FM도 FL 보유
+      const validFLs = data.failureLinks.filter((fl) => fl.fmId);
       const brokenFLs = data.failureLinks.length - validFLs.length;
       if (brokenFLs > 0) {
-        console.warn(`[raw-to-atomic] ⚠️ FL FK 불완전 ${brokenFLs}건 스킵 (fmId/feId/fcId 빈값)`);
-        console.warn('[raw-to-atomic] 원인: FC 시트의 L1/L2/L3 원본행 컬럼 확인 필요');
+        console.warn(`[raw-to-atomic] ⚠️ FL fmId 없음 ${brokenFLs}건 스킵`);
       }
       if (validFLs.length > 0) {
         await tx.failureLink.createMany({
@@ -459,8 +460,8 @@ export async function saveAtomicFromPosition(
             id: fl.id,
             fmeaId: normalizedId,
             fmId: fl.fmId,
-            feId: fl.feId,
-            fcId: fl.fcId,
+            feId: fl.feId || null,    // ★v6.3: 빈값 → null (FK 위반 방지)
+            fcId: fl.fcId || null,    // ★v6.3: FC 미정의 FL 허용
             // ⛔ GUARD: l2StructId/l3StructId 절대 삭제 금지 — FL→구조 직접참조 (★v4 EX-38)
             // FK 조인 없이 L2/L3 필터 가능. 없으면 전체 쿼리 성능 저하.
             l2StructId: fl.l2StructId || null,
@@ -526,9 +527,9 @@ export async function saveAtomicFromPosition(
         failureLinks: flc,
         riskAnalyses: rac,
       };
-    }, { timeout: 60_000, maxWait: 10_000 });
+    });
 
-    const validFLs = data.failureLinks.filter((fl) => fl.fmId && fl.feId && fl.fcId);
+    const validFLs = data.failureLinks.filter((fl) => fl.fmId);
     const skippedFL = data.failureLinks.length - validFLs.length;
 
     console.log(`[raw-to-atomic] Done (fmeaId=${normalizedId}):`, JSON.stringify(counts));

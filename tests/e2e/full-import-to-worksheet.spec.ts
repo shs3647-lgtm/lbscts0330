@@ -14,7 +14,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 // ── 헬퍼 ──
 async function dismissModal(page: import('@playwright/test').Page) {

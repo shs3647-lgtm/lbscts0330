@@ -111,11 +111,13 @@ function syncL2Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksh
       }
 
       // ★ 2026-03-28: productChars 배열을 첫 번째 행에 첨부 → save API step 4.5에서 PPC 생성 가능
-      const pcEntries = pcs.map(pc => ({
-        id: pc.id || '',
-        name: (pc.name || '').trim(),
-        specialChar: pc.specialChar || '',
-      })).filter(p => p.id);
+      const pcEntries = pcs
+        .map((pc: { id?: string; name?: string; specialChar?: string }) => ({
+          id: pc.id || '',
+          name: (pc.name || '').trim(),
+          specialChar: pc.specialChar || '',
+        }))
+        .filter((p: { id: string }) => p.id);
 
       for (let i = 0; i < pcs.length; i++) {
         const pc = pcs[i];

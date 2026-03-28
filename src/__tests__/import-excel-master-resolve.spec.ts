@@ -10,7 +10,7 @@ import {
 
 describe('import-excel-master-resolve', () => {
   it('normalizeFmeaId lowercases', () => {
-    expect(normalizeFmeaId('PFM26-M066')).toBe('pfm26-m066');
+    expect(normalizeFmeaId('PFM26-M002')).toBe('pfm26-m002');
   });
 
   it('resolveMasterJsonPath prefers explicit path when file exists', () => {
@@ -26,9 +26,9 @@ describe('import-excel-master-resolve', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fmea-resolve-'));
     const dataDir = path.join(tmp, 'data', 'master-fmea');
     fs.mkdirSync(dataDir, { recursive: true });
-    const bare = path.join(dataDir, 'pfm26-m066.json');
+    const bare = path.join(dataDir, 'pfm26-m002.json');
     fs.writeFileSync(bare, '{}');
-    const r = resolveMasterJsonPath(tmp, 'pfm26-m066', undefined);
+    const r = resolveMasterJsonPath(tmp, 'pfm26-m002', undefined);
     expect(r.path).toBe(bare);
     expect(r.tried.length).toBeGreaterThanOrEqual(2);
   });
@@ -36,6 +36,6 @@ describe('import-excel-master-resolve', () => {
   it('masterJsonMatchesFmeaId accepts top-level or atomicDB fmeaId', () => {
     expect(masterJsonMatchesFmeaId({ fmeaId: 'pfm26-m101' }, 'pfm26-m101')).toBe(true);
     expect(masterJsonMatchesFmeaId({ atomicDB: { fmeaId: 'pfm26-m101' } }, 'pfm26-m101')).toBe(true);
-    expect(masterJsonMatchesFmeaId({ fmeaId: 'pfm26-m066' }, 'pfm26-m101')).toBe(false);
+    expect(masterJsonMatchesFmeaId({ fmeaId: 'pfm26-m002' }, 'pfm26-m101')).toBe(false);
   });
 });

@@ -89,7 +89,7 @@ async function main() {
   const fcws = wb.addWorksheet('FC 고장사슬');
   const fch = [
     'No', 'FE구분', 'FE(고장영향)', '공정번호', 'FM(고장형태)',
-    '4M', '작업요소(WE)', 'FC(고장원인)', 'PC(예방관리)', 'DC(검출관리)',
+    '4M', 'WE(작업요소)', 'FC(고장원인)', 'PC(예방관리)', 'DC(검출관리)',
     'S', 'O', 'D', 'AP', 'L1원본행', 'L2원본행', 'L3원본행',
   ];
   fcws.addRow(fch);

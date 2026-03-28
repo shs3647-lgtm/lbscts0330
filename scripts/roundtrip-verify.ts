@@ -3,7 +3,7 @@
  * @description 라운드트립 검증: Excel 생성 → 역임포트 → 파이프라인 검증
  *
  * Usage: npx tsx scripts/roundtrip-verify.ts [fmeaId] [port]
- * Default: fmeaId=pfm26-m066, port=3000
+ * Default: fmeaId=pfm26-m002, port=3000
  *
  * 4단계:
  *  1. generate-roundtrip-excel API로 Excel 생성
@@ -14,7 +14,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const FMEA_ID = process.argv[2] || 'pfm26-m066';
+const FMEA_ID = process.argv[2] || 'pfm26-m002';
 const PORT = process.argv[3] || '3000';
 const BASE_URL = `http://localhost:${PORT}`;
 

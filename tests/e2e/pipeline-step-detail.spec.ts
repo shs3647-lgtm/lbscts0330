@@ -7,7 +7,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 test.describe('파이프라인 STEP 상세 데이터 뷰', () => {
   test.beforeEach(async ({ page }) => {

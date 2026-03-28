@@ -42,12 +42,6 @@ export default function MasterPage() {
             icon: '📥',
         },
         {
-            title: 'DFMEA 임포트(DFMEA Import)',
-            description: 'DFMEA 데이터를 임포트합니다.',
-            href: '/dfmea/import',
-            icon: '📥',
-        },
-        {
             title: 'CP 기초정보(CP Master Data)',
             description: 'Control Plan 기초정보를 관리합니다.',
             href: '/control-plan/import',

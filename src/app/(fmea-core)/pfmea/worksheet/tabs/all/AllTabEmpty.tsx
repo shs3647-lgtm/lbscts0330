@@ -390,6 +390,27 @@ export default function AllTabEmpty({
     ...missingSODCounts,
   }), [structureStats, missingSODCounts]);
 
+  // ★ 3ST 기능분석 통계: 완제품기능(C2)/요구사항(C3)/고장영향(C4) 카운트
+  const functionStats = useMemo(() => {
+    const l1 = state?.l1;
+    if (!l1) return undefined;
+    // C2 완제품기능: l1.types[].functions[] (빈 이름 제외)
+    let productFunctionCount = 0;
+    // C3 요구사항: l1.types[].functions[].requirements[]
+    let requirementCount = 0;
+    for (const t of (l1.types || [])) {
+      for (const f of (t.functions || [])) {
+        if (f.name?.trim()) productFunctionCount++;
+        for (const r of (f.requirements || [])) {
+          if (r.name?.trim()) requirementCount++;
+        }
+      }
+    }
+    // C4 고장영향: l1.failureScopes[] (effect 또는 id 존재)
+    const failureEffectCount = (l1.failureScopes || []).filter((fs: L1FailureScope) => fs.effect || fs.id).length;
+    return { productFunctionCount, requirementCount, failureEffectCount };
+  }, [state?.l1]);
+
   // ★★★ 2026-02-23: O누락/D누락/S누락 배지 클릭 → 해당 미평가 행으로 스크롤 ★★★
   const missingScrollIdxRef = useRef<{ S: number; O: number; D: number }>({ S: 0, O: 0, D: 0 });
 
@@ -730,6 +751,7 @@ export default function AllTabEmpty({
           hFont={hFont}
           isCompact={isCompact}
           failureStats={failureStats}
+          functionStats={functionStats}
           apStats={apStats}
           apStats6={apStats6}
           srpStats={srpStats}

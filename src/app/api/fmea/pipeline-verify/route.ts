@@ -18,13 +18,89 @@ import {
 } from './verify-steps';
 import { fixStructure, fixUuid, fixFk, fixMissing } from './auto-fix';
 
+/** 자동수정 요약 — 자동수정 가능/수동필요 분류 */
+interface AutoFixCategory {
+  type: string;
+  count: number;
+  autoFixable: boolean;
+  description: string;
+}
+
+interface AutoFixSummary {
+  totalIssues: number;
+  autoFixed: number;
+  manualRequired: number;
+  categories: AutoFixCategory[];
+}
+
+/** 검증 결과에서 자동수정 요약 생성 */
+function buildAutoFixSummary(steps: StepResult[]): AutoFixSummary {
+  const categories: AutoFixCategory[] = [];
+
+  for (const step of steps) {
+    // fixed 항목 → 자동수정 완료
+    for (const fix of step.fixed) {
+      const countMatch = /(\d+)건/.exec(fix);
+      const count = countMatch ? parseInt(countMatch[1], 10) : 1;
+      if (fix.startsWith('[진단]')) continue; // 진단 로그 제외
+      categories.push({
+        type: `step${step.step}_fix`,
+        count,
+        autoFixable: true,
+        description: fix,
+      });
+    }
+
+    // issues 항목 분류 — 자동수정 가능 vs 수동 필요
+    for (const issue of step.issues) {
+      const countMatch = /(\d+)건/.exec(issue);
+      const count = countMatch ? parseInt(countMatch[1], 10) : 1;
+
+      // FK orphan / cascade / nullable 정리는 자동수정 가능
+      const autoFixable = /고아|orphan|NULL|cascade|연쇄|리매핑|RA 없는|무효|심각도|DC.*미입력|PC.*미입력/i.test(issue);
+      // 미연결 FC/FM, Import 필요, fmeaId 불일치는 수동 필요
+      const isManual = /FL 없는 (FC|FM)|Import 필요|수동|리매핑 필요|FailureLink 0건/i.test(issue);
+
+      categories.push({
+        type: `step${step.step}_issue`,
+        count,
+        autoFixable: isManual ? false : autoFixable,
+        description: issue,
+      });
+    }
+  }
+
+  const autoFixed = categories.filter(c => c.autoFixable).reduce((s, c) => s + c.count, 0);
+  const manualRequired = categories.filter(c => !c.autoFixable).reduce((s, c) => s + c.count, 0);
+
+  return {
+    totalIssues: autoFixed + manualRequired,
+    autoFixed,
+    manualRequired,
+    categories,
+  };
+}
+
 export const runtime = 'nodejs';
 
 // ─── 메인 검증+수정 루프 ─────────────────────────────────────
 
-async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean): Promise<PipelineResult> {
+async function runPipelineVerify(
+  prisma: any,
+  fmeaId: string,
+  autoFix: boolean,
+): Promise<PipelineResult & { autoFixSummary?: AutoFixSummary }> {
   const MAX_LOOPS = 3;
   let loopCount = 0;
+
+  const mkResult = (steps: StepResult[], allGreen: boolean) => ({
+    fmeaId,
+    steps,
+    allGreen,
+    loopCount,
+    timestamp: new Date().toISOString(),
+    autoFixSummary: buildAutoFixSummary(steps),
+  });
 
   for (let i = 0; i < MAX_LOOPS; i++) {
     loopCount = i + 1;
@@ -39,12 +115,12 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
 
     if (!autoFix) {
       const allOk = steps.every(s => s.status === 'ok');
-      return { fmeaId, steps, allGreen: allOk, loopCount, timestamp: new Date().toISOString() };
+      return mkResult(steps, allOk);
     }
 
     const allOk = steps.every(s => s.status === 'ok');
     if (allOk) {
-      return { fmeaId, steps, allGreen: true, loopCount, timestamp: new Date().toISOString() };
+      return mkResult(steps, true);
     }
 
     // 자동수정 실행 (순서대로)
@@ -84,7 +160,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
     const anyFixed = steps.some(s => s.fixed.length > 0);
     if (!anyFixed) {
       const acceptable = steps.every(s => s.status === 'ok');
-      return { fmeaId, steps, allGreen: acceptable, loopCount, timestamp: new Date().toISOString() };
+      return mkResult(steps, acceptable);
     }
   }
 
@@ -105,13 +181,7 @@ async function runPipelineVerify(prisma: any, fmeaId: string, autoFix: boolean):
   }
 
   const acceptable = finalSteps.every(s => s.status === 'ok' || s.status === 'warn');
-  return {
-    fmeaId,
-    steps: finalSteps,
-    allGreen: acceptable,
-    loopCount,
-    timestamp: new Date().toISOString(),
-  };
+  return mkResult(finalSteps, acceptable);
 }
 
 // ─── HTTP handlers ───────────────────────────────────────────

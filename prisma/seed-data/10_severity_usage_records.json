@@ -80,7 +80,7 @@
   {
     "id": "085d3fa2-b295-4ae7-a603-bb27c9f96552",
     "feText": "Wafer 표면 결함 미검출로 인한 후공정 유출",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -847,7 +847,7 @@
   {
     "id": "06965130-cebe-4901-9dd6-3f5503da9571",
     "feText": "전기적 Open/Short",
-    "severity": 1,
+    "severity": 8,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -912,7 +912,7 @@
   {
     "id": "83858939-9f8d-46ef-99d9-1d684408a4d5",
     "feText": "정전기 제거 실패, 제품 손상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -977,7 +977,7 @@
   {
     "id": "cd4ac707-ebde-4011-869c-b87e42bff480",
     "feText": "Wafer 파손·크랙으로 인한 Wafer 손실",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -990,7 +990,7 @@
   {
     "id": "be99c174-9616-454e-b105-988ea6d830c9",
     "feText": "TiW 두께 Spec Out으로 인한 제품 특성 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1003,7 +1003,7 @@
   {
     "id": "06f48da4-d56d-4207-8eb9-49745bd378f4",
     "feText": "PR 균일도 Spec Out으로 인한 CD 산포 불량",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1087,7 +1087,7 @@
     "productChar": "",
     "usageCount": 2055,
     "lastUsedAt": "2026-03-21T12:14:11.226Z",
-    "sourceFmeaId": "pfm26-m066",
+    "sourceFmeaId": "pfm26-m002",
     "createdAt": "2026-03-16T21:28:49.100Z",
     "updatedAt": "2026-03-21T12:14:11.228Z"
   },
@@ -1100,7 +1100,7 @@
     "productChar": "",
     "usageCount": 1012,
     "lastUsedAt": "2026-03-21T12:14:11.230Z",
-    "sourceFmeaId": "pfm26-m066",
+    "sourceFmeaId": "pfm26-m002",
     "createdAt": "2026-03-17T09:58:53.057Z",
     "updatedAt": "2026-03-21T12:14:11.232Z"
   },
@@ -1113,7 +1113,7 @@
     "productChar": "",
     "usageCount": 1751,
     "lastUsedAt": "2026-03-21T12:14:11.234Z",
-    "sourceFmeaId": "pfm26-m066",
+    "sourceFmeaId": "pfm26-m002",
     "createdAt": "2026-03-17T06:35:17.820Z",
     "updatedAt": "2026-03-21T12:14:11.235Z"
   },
@@ -1126,14 +1126,14 @@
     "productChar": "",
     "usageCount": 2033,
     "lastUsedAt": "2026-03-21T12:14:11.258Z",
-    "sourceFmeaId": "pfm26-m066",
+    "sourceFmeaId": "pfm26-m002",
     "createdAt": "2026-03-16T21:28:49.142Z",
     "updatedAt": "2026-03-21T12:14:11.259Z"
   },
   {
     "id": "8fc6c607-f6d2-4bf3-94a2-bf0632ef1229",
     "feText": "고객 PKG TEST시 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1146,7 +1146,7 @@
   {
     "id": "5b51d3eb-25cd-4bcd-9916-bfacff771132",
     "feText": "생산순서 오류로 출고 지연 및 생산 차질 — 자사 공정 수율 심각 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1159,7 +1159,7 @@
   {
     "id": "53a3a29c-c829-48da-9ef4-c03e26a6d55f",
     "feText": "Lot 혼입으로 인한 Wafer 수율 손실",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1172,7 +1172,7 @@
   {
     "id": "40489cee-599a-4e70-8c42-6d8a72538bc7",
     "feText": "외관 결함 불량 유출(고객 Outgoing Defect)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1185,7 +1185,7 @@
   {
     "id": "31045482-fdb4-42dd-b4fc-6325037859bd",
     "feText": "IMC 두께 Spec Out으로 인한 접합부 신뢰성 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1198,7 +1198,7 @@
   {
     "id": "708d28ef-cd21-4689-9ec8-f8822dc0cb44",
     "feText": "고객 신뢰도 하락",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -1211,7 +1211,7 @@
   {
     "id": "a972f0b1-55b4-4dae-9b78-0effee9a70d4",
     "feText": "RoHS 부적합으로 인한 리콜·법적 조치",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -1237,7 +1237,7 @@
   {
     "id": "c5af6511-432d-4a10-966c-b62a4d92f48f",
     "feText": "Particle 오염으로 인한 제품 특성 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1276,7 +1276,7 @@
   {
     "id": "706ea32a-0191-45fe-ac9b-fa50eeea6ad1",
     "feText": "정전기 제거 실패",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1289,7 +1289,7 @@
   {
     "id": "b5abe0e2-8b7c-41d0-970c-46ce2677209e",
     "feText": "자재 낙하, 파손, 작업자 안전사고",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1302,7 +1302,7 @@
   {
     "id": "36f612d8-9d15-4455-8cac-8ceb3133da64",
     "feText": "수량 불일치, 자재 누락, 생산 차질",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1315,7 +1315,7 @@
   {
     "id": "a5d0d76e-6fb7-4037-88f3-cb14ef3e7b0d",
     "feText": "데이터 입력 오류, 자재 정보 누락",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1328,7 +1328,7 @@
   {
     "id": "b1b9a87f-a90c-485f-bc9c-1bf3af463c82",
     "feText": "검사 샘플 누락, LOT 관리 오류",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1341,7 +1341,7 @@
   {
     "id": "c1d669ce-21c5-447c-bfb3-6bfe79258312",
     "feText": "고객 불만, 품질 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1354,7 +1354,7 @@
   {
     "id": "0809da5a-a43d-4882-9fa8-49f0342ad1b6",
     "feText": "조립 불량, 기능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1367,7 +1367,7 @@
   {
     "id": "ac229959-9856-49a6-bb7c-6876f73a9659",
     "feText": "도장 불량, 내구성 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1380,7 +1380,7 @@
   {
     "id": "637b2dbf-d1df-4d2b-b839-f3fc7daebe29",
     "feText": "내구성 저하, 부식 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1393,7 +1393,7 @@
   {
     "id": "2ce89fb5-422a-4710-9751-655fea6a127a",
     "feText": "무검사품 라벨 오류 → 자재 식별 불가",
-    "severity": 1,
+    "severity": 5,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1445,7 +1445,7 @@
   {
     "id": "0cc1d2bb-0687-46a3-81b2-53714d40b3ca",
     "feText": "Wafer 스크래치 발생으로 인한 수율 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1458,7 +1458,7 @@
   {
     "id": "ebff4ffe-6167-4046-b027-865ffed87cf4",
     "feText": "Au Seed 두께 Spec Out으로 인한 제품 특성 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1471,7 +1471,7 @@
   {
     "id": "1071cb21-393b-4138-b070-c2b13083cbaa",
     "feText": "Overlay 정렬 오차로 인한 패턴 불량",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1484,7 +1484,7 @@
   {
     "id": "62f9efb9-73c3-4deb-94b7-5c76009164ee",
     "feText": "Co-planarity Spec Out으로 인한 제품 특성 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1497,7 +1497,7 @@
   {
     "id": "f78bc447-0f0e-4784-9f01-5b17565f8a0a",
     "feText": "공정 Skip으로 인한 제품 특성 이상(MES Interlock 미작동)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1510,7 +1510,7 @@
   {
     "id": "a6f09f24-67bf-4498-b0e6-2917a3837a0a",
     "feText": "Lot 혼입 불량 유출(고객 불량 수령)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1523,7 +1523,7 @@
   {
     "id": "5aa3c660-afb6-4bce-a6cb-84a25b7ceea2",
     "feText": "Wafer 파손 불량 유출(고객 조립 불가)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1536,7 +1536,7 @@
   {
     "id": "8b319457-32e8-4437-9b67-960669d942d3",
     "feText": "Particle 오염 불량 유출(고객 기능 이상)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1601,7 +1601,7 @@
   {
     "id": "365d6962-7230-4b3c-93a8-f8ea11e20320",
     "feText": "고객 Packing 기준 부적합으로 인한 납품 Reject",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1653,7 +1653,7 @@
   {
     "id": "4e3d2a96-aa7c-408d-ac07-fc3553f82357",
     "feText": "검사품 라벨 오류 → 부적합품 혼입",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1666,7 +1666,7 @@
   {
     "id": "0cc68339-2c88-4961-91b1-5ec9876407e0",
     "feText": "FIFO 불이행 → 자재 품질 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1679,7 +1679,7 @@
   {
     "id": "86a42518-55e1-4f6b-9374-7705b8499131",
     "feText": "안전재고 미준수 → 생산 차질",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1692,7 +1692,7 @@
   {
     "id": "d4da3f7b-7057-4c62-81da-93ee29f6dde2",
     "feText": "생산지연, 순서 오류",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1705,7 +1705,7 @@
   {
     "id": "31039599-cb7b-4e23-8b97-3ee05509a301",
     "feText": "품질 저하, 자재 혼입",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1718,7 +1718,7 @@
   {
     "id": "3366d05d-b9d6-41fd-9dfe-32eaabea5457",
     "feText": "추적 불가, 데이터 오류",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1731,7 +1731,7 @@
   {
     "id": "f2397166-2f6d-46d8-876e-631a8eac6e50",
     "feText": "안전사고, 자재 손상",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1744,7 +1744,7 @@
   {
     "id": "f78e887d-5a2f-4653-ad71-f51fa50c2e17",
     "feText": "내부적으로 불량품이 발생하여 공정 효율 저하 및 비용 상승",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1757,7 +1757,7 @@
   {
     "id": "39d0b24e-f30c-44f9-9e44-867bcdfca91a",
     "feText": "규격 외 제품이 출하되면 고객 품질 불만과 신뢰도 저하로 이어짐",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -1770,7 +1770,7 @@
   {
     "id": "5b2a9252-1daa-4ce0-846f-efde462dd9d5",
     "feText": "불량품이 실제 사용 환경에 투입되면 성능 저하 및 안전 문제로 확대",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -1783,7 +1783,7 @@
   {
     "id": "b17e2d6f-7981-432d-b0e3-c67acd023127",
     "feText": "압력 불안정으로 체결 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1796,7 +1796,7 @@
   {
     "id": "0f415132-bb84-439e-80f0-65a1beeef4fa",
     "feText": "체결 불량, 조립 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1809,7 +1809,7 @@
   {
     "id": "8ed50ec9-f234-4921-9ef0-3f242d4ba0b5",
     "feText": "체결 강도 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1822,7 +1822,7 @@
   {
     "id": "e5c7ecea-bbaf-48df-8bf8-282b5826f407",
     "feText": "체결 불량, 나사 손상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1835,7 +1835,7 @@
   {
     "id": "6a92c143-676f-4604-a498-fc8138a285bf",
     "feText": "외관 불량품 유출",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1848,7 +1848,7 @@
   {
     "id": "3aa50798-3820-474d-afe1-fae58d8da3be",
     "feText": "체결 누락, 제품 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1861,7 +1861,7 @@
   {
     "id": "6e02694d-9d44-4184-a183-f090eb17e21e",
     "feText": "체결 불량, 외관 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1874,7 +1874,7 @@
   {
     "id": "ba65f371-d932-43c5-b1fc-d1c82b48b8d7",
     "feText": "보호 상태 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1887,7 +1887,7 @@
   {
     "id": "b4358d4b-5d9a-4ba2-8a58-87ebf1b86b0e",
     "feText": "포장 불량, 납품 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1900,7 +1900,7 @@
   {
     "id": "bbc6541b-6091-48d8-b6f9-d420b5db914d",
     "feText": "외관 불량품 유출, 고객 클레임",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1913,7 +1913,7 @@
   {
     "id": "1db98774-51bf-4786-8e8f-2beda68201ff",
     "feText": "조립 불량, 누락 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1926,7 +1926,7 @@
   {
     "id": "878ccacd-a2ed-4deb-96bc-889ce4c01541",
     "feText": "접착 불량, 렌즈 파손",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1939,7 +1939,7 @@
   {
     "id": "e359ce6b-ee84-412a-84a7-a792d9f8cabd",
     "feText": "접착 불량, 품질 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1952,7 +1952,7 @@
   {
     "id": "37ebe855-6f63-421f-969a-209e4811fa1f",
     "feText": "납품 불량, 고객 불만",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1965,7 +1965,7 @@
   {
     "id": "2f5cd54f-bd2a-41d9-977a-42ed86d0c515",
     "feText": "하로 인한 자재 손상 및 작업자 안전사고",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1978,7 +1978,7 @@
   {
     "id": "0c1e6057-62b8-4f0b-988d-1a35beb6616a",
     "feText": "수량 불일치로 인한 생산 차질",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -1991,7 +1991,7 @@
   {
     "id": "f6d0a727-0a6a-4546-af3c-c3cf46a2d0f2",
     "feText": "선입선출 미준수로 인한 품질 문제 및 생산 지연",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2004,7 +2004,7 @@
   {
     "id": "b59d15a1-210c-4c02-b635-37b1263f87e3",
     "feText": "생산순서 오류로 인한 출고 지연 및 생산 차질",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2017,7 +2017,7 @@
   {
     "id": "b6d4fe9f-76c3-4194-a2d0-88f700c7786c",
     "feText": "자재 낙하로 인한 손상 및 안전사고",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2030,7 +2030,7 @@
   {
     "id": "a684940b-c50f-484d-a27d-04c208206a0e",
     "feText": "압력 부족으로 겝필러 도포 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2043,7 +2043,7 @@
   {
     "id": "365dd2c2-37c4-495c-87d4-119d1fa54015",
     "feText": "외관 불량으로 고객 불만 발생",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2056,7 +2056,7 @@
   {
     "id": "2a6df7af-55d1-4139-8e22-9f745db62cdb",
     "feText": "사양 불일치로 도포 성능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2069,7 +2069,7 @@
   {
     "id": "ff753d2b-20b4-44b1-aebb-445b6cc90431",
     "feText": "유효기간 초과로 성능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2082,7 +2082,7 @@
   {
     "id": "6f89ad02-63b3-4bc9-a01f-671c3ab43c65",
     "feText": "도포량 과다/부족으로 열전도 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2095,7 +2095,7 @@
   {
     "id": "d116f85b-a097-40d3-845d-c343855e177a",
     "feText": "미도포 발생으로 접합 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2108,7 +2108,7 @@
   {
     "id": "f1c0e849-d7bf-46b2-a133-1fb3e06a050c",
     "feText": "정전기 잔류로 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2121,7 +2121,7 @@
   {
     "id": "6f7a31a2-0540-4bb4-922a-aa986aa512ba",
     "feText": "전극 오염으로 정전기 제거 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2134,7 +2134,7 @@
   {
     "id": "8077f481-24a5-4c69-a7ad-a509745b9fcf",
     "feText": "추적 불가, 라벨 인식 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2147,7 +2147,7 @@
   {
     "id": "b6936a3f-63dd-4098-ad31-cd536d72cf3b",
     "feText": "광학 성능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2160,7 +2160,7 @@
   {
     "id": "fc944bf3-b2bc-48ea-b23a-38feb6ccff7b",
     "feText": "외관 불량, 고객 불만",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2173,7 +2173,7 @@
   {
     "id": "b9e18546-a0a3-4e82-9096-d7cc1189e5ac",
     "feText": "모듈 조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2186,7 +2186,7 @@
   {
     "id": "2cf0677e-b262-4b6b-98ce-e557b81000e1",
     "feText": "PCB 조립 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2199,7 +2199,7 @@
   {
     "id": "85248ebb-be76-46e2-bd8d-56c114e1a7b7",
     "feText": "MOTOR 조립 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2212,7 +2212,7 @@
   {
     "id": "f0100b18-6d18-4fda-9b19-0e4c4f7ead62",
     "feText": "제품 기능 이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2238,7 +2238,7 @@
   {
     "id": "266df5e8-710f-4d31-9da5-70399734a77a",
     "feText": "Bump Lift-off",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2251,7 +2251,7 @@
   {
     "id": "6af60447-8dfd-4933-b89e-d1fa4c95092e",
     "feText": "CD Spec Out으로 인한 Bump 형성 불량",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2264,7 +2264,7 @@
   {
     "id": "68ae89af-f324-465d-bafc-ca8d58a59cbc",
     "feText": "Particle 오염 불량 유출로 인한 고객 기능 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2277,7 +2277,7 @@
   {
     "id": "b35ccb52-bef4-43e5-877d-ad4305b9a2b4",
     "feText": "고객 라인 정지, 클레임",
-    "severity": 1,
+    "severity": 8,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -2316,7 +2316,7 @@
   {
     "id": "8ba365cd-801b-458c-bd2b-65be3c971c8c",
     "feText": "정전기 제거 불능",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2329,7 +2329,7 @@
   {
     "id": "b8ace518-b286-45a1-8af1-e0280b769296",
     "feText": "정전기 제거 성능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2342,7 +2342,7 @@
   {
     "id": "94f417db-3771-465d-959f-4456df11832c",
     "feText": "CASE LWR  조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2355,7 +2355,7 @@
   {
     "id": "e1b5def1-b84c-425d-9102-19eb7d71fb1d",
     "feText": "케이블 체결  조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2368,7 +2368,7 @@
   {
     "id": "23875bcd-27f8-47b5-99bd-db55568f9bc1",
     "feText": "ASPHERIC MIRROR  조립 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2381,7 +2381,7 @@
   {
     "id": "bdcc90fa-d0b8-49e5-8ac9-dfcde1b87e4b",
     "feText": "공급 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2394,7 +2394,7 @@
   {
     "id": "c84c773c-73b3-40c0-bd12-0df83c62b4f2",
     "feText": "도포량 과다/부족으로 구동 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2407,7 +2407,7 @@
   {
     "id": "bfce5727-539b-411c-a18a-753303e58420",
     "feText": "미도포 발생으로 이음 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2420,7 +2420,7 @@
   {
     "id": "6dbc7bf6-bfb1-46cc-974c-91b9c8dab2de",
     "feText": "ASPHERIC MIRROR  조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2433,7 +2433,7 @@
   {
     "id": "abdd4ff3-9d8c-45e4-905e-4a6015ff627c",
     "feText": "스크린 조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2446,7 +2446,7 @@
   {
     "id": "a3a83f8d-8384-4ff4-93bb-041268331000",
     "feText": "CASE LWR 조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2459,7 +2459,7 @@
   {
     "id": "f7c94bd8-ab01-4fcb-bf01-55fabd95c9d1",
     "feText": "고객 불만, 안전 문제",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2472,7 +2472,7 @@
   {
     "id": "d3fc6142-2823-4683-b355-8dc7641c8910",
     "feText": "체결 불량, 기능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2485,7 +2485,7 @@
   {
     "id": "a8576957-04d6-49b5-ad8b-7e159a0288ac",
     "feText": "추적성 상실, 고객 클레임",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2498,7 +2498,7 @@
   {
     "id": "b9fb606d-6ee6-4842-914d-d79e58765f06",
     "feText": "내부 체결 불량, 기능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2511,7 +2511,7 @@
   {
     "id": "30acc539-6d20-4e6d-bc04-0bcdb43e2efc",
     "feText": "HUD ASS’Y  조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2524,7 +2524,7 @@
   {
     "id": "01607d72-f218-4644-b932-cbeb6b66f2e5",
     "feText": "기능 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2537,7 +2537,7 @@
   {
     "id": "75f451f0-dd68-4aec-b8d9-ebbc31ece38a",
     "feText": "전류 과다 시 기능 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2550,7 +2550,7 @@
   {
     "id": "ce9634a3-08c9-44d4-aa2d-4080d2c4d009",
     "feText": "접촉 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2563,7 +2563,7 @@
   {
     "id": "1d1ab8e2-0cf1-4000-84ec-42ba004a22f4",
     "feText": "보안 취약 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2576,7 +2576,7 @@
   {
     "id": "b5e9573f-91bc-49ac-9102-88c93d2e8c66",
     "feText": "제품 식별 불능, 추적성 상실",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2589,7 +2589,7 @@
   {
     "id": "953afe94-4adf-425d-988a-9a684d9d6c12",
     "feText": "검사 이미지 불량, 판독 오류",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2602,7 +2602,7 @@
   {
     "id": "8fe74543-73e7-4c73-9cae-48197e17ceec",
     "feText": "정전기 제거 불능, 이물 부착",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2615,7 +2615,7 @@
   {
     "id": "333c80ca-808c-4dff-ab3e-edae40a48d90",
     "feText": "TiW 두께 불량에 의한 Chip 기능 이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2628,7 +2628,7 @@
   {
     "id": "022472fe-b361-49ce-829c-f47e267a93ce",
     "feText": "Au Seed 두께 불량에 의한 Chip 기능 이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2641,7 +2641,7 @@
   {
     "id": "a0a0e60a-c1c3-479d-94b8-3564cf4db428",
     "feText": "CD 불량에 의한 Chip 기능 이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2654,7 +2654,7 @@
   {
     "id": "071c92a5-0c21-4f3c-a05e-38fa94fb52c1",
     "feText": "Overlay 불량에 의한 Chip 기능 이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2667,7 +2667,7 @@
   {
     "id": "2e9008e2-d84d-499f-9a55-f1144f30c39c",
     "feText": "Bump Height 불량에 의한 제품 조립 불가",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2680,7 +2680,7 @@
   {
     "id": "cdb4f5af-f7c7-4995-aa49-8401a6a35abc",
     "feText": "Co-planarity 불량에 의한 제품 조립 불가",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2693,7 +2693,7 @@
   {
     "id": "b3dd4623-6229-4b4f-b4fc-77ff5cb829ca",
     "feText": "Shear Strength 미달로 인한 Chip 기능 불량(고객 조립 수율 저하)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2706,7 +2706,7 @@
   {
     "id": "60cadc9e-9302-469e-b717-046fdcb05463",
     "feText": "Hardness 미달로 인한 Chip 기능 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2719,7 +2719,7 @@
   {
     "id": "bb329ae7-7ec2-4e19-8904-361145f78497",
     "feText": "Co-planarity 불량으로 인한 제품 조립 불가(고객 조립 Reject)",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2732,7 +2732,7 @@
   {
     "id": "dc1d4f8f-28ff-4f14-abde-fcce7caf4817",
     "feText": "클린룸 청정도 기준 위반에 의한 제품 Particle 오염 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -2745,7 +2745,7 @@
   {
     "id": "7b105450-9ffb-4a9e-8311-848d1e81c27e",
     "feText": "품질경영시스템 부적합(FMEA 미준수, ISO 9001 위반)",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -2758,7 +2758,7 @@
   {
     "id": "012a2f6f-ade2-46be-9d5d-fa37270f697c",
     "feText": "ESD 손상에 의한 Chip 기능 불량(현장 클레임)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -2771,7 +2771,7 @@
   {
     "id": "c27f5c67-0e19-496a-b8b2-93f90349e455",
     "feText": "REACH SVHC 물질 함유로 인한 제품 출하 불가(법적 위반)",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -2784,7 +2784,7 @@
   {
     "id": "78ee6dba-bc6d-4b42-82a9-c7ea131ae627",
     "feText": "ESD 관리 기준 위반으로 인한 Chip ESD 손상 불량",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -2797,7 +2797,7 @@
   {
     "id": "d0bd9d4b-e0b9-45a5-8b43-29a1ad28d658",
     "feText": "ISO 9001 부적합으로 인한 품질경영시스템 위반",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -2810,7 +2810,7 @@
   {
     "id": "14da9e1c-a5b3-4c8e-8856-12a0bdb8f945",
     "feText": "제품기능저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2823,7 +2823,7 @@
   {
     "id": "4ceef1d5-7c98-4cda-8629-e06bc754d452",
     "feText": "기능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2836,7 +2836,7 @@
   {
     "id": "57b8c6a9-e35c-4648-825e-52563788198f",
     "feText": "PR 두께 Spec Out으로 인한 패턴 불량",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2849,7 +2849,7 @@
   {
     "id": "a03ce39e-4c59-4946-a768-106dc8bb75ce",
     "feText": "Bump간 Bridge",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2862,7 +2862,7 @@
   {
     "id": "97080b57-5902-4616-b2a9-3f7c26beb2eb",
     "feText": "PR Scum 잔류로 인한 Au Bump 형성 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2875,7 +2875,7 @@
   {
     "id": "33a736ad-6738-44d1-abf4-54e9fa81ae4b",
     "feText": "Bump Height Spec Out으로 인한 제품 특성 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2888,7 +2888,7 @@
   {
     "id": "4115d27d-39e8-4821-8efc-cd6ba7474b28",
     "feText": "Plating 균일도 Spec Out으로 인한 Bump 특성 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2901,7 +2901,7 @@
   {
     "id": "e902dcc5-1e7c-4bcd-947f-82656c9ab2bf",
     "feText": "IMC 과성장에 의한 접합부 열화",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2914,7 +2914,7 @@
   {
     "id": "d7dee806-d67e-4550-bed5-53b7b99579a8",
     "feText": "라벨 불일치로 인한 Lot 혼입 불량 유출",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -2927,7 +2927,7 @@
   {
     "id": "42eafebb-09b7-4f8f-9260-225e93ed61d0",
     "feText": "제품 특성 변화, 불량률 증가",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2940,7 +2940,7 @@
   {
     "id": "d997e28d-617a-44be-8116-83d46608a237",
     "feText": "제품 손상, 장비 불량",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2953,7 +2953,7 @@
   {
     "id": "734211d2-258d-4d98-a230-475cd9d55570",
     "feText": "제품 오염, 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2966,7 +2966,7 @@
   {
     "id": "94512f81-9fd6-4465-9ceb-339179c8b55c",
     "feText": "렌즈 표면 오염·스크래치로 성능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2979,7 +2979,7 @@
   {
     "id": "1f910f93-1913-46a7-90a1-c5c5d8eef8e3",
     "feText": "불량 검출 실패",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -2992,7 +2992,7 @@
   {
     "id": "5aeef330-b4ed-4c5c-a9be-0b5c59fbcb8a",
     "feText": "체결 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3005,7 +3005,7 @@
   {
     "id": "5d2086f2-8ab5-49de-9f37-5cd10731501e",
     "feText": "CASE LWR ASSY 조립 불량 발생",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3018,7 +3018,7 @@
   {
     "id": "fe60bb61-26ef-4077-a1ea-0107c45c07c8",
     "feText": "제품 감지 불능, 검사 누락",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3031,7 +3031,7 @@
   {
     "id": "32dd5461-031e-49ff-93d4-e6fbdaebaff6",
     "feText": "검사 로직 오류, 불량 검출 실패",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3044,7 +3044,7 @@
   {
     "id": "1a84b830-7db8-4af1-9609-8d5716805ced",
     "feText": "라벨 불량 검출 실패, 추적성 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3057,7 +3057,7 @@
   {
     "id": "73e7c34e-d52d-47ed-a9cc-ef9d303f8514",
     "feText": "외관 불량 미검출, 품질 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3070,7 +3070,7 @@
   {
     "id": "e60e4e6b-3cb3-4a37-941c-bdf9f415335c",
     "feText": "전기적 접속 불량, 제품 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3083,7 +3083,7 @@
   {
     "id": "2506f40d-0863-4a4f-9d94-95e9e91ead89",
     "feText": "접속 불량, 이물 혼입",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3096,7 +3096,7 @@
   {
     "id": "15503f7c-a9c0-47a9-9fc3-05a966b06653",
     "feText": "고객 불만, 반품 발생",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3109,7 +3109,7 @@
   {
     "id": "e96a14fe-d475-4fec-a33c-264e253c8ece",
     "feText": "안전 문제, 품질 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3122,7 +3122,7 @@
   {
     "id": "395a1189-cb51-4e6e-acda-1f47032d9b2d",
     "feText": "추적성 상실, MES 오류",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3135,7 +3135,7 @@
   {
     "id": "8549a0fe-ffbf-4859-ad8a-0d168e7c7892",
     "feText": "버전 불일치로 호환성 문제",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3148,7 +3148,7 @@
   {
     "id": "f0de50ec-db7f-4f41-8dd2-8cc9907a5687",
     "feText": "GLASS 이음 발생, 품질 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3161,7 +3161,7 @@
   {
     "id": "1387a05e-be84-47ad-826f-ccf3d082bc00",
     "feText": "규격 불일치, 품질 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3174,7 +3174,7 @@
   {
     "id": "943ecec5-a2b1-4e2d-83a5-c8334b6ac29b",
     "feText": "성능 저하, 품질 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3187,7 +3187,7 @@
   {
     "id": "171563fa-0d71-4dec-a560-d1bdce1e760b",
     "feText": "제품 손상,고개 불만",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3200,7 +3200,7 @@
   {
     "id": "95fcb5f6-ce70-49ad-9b7d-c7fecccdb8c9",
     "feText": "이물 혼입, 파손",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3213,7 +3213,7 @@
   {
     "id": "95109653-b0d9-4202-87b8-ab18a82600dc",
     "feText": "출하 오류, 고객 클래임",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3252,7 +3252,7 @@
   {
     "id": "ea7b4453-0d01-45c3-a96a-8c0e1ce2569e",
     "feText": "스크래치 불량 유출(고객 납품 외관 불량)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -3265,7 +3265,7 @@
   {
     "id": "b7c53519-6b78-495d-8eb1-28ae5451d492",
     "feText": "PKG TEST 수율 미달로 인한 고객 생산 Capa 손실",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -3278,7 +3278,7 @@
   {
     "id": "5b87ffdf-d68e-475c-b489-125531c5e37e",
     "feText": "RoHS 금지 물질 함유로 인한 제품 출하 불가(법적 위반)",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -3291,7 +3291,7 @@
   {
     "id": "b04d6816-3572-4344-b0dd-839e7a719eac",
     "feText": "ISO 14644 클린룸 등급 위반으로 인한 Particle 오염 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -3304,7 +3304,7 @@
   {
     "id": "fe10f18a-e0a3-498e-8f93-99756be3e729",
     "feText": "금지 화학물질 함유로 인한 제품 출하 불가(규제 위반)",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -3382,7 +3382,7 @@
   {
     "id": "b044c2fd-ab80-468e-9419-1505797d1c1b",
     "feText": "제품 기능 손실 수율감소",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -3408,7 +3408,7 @@
   {
     "id": "0239c3c5-ff9d-435d-9741-33319de8f141",
     "feText": "PCB 조립 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3421,7 +3421,7 @@
   {
     "id": "9ff25d7d-a0dd-44e8-bf21-ca8e5a5f2ed6",
     "feText": "불량 검출 실패 — 불량품 유출, 100% 미만 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3434,7 +3434,7 @@
   {
     "id": "f06e0788-ceca-4c6c-be1a-81ce5a14b7b2",
     "feText": "검사 로직 오류로 불량 검출 실패 — 불량품 유출, 100% 미만 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3447,7 +3447,7 @@
   {
     "id": "511b30ee-d86d-4789-b02d-b8d0cd7bdcd1",
     "feText": "자재 공급 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3460,7 +3460,7 @@
   {
     "id": "05f6e9fb-db99-4a3e-8927-ef9639833c36",
     "feText": "기능 불량 발생 — 자사 제품 기능 심각 저하, 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3473,7 +3473,7 @@
   {
     "id": "cf4bf03b-2db7-4bca-98be-1f130c273542",
     "feText": "내구성 저하 및 부식 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3486,7 +3486,7 @@
   {
     "id": "83759eb7-ce9a-42ac-8ea0-30c303bb753f",
     "feText": "도장 불량으로 내구성 저하 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3499,7 +3499,7 @@
   {
     "id": "f48ef6ed-a177-4f9f-81a8-7bad59d7df23",
     "feText": "내부 체결 불량으로 기능 저하 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3512,7 +3512,7 @@
   {
     "id": "4ce0dd48-abea-4fdc-8cd3-4a16eb42f840",
     "feText": "도포량 과다/부족으로 열전도 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3525,7 +3525,7 @@
   {
     "id": "312e8724-56e0-4086-888c-e4869e7f6397",
     "feText": "도포량 과다/부족으로 구동 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3538,7 +3538,7 @@
   {
     "id": "3e1ccdc6-5aee-4a51-b9a9-d036cf0a4ab5",
     "feText": "미도포 발생으로 이음 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3551,7 +3551,7 @@
   {
     "id": "edcd1ac0-6f55-42eb-b921-2b55bd61733a",
     "feText": "미도포 발생으로 접합 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3564,7 +3564,7 @@
   {
     "id": "88fc5205-d0fa-498a-9e54-e5688b8f8347",
     "feText": "안전 문제 발생 및 품질 저하 — 작업자 안전·건강 리스크 초래 가능",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3577,7 +3577,7 @@
   {
     "id": "641bce74-0c9d-482e-90d7-b87bdba45221",
     "feText": "무검사품 라벨 오류로 자재 식별 불가 — 스테이션 내 재작업 필요",
-    "severity": 1,
+    "severity": 5,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3590,7 +3590,7 @@
   {
     "id": "34585290-aac6-4665-aaea-00def8e999b2",
     "feText": "보안 취약 발생 — 자사 공정 수율 부분 저하, 일부 재작업 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3603,7 +3603,7 @@
   {
     "id": "1a3e6fda-9481-4bbf-98f5-9f21ff38d66e",
     "feText": "보호 상태 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3616,7 +3616,7 @@
   {
     "id": "3664468b-aaa6-41c7-a777-94ac9f11837d",
     "feText": "외관 불량 미검출로 품질 저하 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -3967,7 +3967,7 @@
   {
     "id": "3306cdd3-f3ca-41ed-9182-6de3fb03b9a2",
     "feText": "제품 기능 손실",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -3993,7 +3993,7 @@
   {
     "id": "00b9a521-933d-4279-9b52-825a5d1c6c12",
     "feText": "제품 기능 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -4149,7 +4149,7 @@
   {
     "id": "a8c4d755-455a-4cae-882e-6c25e4415a82",
     "feText": "공정 내 불량 발생으로 효율 저하 및 비용 상승 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4162,7 +4162,7 @@
   {
     "id": "e7faeb82-6157-4293-907d-24616f0f9288",
     "feText": "FIFO 불이행으로 자재 품질 저하 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4175,7 +4175,7 @@
   {
     "id": "62ee016b-d3ac-4b91-a761-d819d039822b",
     "feText": "검사 샘플 누락 및 LOT 관리 오류 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4188,7 +4188,7 @@
   {
     "id": "b25e6bc5-0907-43f4-866e-0d9fef8bf615",
     "feText": "안전사고 발생 및 자재 손상 — 작업자 안전·건강 리스크 초래 가능",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4201,7 +4201,7 @@
   {
     "id": "66858f76-e9c1-4385-85a8-55f1ef49a07b",
     "feText": "낙하로 인한 자재 손상 및 작업자 안전사고 — 작업자 안전·건강 리스크 초래 가능",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4214,7 +4214,7 @@
   {
     "id": "8f97c40d-0dd8-414b-9409-c667a21ecbd5",
     "feText": "안전재고 미준수로 생산 차질 — 자사 생산능력 심각 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4227,7 +4227,7 @@
   {
     "id": "9e156440-5023-41f8-a1dc-c55fe21e741a",
     "feText": "검사 이미지 불량으로 판독 오류 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4240,7 +4240,7 @@
   {
     "id": "5e58d1ea-98ff-46ec-b192-b2dd15faedd4",
     "feText": "고객 불만 및 품질 저하 — 불량품 유출, 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4253,7 +4253,7 @@
   {
     "id": "d77d8487-7827-45b6-8f6f-1ca414c0f3fd",
     "feText": "광학 성능 저하 — 자사 공정 수율 부분 저하, 일부 재작업·선별 필요 (YP Yield)",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4266,7 +4266,7 @@
   {
     "id": "e0b5a073-1304-42d0-a56b-59415af6bbb6",
     "feText": "압력 불안정으로 체결 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4292,7 +4292,7 @@
   {
     "id": "9d6022f9-0ea5-4191-9ac7-52bd5b9f5f6c",
     "feText": "ASPHERIC MIRROR 조립 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4305,7 +4305,7 @@
   {
     "id": "ba3dec1a-537e-4ba7-a8a8-43e018d6361c",
     "feText": "렌즈 표면 오염·스크래치로 성능 저하 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4318,7 +4318,7 @@
   {
     "id": "80161fab-b0a8-488b-adc1-cb2723e0755c",
     "feText": "모듈 조립 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4331,7 +4331,7 @@
   {
     "id": "d49b96ff-2b9d-4115-b693-b8f93fade5c8",
     "feText": "외관 불량으로 고객 불만 — 자사 외관 결함 인지, 일부 재작업 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4344,7 +4344,7 @@
   {
     "id": "58e318c6-3e89-4abd-8519-7ec607cd806e",
     "feText": "외관 불량으로 고객 불만 발생 — 자사 외관 결함 인지, 일부 재작업 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4357,7 +4357,7 @@
   {
     "id": "51697602-6348-4183-9fbb-e9fdabd3a931",
     "feText": "외관 불량품 유출 — 불량품 유출, 100% 미만 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4370,7 +4370,7 @@
   {
     "id": "10c5c9d6-e42b-48c1-a21d-8f251941bde9",
     "feText": "외관 불량품 유출로 고객 클레임 — 불량품 유출, 100% 미만 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4383,7 +4383,7 @@
   {
     "id": "890f0cb6-e769-4df1-b5fa-1837e79c2fe7",
     "feText": "CASE LWR ASSY 조립 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4396,7 +4396,7 @@
   {
     "id": "a47ff85a-de7c-4939-b535-62a085b5b651",
     "feText": "CASE LWR 조립 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4409,7 +4409,7 @@
   {
     "id": "382756cd-b128-4e61-ac15-9eecad195a25",
     "feText": "HUD ASS'Y 조립 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4422,7 +4422,7 @@
   {
     "id": "699dbe09-fb5f-4596-95af-77a6ef80780f",
     "feText": "스크린 조립 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4435,7 +4435,7 @@
   {
     "id": "04db2ce1-5bea-426c-9e60-dce239257cc9",
     "feText": "케이블 체결 조립 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4448,7 +4448,7 @@
   {
     "id": "bbd362f3-105e-4421-8970-2df9bade1dad",
     "feText": "검사품 라벨 오류로 부적합품 혼입 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4461,7 +4461,7 @@
   {
     "id": "b363d5ae-8c01-4ff8-84f2-c07a58209625",
     "feText": "정전기 제거 불능으로 이물 부착 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4474,7 +4474,7 @@
   {
     "id": "dcea5428-271f-4503-8b3c-2c39b19baca9",
     "feText": "수량 불일치 및 자재 누락으로 생산 차질 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4487,7 +4487,7 @@
   {
     "id": "f7d04fcb-b352-4283-9c5e-d172a24e6c66",
     "feText": "자재 낙하·파손 및 작업자 안전사고 — 작업자 안전·건강 리스크 초래 가능",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4500,7 +4500,7 @@
   {
     "id": "12f8c654-702b-4178-a0fa-7ad8c2db2ec7",
     "feText": "데이터 입력 오류로 자재 정보 누락 — 일부 재작업 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4513,7 +4513,7 @@
   {
     "id": "0c0430da-3a63-495a-bf42-47e2e3e35673",
     "feText": "추적 불가 및 데이터 오류 — 스테이션 내 재작업 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4526,7 +4526,7 @@
   {
     "id": "2729be94-efd2-4a60-9f75-c83ca31dc767",
     "feText": "사양 불일치로 도포 성능 저하 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4539,7 +4539,7 @@
   {
     "id": "07a6ff25-7509-4555-a271-8f8cb95ad758",
     "feText": "유효기간 초과로 성능 저하 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4552,7 +4552,7 @@
   {
     "id": "9aa3a936-df1a-42fc-b5cd-001995cdbe65",
     "feText": "규격 불일치로 품질 저하 — 스테이션 내 재작업 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4565,7 +4565,7 @@
   {
     "id": "571db42c-6417-40aa-8ea8-507a0fa008ee",
     "feText": "전류 과다로 기능 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4578,7 +4578,7 @@
   {
     "id": "3497f5f5-342f-48eb-ab7f-31a2e1f796af",
     "feText": "접착 불량으로 품질 저하 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4591,7 +4591,7 @@
   {
     "id": "fbd566be-c156-493f-a5e2-0c9ec655f7de",
     "feText": "접착 불량으로 렌즈 파손 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4604,7 +4604,7 @@
   {
     "id": "33441f4d-6abb-44a3-8b39-6280ae30e18a",
     "feText": "접촉 불량 발생 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4617,7 +4617,7 @@
   {
     "id": "00fa2f0a-2027-4060-8665-a268fc9da693",
     "feText": "정전기 제거 불능 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4630,7 +4630,7 @@
   {
     "id": "6fa19689-53d3-4562-9a0e-7fbc61ce709a",
     "feText": "제품 감지 불능으로 검사 누락 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4643,7 +4643,7 @@
   {
     "id": "34f6f6e2-7111-40a8-a93a-920bad5859b2",
     "feText": "버전 불일치로 호환성 문제 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4656,7 +4656,7 @@
   {
     "id": "79ad75d9-ae9d-4157-9974-afdf40b88c44",
     "feText": "제품 손상으로 고객 불만 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4669,7 +4669,7 @@
   {
     "id": "98e0bdfb-37a1-45ee-8d63-f7013dd211d7",
     "feText": "이물 혼입 및 파손 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4682,7 +4682,7 @@
   {
     "id": "5ba0c0f1-15f9-4407-8385-71a13485b64d",
     "feText": "추적성 상실로 고객 클레임 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4695,7 +4695,7 @@
   {
     "id": "4bd4895c-06d2-477a-87e8-b5c1f9d9ba3c",
     "feText": "라벨 불량 검출 실패로 추적성 저하 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4708,7 +4708,7 @@
   {
     "id": "082856b8-3b3c-45b0-bfa8-a51e787e3408",
     "feText": "제품 식별 불능으로 추적성 상실 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4721,7 +4721,7 @@
   {
     "id": "784a3ac7-c537-4742-bee0-e346bb8dd4cf",
     "feText": "정전기 잔류로 불량 발생 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4734,7 +4734,7 @@
   {
     "id": "7ae6caae-49a6-4e8d-9a74-ab2614bf8711",
     "feText": "수량 불일치로 생산 차질 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4760,7 +4760,7 @@
   {
     "id": "f5f8129b-bf8d-4a64-9977-f2c37566980d",
     "feText": "PKG TEST시 불량 조립불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -4851,7 +4851,7 @@
   {
     "id": "71034617-92d6-454f-8009-c60c49368cd5",
     "feText": "체결 강도 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4864,7 +4864,7 @@
   {
     "id": "7b2d7372-729f-4bff-948a-3bdf2c8aa2ac",
     "feText": "고객 불만 및 반품 발생 — 불량품 유출, 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4877,7 +4877,7 @@
   {
     "id": "bbcba60e-3207-48ce-a32f-6bb19008994e",
     "feText": "성능 저하 및 품질 불량 — 자사 공정 수율 부분 저하, 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4890,7 +4890,7 @@
   {
     "id": "bb47ed7e-81eb-4632-87b4-423ee2dec40f",
     "feText": "추적성 상실 및 MES 오류 — 불량품 유출, 선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4903,7 +4903,7 @@
   {
     "id": "6b694fbb-24f2-49d7-82d0-96a38bd27f2d",
     "feText": "조립 누락으로 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4916,7 +4916,7 @@
   {
     "id": "1a06b0d9-2397-4e22-a0e5-6b04dafdb848",
     "feText": "압력 부족으로 갭필러 도포 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4929,7 +4929,7 @@
   {
     "id": "3aa29940-72ae-4957-aa81-4b58f3ba9236",
     "feText": "ASPHERIC MIRROR 조립 불량 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4942,7 +4942,7 @@
   {
     "id": "91657c47-8fb6-44af-87af-398f758d6a61",
     "feText": "조립 불량으로 기능 저하 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4955,7 +4955,7 @@
   {
     "id": "90ca580d-ff75-4363-b534-394e9ace2430",
     "feText": "전극 오염으로 정전기 제거 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4968,7 +4968,7 @@
   {
     "id": "483b67ed-6d12-4398-ab63-0fdb5a7bacbd",
     "feText": "정전기 제거 성능 저하 — 자사 공정 수율 부분 저하, 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4981,7 +4981,7 @@
   {
     "id": "c073215f-bb3e-4d14-bc67-84dd40617e5c",
     "feText": "정전기 제거 실패 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -4994,7 +4994,7 @@
   {
     "id": "4945f0ed-aec4-4887-a8b6-cc5a988d6bd6",
     "feText": "정전기 제거 실패로 제품 손상 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5007,7 +5007,7 @@
   {
     "id": "c2ece6a8-9b20-41e8-8b65-5fb936e8ce84",
     "feText": "제품 손상 및 장비 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5020,7 +5020,7 @@
   {
     "id": "b556157b-62ac-4172-9014-0c470107623b",
     "feText": "제품 오염으로 불량 발생 — 스테이션 내 재작업 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5033,7 +5033,7 @@
   {
     "id": "8d788e4a-3837-497a-b96a-728dbf4e8f4b",
     "feText": "제품 특성 변화로 불량률 증가 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5046,7 +5046,7 @@
   {
     "id": "cb914f06-566d-4774-b1fb-c949d1db188e",
     "feText": "체결 불량 및 나사 손상 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5059,7 +5059,7 @@
   {
     "id": "e75eb5e5-50b7-4dd7-8d6b-01a0d1358cdc",
     "feText": "체결 불량으로 기능 저하 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5072,7 +5072,7 @@
   {
     "id": "cc8df2df-7ea5-485b-b990-da403e73c380",
     "feText": "체결 불량으로 조립 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5085,7 +5085,7 @@
   {
     "id": "c32f5321-38c7-4ec4-bfbc-20fa4030384f",
     "feText": "체결 누락으로 제품 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5098,7 +5098,7 @@
   {
     "id": "39a2711c-fab2-48a2-acf6-69fd5d90cd2b",
     "feText": "체결 불량 및 외관 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5111,7 +5111,7 @@
   {
     "id": "debb4e87-6244-4e1d-9f67-97f1421e618f",
     "feText": "추적 불가 및 라벨 인식 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5124,7 +5124,7 @@
   {
     "id": "aed7ab09-3f77-41a6-8cde-98d9f3b40e1d",
     "feText": "자재 낙하로 인한 손상 및 안전사고 — 작업자 안전·건강 리스크 초래 가능",
-    "severity": 1,
+    "severity": 9,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5137,7 +5137,7 @@
   {
     "id": "d3cb4a85-d73e-4c91-91d2-aaff7d1af27b",
     "feText": "선별 후 일부 제품 반송 발생 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5150,7 +5150,7 @@
   {
     "id": "a4fb234f-7739-42bc-8f0c-8d5ad88bff9a",
     "feText": "외관 결함으로 재작업 발생 — 100% 라인 외 재작업 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5163,7 +5163,7 @@
   {
     "id": "b32a6ccd-cc17-4920-a965-4c0e8bd1aa6e",
     "feText": "외관 결함으로 제품 폐기 — 100% 폐기 수준",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5176,7 +5176,7 @@
   {
     "id": "55186aae-27d8-4191-b4c8-8f392fbfc682",
     "feText": "제품 1:1 교환 발생 — 100% 라인 외 재작업 또는 전수 교체",
-    "severity": 1,
+    "severity": 8,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5189,7 +5189,7 @@
   {
     "id": "2b8cee66-c96c-4c1d-91d0-f175b8d3ca99",
     "feText": "체결 불량 발생 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5202,7 +5202,7 @@
   {
     "id": "e22d8bad-c407-4f94-96ea-f960f1fc7e3b",
     "feText": "선입선출 미준수로 품질 문제 및 생산 지연 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5228,7 +5228,7 @@
   {
     "id": "cb339806-2223-4a5c-8087-a0f5ea2ccc4e",
     "feText": "제품 수율감소",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -5241,7 +5241,7 @@
   {
     "id": "89297529-f292-4551-ba48-b4c10b348704",
     "feText": "제품 수율저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -5254,7 +5254,7 @@
   {
     "id": "9b023806-8308-4457-a017-f7910e81bb5c",
     "feText": "FT Yield 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -5267,7 +5267,7 @@
   {
     "id": "2b912178-3b69-49f5-af68-ecae8d1fedd6",
     "feText": "품질 저하 및 자재 혼입 — 일부 폐기·선별 필요 (YP 제품 손상)",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5280,7 +5280,7 @@
   {
     "id": "64ef35e3-c6ca-4767-97d3-f8fc87c6adb9",
     "feText": "MOTOR 조립 불량 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5293,7 +5293,7 @@
   {
     "id": "e8f0e81f-19e1-45bc-b599-d7340f33e8ea",
     "feText": "생산지연 및 순서 오류 — 자사 공정 수율 부분 저하, 100% 재작업 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5306,7 +5306,7 @@
   {
     "id": "b1c082b4-aeba-46cc-8026-6eb60546a5af",
     "feText": "전기적 접속 불량으로 제품 불량 — 스테이션 내 재작업 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5319,7 +5319,7 @@
   {
     "id": "97345f7e-dffe-4567-a310-82561e6b4e98",
     "feText": "GLASS 이음 발생으로 품질 저하 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5332,7 +5332,7 @@
   {
     "id": "d1bc9a52-a82f-4f98-988d-8e623306e88b",
     "feText": "출하 오류로 고객 클레임 — 불량품 유출, 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5345,7 +5345,7 @@
   {
     "id": "b6ea6c5a-d85a-493c-a35a-f343591d2bcd",
     "feText": "접속 불량 및 이물 혼입 — 일부 폐기·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5358,7 +5358,7 @@
   {
     "id": "1b91869a-654d-4cee-a9d6-f7a35af3c6f4",
     "feText": "납품 불량으로 고객 불만 — 불량품 유출, 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5371,7 +5371,7 @@
   {
     "id": "d8e76052-1147-4663-a233-3ff5792d7192",
     "feText": "포장 불량으로 납품 불량 — 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5384,7 +5384,7 @@
   {
     "id": "6c690861-9715-4386-bff2-c8ea12dd10a1",
     "feText": "고객 불만 및 안전 문제 — 불량품 유출, 일부 재작업·선별 필요",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -5397,7 +5397,7 @@
   {
     "id": "e1610d1a-0d5a-4d92-9dd3-efa3956146bc",
     "feText": "불량품 실사용 투입 → 성능 저하 및 안전 문제 확대 (주요 기능 저하·안전 리스크)",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -5696,7 +5696,7 @@
   {
     "id": "4b10d5da-07a1-45a3-8794-d6042948400c",
     "feText": "제품 조립 불가",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -5709,7 +5709,7 @@
   {
     "id": "6fb4ee38-29aa-4eeb-b2a3-fee33964e3f9",
     "feText": "조립 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6502,7 +6502,7 @@
   {
     "id": "ffa8d0b5-a049-4abe-b398-235efc2ea537",
     "feText": "PKG TEST시 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6515,7 +6515,7 @@
   {
     "id": "efba4e3e-0bb0-4730-93c2-3d832e8f55ce",
     "feText": "Yield Missmatching",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6528,7 +6528,7 @@
   {
     "id": "bb79f480-e4c6-4cbf-94b1-80f29a454658",
     "feText": "불량 유출",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6541,7 +6541,7 @@
   {
     "id": "311d2526-a893-47c9-bc99-094887145701",
     "feText": "외관 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6554,7 +6554,7 @@
   {
     "id": "f12af49e-37c9-4ae6-bd9d-7147ce468b0f",
     "feText": "환경 이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6567,7 +6567,7 @@
   {
     "id": "a293ecdf-34f4-44cd-9f22-58109662dfef",
     "feText": "Wafer LOSS",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6580,7 +6580,7 @@
   {
     "id": "4613b0f3-7226-4077-89f9-0d696c2f178f",
     "feText": "Wafer Yield 저하",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6593,7 +6593,7 @@
   {
     "id": "87c5012d-7110-45d1-b955-2d7438963666",
     "feText": "Yield Drop Wafer Loss",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6606,7 +6606,7 @@
   {
     "id": "8c405288-54ab-434b-8f45-039d8da0ca56",
     "feText": "Yield Drop,Wafer LOSS",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6619,7 +6619,7 @@
   {
     "id": "64444a88-f806-4f30-8400-d17f26a4ede7",
     "feText": "제품 손실",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -6632,7 +6632,7 @@
   {
     "id": "e7bc767d-3e9d-4114-9cae-cd5de18d4500",
     "feText": "N/A",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "USER",
     "processName": "",
     "productChar": "",
@@ -6645,7 +6645,7 @@
   {
     "id": "1009a494-d3e8-4681-9811-146853ef7334",
     "feText": "기능 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6658,7 +6658,7 @@
   {
     "id": "6076426f-3998-4954-ad8f-7cf3a5f1022f",
     "feText": "부품 기능 이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6788,7 +6788,7 @@
   {
     "id": "66d74151-ea7d-436e-ae2c-4e4e8aaf5ab7",
     "feText": "Yield Drop으로 고객  생산 Capa Drop",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6801,7 +6801,7 @@
   {
     "id": "b7977e9a-2bee-4341-982f-a79dbc21e0aa",
     "feText": "조립 수율 감소",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6814,7 +6814,7 @@
   {
     "id": "da2a2863-332e-44fd-a9ea-8a2ced6bac6d",
     "feText": "조립불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6827,7 +6827,7 @@
   {
     "id": "5e34a0f4-e32f-41df-9229-499ddc059ce5",
     "feText": "조립수율감소",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6840,7 +6840,7 @@
   {
     "id": "b1d97618-4185-480e-9ed9-e94434c27830",
     "feText": "인식 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6853,7 +6853,7 @@
   {
     "id": "caa1a1a6-e275-4727-88f3-06d0d0a6a367",
     "feText": "패널 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -6866,7 +6866,7 @@
   {
     "id": "69a3260d-7782-4b93-8722-ac351cada51d",
     "feText": "고객불만",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6879,7 +6879,7 @@
   {
     "id": "695b69db-2e6b-4d18-ba5b-c566bce2576b",
     "feText": "공정 미진행",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6892,7 +6892,7 @@
   {
     "id": "84b8fe5c-7a1a-4c73-98b9-b112ea682cfd",
     "feText": "공정 skip",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6905,7 +6905,7 @@
   {
     "id": "67e9672f-869d-42ea-af50-0471c14fa74d",
     "feText": "수율 감소",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6918,7 +6918,7 @@
   {
     "id": "37508643-3c1a-46bf-bb94-e03607731efb",
     "feText": "수율 저하",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6931,7 +6931,7 @@
   {
     "id": "66d2be18-4269-488a-8423-b0baf3fca822",
     "feText": "제품 손상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6944,7 +6944,7 @@
   {
     "id": "845f3fd2-60cd-4372-ae91-b55a01e7be48",
     "feText": "제품 특성 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6957,7 +6957,7 @@
   {
     "id": "4c986f96-a888-4b4d-9e87-43dad4a1800b",
     "feText": "제품 특성 이상",
-    "severity": 1,
+    "severity": 7,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6970,7 +6970,7 @@
   {
     "id": "0b302562-39d5-426c-984b-3494c665adc7",
     "feText": "제품 특성불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6983,7 +6983,7 @@
   {
     "id": "25124d4c-8955-4719-b621-39976682ed3f",
     "feText": "제품 특성이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -6996,7 +6996,7 @@
   {
     "id": "e5963e55-c950-4acf-ace8-f2c92d09f961",
     "feText": "특성 불량",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -7009,7 +7009,7 @@
   {
     "id": "d500635a-d8e1-4b23-95ad-90564cbffc48",
     "feText": "Yield Drop",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -7022,7 +7022,7 @@
   {
     "id": "63467019-89f5-45dc-8731-a49b2977ecda",
     "feText": "Yield Drop, Test Bin Fail",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -7035,7 +7035,7 @@
   {
     "id": "2ceb530b-2263-4f01-aa06-12d8641c5e62",
     "feText": "Yield Drop으로 고객 생산 Capa Drop",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -7048,7 +7048,7 @@
   {
     "id": "82da0e95-fa11-451a-8130-1718dadc9ba5",
     "feText": "Yield missmatching",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "YP",
     "processName": "",
     "productChar": "",
@@ -7113,7 +7113,7 @@
   {
     "id": "067159f7-acc2-499b-a3ff-37f5b708de6a",
     "feText": "규격 외 제품 출하 → 고객 품질 불만 및 신뢰도 저하 (고객 조립 성능 심각 저하)",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",
@@ -7126,7 +7126,7 @@
   {
     "id": "066f2948-b342-4340-afc2-f8a3df1cc46d",
     "feText": "제품 기능이상",
-    "severity": 1,
+    "severity": 6,
     "feCategory": "SP",
     "processName": "",
     "productChar": "",

@@ -35,6 +35,7 @@ interface FunctionL1HeaderProps {
   isAutoMode?: boolean;
   onToggleMode?: () => void;
   isLoadingMaster?: boolean;
+  onMissingClick?: () => void;
 }
 
 export function FunctionL1Header({
@@ -47,6 +48,7 @@ export function FunctionL1Header({
   isAutoMode,
   onToggleMode,
   isLoadingMaster,
+  onMissingClick,
 }: FunctionL1HeaderProps) {
   const [showHelp, setShowHelp] = useState(false);
 
@@ -79,7 +81,11 @@ export function FunctionL1Header({
               ) : (
                 <button type="button" onClick={onConfirm} className={btnConfirm}>미확정(Unconfirmed)</button>
               )}
-              <span className={missingCount > 0 ? badgeMissing : badgeOk}>누락(Missing) {missingCount}건(cases)</span>
+              {missingCount > 0 ? (
+                <button type="button" onClick={onMissingClick} className={`${badgeMissing} cursor-pointer hover:opacity-80`} title="클릭하여 누락 항목으로 이동">누락(Missing) {missingCount}건(cases)</button>
+              ) : (
+                <span className={badgeOk}>누락(Missing) 0건(cases)</span>
+              )}
               {(isConfirmed || missingCount > 0) && (
                 <button type="button" onClick={onEdit} className={btnEdit}>수정(Edit)</button>
               )}
@@ -98,9 +104,9 @@ export function FunctionL1Header({
         <th colSpan={3} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <BiHeader ko="1. 완제품 공정기능/요구사항" en="Function/Requirements" />
           {missingCount > 0 && (
-            <span className="ml-1.5 bg-orange-500 text-white px-1.5 py-0 rounded-full text-[10px]">
+            <button type="button" onClick={onMissingClick} className="ml-1.5 bg-orange-500 text-white px-1.5 py-0 rounded-full text-[10px] cursor-pointer hover:opacity-80" title="클릭하여 누락 항목으로 이동">
               누락(Missing) {missingCount}건(cases)
-            </span>
+            </button>
           )}
         </th>
       </tr>

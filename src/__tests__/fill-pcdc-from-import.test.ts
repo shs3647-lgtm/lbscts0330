@@ -68,14 +68,14 @@ describe('fillPCDCFromImport — v2.1 Import + Pool 최적화', () => {
     expect(result.oEvaluatedCount).toBe(1);
   });
 
-  it('Poka-Yoke PC → O=2 평가', () => {
+  it('인터록 PC → O=2 평가', () => {
     const links = [mkLink('fm1', 'fc1', '10')];
-    const b5 = [mkItem('10', 'Poka-Yoke 에러프루프')];
+    const b5 = [mkItem('10', '인터록 자동차단')];
     const a6 = [mkItem('10', '비전검사')];
 
     const result = fillPCDCFromImport({}, links, b5, a6);
 
-    expect(result.updatedRiskData['prevention-fm1-fc1']).toBe('P:Poka-Yoke 에러프루프');
+    expect(result.updatedRiskData['prevention-fm1-fc1']).toBe('P:인터록 자동차단');
     expect(Number(result.updatedRiskData['risk-fm1-fc1-O'])).toBe(2);
   });
 
@@ -132,13 +132,13 @@ describe('fillPCDCFromImport — 풀 기반 최적화', () => {
 
   it('★ v2.1: Import가 더 효과적이면 Import 유지', () => {
     const links = [mkLink('fm1', 'fc1', '10')];
-    const b5 = [mkItem('10', 'Poka-Yoke')]; // O=2
+    const b5 = [mkItem('10', '인터록 자동차단')]; // O=2
     const a6 = [mkItem('10', '비전검사')];
-    const b5Pool = [mkItem('', '정기 교육 훈련')]; // O=4
+    const b5Pool = [mkItem('', '정기 교육 훈련')]; // O=5
 
     const result = fillPCDCFromImport({}, links, b5, a6, b5Pool);
 
-    expect(result.updatedRiskData['prevention-fm1-fc1']).toBe('P:Poka-Yoke');
+    expect(result.updatedRiskData['prevention-fm1-fc1']).toBe('P:인터록 자동차단');
     expect(Number(result.updatedRiskData['risk-fm1-fc1-O'])).toBe(2);
   });
 

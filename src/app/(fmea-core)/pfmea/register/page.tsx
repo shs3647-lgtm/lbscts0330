@@ -146,6 +146,8 @@ function PFMEARegisterPageContent() {
   const [bdExpandTrigger, setBdExpandTrigger] = useState(0);
   const bdFileInputRef = useRef<HTMLInputElement>(null);
   const [bdParseStatistics, setBdParseStatistics] = useState<import('@/app/(fmea-core)/pfmea/import/excel-parser').ParseStatistics | undefined>(undefined);
+  /** 위치기반 파싱 stats — 통계표 verify 척도·pgsql/API 기대값 (등록 페이지는 Import 시에만 설정) */
+  const [bdPositionParserStats, setBdPositionParserStats] = useState<Record<string, number> | null>(null);
   const [bdDbCounts, setBdDbCounts] = useState<Record<string, number> | null>(null);
   const templateGen = useTemplateGenerator({ setFlatData, setPreviewColumn: setBdPreviewCol, setDirty: setBdDirty, setIsSaved: setBdIsSaved });
 
@@ -344,6 +346,7 @@ function PFMEARegisterPageContent() {
             setBdIsSaved(true); setBdDirty(false);
             setBdLoadedFmeaId(targetId);
             setBdLoadedFmeaName(fmeaInfo.subject || fmeaId || '');
+            setBdPositionParserStats(null);
             templateGen.setTemplateMode('download');
             setBdExpandTrigger(prev => prev + 1);
             setBdNavConfirm({ open: true, name: fmeaInfo.subject || targetId });
@@ -372,6 +375,7 @@ function PFMEARegisterPageContent() {
         setBdIsSaved(true); setBdDirty(false);
         setBdLoadedFmeaId(targetId);
         setBdLoadedFmeaName(targetName);
+        setBdPositionParserStats(null);
         templateGen.setTemplateMode('download');
         setBdExpandTrigger(prev => prev + 1);
         setBdNavConfirm({ open: true, name: targetName });
@@ -419,6 +423,7 @@ function PFMEARegisterPageContent() {
     if (bdLoadedFmeaId && fmeaIds.includes(bdLoadedFmeaId)) {
       setFlatData([]); setBdLoadedFmeaId(''); setBdLoadedFmeaName(''); setBdDatasetId(null);
       setBdIsSaved(false); setBdDirty(false);
+      setBdPositionParserStats(null);
     }
   };
 
@@ -442,7 +447,32 @@ function PFMEARegisterPageContent() {
         const flatFromAtomic = atomicToFlatData(atomicData) as any[];
         setFlatData(flatFromAtomic);
 
+        // ★v5: parseStatistics 설정 → Import 통계표 즉시 렌더링
+        if (atomicData.stats) {
+          const s = atomicData.stats;
+           const itemStats: { itemCode: string; label: string; rawCount: number; uniqueCount: number; dupSkipped: number }[] = [
+            { itemCode: 'C1', label: '구분', rawCount: s.excelC1 || s.excelL1Rows, uniqueCount: new Set(atomicData.l1Functions.map(f => f.category)).size, dupSkipped: 0 },
+            { itemCode: 'C2', label: '제품기능', rawCount: s.excelC2 || s.excelL1Rows, uniqueCount: new Set(atomicData.l1Functions.map(f => f.functionName)).size, dupSkipped: 0 },
+            { itemCode: 'C3', label: '요구사항', rawCount: s.excelC3 || s.excelL1Rows, uniqueCount: (atomicData as any).l1Requirements?.length || atomicData.l1Functions.length, dupSkipped: 0 },
+            { itemCode: 'C4', label: '★고장영향(FE)', rawCount: s.excelC4 || s.excelL1Rows, uniqueCount: atomicData.failureEffects.length, dupSkipped: 0 },
+            { itemCode: 'A1', label: '공정번호', rawCount: s.excelA1 || s.excelL2Rows, uniqueCount: atomicData.l2Structures.length, dupSkipped: 0 },
+            { itemCode: 'A2', label: '공정명', rawCount: s.excelA2 || s.excelL2Rows, uniqueCount: atomicData.l2Structures.length, dupSkipped: 0 },
+            { itemCode: 'A3', label: '공정기능', rawCount: s.excelA3 || s.excelL2Rows, uniqueCount: atomicData.l2Functions.length, dupSkipped: 0 },
+            { itemCode: 'A4', label: '제품특성', rawCount: s.excelA4 || s.excelL2Rows, uniqueCount: atomicData.processProductChars.length, dupSkipped: 0 },
+            { itemCode: 'A5', label: '★고장형태(FM)', rawCount: s.excelA5 || s.excelL2Rows, uniqueCount: atomicData.failureModes.length, dupSkipped: 0 },
+            { itemCode: 'A6', label: '검출관리', rawCount: s.excelA6 || 0, uniqueCount: 0, dupSkipped: 0 },
+            { itemCode: 'B1', label: '작업요소', rawCount: s.excelB1 || s.excelL3Rows, uniqueCount: atomicData.l3Structures.length, dupSkipped: 0 },
+            { itemCode: 'B2', label: '요소기능', rawCount: s.excelB2 || s.excelL3Rows, uniqueCount: atomicData.l3Functions.length, dupSkipped: 0 },
+            { itemCode: 'B3', label: '공정특성', rawCount: s.excelB3 || s.excelL3Rows, uniqueCount: atomicData.l3Functions.length, dupSkipped: 0 },
+            { itemCode: 'B4', label: '★고장원인(FC)', rawCount: s.excelB4 || s.excelL3Rows, uniqueCount: atomicData.failureCauses.length, dupSkipped: 0 },
+            { itemCode: 'B5', label: '예방관리', rawCount: s.excelB5 || 0, uniqueCount: 0, dupSkipped: 0 },
+          ];
+          setBdParseStatistics({ itemStats, totalRawRows: s.excelL1Rows + s.excelL2Rows + s.excelL3Rows + s.excelFCRows });
+          setBdPositionParserStats({ ...s });
+        }
+
         if (fmeaId) {
+          // (1) Atomic 구조 DB 저장 (L2/L3/FM/FC/FL 등)
           const saveRes = await fetch('/api/fmea/save-position-import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -450,8 +480,40 @@ function PFMEARegisterPageContent() {
           });
           const saveResult = await saveRes.json();
           if (saveResult.success) {
+            console.log('[Register Import] Atomic 저장 완료:', saveResult.atomicCounts);
+
+            // (2) ★v5: MasterDataset(flatData)도 동시 저장 — 페이지 재방문 시 데이터 복원용
+            try {
+              const { saveMasterDataset } = await getMasterApi();
+              const masterRes = await saveMasterDataset({
+                fmeaId: fmeaId.toLowerCase(),
+                fmeaType: fmeaInfo.fmeaType as 'M' | 'F' | 'P' || 'P',
+                name: 'MASTER',
+                replace: true,
+                mode: 'import',
+                flatData: flatFromAtomic,
+              });
+              if (masterRes.ok) {
+                if (masterRes.datasetId) setBdDatasetId(masterRes.datasetId);
+                console.log('[Register Import] MasterDataset 동시 저장 완료');
+              }
+            } catch (mdErr) {
+              console.warn('[Register Import] MasterDataset 저장 실패 (비치명적):', mdErr);
+            }
+
+            // (3) ★v5: UI 상태 동기화 — 기초정보 패널 자동 펼침 + 데이터 로드 표시
             setBdIsSaved(true); setBdDirty(false);
-            console.log('[Register Import] 저장 완료:', saveResult.atomicCounts);
+            setBdLoadedFmeaId(fmeaId);
+            setBdLoadedFmeaName(fmeaInfo.subject || fmeaId);
+            setBdExpandTrigger(prev => prev + 1); // 패널 자동 펼침
+            templateGen.setTemplateMode('download');
+
+            // (4) ★v5: DB 카운트 설정 — 통계표에서 DB 저장 건수 표시
+            const dbCounts: Record<string, number> = {};
+            for (const item of flatFromAtomic) {
+              dbCounts[item.itemCode] = (dbCounts[item.itemCode] || 0) + 1;
+            }
+            setBdDbCounts(dbCounts);
           } else {
             console.error('[Register Import] 저장 실패:', saveResult.error);
           }
@@ -460,39 +522,8 @@ function PFMEARegisterPageContent() {
         return;
       }
 
-      // 통합시트(L1/L2/L3통합) 등 — excel-parser + save-from-import (Import 화면과 동일 계열)
-      const { parseMultiSheetExcel } = await import('@/app/(fmea-core)/pfmea/import/excel-parser');
-      const { convertLegacyParseResultToFlatData } = await import(
-        '@/app/(fmea-core)/pfmea/import/utils/legacyParseResultToFlatData'
-      );
-      const legacyResult = await parseMultiSheetExcel(file);
-      if (!legacyResult.success) {
-        alert(legacyResult.errors?.length ? legacyResult.errors.join('\n') : '엑셀 파싱에 실패했습니다.');
-        setBdIsSaving(false);
-        return;
-      }
-      const flatLegacy = convertLegacyParseResultToFlatData(legacyResult);
-      setFlatData(flatLegacy);
-      if (fmeaId) {
-        const saveRes = await fetch('/api/fmea/save-position-import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fmeaId: fmeaId.toLowerCase(),
-            flatData: flatLegacy,
-            failureChains: legacyResult.failureChains || [],
-          }),
-        });
-        const saveResult = await saveRes.json();
-        if (saveResult.success) {
-          setBdIsSaved(true);
-          setBdDirty(false);
-          console.log('[Register Import] save-from-import 완료');
-        } else {
-          console.error('[Register Import] save-from-import 실패:', saveResult.error);
-          alert('저장 실패: ' + (saveResult.error || '알 수 없는 오류'));
-        }
-      }
+      // 위치기반 5시트 포맷만 지원
+      alert('❌ 지원하지 않는 엑셀 형식입니다.\n위치기반 5시트 포맷만 지원합니다.');
       setBdIsSaving(false);
       return;
     } catch (err) {
@@ -860,7 +891,13 @@ function PFMEARegisterPageContent() {
             updateWorkElement={templateGen.updateWorkElement}
             flatData={flatData}
             parseStatistics={bdParseStatistics}
+            positionParserStats={bdPositionParserStats}
             onDownloadSample={async () => {
+              const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
+              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
+              const masterName = subject ? `PFMEA_${subject}_현재데이터` : undefined;
+
+              // 1순위: reverse-import API — DB의 L1·L2·L3·FC사슬 완전 반영 (SSoT)
               if (fmeaId) {
                 try {
                   const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
@@ -870,23 +907,23 @@ function PFMEARegisterPageContent() {
                     const a = document.createElement('a');
                     const cd = res.headers.get('content-disposition');
                     const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                    const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
-                    a.download = fnMatch?.[1] || `PFMEA_Master_${subject || fmeaId}.xlsx`;
+                    a.download = fnMatch?.[1] || `PFMEA_${subject || fmeaId}_현재데이터.xlsx`;
                     a.href = url;
                     a.click();
                     URL.revokeObjectURL(url);
                     return;
                   }
-                } catch (_e) { /* server-side 실패 시 client-side fallback */ }
+                } catch (_e) { /* server-side 실패 시 flatData fallback */ }
               }
-              const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
-              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
-              const masterName = subject ? `PFMEA_Master_${subject}` : undefined;
+
+              // 2순위: 현재 flatData (마스터 데이터셋, reverse-import 실패 시)
               if (flatData.length > 0) {
                 downloadDataTemplate(flatData, masterName);
-              } else {
-                downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
+                return;
               }
+
+              // 3순위: static 샘플 fallback
+              downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
             }}
             onDownloadEmpty={async () => {
               const { downloadEmptyTemplate } = await getExcelTemplate();

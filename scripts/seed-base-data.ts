@@ -504,7 +504,7 @@ async function main() {
   console.log('─'.repeat(50));
   console.log('\n다음 단계:');
   console.log('  1. npx tsx scripts/seed-lld-data.mjs     — LLD 50건 시드');
-  console.log('  2. npx tsx scripts/seed-m066.ts           — Au Bump FMEA 프로젝트 시드');
+  console.log('  2. npx tsx scripts/seed-m002.ts           — Au Bump FMEA 프로젝트 시드');
   console.log('  3. npm run dev → localhost:3000 접속 확인');
 }
 

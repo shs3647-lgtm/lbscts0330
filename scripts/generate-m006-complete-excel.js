@@ -132,7 +132,7 @@ async function main() {
 
   // ─── Sheet 4: FC 고장사슬 ───
   const s4 = wb.addWorksheet('FC 고장사슬');
-  s4.addRow(['FE구분', 'FE(고장영향)', '공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)',
+  s4.addRow(['FE구분', 'FE(고장영향)', '공정번호', 'FM(고장형태)', '4M', 'WE(작업요소)', 'FC(고장원인)',
     'B5(예방관리)', 'A6(검출관리)', 'S', 'O', 'D', 'AP', 'L1원본행', 'L2원본행', 'L3원본행']);
   s4.getRow(1).eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFED7D31' } }; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; });
 

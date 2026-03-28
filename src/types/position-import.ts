@@ -88,6 +88,7 @@ export interface PosFailureMode {
   productCharId?: string;
   parentId: string;  // → ProductChar.id (E-11)
   mode: string;      // A5
+  detectionControl?: string; // ★v5: A6 검출관리 (L2 시트 직접 추출)
   feRefs?: string[]; // ★v4 EX-05: 연결된 FE UUID 목록 (크로스시트 매칭 후 채움)
   fcRefs?: string[]; // ★v4 EX-05: 연결된 FC UUID 목록
 }
@@ -138,6 +139,7 @@ export interface PosFailureCause {
   parentId: string;  // → L3Function.id (E-20)
   l3CharId?: string; // ★v4 핵심: → PosL3ProcessChar.id (B-13)
   cause: string;     // B4
+  preventionControl?: string; // ★v5: B5 예방관리 (L3 시트 직접 추출)
 }
 
 // ─── v4 신규 엔티티 ───
@@ -279,4 +281,68 @@ export interface PositionAtomicData {
   failureLinks: PosFailureLink[];
   riskAnalyses: PosRiskAnalysis[];
   stats: Record<string, number>;
+  /** Import 직후 진단(★3·★4) — FL 없는 FM/FC 분류 */
+  diagnostics?: PositionImportDiagnostics;
+}
+
+/** ★3: FC 시트 관점에서 FM이 FL에 연결되지 않은 이유 (파서 출력 — DB 재조회 아님) */
+export type FmWithoutFailureLinkReason =
+  | 'CROSS_PROCESS_SKIPPED'
+  | 'NO_FC_SHEET_REFERENCE'
+  | 'UNEXPECTED_NO_FL_AFTER_FC_RESOLVE';
+
+export interface FmWithoutFailureLinkDiagnostic {
+  fmId: string;
+  l2StructId: string;
+  processNo: string;
+  mode: string;
+  reason: FmWithoutFailureLinkReason;
+  /** FC 시트 excelRow (교차공정 스킵 시) */
+  fcSheetExcelRows?: number[];
+}
+
+/** ★4: FC(고장원인) 엔티티가 어떤 FL의 fcId에도 안 잡힐 때 (파서 출력) */
+export type FcWithoutFailureLinkReason =
+  | 'CROSS_PROCESS_SKIPPED'
+  | 'NO_FC_SHEET_REFERENCE'
+  | 'UNEXPECTED_NO_FL_AFTER_FC_RESOLVE';
+
+export interface FcWithoutFailureLinkDiagnostic {
+  fcId: string;
+  l2StructId: string;
+  l3StructId: string;
+  processNo: string;
+  cause: string;
+  reason: FcWithoutFailureLinkReason;
+  fcSheetExcelRows?: number[];
+}
+
+export interface PositionImportDiagnostics {
+  fmsWithoutFailureLink: FmWithoutFailureLinkDiagnostic[];
+  fcsWithoutFailureLink: FcWithoutFailureLinkDiagnostic[];
+}
+
+/** save-position-import 성공 응답 — payload 대비 FL/RA 스킵·삽입 시도 건수 (★10) */
+export interface SavePositionImportMeta {
+  failureLinksPayload: number;
+  failureLinksValidTripleForInsert: number;
+  failureLinksSkippedIncomplete: number;
+  failureLinksSkippedSampleIds: string[];
+  riskAnalysesPayload: number;
+  riskAnalysesValidForInsert: number;
+  riskAnalysesSkippedNoValidFl: number;
+}
+
+/** Import UI — 저장 직후 PG 실측 스냅샷 (★11) */
+export interface PositionImportPgSnapshot {
+  atomicCounts: Partial<{
+    l2Structures: number;
+    l3Structures: number;
+    failureModes: number;
+    failureCauses: number;
+    failureEffects: number;
+    failureLinks: number;
+    riskAnalyses: number;
+  }>;
+  saveImportMeta?: SavePositionImportMeta;
 }

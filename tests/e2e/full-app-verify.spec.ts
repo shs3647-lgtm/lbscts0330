@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
  */
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 // 페이지 로드 + 에러 없음 검증 helper
 async function verifyPageLoad(page: any, url: string, label: string) {

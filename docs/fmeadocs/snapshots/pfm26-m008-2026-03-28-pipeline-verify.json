@@ -1,0 +1,249 @@
+{
+  "success": true,
+  "fmeaId": "pfm26-m008",
+  "steps": [
+    {
+      "step": 0,
+      "name": "구조",
+      "status": "ok",
+      "details": {
+        "l1": 1,
+        "l1Name": "",
+        "l2": 21,
+        "l3": 84,
+        "l1F": 17,
+        "l2WithoutL3": 0
+      },
+      "issues": [],
+      "fixed": []
+    },
+    {
+      "step": 1,
+      "name": "UUID",
+      "status": "ok",
+      "details": {
+        "L2": 21,
+        "L3": 84,
+        "L3F": 126,
+        "L2F": 32,
+        "L1F": 17,
+        "FM": 28,
+        "FE": 20,
+        "FC": 126,
+        "FL": 115,
+        "RA": 115,
+        "duplicateUUIDs": 0,
+        "emptyProcessChar": 0,
+        "nullL3FuncId": 0
+      },
+      "issues": [],
+      "fixed": [],
+      "parentChild": [
+        {
+          "parent": "L2Structure",
+          "child": "L3Structure",
+          "missingChildren": []
+        },
+        {
+          "parent": "L3Structure",
+          "child": "L3Function",
+          "missingChildren": []
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "name": "fmeaId",
+      "status": "ok",
+      "details": {
+        "l1Structure": 1,
+        "l1Function": 17,
+        "l2Structure": 21,
+        "l2Function": 32,
+        "l3Structure": 84,
+        "l3Function": 126,
+        "failureEffect": 20,
+        "failureMode": 28,
+        "failureCause": 126,
+        "failureLink": 115,
+        "riskAnalysis": 115,
+        "tablesChecked": 11,
+        "totalRecords": 685,
+        "totalMismatch": 0
+      },
+      "issues": [],
+      "fixed": []
+    },
+    {
+      "step": 3,
+      "name": "FK",
+      "status": "warn",
+      "details": {
+        "fkRelations": 14,
+        "totalOrphans": 0,
+        "links": 115,
+        "unlinkedFC": 11,
+        "unlinkedFM": 2,
+        "flWithoutRA": 0,
+        "totalFM": 28,
+        "totalFC": 126,
+        "totalFE": 20,
+        "totalRA": 115,
+        "nullFeIdLinks": 0,
+        "fcDuplicates": 12
+      },
+      "issues": [
+        "FL 없는 FC 11건",
+        "FL 없는 FM 2건",
+        "FC 중복 (l2|l3|cause, Rule1.7) 12건"
+      ],
+      "fixed": [],
+      "fkIntegrity": [
+        {
+          "relation": "L3.l2Id → L2",
+          "total": 84,
+          "valid": 84,
+          "orphans": []
+        },
+        {
+          "relation": "L2F.l2StructId → L2",
+          "total": 32,
+          "valid": 32,
+          "orphans": []
+        },
+        {
+          "relation": "L3F.l3StructId → L3",
+          "total": 126,
+          "valid": 126,
+          "orphans": []
+        },
+        {
+          "relation": "L3F.l2StructId → L2",
+          "total": 126,
+          "valid": 126,
+          "orphans": []
+        },
+        {
+          "relation": "FM.l2StructId → L2",
+          "total": 28,
+          "valid": 28,
+          "orphans": []
+        },
+        {
+          "relation": "FM.productCharId → PPC",
+          "total": 28,
+          "valid": 28,
+          "orphans": []
+        },
+        {
+          "relation": "FC.l3StructId → L3",
+          "total": 126,
+          "valid": 126,
+          "orphans": []
+        },
+        {
+          "relation": "FC.l2StructId → L2",
+          "total": 126,
+          "valid": 126,
+          "orphans": []
+        },
+        {
+          "relation": "FC.l3FuncId → L3F",
+          "total": 126,
+          "valid": 126,
+          "orphans": []
+        },
+        {
+          "relation": "FL.fmId → FM",
+          "total": 115,
+          "valid": 115,
+          "orphans": []
+        },
+        {
+          "relation": "FL.feId → FE",
+          "total": 115,
+          "valid": 115,
+          "orphans": []
+        },
+        {
+          "relation": "FL.fcId → FC",
+          "total": 115,
+          "valid": 115,
+          "orphans": []
+        },
+        {
+          "relation": "RA.linkId → FL",
+          "total": 115,
+          "valid": 115,
+          "orphans": []
+        },
+        {
+          "relation": "FE.l1FuncId → L1F",
+          "total": 20,
+          "valid": 20,
+          "orphans": []
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "name": "누락",
+      "status": "warn",
+      "details": {
+        "totalPC": 126,
+        "emptyPC": 0,
+        "orphanPC": 0,
+        "totalRA": 115,
+        "nullDC": 0,
+        "nullPC": 0,
+        "missS": 115,
+        "missO": 0,
+        "missD": 0,
+        "missRA": 0,
+        "totalOpt": 0,
+        "orphanOpt": 0,
+        "totalFL": 115,
+        "totalFC": 126,
+        "raDuplicates": 0
+      },
+      "issues": [
+        "S(심각도) 미입력 115건"
+      ],
+      "fixed": []
+    }
+  ],
+  "allGreen": false,
+  "loopCount": 1,
+  "timestamp": "2026-03-28T04:52:32.228Z",
+  "autoFixSummary": {
+    "totalIssues": 140,
+    "autoFixed": 115,
+    "manualRequired": 25,
+    "categories": [
+      {
+        "type": "step3_issue",
+        "count": 11,
+        "autoFixable": false,
+        "description": "FL 없는 FC 11건"
+      },
+      {
+        "type": "step3_issue",
+        "count": 2,
+        "autoFixable": false,
+        "description": "FL 없는 FM 2건"
+      },
+      {
+        "type": "step3_issue",
+        "count": 12,
+        "autoFixable": false,
+        "description": "FC 중복 (l2|l3|cause, Rule1.7) 12건"
+      },
+      {
+        "type": "step4_issue",
+        "count": 115,
+        "autoFixable": true,
+        "description": "S(심각도) 미입력 115건"
+      }
+    ]
+  }
+}

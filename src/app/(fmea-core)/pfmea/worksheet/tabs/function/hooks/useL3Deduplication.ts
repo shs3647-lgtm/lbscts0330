@@ -1,16 +1,19 @@
 /**
  * @file useL3Deduplication.ts
- * @description L3 기능/공정특성 중복 제거 훅
- * 
- * ★★★ 2026-02-05: FunctionL3Tab.tsx 최적화 - 중복 제거 로직 분리 ★★★
+ * @description L3 기능/공정특성 복합키 기반 중복 제거 훅
  *
- * ⚠️ AI / 유지보수 주의 (2026-03-23)
- * - `deduplicateFunctionsL3`·`remapFailureCauseCharIds` 정책과 연동. 공정특성 **이름** 기준 merge 재도입 금지.
- * - FC 리매핑 전 `validCharIds`로 살아 있는 B3 id는 건드리지 않음(동일 이름 복수 행 보호).
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  MBD-26-009 (2026-03-28): 이름 기반 dedup 완전 삭제               ██
+ * ██  → 복합키(ID) 기반 중복 제거로 교체                                ██
+ * ██                                                                     ██
+ * ██  구 방식: 이름 텍스트 매칭 → 병합/드롭 → B3/B4 데이터 소멸          ██
+ * ██  신 방식: 복합키(ID) 생성 후 동일 ID만 제거 → 데이터 100% 보존      ██
+ * ██                                                                     ██
+ * ██  이전 방식으로 절대 복원 금지! (CLAUDE.md Rule 1.7)                 ██
+ * ██████████████████████████████████████████████████████████████████████████
  */
 
 import { useEffect, useRef } from 'react';
-import { deduplicateFunctionsL3, remapFailureCauseCharIds } from '../functionL3Utils';
 
 interface UseL3DeduplicationProps {
   l2: any[];
@@ -30,39 +33,70 @@ export function useL3Deduplication({
   const lastCleanedHash = useRef<string>('');
 
   useEffect(() => {
-    // 이미 정리한 데이터인지 체크
     const currentHash = JSON.stringify((l2 || []).map(p => ({
       id: p.id,
       l3: (p.l3 || []).map((we: any) => ({
         id: we.id,
-        funcs: (we.functions || []).map((f: any) => ({ 
-          name: f.name, 
-          chars: (f.processChars || []).map((c: any) => String(c.name || '')) 
+        funcs: (we.functions || []).map((f: any) => ({
+          id: f.id,
+          chars: (f.processChars || []).map((c: any) => String(c.id || ''))
         }))
       }))
     })));
-    
+
     if (lastCleanedHash.current === currentHash) return;
 
     let anyClean = false;
     const newL2 = (l2 || []).map((proc: any) => {
-      // 공정특성 ID → 이름 매핑 (FC 리매핑용)
-      const oldCharIdToName = new Map<string, string>();
-      (proc.l3 || []).forEach((we: any) => {
-        (we.functions || []).forEach((f: any) => {
-          (f.processChars || []).forEach((c: any) => {
-            if (c?.id && c?.name) oldCharIdToName.set(String(c.id), String(c.name).trim());
-          });
-        });
-      });
 
-      const newL3 = (proc.l3 || []).map((we: any) => {
-        // 기능 및 공정특성 중복 제거
-        const { functions: uniqueFuncs, cleaned } = deduplicateFunctionsL3(we.functions || []);
-        if (cleaned) anyClean = true;
+      // ━━━ Step 1: WE(작업요소) 복합키(m4|name) 기반 중복 제거 ━━━
+      // 동일 공정 내에서 m4 + name 복합키가 같으면 합침
+      const weMap = new Map<string, any>();
+      for (const we of (proc.l3 || [])) {
+        const name = (we.name || '').trim();
+        const m4 = (we.m4 || '').trim();
+        const key = `${m4}|${name}`;
+        if (name && weMap.has(key)) {
+          const existing = weMap.get(key);
+          existing.functions = [...(existing.functions || []), ...(we.functions || [])];
+          if (we.failureCauses?.length) {
+            existing.failureCauses = [...(existing.failureCauses || []), ...(we.failureCauses || [])];
+          }
+          anyClean = true;
+        } else {
+          weMap.set(name ? key : we.id, { ...we });
+        }
+      }
+      const dedupedL3 = Array.from(weMap.values());
+
+      // ━━━ Step 2: 복합키(ID) 기반 중복 제거 — 이름 기반 병합 금지 ━━━
+      // WE 병합 시 함수/공정특성이 복제될 수 있으므로 ID 기준만 제거
+      const newL3 = dedupedL3.map((we: any) => {
+        const seenFuncIds = new Set<string>();
+        const uniqueFuncs: any[] = [];
+
+        for (const f of (we.functions || [])) {
+          const fid = f.id?.trim() || '';
+          if (fid && seenFuncIds.has(fid)) { anyClean = true; continue; }
+          if (fid) seenFuncIds.add(fid);
+
+          // processChars도 ID 기반 dedup만
+          const seenCharIds = new Set<string>();
+          const uniqueChars = (f.processChars || []).filter((c: any) => {
+            const cid = c?.id != null && String(c.id).trim() !== '' ? String(c.id) : '';
+            if (!cid) return true;
+            if (seenCharIds.has(cid)) { anyClean = true; return false; }
+            seenCharIds.add(cid);
+            return true;
+          });
+
+          uniqueFuncs.push({ ...f, processChars: uniqueChars });
+        }
+
         return { ...we, functions: uniqueFuncs };
       });
 
+      // ━━━ Step 3: FC.processCharId FK 리매핑 (validCharIds 보호) ━━━
       const validCharIds = new Set<string>();
       newL3.forEach((we: any) => {
         (we.functions || []).forEach((f: any) => {
@@ -72,28 +106,43 @@ export function useL3Deduplication({
         });
       });
 
-      // 정규 ID 매핑 생성 (동일 이름 복수 행 시 첫 id — 리매핑은 validCharIds에 없을 때만)
-      const canonicalIdByCharName = new Map<string, string>();
+      // FC processCharId가 validCharIds에 없으면 같은 이름의 유효 ID로 리매핑
+      const charNameToValidId = new Map<string, string>();
       newL3.forEach((we: any) => {
         (we.functions || []).forEach((f: any) => {
           (f.processChars || []).forEach((c: any) => {
             const name = String(c?.name || '').trim();
             const id = String(c?.id || '');
-            if (name && id && !canonicalIdByCharName.has(name)) {
-              canonicalIdByCharName.set(name, id);
+            if (name && id && !charNameToValidId.has(name)) {
+              charNameToValidId.set(name, id);
             }
           });
         });
       });
 
-      // FC.processCharId 리매핑
-      const { causes: remappedCauses, cleaned: causesCleaned } = remapFailureCauseCharIds(
-        proc.failureCauses || [],
-        oldCharIdToName,
-        canonicalIdByCharName,
-        validCharIds
-      );
-      if (causesCleaned) anyClean = true;
+      const oldCharIdToName = new Map<string, string>();
+      (proc.l3 || []).forEach((we: any) => {
+        (we.functions || []).forEach((f: any) => {
+          (f.processChars || []).forEach((c: any) => {
+            if (c?.id && c?.name) oldCharIdToName.set(String(c.id), String(c.name).trim());
+          });
+        });
+      });
+
+      const remappedCauses = (proc.failureCauses || []).map((fc: any) => {
+        const oldId = fc?.processCharId;
+        if (!oldId) return fc;
+        const oid = String(oldId);
+        if (validCharIds.has(oid)) return fc;
+        const oldName = oldCharIdToName.get(oid);
+        if (!oldName) return fc;
+        const newId = charNameToValidId.get(oldName);
+        if (newId && newId !== oid) {
+          anyClean = true;
+          return { ...fc, processCharId: newId };
+        }
+        return fc;
+      });
 
       return { ...proc, l3: newL3, failureCauses: remappedCauses };
     });
@@ -103,19 +152,16 @@ export function useL3Deduplication({
         id: p.id,
         l3: (p.l3 || []).map((we: any) => ({
           id: we.id,
-          funcs: (we.functions || []).map((f: any) => ({ 
-            name: f.name, 
-            chars: (f.processChars || []).map((c: any) => String(c.name || '')) 
+          funcs: (we.functions || []).map((f: any) => ({
+            id: f.id,
+            chars: (f.processChars || []).map((c: any) => String(c.id || ''))
           }))
         }))
       })));
-      // ★ 2026-02-20: setStateSynced 우선 사용 (stateRef 즉시 동기화 → DB 저장 안정)
       const updateFn = (prev: any) => ({ ...prev, l2: newL2 });
       if (setStateSynced) { setStateSynced(updateFn); } else { setState(updateFn); }
       setDirty(true);
-      setTimeout(() => {
-        saveToLocalStorage?.();
-      }, 100);
+      setTimeout(() => { saveToLocalStorage?.(); }, 100);
     } else {
       lastCleanedHash.current = currentHash;
     }

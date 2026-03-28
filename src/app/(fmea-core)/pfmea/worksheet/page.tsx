@@ -57,6 +57,9 @@ import { toast } from '@/hooks/useToast';
 import { DEFAULT_COMPARE_MASTER_FMEA_ID, normalizeCompareTab } from '../compare/constants';
 import CompareEmbedToolbar from './components/CompareEmbedToolbar';
 // ✅ convertToFmea4: Fmea4Tab 컴포넌트 내부에서 사용 (page.tsx에서 미사용 → import 제거)
+// ★★★ 2026-03-28: 중복제거 훅 — 최상위 컨테이너에서 호출 (구조탭 중복 근본 해결) ★★★
+import { useL2Deduplication } from './tabs/function/hooks/useL2Deduplication';
+import { useL3Deduplication } from './tabs/function/hooks/useL3Deduplication';
 
 // ✅ 대용량 컴포넌트 Dynamic Import — 초기 번들 경량화
 const TopMenuBar = dynamic(() => import('./components/TopMenuBar'), { ssr: false });
@@ -164,6 +167,12 @@ function FMEAWorksheetPageContent() {
     atomicDB,
     setAtomicDB,
   } = useWorksheetState();
+
+  // ★★★ 2026-03-28: 중복제거 훅을 최상위 컨테이너에서 호출 ★★★
+  // 근본원인: 기존에는 FunctionL2Tab/L3Tab 내부에서만 실행 → 구조분석 탭에서 중복 표시
+  // 해결: 어떤 탭이든 데이터 로드 즉시 dedup 실행
+  useL2Deduplication({ l2: state.l2 || [], setState, setStateSynced, setDirty, saveToLocalStorage });
+  useL3Deduplication({ l2: state.l2 || [], setState, setStateSynced, setDirty, saveToLocalStorage });
 
   // ★★★ 중앙 저장 이벤트 리스너 등록 ★★★
   useSaveListener(saveAtomicDB);
@@ -733,7 +742,7 @@ function FMEAWorksheetPageContent() {
           onDownloadTemplate={handleDownloadTemplate}
           onOpenSpecialChar={() => setIsSpecialCharModalOpen(true)}
           onOpenSOD={() => setIsSODModalOpen(true)}
-          onOpenSRecommend={() => {
+          onOpenSRecommend={async () => {
             // ★ 2026-03-25: S추천 토글 — 이미 열려있으면 닫기, 아니면 열기 + 자동추천 적용
             if (state.tab === 'failure-severity-map') {
               setState(prev => ({ ...prev, tab: 'failure-l1' }));
@@ -742,7 +751,7 @@ function FMEAWorksheetPageContent() {
             // 자동추천 적용 (applyBulkSeverityRecommendations)
             try {
               const { applyBulkSeverityRecommendations } = require('@/lib/fmea/s-recommend-bulk-apply');
-              const result = applyBulkSeverityRecommendations(state.l1, selectedFmeaId || 'default');
+              const result = await applyBulkSeverityRecommendations(state.l1, selectedFmeaId || 'default');
               if (result.changeCount > 0) {
                 setState(prev => ({
                   ...prev,

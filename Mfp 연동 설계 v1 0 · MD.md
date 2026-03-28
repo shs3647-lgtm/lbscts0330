@@ -497,7 +497,7 @@ for i in 1..3:
 결과:
   tg26-p002 { pfmea_id:'pfm26-p002-i02', cp_id:null, pfd_id:null }
   tg26-p003 { pfmea_id:'pfm26-p003-i03', cp_id:null, pfd_id:null }
-  tg26-p004 { pfmea_id:'pfm26-p004-i04', cp_id:null, pfd_id:null }
+  tg26-m002 { pfmea_id:'pfm26-m002', cp_id:null, pfd_id:null }
 
 총 DB 작업: 6건 INSERT (3 triplet_groups + 3 fmea_projects)
 기존 방식: 30건 INSERT → 6건으로 80% 감소

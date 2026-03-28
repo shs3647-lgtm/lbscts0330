@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { buildFailureChainsFromFlat } from '@/app/(fmea-core)/pfmea/import/types/masterFailureChain';
+import { dedupeFailureChainsWeakL3 } from '@/app/(fmea-core)/pfmea/import/utils/dedupeFailureChainsWeakL3';
 import { isMeaningfulL3 } from '@/app/(fmea-core)/pfmea/worksheet/tabs/function/functionL3Utils';
 
 export interface ImportCounts {
@@ -258,7 +259,7 @@ export function useImportVerify(fmeaId: string | null) {
         if (rawChains.length === 0 && items.length > 0) {
           try {
             const dummyCrossTab = { aRows: [] as never[], bRows: [] as never[], cRows: [] as never[], total: 0 };
-            const built = buildFailureChainsFromFlat(items as never[], dummyCrossTab);
+            const built = dedupeFailureChainsWeakL3(buildFailureChainsFromFlat(items as never[], dummyCrossTab));
             effectiveChains = built.map(c => ({
               id: String(c.id || ''), processNo: String(c.processNo || ''),
               m4: String(c.m4 || ''), fmValue: String(c.fmValue || ''),

@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 
 async function main() {
-  const res = await fetch('http://localhost:3000/api/fmea/reverse-import/excel?fmeaId=pfm26-m066');
+  const res = await fetch('http://localhost:3000/api/fmea/reverse-import/excel?fmeaId=pfm26-m002');
   const buf = await res.arrayBuffer();
   fs.writeFileSync('c:/autom-fmea/test-reverse-import.xlsx', Buffer.from(buf));
   
@@ -28,7 +28,7 @@ async function main() {
   
   // Now also generate client-side template Excel
   console.log('\n=== Client-side Template 시뮬레이션 ===');
-  const masterRes = await fetch('http://localhost:3000/api/pfmea/master?fmeaId=pfm26-m066&includeItems=true');
+  const masterRes = await fetch('http://localhost:3000/api/pfmea/master?fmeaId=pfm26-m002&includeItems=true');
   const masterData = await masterRes.json();
   const ds = masterData.dataset;
   console.log('flatItems:', ds?.flatItems?.length);
@@ -75,7 +75,7 @@ async function main() {
     ]);
     
     const wb2 = new ExcelJS.Workbook();
-    const headers = ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리', 'A6.검출관리', 'O', 'D', 'AP'];
+    const headers = ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', 'WE(작업요소)', 'FC(고장원인)', 'B5.예방관리', 'A6.검출관리', 'O', 'D', 'AP'];
     const ws2 = wb2.addWorksheet('FC 고장사슬');
     ws2.columns = headers.map((h, i) => ({ header: h, key: `col${i}`, width: 20 }));
     

@@ -1,14 +1,14 @@
 /**
- * m066 DB에서 완벽한 Import 엑셀 샘플 생성
+ * m002 DB에서 완벽한 Import 엑셀 샘플 생성
  * Usage: node scripts/gen-import-sample.mjs
  *
- * 소스: data/master-fmea/pfm26-m066.json (마스터 JSON)
- * 출력: data/m066_완벽_Import_Sample.xlsx
+ * 소스: data/master-fmea/pfm26-m002.json (마스터 JSON)
+ * 출력: data/m002_완벽_Import_Sample.xlsx
  */
 import XLSX from 'xlsx';
 import { readFileSync } from 'fs';
 
-const d = JSON.parse(readFileSync('data/master-fmea/pfm26-m066.json', 'utf8'));
+const d = JSON.parse(readFileSync('data/master-fmea/pfm26-m002.json', 'utf8'));
 const db = d.atomicDB;
 const chains = d.chains;
 const wb = XLSX.utils.book_new();
@@ -118,7 +118,7 @@ XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([l3H, ...l3R]), 'L3 통
 // === FC 시트 (고장사슬, fill-down 완전) ===
 const fcH = [
   'FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)',
-  '4M', '작업요소(WE)', 'FC(고장원인)',
+  '4M', 'WE(작업요소)', 'FC(고장원인)',
   'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)',
   'O', 'D', 'AP',
 ];
@@ -140,7 +140,7 @@ fcR.sort((a, b) => (parseInt(a[2]) || 0) - (parseInt(b[2]) || 0));
 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([fcH, ...fcR]), 'FC 고장사슬');
 
 // === 저장 + 결과 출력 ===
-const outPath = 'data/m066_완벽_Import_Sample.xlsx';
+const outPath = 'data/m002_완벽_Import_Sample.xlsx';
 XLSX.writeFile(wb, outPath);
 
 console.log(`✅ Saved: ${outPath}`);

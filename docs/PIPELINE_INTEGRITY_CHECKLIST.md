@@ -2,7 +2,7 @@
 
 > **작성일**: 2026-03-19 (v2.0 보강: Import 전처리 + Master 샘플 데이터 생성 섹션 추가)  
 > **근거**: 2026-03-16~19 커밋 112건 전수 분석, 30건 버그 패턴, 7개 데이터 손실 경로 식별  
-> **대상**: 모든 FMEA 프로젝트 (골든 베이스라인: pfm26-m066)  
+> **대상**: 모든 FMEA 프로젝트 (골든 베이스라인: pfm26-m002)  
 > **코드프리즈 모드**: 이 체크리스트의 모든 항목이 PASS 되기 전까지 신규 기능 추가 금지
 
 ---
@@ -80,7 +80,7 @@
 | # | 검증 항목 | 검증 방법 | PASS 기준 | 관련 버그 |
 |---|----------|----------|-----------|----------|
 | FC-01 | FC 시트 존재 | Excel에 'FC 고장사슬' 시트 존재 | 시트 있음 | GAP 2 |
-| FC-02 | FC 시트 행 수 | FC 시트 데이터 행 | ≥ FC 수 (m066=104) | FC 누락 |
+| FC-02 | FC 시트 행 수 | FC 시트 데이터 행 | ≥ FC 수 (m002=104) | FC 누락 |
 | FC-03 | FC→FM 매핑 | 모든 FC에 FM이 매핑 | 미매핑 0건 | GAP 5 |
 | FC-04 | FC→FE 매핑 | 모든 FC에 FE가 매핑 | 미매핑 0건 | GAP 5 |
 | FC-05 | FC SOD 완전 | S/O/D 값 존재 | 빈값 0건 | - |
@@ -471,7 +471,7 @@ Import Excel → 파싱 → buildWorksheetState
 
 ### 12.4 프로젝트별 검증 현황 (2026-03-19 파이프라인 재설계 후)
 
-| 항목 | m066 | m069 | m071 |
+| 항목 | m002 | m069 | m071 |
 |------|------|------|------|
 | 마스터 JSON | ✅ 존재 | ✅ 존재 | ✅ 존재 |
 | STEP 0~4 | ✅ ALL OK | ✅ ALL OK | ⚠️ WARN (FL Atm 115 vs Leg 118) |
@@ -502,16 +502,16 @@ Import Excel → 파싱 → buildWorksheetState
 npx tsc --noEmit
 
 # 1단계: pipeline-verify GET (읽기전용)
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m066" -Method GET | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify?fmeaId=pfm26-m002" -Method GET | ConvertTo-Json -Depth 5
 
 # 2단계: pipeline-verify POST (자동수정)
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/pipeline-verify" -Method POST -Body '{"fmeaId":"pfm26-m002"}' -ContentType "application/json" | ConvertTo-Json -Depth 3
 
 # 3단계: rebuild-atomic
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m066" -Method POST | ConvertTo-Json -Depth 3
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/rebuild-atomic?fmeaId=pfm26-m002" -Method POST | ConvertTo-Json -Depth 3
 
 # 4단계: export-master + 검증
-Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m066"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method POST -Body '{"fmeaId":"pfm26-m002"}' -ContentType "application/json" | ConvertTo-Json -Depth 5
 ```
 
 ### 5회 검증 기록 양식
@@ -625,5 +625,5 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/export-master" -Method PO
 
 > **최종 업데이트**: 2026-03-19 v2.3 (파이프라인 재설계: 자동수정 비활성화 + B4→B3 근본수정)  
 > **작성**: AI 에이전트 총동원 (explore×2 + shell + generalPurpose)  
-> **검증 결과**: m066/m069 orphanPC=0 ALL OK, m071 orphanPC=8 (기존 Legacy, 재Import 필요)  
+> **검증 결과**: m002/m069 orphanPC=0 ALL OK, m071 orphanPC=8 (기존 Legacy, 재Import 필요)  
 > **승인 필요**: 코드프리즈 승인

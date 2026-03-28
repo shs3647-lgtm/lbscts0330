@@ -99,29 +99,6 @@ test.describe('자동 탭 — ImportStepBar 검증', () => {
   });
 });
 
-// ─── 전처리 탭 ───
-
-test.describe('전처리 탭 — 기본 UI 검증', () => {
-  test('3. 전처리 탭 로드 + 업로드 UI 확인', async ({ page }) => {
-    await page.goto(`${BASE}/pfmea/import/preprocess`);
-    await page.waitForLoadState('networkidle');
-
-    // STEP B 전처리 변환 타이틀
-    const title = page.locator('text=STEP B 전처리 변환');
-    await expect(title.first()).toBeVisible({ timeout: 15000 });
-
-    // 변환 시작 버튼
-    const convertBtn = page.locator('button:has-text("변환 시작")');
-    await expect(convertBtn.first()).toBeVisible();
-
-    // 파일 입력 (.xlsx accept 속성으로 식별)
-    const fileInput = page.locator('input[type="file"][accept=".xlsx"]');
-    await expect(fileInput.first()).toBeAttached();
-
-    await page.screenshot({ path: 'tests/screenshots/preprocess-tab.png', fullPage: true });
-  });
-});
-
 // ─── 기존 데이터 탭 ───
 
 test.describe('기존 데이터 탭 — 검증 프로세스 확인', () => {

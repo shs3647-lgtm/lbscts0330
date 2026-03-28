@@ -19,7 +19,7 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
 
-const FMEA_ID = process.argv[2] || 'pfm26-m066';
+const FMEA_ID = process.argv[2] || 'pfm26-m002';
 const MASTER_JSON = path.join(process.cwd(), 'data', 'master-fmea', `${FMEA_ID}.json`);
 const OUTPUT_DIR = 'C:/Users/Administrator/Documents/fc';
 const OUTPUT_PATH = `${OUTPUT_DIR}/PFMEA_Master_Import_${FMEA_ID}_${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -338,7 +338,7 @@ async function main() {
     { name: 'L1 통합(C1-C4)', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '고장영향(C4)'], data: l1Rows, bg: HEADER_BG },
     { name: 'L2 통합(A1-A6)', headers: ['A1.공정번호', 'A2.공정명', 'A3.공정기능', 'A4.제품특성', '특별특성', 'A5.고장형태', 'A6.검출관리'], data: l2Rows, bg: HEADER_BG },
     { name: 'L3 통합(B1-B5)', headers: ['공정번호', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성', '고장원인(B4)', '예방관리(B5)'], data: l3Rows, bg: HEADER_BG },
-    { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', '작업요소(WE)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'S', 'O', 'D', 'AP'], data: fcRows, bg: FC_BG },
+    { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)', '4M', 'WE(작업요소)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'S', 'O', 'D', 'AP'], data: fcRows, bg: FC_BG },
     {
       name: 'FA 통합분석',
       headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '공정No(A1)', '공정명(A2)', '공정기능(A3)', '제품특성(A4)', '특별특성(A4)', '4M', '작업요소(B1)', '요소기능(B2)', '공정특성(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'DC추천1', 'DC추천2', 'PC추천1', 'PC추천2', 'O추천', 'D추천'],

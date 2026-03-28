@@ -1,13 +1,13 @@
 /**
- * 역설계 Import Excel → parse → save-from-import → pipeline-verify → M066 비교
- * 수정된 엑셀(carry-forward)로 M081에 Import하고 M066 100% 일치 검증
+ * 역설계 Import Excel → parse → save-from-import → pipeline-verify → M002 비교
+ * 수정된 엑셀(carry-forward)로 M081에 Import하고 M002 100% 일치 검증
  */
 import ExcelJS from 'exceljs';
 
 const BASE = 'http://localhost:3000';
-const SOURCE_FMEA = 'pfm26-m066';
+const SOURCE_FMEA = 'pfm26-m002';
 const TARGET_FMEA = 'pfm26-m081';
-const EXCEL_PATH = process.argv[2] || 'data/import-excel-m066-fixed.xlsx';
+const EXCEL_PATH = process.argv[2] || 'data/import-excel-m002-fixed.xlsx';
 
 async function main() {
   console.log('=== 역설계 Import Excel 검증 테스트 (v2) ===');
@@ -171,7 +171,7 @@ async function main() {
   console.log(`  failureChains: ${failureChains.length}건`);
   console.log('  항목별:', JSON.stringify(codes));
 
-  // M066 기대값과 비교
+  // M002 기대값과 비교
   const expected = { A1:21, A2:21, A5:26, B1:91, B4:104, C1:3, C4:20 };
   let flatOk = true;
   for (const [k,v] of Object.entries(expected)) {
@@ -219,50 +219,50 @@ async function main() {
   }
   console.log(`  allGreen: ${verifyResult.allGreen}`);
 
-  // 4. M066 pipeline-verify
-  console.log('\n--- STEP 3: M066 vs M081 수치 비교 ---');
-  const m066Res = await fetch(`${BASE}/api/fmea/pipeline-verify?fmeaId=${SOURCE_FMEA}`);
-  const m066Result = await m066Res.json();
+  // 4. M002 pipeline-verify
+  console.log('\n--- STEP 3: M002 vs M081 수치 비교 ---');
+  const m002Res = await fetch(`${BASE}/api/fmea/pipeline-verify?fmeaId=${SOURCE_FMEA}`);
+  const m002Result = await m002Res.json();
 
-  const m066s1 = m066Result.steps?.find(s => s.step === 1);
+  const m002s1 = m002Result.steps?.find(s => s.step === 1);
   const m081s1 = verifyResult.steps?.find(s => s.step === 1);
 
-  if (m066s1 && m081s1) {
+  if (m002s1 && m081s1) {
     const keys = ['L2', 'L3', 'L3F', 'L2F', 'L1F', 'FM', 'FE', 'FC', 'FL', 'RA'];
     let matchCount = 0;
     for (const k of keys) {
-      const s = m066s1.details[k];
+      const s = m002s1.details[k];
       const t = m081s1.details[k];
       const icon = s === t ? '✅' : '❌';
       if (s === t) matchCount++;
-      console.log(`  ${icon} ${k}: M066=${s} M081=${t}`);
+      console.log(`  ${icon} ${k}: M002=${s} M081=${t}`);
     }
     console.log(`  일치율: ${matchCount}/${keys.length} (${Math.round(matchCount/keys.length*100)}%)`);
   }
 
-  // 5. M066 구조 상세 비교
-  const m066s0 = m066Result.steps?.find(s => s.step === 0);
+  // 5. M002 구조 상세 비교
+  const m002s0 = m002Result.steps?.find(s => s.step === 0);
   const m081s0 = verifyResult.steps?.find(s => s.step === 0);
-  if (m066s0 && m081s0) {
+  if (m002s0 && m081s0) {
     console.log('\n  구조 비교:');
     for (const k of ['l1', 'l2', 'l3', 'l1F']) {
-      const s = m066s0.details[k];
+      const s = m002s0.details[k];
       const t = m081s0.details[k];
       const icon = s === t ? '✅' : '❌';
-      console.log(`    ${icon} ${k}: M066=${s} M081=${t}`);
+      console.log(`    ${icon} ${k}: M002=${s} M081=${t}`);
     }
   }
 
   // 6. FK 비교
-  const m066s3 = m066Result.steps?.find(s => s.step === 3);
+  const m002s3 = m002Result.steps?.find(s => s.step === 3);
   const m081s3 = verifyResult.steps?.find(s => s.step === 3);
-  if (m066s3 && m081s3) {
+  if (m002s3 && m081s3) {
     console.log('\n  FK 비교:');
     for (const k of ['totalOrphans', 'unlinkedFC', 'unlinkedFM', 'flWithoutRA']) {
-      const s = m066s3.details[k];
+      const s = m002s3.details[k];
       const t = m081s3.details[k];
       const icon = s === t ? '✅' : '❌';
-      console.log(`    ${icon} ${k}: M066=${s} M081=${t}`);
+      console.log(`    ${icon} ${k}: M002=${s} M081=${t}`);
     }
   }
 

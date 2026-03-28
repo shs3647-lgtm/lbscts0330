@@ -17,7 +17,7 @@ export default function FailureTab(props: FailureTabProps) {
   const { state } = props;
 
   if (state.tab === 'failure-severity-map') {
-    return <FailureSeverityMappingTab {...props} onClose={() => props.setState(prev => ({ ...prev, tab: 'failure-l1' }))} />;
+    return <FailureSeverityMappingTab {...props} />;
   }
   
   // 메인 탭에서 직접 레벨 결정

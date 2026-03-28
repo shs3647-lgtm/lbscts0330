@@ -12,6 +12,7 @@
 import React, { useMemo, useCallback } from 'react';
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
+import type { PositionImportPgSnapshot } from '@/types/position-import';
 import { useImportSteps } from '../hooks/useImportSteps';
 import { buildCrossTab } from '../utils/template-delete-logic';
 
@@ -35,17 +36,19 @@ interface ImportStepBarProps {
     partNo?: string;
   };
   l1Name?: string;
+  /** 위치기반 저장 직후 PG atomicCounts(+saveImportMeta) — 메모리 건수와 병기 */
+  pgSnapshot?: PositionImportPgSnapshot | null;
 }
 
 export default function ImportStepBar({
-  flatData, fmeaId, failureChains: propChains, fmeaInfo, l1Name,
+  flatData, fmeaId, failureChains: propChains, fmeaInfo, l1Name, pgSnapshot,
 }: ImportStepBarProps) {
   const crossTab = useMemo(() => buildCrossTab(flatData), [flatData]);
   const failureChains = useMemo(() => propChains ?? [], [propChains]);
 
   const onWorksheetSaved = useCallback(() => {
-    // ★ window.location.href로 전체 새로고침 — React stale state 방지
-    window.location.href = `/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}&fresh=1`;
+    // ★v5.2: 자동확정 후 자동이동 제거 — 통계 확인 후 사용자가 직접 "워크시트 →" 버튼으로 이동
+    // (이전: 여기서 window.location.href 이동 → 파이프라인 검증/통계 확인 불가)
   }, [fmeaId]);
 
   const {
@@ -115,9 +118,27 @@ export default function ImportStepBar({
     <div className="bg-white border border-blue-100 rounded-lg p-2 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] text-gray-500">
-          데이터: <b className="text-blue-700">{flatData.length}</b>건
-          {failureChains.length > 0 && <> | 고장사슬: <b className="text-orange-600">{failureChains.length}</b>건</>}
+          데이터(미리보기 flat): <b className="text-blue-700">{flatData.length}</b>건
+          {failureChains.length > 0 && <> | 고장사슬(메모리): <b className="text-orange-600">{failureChains.length}</b>건</>}
         </span>
+        {pgSnapshot?.atomicCounts && (
+          <span className="text-[10px] text-emerald-800" title="save-position-import 직후 프로젝트 스키마 실측">
+            {' '}
+            | PG: L2=<b>{pgSnapshot.atomicCounts.l2Structures ?? '—'}</b> L3=
+            <b>{pgSnapshot.atomicCounts.l3Structures ?? '—'}</b> FM=
+            <b>{pgSnapshot.atomicCounts.failureModes ?? '—'}</b> FC=
+            <b>{pgSnapshot.atomicCounts.failureCauses ?? '—'}</b> FE=
+            <b>{pgSnapshot.atomicCounts.failureEffects ?? '—'}</b> FL=
+            <b>{pgSnapshot.atomicCounts.failureLinks ?? '—'}</b> RA=
+            <b>{pgSnapshot.atomicCounts.riskAnalyses ?? '—'}</b>
+            {pgSnapshot.saveImportMeta && pgSnapshot.saveImportMeta.failureLinksSkippedIncomplete > 0 && (
+              <span className="text-amber-700">
+                {' '}
+                | FL스킵(불완전삼중) {pgSnapshot.saveImportMeta.failureLinksSkippedIncomplete}
+              </span>
+            )}
+          </span>
+        )}
 
         {/* 원클릭 자동확정 + 파이프라인 자동수정 */}
         <button

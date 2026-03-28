@@ -6,6 +6,11 @@
 
 import { useCallback, useMemo } from 'react';
 import { FEItem, FCItem, FMItem, LinkResult } from '../FailureLinkTypes';
+import {
+  autoMatchLinkDedupKeys,
+  fcEntriesFromPattern,
+  fcEntriesSameProcessOnly,
+} from '../collectAutoMatchFcEntries';
 import { uid } from '../../../constants';
 
 interface UseLinkHandlersProps {
@@ -673,6 +678,18 @@ export function useLinkHandlers({
 
   // ========== 누락 FM+FC 자동연결 (★ 2026-03-24: FC 자동연결 추가) ==========
   const handleAutoMatchMissing = useCallback(async () => {
+    // 신규 공정 등: 구조·FM/FC 행을 먼저 DB에 반영한 뒤 매칭 (SSoT 정합)
+    try {
+      saveToLocalStorage?.(true);
+      await Promise.resolve(saveAtomicDB?.(true));
+    } catch (e) {
+      console.error('[useLinkHandlers] 고장매칭 전 구조 DB 선저장 실패:', e);
+      return {
+        success: false,
+        message: '구조를 DB에 먼저 저장하지 못했습니다. 저장 후 고장매칭을 다시 시도하세요.',
+      };
+    }
+
     // ── 공통 준비 ──
     // 공정별 기존 링크 패턴 수집 (processName → { fes, fcs })
     const processPatterns = new Map<string, { fes: Map<string, LinkResult>; fcs: Map<string, LinkResult> }>();
@@ -695,10 +712,19 @@ export function useLinkHandlers({
       }
     });
 
-    // 기존 링크의 빠른 중복 검사용 Set
+    // 기존 링크: id + 공정|m4|we|원인 복합키 (신규 공정·stale fcId 대비)
     const existingKeySet = new Set<string>();
     savedLinks.forEach(l => {
-      if (l.fmId && l.feId && l.fcId) existingKeySet.add(`${l.fmId}|${l.feId}|${l.fcId}`);
+      if (!l.fmId || !l.feId || !l.fcId?.trim()) return;
+      const fc = {
+        id: l.fcId,
+        fcNo: l.fcNo,
+        process: l.fcProcess,
+        m4: l.fcM4,
+        workElem: l.fcWorkElem,
+        text: l.fcText,
+      };
+      autoMatchLinkDedupKeys(l.fmId, l.feId, fc, l.fmProcess).forEach(k => existingKeySet.add(k));
     });
 
     const newLinks: LinkResult[] = [...savedLinks];
@@ -723,38 +749,20 @@ export function useLinkHandlers({
         const feSourceMap = (pat && pat.fes.size > 0) ? pat.fes : globalFeMap;
         if (feSourceMap.size === 0) return;
 
-        // FC 결정: 같은 공정 패턴 → 없으면 fcData에서 같은/앞공정 FC
-        const fcEntries: { id: string; fcNo: string; process: string; m4: string; workElem: string; text: string; workFunction?: string; processChar?: string }[] = [];
-
-        if (pat && pat.fcs.size > 0) {
-          pat.fcs.forEach(link => {
-            fcEntries.push({
-              id: link.fcId, fcNo: link.fcNo, process: link.fcProcess,
-              m4: link.fcM4, workElem: link.fcWorkElem, text: link.fcText,
-              workFunction: link.fcWorkFunction, processChar: link.fcProcessChar,
-            });
-          });
-        } else {
-          const fmOrder = getProcessOrder(fm.processName);
-          fcData
-            .filter(fc => getProcessOrder(fc.processName) <= fmOrder)
-            .forEach(fc => {
-              fcEntries.push({
-                id: fc.id, fcNo: fc.fcNo, process: fc.processName,
-                m4: fc.m4, workElem: fc.workElem, text: fc.text,
-                workFunction: fc.workFunction, processChar: fc.processChar,
-              });
-            });
-        }
+        // FC 결정: 같은 공정 기존 패턴 → 없으면 해당 공정 FC만 (신규 공정 카테시안 금지)
+        const fcEntries =
+          pat && pat.fcs.size > 0
+            ? fcEntriesFromPattern(pat.fcs)
+            : fcEntriesSameProcessOnly(fm.processName, fcData);
 
         if (fcEntries.length === 0) return;
 
-        // 크로스 프로덕트 생성 (FM × FEs × FCs)
+        // FM × FE × FC (같은 공정 FC 집합만 — 복합키로 중복 방지)
         feSourceMap.forEach(feLink => {
           fcEntries.forEach(fc => {
-            const key = `${fm.id}|${feLink.feId}|${fc.id}`;
-            if (existingKeySet.has(key)) return;
-            existingKeySet.add(key);
+            const keys = autoMatchLinkDedupKeys(fm.id, feLink.feId, fc, fm.processName);
+            if (keys.some(k => existingKeySet.has(k))) return;
+            keys.forEach(k => existingKeySet.add(k));
 
             newLinks.push({
               id: uid(),
@@ -818,9 +826,19 @@ export function useLinkHandlers({
       let linked = false;
       for (const fm of sameProcFMs) {
         feSourceMap.forEach(feLink => {
-          const key = `${fm.id}|${feLink.feId}|${fc.id}`;
-          if (existingKeySet.has(key)) return;
-          existingKeySet.add(key);
+          const fcEntry = {
+            id: fc.id,
+            fcNo: fc.fcNo,
+            process: fc.processName,
+            m4: fc.m4,
+            workElem: fc.workElem,
+            text: fc.text,
+            workFunction: fc.workFunction,
+            processChar: fc.processChar,
+          };
+          const keys = autoMatchLinkDedupKeys(fm.id, feLink.feId, fcEntry, fm.processName);
+          if (keys.some(k => existingKeySet.has(k))) return;
+          keys.forEach(k => existingKeySet.add(k));
 
           newLinks.push({
             id: uid(),
@@ -872,7 +890,7 @@ export function useLinkHandlers({
     if (fmLinkedCount > 0) parts.push(`FM ${fmLinkedCount}건`);
     if (fcLinkedCount > 0) parts.push(`FC ${fcLinkedCount}건`);
     return { success: true, message: `✅ ${parts.join(' + ')} 자동연결 완료!\n(같은 공정의 FM↔FE↔FC 패턴으로 연결했습니다)` };
-  }, [fmData, fcData, savedLinks, linkStats, getProcessOrder, setState, setStateSynced, setDirty, saveTemp, saveToLocalStorage, saveAtomicDB, setViewMode, setSavedLinks]);
+  }, [fmData, fcData, savedLinks, linkStats, setState, setStateSynced, setDirty, saveTemp, saveToLocalStorage, saveAtomicDB, setViewMode, setSavedLinks]);
 
   return {
     // FM 관련

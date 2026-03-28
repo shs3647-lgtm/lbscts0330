@@ -17,8 +17,10 @@ import { useMemo, useState, useCallback, useRef } from 'react';
 import type { ImportedFlatData } from '../types';
 import {
   verifyFK,
+  mergeImportExpectedCounts,
   mapCountsToPgsql,
   mapApiToVerification,
+  countCompositeKeysByItemCode,
   type FKVerifyResult,
   type PgsqlVerifyResult,
   type ApiVerifyResult,
@@ -43,9 +45,23 @@ interface UseImportVerificationReturn {
 export function useImportVerification(
   fmeaId: string | undefined,
   flatData: ImportedFlatData[],
-  uuidCounts: Record<string, number>
+  uuidCounts: Record<string, number>,
+  /** 통계표「고유」열 — 있으면 pgsql/API 기대 건수를 DB 엔티티 스케일에 맞춤 */
+  uniqueByCode?: Record<string, number>,
+  /** 위치기반 파서 stats 기반 — verify-counts와 동일 척도(있으면 기대값 전부 이걸로) */
+  verifyScaleExpected?: Record<string, number> | null,
 ): UseImportVerificationReturn {
   const fkData = useMemo(() => verifyFK(flatData), [flatData]);
+
+  const dbExpectedCounts = useMemo(() => {
+    const composite = countCompositeKeysByItemCode(flatData);
+    return mergeImportExpectedCounts(
+      uuidCounts,
+      uniqueByCode,
+      composite,
+      verifyScaleExpected ?? null,
+    );
+  }, [verifyScaleExpected, uuidCounts, uniqueByCode, flatData]);
 
   const [pgsqlData, setPgsqlData] = useState<Record<string, PgsqlVerifyResult> | null>(null);
   const [isVerifyingPgsql, setIsVerifyingPgsql] = useState(false);
@@ -71,7 +87,7 @@ export function useImportVerification(
       if (!res.ok) return null;
       const data = await res.json();
       if (data.success && data.counts) {
-        const result = mapCountsToPgsql(data.counts, uuidCounts);
+        const result = mapCountsToPgsql(data.counts, dbExpectedCounts);
         setPgsqlData(result);
         return result;
       }
@@ -79,7 +95,7 @@ export function useImportVerification(
       console.error('[useImportVerification] pgsql verify error:', e);
     }
     return null;
-  }, [fmeaId, uuidCounts]);
+  }, [fmeaId, dbExpectedCounts]);
 
   // ── API 검증 (내부용: 결과 반환) ──
   const _verifyApi = useCallback(async (): Promise<Record<string, ApiVerifyResult> | null> => {
@@ -89,7 +105,7 @@ export function useImportVerification(
       if (!res.ok) return null;
       const data = await res.json();
       if (data) {
-        const result = mapApiToVerification(data, uuidCounts);
+        const result = mapApiToVerification(data, dbExpectedCounts);
         setApiData(result);
         return result;
       }
@@ -97,7 +113,7 @@ export function useImportVerification(
       console.error('[useImportVerification] API verify error:', e);
     }
     return null;
-  }, [fmeaId, uuidCounts]);
+  }, [fmeaId, dbExpectedCounts]);
 
   // ── Public wrappers ──
   const runPgsqlVerify = useCallback(async () => {

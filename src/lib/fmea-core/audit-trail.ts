@@ -149,7 +149,7 @@ function rowToEntry(row: AuditRow): AuditEntry {
  * Create an AuditTrailService backed by Prisma raw SQL.
  *
  * @param prisma - Prisma client (project-schema or public)
- * @param defaultSchema - optional schema name (e.g. 'pfmea_pfm26_m066')
+ * @param defaultSchema - optional schema name (e.g. 'pfmea_pfm26_m002')
  */
 export function createAuditTrailService(
   prisma: { $executeRawUnsafe: (q: string, ...args: unknown[]) => Promise<number>;

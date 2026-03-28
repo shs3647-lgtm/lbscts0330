@@ -1,6 +1,6 @@
 /**
  * @file reverse-extract.ts
- * 역설계 Import 시스템 — STEP 1~3: M066 Atomic DB 전체 로드 + 검증
+ * 역설계 Import 시스템 — STEP 1~3: M002 Atomic DB 전체 로드 + 검증
  * 설계서: docs/REVERSE_ENGINEERING_IMPORT_SYSTEM.md §2.2 STEP 1~3
  */
 

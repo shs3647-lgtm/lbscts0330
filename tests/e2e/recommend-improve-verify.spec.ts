@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 test.describe('개선추천 기능 검증', () => {
   test('개선추천 모달 열기 + DC/PC 추천 표시 확인', async ({ page }) => {

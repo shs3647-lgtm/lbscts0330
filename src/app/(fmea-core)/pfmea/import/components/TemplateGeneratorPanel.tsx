@@ -5,7 +5,7 @@
  * + 전체 데이터 미리보기 (실시간 자동 갱신)
  * + 인라인 편집 / 저장 / 구조분석 배지
  * @created 2026-02-18
- * @updated 2026-02-26 - 컴포넌트 분리 (TemplateSharedUI, FAVerificationBar, TemplatePreviewContent)
+ * @updated 2026-02-26 - 컴포넌트 분리 (TemplateSharedUI, TemplatePreviewContent)
  */
 
 'use client';
@@ -20,6 +20,7 @@ import HelpIcon from '@/components/common/HelpIcon';
 import { buildCrossTab, collectDeleteIds } from '../utils/template-delete-logic';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
+import { dedupeFailureChainsWeakL3 } from '../utils/dedupeFailureChainsWeakL3';
 import { useImportSteps } from '../hooks/useImportSteps';
 import { TabBtn, DataStatusBar } from './TemplateSharedUI';
 import { TemplatePreviewContent } from './TemplatePreviewContent';
@@ -67,6 +68,8 @@ interface Props {
   failureChains?: MasterFailureChain[];
   // ★ v2.5.1: 파싱 통계 (변환결과 검증용)
   parseStatistics?: import('../../import/excel-parser').ParseStatistics;
+  /** 위치기반 파일 선택 시 position-parser stats (엑셀 셀 카운트 → 통계「파싱」) */
+  positionParserStats?: Record<string, number> | null;
   // ★ 전처리 DB 저장 후 콜백 (기존데이터 탭 전환 + 데이터 리로드)
   // ★ 외부에서 펼치기 제어 (BD 사용 클릭 시, 값이 바뀔 때마다 펼침)
   expandTrigger?: number;
@@ -89,6 +92,7 @@ export function TemplateGeneratorPanel(props: Props) {
     bdStatusList, fmeaList,
     failureChains: externalChains,
     parseStatistics,
+    positionParserStats,
   } = props;
 
   const displayBdId = bdFmeaId ? fmeaIdToBdId(bdFmeaId) : null;
@@ -128,13 +132,28 @@ export function TemplateGeneratorPanel(props: Props) {
   // ── 미리보기 데이터 ──
   const generatedData = useMemo(() => flatData, [flatData]);
 
-  const crossTab = useMemo(() => buildCrossTab(generatedData), [generatedData]);
+  const crossTab = useMemo(() => {
+    const raw = buildCrossTab(generatedData);
+    // ★ 공정번호 오름차순 정렬 (buildCrossTab은 flatData 삽입 순서 유지 → 정렬 필요)
+    const sortByPNo = (a: { processNo: string }, b: { processNo: string }) => {
+      const na = parseInt(a.processNo, 10), nb = parseInt(b.processNo, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return (a.processNo || '').localeCompare(b.processNo || '');
+    };
+    return {
+      ...raw,
+      aRows: [...raw.aRows].sort(sortByPNo),
+      bRows: [...raw.bRows].sort(sortByPNo),
+    };
+  }, [generatedData]);
 
   // ★ 고장사슬: 외부(DB)에서 온 데이터 우선, 없으면 flat 데이터에서 자동 도출
   const failureChains = useMemo(() => {
-    if (externalChains && externalChains.length > 0) return externalChains;
+    if (externalChains && externalChains.length > 0) {
+      return dedupeFailureChainsWeakL3(externalChains);
+    }
     if (generatedData.length === 0) return [];
-    return buildFailureChainsFromFlat(generatedData, crossTab);
+    return dedupeFailureChainsWeakL3(buildFailureChainsFromFlat(generatedData, crossTab));
   }, [externalChains, templateMode, generatedData, crossTab]);
 
   // ★ 누락 통계 — 모든 컬럼 검사 (2026-03-25: 여러건 누락이 1건으로 표시되던 버그 수정)
@@ -470,10 +489,22 @@ export function TemplateGeneratorPanel(props: Props) {
           </div>
         )}
 
-        {/* 수동/자동 탭: 샘플 다운로드 → 작성 → Import 안내 */}
-        {(templateMode === 'manual' || templateMode === 'auto') && flatData.length === 0 && (
+        {/* 수동 탭: 샘플 다운로드 → 작성 → Import 안내 */}
+        {templateMode === 'manual' && flatData.length === 0 && (
           <div className="text-center py-3 text-[11px] text-gray-400">
             샘플 다운로드 → 엑셀 작성 → Import
+          </div>
+        )}
+        {/* 자동 탭: E2E·사용자 식별용 제목 + 작업요소 안내 */}
+        {templateMode === 'auto' && flatData.length === 0 && (
+          <div
+            className="text-center py-3 text-[11px] text-gray-600 space-y-1"
+            data-testid="import-auto-template-hint"
+          >
+            <div className="font-bold text-gray-800">
+              자동 템플릿 <span className="font-normal text-gray-500">—</span> 작업요소
+            </div>
+            <div className="text-gray-400">BD에서 작업요소 추출 후 생성 · 샘플Down → Import</div>
           </div>
         )}
 
@@ -541,6 +572,7 @@ export function TemplateGeneratorPanel(props: Props) {
             l1Name={l1Name}
             bdFmeaName={bdFmeaName}
             parseStatistics={parseStatistics}
+            positionParserStats={positionParserStats}
             fmeaId={selectedFmeaId}
           />
         </div>

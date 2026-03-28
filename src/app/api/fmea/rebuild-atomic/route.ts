@@ -44,8 +44,6 @@ import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma'
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import * as fs from 'fs';
 import * as path from 'path';
-import { batchCreateMany } from '@/lib/fmea-core/batch-utils';
-import { safeErrorMessage } from '@/lib/security';
 
 
 export const runtime = 'nodejs';
@@ -418,7 +416,7 @@ export async function POST(request: NextRequest) {
             }
 
             if (fcToCreate.length > 0) {
-              await batchCreateMany(tx.failureCause, fcToCreate);
+              await tx.failureCause.createMany({ data: fcToCreate, skipDuplicates: true });
               console.info(`[rebuild-atomic] FailureCauses 생성: ${fcToCreate.length}`);
             }
           }
@@ -502,11 +500,11 @@ export async function POST(request: NextRequest) {
             }
 
             if (flsToCreate.length > 0) {
-              await batchCreateMany(tx.failureLink, flsToCreate);
+              await tx.failureLink.createMany({ data: flsToCreate, skipDuplicates: true });
               console.info(`[rebuild-atomic] FailureLinks 복원: ${flsToCreate.length}`);
             }
             if (rasToCreate.length > 0) {
-              await batchCreateMany(tx.riskAnalysis, rasToCreate);
+              await tx.riskAnalysis.createMany({ data: rasToCreate, skipDuplicates: true });
               console.info(`[rebuild-atomic] RiskAnalyses 복원: ${rasToCreate.length}`);
             }
           }
@@ -1071,8 +1069,7 @@ export async function POST(request: NextRequest) {
           console.warn(`[rebuild-atomic] 고아 RA 감지: ${orphanRaIds.length}건 (삭제 안 함, WARN_ONLY)`);
         }
 
-        // ★ SOD/DC/PC 빈값 RA 보충: (1) 동일 fcId 형제 RA → (2) 동일 fmId 피어 RA → (3) FE severity → (4) public SeverityUsageRecord
-        const pubPrisma = getPrisma();
+        // ★ SOD/DC/PC 빈값 RA 보충: (1) 동일 fcId 형제 RA → (2) 동일 fmId 피어 RA → (3) FE severity
         const emptyRAs = await tx.riskAnalysis.findMany({
           where: {
             fmeaId,
@@ -1097,16 +1094,12 @@ export async function POST(request: NextRequest) {
           });
           const siblingRAMap = new Map<string, any>();
           const emptyRALinkIds = new Set(emptyRAs.map((r: any) => r.linkId));
-          const nonEmptySiblingFLs = siblingFLs.filter((sfl: any) => !emptyRALinkIds.has(sfl.id));
-          // ★ O-01: N+1 → 배치 로드 (형제 RA 일괄 조회)
-          const siblingRAs = nonEmptySiblingFLs.length > 0
-            ? await tx.riskAnalysis.findMany({
-                where: { linkId: { in: nonEmptySiblingFLs.map((sfl: any) => sfl.id) }, fmeaId },
-              })
-            : [];
-          const raByLinkId = new Map<string, any>(siblingRAs.map((ra: any) => [ra.linkId, ra]));
-          for (const sfl of nonEmptySiblingFLs) {
-            const sra = raByLinkId.get(sfl.id);
+          for (const sfl of siblingFLs) {
+            // 자기 자신(emptyRA)의 FL은 제외
+            if (emptyRALinkIds.has(sfl.id)) continue;
+            const sra = await tx.riskAnalysis.findFirst({
+              where: { linkId: sfl.id, fmeaId },
+            });
             if (!sra) continue;
             const existing = siblingRAMap.get(sfl.fcId);
             // DC/PC 있는 형제를 우선 선택
@@ -1126,15 +1119,8 @@ export async function POST(request: NextRequest) {
           const fmPeerDC = new Map<string, string[]>();
           const fmPeerPC = new Map<string, string[]>();
           const fmPeerSOD = new Map<string, { s: number; o: number; d: number }[]>();
-          // ★ O-01: N+1 → 배치 로드 (피어 RA 일괄 조회)
-          const peerRAs = peerFLs.length > 0
-            ? await tx.riskAnalysis.findMany({
-                where: { linkId: { in: peerFLs.map((p: any) => p.id) }, fmeaId },
-              })
-            : [];
-          const peerRaByLinkId = new Map<string, any>(peerRAs.map((ra: any) => [ra.linkId, ra]));
           for (const pfl of peerFLs) {
-            const pra = peerRaByLinkId.get(pfl.id);
+            const pra = await tx.riskAnalysis.findFirst({ where: { linkId: pfl.id, fmeaId } });
             if (!pra) continue;
             const fm = pfl.fmId;
             if (pra.detectionControl?.trim()) {
@@ -1215,37 +1201,18 @@ export async function POST(request: NextRequest) {
 
             // (3) FE severity fallback
             if (feId && (ra.severity || 0) <= 0) {
-              const feSev = feMapEnrich.get(feId)?.severity || 0;
+              const feSev = feMapEnrich.get(feId)?.severity || 1;
               if (feSev > 0) {
                 await tx.riskAnalysis.update({
                   where: { id: ra.id },
                   data: { severity: feSev },
                 });
                 enriched++;
-                continue;
-              }
-            }
-
-            // (4) ★ public SeverityUsageRecord 폴백 — Master FMEA에서 평가된 심각도 활용
-            if ((ra.severity || 0) <= 0 && feId) {
-              const feText = feMapEnrich.get(feId)?.effect || '';
-              if (feText) {
-                const usageRec = await pubPrisma?.severityUsageRecord.findFirst({
-                  where: { feText: { equals: feText, mode: 'insensitive' } },
-                  orderBy: [{ usageCount: 'desc' }],
-                });
-                if (usageRec && usageRec.severity > 0) {
-                  await tx.riskAnalysis.update({
-                    where: { id: ra.id },
-                    data: { severity: usageRec.severity },
-                  });
-                  enriched++;
-                }
               }
             }
           }
           if (enriched > 0) {
-            console.info(`[rebuild-atomic] RA SOD/DC/PC 보충: ${enriched}건 (형제/피어/FE/UsageRecord에서 복사)`);
+            console.info(`[rebuild-atomic] RA SOD/DC/PC 보충: ${enriched}건 (형제/피어 RA에서 복사)`);
           }
         }
       }
@@ -1302,17 +1269,20 @@ export async function POST(request: NextRequest) {
         const missingRaFLs = allFLs.filter((fl: { id: string }) => !existingRaLinkIds.has(fl.id));
         if (missingRaFLs.length > 0) {
           const now = new Date();
-          await batchCreateMany(tx.riskAnalysis, missingRaFLs.map((fl: { id: string }) => ({
-            id: `${fl.id}-RA`,
-            fmeaId,
-            linkId: fl.id,
-            severity: 1,
-            occurrence: 1,
-            detection: 1,
-            ap: 'L',
-            createdAt: now,
-            updatedAt: now,
-          })));
+          await tx.riskAnalysis.createMany({
+            data: missingRaFLs.map((fl: { id: string }) => ({
+              id: `${fl.id}-RA`,
+              fmeaId,
+              linkId: fl.id,
+              severity: 1,
+              occurrence: 1,
+              detection: 1,
+              ap: 'L',
+              createdAt: now,
+              updatedAt: now,
+            })),
+            skipDuplicates: true,
+          });
           console.info(`[rebuild-atomic] 위치기반 RA 보완: ${missingRaFLs.length}건 생성`);
         }
 
@@ -1504,7 +1474,7 @@ export async function POST(request: NextRequest) {
           console.info(`[rebuild-atomic] Opt FK 고아 삭제: ${orphanOpts.length}건`);
         }
       }
-    }, { timeout: 60_000, maxWait: 10_000, isolationLevel: 'Serializable' });
+    }, { timeout: 30000, isolationLevel: 'Serializable' });
 
     // ★ Living DB 지속 개선 루프: rebuild 완료 → Master 동기화
     try {
@@ -1514,7 +1484,7 @@ export async function POST(request: NextRequest) {
         await syncTx.$executeRawUnsafe(`SET search_path TO "${schema}", public`);
         const result = await syncMasterFromProject(syncTx, fmeaId);
         console.info(`[rebuild-atomic] Living DB sync: chains=${result.chainCount}, refs=${result.refCount}`);
-      }, { timeout: 30_000, maxWait: 10_000 });
+      }, { timeout: 15000 });
     } catch (syncErr: any) {
       // Master sync 실패는 rebuild 자체를 실패시키지 않음
       console.warn(`[rebuild-atomic] Living DB sync 실패 (무시): ${syncErr?.message || syncErr}`);
@@ -1552,32 +1522,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (e: any) {
-    console.error('[rebuild-atomic] Error:', e);
-    // Prisma 에러 분류
-    const isPrisma = e?.constructor?.name?.includes('Prisma');
-    const code = e?.code || '';
-    if (isPrisma && code === 'P2002') {
-      return NextResponse.json({
-        success: false,
-        error: '중복 데이터: 동일한 엔티티가 이미 존재합니다.',
-        prismaCode: code,
-      }, { status: 409 });
-    }
-    if (isPrisma && code === 'P2003') {
-      return NextResponse.json({
-        success: false,
-        error: 'FK 참조 오류: 연결된 구조/기능 항목이 존재하지 않습니다.',
-        prismaCode: code,
-      }, { status: 422 });
-    }
-    if (isPrisma && code === 'P2028') {
-      return NextResponse.json({
-        success: false,
-        error: '트랜잭션 타임아웃: 데이터가 많아 처리 시간이 초과되었습니다. 재시도해 주세요.',
-        prismaCode: code,
-      }, { status: 504 });
-    }
-    return NextResponse.json({ success: false, error: safeErrorMessage(e) }, { status: 500 });
+    return NextResponse.json({ success: false, error: e?.message || String(e) }, { status: 500 });
   }
 }
 

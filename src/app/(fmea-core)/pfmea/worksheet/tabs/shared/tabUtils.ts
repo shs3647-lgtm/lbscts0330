@@ -10,11 +10,21 @@
  * @param name 검사할 문자열
  * @returns 값이 누락/플레이스홀더면 true
  */
+const PLACEHOLDER_PATTERNS = [
+  '선택', '추가', '입력', '입력 필요',
+  '(기능분석에서 입력)',
+];
+
 export const isMissing = (name: string | undefined | null): boolean => {
   if (name === null || name === undefined) return true;
   if (!name) return true;
   const trimmed = String(name).trim();
-  return trimmed === '' || trimmed === '-';
+  if (trimmed === '' || trimmed === '-') return true;
+  const cleaned = trimmed.replace(/🔍\s*/g, '').trim();
+  if (!cleaned) return true;
+  // 20자 초과(이모지 제거 후) = 실제 데이터
+  if (cleaned.length > 20) return false;
+  return PLACEHOLDER_PATTERNS.some(p => cleaned.toLowerCase().includes(p));
 };
 
 /**

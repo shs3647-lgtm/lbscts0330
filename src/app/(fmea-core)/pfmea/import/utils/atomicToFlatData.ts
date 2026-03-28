@@ -1,4 +1,4 @@
-// CODEFREEZE — 2026-03-18 au bump DB/UUID/FK 무결성 100% 검증 완료
+// ★ MBD-26-009: CODEFREEZE 해제 — distinct 엔티티 + FK 매핑 정규화 진행 중
 /**
  * @file atomicToFlatData.ts
  * @description Atomic DB → ImportedFlatData[] + ID 매핑 역변환 (리버스엔지니어링)
@@ -105,19 +105,20 @@ export function atomicToFlatData(
   }
   const l1FuncById = indexById(db.l1Functions);
 
-  // ─── C 계열: L1 (완제품 공정) ───
+  // ─── C 계열: L1 (완제품 공정) — L1Function 1행 = C2 1행 + C3 1행 (verify-counts·DB와 1:1) ───
   const l1FuncsByCategory = groupBy(db.l1Functions, f => f.category);
-  const categories = [...l1FuncsByCategory.keys()];
+  const categories = [...l1FuncsByCategory.keys()].sort((a, b) => a.localeCompare(b));
 
-  // C4 seq 카운터 (전체)
-  const feSeqByDiv = new Map<string, number>();
+  const l1FuncIdToC2Seq = new Map<string, number>();
+  const l1FuncIdToC3GenId = new Map<string, string>();
 
   for (const category of categories) {
     const div = category === 'User' ? 'US' : (category === 'Ship to Plant' ? 'SP' : 'YP');
+    const c1Id = genC1(doc, div);
 
     // C1: 구분
     result.push(makeFlatItem({
-      id: genC1(doc, div),
+      id: c1Id,
       processNo: category,
       category: 'C',
       itemCode: 'C1',
@@ -125,68 +126,63 @@ export function atomicToFlatData(
       createdAt: now,
     }));
 
-    const funcs = l1FuncsByCategory.get(category) || [];
-    const funcsByName = groupBy(funcs, f => f.functionName);
-    const funcNames = [...funcsByName.keys()];
-
+    const funcs = [...(l1FuncsByCategory.get(category) || [])].sort((a, b) => a.id.localeCompare(b.id));
     let c2seq = 0;
-    for (const funcName of funcNames) {
+    for (const lf of funcs) {
       c2seq++;
-      const funcGroup = funcsByName.get(funcName) || [];
+      l1FuncIdToC2Seq.set(lf.id, c2seq);
       const c2Id = genC2(doc, div, c2seq);
 
-      // C2: 기능
       result.push(makeFlatItem({
         id: c2Id,
         processNo: category,
         category: 'C',
         itemCode: 'C2',
-        value: funcName,
+        value: lf.functionName,
+        parentItemId: c1Id,
         createdAt: now,
       }));
 
-      // C3: 요구사항
-      let c3seq = 0;
-      for (const req of funcGroup) {
-        c3seq++;
-        const c3Id = genC3(doc, div, c2seq, c3seq);
-        result.push(makeFlatItem({
-          id: c3Id,
-          processNo: category,
-          category: 'C',
-          itemCode: 'C3',
-          value: req.requirement,
-          parentItemId: c2Id,
-          createdAt: now,
-        }));
-      }
+      const c3Id = genC3(doc, div, c2seq, 1);
+      l1FuncIdToC3GenId.set(lf.id, c3Id);
+      result.push(makeFlatItem({
+        id: c3Id,
+        processNo: category,
+        category: 'C',
+        itemCode: 'C3',
+        value: lf.requirement,
+        parentItemId: c2Id,
+        createdAt: now,
+      }));
     }
   }
 
-  // C4: 고장영향 (FailureEffect) — genC4 재계산
-  // FE를 category별로 그룹핑하여 seq 계산
+  // C4: 고장영향 — L1Function별 c2·c3 슬롯 + 동일 LF 내 FE 순번으로 genC4
   const fesByCategory = groupBy(db.failureEffects, fe => fe.category);
   for (const [category, fes] of fesByCategory) {
     const div = category === 'User' ? 'US' : (category === 'Ship to Plant' ? 'SP' : 'YP');
-    // C2/C3 seq를 역추적하여 정확한 genC4 계산
-    const catFuncs = l1FuncsByCategory.get(category) || [];
-    const catFuncsByName = groupBy(catFuncs, f => f.functionName);
-    const c2Count = catFuncsByName.size;
-    const c3Count = catFuncs.length;
+    const fesSorted = [...fes].sort((a, b) => a.id.localeCompare(b.id));
+    const c4SlotByL1Func = new Map<string, number>();
 
-    let c4seq = 0;
-    for (const fe of fes) {
-      c4seq++;
-      const feNewId = genC4(doc, div, c2Count || 1, c3Count > 0 ? c3Count : 1, c4seq);
+    for (const fe of fesSorted) {
+      let c2seq = l1FuncIdToC2Seq.get(fe.l1FuncId);
+      if (c2seq === undefined) {
+        c2seq = 1;
+        console.warn('[atomicToFlatData] C4: l1FuncId 미매칭 FE', fe.id, 'l1FuncId=', fe.l1FuncId);
+      }
+      const slot = (c4SlotByL1Func.get(fe.l1FuncId) ?? 0) + 1;
+      c4SlotByL1Func.set(fe.l1FuncId, slot);
+      const feNewId = genC4(doc, div, c2seq, 1, slot);
       idRemap.fe.set(fe.id, feNewId);
 
+      const c3GenId = l1FuncIdToC3GenId.get(fe.l1FuncId);
       result.push(makeFlatItem({
         id: feNewId,
         processNo: category,
         category: 'C',
         itemCode: 'C4',
         value: fe.effect,
-        parentItemId: fe.l1FuncId, // L1Function FK
+        parentItemId: c3GenId || fe.l1FuncId,
         createdAt: now,
       }));
     }
@@ -199,10 +195,11 @@ export function atomicToFlatData(
     const pnoNum = parseInt(l2.no) || 0;
     const l2NewId = genA1(doc, pnoNum);
     idRemap.l2.set(l2.id, l2NewId);
+    const a1RowId = `${l2NewId}-A1`;
 
     // A1: 공정번호
     result.push(makeFlatItem({
-      id: `${l2NewId}-A1`,
+      id: a1RowId,
       processNo: l2.no,
       category: 'A',
       itemCode: 'A1',
@@ -220,13 +217,14 @@ export function atomicToFlatData(
       createdAt: now,
     }));
 
-    // A3: 공정기능 — genA3 재계산
+    // A3: 공정기능 — genA3 재계산 (ID 기반 dedup만)
+    // ★ MBD-26-009: 이름 기반 dedup 제거 → ID 기준만
     const l2Funcs = l2FuncsByL2.get(l2.id) || [];
-    const seenFuncNames = new Set<string>();
+    const seenL2FuncIds = new Set<string>();
     let a3seq = 0;
     for (const l2Func of l2Funcs) {
-      if (seenFuncNames.has(l2Func.functionName)) continue;
-      seenFuncNames.add(l2Func.functionName);
+      if (seenL2FuncIds.has(l2Func.id)) continue;
+      seenL2FuncIds.add(l2Func.id);
       a3seq++;
       const a3Id = genA3(doc, pnoNum, a3seq);
       idRemap.l2Func.set(l2Func.id, a3Id);
@@ -237,19 +235,21 @@ export function atomicToFlatData(
         category: 'A',
         itemCode: 'A3',
         value: l2Func.functionName,
+        parentItemId: a1RowId,
         createdAt: now,
       }));
     }
 
-    // A4: 제품특성 — genA4 재계산 (공정 단위 중복 제거)
-    const seenPC = new Set<string>();
+    // A4: 제품특성 — genA4 재계산 (ID 기반 dedup만)
+    // ★ MBD-26-009: productChar 이름 기반 dedup 제거 → ID 기준만
+    const seenPCIds = new Set<string>();
     let a4seq = 0;
     for (const l2Func of l2Funcs) {
-      if (!l2Func.productChar || seenPC.has(l2Func.productChar)) continue;
-      seenPC.add(l2Func.productChar);
+      if (!l2Func.productChar || seenPCIds.has(l2Func.id)) continue;
+      seenPCIds.add(l2Func.id);
       a4seq++;
       const a4Id = genA4(doc, pnoNum, a4seq);
-      idRemap.pc.set(l2Func.id, a4Id); // L2Function.id → A4 genXxx ID
+      idRemap.pc.set(l2Func.id, a4Id);
 
       result.push(makeFlatItem({
         id: a4Id,
@@ -258,6 +258,7 @@ export function atomicToFlatData(
         itemCode: 'A4',
         value: l2Func.productChar,
         specialChar: l2Func.specialChar || undefined,
+        parentItemId: a1RowId,
         createdAt: now,
       }));
     }
@@ -342,6 +343,7 @@ export function atomicToFlatData(
       // L3Function이 존재할 수 있음 (IM/MN 카테고리). ID 기준 dedup만 유지.
       const l3Funcs = l3FuncsByL3.get(l3.id) || [];
       const seenL3FuncIds = new Set<string>();
+      const l3FuncIdToB2Id = new Map<string, string>();
       let funcIdx = 0;
       for (const l3Func of l3Funcs) {
         if (seenL3FuncIds.has(l3Func.id)) continue;
@@ -349,6 +351,7 @@ export function atomicToFlatData(
         funcIdx++;
         const b2Id = genB2(doc, pnoNum, m4, b1seq, funcIdx);
         idRemap.l3Func.set(l3Func.id, b2Id);
+        l3FuncIdToB2Id.set(l3Func.id, b2Id);
 
         result.push(makeFlatItem({
           id: b2Id,
@@ -363,33 +366,30 @@ export function atomicToFlatData(
       }
 
       // B3: 공정특성 — L3Function 1:1 매핑 (동일 processChar도 별도 B3 생성)
-      // ★ 2026-03-21 FIX: seenProcessChar dedup 제거
-      // 근본원인: 같은 processChar를 가진 서로 다른 L3Function(다른 functionName)이
-      // IM(소재)/MN(작업자) 카테고리에서 자주 발생. dedup이 두 번째 것을 드롭하여
-      // B2(요소기능)/B4(고장원인) 연결이 끊어지는 반복 버그 유발.
-      // 수정: L3Function마다 독립 B3 행 생성 (processChar 중복 허용)
+      // ★ MBD-26-009: processChar 빈값이어도 B3 항목 생성 (구조적 자리 보존)
+      //   빈값 스킵 → B4 FK 끊김 → 렌더링 실패의 고질적 원인이었음
       const l3FuncIdToB3Id = new Map<string, string>();
       let cseq = 0;
       for (const l3Func of l3Funcs) {
-        if (!l3Func.processChar) continue;
         cseq++;
         const b3Id = genB3(doc, pnoNum, m4, b1seq, cseq);
         l3FuncIdToB3Id.set(l3Func.id, b3Id);
+        const b2ForB3 = l3FuncIdToB2Id.get(l3Func.id);
 
         result.push(makeFlatItem({
           id: b3Id,
           processNo: l2.no,
           category: 'B',
           itemCode: 'B3',
-          value: l3Func.processChar,
+          value: l3Func.processChar || '',  // ★ 빈값도 보존 (0처리 금지)
           m4: m4 || undefined,
           specialChar: l3Func.specialChar || undefined,
-          parentItemId: b1Id,
+          parentItemId: b2ForB3 || b1Id,
           createdAt: now,
         }));
       }
 
-      // B4: 고장원인 — genB4 재계산 + parentItemId(B3) FK 추가
+      // B4: 고장원인 — genB4 재계산 + parentItemId(B3) FK 3단계 폴백
       const fcs = fcsByL3.get(l3.id) || [];
       let kseq = 0;
       for (const fc of fcs) {
@@ -397,9 +397,18 @@ export function atomicToFlatData(
         const b4Id = genB4(doc, pnoNum, m4, b1seq, kseq);
         idRemap.fc.set(fc.id, b4Id);
 
-        // ★★★ 2026-03-21 FIX-3: B4→B3 FK — DB UUID 정확 매칭만 허용, fallback 삭제 ★★★
-        // FC.l3FuncId → L3Function → B3 정확 매칭. 매칭 실패 시 undefined (잘못된 FK 방지)
-        const parentB3Id = l3FuncIdToB3Id.get(fc.l3FuncId) || undefined;
+        // ★★★ MBD-26-009: B4→B3 FK 3단계 폴백 (0처리 금지) ★★★
+        // Plan A: FC.l3FuncId → L3Function → B3 정확 매칭
+        let parentB3Id = l3FuncIdToB3Id.get(fc.l3FuncId);
+        // Plan B: 같은 L3Structure 내 인덱스 기반 매칭 (B4 순번 = B3 순번)
+        if (!parentB3Id && l3Funcs.length > 0) {
+          const idxMatch = Math.min(kseq - 1, l3Funcs.length - 1);
+          parentB3Id = l3FuncIdToB3Id.get(l3Funcs[idxMatch].id);
+        }
+        // Plan C: 같은 L3Structure의 첫 번째 B3
+        if (!parentB3Id && l3FuncIdToB3Id.size > 0) {
+          parentB3Id = [...l3FuncIdToB3Id.values()][0];
+        }
 
         result.push(makeFlatItem({
           id: b4Id,
@@ -413,25 +422,37 @@ export function atomicToFlatData(
         }));
       }
 
-      // B5: 예방관리
-      const l3FcIds = new Set(fcs.map(fc => fc.id));
-      const pcValues = new Set<string>();
-      for (const link of db.failureLinks) {
-        if (l3FcIds.has(link.fcId)) {
-          const risk = riskByLink.get(link.id);
-          if (risk?.preventionControl?.trim() && !pcValues.has(risk.preventionControl.trim())) {
-            pcValues.add(risk.preventionControl.trim());
-            result.push(makeFlatItem({
-              id: `${b1Id}-V-${pcValues.size}`,
-              processNo: l2.no,
-              category: 'B',
-              itemCode: 'B5',
-              value: risk.preventionControl.trim(),
-              m4: m4 || undefined,
-              createdAt: now,
-            }));
+      // B5: 예방관리 — FailureCause.preventionControl에서 직접 읽기 (B4와 1:1)
+      // ★ MBD-26-009: RiskAnalysis 경유 대신 FC에서 직접 읽기 → B5 count = B4 count
+      let b5seq = 0;
+      for (const fc of fcs) {
+        const pcText = ((fc as any).preventionControl as string)?.trim() || '';
+        // Plan B: RiskAnalysis에서 폴백
+        let b5Value = pcText;
+        if (!b5Value) {
+          for (const link of db.failureLinks) {
+            if (link.fcId === fc.id) {
+              const risk = riskByLink.get(link.id);
+              if (risk?.preventionControl?.trim()) {
+                b5Value = risk.preventionControl.trim();
+                break;
+              }
+            }
           }
         }
+        // ★ MBD-26-009: 빈값이어도 B5 생성 (B4와 1:1 보장)
+        b5seq++;
+        const parentB4Id = idRemap.fc.get(fc.id);
+        result.push(makeFlatItem({
+          id: `${b1Id}-V-${b5seq}`,
+          processNo: l2.no,
+          category: 'B',
+          itemCode: 'B5',
+          value: b5Value,
+          m4: m4 || undefined,
+          parentItemId: parentB4Id,
+          createdAt: now,
+        }));
       }
     }
 

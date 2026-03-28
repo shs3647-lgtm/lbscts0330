@@ -1,7 +1,7 @@
 [
   {
     "cipNo": "CIP26-001",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "H",
     "category": "긴급개선",
     "failureMode": "막두께 불균일",
@@ -17,7 +17,7 @@
   },
   {
     "cipNo": "CIP26-002",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "H",
     "category": "긴급개선",
     "failureMode": "Bump void",
@@ -33,7 +33,7 @@
   },
   {
     "cipNo": "CIP26-003",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "H",
     "category": "긴급개선",
     "failureMode": "접착력 불량",
@@ -49,7 +49,7 @@
   },
   {
     "cipNo": "CIP26-004",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "M",
     "category": "일반개선",
     "failureMode": "CD 불량",
@@ -65,7 +65,7 @@
   },
   {
     "cipNo": "CIP26-005",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "M",
     "category": "일반개선",
     "failureMode": "Bump 높이 불균일",
@@ -81,7 +81,7 @@
   },
   {
     "cipNo": "CIP26-006",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "M",
     "category": "일반개선",
     "failureMode": "파티클 오염",
@@ -97,7 +97,7 @@
   },
   {
     "cipNo": "CIP26-007",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "H",
     "category": "긴급개선",
     "failureMode": "검사 누락",
@@ -113,7 +113,7 @@
   },
   {
     "cipNo": "CIP26-008",
-    "fmeaId": "pfm26-m066",
+    "fmeaId": "pfm26-m002",
     "apLevel": "L",
     "category": "모니터링",
     "failureMode": "Residue 잔류",

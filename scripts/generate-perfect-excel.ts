@@ -3,7 +3,7 @@
  * @description Atomic DB → 완벽한 14시트 Import Excel 생성 스크립트
  *
  * Usage: npx tsx scripts/generate-perfect-excel.ts [fmeaId] [port]
- * Default: fmeaId=pfm26-m066, port=3000
+ * Default: fmeaId=pfm26-m002, port=3000
  *
  * 출력:
  * - data/master-fmea/{fmeaId}-import.xlsx
@@ -12,7 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const FMEA_ID = process.argv[2] || 'pfm26-m066';
+const FMEA_ID = process.argv[2] || 'pfm26-m002';
 const PORT = process.argv[3] || '3000';
 const BASE_URL = `http://localhost:${PORT}`;
 

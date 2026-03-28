@@ -2,7 +2,7 @@
  * FA 파싱 검증바 — 명세(VERIFY수식) vs 파싱 수량 완화 (Forge 2026-03-24)
  *
  * 행 #1 FC시트 파싱 / #8 FA통합 행수는 동일 축(체인 행수 vs 수식 기대값).
- * 통합 시트·supplementChainsFromFlatData 등으로 명세 COUNT와 1:1이 아닐 수 있음.
+ * 통합 시트 등으로 명세 COUNT와 1:1이 아닐 수 있음. (supplementChainsFromFlatData는 noop)
  * 연결 품질은 행 5~7(매칭)·미매칭 패널로 별도 확인.
  */
 

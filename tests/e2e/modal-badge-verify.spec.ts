@@ -11,8 +11,8 @@ const BASE = 'http://localhost:3000';
 
 // ---- Helper: PFMEA 워크시트로 이동 ----
 async function gotoWorksheet(page: any) {
-  // 직접 워크시트 URL로 이동 (pfm26-m066 = 최신 프로젝트)
-  await page.goto(`${BASE}/pfmea/worksheet?fmeaId=pfm26-m066`, { waitUntil: 'networkidle', timeout: 30000 });
+  // 직접 워크시트 URL로 이동 (pfm26-m002 = 최신 프로젝트)
+  await page.goto(`${BASE}/pfmea/worksheet?fmeaId=pfm26-m002`, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(3000);
 }
 

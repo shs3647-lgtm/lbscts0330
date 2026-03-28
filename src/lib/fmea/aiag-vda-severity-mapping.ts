@@ -1,6 +1,13 @@
 /**
  * @file aiag-vda-severity-mapping.ts
- * @description AIAG-VDA 심각도 매핑표 (Scope·C2·C3·FE·S·근거) — localStorage + 엑셀 Import/Export
+ * @description AIAG-VDA 심각도 매핑표 (Scope·C2·C3·FE·S·근거) — Public DB + 엑셀 Import/Export
+ *
+ * ★★★ CODEFREEZE L4 (2026-03-28) ★★★
+ * S추천 Public DB 단일 루트 — localStorage 사용 금지
+ * 수정 시 scripts/guard/protected-paths.config.json 확인 필수
+ *
+ * SSoT: SeverityUsageRecord (Public DB)
+ * API:  /api/severity-recommend (GET/POST/PUT)
  */
 
 export type AiagVdaSeverityField =
@@ -388,32 +395,100 @@ export function buildColumnMapFromHeaders(headerTexts: string[]): Map<number, Ai
   return map;
 }
 
-export function storageKeyForFmea(fmeaId: string): string {
-  const id = (fmeaId || 'default').toLowerCase().replace(/[^a-z0-9_-]/gi, '_');
-  return `pfmea_aiag_vda_severity_map_${id}`;
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Public DB API — S추천 SSoT (SeverityUsageRecord)
+//  localStorage 사용 금지 (2026-03-28 CODEFREEZE L4)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/** DB SeverityUsageRecord → S추천 탭 MappingRow 변환 */
+export function usageRecordToMappingRow(rec: {
+  id: string; feText: string; severity: number;
+  feCategory?: string; processName?: string; productChar?: string;
+  usageCount?: number;
+}): AiagVdaSeverityMappingRow {
+  return {
+    id: rec.id,
+    scope: rec.feCategory || '',
+    productFunction: rec.processName || '',
+    requirement: rec.productChar || '',
+    failureEffect: rec.feText,
+    severity: rec.severity,
+    basis: `사용 ${rec.usageCount || 1}회 (DB 이력)`,
+  };
 }
 
-export function loadAiagVdaSeverityMapping(fmeaId: string): AiagVdaSeverityMappingRow[] {
+/** MappingRow → DB API 요청 body 변환 */
+function mappingRowToApiBody(row: AiagVdaSeverityMappingRow, fmeaId?: string) {
+  return {
+    feText: row.failureEffect,
+    severity: row.severity,
+    feCategory: row.scope || '',
+    processName: row.productFunction || '',
+    productChar: row.requirement || '',
+    fmeaId: fmeaId || undefined,
+  };
+}
+
+/**
+ * DB에서 S추천 전체 로드 (GET /api/severity-recommend)
+ * 모든 프로젝트가 동일한 Public DB를 공유합니다.
+ * ★ AIAG-VDA: S=1(영향없음) 제외 — 최소 유의미 심각도 = 2
+ */
+export async function loadSeverityFromDB(limit = 500): Promise<AiagVdaSeverityMappingRow[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(storageKeyForFmea(fmeaId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidRow);
+    const res = await fetch(`/api/severity-recommend?limit=${limit}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.data)) return [];
+    // ★ S=1 제외: AIAG-VDA 기준 심각도 1은 "영향 없음"이므로 추천 의미 없음
+    return data.data
+      .filter((rec: { severity: number }) => rec.severity >= 2)
+      .map(usageRecordToMappingRow);
   } catch (e) {
-    console.error('[aiag-vda-severity-mapping] load 실패:', e);
+    console.error('[aiag-vda-severity-mapping] DB load 실패:', e);
     return [];
   }
 }
 
-export function saveAiagVdaSeverityMapping(fmeaId: string, rows: AiagVdaSeverityMappingRow[]): void {
+/**
+ * DB에 S추천 단건 저장 (POST /api/severity-recommend)
+ * ★ S=1 거부: AIAG-VDA 기준 "영향 없음"은 저장하지 않음
+ */
+export async function saveSeverityToDB(row: AiagVdaSeverityMappingRow, fmeaId?: string): Promise<void> {
   if (typeof window === 'undefined') return;
+  if (row.severity < 2) return; // S=1 거부
   try {
-    localStorage.setItem(storageKeyForFmea(fmeaId), JSON.stringify(rows));
+    await fetch('/api/severity-recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mappingRowToApiBody(row, fmeaId)),
+    });
   } catch (e) {
-    console.error('[aiag-vda-severity-mapping] save 실패:', e);
-    throw e;
+    console.error('[aiag-vda-severity-mapping] DB save 실패:', e);
+  }
+}
+
+/**
+ * DB에 S추천 일괄 저장 (PUT /api/severity-recommend)
+ */
+export async function saveSeverityBulkToDB(rows: AiagVdaSeverityMappingRow[], fmeaId?: string): Promise<{ saved: number; skipped: number }> {
+  if (typeof window === 'undefined') return { saved: 0, skipped: 0 };
+  // ★ S=1 제외: AIAG-VDA 기준 "영향 없음"은 저장하지 않음
+  const filtered = rows.filter(r => r.severity >= 2);
+  try {
+    const records = filtered.map(r => mappingRowToApiBody(r, fmeaId));
+    const res = await fetch('/api/severity-recommend', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records, fmeaId }),
+    });
+    if (!res.ok) return { saved: 0, skipped: 0 };
+    const data = await res.json();
+    return { saved: data.saved || 0, skipped: data.skipped || 0 };
+  } catch (e) {
+    console.error('[aiag-vda-severity-mapping] DB bulk save 실패:', e);
+    return { saved: 0, skipped: 0 };
   }
 }
 
@@ -660,6 +735,19 @@ export function matchAiagVdaSeverityRow(
     [/불량\s*유출|outgoing|유출/i, 8, '불량 유출 → S=8 (AIAG-VDA 자동추정)'],
     [/spec\s*out|규격\s*이탈/i, 7, 'Spec Out → S=7 (AIAG-VDA 자동추정)'],
     [/오염|particle|contamination/i, 6, '오염/Particle → S=6 (AIAG-VDA 자동추정)'],
+    // ★ 2026-03-27: 반도체 공정 특화 키워드 확장 (Au Bump/Wafer 공정)
+    [/open\s*[\/·]?\s*short|전기적\s*(open|short)|단락|단선/i, 8, '전기적 Open/Short → S=8 (AIAG-VDA 자동추정)'],
+    [/lift[\s-]*off|리프트[\s-]*오프|박리/i, 7, 'Lift-off/박리 → S=7 (AIAG-VDA 자동추정)'],
+    [/bridge|브릿지|bump\s*간\s*(bridge|단락)/i, 8, 'Bridge/단락 → S=8 (AIAG-VDA 자동추정)'],
+    [/신뢰[도성]\s*(하락|저하|열화)|reliability\s*(degrad|drop|decreas)/i, 7, '신뢰도 하락 → S=7 (AIAG-VDA 자동추정)'],
+    [/접합\s*부?\s*(열화|파괴|불량)|bonding\s*(fail|degrad)/i, 7, '접합부 열화 → S=7 (AIAG-VDA 자동추정)'],
+    [/imc\s*(과성장|과도|열화)|intermetallic/i, 7, 'IMC 과성장 → S=7 (AIAG-VDA 자동추정)'],
+    [/리콜|recall|법적\s*조치|legal/i, 9, '리콜/법적 조치 → S=9 (AIAG-VDA 자동추정)'],
+    [/reject|납품\s*(reject|반려|거부)/i, 7, '납품 Reject → S=7 (AIAG-VDA 자동추정)'],
+    [/부적합|non[\s-]*conform/i, 5, '부적합 → S=5 (AIAG-VDA 자동추정)'],
+    [/패턴\s*불량|pattern\s*(defect|fail)/i, 7, '패턴 불량 → S=7 (AIAG-VDA 자동추정)'],
+    [/혼입|mix[\s-]*up|lot\s*혼입/i, 7, 'Lot 혼입 → S=7 (AIAG-VDA 자동추정)'],
+    [/형성\s*불량|formation\s*(defect|fail)/i, 7, '형성 불량 → S=7 (AIAG-VDA 자동추정)'],
   ];
   for (const [regex, sev, basis] of YIELD_KEYWORDS) {
     if (regex.test(fe) || regex.test(input.failureEffect || '')) {

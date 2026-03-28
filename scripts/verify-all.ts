@@ -45,6 +45,7 @@ function main(): void {
     'src/__tests__/import/v3-masterfc-no-pcdc.test.ts',
     'src/__tests__/import/fa-verification-spec-relax.test.ts',
     'src/__tests__/import/linkage-sheet-parse.test.ts',
+    'src/__tests__/import/post-save-pgsql-alignment.test.ts',
   ].join(' ');
 
   run('3/4 Vitest (파이프라인·고장연결 회귀 묶음)', `npx vitest run ${pipelineTests}`);

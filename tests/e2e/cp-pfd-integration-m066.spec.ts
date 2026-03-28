@@ -1,6 +1,6 @@
 /**
- * @file cp-pfd-integration-m066.spec.ts
- * @description pfm26-m066 CP/PFD 연동 통합 E2E 테스트
+ * @file cp-pfd-integration-m002.spec.ts
+ * @description pfm26-m002 CP/PFD 연동 통합 E2E 테스트
  *
  * 검증 흐름:
  *   1. FMEA→PFD sync API → PFD items 생성 확인
@@ -13,9 +13,9 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const PFD_NO = 'pfd26-m065';
-const CP_NO = 'cp26-m066';
+const CP_NO = 'cp26-m002';
 
 // ═══════════════════════════════════════════════════
 // STEP 1: API 기반 동기화 (FMEA→PFD)

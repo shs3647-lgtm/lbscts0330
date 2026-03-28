@@ -2,7 +2,7 @@
  * @file download-filled-excel/route.ts
  * @description 빈칸 없는 완전한 5시트 Import Excel 다운로드 API
  *
- * GET /api/fmea/download-filled-excel?fmeaId=pfm26-m066
+ * GET /api/fmea/download-filled-excel?fmeaId=pfm26-m002
  * → Excel 파일 다운로드 (application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)
  *
  * 골든 마스터 JSON + 기존 엑셀을 결합하여 빈칸 0건 엑셀 제공
@@ -17,7 +17,7 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    const fmeaId = request.nextUrl.searchParams.get('fmeaId') || 'pfm26-m066';
+    const fmeaId = request.nextUrl.searchParams.get('fmeaId') || 'pfm26-m002';
     if (!isValidFmeaId(fmeaId)) {
       return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
     }

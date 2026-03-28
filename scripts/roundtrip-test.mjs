@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const EXCEL_FILE = 'data/master-fmea/PFMEA_Master_12inch_AuBump.xlsx';
 
 async function main() {
@@ -75,7 +75,7 @@ async function main() {
   console.log('riskCount:', emData.stats?.riskCount);
 
   // DC/PC from master JSON
-  const master = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m066.json', 'utf8'));
+  const master = JSON.parse(fs.readFileSync('data/master-fmea/pfm26-m002.json', 'utf8'));
   const risks = master.atomicDB.riskAnalyses;
   const chains = master.chains;
   const dcRisk = risks.filter(r => r.detectionControl?.trim()).length;

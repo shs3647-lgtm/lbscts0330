@@ -1,5 +1,6 @@
 /**
- * S추천 일괄: 매핑 우선순위 (표 → 키워드)
+ * S추천 일괄: 매핑 우선순위 (DB표 → 키워드)
+ * ★ 2026-03-28: localStorage → Public DB (fetch mock)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { L1Data } from '@/app/(fmea-core)/pfmea/worksheet/constants';
@@ -9,30 +10,31 @@ describe('applyBulkSeverityRecommendations', () => {
   const fmeaId = 'test-fmea-srec';
 
   beforeEach(() => {
-    const rows = [
+    // ★ DB API mock (fetch → /api/severity-recommend)
+    const dbRecords = [
       {
         id: 'm1',
-        scope: 'YP',
-        productFunction: 'F',
-        requirement: 'REQ',
-        failureEffect: '수율 테스트 FE',
+        feText: '수율 테스트 FE',
         severity: 7,
-        basis: '매핑표 근거 문구',
+        feCategory: 'YP',
+        processName: 'F',
+        productChar: 'REQ',
+        usageCount: 3,
       },
     ];
-    vi.stubGlobal('localStorage', {
-      getItem: (k: string) =>
-        k.includes('test-fmea-srec') ? JSON.stringify(rows) : null,
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-    });
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: dbRecords }),
+      }),
+    ));
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('매핑표가 키워드보다 우선하여 S·근거 반영', () => {
+  it('매핑표가 키워드보다 우선하여 S·근거 반영', async () => {
     const l1: L1Data = {
       id: 'l1',
       name: 'N',
@@ -59,10 +61,10 @@ describe('applyBulkSeverityRecommendations', () => {
       ],
     };
 
-    const { changeCount, updatedScopes } = applyBulkSeverityRecommendations(l1, fmeaId);
+    const { changeCount, updatedScopes } = await applyBulkSeverityRecommendations(l1, fmeaId);
     expect(changeCount).toBe(1);
     const u = updatedScopes.find((s: any) => s.id === 'fe1');
     expect(u?.severity).toBe(7);
-    expect((u as any)?.severityRationale).toBe('매핑표 근거 문구');
+    expect((u as any)?.severityRationale).toContain('DB');
   });
 });

@@ -2,7 +2,7 @@
 
 ## 개요
 
-m066 (12inch Au Bump) 완성 데이터를 기반으로 작성된 Import 샘플.
+m002 (12inch Au Bump) 완성 데이터를 기반으로 작성된 Import 샘플.
 6단계(구조→기능→고장→고장연결→위험분석→최적화) 전체 DB/UUID/FK/WS 구현을 보장하는 완전한 데이터.
 
 ## 골든 베이스라인
@@ -119,6 +119,6 @@ C1-C4 + A1-A4 + B1-B3 + FE + FM + FC + SOD/AP + PC/DC 전체 통합
 
 | 파일 | 설명 |
 |------|------|
-| `master_import_m066_sample.xlsx` | Import용 완전한 Excel (7시트) |
+| `master_import_m002_sample.xlsx` | Import용 완전한 Excel (7시트) |
 | `IMPORT_SAMPLE_DESIGN.md` | 이 설계기준서 |
-| `../pfm26-m066.json` | Master JSON (Atomic DB + flatData + chains) |
+| `../pfm26-m002.json` | Master JSON (Atomic DB + flatData + chains) |

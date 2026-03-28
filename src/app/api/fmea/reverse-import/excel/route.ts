@@ -2,7 +2,7 @@
  * @file reverse-import/excel/route.ts
  * 역설계 Import — DB → Import 엑셀 다운로드
  *
- * GET /api/fmea/reverse-import/excel?fmeaId=pfm26-m066
+ * GET /api/fmea/reverse-import/excel?fmeaId=pfm26-m002
  */
 
 import { NextRequest, NextResponse } from 'next/server';

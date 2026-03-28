@@ -2,7 +2,7 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-const schema = 'pfmea_pfm26_m066';
+const schema = 'pfmea_pfm26_m002';
 
 async function main() {
   const client = await pool.connect();

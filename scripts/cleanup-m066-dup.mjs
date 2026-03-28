@@ -4,14 +4,14 @@ const pool = new Pool({ connectionString: 'postgresql://postgres:1234@localhost:
 const q = async (sql, p = []) => (await pool.query(sql, p)).rows;
 
 async function main() {
-  const fmeaId = 'pfm26-m066';
-  const schema = 'pfmea_pfm26_m066';
+  const fmeaId = 'pfm26-m002';
+  const schema = 'pfmea_pfm26_m002';
   await q(`SET search_path TO "${schema}", public`);
 
-  // M066 현재 FL/RA 수
+  // M002 현재 FL/RA 수
   const [flCount] = await q(`SELECT count(*) as c FROM failure_links WHERE "fmeaId" = $1`, [fmeaId]);
   const [raCount] = await q(`SELECT count(*) as c FROM risk_analyses WHERE "fmeaId" = $1`, [fmeaId]);
-  console.log(`M066 현재: FL=${flCount.c}, RA=${raCount.c}`);
+  console.log(`M002 현재: FL=${flCount.c}, RA=${raCount.c}`);
 
   // auto-fix 잔재 FL 찾기 (process 040, auto-fix FC)
   const autoFLs = await q(`
@@ -52,7 +52,7 @@ async function main() {
   // 최종 확인
   const [flAfter] = await q(`SELECT count(*) as c FROM failure_links WHERE "fmeaId" = $1`, [fmeaId]);
   const [raAfter] = await q(`SELECT count(*) as c FROM risk_analyses WHERE "fmeaId" = $1`, [fmeaId]);
-  console.log(`\nM066 정리 후: FL=${flAfter.c}, RA=${raAfter.c}`);
+  console.log(`\nM002 정리 후: FL=${flAfter.c}, RA=${raAfter.c}`);
 }
 
 main().catch(console.error).finally(() => pool.end());

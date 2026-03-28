@@ -1,15 +1,15 @@
 /**
- * @file seed-m066.ts
- * @description pfm26-m066 시드 스크립트 — 마스터 JSON → DB 전체 시드
+ * @file seed-m002.ts
+ * @description pfm26-m002 시드 스크립트 — 마스터 JSON → DB 전체 시드
  *
- * 마스터 JSON(data/master-fmea/pfm26-m066.json)을 읽어
+ * 마스터 JSON(data/master-fmea/pfm26-m002.json)을 읽어
  * 1) FmeaProject + FmeaRegistration 생성
  * 2) PfmeaMasterDataset + PfmeaMasterFlatItem 시드
  * 3) Atomic DB (L1~L3, FM/FE/FC, FailureLink, RiskAnalysis 등) 시드
  * 4) rebuild-atomic (DC/PC 동기화)
  * 5) pipeline-verify 검증
  *
- * 실행: npx tsx scripts/seed-m066.ts
+ * 실행: npx tsx scripts/seed-m002.ts
  * 전제: dev 서버가 localhost:3000에서 실행 중이어야 함
  *
  * 골든 베이스라인 (CLAUDE.md 기준):
@@ -20,9 +20,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-const MASTER_JSON_PATH = path.resolve(__dirname, '../data/master-fmea/pfm26-m066.json');
+const MASTER_JSON_PATH = path.resolve(__dirname, '../data/master-fmea/pfm26-m002.json');
 
 interface MasterJSON {
   version: number;
@@ -92,7 +92,7 @@ function printTable(title: string, rows: [string, string | number][]) {
 }
 
 async function main() {
-  console.log(`\n[seed-m066] pfm26-m066 시드 시작 (${new Date().toISOString()})`);
+  console.log(`\n[seed-m002] pfm26-m002 시드 시작 (${new Date().toISOString()})`);
   console.log(`  마스터 JSON: ${MASTER_JSON_PATH}`);
   console.log(`  서버: ${BASE_URL}`);
 
@@ -237,10 +237,10 @@ async function main() {
     }
   }
 
-  console.log(`\n[seed-m066] 완료 (${new Date().toISOString()})`);
+  console.log(`\n[seed-m002] 완료 (${new Date().toISOString()})`);
 }
 
 main().catch((err) => {
-  console.error('[seed-m066] 치명적 에러:', err);
+  console.error('[seed-m002] 치명적 에러:', err);
   process.exit(1);
 });

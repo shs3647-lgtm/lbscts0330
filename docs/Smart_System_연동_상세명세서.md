@@ -89,9 +89,9 @@
 | 문서 | 패턴 | 예시 | 생성 시점 |
 |------|------|------|----------|
 | TripletGroup | `tg{YY}-{type}{serial}` | `tg26-m001` | Triplet 생성 |
-| PFMEA | `pfm{YY}-{type}{serial}` | `pfm26-m066` | Triplet 생성 |
-| CP | `cp{YY}-{type}{serial}` | `cp26-m066` | Triplet 생성 |
-| PFD | `pfd{YY}-{type}{serial}` | `pfd26-m066` | Triplet 생성 |
+| PFMEA | `pfm{YY}-{type}{serial}` | `pfm26-m002` | Triplet 생성 |
+| CP | `cp{YY}-{type}{serial}` | `cp26-m002` | Triplet 생성 |
+| PFD | `pfd{YY}-{type}{serial}` | `pfd26-m002` | Triplet 생성 |
 
 **핵심**: 동일 Triplet의 3문서는 같은 serial 번호를 공유해야 한다.
 
@@ -103,7 +103,7 @@
 
 | 테이블 | PK | 주요 FK | 생성 시점 |
 |--------|-----|---------|----------|
-| `triplet_groups` | id (tg26-m066) | pfmeaId, cpId, pfdId | 등록 |
+| `triplet_groups` | id (tg26-m002) | pfmeaId, cpId, pfdId | 등록 |
 | `fmea_projects` | fmeaId | tripletGroupId | 등록 |
 | `fmea_registrations` | fmeaId | linkedCpNo→cpNo, linkedPfdNo→pfdNo | 등록 |
 | `cp_registrations` | cpNo | fmeaId, linkedPfdNo, tripletGroupId | 등록 |

@@ -14,7 +14,7 @@ import * as path from 'path';
 import ExcelJS from 'exceljs';
 import { normalizeScope, SCOPE_YP } from '@/lib/fmea/scope-constants';
 
-const GOLDEN_PATH = path.resolve(__dirname, '..', 'data/master-fmea/pfm26-m066-golden.json');
+const GOLDEN_PATH = path.resolve(__dirname, '..', 'data/master-fmea/pfm26-m002-golden.json');
 const ORIGINAL_PATH = path.resolve(__dirname, '..', 'data/master-fmea/master_import_12inch_AuBump.xlsx');
 const OUTPUT_PATH = path.resolve(__dirname, '..', 'data/master-fmea/master_import_12inch_AuBump_filled.xlsx');
 
@@ -150,7 +150,7 @@ async function main() {
   // Headers
   const fcHeaders = [
     'FE구분', 'FE(고장영향)', 'L2-1.공정번호', 'FM(고장형태)',
-    '4M', '작업요소(WE)', 'FC(고장원인)',
+    '4M', 'WE(작업요소)', 'FC(고장원인)',
     'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)',
     'S', 'O', 'D', 'AP',
   ];

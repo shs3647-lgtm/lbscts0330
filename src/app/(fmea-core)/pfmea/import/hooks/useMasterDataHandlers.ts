@@ -7,6 +7,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { ImportedFlatData } from '../types';
+import type { MasterFailureChain } from '../types/masterFailureChain';
 import { loadDatasetByFmeaId, loadAllDatasetSummaries, inheritFromParent } from '../utils/master-api';
 import type { DatasetSummary } from '../utils/master-api';
 import { fmeaIdToBdId } from '../utils/bd-id';
@@ -30,6 +31,8 @@ interface UseMasterDataHandlersProps {
   setDirty: React.Dispatch<React.SetStateAction<boolean>>;
   setFileName: React.Dispatch<React.SetStateAction<string>>;
   isLoaded: boolean;
+  /** FMEA 전환 시 failureChains를 평면과 함께 동기화 (미동기화 시 FC만 남고 L1~L3 빈 화면) */
+  setMasterChains?: React.Dispatch<React.SetStateAction<MasterFailureChain[]>>;
 }
 
 /** BD 현황 목록 생성 (서버 dataset 목록 기반) */
@@ -94,6 +97,7 @@ export function useMasterDataHandlers({
   setDirty,
   setFileName,
   isLoaded,
+  setMasterChains,
 }: UseMasterDataHandlersProps) {
   const [masterType, setMasterType] = useState<MasterDataType>('M');
   const [masterFmeaId, setMasterFmeaId] = useState<string>('');
@@ -143,6 +147,10 @@ export function useMasterDataHandlers({
           setMasterDatasetId(loaded.datasetId);
           setIsSaved(true);
           setDirty(false);
+          if (setMasterChains) {
+            const fc = loaded.failureChains;
+            setMasterChains(Array.isArray(fc) ? (fc as MasterFailureChain[]) : []);
+          }
         } else {
           alert('마스터 데이터가 없습니다. 먼저 데이터를 저장하세요.');
           setMasterApplyStatus('not_applied');
@@ -232,12 +240,16 @@ export function useMasterDataHandlers({
         setFileName('');
         setMasterItemCount(new Set(loaded.flatData.map(d => d.itemCode)).size);
         setMasterDataCount(loaded.flatData.filter(d => d.value && d.value.trim() !== '').length);
+        if (setMasterChains) {
+          const fc = loaded.failureChains;
+          setMasterChains(Array.isArray(fc) ? (fc as MasterFailureChain[]) : []);
+        }
       } catch (e) {
         console.error('FMEA 변경 시 데이터 로드 오류:', e);
       }
     };
     reloadForFmea();
-  }, [selectedFmeaId, isLoaded]);
+  }, [selectedFmeaId, isLoaded, setMasterChains]);
 
   const masterData: MasterDataState = {
     masterType,

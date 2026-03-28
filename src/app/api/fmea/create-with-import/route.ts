@@ -5,7 +5,7 @@
  * POST /api/fmea/create-with-import
  * Body: {
  *   targetFmeaId: string,       // 신규 프로젝트 fmeaId (예: pfm26-m080)
- *   sourceFmeaId: string,       // 원본 FMEA (예: pfm26-m066)
+ *   sourceFmeaId: string,       // 원본 FMEA (예: pfm26-m002)
  *   fmeaType?: 'M'|'F'|'P',
  *   project?: { projectName, customer, productName },
  *   fmeaInfo?: object,

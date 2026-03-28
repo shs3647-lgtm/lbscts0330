@@ -3,7 +3,7 @@
  * @description FMEA 유형 정의 + 등록 화면 도움말
  *
  * 카테고리: FMEA 유형 정의, FMEA 등록
- * 관련 화면: /pfmea/register, /dfmea/register
+ * 관련 화면: /pfmea/register
  */
 
 import { ManualItem } from './types';

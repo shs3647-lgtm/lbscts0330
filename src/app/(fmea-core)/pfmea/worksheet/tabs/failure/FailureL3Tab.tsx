@@ -18,7 +18,7 @@
  * -----------------------------------------------------------------------------
  * ⚠️ AI / 차기 유지보수용 주의 (2026-03-23) — 반드시 읽을 것 (DO NOT regress)
  * -----------------------------------------------------------------------------
- * 1) 작업요소(WE)가 다르거나, 같은 기능 아래라도 B3(공정특성) id가 다르면 **동일 텍스트라도 별개 행**이다.
+ * 1) WE(작업요소)가 다르거나, 같은 기능 아래라도 B3(공정특성) id가 다르면 **동일 텍스트라도 별개 행**이다.
  *    “이름이 같으면 하나로 합친다(canonical id / 대표 id)” 로직을 **다시 넣지 말 것** — 과거에 FC·B3가 잘못 병합됨.
  * 2) failureCauses 정리 useEffect: **동일 FC id가 배열에 중복된 경우만** 제거. 이름·(processCharId+FC명)으로 dedup 금지.
  * 3) missingCount / flatRows / totalCauseCount: 연결·건수는 **processCharId·FC id 기준**. 공정특성명·FC명만으로 그룹핑 금지.
@@ -816,28 +816,39 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     return rows;
   }, [state.l2]);
 
-  // FC 건수 — 작업요소가 달라도 동일 FC명 허용: FC id(없으면 proc+pcId+name)로 집계
-  // ⚠️ AI주의: `공정번호|FC명` 만으로 Set 하면 동일 문구가 한 건으로 뭉개짐. 반드시 FC id 우선 키 유지.
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ FC 건수 — UUID(id) 기반 복합키 카운트                                │
+  // │                                                                      │
+  // │ ★★★ 이름(텍스트) 매칭 영구 금지 (CLAUDE.md Rule 1.7) ★★★            │
+  // │  - fc.name / fc.cause 텍스트로 카운트·그룹핑·중복제거 금지            │
+  // │  - isMissing(name), name 비교, Set(`pno|name`) 패턴 금지             │
+  // │                                                                      │
+  // │ ★ 복합키 = UUID(fc.id) — 위치기반 UUID로 고유 식별                   │
+  // │  - fc.id가 있으면 유효한 FC (import 시 행 순서로 생성된 UUID)         │
+  // │  - 중복 제거: Set<fc.id>로 UUID 기반 dedup (동일 id = 동일 FC)       │
+  // │  - placeholder 제외: name·cause 모두 빈값이면 UI 생성 빈 행          │
+  // └──────────────────────────────────────────────────────────────────────┘
   const totalCauseCount = useMemo(() => {
-    const uniqueFCs = new Set<string>();
+    // ★ 복합키(UUID) 기반 중복 삭제 — 이름(텍스트) 매칭으로 절대 회귀 금지
+    const uniqueFCIds = new Set<string>();
     for (const proc of (state.l2 || []) as any[]) {
-      const pno = String(proc.no || proc.id || '');
       for (const fc of (proc.failureCauses || [])) {
-        const name = String(fc?.name || '').trim();
-        if (!name || isMissing(name)) continue;
         const fid = String(fc?.id || '').trim();
-        uniqueFCs.add(fid ? `${pno}|fc:${fid}` : `${pno}|pc:${String(fc.processCharId || '')}|${name}`);
+        if (!fid) continue; // UUID 없으면 무효
+        // ★ 콘텐츠 존재 확인 (name 또는 cause) — 이름 매칭이 아닌 빈값 체크
+        const hasContent = String(fc?.name || fc?.cause || '').trim();
+        if (hasContent) uniqueFCIds.add(fid); // UUID 기반 dedup
       }
       for (const we of (proc.l3 || [])) {
         for (const fc of (we.failureCauses || [])) {
-          const name = String(fc?.name || '').trim();
-          if (!name || isMissing(name)) continue;
           const fid = String(fc?.id || '').trim();
-          uniqueFCs.add(fid ? `${pno}|fc:${fid}` : `${pno}|we:${we?.id || ''}|${name}`);
+          if (!fid) continue;
+          const hasContent = String(fc?.name || fc?.cause || '').trim();
+          if (hasContent) uniqueFCIds.add(fid);
         }
       }
     }
-    return uniqueFCs.size;
+    return uniqueFCIds.size;
   }, [state.l2]);
 
   return (
@@ -856,8 +867,10 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
           isConfirmed={isConfirmed}
           isUpstreamConfirmed={isUpstreamConfirmed}
           missingCount={missingCount}
-          failureCauseCount={missingCount}
+          failureCauseCount={totalCauseCount}
           totalCauseCount={totalCauseCount}
+          processCharCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const we of (p.l3 || [])) { for (const f of (we.functions || [])) { for (const pc of (f.processChars || [])) { if ((pc as any).name?.trim()) c++; } } } } return c; })()}
+          specialCharCount={(() => { let c = 0; for (const p of (state.l2 || [])) { for (const we of (p.l3 || [])) { for (const f of (we.functions || [])) { for (const pc of (f.processChars || [])) { if ((pc as any).specialChar?.trim()) c++; } } } } return c; })()}
           onConfirm={handleConfirm}
           onEdit={handleEdit}
           isAutoMode={isAutoMode}

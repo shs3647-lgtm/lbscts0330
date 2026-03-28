@@ -57,6 +57,24 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
     const ids: CrossTabIds = {};
     const row: ARow = { processNo: pNo, A1: '', A2: '', A3: '', A4: '', A5: '', A6: '', _ids: ids };
     (['A1','A2','A3','A4','A5','A6'] as const).forEach(code => {
+      if (code === 'A6') {
+        // 공정당 A6 flat 행 여러 건(FM·체인별) — find 1건만 쓰면 통계 고유 건수와 L2 미리보기 불일치
+        const a6List = aItems.filter(d => d.processNo === pNo && d.itemCode === 'A6');
+        const seenVal = new Set<string>();
+        const lines: string[] = [];
+        let firstId: string | undefined;
+        for (const d of a6List) {
+          const v = String(d.value || '').trim();
+          if (!v) continue;
+          if (seenVal.has(v)) continue;
+          seenVal.add(v);
+          lines.push(v);
+          if (!firstId && d.id) firstId = d.id;
+        }
+        row.A6 = lines.join('\n');
+        if (firstId) ids.A6 = firstId;
+        return;
+      }
       const item = aItems.find(d => d.processNo === pNo && d.itemCode === code);
       row[code] = item?.value || '';
       if (item?.id) ids[code] = item.id;
@@ -143,12 +161,14 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
   const c4Items = cItems.filter(d => d.itemCode === 'C4');
   const c3Items = cItems.filter(d => d.itemCode === 'C3');
   const c2Items = cItems.filter(d => d.itemCode === 'C2');
+  const c1Items = cItems.filter(d => d.itemCode === 'C1');
 
   // parentItemId 체인으로 C3→C2→C1 추적
   const cRows: CRow[] = c4Items
     .filter(c4 => c4.value?.trim() && !/^[-–—~.]+$/.test(c4.value.trim()))
     .map(c4 => {
       const cat = normalizeC1Cat(c4.processNo);
+      const c1Row = c1Items.find(d => d.processNo === cat);
       // C3: c4.parentItemId가 l1FuncId (C3는 l1FuncId를 parentItemId로 사용)
       const c3 = c3Items.find(d => d.processNo === cat && d.parentItemId === c4.parentItemId)
         || c3Items.find(d => d.processNo === cat);
@@ -157,6 +177,7 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
       const c2 = c2Items.find(d => d.id === l1FuncId && d.processNo === cat)
         || c2Items.find(d => d.processNo === cat);
       const ids: CrossTabIds = {};
+      if (c1Row?.id) ids.C1 = c1Row.id;
       if (c4.id) ids.C4 = c4.id;
       if (c3?.id) ids.C3 = c3.id;
       if (c2?.id) ids.C2 = c2.id;

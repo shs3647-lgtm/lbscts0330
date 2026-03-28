@@ -12,7 +12,7 @@ const { Client } = pg;
 const DB_URL = 'postgresql://postgres:1234@localhost:5432/fmea_db';
 
 // ── LLD Filter Code (교훈 DB) ──
-// 반도체 제조 공정 실제 교훈 데이터 (m066 Au Bump 기반)
+// 반도체 제조 공정 실제 교훈 데이터 (m002 Au Bump 기반)
 const lldItems = [
   { lldNo: 'LLD26-001', classification: 'RMA', applyTo: 'prevention', processNo: '10', processName: 'Wafer Incoming', productName: '12inch Au Bump', failureMode: '이물 부착', cause: 'Wafer 표면 오염', improvement: 'Incoming 시 파티클 검사 강화 (0.3μm 이상)', preventionImprovement: 'Wafer 입고 전 클린룸 파티클 카운터 검증', detectionImprovement: 'AOI 자동검사 + 샘플링 현미경 확인', severity: 8, occurrence: 3, detection: 4, m4Category: 'IM', vehicle: '12inch', owner: 'QA팀', sourceType: 'manual' },
   { lldNo: 'LLD26-002', classification: 'ABN', applyTo: 'detection', processNo: '20', processName: 'Sputter', productName: '12inch Au Bump', failureMode: '막두께 불균일', cause: 'Target 소진', improvement: 'Target 수명 관리 시스템 도입 (kWh 기준)', preventionImprovement: 'PM 주기 단축 (500→400 wafer)', detectionImprovement: 'In-line 막두께 측정 (5-point → 9-point)', severity: 7, occurrence: 4, detection: 3, m4Category: 'MC', vehicle: '12inch', owner: '설비팀', sourceType: 'manual' },
@@ -42,14 +42,14 @@ const lessonsItems = [
 
 // ── Continuous Improvement Plan (지속개선계획) ──
 const cipItems = [
-  { cipNo: 'CIP26-001', apLevel: 'H', failureMode: '막두께 불균일', cause: 'Target 소진', improvement: 'Target kWh 자동 알람 + 교체 스케줄 자동화', s: 7, o: 4, d: 3, status: 'Y', fmeaId: 'pfm26-m066' },
-  { cipNo: 'CIP26-002', apLevel: 'H', failureMode: 'Bump void', cause: '전류밀도 불균일', improvement: 'Anode 형상 개선 + 전류분포 시뮬레이션', s: 9, o: 3, d: 2, status: 'R', fmeaId: 'pfm26-m066' },
-  { cipNo: 'CIP26-003', apLevel: 'H', failureMode: '접착력 불량', cause: '진공도 불량', improvement: '진공 펌프 이중화 + Leak rate 자동측정', s: 9, o: 2, d: 5, status: 'Y', fmeaId: 'pfm26-m066' },
-  { cipNo: 'CIP26-004', apLevel: 'M', failureMode: 'CD 불량', cause: 'Exposure 이탈', improvement: 'APC (Advanced Process Control) 시스템 도입', s: 8, o: 3, d: 2, status: 'R', fmeaId: 'pfm26-m066' },
-  { cipNo: 'CIP26-005', apLevel: 'M', failureMode: 'Bump 높이 불균일', cause: '도금액 조성 변동', improvement: '도금액 자동분석/보충 시스템 구축', s: 7, o: 5, d: 3, status: 'Y', fmeaId: 'pfm26-m066' },
-  { cipNo: 'CIP26-006', apLevel: 'M', failureMode: '파티클 오염', cause: 'Chamber 오염', improvement: 'In-situ particle monitor 설치 (전 Chamber)', s: 7, o: 4, d: 3, status: 'R', fmeaId: 'pfm26-m066' },
-  { cipNo: 'CIP26-007', apLevel: 'H', failureMode: '검사 누락', cause: 'AOI 알고리즘 미감지', improvement: 'AI 기반 결함 분류 시스템 (Deep Learning AOI)', s: 8, o: 2, d: 5, status: 'R', fmeaId: 'pfm26-m066' },
-  { cipNo: 'CIP26-008', apLevel: 'L', failureMode: 'Residue 잔류', cause: 'Strip 시간 부족', improvement: 'Strip 완료 자동 감지 센서 도입', s: 5, o: 3, d: 3, status: 'G', fmeaId: 'pfm26-m066' },
+  { cipNo: 'CIP26-001', apLevel: 'H', failureMode: '막두께 불균일', cause: 'Target 소진', improvement: 'Target kWh 자동 알람 + 교체 스케줄 자동화', s: 7, o: 4, d: 3, status: 'Y', fmeaId: 'pfm26-m002' },
+  { cipNo: 'CIP26-002', apLevel: 'H', failureMode: 'Bump void', cause: '전류밀도 불균일', improvement: 'Anode 형상 개선 + 전류분포 시뮬레이션', s: 9, o: 3, d: 2, status: 'R', fmeaId: 'pfm26-m002' },
+  { cipNo: 'CIP26-003', apLevel: 'H', failureMode: '접착력 불량', cause: '진공도 불량', improvement: '진공 펌프 이중화 + Leak rate 자동측정', s: 9, o: 2, d: 5, status: 'Y', fmeaId: 'pfm26-m002' },
+  { cipNo: 'CIP26-004', apLevel: 'M', failureMode: 'CD 불량', cause: 'Exposure 이탈', improvement: 'APC (Advanced Process Control) 시스템 도입', s: 8, o: 3, d: 2, status: 'R', fmeaId: 'pfm26-m002' },
+  { cipNo: 'CIP26-005', apLevel: 'M', failureMode: 'Bump 높이 불균일', cause: '도금액 조성 변동', improvement: '도금액 자동분석/보충 시스템 구축', s: 7, o: 5, d: 3, status: 'Y', fmeaId: 'pfm26-m002' },
+  { cipNo: 'CIP26-006', apLevel: 'M', failureMode: '파티클 오염', cause: 'Chamber 오염', improvement: 'In-situ particle monitor 설치 (전 Chamber)', s: 7, o: 4, d: 3, status: 'R', fmeaId: 'pfm26-m002' },
+  { cipNo: 'CIP26-007', apLevel: 'H', failureMode: '검사 누락', cause: 'AOI 알고리즘 미감지', improvement: 'AI 기반 결함 분류 시스템 (Deep Learning AOI)', s: 8, o: 2, d: 5, status: 'R', fmeaId: 'pfm26-m002' },
+  { cipNo: 'CIP26-008', apLevel: 'L', failureMode: 'Residue 잔류', cause: 'Strip 시간 부족', improvement: 'Strip 완료 자동 감지 센서 도입', s: 5, o: 3, d: 3, status: 'G', fmeaId: 'pfm26-m002' },
 ];
 
 async function main() {

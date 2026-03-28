@@ -16,7 +16,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 // ═══════════════════════════════════════════════════
 // STEP 1: CREATE 모드 — FK 꽂아넣기

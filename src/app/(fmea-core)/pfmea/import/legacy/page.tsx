@@ -8,9 +8,11 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { ImportedFlatData, FailureChain } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
-import { parseMultiSheetExcel, ParseResult } from '../excel-parser';
+import type { ParseResult } from '../excel-parser';
+import type { PositionImportPgSnapshot } from '@/types/position-import';
 import { downloadEmptyTemplate, downloadSampleTemplate, downloadDataTemplate } from '../excel-template';
 import {
   useImportFileHandlers,
@@ -36,8 +38,11 @@ import { BdStatusTable } from '../components/BdStatusTable';
 import { useTemplateGenerator } from '../hooks/useTemplateGenerator';
 import FailureChainPopup from '../FailureChainPopup';
 import ImportStepBar from '../components/ImportStepBar';
-import { quickWorksheetSave } from '../utils/quickWorksheetSave';
+// quickWorksheetSave 제거됨 — position-based import에서 직접 DB 저장
 import { buildCrossTab } from '../utils/template-delete-logic';
+
+/** 새로고침 시 프로젝트 선택 복원 — URL ?id= > sessionStorage > React 초기상태(SSR은 빈 문자열) > 목록 첫 항목 */
+const PFMEA_IMPORT_LAST_FMEA_KEY = 'pfmea-import-last-fmea-id';
 
 export default function LegacyImportPage() {
   const { isAdmin } = useAuth();
@@ -60,6 +65,9 @@ export default function LegacyImportPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  /** 위치기반 파일 선택 시 position-parser 엑셀 셀 카운트 — 통계「파싱」열 */
+  const [positionParserStats, setPositionParserStats] = useState<Record<string, number> | null>(null);
+  const [positionPgSnapshot, setPositionPgSnapshot] = useState<PositionImportPgSnapshot | null>(null);
   const [pendingData, setPendingData] = useState<ImportedFlatData[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -83,14 +91,12 @@ export default function LegacyImportPage() {
   const [masterChains, setMasterChains] = useState<MasterFailureChain[]>([]);
 
   const handleWorksheetSaved = useCallback(() => {
-    if (selectedFmeaId) {
-      window.location.href = `/pfmea/worksheet?id=${selectedFmeaId}&tab=structure&fresh=1`;
-    }
+    // ★v5.2: 자동확정 후 자동이동 제거 — 통계 확인 후 사용자가 직접 "워크시트 이동 →" 버튼으로 이동
   }, [selectedFmeaId]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 훅 연결 ──
+  // ── 훅 연결 (fmeaChangeRef는 아래 초기 loadData에서 동기화) ──
   const {
     bdStatusList, setBdStatusList,
     masterItemCount, setMasterItemCount, masterDataCount, setMasterDataCount,
@@ -99,7 +105,18 @@ export default function LegacyImportPage() {
     fmeaList, selectedFmeaId, setSelectedFmeaId,
     flatData, setFlatData, masterDatasetId, setMasterDatasetId,
     setIsSaved, setDirty, setFileName, isLoaded,
+    setMasterChains,
   });
+
+  // 마지막 작업 FMEA — ?id= 없이 /pfmea/import 만 연 경우 새로고침 후에도 동일 프로젝트 로드
+  useEffect(() => {
+    if (!selectedFmeaId || typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(PFMEA_IMPORT_LAST_FMEA_KEY, selectedFmeaId);
+    } catch {
+      /* private mode 등 */
+    }
+  }, [selectedFmeaId]);
 
   const { getBackupList, restoreBackup, deleteBackup } = useAutoSave({ flatData, isLoaded });
 
@@ -124,6 +141,7 @@ export default function LegacyImportPage() {
     sourceName: string;
   }) => {
     setFlatData(data.flatData);
+    setPositionParserStats(null);
     if (data.failureChains.length > 0) {
       setMasterChains(data.failureChains);
     }
@@ -188,6 +206,14 @@ export default function LegacyImportPage() {
   const templateGen = useTemplateGenerator({
     setFlatData, setPreviewColumn, setDirty, setIsSaved,
   });
+  const { setTemplateMode } = templateGen;
+
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname?.includes('/pfmea/import/auto')) {
+      setTemplateMode('auto');
+    }
+  }, [pathname, setTemplateMode]);
 
   // ── IM 원자재 블랙리스트 ──
   const IM_RAW_MATERIAL_KEYWORDS = [
@@ -196,10 +222,14 @@ export default function LegacyImportPage() {
 
   // ── 파일 핸들러 ──
   const { handleFileSelect, handleImport: _handleImportRaw } = useImportFileHandlers({
-    setFileName, setIsParsing, setImportSuccess, setParseResult, setPendingData,
+    setFileName, setIsParsing, setImportSuccess,
+    setParseResult: (r: unknown) => setParseResult(r as ParseResult | null),
+    setPendingData,
     setFlatData, setIsImporting, setMasterDatasetId, setMasterChains, setIsSaved, setDirty,
     setValidationMessage,
-    flatData, pendingData, masterChains, parseMultiSheetExcel,
+    setPositionParserStats,
+    onPositionImportSnapshot: setPositionPgSnapshot,
+    flatData, pendingData, masterChains,
     masterDatasetId,
     fmeaId: selectedFmeaId || undefined,
     fmeaType: selectedFmea?.fmeaType || 'P',
@@ -302,7 +332,11 @@ export default function LegacyImportPage() {
   };
 
   const doSave = useCallback(async () => {
-    if (!selectedFmeaId || isSaving) return;
+    if (isSaving) return;
+    if (!selectedFmeaId) {
+      setValidationMessage('⚠️ FMEA 프로젝트를 선택한 뒤 저장하세요. (선택 없이는 마스터 데이터가 저장되지 않습니다.)');
+      return;
+    }
     setIsSaving(true);
     try {
       // ★★★ 2026-03-22: 엑셀에 있는 itemCode만 교체 — autofix B5/A6 보존
@@ -336,7 +370,7 @@ export default function LegacyImportPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [selectedFmeaId, selectedFmea, masterDatasetId, masterDatasetName, flatData, masterChains, isSaving, setBdStatusList]);
+  }, [selectedFmeaId, selectedFmea, masterDatasetId, masterDatasetName, flatData, masterChains, isSaving, setBdStatusList, setValidationMessage]);
 
   // ── 수동입력 후 자동저장 (dirty → 1초 디바운스) ──
   doSaveRef.current = doSave;
@@ -359,6 +393,8 @@ export default function LegacyImportPage() {
   useEffect(() => {
     const loadData = async () => {
       let loadedProjects: FMEAProject[] = [];
+      /** 마스터 평면 GET에 쓸 ID — setState 이전에 확정(클로저 버그 방지) */
+      let effectiveFmeaIdForDataset = '';
       try {
         const res = await fetch('/api/fmea/projects?type=P');
         if (res.ok) {
@@ -375,9 +411,33 @@ export default function LegacyImportPage() {
             cftMembers: Array.isArray(p.cftMembers) ? (p.cftMembers as FMEAProject['cftMembers']) : [],
           })) as FMEAProject[];
           setFmeaList(loadedProjects);
-          if (!selectedFmeaId && loadedProjects.length > 0) {
-            fmeaChangeRef.current = loadedProjects[0].id;
-            setSelectedFmeaId(loadedProjects[0].id);
+
+          // ★ 근본원인: SSR/하이드레이션 시 useState(urlFmeaId)가 ''로 고정되고, 이 effect의 selectedFmeaId 클로저도 '' →
+          // 항상 목록 첫 프로젝트만 로드되어 ?id=·저장 데이터와 불일치. window·sessionStorage로 실제 대상 결정.
+          if (loadedProjects.length > 0) {
+            const byNormId = (raw: string) => {
+              const n = raw.trim().toLowerCase();
+              return loadedProjects.find(p => p.id.toLowerCase() === n);
+            };
+            let urlParam = '';
+            try {
+              urlParam = (new URLSearchParams(window.location.search).get('id') || '').trim();
+            } catch {
+              /* noop */
+            }
+            let storedParam = '';
+            try {
+              storedParam = (sessionStorage.getItem(PFMEA_IMPORT_LAST_FMEA_KEY) || '').trim();
+            } catch {
+              /* noop */
+            }
+            const fromUrl = urlParam ? byNormId(urlParam) : undefined;
+            const fromStored = storedParam ? byNormId(storedParam) : undefined;
+            const fromState = selectedFmeaId.trim() ? byNormId(selectedFmeaId) : undefined;
+            const chosen = fromUrl ?? fromState ?? fromStored ?? loadedProjects[0];
+            effectiveFmeaIdForDataset = chosen.id;
+            fmeaChangeRef.current = effectiveFmeaIdForDataset;
+            setSelectedFmeaId(effectiveFmeaIdForDataset);
           }
         }
       } catch (e) { console.error('FMEA 목록 로드 오류:', e); }
@@ -393,17 +453,21 @@ export default function LegacyImportPage() {
       } catch (e) { console.error('BD 현황 로드 오류:', e); }
 
       try {
-        const currentFmeaId = selectedFmeaId || (loadedProjects.length > 0 ? loadedProjects[0].id : '');
-        if (currentFmeaId) {
-          const loaded = await loadDatasetByFmeaId(currentFmeaId);
+        if (effectiveFmeaIdForDataset) {
+          const loaded = await loadDatasetByFmeaId(effectiveFmeaIdForDataset.toLowerCase());
           if (loaded.datasetId) setMasterDatasetId(loaded.datasetId);
           if (loaded.datasetName) setMasterDatasetName(loaded.datasetName);
           if (loaded.flatData.length > 0) {
             setFlatData(loaded.flatData);
             setIsSaved(true);
+          } else {
+            setFlatData([]);
+            setIsSaved(false);
           }
           if (loaded.failureChains && Array.isArray(loaded.failureChains) && loaded.failureChains.length > 0) {
             setMasterChains(loaded.failureChains as MasterFailureChain[]);
+          } else {
+            setMasterChains([]);
           }
         }
       } catch (e) { console.error('기존 데이터 로드 오류:', e); }
@@ -532,6 +596,7 @@ export default function LegacyImportPage() {
             flatData={flatData}
             fmeaId={selectedFmeaId}
             failureChains={masterChains}
+            pgSnapshot={positionPgSnapshot}
             l1Name={l1Name}
             fmeaInfo={selectedFmea ? {
               subject: selectedFmea.fmeaInfo?.subject || '',
@@ -559,7 +624,26 @@ export default function LegacyImportPage() {
         updateWorkElement={templateGen.updateWorkElement}
         flatData={flatData}
         onDownloadSample={async () => {
-          // 0순위: 현재 flatData가 있으면 (자동FIX/편집 반영) 즉시 내보내기
+          // 1순위: reverse-import API — DB의 L1·L2·L3·FC사슬 완전 반영 (SSoT)
+          if (selectedFmeaId) {
+            try {
+              const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
+              if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const cd = res.headers.get('content-disposition');
+                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
+                a.download = fnMatch?.[1] || `PFMEA_${selectedFmeaId}_현재데이터.xlsx`;
+                a.href = url;
+                a.click();
+                URL.revokeObjectURL(url);
+                return;
+              }
+            } catch (_e) { /* server-side 실패 시 flatData fallback */ }
+          }
+
+          // 2순위: 현재 flatData (마스터 데이터셋)
           if (flatData.length > 0) {
             const exportData = flatData.map(d => ({
               processNo: d.processNo || '',
@@ -587,40 +671,8 @@ export default function LegacyImportPage() {
             await downloadDataTemplate(exportData, fileName, chains);
             return;
           }
-          if (selectedFmeaId) {
-            // 1순위: 빈칸 0건 filled Excel (서버에 생성된 파일)
-            try {
-              const filledRes = await fetch(`/api/fmea/download-filled-excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
-              if (filledRes.ok) {
-                const blob = await filledRes.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                const cd = filledRes.headers.get('content-disposition');
-                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                a.download = fnMatch?.[1] || `PFMEA_Sample_${selectedFmeaId}.xlsx`;
-                a.href = url;
-                a.click();
-                URL.revokeObjectURL(url);
-                return;
-              }
-            } catch (_e) { /* filled 파일 없으면 다음 시도 */ }
-            // 2순위: reverse-import (서버사이드 생성)
-            try {
-              const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(selectedFmeaId)}`);
-              if (res.ok) {
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                const cd = res.headers.get('content-disposition');
-                const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                a.download = fnMatch?.[1] || `PFMEA_Sample_${selectedFmeaId}.xlsx`;
-                a.href = url;
-                a.click();
-                URL.revokeObjectURL(url);
-                return;
-              }
-            } catch (_e) { /* server-side 실패 시 client-side fallback */ }
-          }
+
+          // 3순위: static 샘플 fallback
           downloadSampleTemplate(undefined, templateGen.templateMode === 'manual', selectedFmeaId || undefined);
         }}
         onDownloadEmpty={downloadEmptyTemplate}
@@ -666,56 +718,8 @@ export default function LegacyImportPage() {
         fmeaList={fmeaList}
         failureChains={masterChains}
         parseStatistics={parseResult?.statistics}
+        positionParserStats={positionParserStats}
       />
-
-      {/* CFT 읽기전용 테이블 */}
-      {selectedFmea && (
-        <div className="bg-white rounded border border-gray-300 mt-2">
-          <div className="flex items-center px-3 py-1.5 border-b border-gray-300 bg-[#e8f5e9]">
-            <span className="mr-2">👥</span>
-            <h2 className="text-xs font-bold text-gray-700">CFT (Cross Functional Team)</h2>
-            <span className="ml-2 text-[10px] text-gray-500">{selectedFmea.cftMembers?.length || 0}명</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr style={{ backgroundColor: '#00587a', height: '26px' }} className="text-white">
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-10">No</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-24">CFT역할(Role)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-28">성명(Name)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-24">부서(Dept.)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-16">직급(Position)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-32">담당업무(Task)</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-36">Email</th>
-                  <th className="border border-white px-2 py-1 text-center align-middle font-semibold w-28">전화번호(Phone)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(selectedFmea.cftMembers && selectedFmea.cftMembers.length > 0) ? (
-                  selectedFmea.cftMembers.map((m, i) => (
-                    <tr key={m.id} className="hover:bg-blue-50" style={{ height: '28px', backgroundColor: i % 2 === 0 ? '#e3f2fd' : 'white' }}>
-                      <td className="border border-gray-300 px-2 py-1 text-center font-bold text-[#00587a]">{i + 1}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center font-semibold">{m.role}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.name}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.department}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.position}</td>
-                      <td className="border border-gray-300 px-2 py-1">{m.task}</td>
-                      <td className="border border-gray-300 px-2 py-1">{m.email}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-center">{m.phone}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="border border-gray-300 px-4 py-3 text-center text-gray-400 text-xs">
-                      등록된 CFT 멤버가 없습니다. 등록화면에서 CFT를 등록해주세요.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Master 기초정보 사용 */}
       {selectedFmeaId && (

@@ -2,7 +2,7 @@ import pg from 'pg';
 const client = new pg.Client({ connectionString: 'postgresql://postgres:1234@localhost:5432/fmea_db' });
 await client.connect();
 
-for (const schema of ['pfmea_pfm26_m066', 'pfmea_pfm26_m081']) {
+for (const schema of ['pfmea_pfm26_m002', 'pfmea_pfm26_m081']) {
   console.log(`\n=== ${schema} ===`);
   const fms = await client.query(`SELECT id, mode, "l2StructId" FROM "${schema}".failure_modes`);
   const fls = await client.query(`SELECT DISTINCT "fmId" FROM "${schema}".failure_links`);

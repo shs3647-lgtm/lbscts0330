@@ -9,7 +9,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE = 'http://localhost:3000';
-const SOURCE = 'pfm26-m066';
+const SOURCE = 'pfm26-m002';
 const TARGET = 'pfm26-e2e-test';
 
 test.describe('역설계 Import E2E', () => {

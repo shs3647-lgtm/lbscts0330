@@ -125,6 +125,13 @@ export interface SrpStatsForHeader {
   total: number;
 }
 
+/** 3ST 기능분석 통계 — 완제품기능/요구사항/고장영향 카운트 */
+export interface FunctionStatsForHeader {
+  productFunctionCount: number;  // C2 완제품기능
+  requirementCount: number;      // C3 요구사항
+  failureEffectCount: number;    // C4 고장영향
+}
+
 export interface AllTabHeaderProps {
   stepSpans: StepSpan[];
   groupSpans: GroupSpan[];
@@ -133,6 +140,7 @@ export interface AllTabHeaderProps {
   hFont: typeof COMPACT_FONT | undefined;
   isCompact: boolean;
   failureStats: FailureStatsForHeader;
+  functionStats?: FunctionStatsForHeader;
   apStats: { hCount: number; mCount: number; lCount: number };
   apStats6?: { hCount: number; mCount: number; lCount: number };
   srpStats?: SrpStatsForHeader;
@@ -161,6 +169,7 @@ export default function AllTabHeader({
   hFont,
   isCompact,
   failureStats,
+  functionStats,
   apStats,
   apStats6,
   srpStats,
@@ -378,6 +387,15 @@ export default function AllTabHeader({
                     <span style={{ background: '#6a1b9a', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px' }} title="O&D 둘 다 개선 필요한 항목">O&D:{srpStats.both}</span>
                   </span>
                 )}
+              </div>
+            ) : span.step === '기능분석' && functionStats ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '10px' }}><StepBiHeader ko="3ST 기능분석" en="Function Analysis" /></span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600 }}>
+                  <span style={{ background: '#00695c', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px' }} title="완제품기능(Product Function) 건수">PF:{functionStats.productFunctionCount}</span>
+                  <span style={{ background: '#4527a0', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px' }} title="요구사항(Requirements) 건수">Req:{functionStats.requirementCount}</span>
+                  <span style={{ background: '#b71c1c', color: '#fff', padding: '2px 5px', borderRadius: '3px', lineHeight: '13px' }} title="고장영향(Failure Effect) 건수">FE:{functionStats.failureEffectCount}</span>
+                </span>
               </div>
             ) : (
               <StepBiHeader

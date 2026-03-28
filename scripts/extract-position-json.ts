@@ -1,5 +1,5 @@
 /**
- * m066 Atomic DB → 위치기반 JSON 추출
+ * m002 Atomic DB → 위치기반 JSON 추출
  * 4시트(L1/L2/L3/FC) 행 단위로 위치 UUID + FK를 미리 계산하여 저장.
  */
 import * as fs from 'fs';
@@ -22,7 +22,7 @@ interface PositionJson {
 }
 
 function main() {
-  const raw = fs.readFileSync('data/master-fmea/pfm26-m066.json', 'utf8');
+  const raw = fs.readFileSync('data/master-fmea/pfm26-m002.json', 'utf8');
   const d = JSON.parse(raw);
   const db = d.atomicDB;
 
@@ -326,7 +326,7 @@ function main() {
   }
 
   const result: PositionJson = {
-    sourceId: 'pfm26-m066',
+    sourceId: 'pfm26-m002',
     targetId: 'pfm26-m102',
     exportedAt: new Date().toISOString(),
     sheets: {

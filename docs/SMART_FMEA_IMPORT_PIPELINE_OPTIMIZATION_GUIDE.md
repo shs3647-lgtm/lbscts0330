@@ -135,7 +135,7 @@ Get-ChildItem -Recurse -Path $root -Include `
 
 #### 3-3. Import 후 불변 검증
 
-- `verifyImportIntegrity` 유사 함수: FC 수, FailureLink 수, 고아 FM/FC 등 — **기대 건수는 프로젝트/템플릿별로 다를 수 있음** (골든 `pfm26-m066` 등으로 보정).
+- `verifyImportIntegrity` 유사 함수: FC 수, FailureLink 수, 고아 FM/FC 등 — **기대 건수는 프로젝트/템플릿별로 다를 수 있음** (골든 `pfm26-m002` 등으로 보정).
 
 ---
 

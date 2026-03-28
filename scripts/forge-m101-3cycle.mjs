@@ -1,14 +1,14 @@
 /**
  * Forge: pfm26-m101 프로젝트 3회 파이프라인 검증 루프
  *
- * 전제: 원본 pfm26-m066 이 DB에 Import 완료된 상태
- * 동작: create-with-import 로 m066 → m101 복제(최적화 포함) 후 pipeline-verify ×3
+ * 전제: 원본 pfm26-m002 이 DB에 Import 완료된 상태
+ * 동작: create-with-import 로 m002 → m101 복제(최적화 포함) 후 pipeline-verify ×3
  *
  * 사용: dotenv -- node scripts/forge-m101-3cycle.mjs
  * 환경: BASE_URL (기본 http://localhost:3000)
  */
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
-const SOURCE = 'pfm26-m066';
+const SOURCE = 'pfm26-m002';
 const TARGET = 'pfm26-m101';
 
 async function j(method, url, body) {
@@ -35,7 +35,7 @@ async function main() {
     targetFmeaId: TARGET,
     sourceFmeaId: SOURCE,
     fmeaType: 'P',
-    project: { projectName: 'Forge m101 (from m066)' },
+    project: { projectName: 'Forge m101 (from m002)' },
     options: { copyDCPC: true, copySOD: true, copyOptimization: true },
   });
   console.info('[forge-m101] create-with-import:', JSON.stringify(step1, null, 2));

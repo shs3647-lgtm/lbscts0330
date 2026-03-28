@@ -1,7 +1,7 @@
 /**
  * 5시트 position-parser 테스트:
  * - m102_clean_import.xlsx 파싱
- * - m066 연결표 JSON과 FK 비교
+ * - m002 연결표 JSON과 FK 비교
  */
 import { parsePositionBasedExcel } from '../src/lib/fmea-core/position-parser';
 import * as fs from 'fs';
@@ -15,7 +15,7 @@ async function main() {
   console.log(JSON.stringify(result.stats, null, 2));
 
   // Load connection table
-  const conn = JSON.parse(fs.readFileSync('data/master-fmea/m066-connection-table.json', 'utf8'));
+  const conn = JSON.parse(fs.readFileSync('data/master-fmea/m002-connection-table.json', 'utf8'));
 
   console.log('\n=== Comparison ===');
   console.log(`FE (C4): parser=${result.stats.C4 || 0}, conn=${conn.stats.feCount}`);

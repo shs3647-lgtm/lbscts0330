@@ -12,7 +12,7 @@
 
 ```
 FMEA 역설계:
-  완성된 집(M066 DB) → 설계도(1L/2L/3L + FC) → FK로 꽂아넣기 → WS 완성
+  완성된 집(M002 DB) → 설계도(1L/2L/3L + FC) → FK로 꽂아넣기 → WS 완성
 
 CP/PFD 연동 (동일 원리):
   완성된 FMEA(Atomic DB) → 설계도(CP/PFD 스켈레톤) → FK로 꽂아넣기 → CP/PFD 완성

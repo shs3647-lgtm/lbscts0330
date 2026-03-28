@@ -11,6 +11,7 @@
 
 import { getPrisma } from '@/lib/prisma';
 import { calcAPServer } from './verify-steps';
+import { matchAiagVdaSeverityRow } from '@/lib/fmea/aiag-vda-severity-mapping';
 
 /** `1` 이면 L2=0일 때도 rebuild-atomic 호출 안 함 — FK 수선·재import 우선 (repair-fk) */
 function isRebuildAtomicDisabled(): boolean {
@@ -35,16 +36,28 @@ export async function fixStructure(prisma: any, fmeaId: string): Promise<string[
   const POS_UUID = /^L3-R\d+$/;
   const sampleL3 = await prisma.l3Structure.findFirst({ where: { fmeaId }, select: { id: true } });
   if (sampleL3 && POS_UUID.test(sampleL3.id)) {
-    // ★ 위치기반: L3Function=0이면 repair-l3 API 호출 (즉시 복구)
+    // ★ 위치기반: L3Function=0이면 직접 생성 (self-fetch 금지 — 워커 폭주 원인)
     const l3FuncCount = await prisma.l3Function.count({ where: { fmeaId } });
     if (l3FuncCount === 0) {
       try {
-        const repairRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/fmea/repair-l3?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
-        if (repairRes.ok) {
-          const r = await repairRes.json();
-          fixed.push(`L3Function 자동복구: ${r.after?.l3f || 0}건 생성 (${r.repairs?.join(', ') || ''})`);
+        const l3Structs = await prisma.l3Structure.findMany({
+          where: { fmeaId },
+          select: { id: true, name: true, m4: true, l2Id: true, order: true },
+        });
+        if (l3Structs.length > 0) {
+          const now = new Date();
+          const l3FuncData = l3Structs.map((s: { id: string; l2Id: string }) => {
+            const match = s.id.match(/^L3-R(\d+)$/);
+            const l3FuncId = match ? `${s.id}-C5` : `${s.id}-F`;
+            return {
+              id: l3FuncId, fmeaId, l3StructId: s.id, l2StructId: s.l2Id,
+              functionName: '', processChar: '', createdAt: now, updatedAt: now,
+            };
+          });
+          await prisma.l3Function.createMany({ data: l3FuncData, skipDuplicates: true });
+          fixed.push(`L3Function 자동복구: ${l3FuncData.length}건 생성 (직접)`);
         }
-      } catch (e) { console.error('[fixStructure] repair-l3 실패:', e); }
+      } catch (e) { console.error('[fixStructure] L3Function 복구 실패:', e); }
     }
     // 위치기반: RA 보완 + processCharId 리매핑
     const allFLs = await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } });
@@ -171,15 +184,114 @@ export async function fixFk(prisma: any, fmeaId: string): Promise<string[]> {
 
   // 깨진 FL 삭제
   let brokenDeleted = 0;
+  const deletedFlIds: string[] = [];
   for (const lk of links) {
     if (!fcSet.has(lk.fcId) || !fmSet.has(lk.fmId) || !feSet.has(lk.feId)) {
       await prisma.failureLink.delete({ where: { id: lk.id } }).catch((e: unknown) => console.error(`[fixFk] FL 삭제 실패 id=${lk.id}:`, e));
+      deletedFlIds.push(lk.id);
       brokenDeleted++;
     }
   }
   if (brokenDeleted > 0) fixed.push(`깨진 FL 삭제 ${brokenDeleted}건`);
 
-  // ★ 2026-03-20: 미연결 FC→FL 자동생성 / RA 자동생성 제거 — no-fallback 원칙
+  // ★ 2026-03-27: CASCADE Phase 1 — 깨진 FL 삭제 후 orphan RA 정리
+  {
+    const validFlIds = new Set(
+      (await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } }))
+        .map((fl: { id: string }) => fl.id)
+    );
+    const allRAs: Array<{ id: string; linkId: string }> = await prisma.riskAnalysis.findMany({
+      where: { fmeaId },
+      select: { id: true, linkId: true },
+    });
+    const orphanRAs = allRAs.filter(ra => !validFlIds.has(ra.linkId));
+    if (orphanRAs.length > 0) {
+      await prisma.riskAnalysis.deleteMany({
+        where: { id: { in: orphanRAs.map(r => r.id) } },
+      }).catch((e: unknown) => console.error('[fixFk] orphan RA 삭제 실패:', e));
+      fixed.push(`고아 RA 삭제 ${orphanRAs.length}건 (FL 삭제 연쇄)`);
+    }
+
+    // ★ CASCADE Phase 2 — orphan Opt (RA 삭제 연쇄)
+    const validRaIds = new Set(
+      (await prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { id: true } }))
+        .map((ra: { id: string }) => ra.id)
+    );
+    const allOpts: Array<{ id: string; riskId: string }> = await prisma.optimization.findMany({
+      where: { fmeaId },
+      select: { id: true, riskId: true },
+    });
+    const orphanOpts = allOpts.filter(o => !validRaIds.has(o.riskId));
+    if (orphanOpts.length > 0) {
+      await prisma.optimization.deleteMany({
+        where: { id: { in: orphanOpts.map(o => o.id) } },
+      }).catch((e: unknown) => console.error('[fixFk] orphan Opt 삭제 실패:', e));
+      fixed.push(`고아 Opt 삭제 ${orphanOpts.length}건 (RA 삭제 연쇄)`);
+    }
+  }
+
+  // ★ 2026-03-27: Phase 3 — nullable FK 무효 참조 정리
+  {
+    // FM.productCharId → ProcessProductChar (nullable)
+    const ppcIds = new Set(
+      (await prisma.processProductChar.findMany({ where: { fmeaId }, select: { id: true } }).catch(() => []))
+        .map((p: { id: string }) => p.id)
+    );
+    const fmsWithBadPPC = fms.filter((fm: any) => fm.productCharId && !ppcIds.has(fm.productCharId));
+    if (fmsWithBadPPC.length > 0) {
+      for (const fm of fmsWithBadPPC) {
+        await prisma.failureMode.update({
+          where: { id: fm.id },
+          data: { productCharId: null },
+        }).catch((e: unknown) => console.error(`[fixFk] FM.productCharId 정리 실패 id=${fm.id}:`, e));
+      }
+      fixed.push(`FM.productCharId 무효참조 정리 ${fmsWithBadPPC.length}건`);
+    }
+
+    // FE.l1FuncId → L1Function (nullable)
+    const l1FIds = new Set(
+      (await prisma.l1Function.findMany({ where: { fmeaId }, select: { id: true } }).catch(() => []))
+        .map((f: { id: string }) => f.id)
+    );
+    const fesWithBadL1F = fes.filter((fe: any) => fe.l1FuncId && !l1FIds.has(fe.l1FuncId));
+    if (fesWithBadL1F.length > 0) {
+      for (const fe of fesWithBadL1F) {
+        await prisma.failureEffect.update({
+          where: { id: fe.id },
+          data: { l1FuncId: null },
+        }).catch((e: unknown) => console.error(`[fixFk] FE.l1FuncId 정리 실패 id=${fe.id}:`, e));
+      }
+      fixed.push(`FE.l1FuncId 무효참조 정리 ${fesWithBadL1F.length}건`);
+    }
+  }
+
+  // ★ 2026-03-27: Phase 4 — FL without RA → 기본 RA 생성 (SOD 미평가 상태, fixMissing에서 peer-fill)
+  {
+    const currentRAs = await prisma.riskAnalysis.findMany({ where: { fmeaId }, select: { linkId: true } });
+    const raLinkIds = new Set(currentRAs.map((ra: { linkId: string }) => ra.linkId));
+    const currentFLs = await prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true } });
+    const flsWithoutRA = currentFLs.filter((fl: { id: string }) => !raLinkIds.has(fl.id));
+    if (flsWithoutRA.length > 0) {
+      const now = new Date();
+      await prisma.riskAnalysis.createMany({
+        skipDuplicates: true,
+        data: flsWithoutRA.map((fl: { id: string }) => ({
+          id: `${fl.id}-RA`,
+          fmeaId,
+          linkId: fl.id,
+          severity: 1,
+          occurrence: 1,
+          detection: 1,
+          ap: 'L',
+          createdAt: now,
+          updatedAt: now,
+        })),
+      }).catch((e: unknown) => console.error('[fixFk] RA gap-fill 실패:', e));
+      fixed.push(`누락 RA 생성 ${flsWithoutRA.length}건 (FL 1:1 보완)`);
+    }
+  }
+
+  // ★ 2026-03-20: 미연결 FC→FL 자동생성 금지 — no-fallback 원칙 (Rule 1.6)
 
   return fixed;
 }
@@ -440,13 +552,80 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
 
   const [ras, fls, opts] = await Promise.all([
     prisma.riskAnalysis.findMany({ where: { fmeaId } }),
-    prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true } }),
+    prisma.failureLink.findMany({ where: { fmeaId }, select: { id: true, fmId: true, fcId: true, feId: true } }),
     prisma.optimization.findMany({ where: { fmeaId }, select: { id: true, riskId: true } }),
   ]);
 
   const raSet = new Set(ras.map((ra: any) => ra.id));
-  const flById = new Map<string, { fmId: string; fcId: string }>();
-  for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId });
+  const flById = new Map<string, { fmId: string; fcId: string; feId: string }>();
+  for (const fl of fls) flById.set(fl.id, { fmId: fl.fmId, fcId: fl.fcId, feId: fl.feId });
+
+  // ★ 2026-03-27: S(심각도) 자동추정 — FE 텍스트 기반 AIAG-VDA 매칭
+  {
+    const missS = ras.filter((ra: any) => !ra.severity || ra.severity <= 0);
+    if (missS.length > 0) {
+      // FE 테이블 로드 (feId → effect/scope)
+      const fes = await prisma.failureEffect.findMany({
+        where: { fmeaId },
+        select: { id: true, effect: true, scope: true },
+      });
+      const feById = new Map<string, { effect: string; scope: string }>();
+      for (const fe of fes) feById.set(fe.id, { effect: fe.effect || '', scope: fe.scope || '' });
+
+      // L1Function 로드 (scope/category)
+      const l1Funcs = await prisma.l1Function.findMany({
+        where: { fmeaId },
+        select: { id: true, category: true },
+      }).catch(() => []);
+      const l1CatById = new Map<string, string>();
+      for (const l1f of l1Funcs as any[]) l1CatById.set(l1f.id, l1f.category || '');
+
+      let sFilled = 0;
+      for (const ra of missS) {
+        const fl = flById.get(ra.linkId);
+        if (!fl) continue;
+
+        // FL.feId → FE 텍스트 + scope 추출
+        const feData = feById.get(fl.feId);
+        if (!feData || !feData.effect?.trim()) continue;
+
+        // scope 결정: FE.scope 또는 L1Function.category
+        let scope = feData.scope || '';
+        if (!scope) {
+          // FE → l1FuncId로 scope 추적 (가능하면)
+          for (const fe of fes) {
+            if (fe.id === fl.feId && (fe as any).l1FuncId) {
+              scope = l1CatById.get((fe as any).l1FuncId) || '';
+              break;
+            }
+          }
+        }
+
+        // AIAG-VDA 키워드 매칭 (rows=[] → 8단계 YIELD_KEYWORDS 직행)
+        const match = matchAiagVdaSeverityRow([], {
+          failureEffect: feData.effect,
+          scope: scope,
+        });
+        if (match && match.severity > 0) {
+          await prisma.riskAnalysis.update({
+            where: { id: ra.id },
+            data: {
+              severity: match.severity,
+              severityRationale: match.basis || `AIAG-VDA 자동추정: S=${match.severity}`,
+            },
+          }).catch((e: unknown) => console.error(`[fixMissing] S 자동추정 업데이트 실패 id=${ra.id}:`, e));
+          // AP 재계산
+          const newAP = calcAPServer(match.severity, ra.occurrence || 1, ra.detection || 1);
+          if (newAP) {
+            await prisma.riskAnalysis.update({ where: { id: ra.id }, data: { ap: newAP } }).catch(() => {});
+          }
+          sFilled++;
+        }
+      }
+      if (sFilled > 0) fixed.push(`S(심각도) 자동추정 ${sFilled}건 (AIAG-VDA 키워드 매칭)`);
+      if (missS.length - sFilled > 0) fixed.push(`[진단] S 미추정 잔여 ${missS.length - sFilled}건 (FE 텍스트 매칭 실패)`);
+    }
+  }
 
   // Opt → RA FK 고아 삭제
   const orphanOpts = opts.filter((o: any) => !raSet.has(o.riskId));

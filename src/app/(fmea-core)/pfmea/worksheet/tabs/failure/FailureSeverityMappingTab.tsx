@@ -1,8 +1,11 @@
 /**
  * @file FailureSeverityMappingTab.tsx
- * @description AIAG-VDA 심각도 매핑 전용 탭 — 엑셀 Import/Export (프로젝트별 localStorage)
+ * @description AIAG-VDA 심각도 매핑 전용 탭 — Public DB + 엑셀 Import/Export
+ *
+ * ★★★ CODEFREEZE L4 (2026-03-28) ★★★
+ * S추천 Public DB 단일 루트 — localStorage 사용 금지
+ * SSoT: SeverityUsageRecord (Public DB)
  */
-
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -10,8 +13,8 @@ import type { FailureTabProps } from './types';
 import {
   AIAG_VDA_SEVERITY_TEMPLATE_HEADERS,
   AIAG_VDA_YIELD_RECOMMENDATION_ROWS,
-  loadAiagVdaSeverityMapping,
-  saveAiagVdaSeverityMapping,
+  loadSeverityFromDB,
+  saveSeverityBulkToDB,
   rowsFromExcelSheet,
   mapYieldRecommendationsToRows,
   severityBackground,
@@ -20,18 +23,24 @@ import {
 } from '@/lib/fmea/aiag-vda-severity-mapping';
 import { uid } from '../../constants';
 
-export default function FailureSeverityMappingTab({ fmeaId, onClose }: FailureTabProps & { onClose?: () => void }) {
+export default function FailureSeverityMappingTab({ fmeaId }: FailureTabProps) {
   const fid = fmeaId || 'default';
   const [rows, setRows] = useState<AiagVdaSeverityMappingRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // ★ DB에서 로드 (Public DB SSoT — localStorage 사용 금지)
   useEffect(() => {
-    setRows(loadAiagVdaSeverityMapping(fid));
+    setLoading(true);
+    loadSeverityFromDB(500)
+      .then(data => setRows(data))
+      .finally(() => setLoading(false));
   }, [fid]);
 
+  // ★ DB에 저장 (localStorage 대신 DB API)
   const persist = useCallback(
-    (next: AiagVdaSeverityMappingRow[]) => {
+    async (next: AiagVdaSeverityMappingRow[]) => {
       setRows(next);
-      saveAiagVdaSeverityMapping(fid, next);
+      await saveSeverityBulkToDB(next, fid);
     },
     [fid],
   );
@@ -109,18 +118,19 @@ export default function FailureSeverityMappingTab({ fmeaId, onClose }: FailureTa
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleAppendYield = useCallback(() => {
+  const handleAppendYield = useCallback(async () => {
     const add = mapYieldRecommendationsToRows(() => uid());
     if (add.length === 0) return;
     if (
       !confirm(
-        `YIELD 관련 S=6·7 추천 ${add.length}건을 현재 목록 뒤에 추가합니다.\n(중복 FE 문구가 있을 수 있으니 필요 시 정리하세요.)`,
+        `YIELD 관련 S=6·7 추천 ${add.length}건을 DB에 추가합니다.\n(중복 FE 문구가 있을 수 있으니 필요 시 정리하세요.)`,
       )
     ) {
       return;
     }
-    persist([...rows, ...add]);
-    alert(`${add.length}건을 추가했습니다.`);
+    const merged = [...rows, ...add];
+    await persist(merged);
+    alert(`${add.length}건을 DB에 추가했습니다.`);
   }, [persist, rows]);
 
   const handleImport = useCallback(() => {
@@ -146,11 +156,11 @@ export default function FailureSeverityMappingTab({ fmeaId, onClose }: FailureTa
           );
           return;
         }
-        if (!confirm(`기존 ${rows.length}건을 덮어쓰고 ${imported.length}건을 불러옵니다. 계속할까요?`)) {
+        if (!confirm(`기존 ${rows.length}건을 덮어쓰고 ${imported.length}건을 DB에 저장합니다. 계속할까요?`)) {
           return;
         }
-        persist(imported);
-        alert(`${imported.length}건을 불러왔습니다.`);
+        await persist(imported);
+        alert(`${imported.length}건을 DB에 저장했습니다.`);
       } catch (err) {
         console.error('[FailureSeverityMappingTab] import', err);
         alert(`엑셀 읽기 실패: ${err instanceof Error ? err.message : String(err)}`);
@@ -159,9 +169,9 @@ export default function FailureSeverityMappingTab({ fmeaId, onClose }: FailureTa
     input.click();
   }, [persist, rows.length]);
 
-  const handleClear = useCallback(() => {
+  const handleClear = useCallback(async () => {
     if (!confirm('이 FMEA에 저장된 AIAG-VDA 심각도 매핑을 모두 삭제할까요?')) return;
-    persist([]);
+    await persist([]);
   }, [persist]);
 
   return (
@@ -170,11 +180,6 @@ export default function FailureSeverityMappingTab({ fmeaId, onClose }: FailureTa
         <h2 className="text-sm font-bold text-gray-800 mr-2">
           AIAG-VDA 심각도 매핑 <span className="text-[10px] font-normal text-gray-500">(프로젝트: {fid})</span>
         </h2>
-        {onClose && (
-          <button type="button" onClick={onClose} className="px-2 py-1 text-[10px] font-bold rounded bg-gray-500 text-white hover:bg-gray-600" title="S추천 닫기">
-            ✕ 닫기
-          </button>
-        )}
         <button
           type="button"
           className="px-2 py-1 text-[10px] font-bold rounded bg-green-600 text-white hover:bg-green-700"
@@ -225,10 +230,16 @@ export default function FailureSeverityMappingTab({ fmeaId, onClose }: FailureTa
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {loading ? (
               <tr>
                 <td colSpan={6} className="border border-gray-200 p-4 text-center text-gray-500">
-                  데이터 없음 — 템플릿 받기 후 작성하거나 엑셀 Import 하세요.
+                  DB에서 로딩 중...
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="border border-gray-200 p-4 text-center text-gray-500">
+                  데이터 없음 — YIELD 추천 추가 또는 엑셀 Import 하세요. (DB 연동)
                 </td>
               </tr>
             ) : (

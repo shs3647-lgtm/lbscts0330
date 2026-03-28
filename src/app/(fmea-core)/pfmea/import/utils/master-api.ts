@@ -1,4 +1,4 @@
-/* CODEFREEZE – 2026-02-16 FMEA Master Data 독립 DB 아키텍처 */
+/* ★ MBD-26-009: CODEFREEZE 해제 — distinct 엔티티 + FK 매핑 정규화 진행 중 */
 /**
  * @file master-api.ts
  * @description PFMEA Master Dataset 클라이언트 API (독립 DB 아키텍처)
@@ -61,6 +61,17 @@ function ensureStringValue(value: unknown): string {
     return '';
   }
   return String(value);
+}
+
+/** POST /api/pfmea/master 와 동일 — B3+id 는 빈 value 도 전송 (클라이언트에서 잘리면 replace 시 DB 대량 삭제됨) */
+function keepRowForPfmeaMasterSave(d: ImportedFlatData): boolean {
+  const processNo = String(d.processNo ?? '').trim();
+  const itemCode = String(d.itemCode ?? '').trim().toUpperCase();
+  const value = ensureStringValue(d.value).trim();
+  const rowId = String(d.id ?? '').trim();
+  if (!processNo || !itemCode) return false;
+  if (!value && !(itemCode === 'B3' && rowId)) return false;
+  return true;
 }
 
 /**
@@ -143,9 +154,12 @@ export async function saveMasterDataset(params: {
   failureChains?: unknown[];  // ★ FC_고장사슬 시트 확정 데이터
   /** ★ 2026-03-02: 'template' = 수동/자동 모드 (failureChains 강제 무시, DB 오염 방지) */
   mode?: 'import' | 'template';
+  /** true면 서버가 기존 대비 수신이 적어도 전체 삭제 후 교체 (의도적 초기화) */
+  forceFullReplace?: boolean;
   flatData: ImportedFlatData[];
-}): Promise<{ ok: boolean; datasetId?: string }> {
+}): Promise<{ ok: boolean; datasetId?: string; mergePreservedExisting?: boolean }> {
   const validFlatData = params.flatData
+    .filter((d) => keepRowForPfmeaMasterSave(d))
     .map((d) => ({
       id: d.id || undefined,
       processNo: d.processNo,
@@ -164,8 +178,7 @@ export async function saveMasterDataset(params: {
       orderIndex: d.orderIndex ?? undefined,
       mergeGroupId: d.mergeGroupId || undefined,
       rowSpan: d.rowSpan ?? undefined,
-    }))
-    .filter((d) => d.value && d.value.trim() !== '');
+    }));
 
   const res = await fetch('/api/pfmea/master', {
     method: 'POST',
@@ -177,6 +190,7 @@ export async function saveMasterDataset(params: {
       datasetId: params.datasetId ?? undefined,
       name: params.name || 'MASTER',
       replace: params.replace ?? true,
+      forceFullReplace: params.forceFullReplace,
       replaceItemCodes: params.replaceItemCodes,
       relationData: params.relationData,
       failureChains: params.failureChains,  // ★ FC 시트 확정 고장사슬
@@ -190,7 +204,11 @@ export async function saveMasterDataset(params: {
     console.error('[PFMEA] saveMasterDataset 실패:', res.status, json?.error || '(응답 없음)');
     return { ok: false };
   }
-  return { ok: true, datasetId: json?.dataset?.id };
+  return {
+    ok: true,
+    datasetId: json?.dataset?.id,
+    mergePreservedExisting: Boolean(json?.dataset?.mergePreservedExisting),
+  };
 }
 
 /**

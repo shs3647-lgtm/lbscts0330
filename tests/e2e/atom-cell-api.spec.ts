@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
-const FMEA_ID = 'pfm26-m066';
+const FMEA_ID = 'pfm26-m002';
 
 // ─── Helper ────────────────────────────────────────────
 async function patchCell(body: Record<string, unknown>) {

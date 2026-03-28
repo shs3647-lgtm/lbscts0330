@@ -84,7 +84,7 @@ PostgreSQL
 │   ├── LLD (교훈사례 DB)
 │   └── MasterProcess (표준공정 마스터)
 │
-├── pfmea_pfm26_m066 (프로젝트 스키마 #1)
+├── pfmea_pfm26_m002 (프로젝트 스키마 #1)
 │   ├── L1Structure
 │   ├── L2Structure / L2Function
 │   ├── L3Structure / L3Function
@@ -422,7 +422,7 @@ await prisma.$transaction(async (tx) => {
     ▼
 [PATCH /api/fmea/atom-map]
     │   body: {
-    │     fmeaId: "pfm26-m066",
+    │     fmeaId: "pfm26-m002",
     │     atomicId: "PF-L2-001-MN-001-C-001",
     │     table: "FailureCause",
     │     field: "causeText",
@@ -431,7 +431,7 @@ await prisma.$transaction(async (tx) => {
     │
     ▼
 [DB 즉시 반영]
-    │   UPDATE pfmea_pfm26_m066."FailureCause"
+    │   UPDATE pfmea_pfm26_m002."FailureCause"
     │   SET "causeText" = '수정된 고장원인 텍스트',
     │       "updatedAt" = NOW()
     │   WHERE id = 'PF-L2-001-MN-001-C-001'
@@ -480,7 +480,7 @@ function calculateAP(s: number, o: number, d: number): string {
     ▼
 [POST /api/fmea/atom-map]
     │   body: {
-    │     fmeaId: "pfm26-m066",
+    │     fmeaId: "pfm26-m002",
     │     action: "create",
     │     table: "FailureCause",
     │     parentId: "PF-L2-001-MN-001-F",  // L3Function FK
@@ -739,7 +739,7 @@ C:\fmea-stable-dev\src\
 
 ## 14. 부록: 골든베이스라인 데이터 현황
 
-### 2026-03-22 기준 (pfm26-m066)
+### 2026-03-22 기준 (pfm26-m002)
 
 | 항목 | 골든 목표 | 현재 | 상태 |
 |------|-----------|------|------|

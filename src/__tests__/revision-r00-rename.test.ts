@@ -27,7 +27,7 @@ describe('renameFmeaId 유틸리티', () => {
   // TEST 1: 정상 실행 — SQL 호출 순서 검증
   // ═══════════════════════════════════════════════════════
   it('FK 제거 → UPDATE → FK 재생성 순서로 SQL 실행', async () => {
-    await renameFmeaId(tx, 'pfm26-p004-l05', 'pfm26-p004-l05-r00');
+    await renameFmeaId(tx, 'pfm26-t001-l05', 'pfm26-t001-l05-r00');
 
     const calls = tx.$executeRawUnsafe.mock.calls;
 
@@ -41,8 +41,8 @@ describe('renameFmeaId 유틸리티', () => {
 
     // Step 2: fmea_projects UPDATE (메인)
     expect(calls[3][0]).toContain('UPDATE fmea_projects');
-    expect(calls[3][1]).toBe('pfm26-p004-l05-r00'); // newId
-    expect(calls[3][2]).toBe('pfm26-p004-l05'); // oldId
+    expect(calls[3][1]).toBe('pfm26-t001-l05-r00'); // newId
+    expect(calls[3][2]).toBe('pfm26-t001-l05'); // oldId
 
     // Step 3: FK 자식 테이블 UPDATE (3개)
     expect(calls[4][0]).toContain('UPDATE "fmea_registrations"');
@@ -80,7 +80,7 @@ describe('renameFmeaId 유틸리티', () => {
   // TEST 3: 교차 참조 필드 업데이트 확인
   // ═══════════════════════════════════════════════════════
   it('parentFmeaId, pfmeaId, linkedPfmeaNo 교차 참조도 업데이트', async () => {
-    await renameFmeaId(tx, 'pfm26-p004-l05', 'pfm26-p004-l05-r00');
+    await renameFmeaId(tx, 'pfm26-t001-l05', 'pfm26-t001-l05-r00');
 
     const allSql = tx.$executeRawUnsafe.mock.calls.map((c: string[]) => c[0]);
 
@@ -141,37 +141,37 @@ describe('개정 ID 패턴 정합성', () => {
   }
 
   it('원본(접미사 없음)에서 첫 개정 → isFirstRevision=true', () => {
-    const { baseId, hasRevisionSuffix } = parseBaseId('pfm26-p004-l05');
-    expect(baseId).toBe('pfm26-p004-l05');
+    const { baseId, hasRevisionSuffix } = parseBaseId('pfm26-t001-l05');
+    expect(baseId).toBe('pfm26-t001-l05');
     expect(hasRevisionSuffix).toBe(false);
     expect(determineIsFirstRevision(0, hasRevisionSuffix)).toBe(true);
   });
 
   it('-r00에서 다음 개정 → isFirstRevision=false', () => {
-    const { baseId, hasRevisionSuffix } = parseBaseId('pfm26-p004-l05-r00');
-    expect(baseId).toBe('pfm26-p004-l05');
+    const { baseId, hasRevisionSuffix } = parseBaseId('pfm26-t001-l05-r00');
+    expect(baseId).toBe('pfm26-t001-l05');
     expect(hasRevisionSuffix).toBe(true);
     expect(determineIsFirstRevision(0, hasRevisionSuffix)).toBe(false);
   });
 
   it('-r01에서 다음 개정 → isFirstRevision=false', () => {
-    const { baseId, hasRevisionSuffix } = parseBaseId('pfm26-p004-l05-r01');
-    expect(baseId).toBe('pfm26-p004-l05');
+    const { baseId, hasRevisionSuffix } = parseBaseId('pfm26-t001-l05-r01');
+    expect(baseId).toBe('pfm26-t001-l05');
     expect(hasRevisionSuffix).toBe(true);
     expect(determineIsFirstRevision(1, hasRevisionSuffix)).toBe(false);
   });
 
   it('첫 개정: maxRev=0 → nextRev=r01', () => {
-    expect(buildNextRevisionId('pfm26-p004-l05', 0)).toBe('pfm26-p004-l05-r01');
+    expect(buildNextRevisionId('pfm26-t001-l05', 0)).toBe('pfm26-t001-l05-r01');
   });
 
   it('두번째 개정: maxRev=1 → nextRev=r02', () => {
-    expect(buildNextRevisionId('pfm26-p004-l05', 1)).toBe('pfm26-p004-l05-r02');
+    expect(buildNextRevisionId('pfm26-t001-l05', 1)).toBe('pfm26-t001-l05-r02');
   });
 
   it('기존 r00+r01 있을 때: maxRev=1 → nextRev=r02', () => {
     // r00은 원본 리네임, r01은 첫 개정 → 다음은 r02
-    expect(buildNextRevisionId('pfm26-p004-l05', 1)).toBe('pfm26-p004-l05-r02');
+    expect(buildNextRevisionId('pfm26-t001-l05', 1)).toBe('pfm26-t001-l05-r02');
   });
 
   it('DFMEA ID도 동일 패턴', () => {

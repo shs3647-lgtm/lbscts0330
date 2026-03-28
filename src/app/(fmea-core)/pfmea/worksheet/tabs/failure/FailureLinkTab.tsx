@@ -59,7 +59,8 @@ import {
   fullscreenOverlayStyle
 } from './FailureLinkStyles';
 import { FEItem, FMItem, FCItem, LinkResult } from './FailureLinkTypes';
-import { computeFailureLinkStats } from './computeFailureLinkStats';
+import { computeFailureLinkStats, FAILURE_LINK_STATS_VS_PIPELINE_HINT } from './computeFailureLinkStats';
+import { fcCompositeRowKey, fcLooseProcTextKey } from './failureLinkFcKey';
 
 export default function FailureLinkTab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveToLocalStorageOnly, saveAtomicDB }: FailureTabProps) {
   // ========== 상태 관리 ==========
@@ -308,6 +309,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   }, []);
 
   // ========== 연결 통계 계산 ==========
+  // ★7: 파이프라인 STEP3 unlinked*는 DB FL FK만 봄. 여기서는 savedLinks+보강 — 수치 1:1 아님(computeFailureLinkStats.ts 상단 참고)
   // 연결 통계: UUID 일치 + 링크에 실린 feText/fcText·번호·공정으로 유일 보강 (가짜 누락 완화)
   const linkStats = useMemo(
     () => computeFailureLinkStats(savedLinks, feData, fmData, fcData),
@@ -328,16 +330,20 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
     return s;
   }, [savedLinks]);
 
+  // ★v6.3: FC import 기준 누락 판정
+  // FC 시트에 참조된 FM만 검사 대상. FC 시트에 없는 FM은 '미정의'이므로 누락 아님.
   const missingFMs = useMemo(() => {
+    // savedLinks(FC import)에 참조된 fmId 집합
+    const flReferencedFmIds = new Set(savedLinks.map(l => l.fmId).filter(Boolean));
     return fmData.filter(fm => {
+      // ★ FC import에 참조되지 않은 FM은 누락 아님 (미정의)
+      if (!flReferencedFmIds.has(fm.id)) return false;
       // 현재 FM에 미확정 FC가 있으면 누락에서 제외
       if (fm.id === currentFMId && linkedFCs.size > 0) return false;
-      // 1순위: fmId가 savedLinks(DB FL)에 존재 → 연결됨 (DB가 SSoT)
+      // fmId가 savedLinks에 FE+FC 모두 연결 → 누락 아님
       if (linkStats.fmLinkedIds.has(fm.id)) return false;
-      // 2순위: fmLinkCounts UUID 매칭
       const counts = linkStats.fmLinkCounts.get(fm.id);
       if (counts && (counts.fcCount > 0 || counts.feCount > 0)) return false;
-      // 3순위: 텍스트+공정 매칭 (DB FL에는 연결되어 있지만 ID가 다른 경우)
       const key = ((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
       if (linkFmTextSet.has(key)) return false;
       return true;
@@ -349,15 +355,21 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
         missingFC: counts.fcCount === 0 && !linkStats.fmLinkedIds.has(fm.id) && !linkFmTextSet.has(((fm.processName || '') + '|' + (fm.text || '')).trim().replace(/\s+/g, ' ').toLowerCase()),
       };
     });
-  }, [fmData, linkStats, currentFMId, linkedFCs.size, linkFmTextSet]);
+  }, [fmData, linkStats, currentFMId, linkedFCs.size, linkFmTextSet, savedLinks]);
 
   // ========== 누락 FE/FC 목록 계산 ==========
   // ★ 현재 선택 중(미확정) FE/FC도 실시간 제외
   // ★ 2026-03-24: FC/FE 누락도 텍스트 매칭 완화
+  // 링크에 fcId가 없어도 fcText+공정이 있으면 집계 (computeFailureLinkStats와 동일 축)
+  // 공정|원인문구 중복 건은 공정|m4|we|원인 복합키로 구분 (가짜 FC 누락 완화)
   const linkFcTextSet = useMemo(() => {
     const s = new Set<string>();
     savedLinks.forEach(link => {
-      if (link.fcId) s.add(((link.fcProcess || link.fmProcess || '') + '|' + (link.fcText || '')).trim().replace(/\s+/g, ' ').toLowerCase());
+      const t = (link.fcText || '').trim();
+      if (!t) return;
+      const proc = (link.fcProcess || link.fmProcess || '').trim();
+      s.add(fcLooseProcTextKey(proc, t));
+      s.add(fcCompositeRowKey(proc, (link.fcM4 || '').trim(), (link.fcWorkElem || '').trim(), t));
     });
     return s;
   }, [savedLinks]);
@@ -372,22 +384,30 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
   const missingFCs = useMemo(() => {
     return fcData.filter(fc => {
       if (linkStats.fcLinkedIds.has(fc.id) || linkedFCs.has(fc.id)) return false;
-      // 텍스트 매칭 fallback
-      const key = ((fc.processName || '') + '|' + (fc.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
-      if (linkFcTextSet.has(key)) return false;
+      const proc = (fc.processName || '').trim();
+      const text = (fc.text || '').trim();
+      if (linkFcTextSet.has(fcLooseProcTextKey(proc, text))) return false;
+      if (
+        linkFcTextSet.has(
+          fcCompositeRowKey(proc, (fc.m4 || '').trim(), (fc.workElem || '').trim(), text),
+        )
+      )
+        return false;
       return true;
     });
   }, [fcData, linkStats, linkedFCs, linkFcTextSet]);
 
+  // ★v6.3: FC import 기준 — savedLinks에 참조된 FE만 검사
   const missingFEs = useMemo(() => {
+    const flReferencedFeIds = new Set(savedLinks.map(l => l.feId).filter(Boolean));
     return feData.filter(fe => {
+      if (!flReferencedFeIds.has(fe.id)) return false; // FC에 없는 FE는 누락 아님
       if (linkStats.feLinkedIds.has(fe.id) || linkedFEs.has(fe.id)) return false;
-      // 텍스트 매칭 fallback
       const key = ((fe.scope || '') + '|' + (fe.text || '')).trim().replace(/\s+/g, ' ').toLowerCase();
       if (linkFeTextSet.has(key)) return false;
       return true;
     });
-  }, [feData, linkStats, linkedFEs, linkFeTextSet]);
+  }, [feData, linkStats, linkedFEs, linkFeTextSet, savedLinks]);
 
   // ★★★ 전체 누락 수 (FM부분연결 + FE미연결 + FC미연결) — 심각도는 선택사항 ★★★
   const totalMissingCount = missingFMs.length + missingFCs.length + missingFEs.length;
@@ -758,14 +778,17 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
       <div style={rightPanelStyle}>
         {/* ⚠️ 누락 경고 배너 (FM부분연결 + FE/FC 미연결) - 컴팩트 */}
         {totalMissingCount > 0 && !isConfirmed && (
-          <div style={{
+          <div
+            title={FAILURE_LINK_STATS_VS_PIPELINE_HINT}
+            style={{
             background: 'linear-gradient(135deg, #ff9800, #e65100)',
             color: '#fff',
             padding: '4px 8px',
             borderRadius: '4px',
             margin: '4px 8px',
             boxShadow: '0 2px 6px rgba(255, 152, 0, 0.3)',
-          }}>
+          }}
+          >
             <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>⚠️ 누락: {[
                 missingFMs.length > 0 ? `FM ${missingFMs.length}건` : '',

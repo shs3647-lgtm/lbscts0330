@@ -52,8 +52,8 @@ async function main() {
       console.log(`  FL ${fl.id} → fm=${fl.fmId} fc=${fl.fcId} sev=${fl.severity} occ=${fl.occurrence} det=${fl.detection} dc=${hasDC} pc=${hasPC}`);
     }
 
-    // Now check M066 for the same process
-    const schema066 = 'pfmea_pfm26_m066';
+    // Now check M002 for the same process
+    const schema066 = 'pfmea_pfm26_m002';
     try {
       await query(`SET search_path TO "${schema066}", public`);
       const fls066 = await query(`
@@ -61,16 +61,16 @@ async function main() {
                ra.severity, ra.occurrence, ra.detection, ra."preventionControl", ra."detectionControl"
         FROM failure_links fl
         LEFT JOIN risk_analyses ra ON ra."linkId" = fl.id
-        WHERE fl."fmeaId" = 'pfm26-m066' AND fl."fmId" LIKE '%040%'
+        WHERE fl."fmeaId" = 'pfm26-m002' AND fl."fmId" LIKE '%040%'
       `);
-      console.log(`\nM066 FLs for process 040: ${fls066.length}`);
+      console.log(`\nM002 FLs for process 040: ${fls066.length}`);
       for (const fl of fls066) {
         const hasDC = fl.detectionControl?.trim() ? 'Y' : 'N';
         const hasPC = fl.preventionControl?.trim() ? 'Y' : 'N';
         console.log(`  FL ${fl.id} → fm=${fl.fmId} fc=${fl.fcId} sev=${fl.severity} occ=${fl.occurrence} det=${fl.detection} dc=${hasDC} pc=${hasPC}`);
       }
     } catch (e) {
-      console.log('M066 schema check failed:', e.message);
+      console.log('M002 schema check failed:', e.message);
     }
 
     // Check the chain data for this FC
