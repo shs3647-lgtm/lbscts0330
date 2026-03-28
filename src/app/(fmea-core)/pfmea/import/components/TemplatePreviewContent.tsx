@@ -277,10 +277,13 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         ['A4', '제품특성'], ['A5', '★고장형태(FM)'], ['A6', '검출관리'],
         ['B1', '작업요소'], ['B2', '요소기능'], ['B3', '공정특성'],
         ['B4', '★고장원인(FC)'], ['B5', '예방관리'],
+        ['D1', '★고장영향(FE)'], ['D2', '공정명'], ['D3', '★고장형태(FM)'],
+        ['D4', '작업요소'], ['D5', '★고장원인(FC)'],
       ];
-      // 엑셀 시트 순서 정렬 (L1 C→L2 A→L3 B)
+      // 엑셀 시트 순서 정렬 (L1 C→L2 A→L3 B→FC D)
       const SHEET_ORDER: Record<string, number> = {
-        C1:1,C2:2,C3:3,C4:4, A1:5,A2:6,A3:7,A4:8,A5:9,A6:10, B1:11,B2:12,B3:13,B4:14,B5:15
+        C1:1,C2:2,C3:3,C4:4, A1:5,A2:6,A3:7,A4:8,A5:9,A6:10, B1:11,B2:12,B3:13,B4:14,B5:15,
+        D1:16,D2:17,D3:18,D4:19,D5:20
       };
       const existing = new Set(parseStatistics.itemStats.map(s => s.itemCode));
       const filled = [...parseStatistics.itemStats];
@@ -318,6 +321,8 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       ['A4', '제품특성'], ['A5', '★고장형태(FM)'], ['A6', '검출관리'],
       ['B1', '작업요소'], ['B2', '요소기능'], ['B3', '공정특성'],
       ['B4', '★고장원인(FC)'], ['B5', '예방관리'],
+      ['D1', '★고장영향(FE)'], ['D2', '공정명'], ['D3', '★고장형태(FM)'],
+      ['D4', '작업요소'], ['D5', '★고장원인(FC)'],
     ];
     const ITEM_LABELS: Record<string, string> = Object.fromEntries(ALL_CODES);
 
@@ -568,6 +573,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     if (itemCode.startsWith('B')) setPreviewLevel('L3');
     else if (itemCode.startsWith('A')) setPreviewLevel('L2');
     else if (itemCode.startsWith('C')) setPreviewLevel('L1');
+    else if (itemCode.startsWith('D')) setPreviewLevel('L3'); // FC 레벨 → L3 뷰
   }, [highlightDupCode, setPreviewLevel]);
 
   /** 첫 중복행 자동 스크롤 */
@@ -977,7 +983,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
             </tr></thead>
             <tbody>
               {effectiveStatistics.itemStats.map((s, i) => {
-                const level = s.itemCode.startsWith('C') ? 'L1' : s.itemCode.startsWith('A') ? 'L2' : 'L3';
+                const level = s.itemCode.startsWith('C') ? 'L1' : s.itemCode.startsWith('A') ? 'L2' : s.itemCode.startsWith('D') ? 'FC' : 'L3';
                 const isCurrentLevel = level === previewLevel;
                 const isHighlighted = highlightDupCode === s.itemCode;
                 const uuid = uuidCounts[s.itemCode] ?? 0;

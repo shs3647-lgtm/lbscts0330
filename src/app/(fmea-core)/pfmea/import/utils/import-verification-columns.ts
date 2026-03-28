@@ -58,7 +58,7 @@ export interface VerificationData {
 // C3: parent = C2 (L1Function)
 // C4: parent = C3 (L1Requirement)
 
-const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4'] as const;
+const ALL_ITEM_CODES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'B1', 'B2', 'B3', 'B4', 'B5', 'C1', 'C2', 'C3', 'C4', 'D1', 'D2', 'D3', 'D4', 'D5'] as const;
 
 /**
  * 통계「파싱」·UUID·PG/API 기대와 동일 스케일로 flat 행을 센다.
@@ -257,6 +257,12 @@ export function countsVerifyAlignedFromPipelineStats(
   out.B3 = stats.l3Functions ?? 0;
   out.B4 = stats.failureCauses ?? 0;
   out.B5 = b5;
+  // ★ MBD-26-009: FC 레벨 (D1~D5) — FC시트 참조 엔티티 distinct
+  out.D1 = stats.failureEffects ?? 0;     // D1: C4(고장영향) distinct feId
+  out.D2 = stats.l2Structures ?? 0;       // D2: A2(공정명) distinct process
+  out.D3 = stats.failureModes ?? 0;       // D3: A5(고장형태) distinct fmId
+  out.D4 = stats.l3Structures ?? 0;       // D4: B1(작업요소) distinct l3StructId
+  out.D5 = stats.failureCauses ?? 0;       // D5: B4(고장원인) distinct fcId
   return out;
 }
 
@@ -334,6 +340,11 @@ const FK_PARENT_RULES: Record<string, string[] | null> = {
   C2: ['C1'],         // parent should be category
   C3: ['C2'],         // parent should be L1Function
   C4: ['C3', 'C2'],   // ★v5: C4.parentId = C3 (L1Requirement)
+  D1: null,           // FC 레벨: C4(고장영향) — feId ref
+  D2: null,           // FC 레벨: A2(공정명) — fmProcess ref
+  D3: null,           // FC 레벨: A5(고장형태) — fmId ref
+  D4: null,           // FC 레벨: B1(작업요소) — l3StructId ref
+  D5: null,           // FC 레벨: B4(고장원인) — fcId ref
 };
 
 /**
@@ -477,6 +488,12 @@ export function mapApiToVerification(
       'requirement',
     ),
     C4: distinctSize(apiData.failureEffects || [], 'effect'),
+    // ★ MBD-26-009: FC 레벨 (D1~D5) — FailureLink 참조 엔티티 distinct
+    D1: new Set((apiData.failureLinks || []).map((fl: any) => fl.feId).filter(Boolean)).size,
+    D2: new Set((apiData.failureLinks || []).map((fl: any) => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
+    D3: new Set((apiData.failureLinks || []).map((fl: any) => fl.fmId).filter(Boolean)).size,
+    D4: new Set((apiData.failureLinks || []).map((fl: any) => (fl.l3StructId ?? '').trim()).filter(Boolean)).size,
+    D5: new Set((apiData.failureLinks || []).map((fl: any) => fl.fcId).filter(Boolean)).size,
   };
 
   for (const code of ALL_ITEM_CODES) {

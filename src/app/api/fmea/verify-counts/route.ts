@@ -151,22 +151,31 @@ export async function GET(request: NextRequest) {
     });
     const c4 = new Set(c4Rows.map(r => (r.effect ?? '').trim()).filter(Boolean)).size;
 
+    // --- D1: FC시트→C4(고장영향) distinct feId ---
+    const d1Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { feId: true } });
+    const d1 = new Set(d1Rows.map(r => r.feId).filter(Boolean)).size;
+
+    // --- D2: FC시트→A2(공정명) distinct fmProcess ---
+    const d2Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fmProcess: true } });
+    const d2 = new Set(d2Rows.map(r => (r.fmProcess ?? '').trim()).filter(Boolean)).size;
+
+    // --- D3: FC시트→A5(고장형태) distinct fmId ---
+    const d3Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fmId: true } });
+    const d3 = new Set(d3Rows.map(r => r.fmId).filter(Boolean)).size;
+
+    // --- D4: FC시트→B1(작업요소) distinct l3StructId ---
+    const d4Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { l3StructId: true } });
+    const d4 = new Set(d4Rows.map(r => (r.l3StructId ?? '').trim()).filter(Boolean)).size;
+
+    // --- D5: FC시트→B4(고장원인) distinct fcId ---
+    const d5Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fcId: true } });
+    const d5 = new Set(d5Rows.map(r => r.fcId).filter(Boolean)).size;
+
     const counts = {
-      A1: a1,
-      A2: a1,  // A2(공정명)는 A1(공정번호)와 1:1
-      A3: a3,
-      A4: a4,
-      A5: a5,
-      A6: a6,
-      B1: b1,
-      B2: b2,
-      B3: b3,
-      B4: b4,
-      B5: b5,
-      C1: c1,
-      C2: c2,
-      C3: c3,
-      C4: c4,
+      A1: a1, A2: a1, A3: a3, A4: a4, A5: a5, A6: a6,
+      B1: b1, B2: b2, B3: b3, B4: b4, B5: b5,
+      C1: c1, C2: c2, C3: c3, C4: c4,
+      D1: d1, D2: d2, D3: d3, D4: d4, D5: d5,
     };
 
     return NextResponse.json({ success: true, fmeaId, schema: schemaName, counts });
