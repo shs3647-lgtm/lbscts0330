@@ -874,10 +874,10 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
         const allFuncs = proc.functions || [];
         const meaningfulFuncs = filterMeaningfulFunctionsL2(allFuncs);
         const funcsToRender = meaningfulFuncs.length > 0 ? allFuncs : allFuncs.slice(0, 1);
+        // ★ 2026-03-28: 빈 행 포함 전체 표시 — charsToRender=allChars와 동일하게 계산
         const procRowSpan = Math.max(1, funcsToRender.reduce((sum: number, f: any) => {
           const chars = f.productChars || [];
-          const meaningfulChars = filterMeaningfulProductChars(chars, true);
-          return sum + Math.max(1, meaningfulChars.length > 0 ? chars.length : 1);
+          return sum + Math.max(1, chars.length);
         }, 0));
 
         // 기능이 없는 경우
