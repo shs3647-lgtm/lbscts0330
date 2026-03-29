@@ -102,9 +102,7 @@ export default function ProcessSelectModal({
   const [dataSource, setDataSource] = useState<string>('');
   const [sourceFmeaId, setSourceFmeaId] = useState<string | undefined>();
 
-  // ★ 공정명 수정 추적 (processNo → 수정된 이름)
-  const [modifiedProcesses, setModifiedProcesses] = useState<Map<string, string>>(new Map());
-  const [saving, setSaving] = useState(false);
+  // ★ 2026-03-29: modifiedProcesses/saving 삭제 — handleEditSave에서 즉시 PATCH
 
   // ✅ 연속입력 모드 상태
   const [continuousMode, setContinuousMode] = useState(false);
@@ -172,7 +170,6 @@ export default function ProcessSelectModal({
     loadData();
     setSearch('');
     setEditingId(null);
-    setModifiedProcesses(new Map());
     setContinuousMode(false);
     setAddedCount(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,61 +274,40 @@ export default function ProcessSelectModal({
     setEditValue(proc.name);
   };
 
+  // ★ 2026-03-29: 더블클릭 수정 완료 시 즉시 DB PATCH (handleSaveModified 통합)
   const handleEditSave = () => {
-    if (editingId && editValue.trim()) {
-      const proc = processes.find(p => p.id === editingId);
-      if (proc && editValue.trim() !== proc.name) {
-        setProcesses(prev => prev.map(p =>
-          p.id === editingId ? { ...p, name: editValue.trim() } : p
-        ));
-        // 수정 추적 (processNo 기준)
-        setModifiedProcesses(prev => {
-          const next = new Map(prev);
-          next.set(proc.no, editValue.trim());
-          return next;
-        });
-      }
+    if (!editingId) { setEditingId(null); return; }
+    const trimmed = editValue.trim();
+    const proc = processes.find(p => p.id === editingId);
+    if (!proc || !trimmed || trimmed === proc.name) {
+      setEditingId(null);
+      return;
     }
+
+    // 1. 로컬 state 반영
+    setProcesses(prev => prev.map(p =>
+      p.id === editingId ? { ...p, name: trimmed } : p
+    ));
     setEditingId(null);
-  };
 
-  // ★ 수정된 공정명 DB 저장
-  const handleSaveModified = async () => {
-    if (modifiedProcesses.size === 0) return;
-    setSaving(true);
-    try {
-      const updates = Array.from(modifiedProcesses.entries()).map(([processNo, name]) => ({
-        processNo,
-        name,
-      }));
-
-      const res = await fetch('/api/fmea/master-processes', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates, fmeaId }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        // 워크시트에도 반영 (수정된 공정만 onSave로 전달)
-        const modifiedItems = processes.filter(p => modifiedProcesses.has(p.no));
-        if (modifiedItems.length > 0) {
-          if (!atomicDB || !setAtomicDB) {
-            toast.error('구조 DB(Atomic)가 준비되지 않아 워크시트에 공정명을 반영할 수 없습니다.');
-          } else {
-            onSave(modifiedItems);
-          }
+    // 2. 즉시 DB PATCH
+    fetch('/api/fmea/master-processes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates: [{ processNo: proc.no, name: trimmed }], fmeaId }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.success) {
+          console.error('공정명 DB 저장 실패:', data.error);
+          return;
         }
-        setModifiedProcesses(new Map());
-      } else {
-        alert(`저장 실패(Save failed): ${data.error || '알 수 없는 오류(Unknown error)'}`);
-      }
-    } catch (e) {
-      console.error('공정명 DB 저장 오류:', e);
-      alert('저장 중 오류가 발생했습니다.\n(An error occurred while saving.)');
-    } finally {
-      setSaving(false);
-    }
+        // 3. 워크시트에도 반영
+        if (atomicDB && setAtomicDB) {
+          onSave([{ ...proc, name: trimmed }]);
+        }
+      })
+      .catch(e => console.error('공정명 DB 저장 오류:', e));
   };
 
   // ★ 2026-03-29: 정규화 공정번호 기준 매칭 (마스터 ID ≠ 워크시트 ID이므로 no 기준)
@@ -588,16 +564,12 @@ export default function ProcessSelectModal({
                 const isSelected = selectedIds.has(proc.id);
                 const isCurrent = isInWorksheet(proc);
                 const isEditing = editingId === proc.id;
-                const isModified = modifiedProcesses.has(proc.no);
-
                 return (
                   <div
                     key={proc.id}
                     onClick={() => toggleSelect(proc.id)}
                     onDoubleClick={() => handleDoubleClick(proc)}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer transition-all ${isModified
-                      ? 'bg-orange-50 border-orange-400 ring-1 ring-orange-300'
-                      : isSelected
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded border cursor-pointer transition-all ${isSelected
                         ? isCurrent
                           ? 'bg-green-50 border-green-400'
                           : 'bg-blue-50 border-blue-400'
