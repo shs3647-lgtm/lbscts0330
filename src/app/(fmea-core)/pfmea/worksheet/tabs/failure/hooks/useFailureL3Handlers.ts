@@ -255,17 +255,8 @@ export function useFailureL3Handlers({
     
     setDirty(true);
     setModal(null);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FailureL3Tab] DB 저장 오류:', e);
-        }
-      }
-    }, 100);
-  }, [modal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, setModal]);
+    emitSave();
+  }, [modal, setState, setStateSynced, setDirty, setModal]);
 
   // 삭제 핸들러
   const handleDelete = useCallback((deletedValues: string[]) => {

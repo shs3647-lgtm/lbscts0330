@@ -11,6 +11,7 @@ import { validateAutoMapping, groupMatchedByRoom } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
 import { bulkRecordSeverity } from '@/hooks/useSeverityRecommend';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
+import { emitSave } from '../../../hooks/useSaveEvent';
 
 interface UseFailureL1HandlersProps {
   state: any;
@@ -210,13 +211,8 @@ export function useFailureL1Handlers({
     }
     
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try { await saveAtomicDB(true); } catch (e) { console.error('[FailureL1Tab] DB 저장 오류:', e); }
-      }
-    }, 200);
-  }, [modal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+  }, [modal, setState, setStateSynced, setDirty]);
 
   // 삭제 핸들러 - DataSelectModal에서 체크된 항목 삭제
   const handleDelete = useCallback((deletedValues: string[]) => {

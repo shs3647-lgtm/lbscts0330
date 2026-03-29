@@ -661,20 +661,8 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     }
 
     setDirty(true);
-    // ✅ 2026-01-16: 저장 후 모달 유지 (닫기 버튼으로만 닫음)
-
-    // ✅ 저장 보장 (stateRef 업데이트 대기 후 저장) + DB 저장 추가
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FailureL2Tab] DB 저장 오류:', e);
-        }
-      }
-    }, 200);
-  }, [modal, state.failureL2Confirmed, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+  }, [modal, state.failureL2Confirmed, setState, setStateSynced, setDirty]);
 
   // ✅ 2026-01-19: handleDelete 수정 - setStateSynced + saveAtomicDB 추가 (DB 저장 보장)
   const handleDelete = useCallback((deletedValues: string[]) => {
