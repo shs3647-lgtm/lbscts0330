@@ -596,6 +596,8 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
         if (modeId && filteredValues.length <= 1) {
           if (filteredValues.length === 0) {
             // 선택 해제 시 해당 고장형태 삭제
+            // ★★★ 수동1원칙: 플레이스홀더 보호 — 절대 삭제하지 않는다 (삭제하면 배열 깨짐) ★★★
+            // 1순위: 빈 슬롯에 모달 데이터를 채운다. 2순위: 남은 빈 슬롯에 "미입력" 문자열을 채운다.
             // ★ 방어: failureModes 배열이 완전히 비는 것 방지
             return { ...proc, failureModes: ensurePlaceholder(
               currentModes.filter((m: any) => m.id !== modeId),
@@ -710,19 +712,8 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
     }
 
     setDirty(true);
-
-    // ✅ 저장 보장: localStorage + DB 저장
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FailureL2Tab] 삭제 후 DB 저장 오류:', e);
-        }
-      }
-    }, 200);
-  }, [modal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+  }, [modal, setState, setStateSynced, setDirty]);
 
   // ★★★ 2026-02-16: 특별특성 선택 핸들러 (FunctionL2Tab 패턴 재사용) ★★★
   const handleSpecialCharSelect = useCallback((symbol: string) => {

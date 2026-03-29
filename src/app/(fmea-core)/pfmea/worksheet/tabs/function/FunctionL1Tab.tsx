@@ -22,7 +22,7 @@ import { GenericItemSelectModal } from '../../GenericItemSelectModal';
 import type { GenericItem } from '../../useGenericItemSelect';
 import { AutoMappingPreviewModal } from '../../autoMapping';
 import { COLORS, uid, WorksheetState } from '../../constants';
-import { ensurePlaceholder } from '../../utils/safeMutate';
+import { ensurePlaceholder, PLACEHOLDER_TEXT } from '../../utils/safeMutate';
 import { mergeRowsByMasterSelection } from '../../utils/mergeRowsByMasterSelection';
 import { emitSave } from '../../hooks/useSaveEvent';
 import { handleEnterBlur } from '../../utils/keyboard';
@@ -635,7 +635,53 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
           onClose={() => setModal(null)}
           onSwitchToManualMode={switchToManualMode}
           switchToManualToastMessage="1L 기능분석이 수동(Manual) 모드로 전환되었습니다. 항목명을 입력한 뒤 저장하세요."
-          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
+          onSave={(items: GenericItem[]) => {
+            /**
+             * ★★★ 수동1원칙: 플레이스홀더 보호 — 절대 삭제하지 않는다 ★★★
+             * 삭제하면 배열(rowSpan) 깨진다.
+             * 1순위: 빈 슬롯에 모달 데이터를 채운다.
+             * 2순위: 남은 빈 슬롯에 "미입력" 문자열을 채워 배열을 유지한다.
+             */
+            const selectedNames = new Set(items.map(i => i.name.trim()).filter(Boolean));
+            const updateFn = (prev: any) => {
+              const newState = JSON.parse(JSON.stringify(prev));
+              if (!newState.l1) newState.l1 = { name: '', types: [] };
+              const currentTypes = newState.l1.types || [];
+
+              // ★ 삭제: 선택에서 빠진 기존 항목 제거
+              const removed = currentTypes.filter((t: any) => t.name?.trim() && !selectedNames.has(t.name.trim()));
+              if (removed.length > 0 && !window.confirm(`${removed.map((t: any) => t.name).join(', ')} 을(를) 삭제하시겠습니까?`)) {
+                return prev;
+              }
+              const kept = currentTypes.filter((t: any) => !t.name?.trim() || selectedNames.has(t.name.trim()));
+
+              // ★ 수동1원칙: 1순위 — 빈 슬롯에 새 데이터 채워넣기
+              const existingNames = new Set(kept.filter((t: any) => t.name?.trim()).map((t: any) => t.name.trim()));
+              const newNames = items.map(i => i.name.trim()).filter(n => n && !existingNames.has(n));
+              let newIdx = 0;
+              for (let ki = 0; ki < kept.length && newIdx < newNames.length; ki++) {
+                if (!kept[ki].name?.trim()) {
+                  kept[ki] = { ...kept[ki], name: newNames[newIdx++] };
+                }
+              }
+              // 남은 새 항목은 추가
+              while (newIdx < newNames.length) {
+                kept.push({ id: uid(), name: newNames[newIdx++], functions: [{ id: uid(), name: '', requirements: [] }] });
+              }
+
+              // ★ 수동1원칙: ensurePlaceholder 방어
+              if (kept.length === 0) {
+                kept.push({ id: uid(), name: PLACEHOLDER_TEXT, functions: [{ id: uid(), name: PLACEHOLDER_TEXT, requirements: [] }] });
+              }
+
+              newState.l1.types = kept;
+              newState.l1Confirmed = false;
+              return newState;
+            };
+            if (setStateSynced) setStateSynced(updateFn); else setState(updateFn);
+            setDirty(true);
+            emitSave();
+          }}
           itemCode="C1"
           fmeaId={fmeaId}
           existingItems={(() => {

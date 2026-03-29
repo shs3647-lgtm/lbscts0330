@@ -87,6 +87,21 @@ async function loadItemsFromMaster(
   }
 }
 
+/** ★★★ 2026-03-30: parentItemCode 자동 결정 (BUG-N1 수정) ★★★ */
+const PARENT_ITEM_CODE: Record<string, string> = {
+  C2: 'C1',   // 기능 → 구분
+  C3: 'C2',   // 요구사항 → 기능
+  A3: 'A2',   // 공정기능 → 공정명
+  A4: 'A3',   // 제품특성 → 공정기능
+  A5: 'A4',   // 고장형태 → 제품특성
+  B2: 'B1',   // 작업요소기능 → 작업요소
+  B3: 'B2',   // 공정특성 → 작업요소기능
+  B4: 'B3',   // 고장원인 → 공정특성
+  FC1: 'B3',  // 고장원인(alt) → 공정특성
+  FE2: 'C3',  // 고장영향 → 요구사항
+  C4: 'C3',   // 고장영향(alt) → 요구사항
+};
+
 export function useGenericItemSelect({
   isOpen,
   onClose,
@@ -236,6 +251,7 @@ export function useGenericItemSelect({
     [inputValue, exactMatch, filteredElements, elements, worksheetItemIds, itemCode, processNo, category, onSave]
   );
 
+
   // ★ 2026-03-29: 수동입력 바용 — 새 항목 추가 (handleKeyDown의 신규 항목 로직과 동일)
   const addNewItem = useCallback((name: string): boolean => {
     const trimmed = name.trim();
@@ -260,13 +276,35 @@ export function useGenericItemSelect({
     ];
     onSave(allApplied);
 
-    fetch('/api/fmea/master-items', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemCode, processNo, category, name: trimmed, fmeaId }),
-    })
-      .then(res => res.json())
-      .then(data => {
+    // ★★★ 비동기: parent 조회 후 POST (fire-and-forget) ★★★
+    (async () => {
+      let parentId = '';
+      const parentCode = PARENT_ITEM_CODE[itemCode];
+      if (parentCode) {
+        try {
+          const params = new URLSearchParams();
+          params.set('itemCode', parentCode);
+          if (fmeaId) params.set('fmeaId', fmeaId);
+          if (processNo?.trim()) params.set('processNo', processNo.trim());
+          if (category?.trim()) params.set('category', category.trim());
+          const pRes = await fetch(`/api/fmea/master-items?${params.toString()}`);
+          const pData = await pRes.json();
+          if (pData.success && pData.items?.length > 0) {
+            // 첫 번째 parent 항목의 ID 사용
+            parentId = pData.items[0].id;
+          }
+        } catch {
+          // parent 조회 실패해도 POST는 진행
+        }
+      }
+
+      try {
+        const res = await fetch('/api/fmea/master-items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemCode, processNo, category, name: trimmed, fmeaId, parentId }),
+        });
+        const data = await res.json();
         if (data.id && data.id !== newId) {
           // DB에서 받은 실제 ID로 교체
           setElements(prev => prev.map(e => e.id === newId ? { ...e, id: data.id } : e));
@@ -277,8 +315,10 @@ export function useGenericItemSelect({
             return next;
           });
         }
-      })
-      .catch((err) => console.error(`[useGenericItemSelect] POST ${itemCode}:`, err));
+      } catch (err) {
+        console.error(`[useGenericItemSelect] POST ${itemCode}:`, err);
+      }
+    })();
 
     return true;
   }, [elements, worksheetItemIds, itemCode, processNo, category, fmeaId, onSave]);

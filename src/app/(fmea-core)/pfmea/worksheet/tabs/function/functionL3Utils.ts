@@ -32,6 +32,7 @@ const L3_TEMPLATE_FULL_NO_ICON = /^(작업요소기능|공정특성)\s*선택\s*
 const isPlaceholderL3 = (name: string | undefined | null): boolean => {
   if (!name || !name.trim()) return true;
   const trimmed = name.trim();
+  if (trimmed === '미입력') return true; // ★ 수동1원칙: PLACEHOLDER_TEXT
   if (L3_TEMPLATE_FULL.test(trimmed) || L3_TEMPLATE_FULL_NO_ICON.test(trimmed)) return true;
   if (/[,，]/.test(trimmed)) {
     const parts = trimmed.split(/[,，]/).map(p => p.trim()).filter(Boolean);

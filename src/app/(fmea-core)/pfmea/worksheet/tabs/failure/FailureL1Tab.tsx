@@ -681,13 +681,8 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       setState(updateFn);
     }
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try { await saveAtomicDB(true); } catch (e) { console.error('[FailureL1Tab] 삭제 후 DB 저장 오류:', e); }
-      }
-    }, 200);
-  }, [setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+  }, [setState, setStateSynced, setDirty]);
 
   // 현재 모달의 currentValues (해당 요구사항의 모든 고장영향)
   const getCurrentValues = useCallback(() => {
@@ -1134,7 +1129,90 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
           onClose={() => setModal(null)}
           onSwitchToManualMode={switchToManualMode}
           switchToManualToastMessage="1L 고장분석이 수동(Manual) 모드로 전환되었습니다."
-          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
+          onSave={(items: GenericItem[]) => {
+            if (!modal || !modal.reqId) return;
+            const selectedNames = new Set(items.map(i => i.name.trim()).filter(Boolean));
+            const updateFn = (prev: any) => {
+              const newState = JSON.parse(JSON.stringify(prev));
+              if (!newState.l1.failureScopes) newState.l1.failureScopes = [];
+              const reqId = modal.reqId;
+              const currentReqName = modal.parentReqName;
+
+              // 동일 요구사항명의 모든 reqId 수집
+              const allReqs: { reqId: string }[] = [];
+              (newState.l1.types || []).forEach((t: any) => {
+                (t.functions || []).forEach((f: any) => {
+                  (f.requirements || []).forEach((r: any) => {
+                    if (r.name === currentReqName) allReqs.push({ reqId: r.id });
+                  });
+                });
+              });
+              const sameNameReqIds = new Set(allReqs.map(r => r.reqId));
+              if (sameNameReqIds.size === 0 && reqId) sameNameReqIds.add(reqId);
+
+              // ★ 삭제된 FE의 failureLinks orphan 방지
+              const deletedFeIds = new Set<string>();
+              newState.l1.failureScopes.forEach((s: any) => {
+                if (sameNameReqIds.has(s.reqId) && s.effect?.trim() && !selectedNames.has(s.effect.trim()) && s.id) {
+                  deletedFeIds.add(s.id);
+                }
+              });
+
+              /**
+               * ★★★ 수동1원칙: 플레이스홀더 보호 — 절대 삭제하지 않는다 ★★★
+               * 삭제하면 배열(rowSpan) 깨진다.
+               * 1순위: 빈 슬롯에 모달 데이터를 채운다.
+               * 2순위: 남은 빈 슬롯에 "미입력" 문자열을 채워 배열을 유지한다.
+               */
+              // 삭제: 선택에서 빠진 기존 FE 제거
+              const kept = newState.l1.failureScopes.filter((s: any) => {
+                if (!sameNameReqIds.has(s.reqId)) return true; // 다른 요구사항은 유지
+                if (!s.effect?.trim()) return true; // 빈 항목 유지 (수동1원칙)
+                return selectedNames.has(s.effect.trim());
+              });
+
+              // ★ 수동1원칙: 1순위 — 빈 슬롯에 새 데이터 채워넣기
+              const existingEffects = new Set(
+                kept.filter((s: any) => sameNameReqIds.has(s.reqId) && s.effect?.trim()).map((s: any) => s.effect.trim())
+              );
+              const newEffects = items.map(i => i.name.trim()).filter(n => n && !existingEffects.has(n));
+              let newIdx = 0;
+              for (let ki = 0; ki < kept.length && newIdx < newEffects.length; ki++) {
+                if (sameNameReqIds.has(kept[ki].reqId) && !kept[ki].effect?.trim()) {
+                  kept[ki] = { ...kept[ki], effect: newEffects[newIdx++] };
+                }
+              }
+              // 남은 새 항목은 추가
+              while (newIdx < newEffects.length) {
+                sameNameReqIds.forEach(rid => {
+                  if (newIdx < newEffects.length) {
+                    kept.push({ id: uid(), reqId: rid, effect: newEffects[newIdx++], severity: undefined });
+                  }
+                });
+              }
+
+              // ★ 수동1원칙: ensurePlaceholder 방어
+              const hasScopes = kept.some((s: any) => sameNameReqIds.has(s.reqId));
+              if (!hasScopes) {
+                kept.push({ id: uid(), reqId: reqId, effect: '', severity: undefined });
+              }
+
+              newState.l1.failureScopes = kept;
+              newState.failureL1Confirmed = false;
+
+              // orphan FL 제거
+              if (deletedFeIds.size > 0) {
+                newState.failureLinks = (newState.failureLinks || []).filter(
+                  (link: any) => !(link.feId && deletedFeIds.has(link.feId))
+                );
+              }
+
+              return newState;
+            };
+            if (setStateSynced) setStateSynced(updateFn); else setState(updateFn);
+            setDirty(true);
+            emitSave();
+          }}
           itemCode={modal.itemCode}
           category={modal.parentCategory}
           fmeaId={fmeaId}

@@ -2,14 +2,20 @@
  * @file safeMutate.ts
  * @description 배열 조작 안전 유틸리티 (2026-03-07)
  *
- * 비유: 안전벨트가 있는 공구. 일반 splice()는 맨손 작업이지만,
- * safeSplice()는 인덱스 범위를 자동으로 보정하여 잘못된 위치 삽입을 방지한다.
- *
- * 해결하는 문제:
- * 1. splice(-1, 0, item) → 마지막에서 2번째에 삽입되는 버그 방지
- * 2. splice(999, 0, item) → 범위 초과 시 끝에 삽입
- * 3. 상태 변경 후 구조 검증
+ * ★★★ 수동1원칙: 플레이스홀더 보호 ★★★
+ * 빈 슬롯은 절대 삭제하지 않는다. 배열(rowSpan) 깨진다.
+ * 모든 placeholder는 PLACEHOLDER_TEXT("미입력")로 통일한다.
  */
+
+/**
+ * ★ 수동1원칙 — 플레이스홀더 통일 상수
+ * 모든 빈 슬롯은 이 값으로 채운다. DB 저장 시 이 값은 빈 문자열로 변환/스킵한다.
+ */
+export const PLACEHOLDER_TEXT = '미입력';
+
+/** 값이 placeholder인지 판정 */
+export const isPlaceholderValue = (val: string | undefined | null): boolean =>
+  !val || !val.trim() || val.trim() === PLACEHOLDER_TEXT;
 
 /**
  * 안전한 배열 splice. 인덱스가 범위를 벗어나면 자동 보정한다.
@@ -84,7 +90,12 @@ export function ensurePlaceholder<T>(
     if (label) {
       console.error(`[ensurePlaceholder] ${label} 빈 배열 → placeholder 생성`);
     }
-    return [placeholderFactory()];
+    const item = placeholderFactory();
+    // ★ 수동1원칙: name 필드가 빈 문자열이면 PLACEHOLDER_TEXT로 자동 변환
+    if (item && typeof item === 'object' && 'name' in item && !(item as any).name) {
+      (item as any).name = PLACEHOLDER_TEXT;
+    }
+    return [item];
   }
   return arr;
 }

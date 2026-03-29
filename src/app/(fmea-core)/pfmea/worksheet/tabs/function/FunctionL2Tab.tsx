@@ -680,7 +680,89 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
           onClose={() => setModal(null)}
           onSwitchToManualMode={switchToManualMode}
           switchToManualToastMessage="2L 기능분석이 수동(Manual) 모드로 전환되었습니다."
-          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
+          onSave={(items: GenericItem[]) => {
+            // ★★★ 2026-03-30 FIX: A3 모달과 동일 패턴 — 선택에서 빠진 항목 명시적 제거
+            const proc = (state.l2 || []).find((p: any) => p.id === modal.procId);
+            if (!proc) { setModal(null); return; }
+            const func = (proc.functions || []).find((f: any) => f.id === modal.funcId);
+            if (!func) { setModal(null); return; }
+            
+            const selectedNames = new Set(items.map(i => i.name.trim()).filter(Boolean));
+            const currentChars: any[] = func.productChars || [];
+            
+            // 삭제 대상: 이름이 있고 선택에서 빠진 항목
+            const charsToRemove = currentChars.filter((c: any) => {
+              const nm = (c.name || '').trim();
+              return nm && !selectedNames.has(nm);
+            });
+            
+            // 삭제 대상에 하위 데이터(FM 등)가 연결되어 있을 수 있으므로 확인
+            if (charsToRemove.length > 0) {
+              const removeNames = charsToRemove.map((c: any) => c.name).join(', ');
+              if (!window.confirm(`⚠️ 적용에서 제외한 제품특성:\n\n${removeNames}\n\n워크시트에서 제거합니다. 계속할까요?`)) return;
+            }
+            
+            const updateFn = (prev: WorksheetState) => {
+              const newState = JSON.parse(JSON.stringify(prev));
+              const pIdx = newState.l2.findIndex((p: any) => p.id === modal.procId);
+              if (pIdx < 0) return prev;
+              const p = newState.l2[pIdx];
+              const fIdx = (p.functions || []).findIndex((f: any) => f.id === modal.funcId);
+              if (fIdx < 0) return prev;
+              
+              const existingChars: any[] = p.functions[fIdx].productChars || [];
+              const kept = new Set<string>();  // 유지할 char ID
+              const existingNameSet = new Set<string>();
+              
+              // 1) 선택된 이름과 매칭되는 기존 항목 유지
+              for (const c of existingChars) {
+                const nm = (c.name || '').trim();
+                if (nm && selectedNames.has(nm) && !existingNameSet.has(nm)) {
+                  kept.add(c.id);
+                  existingNameSet.add(nm);
+                }
+              }
+              
+              // 2) 빈 행 유지 (이름 없는 char)
+              for (const c of existingChars) {
+                if (!(c.name || '').trim()) kept.add(c.id);
+              }
+              
+              // 3) 신규 항목 = 선택됐지만 기존에 없는 것
+              const newNames = [...selectedNames].filter(n => !existingNameSet.has(n));
+              
+              // 4) 결과 조합: 유지 항목 + 빈 행에 신규 채움 + 추가 행
+              const filteredChars = existingChars.filter((c: any) => kept.has(c.id));
+              const emptyRows = filteredChars.filter((c: any) => !(c.name || '').trim());
+              
+              let ei = 0;
+              const result = filteredChars.map((c: any) => {
+                if (!(c.name || '').trim() && ei < newNames.length) {
+                  return { ...c, name: newNames[ei++] };
+                }
+                return c;
+              });
+              
+              // 빈 행보다 신규가 많으면 추가
+              for (; ei < newNames.length; ei++) {
+                result.push({ id: uid(), name: newNames[ei], specialChar: '' });
+              }
+              
+              p.functions[fIdx].productChars = ensurePlaceholder(
+                result,
+                () => ({ id: uid(), name: '', specialChar: '' }),
+                'L2 productChars'
+              );
+              
+              newState.l2Confirmed = false;
+              return newState;
+            };
+            
+            if (setStateSynced) setStateSynced(updateFn);
+            else setState(updateFn);
+            setDirty(true);
+            emitSave();
+          }}
           itemCode={modal.itemCode}
           processNo={(state.l2 || []).find(p => p.id === modal.procId)?.no}
           fmeaId={fmeaId}

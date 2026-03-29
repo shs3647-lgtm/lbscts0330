@@ -412,14 +412,17 @@ export function useWorksheetSave({
         }
       } else {
         // Atomic에 L2가 없음(ref 기준) → 수동 구조 선저장 (신규·미적재와 동일 분기)
+        // ★★★ 2026-03-30: Phase 1 — 기능/고장 데이터도 Atomic으로 변환
         const manualL2 = (stateRef.current.l2 || []).filter((p: any) => p.name?.trim() || p.no?.trim());
         if (manualL2.length > 0) {
           const l1Name =
             (currentFmea as any)?.fmeaInfo?.partName ||
             (currentFmea as any)?.fmeaInfo?.subject ||
             (stateRef.current.l1 as any)?.name || '';
-          const posData = buildManualPositionData(fmeaId, l1Name, manualL2);
+          // ★ l1Data 전달: L1 기능(C2/C3) + 고장영향(C4/FE) Atomic 변환 포함
+          const posData = buildManualPositionData(fmeaId, l1Name, manualL2, stateRef.current.l1 as any);
           if (posData) {
+            console.log(`[useWorksheetSave] 수동 모드 Atomic 변환: L1F=${posData.l1Functions.length} L2F=${posData.l2Functions.length} L3F=${posData.l3Functions.length} FE=${posData.failureEffects.length} FM=${posData.failureModes.length} FC=${posData.failureCauses.length}`);
             const res = await fetch('/api/fmea/save-position-import', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -428,6 +431,12 @@ export function useWorksheetSave({
             if (res.ok) {
               setDirty(false);
               setLastSaved(new Date().toLocaleTimeString('ko-KR'));
+              // ★★★ rebuild-atomic 호출: FK 정합성 수복 (FL/RA 자동 생성)
+              try {
+                await fetch(`/api/fmea/rebuild-atomic?fmeaId=${encodeURIComponent(fmeaId)}`, { method: 'POST' });
+              } catch (e) {
+                console.warn('[useWorksheetSave] rebuild-atomic 호출 실패 (무시):', e);
+              }
             }
           }
         }

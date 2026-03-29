@@ -24,7 +24,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { uid, WorksheetState } from '../../constants';
-import { ensurePlaceholder } from '../../utils/safeMutate';
+import { ensurePlaceholder, PLACEHOLDER_TEXT } from '../../utils/safeMutate';
 import { FunctionTabProps } from './types';
 import { cellP0 } from '@/styles/worksheet';
 import { handleEnterBlur } from '../../utils/keyboard';
@@ -375,7 +375,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
           if (wIdx >= 0) {
             // ★ 마지막 기능: 빈 기능으로 초기화 (행 유지)
             if (newState.l2[pIdx].l3[wIdx].functions.length <= 1) {
-              newState.l2[pIdx].l3[wIdx].functions = [{ id: uid(), name: '', processChars: [{ id: uid(), name: '', specialChar: '' }] }];
+              newState.l2[pIdx].l3[wIdx].functions = [{ id: uid(), name: PLACEHOLDER_TEXT, processChars: [{ id: uid(), name: PLACEHOLDER_TEXT, specialChar: '' }] }];
             } else {
               newState.l2[pIdx].l3[wIdx].functions = newState.l2[pIdx].l3[wIdx].functions.filter((f: any) => f.id !== funcId);
             }
@@ -393,10 +393,11 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     
     if (rowType === 'processChar') {
       const funcIdx = we.functions?.findIndex((f: any) => f.id === funcId) ?? -1;
-      if (funcIdx < 0) return;
+      if (funcIdx < 0) { console.warn('[L3 삭제] funcIdx < 0, funcId=', funcId); return; }
 
       const func = we.functions[funcIdx];
       const charIdx = func.processChars?.findIndex((c: any) => c.id === charId) ?? -1;
+      console.log(`[L3 삭제 진입] charId=${charId} charIdx=${charIdx} chars=`, func.processChars?.map((c: any) => ({ id: c.id, name: c.name })));
       // ★ charId 빈값 (플레이스홀더 셀) → 기능 행 삭제로 폴백
       if (charIdx < 0) {
         const funcName = func?.name?.trim() || '';
@@ -408,7 +409,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
             const wIdx = newState.l2[pIdx].l3.findIndex((w: any) => w.id === l3Id);
             if (wIdx >= 0) {
               if (newState.l2[pIdx].l3[wIdx].functions.length <= 1) {
-                newState.l2[pIdx].l3[wIdx].functions = [{ id: uid(), name: '', processChars: [{ id: uid(), name: '', specialChar: '' }] }];
+                newState.l2[pIdx].l3[wIdx].functions = [{ id: uid(), name: PLACEHOLDER_TEXT, processChars: [{ id: uid(), name: PLACEHOLDER_TEXT, specialChar: '' }] }];
               } else {
                 newState.l2[pIdx].l3[wIdx].functions = newState.l2[pIdx].l3[wIdx].functions.filter((f: any) => f.id !== funcId);
               }
@@ -425,58 +426,41 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
       }
       
       const charName = func.processChars[charIdx]?.name?.trim() || '';
-      
-      if (!charName) {
-        const updateFn = (prev: WorksheetState) => {
-          const newState = JSON.parse(JSON.stringify(prev));
-          const pIdx = newState.l2.findIndex((p: any) => p.id === procId);
-          if (pIdx >= 0) {
-            const wIdx = newState.l2[pIdx].l3.findIndex((w: any) => w.id === l3Id);
-            if (wIdx >= 0) {
-              const fIdx = newState.l2[pIdx].l3[wIdx].functions.findIndex((f: any) => f.id === funcId);
-              if (fIdx >= 0) {
-                // ★ 방어: processChars 배열이 완전히 비는 것 방지
-                newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars = ensurePlaceholder(
-                  newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars.filter((c: any) => c.id !== charId),
-                  () => ({ id: uid(), name: '', specialChar: '' }), 'L3 processChars'
-                );
-              }
-            }
-          }
-          newState.l3Confirmed = false;
-          return newState;
-        };
-        if (setStateSynced) setStateSynced(updateFn);
-        else setState(updateFn);
-        setDirty(true);
-        emitSave();
-      } else {
-        if (!window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
-        const deleteCharId = charId; // ★ closure 안전: confirm 시점의 charId 캡처
-        const updateFn = (prev: WorksheetState) => {
-          const newState = JSON.parse(JSON.stringify(prev));
-          const pIdx = newState.l2.findIndex((p: any) => p.id === procId);
-          if (pIdx < 0) return prev;
-          const wIdx = newState.l2[pIdx].l3.findIndex((w: any) => w.id === l3Id);
-          if (wIdx < 0) return prev;
-          const fIdx = newState.l2[pIdx].l3[wIdx].functions.findIndex((f: any) => f.id === funcId);
-          if (fIdx < 0) return prev;
+      const totalChars = func.processChars.length;
 
-          const before = newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars.length;
-          const filtered = newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars.filter((c: any) => c.id !== deleteCharId);
-          console.log(`[L3 공정특성 삭제] charId=${deleteCharId} before=${before} after=${filtered.length}`);
-          // 다른 공정특성이 남아있으면 placeholder 불필요
-          newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars = filtered.length > 0
-            ? filtered
-            : [{ id: uid(), name: '', specialChar: '' }];
-          newState.l3Confirmed = false;
-          return newState;
-        };
-        if (setStateSynced) setStateSynced(updateFn);
-        else setState(updateFn);
-        setDirty(true);
-        emitSave();
+      // ★ 수동1원칙: 유일한 빈 공정특성은 구조 placeholder → 삭제 불가
+      if (!charName && totalChars <= 1) {
+        console.log('[L3 삭제] 유일한 빈 공정특성 → 삭제 불가 (수동1원칙)');
+        return;
       }
+
+      // 이름이 있는 경우는 확인 필요
+      if (charName && !window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
+
+      const deleteCharId = charId;
+      const updateFn = (prev: WorksheetState) => {
+        const newState = JSON.parse(JSON.stringify(prev));
+        const pIdx = newState.l2.findIndex((p: any) => p.id === procId);
+        if (pIdx < 0) return prev;
+        const wIdx = newState.l2[pIdx].l3.findIndex((w: any) => w.id === l3Id);
+        if (wIdx < 0) return prev;
+        const fIdx = newState.l2[pIdx].l3[wIdx].functions.findIndex((f: any) => f.id === funcId);
+        if (fIdx < 0) return prev;
+
+        const chars = newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars;
+        const filtered = chars.filter((c: any) => c.id !== deleteCharId);
+        console.log(`[L3 공정특성 삭제] charId=${deleteCharId} before=${chars.length} after=${filtered.length}`);
+        // ★ 수동1원칙: 마지막 항목 삭제 시 빈 placeholder로 교체
+        newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars = filtered.length > 0
+          ? filtered
+          : [{ id: uid(), name: PLACEHOLDER_TEXT, specialChar: '' }];
+        newState.l3Confirmed = false;
+        return newState;
+      };
+      if (setStateSynced) setStateSynced(updateFn);
+      else setState(updateFn);
+      setDirty(true);
+      emitSave();
     }
   }, [menuExtra, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
@@ -634,7 +618,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
                 }
                 // ★ 2순위: 남은 빈 슬롯은 "미입력" 문자열로 보호
                 // (빈 슬롯을 삭제하면 rowSpan 깨짐)
-                if (kept.length === 0) kept.push({ id: uid(), name: '', processChars: [{ id: uid(), name: '', specialChar: '' }] });
+                if (kept.length === 0) kept.push({ id: uid(), name: PLACEHOLDER_TEXT, processChars: [{ id: uid(), name: PLACEHOLDER_TEXT, specialChar: '' }] });
                 we.functions = kept;
               } else if (modal.type === 'l3ProcessChar') {
                 // B3 공정특성
@@ -657,7 +641,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
                 while (newIdx < newNames.length) {
                   kept.push({ id: uid(), name: newNames[newIdx++], specialChar: '' });
                 }
-                if (kept.length === 0) kept.push({ id: uid(), name: '', specialChar: '' });
+                if (kept.length === 0) kept.push({ id: uid(), name: PLACEHOLDER_TEXT, specialChar: '' });
                 we.functions[funcIdx].processChars = kept;
               }
               newState.l3Confirmed = false;

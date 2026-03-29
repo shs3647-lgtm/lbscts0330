@@ -158,11 +158,8 @@ const SelectableCell = React.memo(function SelectableCell({
       }}
       title="클릭: 모달 선택 | 더블클릭: 직접 편집"
     >
-      {value ? (
-        isMissing ? <span style={{ wordBreak: 'break-word' }}>🔍 {value}</span> : <span style={{ wordBreak: 'break-word' }}>{value}</span>
-      ) : placeholder ? (
-        <span style={{ wordBreak: 'break-word' }}>⚠ 누락 — {placeholder}</span>
-      ) : null}
+      {/* ★★★ 수동1원칙: 데이터 자체가 "미입력" → 그대로 표시 ★★★ */}
+      <span style={{ wordBreak: 'break-word' }}>{value || '미입력'}</span>
     </div>
   );
 });

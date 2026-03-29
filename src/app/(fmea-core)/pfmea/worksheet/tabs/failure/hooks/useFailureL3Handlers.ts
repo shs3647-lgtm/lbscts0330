@@ -156,6 +156,8 @@ export function useFailureL3Handlers({
 
           if (causeId && selectedValues.length <= 1) {
             if (selectedValues.length === 0) {
+              // ★★★ 수동1원칙: 플레이스홀더 보호 — 절대 삭제하지 않는다 (삭제하면 배열 깨짐) ★★★
+              // 1순위: 빈 슬롯에 모달 데이터를 채운다. 2순위: 남은 빈 슬롯에 "미입력" 문자열을 채운다.
               // ★ 방어: failureCauses 배열이 완전히 비는 것 방지
               const filtered = currentCauses.filter((c: any) => c.id !== causeId);
               return { ...proc, failureCauses: ensurePlaceholder(filtered, () => ({ id: uid(), name: '', processCharId: targetCharId }), 'L3 failureCauses') };
@@ -322,17 +324,8 @@ export function useFailureL3Handlers({
     }
     
     setDirty(true);
-    setTimeout(async () => {
-      saveToLocalStorage?.();
-      if (saveAtomicDB) {
-        try {
-          await saveAtomicDB(true);
-        } catch (e) {
-          console.error('[FailureL3Tab] 삭제 후 DB 저장 오류:', e);
-        }
-      }
-    }, 200);
-  }, [modal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
+    emitSave();
+  }, [modal, setState, setStateSynced, setDirty]);
 
   // 인라인 편집 핸들러 (B4 고장원인) + 마스터 동기화
   const handleInlineEdit = useCallback((processId: string, processCharId: string, causeId: string, newValue: string) => {
