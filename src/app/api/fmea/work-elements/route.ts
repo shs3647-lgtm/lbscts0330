@@ -78,11 +78,16 @@ export async function GET(req: NextRequest) {
         // 모달에는 해당 공정 + 공통공정 기초정보 항상 표시
         // 워크시트 저장은 사용자가 선택한 것만 (모달 로직에서 처리)
         if (processNo && !isCommonProcess(processNo)) {
-            // 해당 공정 + 공통공정(0, 00) 함께 조회
+            // ★ 2026-03-29: 정규화 전/후 변형 모두 매칭 ("010"→"10", "10"→"010")
+            const raw = processNo.trim();
+            const stripped = raw.replace(/^0+/, '') || '0'; // "010"→"10", "10"→"10"
+            const padded = stripped.replace(/^(\d+)/, (_, n) => n.padStart(3, '0')); // "10"→"010"
+            const variants = [...new Set([raw, stripped, padded])];
+            // 해당 공정(변형 포함) + 공통공정(0, 00) 함께 조회
             whereClause = {
                 datasetId: activeDataset.id,
                 itemCode: 'B1',
-                processNo: { in: [processNo, ...COMMON_PROCESS_VALUES] }
+                processNo: { in: [...variants, ...COMMON_PROCESS_VALUES] }
             };
         } else if (isCommonProcess(processNo)) {
             // 공통공정만 조회

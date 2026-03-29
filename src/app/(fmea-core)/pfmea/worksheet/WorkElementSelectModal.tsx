@@ -109,7 +109,7 @@ export default function WorkElementSelectModal({
         <div className={`${MODAL_COMPACT.parentInfo.padding} border-b bg-gradient-to-r from-green-50 to-emerald-50`}>
           <div className="flex items-center gap-1.5">
             <select value={filterM4} onChange={(e) => { const v = e.target.value; setFilterM4(v); if (v !== 'all') setSelectedM4(v); }} className="px-1 py-1 text-[10px] border rounded cursor-pointer shrink-0">
-              <option value="all">전체</option>
+              <option value="all">수동입력</option>
               {M4_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
             </select>
             <select value={selectedM4} onChange={(e) => setSelectedM4(e.target.value)} className="px-1 py-1 text-[10px] border rounded font-bold" style={getM4Style(selectedM4)}>
