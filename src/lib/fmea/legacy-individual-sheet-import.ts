@@ -62,6 +62,18 @@ function rowPno(row: Row, col: number): string {
   return strVal(row.getCell(col).value);
 }
 
+/** Count non-empty header columns in row 1 to auto-detect column layout */
+function countHeaderCols(ws: Worksheet): number {
+  const hdr = ws.getRow(1);
+  let count = 0;
+  for (let c = 1; c <= 10; c++) {
+    const v = hdr.getCell(c).value;
+    if (v !== null && v !== undefined && String(v).trim()) count++;
+    else break;
+  }
+  return count;
+}
+
 type RowAdd = Omit<ImportedFlatData, 'id' | 'createdAt'>;
 
 export function parseLegacyIndividualSheetsToFlat(wb: Workbook): ImportedFlatData[] {
@@ -140,12 +152,20 @@ export function parseLegacyIndividualSheetsToFlat(wb: Workbook): ImportedFlatDat
 
   const wsB2 = findLegacySheet(wb, 'L3-2(B2) 요소기능');
   if (wsB2) {
+    // Auto-detect: 3-col (pno,m4,val) vs 4-col (pno,m4,belongsTo,val)
+    const b2ColCount = countHeaderCols(wsB2);
     wsB2.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
       const pno = rowPno(row, 1);
       const m4 = rowPno(row, 2);
-      const bel = rowPno(row, 3);
-      const val = rowPno(row, 4);
+      let bel = '';
+      let val = '';
+      if (b2ColCount >= 4) {
+        bel = rowPno(row, 3);
+        val = rowPno(row, 4);
+      } else {
+        val = rowPno(row, 3);
+      }
       if (!pno || !val) return;
       add({
         category: 'B',
@@ -160,13 +180,23 @@ export function parseLegacyIndividualSheetsToFlat(wb: Workbook): ImportedFlatDat
 
   const wsB3 = findLegacySheet(wb, 'L3-3(B3) 공정특성');
   if (wsB3) {
+    // Auto-detect: 4-col (pno,m4,val,sp) vs 5-col (pno,m4,belongsTo,val,sp)
+    const b3ColCount = countHeaderCols(wsB3);
     wsB3.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
       const pno = rowPno(row, 1);
       const m4 = rowPno(row, 2);
-      const bel = rowPno(row, 3);
-      const val = rowPno(row, 4);
-      const sp = rowPno(row, 5);
+      let bel = '';
+      let val = '';
+      let sp = '';
+      if (b3ColCount >= 5) {
+        bel = rowPno(row, 3);
+        val = rowPno(row, 4);
+        sp = rowPno(row, 5);
+      } else {
+        val = rowPno(row, 3);
+        sp = rowPno(row, 4);
+      }
       if (!pno || !val) return;
       add({
         category: 'B',
@@ -196,12 +226,20 @@ export function parseLegacyIndividualSheetsToFlat(wb: Workbook): ImportedFlatDat
 
   const wsB5 = findLegacySheet(wb, 'L3-5(B5) 예방관리');
   if (wsB5) {
+    // Auto-detect: 3-col (pno,m4,val) vs 4-col (pno,m4,belongsTo,val)
+    const b5ColCount = countHeaderCols(wsB5);
     wsB5.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
       const pno = rowPno(row, 1);
       const m4 = rowPno(row, 2);
-      const bel = rowPno(row, 3);
-      const val = rowPno(row, 4);
+      let bel = '';
+      let val = '';
+      if (b5ColCount >= 4) {
+        bel = rowPno(row, 3);
+        val = rowPno(row, 4);
+      } else {
+        val = rowPno(row, 3);
+      }
       if (!pno || !val) return;
       add({
         category: 'B',

@@ -325,47 +325,9 @@ export function useWorkElementSelect({
       return;
     }
 
-    // 3. 새 항목 추가 → DB 저장 → 워크시트 저장
-    const { m4: inputM4, name: cleanName } = extractM4FromValue(trimmed);
-    if (!cleanName) return;
-    
-    // ★★★ 2026-03-27: 이미 목록에 같은 이름 있으면 생성 차단 ★★★
-    const duplicateInList = elements.find(e => 
-      e.name.replace(/^\d+\s+/, '').toLowerCase() === cleanName.toLowerCase()
-    );
-    if (duplicateInList) {
-      alert(`"${cleanName}"은(는) 이미 목록에 존재합니다.`);
-      setInputValue('');
-      return;
-    }
-    
-    const finalM4 = inputM4 || selectedM4;
-    const displayName = currentProcessNo ? `${currentProcessNo} ${cleanName}` : cleanName;
-
+    // ★ 2026-03-29: 검색란은 검색/선택 전용 — 새 항목 추가는 "+수동입력" 란 사용 안내
+    window.alert(`"${trimmed}"은(는) 목록에 없습니다.\n\n위 "+수동입력" 란에서 새 항목을 추가해주세요.`);
     setInputValue('');
-    setFilterM4('all');
-
-    // DB에 저장 후 ID 받아서 사용
-    console.log('[작업요소 추가] fmeaId:', fmeaId, 'processNo:', currentProcessNo, 'name:', cleanName);
-    fetch('/api/fmea/work-elements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fmeaId, processNo: currentProcessNo, name: cleanName, m4: finalM4 }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('[작업요소 추가] API 응답:', data);
-        const dbId = data.id || `new_${Date.now()}`;
-        const newElem: WorkElement = { id: dbId, m4: finalM4, name: displayName, processNo: currentProcessNo };
-        
-        setElements(prev => [newElem, ...prev]);
-        setWorksheetItemIds(prev => new Set([...prev, dbId]));
-        
-        // 워크시트에 저장
-        const allApplied = [...elements.filter(e => worksheetItemIds.has(e.id)), newElem];
-        onSave(allApplied);
-      })
-      .catch(e => console.error('[작업요소] DB 저장 오류:', e));
   };
 
   // ★★★ 2026-03-27: 삭제 = 워크시트에서만 제거, 선택창 목록에는 남음 (미적용으로 이동) ★★★
@@ -400,8 +362,8 @@ export function useWorkElementSelect({
     // 워크시트 저장 (남은 적용됨 항목만)
     const remaining = elements.filter(e => newWorksheetIds.has(e.id));
     onSave(remaining);
-    onClose();
-  }, [elements, selectedIds, worksheetItemIds, onSave, onClose]);
+    // ★ 2026-03-29: onClose() 제거 — 삭제 후 모달 유지, 항목은 미적용으로 이동
+  }, [elements, selectedIds, worksheetItemIds, onSave]);
 
   // ★★★ 2026-03-27: 목록에서 완전 삭제 (미적용 항목 X 버튼) — 마스터 DB에서도 삭제 ★★★
   const handleRemoveFromList = useCallback((id: string) => {
@@ -432,13 +394,48 @@ export function useWorkElementSelect({
     }).catch(e => console.error('[작업요소] DB 삭제 오류:', e));
   }, [elements, worksheetItemIds]);
 
+  // ★ 2026-03-29: +수동입력 바용 — 새 항목 추가 (마스터 DB + 워크시트 동시 저장)
+  const addNewItem = useCallback((name: string, m4Override?: string): boolean => {
+    const { m4: inputM4, name: cleanName } = extractM4FromValue(name.trim());
+    if (!cleanName) return false;
+
+    const duplicate = elements.find(e =>
+      e.name.replace(/^\d+\s+/, '').toLowerCase() === cleanName.toLowerCase()
+    );
+    if (duplicate) {
+      window.alert(`"${cleanName}"은(는) 이미 목록에 존재합니다.`);
+      return false;
+    }
+
+    const finalM4 = inputM4 || m4Override || selectedM4;
+    const displayName = currentProcessNo ? `${currentProcessNo} ${cleanName}` : cleanName;
+
+    fetch('/api/fmea/work-elements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fmeaId, processNo: currentProcessNo, name: cleanName, m4: finalM4 }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const dbId = data.id || `new_${Date.now()}`;
+        const newElem: WorkElement = { id: dbId, m4: finalM4, name: displayName, processNo: currentProcessNo };
+        setElements(prev => [newElem, ...prev]);
+        setWorksheetItemIds(prev => new Set([...prev, dbId]));
+        const allApplied = [...elements.filter(e => worksheetItemIds.has(e.id)), newElem];
+        onSave(allApplied);
+      })
+      .catch(e => console.error('[작업요소] DB 저장 오류:', e));
+
+    return true;
+  }, [elements, worksheetItemIds, fmeaId, currentProcessNo, selectedM4, onSave]);
+
   // 힌트 메시지
   const getHintMessage = () => {
-    if (!inputValue.trim()) return '검색 또는 새 항목 입력 후 Enter';
+    if (!inputValue.trim()) return '검색어 입력 후 Enter로 선택';
     if (exactMatch) return `Enter → "${exactMatch.name}" 선택`;
     if (filteredElements.length === 1) return `Enter → "${filteredElements[0].name}" 선택`;
     if (filteredElements.length > 1) return `${filteredElements.length}개 검색됨 - 클릭하여 선택`;
-    return `Enter → "${inputValue}" 새로 추가`;
+    return `"${inputValue}" → +수동입력 란에서 추가`;
   };
 
   // 4M 빈값 일괄 MC 분류
@@ -507,5 +504,6 @@ export function useWorkElementSelect({
     selectAll, deselectAll,
     handleApply, handleKeyDown, handleDelete, handleRemoveFromList,
     getHintMessage, setEmptyM4ToMC, setEditingId,
+    addNewItem,
   };
 }

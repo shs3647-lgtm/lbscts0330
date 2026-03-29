@@ -1,7 +1,7 @@
 /**
  * @file TemplateGeneratorPanel.tsx
  * @description 템플릿 생성기 인라인 패널 (항상 화면에 표시)
- * 3탭: ① 기존 데이터 다운로드 / ② 수동 템플릿 / ③ 자동
+ * 기존데이타 단일 모드(Import·미리보기·저장) — 수동/자동 탭 제거(2026-03-29)
  * + 전체 데이터 미리보기 (실시간 자동 갱신)
  * + 인라인 편집 / 저장 / 구조분석 배지
  * @created 2026-02-18
@@ -22,7 +22,7 @@ import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import { dedupeFailureChainsWeakL3 } from '../utils/dedupeFailureChainsWeakL3';
 import { useImportSteps } from '../hooks/useImportSteps';
-import { TabBtn, DataStatusBar, PFMEA_BASIC_INFO_SHEET_COUNT } from './TemplateSharedUI';
+import { DataStatusBar, PFMEA_BASIC_INFO_SHEET_COUNT } from './TemplateSharedUI';
 import { TemplatePreviewContent } from './TemplatePreviewContent';
 // ManualTemplateInline, AutoTemplateInline 삭제 (사용자 요청 — 샘플 Import로 대체)
 
@@ -73,6 +73,8 @@ interface Props {
   // ★ 전처리 DB 저장 후 콜백 (기존데이터 탭 전환 + 데이터 리로드)
   // ★ 외부에서 펼치기 제어 (BD 사용 클릭 시, 값이 바뀔 때마다 펼침)
   expandTrigger?: number;
+  /** true: 최초부터 펼침 (등록 화면 엑셀 Import 구역) */
+  defaultOpen?: boolean;
 }
 
 // ─── 메인 컴포넌트 ───
@@ -93,11 +95,12 @@ export function TemplateGeneratorPanel(props: Props) {
     failureChains: externalChains,
     parseStatistics,
     positionParserStats,
+    defaultOpen,
   } = props;
 
   const displayBdId = bdFmeaId ? fmeaIdToBdId(bdFmeaId) : null;
 
-  const [collapsed, setCollapsed] = useState(true);  // ★ 디폴트 접힘 (데이터는 워크시트 STEP 0에서 검증)
+  const [collapsed, setCollapsed] = useState(!defaultOpen);  // defaultOpen 시 펼침
 
   // BD 사용 클릭 시 자동 펼치기
   React.useEffect(() => {
@@ -154,7 +157,7 @@ export function TemplateGeneratorPanel(props: Props) {
     }
     if (generatedData.length === 0) return [];
     return dedupeFailureChainsWeakL3(buildFailureChainsFromFlat(generatedData, crossTab));
-  }, [externalChains, templateMode, generatedData, crossTab]);
+  }, [externalChains, generatedData, crossTab]);
 
   // ★ 누락 통계 — 모든 컬럼 검사 (2026-03-25: 여러건 누락이 1건으로 표시되던 버그 수정)
   const missingStats = useMemo(() => {
@@ -228,8 +231,12 @@ export function TemplateGeneratorPanel(props: Props) {
     templateMode,
   });
 
-  // ★ 편집 가능 여부
-  const editDisabled = templateMode === 'download' && flatData.length === 0;
+  // ★ 편집 가능 여부 (기존데이타 단일 모드)
+  const editDisabled = flatData.length === 0;
+
+  useEffect(() => {
+    setTemplateMode('download');
+  }, [setTemplateMode]);
 
   // ── 행 선택/삭제 핸들러 ──
   const toggleRow = useCallback((idx: number) => {
@@ -376,38 +383,18 @@ export function TemplateGeneratorPanel(props: Props) {
             <div style={{ lineHeight: 1.8 }}>
               <p style={{ fontWeight: 700, marginBottom: 6, color: '#0c4a6e' }}>기초정보 템플릿이란?</p>
               <p>PFMEA 구조분석 워크시트에 사용되는 기초정보(공정명, 기능, 고장모드 등)를 관리하는 패널입니다.</p>
-              <p style={{ fontWeight: 700, marginTop: 10, marginBottom: 6, color: '#0c4a6e' }}>3가지 탭</p>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                    <td style={{ padding: '3px 6px', fontWeight: 700, color: '#2563eb' }}>기존 데이터</td>
-                    <td style={{ padding: '3px 6px' }}>DB 기초정보 미리보기/편집 <span style={{ color: '#6b7280', fontSize: 10 }}>(L3: 4M+작업요소)</span></td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                    <td style={{ padding: '3px 6px', fontWeight: 700, color: '#2563eb' }}>수동 템플릿</td>
-                    <td style={{ padding: '3px 6px' }}>샘플Down → 엑셀 편집 → Import</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                    <td style={{ padding: '3px 6px', fontWeight: 700, color: '#2563eb' }}>자동</td>
-                    <td style={{ padding: '3px 6px' }}>기존 BD에서 작업요소 자동 추출 → 생성</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 6 }}>* 샘플Down으로 업종별 예시 템플릿을 다운로드할 수 있습니다</p>
+              <p style={{ fontWeight: 700, marginTop: 10, marginBottom: 6, color: '#0c4a6e' }}>사용 방법</p>
+              <p style={{ fontSize: 11 }}>샘플Down 또는 Import로 엑셀(통합 5시트 또는 개별 15탭)을 넣고, 미리보기에서 편집·저장합니다.</p>
+              <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 6 }}>* PFMEA 등록 화면 중앙 「엑셀 Import 기초정보 생성」에서도 동일하게 사용할 수 있습니다</p>
             </div>
           </HelpIcon>
         </div>
       </div>
 
-      {/* 3탭 */}
-      {!collapsed && <div className="flex items-center border-b border-blue-100 bg-blue-50/40">
-        <div className="flex flex-1">
-          <TabBtn active={templateMode === 'download'} label="기존데이타" onClick={() => { setTemplateMode('download'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
-          <TabBtn active={templateMode === 'manual'} label="수동" onClick={() => { setTemplateMode('manual'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
-          <TabBtn active={templateMode === 'auto'} label="자동" onClick={() => { setTemplateMode('auto'); setTemplateGenerated(false); setIsEditing(false); setSelectedRows(new Set()); }} />
-        </div>
-        {/* ★ 2026-02-27: 샘플/빈 양식 다운로드 — 탭 바 우측 배치 */}
-        <div className="flex items-center gap-1 pr-2">
+      {/* 기존데이타 단일 — 수동/자동 탭 제거 */}
+      {!collapsed && <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50/40 px-2 py-1">
+        <span className="text-[10px] font-bold text-blue-800 px-1">기존데이타</span>
+        <div className="flex items-center gap-1">
           {onDownloadSample && (
             <button onClick={onDownloadSample}
               className="px-2 py-0.5 rounded text-[10px] font-bold border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 cursor-pointer">
@@ -422,7 +409,7 @@ export function TemplateGeneratorPanel(props: Props) {
           {/* ── 상단: 설정/컨트롤 (전체화면에서는 숨김) ── */}
           {!isFullscreen && <div className="w-full flex flex-col">
         {/* ─── 데이터 현황 ─── */}
-        <DataStatusBar flatData={flatData} showApplied={templateMode !== 'download' && flatData.length > 0} bdFmeaId={bdFmeaId} bdFmeaName={bdFmeaName} />
+        <DataStatusBar flatData={flatData} showApplied={false} bdFmeaId={bdFmeaId} bdFmeaName={bdFmeaName} />
 
         {/* ─── BD 현황 (Part/Master/Family) ─── */}
         {bdStatusList && bdStatusList.length > 0 && (
@@ -486,28 +473,9 @@ export function TemplateGeneratorPanel(props: Props) {
         )}
 
         {/* ★ 기존 데이터 탭 전용: 빈 데이터 안내 */}
-        {templateMode === 'download' && flatData.length === 0 && (
+        {flatData.length === 0 && (
           <div className="text-center py-3 text-[11px] text-gray-400">
-            데이터 없음 — 엑셀 Import 또는 템플릿으로 생성
-          </div>
-        )}
-
-        {/* 수동 탭: 샘플 다운로드 → 작성 → Import 안내 */}
-        {templateMode === 'manual' && flatData.length === 0 && (
-          <div className="text-center py-3 text-[11px] text-gray-400">
-            샘플 다운로드 → 엑셀 작성 → Import
-          </div>
-        )}
-        {/* 자동 탭: E2E·사용자 식별용 제목 + 작업요소 안내 */}
-        {templateMode === 'auto' && flatData.length === 0 && (
-          <div
-            className="text-center py-3 text-[11px] text-gray-600 space-y-1"
-            data-testid="import-auto-template-hint"
-          >
-            <div className="font-bold text-gray-800">
-              자동 템플릿 <span className="font-normal text-gray-500">—</span> 작업요소
-            </div>
-            <div className="text-gray-400">BD에서 작업요소 추출 후 생성 · 샘플Down → Import</div>
+            데이터 없음 — 샘플Down 또는 엑셀 Import
           </div>
         )}
 

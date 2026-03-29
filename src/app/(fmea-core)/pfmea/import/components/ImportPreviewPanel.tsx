@@ -143,14 +143,14 @@ export function ImportPreviewPanel(props: Props) {
   // ★★★ IM 원자재 오류 모달 ★★★
   const [showImErrorModal, setShowImErrorModal] = useState(false);
 
-  // ★★★ 2026-02-16: 비즈니스 키 헬퍼 - B1~B4 전체 m4 포함 ★★★
+  // ★★★ 2026-02-16: 비즈니스 키 헬퍼 - B1~B5 전체 m4 포함 ★★★
   const getBK = (d: ImportedFlatData) => {
-    if (['B1', 'B2', 'B3', 'B4'].includes(d.itemCode) && d.m4) return `${d.processNo}|${d.itemCode}|${d.m4}|${d.value}`;
+    if (['B1', 'B2', 'B3', 'B4', 'B5'].includes(d.itemCode) && d.m4) return `${d.processNo}|${d.itemCode}|${d.m4}|${d.value}`;
     return `${d.processNo}|${d.itemCode}|${d.value}`;
   };
 
-  // ★★★ 2026-02-16: B1~B4 전체 4M 컬럼 표시 ★★★
-  const showM4Column = ['B1', 'B2', 'B3', 'B4'].includes(previewColumn);
+  // ★★★ 2026-02-16: B1~B5 전체 4M 컬럼 표시 ★★★
+  const showM4Column = ['B1', 'B2', 'B3', 'B4', 'B5'].includes(previewColumn);
   // ★★★ 2026-02-22: A4/B3 특별특성 컬럼 표시 ★★★
   const showSpecialCharColumn = ['A4', 'B3'].includes(previewColumn);
 

@@ -406,10 +406,8 @@ export default function DataSelectModal({
       onDelete(deletedValues);
       console.log('[DataSelectModal] 선택 삭제:', deletedValues);
     }
-    // ✅ 2026-03-27: 삭제 후 0.5초 뒤에 자동 닫기
-    setTimeout(() => {
-      onClose();
-    }, 500);
+    // ★ 2026-03-29: 삭제 후 모달 유지 (항목은 미적용으로 이동)
+    setSelectedIds(new Set());
   };
 
   const handleAddSave = () => {
@@ -586,37 +584,20 @@ export default function DataSelectModal({
                 e.preventDefault();
                 e.stopPropagation();
                 if (!search.trim()) return;
-                // 검색값이 목록에 없으면 추가
                 const trimmed = search.trim();
-                const exists = items.some(i => i.value === trimmed);
-                if (!exists) {
-                  // 새 항목 추가 (맨 위에)
-                  const newItem: DataItem = { id: `new_${Date.now()}`, value: trimmed, category: '추가' };
-                  setItems(prev => [newItem, ...prev]); // 맨 위에 추가
-                  setSelectedIds(prev => new Set([...prev, newItem.id]));
-                  // 필터를 초기화하여 추가된 항목이 보이게
-                  setCategoryFilter('All');
-                  // ★ localStorage 제거 — DB Only
-                  // ✅ 2026-01-16: 엔터 시 워크시트에 즉시 반영 (모달 유지)
-                  const allSelectedValues = [...currentValues.filter(v => v !== trimmed), trimmed];
-                  onSave(allSelectedValues);
-                  console.log('[검색입력] 워크시트 반영:', allSelectedValues);
+                const found = items.find(i => i.value.toLowerCase() === trimmed.toLowerCase());
+                if (found) {
+                  // 기존 항목 선택
+                  setSelectedIds(prev => new Set([...prev, found.id]));
                   setSearch('');
                 } else {
-                  // 이미 있으면 선택 후 워크시트에 반영
-                  const found = items.find(i => i.value === trimmed);
-                  if (found) {
-                    setSelectedIds(prev => new Set([...prev, found.id]));
-                    // ✅ 2026-01-16: 엔터 시 워크시트에 즉시 반영 (모달 유지)
-                    const allSelectedValues = [...currentValues.filter(v => v !== trimmed), trimmed];
-                    onSave(allSelectedValues);
-                    console.log('[검색선택] 워크시트 반영:', allSelectedValues);
-                  }
+                  // ★ 2026-03-29: 검색란은 검색/선택 전용 — 새 항목 추가는 +수동입력 란 안내
+                  window.alert(`"${trimmed}"은(는) 목록에 없습니다.\n\n"+수동입력" 란에서 새 항목을 추가해주세요.`);
                   setSearch('');
                 }
               }
             }}
-            placeholder={`🔍 ${itemInfo.label} 검색 또는 새 항목 입력...`}
+            placeholder={`🔍 ${itemInfo.label} 검색...`}
             className="w-full px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
             autoFocus
           />
@@ -629,7 +610,7 @@ export default function DataSelectModal({
           <>
             <div className="px-3 py-1 border-b bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
               <span className="text-[11px] font-bold text-blue-700">▼ 하위항목: {itemInfo.label}</span>
-              <span className="text-[9px] text-blue-400 ml-2">검색창에서 입력 후 Enter로 추가</span>
+              <span className="text-[9px] text-blue-400 ml-2">"+수동입력" 란에서 새 항목 추가</span>
             </div>
           </>
         )}

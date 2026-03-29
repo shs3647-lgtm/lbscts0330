@@ -205,7 +205,7 @@ export function GenericItemSelectModal(props: GenericItemSelectModalProps) {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={config.searchPlaceholder}
+            placeholder={config.searchPlaceholder.replace(/또는 새 항목 입력/g, '').replace('  ', ' ')}
             className={`w-full px-2 py-0.5 ${MODAL_COMPACT.searchBar.fontSize} border rounded focus:ring-1 ${config.searchRingColor} outline-none`}
             autoFocus
           />
@@ -364,15 +364,15 @@ export function GenericItemSelectModal(props: GenericItemSelectModalProps) {
                     </div>
                   )}
 
-                {/* 새 항목 추가 힌트 */}
+                {/* 검색 결과 없음 → +수동입력 안내 */}
                 {inputValue.trim() && filteredElements.length === 0 && (
-                  <div className="mt-2 col-span-2 flex items-center gap-2 px-2 py-2 rounded border-2 border-dashed border-amber-400 bg-amber-50">
-                    <span className="text-amber-600 font-bold">+</span>
-                    <span className="text-[10px] text-amber-800 font-medium">
-                      &quot;{inputValue}&quot; 새로 추가
+                  <div className="mt-2 col-span-2 flex items-center gap-2 px-2 py-2 rounded border-2 border-dashed border-gray-300 bg-gray-50">
+                    <span className="text-gray-400 font-bold">🔍</span>
+                    <span className="text-[10px] text-gray-500 font-medium">
+                      &quot;{inputValue}&quot; 검색 결과 없음
                     </span>
-                    <span className="text-[9px] text-gray-400 ml-auto">
-                      Enter
+                    <span className="text-[9px] text-green-600 ml-auto font-bold">
+                      ↑ +수동입력
                     </span>
                   </div>
                 )}

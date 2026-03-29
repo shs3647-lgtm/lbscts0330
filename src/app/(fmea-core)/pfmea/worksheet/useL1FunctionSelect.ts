@@ -230,42 +230,9 @@ export function useL1FunctionSelect({
       return;
     }
 
-    // 3. 새 항목 추가
-    const cleanName = trimmed;
-    
-    // 중복 체크 (목록에 같은 이름 있으면 차단)
-    const duplicateInList = elements.find(e => 
-      e.name.toLowerCase() === cleanName.toLowerCase()
-    );
-    if (duplicateInList) {
-      alert(`"${cleanName}"은(는) 이미 목록에 존재합니다.`);
-      setInputValue('');
-      return;
-    }
-
+    // ★ 2026-03-29: 검색란은 검색/선택 전용 — 새 항목 추가는 "+수동입력" 란 사용 안내
+    window.alert(`"${trimmed}"은(는) 목록에 없습니다.\n\n위 "+수동입력" 란에서 새 항목을 추가해주세요.`);
     setInputValue('');
-
-    // DB에 저장 후 ID 받아서 사용
-    console.log('[L1Function 추가] fmeaId:', fmeaId, 'type:', type, 'category:', category, 'name:', cleanName);
-    fetch('/api/fmea/l1-functions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fmeaId, type, category, name: cleanName, parentId }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('[L1Function 추가] API 응답:', data);
-        const dbId = data.id || `new_${Date.now()}`;
-        const newElem: L1FunctionItem = { id: dbId, name: cleanName, category, parentId };
-        
-        setElements(prev => [newElem, ...prev]);
-        setWorksheetItemIds(prev => new Set([...prev, dbId]));
-        
-        // 워크시트에 저장
-        const allApplied = [...elements.filter(e => worksheetItemIds.has(e.id)), newElem];
-        onSave(allApplied);
-      })
-      .catch(e => console.error('[L1Function] DB 저장 오류:', e));
   }, [inputValue, exactMatch, filteredElements, selectedIds, elements, worksheetItemIds, fmeaId, type, category, parentId, onSave]);
 
   // 삭제 버튼 (워크시트에서만 제거, 마스터 DB 유지)
@@ -301,8 +268,8 @@ export function useL1FunctionSelect({
     // 워크시트 저장 (남은 적용됨 항목만)
     const remaining = elements.filter(e => newWorksheetIds.has(e.id));
     onSave(remaining);
-    onClose();
-  }, [elements, selectedIds, worksheetItemIds, type, onSave, onClose]);
+    // ★ 2026-03-29: onClose() 제거 — 삭제 후 모달 유지, 항목은 미적용으로 이동
+  }, [elements, selectedIds, worksheetItemIds, type, onSave]);
 
   // X 버튼 (마스터 DB에서 완전 삭제 - 미적용 항목만)
   const handleRemoveFromList = useCallback((id: string) => {
@@ -333,6 +300,38 @@ export function useL1FunctionSelect({
       body: JSON.stringify({ ids: [id], type }),
     }).catch(e => console.error('[L1Function] DB 삭제 오류:', e));
   }, [elements, worksheetItemIds, type]);
+
+  // ★ 2026-03-29: +수동입력 바용 — 새 항목 추가 (마스터 DB + 워크시트 동시 저장)
+  const addNewItem = useCallback((name: string): boolean => {
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+
+    const duplicate = elements.find(e =>
+      e.name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      window.alert(`"${trimmed}"은(는) 이미 목록에 존재합니다.`);
+      return false;
+    }
+
+    fetch('/api/fmea/l1-functions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fmeaId, type, category, name: trimmed, parentId }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const dbId = data.id || `new_${Date.now()}`;
+        const newElem: L1FunctionItem = { id: dbId, name: trimmed, category, parentId };
+        setElements(prev => [newElem, ...prev]);
+        setWorksheetItemIds(prev => new Set([...prev, dbId]));
+        const allApplied = [...elements.filter(e => worksheetItemIds.has(e.id)), newElem];
+        onSave(allApplied);
+      })
+      .catch(e => console.error('[L1Function] DB 저장 오류:', e));
+
+    return true;
+  }, [elements, worksheetItemIds, fmeaId, type, category, parentId, onSave]);
 
   // 섹션별 선택/해제
   const selectAppliedElements = useCallback(() => {
@@ -372,11 +371,11 @@ export function useL1FunctionSelect({
 
   // 힌트 메시지
   const getHintMessage = useCallback(() => {
-    if (!inputValue.trim()) return '검색 또는 새 항목 입력 후 Enter';
+    if (!inputValue.trim()) return '검색어 입력 후 Enter로 선택';
     if (exactMatch) return `Enter → "${exactMatch.name}" 선택`;
     if (filteredElements.length === 1) return `Enter → "${filteredElements[0].name}" 선택`;
     if (filteredElements.length > 1) return `${filteredElements.length}개 검색됨 - 클릭하여 선택`;
-    return `Enter → "${inputValue}" 새로 추가`;
+    return `"${inputValue}" → +수동입력 란에서 추가`;
   }, [inputValue, exactMatch, filteredElements]);
 
   return {
@@ -402,5 +401,6 @@ export function useL1FunctionSelect({
     selectAll,
     deselectAll,
     getHintMessage,
+    addNewItem,
   };
 }

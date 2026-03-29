@@ -7,7 +7,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useDraggableModal } from '@/components/modals/useDraggableModal';
 import { MODAL_COMPACT, getParentInfoClass } from '@/styles/modal-compact';
@@ -37,7 +37,18 @@ export function L1FunctionSelectModal(props: L1FunctionSelectModalProps) {
     selectAll,
     deselectAll,
     getHintMessage,
+    addNewItem,
   } = useL1FunctionSelect(props);
+
+  // ★ 수동입력 바 — 로컬 상태
+  const [newName, setNewName] = useState('');
+  const newNameRef = useRef<HTMLInputElement>(null);
+
+  const handleAddNew = () => {
+    if (!newName.trim()) return;
+    const success = addNewItem(newName.trim());
+    if (success) setNewName('');
+  };
 
   const { position: modalPosition, handleMouseDown } =
     useDraggableModal({ initialPosition: { top: 60, right: 200 }, modalWidth: 620, modalHeight: 550, isOpen: props.isOpen });
@@ -74,7 +85,6 @@ export function L1FunctionSelectModal(props: L1FunctionSelectModalProps) {
             <span className={`${headerAccent} text-[11px] font-bold`}>선택입력 :</span>
             <span>{typeEmoji}</span>
             <h2 className="text-[11px] font-bold">{typeLabel} 선택</h2>
-            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-white/20 rounded border border-white/40">수동입력</span>
           </div>
           <button onClick={props.onClose} className="text-[10px] px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white rounded font-bold">닫기</button>
         </div>
@@ -95,8 +105,52 @@ export function L1FunctionSelectModal(props: L1FunctionSelectModalProps) {
           )}
         </div>
 
-        {/* ===== 통합 입력 영역 ===== */}
-        <div className={`${MODAL_COMPACT.parentInfo.padding} border-b bg-gradient-to-r from-green-50 to-emerald-50`}>
+        {/* ===== 하위항목 라벨 + 데이터 소스 ===== */}
+        <div className="px-3 py-1 border-b bg-gradient-to-r from-green-50 to-emerald-50 flex items-center justify-between">
+          <span className="text-[10px] font-bold text-green-700">
+            ▼ 하위항목(Child): {typeLabel} 선택
+          </span>
+          <span className="text-[9px] px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+            📂 Master FMEA (DB) ({elements.length}개)
+          </span>
+        </div>
+
+        {/* ===== +수동입력 바 ===== */}
+        <div className="px-3 py-1.5 border-b flex items-center gap-1 bg-green-50">
+          <button
+            type="button"
+            onClick={() => newNameRef.current?.focus()}
+            className="shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded border text-green-800 border-green-400 bg-white hover:bg-green-100 cursor-pointer select-none"
+          >
+            +수동입력
+          </button>
+          <input
+            ref={newNameRef}
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddNew();
+              }
+            }}
+            placeholder="항목명 입력..."
+            className="flex-1 px-2 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+          />
+          <button
+            type="button"
+            onClick={handleAddNew}
+            disabled={!newName.trim()}
+            className="px-2 py-0.5 text-[10px] font-bold text-white rounded bg-green-600 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            저장
+          </button>
+        </div>
+
+        {/* ===== 검색란 ===== */}
+        <div className={`${MODAL_COMPACT.parentInfo.padding} border-b bg-gray-50`}>
           <div className="flex items-center gap-1.5">
             <input
               ref={inputRef}
@@ -104,12 +158,11 @@ export function L1FunctionSelectModal(props: L1FunctionSelectModalProps) {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`🔍 ${typeLabel} 검색 또는 새 항목 입력...`}
+              placeholder={`🔍 ${typeLabel} 검색...`}
               className="flex-1 px-2 py-1 text-[11px] border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
               autoFocus
             />
           </div>
-          <div className="mt-1 text-[9px] text-gray-500 text-center">{getHintMessage()}</div>
         </div>
 
         {/* ===== 리스트 ===== */}
@@ -177,8 +230,8 @@ export function L1FunctionSelectModal(props: L1FunctionSelectModalProps) {
           {inputValue.trim() && filteredElements.length === 0 && (
             <div className="col-span-2 flex items-center gap-2 px-2 py-2 rounded border-2 border-dashed border-green-400 bg-green-50">
               <span className="text-green-600 font-bold">+</span>
-              <span className="text-[10px] text-green-700 font-medium">"{inputValue}" 새로 추가</span>
-              <span className="text-[9px] text-gray-400 ml-auto">Enter</span>
+              <span className="text-[10px] text-gray-500 font-medium">"{inputValue}" 검색 결과 없음</span>
+              <span className="text-[9px] text-green-600 ml-auto font-bold">↑ +수동입력</span>
             </div>
           )}
 

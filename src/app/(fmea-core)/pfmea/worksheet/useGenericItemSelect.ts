@@ -314,36 +314,9 @@ export function useGenericItemSelect({
         return;
       }
 
-      // 중복 확인
-      const duplicateInList = elements.find(
-        (el) => el.name.toLowerCase() === trimmed.toLowerCase()
-      );
-      if (duplicateInList) {
-        window.alert(`"${trimmed}"은(는) 이미 목록에 존재합니다.`);
-        setInputValue('');
-        return;
-      }
-
-      // 새 항목 추가 → 마스터 DB 저장
-      const newId = `new_${Date.now()}`;
-      const newElem: GenericItem = { id: newId, name: trimmed, processNo, category };
-      setElements((prev) => [newElem, ...prev]);
-      setWorksheetItemIds((prev) => new Set([...prev, newId]));
+      // ★ 2026-03-29: 검색란은 검색/선택 전용 — 새 항목 추가는 "+수동입력" 란 사용 안내
+      window.alert(`"${trimmed}"은(는) 목록에 없습니다.\n\n위 "+수동입력" 란에서 새 항목을 추가해주세요.`);
       setInputValue('');
-
-      // 기존 적용 항목 + 새 항목 즉시 저장
-      const allApplied = [
-        ...elements.filter((el) => worksheetItemIds.has(el.id)),
-        newElem,
-      ];
-      onSave(allApplied);
-
-      // 마스터 DB에 저장 (POST)
-      fetch('/api/pfmea/master', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemCode, processNo, value: trimmed, category }),
-      }).catch((err) => console.error(`[useGenericItemSelect] POST ${itemCode}:`, err));
     },
     [inputValue, exactMatch, filteredElements, elements, worksheetItemIds, itemCode, processNo, category, onSave]
   );
@@ -405,8 +378,8 @@ export function useGenericItemSelect({
     });
     const remaining = elements.filter((e) => newWorksheetIds.has(e.id));
     onSave(remaining);
-    onClose();
-  }, [elements, selectedIds, worksheetItemIds, onSave, onClose]);
+    // ★ 2026-03-29: onClose() 제거 — 삭제 후 모달 유지, 항목은 미적용으로 이동
+  }, [elements, selectedIds, worksheetItemIds, onSave]);
 
   const handleRemoveFromList = useCallback((id: string) => {
     const elem = elements.find((e) => e.id === id);
@@ -439,11 +412,11 @@ export function useGenericItemSelect({
   }, [notAppliedElements]);
 
   const getHintMessage = useCallback(() => {
-    if (!inputValue.trim()) return '검색 또는 새 항목 입력 후 Enter';
+    if (!inputValue.trim()) return '검색어 입력 후 Enter로 선택';
     if (exactMatch) return `Enter → "${exactMatch.name}" 선택`;
     if (filteredElements.length === 1) return `Enter → "${filteredElements[0].name}" 선택`;
     if (filteredElements.length > 1) return `${filteredElements.length}개 검색됨 - 클릭하여 선택`;
-    return `Enter → "${inputValue}" 새로 추가`;
+    return `"${inputValue}" → +수동입력 란에서 추가`;
   }, [inputValue, exactMatch, filteredElements]);
 
   return {

@@ -22,14 +22,14 @@ function readFile(relativePath: string): string {
   return fs.readFileSync(full, 'utf-8');
 }
 
-describe('ImportPreviewPanel — B5 showM4Column 제외 유지', () => {
+describe('ImportPreviewPanel — B5 showM4Column (L3-5 예방관리)', () => {
   const src = readFile('components/ImportPreviewPanel.tsx');
 
-  test('B5가 showM4Column 배열에 포함되지 않아야 함', () => {
+  test('B5가 showM4Column·getBK와 동일하게 포함되어야 함 (Item Import·다운로드와 정합)', () => {
     const showM4Match = src.match(/showM4Column[\s\S]*?includes\(previewColumn\)/);
-    if (showM4Match) {
-      expect(showM4Match[0]).not.toContain("'B5'");
-    }
+    expect(showM4Match?.[0]).toContain("'B5'");
+    const getBKMatch = src.match(/getBK\s*=\s*\([^)]*\)\s*=>\s*\{[\s\S]*?\n\s*\};/);
+    expect(getBKMatch?.[0]).toContain("'B5'");
   });
 });
 
@@ -126,19 +126,18 @@ describe('FullAnalysisPreview — pcValue/dcValue 복원', () => {
   });
 });
 
-describe('TemplatePreviewContent — A6/B5 컬럼 포함', () => {
+describe('TemplatePreviewContent — 예방/검출은 리스크(FA) 탭, 교차표 L2/L3에는 비표시', () => {
   const src = readFile('components/TemplatePreviewContent.tsx');
-  const codeLines = src.split('\n').filter(line => {
-    const trimmed = line.trim();
-    return !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('{/*');
-  }).join('\n');
 
-  test('L2 테이블 헤더에 A6 검출관리가 있어야 함', () => {
-    expect(codeLines).toMatch(/A6.*검출관리/);
+  test('리스크 탭에 FullAnalysisPreview·data-testid 연결', () => {
+    expect(src).toContain('FullAnalysisPreview');
+    expect(src).toContain('import-preview-risk-fa');
+    expect(src).toMatch(/setActiveStep\('FA'\)/);
   });
 
-  test('L3 테이블 헤더에 B5 예방관리가 있어야 함', () => {
-    expect(codeLines).toMatch(/B5.*예방관리/);
+  test('L2/L3 교차표 thead에 A6 검출관리·B5 예방관리 단일 헤더 문구 없음', () => {
+    expect(src).not.toContain('A6 검출관리');
+    expect(src).not.toContain('B5 예방관리');
   });
 });
 

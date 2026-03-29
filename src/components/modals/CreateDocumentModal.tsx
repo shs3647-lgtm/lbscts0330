@@ -3,6 +3,16 @@
  * @file CreateDocumentModal.tsx
  * @description 새 문서 생성 플로팅 윈도우 - 컴팩트 테이블 형태
  * @updated 2026-02-16: 비모달 플로팅 윈도우 전환
+ *
+ * ★★★ MASTER DATA 적용 기능 (2026-03-30) ★★★
+ * 입력 방식 3가지: ① 엑셀 Import  ② 수동 입력  ③ MASTER DATA 적용
+ * ③ 선택 시: DB에서 저장된 MASTER DATA 목록 자동 로드 → 드롭다운 선택
+ * 생성 후: register?openMasterData=true&masterSrc=xxx로 이동 → 자동 병합
+ *
+ * [MASTER DATA 운용 원칙]
+ * - MASTER는 읽기 전용 SSoT (기초정보 Import로만 생성)
+ * - 모달 편집 → 프로젝트 스키마에만 저장 (MASTER 미변경)
+ * - 프로젝트 승인 시에만 신규분 MASTER 역류 (중복 배제)
  */
 
 'use client';
@@ -83,13 +93,15 @@ export default function CreateDocumentModal({
     const [parentCandidates, setParentCandidates] = useState<ParentCandidate[]>([]);
     const [selectedParentTriplet, setSelectedParentTriplet] = useState<string>('');
     const [partParentMode, setPartParentMode] = useState<'master-family' | 'part-ref' | 'standalone'>('master-family');
-    const [masterDatasets, setMasterDatasets] = useState<{ id: string; fmeaId: string; name: string }[]>([]);
-    const [selectedMasterDatasetId, setSelectedMasterDatasetId] = useState<string>('');
+
     const [partSetCount, setPartSetCount] = useState<number>(0);
-    const [standaloneInputMode, setStandaloneInputMode] = useState<'manual-input' | 'excel-import'>('manual-input');
+    const [standaloneInputMode, setStandaloneInputMode] = useState<'manual-input' | 'excel-import' | 'master-data'>('manual-input');
     const [familySetCount, setFamilySetCount] = useState<number>(0);
     const [immediateCP, setImmediateCP] = useState(false);
     const [immediatePFD, setImmediatePFD] = useState(false);
+    // ★ MASTER DATA 적용용 상태
+    const [masterDatasets, setMasterDatasets] = useState<{id: string; fmeaId: string; name: string; itemCount?: number}[]>([]);
+    const [selectedMasterFmeaId, setSelectedMasterFmeaId] = useState<string>('');
     // 소스 앱 변경 시 초기화
     useEffect(() => {
         if (isOpen) {
@@ -107,7 +119,7 @@ export default function CreateDocumentModal({
             setFamilySetCount(0);
             setSelectedParentTriplet('');
             setPartParentMode('master-family');
-            setSelectedMasterDatasetId('');
+
             setImmediateCP(false);
             setImmediatePFD(false);
             setProductName(initialProductName || '');
@@ -140,11 +152,7 @@ export default function CreateDocumentModal({
                 });
             }
 
-            // ★ Master Dataset 목록 로드 (직접 작성 시 참조용)
-            fetch('/api/fmea/master-datasets')
-              .then(r => r.ok ? r.json() : { datasets: [] })
-              .then(data => setMasterDatasets(data.datasets || []))
-              .catch(() => setMasterDatasets([]));
+
 
             // ★ 기존 문서 목록 로드 (중복 검증용)
             setExistingDocs([]);
@@ -187,6 +195,25 @@ export default function CreateDocumentModal({
                 });
         }
     }, [isOpen, sourceApp]);
+
+    // ★ MASTER DATA 적용 선택 시 자동 로드
+    useEffect(() => {
+        if (standaloneInputMode === 'master-data' && masterDatasets.length === 0) {
+            fetch('/api/pfmea/master')
+                .then(r => r.json())
+                .then(data => {
+                    const datasets = (data.datasets || []).map((ds: any) => ({
+                        id: ds.id,
+                        fmeaId: ds.fmeaId,
+                        name: ds.name || 'MASTER',
+                        itemCount: ds.flatItems?.length || ds.dataCount || 0,
+                    }));
+                    setMasterDatasets(datasets);
+                    if (datasets.length === 1) setSelectedMasterFmeaId(datasets[0].fmeaId);
+                })
+                .catch(() => setMasterDatasets([]));
+        }
+    }, [standaloneInputMode]);
 
     // 앱 체크박스 토글
     const toggleApp = (app: AppType) => {
@@ -281,9 +308,6 @@ export default function CreateDocumentModal({
                 if (docType === 'part') {
                     if (partParentMode === 'standalone') {
                         tripletBody.standalone = true;
-                        if (selectedMasterDatasetId) {
-                            tripletBody.masterDatasetId = selectedMasterDatasetId;
-                        }
                     } else if (selectedParentTriplet) {
                         if (selectedParentTriplet.startsWith('legacy:')) {
                             tripletBody.parentFmeaId = selectedParentTriplet.replace('legacy:', '');
@@ -324,6 +348,9 @@ export default function CreateDocumentModal({
                     if (standaloneInputMode === 'excel-import') {
                         // 엑셀 Import → 등록 페이지로 이동 후 Import 모달 자동 오픈
                         window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}&openImport=true`;
+                    } else if (standaloneInputMode === 'master-data') {
+                        // MASTER DATA 적용 → 등록 페이지로 이동 후 Master Data 자동 적용
+                        window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}&openMasterData=true&masterSrc=${encodeURIComponent(selectedMasterFmeaId)}`;
                     } else {
                         // 수동 입력 → 수동 Import 페이지로 이동
                         window.location.href = `/pfmea/import/manual?id=${redirectId}`;
@@ -628,25 +655,48 @@ export default function CreateDocumentModal({
                                                     <span>✏️ 수동 입력</span>
                                                     <span className="text-[9px] text-gray-400 ml-auto">화면에서 직접 공정/기능 입력</span>
                                                 </label>
+                                                <label className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-xs border ${
+                                                    standaloneInputMode === 'master-data' 
+                                                        ? 'border-[#00587a] bg-blue-50 text-[#00587a] font-semibold' 
+                                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                }`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="standaloneInputMode"
+                                                        checked={standaloneInputMode === 'master-data'}
+                                                        onChange={() => setStandaloneInputMode('master-data')}
+                                                        className="w-3 h-3"
+                                                    />
+                                                    <span>📋 MASTER DATA 적용</span>
+                                                    <span className="text-[9px] text-gray-400 ml-auto">저장된 기초정보 DB 적용</span>
+                                                </label>
+                                                {/* ★ MASTER DATA 선택 드롭다운 */}
+                                                {standaloneInputMode === 'master-data' && (
+                                                    <div className="mt-1.5 ml-5">
+                                                        {masterDatasets.length === 0 ? (
+                                                            <div className="text-[9px] text-orange-600">⏳ MASTER DATA 로딩 중...</div>
+                                                        ) : (
+                                                            <>
+                                                                <select
+                                                                    value={selectedMasterFmeaId}
+                                                                    onChange={(e) => setSelectedMasterFmeaId(e.target.value)}
+                                                                    className="w-full px-2 py-1.5 border border-[#00587a] rounded text-xs bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 font-semibold"
+                                                                >
+                                                                    <option value="">-- MASTER DATA 선택 --</option>
+                                                                    {masterDatasets.map(ds => (
+                                                                        <option key={ds.id} value={ds.fmeaId}>
+                                                                            {ds.name || 'MASTER'} ({ds.fmeaId}) {ds.itemCount ? `- ${ds.itemCount}건` : ''}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                                {!selectedMasterFmeaId && (
+                                                                    <div className="text-[9px] text-red-500 mt-0.5">적용할 MASTER DATA를 선택하세요.</div>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-
-                                            {masterDatasets.length > 0 && (
-                                                <>
-                                                    <div className="text-[9px] text-gray-500 mb-0.5">참조할 Master Dataset (선택사항):</div>
-                                                    <select
-                                                        value={selectedMasterDatasetId}
-                                                        onChange={(e) => setSelectedMasterDatasetId(e.target.value)}
-                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                                    >
-                                                        <option value="">-- 없음 (완전 빈 상태) --</option>
-                                                        {masterDatasets.map(ds => (
-                                                            <option key={ds.id} value={ds.id}>
-                                                                {ds.name} ({ds.fmeaId})
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </>
-                                            )}
                                         </div>
                                     )}
                                 </td>

@@ -164,6 +164,60 @@ function PFMEARegisterPageContent() {
   /** 등록 화면 경량 Excel Import (15탭 미리보기 → 작성화면) */
   const [basicImportModalOpen, setBasicImportModalOpen] = useState(false);
 
+  // ★ 2026-03-29: URL ?openImport=true → 기초정보 Import 모달 자동 오픈
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openImport') === 'true' && fmeaId) {
+      setBasicImportModalOpen(true);
+      params.delete('openImport');
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+    // ★ MASTER DATA 적용 자동 실행
+    if (params.get('openMasterData') === 'true' && fmeaId) {
+      const masterSrc = params.get('masterSrc');
+      params.delete('openMasterData');
+      params.delete('masterSrc');
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', newUrl);
+      if (masterSrc) {
+        (async () => {
+          try {
+            const srcRes = await fetch(`/api/pfmea/master?fmeaId=${masterSrc}&includeItems=true`);
+            const srcData = await srcRes.json();
+            const srcItems = srcData?.dataset?.flatItems || [];
+            if (srcItems.length === 0) { alert('선택한 MASTER DATA에 데이터가 없습니다.'); return; }
+            const { saveMasterDataset } = await import('@/app/(fmea-core)/pfmea/import/utils/master-api');
+            const saveRes = await saveMasterDataset({
+              fmeaId: fmeaId.toLowerCase(),
+              fmeaType: (fmeaInfo.fmeaType || 'P') as 'M' | 'F' | 'P',
+              name: srcData?.dataset?.name || 'MASTER',
+              replace: false,
+              mode: 'import',
+              flatData: srcItems.map((item: any) => ({
+                processNo: item.processNo,
+                category: item.category,
+                itemCode: item.itemCode,
+                value: item.value,
+                m4: item.m4 || undefined,
+                specialChar: item.specialChar || undefined,
+              })),
+            });
+            if (saveRes.ok) {
+              alert(`✅ MASTER DATA 적용 완료!\n${srcData?.dataset?.name} → ${fmeaId}\n(${srcItems.length}건 병합)`);
+            } else {
+              alert('MASTER DATA 적용 실패');
+            }
+          } catch (err) {
+            console.error('MASTER DATA 자동 적용 오류:', err);
+            alert('오류: ' + (err instanceof Error ? err.message : String(err)));
+          }
+        })();
+      }
+    }
+  }, [fmeaId]);
+
   // ★ Master/Part FMEA BD 카운트 로드
   useEffect(() => {
     fetch('/api/master-fmea/bd-list').then(r => r.json()).then(d => {
@@ -674,8 +728,7 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell}>FMEA명<br /><span className="text-[8px] font-normal opacity-70">(Name)</span></td>
                   <td className={`${inputCell} relative`}>
                     <div className="flex items-center gap-0.5 min-w-0">
-                      <input type="text" value={fmeaInfo.subject} onChange={e => handleFmeaNameChange(e.target.value)} onFocus={() => loadFmeaNameList()} onPaste={e => { const text = e.clipboardData.getData('text/plain'); if (text) { e.preventDefault(); handleFmeaNameChange(text.replace(/[\r\n]/g, ' ').trim()); } }} className={`flex-1 min-w-0 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none ${duplicateWarning ? 'text-red-600' : ''}`} placeholder="시스템, 서브시스템 및/또는 구성품" />
-                      <button onClick={() => { loadFmeaNameList(); setFmeaNameModalOpen(true); }} className="text-blue-500 hover:text-blue-700 shrink-0 text-xs" title="기존 FMEA 목록 보기">🔍</button>
+                      <input type="text" value={fmeaInfo.subject} onChange={e => handleFmeaNameChange(e.target.value)} onPaste={e => { const text = e.clipboardData.getData('text/plain'); if (text) { e.preventDefault(); handleFmeaNameChange(text.replace(/[\r\n]/g, ' ').trim()); } }} className={`flex-1 min-w-0 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none ${duplicateWarning ? 'text-red-600' : ''}`} placeholder="시스템, 서브시스템 및/또는 구성품" />
                     </div>
                     {duplicateWarning && <div className="absolute -bottom-3.5 left-0 text-[9px] text-red-600 font-semibold z-10">{duplicateWarning}</div>}
                   </td>
@@ -857,6 +910,173 @@ function PFMEARegisterPageContent() {
             </table>
           </form>
         </div>
+        {/* ★ 2026-03-29: 일반 사용자용 기초정보 Excel Import 버튼 */}
+        {fmeaId && (
+          <div className="mt-6 rounded-lg border-2 border-green-300 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg" aria-hidden>📥</span>
+                <div>
+                  <h2 className="text-sm font-bold text-green-800">기초정보 입력</h2>
+                  <p className="text-[10px] text-green-600">엑셀 파일 또는 저장된 MASTER DATA로 공정·기능·작업요소 등 기초정보를 입력합니다</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBasicImportModalOpen(true)}
+                  className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors flex items-center gap-1.5"
+                >
+                  <span>📁</span> 엑셀 Import
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/pfmea/master');
+                      const data = await res.json();
+                      const datasets = data.datasets || [];
+                      if (datasets.length === 0) {
+                        alert('저장된 MASTER DATA가 없습니다. 먼저 엑셀 Import로 기초정보를 저장하세요.');
+                        return;
+                      }
+                      const list = datasets.map((ds: any, i: number) =>
+                        `${i + 1}. ${ds.name || 'MASTER'} (${ds.fmeaId})`
+                      ).join('\n');
+                      const choice = prompt(`적용할 MASTER DATA를 선택하세요 (번호 입력):\n\n${list}`);
+                      if (!choice) return;
+                      const idx = parseInt(choice, 10) - 1;
+                      if (isNaN(idx) || idx < 0 || idx >= datasets.length) { alert('잘못된 번호입니다.'); return; }
+                      const selected = datasets[idx];
+                      // 선택된 Master Data의 flatItems을 현재 FMEA에 병합 저장
+                      const srcRes = await fetch(`/api/pfmea/master?fmeaId=${selected.fmeaId}&includeItems=true`);
+                      const srcData = await srcRes.json();
+                      const srcItems = srcData?.dataset?.flatItems || [];
+                      if (srcItems.length === 0) { alert('선택한 MASTER DATA에 데이터가 없습니다.'); return; }
+                      const { saveMasterDataset } = await import('@/app/(fmea-core)/pfmea/import/utils/master-api');
+                      const saveRes = await saveMasterDataset({
+                        fmeaId: fmeaId.toLowerCase(),
+                        fmeaType: (fmeaInfo.fmeaType || 'P') as 'M' | 'F' | 'P',
+                        name: selected.name || 'MASTER',
+                        replace: false,
+                        mode: 'import',
+                        flatData: srcItems.map((item: any) => ({
+                          processNo: item.processNo,
+                          category: item.category,
+                          itemCode: item.itemCode,
+                          value: item.value,
+                          m4: item.m4 || undefined,
+                          specialChar: item.specialChar || undefined,
+                        })),
+                      });
+                      if (saveRes.ok) {
+                        alert(`✅ MASTER DATA 적용 완료!\n${selected.name} → ${fmeaId}\n(${srcItems.length}건 병합)`);
+                      } else {
+                        alert('MASTER DATA 적용 실패');
+                      }
+                    } catch (err) {
+                      console.error('MASTER DATA 적용 오류:', err);
+                      alert('오류: ' + (err instanceof Error ? err.message : String(err)));
+                    }
+                  }}
+                  className="px-4 py-2 bg-[#00587a] text-white text-xs font-bold rounded-lg hover:bg-[#004060] shadow-sm transition-colors flex items-center gap-1.5"
+                >
+                  <span>📋</span> MASTER DATA 적용
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 엑셀 Import 기초정보 생성 (Admin 전용: 상세 관리) */}
+        <details className="mt-4">
+          <summary className="cursor-pointer text-[11px] text-gray-500 hover:text-gray-700 px-1 py-1 rounded hover:bg-gray-50">
+            ▶ 기초정보 관리(Admin) — 템플릿 생성·BD 현황·상세 편집
+          </summary>
+        <div id="basic-info-excel-import" className="mt-2 scroll-mt-20 rounded-lg border border-blue-200 bg-blue-50/30 px-3 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base" aria-hidden>📥</span>
+            <h2 className="text-sm font-bold text-[#00587a]">엑셀 Import 기초정보 생성 (Admin)</h2>
+          </div>
+          {fmeaId ? (
+            <>
+              <TemplateGeneratorPanel
+                defaultOpen
+                onGenerate={templateGen.handleGenerate}
+                templateMode={templateGen.templateMode}
+                setTemplateMode={templateGen.setTemplateMode}
+                manualConfig={templateGen.manualConfig}
+                updateManualConfig={templateGen.updateManualConfig}
+                workElements={templateGen.workElements}
+                multipliers={templateGen.multipliers}
+                updateMultiplier={templateGen.updateMultiplier}
+                addWorkElement={templateGen.addWorkElement}
+                removeWorkElement={templateGen.removeWorkElement}
+                updateWorkElement={templateGen.updateWorkElement}
+                flatData={flatData}
+                parseStatistics={bdParseStatistics}
+                positionParserStats={bdPositionParserStats}
+                onDownloadSample={async () => {
+                  const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
+                  const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
+                  const masterName = subject ? `PFMEA_${subject}_현재데이터` : undefined;
+                  try {
+                    const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      const cd = res.headers.get('content-disposition');
+                      const fnMatch = cd?.match(/filename="?([^"]+)"?/);
+                      a.download = fnMatch?.[1] || `PFMEA_${subject || fmeaId}_현재데이터.xlsx`;
+                      a.href = url;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      return;
+                    }
+                  } catch (_e) { /* fallback */ }
+                  if (flatData.length > 0) { downloadDataTemplate(flatData, masterName); return; }
+                  downloadSampleTemplate(masterName, false);
+                }}
+                onDownloadEmpty={async () => {
+                  const { downloadEmptyTemplate } = await getExcelTemplate();
+                  downloadEmptyTemplate();
+                }}
+                onImportFile={() => bdFileInputRef.current?.click()}
+                onUpdateItem={(id, value) => { setFlatData(prev => prev.map(item => item.id === id ? { ...item, value } : item)); setBdDirty(true); setBdIsSaved(false); }}
+                onUpdateM4={(id, m4) => { setFlatData(prev => prev.map(item => item.id === id ? { ...item, m4 } : item)); setBdDirty(true); setBdIsSaved(false); }}
+                onDeleteItems={(ids) => { const idSet = new Set(ids); setFlatData(prev => prev.filter(item => !idSet.has(item.id))); setBdDirty(true); setBdIsSaved(false); }}
+                onAddItems={(items) => { setFlatData(prev => [...prev, ...items.map((item, i) => ({ ...item, id: `add-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}` }))]); setBdDirty(true); setBdIsSaved(false); }}
+                onSave={handleBdSave}
+                isSaved={bdIsSaved}
+                isSaving={bdIsSaving}
+                dirty={bdDirty}
+                selectedFmeaId={fmeaId}
+                l1Name={core.fmeaInfo.subject || ''}
+                fmeaInfo={{
+                  subject: core.fmeaInfo.subject || '', companyName: core.fmeaInfo.companyName || '',
+                  customerName: core.fmeaInfo.customerName || '', modelYear: core.fmeaInfo.modelYear || '',
+                  fmeaType: core.fmeaInfo.fmeaType || 'P', engineeringLocation: core.fmeaInfo.engineeringLocation || '',
+                  designResponsibility: core.fmeaInfo.designResponsibility || '',
+                  fmeaResponsibleName: core.fmeaInfo.fmeaResponsibleName || '',
+                  partName: core.fmeaInfo.partName || '', partNo: core.fmeaInfo.partNo || '',
+                }}
+                onWorksheetSaved={() => { if (fmeaId) window.location.href = `/pfmea/worksheet?id=${fmeaId}&tab=structure`; }}
+                bdFmeaId={bdLoadedFmeaId || undefined}
+                bdFmeaName={bdLoadedFmeaName || undefined}
+                bdStatusList={bdStatusList}
+                fmeaList={bdFmeaList}
+                expandTrigger={bdExpandTrigger}
+              />
+              <input ref={bdFileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBdFileSelect} />
+            </>
+          ) : (
+            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              상단에서 PFMEA를 저장한 뒤 엑셀 Import·기초정보 미리보기·저장을 사용할 수 있습니다.
+            </p>
+          )}
+        </div>
+        </details>
 
         {/* ★ 2026-03-29: M/F/P 기초정보 탭 제거 — 새 문서 생성 시 상위 FMEA 선택으로 대체 */}
         {/* 참조 데이터 소스는 parentFmeaId / masterDatasetId API fallback으로 자동 결정 */}
@@ -923,84 +1143,18 @@ function PFMEARegisterPageContent() {
         </div>
         <CFTAccessLogTable accessLogs={accessLogs} maxRows={5} />
 
-        {/* ★ 2026-03-29: 기초정보 Import + BD 현황 — admin 전용, 기본 접힘 */}
+        {/* ★ BD·DB 검증 — admin 전용 (Import UI는 상단 「엑셀 Import 기초정보 생성」) */}
         {user?.role === 'admin' && (
         <details className="mt-6">
           <summary className="cursor-pointer px-3 py-2 bg-gray-700 text-white text-xs font-bold rounded hover:bg-gray-600 select-none">
             ▶ 기초정보 관리 (Admin)
           </summary>
-        <div className="mt-2">
-          <TemplateGeneratorPanel
-            onGenerate={templateGen.handleGenerate}
-            templateMode={templateGen.templateMode}
-            setTemplateMode={templateGen.setTemplateMode}
-            manualConfig={templateGen.manualConfig}
-            updateManualConfig={templateGen.updateManualConfig}
-            workElements={templateGen.workElements}
-            multipliers={templateGen.multipliers}
-            updateMultiplier={templateGen.updateMultiplier}
-            addWorkElement={templateGen.addWorkElement}
-            removeWorkElement={templateGen.removeWorkElement}
-            updateWorkElement={templateGen.updateWorkElement}
-            flatData={flatData}
-            parseStatistics={bdParseStatistics}
-            positionParserStats={bdPositionParserStats}
-            onDownloadSample={async () => {
-              const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
-              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
-              const masterName = subject ? `PFMEA_${subject}_현재데이터` : undefined;
-              if (fmeaId) {
-                try {
-                  const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
-                  if (res.ok) {
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const cd = res.headers.get('content-disposition');
-                    const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                    a.download = fnMatch?.[1] || `PFMEA_${subject || fmeaId}_현재데이터.xlsx`;
-                    a.href = url;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    return;
-                  }
-                } catch (_e) { /* fallback */ }
-              }
-              if (flatData.length > 0) { downloadDataTemplate(flatData, masterName); return; }
-              downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
-            }}
-            onDownloadEmpty={async () => {
-              const { downloadEmptyTemplate } = await getExcelTemplate();
-              downloadEmptyTemplate();
-            }}
-            onImportFile={() => bdFileInputRef.current?.click()}
-            onUpdateItem={(id, value) => { setFlatData(prev => prev.map(item => item.id === id ? { ...item, value } : item)); setBdDirty(true); setBdIsSaved(false); }}
-            onUpdateM4={(id, m4) => { setFlatData(prev => prev.map(item => item.id === id ? { ...item, m4 } : item)); setBdDirty(true); setBdIsSaved(false); }}
-            onDeleteItems={(ids) => { const idSet = new Set(ids); setFlatData(prev => prev.filter(item => !idSet.has(item.id))); setBdDirty(true); setBdIsSaved(false); }}
-            onAddItems={(items) => { setFlatData(prev => [...prev, ...items.map((item, i) => ({ ...item, id: `add-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}` }))]); setBdDirty(true); setBdIsSaved(false); }}
-            onSave={handleBdSave}
-            isSaved={bdIsSaved}
-            isSaving={bdIsSaving}
-            dirty={bdDirty}
-            selectedFmeaId={fmeaId}
-            l1Name={core.fmeaInfo.subject || ''}
-            fmeaInfo={{
-              subject: core.fmeaInfo.subject || '', companyName: core.fmeaInfo.companyName || '',
-              customerName: core.fmeaInfo.customerName || '', modelYear: core.fmeaInfo.modelYear || '',
-              fmeaType: core.fmeaInfo.fmeaType || 'P', engineeringLocation: core.fmeaInfo.engineeringLocation || '',
-              designResponsibility: core.fmeaInfo.designResponsibility || '',
-              fmeaResponsibleName: core.fmeaInfo.fmeaResponsibleName || '',
-              partName: core.fmeaInfo.partName || '', partNo: core.fmeaInfo.partNo || '',
-            }}
-            onWorksheetSaved={() => { if (fmeaId) window.location.href = `/pfmea/worksheet?id=${fmeaId}&tab=structure`; }}
-            bdFmeaId={bdLoadedFmeaId || undefined}
-            bdFmeaName={bdLoadedFmeaName || undefined}
-            bdStatusList={bdStatusList}
-            fmeaList={bdFmeaList}
-            expandTrigger={bdExpandTrigger}
-          />
-          <input ref={bdFileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBdFileSelect} />
-        </div>
+        <div className="mt-2 space-y-2">
+          <p className="text-[11px] text-gray-600">
+            엑셀 Import·미리보기·저장은 위쪽{' '}
+            <a href="#basic-info-excel-import" className="text-blue-600 font-semibold underline scroll-mt-20">엑셀 Import 기초정보 생성</a>
+            에서 진행합니다.
+          </p>
 
         {bdDbCounts && bdParseStatistics && (
           <DbVerifyPanel parseStats={bdParseStatistics} dbCounts={bdDbCounts} flatData={flatData} />
@@ -1023,6 +1177,7 @@ function PFMEARegisterPageContent() {
           }}
           onDeleteDatasets={handleBdDeleteDatasets}
         />
+        </div>
         </details>
         )}
 
@@ -1123,18 +1278,6 @@ function PFMEARegisterPageContent() {
           updateField('fmeaRevisionDate', date);
         }} currentValue={fmeaInfo.fmeaRevisionDate} title="목표 완료일 선택(Select Target Date)" />
 
-        {/* FMEA명 선택 모달 */}
-        <FmeaNameModal isOpen={fmeaNameModalOpen} onClose={() => setFmeaNameModalOpen(false)}
-          fmeaNameList={fmeaNameList} currentFmeaId={fmeaId}
-          onApplyName={(name) => {
-            updateField('subject', name);
-            // ★ FIX: 완제품명(partName) 자동 추출 — 누락 재발 방지
-            const derived = name.includes('+') ? name.split('+')[0].trim() : name.trim();
-            if (derived && derived !== '품명' && derived !== '품명+PFMEA') {
-              handlePartNameChange(derived);
-            }
-          }}
-          onLoadFmea={(id) => { router.push(`/pfmea/register?id=${id}`); window.location.reload(); }} />
 
         {/* 연동 모달 */}
         <LinkageModal isOpen={linkageModalOpen} onClose={() => {

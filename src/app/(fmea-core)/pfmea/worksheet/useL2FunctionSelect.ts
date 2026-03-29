@@ -192,46 +192,15 @@ export function useL2FunctionSelect({
         return;
       }
 
-      const duplicateInList = elements.find(
-        (el: L2FunctionItem) => el.name.toLowerCase() === trimmed.toLowerCase()
-      );
-      if (duplicateInList) {
-        window.alert(`"${trimmed}"은(는) 이미 목록에 존재합니다.`);
-        setInputValue('');
-        return;
-      }
-
+      // ★ 2026-03-29: 검색란은 검색/선택 전용 — 새 항목 추가는 "+수동입력" 란 사용 안내
+      window.alert(`"${trimmed}"은(는) 목록에 없습니다.\n\n위 "+수동입력" 란에서 새 항목을 추가해주세요.`);
       setInputValue('');
-
-      fetch('/api/fmea/l2-functions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fmeaId, processNo, name: trimmed }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          const dbId = data.id || `new_${Date.now()}`;
-          const newElem: L2FunctionItem = { id: dbId, name: trimmed, processNo };
-          setElements((prev) => [newElem, ...prev]);
-          setWorksheetItemIds((prev) => new Set([...prev, dbId]));
-          const allApplied = [
-            ...elements.filter((el: L2FunctionItem) => worksheetItemIds.has(el.id)),
-            newElem,
-          ];
-          onSave(allApplied);
-        })
-        .catch((err) => console.error('[L2Function] POST', err));
     },
     [
       inputValue,
       exactMatch,
       filteredElements,
       selectedIds,
-      elements,
-      worksheetItemIds,
-      fmeaId,
-      processNo,
-      onSave,
     ]
   );
 
@@ -270,8 +239,8 @@ export function useL2FunctionSelect({
 
     const remaining = elements.filter((e: L2FunctionItem) => newWorksheetIds.has(e.id));
     onSave(remaining);
-    onClose();
-  }, [elements, selectedIds, worksheetItemIds, onSave, onClose]);
+    // ★ 2026-03-29: onClose() 제거 — 삭제 후 모달 유지, 항목은 미적용으로 이동
+  }, [elements, selectedIds, worksheetItemIds, onSave]);
 
   const handleRemoveFromList = useCallback(
     (id: string) => {
@@ -304,6 +273,42 @@ export function useL2FunctionSelect({
     },
     [elements, worksheetItemIds]
   );
+
+  // ★ 2026-03-29: +수동입력 바용 — 새 항목 추가 (마스터 DB + 워크시트 동시 저장)
+  const addNewItem = useCallback((name: string): boolean => {
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+
+    const duplicate = elements.find(
+      (el: L2FunctionItem) => el.name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (duplicate) {
+      window.alert(`"${trimmed}"은(는) 이미 목록에 존재합니다.`);
+      return false;
+    }
+
+    // DB에 저장 후 UI 업데이트
+    fetch('/api/fmea/l2-functions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fmeaId, processNo, name: trimmed }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const dbId = data.id || `new_${Date.now()}`;
+        const newElem: L2FunctionItem = { id: dbId, name: trimmed, processNo };
+        setElements((prev) => [newElem, ...prev]);
+        setWorksheetItemIds((prev) => new Set([...prev, dbId]));
+        const allApplied = [
+          ...elements.filter((el: L2FunctionItem) => worksheetItemIds.has(el.id)),
+          newElem,
+        ];
+        onSave(allApplied);
+      })
+      .catch((err) => console.error('[L2Function] POST', err));
+
+    return true;
+  }, [elements, worksheetItemIds, fmeaId, processNo, onSave]);
 
   const selectAppliedElements = useCallback(() => {
     setSelectedIds((prev) => {
@@ -344,11 +349,11 @@ export function useL2FunctionSelect({
   const deselectAll = useCallback(() => setSelectedIds(new Set()), []);
 
   const getHintMessage = useCallback(() => {
-    if (!inputValue.trim()) return '검색 또는 새 항목 입력 후 Enter';
+    if (!inputValue.trim()) return '검색어 입력 후 Enter로 선택';
     if (exactMatch) return `Enter → "${exactMatch.name}" 선택`;
     if (filteredElements.length === 1) return `Enter → "${filteredElements[0].name}" 선택`;
     if (filteredElements.length > 1) return `${filteredElements.length}개 검색됨 - 클릭하여 선택`;
-    return `Enter → "${inputValue}" 새로 추가`;
+    return `"${inputValue}" → +수동입력 란에서 추가`;
   }, [inputValue, exactMatch, filteredElements]);
 
   return {
@@ -374,5 +379,6 @@ export function useL2FunctionSelect({
     selectAll,
     deselectAll,
     getHintMessage,
+    addNewItem,
   };
 }

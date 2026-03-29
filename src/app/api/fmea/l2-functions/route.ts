@@ -81,8 +81,14 @@ export async function GET(req: NextRequest) {
     const whereClause: Record<string, unknown> = {
       datasetId: dataset.id,
       itemCode: ITEM_CODE,
-      processNo,
     };
+
+    // ★ 2026-03-29: processNo 정규화 — "010"과 "10" 양방향 매칭 (work-elements와 동일 패턴)
+    const raw = processNo.trim();
+    const stripped = raw.replace(/^0+/, '') || '0'; // "010"→"10"
+    const padded = stripped.replace(/^(\d+)/, (_, n: string) => n.padStart(3, '0')); // "10"→"010"
+    const variants = [...new Set([raw, stripped, padded])];
+    whereClause.processNo = { in: variants };
 
     const flatItems = await prisma.pfmeaMasterFlatItem.findMany({
       where: whereClause,

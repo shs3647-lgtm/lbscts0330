@@ -33,7 +33,7 @@ import type { FCComparisonResult } from '../utils/fcComparison';
 import type { ParseStatistics } from '../excel-parser';
 import type { TemplateMode } from '../hooks/useTemplateGenerator';
 import { FailureChainPreview, type FailureChainPreviewMatrixHeaderCounts } from './FailureChainPreview';
-// FullAnalysisPreview 삭제됨 (사용자 요청)
+import { FullAnalysisPreview } from './FullAnalysisPreview';
 import { TH, TD_NO, TD, TD_EDIT, M4_LABEL, M4_BADGE, EditCell } from './TemplateSharedUI';
 import { validateAccuracy, validateFCAccuracy, summarizeAccuracyWarnings, type AccuracyWarning } from '../utils/accuracy-validation';
 import { validateStructuralCompleteness, summarizeStructuralIssues } from '../utils/structural-validation';
@@ -895,7 +895,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                 onClick={() => { setPreviewLevel(lvl); setActiveStep('SA'); }}
                 title={
                   lvl === 'L3'
-                    ? '파싱 flat → 교차표. L3는 B1(작업요소)마다 B2~B5를 공정번호+4M으로 매칭합니다. 빈칸·누락은 파싱 미전개 또는 매칭/parent 단절 가능. 엑셀 물리 행과 1:1 아님.'
+                    ? '파싱 flat → 교차표. L3는 B1(작업요소)마다 B2~B4를 공정번호+4M으로 매칭합니다. 예방(B5)·검출(A6)은 리스크 탭. 빈칸·누락은 파싱 미전개 또는 매칭/parent 단절 가능.'
                     : '파싱된 flat을 항목코드별로 묶은 미리보기. 엑셀 셀과 행 순서는 다를 수 있음.'
                 }
                 className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
@@ -919,6 +919,19 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100 cursor-pointer'
               }`}>
               FC 고장사슬 <span className="text-[9px]">(FE:{new Set(failureChains.map((c: any) => (c.feValue||'').trim()).filter(Boolean)).size} FM:{new Set(failureChains.map((c: any) => `${c.processNo}|${c.fmValue}`).filter(Boolean)).size} FL:{failureChains.length})</span>
+            </button>
+          )}
+          {!isManualMode && (
+            <button
+              type="button"
+              onClick={() => setActiveStep('FA')}
+              title="고장사슬별 S/O/D·AP 및 예방관리(PC)·검출관리(DC). A6/B5·리스크는 이 탭에서 확인합니다."
+              className={`px-2.5 py-0.5 rounded text-[10px] font-bold transition-colors border ${
+                stepState.activeStep === 'FA'
+                  ? 'bg-amber-600 text-white border-amber-600 cursor-pointer'
+                  : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 cursor-pointer'
+              }`}>
+              리스크 <span className="text-[9px]">(SOD·PC/DC)</span>
             </button>
           )}
 
@@ -1356,9 +1369,20 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         />
       )}
 
-      {/* FA 통합분석 미리보기 삭제됨 (사용자 요청) */}
+      {stepState.activeStep === 'FA' && (
+        <div className="mb-1" data-testid="import-preview-risk-fa">
+          <FullAnalysisPreview
+            chains={failureChains}
+            crossTab={crossTab}
+            isFullscreen={isFullscreen}
+            hideStats
+            parseStatistics={parseStatistics}
+          />
+        </div>
+      )}
 
-      {/* ─── SA 콘텐츠: L1/L2/L3 미리보기 ─── */}
+      {/* ─── SA 콘텐츠: 구조 교차표 (L1/L2/L3). 예방·검출은 리스크 탭 ─── */}
+      {stepState.activeStep === 'SA' && (
       <>
         {/* ─── 누락 경고 배너 ─── */}
         {missingStats[previewLevel] > 0 && flatData.length > 0 && (
@@ -1563,10 +1587,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH} style={{width:38}}>특별특성</th>
                   <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금">A5키</th>
                   <th className={TH}>A5 고장형태</th>
-                  <th className={TH} style={{background:'#ff6600',color:'#fff'}}>A6 검출관리</th>
                 </tr></thead><tbody>
                   {crossTab.aRows.length === 0 ? (
-                    <tr><td colSpan={isEditing ? 13 : 12} className="text-center py-3 text-gray-400 text-[10px]">
+                    <tr><td colSpan={isEditing ? 12 : 11} className="text-center py-3 text-gray-400 text-[10px]">
                       L2 데이터 없음 — L1({crossTab.cRows.length}건) 또는 L3({crossTab.bRows.length}건) 탭을 확인하세요
                     </td></tr>
                   ) : crossTab.aRows.map((r, i) => {
@@ -1602,8 +1625,6 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${aRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.A5} itemId={r._ids.A5} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.A5 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A5', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${!isEditing ? 'whitespace-pre-line' : ''} ${aRevised ? 'text-red-600 font-bold' : ''}`} style={{background: aRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.A6} itemId={r._ids.A6} onSave={onUpdateItem} editing={isEditing}
-                        onCreateNew={!r._ids.A6 ? (val) => onAddItems?.([{ processNo: r.processNo, category: 'A', itemCode: 'A6', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
                   })}
@@ -1631,11 +1652,9 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   <th className={TH} style={{width:38}}>특별특성</th>
                   <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금·행 전체">B4키</th>
                   <th className={TH}>B4 고장원인</th>
-                  <th className={TH} style={{width: 40}} title="ID 마지막 4자, 툴팁에 전체 UUID·텍스트 눈금·행 전체">B5키</th>
-                  <th className={TH} style={{background:'#ff6600',color:'#fff'}}>B5 예방관리</th>
                 </tr></thead><tbody>
                   {crossTab.bRows.length === 0 ? (
-                    <tr><td colSpan={isEditing ? 15 : 14} className="text-center py-3 text-gray-400 text-[10px]">
+                    <tr><td colSpan={isEditing ? 13 : 12} className="text-center py-3 text-gray-400 text-[10px]">
                       L3 데이터 없음 — L1({crossTab.cRows.length}건) 또는 L2({crossTab.aRows.length}건) 탭을 확인하세요
                     </td></tr>
                   ) : crossTab.bRows.slice(0, 100).map((r, i) => {
@@ -1678,21 +1697,17 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                       </td>
                       <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`}><EditCell value={r.B4} itemId={r._ids.B4} onSave={onUpdateItem} editing={isEditing}
                         onCreateNew={!r._ids.B4 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B4', value: val, createdAt: new Date() }]) : undefined} /></td>
-                      <td className={`${TD} align-top text-center font-mono text-[9px] font-semibold text-slate-700 w-10`} title={l3ItemKeyCellTooltip(r, 'B5')}>
-                        <span className="block truncate">{l3ItemKeyDisplayTail4(r, 'B5')}</span>
-                      </td>
-                      <td className={`${isEditing ? TD_EDIT : TD} ${bRevised ? 'text-red-600 font-bold' : ''}`} style={{background: bRevised ? '#fee2e2' : '#fff9c4'}}><EditCell value={r.B5} itemId={r._ids.B5} onSave={onUpdateItem} editing={isEditing}
-                        onCreateNew={!r._ids.B5 ? (val) => onAddItems?.([{ processNo: r.processNo, m4: r.m4, category: 'B', itemCode: 'B5', value: val, createdAt: new Date() }]) : undefined} /></td>
                     </tr>
                     );
                   })}
-                  {crossTab.bRows.length > 100 && <tr><td colSpan={isEditing ? 15 : 14} className="text-center text-gray-400 text-[9px] py-0.5">... 외 {crossTab.bRows.length - 100}행</td></tr>}
+                  {crossTab.bRows.length > 100 && <tr><td colSpan={isEditing ? 13 : 12} className="text-center text-gray-400 text-[9px] py-0.5">... 외 {crossTab.bRows.length - 100}행</td></tr>}
                 </tbody></table>
               </div>
             )}
           </>
         )}
       </>
+      )}
       {/* 경고/확인 다이얼로그 */}
       <ImportAlertDialog state={alertState} onClose={closeAlert} />
     </div>
