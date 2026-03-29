@@ -86,6 +86,7 @@ export default function CreateDocumentModal({
     const [masterDatasets, setMasterDatasets] = useState<{ id: string; fmeaId: string; name: string }[]>([]);
     const [selectedMasterDatasetId, setSelectedMasterDatasetId] = useState<string>('');
     const [partSetCount, setPartSetCount] = useState<number>(0);
+    const [standaloneInputMode, setStandaloneInputMode] = useState<'manual-input' | 'excel-import'>('manual-input');
     const [familySetCount, setFamilySetCount] = useState<number>(0);
     const [immediateCP, setImmediateCP] = useState(false);
     const [immediatePFD, setImmediatePFD] = useState(false);
@@ -318,9 +319,15 @@ export default function CreateDocumentModal({
                     : sourceApp === 'pfd' ? result.pfdId
                     : result.pfmeaId;
                 onClose();
-                // ★ 2026-03-29: 직접 작성 시 수동 Import 페이지로 이동 (수동 탭 활성화)
+                // ★ 2026-03-29: 직접 작성 입력 방식에 따라 분기
                 if (partParentMode === 'standalone' && sourceApp === 'pfmea') {
-                    window.location.href = `/pfmea/import/manual?id=${redirectId}`;
+                    if (standaloneInputMode === 'excel-import') {
+                        // 엑셀 Import → 등록 페이지로 이동 후 Import 모달 자동 오픈
+                        window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}&openImport=true`;
+                    } else {
+                        // 수동 입력 → 수동 Import 페이지로 이동
+                        window.location.href = `/pfmea/import/manual?id=${redirectId}`;
+                    }
                 } else {
                     window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
                 }
@@ -583,10 +590,46 @@ export default function CreateDocumentModal({
                                         );
                                     })()}
 
-                                    {/* 직접 작성 — Master Dataset 선택 */}
+                                    {/* 직접 작성 — 입력 방식 선택 + Master Dataset 선택 */}
                                     {partParentMode === 'standalone' && (
                                         <div className="mt-1">
-                                            <div className="text-[9px] text-blue-600 mb-1">상위 FMEA 없이 독립적으로 생성합니다.</div>
+                                            <div className="text-[9px] text-blue-600 mb-1.5">상위 FMEA 없이 독립적으로 생성합니다.</div>
+                                            
+                                            {/* ★ 입력 방식 선택: 엑셀 Import / 수동 입력 */}
+                                            <div className="text-[9px] text-gray-600 font-semibold mb-1">입력 방식:</div>
+                                            <div className="flex flex-col gap-1 mb-2 pl-1">
+                                                <label className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-xs border ${
+                                                    standaloneInputMode === 'excel-import' 
+                                                        ? 'border-purple-400 bg-purple-50 text-purple-700 font-semibold' 
+                                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                }`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="standaloneInputMode"
+                                                        checked={standaloneInputMode === 'excel-import'}
+                                                        onChange={() => setStandaloneInputMode('excel-import')}
+                                                        className="w-3 h-3"
+                                                    />
+                                                    <span>📥 엑셀 Import</span>
+                                                    <span className="text-[9px] text-gray-400 ml-auto">엑셀 파일로 기초정보 일괄 입력</span>
+                                                </label>
+                                                <label className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-xs border ${
+                                                    standaloneInputMode === 'manual-input' 
+                                                        ? 'border-green-400 bg-green-50 text-green-700 font-semibold' 
+                                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                                }`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="standaloneInputMode"
+                                                        checked={standaloneInputMode === 'manual-input'}
+                                                        onChange={() => setStandaloneInputMode('manual-input')}
+                                                        className="w-3 h-3"
+                                                    />
+                                                    <span>✏️ 수동 입력</span>
+                                                    <span className="text-[9px] text-gray-400 ml-auto">화면에서 직접 공정/기능 입력</span>
+                                                </label>
+                                            </div>
+
                                             {masterDatasets.length > 0 && (
                                                 <>
                                                     <div className="text-[9px] text-gray-500 mb-0.5">참조할 Master Dataset (선택사항):</div>

@@ -7,3 +7,4 @@
 export { CFTSection } from './CFTSection';
 export { AccessLogSection } from './AccessLogSection';
 export { RegisterInfoSection } from './RegisterInfoSection';
+export { RegisterBasicInfoImportModal } from './RegisterBasicInfoImportModal';

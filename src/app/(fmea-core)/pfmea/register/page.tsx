@@ -63,6 +63,7 @@ import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
 import type { BdStatusItem, FMEAProject as ImportFMEAProject } from '@/app/(fmea-core)/pfmea/import/components/ImportPageTypes';
 import { fmeaIdToBdId } from '@/app/(fmea-core)/pfmea/import/utils/bd-id';
 import { BdNavConfirmModal } from './components/BdNavConfirmModal';
+import { RegisterBasicInfoImportModal } from './components/RegisterBasicInfoImportModal';
 
 // ★ Heavy import modules → dynamic/lazy loading (컴파일 성능 최적화)
 const TemplateGeneratorPanel = dynamic(
@@ -110,7 +111,7 @@ function PFMEARegisterPageContent() {
     fmeaNameModalOpen, setFmeaNameModalOpen, fmeaNameList,
     duplicateWarning,
     linkageModalOpen, setLinkageModalOpen,
-    linkedPfdList, linkedCpList,
+    linkedPfdList, setLinkedPfdList, linkedCpList, setLinkedCpList,
     isCreateModalOpen, setIsCreateModalOpen,
     cachedProjects,
     showMasterReview, setShowMasterReview,
@@ -160,6 +161,8 @@ function PFMEARegisterPageContent() {
   const [masterBdCount, setMasterBdCount] = useState(0);
   const [partBdCount, setPartBdCount] = useState(0);
   const [bdNavConfirm, setBdNavConfirm] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
+  /** 등록 화면 경량 Excel Import (15탭 미리보기 → 작성화면) */
+  const [basicImportModalOpen, setBasicImportModalOpen] = useState(false);
 
   // ★ Master/Part FMEA BD 카운트 로드
   useEffect(() => {
@@ -566,6 +569,19 @@ function PFMEARegisterPageContent() {
             <button onClick={handleSave} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 text-xs font-bold rounded ${saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' : saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
               {saveStatus === 'saving' ? '⏳ 저장 중...(Saving)' : saveStatus === 'saved' ? '✓ 저장됨(Saved)' : '💾 저장(Save)'}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!fmeaId) {
+                  alert('FMEA ID가 없습니다. 유형 선택 후 저장하거나 새로 작성을 완료하세요.');
+                  return;
+                }
+                setBasicImportModalOpen(true);
+              }}
+              className="px-3 py-1.5 text-xs font-semibold rounded border border-purple-500 text-purple-700 hover:bg-purple-50"
+            >
+              📥 Excel Import
+            </button>
           </div>
         </div>
 
@@ -645,11 +661,16 @@ function PFMEARegisterPageContent() {
                   </td>
                   <td className={`${headerCell} bg-yellow-600`}>상위 FMEA<br /><span className="text-[8px] font-normal opacity-70">(Parent)</span></td>
                   <td className={inputCell}>
-                    <div className="flex items-center gap-1 px-1 cursor-pointer hover:bg-yellow-50 min-h-[28px] min-w-0 flex-wrap" onClick={() => openFmeaSelectModal('MF')} title="클릭하여 상위 FMEA 선택 (Master/Family)">
-                      {selectedBaseFmea ? (<>
-                        <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-yellow-500 shrink-0">FMEA</span>
-                        <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all">{selectedBaseFmea}</span>
-                      </>) : <span className="text-[10px] text-gray-400">-</span>}
+                    <div className="flex items-center gap-1 px-1 min-h-[28px] min-w-0 flex-wrap">
+                      <div className="flex-1 flex items-center gap-1 cursor-pointer hover:bg-yellow-50" onClick={() => openFmeaSelectModal('MF')} title="클릭하여 상위 FMEA 선택 (Master/Family)">
+                        {selectedBaseFmea ? (<>
+                          <span className="px-1 py-0.5 rounded text-[8px] font-bold text-white bg-yellow-500 shrink-0">FMEA</span>
+                          <span className="text-[10px] font-semibold text-yellow-600 hover:underline break-all">{selectedBaseFmea}</span>
+                        </>) : <span className="text-[10px] text-gray-400">-</span>}
+                      </div>
+                      {selectedBaseFmea && (
+                        <button onClick={(e) => { e.stopPropagation(); setSelectedBaseFmea(null); updateField('parentFmeaId', ''); }} className="text-gray-400 hover:text-red-500 shrink-0 text-xs font-bold px-0.5" title="상위 FMEA 선택 해제">✕</button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -674,7 +695,7 @@ function PFMEARegisterPageContent() {
                   </td>
                   <td className={headerCell}>시작 일자<br /><span className="text-[8px] font-normal opacity-70">(Start Date)</span></td>
                   <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaStartDate} onClick={() => setStartDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택" /></td>
-                  <td className={`${headerCell} bg-teal-700`}>연동 CP<br /><span className="text-[8px] font-normal opacity-70">(Linked)</span></td>
+                  <td className={`${headerCell} bg-teal-700`}>FMEA연동<br /><span className="text-[8px] font-normal opacity-70">(CP)</span></td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 px-1 min-h-[28px]">
                       {fmeaInfo.linkedCpNo ? (
@@ -685,7 +706,10 @@ function PFMEARegisterPageContent() {
                       ) : (
                         <span className="flex-1 text-[10px] text-gray-400">-</span>
                       )}
-                      <button onClick={() => setLinkageModalOpen(true)} className="text-teal-500 hover:text-teal-700 shrink-0 text-xs" title="연동 CP 설정">🔗</button>
+                      {fmeaInfo.linkedCpNo && (
+                        <button onClick={() => { updateField('linkedCpNo', ''); setLinkedCpList(prev => prev.map(d => ({ ...d, status: 'solo' as const }))); }} className="text-red-400 hover:text-red-600 shrink-0 text-[10px] font-bold px-1 py-0.5 border border-red-300 rounded hover:bg-red-50" title="연동 CP 해제">해제</button>
+                      )}
+                      <button onClick={() => setLinkageModalOpen(true)} className="text-teal-600 hover:text-teal-800 shrink-0 text-[10px] font-bold px-1 py-0.5 border border-teal-400 rounded hover:bg-teal-50" title="연동 문서 관리">연동</button>
                     </div>
                   </td>
                 </tr>
@@ -715,7 +739,7 @@ function PFMEARegisterPageContent() {
                   <td className={inputCell}><input type="text" value={fmeaInfo.engineeringLocation} onChange={e => updateField('engineeringLocation', e.target.value)} className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="위치(Location)" /></td>
                   <td className={headerCell}>목표완료일<br /><span className="text-[8px] font-normal opacity-70">(Target Date)</span></td>
                   <td className={inputCell}><input type="text" readOnly value={fmeaInfo.fmeaRevisionDate} onClick={() => setRevisionDateModalOpen(true)} className="w-full h-7 px-2 text-xs border border-gray-300 rounded bg-white cursor-pointer hover:bg-gray-50" placeholder="클릭하여 선택" /></td>
-                  <td className={`${headerCell} bg-indigo-700`}>연동 PFD<br /><span className="text-[8px] font-normal opacity-70">(Linked)</span></td>
+                  <td className={`${headerCell} bg-indigo-700`}>FMEA연동<br /><span className="text-[8px] font-normal opacity-70">(PFD)</span></td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-0.5 px-1 min-h-[28px]">
                       {fmeaInfo.linkedPfdNo ? (
@@ -726,7 +750,10 @@ function PFMEARegisterPageContent() {
                       ) : (
                         <span className="flex-1 text-[10px] text-gray-400">-</span>
                       )}
-                      <button onClick={() => setLinkageModalOpen(true)} className="text-indigo-500 hover:text-indigo-700 shrink-0 text-xs" title="연동 PFD 설정">🔗</button>
+                      {fmeaInfo.linkedPfdNo && (
+                        <button onClick={() => { updateField('linkedPfdNo', ''); setLinkedPfdList(prev => prev.map(d => ({ ...d, status: 'solo' as const }))); }} className="text-red-400 hover:text-red-600 shrink-0 text-[10px] font-bold px-1 py-0.5 border border-red-300 rounded hover:bg-red-50" title="연동 PFD 해제">해제</button>
+                      )}
+                      <button onClick={() => setLinkageModalOpen(true)} className="text-indigo-600 hover:text-indigo-800 shrink-0 text-[10px] font-bold px-1 py-0.5 border border-indigo-400 rounded hover:bg-indigo-50" title="연동 문서 관리">연동</button>
                     </div>
                   </td>
                 </tr>
@@ -997,7 +1024,7 @@ function PFMEARegisterPageContent() {
                 await loadBdById(normId, fmeaName);
               }
             }
-          }} fmeas={availableFmeas} selectType={fmeaSelectType} currentFmeaId={fmeaId} onExcelImport={() => window.location.href = `/pfmea/import?id=${fmeaId}&mode=excel&type=${fmeaSelectType}`} />
+          }} fmeas={availableFmeas} selectType={fmeaSelectType} currentFmeaId={fmeaId} onExcelImport={() => { setFmeaSelectModalOpen(false); setBasicImportModalOpen(true); }} />
 
         {/* BD 선택 모달: Master/Family가 2개 이상일 때 */}
         {bdSelectModal.open && (
@@ -1083,7 +1110,17 @@ function PFMEARegisterPageContent() {
           onLoadFmea={(id) => { router.push(`/pfmea/register?id=${id}`); window.location.reload(); }} />
 
         {/* 연동 모달 */}
-        <LinkageModal isOpen={linkageModalOpen} onClose={() => setLinkageModalOpen(false)}
+        <LinkageModal isOpen={linkageModalOpen} onClose={() => {
+          setLinkageModalOpen(false);
+          // ★ 모달 닫을 때 linkedList → fmeaInfo 동기화
+          const activeCp = linkedCpList.find(d => d.status === 'linked');
+          const activePfd = linkedPfdList.find(d => d.status === 'linked');
+          setFmeaInfo(prev => ({
+            ...prev,
+            linkedCpNo: activeCp ? activeCp.id : '',
+            linkedPfdNo: activePfd ? activePfd.id : '',
+          }));
+        }}
           sourceInfo={{ id: fmeaId, module: 'pfm', subject: fmeaInfo.subject, customerName: fmeaInfo.customerName, modelYear: fmeaInfo.modelYear, companyName: fmeaInfo.companyName, docType: fmeaInfo.fmeaType }}
           linkedPfdList={linkedPfdList} linkedCpList={linkedCpList}
           onAddLinkedDoc={handleAddLinkedDoc} onRemoveLinkedDoc={handleRemoveLinkedDoc} onToggleLinkage={handleToggleLinkage}
@@ -1103,6 +1140,16 @@ function PFMEARegisterPageContent() {
           onClose={() => setBdNavConfirm({ open: false, name: '' })}
           onNavigate={() => {
             setBdNavConfirm({ open: false, name: '' });
+            if (fmeaId) router.push(`/pfmea/worksheet?id=${fmeaId}`);
+          }}
+        />
+
+        <RegisterBasicInfoImportModal
+          isOpen={basicImportModalOpen}
+          onClose={() => setBasicImportModalOpen(false)}
+          fmeaId={fmeaId || ''}
+          fmeaType={fmeaInfo.fmeaType || 'P'}
+          onSuccessNavigate={() => {
             if (fmeaId) router.push(`/pfmea/worksheet?id=${fmeaId}`);
           }}
         />

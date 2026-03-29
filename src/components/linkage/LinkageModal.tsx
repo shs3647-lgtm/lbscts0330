@@ -503,7 +503,7 @@ export function LinkageModal({
                                 {sourceInfo.id}
                             </span>
                         </div>
-                        <button onClick={onClose} onMouseDown={e => e.stopPropagation()} className="text-white hover:text-gray-200 text-lg">✕</button>
+                        <button onClick={onClose} onMouseDown={e => e.stopPropagation()} className="text-white hover:text-gray-200 text-sm font-bold px-2 py-0.5 bg-white/20 rounded hover:bg-white/30">닫기</button>
                     </div>
 
                     {/* 현재 문서 정보 */}

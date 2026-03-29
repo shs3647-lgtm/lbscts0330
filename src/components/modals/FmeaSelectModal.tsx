@@ -111,7 +111,7 @@ function RemarkCell({ fmeaId, value }: { fmeaId: string; value: string }) {
 }
 
 export function FmeaSelectModal({
-  isOpen, onClose, onSelect, fmeas, selectType, currentFmeaId,
+  isOpen, onClose, onSelect, fmeas, selectType, currentFmeaId, onExcelImport,
 }: FmeaSelectModalProps) {
   const [search, setSearch] = useState('');
   const [mfTab, setMfTab] = useState<'M' | 'F'>('M');
@@ -333,7 +333,22 @@ export function FmeaSelectModal({
       {/* 미니 푸터 */}
       <div className="bg-gray-50 px-3 py-1 flex justify-between items-center border-t shrink-0 rounded-b-lg text-[10px] text-gray-400">
         <span>{selectType === 'MF' ? `${mfTab === 'M' ? 'Master' : 'Family'}: ` : ''}총 {filtered.length}건</span>
-        <span>유형=기초정보 | ID=리스트 | 비고=편집</span>
+        <span className="flex items-center gap-2">
+          {onExcelImport ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+                onExcelImport();
+              }}
+              className="px-2 py-0.5 rounded bg-purple-600 text-white font-bold hover:bg-purple-700 text-[10px]"
+            >
+              Excel Import
+            </button>
+          ) : null}
+          <span className="hidden sm:inline">유형=기초정보 | ID=리스트 | 비고=편집</span>
+        </span>
       </div>
 
       {/* 리사이즈 핸들 */}
