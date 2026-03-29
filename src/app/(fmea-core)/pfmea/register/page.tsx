@@ -840,140 +840,6 @@ function PFMEARegisterPageContent() {
           </div>
         )}
 
-        {/* ★ 2026-02-18: 기초정보 템플릿 생성기 */}
-        <div className="mt-4">
-          <TemplateGeneratorPanel
-            onGenerate={templateGen.handleGenerate}
-            templateMode={templateGen.templateMode}
-            setTemplateMode={templateGen.setTemplateMode}
-            manualConfig={templateGen.manualConfig}
-            updateManualConfig={templateGen.updateManualConfig}
-            workElements={templateGen.workElements}
-            multipliers={templateGen.multipliers}
-            updateMultiplier={templateGen.updateMultiplier}
-            addWorkElement={templateGen.addWorkElement}
-            removeWorkElement={templateGen.removeWorkElement}
-            updateWorkElement={templateGen.updateWorkElement}
-            flatData={flatData}
-            parseStatistics={bdParseStatistics}
-            positionParserStats={bdPositionParserStats}
-            onDownloadSample={async () => {
-              const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
-              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
-              const masterName = subject ? `PFMEA_${subject}_현재데이터` : undefined;
-
-              // 1순위: reverse-import API — DB의 L1·L2·L3·FC사슬 완전 반영 (SSoT)
-              if (fmeaId) {
-                try {
-                  const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
-                  if (res.ok) {
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    const cd = res.headers.get('content-disposition');
-                    const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                    a.download = fnMatch?.[1] || `PFMEA_${subject || fmeaId}_현재데이터.xlsx`;
-                    a.href = url;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    return;
-                  }
-                } catch (_e) { /* server-side 실패 시 flatData fallback */ }
-              }
-
-              // 2순위: 현재 flatData (마스터 데이터셋, reverse-import 실패 시)
-              if (flatData.length > 0) {
-                downloadDataTemplate(flatData, masterName);
-                return;
-              }
-
-              // 3순위: static 샘플 fallback
-              downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
-            }}
-            onDownloadEmpty={async () => {
-              const { downloadEmptyTemplate } = await getExcelTemplate();
-              downloadEmptyTemplate();
-            }}
-            onImportFile={() => bdFileInputRef.current?.click()}
-            onUpdateItem={(id, value) => {
-              setFlatData(prev => prev.map(item => item.id === id ? { ...item, value } : item));
-              setBdDirty(true); setBdIsSaved(false);
-            }}
-            onUpdateM4={(id, m4) => {
-              setFlatData(prev => prev.map(item => item.id === id ? { ...item, m4 } : item));
-              setBdDirty(true); setBdIsSaved(false);
-            }}
-            onDeleteItems={(ids) => {
-              const idSet = new Set(ids);
-              setFlatData(prev => prev.filter(item => !idSet.has(item.id)));
-              setBdDirty(true); setBdIsSaved(false);
-            }}
-            onAddItems={(items) => {
-              const newItems = items.map((item, i) => ({
-                ...item,
-                id: `add-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-              }));
-              setFlatData(prev => [...prev, ...newItems]);
-              setBdDirty(true); setBdIsSaved(false);
-            }}
-            onSave={handleBdSave}
-            isSaved={bdIsSaved}
-            isSaving={bdIsSaving}
-            dirty={bdDirty}
-            selectedFmeaId={fmeaId}
-            l1Name={core.fmeaInfo.subject || ''}
-            fmeaInfo={{
-              subject: core.fmeaInfo.subject || '',
-              companyName: core.fmeaInfo.companyName || '',
-              customerName: core.fmeaInfo.customerName || '',
-              modelYear: core.fmeaInfo.modelYear || '',
-              fmeaType: core.fmeaInfo.fmeaType || 'P',
-              engineeringLocation: core.fmeaInfo.engineeringLocation || '',
-              designResponsibility: core.fmeaInfo.designResponsibility || '',
-              fmeaResponsibleName: core.fmeaInfo.fmeaResponsibleName || '',
-              partName: core.fmeaInfo.partName || '',
-              partNo: core.fmeaInfo.partNo || '',
-            }}
-            onWorksheetSaved={() => {
-              if (fmeaId) window.location.href = `/pfmea/worksheet?id=${fmeaId}&tab=structure`;
-            }}
-            bdFmeaId={bdLoadedFmeaId || undefined}
-            bdFmeaName={bdLoadedFmeaName || undefined}
-            bdStatusList={bdStatusList}
-            fmeaList={bdFmeaList}
-            expandTrigger={bdExpandTrigger}
-          />
-          {/* Hidden file input for BD import */}
-          <input ref={bdFileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBdFileSelect} />
-        </div>
-
-        {/* ★ DB 영구저장 검증 패널 — Import 후 DB 카운트 vs 파싱 카운트 대조 */}
-        {bdDbCounts && bdParseStatistics && (
-          <DbVerifyPanel parseStats={bdParseStatistics} dbCounts={bdDbCounts} flatData={flatData} />
-        )}
-
-        {/* ★ 2026-02-20: BD 현황 테이블 */}
-        <BdStatusTable
-          bdStatusList={bdStatusList}
-          selectedFmeaId={fmeaId}
-          typeFilter={bdTypeFilter}
-          onTypeFilterChange={setBdTypeFilter}
-          setSelectedFmeaId={(id) => {
-            // BD 현황 행 클릭 → 해당 FMEA의 기초정보 로드
-            const bd = bdStatusList.find(b => b.fmeaId === id);
-            loadBdById(id, bd?.fmeaName || id);
-            if (bd) {
-              getMasterApi().then(({ loadDatasetByFmeaId }) =>
-                loadDatasetByFmeaId(id).then(res => {
-                  if (res.datasetId) setBdDatasetId(res.datasetId);
-                })
-              ).catch(e => { console.error('[BD 데이터셋 로드] 오류:', e); });
-            }
-            templateGen.setTemplateMode('download');
-          }}
-          onDeleteDatasets={handleBdDeleteDatasets}
-        />
-
         {/* Family CP 관리는 CP 모듈에서 관리 — FMEA 등록 페이지에서 제거 (2026-03-05) */}
 
         {/* CFT 리스트 */}
@@ -1002,6 +868,102 @@ function PFMEARegisterPageContent() {
           <span>📊</span><h2 className="text-sm font-bold text-gray-700" title="CFT Access Log">CFT 접속 로그(Access Log)</h2>
         </div>
         <CFTAccessLogTable accessLogs={accessLogs} maxRows={5} />
+
+        {/* ★ 2026-03-29: 기초정보 섹션 — CFT 접속로그 아래로 이동 */}
+        <div className="mt-6">
+          <TemplateGeneratorPanel
+            onGenerate={templateGen.handleGenerate}
+            templateMode={templateGen.templateMode}
+            setTemplateMode={templateGen.setTemplateMode}
+            manualConfig={templateGen.manualConfig}
+            updateManualConfig={templateGen.updateManualConfig}
+            workElements={templateGen.workElements}
+            multipliers={templateGen.multipliers}
+            updateMultiplier={templateGen.updateMultiplier}
+            addWorkElement={templateGen.addWorkElement}
+            removeWorkElement={templateGen.removeWorkElement}
+            updateWorkElement={templateGen.updateWorkElement}
+            flatData={flatData}
+            parseStatistics={bdParseStatistics}
+            positionParserStats={bdPositionParserStats}
+            onDownloadSample={async () => {
+              const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
+              const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
+              const masterName = subject ? `PFMEA_${subject}_현재데이터` : undefined;
+              if (fmeaId) {
+                try {
+                  const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
+                  if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const cd = res.headers.get('content-disposition');
+                    const fnMatch = cd?.match(/filename="?([^"]+)"?/);
+                    a.download = fnMatch?.[1] || `PFMEA_${subject || fmeaId}_현재데이터.xlsx`;
+                    a.href = url;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    return;
+                  }
+                } catch (_e) { /* fallback */ }
+              }
+              if (flatData.length > 0) { downloadDataTemplate(flatData, masterName); return; }
+              downloadSampleTemplate(masterName, templateGen.templateMode === 'manual');
+            }}
+            onDownloadEmpty={async () => {
+              const { downloadEmptyTemplate } = await getExcelTemplate();
+              downloadEmptyTemplate();
+            }}
+            onImportFile={() => bdFileInputRef.current?.click()}
+            onUpdateItem={(id, value) => { setFlatData(prev => prev.map(item => item.id === id ? { ...item, value } : item)); setBdDirty(true); setBdIsSaved(false); }}
+            onUpdateM4={(id, m4) => { setFlatData(prev => prev.map(item => item.id === id ? { ...item, m4 } : item)); setBdDirty(true); setBdIsSaved(false); }}
+            onDeleteItems={(ids) => { const idSet = new Set(ids); setFlatData(prev => prev.filter(item => !idSet.has(item.id))); setBdDirty(true); setBdIsSaved(false); }}
+            onAddItems={(items) => { setFlatData(prev => [...prev, ...items.map((item, i) => ({ ...item, id: `add-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}` }))]); setBdDirty(true); setBdIsSaved(false); }}
+            onSave={handleBdSave}
+            isSaved={bdIsSaved}
+            isSaving={bdIsSaving}
+            dirty={bdDirty}
+            selectedFmeaId={fmeaId}
+            l1Name={core.fmeaInfo.subject || ''}
+            fmeaInfo={{
+              subject: core.fmeaInfo.subject || '', companyName: core.fmeaInfo.companyName || '',
+              customerName: core.fmeaInfo.customerName || '', modelYear: core.fmeaInfo.modelYear || '',
+              fmeaType: core.fmeaInfo.fmeaType || 'P', engineeringLocation: core.fmeaInfo.engineeringLocation || '',
+              designResponsibility: core.fmeaInfo.designResponsibility || '',
+              fmeaResponsibleName: core.fmeaInfo.fmeaResponsibleName || '',
+              partName: core.fmeaInfo.partName || '', partNo: core.fmeaInfo.partNo || '',
+            }}
+            onWorksheetSaved={() => { if (fmeaId) window.location.href = `/pfmea/worksheet?id=${fmeaId}&tab=structure`; }}
+            bdFmeaId={bdLoadedFmeaId || undefined}
+            bdFmeaName={bdLoadedFmeaName || undefined}
+            bdStatusList={bdStatusList}
+            fmeaList={bdFmeaList}
+            expandTrigger={bdExpandTrigger}
+          />
+          <input ref={bdFileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBdFileSelect} />
+        </div>
+
+        {bdDbCounts && bdParseStatistics && (
+          <DbVerifyPanel parseStats={bdParseStatistics} dbCounts={bdDbCounts} flatData={flatData} />
+        )}
+
+        <BdStatusTable
+          bdStatusList={bdStatusList}
+          selectedFmeaId={fmeaId}
+          typeFilter={bdTypeFilter}
+          onTypeFilterChange={setBdTypeFilter}
+          setSelectedFmeaId={(id) => {
+            const bd = bdStatusList.find(b => b.fmeaId === id);
+            loadBdById(id, bd?.fmeaName || id);
+            if (bd) {
+              getMasterApi().then(({ loadDatasetByFmeaId }) =>
+                loadDatasetByFmeaId(id).then(res => { if (res.datasetId) setBdDatasetId(res.datasetId); })
+              ).catch(e => { console.error('[BD 데이터셋 로드] 오류:', e); });
+            }
+            templateGen.setTemplateMode('download');
+          }}
+          onDeleteDatasets={handleBdDeleteDatasets}
+        />
 
         {/* 하단 상태바 */}
         <div className="mt-3 px-4 py-2 bg-white rounded border border-gray-300 flex justify-between text-xs text-gray-500">
