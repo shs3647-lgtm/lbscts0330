@@ -528,7 +528,7 @@ export default function CreateDocumentModal({
                                         ))}
                                     </div>
 
-                                    {/* 상위 Master/Family 드롭다운 */}
+                                    {/* 상위 Master/Family 목록 */}
                                     {partParentMode === 'master-family' && (() => {
                                         const filtered = parentCandidates.filter(t => t.typeCode === 'f' || t.typeCode === 'm');
                                         return (
@@ -536,6 +536,7 @@ export default function CreateDocumentModal({
                                                 <select
                                                     value={selectedParentTriplet}
                                                     onChange={(e) => setSelectedParentTriplet(e.target.value)}
+                                                    size={Math.min(filtered.length + 1, 8)}
                                                     className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                                                 >
                                                     <option value="">-- 상위 FMEA 선택 --</option>
@@ -552,7 +553,7 @@ export default function CreateDocumentModal({
                                         );
                                     })()}
 
-                                    {/* 다른 Part FMEA 참조 드롭다운 */}
+                                    {/* 다른 Part FMEA 참조 목록 */}
                                     {partParentMode === 'part-ref' && (() => {
                                         const partCandidates = parentCandidates.filter(t => t.typeCode === 'p');
                                         return (
@@ -560,6 +561,7 @@ export default function CreateDocumentModal({
                                                 <select
                                                     value={selectedParentTriplet}
                                                     onChange={(e) => setSelectedParentTriplet(e.target.value)}
+                                                    size={Math.min(partCandidates.length + 1, 8)}
                                                     className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                                                 >
                                                     <option value="">-- Part FMEA 선택 --</option>
