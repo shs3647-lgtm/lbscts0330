@@ -35,6 +35,7 @@ interface CreateTripletBody {
   parentTripletId?: string;
   parentFmeaId?: string;
   standalone?: boolean;
+  masterDatasetId?: string;
   partRef?: boolean;
   familyCount?: number;
   partCount?: number;
@@ -118,13 +119,14 @@ export async function POST(request: NextRequest) {
     }
 
     const typeCode = docType === 'master' ? 'm' : docType === 'family' ? 'f' : 'p';
-    const headerData = {
+    const headerData: Record<string, string> = {
       subject: subject.trim(),
       productName: productName?.trim() || '',
       customerName: customerName?.trim() || '',
       companyName: companyName?.trim() || '',
       responsibleName: responsibleName?.trim() || '',
       partNo: partNo?.trim() || '',
+      masterDatasetId: body.masterDatasetId || '',
     };
 
     // 기존 ID 조회 (시리얼 계산용 — soft-deleted 포함, Unique 충돌 방지)
@@ -525,6 +527,7 @@ async function createPartTriplet(
         fmeaType: 'P',
         parentFmeaId: parentTriplet?.pfmeaId || null,
         parentFmeaType: parentTriplet?.typeCode?.toUpperCase() || null,
+        masterDatasetId: (headerData as any).masterDatasetId || null,
         tripletGroupId: ids.tripletGroupId,
         status: 'active',
         registration: {

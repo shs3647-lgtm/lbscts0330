@@ -807,6 +807,7 @@ model FmeaProject {
   parentApqpNo     String?
   parentFmeaId     String?
   parentFmeaType   String?
+  masterDatasetId  String?            // 직접 작성 시 참조할 마스터 데이터셋 ID
   tripletGroupId   String?            // TripletGroup 연결
   status           String             @default("active")
   step             Int                @default(1)

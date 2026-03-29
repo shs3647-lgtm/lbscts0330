@@ -37,10 +37,16 @@ export async function GET(req: NextRequest) {
             if (activeDataset) datasetSource = 'fmeaId';
         }
 
-        // 2단계: 등록 화면에서 지정한 상위 FMEA (parentFmeaId) fallback
+        // 2단계: 부모(parentFmeaId) 또는 직접 지정(masterDatasetId) fallback
         if (!activeDataset && fmeaId) {
-            const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true } });
-            if (project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
+            const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true, masterDatasetId: true } });
+            // 2a: masterDatasetId 직접 지정 우선
+            if (project?.masterDatasetId) {
+                activeDataset = await prisma.pfmeaMasterDataset.findFirst({ where: { id: project.masterDatasetId } });
+                if (activeDataset) datasetSource = `masterDataset (${project.masterDatasetId})`;
+            }
+            // 2b: parentFmeaId fallback
+            if (!activeDataset && project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
                 activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                     where: { fmeaId: project.parentFmeaId },
                     orderBy: { updatedAt: 'desc' }

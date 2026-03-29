@@ -83,6 +83,8 @@ export default function CreateDocumentModal({
     const [parentCandidates, setParentCandidates] = useState<ParentCandidate[]>([]);
     const [selectedParentTriplet, setSelectedParentTriplet] = useState<string>('');
     const [partParentMode, setPartParentMode] = useState<'master-family' | 'part-ref' | 'standalone'>('master-family');
+    const [masterDatasets, setMasterDatasets] = useState<{ id: string; fmeaId: string; name: string }[]>([]);
+    const [selectedMasterDatasetId, setSelectedMasterDatasetId] = useState<string>('');
     const [partSetCount, setPartSetCount] = useState<number>(0);
     const [familySetCount, setFamilySetCount] = useState<number>(0);
     const [immediateCP, setImmediateCP] = useState(false);
@@ -104,6 +106,7 @@ export default function CreateDocumentModal({
             setFamilySetCount(0);
             setSelectedParentTriplet('');
             setPartParentMode('master-family');
+            setSelectedMasterDatasetId('');
             setImmediateCP(false);
             setImmediatePFD(false);
             setProductName(initialProductName || '');
@@ -135,6 +138,12 @@ export default function CreateDocumentModal({
                     setParentCandidates([...tripletItems, ...legacyItems]);
                 });
             }
+
+            // ★ Master Dataset 목록 로드 (직접 작성 시 참조용)
+            fetch('/api/fmea/master-datasets')
+              .then(r => r.ok ? r.json() : { datasets: [] })
+              .then(data => setMasterDatasets(data.datasets || []))
+              .catch(() => setMasterDatasets([]));
 
             // ★ 기존 문서 목록 로드 (중복 검증용)
             setExistingDocs([]);
@@ -271,6 +280,9 @@ export default function CreateDocumentModal({
                 if (docType === 'part') {
                     if (partParentMode === 'standalone') {
                         tripletBody.standalone = true;
+                        if (selectedMasterDatasetId) {
+                            tripletBody.masterDatasetId = selectedMasterDatasetId;
+                        }
                     } else if (selectedParentTriplet) {
                         if (selectedParentTriplet.startsWith('legacy:')) {
                             tripletBody.parentFmeaId = selectedParentTriplet.replace('legacy:', '');
@@ -564,9 +576,28 @@ export default function CreateDocumentModal({
                                         );
                                     })()}
 
-                                    {/* 직접 작성 안내 */}
+                                    {/* 직접 작성 — Master Dataset 선택 */}
                                     {partParentMode === 'standalone' && (
-                                        <div className="text-[9px] text-blue-600 mt-1">상위 FMEA 없이 독립적으로 생성합니다.</div>
+                                        <div className="mt-1">
+                                            <div className="text-[9px] text-blue-600 mb-1">상위 FMEA 없이 독립적으로 생성합니다.</div>
+                                            {masterDatasets.length > 0 && (
+                                                <>
+                                                    <div className="text-[9px] text-gray-500 mb-0.5">참조할 Master Dataset (선택사항):</div>
+                                                    <select
+                                                        value={selectedMasterDatasetId}
+                                                        onChange={(e) => setSelectedMasterDatasetId(e.target.value)}
+                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                                    >
+                                                        <option value="">-- 없음 (완전 빈 상태) --</option>
+                                                        {masterDatasets.map(ds => (
+                                                            <option key={ds.id} value={ds.id}>
+                                                                {ds.name} ({ds.fmeaId})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </>
+                                            )}
+                                        </div>
                                     )}
                                 </td>
                             </tr>

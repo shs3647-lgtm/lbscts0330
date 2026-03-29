@@ -126,10 +126,21 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ─── 2단계: 등록 화면에서 지정한 상위 FMEA (parentFmeaId) fallback ───
+    // ─── 2단계: masterDatasetId 또는 parentFmeaId fallback ───
     if (processes.length === 0 && fmeaId) {
-      const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true } });
-      if (project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
+      const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true, masterDatasetId: true } });
+      // 2a: masterDatasetId 직접 지정 우선
+      if (project?.masterDatasetId) {
+        activeDataset = await prisma.pfmeaMasterDataset.findFirst({ where: { id: project.masterDatasetId } });
+        if (activeDataset) {
+          processes = await buildProcessesFromDataset(prisma, activeDataset.id);
+          if (processes.length > 0) {
+            console.info(`[master-processes] 2a단계 masterDataset: ${fmeaId} → ${project.masterDatasetId} → ${processes.length}건`);
+          }
+        }
+      }
+      // 2b: parentFmeaId fallback
+      if (processes.length === 0 && project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
         activeDataset = await prisma.pfmeaMasterDataset.findFirst({
           where: { isActive: true, fmeaId: project.parentFmeaId },
           orderBy: { updatedAt: 'desc' },
@@ -137,7 +148,7 @@ export async function GET(req: NextRequest) {
         if (activeDataset) {
           processes = await buildProcessesFromDataset(prisma, activeDataset.id);
           if (processes.length > 0) {
-            console.info(`[master-processes] 2단계 부모 fallback: ${fmeaId} → parent=${project.parentFmeaId} → ${processes.length}건`);
+            console.info(`[master-processes] 2b단계 부모 fallback: ${fmeaId} → parent=${project.parentFmeaId} → ${processes.length}건`);
           }
         }
       }
