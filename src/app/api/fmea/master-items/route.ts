@@ -235,8 +235,34 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // ★ C1/C2/C3 카테고리 기반 항목: 다른 카테고리 폴백 금지 (YP 요청 시 SP/USER 반환 방지)
-    // processNo 기반(B1~A6) 폴백만 허용: 공정번호 정규화("010"↔"10") 불일치 시
+    // ★ 자체 dataset에 해당 카테고리/processNo 데이터 없으면 다른 dataset에서 폴백
+    let fallbackWarning: string | undefined;
+    if (flatItems.length === 0 && fmeaId) {
+      const otherDatasets = await prisma.pfmeaMasterDataset.findMany({
+        where: { isActive: true, id: { not: dataset.id } },
+        orderBy: { updatedAt: 'desc' },
+      });
+      for (const other of otherDatasets) {
+        const otherWhere: Record<string, unknown> = {
+          datasetId: other.id,
+          itemCode,
+        };
+        if (isCatBased && normalizedCategory) otherWhere.processNo = normalizedCategory;
+        else if (!isCatBased && processNo) otherWhere.processNo = { in: processNoVariants(processNo) };
+
+        const otherItems = await prisma.pfmeaMasterFlatItem.findMany({
+          where: otherWhere,
+          orderBy: [{ orderIndex: 'asc' }, { value: 'asc' }],
+        });
+        if (otherItems.length > 0) {
+          flatItems = otherItems;
+          const filterLabel = normalizedCategory || processNo || 'all';
+          fallbackWarning = `⚠️ 현재 FMEA(${fmeaId})에 ${itemCode}(${filterLabel}) 데이터가 없어 마스터(${other.fmeaId})에서 가져왔습니다.`;
+          console.log(`[master-items GET] ${fallbackWarning}`);
+          break;
+        }
+      }
+    }
 
     // 결과 매핑 + 중복 제거 (이름 기준, case-insensitive)
     const seenNames = new Set<string>();
@@ -263,6 +289,7 @@ export async function GET(req: NextRequest) {
       datasetId: dataset.id,
       itemCode,
       processNo: processNo || category || 'all',
+      ...(fallbackWarning ? { warning: fallbackWarning } : {}),
     });
   } catch (error: unknown) {
     console.error('[master-items GET]', error);

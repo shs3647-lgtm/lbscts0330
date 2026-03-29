@@ -69,6 +69,9 @@ async function loadItemsFromMaster(
       return [];
     }
     const data = await res.json();
+    if (data.warning) {
+      console.warn(`[GenericItemSelect] ${data.warning}`);
+    }
     if (data.success && Array.isArray(data.items)) {
       return data.items.map((item: any) => ({
         id: item.id,
