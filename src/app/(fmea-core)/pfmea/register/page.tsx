@@ -149,7 +149,7 @@ function PFMEARegisterPageContent() {
   /** 위치기반 파싱 stats — 통계표 verify 척도·pgsql/API 기대값 (등록 페이지는 Import 시에만 설정) */
   const [bdPositionParserStats, setBdPositionParserStats] = useState<Record<string, number> | null>(null);
   const [bdDbCounts, setBdDbCounts] = useState<Record<string, number> | null>(null);
-  const templateGen = useTemplateGenerator({ setFlatData, setPreviewColumn: setBdPreviewCol, setDirty: setBdDirty, setIsSaved: setBdIsSaved });
+  const templateGen = useTemplateGenerator({ setFlatData, setPreviewColumn: setBdPreviewCol, setDirty: setBdDirty, setIsSaved: setBdIsSaved, initialMode: undefined });
 
   // ★ 2026-02-20: BD 현황 테이블 데이터
   const [bdStatusList, setBdStatusList] = useState<BdStatusItem[]>([]);

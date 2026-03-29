@@ -318,7 +318,12 @@ export default function CreateDocumentModal({
                     : sourceApp === 'pfd' ? result.pfdId
                     : result.pfmeaId;
                 onClose();
-                window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
+                // ★ 2026-03-29: 직접 작성 시 수동 Import 페이지로 이동 (수동 탭 활성화)
+                if (partParentMode === 'standalone' && sourceApp === 'pfmea') {
+                    window.location.href = `/pfmea/import?id=${redirectId}&mode=manual`;
+                } else {
+                    window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
+                }
             }
         } catch (err: any) {
             console.error('[CreateDocumentModal] 생성 오류:', err);

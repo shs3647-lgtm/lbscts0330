@@ -203,8 +203,13 @@ export default function LegacyImportPage() {
     fmeaType: selectedFmea?.fmeaType || 'P',
   });
 
+  // ★ 2026-03-29: URL ?mode=manual/auto/download → 초기 탭 설정
+  const urlMode = typeof window !== 'undefined'
+    ? (new URLSearchParams(window.location.search).get('mode') as 'manual' | 'auto' | 'download' | null)
+    : null;
   const templateGen = useTemplateGenerator({
     setFlatData, setPreviewColumn, setDirty, setIsSaved,
+    initialMode: urlMode || undefined,
   });
   const { setTemplateMode } = templateGen;
 

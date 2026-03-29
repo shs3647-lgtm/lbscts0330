@@ -37,6 +37,7 @@ interface UseTemplateGeneratorProps {
   setPreviewColumn: (col: string) => void;
   setDirty: (dirty: boolean) => void;
   setIsSaved: (saved: boolean) => void;
+  initialMode?: TemplateMode;
 }
 
 export function useTemplateGenerator({
@@ -44,8 +45,9 @@ export function useTemplateGenerator({
   setPreviewColumn,
   setDirty,
   setIsSaved,
+  initialMode,
 }: UseTemplateGeneratorProps) {
-  const [templateMode, setTemplateMode] = useState<TemplateMode>('download');
+  const [templateMode, setTemplateMode] = useState<TemplateMode>(initialMode || 'download');
   const [showConfigModal, setShowConfigModal] = useState(false);
 
   // 수동 설정
