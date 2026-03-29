@@ -1022,6 +1022,7 @@ export default function FailureLinkTab({ state, setState, setStateSynced, setDir
             <span style={{ fontSize: 10, fontWeight: 700, color: '#1565c0', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: 3, padding: '2px 6px' }}>FE:{linkStats.feLinkedCount}</span>
             <span style={{ fontSize: 10, fontWeight: 700, color: '#e65100', background: '#fff3e0', border: '1px solid #ffb74d', borderRadius: 3, padding: '2px 6px' }}>FM:{linkStats.fmLinkedCount}</span>
             <span style={{ fontSize: 10, fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '2px 6px' }}>FC:{linkStats.fcLinkedCount}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#6a1b9a', background: '#f3e5f5', border: '1px solid #ce93d8', borderRadius: 3, padding: '2px 6px' }} title="FailureLink(고장사슬) 총 수 — Import 고장사슬과 동일">FL:{savedLinks.length}</span>
             {totalMissingCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: 3, padding: '2px 6px' }}>Miss:{totalMissingCount}</span>}
           </div>
           {/* Full Screen — 현재 뷰(Chain/Table) 전체화면 */}

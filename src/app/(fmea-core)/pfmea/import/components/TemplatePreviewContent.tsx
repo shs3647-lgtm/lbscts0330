@@ -882,7 +882,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                   ? 'bg-purple-600 text-white border-purple-600 cursor-pointer'
                   : 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100 cursor-pointer'
               }`}>
-              FC 고장사슬 <span className="text-[9px]">({failureChains.length})</span>
+              FC 고장사슬 <span className="text-[9px]">(FE:{new Set(failureChains.map((c: any) => (c.feValue||'').trim()).filter(Boolean)).size} FM:{new Set(failureChains.map((c: any) => `${c.processNo}|${c.fmValue}`).filter(Boolean)).size} FL:{failureChains.length})</span>
             </button>
           )}
 

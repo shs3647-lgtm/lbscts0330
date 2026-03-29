@@ -151,7 +151,7 @@ export function FailureChainPreview({
       uniqueFM: u?.A5 ?? stats.uniqueFM,
       uniqueM4: m ? m.uniqueM4FromFlat : stats.uniqueM4,
       uniqueWorkElement: u?.B1 ?? stats.uniqueWorkElement,
-      uniqueFC: u?.B4 ?? stats.uniqueFC,
+      uniqueFC: stats.uniqueFC,
     };
   }, [matrixHeaderCounts, stats]);
 
