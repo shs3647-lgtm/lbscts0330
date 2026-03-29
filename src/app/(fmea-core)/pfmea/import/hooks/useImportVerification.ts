@@ -105,7 +105,7 @@ export function useImportVerification(
       if (!res.ok) return null;
       const data = await res.json();
       if (data) {
-        const result = mapApiToVerification(data, dbExpectedCounts);
+        const result = mapApiToVerification(data, dbExpectedCounts, flatData);
         setApiData(result);
         return result;
       }
@@ -113,7 +113,7 @@ export function useImportVerification(
       console.error('[useImportVerification] API verify error:', e);
     }
     return null;
-  }, [fmeaId, dbExpectedCounts]);
+  }, [fmeaId, dbExpectedCounts, flatData]);
 
   // ── Public wrappers ──
   const runPgsqlVerify = useCallback(async () => {

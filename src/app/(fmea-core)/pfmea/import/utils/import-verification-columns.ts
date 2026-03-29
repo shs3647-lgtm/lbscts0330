@@ -461,40 +461,59 @@ export function mapCountsToPgsql(
 
 /**
  * API 검증: API 응답 카운트를 UUID 카운트와 비교
+ * ★ 2026-03-29: flat data 기준 — 엔티티 테이블이 아닌 flat items로 카운트
  */
 export function mapApiToVerification(
   apiData: any,
   expectedCounts: Record<string, number>,
+  flatData?: ImportedFlatData[],
 ): Record<string, ApiVerifyResult> {
   const result: Record<string, ApiVerifyResult> = {};
 
-  // ★ 2026-03-29: 엔티티 수(총 레코드)로 통일 — verify-counts API와 동일 척도
-  const entityCount = (arr: any[]) => (arr || []).length;
+  // ★ 2026-03-29: flat data가 있으면 그것으로 카운트 (원본과 1:1 일치)
+  const apiCounts: Record<string, number> = {};
 
-  const apiCounts: Record<string, number> = {
-    A1: entityCount(apiData.l2Structures),
-    A2: entityCount(apiData.l2Structures),
-    A3: entityCount(apiData.l2Functions),
-    A4: entityCount(apiData.processProductChars),
-    A5: entityCount(apiData.failureModes),
-    A6: (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()).length,
-    B1: entityCount(apiData.l3Structures),
-    B2: entityCount(apiData.l3Functions),
-    B3: (apiData.l3Functions || []).filter((r: any) => ((r.processChar ?? '') as string).trim() !== '').length,
-    B4: entityCount(apiData.failureCauses),
-    // B5 = preventionControl 보유 RA 수 (총 건수)
-    B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
-    C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,
-    C2: entityCount(apiData.l1Functions),
-    C3: (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()).length,
-    C4: entityCount(apiData.failureEffects),
-    // FC 레벨 (D1~D3: FL distinct, D4~D5: 엔티티 수)
-    D1: new Set((apiData.failureLinks || []).map((fl: any) => fl.feId).filter(Boolean)).size,
-    D2: new Set((apiData.failureLinks || []).map((fl: any) => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
-    D3: new Set((apiData.failureLinks || []).map((fl: any) => fl.fmId).filter(Boolean)).size,
-    D4: entityCount(apiData.l3Structures),
-    D5: entityCount(apiData.failureCauses),
-  };
+  if (flatData && flatData.length > 0) {
+    // flat data에서 itemCode별 카운트 — 원본과 동일 척도
+    for (const item of flatData) {
+      if (!item.itemCode) continue;
+      apiCounts[item.itemCode] = (apiCounts[item.itemCode] || 0) + 1;
+    }
+    // D코드: flat data에 없으면 failureChains에서 파생
+    const dCodes = ['D1', 'D2', 'D3', 'D4', 'D5'];
+    const hasDData = dCodes.some(d => (apiCounts[d] || 0) > 0);
+    if (!hasDData && apiData.failureLinks?.length > 0) {
+      const fls = apiData.failureLinks || [];
+      apiCounts['D1'] = new Set(fls.map((fl: any) => fl.feId).filter(Boolean)).size;
+      apiCounts['D2'] = new Set(fls.map((fl: any) => (fl.fmProcess ?? '').trim()).filter(Boolean)).size;
+      apiCounts['D3'] = new Set(fls.map((fl: any) => fl.fmId).filter(Boolean)).size;
+      apiCounts['D4'] = (apiData.l3Structures || []).length;
+      apiCounts['D5'] = (apiData.failureCauses || []).length;
+    }
+  } else {
+    // fallback: entity 테이블 기준 (flat data 없을 때)
+    const entityCount = (arr: any[]) => (arr || []).length;
+    apiCounts['A1'] = entityCount(apiData.l2Structures);
+    apiCounts['A2'] = entityCount(apiData.l2Structures);
+    apiCounts['A3'] = entityCount(apiData.l2Functions);
+    apiCounts['A4'] = entityCount(apiData.processProductChars);
+    apiCounts['A5'] = entityCount(apiData.failureModes);
+    apiCounts['A6'] = (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()).length;
+    apiCounts['B1'] = entityCount(apiData.l3Structures);
+    apiCounts['B2'] = entityCount(apiData.l3Functions);
+    apiCounts['B3'] = (apiData.l3Functions || []).filter((r: any) => ((r.processChar ?? '') as string).trim() !== '').length;
+    apiCounts['B4'] = entityCount(apiData.failureCauses);
+    apiCounts['B5'] = (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length;
+    apiCounts['C1'] = new Set((apiData.l1Functions || []).map((f: any) => f.category)).size;
+    apiCounts['C2'] = entityCount(apiData.l1Functions);
+    apiCounts['C3'] = (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()).length;
+    apiCounts['C4'] = entityCount(apiData.failureEffects);
+    apiCounts['D1'] = new Set((apiData.failureLinks || []).map((fl: any) => fl.feId).filter(Boolean)).size;
+    apiCounts['D2'] = new Set((apiData.failureLinks || []).map((fl: any) => (fl.fmProcess ?? '').trim()).filter(Boolean)).size;
+    apiCounts['D3'] = new Set((apiData.failureLinks || []).map((fl: any) => fl.fmId).filter(Boolean)).size;
+    apiCounts['D4'] = entityCount(apiData.l3Structures);
+    apiCounts['D5'] = entityCount(apiData.failureCauses);
+  }
 
   for (const code of ALL_ITEM_CODES) {
     const expected = expectedCounts[code] || 0;
