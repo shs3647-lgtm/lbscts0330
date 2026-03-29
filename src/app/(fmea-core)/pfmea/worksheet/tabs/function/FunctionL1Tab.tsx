@@ -15,7 +15,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { FunctionTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import { GenericItemSelectModal } from '../../GenericItemSelectModal';
@@ -530,31 +530,50 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
     ];
   }, []);
 
+  // ★ 2026-03-30: YP/SP/USER 누락 시 실제 state에 추가 + DB 저장
+  // useMemo(표시용)가 아니라 useEffect(실제 반영)로 처리
+  const l1TypesFixedRef = useRef(false);
+  useEffect(() => {
+    const types = state.l1?.types || [];
+    const REQUIRED_CATEGORIES = ['YP', 'SP', 'USER'];
+    const existingNames = new Set(types.map((t: any) => (t.name || '').toUpperCase().trim()));
+    const missing = REQUIRED_CATEGORIES.filter(cat => !existingNames.has(cat));
+    if (missing.length === 0 || l1TypesFixedRef.current) return;
+    l1TypesFixedRef.current = true;
+
+    const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
+    const updateFn = (prev: WorksheetState) => {
+      const newState = JSON.parse(JSON.stringify(prev));
+      if (!newState.l1) newState.l1 = { name: '', types: [] };
+      const currentTypes = newState.l1.types || [];
+      const currentNames = new Set(currentTypes.map((t: any) => (t.name || '').toUpperCase().trim()));
+      for (const cat of missing) {
+        if (!currentNames.has(cat)) {
+          currentTypes.push({
+            id: uid(),
+            name: cat,
+            functions: [{ id: uid(), name: '', requirements: [] }],
+          });
+        }
+      }
+      const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 99;
+      currentTypes.sort((a: any, b: any) => getOrder(a) - getOrder(b));
+      newState.l1.types = currentTypes;
+      return newState;
+    };
+    if (setStateSynced) setStateSynced(updateFn);
+    else setState(updateFn);
+    setDirty(true);
+    emitSave();
+  }, [state.l1?.types]);
+
+  // stateWithL1Types: YP→SP→USER 정렬만 (추가는 useEffect에서 처리)
   const stateWithL1Types = useMemo(() => {
     const types = state.l1?.types || [];
+    if (types.length === 0) return state;
     const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
-    const REQUIRED_CATEGORIES = ['YP', 'SP', 'USER'];
-    const ts = Date.now();
-
-    // ★ 2026-03-30 FIX: YP/SP/USER 중 누락된 카테고리 보충
-    // 이전: types.length > 0이면 그대로 사용 → DB에서 YP 없이 로드되면 YP 사라짐
-    // 수정: 항상 3개 카테고리 보장
-    const existingNames = new Set(types.map((t: any) => (t.name || '').toUpperCase().trim()));
-    const merged = [...types];
-    for (const cat of REQUIRED_CATEGORIES) {
-      if (!existingNames.has(cat)) {
-        merged.push({
-          id: `def-${cat.toLowerCase()}-${ts}`,
-          name: cat,
-          functions: [{ id: `def-func-${cat.toLowerCase()}-${ts}`, name: '', requirements: [] }],
-        });
-      }
-    }
-
-    // YP → SP → USER 순서 정렬
     const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 99;
-    const sorted = merged.sort((a: any, b: any) => getOrder(a) - getOrder(b));
-
+    const sorted = [...types].sort((a: any, b: any) => getOrder(a) - getOrder(b));
     if (JSON.stringify(sorted) === JSON.stringify(types)) return state;
     return { ...state, l1: { ...state.l1, types: sorted } };
   }, [state]);
