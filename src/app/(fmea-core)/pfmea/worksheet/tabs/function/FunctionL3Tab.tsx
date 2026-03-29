@@ -452,22 +452,23 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
         emitSave();
       } else {
         if (!window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
+        const deleteCharId = charId; // ★ closure 안전: confirm 시점의 charId 캡처
         const updateFn = (prev: WorksheetState) => {
           const newState = JSON.parse(JSON.stringify(prev));
           const pIdx = newState.l2.findIndex((p: any) => p.id === procId);
-          if (pIdx >= 0) {
-            const wIdx = newState.l2[pIdx].l3.findIndex((w: any) => w.id === l3Id);
-            if (wIdx >= 0) {
-              const fIdx = newState.l2[pIdx].l3[wIdx].functions.findIndex((f: any) => f.id === funcId);
-              if (fIdx >= 0) {
-                // ★ 방어: processChars 배열이 완전히 비는 것 방지
-                newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars = ensurePlaceholder(
-                  newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars.filter((c: any) => c.id !== charId),
-                  () => ({ id: uid(), name: '', specialChar: '' }), 'L3 processChars'
-                );
-              }
-            }
-          }
+          if (pIdx < 0) return prev;
+          const wIdx = newState.l2[pIdx].l3.findIndex((w: any) => w.id === l3Id);
+          if (wIdx < 0) return prev;
+          const fIdx = newState.l2[pIdx].l3[wIdx].functions.findIndex((f: any) => f.id === funcId);
+          if (fIdx < 0) return prev;
+
+          const before = newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars.length;
+          const filtered = newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars.filter((c: any) => c.id !== deleteCharId);
+          console.log(`[L3 공정특성 삭제] charId=${deleteCharId} before=${before} after=${filtered.length}`);
+          // 다른 공정특성이 남아있으면 placeholder 불필요
+          newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars = filtered.length > 0
+            ? filtered
+            : [{ id: uid(), name: '', specialChar: '' }];
           newState.l3Confirmed = false;
           return newState;
         };
@@ -595,7 +596,77 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
           onClose={() => setModal(null)}
           onSwitchToManualMode={switchToManualMode}
           switchToManualToastMessage="3L 기능분석이 수동(Manual) 모드로 전환되었습니다."
-          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
+          onSave={(items: GenericItem[]) => {
+            /**
+             * ★★★ 수동1원칙: 플레이스홀더 보호 — 절대 삭제하지 않는다 ★★★
+             * 삭제하면 배열(rowSpan) 깨진다.
+             * 1순위: 빈 슬롯에 모달 데이터를 채운다.
+             * 2순위: 남은 빈 슬롯에 "미입력" 문자열을 채워 배열을 유지한다.
+             */
+            if (!modal) return;
+            const selectedNames = new Set(items.map(i => i.name.trim()).filter(Boolean));
+            const updateFn = (prev: any) => {
+              const newState = JSON.parse(JSON.stringify(prev));
+              const procIdx = newState.l2.findIndex((p: any) => p.id === modal.procId);
+              if (procIdx < 0) return prev;
+              const weIdx = newState.l2[procIdx].l3?.findIndex((w: any) => w.id === modal.l3Id) ?? -1;
+              if (weIdx < 0) return prev;
+              const we = newState.l2[procIdx].l3[weIdx];
+
+              if (modal.type === 'l3Function') {
+                // B2 작업요소기능
+                const funcs = we.functions || [];
+                const removed = funcs.filter((f: any) => f.name?.trim() && !selectedNames.has(f.name.trim()));
+                if (removed.length > 0 && !window.confirm(`${removed.map((f: any) => f.name).join(', ')} 삭제?`)) return prev;
+                const kept = funcs.filter((f: any) => !f.name?.trim() || selectedNames.has(f.name.trim()));
+                const existingNames = new Set(kept.filter((f: any) => f.name?.trim()).map((f: any) => f.name.trim()));
+                // ★ 1순위: 빈 슬롯에 새 데이터를 채워넣기 (배열 구조 보호)
+                const newNames = items.map(i => i.name.trim()).filter(n => n && !existingNames.has(n));
+                let newIdx = 0;
+                for (let ki = 0; ki < kept.length && newIdx < newNames.length; ki++) {
+                  if (!kept[ki].name?.trim()) {
+                    kept[ki] = { ...kept[ki], name: newNames[newIdx++] };
+                  }
+                }
+                // 남은 새 항목은 추가
+                while (newIdx < newNames.length) {
+                  kept.push({ id: uid(), name: newNames[newIdx++], processChars: [{ id: uid(), name: '', specialChar: '' }] });
+                }
+                // ★ 2순위: 남은 빈 슬롯은 "미입력" 문자열로 보호
+                // (빈 슬롯을 삭제하면 rowSpan 깨짐)
+                if (kept.length === 0) kept.push({ id: uid(), name: '', processChars: [{ id: uid(), name: '', specialChar: '' }] });
+                we.functions = kept;
+              } else if (modal.type === 'l3ProcessChar') {
+                // B3 공정특성
+                const funcIdx = we.functions?.findIndex((f: any) => f.id === modal.funcId) ?? -1;
+                if (funcIdx < 0) return prev;
+                const chars = we.functions[funcIdx].processChars || [];
+                const removed = chars.filter((c: any) => c.name?.trim() && !selectedNames.has(String(c.name).trim()));
+                if (removed.length > 0 && !window.confirm(`${removed.map((c: any) => c.name).join(', ')} 삭제?`)) return prev;
+                const kept = chars.filter((c: any) => !String(c.name || '').trim() || selectedNames.has(String(c.name).trim()));
+                const existingNames = new Set(kept.filter((c: any) => String(c.name || '').trim()).map((c: any) => String(c.name).trim()));
+                // ★ 1순위: 빈 슬롯에 새 데이터를 채워넣기
+                const newNames = items.map(i => i.name.trim()).filter(n => n && !existingNames.has(n));
+                let newIdx = 0;
+                for (let ki = 0; ki < kept.length && newIdx < newNames.length; ki++) {
+                  if (!String(kept[ki].name || '').trim()) {
+                    kept[ki] = { ...kept[ki], name: newNames[newIdx++] };
+                  }
+                }
+                // 남은 새 항목은 추가
+                while (newIdx < newNames.length) {
+                  kept.push({ id: uid(), name: newNames[newIdx++], specialChar: '' });
+                }
+                if (kept.length === 0) kept.push({ id: uid(), name: '', specialChar: '' });
+                we.functions[funcIdx].processChars = kept;
+              }
+              newState.l3Confirmed = false;
+              return newState;
+            };
+            if (setStateSynced) setStateSynced(updateFn); else setState(updateFn);
+            setDirty(true);
+            emitSave();
+          }}
           itemCode={modal.itemCode}
           processNo={(state.l2 || []).find(p => p.id === modal.procId)?.no}
           fmeaId={fmeaId}
