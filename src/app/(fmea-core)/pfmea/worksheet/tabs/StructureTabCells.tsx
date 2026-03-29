@@ -14,6 +14,7 @@ import { WorksheetState } from '../constants';
 import { cell } from '../../../../../styles/worksheet';
 import { extractM4FromValue } from '@/lib/constants';
 import { emitSave } from '../hooks/useSaveEvent';
+import { normalizeL2ProcessNo } from '../utils/processNoNormalize';
 
 // PFMEA 4M 타입 옵션 (MN/MC/IM/EN)
 export const M4_OPTIONS = [
@@ -205,31 +206,46 @@ export function EditableL2Cell({
   const isPlaceholder = !safeName.trim();
 
   const handleSave = () => {
-    if (editValue.trim() && editValue !== safeName) {
-      setState(prev => ({
-        ...prev,
-        l2: prev.l2.map(p => {
-          if (p.id !== l2Id) return p;
-          const updates: { name: string; no?: string } = { name: editValue.trim() };
-          // ★ 공정번호가 없으면 자동 생성 (기존 최대값 + 10)
-          if (!p.no) {
-            const existingNos = prev.l2
-              .map(proc => parseInt(proc.no?.replace(/\D/g, '') || '0', 10))
-              .filter(n => !isNaN(n) && n > 0);
-            const maxNo = existingNos.length > 0 ? Math.max(...existingNos) : 0;
-            updates.no = String(maxNo + 10);
-          }
-          return { ...p, ...updates };
-        })
-      }));
-      setDirty(true);
-      setTimeout(async () => {
-        saveToLocalStorage?.(true);
-        if (saveAtomicDB) {
-          try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] L2 편집 DB 저장 오류:', e); }
-        }
-      }, 100);
+    const trimmedName = editValue.trim();
+    if (!trimmedName) {
+      setIsEditing(false);
+      return;
     }
+    const nameChanged = trimmedName !== safeName;
+    const noPad = l2No?.trim() ? normalizeL2ProcessNo(l2No) : '';
+    const noNeedsPad = Boolean(l2No?.trim() && noPad !== (l2No || '').trim());
+
+    if (!nameChanged && !noNeedsPad) {
+      setIsEditing(false);
+      return;
+    }
+
+    setState(prev => {
+      const updated = prev.l2.map(p => {
+        if (p.id !== l2Id) return p;
+        const updates: { name: string; no?: string } = { name: trimmedName };
+        if (!p.no?.trim()) {
+          const existingNos = prev.l2
+            .map(proc => parseInt(proc.no?.replace(/\D/g, '') || '0', 10))
+            .filter(n => !isNaN(n) && n > 0);
+          const maxNo = existingNos.length > 0 ? Math.max(...existingNos) : 0;
+          updates.no = String(maxNo + 10).padStart(3, '0');
+        } else {
+          updates.no = normalizeL2ProcessNo(p.no);
+        }
+        return { ...p, ...updates };
+      });
+      // ★ 2026-03-29: 공정번호 부여 후 자동 정렬 (3자리 정규화 기준)
+      updated.sort((a, b) => normalizeL2ProcessNo(a.no).localeCompare(normalizeL2ProcessNo(b.no)));
+      return { ...prev, l2: updated };
+    });
+    setDirty(true);
+    setTimeout(async () => {
+      saveToLocalStorage?.(true);
+      if (saveAtomicDB) {
+        try { await saveAtomicDB(true); } catch (e) { console.error('[StructureTab] L2 편집 DB 저장 오류:', e); }
+      }
+    }, 100);
     setIsEditing(false);
   };
 

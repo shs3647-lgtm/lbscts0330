@@ -15,6 +15,7 @@ import { MODAL_COMPACT, MODAL_CONTAINER, ACTION_ICONS } from '@/styles/modal-com
 import { deleteL2Structure } from './hooks/useAtomicView';
 import { saveNow } from './hooks/useSaveEvent';
 import { toast } from '@/hooks/useToast';
+import { normalizeL2ProcessNo } from './utils/processNoNormalize';
 
 interface ProcessItem {
   id: string;
@@ -135,8 +136,11 @@ export default function ProcessSelectModal({
           setSourceFmeaId(undefined);
         }
 
+        // 로드 시 공정번호 3자리 정규화 ("10"→"010")
+        loaded = loaded.map(p => ({ ...p, no: normalizeL2ProcessNo(p.no) }));
+
         // 워크시트 수정 이름 오버레이
-        const wsNoMap = new Map(existingProcesses.map(p => [p.no, p]));
+        const wsNoMap = new Map(existingProcesses.map(p => [normalizeL2ProcessNo(p.no), p]));
         loaded = loaded.map(p => {
           const wsProc = wsNoMap.get(p.no);
           return (wsProc && wsProc.name !== p.name) ? { ...p, name: wsProc.name } : p;
@@ -145,8 +149,9 @@ export default function ProcessSelectModal({
         // 워크시트에만 있는 공정 추가 (수동 입력된 공정)
         const loadedNos = new Set(loaded.map(p => p.no));
         existingProcesses.forEach(wp => {
-          if (wp.no && wp.name && !loadedNos.has(wp.no)) {
-            loaded.push({ id: wp.id, no: wp.no, name: wp.name });
+          const normNo = normalizeL2ProcessNo(wp.no);
+          if (normNo && wp.name && !loadedNos.has(normNo)) {
+            loaded.push({ id: wp.id, no: normNo, name: wp.name });
           }
         });
 
@@ -169,13 +174,16 @@ export default function ProcessSelectModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // 정렬 없음 — DB/로드 순서 그대로 (공정번호 재정렬 시 화면과 적용 순서가 달라져 혼동 방지)
+  // ★ 2026-03-29: 공정번호 3자리 정규화 기반 숫자순 정렬 (정규화 후 문자열 비교로 충분 — 999 이하)
   const filteredProcesses = useMemo(() => {
-    if (!search.trim()) return processes;
-    const q = search.toLowerCase();
-    return processes.filter(p =>
-      p.no.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
-    );
+    let list = processes;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        p.no.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
+      );
+    }
+    return [...list].sort((a, b) => a.no.localeCompare(b.no));
   }, [processes, search]);
 
   const toggleSelect = useCallback((id: string) => {
@@ -382,9 +390,11 @@ export default function ProcessSelectModal({
       return;
     }
 
-    // 공정번호 자동 생성
+    // 공정번호 자동 생성 (표시·정렬용 최소 3자리)
     const maxNo = processes.reduce((max, p) => Math.max(max, parseInt(p.no.replace(/\D/g, '') || '0', 10)), 0);
-    const procNo = trimmedNo || String(maxNo + 10 || 10);
+    const procNo = trimmedNo
+      ? normalizeL2ProcessNo(trimmedNo)
+      : String(maxNo + 10 || 10).padStart(3, '0');
 
     setNewNo('');
     setNewName('');
@@ -400,7 +410,7 @@ export default function ProcessSelectModal({
         const dbId = data.id || `proc_new_${Date.now()}`;
         const newProc: ProcessItem = { id: dbId, no: procNo, name: trimmedName };
         
-        setProcesses(prev => [newProc, ...prev]);
+        setProcesses(prev => [...prev, newProc]);
         
         // 워크시트에 저장
         onSave([...existingProcesses, newProc]);
