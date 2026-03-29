@@ -695,7 +695,7 @@ function PFMEARegisterPageContent() {
                         </>) : <span className="text-[10px] text-gray-400">-</span>}
                       </div>
                       {selectedBaseFmea && (
-                        <button onClick={(e) => { e.stopPropagation(); setSelectedBaseFmea(null); updateField('parentFmeaId', ''); }} className="text-gray-400 hover:text-red-500 shrink-0 text-xs font-bold px-0.5" title="상위 FMEA 선택 해제">✕</button>
+                        <button onClick={(e) => { e.stopPropagation(); setSelectedBaseFmea(null); }} className="text-gray-400 hover:text-red-500 shrink-0 text-xs font-bold px-0.5" title="상위 FMEA 선택 해제">✕</button>
                       )}
                     </div>
                   </td>
