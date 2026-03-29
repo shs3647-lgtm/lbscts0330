@@ -45,6 +45,20 @@ const isCategoryBasedItem = (code: string): boolean =>
   ['C1', 'C2', 'C3'].includes(code.toUpperCase());
 
 /* ---------- resolveDataset: l2-functions/route.ts 와 동일 패턴 ---------- */
+/**
+ * ★★★ 마스터 데이터셋 해석 전략 (2026-03-30) ★★★
+ *
+ * [연동 프로젝트] parentFmeaId / masterDatasetId 가 설정된 경우
+ *   → 부모 FMEA의 마스터 데이터셋을 우선 사용
+ *
+ * [단독 프로젝트] pfm26-p006-i06 처럼 parentFmeaId = null, masterDatasetId = null
+ *   → 자체 dataset이 있더라도, isActive인 더 풍부한 마스터 데이터셋을 우선 사용
+ *   → 예: pfm26-p006-i06 자체에는 C2 3건이지만, pfm26-m005 마스터에는 C2 7건
+ *   → 수동 모달에서 전체 마스터 데이터를 활용하여 기초정보를 가져올 수 있음
+ *   → "연동 없이 단독 작성"이라도 마스터 DB(SSoT)의 기초정보는 반드시 참조 가능
+ *
+ * [폴백] 위 조건 모두 해당 없으면 isActive dataset 중 데이터가 있는 것 사용
+ */
 
 async function resolveDataset(
   prisma: NonNullable<ReturnType<typeof getPrisma>>,
@@ -77,7 +91,37 @@ async function resolveDataset(
         return { dataset: activeDataset, source: `parent (${project.parentFmeaId})` };
     }
 
-    // 2단계: fmeaId 직접 매칭 (항목이 있는 경우만)
+    // ★★★ 2단계(수정): 단독 프로젝트 → isActive 마스터 데이터셋 우선 사용 ★★★
+    // pfm26-p006-i06 같은 단독 프로젝트(parentFmeaId=null, masterDatasetId=null)도
+    // isActive 마스터 데이터셋(pfm26-m005)의 풍부한 기초정보를 사용 가능
+    const isStandalone = !project?.parentFmeaId && !project?.masterDatasetId;
+
+    if (isStandalone) {
+      // 단독 프로젝트: isActive인 전체 마스터 중 해당 itemCode 데이터가 가장 많은 것 우선
+      const activeCandidates = await prisma.pfmeaMasterDataset.findMany({
+        where: { isActive: true },
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      let bestDataset: any = null;
+      let bestCount = 0;
+
+      for (const c of activeCandidates) {
+        const countWhere: Record<string, unknown> = { datasetId: c.id };
+        if (itemCode) countWhere.itemCode = itemCode;
+        const cnt = await prisma.pfmeaMasterFlatItem.count({ where: countWhere });
+        if (cnt > bestCount) {
+          bestCount = cnt;
+          bestDataset = c;
+        }
+      }
+
+      if (bestDataset && bestCount > 0) {
+        return { dataset: bestDataset, source: `standalone→master (${bestDataset.fmeaId}, ${bestCount} items)` };
+      }
+    }
+
+    // 2-b단계: fmeaId 직접 매칭 (연동 프로젝트의 자체 dataset)
     const directDataset = await prisma.pfmeaMasterDataset.findFirst({
       where: { fmeaId },
       orderBy: { updatedAt: 'desc' },

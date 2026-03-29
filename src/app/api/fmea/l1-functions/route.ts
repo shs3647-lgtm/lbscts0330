@@ -30,27 +30,25 @@ export async function GET(req: NextRequest) {
     const parentName = searchParams.get('parentName') || ''; // C3 조회 시 부모 C2 이름 (ID 매칭용)
 
     try {
-        // ★★★ 2026-03-30 FIX: Dataset 해석 순서 수정 ★★★
-        // 이전: fmeaId → masterDatasetId → parentFmeaId → isActive
-        // 문제: 프로젝트 fmeaId로 빈 dataset 찾으면 실제 MASTER 미참조
-        // 수정: masterDatasetId → parentFmeaId → fmeaId(with items) → isActive
+        // ★★★ 2026-03-30: master-items/route.ts와 동일한 resolveDataset 패턴 ★★★
+        // 연동: masterDatasetId → parentFmeaId → 자체 → isActive
+        // 단독: isActive 마스터 중 해당 itemCode 데이터 가장 많은 것 우선
         let activeDataset: any = null;
         let datasetSource = '';
-        
+
         if (fmeaId) {
-            // 1단계: 프로젝트의 masterDatasetId / parentFmeaId 우선
             const project = await prisma.fmeaProject.findFirst({
                 where: { fmeaId },
                 select: { parentFmeaId: true, masterDatasetId: true }
             });
-            
+
             if (project?.masterDatasetId) {
                 activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                     where: { id: project.masterDatasetId }
                 });
                 if (activeDataset) datasetSource = `masterDataset (${project.masterDatasetId})`;
             }
-            
+
             if (!activeDataset && project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
                 activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                     where: { fmeaId: project.parentFmeaId },
@@ -58,15 +56,35 @@ export async function GET(req: NextRequest) {
                 });
                 if (activeDataset) datasetSource = `parent (${project.parentFmeaId})`;
             }
-            
-            // 2단계: fmeaId 직접 매칭 (항목이 있는 경우만)
+
+            // ★ 단독 프로젝트: isActive 마스터 중 해당 itemCode 데이터 가장 많은 것 우선
+            const isStandalone = !project?.parentFmeaId && !project?.masterDatasetId;
+            if (!activeDataset && isStandalone) {
+                const candidates = await prisma.pfmeaMasterDataset.findMany({
+                    where: { isActive: true },
+                    orderBy: { updatedAt: 'desc' }
+                });
+                let bestDataset: any = null;
+                let bestCount = 0;
+                for (const c of candidates) {
+                    const cnt = await prisma.pfmeaMasterFlatItem.count({
+                        where: { datasetId: c.id, itemCode: itemType }
+                    });
+                    if (cnt > bestCount) { bestCount = cnt; bestDataset = c; }
+                }
+                if (bestDataset && bestCount > 0) {
+                    activeDataset = bestDataset;
+                    datasetSource = `standalone→master (${bestDataset.fmeaId}, ${bestCount} items)`;
+                }
+            }
+
+            // 자체 dataset (연동 프로젝트)
             if (!activeDataset) {
                 const directDataset = await prisma.pfmeaMasterDataset.findFirst({
                     where: { fmeaId },
                     orderBy: { updatedAt: 'desc' }
                 });
                 if (directDataset) {
-                    // 해당 dataset에 요청한 itemCode 데이터가 있는지 확인
                     const hasItems = await prisma.pfmeaMasterFlatItem.count({
                         where: { datasetId: directDataset.id, itemCode: itemType }
                     });
@@ -78,7 +96,7 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // 3단계: isActive fallback — 항목이 있는 dataset
+        // isActive fallback
         if (!activeDataset) {
             const candidates = await prisma.pfmeaMasterDataset.findMany({
                 where: { isActive: true },
@@ -94,7 +112,6 @@ export async function GET(req: NextRequest) {
                     break;
                 }
             }
-            // 마지막 수단: 아무 active dataset
             if (!activeDataset && candidates.length > 0) {
                 activeDataset = candidates[0];
                 datasetSource = 'isActive fallback (empty)';

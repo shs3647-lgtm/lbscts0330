@@ -11,21 +11,22 @@ export const runtime = 'nodejs';
 const ITEM_CODE = 'A3';
 
 async function resolveDataset(prisma: NonNullable<ReturnType<typeof getPrisma>>, fmeaId: string) {
-  // ★★★ 2026-03-30 FIX: masterDatasetId → parentFmeaId → fmeaId(with items) → isActive 순서 ★★★
+  // ★★★ 2026-03-30: master-items/route.ts와 동일한 resolveDataset 패턴 ★★★
+  // 연동 프로젝트: masterDatasetId → parentFmeaId → 자체 → isActive
+  // 단독 프로젝트: isActive 마스터 중 A3 데이터 가장 많은 것 우선
   let activeDataset: any = null;
 
   if (fmeaId) {
-    // 1단계: 프로젝트의 masterDatasetId / parentFmeaId 우선
     const project = await prisma.fmeaProject.findFirst({
       where: { fmeaId },
       select: { parentFmeaId: true, masterDatasetId: true }
     });
-    
+
     if (project?.masterDatasetId) {
       activeDataset = await prisma.pfmeaMasterDataset.findFirst({ where: { id: project.masterDatasetId } });
       if (activeDataset) return { dataset: activeDataset, source: `masterDataset (${project.masterDatasetId})` };
     }
-    
+
     if (!activeDataset && project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
       activeDataset = await prisma.pfmeaMasterDataset.findFirst({
         where: { fmeaId: project.parentFmeaId },
@@ -34,7 +35,27 @@ async function resolveDataset(prisma: NonNullable<ReturnType<typeof getPrisma>>,
       if (activeDataset) return { dataset: activeDataset, source: `parent (${project.parentFmeaId})` };
     }
 
-    // 2단계: fmeaId 직접 매칭 (항목이 있는 경우만)
+    // ★ 단독 프로젝트: isActive 마스터 중 A3 데이터 가장 많은 것 우선
+    const isStandalone = !project?.parentFmeaId && !project?.masterDatasetId;
+    if (isStandalone) {
+      const candidates = await prisma.pfmeaMasterDataset.findMany({
+        where: { isActive: true },
+        orderBy: { updatedAt: 'desc' },
+      });
+      let bestDataset: any = null;
+      let bestCount = 0;
+      for (const c of candidates) {
+        const cnt = await prisma.pfmeaMasterFlatItem.count({
+          where: { datasetId: c.id, itemCode: 'A3' }
+        });
+        if (cnt > bestCount) { bestCount = cnt; bestDataset = c; }
+      }
+      if (bestDataset && bestCount > 0) {
+        return { dataset: bestDataset, source: `standalone→master (${bestDataset.fmeaId}, ${bestCount} A3 items)` };
+      }
+    }
+
+    // 자체 dataset (연동 프로젝트)
     const directDataset = await prisma.pfmeaMasterDataset.findFirst({
       where: { fmeaId },
       orderBy: { updatedAt: 'desc' },
@@ -47,7 +68,7 @@ async function resolveDataset(prisma: NonNullable<ReturnType<typeof getPrisma>>,
     }
   }
 
-  // 3단계: isActive fallback — 데이터가 있는 dataset 우선
+  // isActive fallback
   const candidates = await prisma.pfmeaMasterDataset.findMany({
     where: { isActive: true },
     orderBy: { updatedAt: 'desc' },

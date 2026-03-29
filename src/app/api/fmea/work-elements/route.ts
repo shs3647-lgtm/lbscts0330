@@ -24,44 +24,79 @@ export async function GET(req: NextRequest) {
     const fmeaId = searchParams.get('fmeaId') || '';
 
     try {
-        // ★ 2026-03-29: 3단계 fallback — 자체 → 등록 화면 상위(parentFmeaId) → isActive
+        // ★ 2026-03-30: master-items/route.ts와 동일한 resolveDataset 패턴
+        // 연동 프로젝트: masterDatasetId → parentFmeaId → 자체 → isActive
+        // 단독 프로젝트: isActive 마스터 중 B1 데이터 가장 많은 것 우선
         let activeDataset: any = null;
         let datasetSource = '';
 
-        // 1단계: fmeaId로 자체 데이터셋 조회
         if (fmeaId) {
-            activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+            // 1단계: masterDatasetId / parentFmeaId 우선
+            const project = await prisma.fmeaProject.findFirst({
                 where: { fmeaId },
-                orderBy: { updatedAt: 'desc' }
+                select: { parentFmeaId: true, masterDatasetId: true }
             });
-            if (activeDataset) datasetSource = 'fmeaId';
-        }
 
-        // 2단계: 부모(parentFmeaId) 또는 직접 지정(masterDatasetId) fallback
-        if (!activeDataset && fmeaId) {
-            const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true, masterDatasetId: true } });
-            // 2a: masterDatasetId 직접 지정 우선
             if (project?.masterDatasetId) {
                 activeDataset = await prisma.pfmeaMasterDataset.findFirst({ where: { id: project.masterDatasetId } });
                 if (activeDataset) datasetSource = `masterDataset (${project.masterDatasetId})`;
             }
-            // 2b: parentFmeaId fallback
+
             if (!activeDataset && project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
                 activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                     where: { fmeaId: project.parentFmeaId },
                     orderBy: { updatedAt: 'desc' }
                 });
-                if (activeDataset) datasetSource = `parent fallback (${project.parentFmeaId})`;
+                if (activeDataset) datasetSource = `parent (${project.parentFmeaId})`;
+            }
+
+            // ★ 단독 프로젝트: isActive 마스터 중 B1 데이터 가장 많은 것 우선
+            const isStandalone = !project?.parentFmeaId && !project?.masterDatasetId;
+            if (!activeDataset && isStandalone) {
+                const candidates = await prisma.pfmeaMasterDataset.findMany({
+                    where: { isActive: true },
+                    orderBy: { updatedAt: 'desc' },
+                });
+                let bestDataset: any = null;
+                let bestCount = 0;
+                for (const c of candidates) {
+                    const cnt = await prisma.pfmeaMasterFlatItem.count({
+                        where: { datasetId: c.id, itemCode: 'B1' }
+                    });
+                    if (cnt > bestCount) { bestCount = cnt; bestDataset = c; }
+                }
+                if (bestDataset && bestCount > 0) {
+                    activeDataset = bestDataset;
+                    datasetSource = `standalone→master (${bestDataset.fmeaId}, ${bestCount} B1 items)`;
+                }
+            }
+
+            // 자체 dataset (연동 프로젝트)
+            if (!activeDataset) {
+                activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+                    where: { fmeaId },
+                    orderBy: { updatedAt: 'desc' }
+                });
+                if (activeDataset) datasetSource = 'fmeaId';
             }
         }
 
-        // 3단계: isActive fallback
+        // isActive fallback
         if (!activeDataset) {
-            activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+            const candidates = await prisma.pfmeaMasterDataset.findMany({
                 where: { isActive: true },
-                orderBy: { updatedAt: 'desc' }
+                orderBy: { updatedAt: 'desc' },
             });
-            if (activeDataset) datasetSource = 'isActive fallback';
+            for (const c of candidates) {
+                const cnt = await prisma.pfmeaMasterFlatItem.count({
+                    where: { datasetId: c.id, itemCode: 'B1' }
+                });
+                if (cnt > 0) { activeDataset = c; datasetSource = `isActive (${c.fmeaId}, ${cnt} items)`; break; }
+            }
+            if (!activeDataset && candidates.length > 0) {
+                activeDataset = candidates[0];
+                datasetSource = 'isActive fallback (empty)';
+            }
         }
 
         console.log('[work-elements GET] fmeaId:', fmeaId, '| datasetSource:', datasetSource, '| datasetId:', activeDataset?.id);

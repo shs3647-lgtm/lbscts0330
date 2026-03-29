@@ -153,6 +153,19 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
+    // ★ 2026-03-30: masterDatasetId 업데이트 (BD 로드/저장 시 동기화)
+    if (body.masterDatasetId !== undefined && body.fmeaId) {
+      const prisma = (await import('@/lib/prisma')).getPrisma();
+      if (prisma) {
+        await prisma.fmeaProject.updateMany({
+          where: { fmeaId: { equals: body.fmeaId, mode: 'insensitive' } },
+          data: { masterDatasetId: body.masterDatasetId || null },
+        });
+        console.log('[projects PATCH] masterDatasetId 업데이트:', body.fmeaId, '→', body.masterDatasetId);
+        return NextResponse.json({ success: true, fmeaId: body.fmeaId.toLowerCase(), masterDatasetId: body.masterDatasetId });
+      }
+    }
+
     // ★ 기존: 비고(remark) 업데이트
     const { fmeaId, remark } = body;
     if (!fmeaId) {

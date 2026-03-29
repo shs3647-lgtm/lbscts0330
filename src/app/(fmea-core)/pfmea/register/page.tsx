@@ -382,6 +382,14 @@ function PFMEARegisterPageContent() {
         templateGen.setTemplateMode('download');
         setBdExpandTrigger(prev => prev + 1);
         setBdNavConfirm({ open: true, name: targetName });
+        // ★ 2026-03-30: 마스터 BD 로드 시 FmeaProject.masterDatasetId 동기화
+        if (fmeaId && res.datasetId) {
+          fetch('/api/fmea/projects', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId, masterDatasetId: res.datasetId }),
+          }).catch(e => console.error('[BD 로드] masterDatasetId 동기화 오류:', e));
+        }
       } else {
         alert('해당 BD에 데이터가 없습니다.');
       }
@@ -394,7 +402,18 @@ function PFMEARegisterPageContent() {
     try {
       const { saveMasterDataset } = await getMasterApi();
       const res = await saveMasterDataset({ fmeaId, fmeaType: 'P', datasetId: bdDatasetId, name: 'MASTER', replace: true, flatData });
-      if (res.ok) { if (res.datasetId) setBdDatasetId(res.datasetId); setBdIsSaved(true); setBdDirty(false); }
+      if (res.ok) {
+        if (res.datasetId) setBdDatasetId(res.datasetId);
+        setBdIsSaved(true); setBdDirty(false);
+        // ★ 2026-03-30: FmeaProject.masterDatasetId 동기화 — 모달에서 마스터 데이터 참조용
+        if (res.datasetId || bdDatasetId) {
+          fetch('/api/fmea/projects', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fmeaId, masterDatasetId: res.datasetId || bdDatasetId }),
+          }).catch(e => console.error('[BD 저장] masterDatasetId 동기화 오류:', e));
+        }
+      }
     } catch (e) { console.error('[BD 저장] 오류:', e); } finally { setBdIsSaving(false); }
   };
 
