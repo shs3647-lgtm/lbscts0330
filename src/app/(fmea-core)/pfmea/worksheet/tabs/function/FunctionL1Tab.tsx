@@ -648,10 +648,19 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
 
             const updateFn = (prev: WorksheetState) => {
               const newState = JSON.parse(JSON.stringify(prev));
-              if (!newState.l1) return prev;
+              if (!newState.l1) newState.l1 = { name: '', types: [] };
               const types = newState.l1.types || [];
-              const typeIdx = types.findIndex((t: { id: string }) => t.id === typeId);
-              if (typeIdx < 0) return prev;
+              let typeIdx = types.findIndex((t: { id: string }) => t.id === typeId);
+              // ★ 2026-03-30: 임시 ID(def-yp-...)로 못 찾으면 카테고리 이름으로 검색
+              if (typeIdx < 0 && category) {
+                typeIdx = types.findIndex((t: { name: string }) => (t.name || '').toUpperCase().trim() === category.toUpperCase());
+              }
+              // ★ 카테고리 자체가 없으면 새로 생성
+              if (typeIdx < 0) {
+                types.push({ id: typeId, name: category, functions: [{ id: uid(), name: '', requirements: [] }] });
+                typeIdx = types.length - 1;
+                newState.l1.types = types;
+              }
 
               if (type === 'C2') {
                 const currentFuncs = types[typeIdx].functions || [];
