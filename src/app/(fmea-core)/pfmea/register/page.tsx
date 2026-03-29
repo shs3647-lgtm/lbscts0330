@@ -869,9 +869,13 @@ function PFMEARegisterPageContent() {
         </div>
         <CFTAccessLogTable accessLogs={accessLogs} maxRows={5} />
 
-        {/* ★ 2026-03-29: 기초정보 Import + BD 현황 — admin 전용 */}
-        {user?.role === 'admin' && (<>
-        <div className="mt-6">
+        {/* ★ 2026-03-29: 기초정보 Import + BD 현황 — admin 전용, 기본 접힘 */}
+        {user?.role === 'admin' && (
+        <details className="mt-6">
+          <summary className="cursor-pointer px-3 py-2 bg-gray-700 text-white text-xs font-bold rounded hover:bg-gray-600 select-none">
+            ▶ 기초정보 관리 (Admin)
+          </summary>
+        <div className="mt-2">
           <TemplateGeneratorPanel
             onGenerate={templateGen.handleGenerate}
             templateMode={templateGen.templateMode}
@@ -965,7 +969,8 @@ function PFMEARegisterPageContent() {
           }}
           onDeleteDatasets={handleBdDeleteDatasets}
         />
-        </>)}
+        </details>
+        )}
 
         {/* 하단 상태바 */}
         <div className="mt-3 px-4 py-2 bg-white rounded border border-gray-300 flex justify-between text-xs text-gray-500">
