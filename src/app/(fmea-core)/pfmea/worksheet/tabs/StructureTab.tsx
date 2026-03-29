@@ -58,6 +58,7 @@ import { useAlertModal } from '../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
 import { emitSave, saveNow } from '../hooks/useSaveEvent';
 import { replaceL3Structures, addL2Structure, addL3Structure, deleteL2Structure, deleteL3Structure, removeEmptyL2Structures, updateL2Structure, updateL3Structure } from '../hooks/useAtomicView';
+import { normalizeL2ProcessNo } from '../utils/processNoNormalize';
 
 /**
  * ★★★ 2026-01-12 리팩토링 ★★★
@@ -131,7 +132,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
     <>
       {/* 1행: 단계 구분 + 확정/수정 버튼 */}
       <tr>
-        <th colSpan={4} className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold">
+        <th colSpan={5} className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span className="whitespace-nowrap"><BiHeader ko="2 단계 구조분석" en="Structure Analysis" /></span>
@@ -197,7 +198,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
             </span>
           )}
         </th>
-        <th className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
+        <th colSpan={2} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <div className="flex items-center justify-center gap-1">
             <span onClick={onProcessModalOpen} className="cursor-pointer hover:underline">
               <BiHeader ko="2. 메인 공정명" en="Main Process" /> {showSearchIcon && '🔍'}
@@ -233,8 +234,11 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="완제품 공정명" en="Product Process" /><span className="text-green-700 font-bold">(1)</span>
         </th>
+        <th className="w-[45px] min-w-[45px] max-w-[45px] bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
+          No
+        </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="공정NO+공정명" en="Process" /><span className={`font-bold ${s2Count > 0 ? 'text-green-700' : 'text-red-500'}`}>({s2Count})</span>
+          <BiHeader ko="공정명" en="Process" /><span className={`font-bold ${s2Count > 0 ? 'text-green-700' : 'text-red-500'}`}>({s2Count})</span>
         </th>
         <th className="w-[55px] max-w-[55px] min-w-[55px] bg-[#29b6f6] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>4M</th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
@@ -1006,30 +1010,35 @@ export default function StructureTab(props: StructureTabProps) {
   }, [setState, setStateSynced, setDirty, saveToLocalStorage]);
 
   // ★★★ 2026-03-27: 공정번호 순 정렬 핸들러 ★★★
+  // ★ 수동모드: atomicDB 없어도 state.l2만 정렬 + 공정번호 3자리 정규화(001, 020, …)
   const handleSortByProcessNo = useCallback(() => {
-    if (!props.atomicDB || !props.setAtomicDB) return;
+    const sortFn = (a: { no?: string }, b: { no?: string }) => {
+      const numA = parseInt(String(a.no ?? '').replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(String(b.no ?? '').replace(/\D/g, '') || '0', 10);
+      return numA - numB || String(a.no ?? '').localeCompare(String(b.no ?? ''));
+    };
 
-    // atomicDB.l2Structures 정렬
-    const sortedL2 = [...props.atomicDB.l2Structures].sort((a, b) => {
-      const numA = parseInt(a.no?.replace(/\D/g, '') || '0', 10);
-      const numB = parseInt(b.no?.replace(/\D/g, '') || '0', 10);
-      return numA - numB;
-    });
-    // order 재부여
-    sortedL2.forEach((l2, idx) => { l2.order = idx; });
+    if (props.atomicDB && props.setAtomicDB) {
+      const sortedL2 = [...props.atomicDB.l2Structures]
+        .sort(sortFn)
+        .map((l2, idx) => ({
+          ...l2,
+          order: idx,
+          no: normalizeL2ProcessNo(l2.no),
+        }));
+      const newDB = { ...props.atomicDB, l2Structures: sortedL2 };
+      props.setAtomicDB(newDB);
+      saveNow(newDB);
+    }
 
-    const newDB = { ...props.atomicDB, l2Structures: sortedL2 };
-    props.setAtomicDB(newDB);
-    saveNow(newDB);
-
-    // state 동기화
     (setStateSynced || setState)((prev: WorksheetState) => {
-      const sortedStateL2 = [...prev.l2].sort((a, b) => {
-        const numA = parseInt(a.no?.replace(/\D/g, '') || '0', 10);
-        const numB = parseInt(b.no?.replace(/\D/g, '') || '0', 10);
-        return numA - numB;
-      });
-      sortedStateL2.forEach((p, idx) => { p.order = idx; });
+      const sortedStateL2 = [...prev.l2]
+        .sort(sortFn)
+        .map((p, idx) => ({
+          ...p,
+          order: idx,
+          no: normalizeL2ProcessNo(p.no),
+        }));
       return { ...prev, l2: sortedStateL2 };
     });
     setDirty(true);
@@ -1175,7 +1184,7 @@ export default function StructureTab(props: StructureTabProps) {
                   const target = e.target as HTMLElement;
                   const cell = target.closest('td');
                   const dataCol = cell?.dataset?.col;
-                  const colType: 'l1' | 'process' | 'workElement' = dataCol === 'l1' ? 'l1' : dataCol === 'process' ? 'process' : 'workElement';
+                  const colType: 'l1' | 'process' | 'workElement' = dataCol === 'l1' ? 'l1' : (dataCol === 'process' || dataCol === 'processNo') ? 'process' : 'workElement';
                   handleContextMenu(e, procIdx >= 0 ? procIdx : 0, row.l2Id, row.l3Id, colType);
                 }}
               >
@@ -1208,8 +1217,13 @@ export default function StructureTab(props: StructureTabProps) {
             return;
           }
 
+          const normalizedProcesses = selectedProcesses.map(sp => ({
+            ...sp,
+            no: normalizeL2ProcessNo(sp.no),
+          }));
+
           // 전체 삭제
-          if (selectedProcesses.length === 0) {
+          if (normalizedProcesses.length === 0) {
             const newDB = { ...props.atomicDB, l2Structures: [], l3Structures: [] };
             props.setAtomicDB(newDB);
             saveNow(newDB);
@@ -1221,10 +1235,12 @@ export default function StructureTab(props: StructureTabProps) {
           // ★ atomicDB 먼저 수정
           let newDB = { ...props.atomicDB };
           const existingL2Nos = new Set(
-            newDB.l2Structures.filter(l2 => l2.no?.trim() || l2.name?.trim()).map(l2 => l2.no)
+            newDB.l2Structures
+              .filter(l2 => l2.no?.trim() || l2.name?.trim())
+              .map(l2 => normalizeL2ProcessNo(l2.no)),
           );
           const emptyL2s = newDB.l2Structures.filter(l2 => !l2.no?.trim() && !l2.name?.trim());
-          const newProcs = selectedProcesses.filter(sp => !existingL2Nos.has(sp.no));
+          const newProcs = normalizedProcesses.filter(sp => !existingL2Nos.has(sp.no));
 
           // 빈 행부터 채우기 (작업요소·L1과 동일 규칙)
           let emptyIdx = 0;
@@ -1240,11 +1256,14 @@ export default function StructureTab(props: StructureTabProps) {
             }
           }
 
-          // 기존 공정명 업데이트
-          const nameMap = new Map(selectedProcesses.map(sp => [sp.no, sp.name]));
+          // 기존 공정명 업데이트 + 공정번호 3자리 정규화
+          const nameMap = new Map(normalizedProcesses.map(sp => [sp.no, sp.name]));
           newDB.l2Structures = newDB.l2Structures.map(l2 => {
-            const newName = nameMap.get(l2.no);
-            return (newName && newName !== l2.name) ? { ...l2, name: newName } : l2;
+            const nn = normalizeL2ProcessNo(l2.no);
+            const newName = nameMap.get(nn);
+            let next = nn !== (l2.no || '') ? { ...l2, no: nn } : l2;
+            if (newName && newName !== next.name) next = { ...next, name: newName };
+            return next;
           });
 
           props.setAtomicDB(newDB);
@@ -1287,11 +1306,11 @@ export default function StructureTab(props: StructureTabProps) {
             toast.error('구조 DB(Atomic)가 준비되지 않아 삭제를 반영할 수 없습니다.');
             return;
           }
-          const deleteNos = new Set(processNos);
+          const deleteNos = new Set(processNos.map(n => normalizeL2ProcessNo(n)));
 
           // atomicDB에서 삭제
           const deleteL2Ids = props.atomicDB.l2Structures
-            .filter(l2 => deleteNos.has(l2.no))
+            .filter(l2 => deleteNos.has(normalizeL2ProcessNo(l2.no)))
             .map(l2 => l2.id);
           let newDB = props.atomicDB;
           for (const id of deleteL2Ids) {
@@ -1302,7 +1321,7 @@ export default function StructureTab(props: StructureTabProps) {
 
           // state 동기화
           (setStateSynced || setState)((prev: WorksheetState) => {
-            const newL2 = prev.l2.filter(p => !deleteNos.has(p.no));
+            const newL2 = prev.l2.filter(p => !deleteNos.has(normalizeL2ProcessNo(p.no)));
             newL2.forEach((p, i) => p.order = i);
             return { ...prev, l2: newL2 };
           });

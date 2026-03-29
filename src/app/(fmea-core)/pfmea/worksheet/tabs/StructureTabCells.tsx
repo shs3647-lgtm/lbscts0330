@@ -235,8 +235,6 @@ export function EditableL2Cell({
         }
         return { ...p, ...updates };
       });
-      // ★ 2026-03-29: 공정번호 부여 후 자동 정렬 (3자리 정규화 기준)
-      updated.sort((a, b) => normalizeL2ProcessNo(a.no).localeCompare(normalizeL2ProcessNo(b.no)));
       return { ...prev, l2: updated };
     });
     setDirty(true);
@@ -286,34 +284,49 @@ export function EditableL2Cell({
     setIsEditing(true);
   };
 
-  if (isEditing) {
-    return (
-      <td rowSpan={rowSpan} data-col="process" className={`${cell} p-0.5 bg-blue-50 align-middle`}>
-        <input
-          type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleSave} onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setIsEditing(false); }}
-          autoFocus className="w-full px-1 border-none outline-2 outline-green-500 bg-white rounded-sm text-[10px] font-normal"
-        />
-      </td>
-    );
-  }
-
   const bgStyle: React.CSSProperties = isPlaceholder
     ? { background: `repeating-linear-gradient(45deg, ${zebraBg}, ${zebraBg} 4px, #e3f2fd 4px, #e3f2fd 8px)` }
     : { background: zebraBg };
 
+  if (isEditing) {
+    return (
+      <>
+        <td rowSpan={rowSpan} data-col="processNo" className="w-[45px] min-w-[45px] max-w-[45px] text-center text-[10px] font-bold text-gray-500 border border-[#ccc] p-0.5 align-middle" style={{ background: zebraBg }}>
+          {l2No || '-'}
+        </td>
+        <td rowSpan={rowSpan} data-col="process" className={`${cell} p-0.5 bg-blue-50 align-middle`}>
+          <input
+            type="text" value={editValue} onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSave} onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setIsEditing(false); }}
+            autoFocus className="w-full px-1 border-none outline-2 outline-green-500 bg-white rounded-sm text-[10px] font-normal"
+          />
+        </td>
+      </>
+    );
+  }
+
   return (
-    <td
-      rowSpan={rowSpan}
-      data-col="process"
-      className="cursor-pointer hover:bg-green-100 border border-[#ccc] p-0.5 px-1 text-left font-normal align-middle"
-      style={bgStyle}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-      title="클릭: 공정 선택 모달 | 더블클릭: 직접 입력"
-    >
-      {isPlaceholder ? <span className="text-[#e65100] font-semibold italic text-[10px]">🔍 클릭하여 공정 선택</span> : <span className={`font-normal ${adaptiveText(`${l2No} ${safeName}`, 23)}`} style={{ color: isRevised ? '#c62828' : '#1f2937' }}>{l2No} {safeName}</span>}
-    </td>
+    <>
+      <td
+        rowSpan={rowSpan}
+        data-col="processNo"
+        className="w-[45px] min-w-[45px] max-w-[45px] text-center text-[10px] font-bold text-gray-500 border border-[#ccc] p-0.5 align-middle"
+        style={{ background: zebraBg }}
+      >
+        {l2No || '-'}
+      </td>
+      <td
+        rowSpan={rowSpan}
+        data-col="process"
+        className="cursor-pointer hover:bg-green-100 border border-[#ccc] p-0.5 px-1 text-left font-normal align-middle"
+        style={bgStyle}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
+        title="클릭: 공정 선택 모달 | 더블클릭: 직접 입력"
+      >
+        {isPlaceholder ? <span className="text-[#e65100] font-semibold italic text-[10px]">🔍 클릭하여 공정 선택</span> : <span className={`font-normal ${adaptiveText(safeName, 23)}`} style={{ color: isRevised ? '#c62828' : '#1f2937' }}>{safeName}</span>}
+      </td>
+    </>
   );
 }
 

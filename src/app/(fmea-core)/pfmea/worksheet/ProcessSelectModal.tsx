@@ -245,9 +245,7 @@ export default function ProcessSelectModal({
     if (onDelete) onDelete(worksheetTargets.map(p => p.no));
 
     setSelectedIds(new Set());
-    // 모달 목록에서도 제거
-    const deletedNos = new Set(worksheetTargets.map(p => p.no));
-    setProcesses(prev => prev.filter(p => !deletedNos.has(p.no)));
+    // ★ 2026-03-29: 목록에서 제거하지 않음 — 삭제 후 "미적용"으로 자동 분류됨
   };
 
   // ★★★ 2026-02-07: 적용 = 선택된 새 공정만 추가 (기존 공정 건드리지 않음) ★★★
@@ -332,16 +330,18 @@ export default function ProcessSelectModal({
     }
   };
 
-  // ★★★ 2026-03-27: ID 기반 매칭만 사용 (이름/번호 매칭 제거) ★★★
-  const existingProcessIds = new Set(existingProcesses.map(p => p.id));
-  const isInWorksheet = (proc: ProcessItem) => existingProcessIds.has(proc.id);
+  // ★ 2026-03-29: 정규화 공정번호 기준 매칭 (마스터 ID ≠ 워크시트 ID이므로 no 기준)
+  const existingProcessNos = useMemo(
+    () => new Set(existingProcesses.map(p => normalizeL2ProcessNo(p.no))),
+    [existingProcesses]
+  );
+  const isInWorksheet = (proc: ProcessItem) => existingProcessNos.has(proc.no);
 
   // ★★★ 2026-02-07: X 버튼 = 워크시트에서 해당 공정 삭제 (onDelete 콜백 사용) ★★★
   const handleDeleteSingle = (proc: ProcessItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    // ★★★ 2026-03-27: ID 기반 매칭만 사용 ★★★
     // 워크시트에 없는 공정이면 무시
-    if (!existingProcessIds.has(proc.id)) return;
+    if (!existingProcessNos.has(proc.no)) return;
 
     const procInfo = existingProcessesInfo.find(p => p.name === proc.name);
     const l3Count = procInfo?.l3Count || 0;
