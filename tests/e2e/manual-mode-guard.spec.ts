@@ -15,12 +15,30 @@
  * @created 2026-02-09
  */
 
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, type APIRequestContext } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:3000';
 
 // ★ 테스트용 신규 PFMEA ID (기존 데이터와 충돌 방지)
 const TEST_FMEA_NO = 'pfm26-guard-manual';
+
+/** UI 가드(1~4)는 등록된 PFMEA가 있어야 의미 있음 — 없으면 스킵 */
+let guardFmeaRegistered = false;
+
+async function checkGuardProjectRegistered(request: APIRequestContext): Promise<boolean> {
+  try {
+    const res = await request.get(`${BASE_URL}/api/fmea/projects?type=P`);
+    if (!res.ok()) return false;
+    const data = await res.json();
+    if (data.dbError) return false;
+    const projects: Array<{ id?: string; fmeaNo?: string }> = data.projects || [];
+    return projects.some(
+      p => (p.fmeaNo || p.id || '').toLowerCase() === TEST_FMEA_NO.toLowerCase()
+    );
+  } catch {
+    return false;
+  }
+}
 
 async function waitForPageLoad(page: Page) {
   await page.waitForLoadState('networkidle');
@@ -43,8 +61,18 @@ async function openManualMode(page: Page, fmeaNo: string) {
 }
 
 test.describe('PFMEA 수동모드 핵심 기능 보호 (회귀방지)', () => {
+  test.beforeAll(async ({ request }) => {
+    guardFmeaRegistered = await checkGuardProjectRegistered(request);
+    if (!guardFmeaRegistered) {
+      console.warn(
+        `[가드] "${TEST_FMEA_NO}" 미등록 — 브라우저 테스트 1~4 스킵. ` +
+          'PFMEA 등록 후 재실행하거나 FULL_SYSTEM DB 시드에 해당 id를 추가하세요.'
+      );
+    }
+  });
 
   test('1. 수동모드 진입 시 테이블 행이 1개 이상 존재', async ({ page }) => {
+    test.skip(!guardFmeaRegistered, `PFMEA "${TEST_FMEA_NO}" 미등록 (API 목록 없음)`);
     await openManualMode(page, TEST_FMEA_NO);
 
     // 테이블이 렌더링되었는지 확인
@@ -61,6 +89,7 @@ test.describe('PFMEA 수동모드 핵심 기능 보호 (회귀방지)', () => {
   });
 
   test('2. 첫번째 행 L2(공정) 셀이 클릭 가능', async ({ page }) => {
+    test.skip(!guardFmeaRegistered, `PFMEA "${TEST_FMEA_NO}" 미등록`);
     await openManualMode(page, TEST_FMEA_NO);
 
     const tableBody = page.locator('table tbody');
@@ -86,6 +115,7 @@ test.describe('PFMEA 수동모드 핵심 기능 보호 (회귀방지)', () => {
   });
 
   test('3. 첫번째 행 L3(작업요소) 셀이 클릭 가능', async ({ page }) => {
+    test.skip(!guardFmeaRegistered, `PFMEA "${TEST_FMEA_NO}" 미등록`);
     await openManualMode(page, TEST_FMEA_NO);
 
     const tableBody = page.locator('table tbody');
@@ -110,6 +140,7 @@ test.describe('PFMEA 수동모드 핵심 기능 보호 (회귀방지)', () => {
   });
 
   test('4. "(작업요소 없음)" 행이 아닌 정상 placeholder 행 렌더링', async ({ page }) => {
+    test.skip(!guardFmeaRegistered, `PFMEA "${TEST_FMEA_NO}" 미등록`);
     await openManualMode(page, TEST_FMEA_NO);
 
     const tableBody = page.locator('table tbody');

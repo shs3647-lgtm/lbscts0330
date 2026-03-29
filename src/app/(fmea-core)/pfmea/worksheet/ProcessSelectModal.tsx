@@ -14,6 +14,7 @@ import { useDraggableModal } from '@/components/modals/useDraggableModal';
 import { MODAL_COMPACT, MODAL_CONTAINER, ACTION_ICONS } from '@/styles/modal-compact';
 import { deleteL2Structure } from './hooks/useAtomicView';
 import { saveNow } from './hooks/useSaveEvent';
+import { toast } from '@/hooks/useToast';
 
 interface ProcessItem {
   id: string;
@@ -194,6 +195,10 @@ export default function ProcessSelectModal({
   const clearAndSave = async () => {
     if (selectedIds.size === 0) {
       if (!window.confirm('워크시트의 모든 공정을 삭제하시겠습니까?')) return;
+      if (!atomicDB || !setAtomicDB) {
+        toast.error('구조 DB(Atomic)가 준비되지 않아 공정을 비울 수 없습니다. 잠시 후 다시 시도하거나 새로고침해 주세요.');
+        return;
+      }
       onSave([]);
       return;
     }
@@ -208,6 +213,11 @@ export default function ProcessSelectModal({
       return;
     }
     if (!window.confirm(`선택된 ${worksheetTargets.length}개 공정을 삭제하시겠습니까?`)) return;
+
+    if (!atomicDB || !setAtomicDB) {
+      toast.error('구조 DB(Atomic)가 준비되지 않아 삭제를 반영할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
 
     // ★ atomicDB 직접 수정 + 즉시 저장
     if (atomicDB && setAtomicDB) {
@@ -239,6 +249,11 @@ export default function ProcessSelectModal({
 
     if (selected.length === 0) {
       alert('추가할 공정을 선택해주세요.\n(Please select processes to add.)');
+      return;
+    }
+
+    if (!atomicDB || !setAtomicDB) {
+      toast.error('구조 DB(Atomic)가 준비되지 않아 공정을 적용할 수 없습니다. 잠시 후 다시 시도하거나 새로고침해 주세요.');
       return;
     }
 
@@ -291,7 +306,11 @@ export default function ProcessSelectModal({
         // 워크시트에도 반영 (수정된 공정만 onSave로 전달)
         const modifiedItems = processes.filter(p => modifiedProcesses.has(p.no));
         if (modifiedItems.length > 0) {
-          onSave(modifiedItems);
+          if (!atomicDB || !setAtomicDB) {
+            toast.error('구조 DB(Atomic)가 준비되지 않아 워크시트에 공정명을 반영할 수 없습니다.');
+          } else {
+            onSave(modifiedItems);
+          }
         }
         setModifiedProcesses(new Map());
       } else {

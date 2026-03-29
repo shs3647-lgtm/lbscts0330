@@ -39,6 +39,7 @@ import { mergeRowsByMasterSelection } from '../utils/mergeRowsByMasterSelection'
 import { getZebraColors } from '../../../../../styles/level-colors';
 import ProcessSelectModal from '../ProcessSelectModal';
 import WorkElementSelectModal from '../WorkElementSelectModal';
+import { toast } from '@/hooks/useToast';
 
 // ✅ 2026-01-19: 셀 컴포넌트 분리
 import { EditableM4Cell, EditableL2Cell, EditableL3Cell, StructureColgroup, adaptiveText, M4_OPTIONS } from './StructureTabCells';
@@ -666,7 +667,11 @@ export default function StructureTab(props: StructureTabProps) {
   // ★ 위로 새 행 추가 — atomicDB 직접 수정 + 즉시 저장
   const handleInsertAbove = useCallback(() => {
     const { procIdx, l2Id, l3Idx, clickedColumn } = contextMenuExtra;
-    if (!props.atomicDB || !props.setAtomicDB) { closeContextMenu(); return; }
+    if (!props.atomicDB || !props.setAtomicDB) {
+      toast.error('구조 DB(Atomic)가 준비되지 않아 행을 추가할 수 없습니다.');
+      closeContextMenu();
+      return;
+    }
 
     let newDB = props.atomicDB;
     const newL3Id = uid();
@@ -709,7 +714,11 @@ export default function StructureTab(props: StructureTabProps) {
   // ★ 아래로 새 행 추가 — atomicDB 직접 수정 + 즉시 저장
   const handleInsertBelow = useCallback(() => {
     const { procIdx, l2Id, l3Idx, clickedColumn } = contextMenuExtra;
-    if (!props.atomicDB || !props.setAtomicDB) { closeContextMenu(); return; }
+    if (!props.atomicDB || !props.setAtomicDB) {
+      toast.error('구조 DB(Atomic)가 준비되지 않아 행을 추가할 수 없습니다.');
+      closeContextMenu();
+      return;
+    }
 
     let newDB = props.atomicDB;
     const newL3Id = uid();
@@ -757,7 +766,11 @@ export default function StructureTab(props: StructureTabProps) {
   // ★ 행 삭제 — atomicDB 직접 수정 + 즉시 저장
   const handleDeleteRow = useCallback(() => {
     const { l2Id, l3Id, l3Idx, clickedColumn } = contextMenuExtra;
-    if (!l2Id || !props.atomicDB || !props.setAtomicDB) return;
+    if (!l2Id) return;
+    if (!props.atomicDB || !props.setAtomicDB) {
+      toast.error('구조 DB(Atomic)가 준비되지 않아 삭제를 반영할 수 없습니다.');
+      return;
+    }
 
     const proc = state.l2.find(p => p.id === l2Id);
     if (!proc) return;
@@ -1190,7 +1203,10 @@ export default function StructureTab(props: StructureTabProps) {
         atomicDB={props.atomicDB}
         setAtomicDB={props.setAtomicDB}
         onSave={(selectedProcesses) => {
-          if (!props.atomicDB || !props.setAtomicDB) return;
+          if (!props.atomicDB || !props.setAtomicDB) {
+            toast.error('구조 DB(Atomic)가 준비되지 않았습니다. 잠시 후 다시 시도하거나 페이지를 새로고침해 주세요.');
+            return;
+          }
 
           // 전체 삭제
           if (selectedProcesses.length === 0) {
@@ -1267,7 +1283,10 @@ export default function StructureTab(props: StructureTabProps) {
         productLineName={formatL1Name(state.l1?.name)}
         fmeaId={fmeaId}
         onDelete={async (processNos) => {
-          if (!props.atomicDB || !props.setAtomicDB) return;
+          if (!props.atomicDB || !props.setAtomicDB) {
+            toast.error('구조 DB(Atomic)가 준비되지 않아 삭제를 반영할 수 없습니다.');
+            return;
+          }
           const deleteNos = new Set(processNos);
 
           // atomicDB에서 삭제
@@ -1298,7 +1317,10 @@ export default function StructureTab(props: StructureTabProps) {
           // targetL2Id 결정
           const effectiveTargetL2Id = targetL2Id || (state.l2.length > 0 ? state.l2[0].id : null);
           if (!effectiveTargetL2Id) { showAlert('먼저 공정을 선택해주세요.'); return; }
-          if (!props.atomicDB || !props.setAtomicDB) return;
+          if (!props.atomicDB || !props.setAtomicDB) {
+            toast.error('구조 DB(Atomic)가 준비되지 않아 작업요소를 저장할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+            return;
+          }
 
           const targetProc = state.l2.find(p => p.id === effectiveTargetL2Id);
           const stateL3s = [...(targetProc?.l3 || [])];

@@ -411,7 +411,7 @@ export function useWorksheetSave({
           setLastSaved(new Date().toLocaleTimeString('ko-KR'));
         }
       } else {
-        // atomicDB 없음 → 수동모드 저장
+        // Atomic에 L2가 없음(ref 기준) → 수동 구조 선저장 (신규·미적재와 동일 분기)
         const manualL2 = (stateRef.current.l2 || []).filter((p: any) => p.name?.trim() || p.no?.trim());
         if (manualL2.length > 0) {
           const l1Name =

@@ -72,10 +72,20 @@ interface UseWorksheetStateReturn {
   suppressAutoSaveRef: React.MutableRefObject<boolean>;  // ★ 2026-02-18
 }
 
+/** 워크시트 URL에서 FMEA 키 추출 — `id` / `fmeaId` / `fmeaNo`(등록 번호·가드 스펙 호환) */
+function worksheetFmeaKeyFromSearchParams(sp: { get: (key: string) => string | null }): string {
+  return (
+    sp.get('id')?.toLowerCase() ||
+    sp.get('fmeaId')?.toLowerCase() ||
+    sp.get('fmeaNo')?.toLowerCase() ||
+    ''
+  );
+}
+
 export function useWorksheetState(): UseWorksheetStateReturn {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const selectedFmeaId = searchParams.get('id')?.toLowerCase() || searchParams.get('fmeaId')?.toLowerCase() || null;  // ✅ DB 소문자 일관성 + fmeaId 폴백
+  const selectedFmeaId = worksheetFmeaKeyFromSearchParams(searchParams) || null;
   const baseId = searchParams.get('baseId')?.toLowerCase() || null;  // ✅ DB 소문자 일관성
   const mode = searchParams.get('mode');
   const urlTab = searchParams.get('tab') || null;
@@ -91,7 +101,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     setIsHydrated(true);
 
     const urlParams = new URLSearchParams(window.location.search);
-    const fmeaId = urlParams.get('id')?.toLowerCase();  // ✅ DB 소문자 일관성
+    const fmeaId = worksheetFmeaKeyFromSearchParams(urlParams);
     if (!fmeaId) return;
 
     const urlTabParam = urlParams.get('tab');
@@ -150,8 +160,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     if (compareEmbed) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const fromWindow =
-        urlParams.get('id')?.toLowerCase() || urlParams.get('fmeaId')?.toLowerCase() || '';
+      const fromWindow = worksheetFmeaKeyFromSearchParams(urlParams);
       const canonicalId = (selectedFmeaId || fromWindow || '').toLowerCase();
       if (!canonicalId) return;
 
@@ -196,8 +205,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     if (compareEmbed) return;
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const fromWindow =
-        urlParams.get('id')?.toLowerCase() || urlParams.get('fmeaId')?.toLowerCase() || '';
+      const fromWindow = worksheetFmeaKeyFromSearchParams(urlParams);
       const canonicalId = (selectedFmeaId || fromWindow || '').toLowerCase();
       if (canonicalId && Array.isArray(state.visibleSteps)) {
         localStorage.setItem(`pfmea_visibleSteps_${canonicalId}`, JSON.stringify(state.visibleSteps));
@@ -415,8 +423,8 @@ export function useWorksheetState(): UseWorksheetStateReturn {
       if (!onlyProject?.id) return;
 
       const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab');
-      const nextUrl = `/pfmea/worksheet?id=${onlyProject.id}${tabParam ? `&tab=${tabParam}` : ''}`;
+      params.set('id', onlyProject.id);
+      const nextUrl = `/pfmea/worksheet?${params.toString()}`;
 
       setCurrentFmea(onlyProject);
       router.push(nextUrl);
