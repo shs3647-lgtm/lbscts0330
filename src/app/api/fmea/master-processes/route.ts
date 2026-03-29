@@ -126,9 +126,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ★ 2~4단계 폴백 삭제 (2026-03-27)
-    // FMEA 생성 시 공정 데이터가 DB에 복사되므로 런타임 폴백 불필요
-    // → 자기 데이터만 표시
+    // ─── 2단계: 등록 화면에서 지정한 상위 FMEA (parentFmeaId) fallback ───
+    if (processes.length === 0 && fmeaId) {
+      const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true } });
+      if (project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
+        activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+          where: { isActive: true, fmeaId: project.parentFmeaId },
+          orderBy: { updatedAt: 'desc' },
+        });
+        if (activeDataset) {
+          processes = await buildProcessesFromDataset(prisma, activeDataset.id);
+          if (processes.length > 0) {
+            console.info(`[master-processes] 2단계 부모 fallback: ${fmeaId} → parent=${project.parentFmeaId} → ${processes.length}건`);
+          }
+        }
+      }
+    }
 
     if (processes.length === 0) {
       return NextResponse.json({

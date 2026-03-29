@@ -24,20 +24,32 @@ export async function GET(req: NextRequest) {
     const fmeaId = searchParams.get('fmeaId') || '';
 
     try {
-        // ★★★ 2026-03-27: fmeaId가 있으면 해당 FMEA의 데이터셋 조회, 없으면 활성 데이터셋 폴백 ★★★
+        // ★ 2026-03-29: 3단계 fallback — 자체 → 등록 화면 상위(parentFmeaId) → isActive
         let activeDataset: any = null;
         let datasetSource = '';
-        
+
+        // 1단계: fmeaId로 자체 데이터셋 조회
         if (fmeaId) {
-            // fmeaId로 해당 FMEA의 데이터셋 조회
             activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                 where: { fmeaId },
                 orderBy: { updatedAt: 'desc' }
             });
             if (activeDataset) datasetSource = 'fmeaId';
         }
-        
-        // fmeaId가 없거나 해당 데이터셋이 없으면 활성 데이터셋 폴백
+
+        // 2단계: 등록 화면에서 지정한 상위 FMEA (parentFmeaId) fallback
+        if (!activeDataset && fmeaId) {
+            const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true } });
+            if (project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
+                activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+                    where: { fmeaId: project.parentFmeaId },
+                    orderBy: { updatedAt: 'desc' }
+                });
+                if (activeDataset) datasetSource = `parent fallback (${project.parentFmeaId})`;
+            }
+        }
+
+        // 3단계: isActive fallback
         if (!activeDataset) {
             activeDataset = await prisma.pfmeaMasterDataset.findFirst({
                 where: { isActive: true },
@@ -45,7 +57,7 @@ export async function GET(req: NextRequest) {
             });
             if (activeDataset) datasetSource = 'isActive fallback';
         }
-        
+
         console.log('[work-elements GET] fmeaId:', fmeaId, '| datasetSource:', datasetSource, '| datasetId:', activeDataset?.id);
 
         if (!activeDataset) {
