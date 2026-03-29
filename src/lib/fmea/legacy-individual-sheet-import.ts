@@ -246,7 +246,10 @@ function sheetMatchesCanonical(actual: string, canonical: string): boolean {
   const a = compact(actual);
   const b = compact(canonical);
   if (a === b) return true;
-  const parts = canonical.replace(/[()]/g, ' ').split(/\s+/).filter((t) => t.length >= 1);
+  const parts = canonical
+    .replace(/[()]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
   if (parts.length < 2) return false;
   return parts.every((p) => a.includes(compact(p)));
 }

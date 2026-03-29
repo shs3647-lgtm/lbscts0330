@@ -30,4 +30,12 @@ describe('normalizeFlatProcessNosForBasicImport', () => {
     ]);
     expect(out[0].processNo).toBe('YP');
   });
+
+  it('sets A1 value to padded processNo for display/sort', () => {
+    const out = normalizeFlatProcessNosForBasicImport([
+      row({ category: 'A', processNo: '20', itemCode: 'A1', value: '20' }),
+    ]);
+    expect(out[0].processNo).toBe('020');
+    expect(out[0].value).toBe('020');
+  });
 });

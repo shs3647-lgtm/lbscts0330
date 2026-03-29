@@ -435,25 +435,20 @@ function PFMEARegisterPageContent() {
     if (!file) return;
     setBdIsSaving(true);
     try {
-      // ★★★ 2026-03-22: 5시트 위치기반 포맷 자동 감지 → position-parser 라우팅
-      const ExcelJS = (await import('exceljs')).default;
-      const wb = new ExcelJS.Workbook();
-      const buf = await file.arrayBuffer();
-      await wb.xlsx.load(buf);
-      const sheetNames = wb.worksheets.map((ws: { name: string }) => ws.name);
-      const { isPositionBasedFormat, parsePositionBasedWorkbook, atomicToFlatData } = await import('@/lib/fmea/position-parser');
+      const { parseRegisterBasicInfoWorkbook, buildBdItemStatsFromFlatForRegister } = await import(
+        '@/app/(fmea-core)/pfmea/register/utils/parseRegisterBasicInfoWorkbook'
+      );
+      const parsed = await parseRegisterBasicInfoWorkbook(file, fmeaId?.toLowerCase() ?? '');
 
-      if (isPositionBasedFormat(sheetNames)) {
-        // 위치기반 5시트 → save-position-import
-        const atomicData = parsePositionBasedWorkbook(wb, fmeaId?.toLowerCase());
+      if (parsed.mode === 'position') {
+        const atomicData = parsed.atomicData;
         console.log('[Register Import] 위치기반 stats:', JSON.stringify(atomicData.stats));
-        const flatFromAtomic = atomicToFlatData(atomicData) as any[];
+        const flatFromAtomic = parsed.flat as any[];
         setFlatData(flatFromAtomic);
 
-        // ★v5: parseStatistics 설정 → Import 통계표 즉시 렌더링
         if (atomicData.stats) {
           const s = atomicData.stats;
-           const itemStats: { itemCode: string; label: string; rawCount: number; uniqueCount: number; dupSkipped: number }[] = [
+          const itemStats: { itemCode: string; label: string; rawCount: number; uniqueCount: number; dupSkipped: number }[] = [
             { itemCode: 'C1', label: '구분', rawCount: s.excelC1 || s.excelL1Rows, uniqueCount: new Set(atomicData.l1Functions.map(f => f.category)).size, dupSkipped: 0 },
             { itemCode: 'C2', label: '제품기능', rawCount: s.excelC2 || s.excelL1Rows, uniqueCount: new Set(atomicData.l1Functions.map(f => f.functionName)).size, dupSkipped: 0 },
             { itemCode: 'C3', label: '요구사항', rawCount: s.excelC3 || s.excelL1Rows, uniqueCount: (atomicData as any).l1Requirements?.length || atomicData.l1Functions.length, dupSkipped: 0 },
@@ -475,7 +470,6 @@ function PFMEARegisterPageContent() {
         }
 
         if (fmeaId) {
-          // (1) Atomic 구조 DB 저장 (L2/L3/FM/FC/FL 등)
           const saveRes = await fetch('/api/fmea/save-position-import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -485,7 +479,6 @@ function PFMEARegisterPageContent() {
           if (saveResult.success) {
             console.log('[Register Import] Atomic 저장 완료:', saveResult.atomicCounts);
 
-            // (2) ★v5: MasterDataset(flatData)도 동시 저장 — 페이지 재방문 시 데이터 복원용
             try {
               const { saveMasterDataset } = await getMasterApi();
               const masterRes = await saveMasterDataset({
@@ -504,14 +497,12 @@ function PFMEARegisterPageContent() {
               console.warn('[Register Import] MasterDataset 저장 실패 (비치명적):', mdErr);
             }
 
-            // (3) ★v5: UI 상태 동기화 — 기초정보 패널 자동 펼침 + 데이터 로드 표시
             setBdIsSaved(true); setBdDirty(false);
             setBdLoadedFmeaId(fmeaId);
             setBdLoadedFmeaName(fmeaInfo.subject || fmeaId);
-            setBdExpandTrigger(prev => prev + 1); // 패널 자동 펼침
+            setBdExpandTrigger(prev => prev + 1);
             templateGen.setTemplateMode('download');
 
-            // (4) ★v5: DB 카운트 설정 — 통계표에서 DB 저장 건수 표시
             const dbCounts: Record<string, number> = {};
             for (const item of flatFromAtomic) {
               dbCounts[item.itemCode] = (dbCounts[item.itemCode] || 0) + 1;
@@ -525,8 +516,44 @@ function PFMEARegisterPageContent() {
         return;
       }
 
-      // 위치기반 5시트 포맷만 지원
-      alert('❌ 지원하지 않는 엑셀 형식입니다.\n위치기반 5시트 포맷만 지원합니다.');
+      const flatFromLegacy = parsed.flat;
+      setFlatData(flatFromLegacy as any[]);
+      const { itemStats, totalRawRows } = buildBdItemStatsFromFlatForRegister(flatFromLegacy);
+      setBdParseStatistics({ itemStats, totalRawRows });
+      setBdPositionParserStats(null);
+
+      if (fmeaId) {
+        try {
+          const { saveMasterDataset } = await getMasterApi();
+          const masterRes = await saveMasterDataset({
+            fmeaId: fmeaId.toLowerCase(),
+            fmeaType: fmeaInfo.fmeaType as 'M' | 'F' | 'P' || 'P',
+            name: 'MASTER',
+            replace: true,
+            mode: 'import',
+            flatData: flatFromLegacy,
+          });
+          if (masterRes.ok) {
+            if (masterRes.datasetId) setBdDatasetId(masterRes.datasetId);
+            console.log('[Register Import] 개별탭 MasterDataset 저장 완료');
+          }
+        } catch (mdErr) {
+          console.warn('[Register Import] MasterDataset 저장 실패:', mdErr);
+        }
+
+        setBdIsSaved(true); setBdDirty(false);
+        setBdLoadedFmeaId(fmeaId);
+        setBdLoadedFmeaName(fmeaInfo.subject || fmeaId);
+        setBdExpandTrigger(prev => prev + 1);
+        templateGen.setTemplateMode('download');
+
+        const dbCountsLegacy: Record<string, number> = {};
+        for (const item of flatFromLegacy) {
+          dbCountsLegacy[item.itemCode] = (dbCountsLegacy[item.itemCode] || 0) + 1;
+        }
+        setBdDbCounts(dbCountsLegacy);
+      }
+
       setBdIsSaving(false);
       return;
     } catch (err) {

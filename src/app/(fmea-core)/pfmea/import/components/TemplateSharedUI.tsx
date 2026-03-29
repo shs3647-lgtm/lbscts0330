@@ -11,6 +11,14 @@ import React, { useState, useEffect } from 'react';
 import type { ImportedFlatData } from '../types';
 import { fmeaIdToBdId } from '../utils/bd-id';
 
+/** PFMEA 마스터 기초정보 항목코드 15종 — BD/수동 템플릿 시트 수 표시 기준 */
+export const PFMEA_BASIC_INFO_ITEM_CODES = new Set([
+  'A1', 'A2', 'A3', 'A4', 'A5', 'A6',
+  'B1', 'B2', 'B3', 'B4', 'B5',
+  'C1', 'C2', 'C3', 'C4',
+]);
+export const PFMEA_BASIC_INFO_SHEET_COUNT = PFMEA_BASIC_INFO_ITEM_CODES.size;
+
 // ─── CSS 클래스 상수 ───
 
 export const SELECT_CLS = 'px-1.5 py-0.5 border border-gray-300 rounded text-[11px] bg-white';
@@ -102,7 +110,9 @@ export function DataStatusBar({ flatData, showApplied, bdFmeaId, bdFmeaName }: {
   bdFmeaName?: string;
 }) {
   const processCount = new Set(flatData.filter(d => d.category === 'A' && d.processNo && d.processNo !== '00' && d.processNo !== '공통').map(d => d.processNo)).size;
-  const sheetCount = new Set(flatData.map(d => d.itemCode)).size;
+  const filledBasicKinds = new Set(
+    flatData.filter((d) => PFMEA_BASIC_INFO_ITEM_CODES.has(String(d.itemCode))).map((d) => d.itemCode)
+  ).size;
   const dataCount = flatData.filter(d => d.value?.trim()).length;
   const displayBdId = bdFmeaId ? fmeaIdToBdId(bdFmeaId) : null;
 
@@ -111,8 +121,11 @@ export function DataStatusBar({ flatData, showApplied, bdFmeaId, bdFmeaName }: {
       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px]">
         <b className="text-blue-700">{processCount}</b><span className="text-blue-500">공정</span>
       </span>
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px]">
-        <b className="text-blue-700">{sheetCount}</b><span className="text-blue-500">시트</span>
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px]"
+        title={`기초정보 항목 ${PFMEA_BASIC_INFO_SHEET_COUNT}종(A1~A6·B1~B5·C1~C4). 현재 데이터가 있는 항목: ${filledBasicKinds}종`}
+      >
+        <b className="text-blue-700">{PFMEA_BASIC_INFO_SHEET_COUNT}</b><span className="text-blue-500">시트</span>
       </span>
       <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-[11px]">
         <b className="text-blue-700">{dataCount}</b><span className="text-blue-500">데이터</span>

@@ -96,9 +96,10 @@ export function useRegisterPageHandlers(core: CoreReturn) {
   const openFmeaSelectModal = useCallback(async (type: FMEASelectType) => {
     let projects: any[] = [];
     try {
-      const res = await fetch('/api/fmea/projects');
+      // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
+      const res = await fetch('/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc');
       const data = await res.json();
-      if (data.success && data.projects?.length > 0) projects = data.projects;
+      if (data.success && data.data?.length > 0) projects = data.data;
     } catch (e) { console.error('[FMEA 프로젝트 조회] 오류:', e); toast.error('FMEA 프로젝트 목록을 불러오는데 실패했습니다.'); }
 
     const filtered = type === 'ALL' || type === 'LOAD'
@@ -143,9 +144,10 @@ export function useRegisterPageHandlers(core: CoreReturn) {
   const loadFmeaNameList = useCallback(async () => {
     let projects: any[] = [];
     try {
-      const res = await fetch('/api/fmea/projects');
+      // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
+      const res = await fetch('/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc');
       const data = await res.json();
-      if (data.success && data.projects?.length > 0) projects = data.projects;
+      if (data.success && data.data?.length > 0) projects = data.data;
     } catch (e) { console.error('[FMEA명 목록 조회] 오류:', e); }
     const list = projects.map((p: any) => ({
       id: p.id, name: p.fmeaInfo?.subject || p.project?.productName || '제목 없음', type: p.fmeaType || 'P',

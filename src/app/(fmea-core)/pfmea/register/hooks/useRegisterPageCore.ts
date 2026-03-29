@@ -345,7 +345,8 @@ export function useRegisterPageCore() {
         const lastViewedId = localStorage.getItem('pfmea-last-viewed');
         let apiSuccess = false;
         try {
-          const res = await fetch('/api/fmea/projects?type=P');
+          // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
+          const res = await fetch('/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc');
           const data = await res.json();
           if (data.dbError) {
             // DB 연결 실패 — 에러 표시만 하고 폼 초기화 안 함
@@ -354,13 +355,14 @@ export function useRegisterPageCore() {
             return;
           }
           apiSuccess = true;
+          const projectList = data.data || [];
           // ★ 프로젝트 목록 캐시 (page.tsx BD현황에서 재사용)
-          if (data.success && data.projects) setCachedProjects(data.projects);
-          if (data.success && data.projects?.length > 0) {
+          if (data.success && projectList.length > 0) setCachedProjects(projectList);
+          if (data.success && projectList.length > 0) {
             // ★ 성능 개선: redirect+재마운트 대신 직접 로드 (API 호출 1회 절약)
-            let targetId = data.projects[0].id.toLowerCase();
+            let targetId = projectList[0].id.toLowerCase();
             if (lastViewedId) {
-              const exists = data.projects.some((p: any) => p.id?.toLowerCase() === lastViewedId.toLowerCase());
+              const exists = projectList.some((p: any) => p.id?.toLowerCase() === lastViewedId.toLowerCase());
               if (exists) {
                 targetId = lastViewedId.toLowerCase();
               } else {
@@ -368,7 +370,7 @@ export function useRegisterPageCore() {
                 localStorage.removeItem('pfmea-last-edited');
               }
             }
-            const targetProject = data.projects.find((p: any) => p.id?.toLowerCase() === targetId);
+            const targetProject = projectList.find((p: any) => p.id?.toLowerCase() === targetId);
             if (targetProject) {
               await loadProjectData(targetProject);
               router.replace(`/pfmea/register?id=${targetId}`);
@@ -397,11 +399,13 @@ export function useRegisterPageCore() {
 
       let project: any = null;
       try {
-        const res = await fetch(`/api/fmea/projects?id=${targetId}`);
+        // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
+        const res = await fetch(`/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc`);
         const data = await res.json();
-        if (data.success && data.projects?.length > 0) {
-          project = data.projects.find((p: any) => p.id?.toLowerCase() === targetId.toLowerCase());
-          setCachedProjects(data.projects); // ★ 캐시
+        const projectList = data.data || [];
+        if (data.success && projectList.length > 0) {
+          project = projectList.find((p: any) => p.id?.toLowerCase() === targetId.toLowerCase());
+          setCachedProjects(projectList); // ★ 캐시
         }
       } catch (e) { console.error('[프로젝트 로드] 오류:', e); toast.error('프로젝트 데이터를 불러오는데 실패했습니다.'); }
 
@@ -465,10 +469,12 @@ export function useRegisterPageCore() {
     const timer = setTimeout(async () => {
       if (cancelled) return;
       try {
-        const res = await fetch('/api/fmea/projects');
+        // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
+        const res = await fetch('/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc');
         const data = await res.json();
-        if (!cancelled && data.success && data.projects?.length > 0) {
-          setFmeaNameList(data.projects.map((p: Record<string, unknown>) => ({
+        const projectList = data.data || [];
+        if (!cancelled && data.success && projectList.length > 0) {
+          setFmeaNameList(projectList.map((p: Record<string, unknown>) => ({
             id: p.id as string,
             name: ((p.fmeaInfo as Record<string, unknown>)?.subject as string) ||
                   ((p.project as Record<string, unknown>)?.productName as string) || '제목 없음',
@@ -488,9 +494,11 @@ export function useRegisterPageCore() {
     const timer = setTimeout(async () => {
       if (cancelled) return;
       try {
-        const projRes = await fetch(`/api/fmea/projects?id=${targetId}`);
+        // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
+        const projRes = await fetch(`/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc`);
         const projData = await projRes.json();
-        const project = projData?.projects?.[0];
+        const projList = projData?.data || [];
+        const project = projList.find((p: any) => p.id?.toLowerCase() === targetId?.toLowerCase());
         const tgId = project?.tripletGroupId;
         if (!tgId) return;
 

@@ -22,7 +22,7 @@ import type { MasterFailureChain } from '../types/masterFailureChain';
 import { buildFailureChainsFromFlat } from '../types/masterFailureChain';
 import { dedupeFailureChainsWeakL3 } from '../utils/dedupeFailureChainsWeakL3';
 import { useImportSteps } from '../hooks/useImportSteps';
-import { TabBtn, DataStatusBar } from './TemplateSharedUI';
+import { TabBtn, DataStatusBar, PFMEA_BASIC_INFO_SHEET_COUNT } from './TemplateSharedUI';
 import { TemplatePreviewContent } from './TemplatePreviewContent';
 // ManualTemplateInline, AutoTemplateInline 삭제 (사용자 요청 — 샘플 Import로 대체)
 
@@ -346,8 +346,11 @@ export function TemplateGeneratorPanel(props: Props) {
               <b>{new Set(flatData.filter(d => d.category === 'A' && d.processNo && d.processNo !== '00' && d.processNo !== '공통').map(d => d.processNo)).size}</b>
               <span className="text-white/70">공정</span>
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/15 border border-white/30 rounded text-[11px]">
-              <b>{new Set(flatData.map(d => d.itemCode)).size}</b>
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/15 border border-white/30 rounded text-[11px]"
+              title={`기초정보 항목 ${PFMEA_BASIC_INFO_SHEET_COUNT}종 고정`}
+            >
+              <b>{PFMEA_BASIC_INFO_SHEET_COUNT}</b>
               <span className="text-white/70">시트</span>
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/15 border border-white/30 rounded text-[11px]">

@@ -8,8 +8,8 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
-import { normalizeFlatProcessNosForBasicImport } from '../utils/basicImportFlatNormalize';
 import { normalizeL2ProcessNo } from '@/app/(fmea-core)/pfmea/worksheet/utils/processNoNormalize';
+import { parseRegisterBasicInfoWorkbook } from '../utils/parseRegisterBasicInfoWorkbook';
 import { validateExcelFileWithAlert } from '@/lib/excel-validation';
 
 const BASIC_ITEM_CODES = [
@@ -35,14 +35,6 @@ const TAB_LABEL: Record<string, string> = {
   C3: 'C3 요구사항',
   C4: 'C4 고장영향',
 };
-
-function normalizeFlatProcessNos(rows: ImportedFlatData[]): ImportedFlatData[] {
-  return rows.map((row) => {
-    if (row.category === 'C') return row;
-    const n = normalizeL2ProcessNo(row.processNo);
-    return n === row.processNo ? row : { ...row, processNo: n };
-  });
-}
 
 function sortPreviewRows(a: ImportedFlatData, b: ImportedFlatData): number {
   const pa = a.category === 'C' ? a.processNo : normalizeL2ProcessNo(a.processNo);
@@ -121,23 +113,9 @@ export function RegisterBasicInfoImportModal({
     setBusy(true);
     setErr(null);
     try {
-      const ExcelJS = (await import('exceljs')).default;
-      const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(await file.arrayBuffer());
-      const sheetNames = wb.worksheets.map((ws: { name: string }) => ws.name);
-      const { isPositionBasedFormat, parsePositionBasedWorkbook, atomicToFlatData } = await import(
-        '@/lib/fmea/position-parser'
-      );
-      if (!isPositionBasedFormat(sheetNames)) {
-        setErr('위치기반 통합 포맷만 지원합니다 (L1/L2/L3 통합 + FC 시트).');
-        setBusy(false);
-        return;
-      }
-      const atomicData = parsePositionBasedWorkbook(wb, fmeaId.toLowerCase());
-      const rawFlat = atomicToFlatData(atomicData) as ImportedFlatData[];
-      const normalized = normalizeFlatProcessNosForBasicImport(rawFlat);
-      setFlatData(normalized);
-      setAtomicPayload(atomicData);
+      const parsed = await parseRegisterBasicInfoWorkbook(file, fmeaId.toLowerCase());
+      setFlatData(parsed.flat);
+      setAtomicPayload(parsed.mode === 'position' ? parsed.atomicData : null);
       setFileLabel(file.name);
       setStep('preview');
     } catch (er) {
@@ -150,20 +128,22 @@ export function RegisterBasicInfoImportModal({
   };
 
   const onConfirmSave = async () => {
-    if (!fmeaId?.trim() || !atomicPayload) return;
+    if (!fmeaId?.trim() || flatData.length === 0) return;
     setBusy(true);
     setErr(null);
     try {
-      const saveRes = await fetch('/api/fmea/save-position-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData: atomicPayload, force: true }),
-      });
-      const saveResult = await saveRes.json();
-      if (!saveResult.success) {
-        setErr(saveResult.error || 'Atomic 저장 실패');
-        setBusy(false);
-        return;
+      if (atomicPayload) {
+        const saveRes = await fetch('/api/fmea/save-position-import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fmeaId: fmeaId.toLowerCase(), atomicData: atomicPayload, force: true }),
+        });
+        const saveResult = await saveRes.json();
+        if (!saveResult.success) {
+          setErr(saveResult.error || 'Atomic 저장 실패');
+          setBusy(false);
+          return;
+        }
       }
       const { saveMasterDataset } = await import('@/app/(fmea-core)/pfmea/import/utils/master-api');
       const masterRes = await saveMasterDataset({
@@ -220,7 +200,7 @@ export function RegisterBasicInfoImportModal({
         </div>
 
         <div className="px-3 py-2 border-b text-[11px] text-gray-600 shrink-0">
-          위치기반 통합 엑셀(L1/L2/L3/FC 등)을 선택하세요. 아래는 항목코드 기준 15탭(A1~C4) 미리보기입니다. 저장 시 Atomic·마스터 플랫이 갱신됩니다.
+          위치기반 통합(L1/L2/L3/FC) 또는 개별 15탭 기초정보 템플릿 엑셀을 선택하세요. 미리보기는 항목코드(A1~C4) 기준입니다. 통합 포맷 저장 시 Atomic+마스터 플랫, 개별 탭만일 때는 마스터 플랫만 갱신됩니다.
           {fileLabel ? (
             <span className="ml-2 font-semibold text-gray-800">파일: {fileLabel}</span>
           ) : null}
