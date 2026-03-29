@@ -84,6 +84,8 @@ export default function TopMenuBar({
   activePanelId,
   onCpStructureSync, onCpDataSync, onCreateCp, onCreatePfd, linkedPfdNo, onConfirm, showCompareButton, onCompareClick, onOpenBackup, onOpenStats,
   isAdmin, onQuickCpSync,
+  inputMode,
+  onInputModeChange,
 }: TopMenuBarProps) {
   const router = useRouter();
   const { t } = useLocale();
@@ -386,7 +388,39 @@ export default function TopMenuBar({
         )}
       </div>
 
-      {/* ★★★ 2026-02-05: 수동/자동 토글 삭제 - StructureHeader에서 관리 ★★★ */}
+      {/* 전역 입력모드: ALL·사이드 패널 등과 공유. 탭 헤더 Auto/Manual은 별도(isAutoMode). */}
+      {typeof onInputModeChange === 'function' && inputMode ? (
+        <>
+          <div className="hidden sm:block w-px h-5 bg-white/30 shrink-0" />
+          <div
+            className="hidden sm:flex items-stretch shrink-0 rounded border border-white/30 overflow-hidden"
+            title="입력: 자동(모달 중심) · 수동(컨텍스트 메뉴 중심)"
+          >
+            <button
+              type="button"
+              onClick={() => onInputModeChange('auto')}
+              className={`px-1 py-0.5 text-[8px] font-semibold whitespace-nowrap ${
+                inputMode === 'auto'
+                  ? 'bg-yellow-500/90 text-black'
+                  : 'bg-transparent text-white/80 hover:bg-white/10'
+              }`}
+            >
+              입력·자동
+            </button>
+            <button
+              type="button"
+              onClick={() => onInputModeChange('manual')}
+              className={`px-1 py-0.5 text-[8px] font-semibold whitespace-nowrap border-l border-white/20 ${
+                inputMode === 'manual'
+                  ? 'bg-yellow-500/90 text-black'
+                  : 'bg-transparent text-white/80 hover:bg-white/10'
+              }`}
+            >
+              입력·수동
+            </button>
+          </div>
+        </>
+      ) : null}
 
     </div>
   );
