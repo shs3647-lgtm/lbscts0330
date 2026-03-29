@@ -13,6 +13,7 @@ import { emitSave } from '../../../hooks/useSaveEvent';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { validateAutoMapping, groupMatchedByRoom, groupMatchedByRoomMeta, protectStructure, ensureMinimumFunctions } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
+import { toast } from '@/hooks/useToast';
 
 interface UseFunctionL3HandlersProps {
   state: any;
@@ -320,7 +321,7 @@ export function useFunctionL3Handlers({
             ? [{ processNo, itemCode: 'B2', oldValue: oldName, newValue: newValue.trim(), belongsTo: weName }]
             : [{ processNo, itemCode: 'B2', newValue: newValue.trim(), belongsTo: weName }],
         }),
-      }).catch((e) => console.error('[L3 B2 인라인편집] 마스터 동기화 오류:', e));
+      }).catch((e) => { console.error('[L3 B2 인라인편집] 마스터 동기화 오류:', e); toast.error('마스터 DB 저장 실패'); });
     }
   }, [state.l2, setState, setStateSynced, setDirty, fmeaId]);
 
@@ -380,7 +381,7 @@ export function useFunctionL3Handlers({
             ? [{ processNo, itemCode: 'B3', oldValue: oldName, newValue: newValue.trim(), belongsTo: weName3 }]
             : [{ processNo, itemCode: 'B3', newValue: newValue.trim(), belongsTo: weName3 }],
         }),
-      }).catch((e) => console.error('[L3 B3 인라인편집] 마스터 동기화 오류:', e));
+      }).catch((e) => { console.error('[L3 B3 인라인편집] 마스터 동기화 오류:', e); toast.error('마스터 DB 저장 실패'); });
     }
   }, [state.l2, setState, setStateSynced, setDirty, fmeaId]);
 

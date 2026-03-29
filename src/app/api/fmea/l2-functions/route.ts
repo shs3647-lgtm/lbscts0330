@@ -11,12 +11,26 @@ export const runtime = 'nodejs';
 const ITEM_CODE = 'A3';
 
 async function resolveDataset(prisma: NonNullable<ReturnType<typeof getPrisma>>, fmeaId: string) {
+  // 1단계: fmeaId로 자체 데이터셋 조회
   let activeDataset = await prisma.pfmeaMasterDataset.findFirst({
     where: { fmeaId },
     orderBy: { updatedAt: 'desc' },
   });
   if (activeDataset) return { dataset: activeDataset, source: 'fmeaId' as const };
 
+  // 2단계: 등록 화면에서 지정한 상위 FMEA (parentFmeaId) fallback
+  if (fmeaId) {
+    const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true } });
+    if (project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
+      activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+        where: { fmeaId: project.parentFmeaId },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (activeDataset) return { dataset: activeDataset, source: `parent fallback (${project.parentFmeaId})` as string };
+    }
+  }
+
+  // 3단계: isActive fallback
   activeDataset = await prisma.pfmeaMasterDataset.findFirst({
     where: { isActive: true },
     orderBy: { updatedAt: 'desc' },

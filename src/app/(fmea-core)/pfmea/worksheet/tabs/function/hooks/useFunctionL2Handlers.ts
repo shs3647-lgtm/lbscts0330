@@ -14,6 +14,7 @@ import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { filterMeaningfulFunctionsL2, filterMeaningfulProductChars } from '../functionL2Utils';
 import { validateAutoMapping, groupMatchedByRoom, groupMatchedByRoomMeta, protectStructure, ensureMinimumL2Functions } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
+import { toast } from '@/hooks/useToast';
 
 interface UseFunctionL2HandlersProps {
   state: any;
@@ -329,7 +330,7 @@ export function useFunctionL2Handlers({
             updateId: funcId,
             oldName,
           }),
-        }).catch((e) => console.error('[L2 A3 인라인편집] 마스터 동기화 오류:', e));
+        }).catch((e) => { console.error('[L2 A3 인라인편집] 마스터 동기화 오류:', e); toast.error('마스터 DB 저장 실패'); });
       }
     },
     [state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, _alert]
@@ -381,7 +382,7 @@ export function useFunctionL2Handlers({
             ? [{ processNo, itemCode: 'A4', oldValue: oldName, newValue: newValue.trim() }]
             : [{ processNo, itemCode: 'A4', newValue: newValue.trim() }],
         }),
-      }).catch((e) => console.error('[L2 A4 인라인편집] 마스터 동기화 오류:', e));
+      }).catch((e) => { console.error('[L2 A4 인라인편집] 마스터 동기화 오류:', e); toast.error('마스터 DB 저장 실패'); });
     }
   }, [state.l2, setState, setStateSynced, setDirty, fmeaId]);
 

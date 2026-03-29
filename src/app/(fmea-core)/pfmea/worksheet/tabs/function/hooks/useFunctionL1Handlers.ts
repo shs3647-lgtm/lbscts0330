@@ -23,6 +23,7 @@ import { isPlaceholder, calculateMissingCounts } from '../functionL1Utils';
 import { isMissing as isMissingUtil } from '../../shared/tabUtils';
 import { validateAutoMapping, groupMatchedByRoom } from '../../../autoMapping';
 import type { DataKey, GatekeeperResult } from '../../../autoMapping';
+import { toast } from '@/hooks/useToast';
 
 interface L1State {
   l1?: {
@@ -446,7 +447,7 @@ export function useFunctionL1Handlers({
           updateId: reqId,
           oldName: oldName.trim(),
         }),
-      }).catch(e => console.error('[L1 요구사항 인라인편집] 마스터 DB 저장 오류:', e));
+      }).catch(e => { console.error('[L1 요구사항 인라인편집] 마스터 DB 저장 오류:', e); toast.error('마스터 DB 저장 실패'); });
     }
   }, [state.l1?.types, updateState, saveData, fmeaId]);
 
@@ -502,7 +503,7 @@ export function useFunctionL1Handlers({
           updateId: funcId,
           oldName: oldName.trim(),
         }),
-      }).catch(e => console.error('[L1 기능 인라인편집] 마스터 DB 저장 오류:', e));
+      }).catch(e => { console.error('[L1 기능 인라인편집] 마스터 DB 저장 오류:', e); toast.error('마스터 DB 저장 실패'); });
     }
   }, [state.l1?.types, updateState, saveData, fmeaId]);
 
