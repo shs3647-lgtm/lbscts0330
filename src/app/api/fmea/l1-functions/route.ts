@@ -157,44 +157,23 @@ export async function GET(req: NextRequest) {
             orderBy: { value: 'asc' }
         });
 
-        // ★ 폴백: 카테고리 필터링 결과가 없으면 전체 C2/C3 조회 (레거시 데이터 지원)
-        let isFallback = false;
-        if (flatItems.length === 0 && normalizedCategory) {
-            console.log('[l1-functions GET] 카테고리 필터 결과 0건 → 전체 폴백 조회 (중복 제거)');
-            isFallback = true;
-            const fallbackWhere: Record<string, unknown> = {
-                datasetId: activeDataset.id,
-                itemCode: itemType,
-            };
-            if (itemType === 'C3' && uniqueC3Parents.length === 1) {
-                fallbackWhere.parentItemId = uniqueC3Parents[0];
-            } else if (itemType === 'C3' && uniqueC3Parents.length > 1) {
-                fallbackWhere.OR = uniqueC3Parents.map((pid) => ({ parentItemId: pid }));
-            }
-            flatItems = await prisma.pfmeaMasterFlatItem.findMany({
-                where: fallbackWhere,
-                orderBy: { value: 'asc' }
-            });
-        }
+        // ★ C1/C2/C3: 카테고리 폴백 금지 (YP 요청 시 SP/USER 반환 방지)
 
-        // 결과 매핑 + 중복 제거 (폴백 시 이름 기준 중복 제거)
+        // 결과 매핑 + 중복 제거 (이름 기준)
         const seenNames = new Set<string>();
         const items = flatItems
             .map((item: any) => ({
                 id: item.id,
                 name: item.value || '',
-                category: item.processNo || (isFallback ? normalizedCategory : ''), // 폴백 시 요청 카테고리 할당
+                category: item.processNo || '',
                 parentId: item.parentItemId || '',
                 itemCode: item.itemCode,
             }))
             .filter((item: any) => {
                 if (!item.name || !item.name.trim()) return false;
-                // 폴백 모드: 이름 기준 중복 제거
-                if (isFallback) {
-                    const key = item.name.trim().toLowerCase();
-                    if (seenNames.has(key)) return false;
-                    seenNames.add(key);
-                }
+                const key = item.name.trim().toLowerCase();
+                if (seenNames.has(key)) return false;
+                seenNames.add(key);
                 return true;
             });
 

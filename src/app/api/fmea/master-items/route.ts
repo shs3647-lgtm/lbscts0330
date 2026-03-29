@@ -235,25 +235,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 카테고리 기반 폴백: 카테고리 필터 결과가 0건이면 전체 조회 (레거시 데이터)
-    let isFallback = false;
-    if (flatItems.length === 0 && isCatBased && normalizedCategory) {
-      isFallback = true;
-      const fallbackWhere: Record<string, unknown> = {
-        datasetId: dataset.id,
-        itemCode,
-      };
-      // C3 부모 조건 유지
-      if (itemCode === 'C3' && whereClause.parentItemId) {
-        fallbackWhere.parentItemId = whereClause.parentItemId;
-      } else if (itemCode === 'C3' && whereClause.OR) {
-        fallbackWhere.OR = whereClause.OR;
-      }
-      flatItems = await prisma.pfmeaMasterFlatItem.findMany({
-        where: fallbackWhere,
-        orderBy: [{ orderIndex: 'asc' }, { value: 'asc' }],
-      });
-    }
+    // ★ C1/C2/C3 카테고리 기반 항목: 다른 카테고리 폴백 금지 (YP 요청 시 SP/USER 반환 방지)
+    // processNo 기반(B1~A6) 폴백만 허용: 공정번호 정규화("010"↔"10") 불일치 시
 
     // 결과 매핑 + 중복 제거 (이름 기준, case-insensitive)
     const seenNames = new Set<string>();
@@ -262,7 +245,7 @@ export async function GET(req: NextRequest) {
         id: item.id,
         name: item.value || '',
         processNo: item.processNo || '',
-        category: isCatBased ? (item.processNo || (isFallback ? normalizedCategory : '')) : undefined,
+        category: isCatBased ? (item.processNo || '') : undefined,
         parentId: item.parentItemId || undefined,
       }))
       .filter((item) => {
