@@ -320,7 +320,7 @@ export default function CreateDocumentModal({
                 onClose();
                 // ★ 2026-03-29: 직접 작성 시 수동 Import 페이지로 이동 (수동 탭 활성화)
                 if (partParentMode === 'standalone' && sourceApp === 'pfmea') {
-                    window.location.href = `/pfmea/import?id=${redirectId}&mode=manual`;
+                    window.location.href = `/pfmea/import/manual?id=${redirectId}`;
                 } else {
                     window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
                 }

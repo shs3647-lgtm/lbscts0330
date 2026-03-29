@@ -12,10 +12,17 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
 import FixedLayout from '@/components/layout/FixedLayout';
+import ImportModeMenuBar from './components/ImportModeMenuBar';
+import { useRouter, usePathname } from 'next/navigation';
 
 function ImportLayoutContent({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const selectedFmeaId = searchParams.get('id') || '';
+
+  // URL 경로에서 현재 모드 판단
+  const activeMode: 'manual' | 'legacy' = pathname?.includes('/manual') ? 'manual' : 'legacy';
 
   return (
     <FixedLayout
@@ -25,6 +32,10 @@ function ImportLayoutContent({ children }: { children: React.ReactNode }) {
       contentPadding="px-3 py-3"
     >
       <div className="bg-gray-100">
+        <ImportModeMenuBar
+          activeMode={activeMode}
+          fmeaId={selectedFmeaId}
+        />
         {children}
       </div>
     </FixedLayout>
