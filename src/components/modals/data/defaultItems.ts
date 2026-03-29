@@ -161,15 +161,14 @@ const PFMEA_FAILURE_EFFECTS: DataItem[] = [
   { id: 'FE_P3', value: '고객사 클레임', category: 'SP' },
 ];
 
-// ★ 2026-03-29: 전체 하드코딩 제거 — DB(pfmea_master_flat_items) 조회로 대체
-// 하드코딩 데이터(PFMEA_C1~C3, PFMEA_FAILURE_EFFECTS)는 위에 유지하되
-// PFMEA_DEFAULT_ITEMS에서는 빈 배열로 설정 → DB fallback 시에만 사용
+// ★ 2026-03-29: 하드코딩 제거 — DB(pfmea_master_flat_items) 조회로 대체
+// C1(YP/SP/USER)만 고정값 유지, 나머지는 DB 조회
 export const PFMEA_DEFAULT_ITEMS: Record<string, DataItem[]> = {
-  C1: [],
-  C2: [],
-  C3: [],
-  FE1: [],
-  FE2: [],
+  C1: PFMEA_C1,       // YP/SP/USER — 고정 카테고리
+  C2: [],             // DB 조회
+  C3: [],             // DB 조회
+  FE1: PFMEA_C1,      // C1과 동일 (카테고리 선택용)
+  FE2: [],            // DB 조회
   A3: [],
   A4: [],
   A5: [],
