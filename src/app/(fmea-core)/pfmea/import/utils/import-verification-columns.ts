@@ -467,42 +467,32 @@ export function mapApiToVerification(
 ): Record<string, ApiVerifyResult> {
   const result: Record<string, ApiVerifyResult> = {};
 
-  // ★ MBD-26-009: API 카운트도 distinct로 통일 (verify-counts/expected와 동일 척도)
-  const distinctSize = (arr: any[], key: string) =>
-    new Set((arr || []).map((r: any) => (r[key] ?? '').toString().trim()).filter(Boolean)).size;
+  // ★ 2026-03-29: 엔티티 수(총 레코드)로 통일 — verify-counts API와 동일 척도
+  const entityCount = (arr: any[]) => (arr || []).length;
 
   const apiCounts: Record<string, number> = {
-    A1: distinctSize(apiData.l2Structures || [], 'no'),
-    A2: distinctSize(apiData.l2Structures || [], 'no'),
-    A3: distinctSize(apiData.l2Functions || [], 'functionName'),
-    A4: distinctSize(apiData.processProductChars || [], 'name'),
-    A5: distinctSize(apiData.failureModes || [], 'mode'),
-    A6: distinctSize(
-      (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()),
-      'detectionControl',
-    ),
-    B1: distinctSize(apiData.l3Structures || [], 'name'),
-    B2: distinctSize(
-      (apiData.l3Functions || []).filter((f: any) => f.functionName?.trim()),
-      'functionName',
-    ),
-    B3: distinctSize(apiData.l3Functions || [], 'processChar'),
-    B4: distinctSize(apiData.failureCauses || [], 'cause'),
-    // ★ MBD-26-009: B5 = preventionControl 보유 RA 수 (distinct text가 아닌 총 건수)
+    A1: entityCount(apiData.l2Structures),
+    A2: entityCount(apiData.l2Structures),
+    A3: entityCount(apiData.l2Functions),
+    A4: entityCount(apiData.processProductChars),
+    A5: entityCount(apiData.failureModes),
+    A6: (apiData.riskAnalyses || []).filter((r: any) => r.detectionControl?.trim()).length,
+    B1: entityCount(apiData.l3Structures),
+    B2: entityCount(apiData.l3Functions),
+    B3: (apiData.l3Functions || []).filter((r: any) => ((r.processChar ?? '') as string).trim() !== '').length,
+    B4: entityCount(apiData.failureCauses),
+    // B5 = preventionControl 보유 RA 수 (총 건수)
     B5: (apiData.riskAnalyses || []).filter((r: any) => r.preventionControl?.trim()).length,
     C1: new Set((apiData.l1Functions || []).map((f: any) => f.category)).size,
-    C2: distinctSize(apiData.l1Functions || [], 'functionName'),
-    C3: distinctSize(
-      (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()),
-      'requirement',
-    ),
-    C4: distinctSize(apiData.failureEffects || [], 'effect'),
-    // ★ MBD-26-009: FC 레벨 (D1~D3: FL distinct, D4~D5: 엔티티 수)
+    C2: entityCount(apiData.l1Functions),
+    C3: (apiData.l1Functions || []).filter((f: any) => f.requirement?.trim()).length,
+    C4: entityCount(apiData.failureEffects),
+    // FC 레벨 (D1~D3: FL distinct, D4~D5: 엔티티 수)
     D1: new Set((apiData.failureLinks || []).map((fl: any) => fl.feId).filter(Boolean)).size,
     D2: new Set((apiData.failureLinks || []).map((fl: any) => (fl.fmProcess ?? '').trim()).filter(Boolean)).size,
     D3: new Set((apiData.failureLinks || []).map((fl: any) => fl.fmId).filter(Boolean)).size,
-    D4: (apiData.l3Structures || apiData.l3Functions || []).length,  // WE 엔티티 수 = 고장사슬 91
-    D5: (apiData.failureCauses || []).length,                        // FC 엔티티 수 = 고장사슬 115
+    D4: entityCount(apiData.l3Structures),
+    D5: entityCount(apiData.failureCauses),
   };
 
   for (const code of ALL_ITEM_CODES) {

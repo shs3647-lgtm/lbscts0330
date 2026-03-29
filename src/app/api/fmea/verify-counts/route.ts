@@ -4,6 +4,10 @@
  *
  * GET /api/fmea/verify-counts?fmeaId=xxx
  * Returns: { success: true, counts: { A1: 21, A2: 21, ... C4: 20 } }
+ *
+ * ★ 2026-03-29: distinct text → entity count(총 레코드 수)로 변경
+ *   flat 데이터의 composite key 기준과 일치시키기 위해
+ *   동일 텍스트여도 공정/구조가 다르면 별도 엔티티 → 별도 카운트
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
@@ -24,7 +28,6 @@ export async function GET(request: NextRequest) {
     }
 
     // ★★★ 프로젝트 스키마 전용 — public 폴백 없음
-    // Atomic DB는 프로젝트 스키마에만 존재. 없으면 "Import 먼저" 안내.
     const schemaName = getProjectSchemaName(fmeaId);
     await ensureProjectSchemaReady({ baseDatabaseUrl: getBaseDatabaseUrl(), schema: schemaName });
     const prisma = getPrismaForSchema(schemaName);
@@ -36,41 +39,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // --- A1, A2: L2Structure — distinct processNo ---
-    const l2Rows = await prisma.l2Structure.findMany({
-      where: { fmeaId },
-      select: { no: true },
-    });
-    const a1 = new Set(l2Rows.map(r => (r.no ?? '').trim()).filter(Boolean)).size;
+    // --- A1, A2: L2Structure 총 레코드 수 ---
+    const a1 = await prisma.l2Structure.count({ where: { fmeaId } });
 
-    // --- A3: distinct L2Function.functionName ---
-    const a3Rows = await prisma.l2Function.findMany({
-      where: { fmeaId },
-      select: { functionName: true },
-    });
-    const a3 = new Set(a3Rows.map(r => (r.functionName ?? '').trim()).filter(Boolean)).size;
+    // --- A3: L2Function 총 레코드 수 ---
+    const a3 = await prisma.l2Function.count({ where: { fmeaId } });
 
-    // --- A4: distinct ProcessProductChar ---
+    // --- A4: ProcessProductChar 총 레코드 수 ---
     let a4 = 0;
     try {
-      const a4Rows = await prisma.processProductChar.findMany({
-        where: { fmeaId },
-        select: { name: true },
-      });
-      a4 = new Set(a4Rows.map((r: any) => ((r.name ?? r.characteristic ?? '') as string).trim()).filter(Boolean)).size;
+      a4 = await prisma.processProductChar.count({ where: { fmeaId } });
     } catch {
       a4 = 0;
     }
 
-    // --- A5: distinct FailureMode.mode ---
-    const a5Rows = await prisma.failureMode.findMany({
-      where: { fmeaId },
-      select: { mode: true },
-    });
-    const a5 = new Set(a5Rows.map(r => (r.mode ?? '').trim()).filter(Boolean)).size;
+    // --- A5: FailureMode 총 레코드 수 ---
+    const a5 = await prisma.failureMode.count({ where: { fmeaId } });
 
-    // --- A6: distinct detectionControl ---
-    const a6Rows = await prisma.riskAnalysis.findMany({
+    // --- A6: RiskAnalysis detectionControl 보유 건수 ---
+    const a6 = await prisma.riskAnalysis.count({
       where: {
         fmeaId,
         AND: [
@@ -78,41 +65,25 @@ export async function GET(request: NextRequest) {
           { detectionControl: { not: '' } },
         ],
       },
-      select: { detectionControl: true },
     });
-    const a6 = new Set(a6Rows.map(r => (r.detectionControl ?? '').trim()).filter(Boolean)).size;
 
-    // --- B1: distinct L3Structure.name ---
-    const b1Rows = await prisma.l3Structure.findMany({
-      where: { fmeaId },
-      select: { name: true },
-    });
-    const b1 = new Set(b1Rows.map(r => (r.name ?? '').trim()).filter(Boolean)).size;
+    // --- B1: L3Structure 총 레코드 수 ---
+    const b1 = await prisma.l3Structure.count({ where: { fmeaId } });
 
-    // --- B2: distinct L3Function.functionName ---
-    const b2Rows = await prisma.l3Function.findMany({
-      where: { fmeaId, AND: [{ functionName: { not: '' } }] },
-      select: { functionName: true },
-    });
-    const b2 = new Set(b2Rows.map(r => (r.functionName ?? '').trim()).filter(Boolean)).size;
+    // --- B2: L3Function 총 레코드 수 ---
+    const b2 = await prisma.l3Function.count({ where: { fmeaId } });
 
-    // --- B3: distinct L3Function.processChar ---
+    // --- B3: L3Function.processChar 보유 건수 ---
     const b3Rows = await prisma.l3Function.findMany({
       where: { fmeaId },
       select: { processChar: true },
     });
-    const b3 = new Set(b3Rows.map((r: any) => ((r.processChar ?? '') as string).trim()).filter(Boolean)).size;
+    const b3 = b3Rows.filter((r: any) => ((r.processChar ?? '') as string).trim() !== '').length;
 
-    // --- B4: distinct FailureCause cause text ---
-    const b4Rows = await prisma.failureCause.findMany({
-      where: { fmeaId },
-      select: { cause: true },
-    });
-    const b4 = new Set(b4Rows.map((r: any) => ((r.cause ?? '') as string).trim()).filter(Boolean)).size;
+    // --- B4: FailureCause 총 레코드 수 ---
+    const b4 = await prisma.failureCause.count({ where: { fmeaId } });
 
-    // --- B5: RiskAnalysis preventionControl 보유 건수 (distinct text가 아닌 총 건수) ---
-    // ★ MBD-26-009: parseExcelCounts B5 = 비어있지 않은 L3 B5 셀 수 (81)
-    //   → DB에서도 preventionControl 보유 RA 수 (81)로 비교해야 일치
+    // --- B5: RiskAnalysis preventionControl 보유 건수 ---
     const b5 = await prisma.riskAnalysis.count({
       where: {
         fmeaId,
@@ -123,50 +94,40 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // --- C1: distinct L1Function.category ---
+    // --- C1: L1Function distinct category ---
     const c1Rows = await prisma.l1Function.findMany({
       where: { fmeaId },
       select: { category: true },
     });
     const c1 = new Set(c1Rows.map(r => (r.category ?? '').trim()).filter(Boolean)).size;
 
-    // --- C2: distinct L1Function.functionName ---
-    const c2Rows = await prisma.l1Function.findMany({
-      where: { fmeaId },
-      select: { functionName: true },
-    });
-    const c2 = new Set(c2Rows.map(r => (r.functionName ?? '').trim()).filter(Boolean)).size;
+    // --- C2: L1Function 총 레코드 수 ---
+    const c2 = await prisma.l1Function.count({ where: { fmeaId } });
 
-    // --- C3: distinct L1Function.requirement ---
-    const c3Rows = await prisma.l1Function.findMany({
+    // --- C3: L1Function.requirement 보유 건수 ---
+    const c3 = await prisma.l1Function.count({
       where: { fmeaId, AND: [{ requirement: { not: '' } }] },
-      select: { requirement: true },
     });
-    const c3 = new Set(c3Rows.map(r => (r.requirement ?? '').trim()).filter(Boolean)).size;
 
-    // --- C4: distinct FailureEffect.effect ---
-    const c4Rows = await prisma.failureEffect.findMany({
-      where: { fmeaId },
-      select: { effect: true },
-    });
-    const c4 = new Set(c4Rows.map(r => (r.effect ?? '').trim()).filter(Boolean)).size;
+    // --- C4: FailureEffect 총 레코드 수 ---
+    const c4 = await prisma.failureEffect.count({ where: { fmeaId } });
 
-    // --- D1: FC시트→C4(고장영향) distinct feId ---
+    // --- D1: FailureLink distinct feId ---
     const d1Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { feId: true } });
     const d1 = new Set(d1Rows.map(r => r.feId).filter(Boolean)).size;
 
-    // --- D2: FC시트→A2(공정명) distinct fmProcess ---
+    // --- D2: FailureLink distinct fmProcess ---
     const d2Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fmProcess: true } });
     const d2 = new Set(d2Rows.map(r => (r.fmProcess ?? '').trim()).filter(Boolean)).size;
 
-    // --- D3: FC시트→A5(고장형태) distinct fmId ---
+    // --- D3: FailureLink distinct fmId ---
     const d3Rows = await prisma.failureLink.findMany({ where: { fmeaId }, select: { fmId: true } });
     const d3 = new Set(d3Rows.map(r => r.fmId).filter(Boolean)).size;
 
-    // --- D4: 작업요소 = L3Structure 엔티티 수 (고장사슬 헤더와 일치) ---
+    // --- D4: L3Structure 엔티티 수 ---
     const d4 = await prisma.l3Structure.count({ where: { fmeaId } });
 
-    // --- D5: 고장원인 = FailureCause 엔티티 수 (고장사슬 헤더와 일치) ---
+    // --- D5: FailureCause 엔티티 수 ---
     const d5 = await prisma.failureCause.count({ where: { fmeaId } });
 
     const counts = {

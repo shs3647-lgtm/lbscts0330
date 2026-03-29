@@ -466,14 +466,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     return { uniqueByCode: compositeKeyCounts, uniqueM4FromFlat: m4 };
   }, [effectiveStatistics?.itemStats?.length, compositeKeyCounts, flatData]);
 
-  // ★★★ MBD-26-009: FK/pgsql저장/API적합 검증 훅
-  // verify-counts는 distinct 카운트 → expected도 distinct(parseExcelCounts)로 통일
+  // ★★★ 2026-03-29: FK/pgsql저장/API적합 검증 훅
+  // verify-counts는 엔티티 수(총 레코드)를 반환 → expected도 composite key 기준으로 통일
   const { fkData: fkDataRaw, pgsqlData, apiData, runFullVerify } = useImportVerification(
     fmeaId,
     flatData,
     uuidCounts,
     undefined,
-    parseExcelCounts,  // ★ distinct 기준으로 기대값 설정 (verifyScaleRowCounts가 아님)
+    null,  // ★ entity count 기준 — parseExcelCounts(distinct)가 아닌 composite key blended 사용
   );
 
   // ★ MBD-26-009: D 코드 FK = FL의 broken FK 통계 (파서 stats에서)
