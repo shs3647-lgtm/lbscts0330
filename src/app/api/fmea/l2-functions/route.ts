@@ -11,35 +11,52 @@ export const runtime = 'nodejs';
 const ITEM_CODE = 'A3';
 
 async function resolveDataset(prisma: NonNullable<ReturnType<typeof getPrisma>>, fmeaId: string) {
-  // 1단계: fmeaId로 자체 데이터셋 조회
-  let activeDataset = await prisma.pfmeaMasterDataset.findFirst({
-    where: { fmeaId },
-    orderBy: { updatedAt: 'desc' },
-  });
-  if (activeDataset) return { dataset: activeDataset, source: 'fmeaId' as const };
+  // ★★★ 2026-03-30 FIX: masterDatasetId → parentFmeaId → fmeaId(with items) → isActive 순서 ★★★
+  let activeDataset: any = null;
 
-  // 2단계: 부모(parentFmeaId) 또는 직접 지정(masterDatasetId) fallback
   if (fmeaId) {
-    const project = await prisma.fmeaProject.findFirst({ where: { fmeaId }, select: { parentFmeaId: true, masterDatasetId: true } });
+    // 1단계: 프로젝트의 masterDatasetId / parentFmeaId 우선
+    const project = await prisma.fmeaProject.findFirst({
+      where: { fmeaId },
+      select: { parentFmeaId: true, masterDatasetId: true }
+    });
+    
     if (project?.masterDatasetId) {
       activeDataset = await prisma.pfmeaMasterDataset.findFirst({ where: { id: project.masterDatasetId } });
-      if (activeDataset) return { dataset: activeDataset, source: `masterDataset (${project.masterDatasetId})` as string };
+      if (activeDataset) return { dataset: activeDataset, source: `masterDataset (${project.masterDatasetId})` };
     }
-    if (project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
+    
+    if (!activeDataset && project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
       activeDataset = await prisma.pfmeaMasterDataset.findFirst({
         where: { fmeaId: project.parentFmeaId },
         orderBy: { updatedAt: 'desc' },
       });
-      if (activeDataset) return { dataset: activeDataset, source: `parent fallback (${project.parentFmeaId})` as string };
+      if (activeDataset) return { dataset: activeDataset, source: `parent (${project.parentFmeaId})` };
+    }
+
+    // 2단계: fmeaId 직접 매칭 (항목이 있는 경우만)
+    const directDataset = await prisma.pfmeaMasterDataset.findFirst({
+      where: { fmeaId },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (directDataset) {
+      const hasItems = await prisma.pfmeaMasterFlatItem.count({
+        where: { datasetId: directDataset.id }
+      });
+      if (hasItems > 0) return { dataset: directDataset, source: `fmeaId (${hasItems} items)` };
     }
   }
 
-  // 3단계: isActive fallback
-  activeDataset = await prisma.pfmeaMasterDataset.findFirst({
+  // 3단계: isActive fallback — 데이터가 있는 dataset 우선
+  const candidates = await prisma.pfmeaMasterDataset.findMany({
     where: { isActive: true },
     orderBy: { updatedAt: 'desc' },
   });
-  if (activeDataset) return { dataset: activeDataset, source: 'isActive fallback' as const };
+  for (const c of candidates) {
+    const cnt = await prisma.pfmeaMasterFlatItem.count({ where: { datasetId: c.id } });
+    if (cnt > 0) return { dataset: c, source: `isActive (${c.fmeaId}, ${cnt} items)` };
+  }
+  if (candidates.length > 0) return { dataset: candidates[0], source: 'isActive fallback (empty)' };
 
   return { dataset: null, source: 'none' as const };
 }

@@ -20,7 +20,7 @@
  */
 'use client';
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
 import { normalizeL2ProcessNo } from '@/app/(fmea-core)/pfmea/worksheet/utils/processNoNormalize';
@@ -83,6 +83,7 @@ export function RegisterBasicInfoImportModal({
   const [atomicPayload, setAtomicPayload] = useState<unknown>(null);
   const [activeTab, setActiveTab] = useState<string>('A1');
   const [fileLabel, setFileLabel] = useState('');
+  const [masterLoaded, setMasterLoaded] = useState(false);
 
   const reset = useCallback(() => {
     setStep('idle');
@@ -91,8 +92,43 @@ export function RegisterBasicInfoImportModal({
     setAtomicPayload(null);
     setActiveTab('A1');
     setFileLabel('');
+    setMasterLoaded(false);
     if (fileRef.current) fileRef.current.value = '';
   }, []);
+
+  /**
+   * ★★★ MASTER DATA 자동 로드 (2026-03-30) ★★★
+   * 모달 오픈 시 MASTER DATA(pfm26-m005)에서 기초정보를 자동 로드하여 미리보기로 렌더링
+   * ─ 엑셀 Import 시 덮어쓰기 가능
+   * ─ MASTER DB에는 저장하지 않음 (읽기 전용 SSoT)
+   */
+  useEffect(() => {
+    if (!isOpen || masterLoaded || flatData.length > 0) return;
+    setMasterLoaded(true);
+    fetch('/api/pfmea/master?fmeaId=pfm26-m005&includeItems=true')
+      .then(r => r.json())
+      .then(data => {
+        const items = data?.dataset?.flatItems || [];
+        const basicItems = items.filter((it: any) =>
+          (BASIC_ITEM_CODES as readonly string[]).includes(it.itemCode)
+        );
+        if (basicItems.length > 0) {
+          const mapped: ImportedFlatData[] = basicItems.map((it: any) => ({
+            id: it.id || `master-${Math.random().toString(36).slice(2)}`,
+            processNo: it.processNo || '',
+            category: it.category || '',
+            itemCode: it.itemCode || '',
+            value: it.value || '',
+            m4: it.m4 || undefined,
+            specialChar: it.specialChar || undefined,
+          }));
+          setFlatData(mapped);
+          setStep('preview');
+          setFileLabel('MASTER DATA (자동 로드)');
+        }
+      })
+      .catch(err => console.error('[MASTER DATA 자동 로드] 오류:', err));
+  }, [isOpen, masterLoaded, flatData.length]);
 
   const handleClose = useCallback(() => {
     reset();
@@ -294,7 +330,7 @@ export function RegisterBasicInfoImportModal({
       >
         <div className="px-3 py-2 bg-[#00587a] text-white flex items-center justify-between shrink-0 rounded-t-lg">
           <h2 id="reg-basic-import-title" className="text-sm font-bold">
-            공정 기초정보 Excel Import
+            📋 MASTER 기초정보 Import
           </h2>
           <button
             type="button"

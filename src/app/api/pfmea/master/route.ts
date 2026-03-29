@@ -102,27 +102,86 @@ export async function GET(req: NextRequest) {
   const fmeaId = sp.fmeaId?.toLowerCase();
   const includeItems = sp.includeItems === 'true';
 
-  // ★ fmeaId 지정: 해당 FMEA의 dataset만 반환
+  // ★ fmeaId 지정: 해당 FMEA의 dataset 반환
+  // ★★★ 2026-03-30 FIX: masterDatasetId → parentFmeaId → fmeaId → isActive 순서 해석 ★★★
   if (fmeaId) {
-    const dataset = await prisma.pfmeaMasterDataset.findUnique({
+    let dataset: any = null;
+    let resolvedFmeaId = fmeaId;
+
+    // 1단계: 프로젝트의 masterDatasetId / parentFmeaId 우선
+    const project = await prisma.fmeaProject.findFirst({
       where: { fmeaId },
-      include: includeItems
-        ? {
-            flatItems: {
-              orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }],
-              select: {
-                id: true, processNo: true, category: true,
-                itemCode: true, value: true, m4: true, specialChar: true,
-                inherited: true, sourceId: true, createdAt: true,
-                // ★★★ 2026-03-17 FIX: parentItemId + 위치 정보 포함 — buildWorksheetState C3→C2 매핑에 필수
-                parentItemId: true, belongsTo: true,
-                excelRow: true, excelCol: true, orderIndex: true,
-                mergeGroupId: true, rowSpan: true,
-              },
-            },
-          }
-        : undefined,
+      select: { parentFmeaId: true, masterDatasetId: true }
     });
+    
+    if (project?.masterDatasetId) {
+      dataset = await prisma.pfmeaMasterDataset.findFirst({
+        where: { id: project.masterDatasetId },
+        include: includeItems
+          ? { flatItems: { orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }], select: {
+              id: true, processNo: true, category: true,
+              itemCode: true, value: true, m4: true, specialChar: true,
+              inherited: true, sourceId: true, createdAt: true,
+              parentItemId: true, belongsTo: true,
+              excelRow: true, excelCol: true, orderIndex: true,
+              mergeGroupId: true, rowSpan: true,
+            } } }
+          : undefined,
+      });
+      if (dataset) resolvedFmeaId = dataset.fmeaId;
+    }
+    
+    if (!dataset && project?.parentFmeaId && project.parentFmeaId !== fmeaId) {
+      dataset = await prisma.pfmeaMasterDataset.findUnique({
+        where: { fmeaId: project.parentFmeaId },
+        include: includeItems
+          ? { flatItems: { orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }], select: {
+              id: true, processNo: true, category: true,
+              itemCode: true, value: true, m4: true, specialChar: true,
+              inherited: true, sourceId: true, createdAt: true,
+              parentItemId: true, belongsTo: true,
+              excelRow: true, excelCol: true, orderIndex: true,
+              mergeGroupId: true, rowSpan: true,
+            } } }
+          : undefined,
+      });
+      if (dataset) resolvedFmeaId = project.parentFmeaId;
+    }
+
+    // 2단계: fmeaId 직접 매칭
+    if (!dataset) {
+      dataset = await prisma.pfmeaMasterDataset.findUnique({
+        where: { fmeaId },
+        include: includeItems
+          ? { flatItems: { orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }], select: {
+              id: true, processNo: true, category: true,
+              itemCode: true, value: true, m4: true, specialChar: true,
+              inherited: true, sourceId: true, createdAt: true,
+              parentItemId: true, belongsTo: true,
+              excelRow: true, excelCol: true, orderIndex: true,
+              mergeGroupId: true, rowSpan: true,
+            } } }
+          : undefined,
+      });
+    }
+
+    // 3단계: isActive fallback
+    if (!dataset) {
+      dataset = await prisma.pfmeaMasterDataset.findFirst({
+        where: { isActive: true },
+        orderBy: { updatedAt: 'desc' },
+        include: includeItems
+          ? { flatItems: { orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }], select: {
+              id: true, processNo: true, category: true,
+              itemCode: true, value: true, m4: true, specialChar: true,
+              inherited: true, sourceId: true, createdAt: true,
+              parentItemId: true, belongsTo: true,
+              excelRow: true, excelCol: true, orderIndex: true,
+              mergeGroupId: true, rowSpan: true,
+            } } }
+          : undefined,
+      });
+    }
 
     if (!dataset) return jsonOk({ dataset: null });
 

@@ -532,24 +532,32 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
 
   const stateWithL1Types = useMemo(() => {
     const types = state.l1?.types || [];
-    if (types.length >= 3) {
-      // ★ YP → SP → USER 고정 순서 확인 — 이미 정렬되어있으면 원본 반환
-      const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
-      const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 9;
-      const alreadySorted = types.every((t: any, i: number) => i === 0 || getOrder(types[i - 1]) <= getOrder(t));
-      if (alreadySorted) return state;
-      const sorted = [...types].sort((a: any, b: any) => getOrder(a) - getOrder(b));
-      return { ...state, l1: { ...state.l1, types: sorted } };
+    const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
+    const REQUIRED_CATEGORIES = ['YP', 'SP', 'USER'];
+    const ts = Date.now();
+
+    // ★ 2026-03-30 FIX: YP/SP/USER 중 누락된 카테고리 보충
+    // 이전: types.length > 0이면 그대로 사용 → DB에서 YP 없이 로드되면 YP 사라짐
+    // 수정: 항상 3개 카테고리 보장
+    const existingNames = new Set(types.map((t: any) => (t.name || '').toUpperCase().trim()));
+    const merged = [...types];
+    for (const cat of REQUIRED_CATEGORIES) {
+      if (!existingNames.has(cat)) {
+        merged.push({
+          id: `def-${cat.toLowerCase()}-${ts}`,
+          name: cat,
+          functions: [{ id: `def-func-${cat.toLowerCase()}-${ts}`, name: '', requirements: [] }],
+        });
+      }
     }
-    // types가 3개 미만이면 기본 YP/SP/USER로 보충
-    return {
-      ...state,
-      l1: {
-        ...state.l1,
-        types: types.length > 0 ? types : DEFAULT_L1_TYPES,
-      },
-    };
-  }, [state, DEFAULT_L1_TYPES]);
+
+    // YP → SP → USER 순서 정렬
+    const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 99;
+    const sorted = merged.sort((a: any, b: any) => getOrder(a) - getOrder(b));
+
+    if (JSON.stringify(sorted) === JSON.stringify(types)) return state;
+    return { ...state, l1: { ...state.l1, types: sorted } };
+  }, [state]);
 
   // ✅ 1L COUNT 계산 (완제품기능, 요구사항)
   const functionCount = useMemo(() => {

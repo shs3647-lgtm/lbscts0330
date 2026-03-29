@@ -1649,9 +1649,14 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
   });
 
   // ─── C (L1) ───
-  // C1: L1Function.category (고유 scope별 1개)
+  // C1: L1Function.category — 카테고리별 고유 1건 (YP, SP, USER 순서)
+  // ★ 2026-03-30: 정렬 순서 보장 (YP→SP→USER)
+  const SCOPE_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
   const seenC1 = new Set<string>();
-  for (const f of l1Sorted) {
+  const l1ForC1 = [...l1Sorted].sort((a, b) =>
+    (SCOPE_ORDER[a.category] ?? 99) - (SCOPE_ORDER[b.category] ?? 99)
+  );
+  for (const f of l1ForC1) {
     if (!seenC1.has(f.category)) {
       seenC1.add(f.category);
       flat.push({
