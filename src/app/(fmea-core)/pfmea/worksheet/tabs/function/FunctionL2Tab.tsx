@@ -121,6 +121,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
     isAutoMode,
     isLoadingMaster,
     handleToggleMode,
+    switchToManualMode,
     previewResult,
     applyAutoMapping,
     cancelPreview,
@@ -677,6 +678,8 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
+          onSwitchToManualMode={switchToManualMode}
+          switchToManualToastMessage="2L 기능분석이 수동(Manual) 모드로 전환되었습니다."
           onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
           processNo={(state.l2 || []).find(p => p.id === modal.procId)?.no}
@@ -706,6 +709,8 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         <GenericItemSelectModal
           isOpen={!!l2FuncModal}
           onClose={() => setL2FuncModal(null)}
+          onSwitchToManualMode={switchToManualMode}
+          switchToManualToastMessage="2L 기능분석이 수동(Manual) 모드로 전환되었습니다."
           onSave={(selectedItems: GenericItem[]) => {
             const proc = (state.l2 || []).find((p: any) => p.id === l2FuncModal.procId);
             if (!proc) { setL2FuncModal(null); return; }

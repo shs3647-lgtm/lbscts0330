@@ -199,6 +199,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     isAutoMode,
     isLoadingMaster,
     handleToggleMode,
+    switchToManualMode,
     previewResult,
     applyAutoMapping,
     cancelPreview,
@@ -1048,6 +1049,8 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
         <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
+          onSwitchToManualMode={switchToManualMode}
+          switchToManualToastMessage="3L 고장분석이 수동(Manual) 모드로 전환되었습니다."
           onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
           processNo={processList.find(p => p.id === modal.processId)?.no}

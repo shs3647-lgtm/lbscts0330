@@ -447,10 +447,14 @@ export function useFailureL1Handlers({
     await loadFromMaster();
   }, [isAutoMode, isUpstreamConfirmed, loadFromMaster]);
 
+  const switchToManualMode = useCallback(() => {
+    setIsAutoMode(false);
+  }, []);
+
   return {
     handleCellClick, handleConfirm, handleEdit, handleSave, handleDelete, handleDoubleClickEdit, updateSeverity,
     // ★ 자동모드 + 트리뷰 미리보기
-    isAutoMode, isLoadingMaster, handleToggleMode,
+    isAutoMode, isLoadingMaster, handleToggleMode, switchToManualMode,
     previewResult, applyAutoMapping, cancelPreview,
   };
 }

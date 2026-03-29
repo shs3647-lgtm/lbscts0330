@@ -538,6 +538,10 @@ export function useFailureL3Handlers({
     await loadFromMaster();
   }, [isAutoMode, isUpstreamConfirmed, loadFromMaster]);
 
+  const switchToManualMode = useCallback(() => {
+    setIsAutoMode(false);
+  }, []);
+
   return {
     handleCellClick,
     handleConfirm,
@@ -549,6 +553,7 @@ export function useFailureL3Handlers({
     isAutoMode,
     isLoadingMaster,
     handleToggleMode,
+    switchToManualMode,
     previewResult,
     applyAutoMapping,
     cancelPreview,

@@ -23,7 +23,7 @@ export const runtime = 'nodejs';
 // ═══════════════════════════════════════════════════════
 const ALLOWED_TABLES: Record<string, { columns: string[]; parentFk?: string }> = {
   l1_structures:          { columns: ['name'] },
-  l2_structures:          { columns: ['name', '"processNo"'] },
+  l2_structures:          { columns: ['name', 'no'] },
   l3_structures:          { columns: ['name', 'm4'] },
   l1_functions:           { columns: ['category', '"functionName"', 'requirement'] },
   l2_functions:           { columns: ['"functionName"', '"productChar"', '"specialChar"'] },

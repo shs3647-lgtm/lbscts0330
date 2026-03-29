@@ -551,11 +551,16 @@ export function useFunctionL2Handlers({
     emitSave();
   }, [modal, state.l2, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB]);
 
+  const switchToManualMode = useCallback(() => {
+    setIsAutoMode(false);
+  }, []);
+
   return {
     // ★★★ 자동/수동 모드 ★★★
     isAutoMode,
     isLoadingMaster,
     handleToggleMode,
+    switchToManualMode,
     // ★★★ 트리뷰 미리보기 ★★★
     previewResult,
     applyAutoMapping,

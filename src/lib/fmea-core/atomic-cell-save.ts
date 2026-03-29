@@ -76,7 +76,7 @@ export interface SaveQueueOptions {
 export const CELL_TO_DB_MAP: Record<string, { table: string; column: string }> = {
   // ── L2 (공정) ──
   'l2Structure.name':           { table: 'l2_structures', column: 'name' },
-  'l2Structure.processNo':      { table: 'l2_structures', column: '"processNo"' },
+  'l2Structure.processNo':      { table: 'l2_structures', column: 'no' },
   'l2Function.name':            { table: 'l2_functions',  column: 'name' },
 
   // ── L3 (작업요소) ──

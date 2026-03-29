@@ -1213,6 +1213,8 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
         <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
+          onSwitchToManualMode={() => setIsAutoMode(false)}
+          switchToManualToastMessage="2L 고장분석이 수동(Manual) 모드로 전환되었습니다."
           onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
           processNo={modal.processNo}

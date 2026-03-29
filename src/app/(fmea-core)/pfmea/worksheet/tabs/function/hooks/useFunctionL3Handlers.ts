@@ -622,11 +622,16 @@ export function useFunctionL3Handlers({
     }, 200);
   }, [specialCharModal, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, setSpecialCharModal]);
 
+  const switchToManualMode = useCallback(() => {
+    setIsAutoMode(false);
+  }, []);
+
   return {
     // ★★★ 자동/수동 모드 ★★★
     isAutoMode,
     isLoadingMaster,
     handleToggleMode,
+    switchToManualMode,
     // ★★★ 트리뷰 미리보기 ★★★
     previewResult,
     applyAutoMapping,

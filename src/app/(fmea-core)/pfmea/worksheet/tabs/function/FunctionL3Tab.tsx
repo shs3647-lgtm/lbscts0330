@@ -71,6 +71,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
     isAutoMode,
     isLoadingMaster,
     handleToggleMode,
+    switchToManualMode,
     previewResult,
     applyAutoMapping,
     cancelPreview,
@@ -592,6 +593,8 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
         <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
+          onSwitchToManualMode={switchToManualMode}
+          switchToManualToastMessage="3L 기능분석이 수동(Manual) 모드로 전환되었습니다."
           onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
           processNo={(state.l2 || []).find(p => p.id === modal.procId)?.no}
