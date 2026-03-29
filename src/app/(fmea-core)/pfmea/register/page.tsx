@@ -804,43 +804,8 @@ function PFMEARegisterPageContent() {
           </form>
         </div>
 
-        {/* FMEA 기초정보 등록 옵션 */}
-        <div className="mt-6 mb-3">
-          <table className="w-full border-collapse text-xs">
-            <tbody>
-              <tr className="h-8">
-                <td className="w-[15%] bg-[#00587a] text-white px-1 py-1.5 border border-gray-400 font-bold text-center whitespace-nowrap">
-                  <span className="text-[11px]" title="FMEA Basic Info Registration">FMEA 기초 정보등록(Basic Info)</span>
-                  <button onClick={(e) => { e.stopPropagation(); openHelp('mfp'); }} className="ml-1 px-1.5 py-0.5 bg-yellow-400 text-[#00587a] text-[9px] font-bold rounded hover:bg-yellow-300 transition-colors" title="M/F/P 구조 도움말">도움말(Help)</button>
-                </td>
-                {([
-                  { type: 'M' as const, label: 'Master', count: masterBdCount,
-                    loaded: 'bg-blue-700 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-blue-50 text-blue-700 hover:bg-blue-100' },
-                  { type: 'F' as const, label: 'Family', count: masterBdCount,
-                    loaded: 'bg-blue-600 text-white', filtered: 'bg-blue-100 text-blue-800 ring-2 ring-blue-400 ring-inset', idle: 'bg-[#e3f2fd] text-blue-700 hover:bg-blue-200' },
-                  { type: 'P' as const, label: 'Part', count: partBdCount || bdStatusList.filter(b => b.fmeaType === 'P').length,
-                    loaded: 'bg-green-700 text-white', filtered: 'bg-green-100 text-green-800 ring-2 ring-green-400 ring-inset', idle: 'bg-[#e8f5e9] text-green-700 hover:bg-green-200' },
-                ]).map(({ type, label, count, loaded, filtered, idle }) => {
-                  const isLoaded = type === 'P'
-                    ? bdLoadedFmeaId === fmeaId
-                    : bdStatusList.some(b => b.fmeaType === type && b.fmeaId === bdLoadedFmeaId);
-                  const isFiltered = bdTypeFilter === type;
-                  return (
-                    <td key={type}
-                      onClick={() => handleLoadBdForType(type)}
-                      className={`w-[28%] px-3 py-1.5 border border-gray-400 text-center cursor-pointer font-semibold transition-colors ${
-                        isLoaded ? loaded : isFiltered ? filtered : idle
-                      }`}
-                    >
-                      {isLoaded ? `✅ ${label} 기초정보(Basic Data) 로드됨` : `${label} 기초정보(Basic Data) 사용`}
-                      {count > 0 && <span className="ml-1 text-[10px] opacity-70">({count})</span>}
-                    </td>
-                  );
-                })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {/* ★ 2026-03-29: M/F/P 기초정보 탭 제거 — 새 문서 생성 시 상위 FMEA 선택으로 대체 */}
+        {/* 참조 데이터 소스는 parentFmeaId / masterDatasetId API fallback으로 자동 결정 */}
 
         {/* ★ 개정 모드: 저장 완료 후 수정/사용 배지 */}
         {showMasterReview && isRevisionMode && fmeaId && (
