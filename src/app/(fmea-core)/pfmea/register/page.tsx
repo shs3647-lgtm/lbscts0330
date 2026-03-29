@@ -164,60 +164,6 @@ function PFMEARegisterPageContent() {
   /** 등록 화면 경량 Excel Import (15탭 미리보기 → 작성화면) */
   const [basicImportModalOpen, setBasicImportModalOpen] = useState(false);
 
-  // ★ 2026-03-29: URL ?openImport=true → 기초정보 Import 모달 자동 오픈
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('openImport') === 'true' && fmeaId) {
-      setBasicImportModalOpen(true);
-      params.delete('openImport');
-      const newUrl = `${window.location.pathname}?${params.toString()}`;
-      window.history.replaceState({}, '', newUrl);
-    }
-    // ★ MASTER DATA 적용 자동 실행
-    if (params.get('openMasterData') === 'true' && fmeaId) {
-      const masterSrc = params.get('masterSrc');
-      params.delete('openMasterData');
-      params.delete('masterSrc');
-      const newUrl = `${window.location.pathname}?${params.toString()}`;
-      window.history.replaceState({}, '', newUrl);
-      if (masterSrc) {
-        (async () => {
-          try {
-            const srcRes = await fetch(`/api/pfmea/master?fmeaId=${masterSrc}&includeItems=true`);
-            const srcData = await srcRes.json();
-            const srcItems = srcData?.dataset?.flatItems || [];
-            if (srcItems.length === 0) { alert('선택한 MASTER DATA에 데이터가 없습니다.'); return; }
-            const { saveMasterDataset } = await import('@/app/(fmea-core)/pfmea/import/utils/master-api');
-            const saveRes = await saveMasterDataset({
-              fmeaId: fmeaId.toLowerCase(),
-              fmeaType: (fmeaInfo.fmeaType || 'P') as 'M' | 'F' | 'P',
-              name: srcData?.dataset?.name || 'MASTER',
-              replace: false,
-              mode: 'import',
-              flatData: srcItems.map((item: any) => ({
-                processNo: item.processNo,
-                category: item.category,
-                itemCode: item.itemCode,
-                value: item.value,
-                m4: item.m4 || undefined,
-                specialChar: item.specialChar || undefined,
-              })),
-            });
-            if (saveRes.ok) {
-              alert(`✅ MASTER DATA 적용 완료!\n${srcData?.dataset?.name} → ${fmeaId}\n(${srcItems.length}건 병합)`);
-            } else {
-              alert('MASTER DATA 적용 실패');
-            }
-          } catch (err) {
-            console.error('MASTER DATA 자동 적용 오류:', err);
-            alert('오류: ' + (err instanceof Error ? err.message : String(err)));
-          }
-        })();
-      }
-    }
-  }, [fmeaId]);
-
   // ★ Master/Part FMEA BD 카운트 로드
   useEffect(() => {
     fetch('/api/master-fmea/bd-list').then(r => r.json()).then(d => {

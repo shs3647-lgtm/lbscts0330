@@ -95,13 +95,9 @@ export default function CreateDocumentModal({
     const [partParentMode, setPartParentMode] = useState<'master-family' | 'part-ref' | 'standalone'>('master-family');
 
     const [partSetCount, setPartSetCount] = useState<number>(0);
-    const [standaloneInputMode, setStandaloneInputMode] = useState<'manual-input' | 'excel-import' | 'master-data'>('manual-input');
     const [familySetCount, setFamilySetCount] = useState<number>(0);
     const [immediateCP, setImmediateCP] = useState(false);
     const [immediatePFD, setImmediatePFD] = useState(false);
-    // ★ MASTER DATA 적용용 상태
-    const [masterDatasets, setMasterDatasets] = useState<{id: string; fmeaId: string; name: string; itemCount?: number}[]>([]);
-    const [selectedMasterFmeaId, setSelectedMasterFmeaId] = useState<string>('');
     // 소스 앱 변경 시 초기화
     useEffect(() => {
         if (isOpen) {
@@ -195,25 +191,6 @@ export default function CreateDocumentModal({
                 });
         }
     }, [isOpen, sourceApp]);
-
-    // ★ MASTER DATA 적용 선택 시 자동 로드
-    useEffect(() => {
-        if (standaloneInputMode === 'master-data' && masterDatasets.length === 0) {
-            fetch('/api/pfmea/master')
-                .then(r => r.json())
-                .then(data => {
-                    const datasets = (data.datasets || []).map((ds: any) => ({
-                        id: ds.id,
-                        fmeaId: ds.fmeaId,
-                        name: ds.name || 'MASTER',
-                        itemCount: ds.flatItems?.length || ds.dataCount || 0,
-                    }));
-                    setMasterDatasets(datasets);
-                    if (datasets.length === 1) setSelectedMasterFmeaId(datasets[0].fmeaId);
-                })
-                .catch(() => setMasterDatasets([]));
-        }
-    }, [standaloneInputMode]);
 
     // 앱 체크박스 토글
     const toggleApp = (app: AppType) => {
@@ -343,21 +320,8 @@ export default function CreateDocumentModal({
                     : sourceApp === 'pfd' ? result.pfdId
                     : result.pfmeaId;
                 onClose();
-                // ★ 2026-03-29: 직접 작성 입력 방식에 따라 분기
-                if (partParentMode === 'standalone' && sourceApp === 'pfmea') {
-                    if (standaloneInputMode === 'excel-import') {
-                        // 엑셀 Import → 등록 페이지로 이동 후 Import 모달 자동 오픈
-                        window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}&openImport=true`;
-                    } else if (standaloneInputMode === 'master-data') {
-                        // MASTER DATA 적용 → 등록 페이지로 이동 후 Master Data 자동 적용
-                        window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}&openMasterData=true&masterSrc=${encodeURIComponent(selectedMasterFmeaId)}`;
-                    } else {
-                        // 수동 입력 → 수동 Import 페이지로 이동
-                        window.location.href = `/pfmea/import/manual?id=${redirectId}`;
-                    }
-                } else {
-                    window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
-                }
+                // 항상 등록 페이지로 이동 (Import 자동 전환 제거 — ADMIN 직접 접근만 허용)
+                window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;
             }
         } catch (err: any) {
             console.error('[CreateDocumentModal] 생성 오류:', err);
@@ -617,86 +581,10 @@ export default function CreateDocumentModal({
                                         );
                                     })()}
 
-                                    {/* 직접 작성 — 입력 방식 선택 + Master Dataset 선택 */}
+                                    {/* 직접 작성 안내 */}
                                     {partParentMode === 'standalone' && (
                                         <div className="mt-1">
                                             <div className="text-[9px] text-blue-600 mb-1.5">상위 FMEA 없이 독립적으로 생성합니다.</div>
-                                            
-                                            {/* ★ 입력 방식 선택: 엑셀 Import / 수동 입력 */}
-                                            <div className="text-[9px] text-gray-600 font-semibold mb-1">입력 방식:</div>
-                                            <div className="flex flex-col gap-1 mb-2 pl-1">
-                                                <label className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-xs border ${
-                                                    standaloneInputMode === 'excel-import' 
-                                                        ? 'border-purple-400 bg-purple-50 text-purple-700 font-semibold' 
-                                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                }`}>
-                                                    <input
-                                                        type="radio"
-                                                        name="standaloneInputMode"
-                                                        checked={standaloneInputMode === 'excel-import'}
-                                                        onChange={() => setStandaloneInputMode('excel-import')}
-                                                        className="w-3 h-3"
-                                                    />
-                                                    <span>📥 엑셀 Import</span>
-                                                    <span className="text-[9px] text-gray-400 ml-auto">엑셀 파일로 기초정보 일괄 입력</span>
-                                                </label>
-                                                <label className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-xs border ${
-                                                    standaloneInputMode === 'manual-input' 
-                                                        ? 'border-green-400 bg-green-50 text-green-700 font-semibold' 
-                                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                }`}>
-                                                    <input
-                                                        type="radio"
-                                                        name="standaloneInputMode"
-                                                        checked={standaloneInputMode === 'manual-input'}
-                                                        onChange={() => setStandaloneInputMode('manual-input')}
-                                                        className="w-3 h-3"
-                                                    />
-                                                    <span>✏️ 수동 입력</span>
-                                                    <span className="text-[9px] text-gray-400 ml-auto">화면에서 직접 공정/기능 입력</span>
-                                                </label>
-                                                <label className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-xs border ${
-                                                    standaloneInputMode === 'master-data' 
-                                                        ? 'border-[#00587a] bg-blue-50 text-[#00587a] font-semibold' 
-                                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                }`}>
-                                                    <input
-                                                        type="radio"
-                                                        name="standaloneInputMode"
-                                                        checked={standaloneInputMode === 'master-data'}
-                                                        onChange={() => setStandaloneInputMode('master-data')}
-                                                        className="w-3 h-3"
-                                                    />
-                                                    <span>📋 MASTER DATA 적용</span>
-                                                    <span className="text-[9px] text-gray-400 ml-auto">저장된 기초정보 DB 적용</span>
-                                                </label>
-                                                {/* ★ MASTER DATA 선택 드롭다운 */}
-                                                {standaloneInputMode === 'master-data' && (
-                                                    <div className="mt-1.5 ml-5">
-                                                        {masterDatasets.length === 0 ? (
-                                                            <div className="text-[9px] text-orange-600">⏳ MASTER DATA 로딩 중...</div>
-                                                        ) : (
-                                                            <>
-                                                                <select
-                                                                    value={selectedMasterFmeaId}
-                                                                    onChange={(e) => setSelectedMasterFmeaId(e.target.value)}
-                                                                    className="w-full px-2 py-1.5 border border-[#00587a] rounded text-xs bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 font-semibold"
-                                                                >
-                                                                    <option value="">-- MASTER DATA 선택 --</option>
-                                                                    {masterDatasets.map(ds => (
-                                                                        <option key={ds.id} value={ds.fmeaId}>
-                                                                            {ds.name || 'MASTER'} ({ds.fmeaId}) {ds.itemCount ? `- ${ds.itemCount}건` : ''}
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-                                                                {!selectedMasterFmeaId && (
-                                                                    <div className="text-[9px] text-red-500 mt-0.5">적용할 MASTER DATA를 선택하세요.</div>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
                                         </div>
                                     )}
                                 </td>
