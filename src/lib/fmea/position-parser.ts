@@ -560,9 +560,14 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const l3PnoName = new Map<string, string>();
   const l3RowNoB4 = new Map<number, { l3FuncId: string; l3Id: string; l2Id: string; pno: string; m4: string; b1: string; l3PcId: string }>();
 
+  // ★ B2/통계 정합: 시트 carry 후에도 processNo 셀이 비는 행(JSON·병합 엣지)은 직전 행의 정규화 공정번호 상속
+  // (excelTotalB2=물리 B2 셀 수 vs l3Functions=0 건너뜀 방지 — FK고아·통계 불일치 완화)
+  let lastL3NormPno = '';
   for (const row of l3Sheet.rows) {
     const rn = row.excelRow;
-    const pno = normalizeProcessNo(row.cells['processNo']?.trim() || ''); // ★ AutoFix
+    let pno = normalizeProcessNo(row.cells['processNo']?.trim() || ''); // ★ AutoFix
+    if (pno) lastL3NormPno = pno;
+    else if (lastL3NormPno) pno = lastL3NormPno;
     const m4 = normalizeM4(row.cells['m4']?.trim() || ''); // ★ AutoFix
     const b1 = row.cells['B1']?.trim() || '';
     const b2 = row.cells['B2']?.trim() || '';

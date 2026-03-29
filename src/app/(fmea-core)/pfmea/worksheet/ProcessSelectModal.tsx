@@ -9,7 +9,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useDraggableModal } from '@/components/modals/useDraggableModal';
 import { MODAL_COMPACT, MODAL_CONTAINER, ACTION_ICONS } from '@/styles/modal-compact';
 import { deleteL2Structure } from './hooks/useAtomicView';
@@ -42,6 +42,8 @@ interface ProcessSelectModalProps {
   // ★ 2026-03-27: atomicDB 직접 수정용
   atomicDB?: any;
   setAtomicDB?: (db: any) => void;
+  /** 더블클릭 "+수동입력" 시 구조분석 워크시트를 수동(Manual) 모드로 전환 */
+  onSwitchToManualMode?: () => void;
 }
 
 // DB에서 마스터 FMEA 공정 로드 (4단계 fallback 체인 — API 레벨에서 처리)
@@ -85,7 +87,9 @@ export default function ProcessSelectModal({
   existingProcesses = [],
   atomicDB,
   setAtomicDB,
+  onSwitchToManualMode,
 }: ProcessSelectModalProps) {
+  const newNameInputRef = useRef<HTMLInputElement>(null);
   const [processes, setProcesses] = useState<ProcessItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
@@ -494,18 +498,37 @@ export default function ProcessSelectModal({
           </div>
         </div>
 
-        {/* ===== 신규 공정 추가 ===== */}
+        {/* ===== 신규 공정 추가 (+수동입력: 더블클릭 → 워크시트 수동 모드) ===== */}
         <div className={`px-3 py-1.5 border-b flex items-center gap-1 ${continuousMode ? 'bg-purple-50' : 'bg-green-50'}`}>
-          <span className={`text-[10px] font-bold shrink-0 ${continuousMode ? 'text-purple-700' : 'text-green-700'}`}>+</span>
+          <button
+            type="button"
+            onClick={() => newNameInputRef.current?.focus()}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onSwitchToManualMode?.();
+              toast.info('구조분석이 수동(Manual) 모드로 전환되었습니다. 공정명을 입력한 뒤 저장하세요.');
+              newNameInputRef.current?.focus();
+            }}
+            className={`shrink-0 px-1.5 py-0.5 text-[10px] font-bold rounded border cursor-pointer select-none ${continuousMode
+              ? 'text-purple-800 border-purple-300 bg-white hover:bg-purple-100'
+              : 'text-green-800 border-green-400 bg-white hover:bg-green-100'
+              }`}
+            title="클릭: 공정명 입력란 포커스 | 더블클릭: 워크시트 수동(Manual) 모드로 전환"
+          >
+            +수동입력
+          </button>
           <input
             type="text"
             value={newNo}
             onChange={(e) => setNewNo(e.target.value)}
-            placeholder="No"
+            placeholder="공정No"
+            title="공정번호(선택, 비우면 자동 부여)"
             className={`w-12 px-1 py-0.5 text-[10px] border rounded focus:outline-none focus:ring-1 text-center ${continuousMode ? 'focus:ring-purple-500 border-purple-300' : 'focus:ring-green-500'
               }`}
           />
           <input
+            ref={newNameInputRef}
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}

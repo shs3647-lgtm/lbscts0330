@@ -5,6 +5,7 @@
 
 import { useCallback } from 'react';
 import { WorksheetState, Process, WorkElement, uid } from '../constants';
+import { normalizeL2ProcessNo } from '../utils/processNoNormalize';
 // ✅ excel-export: ES dynamic import() — 사용자 액션 시점에 로드 (초기 번들 제외)
 
 interface UsePageHandlersProps {
@@ -96,11 +97,11 @@ export function usePageHandlers({
       const finalL2: Process[] = selectedProcesses.map((p, idx) => {
         const existing = prev.l2.find(e => e.name === p.name && e.name?.trim());
         if (existing) {
-          return { ...existing, no: p.no, order: (idx + 1) * 10 };
+          return { ...existing, no: normalizeL2ProcessNo(p.no), order: (idx + 1) * 10 };
         }
         return {
           id: uid(),
-          no: p.no,
+          no: normalizeL2ProcessNo(p.no),
           name: p.name,
           order: (idx + 1) * 10,
           functions: [],

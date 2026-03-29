@@ -6,23 +6,27 @@
  * ★ DB 스키마 운영 정책 (혼선 방지)
  * ═══════════════════════════════════════════════════════════════
  *
- * ■ public 스키마 — 공통·글로벌 데이터
- *   - PfmeaMasterDataset / PfmeaMasterFlatItem (Import 기초정보)
- *   - FmeaProject / FmeaRegistration / FmeaCftMember (FMEA 프로젝트 메타)
- *   - ProjectLinkage, TripletGroup (문서 연동)
- *   - LLD / SOD 기준 / 업종 DB (공유 마스터)
- *   - APQPProject (APQP 프로젝트)
+ * ■ public 스키마 — 글로벌·메타·(현재) PFMEA Import 스테이징
+ *   - FmeaProject / FmeaRegistration / FmeaCftMember (프로젝트 등록 메타)
+ *   - PfmeaMasterDataset / PfmeaMasterFlatItem ← Import flat 스테이징 (★ 아래 PROJECT_TABLES에 없음 → 프로젝트 스키마에는 복제 안 됨)
+ *   - ProjectLinkage, TripletGroup, LLD/SOD/산업DB, APQPProject 등
  *
- * ■ 프로젝트 스키마 (pfmea_{fmeaId}) — FMEA 프로젝트별 Atomic 데이터
- *   - L1/L2/L3 Structure, Function, 독립 엔티티
- *   - FailureMode / FailureCause / FailureEffect
- *   - FailureLink / FailureAnalysis / RiskAnalysis / Optimization
- *   - CP / PFD 관련 테이블
- *   → FMEA 프로젝트가 늘어나도 스키마 분리로 성능·격리 보장
- *   → save-position-import API가 이 스키마에 저장
- *   → 조회 시 반드시 getPrismaForSchema(getProjectSchemaName(fmeaId)) 사용
+ * ■ 프로젝트 스키마 pfmea_{fmeaId} — 해당 FMEA의 Atomic·연동 데이터 (SSoT 몸통)
+ *   - L1/L2/L3, FM/FE/FC, FailureLink, RiskAnalysis, Optimization, …
+ *   - save-position-import / GET /api/fmea?format=atomic 등이 여기에 읽기·쓰기
  *
- * ⚠️ 디버그 스크립트 작성 시 public이 아닌 프로젝트 스키마 조회 필수!
+ * ★★★ 프로젝트 데이터 조회·저장 시 반드시 이 순서 ★★★
+ *   1) const schema = getProjectSchemaName(fmeaId)   // 소문자·하이픈→_ 규칙 적용
+ *   2) await ensureProjectSchemaReady({ baseDatabaseUrl: getBaseDatabaseUrl(), schema })
+ *   3) const prisma = getPrismaForSchema(schema)
+ *   → Atomic·import_jobs·import_validations·CP/PFD(아래 PROJECT_TABLES)는 전부 여기.
+ *
+ * public 스테이징을 쓰지 않게 하려면(선택·대공사):
+ *   - PROJECT_TABLES에 'pfmea_master_datasets', 'pfmea_master_flat_items' 추가 → ensure 시 LIKE 복제
+ *   - /api/pfmea/master, verify-counts, master-processes 등 모든 pfmeaMaster* 접근을 getPrismaForSchema로 일괄 전환
+ *   - 기존 public 행 → 스키마별 이관 스크립트 + 이중 쓰기/컷오버 계획
+ *
+ * ⚠️ 디버그: FM/FL/L2 등 "프로젝트 본문"은 public이 아니라 반드시 pfmea_* 스키마에서 조회
  * ═══════════════════════════════════════════════════════════════
  *
  * 스키마명 규칙: pfmea_{projectId} (안전한 sanitize 후 소문자)
@@ -31,7 +35,8 @@
 
 import { Client } from 'pg';
 
-// PFMEA에서 프로젝트별로 분리 저장할 테이블들 (prisma @@map 기준)
+// PFMEA에서 프로젝트별로 분리 저장·복제할 테이블 (prisma @@map 기준).
+// ★ pfmea_master_datasets / pfmea_master_flat_items 는 의도적으로 제외 → 현재는 public 스테이징만 사용.
 const PROJECT_TABLES = [
   // ── FMEA Atomic DB ──
   'fmea_projects',

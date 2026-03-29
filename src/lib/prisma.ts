@@ -10,8 +10,13 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 /**
- * Prisma 7+ 호환 PrismaClient 초기화
- * - Driver Adapter 필수 사용 (@prisma/adapter-pg)
+ * PostgreSQL `public` 스키마용 클라이언트 (search_path 기본).
+ *
+ * 용도: 프로젝트 등록 메타(FmeaProject 등), 글로벌 마스터(LLD·SOD·산업DB),
+ *       그리고 ★현재 아키텍처★에서만 PFMEA Import 스테이징(pfmea_master_*).
+ *
+ * 금지(Rule 0.8.1): L2/FM/FC/FailureLink 등 "프로젝트 Atomic 본문"을 public에 저장·조회하지 말 것.
+ * 그 경우 → getProjectSchemaName(fmeaId) + ensureProjectSchemaReady + getPrismaForSchema(schema).
  */
 export function getPrisma(): PrismaClient | null {
   // ★ 2026-03-25: 스테일 캐시 무효화 제거 — Prisma 7 어댑터 기반 클라이언트는
@@ -50,14 +55,17 @@ export function getPrisma(): PrismaClient | null {
 }
 
 /**
- * Schema-specific PrismaClient 생성/반환
- * - 'public' 또는 빈 값이면 기본 클라이언트 반환
- * - project schema이면 PrismaPg({ schema }) 옵션으로 별도 클라이언트 생성
- * - 동일 schema에 대해 캐싱하여 Pool 누수 방지
+ * 프로젝트(또는 지정) 스키마 전용 클라이언트 — Atomic·CP/PFD 프로젝트 테이블은 여기로만.
  *
- * ⚠️ RULE 0.8.1: 프로젝트 데이터(FMEA/CP/PFD)는 반드시 프로젝트 스키마에 저장.
- * getPrisma()(public)로 프로젝트 데이터를 저장하면 다른 프로젝트와 섞임.
- * 올바른 호출: getPrismaForSchema(getProjectSchemaName(fmeaId))
+ * - schema가 'public'·빈 값 → getPrisma()와 동일
+ * - 그 외 예: `pfmea_pfm26_m009` → 해당 스키마의 l2_structures, failure_links, …
+ *
+ * ★ 호출 패턴 (복붙용):
+ *   const schema = getProjectSchemaName(fmeaId);
+ *   await ensureProjectSchemaReady({ baseDatabaseUrl: getBaseDatabaseUrl(), schema });
+ *   const prisma = getPrismaForSchema(schema);
+ *
+ * ⚠️ pfmea_master_flat_items 등 스테이징은 현재 public(getPrisma)에만 있음 — 잘못 이 클라이언트로 조회하면 0건.
  */
 export function getPrismaForSchema(schema: string): PrismaClient | null {
   if (!schema || schema === 'public') {

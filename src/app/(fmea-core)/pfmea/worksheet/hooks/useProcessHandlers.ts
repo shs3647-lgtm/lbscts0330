@@ -8,6 +8,7 @@
 
 import { useCallback, useState } from 'react';
 import { WorksheetState, Process, uid } from '../constants';
+import { normalizeL2ProcessNo } from '../utils/processNoNormalize';
 
 // ============================================================================
 // 타입 정의
@@ -84,12 +85,12 @@ export function useProcessHandlers({
         // 기존에 있으면 유지
         const existing = prev.l2.find(e => e.name === p.name && e.name?.trim());
         if (existing) {
-          return { ...existing, no: p.no, order: (idx + 1) * 10 };
+          return { ...existing, no: normalizeL2ProcessNo(p.no), order: (idx + 1) * 10 };
         }
         // 없으면 새로 생성
         return {
           id: uid(),
-          no: p.no,
+          no: normalizeL2ProcessNo(p.no),
           name: p.name,
           order: (idx + 1) * 10,
           functions: [],

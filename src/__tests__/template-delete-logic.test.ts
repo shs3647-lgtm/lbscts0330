@@ -10,8 +10,16 @@ import type { ImportedFlatData } from '../../src/app/(fmea-core)/pfmea/import/ty
 
 // ─── 테스트 데이터 ───
 
-function mkItem(id: string, processNo: string, category: 'A'|'B'|'C', itemCode: string, value: string, m4?: string): ImportedFlatData {
-  return { id, processNo, category, itemCode, value, m4, createdAt: new Date() };
+function mkItem(
+  id: string,
+  processNo: string,
+  category: 'A' | 'B' | 'C',
+  itemCode: string,
+  value: string,
+  m4?: string,
+  parentItemId?: string,
+): ImportedFlatData {
+  return { id, processNo, category, itemCode, value, m4, parentItemId, createdAt: new Date() };
 }
 
 /** INITIAL_SAMPLE_DATA 동일 구조 (3공정, 1작업요소, 3분류) */
@@ -108,6 +116,38 @@ describe('buildCrossTab', () => {
     const r10 = ct2.aRows.find(r => r.processNo === '10')!;
     expect(r10.A6).toBe('길이 측정\n두번째 검출');
     expect(r10._ids.A6).toBe('s6');
+  });
+
+  test('1-6. 동일 공정+M4 복수 B1: parentItemId 체인으로 B2~B4 정확히 매칭 (flat 순서와 무관)', () => {
+    const a10: ImportedFlatData[] = [
+      mkItem('a10-1', '10', 'A', 'A1', '10'),
+      mkItem('a10-2', '10', 'A', 'A2', '공정명'),
+      mkItem('a10-3', '10', 'A', 'A3', '기능'),
+      mkItem('a10-4', '10', 'A', 'A4', '특성'),
+      mkItem('a10-5', '10', 'A', 'A5', 'FM'),
+      mkItem('a10-6', '10', 'A', 'A6', '검출'),
+    ];
+    // B1 순서: WE-B 먼저, WE-A 나중 — B2 flat은 A용이 먼저 오면 키 풀만 쓰면 오매칭됨
+    const bFlat: ImportedFlatData[] = [
+      mkItem('l3fn-a', '10', 'B', 'B2', '요소기능-A', 'MC', 'l3-a'),
+      mkItem('l3fn-a-b3', '10', 'B', 'B3', '공정특성-A', 'MC', 'l3fn-a'),
+      mkItem('l3fn-a-b4', '10', 'B', 'B4', '고장원인-A', 'MC', 'l3fn-a-b3'),
+      mkItem('l3-b', '10', 'B', 'B1', '작업요소-B', 'MC'),
+      mkItem('l3-a', '10', 'B', 'B1', '작업요소-A', 'MC'),
+      mkItem('l3fn-b', '10', 'B', 'B2', '요소기능-B', 'MC', 'l3-b'),
+      mkItem('l3fn-b-b3', '10', 'B', 'B3', '공정특성-B', 'MC', 'l3fn-b'),
+      mkItem('l3fn-b-b4', '10', 'B', 'B4', '고장원인-B', 'MC', 'l3fn-b-b3'),
+    ];
+    const ct = buildCrossTab([...a10, ...bFlat]);
+    expect(ct.bRows).toHaveLength(2);
+    const rowA = ct.bRows.find(r => r.B1 === '작업요소-A')!;
+    const rowB = ct.bRows.find(r => r.B1 === '작업요소-B')!;
+    expect(rowA.B2).toBe('요소기능-A');
+    expect(rowA.B3).toBe('공정특성-A');
+    expect(rowA.B4).toBe('고장원인-A');
+    expect(rowB.B2).toBe('요소기능-B');
+    expect(rowB.B3).toBe('공정특성-B');
+    expect(rowB.B4).toBe('고장원인-B');
   });
 });
 

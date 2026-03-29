@@ -22,6 +22,7 @@ import type {
   PosL3ProcessNo,
   PosL3FourM,
 } from '@/types/position-import';
+import { normalizeL2ProcessNo } from '../utils/processNoNormalize';
 
 interface SimpleL3 {
   id?: string;
@@ -74,7 +75,10 @@ export function buildManualPositionData(
   validL2.forEach((l2, i) => {
     // ID 보존: 모달에서 생성된 proc_new_xxx ID 그대로 사용
     const l2Id = l2.id?.trim() || `L2-MAN-${normalizedId}-${i}`;
-    const processNo = l2.no?.trim() || String((i + 1) * 10);
+    const rawNo = l2.no?.trim() || '';
+    const processNo = rawNo
+      ? normalizeL2ProcessNo(rawNo)
+      : String((i + 1) * 10).padStart(3, '0');
     const processName = l2.name?.trim() || '';
 
     l2Structures.push({

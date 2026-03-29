@@ -291,7 +291,7 @@ export function EditableL2Cell({
   if (isEditing) {
     return (
       <>
-        <td rowSpan={rowSpan} data-col="processNo" className="w-[45px] min-w-[45px] max-w-[45px] text-center text-[10px] font-bold text-gray-500 border border-[#ccc] p-0.5 align-middle" style={{ background: zebraBg }}>
+        <td rowSpan={rowSpan} data-col="processNo" className="w-[40px] min-w-[40px] max-w-[40px] text-center text-[10px] font-bold text-gray-500 border border-[#ccc] p-0.5 align-middle" style={{ background: zebraBg }}>
           {l2No || '-'}
         </td>
         <td rowSpan={rowSpan} data-col="process" className={`${cell} p-0.5 bg-blue-50 align-middle`}>
@@ -310,7 +310,7 @@ export function EditableL2Cell({
       <td
         rowSpan={rowSpan}
         data-col="processNo"
-        className="w-[45px] min-w-[45px] max-w-[45px] text-center text-[10px] font-bold text-gray-500 border border-[#ccc] p-0.5 align-middle"
+        className="w-[40px] min-w-[40px] max-w-[40px] text-center text-[10px] font-bold text-gray-500 border border-[#ccc] p-0.5 align-middle"
         style={{ background: zebraBg }}
       >
         {l2No || '-'}
@@ -532,13 +532,16 @@ export function EditableL3Cell({
 
 // ========== Colgroup ==========
 export function StructureColgroup() {
-  // 완제품 공정(22%) / 메인공정(22%) / 4M(55px) / 작업요소(나머지)
+  // 완제품(3) : 메인공정(No+공정명=4) : 작업요소(4M+요소=5) = 3:4:5 비율
+  // 4M(55px) 고정, No(40px) 고정 → 나머지를 비율 배분
+  // 전체 ~12등분: 완제품=25%, No=40px, 공정명=~8.3%+나머지, 4M=55px, 작업요소=~41.7%
   return (
     <colgroup>
-      <col className="w-[22%]" />
-      <col className="w-[22%]" />
-      <col className="w-[55px] min-w-[55px]" />
+      <col style={{ width: '25%' }} />
+      <col style={{ width: '40px', minWidth: '40px', maxWidth: '40px' }} />
       <col />
+      <col style={{ width: '55px', minWidth: '55px' }} />
+      <col style={{ width: '41.7%' }} />
     </colgroup>
   );
 }

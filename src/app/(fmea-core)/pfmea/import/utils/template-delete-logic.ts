@@ -104,24 +104,57 @@ export function buildCrossTab(data: ImportedFlatData[]): CrossTab {
   // 코드별 사용된 ID 누적 Set (O(n²) → O(n))
   const usedByCode: Record<string, Set<string>> = { B2: new Set(), B3: new Set(), B4: new Set(), B5: new Set() };
 
+  const pickBByKey = (code: 'B2' | 'B3' | 'B4' | 'B5', b1: ImportedFlatData): ImportedFlatData | undefined => {
+    const used = usedByCode[code];
+    const candidates = bIdx.get(`${b1.processNo}|${code}|${b1.m4 || ''}`) || [];
+    let match = candidates.find(d => !used.has(d.id!));
+    if (!match) {
+      const fallbacks = bIdxNoM4.get(`${b1.processNo}|${code}`) || [];
+      match = fallbacks.find(d => !used.has(d.id!));
+    }
+    return match;
+  };
+
   const bGroups: { pNo: string; m4: string; items: Map<string, ImportedFlatData> }[] = [];
   const b1List = bItems.filter(d => d.itemCode === 'B1');
   b1List.forEach(b1 => {
     const group = { pNo: b1.processNo, m4: b1.m4 || '', items: new Map<string, ImportedFlatData>() };
     group.items.set('B1', b1);
-    for (const code of ['B2','B3','B4','B5'] as const) {
-      const used = usedByCode[code];
-      const candidates = bIdx.get(`${b1.processNo}|${code}|${b1.m4 || ''}`) || [];
-      let match = candidates.find(d => !used.has(d.id!));
-      if (!match) {
-        const fallbacks = bIdxNoM4.get(`${b1.processNo}|${code}`) || [];
-        match = fallbacks.find(d => !used.has(d.id!));
-      }
-      if (match) {
-        group.items.set(code, match);
-        if (match.id) used.add(match.id);
-      }
+
+    // ★ 동일 공정번호+M4에 작업요소(B1)가 여러 개일 때: processNo|m4 풀만으로는 오매칭·누락 발생
+    // position import 등 parentItemId가 있으면 B1→B2→B3→B4→B5 모자 체인 우선 (Rule 1.7 ID-only)
+    let b2: ImportedFlatData | undefined;
+    if (b1.id) {
+      b2 = bItems.find(d => d.itemCode === 'B2' && d.parentItemId === b1.id);
     }
+    if (!b2) b2 = pickBByKey('B2', b1);
+    if (b2?.id) usedByCode.B2.add(b2.id);
+    if (b2) group.items.set('B2', b2);
+
+    let b3: ImportedFlatData | undefined;
+    if (b2?.id) {
+      b3 = bItems.find(d => d.itemCode === 'B3' && d.parentItemId === b2.id);
+    }
+    if (!b3) b3 = pickBByKey('B3', b1);
+    if (b3?.id) usedByCode.B3.add(b3.id);
+    if (b3) group.items.set('B3', b3);
+
+    let b4: ImportedFlatData | undefined;
+    if (b3?.id) {
+      b4 = bItems.find(d => d.itemCode === 'B4' && d.parentItemId === b3.id);
+    }
+    if (!b4) b4 = pickBByKey('B4', b1);
+    if (b4?.id) usedByCode.B4.add(b4.id);
+    if (b4) group.items.set('B4', b4);
+
+    let b5: ImportedFlatData | undefined;
+    if (b4?.id) {
+      b5 = bItems.find(d => d.itemCode === 'B5' && d.parentItemId === b4.id);
+    }
+    if (!b5) b5 = pickBByKey('B5', b1);
+    if (b5?.id) usedByCode.B5.add(b5.id);
+    if (b5) group.items.set('B5', b5);
+
     bGroups.push(group);
   });
 

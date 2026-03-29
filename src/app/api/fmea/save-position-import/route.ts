@@ -283,19 +283,22 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // ★ L3Function/FC/FL/RA: 완전 DELETE 후 재생성 (항상 최신 데이터 보장)
-      // 이유: skipDuplicates가 빈값 레코드를 업데이트 못함 + for-loop upsert 너무 느림
-      // Structure/L1F/L2F/FM/FE는 skipDuplicates 유지 (소실 위험 없음)
+      // ★ L3Function/FC/FL/RA(+ FM/FE): 완전 DELETE 후 재생성 (항상 최신 데이터·updatedAt 보장)
+      // 이유: skipDuplicates가 기존 행을 건너뛰어 effect/mode 텍스트·severity 변경이 DB에 반영 안 됨 + updatedAt 무변경
+      // FL 삭제 후에는 FM/FE를 FK 없이 제거 가능 → 동일 블록에서 삭제 후 8~10단계 createMany로 재삽입
+      // Structure/L1/L2(상위)는 skipDuplicates 유지 — L3 이하 고장 레이어만 전면 갱신
 
       // 7. L3Functions + L3ProcessChars + L3 독립 엔티티: DELETE ALL + CREATE
       // ★ 방어: l3Functions가 비어있으면 DELETE 금지 (파싱 실패 시 기존 데이터 보호)
       if (atomicData.l3Functions.length === 0) {
         console.warn(`[save-position-import] ⚠️ l3Functions=0 — DELETE 건너뜀 (기존 데이터 보존). 파서 로그 확인 필요`);
       } else {
-        // 데이터 있을 때만 DELETE → CREATE (의존성 역순: SpecialChar → ProcessChar → Function)
+        // 데이터 있을 때만 DELETE → CREATE (의존성 역순: RA → FL → FC → FM → FE → L3 부속)
         await tx.riskAnalysis.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureLink.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.failureCause.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureMode.deleteMany({ where: { fmeaId: normalizedId } });
+        await tx.failureEffect.deleteMany({ where: { fmeaId: normalizedId } });
         await safeTx(tx, 'l3SpecialChar').deleteMany({ where: { fmeaId: normalizedId } });
         await safeTx(tx, 'l3ProcessChar').deleteMany({ where: { fmeaId: normalizedId } });
         await safeTx(tx, 'l3WorkElement').deleteMany({ where: { fmeaId: normalizedId } });
@@ -365,7 +368,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 8. FailureEffects (skipDuplicates — FE는 보존)
+      // 8. FailureEffects (l3Functions>0 블록에서 이미 삭제됨 → 신규 행·updatedAt 갱신; 그 외 경로만 skipDuplicates 의미)
       if (atomicData.failureEffects.length > 0) {
         await tx.failureEffect.createMany({
           skipDuplicates: true,
@@ -377,7 +380,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 9. FailureModes (skipDuplicates — FM은 보존)
+      // 9. FailureModes (동일 — L3 풀 갱신 시 위에서 삭제 후 재삽입)
       if (atomicData.failureModes.length > 0) {
         const fmHasRefs = !!(tx.failureMode as any).fields?.feRefs;
         try {

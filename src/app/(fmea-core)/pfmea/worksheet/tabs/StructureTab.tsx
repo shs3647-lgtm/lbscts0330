@@ -234,7 +234,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="완제품 공정명" en="Product Process" /><span className="text-green-700 font-bold">(1)</span>
         </th>
-        <th className="w-[45px] min-w-[45px] max-w-[45px] bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
+        <th className="w-[40px] min-w-[40px] max-w-[40px] bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           No
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
@@ -1211,6 +1211,7 @@ export default function StructureTab(props: StructureTabProps) {
         onClose={() => setIsProcessModalOpen(false)}
         atomicDB={props.atomicDB}
         setAtomicDB={props.setAtomicDB}
+        onSwitchToManualMode={() => setIsAutoMode(false)}
         onSave={(selectedProcesses) => {
           if (!props.atomicDB || !props.setAtomicDB) {
             toast.error('구조 DB(Atomic)가 준비되지 않았습니다. 잠시 후 다시 시도하거나 페이지를 새로고침해 주세요.');
