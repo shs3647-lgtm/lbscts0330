@@ -651,11 +651,11 @@ export function useWorksheetState(): UseWorksheetStateReturn {
 
       const result = [...keptProcesses, ...newProcesses];
 
-      // ✅ 공정번호 숫자 순 정렬 (10, 20, 100, 110 순서)
+      // ✅ 공정번호 숫자 순 정렬 (10, 20, 100, 110 순서) + localeCompare fallback
       result.sort((a, b) => {
         const numA = parseInt(a.no?.replace(/\D/g, '') || '0', 10);
         const numB = parseInt(b.no?.replace(/\D/g, '') || '0', 10);
-        return numA - numB;
+        return numA - numB || String(a.no ?? '').localeCompare(String(b.no ?? ''));
       });
 
       if (result.length === 0) {

@@ -218,7 +218,7 @@ export default function ProcessSelectModal({
     // 선택된 항목 중 워크시트에 있는 것만 삭제
     const selectedToDelete = processes.filter(p => selectedIds.has(p.id));
     const worksheetTargets = selectedToDelete.filter(p =>
-      existingProcessNames.includes(p.name) || existingProcesses.some(ep => ep.no === p.no)
+      existingProcessNames.includes(p.name) || existingProcessNos.has(p.no)
     );
     if (worksheetTargets.length === 0) {
       alert('워크시트에 등록된 공정만 삭제할 수 있습니다.');

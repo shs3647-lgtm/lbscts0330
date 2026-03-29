@@ -1140,7 +1140,14 @@ export default function StructureTab(props: StructureTabProps) {
                 </span>
               )}
             </td>
-            {/* 2열: 메인 공정명 */}
+            {/* 2열: 공정번호 No */}
+            <td
+              className="w-[40px] min-w-[40px] max-w-[40px] border border-[#ccc] p-0.5 text-center align-middle text-[10px] text-gray-400 font-bold"
+              style={{ background: '#c8e6c9' }}
+            >
+              -
+            </td>
+            {/* 3열: 공정명 */}
             <td
               className="border border-[#ccc] p-1 text-center align-middle cursor-pointer hover:bg-green-200"
               style={{ background: '#c8e6c9' }}
