@@ -161,20 +161,24 @@ const PFMEA_FAILURE_EFFECTS: DataItem[] = [
   { id: 'FE_P3', value: '고객사 클레임', category: 'SP' },
 ];
 
+// ★ 2026-03-29: 전체 하드코딩 제거 — DB(pfmea_master_flat_items) 조회로 대체
+// 하드코딩 데이터(PFMEA_C1~C3, PFMEA_FAILURE_EFFECTS)는 위에 유지하되
+// PFMEA_DEFAULT_ITEMS에서는 빈 배열로 설정 → DB fallback 시에만 사용
 export const PFMEA_DEFAULT_ITEMS: Record<string, DataItem[]> = {
-  C1: PFMEA_C1,
-  C2: PFMEA_C2,
-  C3: PFMEA_C3,
-  FE1: PFMEA_C1,
-  FE2: PFMEA_FAILURE_EFFECTS,
-  // ★ 2026-03-28: 하드코딩 제거 — 시드 데이터(seed_master_items)로 대체
+  C1: [],
+  C2: [],
+  C3: [],
+  FE1: [],
+  FE2: [],
   A3: [],
   A4: [],
+  A5: [],
   B2: [],
   B3: [],
   B4: [],
   B5: [],
   B6: [],
+  C4: [],
 };
 
 // 하위 호완성 유지 (기존 DEFAULT_ITEMS는 DFMEA 위주 또는 섞인 상태이므로 점진적 폐기 권장)
