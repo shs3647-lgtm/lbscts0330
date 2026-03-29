@@ -450,8 +450,9 @@ export function mapCountsToPgsql(
     if (actual === -1) {
       result[code] = { expected, actual: 0, match: false, status: 'pending' };
     } else {
-      const match = actual >= expected || (expected > 0 && actual > 0);
-      result[code] = { expected, actual, match: actual === expected, status: actual === expected ? 'pass' : actual > 0 ? 'warn' : 'error' };
+      // ★ 2026-03-29: DB >= expected → pass (DB superset 정상), DB < expected → warn/error
+      const isMatch = actual >= expected;
+      result[code] = { expected, actual, match: isMatch, status: isMatch ? 'pass' : actual > 0 ? 'warn' : 'error' };
     }
   }
 
@@ -498,11 +499,13 @@ export function mapApiToVerification(
   for (const code of ALL_ITEM_CODES) {
     const expected = expectedCounts[code] || 0;
     const apiCount = apiCounts[code] || 0;
+    // ★ 2026-03-29: API >= expected → pass (superset 정상)
+    const isMatch = apiCount >= expected;
     result[code] = {
       expected,
       apiCount,
-      match: apiCount === expected,
-      status: apiCount === expected ? 'pass' : apiCount > 0 ? 'warn' : expected === 0 ? 'na' : 'error',
+      match: isMatch,
+      status: isMatch ? 'pass' : apiCount > 0 ? 'warn' : expected === 0 ? 'na' : 'error',
     };
   }
 
