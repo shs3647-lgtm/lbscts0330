@@ -112,3 +112,22 @@
 | 날짜 | ID | 내용 | 커밋 |
 |------|-----|------|------|
 | 2026-03-29 | (구조분석 전체) | 공정번호 분리, 정렬, 모달 적용/미적용, 더블클릭 DB 저장, 부모 fallback | 2eb9d78~06a0893 |
+| 2026-03-29 | COM-1 | l1-functions, l2-functions API parentFmeaId fallback 통일 | 9106ff0 |
+| 2026-03-29 | COM-2 | L1/L2/L3 인라인 편집 에러 toast 추가 (6곳) | 9106ff0 |
+
+## 다음 세션 작업 (COM-3 + COM-4)
+
+> **규모**: BaseSelectModal(539줄) + 3개 모달(538줄) = 1,077줄 리팩터링
+> **CODEFREEZE 해제 필요**: FailureEffectSelectModal, FailureModeSelectModal, FailureCauseSelectModal
+> **Forge 6단계 프로세스 적용 필수**
+
+### COM-4 상세: 하드코딩 → DB 조회
+- FailureEffectSelectModal: DEFAULT_EFFECTS 10개 (L15-26) → DB 조회
+- FailureModeSelectModal: DEFAULT_MODES 15개 (L15-31) → DB 조회
+- FailureCauseSelectModal: DEFAULT_CAUSES 11개 (L15-27) → DB 조회
+- API: 기존 pfmeaMasterFlatItem (itemCode=C4/A5/B4) 또는 MasterFmeaReference 활용
+
+### COM-3 상세: 적용/미적용 섹션 분리
+- BaseSelectModal 확장: 현재 단일 리스트 → 적용됨/미적용 2섹션
+- 메인공정/작업요소 모달과 UX 패턴 통일
+- 섹션별 전체선택/해제/적용/삭제 버튼
