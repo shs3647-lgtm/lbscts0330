@@ -41,16 +41,8 @@ export interface GenericItemSelectProps {
 }
 
 /**
- * 마스터 DB에서 아이템 로드 — /api/pfmea/master?includeItems=true 기반
- */
-/** 구분(카테고리) 고정 정렬 순서: YP → SP → USER */
-const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
-function categorySortKey(cat?: string): number {
-  return CATEGORY_ORDER[(cat || '').toUpperCase()] ?? 9;
-}
-
-/**
- * itemCode별 전용 API 호출 → 없으면 마스터 API 폴백
+ * 통합 마스터 API 호출 — /api/fmea/master-items (모든 itemCode 지원)
+ * resolveDataset: masterDatasetId → parentFmeaId → fmeaId → isActive fallback
  */
 async function loadItemsFromMaster(
   itemCode: string,
@@ -59,115 +51,35 @@ async function loadItemsFromMaster(
   fmeaId?: string,
   extraParams?: Record<string, string>,
 ): Promise<GenericItem[]> {
-  // 1단계: 전용 API 시도 (C2/C3 → l1-functions, A3 → l2-functions)
-  const dedicated = await loadFromDedicatedApi(itemCode, processNo, category, fmeaId);
-  if (dedicated.length > 0) return dedicated.sort((a, b) => categorySortKey(a.category) - categorySortKey(b.category));
-
-  // 2단계: 마스터 API 폴백
-  const result = await loadFromMasterApi(itemCode, processNo, category, fmeaId);
-  return result.sort((a, b) => categorySortKey(a.category) - categorySortKey(b.category));
-}
-
-/** C2/C3 → /api/fmea/l1-functions, A3 → /api/fmea/l2-functions */
-async function loadFromDedicatedApi(
-  itemCode: string, processNo?: string, category?: string, fmeaId?: string,
-): Promise<GenericItem[]> {
   try {
-    let url = '';
     const params = new URLSearchParams();
+    params.set('itemCode', itemCode);
     if (fmeaId) params.set('fmeaId', fmeaId);
-
-    if (itemCode === 'C2' || itemCode === 'C3') {
-      params.set('type', itemCode);
-      if (category) params.set('category', category);
-      url = `/api/fmea/l1-functions?${params.toString()}`;
-    } else if (itemCode === 'A3') {
-      if (processNo) params.set('processNo', processNo);
-      url = `/api/fmea/l2-functions?${params.toString()}`;
-    } else {
-      return []; // 전용 API 없음 → 마스터 폴백
-    }
-
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-
-    if (data.success && Array.isArray(data.items)) {
-      const seen = new Set<string>();
-      return data.items
-        .filter((item: any) => {
-          const key = (item.name || '').trim().toLowerCase();
-          if (!key || seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        })
-        .map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          processNo: item.processNo,
-          category: item.category,
-        }));
-    }
-    return [];
-  } catch (e) {
-    console.error(`[loadFromDedicatedApi] ${itemCode}:`, e);
-    return [];
-  }
-}
-
-/** /api/pfmea/master?includeItems=true — B2/B3/B4/C4/A5 등 */
-async function loadFromMasterApi(
-  itemCode: string, processNo?: string, category?: string, fmeaId?: string,
-): Promise<GenericItem[]> {
-  try {
-    const url = fmeaId
-      ? `/api/pfmea/master?includeItems=true&fmeaId=${encodeURIComponent(fmeaId)}`
-      : '/api/pfmea/master?includeItems=true';
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-
-    // API 응답 형식: fmeaId 있으면 data.flatItems, 없으면 data.active?.flatItems
-    const rawItems = data.flatItems || data.active?.flatItems || data.items || [];
-    if (!Array.isArray(rawItems) || rawItems.length === 0) return [];
-
-    const dbItemCode = itemCode === 'FE2' ? 'C4' : itemCode.toUpperCase();
-    let filtered = rawItems.filter(
-      (item: any) => item.itemCode === dbItemCode && item.value?.trim()
-    );
-
-    if (processNo?.trim()) {
-      const pno = processNo.trim();
-      const pf = filtered.filter((item: any) => String(item.processNo || '').trim() === pno);
-      if (pf.length > 0) filtered = pf;
-    }
-
-    if (category?.trim()) {
-      const normalizedCat =
-        category.trim().toUpperCase() === 'YOUR PLANT' || category.trim().toUpperCase() === 'YP' ? 'YP' :
-        category.trim().toUpperCase() === 'SHIP TO PLANT' || category.trim().toUpperCase() === 'SP' ? 'SP' :
-        category.trim().toUpperCase() === 'USER' || category.trim().toUpperCase() === 'END USER' ? 'USER' : category.trim().toUpperCase();
-      const cf = filtered.filter((item: any) => String(item.category || '').trim().toUpperCase() === normalizedCat);
-      if (cf.length > 0) filtered = cf;
-    }
-
-    const seen = new Set<string>();
-    const deduped: GenericItem[] = [];
-    for (const item of filtered) {
-      const key = item.value.trim().toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduped.push({
-          id: item.id || `${itemCode}_db_${deduped.length}`,
-          name: item.value,
-          processNo: item.processNo,
-          category: item.category,
-        });
+    if (processNo?.trim()) params.set('processNo', processNo.trim());
+    if (category?.trim()) params.set('category', category.trim());
+    if (extraParams) {
+      for (const [k, v] of Object.entries(extraParams)) {
+        if (v?.trim()) params.set(k, v.trim());
       }
     }
-    return deduped;
+
+    const res = await fetch(`/api/fmea/master-items?${params.toString()}`);
+    if (!res.ok) {
+      console.error(`[loadItemsFromMaster] ${itemCode}: API 오류`, res.status);
+      return [];
+    }
+    const data = await res.json();
+    if (data.success && Array.isArray(data.items)) {
+      return data.items.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        processNo: item.processNo,
+        category: item.category,
+      }));
+    }
+    return [];
   } catch (e) {
-    console.error(`[loadFromMasterApi] ${itemCode}:`, e);
+    console.error(`[loadItemsFromMaster] ${itemCode}:`, e);
     return [];
   }
 }
@@ -345,14 +257,28 @@ export function useGenericItemSelect({
     ];
     onSave(allApplied);
 
-    fetch('/api/pfmea/master', {
+    fetch('/api/fmea/master-items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemCode, processNo, value: trimmed, category }),
-    }).catch((err) => console.error(`[useGenericItemSelect] POST ${itemCode}:`, err));
+      body: JSON.stringify({ itemCode, processNo, category, name: trimmed, fmeaId }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.id && data.id !== newId) {
+          // DB에서 받은 실제 ID로 교체
+          setElements(prev => prev.map(e => e.id === newId ? { ...e, id: data.id } : e));
+          setWorksheetItemIds(prev => {
+            const next = new Set(prev);
+            next.delete(newId);
+            next.add(data.id);
+            return next;
+          });
+        }
+      })
+      .catch((err) => console.error(`[useGenericItemSelect] POST ${itemCode}:`, err));
 
     return true;
-  }, [elements, worksheetItemIds, itemCode, processNo, category, onSave]);
+  }, [elements, worksheetItemIds, itemCode, processNo, category, fmeaId, onSave]);
 
   const handleDelete = useCallback(() => {
     if (selectedIds.size === 0) {
@@ -393,7 +319,14 @@ export function useGenericItemSelect({
     }
     setElements((prev) => prev.filter((e) => e.id !== id));
     setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-  }, [elements, worksheetItemIds]);
+
+    // 마스터 DB에서도 삭제
+    fetch('/api/fmea/master-items', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [id], itemCode }),
+    }).catch(err => console.error(`[useGenericItemSelect] DELETE ${itemCode}:`, err));
+  }, [elements, worksheetItemIds, itemCode]);
 
   const selectAppliedElements = useCallback(() => {
     setSelectedIds((prev) => { const next = new Set(prev); appliedElements.forEach((e) => next.add(e.id)); return next; });
