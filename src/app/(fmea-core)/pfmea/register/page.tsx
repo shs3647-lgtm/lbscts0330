@@ -869,7 +869,8 @@ function PFMEARegisterPageContent() {
         </div>
         <CFTAccessLogTable accessLogs={accessLogs} maxRows={5} />
 
-        {/* ★ 2026-03-29: 기초정보 섹션 — CFT 접속로그 아래로 이동 */}
+        {/* ★ 2026-03-29: 기초정보 Import + BD 현황 — admin 전용 */}
+        {user?.role === 'admin' && (<>
         <div className="mt-6">
           <TemplateGeneratorPanel
             onGenerate={templateGen.handleGenerate}
@@ -964,6 +965,7 @@ function PFMEARegisterPageContent() {
           }}
           onDeleteDatasets={handleBdDeleteDatasets}
         />
+        </>)}
 
         {/* 하단 상태바 */}
         <div className="mt-3 px-4 py-2 bg-white rounded border border-gray-300 flex justify-between text-xs text-gray-500">
