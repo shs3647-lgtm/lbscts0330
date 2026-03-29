@@ -427,15 +427,16 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
       
       const charName = func.processChars[charIdx]?.name?.trim() || '';
       const totalChars = func.processChars.length;
+      const isPlaceholder = !charName || charName === PLACEHOLDER_TEXT;
 
-      // ★ 수동1원칙: 유일한 빈 공정특성은 구조 placeholder → 삭제 불가
-      if (!charName && totalChars <= 1) {
-        console.log('[L3 삭제] 유일한 빈 공정특성 → 삭제 불가 (수동1원칙)');
+      // ★ 수동1원칙: 유일한 placeholder는 구조 보호 → 삭제 불가
+      if (isPlaceholder && totalChars <= 1) {
+        console.log('[L3 삭제] 유일한 placeholder → 삭제 불가 (수동1원칙)');
         return;
       }
 
-      // 이름이 있는 경우는 확인 필요
-      if (charName && !window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
+      // 이름이 있는 실제 데이터만 확인 필요 (placeholder는 바로 삭제)
+      if (!isPlaceholder && !window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
 
       const deleteCharId = charId;
       const updateFn = (prev: WorksheetState) => {
