@@ -429,13 +429,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
       const totalChars = func.processChars.length;
       const isPlaceholder = !charName || charName === PLACEHOLDER_TEXT;
 
-      // ★ 수동1원칙: 유일한 placeholder는 구조 보호 → 삭제 불가
-      if (isPlaceholder && totalChars <= 1) {
-        console.log('[L3 삭제] 유일한 placeholder → 삭제 불가 (수동1원칙)');
-        return;
-      }
-
-      // 이름이 있는 실제 데이터만 확인 필요 (placeholder는 바로 삭제)
+      // 실제 데이터만 confirm 필요 (placeholder는 바로 삭제)
       if (!isPlaceholder && !window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
 
       const deleteCharId = charId;
@@ -451,7 +445,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
         const chars = newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars;
         const filtered = chars.filter((c: any) => c.id !== deleteCharId);
         console.log(`[L3 공정특성 삭제] charId=${deleteCharId} before=${chars.length} after=${filtered.length}`);
-        // ★ 수동1원칙: 마지막 항목 삭제 시 빈 placeholder로 교체
+        // ★ 수동1원칙: 배열 항상 최소 1개 보장 (rowSpan 보호)
         newState.l2[pIdx].l3[wIdx].functions[fIdx].processChars = filtered.length > 0
           ? filtered
           : [{ id: uid(), name: PLACEHOLDER_TEXT, specialChar: '' }];
