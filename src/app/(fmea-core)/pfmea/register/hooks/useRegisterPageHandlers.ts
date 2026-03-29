@@ -96,7 +96,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
   const openFmeaSelectModal = useCallback(async (type: FMEASelectType) => {
     let projects: any[] = [];
     try {
-      const res = await fetch('/api/fmea/projects?type=P');
+      const res = await fetch('/api/fmea/projects');
       const data = await res.json();
       if (data.success && data.projects?.length > 0) projects = data.projects;
     } catch (e) { console.error('[FMEA 프로젝트 조회] 오류:', e); toast.error('FMEA 프로젝트 목록을 불러오는데 실패했습니다.'); }
@@ -116,7 +116,8 @@ export function useRegisterPageHandlers(core: CoreReturn) {
       type: p.fmeaType?.toLowerCase() || (p.id.match(/pfm\d{2}-([mfp])/i)?.[1] || 'p'),
       customerName: p.fmeaInfo?.customerName || p.project?.customer || '',
       revisionNo: p.revisionNo || 'Rev.00',
-      startDate: p.fmeaInfo?.fmeaStartDate || p.project?.startDate || '',
+      // ★ FIX: 리스트 페이지와 동일하게 createdAt 폴백 추가 (fmeaStartDate 없으면 updatedAt/createdAt 사용)
+      startDate: p.fmeaInfo?.fmeaStartDate || p.project?.startDate || (p.updatedAt || p.createdAt || '').slice(0, 10) || '',
       remark: p.fmeaInfo?.remark || '',
     })));
     setFmeaSelectType(type);

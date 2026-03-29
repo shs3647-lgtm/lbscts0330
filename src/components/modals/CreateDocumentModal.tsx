@@ -494,7 +494,7 @@ export default function CreateDocumentModal({
                                         <option value="">-- 상위 FMEA 선택 --</option>
                                         {filtered.map(t => (
                                             <option key={t.id} value={t.id}>
-                                                [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId}{t.source === 'legacy' ? ' (기존)' : ''}
+                                                [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId} ({t.pfmeaId}){t.source === 'legacy' ? ' (기존)' : ''}
                                             </option>
                                         ))}
                                     </select>
@@ -547,7 +547,7 @@ export default function CreateDocumentModal({
                                                     <option value="">-- 상위 FMEA 선택 --</option>
                                                     {filtered.map(t => (
                                                         <option key={t.id} value={t.id}>
-                                                            [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId}{t.source === 'legacy' ? ' (기존)' : ''}
+                                                            [{t.typeCode.toUpperCase()}] {t.subject || t.pfmeaId} ({t.pfmeaId}){t.source === 'legacy' ? ' (기존)' : ''}
                                                         </option>
                                                     ))}
                                                 </select>
@@ -572,7 +572,7 @@ export default function CreateDocumentModal({
                                                     <option value="">-- Part FMEA 선택 --</option>
                                                     {partCandidates.map(t => (
                                                         <option key={t.id} value={t.id}>
-                                                            [P] {t.subject || t.pfmeaId}{t.source === 'legacy' ? ' (기존)' : ''}
+                                                            [P] {t.subject || t.pfmeaId} ({t.pfmeaId}){t.source === 'legacy' ? ' (기존)' : ''}
                                                         </option>
                                                     ))}
                                                 </select>

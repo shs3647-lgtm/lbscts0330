@@ -31,7 +31,8 @@ import { handleEnterBlur } from '../../utils/keyboard';
 import { emitSave } from '../../hooks/useSaveEvent';
 import { getZebraColors } from '@/styles/level-colors';
 import SelectableCell from '@/components/worksheet/SelectableCell';
-import DataSelectModal from '@/components/modals/DataSelectModal';
+import { GenericItemSelectModal } from '../../GenericItemSelectModal';
+import type { GenericItem } from '../../useGenericItemSelect';
 import SpecialCharSelectModal from '@/components/modals/SpecialCharSelectModal';
 import SpecialCharBadge from '@/components/common/SpecialCharBadge';
 import { isMissing } from '../shared/tabUtils';
@@ -588,34 +589,46 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
       </table>
 
       {modal && (
-        <DataSelectModal
+        <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          title={modal.title}
+          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
-          singleSelect={false}
-          workElementName={modal.workElementName}
-          processName={(state.l2 || []).find(p => p.id === modal.procId)?.name}
           processNo={(state.l2 || []).find(p => p.id === modal.procId)?.no}
-          processList={(state.l2 || []).map(p => ({ id: p.id, no: p.no, name: p.name }))}
-          onProcessChange={(procId) => setModal(prev => prev ? { ...prev, procId } : null)}
-          currentValues={(() => {
-            const isPlaceholderName = (n: string) => !n?.trim();
+          fmeaId={fmeaId}
+          existingItems={(() => {
             const proc = (state.l2 || []).find(p => p.id === modal.procId);
             if (!proc) return [];
             const we = (proc.l3 || []).find(w => w.id === modal.l3Id);
             if (!we) return [];
-            if (modal.type === 'l3Function') return (we.functions || []).map(f => f.name).filter(n => !isPlaceholderName(n));
+            if (modal.type === 'l3Function') return (we.functions || []).filter(f => f.name?.trim()).map(f => ({ id: f.id, name: f.name }));
             if (modal.type === 'l3ProcessChar') {
               const func = (we.functions || []).find(f => f.id === modal.funcId);
-              return func ? (func.processChars || []).map(c => String(c.name || '')).filter(n => !isPlaceholderName(n)) : [];
+              return func ? (func.processChars || []).filter(c => c.name?.trim()).map(c => ({ id: c.id, name: String(c.name || '') })) : [];
             }
             return [];
           })()}
-          fmeaId={fmeaId}
-          parentCategory={modal.parentCategory}
+          config={modal.itemCode === 'B2' ? {
+            title: '작업요소기능(B2) 선택',
+            emoji: '🔧',
+            headerGradient: 'from-teal-500 to-cyan-600',
+            headerAccent: 'text-teal-200',
+            searchPlaceholder: '🔍 작업요소기능 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-teal-500',
+            searchBgGradient: 'from-teal-50 to-cyan-50',
+            parentLabel: '작업요소:',
+            parentValue: modal.workElementName || '',
+          } : {
+            title: '공정특성(B3) 선택',
+            emoji: '📊',
+            headerGradient: 'from-orange-500 to-amber-600',
+            headerAccent: 'text-orange-200',
+            searchPlaceholder: '🔍 공정특성 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-orange-500',
+            searchBgGradient: 'from-orange-50 to-amber-50',
+            parentLabel: '작업요소:',
+            parentValue: modal.workElementName || '',
+          }}
         />
       )}
 

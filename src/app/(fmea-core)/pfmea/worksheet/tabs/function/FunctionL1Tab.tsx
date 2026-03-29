@@ -18,9 +18,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { FunctionTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
-import DataSelectModal from '@/components/modals/DataSelectModal';
-import { L1FunctionSelectModal } from '../../L1FunctionSelectModal';
-import type { L1FunctionItem } from '../../useL1FunctionSelect';
+import { GenericItemSelectModal } from '../../GenericItemSelectModal';
+import type { GenericItem } from '../../useGenericItemSelect';
 import { AutoMappingPreviewModal } from '../../autoMapping';
 import { COLORS, uid, WorksheetState } from '../../constants';
 import { ensurePlaceholder } from '../../utils/safeMutate';
@@ -96,6 +95,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
     handleConfirm,
     handleEdit,
     handleToggleMode,
+    switchToManualMode,
     handleInlineEditRequirement,
     handleInlineEditFunction,
     handleSave,
@@ -532,7 +532,15 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
 
   const stateWithL1Types = useMemo(() => {
     const types = state.l1?.types || [];
-    if (types.length >= 3) return state;
+    if (types.length >= 3) {
+      // ★ YP → SP → USER 고정 순서 확인 — 이미 정렬되어있으면 원본 반환
+      const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
+      const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 9;
+      const alreadySorted = types.every((t: any, i: number) => i === 0 || getOrder(types[i - 1]) <= getOrder(t));
+      if (alreadySorted) return state;
+      const sorted = [...types].sort((a: any, b: any) => getOrder(a) - getOrder(b));
+      return { ...state, l1: { ...state.l1, types: sorted } };
+    }
     // types가 3개 미만이면 기본 YP/SP/USER로 보충
     return {
       ...state,
@@ -593,36 +601,42 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         </tbody>
       </table>
 
-      {/* ★ C1 구분 선택용 기존 DataSelectModal */}
+      {/* ★ C1 구분 선택 */}
       {modal && modal.itemCode === 'C1' && (
-        <DataSelectModal
+        <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          title={modal.title}
-          itemCode={modal.itemCode}
-          currentValues={(() => {
-            const types = state.l1?.types || [];
-            return types.filter((t: any) => t.name && t.name.trim()).map((t: any) => t.name);
-          })()}
-          singleSelect={false}
-          processName={formatL1Name(state.l1?.name)}
-          parentFunction={modal.parentFunction}
-          parentCategory={modal.parentCategory}
-          processNo={normalizeCategoryToProcessNo(modal.parentCategory)}
+          onSwitchToManualMode={switchToManualMode}
+          switchToManualToastMessage="1L 기능분석이 수동(Manual) 모드로 전환되었습니다. 항목명을 입력한 뒤 저장하세요."
+          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
+          itemCode="C1"
           fmeaId={fmeaId}
+          existingItems={(() => {
+            const types = state.l1?.types || [];
+            return types.filter((t: any) => t.name?.trim()).map((t: any) => ({ id: t.id, name: t.name }));
+          })()}
+          config={{
+            title: '구분(C1) 선택',
+            emoji: '🏷️',
+            headerGradient: 'from-slate-500 to-gray-600',
+            headerAccent: 'text-slate-200',
+            searchPlaceholder: '🔍 구분 검색 (YP/SP/USER)...',
+            searchRingColor: 'focus:ring-slate-500',
+            searchBgGradient: 'from-slate-50 to-gray-50',
+          }}
         />
       )}
 
-      {/* ★★★ 2026-03-27: C2 완제품기능 / C3 요구사항 전용 모달 (작업요소 패턴) ★★★ */}
+      {/* ★ C2 완제품기능 / C3 요구사항 */}
       {l1FuncModal && (
-        <L1FunctionSelectModal
+        <GenericItemSelectModal
           isOpen={l1FuncModal.isOpen}
           onClose={() => setL1FuncModal(null)}
-          onSave={(selectedItems: L1FunctionItem[]) => {
+          onSwitchToManualMode={switchToManualMode}
+          switchToManualToastMessage="1L 기능분석이 수동(Manual) 모드로 전환되었습니다. 항목명을 입력한 뒤 저장하세요."
+          onSave={(selectedItems: GenericItem[]) => {
             if (!l1FuncModal) return;
-            const { type, category, typeId, funcId, parentId } = l1FuncModal;
+            const { type, category, typeId, funcId } = l1FuncModal;
 
             const updateFn = (prev: WorksheetState) => {
               const newState = JSON.parse(JSON.stringify(prev));
@@ -630,7 +644,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
               const types = newState.l1.types || [];
               const typeIdx = types.findIndex((t: { id: string }) => t.id === typeId);
               if (typeIdx < 0) return prev;
-              
+
               if (type === 'C2') {
                 const currentFuncs = types[typeIdx].functions || [];
                 const picks = selectedItems.map(item => ({ id: item.id, name: item.name }));
@@ -645,7 +659,6 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
               } else {
                 const funcIdx = types[typeIdx].functions?.findIndex((f: { id: string }) => f.id === funcId) ?? -1;
                 if (funcIdx < 0) return prev;
-
                 const currentReqs = types[typeIdx].functions[funcIdx].requirements || [];
                 const picks = selectedItems.map(item => ({ id: item.id, name: item.name }));
                 const merged = mergeRowsByMasterSelection(currentReqs as any[], picks, {
@@ -657,50 +670,53 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
                 types[typeIdx].functions[funcIdx].requirements =
                   merged.length > 0 ? merged : [{ id: uid(), name: '' }];
               }
-              
+
               newState.l1.types = types;
               newState.l1Confirmed = false;
               return newState;
             };
-            
+
             if (setStateSynced) setStateSynced(updateFn);
             else setState(updateFn);
             setDirty(true);
             emitSave();
           }}
-          type={l1FuncModal.type}
+          itemCode={l1FuncModal.type}
           category={l1FuncModal.category}
-          parentId={l1FuncModal.parentId}
-          parentName={l1FuncModal.parentName}
+          fmeaId={fmeaId}
           existingItems={(() => {
             const types = state.l1?.types || [];
             const typeIdx = types.findIndex((t: any) => t.id === l1FuncModal.typeId);
             if (typeIdx < 0) return [];
-            
             if (l1FuncModal.type === 'C2') {
-              // 해당 구분의 기능 목록
-              return (types[typeIdx].functions || [])
-                .filter((f: any) => f.name?.trim())
-                .map((f: any) => ({
-                  id: f.id,
-                  name: f.name,
-                  category: l1FuncModal.category,
-                }));
+              return (types[typeIdx].functions || []).filter((f: any) => f.name?.trim()).map((f: any) => ({ id: f.id, name: f.name }));
             } else {
-              // 해당 기능의 요구사항 목록
               const funcIdx = types[typeIdx].functions?.findIndex((f: any) => f.id === l1FuncModal.funcId) ?? -1;
               if (funcIdx < 0) return [];
-              return (types[typeIdx].functions[funcIdx].requirements || [])
-                .filter((r: any) => r.name?.trim())
-                .map((r: any) => ({
-                  id: r.id,
-                  name: r.name,
-                  category: l1FuncModal.category,
-                  parentId: l1FuncModal.funcId,
-                }));
+              return (types[typeIdx].functions[funcIdx].requirements || []).filter((r: any) => r.name?.trim()).map((r: any) => ({ id: r.id, name: r.name }));
             }
           })()}
-          fmeaId={fmeaId}
+          config={l1FuncModal.type === 'C2' ? {
+            title: '완제품기능(C2) 선택',
+            emoji: '📋',
+            headerGradient: 'from-purple-500 to-purple-600',
+            headerAccent: 'text-purple-200',
+            searchPlaceholder: '🔍 완제품기능 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-purple-500',
+            searchBgGradient: 'from-purple-50 to-violet-50',
+            parentLabel: '구분:',
+            parentValue: l1FuncModal.category,
+          } : {
+            title: '요구사항(C3) 선택',
+            emoji: '📝',
+            headerGradient: 'from-red-500 to-red-600',
+            headerAccent: 'text-red-200',
+            searchPlaceholder: '🔍 요구사항 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-red-500',
+            searchBgGradient: 'from-red-50 to-rose-50',
+            parentLabel: '기능:',
+            parentValue: l1FuncModal.parentName || '',
+          }}
         />
       )}
 

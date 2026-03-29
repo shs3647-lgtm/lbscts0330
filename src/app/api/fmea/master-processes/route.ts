@@ -1,8 +1,8 @@
 /**
  * 마스터 FMEA 공정 목록 API
  * - GET: Master FMEA 기초정보에서 공정 목록 반환
- * - pfmea_master_flat_items 테이블에서 전체 공정 데이터 조회
- * - CP 자동 입력을 위한 전체 데이터 포함 (A~S열)
+ * - pfmea_master_flat_items에서 공정 목록용 A1·A2만 조회 (대형 BD 전체 스캔 방지)
+ * - 상세 CP 열은 PATCH/별도 API 경로 사용
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
@@ -40,9 +40,19 @@ async function buildProcessesFromDataset(
   datasetId: string
 ): Promise<Array<{ id: string; no: string; name: string; cpData: Record<string, string> }>> {
   if (!prisma) return [];
+  // ★ 공정 선택 모달용: A1(공정번호)·A2(공정명)만 조회 — 전체 flat 로드는 대형 BD에서 수만 행·타임아웃·무한 로딩에 가깝게 걸림
   const flatItems = await prisma.pfmeaMasterFlatItem.findMany({
-    where: { datasetId },
-    orderBy: { processNo: 'asc' },
+    where: {
+      datasetId,
+      itemCode: { in: ['A1', 'A2'] },
+    },
+    select: {
+      id: true,
+      processNo: true,
+      itemCode: true,
+      value: true,
+    },
+    orderBy: [{ processNo: 'asc' }, { itemCode: 'asc' }],
   });
 
   // ★★★ 2026-03-27: 실제 UUID 사용 — A2(공정명) 항목의 ID를 공정 ID로 사용 ★★★

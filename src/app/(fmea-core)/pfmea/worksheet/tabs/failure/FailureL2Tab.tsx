@@ -42,7 +42,8 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
-import DataSelectModal from '@/components/modals/DataSelectModal';
+import { GenericItemSelectModal } from '../../GenericItemSelectModal';
+import type { GenericItem } from '../../useGenericItemSelect';
 import { COLORS, uid, FONT_SIZES, FONT_WEIGHTS, WorksheetState } from '../../constants';
 import { ensurePlaceholder } from '../../utils/safeMutate';
 import { S, F, X, cell, cellP0, btnConfirm, btnEdit, btnDisabled, badgeOk, badgeConfirmed, badgeMissing, badgeCount } from '@/styles/worksheet';
@@ -1209,28 +1210,32 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
       </table>
 
       {modal && (
-        <DataSelectModal
+        <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          title={modal.title}
+          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
-          singleSelect={false} // [원자성] 여러 개 선택 가능, 각각 별도 행으로 저장!
-          processName={modal.processName}
-          parentFunction={modal.parentProductChar}
-          currentValues={(() => {
+          processNo={modal.processNo}
+          fmeaId={fmeaId}
+          existingItems={(() => {
             if (modal.type === 'l2FailureMode') {
               const proc = (state.l2 || []).find(p => p.id === modal.processId);
-              const allModes = proc?.failureModes || [];
-              const linkedModes = allModes.filter((m: any) => m.productCharId === modal.productCharId);
-              return linkedModes.map((m: any) => m.name);
+              const linkedModes = (proc?.failureModes || []).filter((m: any) => m.productCharId === modal.productCharId);
+              return linkedModes.filter((m: any) => m.name?.trim()).map((m: any) => ({ id: m.id, name: m.name }));
             }
             return [];
           })()}
-          processList={processList}
-          processNo={modal.processNo}  // ★ 공정번호 전달
-          onProcessChange={(newProcId) => setModal(modal ? { ...modal, processId: newProcId } : null)}
+          config={{
+            title: '고장형태(A5) 선택',
+            emoji: '⚠️',
+            headerGradient: 'from-purple-500 to-violet-600',
+            headerAccent: 'text-purple-200',
+            searchPlaceholder: '🔍 고장형태 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-purple-500',
+            searchBgGradient: 'from-purple-50 to-violet-50',
+            parentLabel: '공정:',
+            parentValue: [modal.processNo, modal.processName].filter(Boolean).join(' · '),
+          }}
         />
       )}
 

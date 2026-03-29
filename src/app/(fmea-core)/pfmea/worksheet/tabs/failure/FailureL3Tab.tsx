@@ -31,7 +31,8 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
-import DataSelectModal from '@/components/modals/DataSelectModal';
+import { GenericItemSelectModal } from '../../GenericItemSelectModal';
+import type { GenericItem } from '../../useGenericItemSelect';
 import { AutoMappingPreviewModal } from '../../autoMapping';
 import { COLORS, uid, FONT_SIZES, FONT_WEIGHTS, HEIGHTS, WorksheetState } from '../../constants';
 import { S, F, X, cell, cellP0, btnConfirm, btnEdit, btnDisabled, badgeOk, badgeConfirmed, badgeMissing, badgeCount } from '@/styles/worksheet';
@@ -1044,29 +1045,32 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
       </table>
 
       {modal && (
-        <DataSelectModal
+        <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          title={modal.title}
+          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
-          singleSelect={false}
-          currentValues={(() => {
+          processNo={processList.find(p => p.id === modal.processId)?.no}
+          fmeaId={fmeaId}
+          existingItems={(() => {
             if (modal.type === 'l3FailureCause') {
-              // ✅ 공정 레벨에서 해당 processCharId에 연결된 고장원인만 가져오기
               const proc = (state.l2 || []).find(p => p.id === modal.processId);
-              const allCauses = proc?.failureCauses || [];
-              return allCauses
-                .filter((c: any) => c.processCharId === modal.processCharId)
-                .map((c: any) => String(c.name || ''));
+              const linkedCauses = (proc?.failureCauses || []).filter((c: any) => c.processCharId === modal.processCharId);
+              return linkedCauses.filter((c: any) => c.name?.trim()).map((c: any) => ({ id: c.id, name: String(c.name || '') }));
             }
             return [];
           })()}
-          processName={processList.find(p => p.id === modal.processId)?.name}
-          workElementName={modal.processCharName || ''}  // ✅ 공정특성명 표시
-          processList={processList}
-          onProcessChange={(newProcId) => setModal(modal ? { ...modal, processId: newProcId } : null)}
+          config={{
+            title: '고장원인(B4) 선택',
+            emoji: '🔍',
+            headerGradient: 'from-blue-500 to-indigo-600',
+            headerAccent: 'text-blue-200',
+            searchPlaceholder: '🔍 고장원인 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-blue-500',
+            searchBgGradient: 'from-blue-50 to-indigo-50',
+            parentLabel: '공정특성:',
+            parentValue: modal.processCharName || '',
+          }}
         />
       )}
 

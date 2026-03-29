@@ -74,6 +74,7 @@ export function L1FunctionSelectModal(props: L1FunctionSelectModalProps) {
             <span className={`${headerAccent} text-[11px] font-bold`}>선택입력 :</span>
             <span>{typeEmoji}</span>
             <h2 className="text-[11px] font-bold">{typeLabel} 선택</h2>
+            <span className="px-1.5 py-0.5 text-[9px] font-bold bg-white/20 rounded border border-white/40">수동입력</span>
           </div>
           <button onClick={props.onClose} className="text-[10px] px-2 py-0.5 bg-red-500 hover:bg-red-600 text-white rounded font-bold">닫기</button>
         </div>

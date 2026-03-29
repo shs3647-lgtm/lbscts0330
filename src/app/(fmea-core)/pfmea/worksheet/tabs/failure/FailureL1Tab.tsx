@@ -44,7 +44,8 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom';
 import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
-import DataSelectModal from '@/components/modals/DataSelectModal';
+import { GenericItemSelectModal } from '../../GenericItemSelectModal';
+import type { GenericItem } from '../../useGenericItemSelect';
 import SODSelectModal from '@/components/modals/SODSelectModal';
 import { AutoMappingPreviewModal } from '../../autoMapping';
 import { COLORS, uid, FONT_SIZES, FONT_WEIGHTS, HEIGHTS, WorksheetState } from '../../constants';
@@ -1127,21 +1128,25 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
       </table>
 
       {modal && (
-        <DataSelectModal
+        <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          title={modal.title}
+          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
-          singleSelect={false} // [원자성] 여러 개 선택 가능, 각각 별도 행으로 저장!
-          currentValues={getCurrentValues()}
-          parentTypeName={modal.parentTypeName}
-          parentFunction={modal.parentFuncName}
-          parentReqName={modal.parentReqName}
-          parentCategory={modal.parentCategory}
-          processNo={modal.processNo}
+          category={modal.parentCategory}
           fmeaId={fmeaId}
+          existingItems={getCurrentValues().map((v: string, idx: number) => ({ id: `existing_${idx}`, name: v }))}
+          config={{
+            title: '고장영향(C4) 선택',
+            emoji: '💥',
+            headerGradient: 'from-red-500 to-rose-600',
+            headerAccent: 'text-red-200',
+            searchPlaceholder: '🔍 고장영향 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-red-500',
+            searchBgGradient: 'from-red-50 to-rose-50',
+            parentLabel: '구분:',
+            parentValue: [modal.parentCategory, modal.parentFuncName].filter(Boolean).join(' · '),
+          }}
         />
       )}
 

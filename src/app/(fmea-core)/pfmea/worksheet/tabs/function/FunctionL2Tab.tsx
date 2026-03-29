@@ -29,10 +29,9 @@ import { FunctionTabProps } from './types';
 import { cellP0 } from '@/styles/worksheet';
 import { handleEnterBlur } from '../../utils/keyboard';
 import SelectableCell from '@/components/worksheet/SelectableCell';
-import DataSelectModal from '@/components/modals/DataSelectModal';
+import { GenericItemSelectModal } from '../../GenericItemSelectModal';
+import type { GenericItem } from '../../useGenericItemSelect';
 import { emitSave } from '../../hooks/useSaveEvent';
-import { L2FunctionSelectModal } from '../../L2FunctionSelectModal';
-import type { L2FunctionItem } from '../../useL2FunctionSelect';
 import { mergeRowsByMasterSelection } from '../../utils/mergeRowsByMasterSelection';
 import { findLinkedProductCharsForFunction } from '../../utils/auto-link';
 import SpecialCharSelectModal from '@/components/modals/SpecialCharSelectModal';
@@ -673,51 +672,43 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         </tbody>
       </table>
 
+      {/* ★ A4 제품특성 선택 */}
       {modal && modal.type === 'l2ProductChar' && (
-        <DataSelectModal
+        <GenericItemSelectModal
           isOpen={!!modal}
           onClose={() => setModal(null)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          title={modal.title}
+          onSave={(items: GenericItem[]) => handleSave(items.map(i => i.name))}
           itemCode={modal.itemCode}
-          singleSelect={false}
-          processName={(state.l2 || []).find(p => p.id === modal.procId)?.name}
           processNo={(state.l2 || []).find(p => p.id === modal.procId)?.no}
-          processList={(state.l2 || []).map(p => ({ id: p.id, no: p.no, name: p.name }))}
-          onProcessChange={(procId) =>
-            setModal((prev: L2ProductCharModal | null) => (prev ? { ...prev, procId } : null))
-          }
-          currentValues={(() => {
-            const isPlaceholderName = (n: string) => !n?.trim();
+          fmeaId={fmeaId}
+          existingItems={(() => {
             const proc = (state.l2 || []).find(p => p.id === modal.procId);
             if (!proc) return [];
             const func = (proc.functions || []).find(f => f.id === modal.funcId);
-            return func ? (func.productChars || []).map(c => c.name).filter(n => !isPlaceholderName(n)) : [];
+            return func ? (func.productChars || []).filter(c => c.name?.trim()).map(c => ({ id: c.id, name: c.name })) : [];
           })()}
-          fmeaId={fmeaId}
+          config={{
+            title: '제품특성(A4) 선택',
+            emoji: '🔬',
+            headerGradient: 'from-emerald-500 to-green-600',
+            headerAccent: 'text-emerald-200',
+            searchPlaceholder: '🔍 제품특성 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-emerald-500',
+            searchBgGradient: 'from-emerald-50 to-green-50',
+            parentLabel: '공정:',
+            parentValue: [(state.l2 || []).find(p => p.id === modal.procId)?.no, (state.l2 || []).find(p => p.id === modal.procId)?.name].filter(Boolean).join(' · '),
+          }}
         />
       )}
 
+      {/* ★ A3 메인공정기능 선택 */}
       {l2FuncModal && (
-        <L2FunctionSelectModal
+        <GenericItemSelectModal
           isOpen={!!l2FuncModal}
           onClose={() => setL2FuncModal(null)}
-          processNo={l2FuncModal.processNo}
-          processName={l2FuncModal.processName}
-          fmeaId={fmeaId}
-          existingItems={
-            (state.l2 || [])
-              .find((p: any) => p.id === l2FuncModal.procId)
-              ?.functions?.filter((f: any) => f.name?.trim())
-              .map((f: any) => ({ id: f.id, name: f.name })) ?? []
-          }
-          onSave={(selectedItems: L2FunctionItem[]) => {
+          onSave={(selectedItems: GenericItem[]) => {
             const proc = (state.l2 || []).find((p: any) => p.id === l2FuncModal.procId);
-            if (!proc) {
-              setL2FuncModal(null);
-              return;
-            }
+            if (!proc) { setL2FuncModal(null); return; }
             const selectedNames = new Set(selectedItems.map((i) => i.name.trim()).filter(Boolean));
             const funcsToRemove = (proc.functions || []).filter((f: any) => {
               const nm = (f.name || '').trim();
@@ -728,31 +719,18 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
             );
             if (funcsWithChildren.length > 0) {
               const childCounts = funcsWithChildren
-                .map((f: any) => {
-                  const n = (f.productChars || []).filter((c: any) => (c.name || '').trim()).length;
-                  return `• ${f.name}: 제품특성 ${n}개`;
-                })
+                .map((f: any) => `• ${f.name}: 제품특성 ${(f.productChars || []).filter((c: any) => (c.name || '').trim()).length}개`)
                 .join('\n');
-              if (
-                !window.confirm(
-                  `⚠️ 적용에서 제외한 기능에 하위 데이터가 있습니다.\n\n${childCounts}\n\n제품특성도 함께 삭제됩니다. 계속할까요?`
-                )
-              ) {
-                return;
-              }
+              if (!window.confirm(`⚠️ 적용에서 제외한 기능에 하위 데이터가 있습니다.\n\n${childCounts}\n\n제품특성도 함께 삭제됩니다. 계속할까요?`)) return;
             }
 
             const picks = selectedItems.map((item) => ({ id: item.id, name: item.name }));
-            const currentFuncs = proc.functions || [];
-
             const updateFn = (prev: WorksheetState) => {
               const newState = JSON.parse(JSON.stringify(prev));
               const pIdx = newState.l2.findIndex((p: any) => p.id === l2FuncModal.procId);
               if (pIdx < 0) return prev;
               const p = newState.l2[pIdx];
-              const cfs = p.functions || [];
-
-              const merged = mergeRowsByMasterSelection(cfs as any[], picks, {
+              const merged = mergeRowsByMasterSelection(p.functions || [] as any[], picks, {
                 isEmpty: (f: any) => !f.name?.trim(),
                 patchNamed: (f: any, item) => ({ ...f, name: item.name }),
                 patchEmpty: (f: any, item) => ({ ...f, id: item.id, name: item.name }),
@@ -760,37 +738,41 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
                   const linkedChars = findLinkedProductCharsForFunction(prev, item.name);
                   const seenChars = new Set<string>();
                   const autoLinkedChars = linkedChars
-                    .filter((cn: string) => {
-                      if (seenChars.has(cn)) return false;
-                      seenChars.add(cn);
-                      return true;
-                    })
+                    .filter((cn: string) => { if (seenChars.has(cn)) return false; seenChars.add(cn); return true; })
                     .map((cn: string) => ({ id: uid(), name: cn, specialChar: null as string | null }));
-                  return {
-                    id: item.id,
-                    name: item.name,
-                    productChars:
-                      autoLinkedChars.length > 0
-                        ? autoLinkedChars
-                        : [{ id: uid(), name: '', specialChar: '' }],
-                  };
+                  return { id: item.id, name: item.name, productChars: autoLinkedChars.length > 0 ? autoLinkedChars : [{ id: uid(), name: '', specialChar: '' }] };
                 },
               });
-
-              p.functions =
-                merged.length > 0
-                  ? merged
-                  : [{ id: uid(), name: '', productChars: [{ id: uid(), name: '', specialChar: '' }] }];
+              p.functions = merged.length > 0 ? merged : [{ id: uid(), name: '', productChars: [{ id: uid(), name: '', specialChar: '' }] }];
               newState.l2[pIdx] = p;
               newState.l2Confirmed = false;
               return newState;
             };
-
             if (setStateSynced) setStateSynced(updateFn);
             else setState(updateFn);
             setDirty(true);
             setL2FuncModal(null);
             emitSave();
+          }}
+          itemCode="A3"
+          processNo={l2FuncModal.processNo}
+          fmeaId={fmeaId}
+          existingItems={
+            (state.l2 || [])
+              .find((p: any) => p.id === l2FuncModal.procId)
+              ?.functions?.filter((f: any) => f.name?.trim())
+              .map((f: any) => ({ id: f.id, name: f.name })) ?? []
+          }
+          config={{
+            title: '메인공정기능(A3) 선택',
+            emoji: '⚙️',
+            headerGradient: 'from-amber-500 to-orange-600',
+            headerAccent: 'text-amber-200',
+            searchPlaceholder: '🔍 메인공정기능 검색 또는 새 항목 입력...',
+            searchRingColor: 'focus:ring-amber-500',
+            searchBgGradient: 'from-amber-50 to-orange-50',
+            parentLabel: '공정:',
+            parentValue: [l2FuncModal.processNo, l2FuncModal.processName].filter(Boolean).join(' · '),
           }}
         />
       )}

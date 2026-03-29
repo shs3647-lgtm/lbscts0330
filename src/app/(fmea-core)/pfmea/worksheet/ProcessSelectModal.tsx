@@ -46,17 +46,31 @@ interface ProcessSelectModalProps {
   onSwitchToManualMode?: () => void;
 }
 
+const MASTER_PROCESSES_FETCH_MS = 28_000;
+
 // DB에서 마스터 FMEA 공정 로드 (4단계 fallback 체인 — API 레벨에서 처리)
-const loadMasterProcessesFromDB = async (fmeaId?: string): Promise<{
+const loadMasterProcessesFromDB = async (
+  fmeaId: string | undefined,
+  signal?: AbortSignal
+): Promise<{
   processes: ProcessItem[];
   sourceFmeaId?: string;
   datasetName?: string;
+  timedOut?: boolean;
 }> => {
+  const url = fmeaId
+    ? `/api/fmea/master-processes?fmeaId=${encodeURIComponent(fmeaId)}`
+    : '/api/fmea/master-processes';
+
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => timeoutController.abort(), MASTER_PROCESSES_FETCH_MS);
+
+  const combined = signal
+    ? { signal: AbortSignal.any([signal, timeoutController.signal]) as AbortSignal }
+    : { signal: timeoutController.signal };
+
   try {
-    const url = fmeaId
-      ? `/api/fmea/master-processes?fmeaId=${encodeURIComponent(fmeaId)}`
-      : '/api/fmea/master-processes';
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store', ...combined });
     if (res.ok) {
       const data = await res.json();
       return {
@@ -65,8 +79,21 @@ const loadMasterProcessesFromDB = async (fmeaId?: string): Promise<{
         datasetName: data.datasetName,
       };
     }
-  } catch (e) {
+  } catch (e: unknown) {
+    const name = e && typeof e === 'object' && 'name' in e ? (e as Error).name : '';
+    if (name === 'AbortError') {
+      if (signal?.aborted) {
+        return { processes: [] };
+      }
+      if (timeoutController.signal.aborted) {
+        console.error('[ProcessSelectModal] 마스터 공정 로드 시간 초과');
+        return { processes: [], timedOut: true };
+      }
+      return { processes: [] };
+    }
     console.error('마스터 공정 로드 실패:', e);
+  } finally {
+    clearTimeout(timer);
   }
   return { processes: [] };
 };
@@ -117,13 +144,16 @@ export default function ProcessSelectModal({
   useEffect(() => {
     if (!isOpen) return;
 
+    const ac = new AbortController();
     setLoading(true);
     setDataSource('');
 
     const loadData = async () => {
       try {
         // ★★★ 4단계 Fallback 체인 — API 레벨에서 처리 (master-processes route) ★★★
-        const result = await loadMasterProcessesFromDB(fmeaId);
+        const result = await loadMasterProcessesFromDB(fmeaId, ac.signal);
+        if (ac.signal.aborted) return;
+
         let loaded = result.processes;
 
         if (loaded.length > 0) {
@@ -133,6 +163,9 @@ export default function ProcessSelectModal({
             : 'Master FMEA (DB)';
           setDataSource(src);
           setSourceFmeaId(result.sourceFmeaId);
+        } else if (result.timedOut) {
+          setDataSource('로드 시간 초과 — 잠시 후 다시 시도');
+          setSourceFmeaId(undefined);
         } else {
           setDataSource('없음 - 직접 입력 필요');
           setSourceFmeaId(undefined);
@@ -160,10 +193,11 @@ export default function ProcessSelectModal({
         setProcesses(loaded);
         setSelectedIds(new Set());
       } catch (e) {
+        if (ac.signal.aborted) return;
         console.error('공정 데이터 로드 실패:', e);
         setDataSource('로드 실패');
       } finally {
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     };
 
@@ -172,6 +206,10 @@ export default function ProcessSelectModal({
     setEditingId(null);
     setContinuousMode(false);
     setAddedCount(0);
+
+    return () => {
+      ac.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 

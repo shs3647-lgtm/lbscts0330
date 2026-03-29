@@ -66,7 +66,9 @@ export async function getProjects(
   if (options?.isArchive) {
     whereClause.status = 'archived';
   } else if (!options?.includeDeleted) {
-    whereClause.status = 'active';
+    // ★ FIX: 'active'만 필터하면 승인/완료 등 다른 상태의 FMEA 누락
+    // archived만 제외하고 모든 status 표시 (active, approved, completed 등)
+    whereClause.status = { not: 'archived' };
   }
   if (targetId) whereClause.fmeaId = targetId;
   // ★ 2026-02-09: D/P 유형별 필터링
@@ -281,7 +283,9 @@ export async function getProjectsPaginated(
   if (options?.isArchive) {
     whereClause.status = 'archived';
   } else if (!options?.includeDeleted) {
-    whereClause.status = 'active';
+    // ★ FIX: 'active'만 필터하면 승인/완료 등 다른 상태의 FMEA 누락
+    // archived만 제외하고 모든 status 표시 (active, approved, completed 등)
+    whereClause.status = { not: 'archived' };
   }
 
   // 유형 필터 (P → P/F/M 포함)

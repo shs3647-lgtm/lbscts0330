@@ -387,6 +387,11 @@ export function useFunctionL1Handlers({
     await loadFromMaster();
   }, [isAutoMode, loadFromMaster]);
 
+  /** 선택입력 모달 "+수동입력" 더블클릭 → 마스터 로드 없이 수동만 (구조분석 모달과 동일) */
+  const switchToManualMode = useCallback(() => {
+    setIsAutoMode(false);
+  }, []);
+
   // ✅ 인라인 편집 - 요구사항 (+ 마스터 DB 동기화 + 중복 확인)
   const handleInlineEditRequirement = useCallback((typeId: string, funcId: string, reqId: string, newValue: string) => {
     // 카테고리 추출 (typeId에서)
@@ -761,6 +766,7 @@ export function useFunctionL1Handlers({
     handleConfirm,
     handleEdit,
     handleToggleMode,
+    switchToManualMode,
     handleInlineEditRequirement,
     handleInlineEditFunction,
     handleSave,
