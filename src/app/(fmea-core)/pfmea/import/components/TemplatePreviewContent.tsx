@@ -298,12 +298,21 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         ...parseStatistics,
         itemStats: filled.map(s => {
           let row = normalizeItemStatRow(s);
-          if (comp && rawAll) {
-            // ★ MBD-26-009: rawCount는 파서의 excelX* distinct 값 유지 (flatData 행수는 atomicToFlatData 구조에 따라 변동)
+          // ★ 2026-03-29: D코드는 failureChains에서 보강 (parseStatistics에 없으면 0)
+          if (s.itemCode.startsWith('D') && failureChains.length > 0 && row.rawCount === 0) {
+            const chainDCounts: Record<string, number> = {
+              D1: new Set(failureChains.map((c: any) => (c.feValue || '').trim()).filter(Boolean)).size,
+              D2: new Set(failureChains.map((c: any) => c.processNo).filter(Boolean)).size,
+              D3: new Set(failureChains.map((c: any) => `${c.processNo}|${c.fmValue}`).filter(Boolean)).size,
+              D4: new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}`).filter(Boolean)).size,
+              D5: new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}|${c.fcValue||''}`).filter(Boolean)).size,
+            };
+            const dCount = chainDCounts[s.itemCode] ?? 0;
+            row = normalizeItemStatRow({ ...row, rawCount: dCount, uniqueCount: dCount, dupSkipped: 0 });
+          } else if (comp && rawAll) {
             const u = comp[s.itemCode] ?? 0;
             row = normalizeItemStatRow({
               ...row,
-              // rawCount 유지 (excelX* distinct 값 = 원본과 동일)
               uniqueCount: u,
               dupSkipped: Math.max(0, row.rawCount - u),
             });
@@ -343,6 +352,20 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
       const uniqueKey = `${pno}\x1f${c}\x1f${v}\x1f${m4}\x1f${pid}`;
       entry.vals.add(uniqueKey);
     });
+
+    // ★ 2026-03-29: D코드는 flatData에 없으므로 failureChains에서 주입
+    if (failureChains.length > 0) {
+      const dCounts: Record<string, { raw: number; unique: Set<string> }> = {
+        D1: { raw: failureChains.length, unique: new Set(failureChains.map((c: any) => (c.feValue || '').trim()).filter(Boolean)) },
+        D2: { raw: failureChains.length, unique: new Set(failureChains.map((c: any) => c.processNo).filter(Boolean)) },
+        D3: { raw: failureChains.length, unique: new Set(failureChains.map((c: any) => `${c.processNo}|${c.fmValue}`).filter(Boolean)) },
+        D4: { raw: failureChains.length, unique: new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}`).filter(Boolean)) },
+        D5: { raw: failureChains.length, unique: new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}|${c.fcValue||''}`).filter(Boolean)) },
+      };
+      for (const [code, info] of Object.entries(dCounts)) {
+        codeCounts.set(code, { raw: info.unique.size, vals: info.unique });
+      }
+    }
 
     const itemStats: import('../excel-parser').ItemCodeStat[] = [];
     for (const [code] of ALL_CODES) {
@@ -428,17 +451,24 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
   const uuidCounts = useMemo(
     () => {
       const base = countFlatRowsByItemCode(flatData);
-      // ★ MBD-26-009: D 코드는 flatData에 없으므로 파서 stats에서 주입
+      // ★ 2026-03-29: D 코드는 flatData에 없으므로 파서 stats 또는 failureChains에서 주입
       if (positionParserStats) {
         base.D1 = positionParserStats.verifyD1FcFe ?? 0;
         base.D2 = positionParserStats.verifyD2FcProcess ?? 0;
         base.D3 = positionParserStats.verifyD3FcFm ?? 0;
         base.D4 = positionParserStats.verifyD4FcWorkElem ?? 0;
         base.D5 = positionParserStats.verifyD5FcFc ?? 0;
+      } else if (failureChains.length > 0) {
+        // failureChains에서 D코드 추출 (파서 stats 없을 때 fallback)
+        base.D1 = new Set(failureChains.map((c: any) => (c.feValue || '').trim()).filter(Boolean)).size;
+        base.D2 = new Set(failureChains.map((c: any) => c.processNo).filter(Boolean)).size;
+        base.D3 = new Set(failureChains.map((c: any) => `${c.processNo}|${c.fmValue}`).filter(Boolean)).size;
+        base.D4 = new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}`).filter(Boolean)).size;
+        base.D5 = new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}|${c.fcValue||''}`).filter(Boolean)).size;
       }
       return base;
     },
-    [flatData, positionParserStats],
+    [flatData, positionParserStats, failureChains],
   );
 
   /** 복합키 고유 수 — parentItemId·공정·m4까지 구분 (통계 고유와 불일치 시 누락·중복 점검) */
@@ -451,10 +481,16 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
         base.D3 = positionParserStats.verifyD3FcFm ?? 0;
         base.D4 = positionParserStats.verifyD4FcWorkElem ?? 0;
         base.D5 = positionParserStats.verifyD5FcFc ?? 0;
+      } else if (failureChains.length > 0) {
+        base.D1 = new Set(failureChains.map((c: any) => (c.feValue || '').trim()).filter(Boolean)).size;
+        base.D2 = new Set(failureChains.map((c: any) => c.processNo).filter(Boolean)).size;
+        base.D3 = new Set(failureChains.map((c: any) => `${c.processNo}|${c.fmValue}`).filter(Boolean)).size;
+        base.D4 = new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}`).filter(Boolean)).size;
+        base.D5 = new Set(failureChains.map((c: any) => `${c.processNo}|${c.m4||''}|${c.workElement||''}|${c.fcValue||''}`).filter(Boolean)).size;
       }
       return base;
     },
-    [flatData, positionParserStats],
+    [flatData, positionParserStats, failureChains],
   );
 
   /** FC 미리보기 열 헤더 — 복합키·통계 고유와 동일 척도(flat·parent·m4) */
