@@ -509,7 +509,7 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
     flatData,
     uuidCounts,
     undefined,
-    null,  // ★ entity count 기준 — parseExcelCounts(distinct)가 아닌 composite key blended 사용
+    verifyScaleRowCounts,  // ★ entity count 기준 — 파이프라인 척도로 DB 기대값 통일 (A5·B4·D3 오탐 해소)
   );
 
   // ★ MBD-26-009: D 코드 FK = FL의 broken FK 통계 (파서 stats에서)
@@ -1152,12 +1152,20 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                     >
                       <span className="line-clamp-4 break-words">{err.text}</span>
                     </td>
-                    {/* ★ 엑셀행수 (non-distinct total) */}
+                    {/* ★ 엑셀행수 (non-distinct total) — null이면 rawCount 폴백 */}
                     <td
                       className="px-1.5 py-0.5 text-center font-bold text-orange-800 border-r border-slate-200/80"
-                      title={`엑셀 총 행수 (non-distinct): ${parseExcelTotalCounts?.[s.itemCode] ?? '-'}`}
+                      title={parseExcelTotalCounts?.[s.itemCode] != null
+                        ? `엑셀 총 행수 (non-distinct): ${parseExcelTotalCounts[s.itemCode]}`
+                        : s.rawCount > 0
+                          ? `파싱 raw 행수(엑셀 직접 통계 없음): ${s.rawCount}`
+                          : '엑셀 통계 없음'}
                     >
-                      {parseExcelTotalCounts?.[s.itemCode] ?? <span className="text-gray-300">-</span>}
+                      {parseExcelTotalCounts?.[s.itemCode] != null
+                        ? parseExcelTotalCounts[s.itemCode]
+                        : s.rawCount > 0
+                          ? <span className="text-orange-500" title="파싱 raw (엑셀 직접 통계 없음)">{s.rawCount}</span>
+                          : <span className="text-gray-300">-</span>}
                     </td>
                     {/* ★ 원본 (distinct) */}
                     <td
@@ -1209,12 +1217,15 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
                         <span className="text-gray-300">-</span>
                       )}
                     </td>
-                    {/* ★ 중복 = 엑셀행수 - 원본(distinct) */}
+                    {/* ★ 중복 = 엑셀행수 - 원본(distinct), 폴백: rawCount - uniqueCount */}
                     <td className="px-1.5 py-0.5 text-center font-bold border-r border-slate-200/80">
                       {(() => {
-                        const total = parseExcelTotalCounts?.[s.itemCode] ?? 0;
-                        const distinct = excelN ?? 0;
-                        const dup = Math.max(0, total - distinct);
+                        const total = parseExcelTotalCounts?.[s.itemCode];
+                        const distinct = excelN;
+                        // 엑셀 직접 통계가 있으면 그걸로, 없으면 raw - unique 폴백
+                        const dup = (total != null && distinct != null)
+                          ? Math.max(0, total - distinct)
+                          : dupCanon;
                         return dup > 0 ? (
                           <button onClick={() => handleDupClick(s.itemCode)}
                             className={`px-1.5 rounded cursor-pointer font-bold ${
@@ -1279,14 +1290,14 @@ export function TemplatePreviewContent(props: TemplatePreviewContentProps) {
               <tr className="border-t-2 border-indigo-400 bg-indigo-100/90 font-semibold">
                 <td colSpan={3} className="px-1.5 py-0.5 font-bold text-indigo-900">합계</td>
                 <td className="px-1 py-0.5 text-[8px] text-indigo-700 border-r border-indigo-200/80">오류 행은 붉은/주황 셀 참고</td>
-                {/* 엑셀행수 합계 */}
+                {/* 엑셀행수 합계 — 폴백: rawCount 합 */}
                 <td className="px-1.5 py-0.5 text-center font-bold text-orange-800">
                   {parseExcelTotalCounts
                     ? effectiveStatistics.itemStats.reduce(
                         (acc, r) => acc + (parseExcelTotalCounts[r.itemCode] ?? 0),
                         0,
                       )
-                    : <span className="text-gray-400 font-normal">-</span>}
+                    : <span className="text-orange-500" title="파싱 raw 합계">{effectiveStatistics.itemStats.reduce((acc, r) => acc + r.rawCount, 0)}</span>}
                 </td>
                 {/* 원본(distinct) 합계 */}
                 <td className="px-1.5 py-0.5 text-center font-bold text-indigo-800">

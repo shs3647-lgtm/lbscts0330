@@ -31,6 +31,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   C2: 'C2-완제품기능',
   C3: 'C3-요구사항',
   C4: 'C4-고장영향',
+  FE2: 'C4-고장영향', // FE2 = C4 별칭 (프론트엔드 호환)
 };
 
 /** C1 하드코딩 폴백값 (DB에 없을 경우) */
@@ -40,9 +41,13 @@ const C1_HARDCODED_ITEMS = [
   { id: 'c1-user', name: 'USER', processNo: 'USER', category: 'USER' },
 ];
 
-/** C1/C2/C3 카테고리 기반 아이템인지 (processNo 필드에 카테고리 저장) */
+/** C1/C2/C3/C4 카테고리 기반 아이템인지 (processNo 필드에 카테고리 YP/SP/USER 저장) */
 const isCategoryBasedItem = (code: string): boolean =>
-  ['C1', 'C2', 'C3'].includes(code.toUpperCase());
+  ['C1', 'C2', 'C3', 'C4'].includes(code.toUpperCase());
+
+/** ★ itemCode 별칭 통합 관리 — 프론트엔드↔DB 코드 불일치 해소 */
+const ITEM_CODE_ALIAS: Record<string, string> = { FE2: 'C4', FC1: 'B4' };
+const resolveItemCode = (raw: string): string => ITEM_CODE_ALIAS[raw] || raw;
 
 /* ---------- resolveDataset: l2-functions/route.ts 와 동일 패턴 ---------- */
 /**
@@ -172,7 +177,8 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url);
-  const itemCode = (searchParams.get('itemCode') || '').trim().toUpperCase();
+  const rawItemCode = (searchParams.get('itemCode') || '').trim().toUpperCase();
+  const itemCode = resolveItemCode(rawItemCode);
   const fmeaId = (searchParams.get('fmeaId') || '').trim();
   const processNo = (searchParams.get('processNo') || '').trim();
   const category = (searchParams.get('category') || '').trim();
@@ -355,7 +361,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const fmeaId = (body.fmeaId || '') as string;
-    const itemCode = ((body.itemCode || '') as string).trim().toUpperCase();
+    const rawPostCode = ((body.itemCode || '') as string).trim().toUpperCase();
+    const itemCode = resolveItemCode(rawPostCode);
     const processNoRaw = (body.processNo || '') as string;
     const category = (body.category || '') as string;
     const name = (body.name || '') as string;
@@ -472,7 +479,8 @@ export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json();
     const ids: string[] = body.ids || [];
-    const itemCode = ((body.itemCode || '') as string).trim().toUpperCase();
+    const rawDelCode = ((body.itemCode || '') as string).trim().toUpperCase();
+    const itemCode = resolveItemCode(rawDelCode);
 
     if (!ids.length) {
       return NextResponse.json(
