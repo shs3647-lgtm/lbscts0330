@@ -1,4 +1,12 @@
 /**
+ * @status CODEFREEZE L4 (Pipeline Protection) u{1F512}
+ * @freeze_level L4 (Critical - DFMEA Pre-Development Snapshot)
+ * @frozen_date 2026-03-30
+ * @snapshot_tag codefreeze-v5.0-pre-dfmea-20260330
+ * @allowed_changes NONE ???ъ슜??紐낆떆???뱀씤 + full test pass ?꾩닔
+ * @manifest CODEFREEZE_PIPELINE_MANIFEST.md
+ */
+/**
  * @file validate-fk-doors.ts
  * @description FK 문 잠금 검증 — CP/PFD 꽂아넣기 전 모든 FK가 실제 존재하는지 확인
  *

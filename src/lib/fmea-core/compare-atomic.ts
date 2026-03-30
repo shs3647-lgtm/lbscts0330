@@ -1,4 +1,12 @@
 /**
+ * @status CODEFREEZE L4 (Pipeline Protection) u{1F512}
+ * @freeze_level L4 (Critical - DFMEA Pre-Development Snapshot)
+ * @frozen_date 2026-03-30
+ * @snapshot_tag codefreeze-v5.0-pre-dfmea-20260330
+ * @allowed_changes NONE ???ъ슜??紐낆떆???뱀씤 + full test pass ?꾩닔
+ * @manifest CODEFREEZE_PIPELINE_MANIFEST.md
+ */
+/**
  * @file compare-atomic.ts
  * 역설계 Import 시스템 — Phase 2: 원본↔결과 비교 로직
  * 설계서: docs/REVERSE_ENGINEERING_IMPORT_SYSTEM.md §9.1 V01~V08
