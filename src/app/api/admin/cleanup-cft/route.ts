@@ -23,9 +23,9 @@ export async function POST(request: NextRequest) {
     // 1. APQP CFT 멤버 정리 (이름이 null이거나 빈 문자열인 경우)
     const allApqpMembers = await prisma.apqpCftMember.findMany();
     const apqpIdsToDelete = allApqpMembers
-      .filter(m => !m.name || m.name.trim() === '')
-      .map(m => m.id);
-    
+      .filter((m: any) => !m.name || m.name.trim() === '')
+      .map((m: any) => m.id);
+
     const apqpDeleted = apqpIdsToDelete.length > 0
       ? await prisma.apqpCftMember.deleteMany({
           where: { id: { in: apqpIdsToDelete } }
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     // 2. CP CFT 멤버 정리
     const allCpMembers = await prisma.cpCftMember.findMany();
     const cpIdsToDelete = allCpMembers
-      .filter(m => !m.name || m.name.trim() === '')
-      .map(m => m.id);
+      .filter((m: any) => !m.name || m.name.trim() === '')
+      .map((m: any) => m.id);
     
     const cpDeleted = cpIdsToDelete.length > 0
       ? await prisma.cpCftMember.deleteMany({

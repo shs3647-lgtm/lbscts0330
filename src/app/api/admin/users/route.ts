@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
         });
 
         // 로그인 타입을 email로 기본 설정 
-        const usersWithType = users.map(u => ({
+        const usersWithType = users.map((u: any) => ({
             ...u,
             loginType: 'email' as const,
             customer: u.factory || '전체',

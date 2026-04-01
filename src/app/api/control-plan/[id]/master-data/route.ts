@@ -49,10 +49,10 @@ export async function GET(
     }> = [];
 
     // Map 기반 룩업 생성 (N² array.find() → O(1) Map.get())
-    const detectorMap = new Map(detectors.map(d => [d.processNo, d]));
-    const controlItemMap = new Map(controlItems.map(c => [c.processNo, c]));
-    const controlMethodMap = new Map(controlMethods.map(m => [m.processNo, m]));
-    const reactionPlanMap = new Map(reactionPlans.map(r => [r.processNo, r]));
+    const detectorMap = new Map(detectors.map((d: any) => [d.processNo, d]));
+    const controlItemMap = new Map(controlItems.map((c: any) => [c.processNo, c]));
+    const controlMethodMap = new Map(controlMethods.map((m: any) => [m.processNo, m]));
+    const reactionPlanMap = new Map(reactionPlans.map((r: any) => [r.processNo, r]));
 
     // processNo 기준으로 정렬
     const sortedProcesses = [...processes].sort((a, b) => {

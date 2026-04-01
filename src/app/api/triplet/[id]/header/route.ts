@@ -135,7 +135,7 @@ export async function PATCH(
       return NextResponse.json({ success: true, message: 'No fields to update' });
     }
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // TripletGroup 업데이트 + version 증가
       await tx.tripletGroup.update({
         where: { id },

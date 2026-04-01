@@ -58,7 +58,7 @@ export async function POST(
 
     const newDocId = generateLazyDocId(docKind, parsed.typeCode, parsed.serial, triplet.linkGroup);
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       if (docKind === 'cp') {
         await tx.cpRegistration.create({
           data: {

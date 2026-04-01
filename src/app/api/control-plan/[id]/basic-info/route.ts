@@ -46,7 +46,7 @@ export async function GET(
         // 공정 목록 추출 (A1, A2)
         const processMap = new Map<string, { no: string; name: string }>();
 
-        flatItems.forEach(item => {
+        flatItems.forEach((item: any) => {
             if (item.itemCode === 'A1' && item.value) {
                 const processNo = item.value.trim();
                 if (!processMap.has(processNo)) {
@@ -62,7 +62,7 @@ export async function GET(
         });
 
         // flatData 형식으로 변환
-        const flatData = flatItems.map(item => ({
+        const flatData = flatItems.map((item: any) => ({
             processNo: item.processNo || '',
             category: item.category || '',
             itemCode: item.itemCode || '',
@@ -84,7 +84,7 @@ export async function GET(
             }));
 
         // 카테고리별 통계
-        const categoryCounts = flatItems.reduce((acc, item) => {
+        const categoryCounts = flatItems.reduce((acc: Record<string, number>, item: any) => {
             acc[item.category] = (acc[item.category] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);

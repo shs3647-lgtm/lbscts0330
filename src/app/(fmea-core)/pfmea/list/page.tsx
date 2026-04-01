@@ -437,7 +437,11 @@ export default function PFMEAListPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fmeaId: id, deleteModules: selectedModules })
         });
-        const data1 = await res1.json();
+        if (!res1.ok) {
+          const err = await res1.json().catch(() => ({}));
+          console.error(`[삭제] ${id} 프로젝트 삭제 실패:`, err.error || res1.statusText);
+          return { id, success: false };
+        }
 
         // 2. 워크시트 데이터 삭제
         const res2 = await fetch('/api/fmea', {
@@ -445,8 +449,11 @@ export default function PFMEAListPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fmeaId: id })
         });
+        if (!res2.ok) {
+          console.error(`[삭제] ${id} 워크시트 삭제 실패:`, res2.statusText);
+        }
 
-        return { id, success: res1.ok };
+        return { id, success: true };
       } catch (e) {
         console.error(`[삭제] ${id} 오류:`, e);
         return { id, success: false };
@@ -459,7 +466,13 @@ export default function PFMEAListPage() {
     const failCount = results.filter(r => !r.success).length;
 
     // ★★★ DB에서 새로 로드 (핵심!) ★★★
-    await loadData();
+    // 삭제 후 현재 페이지가 비었으면 이전 페이지로 이동
+    const remainingOnPage = projects.length - successCount;
+    if (remainingOnPage <= 0 && page > 1) {
+      setPage(page - 1);
+    } else {
+      await loadData();
+    }
     clearSelection();
 
     if (failCount > 0) {

@@ -592,7 +592,7 @@ export async function createOrUpdateProject(data: CreateProjectData): Promise<vo
 
   const { parentId, parentType } = determineParentInfo(fmeaId, fmeaType, parentFmeaId, parentFmeaType);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     // 1. fmea_projects 테이블 저장/수정
     const projectResult = await tx.fmeaProject.upsert({
       where: { fmeaId },
@@ -929,24 +929,13 @@ export async function deleteProject(
     }
   }
 
-  // ★★★ 핵심 수정: 소문자로 정규화하여 검색 ★★★
-  const normalizedId = fmeaId.toLowerCase();
-
-  // ★ 소문자 정규화된 ID로 직접 검색 (mode: insensitive 제거)
-  let targetProject = await prisma.fmeaProject.findUnique({
-    where: { fmeaId: normalizedId }
+  // ★★★ 대소문자 무관 검색 (mode: insensitive) ★★★
+  let targetProject = await prisma.fmeaProject.findFirst({
+    where: { fmeaId: { equals: fmeaId, mode: 'insensitive' } }
   });
 
-  // ★ 소문자로 못 찾으면 원본 ID로 재시도
   if (!targetProject) {
-    targetProject = await prisma.fmeaProject.findUnique({
-      where: { fmeaId: fmeaId }
-    });
-  }
-
-  if (!targetProject) {
-    // 에러 대신 조용히 성공 처리 (멱등성)
-    return;
+    throw new Error(`FMEA 프로젝트를 찾을 수 없습니다: ${fmeaId}`);
   }
 
   const actualFmeaId = targetProject.fmeaId;

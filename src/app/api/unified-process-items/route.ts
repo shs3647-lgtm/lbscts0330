@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 트랜잭션으로 일괄 저장
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: any) => {
             const created = [];
 
             for (let i = 0; i < items.length; i++) {

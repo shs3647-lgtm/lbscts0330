@@ -181,7 +181,7 @@ async function createMasterTriplet(
   const serials = calcMFSerials(pfmeaIds, cpIds, pfdIds, typeCode, tgIds);
   const ids = generateMFTripletIds('m', serials);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
@@ -347,7 +347,7 @@ async function createFamilyTriplet(
       })
     : null;
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
@@ -500,7 +500,7 @@ async function createPartTriplet(
 
   const yearStr = new Date().getFullYear().toString().slice(-2);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
@@ -623,7 +623,7 @@ async function createFamilyTripletShell(
 ) {
   const yearStr = new Date().getFullYear().toString().slice(-2);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
@@ -743,7 +743,7 @@ async function createPartTripletShell(
   const yearStr = new Date().getFullYear().toString().slice(-2);
   const subjectName = `#${index}`;
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.tripletGroup.create({
       data: {
         id: ids.tripletGroupId,
