@@ -3,8 +3,14 @@
  * 분류별 10건씩: RMA, ABN, CIP, ECN, DevIssue (총 50건)
  */
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 
-const prisma = new PrismaClient();
+const url = process.env.DATABASE_URL;
+if (!url) { console.error('❌ DATABASE_URL 환경변수가 설정되지 않았습니다.'); process.exit(1); }
+const pool = new pg.Pool({ connectionString: url });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 const SEED_DATA = [
   // ═══════════════════════════════════════
