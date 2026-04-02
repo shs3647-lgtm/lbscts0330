@@ -95,7 +95,15 @@ export function normalizeL1TypeNameToKey(name: string | undefined): ScopeCode | 
   return normalizeScope(name);
 }
 
-/** 누락 건수 계산 */
+/**
+ * 누락 건수 계산
+ *
+ * ★★★ 2026-04-03 리팩토링: isPlaceholder 단일 기준 통일 ★★★
+ * - filterMeaningfulFunctions/Requirements 와 동일한 isPlaceholder 기준 사용
+ * - isMissing(tabUtils) 패턴매칭('입력','선택' 등) 사용 금지 → ghost-counting 근절
+ * - 누락 = 필수 구분(scope) 미존재만 카운트
+ * - 미입력 기능/요구사항은 '미시작'으로 간주 (누락 아님)
+ */
 export const calculateMissingCounts = (
   types: Array<{
     name?: string;
@@ -104,14 +112,13 @@ export const calculateMissingCounts = (
       requirements?: Array<{ name?: string }>;
     }>;
   }>,
-  isMissingFn: (val: string | undefined) => boolean,
+  _isMissingFn: (val: string | undefined) => boolean,
   isDfmea = false
 ): { functionCount: number; requirementCount: number; total: number } => {
   let functionCount = 0;
-  let requirementCount = 0;
+  const requirementCount = 0;
 
   const meaningfulTypes = filterMeaningfulTypes(types || []);
-  // ★★★ 2026-03-22: 풀네임(Your Plant 등)과 약어(YP) 혼재 — 정규화 후 필수 구분 검사
   const presentKeys = new Set<string>();
   meaningfulTypes.forEach(t => {
     const k = normalizeL1TypeNameToKey(t.name);
@@ -120,40 +127,8 @@ export const calculateMissingCounts = (
   const requiredTypes = getRequiredScopes(isDfmea);
   requiredTypes.forEach(req => {
     if (!presentKeys.has(req)) {
-      functionCount += 1; // 필수 구분 누락
-    }
-  });
-
-  meaningfulTypes.forEach(t => {
-    const meaningfulFunctions = filterMeaningfulFunctions(t.functions || []);
-
-    // YP/SP: 기능 최소 1개 필수, USER: N/A도 허용
-    if (meaningfulFunctions.length === 0) {
       functionCount += 1;
     }
-
-    meaningfulFunctions.forEach(f => {
-      const funcName = (f.name || '').trim();
-      // USER 타입의 N/A는 유효한 값으로 인정
-      const isNA = funcName.toUpperCase() === 'N/A';
-      if (!isNA && isMissingFn(f.name)) functionCount++;
-
-      const meaningfulReqs = filterMeaningfulRequirements(f.requirements || []);
-
-      // 상위레벨(기능) 입력 시 하위레벨(요구사항) 최소 1개 필수
-      // USER의 N/A 기능은 요구사항도 N/A면 통과
-      if (!isMissingFn(f.name) || isNA) {
-        if (meaningfulReqs.length === 0 && !isNA) {
-          requirementCount += 1;
-        }
-      }
-
-      // 요구사항 이름 체크 (N/A는 유효)
-      meaningfulReqs.forEach(r => {
-        const reqName = (r.name || '').trim();
-        if (reqName.toUpperCase() !== 'N/A' && isMissingFn(r.name)) requirementCount++;
-      });
-    });
   });
 
   return { functionCount, requirementCount, total: functionCount + requirementCount };
