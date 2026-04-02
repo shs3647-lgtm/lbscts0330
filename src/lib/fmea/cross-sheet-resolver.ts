@@ -57,33 +57,69 @@ export class CrossSheetResolver {
   private l2RowToL2StructId = new Map<number, string>();
   private l3RowToL3StructId = new Map<number, string>();
 
-  // ★v5.1: 정규화 텍스트 → {id, l2/l3StructId} 맵
-  private feTextMap = new Map<string, { feId: string }>();
-  private fmTextMap = new Map<string, { fmId: string; l2StructId: string }>();
-  private fcTextMap = new Map<string, { fcId: string; l3StructId: string }>();
-  private fcLooseMap = new Map<string, { fcId: string; l3StructId: string }>();
+  /**
+   * ★★★ FE 복합키 정책 (2026-04-03) ★★★
+   * key = scope::feText
+   * value = Array — 같은 scope+feText라도 feId가 다르면 ALL 등록
+   * 공정번호가 다르면 scope가 달라 키 자동 구분.
+   */
+  private feTextMap = new Map<string, Array<{ feId: string }>>();
+  /**
+   * ★★★ FM 복합키 정책 (2026-04-03) ★★★
+   * key = processNo::fmText
+   * value = Array — 같은 processNo+fmText라도 fmId가 다르면 ALL 등록
+   *
+   * 근거: 같은 L2 내에 P06-02(압출 SIDE)와 P06-03(REWORK)처럼
+   * 공정번호가 다른 동일 FM 텍스트가 존재할 수 있다.
+   * 복합키(processNo+fmText)가 같아도 fmId가 다르면 별도 엔티티 → 제거 금지.
+   * 공정번호가 다르면 키 자체가 달라 자동 구분된다.
+   */
+  private fmTextMap = new Map<string, Array<{ fmId: string; l2StructId: string }>>();
+  /**
+   * ★★★ FC 복합키 정책 (2026-04-03) ★★★
+   * fcTextMap key = pno::m4::we::fcText (정밀), fcLooseMap key = pno::fcText (느슨)
+   * value = Array — 같은 키라도 fcId가 다르면(= parentId N-1이 다름) ALL 등록
+   * 상위가 다르면 중복제외 금지.
+   */
+  private fcTextMap = new Map<string, Array<{ fcId: string; l3StructId: string }>>();
+  private fcLooseMap = new Map<string, Array<{ fcId: string; l3StructId: string }>>();
 
+  /**
+   * ★★★ 복합키 정책: 같은 scope+feText라도 feId가 다르면 모두 등록 ★★★
+   */
   registerFE(row: number, feId: string, feText?: string, scope?: string): void {
     this.l1RowToFeId.set(row, feId);
     if (feText) {
       const key = `${normalizeText(scope || '')}::${normalizeText(feText)}`;
-      if (!this.feTextMap.has(key)) {
-        this.feTextMap.set(key, { feId });
+      if (!this.feTextMap.has(key)) this.feTextMap.set(key, []);
+      const arr = this.feTextMap.get(key)!;
+      if (!arr.some(e => e.feId === feId)) {
+        arr.push({ feId });
       }
     }
   }
 
+  /**
+   * ★★★ 복합키 정책: 같은 processNo+fmText라도 fmId가 다르면 모두 등록 ★★★
+   * 공정번호가 다르면 키 자체가 달라 자동 구분.
+   * 같은 공정 내 동일 텍스트 FM → 행 번호 Level 1 매칭이 우선이므로 모두 등록해야 누락 없음.
+   */
   registerFM(row: number, fmId: string, fmText?: string, processNo?: string, l2StructId?: string): void {
     this.l2RowToFmId.set(row, fmId);
     if (l2StructId) this.l2RowToL2StructId.set(row, l2StructId);
     if (fmText && processNo) {
       const key = `${processNo.trim()}::${normalizeText(fmText)}`;
-      if (!this.fmTextMap.has(key)) {
-        this.fmTextMap.set(key, { fmId, l2StructId: l2StructId || '' });
+      if (!this.fmTextMap.has(key)) this.fmTextMap.set(key, []);
+      const arr = this.fmTextMap.get(key)!;
+      if (!arr.some(e => e.fmId === fmId)) {
+        arr.push({ fmId, l2StructId: l2StructId || '' });
       }
     }
   }
 
+  /**
+   * ★★★ 복합키 정책: 같은 키라도 fcId가 다르면 모두 등록 (parentId N-1 원칙) ★★★
+   */
   registerFC(
     row: number, fcId: string, fcText?: string, processNo?: string,
     m4?: string, we?: string, l3StructId?: string,
@@ -92,12 +128,17 @@ export class CrossSheetResolver {
     if (l3StructId) this.l3RowToL3StructId.set(row, l3StructId);
     if (fcText && processNo) {
       const preciseKey = `${processNo.trim()}::${normalizeText(m4 || '')}::${normalizeText(we || '')}::${normalizeText(fcText)}`;
-      if (!this.fcTextMap.has(preciseKey)) {
-        this.fcTextMap.set(preciseKey, { fcId, l3StructId: l3StructId || '' });
+      if (!this.fcTextMap.has(preciseKey)) this.fcTextMap.set(preciseKey, []);
+      const preciseArr = this.fcTextMap.get(preciseKey)!;
+      if (!preciseArr.some(e => e.fcId === fcId)) {
+        preciseArr.push({ fcId, l3StructId: l3StructId || '' });
       }
+
       const looseKey = `${processNo.trim()}::${normalizeText(fcText)}`;
-      if (!this.fcLooseMap.has(looseKey)) {
-        this.fcLooseMap.set(looseKey, { fcId, l3StructId: l3StructId || '' });
+      if (!this.fcLooseMap.has(looseKey)) this.fcLooseMap.set(looseKey, []);
+      const looseArr = this.fcLooseMap.get(looseKey)!;
+      if (!looseArr.some(e => e.fcId === fcId)) {
+        looseArr.push({ fcId, l3StructId: l3StructId || '' });
       }
     }
   }
@@ -115,6 +156,9 @@ export class CrossSheetResolver {
     };
   }
 
+  /**
+   * ★★★ 복합키 정책: 배열에서 첫 번째 매칭 반환, Level 1(행번호) 우선 ★★★
+   */
   private resolveFE(ref: CrossSheetRef): string {
     // Level 1: 행번호 직접 매칭
     if (ref.l1Row && this.l1RowToFeId.has(ref.l1Row)) {
@@ -125,16 +169,20 @@ export class CrossSheetResolver {
       // Level 2: scope + FE 텍스트 정확 매칭
       const key = `${normalizeText(ref.feScope || '')}::${normFE}`;
       const found = this.feTextMap.get(key);
-      if (found) return found.feId;
+      if (found && found.length > 0) return found[0].feId;
       // Level 3: scope 무시, FE 텍스트 정확 매칭 (FE는 공정 구분 없으므로 허용)
       for (const [k, v] of this.feTextMap) {
-        if (k.split('::')[1] === normFE) return v.feId;
+        if (k.split('::')[1] === normFE && v.length > 0) return v[0].feId;
       }
-      // ★v5.1: 부분 포함 매칭 제거 — 거짓 연결 방지 (Rule 1.7)
     }
     return '';
   }
 
+  /**
+   * ★★★ 복합키 정책: fmTextMap이 배열이므로 첫 번째 매칭 반환 ★★★
+   * Level 1 (행번호) 우선 → Level 2 (processNo::fmText) 배열[0]
+   * 같은 processNo+fmText에 여러 FM이 있으면 행번호(Level 1)로 정확히 구분해야 한다.
+   */
   private resolveFM(ref: CrossSheetRef): { fmId: string; l2StructId: string } {
     // Level 1: 행번호 직접 매칭 (가장 정확)
     if (ref.l2Row && this.l2RowToFmId.has(ref.l2Row)) {
@@ -147,20 +195,20 @@ export class CrossSheetResolver {
         // Level 2a: 정확 매칭 (공정번호 원본 + FM)
         const key = `${pno}::${normFM}`;
         const found = this.fmTextMap.get(key);
-        if (found) return found;
+        if (found && found.length > 0) return found[0];
 
         // Level 2b: 공정번호 정규화 재시도 (선행0 제거: "035"→"35")
         const normPno = String(parseInt(pno, 10));
         if (normPno !== pno && !isNaN(parseInt(pno, 10))) {
           const normKey = `${normPno}::${normFM}`;
           const normFound = this.fmTextMap.get(normKey);
-          if (normFound) return normFound;
+          if (normFound && normFound.length > 0) return normFound[0];
         }
         // Level 2c: 등록된 키에서 정규화된 공정번호가 일치하는 것 탐색
         for (const [k, v] of this.fmTextMap) {
           const [regPno, regFM] = k.split('::');
-          if (regFM === normFM && String(parseInt(regPno, 10)) === normPno) {
-            return v;
+          if (regFM === normFM && String(parseInt(regPno, 10)) === normPno && v.length > 0) {
+            return v[0];
           }
         }
       }
@@ -175,15 +223,23 @@ export class CrossSheetResolver {
    * ★ MBD-26-009: FC 시트 파싱 중 (processNo+FM) 복합키로 FM 미발견 시 새 FM 등록
    * L2 시트에 없는 (processNo+FM) 조합이 FC 시트에 있으면 자동 생성
    */
+  /**
+   * ★ 복합키 정책: 같은 키라도 fmId가 다르면 신규 등록 (제거 금지)
+   */
   registerFMIfNew(processNo: string, fmText: string, fmId: string, l2StructId: string): boolean {
     const pno = processNo.trim();
     const normFM = normalizeText(fmText);
     const key = `${pno}::${normFM}`;
-    if (this.fmTextMap.has(key)) return false; // 이미 존재
-    this.fmTextMap.set(key, { fmId, l2StructId });
-    return true; // 신규 등록됨
+    if (!this.fmTextMap.has(key)) this.fmTextMap.set(key, []);
+    const arr = this.fmTextMap.get(key)!;
+    if (arr.some(e => e.fmId === fmId)) return false;
+    arr.push({ fmId, l2StructId });
+    return true;
   }
 
+  /**
+   * ★★★ 복합키 정책: 배열에서 첫 번째 매칭 반환, Level 1(행번호) 우선 ★★★
+   */
   private resolveFC(ref: CrossSheetRef): { fcId: string; l3StructId: string } {
     // Level 1: 행번호 직접 매칭
     if (ref.l3Row && this.l3RowToFcId.has(ref.l3Row)) {
@@ -195,19 +251,19 @@ export class CrossSheetResolver {
       // Level 2: 정밀 매칭 (공정+m4+WE+FC)
       const preciseKey = `${pno}::${normalizeText(ref.m4 || '')}::${normalizeText(ref.weText || '')}::${normFC}`;
       const preciseFound = this.fcTextMap.get(preciseKey);
-      if (preciseFound) return preciseFound;
+      if (preciseFound && preciseFound.length > 0) return preciseFound[0];
       // Level 3: Loose 매칭 (공정+FC)
       const looseKey = `${pno}::${normFC}`;
       const looseFound = this.fcLooseMap.get(looseKey);
-      if (looseFound) return looseFound;
+      if (looseFound && looseFound.length > 0) return looseFound[0];
 
       // Level 3b: 공정번호 정규화 재시도 (선행0 제거)
       const normPno = String(parseInt(pno, 10));
       if (normPno !== pno && !isNaN(parseInt(pno, 10))) {
         for (const [k, v] of this.fcLooseMap) {
           const [regPno, regFC] = k.split('::');
-          if (regFC === normFC && String(parseInt(regPno, 10)) === normPno) {
-            return v;
+          if (regFC === normFC && String(parseInt(regPno, 10)) === normPno && v.length > 0) {
+            return v[0];
           }
         }
       }
@@ -219,7 +275,7 @@ export class CrossSheetResolver {
     if (ref.fcText) {
       const normFC = normalizeText(ref.fcText);
       for (const [k, v] of this.fcLooseMap) {
-        if (k.split('::')[1] === normFC) return v;
+        if (k.split('::')[1] === normFC && v.length > 0) return v[0];
       }
     }
     return { fcId: '', l3StructId: '' };

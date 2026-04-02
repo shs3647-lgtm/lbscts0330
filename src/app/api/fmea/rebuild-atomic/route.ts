@@ -785,6 +785,57 @@ export async function POST(request: NextRequest) {
               // ★ FL 리프레시 (DB에서 최신 상태 로드)
               atomic.failureLinks = await tx.failureLink.findMany({ where: { fmeaId } });
 
+              // --- B-2) Orphan FM FL 보충 (일부 FM만 FL 0건인 경우) ---
+              // ★ 2026-04-03: 공정번호가 다른 동일 텍스트 FM이 FL 누락되는 문제 해결
+              // 예: P06-02 "길이 부족"(FL 3건) vs P06-03 "길이 부족"(FL 0건) → 후자 보충
+              {
+                const flFmIds = new Set(atomic.failureLinks.map((fl: any) => fl.fmId));
+                const orphanFMs = atomic.failureModes.filter((fm: any) => !flFmIds.has(fm.id));
+
+                if (orphanFMs.length > 0 && atomic.failureCauses.length > 0) {
+                  const _fcByL2 = new Map<string, any[]>();
+                  for (const fc of atomic.failureCauses) {
+                    const k = (fc as any).l2StructId || '';
+                    if (!_fcByL2.has(k)) _fcByL2.set(k, []);
+                    _fcByL2.get(k)!.push(fc);
+                  }
+                  const _existingKeys = new Set(atomic.failureLinks.map((fl: any) =>
+                    `${fl.fmId}|${fl.fcId}|${fl.feId}`));
+                  const _allFEs = atomic.failureEffects;
+
+                  const orphanFLs: any[] = [];
+                  for (const fm of orphanFMs) {
+                    const l2Id = (fm as any).l2StructId || '';
+                    const fcs = _fcByL2.get(l2Id) || [];
+                    if (fcs.length === 0 || _allFEs.length === 0) continue;
+
+                    const fc = fcs[0];
+                    const fe = _allFEs[0];
+                    const key = `${(fm as any).id}|${(fc as any).id}|${(fe as any).id}`;
+                    if (_existingKeys.has(key)) continue;
+                    _existingKeys.add(key);
+
+                    orphanFLs.push({
+                      id: `FL-orphan-${(fm as any).id}`,
+                      fmeaId,
+                      fmId: (fm as any).id,
+                      feId: (fe as any).id,
+                      fcId: (fc as any).id,
+                      fmText: (fm as any).mode || '',
+                      feText: (fe as any).effect || '',
+                      fcText: (fc as any).cause || '',
+                      createdAt: now, updatedAt: now,
+                    });
+                  }
+
+                  if (orphanFLs.length > 0) {
+                    await tx.failureLink.createMany({ data: orphanFLs, skipDuplicates: true });
+                    atomic.failureLinks = await tx.failureLink.findMany({ where: { fmeaId } });
+                    console.info(`[rebuild-atomic] Orphan FM FL 보충: ${orphanFLs.length}건`);
+                  }
+                }
+              }
+
               // --- C) RiskAnalysis 보충 (독립 게이트 — FC/FL 존재 여부와 무관) ---
               const existingRACount = await tx.riskAnalysis.count({ where: { fmeaId } });
               if (existingRACount === 0 && atomic.failureLinks.length > 0) {

@@ -317,8 +317,10 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
   const l1Requirements: PosL1Requirement[] = []; // ★v4: C3 독립 엔티티
   const l1Scopes: PosL1Scope[] = [];             // ★v4: C1 구분 독립 엔티티
   const failureEffects: PosFailureEffect[] = [];
-  // ★v5: C4 텍스트만으로 FE 중복제거 — 20행=20UUID (지침서 Section 3)
-  const seenFE: Map<string, string> = new Map(); // C4 → FE id
+  // ★ 2026-04-03 FIX: FE 복합키 = parentId(N-1)|c4
+  // 부모(L1Function)가 다르면 동일 C4 텍스트라도 별도 FE → 중복제외 금지
+  // 이전: c4 텍스트만으로 중복제거 → 다른 부모의 동일 FE 텍스트가 합쳐지는 위반
+  const seenFE: Map<string, string> = new Map(); // l1FuncId|C4 → FE id
   // ★ C1+C2+C3 조합으로 중복제거 — 같은 C2라도 다른 C3 = 다른 L1Function (요구사항 누락 방지)
   const seenC2C3: Map<string, string> = new Map(); // C1|C2|C3 → L1Function id
   let l1ReqOrderIndex = 0;
@@ -384,9 +386,9 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       });
     }
 
-    // ★v5: FailureEffect — C4 텍스트만으로 중복제거 (지침서: 20행=20UUID, 중복 시 오류)
+    // ★ FE 복합키 중복제거: parentId(N-1)|c4 — 부모(L1Function)가 다르면 별도 FE 생성
     if (c4) {
-      const feKey = c4;
+      const feKey = `${l1FuncId}|${c4}`;
       const existingFeId = seenFE.get(feKey);
       if (!existingFeId) {
         // ★v5: l1ReqId가 있으면 C3(L1Requirement)를 부모로 설정

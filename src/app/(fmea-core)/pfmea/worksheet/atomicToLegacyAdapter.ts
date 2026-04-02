@@ -108,28 +108,19 @@ function buildL1Types(l1Functions: readonly AtomicL1Function[]): L1Type[] {
 
   const types: L1Type[] = [];
   categoryMap.forEach((funcs, category) => {
-    // ★ 2026-03-27: 같은 functionName끼리 그룹핑 → 요구사항은 배열로 수집
-    // ★ 2026-03-27 FIX: 빈 이름은 ID 기준으로 별도 행 유지 (합쳐지지 않음)
+    // ★ 2026-04-03 FIX: 항상 ID 기준 그룹핑 — 같은 functionName이라도 별개 DB 레코드는 별개 행
+    // (이전 버그: funcKey = funcName || f.id → 동일 이름 함수가 merge되어 PF 카운트 감소)
     const funcNameMap = new Map<string, L1Function>();
     
     for (const f of funcs) {
-      const funcName = (f.functionName || '').trim();
-      // ★ 빈 이름이면 ID를 키로 사용 → 별도 행 유지
-      const funcKey = funcName || f.id;
+      const funcKey = f.id;
       
       if (!funcNameMap.has(funcKey)) {
-        // 첫 번째 레코드 = 기능 정의 → requirement가 있을 때만 요구사항에 추가
         funcNameMap.set(funcKey, {
           id: f.id,
           name: f.functionName,
           requirements: f.requirement ? [{ id: f.id, name: f.requirement }] : [],
         });
-      } else {
-        // 이후 레코드 = 요구사항 또는 사용자 추가 빈행 → 항상 추가 (ID 중복 제거)
-        const existing = funcNameMap.get(funcKey)!;
-        if (!existing.requirements.some(r => r.id === f.id)) {
-          existing.requirements.push({ id: f.id, name: f.requirement || '' });
-        }
       }
     }
     
@@ -426,7 +417,7 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
     const l2PPCs = ppcByL2Id.get(l2Struct.id) || [];
     const functions = buildL2Functions(l2Funcs, l2PPCs);
 
-    // FM
+    // FM — ★ 복합키 정책: DB의 모든 FM을 개별 렌더링 (같은 텍스트라도 fmId가 다르면 별도 행)
     const fms = fmsByL2Id.get(l2Struct.id) || [];
     const failureModes: L2FailureMode[] = fms.map(m => ({
       id: m.id,
