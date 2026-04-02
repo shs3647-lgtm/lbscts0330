@@ -23,9 +23,10 @@ const dfmeaSubItems: SubItem[] = [
   { label: '📊 대시보드', href: '/dfmea/dashboard' },
   { label: '등록', href: '/dfmea/register' },
   { label: '리스트', href: '/dfmea/list' },
-  { label: 'New DFMEA', href: '/dfmea/worksheet' },
+  { label: 'New FMEA', href: '/dfmea/worksheet' },
   { label: '개정관리', href: '/dfmea/revision' },
-  { label: '📋 설계 LLD', href: '/dfmea/lld' },
+  { label: '📋 LLD(설계교훈)', href: '/dfmea/lld' },
+  { label: '🚀 AP 개선관리', href: '/dfmea/ap-improvement', multiline: true },
 ];
 
 const pfmeaSubItems: SubItem[] = [
@@ -67,7 +68,7 @@ export const FMEA_CORE_MAIN_MENU_ITEMS: MenuItem[] = [
     id: 'dfmea',
     label: 'DFMEA',
     shortLabel: 'D',
-    Icon: ColorIcons.List,
+    Icon: ColorIcons.Revision,
     href: '/dfmea',
     subItems: dfmeaSubItems,
   },

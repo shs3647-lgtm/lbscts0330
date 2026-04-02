@@ -470,7 +470,18 @@ export default function WelcomePage() {
             <h4>LLD(필터코드)</h4>
             <p>Lessons Learned</p>
           </Link>
-          {/* 2열: CP, PFD */}
+          {/* 2열: DFMEA */}
+          <Link href={isLoggedIn ? "/dfmea/dashboard" : "/login"} className="card mini">
+            <span className="lock-badge">📊</span>
+            <h4>DFMEA 대시보드</h4>
+            <p>DFMEA 대시보드</p>
+          </Link>
+          <Link href={isLoggedIn ? "/dfmea/list" : "/login"} className="card mini">
+            <span className="lock-badge">📋</span>
+            <h4>DFMEA리스트</h4>
+            <p>DFMEA 리스트</p>
+          </Link>
+          {/* 3열: CP, PFD */}
           <Link href={isLoggedIn ? "/control-plan/list" : "/login"} className="card mini">
             <span className="lock-badge">✅</span>
             <h4>CP</h4>
