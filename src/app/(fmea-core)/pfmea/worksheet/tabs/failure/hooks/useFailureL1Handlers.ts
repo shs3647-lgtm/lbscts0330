@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { uid } from '../../../constants';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { validateAutoMapping, groupMatchedByRoom } from '../../../autoMapping';
@@ -42,6 +43,7 @@ export function useFailureL1Handlers({
   saveToLocalStorage,
   saveAtomicDB,
   modal,
+  // ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
   setModal,
   isConfirmed,
   isUpstreamConfirmed,
@@ -49,6 +51,8 @@ export function useFailureL1Handlers({
   fmeaId,
   showAlert,
 }: UseFailureL1HandlersProps) {
+  const failureL1Pathname = usePathname();
+  const isDfmea = failureL1Pathname?.includes('/dfmea/') ?? false;
   const _alert = showAlert || alert;
 
   // ★★★ 2026-02-08: 자동/수동 모드 상태 ★★★
@@ -351,7 +355,7 @@ export function useFailureL1Handlers({
 
       // DataKey[] 변환 — C4의 processNo는 카테고리(YP/SP/USER)
       const dataKeys: DataKey[] = c4Items.map((i: any) => ({
-        processNo: (i.processNo || 'YP').toUpperCase().trim(),
+        processNo: (i.processNo || (isDfmea ? '법규' : 'YP')).toUpperCase().trim(),
         itemCode: 'C4',
         value: (i.value || '').trim(),
         sourceFmeaId: i.sourceFmeaId,

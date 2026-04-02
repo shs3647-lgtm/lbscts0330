@@ -225,8 +225,8 @@ function FMEAWorksheetPageContent() {
   // ★ 확정 후 자동 다음탭 이동
   useAutoTabAdvance(state, setState);
 
-  // ★★★ 2026-03-07: 배열 구조 무결성 안전망 — l2/l3/functions 배열 깨짐 자동 복구 ★★★
-  useArrayGuard(state, setState, setStateSynced);
+  // ★★★ 배열 구조 무결성 안전망 — DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
+  useArrayGuard(state, setState, setStateSynced, isDfmea);
 
   // 모달 상태
   const [isProcessModalOpen, setIsProcessModalOpen] = useState(false);

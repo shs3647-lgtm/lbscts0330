@@ -48,7 +48,7 @@ const CLS_META: Record<string, { color: string; bg: string }> = {
   DevIssue: { color: '#fff', bg: '#4f46e5' },
 };
 
-const MODAL_W = 1280;
+const MODAL_W = 960;
 const MODAL_H_MAX = 620;
 
 // SOD 점수 색상 (녹≤2, 노3~4, 주5~6, 빨7~)
@@ -324,7 +324,7 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
   const tabCls = (active: boolean, color?: string) =>
     `px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap transition-colors ${
       active
-        ? color ? 'text-white' : 'bg-[#00587a] text-white'
+        ? color ? 'text-white' : 'bg-[#7B1FA2] text-white'
         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
     }`;
 
@@ -335,16 +335,16 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
     <>
       {/* 모달 패널 — 오버레이 없이 워크시트 위에 플로팅 */}
       <div
-        className="bg-white rounded-lg flex flex-col shadow-2xl border-2 border-[#00587a]"
+        className="bg-white rounded-lg flex flex-col shadow-2xl border-2 border-[#7B1FA2]"
         style={{ position: 'fixed', left: pos.x, top: pos.y, width: MODAL_W, maxHeight: MODAL_H_MAX, zIndex: 99999 }}
       >
         {/* 헤더 — 드래그 핸들 */}
         <div
-          className="bg-[#00587a] text-white py-1.5 px-4 rounded-t-lg flex justify-between items-center cursor-move select-none"
+          className="bg-[#7B1FA2] text-white py-1.5 px-4 rounded-t-lg flex justify-between items-center cursor-move select-none"
           onMouseDown={onMouseDown}
         >
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold">LLD 추천</span>
+            <span className="text-sm font-extrabold tracking-wide">LLD 추천</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{
               background: modal.applyStep === '6ST' ? '#e65100' : '#1565c0',
               color: '#fff',
@@ -425,14 +425,14 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
             {/* 그룹 헤더 */}
             <thead className="sticky top-0 z-10">
               <tr>
-                <th colSpan={2} className="bg-slate-600 text-white text-[9px] font-bold text-center border-b border-r border-slate-400 p-0"></th>
-                <th colSpan={4} className="bg-[#1565C0] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">FMEA 정보</th>
-                <th colSpan={3} className="bg-[#C62828] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">현행 SOD</th>
-                <th colSpan={5} className="bg-[#F57C00] text-white text-[10px] font-bold text-center border-b border-r border-slate-400 py-0.5">매칭 정보</th>
-                <th colSpan={2} className="bg-[#2E7D32] text-white text-[10px] font-bold text-center border-b border-slate-400 py-0.5">LLD 개선</th>
+                <th colSpan={2} className="bg-[#6A1B9A] text-white text-[9px] font-bold text-center border-b border-r border-purple-300/40 p-0"></th>
+                <th colSpan={4} className="bg-[#7B1FA2] text-white text-[10px] font-bold text-center border-b border-r border-purple-300/40 py-0.5">FMEA 정보</th>
+                <th colSpan={3} className="bg-[#C62828] text-white text-[10px] font-bold text-center border-b border-r border-purple-300/40 py-0.5">현행 SOD</th>
+                <th colSpan={5} className="bg-[#E65100] text-white text-[10px] font-bold text-center border-b border-r border-purple-300/40 py-0.5">매칭 정보</th>
+                <th colSpan={2} className="bg-[#2E7D32] text-white text-[10px] font-bold text-center border-b border-purple-300/40 py-0.5">LLD 개선</th>
               </tr>
               {/* 컬럼 헤더 */}
-              <tr className="bg-[#00587a] text-white">
+              <tr className="bg-[#6A1B9A] text-white">
                 {[
                   { label: <input type="checkbox" checked={allFilteredChecked} onChange={e => handleFilteredToggleAll(e.target.checked)} className="accent-white" />, w: 24 },
                   { label: '#', w: 26 },

@@ -894,7 +894,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
           const failZebraBg = getZebra('failure', rowIdx);
           const firstFuncId = t.functions?.[0]?.id || '';
           const isHighlighted = highlightIds?.has(t.id);
-          const category = (t.name || '').toUpperCase().trim() || 'YP';
+          const category = (t.name || '').toUpperCase().trim() || (isDfmea ? '법규' : 'YP');
 
           return (
             <tr key={t.id} style={{ background: isHighlighted ? '#FFFDE7' : funcZebraBg, outline: isHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
@@ -929,7 +929,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
             const rowIdx = globalRowIdx++;
             const failZebraBg = getZebra('failure', rowIdx);
             const isFuncHighlighted = highlightIds?.has(f.id);
-            const category = (t.name || '').toUpperCase().trim() || 'YP';
+            const category = (t.name || '').toUpperCase().trim() || (isDfmea ? '법규' : 'YP');
 
             return (
               <tr key={f.id} style={{ background: isFuncHighlighted ? '#FFFDE7' : funcBlockZebra, outline: isFuncHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
@@ -940,7 +940,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                 )}
                 {fIdx === 0 && (
                   <td rowSpan={typeRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: getTypeColor(t.name).light }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
-                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder="YP / SP / USER" bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" isRevised={t.isRevised} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} />
+                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder={isDfmea ? '법규 / 기본 / 보조 / 관능' : 'YP / SP / USER'} bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" isRevised={t.isRevised} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} />
                   </td>
                 )}
                 <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcBlockZebra }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
@@ -954,7 +954,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
           }
 
           // 요구사항이 있는 경우 (reqsToRender 순회)
-          const category = (t.name || '').toUpperCase().trim() || 'YP';
+          const category = (t.name || '').toUpperCase().trim() || (isDfmea ? '법규' : 'YP');
           return reqsToRender.map((r: any, rIdx: number) => {
             const rowIdx = globalRowIdx++;
             const failZebraBg = getZebra('failure', rowIdx);

@@ -36,7 +36,11 @@ const guardUid = () => `guard_${Date.now()}_${Math.random().toString(36).slice(2
  *
  * @returns { repaired: boolean, state: WorksheetState } - 복구 여부 + 복구된 상태
  */
-export function repairWorksheetState(state: WorksheetState): { repaired: boolean; state: WorksheetState } {
+/**
+ * ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
+ * isDfmea=true일 때 기본 구분은 법규/기본/보조/관능
+ */
+export function repairWorksheetState(state: WorksheetState, isDfmea = false): { repaired: boolean; state: WorksheetState } {
   let repaired = false;
   const repairs: string[] = [];
   let newState = state;
@@ -51,10 +55,15 @@ export function repairWorksheetState(state: WorksheetState): { repaired: boolean
 
     // 0a. types 배열이 없거나 빈 경우 → 기본 3개 구분 복구
     if (!newL1.types || !Array.isArray(newL1.types) || newL1.types.length === 0) {
-      repairs.push('l1.types 없음 → 기본 YP/SP/USER 복구');
+      repairs.push(`l1.types 없음 → 기본 ${isDfmea ? '법규/기본/보조/관능' : 'YP/SP/USER'} 복구`);
       newL1 = {
         ...newL1,
-        types: [
+        types: isDfmea ? [
+          { id: guardUid(), name: '법규', functions: [{ id: guardUid(), name: '', requirements: [] }] },
+          { id: guardUid(), name: '기본', functions: [{ id: guardUid(), name: '', requirements: [] }] },
+          { id: guardUid(), name: '보조', functions: [{ id: guardUid(), name: '', requirements: [] }] },
+          { id: guardUid(), name: '관능', functions: [{ id: guardUid(), name: '', requirements: [] }] },
+        ] : [
           { id: guardUid(), name: 'YP', functions: [{ id: guardUid(), name: '', requirements: [] }] },
           { id: guardUid(), name: 'SP', functions: [{ id: guardUid(), name: '', requirements: [] }] },
           { id: guardUid(), name: 'USER', functions: [{ id: guardUid(), name: '', requirements: [] }] },
@@ -200,15 +209,15 @@ export function useArrayGuard(
   state: WorksheetState,
   setState: (fn: (prev: WorksheetState) => WorksheetState) => void,
   setStateSynced?: (fn: (prev: WorksheetState) => WorksheetState) => void,
+  isDfmea = false,
 ) {
   const lastRepairRef = useRef<number>(0);
 
   useEffect(() => {
-    // 빈번한 복구 루프 방지: 최소 1초 간격
     const now = Date.now();
     if (now - lastRepairRef.current < 1000) return;
 
-    const { repaired, state: repairedState } = repairWorksheetState(state);
+    const { repaired, state: repairedState } = repairWorksheetState(state, isDfmea);
 
     if (repaired) {
       lastRepairRef.current = now;

@@ -59,7 +59,7 @@ export interface L3Structure extends AtomicRecord {
 export interface L1Function extends AtomicRecord {
   fmeaId: string;         // FK: FMEA 프로젝트 ID
   l1StructId: string;     // FK: L1Structure.id (상위 구조분석)
-  category: 'YP' | 'SP' | 'USER';  // 구분
+  category: 'YP' | 'SP' | 'USER' | '법규' | '기본' | '보조' | '관능';  // ★ PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능
   functionName: string;   // 기능명
   requirement: string;    // 요구사항 (원자 단위)
 }
@@ -95,7 +95,7 @@ export interface L3Function extends AtomicRecord {
 export interface FailureEffect extends AtomicRecord {
   fmeaId: string;         // FK: FMEA 프로젝트 ID
   l1FuncId: string;       // FK: L1Function.id (상위 기능분석 - 요구사항)
-  category: 'YP' | 'SP' | 'USER';  // 구분
+  category: 'YP' | 'SP' | 'USER' | '법규' | '기본' | '보조' | '관능';  // ★ PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능
   effect: string;         // 고장영향 내용
   severity: number;       // 심각도 (1-10)
 }

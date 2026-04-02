@@ -9,13 +9,15 @@
 /**
  * C1 구분(Scope) 중앙 상수 + 정규화 유틸리티
  *
- * FMEA 표준 고장영향 범위:
- *   YP (Your Plant)   = 자사공정
- *   SP (Ship to Plant) = 고객사
- *   USER (End User)    = 최종사용자
+ * ★★★ PFMEA / DFMEA 구분 명칭 혼용 절대 금지 ★★★
  *
- * ❌ 금지: 코드 내에서 'YOUR PLANT', 'Ship to Plant' 등 문자열 직접 비교
- * ✅ 필수: normalizeScope() 또는 SCOPE_* 상수 사용
+ * PFMEA 전용: YP (Your Plant), SP (Ship to Plant), USER (End User)
+ * DFMEA 전용: 법규, 기본, 보조, 관능
+ *
+ * ❌ DFMEA 화면/로직에 YP/SP/USER 명칭 주입 절대 불가
+ * ❌ PFMEA 화면/로직에 법규/기본/보조/관능 명칭 주입 절대 불가
+ * ❌ 코드 내에서 'YOUR PLANT', 'Ship to Plant' 등 문자열 직접 비교 금지
+ * ✅ 필수: getRequiredScopes(isDfmea) 또는 normalizeScope() 사용
  *
  * @created 2026-03-22
  */

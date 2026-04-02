@@ -225,7 +225,7 @@ export function useFunctionL1Handlers({
       const dataKeys: DataKey[] = cItems.map((i: any) => ({
         processNo: i.itemCode === 'C1'
           ? (i.value || '').toUpperCase().trim()          // C1: value 자체가 카테고리
-          : (i.processNo || 'YP').toUpperCase().trim(),  // C2/C3: processNo가 카테고리
+          : (i.processNo || (isDfmea ? '법규' : 'YP')).toUpperCase().trim(),
         itemCode: i.itemCode,
         value: (i.value || '').trim(),
         sourceFmeaId: i.sourceFmeaId,
@@ -241,8 +241,8 @@ export function useFunctionL1Handlers({
       if (masterCategories.size === 0) {
         dataKeys.forEach(dk => masterCategories.add(dk.processNo));
       }
-      // 기본 카테고리: YP/SP/USER (마스터에 없어도 기본 포함)
-      const DEFAULT_CATEGORIES = ['YP', 'SP', 'USER'];
+      // ★ DFMEA: 법규/기본/보조/관능 — PFMEA 명칭(YP/SP/USER) 절대 주입 금지
+      const DEFAULT_CATEGORIES = isDfmea ? ['법규', '기본', '보조', '관능'] : ['YP', 'SP', 'USER'];
       DEFAULT_CATEGORIES.forEach(c => masterCategories.add(c));
 
       // Step 3: ★ types가 비어있거나 누락된 카테고리가 있으면 자동 생성
@@ -400,7 +400,7 @@ export function useFunctionL1Handlers({
     // 카테고리 추출 (typeId에서)
     const types = state.l1?.types || [];
     const targetType = types.find((t: any) => t.id === typeId);
-    const category = (targetType?.name || 'YP').toUpperCase().trim();
+    const category = (targetType?.name || (isDfmea ? '법규' : 'YP')).toUpperCase().trim();
     const targetFunc = targetType?.functions?.find((f: any) => f.id === funcId);
     
     // ★ 2026-03-27: 중복 확인 (같은 기능 내에서 같은 요구사항 이름이 있는지)
@@ -464,7 +464,7 @@ export function useFunctionL1Handlers({
     // 카테고리 추출 (typeId에서)
     const types = state.l1?.types || [];
     const targetType = types.find((t: any) => t.id === typeId);
-    const category = (targetType?.name || 'YP').toUpperCase().trim();
+    const category = (targetType?.name || (isDfmea ? '법규' : 'YP')).toUpperCase().trim();
     
     // ★ 2026-03-27: 중복 확인 (같은 카테고리 내에서 같은 이름이 있는지)
     if (newValue.trim()) {

@@ -22,7 +22,7 @@ export interface SODModalState {
   isOpen: boolean;
   category: 'S' | 'O' | 'D';
   currentValue?: number;
-  scope?: 'YP' | 'SP' | 'USER';
+  scope?: 'YP' | 'SP' | 'USER' | '법규' | '기본' | '보조' | '관능';
   targetType: 'risk' | 'opt' | 'failure';  // ★ 2026-01-11: failure 추가
   rowIndex: number;
   feIndex?: number;
@@ -145,7 +145,7 @@ export function useAllTabModals(
       targetType,
       rowIndex,
       currentValue,
-      scope: scope as 'YP' | 'SP' | 'USER' | undefined,
+      scope: scope as 'YP' | 'SP' | 'USER' | '법규' | '기본' | '보조' | '관능' | undefined,
       feId,    // ★ 개별 FE ID 전달
       feText,
       fmId,    // ★ 발생도/검출도 키용
@@ -178,7 +178,7 @@ export function useAllTabModals(
 
         if (targetFeId || targetFeText) {
           // ★ 개별 FE 클릭 → 동일 유형(scope)의 모든 FE에 동일 점수 부여
-          // scope 정규화: 'Your Plant'/'YP' → 'YP', 'Ship to Plant'/'SP' → 'SP', 'User'/'USER' → 'USER'
+          // scope 정규화: PFMEA(YP/SP/USER), DFMEA(법규/기본/보조/관능) — 중앙 normalizeScope() 사용
           // ★ 2026-03-22: 중앙 normalizeScope() 사용
           const normalizeScope = (s?: string): string => {
             if (!s) return '';

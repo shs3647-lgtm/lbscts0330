@@ -10,7 +10,6 @@
 'use client';
 
 import React, { useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/locale';
 import { WorksheetState, ANALYSIS_TABS } from '../constants';
 import StepToggleButtons from './StepToggleButtons';
@@ -26,7 +25,7 @@ interface TabMenuProps {
   onOpen6AP?: () => void;
   onAllClick?: () => void;
   fmeaId?: string;
-  /** 우측 정렬 — Master와 좌우 비교 화면으로 이동 */
+  /** 우측 정렬 — 좌우 비교 화면으로 이동 */
   showCompareButton?: boolean;
   onCompareClick?: () => void;
 }
@@ -42,7 +41,6 @@ export default function TabMenu({
   showCompareButton = false,
   onCompareClick,
 }: TabMenuProps) {
-  const router = useRouter();
   const { t } = useLocale();
 
   const structureConfirmed = (state as any).structureConfirmed || false;
@@ -77,17 +75,6 @@ export default function TabMenu({
     <div className="flex-shrink-0 h-9 px-1 sm:px-2 flex items-center justify-between overflow-hidden z-[98]">
       {/* 좌측: 탭 버튼들 - 스크롤 가능 */}
       <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide flex-1">
-        {/* 기초정보 바로가기 */}
-        <button
-          onClick={() => {
-            router.push(fmeaId ? `/pfmea/import?id=${fmeaId}` : '/pfmea/import');
-          }}
-          className="px-1.5 py-0.5 text-[9px] sm:text-[10px] rounded border border-white/30 text-white/60 font-bold hover:bg-teal-600/30 hover:text-teal-300 hover:border-teal-400 transition-all whitespace-nowrap shrink-0 cursor-pointer"
-          title="기초정보(Import) 화면으로 이동"
-        >
-          Master<span className="text-[7px] opacity-60 ml-0.5">↗</span>
-        </button>
-
         {/* 분석 탭 — ALL 포함 항상 표시 */}
         <div className="flex gap-0.5 sm:gap-1">
           {analysisTabs.map(tab => {

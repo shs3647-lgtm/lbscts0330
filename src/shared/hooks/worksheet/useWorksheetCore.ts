@@ -7,7 +7,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, usePathname } from 'next/navigation';
 import type { WorksheetState } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import { createInitialState } from '@/app/(fmea-core)/pfmea/worksheet/constants';
 import type { WorksheetConfig } from './types';
@@ -46,6 +46,9 @@ export function useWorksheetCore(
   config: WorksheetConfig = PFMEA_CONFIG
 ): UseWorksheetCoreReturn {
   const searchParams = useSearchParams();
+  const corePath = usePathname();
+  /** ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★ */
+  const isDfmea = corePath?.includes('/dfmea/') ?? false;
   
   // ✅ FMEA ID는 항상 소문자로 정규화 (DB 정규화)
   const selectedFmeaId = searchParams.get('id')?.toLowerCase() || null;
@@ -53,8 +56,7 @@ export function useWorksheetCore(
   const mode = searchParams.get('mode');
   const urlTab = searchParams.get('tab') || null;
   
-  // ✅ 초기 상태는 항상 동일 (Hydration 오류 방지)
-  const [state, setState] = useState<WorksheetState>(createInitialState);
+  const [state, setState] = useState<WorksheetState>(() => createInitialState(isDfmea));
   
   // ✅ 클라이언트에서만 localStorage에서 tab/riskData 복원 (마운트 후)
   const [isHydrated, setIsHydrated] = useState(false);

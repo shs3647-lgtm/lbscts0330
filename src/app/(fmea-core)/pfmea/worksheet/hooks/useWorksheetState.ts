@@ -15,7 +15,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   WorksheetState,
   FMEAProject,
@@ -85,13 +85,16 @@ function worksheetFmeaKeyFromSearchParams(sp: { get: (key: string) => string | n
 export function useWorksheetState(): UseWorksheetStateReturn {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const wsPathname = usePathname();
+  /** ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★ */
+  const isDfmea = wsPathname?.includes('/dfmea/') ?? false;
   const selectedFmeaId = worksheetFmeaKeyFromSearchParams(searchParams) || null;
   const baseId = searchParams.get('baseId')?.toLowerCase() || null;  // ✅ DB 소문자 일관성
   const mode = searchParams.get('mode');
   const urlTab = searchParams.get('tab') || null;
   const compareEmbed = searchParams.get('compareEmbed') === '1';
 
-  const [state, setState] = useState<WorksheetState>(createInitialState);
+  const [state, setState] = useState<WorksheetState>(() => createInitialState(isDfmea));
   const [isHydrated, setIsHydrated] = useState(false);
   // ★★★ 2026-02-18: 초기값 TRUE - 데이터 로드 완료 전 자동저장 차단 (빈 데이터 DB 덮어쓰기 방지) ★★★
   const suppressAutoSaveRef = useRef<boolean>(true);
@@ -473,7 +476,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
         });
 
         const newState: WorksheetState = {
-          l1: baseLegacy.l1 || createInitialState().l1,
+          l1: baseLegacy.l1 || createInitialState(isDfmea).l1,
           l2: baseLegacy.l2 || [],
           tab: 'structure',
           riskData: baseLegacy.riskData || {},

@@ -446,12 +446,16 @@ function ItemRow({
           <span className="text-white text-[8px] font-bold">✓</span>
         )}
       </div>
-      {/* 카테고리 뱃지 (YP/SP/USER 등) */}
+      {/* 카테고리 뱃지 — PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능 */}
       {elem.category && (
         <span className={`shrink-0 px-1 py-0.5 text-[8px] font-bold rounded ${
           elem.category.toUpperCase() === 'YP' ? 'bg-blue-100 text-blue-700' :
           elem.category.toUpperCase() === 'SP' ? 'bg-green-100 text-green-700' :
           elem.category.toUpperCase() === 'USER' ? 'bg-orange-100 text-orange-700' :
+          elem.category === '법규' ? 'bg-indigo-100 text-indigo-700' :
+          elem.category === '기본' ? 'bg-blue-100 text-blue-700' :
+          elem.category === '보조' ? 'bg-amber-100 text-amber-700' :
+          elem.category === '관능' ? 'bg-purple-100 text-purple-700' :
           'bg-gray-100 text-gray-600'
         }`}>
           {elem.category.toUpperCase()}

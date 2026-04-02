@@ -719,12 +719,18 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
     return groups;
   }, [flatRows]);
 
-  // 구분별 번호 생성 (Y1, Y2, S1, S2, U1, U2...)
+  // 구분별 번호 생성
+  // ★★★ DFMEA: 법규→L, 기본→B, 보조→A, 관능→G — PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
   const getFeNo = useCallback((typeName: string, index: number): string => {
     const norm = normalizeScope(typeName || '');
-    const prefix = norm === 'YP' ? 'Y' : norm === 'SP' ? 'S' : norm === 'USER' ? 'U' : 'X';
+    let prefix: string;
+    if (isDfmea) {
+      prefix = norm === '법규' ? 'L' : norm === '기본' ? 'B' : norm === '보조' ? 'A' : norm === '관능' ? 'G' : 'X';
+    } else {
+      prefix = norm === 'YP' ? 'Y' : norm === 'SP' ? 'S' : norm === 'USER' ? 'U' : 'X';
+    }
     return `${prefix}${index + 1}`;
-  }, []);
+  }, [isDfmea]);
 
   // 렌더링할 행 데이터 생성 (완제품 공정명은 구분별로 1:1 매칭, 완제품기능은 기능별로 병합)
   const renderRows = useMemo(() => {
@@ -755,8 +761,10 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
 
     const typeShown: Record<string, boolean> = {};
     const funcShown: Record<string, boolean> = {}; // 기능별 표시 여부 추적
-    // 구분별 카운터
-    const typeCounters: Record<string, number> = { 'YP': 0, 'SP': 0, 'USER': 0 };
+    // ★ DFMEA: 법규/기본/보조/관능 — PFMEA 명칭(YP/SP/USER) 절대 주입 금지
+    const typeCounters: Record<string, number> = isDfmea
+      ? { '법규': 0, '기본': 0, '보조': 0, '관능': 0 }
+      : { 'YP': 0, 'SP': 0, 'USER': 0 };
 
     // 기능별 rowSpan 미리 계산
     const funcRowSpanMap = new Map<string, number>();
@@ -864,12 +872,15 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
         <tbody>
           {renderRows.length === 0 ? (
             <>
-              {/* ★★★ 2026-02-18: FunctionL1Tab처럼 YP/SP/USER 3행 표시 ★★★ */}
+              {/* ★★★ DFMEA: 법규/기본/보조/관능 — PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★ */}
               {(() => {
                 const types = state.l1?.types || [];
-                const typeNames = types.length >= 3
-                  ? types.map((t: any) => t.name || 'YP')
-                  : ['YP', 'SP', 'USER'];
+                const dfmeaDefaults = ['법규', '기본', '보조', '관능'];
+                const pfmeaDefaults = ['YP', 'SP', 'USER'];
+                const defaultFallback = isDfmea ? '법규' : 'YP';
+                const typeNames = types.length >= (isDfmea ? 4 : 3)
+                  ? types.map((t: any) => t.name || defaultFallback)
+                  : (isDfmea ? dfmeaDefaults : pfmeaDefaults);
                 return typeNames.map((tn: string, tIdx: number) => {
                   const color = getL1TypeColor(tn);
                   return (

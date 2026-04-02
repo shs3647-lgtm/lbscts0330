@@ -223,11 +223,15 @@ export default function FailureLinkTables({
               </thead>
               <tbody>
                 {(() => {
-                  // ★ scope별 그룹 인덱스 계산 (YP/SP/USER별 줄무늬)
+                  // ★ scope별 그룹 인덱스 계산 — DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지
                   const scopeColorMap: Record<string, { light: string; dark: string }> = {
-                    'YP':   { light: '#e3f2fd', dark: '#bbdefb' }, // 파란색 (YP)
-                    'SP':   { light: '#fff3e0', dark: '#ffe0b2' }, // 주황색 (SP)
-                    'USER': { light: '#f3e5f5', dark: '#e1bee7' }, // 보라색 (USER)
+                    'YP':   { light: '#e3f2fd', dark: '#bbdefb' },
+                    'SP':   { light: '#fff3e0', dark: '#ffe0b2' },
+                    'USER': { light: '#f3e5f5', dark: '#e1bee7' },
+                    '법규': { light: '#e8eaf6', dark: '#c5cae9' },
+                    '기본': { light: '#e3f2fd', dark: '#bbdefb' },
+                    '보조': { light: '#fff3e0', dark: '#ffe0b2' },
+                    '관능': { light: '#f3e5f5', dark: '#e1bee7' },
                   };
                   let scopeIdx = 0;
                   let prevScope = '';
@@ -238,7 +242,7 @@ export default function FailureLinkTables({
                       scopeIdx = 0;
                       prevScope = fe.scope;
                     }
-                    const scopeColors = scopeColorMap[fe.scope] || scopeColorMap['YP'];
+                    const scopeColors = scopeColorMap[fe.scope] || scopeColorMap[isDfmea ? '법규' : 'YP'];
                     const stripeBg = scopeIdx % 2 === 0 ? scopeColors.dark : scopeColors.light;
                     scopeIdx++;
 

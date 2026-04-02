@@ -10,6 +10,7 @@
  */
 
 import { useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import { uid } from '../../../constants';
 import { FEItem, FMItem, FCItem, LinkResult } from '../FailureLinkTypes';
 import { SCOPE_YP, SCOPE_SP, SCOPE_USER } from '@/lib/fmea/scope-constants';
@@ -46,18 +47,32 @@ const isMeaningful = (name: string): boolean => {
 
 /**
  * 구분(scope)에서 prefix 추출
+ * ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
+ * DFMEA: 법규→L, 기본→B, 보조→A, 관능→G
  */
-const getScopePrefix = (scope: string): string => {
+const getScopePrefix = (scope: string, isDfmea = false): string => {
+  if (isDfmea) {
+    if (scope === '법규') return 'L';
+    if (scope === '기본') return 'B';
+    if (scope === '보조') return 'A';
+    if (scope === '관능') return 'G';
+    return 'L';
+  }
   if (scope === 'YP' || scope.startsWith('Y')) return 'Y';
   if (scope === 'SP' || scope.startsWith('S')) return 'S';
   if (scope === 'USER' || scope.startsWith('U')) return 'U';
-  return 'U'; // 기본값 User
+  return 'U';
 };
 
 /**
  * 고장연결 데이터 추출 hook
  */
 export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDataReturn {
+  const pathname = usePathname();
+  /** ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★ */
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const defaultScope = isDfmea ? '법규' : 'YP';
+
   // 확정 상태
   const isL1Confirmed = state.failureL1Confirmed || false;
   const isL2Confirmed = state.failureL2Confirmed || false;
@@ -79,7 +94,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
         (fn.requirements || []).forEach((req: any) => {
           if (req.id) {
             map.set(req.id, {
-              scope: type.name || 'YP',
+              scope: type.name || defaultScope,
               functionName: fn.name || '',
               requirement: req.name || '',
             });
@@ -100,12 +115,14 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     // ★ Rule 1.7: 동일 텍스트라도 UUID가 다르면 별도 FE — 텍스트 키 dedup 금지
     // (dedup 시 failureLinks.feId가 feData에 없어 누락으로 과대집계됨)
     const seenIds = new Set<string>();
-    const counters: Record<string, number> = { 'YP': 0, 'SP': 0, 'USER': 0 };
+    const counters: Record<string, number> = isDfmea
+      ? { '법규': 0, '기본': 0, '보조': 0, '관능': 0 }
+      : { 'YP': 0, 'SP': 0, 'USER': 0 };
 
     (state.l1?.failureScopes || []).forEach((fs: any) => {
       if (!fs.effect || !fs.id) return;
 
-      let scope = 'YP';
+      let scope = defaultScope;
       let functionName = '';
       let requirement = '';
       if (fs.reqId) {
@@ -121,7 +138,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
       seenIds.add(fs.id);
 
       // 번호 생성
-      const prefix = getScopePrefix(scope);
+      const prefix = getScopePrefix(scope, isDfmea);
       counters[scope] = (counters[scope] || 0) + 1;
       const feNo = `${prefix}${counters[scope]}`;
 
@@ -362,7 +379,7 @@ export function useLinkData({ state, savedLinks }: UseLinkDataProps): UseLinkDat
     (state.l1?.failureScopes || []).forEach((fs: any) => {
       if (!fs?.id) return;
       const lookup = fs.reqId ? reqLookupMap.get(fs.reqId) : undefined;
-      const scope = lookup?.scope || 'YP';
+      const scope = lookup?.scope || defaultScope;
       map.set(fs.id, { text: fs.effect || '', scope, severity: fs.severity || 0 });
     });
     return map;

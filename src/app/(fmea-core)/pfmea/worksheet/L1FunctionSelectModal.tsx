@@ -9,6 +9,7 @@
 
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { usePathname } from 'next/navigation';
 import { useDraggableModal } from '@/components/modals/useDraggableModal';
 import { MODAL_COMPACT, getParentInfoClass } from '@/styles/modal-compact';
 import { useL1FunctionSelect, L1FunctionSelectModalProps, L1FunctionItem } from './useL1FunctionSelect';
@@ -58,7 +59,10 @@ export function L1FunctionSelectModal(props: L1FunctionSelectModalProps) {
 
   const typeLabel = props.type === 'C2' ? '완제품기능' : '요구사항';
   const typeEmoji = props.type === 'C2' ? '📋' : '📝';
-  const categoryLabel = props.category || 'YP';
+  const pathname = usePathname();
+  /** ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★ */
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const categoryLabel = props.category || (isDfmea ? '법규' : 'YP');
   const parentInfo = props.type === 'C3' && props.parentName ? props.parentName : '';
   
   // 헤더 색상 (C2: 보라색, C3: 빨간색)

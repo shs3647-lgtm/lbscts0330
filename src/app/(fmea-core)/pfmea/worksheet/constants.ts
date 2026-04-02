@@ -572,11 +572,22 @@ export const parseIndexedId = (id: string): ParsedIndexedId | null => {
 export const getTabLabel = (tabId: string): string => TABS.find(t => t.id === tabId)?.label || tabId;
 export const getTabStep = (tabId: string): number => TABS.find(t => t.id === tabId)?.step || 0;
 
-export const createInitialState = (): WorksheetState => ({
-  // ★ L1 기본 3개 구분(YP/SP/USER) — 각각 별도 행으로 렌더링
+/**
+ * ★★★ DFMEA 구분 주입 금지 규칙 ★★★
+ * PFMEA: YP / SP / USER
+ * DFMEA: 법규 / 기본 / 보조 / 관능
+ * ❌ DFMEA에 YP/SP/USER 절대 사용 불가 — 반드시 isDfmea 분기 필수
+ */
+export const createInitialState = (isDfmea = false): WorksheetState => ({
+  // ★ L1 기본 구분 — PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능
   //   functions 내 name='' 은 수동모드 입력용 placeholder (삭제 금지)
   //   사용자가 구분명을 'N/A'로 변경하면 자동모드에서 해당 행 데이터 매핑 제외
-  l1: { id: uid(), name: '', types: [
+  l1: { id: uid(), name: '', types: isDfmea ? [
+    { id: uid(), name: '법규', functions: [{ id: uid(), name: '', requirements: [] }] },
+    { id: uid(), name: '기본', functions: [{ id: uid(), name: '', requirements: [] }] },
+    { id: uid(), name: '보조', functions: [{ id: uid(), name: '', requirements: [] }] },
+    { id: uid(), name: '관능', functions: [{ id: uid(), name: '', requirements: [] }] },
+  ] : [
     { id: uid(), name: 'YP', functions: [{ id: uid(), name: '', requirements: [] }] },
     { id: uid(), name: 'SP', functions: [{ id: uid(), name: '', requirements: [] }] },
     { id: uid(), name: 'USER', functions: [{ id: uid(), name: '', requirements: [] }] },

@@ -633,7 +633,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                         feItem ? (
                           <>
                             <td rowSpan={mergeConfig.feRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'center')}>
-                              {feItem.category === 'YP' ? 'YP' : feItem.category === 'SP' ? 'SP' : feItem.category === 'USER' ? 'USER' : feItem.category}
+                              {feItem.category}
                             </td>
                             <td rowSpan={mergeConfig.feRowSpan} style={getFailureCellStyle(rowIdx % 2 === 1 ? '#fff8e1' : '#fffde7', 'left')}>
                               {feItem.effect}

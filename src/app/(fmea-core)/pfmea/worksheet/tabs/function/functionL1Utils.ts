@@ -70,8 +70,18 @@ export const formatL1Name = (name: string | undefined | null, isDfmea = false): 
   return `${trimmed} 생산공정`;
 };
 
-/** ★★★ 2026-02-16: 필수 구분 (PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능) ★★★ */
-const REQUIRED_TYPES = ['YP', 'SP', 'USER'] as const;  // PFMEA 기본값 (하위 호환)
+/**
+ * ★★★ 필수 구분 — DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
+ * PFMEA: YP / SP / USER
+ * DFMEA: 법규 / 기본 / 보조 / 관능
+ * ❌ isDfmea=true일 때 YP/SP/USER 반환 절대 불가
+ * ❌ isDfmea=false일 때 법규/기본/보조/관능 반환 절대 불가
+ */
+export function getRequiredTypes(isDfmea: boolean): readonly string[] {
+  return isDfmea
+    ? ['법규', '기본', '보조', '관능']
+    : ['YP', 'SP', 'USER'];
+}
 
 /**
  * L1 구분 표시명 → YP / SP / USER (누락·배지 검사용)

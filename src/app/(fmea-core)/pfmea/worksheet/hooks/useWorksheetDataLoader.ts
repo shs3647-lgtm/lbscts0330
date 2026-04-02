@@ -12,6 +12,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { WorksheetState, createInitialState, uid } from '../constants';
 import { FMEAWorksheetDB, createEmptyDB } from '../schema';
 import { loadAtomicDB } from './atomicDbLoader';
@@ -39,6 +40,9 @@ export function useWorksheetDataLoader({
   suppressAutoSaveRef,
 }: UseWorksheetDataLoaderParams): void {
 
+  const pathname = usePathname();
+  /** ★★★ DFMEA에 PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★ */
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
 
   // 워크시트 데이터 로드 (FMEA ID 변경 시) - 원자성 DB 우선
   useEffect(() => {
@@ -193,14 +197,23 @@ export function useWorksheetDataLoader({
           }
         }
 
-        // ensureL1Types — types가 비어있으면 기본 타입 생성 (YP/SP/USER)
-        const l1 = legacyFromAtomic.l1 || createInitialState().l1;
+        // ensureL1Types — types가 비어있으면 기본 타입 생성
+        // ★★★ DFMEA: 법규/기본/보조/관능 — PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
+        const l1 = legacyFromAtomic.l1 || createInitialState(isDfmea).l1;
         const types = l1.types || [];
         let finalL1 = l1;
         if (types.length === 0) {
-          // 신규 FMEA — 기본 타입 생성
           const ts = Date.now();
-          finalL1 = {
+          finalL1 = isDfmea ? {
+            ...l1,
+            types: [
+              { id: `type-${ts}-law`, name: '법규', functions: [{ id: `func-${ts}-law`, name: '', requirements: [] }] },
+              { id: `type-${ts}-basic`, name: '기본', functions: [{ id: `func-${ts}-basic`, name: '', requirements: [] }] },
+              { id: `type-${ts}-aux`, name: '보조', functions: [{ id: `func-${ts}-aux`, name: '', requirements: [] }] },
+              { id: `type-${ts}-sense`, name: '관능', functions: [{ id: `func-${ts}-sense`, name: '', requirements: [] }] },
+            ],
+            failureScopes: l1.failureScopes || [],
+          } : {
             ...l1,
             types: [
               { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [] }] },
@@ -279,24 +292,26 @@ export function useWorksheetDataLoader({
       const emptyDB = createEmptyDB(normalizedFmeaId);
       setAtomicDB(emptyDB);
 
+      // ★★★ DFMEA: 법규/기본/보조/관능 — PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
       const ensureL1Types = (l1: any) => {
-        if (!l1) return { ...createInitialState().l1, name: projectL1Name };
+        if (!l1) return { ...createInitialState(isDfmea).l1, name: projectL1Name };
         const currentName = l1.name || '';
         const isPlaceholder = !currentName || currentName.includes('입력') || currentName.trim() === '';
         const finalL1Name = projectL1Name || (isPlaceholder ? '' : currentName);
         const existingTypes = l1.types || [];
         if (existingTypes.length === 0) {
           const ts = Date.now();
-          return {
-            ...l1,
-            name: finalL1Name,
-            types: [
-              { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [] }] },
-              { id: `type-${ts}-sp`, name: 'SP', functions: [{ id: `func-${ts}-sp`, name: '', requirements: [] }] },
-              { id: `type-${ts}-user`, name: 'USER', functions: [{ id: `func-${ts}-user`, name: '', requirements: [] }] },
-            ],
-            failureScopes: l1.failureScopes || [],
-          };
+          const newTypes = isDfmea ? [
+            { id: `type-${ts}-law`, name: '법규', functions: [{ id: `func-${ts}-law`, name: '', requirements: [] }] },
+            { id: `type-${ts}-basic`, name: '기본', functions: [{ id: `func-${ts}-basic`, name: '', requirements: [] }] },
+            { id: `type-${ts}-aux`, name: '보조', functions: [{ id: `func-${ts}-aux`, name: '', requirements: [] }] },
+            { id: `type-${ts}-sense`, name: '관능', functions: [{ id: `func-${ts}-sense`, name: '', requirements: [] }] },
+          ] : [
+            { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [] }] },
+            { id: `type-${ts}-sp`, name: 'SP', functions: [{ id: `func-${ts}-sp`, name: '', requirements: [] }] },
+            { id: `type-${ts}-user`, name: 'USER', functions: [{ id: `func-${ts}-user`, name: '', requirements: [] }] },
+          ];
+          return { ...l1, name: finalL1Name, types: newTypes, failureScopes: l1.failureScopes || [] };
         }
         return { ...l1, name: finalL1Name };
       };
