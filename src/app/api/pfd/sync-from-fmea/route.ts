@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
-import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
+import { ensureProjectSchemaReady, getProjectSchemaName, getPrismaForPfd } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 import { derivePfdNoFromFmeaId, isValidPfdFormat } from '@/lib/utils/derivePfdNo';
 import { normalizeM4WithOriginal, recordSyncLog } from '@/lib/sync-helpers';
@@ -46,12 +46,12 @@ export async function POST(request: NextRequest) {
         }
 
 
-        // ★ 듀얼 Prisma: FMEA Atomic = 프로젝트 스키마, PFD 저장 = public
+        // ★ FMEA Atomic = 프로젝트 스키마 / PFD 등록 메타 = public / PFD 행(pfdItem) = 프로젝트 스키마 (sync-from-cp·GET /api/pfd/[id]와 동일)
         const baseUrl = getBaseDatabaseUrl();
         const schema = getProjectSchemaName(fmeaId);
         await ensureProjectSchemaReady({ baseDatabaseUrl: baseUrl, schema });
         const projectPrisma = getPrismaForSchema(schema) || getPrisma();
-        const prisma = getPrisma(); // PFD 저장용 (public)
+        const prisma = getPrisma(); // PFD 등록·DocumentLink·SyncLog (public)
         if (!prisma || !projectPrisma) {
             return NextResponse.json(
                 { success: false, error: 'Database connection failed' },
@@ -205,13 +205,44 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        const pfdId = existingPfd.id;
+        const publicPfdId = existingPfd.id;
 
-        // ★ 트랜잭션: soft-delete + create (sync-from-cp 패턴)
-        // ★★★ v1.1: savedItem 전체 반환 (수동 구성 제거 → DB 객체 직접 사용) ★★★
+        // ★ 프로젝트 스키마에 pfd_registrations 행 동기화 (public ≠ project ID 문제 해소)
+        let projectPfdReg = await projectPrisma.pfdRegistration.findFirst({
+            where: { pfdNo: targetPfdNo },
+        }).catch(() => null);
+
+        if (!projectPfdReg) {
+            projectPfdReg = await projectPrisma.pfdRegistration.create({
+                data: {
+                    pfdNo: targetPfdNo,
+                    fmeaId,
+                    subject: fmeaRegData?.subject || `FMEA 연동 (${fmeaId})`,
+                    partName: fmeaRegData?.partName || '',
+                    partNo: fmeaRegData?.partNo || '',
+                    customerName: fmeaRegData?.customerName || '',
+                    status: 'draft',
+                    linkedPfmeaNo: fmeaId,
+                },
+            });
+        } else {
+            await projectPrisma.pfdRegistration.update({
+                where: { id: projectPfdReg.id },
+                data: {
+                    fmeaId,
+                    linkedPfmeaNo: fmeaId,
+                    deletedAt: null,
+                    updatedAt: new Date(),
+                },
+            });
+        }
+
+        const pfdId = projectPfdReg.id;
+
+        // ★ 트랜잭션: soft-delete + create — projectPrisma(FMEA 스키마)에 pfdItem 저장
         const pfdItems: any[] = [];
 
-        await prisma.$transaction(async (tx: any) => {
+        await projectPrisma.$transaction(async (tx: any) => {
             // 기존 PfdItem soft-delete
             await tx.pfdItem.updateMany({
                 where: { pfdId },

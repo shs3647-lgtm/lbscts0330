@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma, getPrismaForSchema, getBaseDatabaseUrl } from '@/lib/prisma';
-import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
+import { getProjectSchemaName, ensureProjectSchemaReady, getPrismaForPfd } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 import { derivePfdNoFromFmeaId, isValidPfdFormat } from '@/lib/utils/derivePfdNo';
 
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
         if (!targetPfdNo) {
             try {
-                const reg = await publicPrisma.fmeaRegistration.findUnique({
+                const reg = await projPrisma.fmeaRegistration.findUnique({
                     where: { fmeaId },
                     select: { linkedPfdNo: true },
                 });
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
             designResponsibility?: string | null; engineeringLocation?: string | null;
         } | null = null;
         try {
-            fmeaRegData = await publicPrisma.fmeaRegistration.findUnique({
+            fmeaRegData = await projPrisma.fmeaRegistration.findUnique({
                 where: { fmeaId },
                 select: {
                     subject: true, partName: true, partNo: true,
@@ -208,14 +208,39 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        const pfdId = existingPfd.id;
+        // ★ 프로젝트 스키마에 pfd_registrations 행 동기화 (public ≠ project ID 문제 해소)
+        let projectPfdReg = await projPrisma.pfdRegistration.findFirst({
+            where: { pfdNo: targetPfdNo },
+        }).catch(() => null);
 
-        // ★★★ 트랜잭션: 기존 삭제 + L2Function/L3Function 기반 PFD 아이템 생성 ★★★
+        if (!projectPfdReg) {
+            projectPfdReg = await projPrisma.pfdRegistration.create({
+                data: {
+                    pfdNo: targetPfdNo,
+                    fmeaId,
+                    subject: subject || fmeaRegData?.subject || '',
+                    partName: fmeaRegData?.partName || '',
+                    partNo: fmeaRegData?.partNo || '',
+                    customerName: fmeaRegData?.customerName || customer || '',
+                    status: 'draft',
+                    linkedPfmeaNo: fmeaId,
+                },
+            });
+        } else {
+            await projPrisma.pfdRegistration.update({
+                where: { id: projectPfdReg.id },
+                data: { fmeaId, linkedPfmeaNo: fmeaId, deletedAt: null, updatedAt: new Date() },
+            });
+        }
+
+        const pfdId = projectPfdReg.id;
+
+        // ★★★ 트랜잭션: projPrisma(FMEA 프로젝트 스키마)에 pfdItem 저장 ★★★
         const pfdItems: any[] = [];
-        await publicPrisma.$transaction(async (tx: any) => {
-            // 기존 PfdItem 삭제
-            await tx.pfdItem.deleteMany({
+        await projPrisma.$transaction(async (tx: any) => {
+            await tx.pfdItem.updateMany({
                 where: { pfdId },
+                data: { isDeleted: true },
             });
 
             let sortOrder = 0;
@@ -338,15 +363,16 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // FMEA 등록정보에 linkedPfdNo 업데이트
-            try {
-                await tx.fmeaRegistration.updateMany({
-                    where: { fmeaId: fmeaId },
-                    data: { linkedPfdNo: targetPfdNo },
-                });
-            } catch (regUpdateErr) {
-            }
         });
+
+        try {
+            await projPrisma.fmeaRegistration.updateMany({
+                where: { fmeaId: fmeaId },
+                data: { linkedPfdNo: targetPfdNo },
+            });
+        } catch (regUpdateErr) {
+            console.error('[create-pfd] linkedPfdNo 갱신 실패:', regUpdateErr);
+        }
 
 
         return NextResponse.json({

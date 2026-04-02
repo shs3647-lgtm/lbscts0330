@@ -244,6 +244,7 @@ async function syncMissingColumns(client: Client, schema: string): Promise<void>
 // ═══════════════════════════════════════════════════
 
 import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
+import { derivePfmeaIdFromPfdNo } from '@/lib/utils/derivePfdNo';
 
 /**
  * pfdNo에서 fmeaId를 찾아 프로젝트 스키마 Prisma 클라이언트를 반환.
@@ -259,7 +260,11 @@ export async function getPrismaForPfd(pfdNo: string) {
       where: { OR: [{ pfdNo }, { id: pfdNo }] },
       select: { fmeaId: true, linkedPfmeaNo: true },
     });
-    const fmeaId = pfd?.fmeaId || pfd?.linkedPfmeaNo;
+    let fmeaId = (pfd?.fmeaId || pfd?.linkedPfmeaNo || '').trim().toLowerCase() || null;
+    if (!fmeaId) {
+      const derived = derivePfmeaIdFromPfdNo(pfdNo);
+      if (derived) fmeaId = derived;
+    }
     if (fmeaId) {
       const baseUrl = getBaseDatabaseUrl();
       const schema = getProjectSchemaName(fmeaId);

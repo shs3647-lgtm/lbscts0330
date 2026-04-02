@@ -8,7 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma, getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { getPrismaForPfd, ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 import { pickFields, safeErrorMessage } from '@/lib/security';
-import { isValidPfdFormat, derivePfdNoFromFmeaId } from '@/lib/utils/derivePfdNo';
+import { isValidPfdFormat, derivePfdNoFromFmeaId, derivePfmeaIdFromPfdNo } from '@/lib/utils/derivePfdNo';
+import { loadPfdItemsWithPublicFallback, resolveProjectPfdRegistration } from '@/lib/fmea-core/resolve-pfd-project-row';
 
 // ============================================================================
 // GET: PFD 상세 조회
@@ -74,14 +75,24 @@ export async function GET(
       );
     }
 
-    // ★ pfdItem = Atomic DB → 프로젝트 스키마에서 조회
+    // ★ pfdItem = 프로젝트 스키마 — public.id ≠ project.pfd_registrations.id 이므로 행을 먼저 해석
     const projPrisma = await getPrismaForPfd(pfdReg.pfdNo);
-    const pfdItems = projPrisma
-      ? await projPrisma.pfdItem.findMany({
-          where: { pfdId: pfdReg.id, isDeleted: false },
-          orderBy: { sortOrder: 'asc' },
-        })
-      : [];
+    const {
+      items: pfdItemsRaw,
+      correctedPfdNo: loaderCorrectedNo,
+    } = await loadPfdItemsWithPublicFallback(projPrisma, prisma, {
+      id: pfdReg.id,
+      pfdNo: pfdReg.pfdNo,
+      fmeaId: pfdReg.fmeaId,
+      linkedPfmeaNo: (pfdReg as { linkedPfmeaNo?: string | null }).linkedPfmeaNo ?? null,
+    });
+    const pfdItems = pfdItemsRaw as any[];
+
+    const effectiveFmeaIdForEnrich =
+      pfdReg.fmeaId ||
+      (pfdReg as { linkedPfmeaNo?: string | null }).linkedPfmeaNo ||
+      derivePfmeaIdFromPfdNo(pfdReg.pfdNo) ||
+      undefined;
 
     // 연결된 문서 정보 조회 (public 스키마)
     const links = await prisma.documentLink.findMany({
@@ -94,10 +105,15 @@ export async function GET(
     });
 
     // ★ processDesc 자동보충: FMEA 연결된 PFD의 빈 공정설명을 FMEA 함수명으로 채움
-    const enrichedItems = await enrichProcessDesc(pfdItems, pfdReg.fmeaId, projPrisma || prisma);
+    const enrichedItems = await enrichProcessDesc(
+      pfdItems,
+      effectiveFmeaIdForEnrich,
+      projPrisma || prisma,
+    );
 
-    // 요청 ID와 실제 pfdNo가 다르면 교정 정보 포함
+    // 요청 ID와 실제 pfdNo가 다르면 교정 정보 포함 (프로젝트 쪽 표준 pfdNo 우선)
     const needsRedirect = pfdReg.pfdNo !== id && id !== pfdReg.id;
+    const redirectPfdNo = loaderCorrectedNo || (needsRedirect ? pfdReg.pfdNo : undefined);
 
     return NextResponse.json({
       success: true,
@@ -105,7 +121,7 @@ export async function GET(
         ...pfdReg,
         items: enrichedItems,
         links,
-        ...(needsRedirect ? { correctedPfdNo: pfdReg.pfdNo } : {}),
+        ...(redirectPfdNo ? { correctedPfdNo: redirectPfdNo } : {}),
       },
     });
 
@@ -169,7 +185,7 @@ export async function PUT(
       },
     });
 
-    // 항목 업데이트 (있는 경우) — pfdItem = Atomic DB → 프로젝트 스키마
+    // 항목 업데이트 (있는 경우) — pfdItem = Atomic DB → 프로젝트 스키마 (public id ≠ project pfdId)
     if (items && Array.isArray(items)) {
       const projPrisma = await getPrismaForPfd(existing.pfdNo);
       if (!projPrisma) {
@@ -179,9 +195,17 @@ export async function PUT(
         );
       }
 
+      const projRow = await resolveProjectPfdRegistration(projPrisma, {
+        id: existing.id,
+        pfdNo: existing.pfdNo,
+        fmeaId: existing.fmeaId,
+        linkedPfmeaNo: (existing as { linkedPfmeaNo?: string | null }).linkedPfmeaNo ?? null,
+      });
+      const projectPfdId = projRow?.id ?? existing.id;
+
       // 기존 항목 soft delete
       await projPrisma.pfdItem.updateMany({
-        where: { pfdId: existing.id },
+        where: { pfdId: projectPfdId },
         data: { isDeleted: true },
       });
 
@@ -202,7 +226,7 @@ export async function PUT(
           await projPrisma.pfdItem.create({
             data: {
               ...item,
-              pfdId: existing.id,
+              pfdId: projectPfdId,
               sortOrder: i * 10,
               isDeleted: false,
             },

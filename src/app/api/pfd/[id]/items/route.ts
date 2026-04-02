@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { getPrismaForPfd } from '@/lib/project-schema';
+import { resolveProjectPfdRegistration } from '@/lib/fmea-core/resolve-pfd-project-row';
 import { safeErrorMessage } from '@/lib/security';
 import type { PrismaClient } from '@prisma/client';
 
@@ -85,11 +86,19 @@ export async function POST(
       );
     }
 
+    const projRow = await resolveProjectPfdRegistration(projPrisma, {
+      id: pfd.id,
+      pfdNo: pfd.pfdNo,
+      fmeaId: pfd.fmeaId,
+      linkedPfmeaNo: (pfd as { linkedPfmeaNo?: string | null }).linkedPfmeaNo ?? null,
+    });
+    const projectPfdId = projRow?.id ?? pfd.id;
+
     // 트랜잭션으로 처리 (기존 항목 삭제 후 새로 생성) — 프로젝트 스키마
     const result = await projPrisma.$transaction(async (tx: any) => {
       // 기존 UPI ID 수집 (고아 방지용)
       const oldItems = await tx.pfdItem.findMany({
-        where: { pfdId: pfd.id },
+        where: { pfdId: projectPfdId },
         select: { unifiedItemId: true },
       });
       const oldUpiIds = oldItems
@@ -98,7 +107,7 @@ export async function POST(
 
       // 기존 항목 hard delete
       await tx.pfdItem.deleteMany({
-        where: { pfdId: pfd.id },
+        where: { pfdId: projectPfdId },
       });
 
       // 병합 강제 통일 - 동일 그룹 내 모든 행을 첫 행 값으로 덮어씀
@@ -157,7 +166,7 @@ export async function POST(
         // 2단계: PfdItem — FMEA FK 보존 (INV-INT-01)
         const created = await tx.pfdItem.create({
           data: {
-            pfdId: pfd.id,
+            pfdId: projectPfdId,
             unifiedItemId: unifiedItem.id,
             processNo: item.processNo || '',
             processName: item.processName || '',

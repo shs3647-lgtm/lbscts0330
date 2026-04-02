@@ -42,6 +42,15 @@ export function isValidPfdFormat(pfdNo: string): boolean {
     return trimmed.split('-').length <= 3;
 }
 
+/**
+ * 표준 PFD 번호에서 PFMEA 베이스 ID만 추출 (스키마 라우팅용).
+ * 예: pfd26-p006-01, pfd26-p006-i06 → pfm26-p006
+ */
+export function derivePfmeaIdFromPfdNo(pfdNo: string): string | null {
+    const m = String(pfdNo || '').trim().toLowerCase().match(/^pfd(\d{2}-[mfp]\d{3})/);
+    return m ? `pfm${m[1]}` : null;
+}
+
 export function derivePfdNoFromFmeaId(fmeaId: string, sequenceNo: number = 1): string {
     if (!fmeaId) return '';
 
