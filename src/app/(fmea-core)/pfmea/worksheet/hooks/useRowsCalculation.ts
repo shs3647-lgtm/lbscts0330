@@ -38,7 +38,8 @@ interface FailureLink {
  */
 function calculateRowsFromFailureLinks(
   state: WorksheetState,
-  failureLinks: FailureLink[]
+  failureLinks: FailureLink[],
+  isDfmea = false,
 ): FlatRow[] {
   const result: FlatRow[] = [];
   const l2Data = state.l2 || [];
@@ -107,7 +108,7 @@ function calculateRowsFromFailureLinks(
 
       result.push({
         l1Id: state.l1.id,
-        l1Name: formatL1Name(state.l1.name),
+        l1Name: formatL1Name(state.l1.name, isDfmea),
         l1TypeId: l1TypeId,
         l1Type: l1Type,
         l1FunctionId: l1FuncId,
@@ -138,7 +139,7 @@ function calculateRowsFromFailureLinks(
 /**
  * l2Data 기반 평탄화 (구조분석 방식)
  */
-function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
+function calculateRowsFromL2Data(state: WorksheetState, isDfmea = false): FlatRow[] {
   const result: FlatRow[] = [];
   const l2Data = state.l2 || [];
 
@@ -173,7 +174,7 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
     if (l3Data.length === 0) {
       const l1Item = l1FlatData[rowIdx % Math.max(l1FlatData.length, 1)] || { typeId: '', type: '', funcId: '', func: '', reqId: '', req: '' };
       result.push({
-        l1Id: state.l1.id, l1Name: formatL1Name(state.l1.name),
+        l1Id: state.l1.id, l1Name: formatL1Name(state.l1.name, isDfmea),
         l1TypeId: l1Item.typeId, l1Type: l1Item.type,
         l1FunctionId: l1Item.funcId, l1Function: l1Item.func,
         l1RequirementId: l1Item.reqId, l1Requirement: l1Item.req,
@@ -189,7 +190,7 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
       l3Data.forEach(we => {
         const l1Item = l1FlatData[rowIdx % Math.max(l1FlatData.length, 1)] || { typeId: '', type: '', funcId: '', func: '', reqId: '', req: '' };
         result.push({
-          l1Id: state.l1.id, l1Name: formatL1Name(state.l1.name),
+          l1Id: state.l1.id, l1Name: formatL1Name(state.l1.name, isDfmea),
           l1TypeId: l1Item.typeId, l1Type: l1Item.type,
           l1FunctionId: l1Item.funcId, l1Function: l1Item.func,
           l1RequirementId: l1Item.reqId, l1Requirement: l1Item.req,
@@ -219,19 +220,19 @@ function calculateRowsFromL2Data(state: WorksheetState): FlatRow[] {
 export function calculateFlatRows(
   state: WorksheetState,
   currentTab: string,
-  failureLinks: FailureLink[]
+  failureLinks: FailureLink[],
+  isDfmea = false,
 ): FlatRow[] {
   const l2Data = state.l2 || [];
   if (l2Data.length === 0) return [];
 
-  // failureLinks는 평가 탭에서만 사용
   const useFailureLinks = ['failure-link', 'eval-structure', 'eval-function', 'eval-failure', 'risk', 'opt', 'all'].includes(currentTab);
 
   if (useFailureLinks && failureLinks.length > 0) {
-    return calculateRowsFromFailureLinks(state, failureLinks);
+    return calculateRowsFromFailureLinks(state, failureLinks, isDfmea);
   }
 
-  return calculateRowsFromL2Data(state);
+  return calculateRowsFromL2Data(state, isDfmea);
 }
 
 /**

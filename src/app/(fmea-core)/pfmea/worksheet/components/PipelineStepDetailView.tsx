@@ -161,7 +161,7 @@ function Step1Detail({ data, crossCheck }: { data: any; crossCheck?: CrossCheckE
       <table className="w-full border-collapse text-[9px]">
         <thead className="sticky top-0 bg-gray-800 z-10">
           <tr>
-            <th className="px-1 py-0.5 text-gray-500 text-left w-10">공정</th>
+            <th className="px-1 py-0.5 text-gray-500 text-left w-10">NO</th>
             <th className="px-1 py-0.5 text-gray-500 text-left">{lb.l2Short}</th>
             <th className="px-1 py-0.5 text-gray-500 text-center w-10">기능</th>
             <th className="px-1 py-0.5 text-gray-500 text-center w-10">L3</th>
@@ -193,7 +193,7 @@ function Step2Detail({ data, subTab, setSubTab, crossCheck }: { data: any; subTa
   const lb = getFmeaLabels(isDfmea);
   const tabs = [
     { key: 'cross', label: `교차검증 (${crossCheck?.length || 0})` },
-    { key: 'proc', label: `공정 (${data.processes?.length || 0})` },
+    { key: 'proc', label: `${lb.l2Short} (${data.processes?.length || 0})` },
     { key: 'l1func', label: `L1기능 (${data.l1Functions?.length || 0})` },
     { key: 'fe', label: `FE (${data.failureEffects?.length || 0})` },
   ];
@@ -243,9 +243,9 @@ function Step2Detail({ data, subTab, setSubTab, crossCheck }: { data: any; subTa
           <table className="w-full border-collapse text-[9px]">
             <thead className="sticky top-0 bg-gray-800 z-10">
               <tr>
-                <th className="px-1 py-0.5 text-gray-500 text-left w-8">공정</th>
+                <th className="px-1 py-0.5 text-gray-500 text-left w-8">NO</th>
                 <th className="px-1 py-0.5 text-gray-500 text-left">{lb.l2Short}</th>
-                <th className="px-1 py-0.5 text-gray-500 text-left">A3 {lb.l2Func}</th>
+                <th className="px-1 py-0.5 text-gray-500 text-left">{lb.l2Func}</th>
                 <th className="px-1 py-0.5 text-gray-500 text-center w-8">A4</th>
                 <th className="px-1 py-0.5 text-gray-500 text-center w-8">A5</th>
                 <th className="px-1 py-0.5 text-gray-500 text-center w-8">B1</th>
@@ -270,7 +270,7 @@ function Step2Detail({ data, subTab, setSubTab, crossCheck }: { data: any; subTa
             <thead className="sticky top-0 bg-gray-800 z-10">
               <tr>
                 <th className="px-1 py-0.5 text-gray-500 text-left">C1 구분</th>
-                <th className="px-1 py-0.5 text-gray-500 text-left">C2 제품기능</th>
+                <th className="px-1 py-0.5 text-gray-500 text-left">C2 {lb.l1Func}</th>
                 <th className="px-1 py-0.5 text-gray-500 text-left">C3 요구사항</th>
               </tr>
             </thead>
@@ -351,12 +351,12 @@ function Step3Detail({ data, subTab, setSubTab, parentChild }: { data: any; subT
   );
 
   const configs: Record<string, { items: any[]; columns: { key: string; label: string; width?: string }[] }> = {
-    l2: { items: data.l2 || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: '공정번호', width: 'w-12' }, { key: 'name', label: lb.l2Short }] },
-    l3: { items: data.l3 || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: '공정', width: 'w-10' }, { key: 'm4', label: lb.l3Attr, width: 'w-8' }, { key: 'name', label: lb.l3Short }] },
-    fm: { items: data.failureModes || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: '공정', width: 'w-10' }, { key: 'name', label: '고장형태' }] },
+    l2: { items: data.l2 || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: 'NO', width: 'w-12' }, { key: 'name', label: lb.l2Short }] },
+    l3: { items: data.l3 || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: 'NO', width: 'w-10' }, { key: 'm4', label: lb.l3Attr, width: 'w-8' }, { key: 'name', label: lb.l3Short }] },
+    fm: { items: data.failureModes || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: 'NO', width: 'w-10' }, { key: 'name', label: '고장형태' }] },
     fe: { items: data.failureEffects || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'name', label: '고장영향' }, { key: 'category', label: '구분', width: 'w-14' }, { key: 'severity', label: 'S', width: 'w-6' }] },
-    fc: { items: data.failureCauses || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: '공정', width: 'w-10' }, { key: 'cause', label: '고장원인' }] },
-    l2f: { items: data.l2Functions || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: '공정', width: 'w-10' }, { key: 'name', label: lb.l2Func }, { key: 'productChar', label: '제품특성' }] },
+    fc: { items: data.failureCauses || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: 'NO', width: 'w-10' }, { key: 'cause', label: '고장원인' }] },
+    l2f: { items: data.l2Functions || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'processNo', label: 'NO', width: 'w-10' }, { key: 'name', label: lb.l2Func }, { key: 'productChar', label: lb.l2Char }] },
     l3f: { items: data.l3Functions || [], columns: [{ key: 'id', label: 'UUID', width: 'w-16' }, { key: 'name', label: lb.l3Func }, { key: 'processChar', label: lb.l3Char }] },
   };
 
@@ -434,6 +434,9 @@ function ParentChildDetailTree({ entries }: { entries?: ParentChildEntry[] }) {
 
 // ─── STEP 4: FK 상세 ───
 function Step4Detail({ data, fkIntegrity }: { data: any; fkIntegrity?: FkIntegrityEntry[] }) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [activeTab, setActiveTab] = useState<'links' | 'fk'>('fk');
 
   return (
@@ -508,7 +511,7 @@ function Step4Detail({ data, fkIntegrity }: { data: any; fkIntegrity?: FkIntegri
             <table className="w-full border-collapse text-[9px]">
               <thead className="sticky top-0 bg-gray-800 z-10">
                 <tr>
-                  <th className="px-1 py-0.5 text-gray-500 text-left w-8">공정</th>
+                  <th className="px-1 py-0.5 text-gray-500 text-left w-8">NO</th>
                   <th className="px-1 py-0.5 text-gray-500 text-left">FM</th>
                   <th className="px-1 py-0.5 text-gray-500 text-left">FC</th>
                   <th className="px-1 py-0.5 text-gray-500 text-left">FE</th>
@@ -555,7 +558,7 @@ function Step5Detail({ data, crossCheck }: { data: any; crossCheck?: CrossCheckE
       <table className="w-full border-collapse text-[9px]">
         <thead className="sticky top-0 bg-gray-800 z-10">
           <tr>
-            <th className="px-1 py-0.5 text-gray-500 text-left w-8">공정</th>
+            <th className="px-1 py-0.5 text-gray-500 text-left w-8">NO</th>
             <th className="px-1 py-0.5 text-gray-500 text-left">{lb.l2Short}</th>
             <th className="px-1 py-0.5 text-gray-500 text-center w-8">FM</th>
             <th className="px-1 py-0.5 text-gray-500 text-center w-8">FC</th>

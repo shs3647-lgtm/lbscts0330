@@ -693,8 +693,8 @@ export function useWorksheetState(): UseWorksheetStateReturn {
     const currentTab = state.tab || '';
     const failureLinks = (state as any).failureLinks || [];
     // ★★★ 2026-03-27: placeholder 필터링 완전 제거 — 빈 이름도 수동 추가 행
-    return calculateFlatRows(state, currentTab, failureLinks);
-  }, [state.l1, state.l2, state.tab, (state as any).failureLinks]);
+    return calculateFlatRows(state, currentTab, failureLinks, isDfmea);
+  }, [state.l1, state.l2, state.tab, (state as any).failureLinks, isDfmea]);
 
   // Span 계산
   const l1Spans = useMemo(() => calculateL1Spans(rows), [rows]);

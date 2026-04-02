@@ -62,6 +62,10 @@ export interface FmeaLabels {
   l3Func: string;
   /** L3 기능 영문 */
   l3FuncEn: string;
+  /** L2 특성: "제품특성" / "요구사항" */
+  l2Char: string;
+  /** L2 특성 영문 */
+  l2CharEn: string;
   /** L3 특성: "공정특성" / "설계특성" */
   l3Char: string;
   /** L3 특성 영문 */
@@ -133,6 +137,8 @@ const PFMEA_LABELS: FmeaLabels = {
   l2FuncEn: 'Process Function',
   l3Func: '작업요소기능',
   l3FuncEn: 'Work Element Function',
+  l2Char: '제품특성',
+  l2CharEn: 'Product Char.',
   l3Char: '공정특성',
   l3CharEn: 'Process Char.',
 
@@ -183,6 +189,8 @@ const DFMEA_LABELS: FmeaLabels = {
   l2FuncEn: 'Focus Element Function',
   l3Func: '부품 기능 또는 특성',
   l3FuncEn: 'Component Function or Char.',
+  l2Char: '요구사항',
+  l2CharEn: 'Requirements',
   l3Char: '요구사항',
   l3CharEn: 'Requirements',
 

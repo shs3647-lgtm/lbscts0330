@@ -150,7 +150,7 @@ function FMTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFMRow>[]
         <tr>
           <th style={{ ...HEADER_STYLE(L2.headerLight), width: '10%' }}>{lb.l2No}</th>
           <th style={{ ...HEADER_STYLE(L2.headerLight), width: '25%' }}>{lb.l2Func}</th>
-          <th style={{ ...HEADER_STYLE(L2.headerLight), width: '20%' }}>제품특성</th>
+          <th style={{ ...HEADER_STYLE(L2.headerLight), width: '20%' }}>{lb.l2Char}</th>
           <th style={{ ...HEADER_STYLE(L2.headerLight), width: '45%' }}>고장형태</th>
         </tr>
       </thead>

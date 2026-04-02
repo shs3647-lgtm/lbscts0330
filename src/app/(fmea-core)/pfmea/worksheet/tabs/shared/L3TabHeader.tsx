@@ -88,7 +88,7 @@ export function L3TabHeader({
       {/* 1행: 단계 구분 (11px, bold) */}
       <tr>
         <th colSpan={3} className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko="3L 구조분석" en="Structure" />
+          <BiHeader ko={`3L ${isDfmea ? '설계분석' : '구조분석'}`} en="Structure" />
         </th>
         <th colSpan={showSecondary ? 3 : 2} className="text-white border border-[#ccc] p-1 text-[11px] font-bold" style={{ background: stepBgColor }}>
           <div className="flex items-center justify-between gap-2">
