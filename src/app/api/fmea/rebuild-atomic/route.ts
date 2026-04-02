@@ -1237,8 +1237,37 @@ export async function POST(request: NextRequest) {
               const sev = ra.severity > 0 ? ra.severity : Math.max(1, peerS.s || (feMapEnrich.get(feId)?.severity ?? 1));
               const occ = ra.occurrence > 0 ? ra.occurrence : Math.max(1, peerS.o);
               const det = ra.detection > 0 ? ra.detection : Math.max(1, peerS.d);
-              const pc = ra.preventionControl || peerPC || null;
-              const dc = ra.detectionControl || peerDC || null;
+              let pc = ra.preventionControl || peerPC || null;
+              let dc = ra.detectionControl || peerDC || null;
+
+              // (2.5) DC/PC가 여전히 빈값이면 같은 L2(공정) 내 다른 FM의 RA에서 DC/PC 복사
+              if (!dc?.trim() || !pc?.trim()) {
+                const fmObj = atomic.failureModes.find((fm: any) => fm.id === fmId);
+                const l2Id = (fmObj as any)?.l2StructId;
+                if (l2Id) {
+                  const l2FMs = atomic.failureModes.filter((fm: any) => (fm as any).l2StructId === l2Id && fm.id !== fmId);
+                  const l2FMIds = l2FMs.map((fm: any) => fm.id);
+                  if (l2FMIds.length > 0) {
+                    const l2FLs = await tx.failureLink.findMany({
+                      where: { fmeaId, fmId: { in: l2FMIds } },
+                      select: { id: true },
+                    });
+                    const l2FLIds = l2FLs.map((fl: any) => fl.id);
+                    if (l2FLIds.length > 0) {
+                      const l2RAs = await tx.riskAnalysis.findMany({
+                        where: { fmeaId, linkId: { in: l2FLIds }, detectionControl: { not: null } },
+                        select: { detectionControl: true, preventionControl: true },
+                        take: 5,
+                      });
+                      const dcCandidates = l2RAs.map((r: any) => r.detectionControl?.trim()).filter(Boolean);
+                      const pcCandidates = l2RAs.map((r: any) => r.preventionControl?.trim()).filter(Boolean);
+                      if (!dc?.trim() && dcCandidates.length > 0) dc = mostFreq(dcCandidates);
+                      if (!pc?.trim() && pcCandidates.length > 0) pc = mostFreq(pcCandidates);
+                    }
+                  }
+                }
+              }
+
               if (sev > 0 || occ > 0 || det > 0 || pc || dc) {
                 const ap = (sev > 0 && occ > 0 && det > 0) ? calculateAPLocal(sev, occ, det) : 'L';
                 await tx.riskAnalysis.update({

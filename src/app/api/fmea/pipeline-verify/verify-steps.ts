@@ -56,7 +56,7 @@ export interface ParentChildEntry {
   missingChildren: { parentId: string; parentName: string }[];
 }
 
-/** STEP3 FC dedup 충돌 샘플 — Rule 1.7: l2StructId|l3StructId|cause (★6) */
+/** STEP3 FC dedup 충돌 샘플 — 복합키 parentId(N-1): l2StructId|l3StructId|l3FuncId|cause */
 export interface FcDuplicateGroupSample {
   dedupKey: string;
   idCount: number;
@@ -269,7 +269,7 @@ export async function verifyFmeaId(prisma: any, fmeaId: string): Promise<StepRes
  * - **미연결 FC/FM/FE:** FC/FM/FE 행이 어느 FL에도(해당 fkId로) 안 묶이면 warn (데이터는 있으나 사슬 미완성).
  *   단, FM은 있는데 **FL이 0건**이면 완전 누락으로 **error** (Import/재구축 필요).
  * - **RA.linkId → FL:** RiskAnalysis 가 가리키는 링크가 존재해야 함. FL 대비 RA 없음은 warn.
- * - **FC 중복:** 동일 `l2StructId|l3StructId|cause` 가 2회 이상이면 warn (dedup/Import 점검 힌트).
+ * - **FC 중복:** 동일 `l2StructId|l3StructId|l3FuncId|cause` 가 2회 이상이면 warn (parentId N-1 복합키 정책).
  *
  * CLI 골든(`scripts/verify-location-fk-baseline.ts --baseline`)은 본 단계의 `details.links`,
  * `totalOrphans`, `nullFeIdLinks` 및 STEP 0 `l2` 등과 정합한다.
@@ -384,13 +384,15 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   }
   r.details.nullFeIdLinks = nullFeIdLinks;
 
-  // FC 중복 검증 — Rule 1.7 / UUID_FK: dedupKey = l2StructId|l3StructId|cause (이슈 문구 예전 "l2+cause"는 부정확했음)
+  // FC 중복 검증 — 복합키 정책 parentId(N-1): l2StructId|l3StructId|l3FuncId|cause
+  // l3FuncId가 다르면 별도 엔티티 (같은 L3 작업요소 안에서도 요소기능이 다르면 별개)
   const fcKeyToIds = new Map<string, string[]>();
   for (const fc of fcs) {
     const l2 = String((fc as any).l2StructId || '');
     const l3 = String((fc as any).l3StructId || '');
+    const l3f = String((fc as any).l3FuncId || '');
     const cause = String((fc as any).cause || '');
-    const key = `${l2}|${l3}|${cause}`;
+    const key = `${l2}|${l3}|${l3f}|${cause}`;
     const ids = fcKeyToIds.get(key) || [];
     ids.push(String((fc as any).id));
     fcKeyToIds.set(key, ids);
@@ -413,7 +415,7 @@ export async function verifyFk(prisma: any, fmeaId: string): Promise<StepResult>
   }
   if (fcDuplicates > 0) {
     r.status = worst(r.status, 'warn');
-    r.issues.push(`FC 중복 (l2|l3|cause, Rule1.7) ${fcDuplicates}건`);
+    r.issues.push(`FC 중복 (l2|l3|l3f|cause) ${fcDuplicates}건`);
   }
   r.details.fcDuplicates = fcDuplicates;
   if (fcDuplicateGroups.length > 0) r.fcDuplicateGroups = fcDuplicateGroups;
