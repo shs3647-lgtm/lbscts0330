@@ -54,6 +54,8 @@
 'use client';
 
 import React, { useState, useRef, useLayoutEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 // 컬럼 타입: 구조분석(L1/L2/L3), 기능분석(FM), 고장분석(FC/FE), SOD, AP
 export type PfmeaColumnType = 'l1' | 'l2' | 'l3' | 'fm' | 'fc' | 'fe' | 'sod' | 'ap' | 'other';
@@ -119,6 +121,9 @@ export function PfmeaContextMenu({
     const [showHelp, setShowHelp] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const [adjustedPos, setAdjustedPos] = useState<{ x: number; y: number }>({ x: contextMenu.x, y: contextMenu.y });
+    const pathname = usePathname();
+    const isDfmea = pathname?.includes('/dfmea/') ?? false;
+    const lb = getFmeaLabels(isDfmea);
 
     // ★ 메뉴가 뷰포트 밖으로 나가면 위치 조정 (위쪽/왼쪽으로 플립)
     // useLayoutEffect: DOM 변경 후 브라우저 페인트 전에 실행 → 메뉴 깜빡임 방지
@@ -148,12 +153,11 @@ export function PfmeaContextMenu({
 
     const { rowIdx, fmId, fcId, columnType, colKey } = contextMenu;
 
-    // 컬럼 타입별 라벨
     const getColumnLabel = () => {
         switch (columnType) {
-            case 'l1': return '📋 L1 (공정단계)';
-            case 'l2': return '🔧 L2 (작업요소)';
-            case 'l3': return '📊 L3 (작업단계)';
+            case 'l1': return `📋 L1 (${lb.l1Short})`;
+            case 'l2': return `🔧 L2 (${lb.l2Short})`;
+            case 'l3': return `📊 L3 (${lb.l3Short})`;
             case 'fm': return '⚠️ 고장형태(FM)';
             case 'fc': return '🔍 고장원인(FC)';
             case 'fe': return '💥 고장영향(FE)';
@@ -518,8 +522,8 @@ export function PfmeaContextMenu({
                                 <span>같은 그룹 내 아래에 항목 추가</span>
                             </div>
                             <div className="text-[9px] text-gray-500 pl-[70px]">
-                                • 공정 셀 → 새 공정 추가<br/>
-                                • 기능 셀 → 같은 공정 내 새 기능<br/>
+                                • {lb.l2Short} 셀 → 새 {lb.l2Short} 추가<br/>
+                                • 기능 셀 → 같은 {lb.l2Short} 내 새 기능<br/>
                                 • 특성 셀 → 같은 기능 내 새 특성
                             </div>
                             <div className="border-t border-gray-200 my-1" />

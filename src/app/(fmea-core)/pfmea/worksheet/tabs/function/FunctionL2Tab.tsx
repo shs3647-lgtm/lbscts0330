@@ -511,7 +511,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         setDirty(true);
         emitSave();
       } else {
-        if (!window.confirm(`제품특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
+        if (!window.confirm(`${lb.l2Char} "${charName}"을(를) 삭제하시겠습니까?`)) return;
         const updateFn = (prev: WorksheetState) => {
           const newState = JSON.parse(JSON.stringify(prev));
           const pIdx = newState.l2.findIndex((p: any) => p.id === procId);
@@ -704,7 +704,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
             // 삭제 대상에 하위 데이터(FM 등)가 연결되어 있을 수 있으므로 확인
             if (charsToRemove.length > 0) {
               const removeNames = charsToRemove.map((c: any) => c.name).join(', ');
-              if (!window.confirm(`⚠️ 적용에서 제외한 제품특성:\n\n${removeNames}\n\n워크시트에서 제거합니다. 계속할까요?`)) return;
+              if (!window.confirm(`⚠️ 적용에서 제외한 ${lb.l2Char}:\n\n${removeNames}\n\n워크시트에서 제거합니다. 계속할까요?`)) return;
             }
             
             const updateFn = (prev: WorksheetState) => {
@@ -778,14 +778,14 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
             return func ? (func.productChars || []).filter(c => c.name?.trim()).map(c => ({ id: c.id, name: c.name })) : [];
           })()}
           config={{
-            title: '제품특성(A4) 선택',
+            title: `${lb.l2Char}(A4) 선택`,
             emoji: '🔬',
             headerGradient: 'from-emerald-500 to-green-600',
             headerAccent: 'text-emerald-200',
-            searchPlaceholder: '🔍 제품특성 검색 또는 새 항목 입력...',
+            searchPlaceholder: `🔍 ${lb.l2Char} 검색 또는 새 항목 입력...`,
             searchRingColor: 'focus:ring-emerald-500',
             searchBgGradient: 'from-emerald-50 to-green-50',
-            parentLabel: '공정:',
+            parentLabel: `${lb.l2Short}:`,
             parentValue: [(state.l2 || []).find(p => p.id === modal.procId)?.no, (state.l2 || []).find(p => p.id === modal.procId)?.name].filter(Boolean).join(' · '),
           }}
         />
@@ -811,9 +811,9 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
             );
             if (funcsWithChildren.length > 0) {
               const childCounts = funcsWithChildren
-                .map((f: any) => `• ${f.name}: 제품특성 ${(f.productChars || []).filter((c: any) => (c.name || '').trim()).length}개`)
+                .map((f: any) => `• ${f.name}: ${lb.l2Char} ${(f.productChars || []).filter((c: any) => (c.name || '').trim()).length}개`)
                 .join('\n');
-              if (!window.confirm(`⚠️ 적용에서 제외한 기능에 하위 데이터가 있습니다.\n\n${childCounts}\n\n제품특성도 함께 삭제됩니다. 계속할까요?`)) return;
+              if (!window.confirm(`⚠️ 적용에서 제외한 기능에 하위 데이터가 있습니다.\n\n${childCounts}\n\n${lb.l2Char}도 함께 삭제됩니다. 계속할까요?`)) return;
             }
 
             const picks = selectedItems.map((item) => ({ id: item.id, name: item.name }));
@@ -925,7 +925,7 @@ function EmptyRowL2() {
         <SelectableCell value="" placeholder={`${lb.l2Func} 선택`} bgColor={zebra.function} onClick={() => { }} />
       </td>
       <td className={cellP0} style={{ background: zebra.function }}>
-        <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => { }} />
+        <SelectableCell value="" placeholder={`${lb.l2Char} 선택`} bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => { }} />
       </td>
       <td className="border border-[#ccc] p-1 text-center text-[#999] text-xs align-middle" style={{ background: zebra.function }}>-</td>
     </tr>
@@ -973,7 +973,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                 <SelectableCell value="" placeholder={`${lb.l2Func} 선택`} bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, title: `${lb.l2Short} 기능 선택`, itemCode: 'A3' })} />
               </td>
               <td className={cellP0} style={{ background: zebra.function }}>
-                <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => { }} />
+                <SelectableCell value="" placeholder={`${lb.l2Char} 선택`} bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => { }} />
               </td>
               <td className="border border-[#ccc] p-1 text-center text-[#999] text-xs align-middle" style={{ background: zebra.function }}>-</td>
             </tr>
@@ -1002,7 +1002,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                   <SelectableCell value={f.name} placeholder={lb.l2Func} bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: `${lb.l2Short} 기능 선택`, itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
                 </td>
                 <td className={cellP0} style={{ background: zebra.function }} onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e, 'productChar', proc.id, f.id, ''); }}>
-                  <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, title: '제품특성 선택', itemCode: 'A4' })} />
+                  <SelectableCell value="" placeholder={`${lb.l2Char} 선택`} bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, title: `${lb.l2Char} 선택`, itemCode: 'A4' })} />
                 </td>
                 <td className="border border-[#ccc] p-1 text-center text-[#999] text-xs align-middle" style={{ background: zebra.function }}>-</td>
               </tr>
@@ -1027,7 +1027,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                   </td>
                 )}
                 <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={(e) => handleContextMenu(e, 'productChar', proc.id, f.id, c.id)}>
-                  <SelectableCell value={c.name} placeholder="제품특성" bgColor={zebra.failure} textColor={'#e65100'} isRevised={c.isRevised} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, charId: c.id, title: '제품특성 선택', itemCode: 'A4' })} onDoubleClickEdit={(newValue) => handleInlineEditProductChar(proc.id, f.id, c.id, newValue)} />
+                  <SelectableCell value={c.name} placeholder={lb.l2Char} bgColor={zebra.failure} textColor={'#e65100'} isRevised={c.isRevised} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, charId: c.id, title: `${lb.l2Char} 선택`, itemCode: 'A4' })} onDoubleClickEdit={(newValue) => handleInlineEditProductChar(proc.id, f.id, c.id, newValue)} />
                 </td>
                 <td className="border border-[#ccc] p-0 text-center align-middle" style={{ background: zebra.failure }}>
                   <SpecialCharBadge value={c.specialChar || ''} onClick={() => setSpecialCharModal({ procId: proc.id, funcId: f.id, charId: c.id, charName: c.name, currentValue: c.specialChar || '' })} />
