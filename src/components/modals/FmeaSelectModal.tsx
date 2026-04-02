@@ -56,7 +56,7 @@ const TYPE_LABELS = {
 
 const TYPE_EMPTY_LABELS: Record<string, string> = {
   M: 'Master FMEA', F: 'Family FMEA', P: 'Part FMEA',
-  ALL: 'FMEA', LOAD: 'PFMEA', MF: 'FMEA',
+  ALL: 'FMEA', LOAD: 'FMEA', MF: 'FMEA',
 };
 
 const BD_ABBR: Record<string, string> = { m: 'MBD', f: 'FBD', p: 'PBD' };

@@ -15,6 +15,7 @@
 'use client';
 
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { WorksheetState } from '../../constants';
 import {
   CPRow,
@@ -57,6 +58,9 @@ const styles = {
 };
 
 export default function CPTab({ state, setState, setDirty }: CPTabProps) {
+  const cpPathname = usePathname();
+  const isDfmea = cpPathname?.includes('/dfmea/') ?? false;
+  const fmeaLabel = isDfmea ? 'DFMEA' : 'PFMEA';
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   // EP검사장치 관련 상태
@@ -225,8 +229,8 @@ export default function CPTab({ state, setState, setDirty }: CPTabProps) {
               : 'bg-orange-500 text-white'
           }`}>
             {syncStatus.inSync
-              ? '✓ PFMEA 동기화됨'
-              : `⚠️ PFMEA: ${syncStatus.pfmeaCount} / CP: ${syncStatus.cpCount}`
+              ? `✓ ${fmeaLabel} 동기화됨`
+              : `⚠️ ${fmeaLabel}: ${syncStatus.pfmeaCount} / CP: ${syncStatus.cpCount}`
             }
           </div>
         </div>
@@ -251,16 +255,16 @@ export default function CPTab({ state, setState, setDirty }: CPTabProps) {
           <button
             onClick={handleSyncFromPfmea}
             className="px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded hover:bg-blue-600 transition"
-            title="PFMEA 데이터를 CP에 반영"
+            title={`${fmeaLabel} 데이터를 CP에 반영`}
           >
-            🔄 PFMEA→CP
+            🔄 {fmeaLabel}→CP
           </button>
           <button
             onClick={handleSyncToPfmea}
             className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded hover:bg-orange-600 transition"
-            title="CP에서 수정된 내용을 PFMEA에 반영"
+            title={`CP에서 수정된 내용을 ${fmeaLabel}에 반영`}
           >
-            🔄 CP→PFMEA
+            🔄 CP→{fmeaLabel}
           </button>
           <button
             onClick={addRow}
@@ -276,7 +280,7 @@ export default function CPTab({ state, setState, setDirty }: CPTabProps) {
         <span className="font-semibold">범례:</span>
         <span className="flex items-center gap-1">
           <span className="w-3 h-3 bg-yellow-100 border border-yellow-300"></span>
-          PFMEA 연동 필드
+          {fmeaLabel} 연동 필드
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 h-3 bg-orange-100 border border-orange-300"></span>
@@ -322,7 +326,7 @@ export default function CPTab({ state, setState, setDirty }: CPTabProps) {
                   col.pfmeaSync ? 'bg-yellow-100' : ''
                 }`}
                 style={{ width: col.width, minWidth: col.width }}
-                title={col.pfmeaSync ? 'PFMEA 연동 필드' : ''}
+                title={col.pfmeaSync ? `${fmeaLabel} 연동 필드` : ''}
               >
                 {col.label}
                 {col.pfmeaSync && <span className="ml-0.5 text-yellow-600">🔗</span>}
@@ -335,7 +339,7 @@ export default function CPTab({ state, setState, setDirty }: CPTabProps) {
           {cpRows.length === 0 ? (
             <tr>
               <td colSpan={19} className="text-center py-10 text-gray-400">
-                데이터가 없습니다. [🔄 PFMEA→CP] 버튼으로 PFMEA에서 데이터를 가져오세요.
+                데이터가 없습니다. [🔄 {fmeaLabel}→CP] 버튼으로 {fmeaLabel}에서 데이터를 가져오세요.
               </td>
             </tr>
           ) : (

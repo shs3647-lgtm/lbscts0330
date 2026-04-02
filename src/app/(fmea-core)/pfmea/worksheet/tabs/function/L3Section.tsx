@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { COLORS } from '../../constants';
 import { FUNC_COLORS } from './constants';
 import { FlatRow, ModalType } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface L3SectionProps {
   row: FlatRow;

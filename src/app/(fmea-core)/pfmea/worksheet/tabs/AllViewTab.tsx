@@ -7,6 +7,8 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { WorksheetState } from '../constants';
 import { BiHeader } from './shared/BaseWorksheetComponents';
 
@@ -51,26 +53,30 @@ const dataCell = (bg: string): React.CSSProperties => ({ border: BORDER, padding
 
 // ============ 40열 헤더 컴포넌트 ============
 export function AllViewHeader() {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+
   return (
     <>
       {/* 1행: 단계 대분류 */}
       <tr>
-        <th colSpan={4} style={mainH(COLORS.structure.main)} title="2nd Step Structure Analysis"><BiHeader ko="P-FMEA 구조분석 (2ST)" en="Structure Analysis" /></th>
-        <th colSpan={8} style={mainH(COLORS.function.main)} title="3rd Step Function Analysis"><BiHeader ko="P-FMEA 기능분석 (3ST)" en="Function Analysis" /></th>
-        <th colSpan={6} style={mainH('#f57c00')} title="4th Step Failure Analysis"><BiHeader ko="P-FMEA 고장분석 (4ST)" en="Failure Analysis" /></th>
-        <th colSpan={8} style={mainH(COLORS.risk.main)} title="5th Step Risk Analysis"><BiHeader ko="P-FMEA 리스크분석 (5ST)" en="Risk Analysis" /></th>
-        <th colSpan={14} style={mainH(COLORS.opt.main)} title="6th Step Optimization"><BiHeader ko="P-FMEA 최적화 (6ST)" en="Optimization" /></th>
+        <th colSpan={4} style={mainH(COLORS.structure.main)} title="2nd Step Structure Analysis"><BiHeader ko={lb.prefix + ' 구조분석 (2ST)'} en="Structure Analysis" /></th>
+        <th colSpan={8} style={mainH(COLORS.function.main)} title="3rd Step Function Analysis"><BiHeader ko={lb.prefix + ' 기능분석 (3ST)'} en="Function Analysis" /></th>
+        <th colSpan={6} style={mainH('#f57c00')} title="4th Step Failure Analysis"><BiHeader ko={lb.prefix + ' 고장분석 (4ST)'} en="Failure Analysis" /></th>
+        <th colSpan={8} style={mainH(COLORS.risk.main)} title="5th Step Risk Analysis"><BiHeader ko={lb.prefix + ' 리스크분석 (5ST)'} en="Risk Analysis" /></th>
+        <th colSpan={14} style={mainH(COLORS.opt.main)} title="6th Step Optimization"><BiHeader ko={lb.prefix + ' 최적화 (6ST)'} en="Optimization" /></th>
       </tr>
 
       {/* 2행: 서브그룹 */}
       <tr>
         {/* 구조분석 (3 서브그룹) */}
-        <th colSpan={1} className="p-0.5 h-5 font-bold text-xs text-center border border-[#ccc] bg-[#1976d2]"><BiHeader ko="1. 완제품 공정명" en="Product Process" /></th>
-        <th colSpan={1} className="p-0.5 h-5 font-bold text-xs text-center border border-[#ccc] bg-[#1976d2]"><BiHeader ko="2. 메인 공정명" en="Main Process" /></th>
-        <th colSpan={2} className="p-0.5 h-5 font-bold text-xs text-center border border-[#ccc] bg-[#1976d2]"><BiHeader ko="3. 작업 요소명" en="Work Element" /></th>
-        <th colSpan={3} style={subH(COLORS.function.header)}><BiHeader ko="1. 완제품 공정기능/요구사항" en="Function/Requirements" /></th>
-        <th colSpan={2} style={subH(COLORS.function.header)}><BiHeader ko="2. 메인공정기능 및 제품특성" en="Function & Product Char." /></th>
-        <th colSpan={3} style={subH(COLORS.function.header)}><BiHeader ko="3. 작업요소의 기능 및 공정특성" en="Function & Process Char." /></th>
+        <th colSpan={1} className="p-0.5 h-5 font-bold text-xs text-center border border-[#ccc] bg-[#1976d2]"><BiHeader ko={'1. ' + lb.l1} en={lb.l1En} /></th>
+        <th colSpan={1} className="p-0.5 h-5 font-bold text-xs text-center border border-[#ccc] bg-[#1976d2]"><BiHeader ko={'2. ' + lb.l2} en={lb.l2En} /></th>
+        <th colSpan={2} className="p-0.5 h-5 font-bold text-xs text-center border border-[#ccc] bg-[#1976d2]"><BiHeader ko={'3. ' + lb.l3} en={lb.l3En} /></th>
+        <th colSpan={3} style={subH(COLORS.function.header)}><BiHeader ko={'1. ' + lb.l1FuncGroup} en={lb.l1FuncGroupEn} /></th>
+        <th colSpan={2} style={subH(COLORS.function.header)}><BiHeader ko={'2. ' + lb.l2FuncGroup} en={lb.l2FuncGroupEn} /></th>
+        <th colSpan={3} style={subH(COLORS.function.header)}><BiHeader ko={'3. ' + lb.l3FuncGroup} en={lb.l3FuncGroupEn} /></th>
         <th colSpan={3} style={subH(COLORS.failure.header)}><BiHeader ko="1. 고장영향" en="Failure Effect/FE" /></th>
         <th colSpan={1} style={subH(COLORS.failure.header)}><BiHeader ko="2. 고장형태" en="Failure Mode" /></th>
         <th colSpan={2} style={subH(COLORS.failure.header)}><BiHeader ko="3. 고장원인" en="Failure Cause/FC" /></th>
@@ -84,9 +90,9 @@ export function AllViewHeader() {
 
       {/* 3행: 컬럼명 */}
       <tr>
-        {([['완제품 공정명','Product Process'],['NO+공정명','Process'],['4M',''],['작업요소','Work Element']] as [string,string][]).map(([ko,en]) => <th key={ko} style={colH(COLORS.structure.cell)}>{en ? <BiHeader ko={ko} en={en} /> : ko}</th>)}
-        {([['구분','Type'],['완제품기능','Product Function'],['요구사항','Requirements'],['공정기능','Process Function'],['제품특성','Product Char.'],['작업요소','Work Element'],['작업요소기능','Work Element Function'],['공정특성','Process Char.']] as [string,string][]).map(([ko,en]) => <th key={ko} style={colH(COLORS.function.cell)}><BiHeader ko={ko} en={en} /></th>)}
-        {([['구분','Type'],['고장영향','FE'],['심각도','S'],['고장형태','FM'],['작업요소2','Work Element'],['고장원인','FC']] as [string,string][]).map(([ko,en]) => <th key={ko} style={colH(COLORS.failure.cell)}><BiHeader ko={ko} en={en} /></th>)}
+        {([[lb.l1Short, lb.l1En],[lb.l2No,'Process'],[lb.l3Attr,''],[lb.l3Short, lb.l3En]] as [string,string][]).map(([ko,en]) => <th key={ko} style={colH(COLORS.structure.cell)}>{en ? <BiHeader ko={ko} en={en} /> : ko}</th>)}
+        {([['구분','Type'],[lb.l1Func, lb.l1FuncEn],['요구사항','Requirements'],[lb.l2Func, lb.l2FuncEn],['제품특성','Product Char.'],[lb.l3Short, lb.l3En],[lb.l3Func, lb.l3FuncEn],[lb.l3Char, lb.l3CharEn]] as [string,string][]).map(([ko,en]) => <th key={ko} style={colH(COLORS.function.cell)}><BiHeader ko={ko} en={en} /></th>)}
+        {([['구분','Type'],['고장영향','FE'],['심각도','S'],['고장형태','FM'],[lb.l3Short + '2', lb.l3En],['고장원인','FC']] as [string,string][]).map(([ko,en]) => <th key={ko} style={colH(COLORS.failure.cell)}><BiHeader ko={ko} en={en} /></th>)}
         <th style={colH(COLORS.risk.prevention.cell)}><BiHeader ko="예방관리" en="PC" /></th>
         <th style={colH(COLORS.risk.prevention.cell)}><BiHeader ko="발생도" en="O" /></th>
         <th style={colH(COLORS.risk.detection.cell)}><BiHeader ko="검출관리" en="DC" /></th>

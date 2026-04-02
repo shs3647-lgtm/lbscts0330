@@ -8,6 +8,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { ControlModalState, SODModalState, LLDModalState, UserModalState, DateModalState } from './hooks/useAllTabModals';
 import type { UserInfo } from '@/types/user';
@@ -149,6 +150,8 @@ export default function AllTabModals({
   // SpecialCharMasterModal
   specialCharModal, setSpecialCharModal, handleSpecialCharSelect,
 }: AllTabModalsProps) {
+  const modalsPathname = usePathname();
+  const isDfmea = modalsPathname?.includes('/dfmea/') ?? false;
 
   // ★ fmeaId 추출 (LLD, SpecialChar 모달에서 사용)
   const fmeaId = state?.fmeaId
@@ -247,7 +250,7 @@ export default function AllTabModals({
         onClose={closeSodModal}
         onSelect={handleSODSelect}
         category={sodModal.category}
-        fmeaType="P-FMEA"
+        fmeaType={isDfmea ? 'D-FMEA' : 'P-FMEA'}
         currentValue={sodModal.currentValue}
         scope={sodModal.scope}
       />

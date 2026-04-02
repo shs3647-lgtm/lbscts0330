@@ -16,6 +16,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { FunctionTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import { GenericItemSelectModal } from '../../GenericItemSelectModal';
@@ -65,6 +66,8 @@ function normalizeCategoryToProcessNo(cat?: string): string | undefined {
 }
 
 export default function FunctionL1Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId }: FunctionTabProps) {
+  const l1Pathname = usePathname();
+  const isDfmea = l1Pathname?.includes('/dfmea/') ?? false;
   // ★ 기존 DataSelectModal용 모달 상태 (C1 구분 선택용)
   const [modal, setModal] = useState<{ type: string; id: string; title: string; itemCode: string; funcId?: string; reqId?: string; parentFunction?: string; parentCategory?: string } | null>(null);
   
@@ -624,6 +627,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
             highlightIds={highlightIds}
             setL1FuncModal={setL1FuncModal}
             fmeaId={fmeaId}
+            isDfmea={isDfmea}
           />
         </tbody>
       </table>
@@ -845,7 +849,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
 // EmptyRow 삭제 — TypeRows로 통일 (2026-03-27)
 
 /** 타입 행들 렌더링 */
-function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInlineEditRequirement, handleContextMenu, isConfirmed, highlightIds, setL1FuncModal, fmeaId }: {
+function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInlineEditRequirement, handleContextMenu, isConfirmed, highlightIds, setL1FuncModal, fmeaId, isDfmea }: {
   state: any;
   handleCellClick: (config: any) => void;
   handleInlineEditFunction: (typeId: string, funcId: string, newValue: string) => void;
@@ -855,6 +859,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
   highlightIds?: Set<string>;
   setL1FuncModal: (modal: { isOpen: boolean; type: 'C2' | 'C3'; category: string; typeId: string; funcId?: string; parentId?: string; parentName?: string } | null) => void;
   fmeaId?: string;
+  isDfmea?: boolean;
 }) {
   let globalRowIdx = 0;
   let funcCounter = 0;
@@ -962,7 +967,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
                 )}
                 {fIdx === 0 && rIdx === 0 && (
                   <td rowSpan={typeRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: getTypeColor(t.name).light }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
-                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder="YP / SP / USER" bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" isRevised={t.isRevised} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1', parentCategory: 'PFMEA' })} />
+                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder="YP / SP / USER" bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" isRevised={t.isRevised} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1', parentCategory: isDfmea ? 'DFMEA' : 'PFMEA' })} />
                   </td>
                 )}
                 {rIdx === 0 && (

@@ -17,6 +17,8 @@
  * - SC: Special Characteristic (특별특성)
  */
 
+import type { FmeaLabels } from '@/lib/fmea-labels';
+
 // 컬럼 타입 정의
 export interface ColumnDef {
   id: string;
@@ -170,4 +172,102 @@ export const getSubGroupsByStep = (step: number): SubGroup[] => {
 export const getStepGroup = (step: number): StepGroup | undefined => {
   return STEP_GROUPS.find(g => g.step === step);
 };
+
+// ============ 동적 라벨 (PFMEA/DFMEA 공용) ============
+
+/** 모듈별 STEP_GROUPS — lb.prefix 기반 동적 이름 */
+export function getModuleStepGroups(lb: FmeaLabels): StepGroup[] {
+  return [
+    { step: 2, name: `${lb.prefix} 구조분석(2ST Structure)`, count: 4, bg: '#1565c0', headerBg: '#bbdefb', cellBg: '#e3f2fd' },
+    { step: 3, name: `${lb.prefix} 기능분석(3ST Function)`, count: 8, bg: '#1b5e20', headerBg: '#c8e6c9', cellBg: '#e8f5e9' },
+    { step: 4, name: `${lb.prefix} 고장분석(4ST Failure)`, count: 6, bg: '#c62828', headerBg: '#fff9c4', cellBg: '#fffde7' },
+    { step: 5, name: `${lb.prefix} 리스크분석(5ST Risk)`, count: 8, bg: '#6a1b9a', headerBg: '#e1bee7', cellBg: '#f3e5f5' },
+    { step: 6, name: `${lb.prefix} 최적화(6ST Optimization)`, count: 14, bg: '#e65100', headerBg: '#ffe0b2', cellBg: '#fff3e0' },
+  ];
+}
+
+/** 모듈별 SUB_GROUPS — lb 기반 동적 라벨 */
+export function getModuleSubGroups(lb: FmeaLabels): SubGroup[] {
+  return [
+    // 구조분석 (3개 서브그룹)
+    { label: `1. ${lb.l1}`, cols: 1, step: 2 },
+    { label: `2. ${lb.l2}`, cols: 1, step: 2 },
+    { label: `3. ${lb.l3}`, cols: 2, step: 2 },
+    // 기능분석 (3개 서브그룹)
+    { label: `1. ${lb.l1FuncGroup}`, cols: 3, step: 3 },
+    { label: `2. ${lb.l2FuncGroup}`, cols: 2, step: 3 },
+    { label: `3. ${lb.l3FuncGroup}`, cols: 3, step: 3 },
+    // 고장분석 (3개 서브그룹)
+    { label: '1. 자사/고객/사용자 고장영향(FE)', cols: 3, step: 4 },
+    { label: '2.고장형태', cols: 1, step: 4 },
+    { label: `3. ${lb.l3Failure}`, cols: 2, step: 4 },
+    // 리스크분석 (3개 서브그룹)
+    { label: '현재 예방관리', cols: 2, step: 5 },
+    { label: '현재 검출관리', cols: 2, step: 5 },
+    { label: '리스크 평가', cols: 4, step: 5 },
+    // 최적화 (3개 서브그룹)
+    { label: '계획', cols: 4, step: 6 },
+    { label: '결과 모니터링', cols: 3, step: 6 },
+    { label: '효과 평가', cols: 7, step: 6 },
+  ];
+}
+
+/** 모듈별 구조분석 컬럼 — lb 기반 동적 라벨 */
+export function getModuleStructureColumns(lb: FmeaLabels): ColumnDef[] {
+  return [
+    { id: 'l1Name', label: lb.l1, width: '80px', step: 2 },
+    { id: 'l2Name', label: lb.l2No, width: '90px', step: 2 },
+    { id: 'm4', label: lb.l3Attr, width: '80px', step: 2, align: 'center' },
+    { id: 'l3Name', label: lb.l3Short, width: '80px', step: 2 },
+  ];
+}
+
+/** 모듈별 기능분석 컬럼 — lb 기반 동적 라벨 */
+export function getModuleFunctionColumns(lb: FmeaLabels): ColumnDef[] {
+  return [
+    { id: 'l1Type', label: '구분', width: '50px', step: 3, align: 'center' },
+    { id: 'l1Function', label: lb.l1Func, width: '100px', step: 3 },
+    { id: 'l1Requirement', label: '요구사항', width: '80px', step: 3 },
+    { id: 'l2Function', label: lb.l2Func, width: '90px', step: 3 },
+    { id: 'l2ProductChar', label: '제품특성', width: '70px', step: 3 },
+    { id: 'l3Type', label: lb.l3Short, width: '50px', step: 3, align: 'center' },
+    { id: 'l3Function', label: lb.l3Func, width: '90px', step: 3 },
+    { id: 'l3ProcessChar', label: lb.l3Char, width: '70px', step: 3 },
+  ];
+}
+
+/** 모듈별 고장분석 컬럼 — lb 기반 동적 라벨 */
+export function getModuleFailureColumns(lb: FmeaLabels): ColumnDef[] {
+  return [
+    { id: 'feType', label: '구분', width: '50px', step: 4, align: 'center' },
+    { id: 'failureEffect', label: '고장영향(FE)', width: '100px', step: 4 },
+    { id: 'severity', label: '심각도(S)', width: '35px', step: 4, align: 'center' },
+    { id: 'failureMode', label: '고장형태(FM)', width: '90px', step: 4 },
+    { id: 'fcType', label: lb.l3Short, width: '50px', step: 4, align: 'center' },
+    { id: 'failureCause', label: '고장원인(FC)', width: '90px', step: 4 },
+  ];
+}
+
+/** 모듈별 전체 40열 — lb 기반 동적 라벨 */
+export function getModuleAllColumns(lb: FmeaLabels): ColumnDef[] {
+  return [
+    ...getModuleStructureColumns(lb),
+    ...getModuleFunctionColumns(lb),
+    ...getModuleFailureColumns(lb),
+    ...RISK_COLUMNS,
+    ...OPT_COLUMNS,
+  ];
+}
+
+/** 모듈별 단계 컬럼 — lb 기반 동적 라벨 */
+export function getModuleColumnsByStep(lb: FmeaLabels, step: number): ColumnDef[] {
+  switch (step) {
+    case 2: return getModuleStructureColumns(lb);
+    case 3: return getModuleFunctionColumns(lb);
+    case 4: return getModuleFailureColumns(lb);
+    case 5: return RISK_COLUMNS;
+    case 6: return OPT_COLUMNS;
+    default: return [];
+  }
+}
 

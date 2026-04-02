@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { WorksheetState } from '../constants';
 import { btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '@/styles/worksheet';
 import { triggerAutoBackup } from '@/lib/backup/backup-manager';
@@ -71,7 +71,9 @@ export default function OptTabConfirmable({
   saveAtomicDB 
 }: OptTabProps) {
   const router = useRouter();
-  
+  const optPathname = usePathname();
+  const isDfmea = optPathname?.includes('/dfmea/') ?? false;
+
   // 확정 상태
    
   const isConfirmed = ((state as unknown as Record<string, unknown>).optConfirmed as boolean) || false;
@@ -322,7 +324,7 @@ export default function OptTabConfirmable({
         <tr>
           <th colSpan={14} className={tw.mainHeader}>
             <div className="flex items-center justify-between">
-              <span className="flex-1 text-center">P-FMEA 최적화(6단계)</span>
+              <span className="flex-1 text-center">{isDfmea ? 'D' : 'P'}-FMEA 최적화(6단계)</span>
               <div className="flex gap-1 absolute right-2">
                 {/* 완료 상태 표시 */}
                 {!isConfirmed && completionStatus.total > 0 && (

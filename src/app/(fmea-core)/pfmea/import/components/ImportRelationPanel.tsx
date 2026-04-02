@@ -8,6 +8,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { ChevronUp, ChevronDown, GitCompare, Download } from 'lucide-react';
 import { tw } from '../tailwindClasses';
 import { ImportedFlatData } from '../types';
@@ -50,6 +51,8 @@ export function ImportRelationPanel(props: Props) {
     onStartAnalysisCompare, onCancelAnalysisCompare, onSelectAllAnalysisConfirm,
     onToggleAnalysisCellConfirm, onAnalysisConfirmSave, isAnalysisCellChanged, isAnalysisCellNew,
   } = props;
+  const relPathname = usePathname();
+  const isDfmea = relPathname?.includes('/dfmea/') ?? false;
 
   // 탭별 컬럼 헤더
   const getHeaders = () => {
@@ -70,7 +73,7 @@ export function ImportRelationPanel(props: Props) {
     <div className="flex-1 min-w-[500px] flex flex-col border-2 border-[#00587a] rounded-lg overflow-hidden bg-white shadow-lg">
       {/* 헤더 */}
       <div className="bg-gradient-to-br from-[#00587a] to-[#007a9e] text-white px-4 py-2.5 text-sm font-bold flex items-center justify-between">
-        <div className="flex items-center gap-2 whitespace-nowrap"><span>📊</span> FMEA Analysis Data : {currentFmeaId || 'PFMEAID 미선택'}</div>
+        <div className="flex items-center gap-2 whitespace-nowrap"><span>📊</span> FMEA Analysis Data : {currentFmeaId || (isDfmea ? 'DFMEA ID 미선택' : 'PFMEA ID 미선택')}</div>
         <div className="flex items-center gap-2 text-[11px] font-normal">
           {flatData.length > 0 && (
             <>

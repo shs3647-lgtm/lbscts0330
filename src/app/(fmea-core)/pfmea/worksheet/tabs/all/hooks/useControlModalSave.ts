@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import type { WorksheetState } from '../../../constants';
 import type { ControlModalState } from './useAllTabModals';
 import type { ProcessedFMGroup } from '../processFailureLinks';
@@ -41,6 +42,8 @@ export function useControlModalSave({
   setDirty,
   processedFMGroups,
 }: UseControlModalSaveParams) {
+  const ctrlPathname = usePathname();
+  const isDfmea = ctrlPathname?.includes('/dfmea/') ?? false;
 
   // ─── onSave 핸들러 ───
   const handleSave = useCallback((selectedValues: string[]) => {
@@ -444,7 +447,7 @@ export function useControlModalSave({
     if (currentRating <= 0) return undefined;
 
     const targetRating = getSODTargetRating(currentRating);
-    const sodItem = getSODRecommendation('P-FMEA', sodCategory, targetRating);
+    const sodItem = getSODRecommendation(isDfmea ? 'D-FMEA' : 'P-FMEA', sodCategory, targetRating);
 
     return { category: sodCategory, currentRating, targetRating, sodItem };
   }, [state, controlModal.fmId, controlModal.fcId, controlModal.type]);

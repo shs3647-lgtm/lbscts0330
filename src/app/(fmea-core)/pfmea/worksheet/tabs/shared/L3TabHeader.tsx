@@ -21,10 +21,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { btnConfirm, btnEdit, badgeConfirmed, badgeMissing, badgeOk } from '@/styles/worksheet';
 import { HelpPopup } from './HelpPopup';
 import { ImportVerifyBadge } from './ImportVerifyBadge';
 import { BiHeader } from './BaseWorksheetComponents';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface L3TabHeaderProps {
   tabType: 'function' | 'failure';
@@ -62,7 +64,7 @@ export function L3TabHeader({
   onEdit,
   stepLabel,
   primaryLabel,
-  secondaryLabel = '공정특성',
+  secondaryLabel,
   showSecondary = true,
   isAutoMode,
   onToggleMode,
@@ -72,6 +74,10 @@ export function L3TabHeader({
   importSecondaryCount,
   importLoaded,
 }: L3TabHeaderProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+  const effectiveSecondaryLabel = secondaryLabel ?? lb.l3Char;
   const isFunction = tabType === 'function';
   const stepBgColor = isFunction ? '#388e3c' : '#f57c00';
   const stepBgColorLight = isFunction ? '#c8e6c9' : '#ffe0b2';
@@ -127,7 +133,7 @@ export function L3TabHeader({
               )}
               {importLoaded && tabType === 'function' && importSecondaryCount !== undefined && importSecondaryCount > 0 && secondaryCount !== importSecondaryCount && (
                 <ImportVerifyBadge
-                  label="공정특성"
+                  label={lb.l3Char}
                   importCount={importSecondaryCount}
                   currentCount={secondaryCount}
                   loaded={importLoaded}
@@ -146,10 +152,10 @@ export function L3TabHeader({
       {/* 2행: 항목 그룹 (11px, bold) */}
       <tr>
         <th colSpan={3} className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko="3. 작업요소 (4M)" en="Work Element" />
+          <BiHeader ko={`3. ${lb.l3Short} (${lb.l3Attr})`} en="Work Element" />
         </th>
         <th colSpan={showSecondary ? 3 : 2} className="text-white border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ background: stepBgColor }}>
-          {isFunction ? <BiHeader ko="3. 작업요소 기능/공정특성/특별특성" en="SC" /> : <BiHeader ko="3. 공정특성/고장원인/발생도" en="O" />}
+          {isFunction ? <BiHeader ko={`3. ${lb.l3Func}/${lb.l3Char}/특별특성`} en="SC" /> : <BiHeader ko={`3. ${lb.l3Char}/고장원인/발생도`} en="O" />}
           {missingCount > 0 && (
             <button type="button" onClick={onMissingClick} className="ml-1 bg-orange-500 text-white px-1.5 py-0 rounded-full text-[10px] cursor-pointer hover:opacity-80">
               누락(Missing) {missingCount}건(cases)
@@ -161,13 +167,13 @@ export function L3TabHeader({
       {/* 3행: 세부 컬럼 (11px, bold, 2px 파란색 border-bottom) */}
       <tr style={{ background: stepBgColorLight }}>
         <th className="bg-[#e3f2fd] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="메인공정명" en="Main Process" />
+          <BiHeader ko={lb.l2.replace(/ /g, '')} en="Main Process" />
         </th>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          4M
+          {lb.l3Attr}
         </th>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="작업요소" en="Work Element" /><span className={`font-bold ${workElementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({workElementCount})</span>
+          <BiHeader ko={lb.l3Short} en="Work Element" /><span className={`font-bold ${workElementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({workElementCount})</span>
         </th>
         <th className="border border-[#ccc] p-1 text-[11px] font-bold" style={{ background: stepBgColorLight, boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           {primaryLabel}<span className={`font-bold ${primaryCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({primaryCount})</span>
@@ -177,7 +183,7 @@ export function L3TabHeader({
             <th className="border border-[#ccc] border-r-[2px] border-r-green-600 p-1 text-[11px] font-bold" style={{ background: stepBgColorLight, boxShadow: 'inset 0 -2px 0 #2196f3' }}>
               {secondaryLabel}<span className={`font-bold ${secondaryCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({secondaryCount})</span>
               {importLoaded && importSecondaryCount !== undefined && importSecondaryCount > 0 && (
-                <span className="ml-1"><ImportVerifyBadge label={secondaryLabel || '공정특성'} importCount={importSecondaryCount} currentCount={secondaryCount} loaded={importLoaded} /></span>
+                <span className="ml-1"><ImportVerifyBadge label={secondaryLabel || lb.l3Char} importCount={importSecondaryCount} currentCount={secondaryCount} loaded={importLoaded} /></span>
               )}
             </th>
             <th className="bg-green-600 text-white border border-[#ccc] border-l-0 p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }} title="Special Characteristic">

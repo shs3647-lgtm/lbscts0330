@@ -114,8 +114,9 @@ export function getProjectSchemaName(fmeaId: string): string {
   const base = String(fmeaId || '').trim().toLowerCase();
   // allow a-z0-9_ only
   const safe = base.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  // prefix ensures it starts with a letter
-  return `pfmea_${safe || 'unknown'}`;
+  // detect DFMEA IDs (starting with 'dfm') vs PFMEA
+  const prefix = base.startsWith('dfm') ? 'dfmea' : 'pfmea';
+  return `${prefix}_${safe || 'unknown'}`;
 }
 
 function quoteIdent(ident: string): string {

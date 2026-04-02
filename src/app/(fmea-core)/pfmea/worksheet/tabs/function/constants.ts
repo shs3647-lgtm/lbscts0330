@@ -1,4 +1,5 @@
 import { COLORS } from '../../constants';
+import type { FmeaLabels } from '@/lib/fmea-labels';
 
 // 기능분석 색상 - 진한녹색 계열 (표준화)
 export const FUNC_COLORS = {
@@ -28,5 +29,18 @@ export const MODAL_CONFIG: Record<string, { title: string; itemCode: string }> =
   l3Function: { title: '작업요소 기능 선택', itemCode: 'B2' },
   l3ProcessChar: { title: '공정특성 선택', itemCode: 'B3' },
 };
+
+/** 모듈별 모달 타이틀 — lb 기반 동적 라벨 (PFMEA/DFMEA 공용) */
+export function getModuleModalConfig(lb: FmeaLabels): Record<string, { title: string; itemCode: string }> {
+  return {
+    l1Type: { title: '구분 선택', itemCode: 'C1' },
+    l1Function: { title: `${lb.l1Func} 선택`, itemCode: 'C2' },
+    l1Requirement: { title: '요구사항 선택', itemCode: 'C3' },
+    l2Function: { title: `${lb.l2Func} 선택`, itemCode: 'A3' },
+    l2ProductChar: { title: '제품특성 선택', itemCode: 'A4' },
+    l3Function: { title: `${lb.l3Func} 선택`, itemCode: 'B2' },
+    l3ProcessChar: { title: `${lb.l3Char} 선택`, itemCode: 'B3' },
+  };
+}
 
 

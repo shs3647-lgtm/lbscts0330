@@ -92,9 +92,9 @@ function formatId(id: string, index: number): string {
 }
 
 // =====================================================
-// PFMEAListRow - 행 컴포넌트
+// DFMEAListRow - 행 컴포넌트
 // =====================================================
-interface PFMEAListRowProps {
+interface DFMEAListRowProps {
   project: FMEAProject;
   index: number;
   isSelected: boolean;
@@ -105,7 +105,7 @@ interface PFMEAListRowProps {
   columnWidths: string[];
 }
 
-const PFMEAListRow = React.memo(function PFMEAListRow({
+const DFMEAListRow = React.memo(function DFMEAListRow({
   project: p,
   index,
   isSelected,
@@ -114,7 +114,7 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
   onOpenRegister,
   config,
   columnWidths,
-}: PFMEAListRowProps) {
+}: DFMEAListRowProps) {
   const renderEmpty = (id: string, section?: string) => (
     <span
       className="text-orange-400 text-[9px] cursor-pointer hover:text-orange-600 hover:underline"
@@ -639,20 +639,20 @@ export default function DFMEAListPage() {
         {/* 테이블 - 반응형 */}
         {/* ★ sticky thead + border-collapse 간극 방지용 스타일 */}
         <style dangerouslySetInnerHTML={{ __html: `
-          .pfmea-list-table { border-collapse: separate; border-spacing: 0; }
-          .pfmea-list-table thead th { border-bottom: 2px solid #9ca3af; border-right: 1px solid rgba(255,255,255,0.3); background: #00587a; }
-          .pfmea-list-table thead th:last-child { border-right: none; }
-          .pfmea-list-table tbody td { border-bottom: 1px solid #9ca3af; border-right: 1px solid #d1d5db; }
-          .pfmea-list-table tbody td:last-child { border-right: none; }
+          .dfmea-list-table { border-collapse: separate; border-spacing: 0; }
+          .dfmea-list-table thead th { border-bottom: 2px solid #9ca3af; border-right: 1px solid rgba(255,255,255,0.3); background: #00587a; }
+          .dfmea-list-table thead th:last-child { border-right: none; }
+          .dfmea-list-table tbody td { border-bottom: 1px solid #9ca3af; border-right: 1px solid #d1d5db; }
+          .dfmea-list-table tbody td:last-child { border-right: none; }
         `}} />
         <div className="rounded-lg overflow-y-auto border border-gray-400 bg-white mt-1" style={{ maxHeight: 'calc(100vh - 185px)' }}>
-          <table className="pfmea-list-table w-full text-[8px]">
+          <table className="dfmea-list-table w-full text-[8px]">
             <thead className="sticky top-0 z-10">
               <tr className="bg-[#00587a] text-white" style={{ height: '32px' }}>
                 <th className="p-0 text-center align-middle" style={{ width: '2.5%' }}>
                   <input type="checkbox" checked={isAllSelected(projects.map(p => p.id))} onChange={() => toggleAllRows(projects.map(p => p.id))} className="w-4 h-4 cursor-pointer" />
                 </th>
-                {/* ★ PFMEA 표준 컬럼 - 정렬 가능 (16개) — 한글 줄바꿈(영어) */}
+                {/* ★ DFMEA 표준 컬럼 - 정렬 가능 (16개) — 한글 줄바꿈(영어) */}
                 {[
                   { ko: 'No', en: '', field: '', title: 'Number' },
                   { ko: '작성일', en: 'Created', field: 'createdAt', title: 'Created/Modified Date' },
@@ -694,7 +694,7 @@ export default function DFMEAListPage() {
               {projects.map((p, idx) => {
                 const globalIndex = (page - 1) * PAGE_SIZE + idx;
                 return (
-                  <PFMEAListRow
+                  <DFMEAListRow
                     key={p.id}
                     project={p}
                     index={globalIndex}

@@ -11,6 +11,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 
 // ============ 색상 정의 (4색 시스템) ============
 const COLORS = {
@@ -125,6 +126,8 @@ interface OptimizationTabProps {
 }
 
 export default function OptimizationTab({ rowCount = 20, showRPN = false }: OptimizationTabProps) {
+  const optPathname = usePathname();
+  const isDfmea = optPathname?.includes('/dfmea/') ?? false;
   const columns = showRPN ? getColumnsWithRPN() : COLUMNS_BASE;
   const groupSpans = calculateGroupSpans(columns);
   const totalWidth = columns.reduce((sum, col) => sum + col.width, 0);
@@ -162,7 +165,7 @@ export default function OptimizationTab({ rowCount = 20, showRPN = false }: Opti
                 textAlign: 'center',
               }}
             >
-              P-FMEA 최적화 (6단계) | {showRPN ? '14컬럼 (RPN 포함)' : '13컬럼 (RPN 제외)'}
+              {isDfmea ? 'D' : 'P'}-FMEA 최적화 (6단계) | {showRPN ? '14컬럼 (RPN 포함)' : '13컬럼 (RPN 제외)'}
             </th>
           </tr>
           

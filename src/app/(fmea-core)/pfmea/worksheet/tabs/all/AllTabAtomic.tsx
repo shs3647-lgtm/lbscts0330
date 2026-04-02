@@ -17,6 +17,8 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import type { WorksheetState } from '../../constants';
 import { FONT_WEIGHTS } from '../../constants';
 import { ALL_TAB_COLORS, BORDER } from './constants';
@@ -148,6 +150,10 @@ interface AllTabAtomicProps {
 }
 
 export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], setState, onNoData }: AllTabAtomicProps) {
+  const atomicPathname = usePathname();
+  const isDfmea = atomicPathname?.includes('/dfmea/') ?? false;
+  const fmeaPrefix = isDfmea ? 'D' : 'P';
+  const lb = getFmeaLabels(isDfmea);
   const COLORS = ALL_TAB_COLORS;
   const [rows, setRows] = useState<AllViewRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -402,7 +408,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                 onClick={() => handleStepToggle(2)}
                 title="2단계 클릭하여 숨기기/보이기"
               >
-                P-FMEA 구조 분석(2단계)
+                {fmeaPrefix}-FMEA 구조 분석(2단계)
               </th>
             )}
             {visibleSteps.includes(3) && (
@@ -412,7 +418,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                 onClick={() => handleStepToggle(3)}
                 title="3단계 클릭하여 숨기기/보이기"
               >
-                P-FMEA 기능 분석(3단계)
+                {fmeaPrefix}-FMEA 기능 분석(3단계)
               </th>
             )}
             {visibleSteps.includes(4) && (
@@ -422,7 +428,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                 onClick={() => handleStepToggle(4)}
                 title="4단계 클릭하여 숨기기/보이기"
               >
-                P-FMEA 고장 분석(4단계)
+                {fmeaPrefix}-FMEA 고장 분석(4단계)
               </th>
             )}
             {visibleSteps.includes(5) && (
@@ -432,7 +438,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                 onClick={() => handleStepToggle(5)}
                 title="5단계 클릭하여 숨기기/보이기"
               >
-                P-FMEA 리스크 분석(5단계)
+                {fmeaPrefix}-FMEA 리스크 분석(5단계)
               </th>
             )}
             {visibleSteps.includes(6) && (
@@ -442,7 +448,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                 onClick={() => handleStepToggle(6)}
                 title="6단계 클릭하여 숨기기/보이기"
               >
-                P-FMEA 최적화(6단계)
+                {fmeaPrefix}-FMEA 최적화(6단계)
               </th>
             )}
           </tr>
@@ -451,23 +457,23 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
           <tr>
             {visibleSteps.includes(2) && (
               <>
-                <th style={stickyHeaderCellStyle(COLORS.structure.main, HEADER_ROW_H, '#fff', 59, '9px', 600)}>1.완제품<br />공정명</th>
-                <th style={stickyHeaderCellStyle(COLORS.structure.main, HEADER_ROW_H, '#fff', 59, '9px', 600)}>2.메인<br />공정명</th>
-                <th colSpan={2} style={stickyHeaderCellStyle(COLORS.structure.main, HEADER_ROW_H, '#fff', 59, '9px', 600)}>3.작업<br />요소명</th>
+                <th style={stickyHeaderCellStyle(COLORS.structure.main, HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l1Br }} />
+                <th style={stickyHeaderCellStyle(COLORS.structure.main, HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l2Br }} />
+                <th colSpan={2} style={stickyHeaderCellStyle(COLORS.structure.main, HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3Br }} />
               </>
             )}
             {visibleSteps.includes(3) && (
               <>
-                <th colSpan={3} style={stickyHeaderCellStyle(COLORS.function.main, HEADER_ROW_H, '#fff', 59, '9px', 600)}>1.완제품공정기능<br />/요구사항</th>
-                <th colSpan={2} style={stickyHeaderCellStyle(COLORS.function.main, HEADER_ROW_H, '#fff', 59, '9px', 600)}>2.메인공정기능<br />및 제품특성</th>
-                <th colSpan={3} style={stickyHeaderCellStyle(COLORS.function.main, HEADER_ROW_H, '#fff', 59, '9px', 600)}>3.작업요소기능<br />및 공정특성</th>
+                <th colSpan={3} style={stickyHeaderCellStyle(COLORS.function.main, HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l1FuncBr }} />
+                <th colSpan={2} style={stickyHeaderCellStyle(COLORS.function.main, HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l2FuncBr }} />
+                <th colSpan={3} style={stickyHeaderCellStyle(COLORS.function.main, HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3FuncBr }} />
               </>
             )}
             {visibleSteps.includes(4) && (
               <>
                 <th colSpan={3} style={stickyHeaderCellStyle('#f9a825', HEADER_ROW_H, '#333', 59, '9px', 600)}>1.자사/고객/사용자<br />고장영향(FE)</th>
-                <th colSpan={2} style={stickyHeaderCellStyle('#7e57c2', HEADER_ROW_H, '#fff', 59, '9px', 600)}>2.메인공정<br />고장형태(FM)</th>
-                <th colSpan={2} style={stickyHeaderCellStyle('#66bb6a', HEADER_ROW_H, '#fff', 59, '9px', 600)}>3.작업요소<br />고장원인(FC)</th>
+                <th colSpan={2} style={stickyHeaderCellStyle('#7e57c2', HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l2FailureBr }} />
+                <th colSpan={2} style={stickyHeaderCellStyle('#66bb6a', HEADER_ROW_H, '#fff', 59, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3FailureBr }} />
               </>
             )}
             {visibleSteps.includes(5) && (
@@ -490,22 +496,22 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
           <tr>
             {visibleSteps.includes(2) && (
               <>
-                <th style={stickyHeaderCellStyle(COLORS.structure.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>완제품<br />공정명</th>
-                <th style={stickyHeaderCellStyle(COLORS.structure.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>NO+<br />공정명</th>
-                <th style={stickyHeaderCellStyle(COLORS.special.m4.h3, HEADER_ROW_H * 2, '#000', 58, '8px', 700)}>4M</th>
-                <th style={stickyHeaderCellStyle(COLORS.structure.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>작업<br />요소</th>
+                <th style={stickyHeaderCellStyle(COLORS.structure.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l1CellBr }} />
+                <th style={stickyHeaderCellStyle(COLORS.structure.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l2CellBr }} />
+                <th style={stickyHeaderCellStyle(COLORS.special.m4.h3, HEADER_ROW_H * 2, '#000', 58, '8px', 700)}>{lb.l3Attr}</th>
+                <th style={stickyHeaderCellStyle(COLORS.structure.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3CellBr }} />
               </>
             )}
             {visibleSteps.includes(3) && (
               <>
                 <th style={stickyHeaderCellStyle(COLORS.special.scope.h3, HEADER_ROW_H * 2, '#000', 58, '8px', 700)}>구분</th>
-                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>완제품<br />기능</th>
+                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l1FuncCellBr }} />
                 <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>요구<br />사항</th>
-                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>공정<br />기능</th>
+                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l2FuncCellBr }} />
                 <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>제품<br />특성</th>
-                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>작업<br />요소</th>
-                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>작업요소<br />기능</th>
-                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>공정<br />특성</th>
+                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3CellBr }} />
+                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3FuncCellBr }} />
+                <th style={stickyHeaderCellStyle(COLORS.function.header, HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3CharCellBr }} />
               </>
             )}
             {visibleSteps.includes(4) && (
@@ -516,7 +522,7 @@ export default function AllTabAtomic({ fmeaId, visibleSteps = [2, 3, 4, 5, 6], s
                 <th style={stickyHeaderCellStyle('#ede7f6', HEADER_ROW_H * 2, '#000', 58, '9px', 600)}></th>
                 <th style={stickyHeaderCellStyle('#ede7f6', HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>고장형태<br />(FM)</th>
                 <th style={stickyHeaderCellStyle('#e8f5e9', HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>고장원인<br />(FC)</th>
-                <th style={stickyHeaderCellStyle('#e8f5e9', HEADER_ROW_H * 2, '#000', 58, '9px', 600)}>작업<br />요소</th>
+                <th style={stickyHeaderCellStyle('#e8f5e9', HEADER_ROW_H * 2, '#000', 58, '9px', 600)} dangerouslySetInnerHTML={{ __html: lb.l3CellBr }} />
               </>
             )}
             {visibleSteps.includes(5) && (

@@ -17,7 +17,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/locale';
 import { getUrlToCpWorksheet, getUrlToPfdWorksheet } from '@/lib/project-navigation';
 import { WorksheetState } from '../constants';
@@ -88,6 +88,8 @@ export default function TopMenuBar({
   onInputModeChange,
 }: TopMenuBarProps) {
   const router = useRouter();
+  const menuPathname = usePathname();
+  const isDfmea = menuPathname?.includes('/dfmea/') ?? false;
   const { t } = useLocale();
   const [showImportMenu, setShowImportMenu] = React.useState(false);
   const [showSyncMenu, setShowSyncMenu] = React.useState(false);
@@ -148,7 +150,7 @@ export default function TopMenuBar({
           className="hidden sm:inline text-white cursor-pointer hover:underline text-[9px] font-semibold whitespace-nowrap"
           onClick={onNavigateToList}
         >
-          PFMEA:
+          {isDfmea ? 'DFMEA:' : 'PFMEA:'}
         </span>
         <select
           value={selectedFmeaId || ''}
@@ -156,7 +158,7 @@ export default function TopMenuBar({
           className="px-1 py-0.5 rounded border-0 bg-white/20 text-white min-w-[100px] sm:min-w-[120px] lg:min-w-[140px] text-[9px] sm:text-[10px]"
         >
           {fmeaList.length === 0 ? (
-            <option value="" className="text-gray-500">{t('PFMEA 목록 없음')}</option>
+            <option value="" className="text-gray-500">{t(isDfmea ? 'DFMEA 목록 없음' : 'PFMEA 목록 없음')}</option>
           ) : (
             fmeaList.map((fmea: any) => (
               <option key={fmea.id} value={fmea.id} className="text-gray-800">

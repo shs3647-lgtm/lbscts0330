@@ -41,6 +41,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { flushSync } from 'react-dom';
 import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
@@ -126,6 +127,8 @@ const isMeaningfulRequirementName = (name: unknown): name is string => {
 };
 
 export default function FailureL1Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId }: FailureTabProps) {
+  const failurePathname = usePathname();
+  const isDfmea = failurePathname?.includes('/dfmea/') ?? false;
   const { alertProps, showAlert } = useAlertModal();
   const [modal, setModal] = useState<{
     type: string;
@@ -1255,7 +1258,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
           }
         }}
         category="S"
-        fmeaType="P-FMEA"
+        fmeaType={isDfmea ? 'D-FMEA' : 'P-FMEA'}
         currentValue={sodModal?.currentValue}
         scope={sodModal?.scope}
         feText={sodModal?.feText}

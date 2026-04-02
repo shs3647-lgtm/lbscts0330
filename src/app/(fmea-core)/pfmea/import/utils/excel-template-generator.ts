@@ -201,7 +201,7 @@ export async function generateManualTemplate(config: TemplateConfig) {
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
-  await downloadBuffer(buffer, 'PFMEA_수동_템플릿');
+  await downloadBuffer(buffer, 'FMEA_수동_템플릿');
 }
 
 // ─── 자동 템플릿 ───
@@ -228,7 +228,7 @@ export async function generateAutoTemplate(config: AutoTemplateConfig) {
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
-  await downloadBuffer(buffer, 'PFMEA_자동_템플릿');
+  await downloadBuffer(buffer, 'FMEA_자동_템플릿');
 }
 
 // ─── 행 생성 로직 ───

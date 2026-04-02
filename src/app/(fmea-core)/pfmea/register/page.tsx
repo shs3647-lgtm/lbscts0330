@@ -607,7 +607,7 @@ function PFMEARegisterPageContent() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-lg">{isEditMode ? '✏️' : '📝'}</span>
-            <h1 className="text-sm font-bold text-gray-800">PFMEA {isEditMode ? '수정(Edit)' : '등록(Register)'}</h1>
+            <h1 className="text-sm font-bold text-gray-800">{isDfmea ? 'DFMEA' : 'PFMEA'} {isEditMode ? '수정(Edit)' : '등록(Register)'}</h1>
             {fmeaId && <span className="text-xs text-gray-500 ml-2">ID: {fmeaId}</span>}
             {isEditMode && !isRevisionMode && <span className="px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded font-bold">수정모드(Edit Mode)</span>}
             {isRevisionMode && <span className="px-2 py-0.5 text-xs bg-blue-200 text-blue-800 rounded font-bold">개정모드(Revision Mode)</span>}
@@ -991,7 +991,7 @@ function PFMEARegisterPageContent() {
                 onDownloadSample={async () => {
                   const { downloadDataTemplate, downloadSampleTemplate } = await getExcelTemplate();
                   const subject = (fmeaInfo.subject || '').replace(/\s+/g, '_');
-                  const masterName = subject ? `PFMEA_${subject}_현재데이터` : undefined;
+                  const masterName = subject ? `${isDfmea ? 'DFMEA' : 'PFMEA'}_${subject}_현재데이터` : undefined;
                   try {
                     const res = await fetch(`/api/fmea/reverse-import/excel?fmeaId=${encodeURIComponent(fmeaId)}`);
                     if (res.ok) {
@@ -1000,7 +1000,7 @@ function PFMEARegisterPageContent() {
                       const a = document.createElement('a');
                       const cd = res.headers.get('content-disposition');
                       const fnMatch = cd?.match(/filename="?([^"]+)"?/);
-                      a.download = fnMatch?.[1] || `PFMEA_${subject || fmeaId}_현재데이터.xlsx`;
+                      a.download = fnMatch?.[1] || `${isDfmea ? 'DFMEA' : 'PFMEA'}_${subject || fmeaId}_현재데이터.xlsx`;
                       a.href = url;
                       a.click();
                       URL.revokeObjectURL(url);
@@ -1044,7 +1044,7 @@ function PFMEARegisterPageContent() {
             </>
           ) : (
             <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              상단에서 PFMEA를 저장한 뒤 엑셀 Import·기초정보 미리보기·저장을 사용할 수 있습니다.
+              상단에서 {isDfmea ? 'DFMEA' : 'PFMEA'}를 저장한 뒤 엑셀 Import·기초정보 미리보기·저장을 사용할 수 있습니다.
             </p>
           )}
         </div>
@@ -1156,7 +1156,7 @@ function PFMEARegisterPageContent() {
         {/* 하단 상태바 */}
         <div className="mt-3 px-4 py-2 bg-white rounded border border-gray-300 flex justify-between text-xs text-gray-500">
           <span>총 {cftMembers.filter(m => m.name).length}명의 CFT 멤버 | 접속 로그 {accessLogs.length}건</span>
-          <span>버전: P-FMEA Suite v3.0 | 사용자: {user?.name || 'FMEA Lead'}</span>
+          <span>버전: {isDfmea ? 'D' : 'P'}-FMEA Suite v3.0 | 사용자: {user?.name || 'FMEA Lead'}</span>
         </div>
 
         {/* 모달들 */}
@@ -1269,7 +1269,7 @@ function PFMEARegisterPageContent() {
           showPfdSection={true} showCpSection={true} />
 
         {/* 새로 만들기 모달 */}
-        <CreateDocumentModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} sourceApp="pfmea" />
+        <CreateDocumentModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} sourceApp={isDfmea ? 'dfmea' : 'pfmea'} />
 
         {/* CFT 미입력 경고 모달 */}
         <AlertModal isOpen={cftAlertRoles.length > 0} onClose={() => setCftAlertRoles([])} message="사용자 검색으로 CFT를 지정해 주세요" items={cftAlertRoles} />

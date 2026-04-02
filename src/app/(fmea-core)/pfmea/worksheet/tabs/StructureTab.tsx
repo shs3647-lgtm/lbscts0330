@@ -34,6 +34,8 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { WorksheetState, COLORS, FlatRow, FONT_SIZES, FONT_WEIGHTS, HEIGHTS, uid } from '../constants';
 import { S, F, X, L1, L2, L3, cell, cellCenter, border, btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '../../../../../styles/worksheet';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { handleEnterBlur } from '../utils/keyboard';
 import { mergeRowsByMasterSelection } from '../utils/mergeRowsByMasterSelection';
 import { getZebraColors } from '../../../../../styles/level-colors';
@@ -122,6 +124,9 @@ interface StructureHeaderProps {
 }
 
 export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed, onConfirm, onEdit, workElementCount = 0, l1Name = '', s2Count = 0, s3Count = 0, onMissingClick, isAutoMode, onToggleMode, isLoadingMaster, onSortByProcessNo }: StructureHeaderProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   // 확정된 경우 돋보기 숨김
   const showSearchIcon = !isConfirmed && missingCounts && missingCounts.l2Count > 0;
 
@@ -163,7 +168,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (onConfirm) onConfirm(); }}
                   disabled={workElementCount === 0}
                   className={`${btnConfirm} ${workElementCount === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title={workElementCount === 0 ? '작업요소를 먼저 연결해주세요' : '클릭하여 확정'}
+                  title={workElementCount === 0 ? `${lb.l3Short}를 먼저 연결해주세요` : '클릭하여 확정'}
                 >
                   미확정(Unconfirmed)
                 </button>
@@ -191,7 +196,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
       {/* 2행: 항목 그룹 */}
       <tr>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko="1. 완제품 공정명" en="Product Process" />
+          <BiHeader ko={'1. ' + lb.l1} en={lb.l1En} />
           {missingCounts && missingCounts.l1Count > 0 && (
             <span className="ml-1 bg-red-600 text-white px-1.5 py-0 rounded-full text-[10px] font-bold">
               {missingCounts.l1Count}
@@ -201,7 +206,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
         <th colSpan={2} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <div className="flex items-center justify-center gap-1">
             <span onClick={onProcessModalOpen} className="cursor-pointer hover:underline">
-              <BiHeader ko="2. 메인 공정명" en="Main Process" /> {showSearchIcon && '🔍'}
+              <BiHeader ko={'2. ' + lb.l2} en={lb.l2En} /> {showSearchIcon && '🔍'}
             </span>
             {missingCounts && missingCounts.l2Count > 0 && (
               <span className="bg-red-600 text-white px-1.5 py-0 rounded-full text-[10px] font-bold">
@@ -221,7 +226,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
           </div>
         </th>
         <th colSpan={2} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko="3. 작업 요소명" en="Work Element" /> {!isConfirmed && missingCounts && missingCounts.l3Count > 0 && '🔍'}
+          <BiHeader ko={'3. ' + lb.l3} en={lb.l3En} /> {!isConfirmed && missingCounts && missingCounts.l3Count > 0 && '🔍'}
           {missingCounts && missingCounts.l3Count > 0 && (
             <span className="ml-1 bg-red-600 text-white px-1.5 py-0 rounded-full text-[10px] font-bold">
               {missingCounts.l3Count}
@@ -232,7 +237,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
       {/* 3행: 서브 헤더 — boxShadow로 파란 구분선 (border-collapse+sticky에서 borderBottom은 스크롤 시 소실) */}
       <tr>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="완제품 공정명" en="Product Process" /><span className="text-green-700 font-bold">(1)</span>
+          <BiHeader ko={lb.l1} en={lb.l1En} /><span className="text-green-700 font-bold">(1)</span>
         </th>
         <th className="w-[40px] min-w-[40px] max-w-[40px] bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           No
@@ -240,9 +245,9 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
         <th className="bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="공정명" en="Process" /><span className={`font-bold ${s2Count > 0 ? 'text-green-700' : 'text-red-500'}`}>({s2Count})</span>
         </th>
-        <th className="w-[55px] max-w-[55px] min-w-[55px] bg-[#29b6f6] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>4M</th>
+        <th className="w-[55px] max-w-[55px] min-w-[55px] bg-[#29b6f6] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>{lb.l3Attr}</th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="작업요소" en="Work Element" /><span className={`font-bold ${s3Count > 0 ? 'text-green-700' : 'text-red-500'}`}>({s3Count})</span>
+          <BiHeader ko={lb.l3Short} en={lb.l3En} /><span className={`font-bold ${s3Count > 0 ? 'text-green-700' : 'text-red-500'}`}>({s3Count})</span>
         </th>
       </tr>
     </>
@@ -253,6 +258,9 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
 export function StructureRow({
   row, idx, l2Spans, state, setState, setStateSynced, setDirty, handleInputBlur, handleInputKeyDown, handleSelect, setIsProcessModalOpen, setIsWorkElementModalOpen, setTargetL2Id, saveToLocalStorage, saveAtomicDB, zebraBg, isConfirmed, fmeaId,
 }: StructureTabProps & { row: FlatRow; idx: number; zebraBg: string; isConfirmed?: boolean }) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   // ★★★ 2026-02-05: L1 완제품명 인라인 편집 상태 ★★★
   const [isEditingL1, setIsEditingL1] = useState(false);
   const [l1EditValue, setL1EditValue] = useState(state.l1.name || '');
@@ -314,7 +322,7 @@ export function StructureRow({
           className="text-center text-xs border border-[#ccc] p-1 align-middle break-words cursor-pointer hover:bg-blue-50"
           style={{ background: l2ZebraBg }}
           onDoubleClick={handleL1DoubleClick}
-          title="더블클릭하여 완제품명 수정"
+          title={`더블클릭하여 ${lb.l1Short} 수정`}
         >
           {isEditingL1 ? (
             <input
@@ -332,7 +340,7 @@ export function StructureRow({
             />
           ) : (
             <span className="text-xs font-semibold text-gray-800">
-              {state.l1.name || '완제품명 입력'}{state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
+              {state.l1.name || `${lb.l1Short} 입력`}{state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
             </span>
           )}
         </td>
@@ -379,6 +387,9 @@ export function StructureRow({
 
 export default function StructureTab(props: StructureTabProps) {
   const { rows, state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, suppressAutoSaveRef, handleInputBlur, handleInputKeyDown, handleSelect, fmeaId } = props;
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const { alertProps, showAlert } = useAlertModal();
 
   // ★★★ 모달 상태: 탭 자체에서 관리 (기능분석/고장분석 패턴 통일) ★★★
@@ -1118,7 +1129,7 @@ export default function StructureTab(props: StructureTabProps) {
               className="border border-[#ccc] p-1 text-center align-middle cursor-pointer hover:bg-blue-50"
               style={{ background: '#e3f2fd' }}
               onDoubleClick={handleL1DoubleClickEmpty}
-              title="더블클릭하여 완제품명 수정"
+              title={`더블클릭하여 ${lb.l1Short} 수정`}
             >
               {isEditingL1Empty ? (
                 <input
@@ -1136,7 +1147,7 @@ export default function StructureTab(props: StructureTabProps) {
                 />
               ) : (
                 <span className="text-xs font-semibold text-gray-800">
-                  {state.l1.name || '완제품명 입력'}{state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
+                  {state.l1.name || `${lb.l1Short} 입력`}{state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
                 </span>
               )}
             </td>

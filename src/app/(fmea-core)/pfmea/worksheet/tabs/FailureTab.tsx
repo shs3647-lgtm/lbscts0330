@@ -6,8 +6,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { WorksheetState, COLORS, FlatRow } from '../constants';
 import { X, cell, cellCenter } from '@/styles/worksheet';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface FailureTabProps {
   state: WorksheetState;
@@ -85,6 +87,10 @@ export function FailureColgroup() {
 }
 
 export function FailureHeader() {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+
   return (
     <>
       <tr>
@@ -96,7 +102,7 @@ export function FailureHeader() {
         <th className={`sticky left-0 z-[15] ${X.h3} h-5.5`}>고장영향(FE)</th>
         <th className={`${X.h3} h-5.5 text-center`}>S</th>
         <th className={`${X.h3} h-5.5`}>고장형태(FM)</th>
-        <th className="bg-[#ff9800] text-white border border-[#ccc] p-1 h-5.5 font-bold text-xs">작업요소</th>
+        <th className="bg-[#ff9800] text-white border border-[#ccc] p-1 h-5.5 font-bold text-xs">{lb.l3Short}</th>
         <th className="bg-[#ff9800] text-white border border-[#ccc] p-1 h-5.5 font-bold text-xs">고장원인(FC)</th>
       </tr>
     </>

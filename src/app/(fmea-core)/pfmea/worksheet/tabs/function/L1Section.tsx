@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { COLORS } from '../../constants';
 import { stickyFirstColStyle } from './constants';
 import { FlatRow, ModalType } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface L1SectionProps {
   row: FlatRow;
@@ -18,15 +20,18 @@ interface L1SectionProps {
 /**
  * 1. 구조 및 완제품 기능/요구사항 섹션 (L1 레벨 트리 구조)
  */
-export default function L1Section({ 
-  row, 
+export default function L1Section({
+  row,
   l1Span, 
   l1TypeSpan, 
   l1FuncSpan, 
   l2Span,
   onOpenModal 
 }: L1SectionProps) {
-  
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+
   return (
     <>
       {/* --- 구조분석 영역 (연계) --- */}
@@ -114,7 +119,7 @@ export default function L1Section({
         >
           <SelectableCell
             value={row.l1Function}
-            placeholder="완제품 기능"
+            placeholder={lb.l1Func}
             bgColor="#c8e6c9"
             onClick={() => onOpenModal('l1Function', row.l1TypeId)}
           />

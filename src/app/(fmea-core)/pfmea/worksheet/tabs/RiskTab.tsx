@@ -9,6 +9,8 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { WorksheetState } from '../constants';
 
 interface FlatRow {
@@ -71,11 +73,15 @@ const tw = {
  * 리스크분석 헤더
  */
 export function RiskHeader({ onAPClick }: { onAPClick?: () => void }) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+
   return (
     <>
       {/* 1행: 대분류 */}
       <tr>
-        <th colSpan={8} className={tw.mainHeader}>P-FMEA 리스크 분석(5단계)</th>
+        <th colSpan={8} className={tw.mainHeader}>{lb.prefix} 리스크 분석(5단계)</th>
       </tr>
 
       {/* 2행: 서브그룹 */}
@@ -165,6 +171,10 @@ export default function RiskTab({ rows, onAPClick }: RiskTabProps) {
 
 // ============ RiskTabFull (구조~리스크 통합 화면) ============
 export function RiskTabFull({ rows, l1Spans, l2Spans, onAPClick }: RiskTabProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+
   // 표준화: 구분선 #ccc, 폰트 text-xs (12px)
   const baseCell = 'border border-[#ccc] px-0.5 py-0.5 text-xs';
   const baseHeader = 'border border-[#ccc] p-0.5 text-xs text-center';
@@ -176,20 +186,20 @@ export function RiskTabFull({ rows, l1Spans, l2Spans, onAPClick }: RiskTabProps)
       <thead className={tw.thead}>
         {/* 1행: 단계 대분류 */}
         <tr>
-          <th colSpan={4} className={`${mainHeader} ${tw.structureMain}`} title="2nd Step Structure Analysis">P-FMEA 구조분석(2ST)</th>
-          <th colSpan={8} className={`${mainHeader} ${tw.functionMain}`} title="3rd Step Function Analysis">P-FMEA 기능분석(3ST)</th>
-          <th colSpan={6} className={`${mainHeader} ${tw.failureMain}`} title="4th Step Failure Analysis">P-FMEA 고장분석(4ST)</th>
-          <th colSpan={8} className={`${mainHeader} bg-[#6a1b9a]`} title="5th Step Risk Analysis">P-FMEA 리스크분석(5ST)</th>
+          <th colSpan={4} className={`${mainHeader} ${tw.structureMain}`} title="2nd Step Structure Analysis">{lb.prefix} 구조분석(2ST)</th>
+          <th colSpan={8} className={`${mainHeader} ${tw.functionMain}`} title="3rd Step Function Analysis">{lb.prefix} 기능분석(3ST)</th>
+          <th colSpan={6} className={`${mainHeader} ${tw.failureMain}`} title="4th Step Failure Analysis">{lb.prefix} 고장분석(4ST)</th>
+          <th colSpan={8} className={`${mainHeader} bg-[#6a1b9a]`} title="5th Step Risk Analysis">{lb.prefix} 리스크분석(5ST)</th>
         </tr>
 
         {/* 2행: 서브그룹 */}
         <tr>
-          <th colSpan={1} className={`${subHeader} ${tw.structureHeader}`}>1. 완제품 공정명</th>
-          <th colSpan={1} className={`${subHeader} ${tw.structureHeader}`}>2. 메인 공정명</th>
-          <th colSpan={2} className={`${subHeader} ${tw.structureHeader}`}>3. 작업 요소명</th>
-          <th colSpan={3} className={`${subHeader} ${tw.functionHeader}`}>1. 완제품 공정기능/요구사항</th>
-          <th colSpan={2} className={`${subHeader} ${tw.functionHeader}`}>2. 메인공정기능 및 제품특성</th>
-          <th colSpan={3} className={`${subHeader} ${tw.functionHeader}`}>3. 작업요소의 기능 및 공정특성</th>
+          <th colSpan={1} className={`${subHeader} ${tw.structureHeader}`}>{`1. ${lb.l1}`}</th>
+          <th colSpan={1} className={`${subHeader} ${tw.structureHeader}`}>{`2. ${lb.l2}`}</th>
+          <th colSpan={2} className={`${subHeader} ${tw.structureHeader}`}>{`3. ${lb.l3}`}</th>
+          <th colSpan={3} className={`${subHeader} ${tw.functionHeader}`}>{`1. ${lb.l1FuncGroup}`}</th>
+          <th colSpan={2} className={`${subHeader} ${tw.functionHeader}`}>{`2. ${lb.l2FuncGroup}`}</th>
+          <th colSpan={3} className={`${subHeader} ${tw.functionHeader}`}>{`3. ${lb.l3FuncGroup}`}</th>
           <th colSpan={3} className={`${subHeader} ${tw.failureHeader}`}>1. 고장영향(FE)</th>
           <th colSpan={1} className={`${subHeader} ${tw.failureHeader}`}>2. 고장형태(FM)</th>
           <th colSpan={2} className={`${subHeader} ${tw.failureHeader}`}>3. 고장원인(FC)</th>
@@ -200,23 +210,23 @@ export function RiskTabFull({ rows, l1Spans, l2Spans, onAPClick }: RiskTabProps)
 
         {/* 3행: 컬럼명 */}
         <tr>
-          <th className={`${baseHeader} ${tw.structureCell}`}>완제품공정명</th>
-          <th className={`${baseHeader} ${tw.structureCell}`}>NO+공정명</th>
-          <th className={`${baseHeader} ${tw.structureCell}`}>4M</th>
-          <th className={`${baseHeader} ${tw.structureCell}`}>작업요소</th>
+          <th className={`${baseHeader} ${tw.structureCell}`}>{lb.l1Short}</th>
+          <th className={`${baseHeader} ${tw.structureCell}`}>{lb.l2No}</th>
+          <th className={`${baseHeader} ${tw.structureCell}`}>{lb.l3Attr}</th>
+          <th className={`${baseHeader} ${tw.structureCell}`}>{lb.l3Short}</th>
           <th className={`${baseHeader} ${tw.functionCell}`}>구분</th>
-          <th className={`${baseHeader} ${tw.functionCell}`}>완제품기능</th>
+          <th className={`${baseHeader} ${tw.functionCell}`}>{lb.l1Func}</th>
           <th className={`${baseHeader} ${tw.functionCell}`}>요구사항</th>
-          <th className={`${baseHeader} ${tw.functionCell}`}>공정기능</th>
+          <th className={`${baseHeader} ${tw.functionCell}`}>{lb.l2Func}</th>
           <th className={`${baseHeader} ${tw.functionCell}`}>제품특성</th>
-          <th className={`${baseHeader} ${tw.functionCell}`}>작업요소</th>
-          <th className={`${baseHeader} ${tw.functionCell}`}>작업요소기능</th>
-          <th className={`${baseHeader} ${tw.functionCell}`}>공정특성</th>
+          <th className={`${baseHeader} ${tw.functionCell}`}>{lb.l3Short}</th>
+          <th className={`${baseHeader} ${tw.functionCell}`}>{lb.l3Func}</th>
+          <th className={`${baseHeader} ${tw.functionCell}`}>{lb.l3Char}</th>
           <th className={`${baseHeader} ${tw.failureCell}`}>구분</th>
           <th className={`${baseHeader} ${tw.failureCell}`}>고장영향(FE)</th>
           <th className={`${baseHeader} ${tw.failureCell}`} title="Severity">심각도(S)</th>
           <th className={`${baseHeader} ${tw.failureCell}`}>고장형태(FM)</th>
-          <th className={`${baseHeader} ${tw.failureCell}`}>작업요소</th>
+          <th className={`${baseHeader} ${tw.failureCell}`}>{lb.l3Short}</th>
           <th className={`${baseHeader} ${tw.failureCell}`}>고장원인(FC)</th>
           <th className={`${baseHeader} ${tw.preventionCell}`}>예방관리(PC)</th>
           <th className={`${baseHeader} ${tw.preventionCell}`} title="Occurrence">발생도(O)</th>

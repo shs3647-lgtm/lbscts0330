@@ -6,6 +6,7 @@
 
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
 import { CFTAccessLog } from '@/types/project-cft';
 import { CFTMember } from '@/components/tables/CFTRegistrationTable';
@@ -22,6 +23,8 @@ export function AccessLogSection({
   accessLogs,
   cftMembers,
 }: AccessLogSectionProps) {
+  const logPathname = usePathname();
+  const isDfmea = logPathname?.includes('/dfmea/') ?? false;
   const activeMemberCount = cftMembers.filter(m => m.name).length;
 
   return (
@@ -36,7 +39,7 @@ export function AccessLogSection({
       {/* 하단 상태바 */}
       <div className="mt-3 px-4 py-2 bg-white rounded border border-gray-300 flex justify-between text-xs text-gray-500">
         <span>총 {activeMemberCount}명의 CFT 멤버 | 접속 로그 {accessLogs.length}건</span>
-        <span>버전: P-FMEA Suite v3.0 | 사용자: FMEA Lead</span>
+        <span>버전: {isDfmea ? 'D' : 'P'}-FMEA Suite v3.0 | 사용자: FMEA Lead</span>
       </div>
     </>
   );

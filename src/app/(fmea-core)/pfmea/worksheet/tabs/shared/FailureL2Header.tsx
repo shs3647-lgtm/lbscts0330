@@ -8,11 +8,13 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { btnConfirm, btnEdit, badgeConfirmed, badgeMissing, badgeOk } from '@/styles/worksheet';
 import { HelpPopup } from './HelpPopup';
 import { ImportVerifyBadge } from './ImportVerifyBadge';
 import { useLocale } from '@/lib/locale';
 import { BiHeader } from './BaseWorksheetComponents';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface FailureL2HeaderProps {
   isConfirmed: boolean;
@@ -52,6 +54,9 @@ export function FailureL2Header({
   onMissingClick,
 }: FailureL2HeaderProps) {
   const { t } = useLocale();
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [showHelp, setShowHelp] = useState(false);
 
   return (
@@ -113,10 +118,10 @@ export function FailureL2Header({
       {/* 2행: 11px, bold */}
       <tr>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko="2. 메인 공정명" en="Main Process" />
+          <BiHeader ko={`2. ${lb.l2}`} en="Main Process" />
         </th>
         <th colSpan={3} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko="2. 메인공정기능 및 제품특성" en="Function & Product Char." />
+          <BiHeader ko={`2. ${lb.l2FuncGroup}`} en="Function & Product Char." />
         </th>
         <th className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <div className="flex items-center justify-center gap-1">
@@ -134,7 +139,7 @@ export function FailureL2Header({
           <BiHeader ko="NO+공정명" en="Process" />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="메인공정기능" en="Main Function" />{l2FunctionCount != null && <span className={`font-bold ${l2FunctionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({l2FunctionCount})</span>}
+          <BiHeader ko={lb.l2Func} en="Main Function" />{l2FunctionCount != null && <span className={`font-bold ${l2FunctionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({l2FunctionCount})</span>}
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] border-r-[2px] border-r-orange-500 p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="제품특성" en="Product Char." />{productCharCount != null && <span className={`font-bold ${productCharCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({productCharCount})</span>}

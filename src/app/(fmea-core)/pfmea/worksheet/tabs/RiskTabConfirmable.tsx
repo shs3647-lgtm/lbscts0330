@@ -7,6 +7,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { WorksheetState } from '../constants';
 import { btnConfirm, btnEdit, badgeConfirmed, badgeOk, badgeMissing } from '@/styles/worksheet';
 import { buildRiskAnalysisFromData } from '../utils/riskDataSync';
@@ -59,6 +60,8 @@ export default function RiskTabConfirmable({
   saveToLocalStorage,
   saveAtomicDB 
 }: RiskTabProps) {
+  const riskPathname = usePathname();
+  const isDfmea = riskPathname?.includes('/dfmea/') ?? false;
   
   // 확정 상태
    
@@ -256,7 +259,7 @@ export default function RiskTabConfirmable({
         <tr>
           <th colSpan={8} className={tw.mainHeader}>
             <div className="flex items-center justify-between">
-              <span className="flex-1 text-center">P-FMEA 리스크 분석(5단계)</span>
+              <span className="flex-1 text-center">{isDfmea ? 'D' : 'P'}-FMEA 리스크 분석(5단계)</span>
               <div className="flex gap-1 absolute right-2">
                 {/* 완료 상태 표시 */}
                 {!isConfirmed && completionStatus.total > 0 && (

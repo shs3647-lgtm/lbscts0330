@@ -414,7 +414,7 @@ function FMEAWorksheetPageContent() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // ★ 엑셀 핸들러 훅 (모듈화)
-  const fmeaName = currentFmea?.fmeaInfo?.subject || currentFmea?.project?.productName || 'PFMEA';
+  const fmeaName = currentFmea?.fmeaInfo?.subject || currentFmea?.project?.productName || (isDfmea ? 'DFMEA' : 'PFMEA');
   const {
     fileInputRef,
     importMessage,
@@ -453,7 +453,7 @@ function FMEAWorksheetPageContent() {
             // 품명(partName) 우선, 없으면 subject에서 추출 (레거시 호환)
             const partFromSubject = rawSubject.includes('+') ? rawSubject.split('+')[0].trim() : rawSubject.trim();
             const baseName = rawPartName || partFromSubject || '';
-            if (baseName && baseName !== '품명' && baseName !== '품명+PFMEA') {
+            if (baseName && baseName !== '품명' && baseName !== '품명+PFMEA' && baseName !== '품명+DFMEA') {
               projectL1Name = `${baseName}+생산공정`;
             }
           }
@@ -701,10 +701,10 @@ function FMEAWorksheetPageContent() {
           onSave={() => {
             saveAtomicDB(true);
           }}
-          onNavigateToList={() => router.push('/pfmea/list')}
+          onNavigateToList={() => router.push(isDfmea ? '/dfmea/list' : '/pfmea/list')}
           onExport={async () => {
             try {
-              const fmeaName = currentFmea?.fmeaInfo?.subject || 'PFMEA';
+              const fmeaName = currentFmea?.fmeaInfo?.subject || (isDfmea ? 'DFMEA' : 'PFMEA');
               if (state.tab === 'structure') {
                 handleStructureExport();
               } else if (state.tab === 'function-l1') {

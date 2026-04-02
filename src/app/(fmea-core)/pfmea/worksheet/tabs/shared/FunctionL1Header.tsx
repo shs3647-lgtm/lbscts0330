@@ -21,6 +21,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { btnConfirm, btnEdit, badgeConfirmed, badgeMissing, badgeOk } from '@/styles/worksheet';
 import { HelpPopup } from './HelpPopup';
 import { BiHeader } from './BaseWorksheetComponents';
@@ -50,6 +52,9 @@ export function FunctionL1Header({
   isLoadingMaster,
   onMissingClick,
 }: FunctionL1HeaderProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [showHelp, setShowHelp] = useState(false);
 
   return (
@@ -99,10 +104,10 @@ export function FunctionL1Header({
       {/* 2행: 항목 그룹 (11px, bold) */}
       <tr>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko="1. 완제품 공정명" en="Product Process" />
+          <BiHeader ko={'1. ' + lb.l1} en={lb.l1En} />
         </th>
         <th colSpan={3} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko="1. 완제품 공정기능/요구사항" en="Function/Requirements" />
+          <BiHeader ko={'1. ' + lb.l1FuncGroup} en={lb.l1FuncGroupEn} />
           {missingCount > 0 && (
             <button type="button" onClick={onMissingClick} className="ml-1.5 bg-orange-500 text-white px-1.5 py-0 rounded-full text-[10px] cursor-pointer hover:opacity-80" title="클릭하여 누락 항목으로 이동">
               누락(Missing) {missingCount}건(cases)
@@ -114,13 +119,13 @@ export function FunctionL1Header({
       {/* 3행: 세부 컬럼 (11px, bold, 2px 파란색 border-bottom) */}
       <tr className="bg-[#e8f5e9]">
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="완제품 공정명" en="Product Process" /><span className="text-green-700 font-bold">(1)</span>
+          <BiHeader ko={lb.l1} en={lb.l1En} /><span className="text-green-700 font-bold">(1)</span>
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] px-0.5 py-1 font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3', fontSize: 'clamp(9px, 2.5vw, 11px)' }}>
           <BiHeader ko="구분" en="Type" />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="완제품기능" en="Product Function" /><span className={`font-bold ${functionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({functionCount})</span>
+          <BiHeader ko={lb.l1Func} en={lb.l1FuncEn} /><span className={`font-bold ${functionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({functionCount})</span>
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-gray-800" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="요구사항" en="Requirements" /><span className={`font-bold ${requirementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({requirementCount})</span>

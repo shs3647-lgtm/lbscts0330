@@ -40,7 +40,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     recordAccessLog, loadAccessLogs,
     apqpList, setApqpList,
     selectedParentApqp, setSelectedParentApqp,
-    isDfmea, fmeaModule, registerBasePath,
+    isDfmea, fmeaModule, moduleLabel, registerBasePath,
   } = core;
 
   // CFT 미입력 경고 모달 상태
@@ -219,7 +219,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
   // 저장
   // =====================================================
   const handleSave = useCallback(async () => {
-    if (!fmeaInfo.subject?.trim()) { alert('PFMEA명을 입력해주세요.'); return; }
+    if (!fmeaInfo.subject?.trim()) { alert(`${moduleLabel}명을 입력해주세요.`); return; }
 
     // fmeaId 없으면 triplet/create로 자동 생성
     let currentFmeaId = fmeaId;
@@ -243,7 +243,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
         });
         const tripletResult = await tripletRes.json();
         if (!tripletResult.success) {
-          throw new Error(tripletResult.error || 'PFMEA ID 자동 생성 실패');
+          throw new Error(tripletResult.error || `${moduleLabel} ID 자동 생성 실패`);
         }
         currentFmeaId = tripletResult.pfmeaId;
         setFmeaId(currentFmeaId);
@@ -251,7 +251,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
         window.history.replaceState(null, '', `${registerBasePath}?id=${currentFmeaId}`);
       } catch (err: any) {
         setSaveStatus('idle');
-        alert(`PFMEA ID 자동 생성 오류: ${err.message}`);
+        alert(`${moduleLabel} ID 자동 생성 오류: ${err.message}`);
         return;
       }
     }

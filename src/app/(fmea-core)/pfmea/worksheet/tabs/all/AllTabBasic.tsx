@@ -20,6 +20,8 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { FlatRow, WorksheetState, FONT_WEIGHTS, FONT_SIZES, L2Function, L2ProductChar, L3Function, L3ProcessChar } from '../../constants';
 import SODSelectModal from '@/components/modals/SODSelectModal';
 import DataSelectModal from '@/components/modals/DataSelectModal';
@@ -47,6 +49,9 @@ interface AllTabBasicProps {
 export default function AllTabBasic({
   rows, state, setState, l1Spans, l1TypeSpans, l1FuncSpans, l2Spans, visibleSteps, onAPClick
 }: AllTabBasicProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const COLORS = ALL_TAB_COLORS;
 
   // 모달 훅 사용
@@ -75,15 +80,15 @@ export default function AllTabBasic({
         <thead style={stickyTheadStyle}>
           {/* 1행: 단계 대분류 */}
           <tr>
-            {visibleSteps.includes(2) && <th colSpan={4} style={headerCellStyle(COLORS.structure.main)}>P-FMEA 구조 분석(2단계)</th>}
-            {visibleSteps.includes(3) && <th colSpan={8} style={headerCellStyle(COLORS.function.main)}>P-FMEA 기능 분석(3단계)</th>}
-            {visibleSteps.includes(4) && <th colSpan={6} style={headerCellStyle('#f57c00')}>P-FMEA 고장 분석(4단계)</th>}
-            {visibleSteps.includes(5) && <th colSpan={8} style={headerCellStyle(COLORS.risk.main)}>P-FMEA 리스크 분석(5단계)</th>}
-            {visibleSteps.includes(6) && <th colSpan={14} style={headerCellStyle(COLORS.opt.main)}>P-FMEA 최적화(6단계)</th>}
+            {visibleSteps.includes(2) && <th colSpan={4} style={headerCellStyle(COLORS.structure.main)}>{lb.prefix} 구조 분석(2단계)</th>}
+            {visibleSteps.includes(3) && <th colSpan={8} style={headerCellStyle(COLORS.function.main)}>{lb.prefix} 기능 분석(3단계)</th>}
+            {visibleSteps.includes(4) && <th colSpan={6} style={headerCellStyle('#f57c00')}>{lb.prefix} 고장 분석(4단계)</th>}
+            {visibleSteps.includes(5) && <th colSpan={8} style={headerCellStyle(COLORS.risk.main)}>{lb.prefix} 리스크 분석(5단계)</th>}
+            {visibleSteps.includes(6) && <th colSpan={14} style={headerCellStyle(COLORS.opt.main)}>{lb.prefix} 최적화(6단계)</th>}
           </tr>
           {/* 2행: 서브그룹 */}
           <tr>
-            {visibleSteps.includes(2) && <><th style={subHeaderCellStyle(COLORS.structure.header)}>1. 완제품 공정명</th><th style={subHeaderCellStyle(COLORS.structure.header)}>2. 메인 공정명</th><th colSpan={2} style={subHeaderCellStyle(COLORS.structure.header)}>3. 작업 요소명</th></>}
+            {visibleSteps.includes(2) && <><th style={subHeaderCellStyle(COLORS.structure.header)}>1. {lb.l1}</th><th style={subHeaderCellStyle(COLORS.structure.header)}>2. {lb.l2}</th><th colSpan={2} style={subHeaderCellStyle(COLORS.structure.header)}>3. {lb.l3}</th></>}
             {visibleSteps.includes(3) && <><th colSpan={3} style={subHeaderCellStyle(COLORS.function.header)}>1. 다음상위수준 기능</th><th colSpan={2} style={subHeaderCellStyle(COLORS.function.header)}>2. 초점요소 기능</th><th colSpan={3} style={subHeaderCellStyle(COLORS.function.header)}>3. 다음하위수준/특성유형</th></>}
             {visibleSteps.includes(4) && <><th colSpan={3} style={subHeaderCellStyle(COLORS.failure.header)}>1. 고장영향(FE)</th><th style={subHeaderCellStyle(COLORS.failure.header)}>2. 고장형태(FM)</th><th colSpan={2} style={subHeaderCellStyle(COLORS.failure.header)}>3. 고장원인(FC)</th></>}
             {visibleSteps.includes(5) && <><th colSpan={2} style={subHeaderCellStyle(COLORS.risk.prevention.header)}>현재 예방관리</th><th colSpan={2} style={subHeaderCellStyle(COLORS.risk.detection.header)}>현재 검출관리</th><th colSpan={4} style={subHeaderCellStyle(COLORS.risk.evaluation.header)}>리스크 평가</th></>}
@@ -91,7 +96,7 @@ export default function AllTabBasic({
           </tr>
           {/* 3행: 컬럼명 (2px 파란색 border-bottom으로 헤더 구분) */}
           <tr>
-            {visibleSteps.includes(2) && <><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>완제품공정명</th><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>NO+공정명</th><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>4M</th><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>부품</th></>}
+            {visibleSteps.includes(2) && <><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>{lb.l1Short}</th><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>{lb.l2No}</th><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>{lb.l3Attr}</th><th style={subHeaderCellStyle(COLORS.structure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>부품</th></>}
             {visibleSteps.includes(3) && <><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>구분</th><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>제품 기능</th><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>요구사항</th><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>초점요소 기능</th><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>제품특성</th><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>부품</th><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>부품 기능</th><th style={subHeaderCellStyle(COLORS.function.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>설계특성</th></>}
             {visibleSteps.includes(4) && <><th style={subHeaderCellStyle(COLORS.failure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>구분</th><th style={subHeaderCellStyle(COLORS.failure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>고장영향(FE)</th><th style={subHeaderCellStyle(COLORS.failure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>심각도(S)</th><th style={subHeaderCellStyle(COLORS.failure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>고장형태(FM)</th><th style={subHeaderCellStyle(COLORS.failure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>부품</th><th style={subHeaderCellStyle(COLORS.failure.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>고장원인(FC)</th></>}
             {visibleSteps.includes(5) && <><th style={subHeaderCellStyle(COLORS.risk.prevention.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>예방관리(PC)</th><th style={subHeaderCellStyle(COLORS.risk.prevention.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>발생도(O)</th><th style={subHeaderCellStyle(COLORS.risk.detection.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>검출관리(DC)</th><th style={subHeaderCellStyle(COLORS.risk.detection.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>검출도(D)</th><th onClick={onAPClick} style={subHeaderCellStyle(COLORS.risk.evaluation.cell, { cursor: 'pointer', boxShadow: 'inset 0 -2px 0 #2196f3' })}>AP 📊</th><th style={subHeaderCellStyle(COLORS.risk.evaluation.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>RPN</th><th style={subHeaderCellStyle(COLORS.risk.evaluation.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>특별특성(SC)</th><th style={subHeaderCellStyle(COLORS.risk.evaluation.cell, { boxShadow: 'inset 0 -2px 0 #2196f3' })}>LLD</th></>}
@@ -195,7 +200,7 @@ export default function AllTabBasic({
         onClose={closeSodModal}
         onSelect={handleSODSelect}
         category={sodModal.category}
-        fmeaType="P-FMEA"
+        fmeaType={isDfmea ? 'D-FMEA' : 'P-FMEA'}
         currentValue={sodModal.currentValue}
         scope={sodModal.scope}
       />
@@ -229,7 +234,7 @@ export default function AllTabBasic({
             closeControlModal();
           }}
           singleSelect={true}
-          fmeaType="PFMEA"
+          fmeaType={isDfmea ? 'DFMEA' : 'PFMEA'}
           processNo={controlModal.processNo}
           processName={controlModal.processName}
           currentValues={[(state.riskData || {})[`${controlModal.type}-${controlModal.rowIndex}`] || ''].filter(Boolean).map(String)}

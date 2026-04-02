@@ -21,10 +21,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { S, F, X, btnConfirm, btnEdit, badgeConfirmed, badgeMissing, badgeOk } from '@/styles/worksheet';
 import { HelpPopup } from './HelpPopup';
 import { useLocale } from '@/lib/locale';
 import { BiHeader } from './BaseWorksheetComponents';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface FailureL1HeaderProps {
   isConfirmed: boolean;
@@ -62,6 +64,9 @@ export function FailureL1Header({
   onMissingClick,
 }: FailureL1HeaderProps) {
   const { t } = useLocale();
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [showHelp, setShowHelp] = useState(false);
 
   return (
@@ -116,10 +121,10 @@ export function FailureL1Header({
       {/* 2행: 11px, bold */}
       <tr>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko="1. 완제품 공정명" en="Product Process" />
+          <BiHeader ko={`1. ${lb.l1}`} en="Product Process" />
         </th>
         <th colSpan={3} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko="1. 완제품 공정기능/요구사항" en="Function/Requirements" />
+          <BiHeader ko={`1. ${lb.l1FuncGroup}`} en="Function/Requirements" />
         </th>
         <th colSpan={2} className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
           <div className="flex items-center justify-center gap-1">
@@ -140,13 +145,13 @@ export function FailureL1Header({
       {/* 3행: 11px, bold, 2px 파란색 border-bottom */}
       <tr>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="완제품 공정명" en="Product Process" />
+          <BiHeader ko={lb.l1} en="Product Process" />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="구분" en="Type" />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="완제품기능" en="Product Function" />{functionCount != null && <span className={`font-bold ${functionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({functionCount})</span>}
+          <BiHeader ko={lb.l1Func} en="Product Function" />{functionCount != null && <span className={`font-bold ${functionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({functionCount})</span>}
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="요구사항" en="Requirements" />{requirementCount != null && <span className={`font-bold ${requirementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({requirementCount})</span>}

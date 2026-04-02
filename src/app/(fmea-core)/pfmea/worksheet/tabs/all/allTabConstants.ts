@@ -398,6 +398,40 @@ export const COLUMNS_BASE: ColumnDef[] = [
   },
 ];
 
+// ============ DFMEA 라벨 매핑 (구조/기능 영역만) ============
+
+/** PFMEA→DFMEA 그룹명 매핑 */
+const PFMEA_TO_DFMEA_GROUP: Record<string, string> = {
+  '1. 완제품 공정명': '1. 최상위 시스템명',
+  '2. 메인 공정명': '2. 초점요소명',
+  '3. 작업 요소명': '3. 부품(컴포넌트)명',
+  '1. 완제품 공정기능/요구사항': '1. 시스템 기능/요구사항',
+  '2. 메인공정기능 및 제품특성': '2. 초점요소 기능 및 제품특성',
+  '3. 작업요소 기능 및 공정특성': '3. 부품 기능 및 설계특성',
+};
+
+/** PFMEA→DFMEA 컬럼명 매핑 */
+const PFMEA_TO_DFMEA_NAME: Record<string, string> = {
+  '완제품 공정명': '시스템명',
+  'NO+공정명': 'NO+초점요소',
+  '4M': 'Type',
+  '작업요소': '부품',
+  '완제품기능': '시스템기능',
+  '공정 기능': '초점요소기능',
+  '작업요소 기능': '부품기능',
+  '공정특성': '설계특성',
+};
+
+/** DFMEA용 컬럼 정의 (COLUMNS_BASE에서 라벨만 교체) */
+export function getColumnsForModule(isDfmea: boolean): ColumnDef[] {
+  if (!isDfmea) return COLUMNS_BASE;
+  return COLUMNS_BASE.map(col => ({
+    ...col,
+    group: PFMEA_TO_DFMEA_GROUP[col.group] || col.group,
+    name: PFMEA_TO_DFMEA_NAME[col.name] || col.name,
+  }));
+}
+
 // 단계별 메인 색상 (1행 헤더용)
 export const STEP_COLORS: Record<string, string> = {
   '구조분석': '#1976d2',
