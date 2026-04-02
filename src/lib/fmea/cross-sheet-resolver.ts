@@ -1,10 +1,16 @@
 /**
- * @status CODEFREEZE L4 (Pipeline Protection) u{1F512}
- * @freeze_level L4 (Critical - DFMEA Pre-Development Snapshot)
- * @frozen_date 2026-03-30
- * @snapshot_tag codefreeze-v5.0-pre-dfmea-20260330
- * @allowed_changes NONE ???ъ슜??紐낆떆???뱀씤 + full test pass ?꾩닔
+ * @status CODEFREEZE L5 (Composite Key Protection)
+ * @freeze_level L5 (Critical - parentId N-1 복합키 전수조사 완료)
+ * @frozen_date 2026-04-03
+ * @snapshot_tag codefreeze-v5.1-composite-key-20260403
+ * @allowed_changes NONE 사용자 명시적 승인 + full test pass 필수
  * @manifest CODEFREEZE_PIPELINE_MANIFEST.md
+ *
+ * ★★★ 복합키 정책 (2026-04-03 확정, 영구 CODEFREEZE) ★★★
+ * 원칙: 동일 텍스트 + 상위(parentId N-1) 다름 = 별개 엔티티 → 중복제외 금지
+ * - feTextMap/fmTextMap/fcTextMap/fcLooseMap: 모두 Array 기반
+ * - 같은 키라도 ID가 다르면 ALL 등록 (first-only 금지)
+ * - Resolution: Level 1(행번호) 우선, 텍스트 폴백 시 배열[0]
  */
 /**
  * @file cross-sheet-resolver.ts
