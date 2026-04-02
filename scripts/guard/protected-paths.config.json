@@ -152,7 +152,13 @@
     "src/app/api/severity-recommend/sync/route.ts",
     "src/app/(fmea-core)/pfmea/worksheet/tabs/failure/FailureSeverityMappingTab.tsx",
     "src/lib/fmea/aiag-vda-severity-mapping.ts",
-    "src/lib/fmea/s-recommend-bulk-apply.ts"
+    "src/lib/fmea/s-recommend-bulk-apply.ts",
+    "src/app/api/pfd/[id]/route.ts",
+    "src/app/api/pfd/[id]/items/route.ts",
+    "src/app/api/pfd/sync-from-fmea/route.ts",
+    "src/app/api/pfmea/create-pfd/route.ts",
+    "src/lib/fmea-core/resolve-pfd-project-row.ts",
+    "src/lib/utils/derivePfdNo.ts"
   ],
   "approvalToken": "APPROVED-BY-USER",
   "overrideEnvVar": "FMEA_GUARD_OVERRIDE",

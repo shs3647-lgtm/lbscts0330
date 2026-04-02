@@ -1,4 +1,11 @@
 /**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  CODEFREEZE — 2026-04-03                                           ██
+ * ██  PFD GET/PUT/DELETE — loadPfdItemsWithPublicFallback 핵심 로직 보호 ██
+ * ██  프로젝트→public 순차 조회 + resolveProjectPfdRegistration 포함.   ██
+ * ██  수정 시 반드시 사용자 승인 필수.                                   ██
+ * ██████████████████████████████████████████████████████████████████████████
+ *
  * @file api/pfd/[id]/route.ts
  * @description PFD 단건 조회/수정/삭제 API
  * @module pfd/api

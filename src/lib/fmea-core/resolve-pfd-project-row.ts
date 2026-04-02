@@ -1,4 +1,11 @@
 /**
+ * ██████████████████████████████████████████████████████████████████████████
+ * ██  CODEFREEZE — 2026-04-03                                           ██
+ * ██  public↔project 간 pfd_registrations ID 해석 유틸.                 ██
+ * ██  resolveProjectPfdRegistration / loadPfdItemsWithPublicFallback     ██
+ * ██  수정 시 반드시 사용자 승인 필수.                                   ██
+ * ██████████████████████████████████████████████████████████████████████████
+ *
  * public pfd_registrations 와 프로젝트 스키마 pfd_registrations.id 불일치 시
  * pfdItem 조회·저장이 빈 결과가 되는 문제를 해소한다 (SSoT = 프로젝트 스키마 행).
  */
