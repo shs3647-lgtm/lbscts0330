@@ -5,6 +5,8 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { FEItem, FCItem, FMItem, LinkResult } from '../FailureLinkTypes';
 import {
   autoMatchLinkDedupKeys,
@@ -78,6 +80,9 @@ export function useLinkHandlers({
   justConfirmedRef,
   linkStats,
 }: UseLinkHandlersProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
 
   // ========== 공정 순서 Map (O(1) 조회) ==========
   const processOrderMap = useMemo(() => {
@@ -889,8 +894,8 @@ export function useLinkHandlers({
     const parts: string[] = [];
     if (fmLinkedCount > 0) parts.push(`FM ${fmLinkedCount}건`);
     if (fcLinkedCount > 0) parts.push(`FC ${fcLinkedCount}건`);
-    return { success: true, message: `✅ ${parts.join(' + ')} 자동연결 완료!\n(같은 공정의 FM↔FE↔FC 패턴으로 연결했습니다)` };
-  }, [fmData, fcData, savedLinks, linkStats, setState, setStateSynced, setDirty, saveTemp, saveToLocalStorage, saveAtomicDB, setViewMode, setSavedLinks]);
+    return { success: true, message: `✅ ${parts.join(' + ')} 자동연결 완료!\n(같은 ${lb.l2Short}의 FM↔FE↔FC 패턴으로 연결했습니다)` };
+  }, [fmData, fcData, savedLinks, linkStats, setState, setStateSynced, setDirty, saveTemp, saveToLocalStorage, saveAtomicDB, setViewMode, setSavedLinks, lb.l2Short]);
 
   return {
     // FM 관련

@@ -5,7 +5,9 @@
 
 'use client';
 
-import React, { useMemo, useEffect, useCallback } from 'react';
+import React, { useMemo, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { COLORS, FONT_SIZES } from '../../constants';
 import { groupFailureLinksByFM, calculateLastRowMerge } from '../../utils';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
@@ -27,6 +29,10 @@ interface FailureLinkResultProps {
 }
 
 export default function FailureLinkResult({ savedLinks, fmData, isFullscreen, onToggleFullscreen, onExcelExport }: FailureLinkResultProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+
   // ESC 키로 전체화면 닫기
   useEffect(() => {
     if (!isFullscreen) return;
@@ -151,8 +157,8 @@ export default function FailureLinkResult({ savedLinks, fmData, isFullscreen, on
             <th className={`w-[4%] bg-[#3a2a10] text-white ${thPad} border border-[#5a4a2a] font-semibold sticky top-0`} title="고장형태 번호">No</th>
             <th className={`w-[16%] bg-[#3a2a10] text-white ${thPad} border border-[#5a4a2a] font-semibold sticky top-0`} title="Failure Mode: 고장형태">FM</th>
             <th className={`w-[4%] bg-[#1a3520] text-white ${thPad} border border-[#2a5530] font-semibold sticky top-0`} title="고장원인 번호">No</th>
-            <th className={`w-[12%] bg-[#1a3520] text-white ${thPad} border border-[#2a5530] font-semibold sticky top-0`} title="Process: 공정명">Process</th>
-            <th className={`w-[12%] bg-[#1a3520] text-white ${thPad} border border-[#2a5530] font-semibold sticky top-0`} title="Work Element: 작업요소">WE</th>
+            <th className={`w-[12%] bg-[#1a3520] text-white ${thPad} border border-[#2a5530] font-semibold sticky top-0`} title={`Process: ${lb.l2Short}`}>{lb.l2Short}</th>
+            <th className={`w-[12%] bg-[#1a3520] text-white ${thPad} border border-[#2a5530] font-semibold sticky top-0`} title={`${lb.l3En}: ${lb.l3Short}`}>{lb.l3Short}</th>
             <th className={`bg-[#1a3520] text-white ${thPad} border border-[#2a5530] font-semibold sticky top-0`} title="Failure Cause: 고장원인">FC</th>
           </tr>
         </thead>
