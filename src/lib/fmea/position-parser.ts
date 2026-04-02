@@ -1359,6 +1359,8 @@ function excelCellStr(row: Row, col: number): string {
  */
 function detectColumns(ws: Worksheet, keywordMap: Record<string, string[]>): Record<string, number> {
   const result: Record<string, number> = {};
+  // ★v6.4: 단일 글자 키워드(S/O/D)는 정확 일치, 나머지는 포함 매칭
+  const singleCharExact = new Set(['S', 'O', 'D']);
   // 1~3행에서 헤더 찾기
   for (let headerRow = 1; headerRow <= 3; headerRow++) {
     const row = ws.getRow(headerRow);
@@ -1369,7 +1371,14 @@ function detectColumns(ws: Worksheet, keywordMap: Record<string, string[]>): Rec
       if (!val) continue;
       for (const [key, keywords] of Object.entries(keywordMap)) {
         if (result[key]) continue; // 이미 찾음
-        if (keywords.some(kw => val.includes(kw.toUpperCase()))) {
+        if (keywords.some(kw => {
+          const kwUp = kw.toUpperCase();
+          // 단일 글자 키워드: 셀 값이 정확히 해당 글자일 때만 매칭 (S≠FC(고장원인) 오매칭 방지)
+          if (kwUp.length === 1 && singleCharExact.has(kwUp)) {
+            return val === kwUp;
+          }
+          return val.includes(kwUp);
+        })) {
           result[key] = c;
         }
       }
@@ -1442,15 +1451,15 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
   const l2WS = wb.getWorksheet(l2Name);
   if (!l2WS) throw new Error(`[position-parser] Worksheet not found: ${l2Name}`);
   const l2ColMap = detectColumns(l2WS, {
-    A1: ['A1', '공정번호', '공정 번호', 'PROCESS NO'],
-    A2: ['A2', '공정명', '공정 명', 'PROCESS NAME'],
-    A3: ['A3', '공정기능', '공정 기능'],
-    A4: ['A4', '제품특성', '제품 특성', 'PRODUCT CHAR'],
+    A1: ['A1', '공정번호', '공정 번호', 'PROCESS NO', '초점요소번호', '초점요소 번호'],
+    A2: ['A2', '공정명', '공정 명', 'PROCESS NAME', '초점요소명', '초점요소 명'],
+    A3: ['A3', '공정기능', '공정 기능', '초점요소기능'],
+    A4: ['A4', '제품특성', '제품 특성', 'PRODUCT CHAR', '설계특성', '설계 특성', 'DESIGN CHAR'],
     SC: ['SC', '특별특성', '특별 특성', 'SPECIAL'],
     A5: ['A5', '고장형태', '고장 형태', 'FAILURE MODE'],
     A6: ['A6', '검출관리', '검출 관리', 'DETECTION'],
   });
-  const l2Header = detectHeaderRow(l2WS, { A1: ['A1', '공정번호'], A5: ['A5', '고장형태'] });
+  const l2Header = detectHeaderRow(l2WS, { A1: ['A1', '공정번호', '초점요소번호'], A5: ['A5', '고장형태'] });
   ppLog(`[position-parser] L2 columns: ${JSON.stringify(l2ColMap)}, headerRow: ${l2Header}`);
 
   const l2Rows: SheetRow[] = [];
@@ -1474,11 +1483,11 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
   const l3WS = wb.getWorksheet(l3Name);
   if (!l3WS) throw new Error(`[position-parser] Worksheet not found: ${l3Name}`);
   const l3ColMap = detectColumns(l3WS, {
-    processNo: ['공정번호', '공정 번호', 'PROCESS NO'],
-    m4: ['4M', 'M4', '분류'],
-    B1: ['B1', '작업요소', '작업 요소', 'WORK ELEMENT'],
-    B2: ['B2', '요소기능', '요소 기능'],
-    B3: ['B3', '공정특성', '공정 특성', 'PROCESS CHAR'],
+    processNo: ['공정번호', '공정 번호', 'PROCESS NO', '초점요소번호'],
+    m4: ['4M', 'M4', '분류', 'TYPE'],
+    B1: ['B1', '작업요소', '작업 요소', 'WORK ELEMENT', '부품(컴포넌트)', '부품', '컴포넌트', 'COMPONENT'],
+    B2: ['B2', '요소기능', '요소 기능', '부품기능', '부품 기능', 'COMPONENT FUNC'],
+    B3: ['B3', '공정특성', '공정 특성', 'PROCESS CHAR', '설계파라미터', '설계 파라미터', 'DESIGN PARAM'],
     SC: ['SC', '특별특성', '특별 특성', 'SPECIAL'],
     B4: ['B4', '고장원인', '고장 원인', 'FAILURE CAUSE'],
     B5: ['B5', '예방관리', '예방 관리', 'PREVENTION'],
@@ -1557,13 +1566,13 @@ export function parsePositionBasedWorkbook(wb: Workbook, targetId?: string): Pos
   const fcColMap = detectColumns(fcWS, {
     FE_scope: ['FE구분', 'FE 구분', 'SCOPE', 'FE_SCOPE'],
     FE: ['FE(고장', 'FE(', '고장영향', 'FAILURE EFFECT'],  // ★ 'FE' 단독 제거 — FE구분 오매칭 방지
-    processNo: ['공정번호', '공정 번호', 'PROCESS NO', 'L2-1.공정번호'],
+    processNo: ['공정번호', '공정 번호', 'PROCESS NO', 'L2-1.공정번호', '초점요소번호', 'L2-1.초점요소번호'],
     FM: ['FM(', 'FM(고장', '고장형태', 'FAILURE MODE'],  // ★ 'FM' 단독 제거
-    m4: ['4M', 'M4'],
-    WE: ['WE(작업요소)', '작업요소(WE)', 'WE', '작업요소', 'WORK ELEMENT'],
-    FC: ['FC', '고장원인', 'FAILURE CAUSE'],
-    PC: ['PC', '예방관리', 'PREVENTION'],
-    DC: ['DC', '검출관리', 'DETECTION'],
+    m4: ['4M', 'M4', 'TYPE'],
+    WE: ['WE(작업요소)', '작업요소(WE)', 'WE', '작업요소', 'WORK ELEMENT', '부품(컴포넌트)', '부품', '컴포넌트'],
+    FC: ['FC(고장원인)', 'FC(', '고장원인', 'FAILURE CAUSE'],
+    PC: ['PC', '예방관리', 'PREVENTION', 'B5.예방관리'],
+    DC: ['DC', '검출관리', 'DETECTION', 'A6.검출관리'],
     S: ['S', '심각도', 'SEVERITY'],
     O: ['O', '발생도', 'OCCURRENCE'],
     D: ['D', '검출도'],
