@@ -343,8 +343,66 @@ function syncRiskAnalyses(db: FMEAWorksheetDB, state: WorksheetState, links: any
     const d = rd[`risk-${uk}-D`]; if (typeof d === 'number' && d !== ra.detection) { next.detection = d; changed = true; }
     const pc = rd[`prevention-${uk}`]; if (typeof pc === 'string' && pc !== ra.preventionControl) { next.preventionControl = pc; changed = true; }
     const dc = rd[`detection-${uk}`]; if (typeof dc === 'string' && dc !== ra.detectionControl) { next.detectionControl = dc; changed = true; }
+    const lld = rd[`lesson-${uk}`]; if (typeof lld === 'string' && lld !== (ra as any).lldReference) { (next as any).lldReference = lld; changed = true; }
     return changed ? next : ra;
   });
+}
+
+function syncOptimizations(db: FMEAWorksheetDB, state: WorksheetState, links: any[]): FMEAWorksheetDB['optimizations'] {
+  const rd = (state as any).riskData;
+  if (!rd || typeof rd !== 'object') return db.optimizations;
+
+  const linkById = new Map<string, any>();
+  for (const fl of (links || [])) linkById.set(fl.id, fl);
+
+  // 기존 opt을 riskId별 그룹핑 (인덱스 기반 매칭용)
+  const optsByRiskId = new Map<string, any[]>();
+  for (const opt of (db.optimizations || [])) {
+    const arr = optsByRiskId.get(opt.riskId) || [];
+    arr.push(opt);
+    optsByRiskId.set(opt.riskId, arr);
+  }
+
+  const updatedOpts: any[] = [];
+  let hasAnyOpt = false;
+
+  for (const ra of (db.riskAnalyses || [])) {
+    const link = linkById.get(ra.linkId);
+    if (!link) continue;
+    const uk = `${link.fmId}-${link.fcId}`;
+    const rowCount = rd[`opt-rows-${uk}`];
+    const count = typeof rowCount === 'number' ? rowCount : 0;
+    if (count > 0) hasAnyOpt = true;
+
+    const existingForRisk = optsByRiskId.get(ra.id) || [];
+
+    for (let idx = 0; idx < count; idx++) {
+      const suffix = idx === 0 ? '' : `#${idx}`;
+      const existing = existingForRisk[idx];
+      const optId = existing?.id || `opt-${ra.id}-${idx}`;
+
+      updatedOpts.push({
+        id: optId,
+        fmeaId: db.fmeaId,
+        riskId: ra.id,
+        recommendedAction: rd[`prevention-opt-${uk}${suffix}`] ?? existing?.recommendedAction ?? '',
+        detectionAction: rd[`detection-opt-${uk}${suffix}`] ?? existing?.detectionAction ?? '',
+        responsible: rd[`person-opt-${uk}${suffix}`] ?? existing?.responsible ?? '',
+        targetDate: rd[`targetDate-opt-${uk}${suffix}`] ?? existing?.targetDate ?? '',
+        completedDate: rd[`completeDate-opt-${uk}${suffix}`] ?? existing?.completedDate ?? '',
+        status: rd[`status-opt-${uk}${suffix}`] ?? existing?.status ?? 'planned',
+        remarks: rd[`note-opt-${uk}${suffix}`] ?? existing?.remarks ?? '',
+        lldOptReference: rd[`lesson-opt-${uk}${suffix}`] ?? existing?.lldOptReference ?? '',
+        newSeverity: rd[`opt-${uk}${suffix}-S`] ?? existing?.newSeverity ?? null,
+        newOccurrence: rd[`opt-${uk}${suffix}-O`] ?? existing?.newOccurrence ?? null,
+        newDetection: rd[`opt-${uk}${suffix}-D`] ?? existing?.newDetection ?? null,
+        newAP: rd[`opt-${uk}${suffix}-AP`] ?? existing?.newAP ?? null,
+      });
+    }
+  }
+
+  if (!hasAnyOpt) return db.optimizations;
+  return updatedOpts;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -379,6 +437,7 @@ export function syncConfirmedFlags(db: FMEAWorksheetDB, state: WorksheetState): 
   result.failureLinks = links;
   if (changed) result.confirmed = { ...result.confirmed, failureLink: true };
   result.riskAnalyses = syncRiskAnalyses(db, state, result.failureLinks);
+  result.optimizations = syncOptimizations(db, state, result.failureLinks);
 
   return result;
 }

@@ -177,33 +177,49 @@ function buildFailureScopes(
 function buildL2Functions(l2Funcs: AtomicL2Function[], ppcs: ProcessProductChar[]): L2Function[] {
   // ★★★ 카데시안/이름매칭/폴백 절대 금지 (CLAUDE.md Rule 1.7) ★★★
   // ID-only 매핑: PPC는 위치기반 UUID(C5)로 생성되며, 같은 행의 L2Function(C4)과 1:1 대응
-  // PPC를 l2StructId로 인덱싱 — 같은 L2Structure 내 PPC를 ID로만 매핑
+
+  // ── 1단계: 각 L2Function → PPC 1:1 매핑 (funcGroup 전에 수행) ──
+  // funcGroups로 묶으면 그룹별 idx가 0부터 리셋되어 멀티그룹 L2에서 잘못된 PPC 매핑
+  const funcToPpc = new Map<string, ProcessProductChar | undefined>();
+  for (const f of l2Funcs) {
+    // 1순위: 위치기반 행 접두사 매칭 (L2-R{n}-C4 → L2-R{n}-C5)
+    const rowMatch = f.id?.match(/^(L[12]-R\d+)-C\d+$/);
+    if (rowMatch) {
+      const rowPrefix = rowMatch[1];
+      const matched = ppcs.find(p => p.id?.startsWith(rowPrefix + '-C'));
+      if (matched) { funcToPpc.set(f.id, matched); continue; }
+    }
+    funcToPpc.set(f.id, undefined);
+  }
+
+  // 2순위: 미매칭 L2Function에 l2StructId 글로벌 인덱스 적용 (비위치기반 프로젝트)
   const ppcByL2Struct = new Map<string, ProcessProductChar[]>();
   for (const ppc of ppcs) {
     const arr = ppcByL2Struct.get(ppc.l2StructId);
-    if (arr) arr.push(ppc);
-    else ppcByL2Struct.set(ppc.l2StructId, [ppc]);
+    if (arr) arr.push(ppc); else ppcByL2Struct.set(ppc.l2StructId, [ppc]);
+  }
+  const l2StructCounter = new Map<string, number>();
+  for (const f of l2Funcs) {
+    if (funcToPpc.get(f.id)) continue;
+    const gIdx = l2StructCounter.get(f.l2StructId) ?? 0;
+    l2StructCounter.set(f.l2StructId, gIdx + 1);
+    const structPpcs = ppcByL2Struct.get(f.l2StructId) || [];
+    funcToPpc.set(f.id, structPpcs[gIdx]);
   }
 
+  // ── 2단계: functionName 기준 그룹핑 + productChars 할당 ──
   const funcGroups = new Map<string, AtomicL2Function[]>();
   for (const f of l2Funcs) {
     const arr = funcGroups.get(f.functionName);
-    if (arr) {
-      arr.push(f);
-    } else {
-      funcGroups.set(f.functionName, [f]);
-    }
+    if (arr) arr.push(f); else funcGroups.set(f.functionName, [f]);
   }
 
   const result: L2Function[] = [];
   funcGroups.forEach((funcs, funcName) => {
-    const productChars: L2ProductChar[] = funcs.map((f, idx) => {
-      // ★ ID-only 매핑: 같은 l2StructId 내 PPC를 순서(index) 기반으로 매핑
-      // ★★★ 절대 금지: 이름(text) 매칭, 카데시안 조인, L2Function.id 폴백 ★★★
-      const structPpcs = ppcByL2Struct.get(f.l2StructId) || [];
-      const ppc = structPpcs[idx]; // 위치 기반 1:1 대응 (같은 행 = 같은 인덱스)
+    const productChars: L2ProductChar[] = funcs.map((f) => {
+      const ppc = funcToPpc.get(f.id);
       return {
-        id: ppc?.id ?? f.id, // PPC 없으면 빈 상태 유지 (폴백 금지이나 기존 데이터 호환)
+        id: ppc?.id ?? f.id,
         name: f.productChar,
         specialChar: f.specialChar,
       };
