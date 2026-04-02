@@ -7,11 +7,12 @@
 'use client';
 
 import React from 'react';
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, getDynamicAlign, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED, GROUP_DIVIDER } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_BASE_IDS, getDynamicAlign, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED, GROUP_DIVIDER, getBaseId } from './allTabConstants';
 import { normalizeScope, SCOPE_YP, SCOPE_SP } from '@/lib/fmea/scope-constants';
 
 interface ColumnDef {
   id: number;
+  baseId?: number;
   step: string;
   group: string;
   name: string;
@@ -101,7 +102,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
   merged,
   groupFirstIds,
 }: FailureCellRendererProps): React.ReactElement | null {
-  const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
+  const isStepFirst = STEP_FIRST_BASE_IDS.includes(getBaseId(col));
   const isGroupFirst = groupFirstIds?.includes(col.id) ?? false;
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
   const leftBorder = isStepFirst
@@ -136,7 +137,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
   // ★ 고장영향(FE) - FE별 병합, 클릭하여 점수 부여
   // ★ 2026-01-12: 심각도 표시를 Y:N / S:N / U:N 으로 변경 (YP/SP/USER 구분)
   // ★ 2026-01-25: 배경색=레벨 색상, 글씨=점수별 구분
-  if (col.name === '고장영향(FE)') {
+  if (getBaseId(col) === 12) {
     // ★ rowSpan=0이면 병합된 범위 → 렌더링 안함
     if (row.feRowSpan === 0) return null;
     // 누적 범위 체크: 이전 행의 feRowSpan 범위 안에 있으면 렌더링하지 않음
@@ -199,7 +200,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
 
   // ★ 심각도 - FM 전체 병합, 최대값 표시 (클릭 시 전체 FE에 점수 부여)
   // ★ 2026-01-25: 배경색=레벨 색상, 글씨=점수별 구분
-  if (col.name === '심각도(S)') {
+  if (getBaseId(col) === 13) {
     if (row.isFirstRow) {
       // ★★★ 글씨색: 점수별 구분 (1-3녹색, 4-6주황, 7-10빨강) ★★★
       const getSeverityTextColor = (severity: number): string => {
@@ -240,7 +241,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
   }
 
   // ★ 고장형태(FM) - FM 전체 병합 (클릭 → 고장연결 탭 이동)
-  if (col.name === '고장형태(FM)') {
+  if (getBaseId(col) === 14) {
     if (row.isFirstRow) {
       const fmLabel = fmGroup.fmNo ? `${fmGroup.fmNo} ${fmGroup.fmText}` : fmGroup.fmText;
       return (
@@ -265,7 +266,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
   }
 
   // ★ 고장원인(FC) - FC별 병합 (클릭 → 고장연결 탭 이동)
-  if (col.name === '고장원인(FC)') {
+  if (getBaseId(col) === 15) {
     // ★ rowSpan=0이면 병합된 범위 → 렌더링 안함
     if (row.fcRowSpan === 0) return null;
     // 누적 범위 체크: 이전 행의 fcRowSpan 범위 안에 있으면 렌더링하지 않음

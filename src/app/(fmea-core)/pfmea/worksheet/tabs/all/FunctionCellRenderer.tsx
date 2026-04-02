@@ -6,10 +6,11 @@
 'use client';
 
 import React from 'react';
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, GROUP_DIVIDER } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_BASE_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, GROUP_DIVIDER, getBaseId } from './allTabConstants';
 
 interface ColumnDef {
   id: number;
+  baseId?: number;
   step: string;
   group: string;
   name: string;
@@ -74,7 +75,7 @@ export const FunctionCellRenderer = React.memo(function FunctionCellRendererInne
   merged,
   groupFirstIds,
 }: FunctionCellRendererProps): React.ReactElement | null {
-  const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
+  const isStepFirst = STEP_FIRST_BASE_IDS.includes(getBaseId(col));
   const isGroupFirst = groupFirstIds?.includes(col.id) ?? false;
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
   const leftBorder = isStepFirst
@@ -106,17 +107,19 @@ export const FunctionCellRenderer = React.memo(function FunctionCellRendererInne
     return false;
   };
 
+  const bid = getBaseId(col);
+
   // ★ FE 기반 역전개 (구분=5, 완제품기능/시스템기능=6, 요구사항=7)
-  const feFunctionIds = [5, 6, 7];
-  if (feFunctionIds.includes(col.id)) {
+  const feFunctionBids = [5, 6, 7];
+  if (feFunctionBids.includes(bid)) {
     // ★ rowSpan=0이면 병합된 범위 → 렌더링 안함
     if (row.feRowSpan === 0) return null;
     // 누적 범위 체크: 이전 행의 feRowSpan 범위 안에 있으면 렌더링하지 않음
     if (rowInFM === 0 || !isInMergedRange('fe')) {
       let value = '';
-      if (col.id === 5) value = row.feCategory || '';
-      else if (col.id === 6) value = row.feFunctionName || '';
-      else if (col.id === 7) value = row.feRequirement || '';
+      if (bid === 5) value = row.feCategory || '';
+      else if (bid === 6) value = row.feFunctionName || '';
+      else if (bid === 7) value = row.feRequirement || '';
 
       return (
         <td key={colIdx} rowSpan={row.feRowSpan} style={cellStyle(row.feRowSpan)}>
@@ -128,12 +131,12 @@ export const FunctionCellRenderer = React.memo(function FunctionCellRendererInne
   }
 
   // ★ FM 기반 역전개 (공정기능/초점요소기능=8, 제품특성=9)
-  const fmFunctionIds = [8, 9];
-  if (fmFunctionIds.includes(col.id)) {
+  const fmFunctionBids = [8, 9];
+  if (fmFunctionBids.includes(bid)) {
     if (row.isFirstRow) {
       let value = '';
-      if (col.id === 8) value = fmGroup.fmProcessFunction || '';
-      else if (col.id === 9) value = fmGroup.fmProductChar || '';
+      if (bid === 8) value = fmGroup.fmProcessFunction || '';
+      else if (bid === 9) value = fmGroup.fmProductChar || '';
 
       return (
         <td key={colIdx} rowSpan={fmGroup.fmRowSpan} style={cellStyle(fmGroup.fmRowSpan)}>
@@ -145,13 +148,13 @@ export const FunctionCellRenderer = React.memo(function FunctionCellRendererInne
   }
 
   // ★ FC 기반 역전개 (작업요소기능/부품기능=10, 공정특성/설계특성=11)
-  const fcFunctionIds = [10, 11];
-  if (fcFunctionIds.includes(col.id)) {
+  const fcFunctionBids = [10, 11];
+  if (fcFunctionBids.includes(bid)) {
     // 누적 범위 체크: 이전 행의 fcRowSpan 범위 안에 있으면 렌더링하지 않음
     if (rowInFM === 0 || !isInMergedRange('fc')) {
       let value = '';
-      if (col.id === 10) value = row.fcWorkFunction || '';
-      else if (col.id === 11) value = row.fcProcessChar || '';
+      if (bid === 10) value = row.fcWorkFunction || '';
+      else if (bid === 11) value = row.fcProcessChar || '';
 
       return (
         <td key={colIdx} rowSpan={row.fcRowSpan} style={cellStyle(row.fcRowSpan, true)}>

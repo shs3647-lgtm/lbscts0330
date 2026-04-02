@@ -17,7 +17,7 @@ import { expandFMGroupRows } from '../fmGroupUtils';
 import type { ExpandedRow } from '../fmGroupUtils';
 import type { ProcessedFMGroup } from '../processFailureLinks';
 import type { ColumnDef } from '../allTabConstants';
-import { AGGREGATED_OPT_COL_NAMES } from '../multiOptUtils';
+import { AGGREGATED_OPT_COL_IDS } from '../multiOptUtils';
 import type { WorksheetState } from '../../../constants';
 import type { ControlModalState, RiskOptCellRendererProps } from '../riskOptTypes';
 
@@ -118,7 +118,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
               // ★ optIdx > 0 (추가 개선행): step 6 다중행 컬럼만 렌더링
               if (er.optIdx > 0) {
                 if (col.step !== '최적화') return null;
-                if (AGGREGATED_OPT_COL_NAMES.has(col.name)) return null;
+                if (AGGREGATED_OPT_COL_IDS.has(col.baseId ?? col.id)) return null;
                 return (
                   <RiskOpt
                     key={colIdx} col={col} colIdx={colIdx} globalRowIdx={0}

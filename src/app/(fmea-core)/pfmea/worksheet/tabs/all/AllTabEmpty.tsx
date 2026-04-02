@@ -53,7 +53,7 @@ import AllTabModals from './AllTabModals';
 import RecommendImprovementModal from './RecommendImprovementModal';
 import AutoLldResultModal from './AutoLldResultModal';
 import LldFilterResultModal from './LldFilterResultModal';
-import { getOptRowCount, AGGREGATED_OPT_COL_NAMES } from './multiOptUtils';
+import { getOptRowCount } from './multiOptUtils';
 import { useMultiOptRows } from './hooks/useMultiOptRows';
 import { buildFMOptCountKeys, buildProcessGroups } from './fmGroupUtils';
 import { ProcessGroupTbody } from './components/ProcessGroupTbody';
@@ -307,7 +307,7 @@ export default function AllTabEmpty({
       ? allCols.filter(col => visibleSteps.includes(col.step))
       : allCols;
     return filtered;
-  }, [showRPN, visibleSteps, lldFilterModal.isOpen, lldFilterModal.applyStep]);
+  }, [showRPN, visibleSteps, lldFilterModal.isOpen, lldFilterModal.applyStep, isDfmea]);
 
   const stepSpans = useMemo(() => calculateStepSpans(columns), [columns]);
   const groupSpans = useMemo(() => calculateGroupSpans(columns), [columns]);
@@ -755,6 +755,7 @@ export default function AllTabEmpty({
           hHeights={hHeights}
           hFont={hFont}
           isCompact={isCompact}
+          isDfmea={isDfmea}
           failureStats={failureStats}
           functionStats={functionStats}
           apStats={apStats}

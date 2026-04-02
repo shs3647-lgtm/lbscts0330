@@ -8,19 +8,19 @@
 
 import React, { useEffect } from 'react';
 import type { WorksheetState } from '../../constants';
-import { HEIGHTS, IMPORTED_HIGHLIGHT, PLACEHOLDER_NA } from './allTabConstants';
+import { HEIGHTS, IMPORTED_HIGHLIGHT, PLACEHOLDER_NA, getBaseId } from './allTabConstants';
 import { ControlCell } from './RiskOptControlCell';
 import type { RiskOptCellRendererProps } from './riskOptTypes';
 import {
-  FIELD_MAP, STATUS_OPTIONS, STATUS_CODE_MAP, STATUS_LABEL_MAP,
-  CONTROL_TYPES, RE_EVAL_MAP, STATUS_COLORS,
+  FIELD_MAP_BY_ID, STATUS_OPTIONS, STATUS_CODE_MAP, STATUS_LABEL_MAP,
+  CONTROL_TYPES_BY_ID, RE_EVAL_MAP_BY_ID, STATUS_COLORS,
 } from './riskOptTypes';
 import {
   getCellStyle, calcAP, getSODTextColor,
   getMaxSeverity, getSafeSODValue, getImprovementStatus, checkNeedsAction,
   parseTargetFromText, getTargetToL,
 } from './riskOptUtils';
-import { getOptRowKey, getOptSODKey, MULTI_ROW_COL_NAMES, AGGREGATED_OPT_COL_NAMES } from './multiOptUtils';
+import { getOptRowKey, getOptSODKey, MULTI_ROW_COL_IDS } from './multiOptUtils';
 import { renderOptSODCell, renderAPCell, renderDateCell, renderSpecialCharCell } from './RiskOptHelperCells';
 
 // ★★★ 2026-02-23→26: riskData 1건 변경 시 500개 셀 전체 리렌더 방지 ★★★
@@ -96,14 +96,15 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   const targetType = col.step === '리스크분석' ? 'risk' : 'opt';
   const stage = col.step === '리스크분석' ? 5 : 6;
   const uniqueKey = fmId && fcId ? `${fmId}-${fcId}` : (fmId ? `${fmId}-r${rowInFM}` : `r${globalRowIdx}`);
-  const style = getCellStyle(globalRowIdx, col.cellColor, col.cellAltColor, col.align, true, col.id, isCompact, groupFirstIds);
+  const style = getCellStyle(globalRowIdx, col.cellColor, col.cellAltColor, col.align, true, col.id, isCompact, groupFirstIds, getBaseId(col));
 
   // ★ 최적화 재평가 SOD 자동 동기화 — 의존성 좁히기 (state?.riskData → 특정 키만)
   // 95% 셀에서 _needsSync=false → deps 불변 → useEffect 발동 안 함
-  const _isOptSOD = col.step === '최적화' && !!RE_EVAL_MAP[col.name];
-  const _isTargetDate = col.name === '목표완료일자';
+  const bid = getBaseId(col);
+  const _isOptSOD = col.step === '최적화' && !!RE_EVAL_MAP_BY_ID[bid];
+  const _isTargetDate = bid === 26;
   const _needsSync = _isOptSOD || _isTargetDate;
-  const _cat = _isOptSOD ? RE_EVAL_MAP[col.name] : '';
+  const _cat = _isOptSOD ? RE_EVAL_MAP_BY_ID[bid] : '';
   // ★ per-row SOD 키: optIdx=0 → 하위호환, optIdx>0 → #N suffix
   const _optVal = _isOptSOD ? state?.riskData?.[getOptSODKey(uniqueKey, _cat as 'S'|'O'|'D', optIdx)] : undefined;
   const _riskVal = _isOptSOD ? getSafeSODValue(state?.riskData, `risk-${uniqueKey}-${_cat}`) : 0;
@@ -212,9 +213,9 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   const _hasLldOptData = !!(state?.riskData?.[getOptRowKey('prevention-opt-', uniqueKey, optIdx)] as string)?.trim()
     || !!(state?.riskData?.[getOptRowKey('detection-opt-', uniqueKey, optIdx)] as string)?.trim();
   // ★ optIdx > 0 (사용자가 직접 추가한 개선행)은 AP=L 블랭크 처리 제외
-  if (_isApL && !_hasLldOptData && optIdx === 0 && (col.step === '최적화' || col.name === 'LLD')) {
+  if (_isApL && !_hasLldOptData && optIdx === 0 && (col.step === '최적화' || bid === 22)) {
     // ★ 다중행: step 6 다중행 컬럼은 multi-row rowSpan 적용
-    const blankRowSpan = (col.step === '최적화' && MULTI_ROW_COL_NAMES.has(col.name))
+    const blankRowSpan = (col.step === '최적화' && MULTI_ROW_COL_IDS.has(bid))
       ? (optIdx === 0 ? (baseFcRowSpan ?? fcRowSpan) : 1)
       : fcRowSpan;
     return <td key={colIdx} rowSpan={blankRowSpan} style={style}>{'\u00A0'}</td>;
@@ -223,8 +224,8 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // 예방관리/검출관리/예방관리개선/검출관리개선
   // ═══════════════════════════════════════════════════
-  if (CONTROL_TYPES[col.name]) {
-    const modalType = CONTROL_TYPES[col.name];
+  if (CONTROL_TYPES_BY_ID[bid]) {
+    const modalType = CONTROL_TYPES_BY_ID[bid];
     // ★ 다중행: step 6 개선 컬럼은 optIdx-aware 키 사용
     const isOptType = modalType === 'prevention-opt' || modalType === 'detection-opt';
     const key = isOptType ? getOptRowKey(`${modalType}-`, uniqueKey, optIdx) : `${modalType}-${uniqueKey}`;
@@ -265,8 +266,8 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // 발생도/검출도 (리스크분석 5단계)
   // ═══════════════════════════════════════════════════
-  if ((col.name === '발생도(O)' || col.name === '검출도(D)') && col.step === '리스크분석') {
-    const category: 'O' | 'D' = col.name === '발생도(O)' ? 'O' : 'D';
+  if ((bid === 17 || bid === 19) && col.step === '리스크분석') {
+    const category: 'O' | 'D' = bid === 17 ? 'O' : 'D';
     const key = `${targetType}-${uniqueKey}-${category}`;
     const numericValue = getSafeSODValue(state?.riskData, key);
     const displayValue = numericValue > 0 ? String(numericValue) : '';
@@ -303,21 +304,21 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // 재평가 SOD (최적화 6단계)
   // ═══════════════════════════════════════════════════
-  if (RE_EVAL_MAP[col.name] && col.step === '최적화') {
+  if (RE_EVAL_MAP_BY_ID[bid] && col.step === '최적화') {
     return renderOptSODCell(col, colIdx, globalRowIdx, fcRowSpan, uniqueKey, fmId, fcId, style, state, handleSODClick, optIdx, baseFcRowSpan);
   }
 
   // ═══════════════════════════════════════════════════
   // AP 셀 (5단계/6단계)
   // ═══════════════════════════════════════════════════
-  if (col.name === 'AP' || col.name === 'AP(재평가)') {
+  if (bid === 20 || bid === 34) {
     return renderAPCell(col, colIdx, globalRowIdx, fcRowSpan, uniqueKey, fmId, fcId, stage, style, state, setApModal, onApImprove, optIdx, baseFcRowSpan);
   }
 
   // ═══════════════════════════════════════════════════
   // LLD(필터코드) 통합 셀 — 습득교훈 + Filter Code 일원화
   // ═══════════════════════════════════════════════════
-  if (col.name === 'LLD') {
+  if (bid === 22) {
     const lldKey = `lesson-${uniqueKey}`;
     const lldValue = (state?.riskData?.[lldKey] as string) || '';
     const isLldNo = lldValue.startsWith('LLD');
@@ -381,8 +382,8 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // 책임자성명
   // ═══════════════════════════════════════════════════
-  if (col.name === '책임자성명') {
-    const field = FIELD_MAP[col.name];
+  if (bid === 25) {
+    const field = FIELD_MAP_BY_ID[bid];
     // ★ 다중행: optIdx-aware 키
     const key = col.step === '최적화' ? getOptRowKey(`${field}-opt-`, uniqueKey, optIdx) : `${field}-${uniqueKey}`;
     const value = (state?.riskData?.[key] as string) || '';
@@ -413,19 +414,19 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // 개선결과근거/비고 - 인라인 텍스트 입력
   // ═══════════════════════════════════════════════════
-  if (FIELD_MAP[col.name] && !col.name.includes('일자') && col.name !== 'LLD' && col.name !== '책임자성명') {
-    const field = FIELD_MAP[col.name];
+  if (FIELD_MAP_BY_ID[bid] && bid !== 26 && bid !== 29 && bid !== 22 && bid !== 25) {
+    const field = FIELD_MAP_BY_ID[bid];
     // ★ 다중행: multi-row rowSpan
     const cellRowSpan = col.step === '최적화' ? (optIdx === 0 ? (baseFcRowSpan ?? fcRowSpan) : 1) : fcRowSpan;
     // ★ 다중행: optIdx > 0은 targetDate 체크 생략 (사용자가 행추가한 것)
-    if (col.name === '비고' && optIdx === 0 && !state?.riskData?.[`targetDate-opt-${uniqueKey}`]) {
+    if (bid === 35 && optIdx === 0 && !state?.riskData?.[`targetDate-opt-${uniqueKey}`]) {
       return <td key={colIdx} rowSpan={cellRowSpan} style={{ ...style, cursor: 'default' }} />;
     }
     // ★ 다중행: optIdx-aware 키
     const key = col.step === '최적화' ? getOptRowKey(`${field}-opt-`, uniqueKey, optIdx) : `${field}-${uniqueKey}`;
     const value = (state?.riskData?.[key] as string) || '';
     // ★ 개선결과근거 컬럼: +/- 버튼 표시 (행 추가/삭제)
-    const isResult = col.name === '개선결과근거' && col.step === '최적화';
+    const isResult = bid === 28 && col.step === '최적화';
     return (
       <td key={colIdx} rowSpan={cellRowSpan} style={{ ...style, padding: 0, position: isResult ? 'relative' : undefined }}>
         <input type="text" defaultValue={value} placeholder=""
@@ -464,14 +465,14 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // 날짜 입력 (목표완료일자/완료일자)
   // ═══════════════════════════════════════════════════
-  if (col.name === '목표완료일자' || col.name === '완료일자') {
+  if (bid === 26 || bid === 29) {
     return renderDateCell(col, colIdx, globalRowIdx, fcRowSpan, uniqueKey, fmId, fcId, style, state, openDateModal, fmeaRevisionDate, optIdx, baseFcRowSpan);
   }
 
   // ═══════════════════════════════════════════════════
   // 상태 셀 - 드롭다운
   // ═══════════════════════════════════════════════════
-  if (col.name === '상태') {
+  if (bid === 27) {
     // ★ 다중행: multi-row rowSpan
     const cellRowSpan = col.step === '최적화' ? (optIdx === 0 ? (baseFcRowSpan ?? fcRowSpan) : 1) : fcRowSpan;
     // ★ 다중행: optIdx > 0은 targetDate 체크 생략
@@ -505,7 +506,7 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // RPN 셀
   // ═══════════════════════════════════════════════════
-  if (col.name === 'RPN' || col.name === 'RPN(재평가)') {
+  if (col.isRPN) {
     // ★ 5단계: risk-{uk}-S/O/D, 6단계: per-row SOD 키 (globalRowIdx 버그 수정)
     const isOpt = col.step === '최적화';
     const sKey = isOpt ? getOptSODKey(uniqueKey, 'S', optIdx) : `risk-${uniqueKey}-S`;
@@ -530,7 +531,7 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   // ═══════════════════════════════════════════════════
   // 특별특성
   // ═══════════════════════════════════════════════════
-  if (col.name === '특별특성(SC)') {
+  if (bid === 21 || bid === 33) {
     return renderSpecialCharCell(col, colIdx, globalRowIdx, fcRowSpan, uniqueKey, fmId, fcId, fcText, fmProductChar, fmProductCharSC, fcProcessChar, fcProcessCharSC, processNo, processName, style, state, onOpenSpecialChar);
   }
 

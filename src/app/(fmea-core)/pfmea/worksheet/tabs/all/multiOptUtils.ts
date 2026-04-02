@@ -17,40 +17,42 @@
 // 검증: multi-opt-column-guard.test.ts
 
 /**
- * 최적화 컬럼 분류 — 단일 맵에서 MULTI_ROW/AGGREGATED Set 파생
+ * 최적화 컬럼 분류 — baseId 기반 (col.name 의존 제거)
  * - 'multi': 개선행마다 독립 셀 (예방관리개선, S/O/D/AP/RPN 등)
  * - 'aggregated': FC당 1셀, rowSpan 병합 (특별특성만)
+ * baseId는 allTabConstants.ts COLUMNS_BASE의 원본 id와 동일 (RPN 삽입 시에도 불변)
  */
-export const OPT_COL_CLASSIFICATION: Record<string, 'multi' | 'aggregated'> = {
+export const OPT_COL_CLASSIFICATION: Record<number, 'multi' | 'aggregated'> = {
   // 1. 계획 (multi-row)
-  '예방관리개선': 'multi',
-  '검출관리개선': 'multi',
-  '책임자성명': 'multi',
-  '목표완료일자': 'multi',
-  '상태': 'multi',
+  23: 'multi',   // 예방관리개선
+  24: 'multi',   // 검출관리개선
+  25: 'multi',   // 책임자성명
+  26: 'multi',   // 목표완료일자
+  27: 'multi',   // 상태
   // 2. 결과 모니터링 (multi-row)
-  '개선결과근거': 'multi',
-  '완료일자': 'multi',
+  28: 'multi',   // 개선결과근거
+  29: 'multi',   // 완료일자
   // 3. 효과 평가 — 개선행별 독립 재평가 (multi)
-  '심각도(S)': 'multi',
-  '발생도(O)': 'multi',
-  '검출도(D)': 'multi',
-  'AP': 'multi',
-  'RPN': 'multi',  // optional (showRPN 시에만 존재)
+  30: 'multi',   // 심각도(S)
+  31: 'multi',   // 발생도(O)
+  32: 'multi',   // 검출도(D)
+  34: 'multi',   // AP
+  100: 'multi',  // RPN (리스크분석 — optional, showRPN)
+  101: 'multi',  // RPN (최적화 — optional, showRPN)
   // 4. 특별특성 — FC 레벨 속성 (aggregated)
-  '특별특성(SC)': 'aggregated',
+  33: 'aggregated', // 특별특성(SC)
   // 비고 (multi-row)
-  '비고': 'multi',
+  35: 'multi',   // 비고
 };
 
-/** 파생: 다중행 대상 컬럼명 (기존 API 100% 호환) */
-export const MULTI_ROW_COL_NAMES = new Set(
-  Object.entries(OPT_COL_CLASSIFICATION).filter(([, t]) => t === 'multi').map(([n]) => n)
+/** 파생: 다중행 대상 컬럼 baseId Set */
+export const MULTI_ROW_COL_IDS = new Set(
+  Object.entries(OPT_COL_CLASSIFICATION).filter(([, t]) => t === 'multi').map(([n]) => Number(n))
 );
 
-/** 파생: 집계 컬럼명 (기존 API 100% 호환) */
-export const AGGREGATED_OPT_COL_NAMES = new Set(
-  Object.entries(OPT_COL_CLASSIFICATION).filter(([, t]) => t === 'aggregated').map(([n]) => n)
+/** 파생: 집계 컬럼 baseId Set */
+export const AGGREGATED_OPT_COL_IDS = new Set(
+  Object.entries(OPT_COL_CLASSIFICATION).filter(([, t]) => t === 'aggregated').map(([n]) => Number(n))
 );
 
 /** 다중행 대상 riskData prefix 목록 (텍스트 필드 suffix 추가 대상) */
@@ -67,15 +69,15 @@ const SOD_CATEGORIES: readonly ('S' | 'O' | 'D')[] = ['S', 'O', 'D'];
 // =====================================================
 if (typeof window !== 'undefined') {
   import('./allTabConstants').then(({ COLUMNS_BASE, getColumnsWithRPN }) => {
-    const allStep6 = new Set<string>();
-    COLUMNS_BASE.filter(c => c.step === '최적화').forEach(c => allStep6.add(c.name));
-    getColumnsWithRPN().filter(c => c.step === '최적화').forEach(c => allStep6.add(c.name));
-    const classified = new Set(Object.keys(OPT_COL_CLASSIFICATION));
-    const missing: string[] = [];
-    allStep6.forEach(name => { if (!classified.has(name)) missing.push(name); });
+    const allStep6 = new Set<number>();
+    COLUMNS_BASE.filter(c => c.step === '최적화').forEach(c => allStep6.add(c.id));
+    getColumnsWithRPN().filter(c => c.step === '최적화').forEach(c => allStep6.add(c.baseId ?? c.id));
+    const classified = new Set(Object.keys(OPT_COL_CLASSIFICATION).map(Number));
+    const missing: number[] = [];
+    allStep6.forEach(id => { if (!classified.has(id)) missing.push(id); });
     if (missing.length > 0) {
       console.error(
-        `[multiOptUtils] CRITICAL: 최적화 컬럼 미분류 → 테이블 레이아웃 파괴 위험!\n미분류: ${missing.join(', ')}\nOPT_COL_CLASSIFICATION에 추가 필수.`
+        `[multiOptUtils] CRITICAL: 최적화 컬럼 미분류 → 테이블 레이아웃 파괴 위험!\n미분류 baseId: ${missing.join(', ')}\nOPT_COL_CLASSIFICATION에 추가 필수.`
       );
     }
   }).catch(() => { /* SSR/build 환경 — skip */ });

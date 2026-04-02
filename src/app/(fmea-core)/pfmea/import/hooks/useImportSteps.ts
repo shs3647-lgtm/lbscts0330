@@ -183,17 +183,34 @@ export function useImportSteps(params: UseImportStepsParams): UseImportStepsRetu
         console.info(`[SA 확정] 누락 보충: ${saSupplements.length}건 자동 생성`);
       }
 
-      // ★★★ 2026-03-15: 검증 레이어 — buildWorksheetState 전에 데이터 품질 검사 ★★★
+      // ★★★ 2026-03-15: 검증 레이어 — buildAtomicDB 전에 데이터 품질 검사 ★★★
       const { validateAndLogFlatData } = require('../utils/validateAndLogFlatData');
       const { report: validationReport } = validateAndLogFlatData(enrichedFlatData);
       if (validationReport.errorCount > 0) {
         console.warn(`[SA 확정] 검증 오류 ${validationReport.errorCount}건 발견 — 데이터 통과 (관대한 정책)`);
       }
 
-      // flat → 계층 워크시트 (구현: import/utils/buildWorksheetState — 가드는 식별자 buildWorksheetState 호출만 금지)
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { buildWorksheetState: buildFlatImportWorksheetState } = require('../utils/buildWorksheetState');
-      const result: BuildResult = buildFlatImportWorksheetState(enrichedFlatData, { fmeaId, l1Name });
+      // flat → Atomic DB 직접 변환 (position-parser 아키텍처 — buildWorksheetState 레거시 제거)
+      const { buildAtomicDB } = require('../utils/buildAtomicDB');
+      const atomicResult = buildAtomicDB(enrichedFlatData, fmeaId || '');
+      const result: BuildResult = {
+        success: atomicResult.success,
+        l2: atomicResult.db.l2Structures,
+        l1: atomicResult.db.l1Structure,
+        diagnostics: {
+          l2Count: atomicResult.db.l2Structures.length,
+          l3Count: atomicResult.db.l3Structures.length,
+          l1TypeCount: atomicResult.db.l1Functions?.length || 0,
+          l2FuncCount: atomicResult.db.l2Functions.length,
+          l3FuncCount: atomicResult.db.l3Functions.length,
+          productCharCount: atomicResult.db.processProductChars?.length || 0,
+          processCharCount: atomicResult.db.l3Functions.filter((f: { processChar?: string }) => f.processChar?.trim()).length,
+          fmCount: atomicResult.db.failureModes.length,
+          fcCount: atomicResult.db.failureCauses.length,
+          feCount: atomicResult.db.failureEffects.length,
+          warnings: atomicResult.diagnostics?.warnings || [],
+        },
+      };
 
       // ★★★ 2026-03-02: IMPORT 계층 체인 검증 ★★★
       // 규칙: 상위 ≤ 하위 (하위가 크거나 같아야 정상)

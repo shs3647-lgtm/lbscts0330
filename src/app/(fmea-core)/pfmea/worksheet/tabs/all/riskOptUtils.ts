@@ -18,7 +18,7 @@ interface FailureScopeWithFmId {
   fmId?: string;
   severity?: number | string;
 }
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_NA, GROUP_DIVIDER } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_BASE_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_NA, GROUP_DIVIDER } from './allTabConstants';
 
 // =====================================================
 // 스타일 유틸
@@ -34,8 +34,9 @@ export const getCellStyle = (
   colId = 0,
   isCompact = false,
   groupFirstIds?: number[],
+  baseId?: number,
 ) => {
-  const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(colId);
+  const isStepFirst = STEP_FIRST_BASE_IDS.includes(baseId ?? colId);
   const isGroupFirst = groupFirstIds?.includes(colId) ?? false;
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
   const leftBorder = isStepFirst

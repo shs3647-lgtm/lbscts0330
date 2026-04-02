@@ -9,7 +9,7 @@
 import React from 'react';
 import type { WorksheetState } from '../../constants';
 import type { RiskOptCellRendererProps } from './riskOptTypes';
-import { RE_EVAL_MAP, FIELD_MAP } from './riskOptTypes';
+import { RE_EVAL_MAP_BY_ID, FIELD_MAP_BY_ID } from './riskOptTypes';
 import {
   calcAP, getAPTextColor, getSODTextColor, getTargetToL,
   getMaxSeverity, getSafeSODValue, getImprovementStatus, checkNeedsAction,
@@ -17,7 +17,7 @@ import {
 } from './riskOptUtils';
 import { resolveSpecialChar } from '@/components/common/SpecialCharBadge';
 import { getOptRowKey, getOptSODKey } from './multiOptUtils';
-import { PLACEHOLDER_NA } from './allTabConstants';
+import { PLACEHOLDER_NA, getBaseId } from './allTabConstants';
 import { getSpecialCharMaster, type SpecialCharMaster } from '@/components/modals/SpecialCharMasterModal';
 
 // ★★★ 특별특성 마스터 캐시 (모듈 레벨 — 리렌더 시 localStorage 재읽기 방지)
@@ -40,7 +40,7 @@ export function renderOptSODCell(
   handleSODClick?: RiskOptCellRendererProps['handleSODClick'],
   optIdx = 0, baseFcRowSpan?: number,
 ): React.ReactElement {
-  const category = RE_EVAL_MAP[col.name];
+  const category = RE_EVAL_MAP_BY_ID[getBaseId(col)];
   const riskKey = `risk-${uniqueKey}-${category}`;
   // ★ per-row SOD 키
   const rawValue = state?.riskData?.[getOptSODKey(uniqueKey, category, optIdx)];
@@ -191,7 +191,8 @@ export function renderDateCell(
   openDateModal?: RiskOptCellRendererProps['openDateModal'], fmeaRevisionDate?: string,
   optIdx = 0, baseFcRowSpan?: number,
 ): React.ReactElement {
-  const field = FIELD_MAP[col.name] === 'targetDate' ? 'targetDate' : 'completionDate';
+  const bid = getBaseId(col);
+  const field = bid === 26 ? 'targetDate' : 'completionDate';
   // ★ 다중행: multi-row rowSpan
   const cellRowSpan = col.step === '최적화' ? (optIdx === 0 ? (baseFcRowSpan ?? fcRowSpan) : 1) : fcRowSpan;
 
@@ -199,10 +200,10 @@ export function renderDateCell(
   if (optIdx === 0) {
     const { hasImprovement } = getImprovementStatus(uniqueKey, state?.riskData);
     const needsAction = checkNeedsAction(fmId, uniqueKey, state);
-    if (col.name === '목표완료일자' && !hasImprovement && !needsAction) {
+    if (bid === 26 && !hasImprovement && !needsAction) {
       return <td key={colIdx} rowSpan={cellRowSpan} style={{ ...style, cursor: 'default' }} />;
     }
-    if (col.name === '완료일자' && !state?.riskData?.[`targetDate-opt-${uniqueKey}`]) {
+    if (bid === 29 && !state?.riskData?.[`targetDate-opt-${uniqueKey}`]) {
       return <td key={colIdx} rowSpan={cellRowSpan} style={{ ...style, cursor: 'default' }} title="목표완료일자를 먼저 입력하세요" />;
     }
   }
@@ -212,7 +213,7 @@ export function renderDateCell(
   let value = (state?.riskData?.[key] as string) || '';
 
   // 목표완료일자 자동 채우기 (표시용 — optIdx === 0만)
-  if (col.name === '목표완료일자' && !value && optIdx === 0) {
+  if (bid === 26 && !value && optIdx === 0) {
     const stateExt = state as (WorksheetState & { fmeaRevisionDate?: string; fmeaInfo?: { fmeaRevisionDate?: string }; masterData?: { fmeaRevisionDate?: string } }) | undefined;
     const masterDate = fmeaRevisionDate || stateExt?.fmeaRevisionDate || stateExt?.fmeaInfo?.fmeaRevisionDate || stateExt?.masterData?.fmeaRevisionDate || '';
     if (masterDate) {

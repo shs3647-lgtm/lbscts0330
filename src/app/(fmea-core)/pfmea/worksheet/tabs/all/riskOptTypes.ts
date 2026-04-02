@@ -13,6 +13,7 @@ import type { WorksheetState } from '../../constants';
 /** 컬럼 정의 */
 export interface RiskOptColumnDef {
   id: number;
+  baseId?: number;
   step: string;
   group: string;
   name: string;
@@ -20,6 +21,7 @@ export interface RiskOptColumnDef {
   cellColor: string;
   cellAltColor: string;
   align: 'left' | 'center' | 'right';
+  isRPN?: boolean;
 }
 
 /** 컨트롤 모달 타입 */
@@ -84,15 +86,14 @@ export interface RiskOptCellRendererProps {
 // 상수 매핑
 // =====================================================
 
-/** 컬럼명 → 필드 매핑 */
-export const FIELD_MAP: Record<string, string> = {
-  '습득교훈': 'lesson',
-  'Filter Code': 'filterCode',
-  '개선결과근거': 'result',
-  '책임자성명': 'person',
-  '비고': 'note',
-  '목표완료일자': 'targetDate',
-  '완료일자': 'completeDate',
+/** 컬럼 ID → 필드 매핑 (col.name 의존 제거 — PFMEA/DFMEA 공통) */
+export const FIELD_MAP_BY_ID: Record<number, string> = {
+  22: 'lesson',       // LLD / 습득교훈
+  28: 'result',       // 개선결과근거 / 보고서 이름
+  25: 'person',       // 책임자성명 / 책임자
+  35: 'note',         // 비고
+  26: 'targetDate',   // 목표완료일자 / 목표 완료일
+  29: 'completeDate', // 완료일자 / 완료일
 };
 
 /** 상태 옵션 (한글) */
@@ -108,17 +109,19 @@ export const STATUS_LABEL_MAP: Record<string, string> = {
   'completed': '완료', 'progressing': '진행중', 'delay': '지연', 'open': '대기',
 };
 
-/** 예방/검출관리 모달 타입 매핑 */
-export const CONTROL_TYPES: Record<string, ControlModalType> = {
-  '예방관리(PC)': 'prevention',
-  '예방관리개선': 'prevention-opt',
-  '검출관리(DC)': 'detection',
-  '검출관리개선': 'detection-opt',
+/** 컬럼 ID → 예방/검출관리 모달 타입 매핑 (col.name 의존 제거) */
+export const CONTROL_TYPES_BY_ID: Record<number, ControlModalType> = {
+  16: 'prevention',      // 예방관리(PC)
+  23: 'prevention-opt',  // 예방관리개선
+  18: 'detection',       // 검출관리(DC)
+  24: 'detection-opt',   // 검출관리개선
 };
 
-/** 재평가 매핑 — 키는 COLUMNS_BASE step='최적화' 컬럼명과 정확히 일치해야 함 */
-export const RE_EVAL_MAP: Record<string, 'S' | 'O' | 'D'> = {
-  '심각도(S)': 'S', '발생도(O)': 'O', '검출도(D)': 'D',
+/** 컬럼 ID → 재평가 SOD 카테고리 매핑 (col.name 의존 제거) */
+export const RE_EVAL_MAP_BY_ID: Record<number, 'S' | 'O' | 'D'> = {
+  30: 'S',  // 심각도(S) 재평가
+  31: 'O',  // 발생도(O) 재평가
+  32: 'D',  // 검출도(D) 재평가
 };
 
 /** 상태별 색상 */

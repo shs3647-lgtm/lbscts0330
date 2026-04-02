@@ -7,10 +7,11 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, GROUP_DIVIDER } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_BASE_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, GROUP_DIVIDER, getBaseId } from './allTabConstants';
 
 interface ColumnDef {
   id: number;
+  baseId?: number;
   step: string;
   group: string;
   name: string;
@@ -63,7 +64,7 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
 }: StructureCellRendererProps): React.ReactElement | null {
   const pathname = usePathname();
   const isDfmea = pathname?.includes('/dfmea/') ?? false;
-  const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
+  const isStepFirst = STEP_FIRST_BASE_IDS.includes(getBaseId(col));
   const isGroupFirst = groupFirstIds?.includes(col.id) ?? false;
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
   const leftBorder = isStepFirst
@@ -101,8 +102,10 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
     return false;
   };
 
+  const bid = getBaseId(col);
+
   // ★ 완제품 공정명/시스템명 (id=1) - FM 전체 병합
-  if (col.id === 1) {
+  if (bid === 1) {
     if (row.isFirstRow) {
       const suffix = isDfmea ? '' : ' 생산공정';
       const productDisplay = l1ProductName ? `${l1ProductName}${suffix}` : '';
@@ -116,7 +119,7 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
   }
 
   // ★ NO+공정명/NO+초점요소 (id=2) - FM 전체 병합
-  if (col.id === 2) {
+  if (bid === 2) {
     if (row.isFirstRow) {
       const suffix = isDfmea ? '' : ' 생산공정';
       const processDisplay = fmGroup.fmProcessNo && fmGroup.fmProcessName
@@ -132,7 +135,7 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
   }
 
   // ★ 4M/Type (id=3) - FC별 병합 (누적 범위 체크)
-  if (col.id === 3) {
+  if (bid === 3) {
     if (rowInFM === 0 || !isInMergedRange()) {
       return (
         <td key={colIdx} rowSpan={row.fcRowSpan} style={{ ...cellStyle(row.fcRowSpan, true), textAlign: 'center' }}>
@@ -144,7 +147,7 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
   }
 
   // ★ 작업요소/부품 (id=4) - FC별 병합 (누적 범위 체크)
-  if (col.id === 4) {
+  if (bid === 4) {
     if (rowInFM === 0 || !isInMergedRange()) {
       return (
         <td key={colIdx} rowSpan={row.fcRowSpan} style={cellStyle(row.fcRowSpan, true)}>

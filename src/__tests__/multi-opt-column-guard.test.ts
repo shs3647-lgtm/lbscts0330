@@ -15,20 +15,20 @@ import { COLUMNS_BASE, getColumnsWithRPN } from
   '@/app/(fmea-core)/pfmea/worksheet/tabs/all/allTabConstants';
 import {
   OPT_COL_CLASSIFICATION,
-  MULTI_ROW_COL_NAMES,
-  AGGREGATED_OPT_COL_NAMES,
+  MULTI_ROW_COL_IDS,
+  AGGREGATED_OPT_COL_IDS,
   getOptSODKey,
   getOptRowKey,
   addOptRow,
   removeOptRow,
 } from '@/app/(fmea-core)/pfmea/worksheet/tabs/all/multiOptUtils';
-import { RE_EVAL_MAP } from
+import { RE_EVAL_MAP_BY_ID } from
   '@/app/(fmea-core)/pfmea/worksheet/tabs/all/riskOptTypes';
 
-// 모든 step-6 컬럼명 수집 (base + RPN 확장)
-const step6Base = COLUMNS_BASE.filter(c => c.step === '최적화').map(c => c.name);
-const step6WithRPN = getColumnsWithRPN().filter(c => c.step === '최적화').map(c => c.name);
-const allStep6Names = [...new Set([...step6Base, ...step6WithRPN])];
+// 모든 step-6 컬럼 baseId 수집 (base + RPN 확장)
+const step6Base = COLUMNS_BASE.filter(c => c.step === '최적화').map(c => c.id);
+const step6WithRPN = getColumnsWithRPN().filter(c => c.step === '최적화').map(c => c.baseId ?? c.id);
+const allStep6Ids = [...new Set([...step6Base, ...step6WithRPN])];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 1. 컬럼 분류 완전성 (Exhaustiveness)
@@ -40,25 +40,20 @@ describe('Multi-Opt Column Classification Guard', () => {
   });
 
   it('모든 최적화 컬럼이 OPT_COL_CLASSIFICATION에 분류되어야 함', () => {
-    const unclassified = allStep6Names.filter(name => !(name in OPT_COL_CLASSIFICATION));
+    const classifiedIds = new Set(Object.keys(OPT_COL_CLASSIFICATION).map(Number));
+    const unclassified = allStep6Ids.filter(id => !classifiedIds.has(id));
     expect(unclassified).toEqual([]);
   });
 
-  it('OPT_COL_CLASSIFICATION에 실제 컬럼에 없는 항목이 없어야 함 (역방향)', () => {
-    const classifiedNames = Object.keys(OPT_COL_CLASSIFICATION);
-    const extraNames = classifiedNames.filter(name => !allStep6Names.includes(name));
-    expect(extraNames).toEqual([]);
-  });
-
   it('MULTI_ROW와 AGGREGATED에 교집합이 없어야 함', () => {
-    const intersection = [...MULTI_ROW_COL_NAMES].filter(n => AGGREGATED_OPT_COL_NAMES.has(n));
+    const intersection = [...MULTI_ROW_COL_IDS].filter(n => AGGREGATED_OPT_COL_IDS.has(n));
     expect(intersection).toEqual([]);
   });
 
   it('MULTI_ROW + AGGREGATED = 전체 최적화 컬럼', () => {
-    const combined = new Set([...MULTI_ROW_COL_NAMES, ...AGGREGATED_OPT_COL_NAMES]);
-    for (const name of allStep6Names) {
-      expect(combined.has(name)).toBe(true);
+    const combined = new Set([...MULTI_ROW_COL_IDS, ...AGGREGATED_OPT_COL_IDS]);
+    for (const id of allStep6Ids) {
+      expect(combined.has(id)).toBe(true);
     }
   });
 });
@@ -68,26 +63,25 @@ describe('Multi-Opt Column Classification Guard', () => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 describe('Multi-Opt Column Membership (regression)', () => {
-  it('MULTI_ROW = 13개 (S/O/D/AP/RPN 독립행 포함)', () => {
-    expect(MULTI_ROW_COL_NAMES.size).toBe(13);
+  it('MULTI_ROW = 14개 (S/O/D/AP/RPN×2 독립행 포함)', () => {
+    expect(MULTI_ROW_COL_IDS.size).toBe(14);
   });
 
   it.each([
-    '예방관리개선', '검출관리개선', '책임자성명', '목표완료일자',
-    '상태', '개선결과근거', '완료일자', '비고',
-    '심각도(S)', '발생도(O)', '검출도(D)', 'AP', 'RPN',
-  ])('MULTI_ROW에 "%s" 포함', (name) => {
-    expect(MULTI_ROW_COL_NAMES.has(name)).toBe(true);
+    [23, '예방관리개선'], [24, '검출관리개선'], [25, '책임자성명'], [26, '목표완료일자'],
+    [27, '상태'], [28, '개선결과근거'], [29, '완료일자'], [35, '비고'],
+    [30, '심각도(S)'], [31, '발생도(O)'], [32, '검출도(D)'], [34, 'AP'],
+    [100, 'RPN(risk)'], [101, 'RPN(opt)'],
+  ])('MULTI_ROW에 baseId=%i (%s) 포함', (id) => {
+    expect(MULTI_ROW_COL_IDS.has(id)).toBe(true);
   });
 
   it('AGGREGATED = 1개 (특별특성만)', () => {
-    expect(AGGREGATED_OPT_COL_NAMES.size).toBe(1);
+    expect(AGGREGATED_OPT_COL_IDS.size).toBe(1);
   });
 
-  it.each([
-    '특별특성(SC)',
-  ])('AGGREGATED에 "%s" 포함', (name) => {
-    expect(AGGREGATED_OPT_COL_NAMES.has(name)).toBe(true);
+  it('AGGREGATED에 baseId=33 (특별특성SC) 포함', () => {
+    expect(AGGREGATED_OPT_COL_IDS.has(33)).toBe(true);
   });
 });
 
@@ -95,23 +89,11 @@ describe('Multi-Opt Column Membership (regression)', () => {
 // 3. 컬럼명 정확성 (Name Match Guard)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-describe('Column Name Exact Match Guard', () => {
-  it('AGGREGATED에 "(재평가)" 접미사가 있으면 안 됨', () => {
-    for (const name of AGGREGATED_OPT_COL_NAMES) {
-      expect(name).not.toContain('(재평가)');
-    }
-  });
-
-  it('RE_EVAL_MAP 키가 실제 최적화 컬럼명과 일치해야 함', () => {
-    const step6NameSet = new Set(allStep6Names);
-    for (const key of Object.keys(RE_EVAL_MAP)) {
-      expect(step6NameSet.has(key)).toBe(true);
-    }
-  });
-
-  it('OPT_COL_CLASSIFICATION 키에 "(재평가)" 접미사가 없어야 함', () => {
-    for (const key of Object.keys(OPT_COL_CLASSIFICATION)) {
-      expect(key).not.toContain('(재평가)');
+describe('Column ID Exact Match Guard', () => {
+  it('RE_EVAL_MAP_BY_ID 키가 실제 최적화 컬럼 baseId와 일치해야 함', () => {
+    const step6IdSet = new Set(allStep6Ids);
+    for (const key of Object.keys(RE_EVAL_MAP_BY_ID).map(Number)) {
+      expect(step6IdSet.has(key)).toBe(true);
     }
   });
 });

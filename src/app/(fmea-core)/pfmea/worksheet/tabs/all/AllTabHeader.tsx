@@ -10,11 +10,10 @@
 
 import React, { useMemo } from 'react';
 import { useLocale } from '@/lib/locale';
-import { usePathname } from 'next/navigation';
 import { blText, getBilingualEntry } from '@/lib/bilingual-labels';
 import { MENU_DICT } from '@/lib/locale-dict';
 import {
-  STEP_LABELS, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS,
+  STEP_LABELS, STEP_DIVIDER, getStepFirstColumnIds,
   COMPACT_FONT, HEIGHTS, COMPACT_HEIGHTS,
   ColumnDef, StepSpan, GroupSpan,
   GROUP_DIVIDER, getGroupFirstColumnIds, DFMEA_STEP_COLORS, STEP_COLORS,
@@ -141,6 +140,7 @@ export interface AllTabHeaderProps {
   hHeights: typeof HEIGHTS | typeof COMPACT_HEIGHTS;
   hFont: typeof COMPACT_FONT | undefined;
   isCompact: boolean;
+  isDfmea?: boolean;
   failureStats: FailureStatsForHeader;
   functionStats?: FunctionStatsForHeader;
   apStats: { hCount: number; mCount: number; lCount: number };
@@ -170,6 +170,7 @@ export default function AllTabHeader({
   hHeights,
   hFont,
   isCompact,
+  isDfmea = false,
   failureStats,
   functionStats,
   apStats,
@@ -188,8 +189,7 @@ export default function AllTabHeader({
   scrollToMissing,
 }: AllTabHeaderProps) {
   const { locale, t } = useLocale();
-  const pathname = usePathname();
-  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const stepFirstIds = useMemo(() => getStepFirstColumnIds(columns), [columns]);
   const groupFirstIds = useMemo(() => getGroupFirstColumnIds(columns), [columns]);
   const stepColors = isDfmea ? DFMEA_STEP_COLORS : STEP_COLORS;
 
@@ -417,7 +417,7 @@ export default function AllTabHeader({
       {/* 2행: 분류 (중분류) */}
       <tr>
         {groupSpans.map((span, idx) => {
-          const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(span.startColId);
+          const isStepFirst = stepFirstIds.includes(span.startColId);
           const isGroupFirst = groupFirstIds.includes(span.startColId);
           const leftBorder = isStepFirst
             ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}`
@@ -442,7 +442,7 @@ export default function AllTabHeader({
       {/* 3행: 컬럼명 (소분류) — 축약 + 좁은컬럼 줄바꿈 허용 */}
       <tr>
         {columns.map((col, idx) => {
-          const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
+          const isStepFirst = stepFirstIds.includes(col.id);
           const isGroupFirst = groupFirstIds.includes(col.id);
           const isNarrow = col.width <= 80;
           const leftBorder = isStepFirst

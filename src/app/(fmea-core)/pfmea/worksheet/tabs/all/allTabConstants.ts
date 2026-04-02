@@ -227,8 +227,21 @@ export const STEP_DIVIDER = {
   borderStyle: 'solid',
 };
 
-// 각 단계의 첫 번째 컬럼 ID (세로 구분선 적용 대상)
-export const STEP_FIRST_COLUMN_IDS = [1, 5, 12, 16, 23]; // 구조분석, 기능분석, 고장분석, 리스크분석, 최적화
+// 각 단계의 첫 번째 컬럼 baseId (RPN 삽입 시에도 불변)
+export const STEP_FIRST_BASE_IDS = [1, 5, 12, 16, 23]; // 구조분석, 기능분석, 고장분석, 리스크분석, 최적화
+
+/** 실제 columns 배열에서 step 첫 컬럼의 런타임 id 계산 (RPN 삽입 안전) */
+export function getStepFirstColumnIds(columns: { id: number; step: string }[]): number[] {
+  const ids: number[] = [];
+  let lastStep = '';
+  for (const col of columns) {
+    if (col.step !== lastStep) {
+      ids.push(col.id);
+      lastStep = col.step;
+    }
+  }
+  return ids;
+}
 
 // ============ 컬럼 정의 ============
 export interface ColumnDef {
@@ -243,6 +256,7 @@ export interface ColumnDef {
   align: 'left' | 'center' | 'right';
   isRPN?: boolean;
   isDark?: boolean;
+  baseId?: number;
 }
 
 // 기본화면 35컬럼 (RPN 제외)
@@ -463,12 +477,13 @@ const DFMEA_COLUMN_OVERRIDES: Record<number, DfmeaOv> = {
 
 /** DFMEA용 컬럼 정의 (COLUMNS_BASE에서 PRD 기준으로 라벨+색상 교체) */
 export function getColumnsForModule(isDfmea: boolean): ColumnDef[] {
-  if (!isDfmea) return COLUMNS_BASE;
+  if (!isDfmea) return COLUMNS_BASE.map(col => ({ ...col, baseId: col.id }));
   return COLUMNS_BASE.map(col => {
     const ov = DFMEA_COLUMN_OVERRIDES[col.id];
-    if (!ov) return col;
+    if (!ov) return { ...col, baseId: col.id };
     return {
       ...col,
+      baseId: col.id,
       group: ov.group ?? col.group,
       name: ov.name ?? col.name,
       headerColor: ov.headerColor ?? col.headerColor,
@@ -477,6 +492,11 @@ export function getColumnsForModule(isDfmea: boolean): ColumnDef[] {
       isDark: ov.isDark ?? col.isDark,
     };
   });
+}
+
+/** 안정적 시맨틱 ID — RPN 삽입 후에도 변하지 않는 컬럼 식별자 */
+export function getBaseId(col: { id: number; baseId?: number }): number {
+  return col.baseId ?? col.id;
 }
 
 // ============ 그룹 구분선 (단계 내 그룹 경계) ============
@@ -491,10 +511,11 @@ export { GROUP_DIVIDER };
 /** 그룹 경계 컬럼 ID 목록 (단계 첫 컬럼 제외) */
 export function getGroupFirstColumnIds(columns: ColumnDef[]): number[] {
   const ids: number[] = [];
+  const stepFirstBids = new Set(STEP_FIRST_BASE_IDS);
   let lastGroup = '';
   for (const col of columns) {
     if (col.group !== lastGroup) {
-      if (!STEP_FIRST_COLUMN_IDS.includes(col.id)) {
+      if (!stepFirstBids.has(getBaseId(col))) {
         ids.push(col.id);
       }
       lastGroup = col.group;
@@ -530,28 +551,27 @@ export const STEP_LABELS: Record<string, string> = {
   '최적화': '6단계 최적화(6ST Optimization)',
 };
 
-// RPN 컬럼 (옵션)
+// RPN 컬럼 (옵션) — baseId 100/101: RPN 삽입 시 다른 컬럼 ID가 밀려도 시맨틱 ID 유지
 export const RPN_COLUMNS: ColumnDef[] = [
   {
-    id: 0, step: '리스크분석', group: '3. 리스크 평가', name: 'RPN', width: 40,
+    id: 0, baseId: 100, step: '리스크분석', group: '3. 리스크 평가', name: 'RPN', width: 40,
     headerColor: COLORS.risk.evaluation.headerLight, cellColor: COLORS.risk.evaluation.cell, cellAltColor: COLORS.risk.evaluation.cellAlt, align: 'center', isRPN: true, isDark: true
   },
   {
-    id: 0, step: '최적화', group: '3. 효과 평가', name: 'RPN', width: 40,
+    id: 0, baseId: 101, step: '최적화', group: '3. 효과 평가', name: 'RPN', width: 40,
     headerColor: COLORS.optimization.evaluation.headerLight, cellColor: COLORS.optimization.evaluation.cell, cellAltColor: COLORS.optimization.evaluation.cellAlt, align: 'center', isRPN: true
   },
 ];
 
-// 옵션화면용 37컬럼 생성 함수
+// 옵션화면용 37컬럼 생성 함수 — baseId는 유지, id만 재번호
 export function getColumnsWithRPN(isDfmea = false): ColumnDef[] {
-  const base = isDfmea ? getColumnsForModule(true) : COLUMNS_BASE;
-  const columns = [...base];
-  const riskRpnIdx = columns.findIndex(c => c.id === 21);
+  const columns = [...getColumnsForModule(isDfmea)];
+  const riskRpnIdx = columns.findIndex(c => (c.baseId ?? c.id) === 21);
   columns.splice(riskRpnIdx, 0, { ...RPN_COLUMNS[0], id: 21 });
   for (let i = riskRpnIdx; i < columns.length; i++) {
     columns[i] = { ...columns[i], id: i + 1 };
   }
-  const optRpnIdx = columns.findIndex(c => c.name === '비고' && c.step === '최적화');
+  const optRpnIdx = columns.findIndex(c => (c.baseId ?? c.id) === 35 && c.step === '최적화');
   columns.splice(optRpnIdx, 0, { ...RPN_COLUMNS[1], id: optRpnIdx + 1 });
   for (let i = optRpnIdx; i < columns.length; i++) {
     columns[i] = { ...columns[i], id: i + 1 };
