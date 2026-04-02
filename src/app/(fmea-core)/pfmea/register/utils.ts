@@ -8,6 +8,18 @@ import { FMEAType, FMEAInfo } from './types';
 import { CFTMember } from '@/components/tables/CFTRegistrationTable';
 
 // =====================================================
+// FMEA 모듈 감지
+// =====================================================
+
+/** 브라우저 URL 기반 FMEA 모듈 자동 감지 (DFMEA vs PFMEA) */
+export function detectFmeaModule(): 'pfmea' | 'dfmea' {
+  if (typeof window !== 'undefined' && window.location.pathname.includes('/dfmea/')) {
+    return 'dfmea';
+  }
+  return 'pfmea';
+}
+
+// =====================================================
 // FMEA ID 생성
 // =====================================================
 
@@ -15,12 +27,16 @@ import { CFTMember } from '@/components/tables/CFTRegistrationTable';
  * ★★★ 2026-02-07: DB 기반 FMEA ID 생성 (비동기) ★★★
  * /api/fmea/next-id API를 호출하여 DB에서 다음 시퀀스 번호를 가져옴
  *
- * 형식: pfm{YY}-{t}{NNN}-{L{NN}|S}
- * 예시: pfm26-m001-L01 (Master, 연동그룹01), pfm26-f001-S (Family, 단독)
+ * 형식: {prefix}{YY}-{t}{NNN}-{L{NN}|S}
+ * PFMEA: pfm26-m001-L01 / DFMEA: dfm26-d001
+ * @param module 'pfmea' | 'dfmea' — 모듈 구분 (ID 프리픽스 결정). 미전달 시 URL 자동감지
  */
-export async function generateFMEAIdFromDB(fmeaType: FMEAType = 'P', linkGroupNo: number = 0): Promise<string> {
+export async function generateFMEAIdFromDB(fmeaType: FMEAType = 'P', linkGroupNo: number = 0, module?: 'pfmea' | 'dfmea'): Promise<string> {
+  const resolvedModule = module || detectFmeaModule();
+  // DFMEA는 항상 fmeaType='D' 사용
+  const resolvedType = resolvedModule === 'dfmea' ? 'D' : fmeaType;
   try {
-    const res = await fetch(`/api/fmea/next-id?type=${fmeaType}&module=pfmea&linkGroup=${linkGroupNo}`);
+    const res = await fetch(`/api/fmea/next-id?type=${resolvedType}&module=${resolvedModule}&linkGroup=${linkGroupNo}`);
     const json = await res.json();
     if (json.success && json.nextId) {
       return json.nextId;
@@ -30,21 +46,25 @@ export async function generateFMEAIdFromDB(fmeaType: FMEAType = 'P', linkGroupNo
   }
   // 폴백: 기본값 (Master/Family는 접미사 없음, Part만 사용)
   const year = new Date().getFullYear().toString().slice(-2);
-  const typeChar = fmeaType.toLowerCase();
-  const suffix = fmeaType === 'P'
+  const typeChar = resolvedType.toLowerCase();
+  const modulePrefix = resolvedModule === 'dfmea' ? 'dfm' : 'pfm';
+  const suffix = resolvedType === 'P'
     ? (linkGroupNo > 0 ? `-L${String(linkGroupNo).padStart(2, '0')}` : '-S')
     : '';
-  return `pfm${year}-${typeChar}001${suffix}-r00`;
+  return `${modulePrefix}${year}-${typeChar}001${suffix}-r00`;
 }
 
 /** 동기 버전 (하위호환) - localStorage 폴백 */
-export function generateFMEAId(fmeaType: FMEAType = 'P', linkGroupNo: number = 0): string {
+export function generateFMEAId(fmeaType: FMEAType = 'P', linkGroupNo: number = 0, module?: 'pfmea' | 'dfmea'): string {
+  const resolvedModule = module || detectFmeaModule();
+  const resolvedType = resolvedModule === 'dfmea' ? 'D' : fmeaType;
   const year = new Date().getFullYear().toString().slice(-2);
-  const typeChar = fmeaType.toLowerCase();
-  const suffix = fmeaType === 'P'
+  const typeChar = resolvedType.toLowerCase();
+  const modulePrefix = resolvedModule === 'dfmea' ? 'dfm' : 'pfm';
+  const suffix = resolvedType === 'P'
     ? (linkGroupNo > 0 ? `-L${String(linkGroupNo).padStart(2, '0')}` : '-S')
     : '';
-  return `pfm${year}-${typeChar}001${suffix}-r00`;
+  return `${modulePrefix}${year}-${typeChar}001${suffix}-r00`;
 }
 
 // =====================================================

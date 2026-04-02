@@ -46,6 +46,7 @@ import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
 import { CFTRegistrationTable, createInitialCFTMembers } from '@/components/tables/CFTRegistrationTable';
 import { BizInfoProject } from '@/types/bizinfo';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
+import DFMEATopNav from '@/components/layout/DFMEATopNav';
 import { FixedLayout } from '@/components/layout';
 import { getAIStatus } from '@/lib/ai-recommendation';
 import { LinkageModal } from '@/components/linkage/LinkageModal';
@@ -116,7 +117,13 @@ function PFMEARegisterPageContent() {
     cachedProjects,
     showMasterReview, setShowMasterReview,
     tripletInfo,
+    isDfmea, registerBasePath,
   } = core;
+
+  // ★ DFMEA/PFMEA 컨텍스트 기반 동적 경로
+  const worksheetPath = isDfmea ? '/dfmea/worksheet' : '/pfmea/worksheet';
+  const importPath = isDfmea ? '/dfmea/import' : '/pfmea/import';
+  const listPath = isDfmea ? '/dfmea/list' : '/pfmea/list';
 
   const {
     updateField, handlePartNameChange,
@@ -594,7 +601,7 @@ function PFMEARegisterPageContent() {
   const inputCell = "border border-gray-300 px-1 py-0.5 overflow-hidden";
 
   return (
-    <FixedLayout topNav={<PFMEATopNav selectedFmeaId={fmeaId} linkedCpNo={fmeaInfo.linkedCpNo} linkedPfdNo={fmeaInfo.linkedPfdNo} />} topNavHeight={48} showSidebar={true} contentPadding="pl-[5px] pr-2 py-2">
+    <FixedLayout topNav={isDfmea ? <DFMEATopNav selectedFmeaId={fmeaId} /> : <PFMEATopNav selectedFmeaId={fmeaId} linkedCpNo={fmeaInfo.linkedCpNo} linkedPfdNo={fmeaInfo.linkedPfdNo} />} topNavHeight={48} showSidebar={true} contentPadding="pl-[5px] pr-2 py-2">
       <div className="font-[Malgun_Gothic]">
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-3">
@@ -609,7 +616,7 @@ function PFMEARegisterPageContent() {
             <button onClick={handleNewRegister} className="px-3 py-1.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 font-semibold">➕ 새로 작성(Create)</button>
             <button onClick={() => {
               if (isEditMode) { alert('현재 편집 모드입니다. 테이블 필드를 직접 수정하세요.'); }
-              else if (fmeaId) { router.push(`/pfmea/register?id=${fmeaId}`); }
+              else if (fmeaId) { router.push(`${registerBasePath}?id=${fmeaId}`); }
               else { openFmeaSelectModal('LOAD'); }
             }} className={`px-3 py-1.5 text-white text-xs rounded font-semibold ${isEditMode ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-amber-500 hover:bg-amber-600'}`}>✏️ 편집(Edit)</button>
             <button onClick={handleSave} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 text-xs font-bold rounded ${saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' : saveStatus === 'saved' ? 'bg-green-500 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
@@ -680,7 +687,7 @@ function PFMEARegisterPageContent() {
                       if (currentIdType !== newType) {
                         currentId = await generateFMEAIdFromDB(newType);
                         setFmeaId(currentId);
-                        router.replace(`/pfmea/register?id=${currentId}`);
+                        router.replace(`${registerBasePath}?id=${currentId}`);
                       }
                       if (newType === 'M' && currentId) setSelectedBaseFmea(currentId);
                       else if (newType !== 'M') setSelectedBaseFmea(null);
@@ -700,7 +707,7 @@ function PFMEARegisterPageContent() {
                   <td className={headerCell}>FMEA ID</td>
                   <td className={inputCell}>
                     <div className="flex items-center gap-1">
-                      <span className="px-2 text-xs font-semibold text-blue-600 cursor-pointer hover:underline hover:text-blue-700" onClick={() => router.push('/pfmea/list')} title="클릭하여 PFMEA 리스트로 이동">{fmeaId}</span>
+                      <span className="px-2 text-xs font-semibold text-blue-600 cursor-pointer hover:underline hover:text-blue-700" onClick={() => router.push(listPath)} title={`클릭하여 ${isDfmea ? 'DFMEA' : 'PFMEA'} 리스트로 이동`}>{fmeaId}</span>
                       {revParam && <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded">{revParam}</span>}
                     </div>
                   </td>
@@ -1026,7 +1033,7 @@ function PFMEARegisterPageContent() {
                   fmeaResponsibleName: core.fmeaInfo.fmeaResponsibleName || '',
                   partName: core.fmeaInfo.partName || '', partNo: core.fmeaInfo.partNo || '',
                 }}
-                onWorksheetSaved={() => { if (fmeaId) window.location.href = `/pfmea/worksheet?id=${fmeaId}&tab=structure`; }}
+                onWorksheetSaved={() => { if (fmeaId) window.location.href = `${worksheetPath}?id=${fmeaId}&tab=structure`; }}
                 bdFmeaId={bdLoadedFmeaId || undefined}
                 bdFmeaName={bdLoadedFmeaName || undefined}
                 bdStatusList={bdStatusList}
@@ -1057,13 +1064,13 @@ function PFMEARegisterPageContent() {
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => router.push(`/pfmea/import?id=${fmeaId}`)}
+                onClick={() => router.push(`${importPath}?id=${fmeaId}`)}
                 className="px-4 py-1.5 bg-amber-500 text-white text-xs font-bold rounded hover:bg-amber-600 transition-colors"
               >
                 ✏️ 수정(Edit) (Import)
               </button>
               <button
-                onClick={() => router.push(`/pfmea/worksheet?id=${fmeaId}`)}
+                onClick={() => router.push(`${worksheetPath}?id=${fmeaId}`)}
                 className="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors"
               >
                 ▶ FMEA 작성화면이동(Go to Worksheet)
@@ -1096,7 +1103,7 @@ function PFMEARegisterPageContent() {
             onUserSearch={(index) => { setSelectedMemberIndex(index); setUserModalTarget('cft'); setRoleSearchTerm(''); setUserModalOpen(true); }}
             onRoleChange={(index, role) => { setSelectedMemberIndex(index); setUserModalTarget('cft'); setRoleSearchTerm(role); setUserModalOpen(true); }}
             onSave={handleSave} onReset={() => { if (confirm('CFT 목록을 초기화하시겠습니까?')) setCftMembers(createInitialCFTMembers()); }}
-            onNavigateWorksheet={fmeaId ? () => router.push(`/pfmea/worksheet?id=${fmeaId}`) : undefined}
+            onNavigateWorksheet={fmeaId ? () => router.push(`${worksheetPath}?id=${fmeaId}`) : undefined}
             saveStatus={saveStatus} minRows={6} extraHeaderContent={
               <button onClick={() => openHelp('cft')} className="px-1.5 py-0.5 bg-yellow-400 text-[#00587a] text-[9px] font-bold rounded hover:bg-yellow-300 transition-colors" title="CFT 구성 도움말">도움말(Help)</button>
             } />
@@ -1275,7 +1282,7 @@ function PFMEARegisterPageContent() {
           onClose={() => setBdNavConfirm({ open: false, name: '' })}
           onNavigate={() => {
             setBdNavConfirm({ open: false, name: '' });
-            if (fmeaId) router.push(`/pfmea/worksheet?id=${fmeaId}`);
+            if (fmeaId) router.push(`${worksheetPath}?id=${fmeaId}`);
           }}
         />
 
@@ -1285,7 +1292,7 @@ function PFMEARegisterPageContent() {
           fmeaId={fmeaId || ''}
           fmeaType={fmeaInfo.fmeaType || 'P'}
           onSuccessNavigate={() => {
-            if (fmeaId) router.push(`/pfmea/worksheet?id=${fmeaId}`);
+            if (fmeaId) router.push(`${worksheetPath}?id=${fmeaId}`);
           }}
         />
 

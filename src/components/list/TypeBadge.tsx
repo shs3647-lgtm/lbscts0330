@@ -7,7 +7,7 @@
 
 import React from 'react';
 
-export type ModuleTypeCode = 'M' | 'F' | 'P';
+export type ModuleTypeCode = 'M' | 'F' | 'P' | 'D';
 
 interface TypeBadgeProps {
   typeCode: ModuleTypeCode;
@@ -18,6 +18,7 @@ const TYPE_CONFIG: Record<ModuleTypeCode, { label: string; color: string }> = {
   'M': { label: 'Master', color: 'bg-purple-200 text-purple-700' },
   'F': { label: 'Family', color: 'bg-blue-200 text-blue-700' },
   'P': { label: 'Part', color: 'bg-green-200 text-green-700' },
+  'D': { label: 'Design', color: 'bg-amber-200 text-amber-700' },
 };
 
 /**
@@ -25,7 +26,7 @@ const TYPE_CONFIG: Record<ModuleTypeCode, { label: string; color: string }> = {
  * pfm26-M001 → M, cp26-F001 → F
  */
 export function extractTypeFromId(id: string, prefix: string = 'pfm'): ModuleTypeCode {
-  const regex = new RegExp(`${prefix}\\d{2}-([MFP])`, 'i');
+  const regex = new RegExp(`${prefix}\\d{2}-([MFPD])`, 'i');
   const match = id?.match(regex);
   return (match ? match[1].toUpperCase() : 'P') as ModuleTypeCode;
 }

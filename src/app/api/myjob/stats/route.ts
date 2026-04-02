@@ -16,7 +16,7 @@ export async function GET() {
         // ★ 3개 쿼리 병렬 실행 + 최소 select (status + 종료일만)
         const [fmeas, cps, pfds] = await Promise.all([
             prisma.fmeaProject.findMany({
-                where: { deletedAt: null, fmeaType: { not: 'D' } },
+                where: { deletedAt: null },
                 select: { status: true, registration: { select: { fmeaRevisionDate: true } } },
             }),
             prisma.cpRegistration.findMany({

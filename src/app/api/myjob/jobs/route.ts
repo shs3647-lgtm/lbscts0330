@@ -50,7 +50,7 @@ export async function GET() {
     // ★ 3개 쿼리 병렬 실행
     const [fmeaProjects, cpList, pfdList] = await Promise.all([
       prisma.fmeaProject.findMany({
-        where: { deletedAt: null, fmeaType: { not: 'D' } },
+        where: { deletedAt: null },
         select: {
           fmeaId: true,
           fmeaType: true,

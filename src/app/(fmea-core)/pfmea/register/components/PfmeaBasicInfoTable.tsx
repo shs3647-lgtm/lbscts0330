@@ -7,11 +7,11 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 
 // 타입
-type FMEAType = 'M' | 'F' | 'P';
+type FMEAType = 'M' | 'F' | 'P' | 'D';
 
 interface FMEAInfo {
     companyName: string;
@@ -101,6 +101,10 @@ export default function PfmeaBasicInfoTable({
     router,
     onOpenLinkageModal,
 }: PfmeaBasicInfoTableProps) {
+    const pathname = usePathname();
+    const isDfmea = pathname?.includes('/dfmea/') ?? false;
+    const registerBasePath = isDfmea ? '/dfmea/register' : '/pfmea/register';
+    const listPath = isDfmea ? '/dfmea/list' : '/pfmea/list';
     // ★★★ FMEA ID 기반으로 상위 APQP ID 자동 계산 ★★★
     const derivedParentApqp = selectedParentApqp || (fmeaId ? `pj${fmeaId.replace(/^pfm/i, '')}` : null);
 
@@ -135,7 +139,7 @@ export default function PfmeaBasicInfoTable({
                                     if (currentIdType !== newType) {
                                         currentId = await generateFMEAId(newType);
                                         setFmeaId(currentId);
-                                        router.replace(`/pfmea/register?id=${currentId}`);
+                                        router.replace(`${registerBasePath}?id=${currentId}`);
                                     }
                                     if (newType === 'M' && currentId) {
                                         setSelectedBaseFmea(currentId);
@@ -166,7 +170,7 @@ export default function PfmeaBasicInfoTable({
                         </td>
                         <td className={headerCell} title="FMEA Identifier">FMEA ID</td>
                         <td className={inputCell}>
-                            <span className="px-2 text-xs font-semibold text-blue-600 cursor-pointer hover:underline hover:text-blue-700" onClick={() => router.push('/pfmea/list')} title="클릭하여 PFMEA 리스트로 이동">{fmeaId}</span>
+                            <span className="px-2 text-xs font-semibold text-blue-600 cursor-pointer hover:underline hover:text-blue-700" onClick={() => router.push(listPath)} title={`클릭하여 ${isDfmea ? 'DFMEA' : 'PFMEA'} 리스트로 이동`}>{fmeaId}</span>
                         </td>
                         <td className={`${headerCell} bg-green-600`} title="Parent APQP Project">상위 APQP(Parent)</td>
                         <td className={inputCell}>
@@ -216,7 +220,7 @@ export default function PfmeaBasicInfoTable({
                                     <>
                                         <span
                                             className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white bg-yellow-500 cursor-pointer hover:bg-yellow-600"
-                                            onClick={() => router.push(`/pfmea/register?id=${selectedBaseFmea.toLowerCase()}`)}
+                                            onClick={() => router.push(`${registerBasePath}?id=${selectedBaseFmea.toLowerCase()}`)}
                                             title="FMEA 등록화면으로 이동"
                                         >FMEA</span>
                                         <span

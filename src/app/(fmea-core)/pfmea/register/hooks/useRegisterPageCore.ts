@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { createInitialCFTMembers, CFTMember, ensureRequiredRoles } from '@/components/tables/CFTRegistrationTable';
 import { CFTAccessLog } from '@/types/project-cft';
@@ -22,11 +22,19 @@ export function useRegisterPageCore() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const editId = searchParams.get('id')?.toLowerCase() || null;
   const revParam = searchParams.get('rev') || null;
   const modeParam = searchParams.get('mode') || null;
   const isEditMode = !!editId;
   const isRevisionMode = !!revParam || modeParam === 'revision';
+
+  // ★ DFMEA 컨텍스트 감지: URL 기반
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const fmeaModule: 'pfmea' | 'dfmea' = isDfmea ? 'dfmea' : 'pfmea';
+  const moduleLabel = isDfmea ? 'DFMEA' : 'PFMEA';
+  const registerBasePath = isDfmea ? '/dfmea/register' : '/pfmea/register';
+  const projectTypeFilter = isDfmea ? 'D' : 'P';
 
   // =====================================================
   // 상태 선언
@@ -145,8 +153,8 @@ export function useRegisterPageCore() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id, userName: user.name, projectId: targetId,
-          module: 'PFMEA', action: '조회', itemType: '등록화면',
-          description: `${user.name}님이 PFMEA 등록화면에 접속 (${targetId})`,
+          module: moduleLabel, action: '조회', itemType: '등록화면',
+          description: `${user.name}님이 ${moduleLabel} 등록화면에 접속 (${targetId})`,
         }),
       }).then(() => loadAccessLogs()).catch((e) => { console.error('[화면진입 접속로그] 오류:', e); });
     }, 500);
@@ -162,7 +170,7 @@ export function useRegisterPageCore() {
 
     const updateLogout = () => {
       const blob = new Blob([JSON.stringify({
-        userId: user.id, projectId: targetId, module: 'PFMEA', _method: 'PUT',
+        userId: user.id, projectId: targetId, module: moduleLabel, _method: 'PUT',
       })], { type: 'application/json' });
       navigator.sendBeacon('/api/auth/access-log', blob);
     };
@@ -346,7 +354,7 @@ export function useRegisterPageCore() {
         let apiSuccess = false;
         try {
           // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
-          const res = await fetch('/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc');
+          const res = await fetch(`/api/fmea/projects?type=${projectTypeFilter}&page=1&size=200&sortField=createdAt&sortOrder=desc`);
           const data = await res.json();
           if (data.dbError) {
             // DB 연결 실패 — 에러 표시만 하고 폼 초기화 안 함
@@ -373,7 +381,7 @@ export function useRegisterPageCore() {
             const targetProject = projectList.find((p: any) => p.id?.toLowerCase() === targetId);
             if (targetProject) {
               await loadProjectData(targetProject);
-              router.replace(`/pfmea/register?id=${targetId}`);
+              router.replace(`${registerBasePath}?id=${targetId}`);
               return;
             }
           }
@@ -400,7 +408,7 @@ export function useRegisterPageCore() {
       let project: any = null;
       try {
         // ★ DB 직접 조회 (레거시 제거 → 페이지네이션 API 사용)
-        const res = await fetch(`/api/fmea/projects?type=P&page=1&size=200&sortField=createdAt&sortOrder=desc`);
+        const res = await fetch(`/api/fmea/projects?type=${projectTypeFilter}&page=1&size=200&sortField=createdAt&sortOrder=desc`);
         const data = await res.json();
         const projectList = data.data || [];
         if (data.success && projectList.length > 0) {
@@ -427,7 +435,7 @@ export function useRegisterPageCore() {
 
       if (project) {
         await loadProjectData(project);
-        if (!isEditMode) router.replace(`/pfmea/register?id=${project.id.toLowerCase()}`);
+        if (!isEditMode) router.replace(`${registerBasePath}?id=${project.id.toLowerCase()}`);
       }
     };
     loadData();
@@ -454,6 +462,13 @@ export function useRegisterPageCore() {
       localStorage.removeItem('pfmea-temp-data');
     }
   }, [isEditMode, editId]);
+
+  // ★ DFMEA 컨텍스트: 신규 생성 시 fmeaType='D' 자동 설정
+  useEffect(() => {
+    if (isDfmea && !isEditMode && fmeaInfo.fmeaType !== 'D') {
+      setFmeaInfo(prev => ({ ...prev, fmeaType: 'D' as FMEAType }));
+    }
+  }, [isDfmea, isEditMode, fmeaInfo.fmeaType]);
 
   // 편집 모드에서 fmeaId 비어있으면 editId 사용
   useEffect(() => {
@@ -579,5 +594,7 @@ export function useRegisterPageCore() {
     excelFileInputRef,
     // Functions
     loadAccessLogs, recordAccessLog,
+    // ★ DFMEA 컨텍스트 (URL 기반 자동 감지)
+    isDfmea, fmeaModule, moduleLabel, registerBasePath, projectTypeFilter,
   };
 }

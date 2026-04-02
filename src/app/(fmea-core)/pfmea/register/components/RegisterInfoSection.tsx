@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { FMEAInfo, FMEAType, FMEASelectType } from '../types';
 
 // 셀 스타일
@@ -60,6 +60,8 @@ export function RegisterInfoSection({
   onExcelFileChange,
 }: RegisterInfoSectionProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
 
   const updateField = (field: keyof FMEAInfo, value: string) => {
     onFieldChange(field, value);
@@ -249,21 +251,27 @@ export function RegisterInfoSection({
               <td className={`${headerCell} whitespace-nowrap`} title="FMEA Type">FMEA 유형(Type)</td>
               <td colSpan={7} className={`${inputCell} px-3`}>
                 <div className="flex items-center gap-4 h-7">
-                  {(['M', 'F', 'P'] as FMEAType[]).map((type) => (
-                    <label key={type} className="flex items-center gap-1 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="fmeaType"
-                        checked={fmeaInfo.fmeaType === type}
-                        onChange={() => onFmeaTypeChange(type)}
-                        disabled={isEditMode}
-                        className="w-3 h-3"
-                      />
-                      <span className={`text-xs ${fmeaInfo.fmeaType === type ? 'font-bold text-blue-600' : 'text-gray-600'}`}>
-                        {type === 'M' ? 'Master' : type === 'F' ? 'Family' : 'Part'}
-                      </span>
-                    </label>
-                  ))}
+                  {isDfmea ? (
+                    /* DFMEA: Design FMEA 고정 표시 */
+                    <span className="text-xs font-bold text-amber-700">D - Design FMEA</span>
+                  ) : (
+                    /* PFMEA: M/F/P 라디오 버튼 */
+                    (['M', 'F', 'P'] as FMEAType[]).map((type) => (
+                      <label key={type} className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="fmeaType"
+                          checked={fmeaInfo.fmeaType === type}
+                          onChange={() => onFmeaTypeChange(type)}
+                          disabled={isEditMode}
+                          className="w-3 h-3"
+                        />
+                        <span className={`text-xs ${fmeaInfo.fmeaType === type ? 'font-bold text-blue-600' : 'text-gray-600'}`}>
+                          {type === 'M' ? 'Master' : type === 'F' ? 'Family' : 'Part'}
+                        </span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </td>
             </tr>

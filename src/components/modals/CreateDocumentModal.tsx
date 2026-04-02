@@ -46,8 +46,8 @@ interface CreateDocumentModalProps {
 // =====================================================
 // Triplet 대상 앱 (PFMEA, CP, PFD — 동일 Triplet API 사용)
 // =====================================================
-const TRIPLET_APPS: AppType[] = ['pfmea', 'cp', 'pfd'];
-const LINKABLE_APPS: AppType[] = ['pfd', 'pfmea', 'cp'];
+const TRIPLET_APPS: AppType[] = ['pfmea', 'dfmea', 'cp', 'pfd'];
+const LINKABLE_APPS: AppType[] = ['pfd', 'pfmea', 'dfmea', 'cp'];
 
 // =====================================================
 // 컴포넌트
@@ -74,7 +74,7 @@ export default function CreateDocumentModal({
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [fmeaType, setFmeaType] = useState<'M' | 'F' | 'P'>('P');
+    const [fmeaType, setFmeaType] = useState<'M' | 'F' | 'P' | 'D'>(sourceApp === 'dfmea' ? 'D' : 'P');
     const [cpCount, setCpCount] = useState<number>(1);
     const [pfdCount, setPfdCount] = useState<number>(1);
 
@@ -265,7 +265,9 @@ export default function CreateDocumentModal({
 
             if (isTriplet) {
                 // ★ PFMEA/CP/PFD 공통 → Triplet API 사용
-                const docType = fmeaType === 'M' ? 'master' : fmeaType === 'F' ? 'family' : 'part';
+                // DFMEA는 Triplet API에서 'part' docType으로 생성 (M/F/P 계층 없음)
+                const docType = fmeaType === 'D' ? 'part'
+                    : fmeaType === 'M' ? 'master' : fmeaType === 'F' ? 'family' : 'part';
                 const tripletBody: Record<string, unknown> = {
                     docType,
                     subject: productName.trim(),
@@ -282,8 +284,13 @@ export default function CreateDocumentModal({
                         tripletBody.parentTripletId = selectedParentTriplet;
                     }
                 }
+                // ★ DFMEA: 항상 standalone, fmeaType='D' 전달
+                if (sourceApp === 'dfmea') {
+                    tripletBody.standalone = true;
+                    tripletBody.fmeaType = 'D';
+                }
                 if (docType === 'part') {
-                    if (partParentMode === 'standalone') {
+                    if (partParentMode === 'standalone' || sourceApp === 'dfmea') {
                         tripletBody.standalone = true;
                     } else if (selectedParentTriplet) {
                         if (selectedParentTriplet.startsWith('legacy:')) {
@@ -318,7 +325,7 @@ export default function CreateDocumentModal({
 
                 const redirectId = sourceApp === 'cp' ? result.cpId
                     : sourceApp === 'pfd' ? result.pfdId
-                    : result.pfmeaId;
+                    : (sourceApp === 'dfmea' ? result.dfmeaId || result.pfmeaId : result.pfmeaId);
                 onClose();
                 // 항상 등록 페이지로 이동 (Import 자동 전환 제거 — ADMIN 직접 접근만 허용)
                 window.location.href = `${APP_REGISTER_URLS[sourceApp]}?id=${redirectId}`;

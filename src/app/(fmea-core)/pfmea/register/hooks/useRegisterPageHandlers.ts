@@ -40,6 +40,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     recordAccessLog, loadAccessLogs,
     apqpList, setApqpList,
     selectedParentApqp, setSelectedParentApqp,
+    isDfmea, fmeaModule, registerBasePath,
   } = core;
 
   // CFT 미입력 경고 모달 상태
@@ -129,7 +130,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
     const normalizedId = selectedId.toLowerCase();
     setFmeaSelectModalOpen(false);
     if (fmeaSelectType === 'LOAD') {
-      router.push(`/pfmea/register?id=${normalizedId}`);
+      router.push(`${registerBasePath}?id=${normalizedId}`);
       window.location.reload();
     } else if (fmeaSelectType === 'MF') {
       setSelectedBaseFmea(normalizedId);
@@ -247,7 +248,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
         currentFmeaId = tripletResult.pfmeaId;
         setFmeaId(currentFmeaId);
         // URL에 id 파라미터 추가 (새로고침 시 유지)
-        window.history.replaceState(null, '', `/pfmea/register?id=${currentFmeaId}`);
+        window.history.replaceState(null, '', `${registerBasePath}?id=${currentFmeaId}`);
       } catch (err: any) {
         setSaveStatus('idle');
         alert(`PFMEA ID 자동 생성 오류: ${err.message}`);
@@ -355,7 +356,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
       }
 
       setSaveStatus('saved');
-      if (!isEditMode) router.replace(`/pfmea/register?id=${finalId}`);
+      if (!isEditMode) router.replace(`${registerBasePath}?id=${finalId}`);
 
       // ★ 개정 모드: 저장 후 기초정보 확인 화면 표시 (수정/사용 선택)
       if (isRevisionMode) {

@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import PFMEATopNav from '@/components/layout/PFMEATopNav';
+import DFMEATopNav from '@/components/layout/DFMEATopNav';
 import { FixedLayout } from '@/components/layout';
 import {
   StepBadge,
@@ -29,11 +29,11 @@ import { useAuth } from '@/hooks/useAuth';
 // =====================================================
 const CONFIG = {
   moduleName: 'DFMEA',
-  modulePrefix: 'pfm',
+  modulePrefix: 'dfm',
   themeColor: '#d97706',
   registerUrl: '/dfmea/register',
   worksheetUrl: '/dfmea/worksheet',
-  apiEndpoint: '/api/fmea/projects?type=F',
+  apiEndpoint: '/api/fmea/projects?type=D',
 };
 
 const PAGE_SIZE = 50;
@@ -137,9 +137,9 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
       <td className="px-0.5 py-0.5 text-center align-middle whitespace-nowrap text-[9px] text-gray-700">
         {(p.updatedAt || p.fmeaInfo?.updatedAt || p.createdAt || p.fmeaInfo?.createdAt || '')?.slice(0, 10) || '-'}
       </td>
-      {/* ★ Type 배지 (P/F/M) */}
+      {/* ★ Type 배지 (D/M/F/P) */}
       <td className="px-0.5 py-0.5 text-center align-middle whitespace-nowrap">
-        <TypeBadge typeCode={(p.fmeaType || extractTypeFromId(p.id, config.modulePrefix)) as 'P' | 'F' | 'M'} size="sm" />
+        <TypeBadge typeCode={(p.fmeaType || extractTypeFromId(p.id, config.modulePrefix)) as 'P' | 'F' | 'M' | 'D'} size="sm" />
       </td>
       <td className="px-[1px] py-0.5 text-center align-middle font-semibold text-blue-600 whitespace-nowrap">
         <Link href={`${config.registerUrl}?id=${p.id}`} prefetch={false} className="hover:underline text-[9px]">{formatId(p.id, index)}</Link>
@@ -553,7 +553,7 @@ export default function DFMEAListPage() {
 
   return (
     <FixedLayout
-      topNav={<PFMEATopNav selectedFmeaId={selectedProjectId} />}
+      topNav={<DFMEATopNav selectedFmeaId={selectedProjectId} />}
       topNavHeight={48}
       showSidebar={true}
       contentPadding="p-0"

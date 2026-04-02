@@ -9,8 +9,8 @@
 // FMEA 유형
 // =====================================================
 
-export type FMEAType = 'M' | 'F' | 'P';
-export type FMEASelectType = 'M' | 'F' | 'P' | 'ALL' | 'LOAD' | 'MF';
+export type FMEAType = 'M' | 'F' | 'P' | 'D';
+export type FMEASelectType = 'M' | 'F' | 'P' | 'D' | 'ALL' | 'LOAD' | 'MF';
 
 // =====================================================
 // FMEA 정보 인터페이스

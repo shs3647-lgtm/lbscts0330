@@ -11,6 +11,7 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
+import DFMEATopNav from '@/components/layout/DFMEATopNav';
 import FixedLayout from '@/components/layout/FixedLayout';
 import ImportModeMenuBar from './components/ImportModeMenuBar';
 import { useRouter, usePathname } from 'next/navigation';
@@ -23,10 +24,11 @@ function ImportLayoutContent({ children }: { children: React.ReactNode }) {
 
   // URL 경로에서 현재 모드 판단
   const activeMode: 'manual' | 'legacy' = pathname?.includes('/manual') ? 'manual' : 'legacy';
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
 
   return (
     <FixedLayout
-      topNav={<PFMEATopNav selectedFmeaId={selectedFmeaId} />}
+      topNav={isDfmea ? <DFMEATopNav selectedFmeaId={selectedFmeaId} /> : <PFMEATopNav selectedFmeaId={selectedFmeaId} />}
       topNavHeight={48}
       showSidebar={true}
       contentPadding="px-3 py-3"

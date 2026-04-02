@@ -15,9 +15,10 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
+import DFMEATopNav from '@/components/layout/DFMEATopNav';
 import { SidebarRouter } from '@/components/layout';
 
 // 모듈화된 상수, hooks
@@ -86,6 +87,8 @@ const CPTab = dynamic(() => import('./tabs/cp').then(mod => mod.CPTab), { ssr: f
 function FMEAWorksheetPageContent() {
   const router = useRouter();
   const urlParams = useSearchParams();
+  const wsPathname = usePathname();
+  const isDfmea = wsPathname?.includes('/dfmea/') ?? false;
   const compareEmbed = urlParams.get('compareEmbed') === '1';
   const compareReadonly = urlParams.get('readonly') === '1';
   const compareSide = (urlParams.get('compareSide') as 'left' | 'right' | null) || null;
@@ -671,7 +674,7 @@ function FMEAWorksheetPageContent() {
         <>
           <SidebarRouter />
           <div className="fixed h-screen z-40 bg-white" style={{ left: 48, width: 5 }} /> {/* 사이드바 구분선 */}
-          <PFMEATopNav selectedFmeaId={currentFmea?.id} linkedCpNo={linkedCpNo} linkedPfdNo={linkedPfdNo} />
+          {isDfmea ? <DFMEATopNav selectedFmeaId={currentFmea?.id} /> : <PFMEATopNav selectedFmeaId={currentFmea?.id} linkedCpNo={linkedCpNo} linkedPfdNo={linkedPfdNo} />}
         </>
       )}
 
