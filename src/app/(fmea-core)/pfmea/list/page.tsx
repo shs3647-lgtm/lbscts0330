@@ -128,6 +128,7 @@ const PFMEAListRow = React.memo(function PFMEAListRow({
       className={`hover:bg-blue-50 cursor-pointer transition-colors ${index % 2 === 0 ? 'bg-[#e3f2fd]' : 'bg-white'} ${isSelected ? 'bg-blue-100' : ''} ${isDeleted ? 'opacity-50' : ''}`}
       style={{ height: `${ROW_HEIGHT}px` }}
       onClick={() => onToggle(p.id)}
+      onDoubleClick={() => { window.location.href = `${config.worksheetUrl}?id=${p.id}`; }}
     >
       <td className="p-0 text-center align-middle" style={{ width: '2.5%' }}>
         <input type="checkbox" checked={isSelected} onChange={() => onToggle(p.id)} onClick={e => e.stopPropagation()} className="w-4 h-4 cursor-pointer" />

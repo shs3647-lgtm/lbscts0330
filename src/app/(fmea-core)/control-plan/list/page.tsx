@@ -123,7 +123,8 @@ const CPListRow = React.memo(function CPListRow({
 }: CPListRowProps) {
   return (
     <tr className={`hover:bg-blue-50 cursor-pointer transition-colors ${globalIndex % 2 === 0 ? 'bg-blue-50/50' : 'bg-white'} ${isSelected ? 'bg-blue-100' : ''}`}
-      style={{ height: 28 }} onClick={() => onToggle(p.id)}>
+      style={{ height: 28 }} onClick={() => onToggle(p.id)}
+      onDoubleClick={() => { window.location.href = `${CONFIG.worksheetUrl}?cpNo=${p.id.toLowerCase()}`; }}>
       <td className="px-1 py-0.5 text-center align-middle"><input type="checkbox" checked={isSelected} onChange={() => onToggle(p.id)} onClick={e => e.stopPropagation()} className="w-3.5 h-3.5" /></td>
       <td className="px-1 py-0.5 text-center align-middle font-bold text-blue-700 whitespace-nowrap">{globalIndex + 1}</td>
       <td className="px-0.5 py-0.5 text-center align-middle whitespace-nowrap text-[9px] text-gray-700">
