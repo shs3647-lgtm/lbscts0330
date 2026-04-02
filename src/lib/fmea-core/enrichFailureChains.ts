@@ -213,7 +213,26 @@ export function buildFmToL2Map(
         });
       }
 
-      // ★★★ 2026-03-21 FIX: FK-only — first-function fallback 삭제, productCharId FK 매칭만. 실패시 빈 문자열
+      // 위치기반 UUID: PPC.l2StructId ≠ L2Structure.id 불일치 시
+      // FM.productCharId(L2-R{n}-C5)와 productChars[].id(L2-R{n}-C4)의 행 접두사가 동일하면 매칭
+      if (!processFunction && fm.productCharId) {
+        const pcRowMatch = fm.productCharId.match(/^(L[12]-R\d+)-C\d+$/);
+        if (pcRowMatch) {
+          const rowPrefix = pcRowMatch[1];
+          for (const fn of (proc.functions || [])) {
+            if (processFunction) break;
+            for (const pc of (fn.productChars || [])) {
+              const fnPcMatch = pc.id?.match(/^(L[12]-R\d+)-C\d+$/);
+              if (fnPcMatch && fnPcMatch[1] === rowPrefix) {
+                processFunction = fn.name || '';
+                productChar = pc.name || '';
+                productCharSC = pc.specialChar || '';
+                break;
+              }
+            }
+          }
+        }
+      }
 
       map.set(fm.id, {
         processFunction,
