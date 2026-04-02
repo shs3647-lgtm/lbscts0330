@@ -12,6 +12,8 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { createPortal } from 'react-dom';
 import ExcelJS from 'exceljs';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
@@ -52,6 +54,9 @@ export default function EPDeviceManager({
   cpNo,
   fmeaId,
 }: EPDeviceManagerProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   // CP NO가 유효한지 확인
   const hasValidCpNo = cpNo && cpNo !== '__NEW__';
 
@@ -287,7 +292,7 @@ export default function EPDeviceManager({
     // 컬럼 설정 (FMEA 양식과 동일한 구조)
     worksheet.columns = [
       { header: '공정번호', key: 'processNo', width: 15 },
-      { header: '공정명', key: 'processName', width: 30 },
+      { header: lb.l2Short, key: 'processName', width: 30 },
       { header: '구분', key: 'category', width: 15 },
       { header: '장치명', key: 'deviceName', width: 30 },
       { header: '기능/목적', key: 'purpose', width: 40 },
@@ -441,7 +446,7 @@ export default function EPDeviceManager({
         }
 
         if (newDevices.length === 0) {
-          alert('유효한 EP검사장치 데이터가 없습니다.\n\n헤더: 공정번호, 공정명, 구분, 장치명, 기능/목적');
+          alert(`유효한 EP검사장치 데이터가 없습니다.\n\n헤더: 공정번호, ${lb.l2Short}, 구분, 장치명, 기능/목적`);
           return;
         }
 
@@ -572,7 +577,7 @@ export default function EPDeviceManager({
           <div className="px-6 py-2">
             <input
               type="text"
-              placeholder="🔍 검색 (EP번호, 장치명, 공정명)"
+              placeholder={`🔍 검색 (EP번호, 장치명, ${lb.l2Short})`}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded text-sm w-[200px]"
@@ -633,7 +638,7 @@ export default function EPDeviceManager({
                     />
                   </th>
                   <th className="p-2 border border-white/30 w-[70px] text-center">공정번호</th>
-                  <th className="p-2 border border-white/30 w-[100px] text-center">공정명</th>
+                  <th className="p-2 border border-white/30 w-[100px] text-center">{lb.l2Short}</th>
                   <th className="p-2 border border-white/30 w-[220px] text-center">장치명</th>
                   <th className="p-2 border border-white/30 w-[80px] text-center">구분</th>
                   <th className="p-2 border border-white/30 text-center">기능/목적</th>

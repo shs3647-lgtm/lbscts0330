@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useRef, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { uid } from '../../../constants';
 import { ensurePlaceholder } from '../../../utils/safeMutate';
 import { findLinkedFunctionsForType, findLinkedRequirementsForFunction } from '../../../utils/auto-link';
@@ -78,6 +79,8 @@ export function useFunctionL1Handlers({
   fmeaId,
   showAlert,
 }: UseFunctionL1HandlersProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
   const _alert = showAlert || alert;
   const isConfirmed = state.l1Confirmed || false;
   const [isAutoMode, setIsAutoMode] = useState(false);
@@ -108,7 +111,7 @@ export function useFunctionL1Handlers({
   }, [saveAtomicDB]);
 
   // ✅ 누락 건수 계산
-  const missingCounts = calculateMissingCounts(state.l1?.types || [], isMissingUtil);
+  const missingCounts = calculateMissingCounts(state.l1?.types || [], isMissingUtil, isDfmea);
   const missingCount = missingCounts.total;
 
   // ★ 디버그: 누락 원인 추적 (missingCount > 0일 때만 출력)

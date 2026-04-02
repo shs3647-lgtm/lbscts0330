@@ -6,6 +6,8 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { WorksheetState } from '../constants';
 
 interface FailureLinkResultPanelProps {
@@ -28,6 +30,9 @@ export default function FailureLinkResultPanel({
   setDirty, 
   saveToLocalStorage 
 }: FailureLinkResultPanelProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const ui = (state as any).failureLinkUI || {};
   const { currentFMId, savedLinks = [], stats = { linkedFM: 0, totalFM: 0, totalLinks: 0 } } = ui;
   const resultLinks = currentFMId ? savedLinks.filter((l: any) => l.fmId === currentFMId) : [];
@@ -54,8 +59,8 @@ export default function FailureLinkResultPanel({
               <th className="bg-blue-100 py-0.5 text-center font-semibold border border-gray-300">FE</th>
               <th className="bg-blue-100 py-0.5 text-center font-semibold border border-gray-300">S</th>
               <th className="bg-amber-100 py-0.5 text-center font-semibold border border-gray-300">FM</th>
-              <th className="bg-green-100 py-0.5 text-center font-semibold border border-gray-300">4M</th>
-              <th className="bg-green-100 py-0.5 text-center font-semibold border border-gray-300">작업요소</th>
+              <th className="bg-green-100 py-0.5 text-center font-semibold border border-gray-300">{lb.l3Attr}</th>
+              <th className="bg-green-100 py-0.5 text-center font-semibold border border-gray-300">{lb.l3Short}</th>
               <th className="bg-green-100 py-0.5 text-center font-semibold border border-gray-300">FC</th>
             </tr>
           </thead>

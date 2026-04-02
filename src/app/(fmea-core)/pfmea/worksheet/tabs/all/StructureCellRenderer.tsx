@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { usePathname } from 'next/navigation';
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, GROUP_DIVIDER } from './allTabConstants';
 
 interface ColumnDef {
   id: number;
@@ -45,6 +45,7 @@ interface StructureCellRendererProps {
   l1ProductName?: string;
   isCompact?: boolean;
   merged?: { fe: boolean; fc: boolean; fm: boolean };
+  groupFirstIds?: number[];
 }
 
 export const StructureCellRenderer = React.memo(function StructureCellRendererInner({
@@ -58,12 +59,18 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
   l1ProductName,
   isCompact,
   merged,
+  groupFirstIds,
 }: StructureCellRendererProps): React.ReactElement | null {
   const pathname = usePathname();
   const isDfmea = pathname?.includes('/dfmea/') ?? false;
-  // ★ 2026-01-11: 셀 스타일 최적화 + 단계 구분선 + compact 모드
   const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
+  const isGroupFirst = groupFirstIds?.includes(col.id) ?? false;
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
+  const leftBorder = isStepFirst
+    ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}`
+    : isGroupFirst
+      ? `${GROUP_DIVIDER.borderWidth} ${GROUP_DIVIDER.borderStyle} ${GROUP_DIVIDER.borderColor}`
+      : '1px solid #ccc';
   const cellStyle = (rowSpan: number, useGlobalIdx = false) => ({
     background: (useGlobalIdx ? globalRowIdx : fmIdx) % 2 === 0 ? col.cellColor : col.cellAltColor,
     height: isCompact ? undefined : `${HEIGHTS.body}px`,
@@ -72,7 +79,7 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
     borderTop: '1px solid #ccc',
     borderRight: '1px solid #ccc',
     borderBottom: '1px solid #ccc',
-    borderLeft: isStepFirst ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}` : '1px solid #ccc',
+    borderLeft: leftBorder,
     fontSize: cs.fontSize,
     lineHeight: cs.lineHeight,
     textAlign: col.align,

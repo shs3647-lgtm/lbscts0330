@@ -8,14 +8,16 @@
  * - 3행: 컬럼명 (소분류)
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useLocale } from '@/lib/locale';
+import { usePathname } from 'next/navigation';
 import { blText, getBilingualEntry } from '@/lib/bilingual-labels';
 import { MENU_DICT } from '@/lib/locale-dict';
 import {
   STEP_LABELS, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS,
   COMPACT_FONT, HEIGHTS, COMPACT_HEIGHTS,
   ColumnDef, StepSpan, GroupSpan,
+  GROUP_DIVIDER, getGroupFirstColumnIds, DFMEA_STEP_COLORS, STEP_COLORS,
 } from './allTabConstants';
 
 // ★ 3행 헤더 축약 매핑 (KO 축약명 + EN 축약명)
@@ -186,6 +188,10 @@ export default function AllTabHeader({
   scrollToMissing,
 }: AllTabHeaderProps) {
   const { locale, t } = useLocale();
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const groupFirstIds = useMemo(() => getGroupFirstColumnIds(columns), [columns]);
+  const stepColors = isDfmea ? DFMEA_STEP_COLORS : STEP_COLORS;
 
   /** H/M/L 배지 클릭 → 현재 화면 아래의 다음 항목으로 스크롤 (마지막이면 처음으로) */
   const scrollToAP = (level: 'H' | 'M' | 'L', step: '5st' | '6st') => {
@@ -220,7 +226,7 @@ export default function AllTabHeader({
             colSpan={span.colSpan}
             data-step-num={stepNumMap[span.step] || 0}
             style={{
-              background: span.color, color: '#fff',
+              background: stepColors[span.step] || span.color, color: '#fff',
               height: `${hHeights.header1}px`, padding: isCompact ? '2px 3px' : '4px 8px',
               borderTop: '1px solid #ccc', borderRight: '1px solid #ccc', borderBottom: '1px solid #ccc',
               borderLeft: `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}`,
@@ -412,12 +418,18 @@ export default function AllTabHeader({
       <tr>
         {groupSpans.map((span, idx) => {
           const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(span.startColId);
+          const isGroupFirst = groupFirstIds.includes(span.startColId);
+          const leftBorder = isStepFirst
+            ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}`
+            : isGroupFirst
+              ? `${GROUP_DIVIDER.borderWidth} ${GROUP_DIVIDER.borderStyle} ${GROUP_DIVIDER.borderColor}`
+              : '1px solid #ccc';
           return (
             <th key={idx} colSpan={span.colSpan} style={{
               background: span.color, color: span.isDark ? '#fff' : '#000',
               height: `${hHeights.header2}px`, padding: isCompact ? '0px 2px' : '0px 4px',
               borderTop: '1px solid #ccc', borderRight: '1px solid #ccc', borderBottom: '1px solid #ccc',
-              borderLeft: isStepFirst ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}` : '1px solid #ccc',
+              borderLeft: leftBorder,
               fontWeight: 600, fontSize: hFont?.header2 || '10px', textAlign: 'center',
               whiteSpace: 'nowrap', lineHeight: 1,
             }}>
@@ -431,7 +443,13 @@ export default function AllTabHeader({
       <tr>
         {columns.map((col, idx) => {
           const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
+          const isGroupFirst = groupFirstIds.includes(col.id);
           const isNarrow = col.width <= 80;
+          const leftBorder = isStepFirst
+            ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}`
+            : isGroupFirst
+              ? `${GROUP_DIVIDER.borderWidth} ${GROUP_DIVIDER.borderStyle} ${GROUP_DIVIDER.borderColor}`
+              : '1px solid #ccc';
           return (
             <th key={idx} style={{
               background: col.isDark ? col.headerColor : col.cellAltColor,
@@ -439,7 +457,7 @@ export default function AllTabHeader({
               height: `${hHeights.header3}px`, padding: '1px 1px',
               borderTop: '1px solid #ccc', borderRight: '1px solid #ccc',
               borderBottom: '1px solid #ccc', boxShadow: 'inset 0 -2px 0 #2196f3',
-              borderLeft: isStepFirst ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}` : '1px solid #ccc',
+              borderLeft: leftBorder,
               fontWeight: 600, fontSize: isNarrow ? '9px' : (hFont?.header3 || '10px'), textAlign: 'center',
               whiteSpace: isNarrow ? 'normal' : 'nowrap', lineHeight: 1.1,
               overflow: 'hidden',

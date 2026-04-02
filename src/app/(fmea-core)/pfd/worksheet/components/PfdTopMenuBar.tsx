@@ -150,14 +150,15 @@ export default function PfdTopMenuBar({
 
       <div className="hidden sm:block w-px h-5 bg-white/30 shrink-0" />
 
-      <div className="flex items-center gap-1 shrink-0">
+      {/* 설비/TOOL, 부품관리 배지 — 숨김 처리 (2026-04-03) */}
+      {/* <div className="flex items-center gap-1 shrink-0">
         <button onClick={onManageEquipment} className="flex items-center gap-1 px-2 py-1 bg-cyan-600 text-white rounded border border-cyan-400/50 text-[10px] hover:bg-cyan-500 transition-all font-medium whitespace-nowrap" title="Equipment/TOOL Management">
           <span>🔧 설비/TOOL(Equipment)</span>
         </button>
         <button onClick={onManageParts} className="flex items-center gap-1 px-2 py-1 bg-emerald-600 text-white rounded border border-emerald-400/50 text-[10px] hover:bg-emerald-500 transition-all font-medium whitespace-nowrap" title="Parts List Management">
           <span>📦 부품관리(Parts)</span>
         </button>
-      </div>
+      </div> */}
 
       <div className="hidden sm:block w-px h-5 bg-white/30 shrink-0" />
 

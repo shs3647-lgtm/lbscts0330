@@ -18,13 +18,13 @@ interface FailureScopeWithFmId {
   fmId?: string;
   severity?: number | string;
 }
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_NA } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_NA, GROUP_DIVIDER } from './allTabConstants';
 
 // =====================================================
 // 스타일 유틸
 // =====================================================
 
-/** 셀 스타일 생성 */
+/** 셀 스타일 생성 — groupFirstIds를 전달하면 그룹 경계에 중간 굵기 구분선 적용 */
 export const getCellStyle = (
   globalRowIdx: number,
   cellColor: string,
@@ -32,10 +32,17 @@ export const getCellStyle = (
   align: 'left' | 'center' | 'right',
   isClickable = false,
   colId = 0,
-  isCompact = false
+  isCompact = false,
+  groupFirstIds?: number[],
 ) => {
   const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(colId);
+  const isGroupFirst = groupFirstIds?.includes(colId) ?? false;
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
+  const leftBorder = isStepFirst
+    ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}`
+    : isGroupFirst
+      ? `${GROUP_DIVIDER.borderWidth} ${GROUP_DIVIDER.borderStyle} ${GROUP_DIVIDER.borderColor}`
+      : '1px solid #ccc';
   return {
     background: globalRowIdx % 2 === 0 ? cellColor : cellAltColor,
     height: isCompact ? undefined : `${HEIGHTS.body}px`,
@@ -44,7 +51,7 @@ export const getCellStyle = (
     borderTop: '1px solid #ccc',
     borderRight: '1px solid #ccc',
     borderBottom: '1px solid #ccc',
-    borderLeft: isStepFirst ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}` : '1px solid #ccc',
+    borderLeft: leftBorder,
     fontSize: cs.fontSize,
     lineHeight: cs.lineHeight,
     textAlign: align,

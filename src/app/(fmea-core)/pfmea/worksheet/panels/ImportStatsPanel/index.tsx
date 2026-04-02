@@ -7,6 +7,8 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import type { WorksheetState } from '../../constants';
 
 interface Props {
@@ -33,7 +35,8 @@ function countUnique(arr: string[]): number {
   return new Set(arr.filter(v => v.trim())).size;
 }
 
-function computeStats(state: WorksheetState): { rows: StatRow[]; c1Details: C1Detail[] } {
+function computeStats(state: WorksheetState, isDfmea = false): { rows: StatRow[]; c1Details: C1Detail[] } {
+  const lb = getFmeaLabels(isDfmea);
   const l2 = state.l2 || [];
   const l1 = state.l1;
 
@@ -69,18 +72,18 @@ function computeStats(state: WorksheetState): { rows: StatRow[]; c1Details: C1De
 
   const rows: StatRow[] = [
     mk('L2', 'A1', '공정번호', a1Vals),
-    mk('L2', 'A2', '공정명', a2Vals),
-    mk('L2', 'A3', '공정기능', a3Vals),
+    mk('L2', 'A2', lb.l2Short, a2Vals),
+    mk('L2', 'A3', lb.l2Func, a3Vals),
     mk('L2', 'A4', '제품특성', a4Vals),
     mk('L2', 'A5', '고장형태', a5Vals),
     mk('L2', 'A6', '검출관리', a6Vals),
-    mk('L3', 'B1', '작업요소', b1Vals),
-    mk('L3', 'B2', '요소기능', b2Vals),
-    mk('L3', 'B3', '공정특성', b3Vals),
+    mk('L3', 'B1', lb.l3Short, b1Vals),
+    mk('L3', 'B2', lb.l3Func, b2Vals),
+    mk('L3', 'B3', lb.l3Char, b3Vals),
     mk('L3', 'B4', '고장원인', b4Vals),
     mk('L3', 'B5', '예방관리', b5Vals),
     mk('L1', 'C1', '구분', c1Vals),
-    mk('L1', 'C2', '제품기능', c2Vals),
+    mk('L1', 'C2', lb.l1Func, c2Vals),
     mk('L1', 'C3', '요구사항', c3Vals),
     mk('L1', 'C4', '고장영향', c4Vals),
   ];
@@ -97,8 +100,10 @@ function computeStats(state: WorksheetState): { rows: StatRow[]; c1Details: C1De
 }
 
 export default function ImportStatsPanel({ state }: Props) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
   const [showC1, setShowC1] = useState(true);
-  const { rows, c1Details } = useMemo(() => computeStats(state), [state]);
+  const { rows, c1Details } = useMemo(() => computeStats(state, isDfmea), [state, isDfmea]);
 
   const totalRaw = rows.reduce((s, r) => s + r.raw, 0);
   const totalUnique = rows.reduce((s, r) => s + r.unique, 0);

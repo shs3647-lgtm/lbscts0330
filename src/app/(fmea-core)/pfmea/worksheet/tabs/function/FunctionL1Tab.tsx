@@ -17,6 +17,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { FunctionTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import { GenericItemSelectModal } from '../../GenericItemSelectModal';
@@ -54,7 +55,7 @@ type L1RowType = 'type' | 'function' | 'requirement';
 // ✅ 공용 스타일/유틸리티 (2026-01-19 리팩토링)
 import { FunctionL1Header } from '../shared/FunctionL1Header';
 import { scrollToFirstMissingRow } from '../shared/scrollToMissing';
-import { normalizeScope } from '@/lib/fmea/scope-constants';
+import { normalizeScope, getRequiredScopes } from '@/lib/fmea/scope-constants';
 
 const getTypeColor = getL1TypeColor;
 
@@ -68,6 +69,7 @@ function normalizeCategoryToProcessNo(cat?: string): string | undefined {
 export default function FunctionL1Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId }: FunctionTabProps) {
   const l1Pathname = usePathname();
   const isDfmea = l1Pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   // ★ 기존 DataSelectModal용 모달 상태 (C1 구분 선택용)
   const [modal, setModal] = useState<{ type: string; id: string; title: string; itemCode: string; funcId?: string; reqId?: string; parentFunction?: string; parentCategory?: string } | null>(null);
   
@@ -523,28 +525,28 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
     setTimeout(() => setToast(null), 2500);
   }, [menuExtra, setState, setStateSynced, setDirty, saveToLocalStorage]);
 
-  // ★ L1 types가 비어있으면 YP/SP/USER 3행 기본 보장 (렌더링 안전장치)
+  // ★ L1 types가 비어있으면 필수 구분 기본 보장 (PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능)
+  const requiredScopes = useMemo(() => getRequiredScopes(isDfmea), [isDfmea]);
   const DEFAULT_L1_TYPES = useMemo(() => {
     const ts = Date.now();
-    return [
-      { id: `def-yp-${ts}`, name: 'YP', functions: [{ id: `def-func-yp-${ts}`, name: '', requirements: [] }] },
-      { id: `def-sp-${ts}`, name: 'SP', functions: [{ id: `def-func-sp-${ts}`, name: '', requirements: [] }] },
-      { id: `def-user-${ts}`, name: 'USER', functions: [{ id: `def-func-user-${ts}`, name: '', requirements: [] }] },
-    ];
-  }, []);
+    return requiredScopes.map((scope, i) => ({
+      id: `def-${scope}-${ts}`,
+      name: scope,
+      functions: [{ id: `def-func-${scope}-${ts}`, name: '', requirements: [] }],
+    }));
+  }, [requiredScopes]);
 
-  // ★ 2026-03-30: YP/SP/USER 누락 시 실제 state에 추가 + DB 저장
+  // ★ 2026-03-30: 필수 구분 누락 시 실제 state에 추가 + DB 저장
   // useMemo(표시용)가 아니라 useEffect(실제 반영)로 처리
   const l1TypesFixedRef = useRef(false);
   useEffect(() => {
     const types = state.l1?.types || [];
-    const REQUIRED_CATEGORIES = ['YP', 'SP', 'USER'];
-    const existingNames = new Set(types.map((t: any) => (t.name || '').toUpperCase().trim()));
-    const missing = REQUIRED_CATEGORIES.filter(cat => !existingNames.has(cat));
+    const existingNames = new Set(types.map((t: any) => (t.name || '').trim()));
+    const missing = requiredScopes.filter(cat => !existingNames.has(cat));
     if (missing.length === 0 || l1TypesFixedRef.current) return;
     l1TypesFixedRef.current = true;
 
-    const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
+    const CATEGORY_ORDER: Record<string, number> = Object.fromEntries(requiredScopes.map((s, i) => [s, i]));
     const updateFn = (prev: WorksheetState) => {
       const newState = JSON.parse(JSON.stringify(prev));
       if (!newState.l1) newState.l1 = { name: '', types: [] };
@@ -559,7 +561,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
           });
         }
       }
-      const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 99;
+      const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').trim()] ?? CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 99;
       currentTypes.sort((a: any, b: any) => getOrder(a) - getOrder(b));
       newState.l1.types = currentTypes;
       return newState;
@@ -783,11 +785,11 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
             }
           })()}
           config={l1FuncModal.type === 'C2' ? {
-            title: '완제품기능(C2) 선택',
+            title: `${lb.l1Func}(C2) 선택`,
             emoji: '📋',
             headerGradient: 'from-purple-500 to-purple-600',
             headerAccent: 'text-purple-200',
-            searchPlaceholder: '🔍 완제품기능 검색 또는 새 항목 입력...',
+            searchPlaceholder: `🔍 ${lb.l1Func} 검색 또는 새 항목 입력...`,
             searchRingColor: 'focus:ring-purple-500',
             searchBgGradient: 'from-purple-50 to-violet-50',
             parentLabel: '구분:',
@@ -897,7 +899,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
           return (
             <tr key={t.id} style={{ background: isHighlighted ? '#FFFDE7' : funcZebraBg, outline: isHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
               <td rowSpan={typeRowSpan} className="border border-[#ccc] p-1 text-center font-semibold text-[10px] break-words align-middle" style={{ background: typeZebra }}>
-                {formatL1Name(state.l1?.name)}
+                {formatL1Name(state.l1?.name, isDfmea)}
               </td>
               <td rowSpan={typeRowSpan} className="border border-[#ccc] px-0.5 py-1 align-middle text-center font-bold cursor-pointer hover:bg-opacity-80" style={{ background: getTypeColor(t.name).light, color: getTypeColor(t.name).text, fontSize: 'clamp(9px, 2.5vw, 11px)', lineHeight: 1.2 }} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
                 {getTypeColor(t.name).short || t.name || '(빈 타입)'}
@@ -933,7 +935,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
               <tr key={f.id} style={{ background: isFuncHighlighted ? '#FFFDE7' : funcBlockZebra, outline: isFuncHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
                 {fIdx === 0 && (
                   <td rowSpan={typeRowSpan} className="border border-[#ccc] p-1 text-center font-semibold text-[10px] break-words align-middle" style={{ background: typeZebra }}>
-                    {formatL1Name(state.l1?.name)}
+                    {formatL1Name(state.l1?.name, isDfmea)}
                   </td>
                 )}
                 {fIdx === 0 && (
@@ -962,7 +964,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
               <tr key={r.id} style={{ background: isReqHighlighted ? '#FFFDE7' : funcBlockZebra, outline: isReqHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, f.id, r.id)}>
                 {fIdx === 0 && rIdx === 0 && (
                   <td rowSpan={typeRowSpan} className="border border-[#ccc] p-1 text-center font-semibold text-[10px] break-words align-middle" style={{ background: typeZebra }}>
-                    {formatL1Name(state.l1?.name)}
+                    {formatL1Name(state.l1?.name, isDfmea)}
                   </td>
                 )}
                 {fIdx === 0 && rIdx === 0 && (

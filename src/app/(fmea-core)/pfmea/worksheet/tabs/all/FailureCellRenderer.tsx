@@ -7,7 +7,7 @@
 'use client';
 
 import React from 'react';
-import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, getDynamicAlign, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED } from './allTabConstants';
+import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, getDynamicAlign, COMPACT_CELL_STYLE, COMPACT_HEIGHTS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED, GROUP_DIVIDER } from './allTabConstants';
 import { normalizeScope, SCOPE_YP, SCOPE_SP } from '@/lib/fmea/scope-constants';
 
 interface ColumnDef {
@@ -76,15 +76,15 @@ interface FailureCellRendererProps {
   onNavigateToFailureLink?: (fmId: string) => void;
   isCompact?: boolean;
   merged?: { fe: boolean; fc: boolean; fm: boolean };
+  groupFirstIds?: number[];
 }
 
-// ★ 성능 최적화: 콜백(handleSODClick 등) 참조 변경은 무시, 데이터 props만 비교
 function areFailurePropsEqual(prev: FailureCellRendererProps, next: FailureCellRendererProps): boolean {
   return prev.col === next.col && prev.colIdx === next.colIdx &&
     prev.fmGroup === next.fmGroup && prev.fmIdx === next.fmIdx &&
     prev.row === next.row && prev.rowInFM === next.rowInFM &&
     prev.globalRowIdx === next.globalRowIdx && prev.isCompact === next.isCompact &&
-    prev.merged === next.merged;
+    prev.merged === next.merged && prev.groupFirstIds === next.groupFirstIds;
 }
 
 export const FailureCellRenderer = React.memo(function FailureCellRendererInner({
@@ -99,10 +99,16 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
   onNavigateToFailureLink,
   isCompact,
   merged,
+  groupFirstIds,
 }: FailureCellRendererProps): React.ReactElement | null {
-  // ★ 2026-01-11: 셀 스타일 최적화 + 단계 구분선 + compact 모드
   const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
+  const isGroupFirst = groupFirstIds?.includes(col.id) ?? false;
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
+  const leftBorder = isStepFirst
+    ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}`
+    : isGroupFirst
+      ? `${GROUP_DIVIDER.borderWidth} ${GROUP_DIVIDER.borderStyle} ${GROUP_DIVIDER.borderColor}`
+      : '1px solid #ccc';
   const cellStyle = (rowSpan: number, useGlobalIdx = false) => ({
     background: (useGlobalIdx ? globalRowIdx : fmIdx) % 2 === 0 ? col.cellColor : col.cellAltColor,
     height: isCompact ? undefined : `${HEIGHTS.body}px`,
@@ -111,7 +117,7 @@ export const FailureCellRenderer = React.memo(function FailureCellRendererInner(
     borderTop: '1px solid #ccc',
     borderRight: '1px solid #ccc',
     borderBottom: '1px solid #ccc',
-    borderLeft: isStepFirst ? `${STEP_DIVIDER.borderWidth} ${STEP_DIVIDER.borderStyle} ${STEP_DIVIDER.borderColor}` : '1px solid #ccc',
+    borderLeft: leftBorder,
     fontSize: cs.fontSize,
     lineHeight: cs.lineHeight,
     overflow: 'hidden' as const,

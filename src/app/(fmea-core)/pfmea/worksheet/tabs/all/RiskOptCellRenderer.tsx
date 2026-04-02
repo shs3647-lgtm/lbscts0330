@@ -91,12 +91,12 @@ export const RiskOptCellRenderer = React.memo(function RiskOptCellRendererInner(
   openLldModal, openUserModal, openDateModal, onOpenSpecialChar, fmeaRevisionDate,
   isCompact,
   optIdx = 0, optCount = 1, baseFcRowSpan, onAddOptRow, onRemoveOptRow,
+  groupFirstIds,
 }: RiskOptCellRendererProps): React.ReactElement | null {
   const targetType = col.step === '리스크분석' ? 'risk' : 'opt';
   const stage = col.step === '리스크분석' ? 5 : 6;
-  // ★ fcId 빈값 방어: FMGroupRows와 동일한 키 패턴 (fmId-r{rowInFM})
   const uniqueKey = fmId && fcId ? `${fmId}-${fcId}` : (fmId ? `${fmId}-r${rowInFM}` : `r${globalRowIdx}`);
-  const style = getCellStyle(globalRowIdx, col.cellColor, col.cellAltColor, col.align, true, col.id, isCompact);
+  const style = getCellStyle(globalRowIdx, col.cellColor, col.cellAltColor, col.align, true, col.id, isCompact, groupFirstIds);
 
   // ★ 최적화 재평가 SOD 자동 동기화 — 의존성 좁히기 (state?.riskData → 특정 키만)
   // 95% 셀에서 _needsSync=false → deps 불변 → useEffect 발동 안 함

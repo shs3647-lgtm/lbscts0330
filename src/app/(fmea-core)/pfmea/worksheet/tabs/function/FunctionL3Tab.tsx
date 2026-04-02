@@ -435,7 +435,7 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
       const isPlaceholder = !charName || charName === PLACEHOLDER_TEXT;
 
       // 실제 데이터만 confirm 필요 (placeholder는 바로 삭제)
-      if (!isPlaceholder && !window.confirm(`공정특성 "${charName}"을(를) 삭제하시겠습니까?`)) return;
+      if (!isPlaceholder && !window.confirm(`${lb.l3Char} "${charName}"을(를) 삭제하시겠습니까?`)) return;
 
       const deleteCharId = charId;
       const updateFn = (prev: WorksheetState) => {
@@ -542,8 +542,8 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
           onConfirm={handleConfirm}
           onEdit={handleEdit}
           stepLabel="3L 기능분석"
-          primaryLabel="작업요소기능"
-          secondaryLabel="공정특성"
+          primaryLabel={lb.l3Func}
+          secondaryLabel={lb.l3Char}
           showSecondary={true}
           isAutoMode={isAutoMode}
           onToggleMode={handleToggleMode}
@@ -667,24 +667,24 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
             return [];
           })()}
           config={modal.itemCode === 'B2' ? {
-            title: '작업요소기능(B2) 선택',
+            title: `${lb.l3Func}(B2) 선택`,
             emoji: '🔧',
             headerGradient: 'from-teal-500 to-cyan-600',
             headerAccent: 'text-teal-200',
-            searchPlaceholder: '🔍 작업요소기능 검색 또는 새 항목 입력...',
+            searchPlaceholder: `🔍 ${lb.l3Func} 검색 또는 새 항목 입력...`,
             searchRingColor: 'focus:ring-teal-500',
             searchBgGradient: 'from-teal-50 to-cyan-50',
-            parentLabel: '작업요소:',
+            parentLabel: `${lb.l3Short}:`,
             parentValue: modal.workElementName || '',
           } : {
-            title: '공정특성(B3) 선택',
+            title: `${lb.l3Char}(B3) 선택`,
             emoji: '📊',
             headerGradient: 'from-orange-500 to-amber-600',
             headerAccent: 'text-orange-200',
-            searchPlaceholder: '🔍 공정특성 검색 또는 새 항목 입력...',
+            searchPlaceholder: `🔍 ${lb.l3Char} 검색 또는 새 항목 입력...`,
             searchRingColor: 'focus:ring-orange-500',
             searchBgGradient: 'from-orange-50 to-amber-50',
-            parentLabel: '작업요소:',
+            parentLabel: `${lb.l3Short}:`,
             parentValue: modal.workElementName || '',
           }}
         />

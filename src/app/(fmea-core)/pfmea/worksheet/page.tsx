@@ -454,7 +454,7 @@ function FMEAWorksheetPageContent() {
             const partFromSubject = rawSubject.includes('+') ? rawSubject.split('+')[0].trim() : rawSubject.trim();
             const baseName = rawPartName || partFromSubject || '';
             if (baseName && baseName !== '품명' && baseName !== '품명+PFMEA' && baseName !== '품명+DFMEA') {
-              projectL1Name = `${baseName}+생산공정`;
+              projectL1Name = isDfmea ? baseName : `${baseName}+생산공정`;
             }
           }
         } catch (e) { /* ignore */ }
@@ -709,22 +709,22 @@ function FMEAWorksheetPageContent() {
                 handleStructureExport();
               } else if (state.tab === 'function-l1') {
                 const { exportFunctionL1 } = await import('./excel-export');
-                await exportFunctionL1(state, fmeaName, false);
+                await exportFunctionL1(state, fmeaName, false, isDfmea);
               } else if (state.tab === 'failure-l1') {
                 const { exportFunctionL1 } = await import('./excel-export');
-                await exportFunctionL1(state, fmeaName, true);
+                await exportFunctionL1(state, fmeaName, true, isDfmea);
               } else if (state.tab === 'function-l2') {
                 const { exportFunctionL2 } = await import('./excel-export');
-                await exportFunctionL2(state, fmeaName, false);
+                await exportFunctionL2(state, fmeaName, false, isDfmea);
               } else if (state.tab === 'failure-l2') {
                 const { exportFunctionL2 } = await import('./excel-export');
-                await exportFunctionL2(state, fmeaName, true);
+                await exportFunctionL2(state, fmeaName, true, isDfmea);
               } else if (state.tab === 'function-l3') {
                 const { exportFunctionL3 } = await import('./excel-export');
-                await exportFunctionL3(state, fmeaName, false);
+                await exportFunctionL3(state, fmeaName, false, isDfmea);
               } else if (state.tab === 'failure-l3') {
                 const { exportFunctionL3 } = await import('./excel-export');
-                await exportFunctionL3(state, fmeaName, true);
+                await exportFunctionL3(state, fmeaName, true, isDfmea);
               } else if (state.tab === 'linkage') {
                 const { exportLinkageExcel } = await import('./excel-export-linkage');
                 await exportLinkageExcel(state, fmeaName);
@@ -733,7 +733,7 @@ function FMEAWorksheetPageContent() {
                 await handleWorksheetExport('all');
               } else {
                 const { exportFMEAWorksheet } = await import('./excel-export');
-                await exportFMEAWorksheet(state, fmeaName);
+                await exportFMEAWorksheet(state, fmeaName, isDfmea);
               }
             } catch (err) {
               console.error('[엑셀 내보내기 오류]', err);

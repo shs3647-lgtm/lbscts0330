@@ -29,6 +29,8 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import { GenericItemSelectModal } from '../../GenericItemSelectModal';
@@ -76,6 +78,9 @@ const FAIL_COLORS = {
 };
 
 export default function FailureL3Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, customerName, importCounts }: FailureTabProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const { alertProps, showAlert } = useAlertModal();
   const [modal, setModal] = useState<{
     type: string;
@@ -489,7 +494,7 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
       const charIds = new Set<string>();
       (we?.functions || []).forEach((f: any) => (f.processChars || []).forEach((pc: any) => { if (pc.id) charIds.add(pc.id); }));
       const linkedCount = (proc.failureCauses || []).filter((c: any) => charIds.has(c.processCharId)).length;
-      const label = weName ? `작업요소 "${weName}"` : '이 작업요소';
+      const label = weName ? `${lb.l3Short} "${weName}"` : `이 ${lb.l3Short}`;
       const msg = linkedCount > 0 ? `${label} 및 연결된 고장원인 ${linkedCount}건을 삭제하시겠습니까?` : `${label}을(를) 삭제하시겠습니까?`;
       if (!window.confirm(msg)) return;
 
@@ -890,10 +895,10 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
               return (
                 <tr>
                   <td className="border border-[#ccc] p-2.5 text-center font-semibold align-middle" style={{ background: zebra.structure }}>
-                    {!isUpstreamConfirmed ? '⚠️ 기능분석(3L) 확정 필요' : '(구조분석에서 공정 입력)'}
+                    {!isUpstreamConfirmed ? '⚠️ 기능분석(3L) 확정 필요' : `(구조분석에서 ${lb.l2Short} 입력)`}
                   </td>
                   <td className="border border-[#ccc] p-2.5 text-center font-semibold align-middle" style={{ background: zebra.structure }}>
-                    {!isUpstreamConfirmed ? '하위 단계는 상위 단계 확정 후 활성화됩니다.' : '(작업요소 입력)'}
+                    {!isUpstreamConfirmed ? '하위 단계는 상위 단계 확정 후 활성화됩니다.' : `(${lb.l3Short} 입력)`}
                   </td>
                   <td className="border border-[#ccc] p-2.5 text-center align-middle" style={{ background: zebra.function }}>
                     {!isUpstreamConfirmed ? '-' : '(기능분석에서 입력)'}

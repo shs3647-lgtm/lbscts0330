@@ -23,6 +23,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { uid, WorksheetState } from '../../constants';
 import { ensurePlaceholder } from '../../utils/safeMutate';
 import { FunctionTabProps } from './types';
@@ -72,6 +74,9 @@ type L2ProductCharModal = {
 };
 
 export default function FunctionL2Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, customerName, importCounts }: FunctionTabProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [modal, setModal] = useState<L2ProductCharModal | null>(null);
   const [l2FuncModal, setL2FuncModal] = useState<{
     procId: string;
@@ -145,7 +150,7 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
         const processNo = String(proc?.no ?? '').trim();
         const processName = String(proc?.name ?? '').trim();
         if (!processNo) {
-          showAlert('구조분석에서 공정번호가 있는 공정만 메인공정기능 선택을 사용할 수 있습니다.');
+          showAlert(`구조분석에서 공정번호가 있는 ${lb.l2Short}만 ${lb.l2Func} 선택을 사용할 수 있습니다.`);
           return;
         }
         if (isConfirmed) {
@@ -851,11 +856,11 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
               .map((f: any) => ({ id: f.id, name: f.name })) ?? []
           }
           config={{
-            title: '메인공정기능(A3) 선택',
+            title: `${lb.l2Func}(A3) 선택`,
             emoji: '⚙️',
             headerGradient: 'from-amber-500 to-orange-600',
             headerAccent: 'text-amber-200',
-            searchPlaceholder: '🔍 메인공정기능 검색 또는 새 항목 입력...',
+            searchPlaceholder: `🔍 ${lb.l2Func} 검색 또는 새 항목 입력...`,
             searchRingColor: 'focus:ring-amber-500',
             searchBgGradient: 'from-amber-50 to-orange-50',
             parentLabel: '공정:',
@@ -907,14 +912,17 @@ export default function FunctionL2Tab({ state, setState, setStateSynced, setDirt
 // ★★★ 2026-02-05: Row 컴포넌트 분리 ★★★
 
 function EmptyRowL2() {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const zebra = getZebraColors(0);
   return (
     <tr>
       <td className="border border-[#ccc] p-2.5 text-center font-semibold align-middle" style={{ background: zebra.structure }}>
-        (구조분석에서 공정 추가)
+        (구조분석에서 {lb.l2Short} 추가)
       </td>
       <td className={cellP0} style={{ background: zebra.function }}>
-        <SelectableCell value="" placeholder="공정기능 선택" bgColor={zebra.function} onClick={() => { }} />
+        <SelectableCell value="" placeholder={`${lb.l2Func} 선택`} bgColor={zebra.function} onClick={() => { }} />
       </td>
       <td className={cellP0} style={{ background: zebra.function }}>
         <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => { }} />
@@ -925,6 +933,9 @@ function EmptyRowL2() {
 }
 
 function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleInlineEditProductChar, setSpecialCharModal, handleContextMenu }: any) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   let globalRowIdx = 0;
 
   // ★★★ 2026-02-18: placeholder 공정 중복 제거 (실제 공정 있으면 placeholder 제외) ★★★
@@ -959,7 +970,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                 {proc.no}. {proc.name}
               </td>
               <td className={cellP0} style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, firstFuncId)}>
-                <SelectableCell value="" placeholder="공정기능 선택" bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, title: '메인공정 기능 선택', itemCode: 'A3' })} />
+                <SelectableCell value="" placeholder={`${lb.l2Func} 선택`} bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, title: `${lb.l2Short} 기능 선택`, itemCode: 'A3' })} />
               </td>
               <td className={cellP0} style={{ background: zebra.function }}>
                 <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => { }} />
@@ -988,7 +999,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                   </td>
                 )}
                 <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, f.id)}>
-                  <SelectableCell value={f.name} placeholder="공정기능" bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: '메인공정 기능 선택', itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
+                  <SelectableCell value={f.name} placeholder={lb.l2Func} bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: `${lb.l2Short} 기능 선택`, itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
                 </td>
                 <td className={cellP0} style={{ background: zebra.function }} onContextMenu={(e) => { e.stopPropagation(); handleContextMenu(e, 'productChar', proc.id, f.id, ''); }}>
                   <SelectableCell value="" placeholder="제품특성 선택" bgColor={zebra.function} textColor={'#1b5e20'} onClick={() => handleCellClick({ type: 'l2ProductChar', procId: proc.id, funcId: f.id, title: '제품특성 선택', itemCode: 'A4' })} />
@@ -1012,7 +1023,7 @@ function L2ProcessRows({ l2, handleCellClick, handleInlineEditFunction, handleIn
                 )}
                 {cIdx === 0 && (
                   <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: firstRowZebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, f.id)}>
-                    <SelectableCell value={f.name} placeholder="공정기능" bgColor={firstRowZebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: '메인공정 기능 선택', itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
+                    <SelectableCell value={f.name} placeholder={lb.l2Func} bgColor={firstRowZebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l2Function', procId: proc.id, funcId: f.id, title: `${lb.l2Short} 기능 선택`, itemCode: 'A3' })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, f.id, newValue)} />
                   </td>
                 )}
                 <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={(e) => handleContextMenu(e, 'productChar', proc.id, f.id, c.id)}>

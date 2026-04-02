@@ -77,6 +77,7 @@ export interface RiskOptCellRendererProps {
   baseFcRowSpan?: number; // 원본 fcRowSpan (조정 전, 다중행 셀 rowSpan용)
   onAddOptRow?: (uniqueKey: string) => void;
   onRemoveOptRow?: (uniqueKey: string, optIdx: number) => void;
+  groupFirstIds?: number[];
 }
 
 // =====================================================

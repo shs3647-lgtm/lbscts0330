@@ -56,6 +56,7 @@ import { findLinkedFailureEffectsForRequirement, getAutoLinkMessage } from '../.
 import { L1_TYPE_COLORS, getL1TypeColor, getZebraColors, getZebra } from '@/styles/level-colors';
 import { handleEnterBlur } from '../../utils/keyboard';
 import { emitSave } from '../../hooks/useSaveEvent';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 // ✅ 공용 스타일/색상 (2026-01-19 리팩토링)
 import { BORDER, cellBase, headerStyle, dataCell, STRUCTURE_COLORS, FUNCTION_COLORS, FAILURE_COLORS, INDICATOR_COLORS } from '../shared/tabStyles';
@@ -83,10 +84,12 @@ import { applyBulkSeverityRecommendations } from '@/lib/fmea/s-recommend-bulk-ap
 import { PfmeaContextMenu, initialPfmeaContextMenu, PfmeaContextMenuState } from '../../components/PfmeaContextMenu';
 type L1FailureRowType = 'requirement' | 'effect';
 
-// ★★★ 2026-02-03: L1 이름에 "생산공정" 접미사 추가 ★★★
-function formatL1Name(name: string | undefined): string {
+// ★★★ 2026-02-03: L1 이름에 "생산공정" 접미사 추가 (DFMEA는 접미사 없음) ★★★
+function formatL1Name(name: string | undefined, isDfmea = false): string {
   const trimmed = (name || '').trim();
-  if (!trimmed || trimmed.includes('입력') || trimmed.includes('없음')) return trimmed || '(완제품명 없음)';
+  const lb = getFmeaLabels(isDfmea);
+  if (!trimmed || trimmed.includes('입력') || trimmed.includes('없음')) return trimmed || `(${lb.l1Short} 없음)`;
+  if (isDfmea) return trimmed;
   if (trimmed.endsWith('생산공정') || trimmed.endsWith('제조공정') || trimmed.endsWith('공정')) return trimmed;
   return `${trimmed} 생산공정`;
 }
@@ -873,7 +876,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                     <tr key={`empty-type-${tIdx}`}>
                       {tIdx === 0 && (
                         <td rowSpan={typeNames.length} className="border border-[#ccc] p-1 text-center text-[11px] font-medium align-middle break-words" style={{ background: '#e3f2fd' }}>
-                          {formatL1Name(state.l1?.name)}
+                          {formatL1Name(state.l1?.name, isDfmea)}
                         </td>
                       )}
                       <td className="border border-[#ccc] p-1 text-center text-[11px] font-bold align-middle" style={{ background: color.light, color: color.text }}>
@@ -927,7 +930,7 @@ export default function FailureL1Tab({ state, setState, setStateSynced, setDirty
                         className="border border-[#ccc] p-1 text-center text-xs font-medium align-middle break-words"
                         style={{ background: productZebra }}
                       >
-                        {formatL1Name(state.l1?.name)}
+                        {formatL1Name(state.l1?.name, isDfmea)}
                       </td>
                     )}
 

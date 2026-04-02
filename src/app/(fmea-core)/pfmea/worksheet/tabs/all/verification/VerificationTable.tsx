@@ -69,6 +69,9 @@ function StatsBadges({ stats }: { stats: VerificationStats }) {
 // ============ FE 검증 테이블 (1L 고장영향) ============
 
 function FETable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFERow>[]; stats: VerificationStats; onRowDblClick?: (id: string) => void }) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const L1 = LEVEL_COLORS.L1;
   if (rows.length === 0) return <EmptyMessage text="연결된 고장영향이 없습니다." />;
   const dup = stats.duplicateTexts;
@@ -83,7 +86,7 @@ function FETable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFERow>[]
         </tr>
         <tr>
           <th style={{ ...HEADER_STYLE(L1.headerLight), width: '7%' }}>구분</th>
-          <th style={{ ...HEADER_STYLE(L1.headerLight), width: '20%' }}>완제품기능</th>
+          <th style={{ ...HEADER_STYLE(L1.headerLight), width: '20%' }}>{lb.l1Func}</th>
           <th style={{ ...HEADER_STYLE(L1.headerLight), width: '20%' }}>요구사항</th>
           <th style={{ ...HEADER_STYLE(L1.headerLight), width: '49%' }}>고장영향</th>
           <th style={{ ...HEADER_STYLE(L1.headerLight), width: '4%' }}>S</th>
@@ -129,6 +132,9 @@ function FETable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFERow>[]
 // ============ FM 검증 테이블 (2L 고장형태) ============
 
 function FMTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFMRow>[]; stats: VerificationStats; onRowDblClick?: (id: string) => void }) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const L2 = LEVEL_COLORS.L2;
   if (rows.length === 0) return <EmptyMessage text="연결된 고장형태가 없습니다." />;
   const dup = stats.duplicateTexts;
@@ -142,8 +148,8 @@ function FMTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFMRow>[]
           </th>
         </tr>
         <tr>
-          <th style={{ ...HEADER_STYLE(L2.headerLight), width: '10%' }}>NO+공정명</th>
-          <th style={{ ...HEADER_STYLE(L2.headerLight), width: '25%' }}>공정기능</th>
+          <th style={{ ...HEADER_STYLE(L2.headerLight), width: '10%' }}>{lb.l2No}</th>
+          <th style={{ ...HEADER_STYLE(L2.headerLight), width: '25%' }}>{lb.l2Func}</th>
           <th style={{ ...HEADER_STYLE(L2.headerLight), width: '20%' }}>제품특성</th>
           <th style={{ ...HEADER_STYLE(L2.headerLight), width: '45%' }}>고장형태</th>
         </tr>

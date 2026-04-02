@@ -152,7 +152,7 @@ export function L3TabHeader({
       {/* 2행: 항목 그룹 (11px, bold) */}
       <tr>
         <th colSpan={3} className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko={`3. ${lb.l3Short} (${lb.l3Attr})`} en="Work Element" />
+          <BiHeader ko={`3. ${lb.l3Short} (${lb.l3Attr})`} en={lb.l3En} />
         </th>
         <th colSpan={showSecondary ? 3 : 2} className="text-white border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ background: stepBgColor }}>
           {isFunction ? <BiHeader ko={`3. ${lb.l3Func}/${lb.l3Char}/특별특성`} en="SC" /> : <BiHeader ko={`3. ${lb.l3Char}/고장원인/발생도`} en="O" />}
@@ -167,13 +167,13 @@ export function L3TabHeader({
       {/* 3행: 세부 컬럼 (11px, bold, 2px 파란색 border-bottom) */}
       <tr style={{ background: stepBgColorLight }}>
         <th className="bg-[#e3f2fd] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko={lb.l2.replace(/ /g, '')} en="Main Process" />
+          <BiHeader ko={lb.l2.replace(/ /g, '')} en={lb.l2En} />
         </th>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           {lb.l3Attr}
         </th>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-1 text-[11px] font-bold" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko={lb.l3Short} en="Work Element" /><span className={`font-bold ${workElementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({workElementCount})</span>
+          <BiHeader ko={lb.l3Short} en={lb.l3En} /><span className={`font-bold ${workElementCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({workElementCount})</span>
         </th>
         <th className="border border-[#ccc] p-1 text-[11px] font-bold" style={{ background: stepBgColorLight, boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           {primaryLabel}<span className={`font-bold ${primaryCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({primaryCount})</span>

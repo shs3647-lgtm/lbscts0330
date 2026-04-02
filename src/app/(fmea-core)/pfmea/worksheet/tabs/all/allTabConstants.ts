@@ -398,39 +398,119 @@ export const COLUMNS_BASE: ColumnDef[] = [
   },
 ];
 
-// ============ DFMEA 라벨 매핑 (구조/기능 영역만) ============
+// ============ DFMEA 컬럼 오버라이드 (DFMEA_PRD.md 화면정의서 기준) ============
 
-/** PFMEA→DFMEA 그룹명 매핑 */
-const PFMEA_TO_DFMEA_GROUP: Record<string, string> = {
-  '1. 완제품 공정명': '1. 최상위 시스템명',
-  '2. 메인 공정명': '2. 초점요소명',
-  '3. 작업 요소명': '3. 부품(컴포넌트)명',
-  '1. 완제품 공정기능/요구사항': '1. 시스템 기능/요구사항',
-  '2. 메인공정기능 및 제품특성': '2. 초점요소 기능 및 제품특성',
-  '3. 작업요소 기능 및 공정특성': '3. 부품 기능 및 설계특성',
+// DFMEA PRD §2 색상 프리셋
+const DC = {
+  nh:  { headerColor: '#CFE8F3', cellColor: '#EBF4F9', cellAltColor: '#DCE8F0' },
+  fe:  { headerColor: '#D9F2D9', cellColor: '#EDF9ED', cellAltColor: '#DFF2DF' },
+  nl:  { headerColor: '#F4A460', cellColor: '#FBE8D4', cellAltColor: '#F5DBBF' },
+  nhf: { headerColor: '#B8D4E8', cellColor: '#E2EDF5', cellAltColor: '#D4E3EE' },
+  fef: { headerColor: '#C5E8C5', cellColor: '#E6F5E6', cellAltColor: '#D8F0D8' },
+  nlf: { headerColor: '#E8C5A0', cellColor: '#F5E8D8', cellAltColor: '#EFE0CC' },
+  fei: { headerColor: '#FFEAA7', cellColor: '#FFF8E1', cellAltColor: '#FFF0C0' },
+  fmi: { headerColor: '#5c6bc0', cellColor: '#E8EAF6', cellAltColor: '#D1D4E8' },
+  fci: { headerColor: '#98D8AA', cellColor: '#E8F5ED', cellAltColor: '#D5EFDF' },
+  rsk: { headerColor: '#c5cae9', cellColor: '#ECEEF8', cellAltColor: '#E0E3F2' },
+  opt: { headerColor: '#E2F0D9', cellColor: '#F2F9ED', cellAltColor: '#E6F3DE' },
 };
 
-/** PFMEA→DFMEA 컬럼명 매핑 */
-const PFMEA_TO_DFMEA_NAME: Record<string, string> = {
-  '완제품 공정명': '시스템명',
-  'NO+공정명': 'NO+초점요소',
-  '4M': 'Type',
-  '작업요소': '부품',
-  '완제품기능': '시스템기능',
-  '공정 기능': '초점요소기능',
-  '작업요소 기능': '부품기능',
-  '공정특성': '설계특성',
+type DfmeaOv = { group?: string; name?: string; headerColor?: string; cellColor?: string; cellAltColor?: string; isDark?: boolean };
+
+/** 컬럼 ID별 DFMEA 오버라이드 (라벨 + 색상) */
+const DFMEA_COLUMN_OVERRIDES: Record<number, DfmeaOv> = {
+  // ■ 구조분석 (2단계)
+  1:  { group: '다음 상위수준', name: '제품명', ...DC.nh },
+  2:  { group: '초점 요소', name: "A'SSY", ...DC.fe },
+  3:  { group: '초점 요소', name: '타입', ...DC.fe },
+  4:  { group: '다음 하위수준', name: '부품 또는 특성', ...DC.nl },
+  // ■ 기능분석 (3단계)
+  5:  { group: '다음상위수준 기능', name: '분류', ...DC.nhf },
+  6:  { group: '다음상위수준 기능', name: '제품 기능', ...DC.nhf },
+  7:  { group: '다음상위수준 기능', ...DC.nhf },
+  8:  { group: '초점요소 기능 및 요구사항', name: '초점요소 기능', ...DC.fef },
+  9:  { group: '초점요소 기능 및 요구사항', name: '요구사항', ...DC.fef },
+  10: { group: '다음하위수준/특성유형', name: '부품 기능 또는 특성', ...DC.nlf },
+  11: { group: '다음하위수준/특성유형', name: '요구사항', ...DC.nlf },
+  // ■ 고장분석 (4단계)
+  12: { group: '자동자/사용자 영향(FE)', name: '고장영향', ...DC.fei },
+  13: { group: '자동자/사용자 영향(FE)', name: '심각도', ...DC.fei },
+  14: { group: '초점요소 고장 형태(FM)', name: '고장형태', ...DC.fmi, isDark: true },
+  15: { group: '다음하위 수준 고장원인(FC)', name: '고장원인', ...DC.fci },
+  // ■ 리스크분석 (5단계) — 전체 #c5cae9 통일
+  16: { group: '현재 예방관리', name: '예방관리', ...DC.rsk },
+  17: { group: '현재 예방관리', name: '발생도', ...DC.rsk },
+  18: { group: '현재 검출관리', name: '검출관리', ...DC.rsk },
+  19: { group: '현재 검출관리', name: '검출도', ...DC.rsk },
+  20: { group: '리스크 평가', ...DC.rsk },
+  21: { group: '리스크 평가', name: '특별특성', ...DC.rsk },
+  22: { group: '리스크 평가', name: '습득교훈', ...DC.rsk },
+  // ■ 최적화 (6단계) — 전체 #E2F0D9 통일
+  23: { group: '계획', name: '설계 예방 조치', ...DC.opt },
+  24: { group: '계획', name: '설계 검출 조치', ...DC.opt },
+  25: { group: '계획', name: '책임자', ...DC.opt },
+  26: { group: '계획', name: '목표 완료일', ...DC.opt },
+  27: { group: '계획', ...DC.opt },
+  28: { group: '결과 모니터링', name: '보고서 이름', ...DC.opt },
+  29: { group: '결과 모니터링', name: '완료일', ...DC.opt },
+  30: { group: '효과 평가', name: '심각도', ...DC.opt },
+  31: { group: '효과 평가', name: '발생도', ...DC.opt },
+  32: { group: '효과 평가', name: '검출도', ...DC.opt },
+  33: { group: '효과 평가', name: 'S/C', ...DC.opt },
+  34: { group: '효과 평가', ...DC.opt },
+  35: { group: '비고', ...DC.opt },
 };
 
-/** DFMEA용 컬럼 정의 (COLUMNS_BASE에서 라벨만 교체) */
+/** DFMEA용 컬럼 정의 (COLUMNS_BASE에서 PRD 기준으로 라벨+색상 교체) */
 export function getColumnsForModule(isDfmea: boolean): ColumnDef[] {
   if (!isDfmea) return COLUMNS_BASE;
-  return COLUMNS_BASE.map(col => ({
-    ...col,
-    group: PFMEA_TO_DFMEA_GROUP[col.group] || col.group,
-    name: PFMEA_TO_DFMEA_NAME[col.name] || col.name,
-  }));
+  return COLUMNS_BASE.map(col => {
+    const ov = DFMEA_COLUMN_OVERRIDES[col.id];
+    if (!ov) return col;
+    return {
+      ...col,
+      group: ov.group ?? col.group,
+      name: ov.name ?? col.name,
+      headerColor: ov.headerColor ?? col.headerColor,
+      cellColor: ov.cellColor ?? col.cellColor,
+      cellAltColor: ov.cellAltColor ?? col.cellAltColor,
+      isDark: ov.isDark ?? col.isDark,
+    };
+  });
 }
+
+// ============ 그룹 구분선 (단계 내 그룹 경계) ============
+const GROUP_DIVIDER = {
+  borderWidth: '2px',
+  borderColor: '#9e9e9e',
+  borderStyle: 'solid',
+};
+
+export { GROUP_DIVIDER };
+
+/** 그룹 경계 컬럼 ID 목록 (단계 첫 컬럼 제외) */
+export function getGroupFirstColumnIds(columns: ColumnDef[]): number[] {
+  const ids: number[] = [];
+  let lastGroup = '';
+  for (const col of columns) {
+    if (col.group !== lastGroup) {
+      if (!STEP_FIRST_COLUMN_IDS.includes(col.id)) {
+        ids.push(col.id);
+      }
+      lastGroup = col.group;
+    }
+  }
+  return ids;
+}
+
+/** DFMEA 1행 단계 색상 (PRD §2 기준) */
+export const DFMEA_STEP_COLORS: Record<string, string> = {
+  '구조분석': '#1565c0',
+  '기능분석': '#2e7d32',
+  '고장분석': '#e65100',
+  '리스크분석': '#3949ab',
+  '최적화': '#558b2f',
+};
 
 // 단계별 메인 색상 (1행 헤더용)
 export const STEP_COLORS: Record<string, string> = {
@@ -463,8 +543,9 @@ export const RPN_COLUMNS: ColumnDef[] = [
 ];
 
 // 옵션화면용 37컬럼 생성 함수
-export function getColumnsWithRPN(): ColumnDef[] {
-  const columns = [...COLUMNS_BASE];
+export function getColumnsWithRPN(isDfmea = false): ColumnDef[] {
+  const base = isDfmea ? getColumnsForModule(true) : COLUMNS_BASE;
+  const columns = [...base];
   const riskRpnIdx = columns.findIndex(c => c.id === 21);
   columns.splice(riskRpnIdx, 0, { ...RPN_COLUMNS[0], id: 21 });
   for (let i = riskRpnIdx; i < columns.length; i++) {

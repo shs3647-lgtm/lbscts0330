@@ -59,6 +59,7 @@ export interface FMGroupRowsProps {
   isCompact: boolean;
   highlightMissingO: boolean;
   highlightMissingD: boolean;
+  groupFirstIds?: number[];
   // 셀 렌더러 컴포넌트 (AllTabEmpty에서 import 후 전달 — 순환 import 방지)
   RiskOptCellRenderer: React.ComponentType<RiskOptCellRendererProps>;
   FailureCellRenderer: React.ComponentType<Record<string, unknown>>;
@@ -75,6 +76,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
   state, setState, setDirty,
   handlers, loadedFmeaRevisionDate, isCompact,
   highlightMissingO, highlightMissingD,
+  groupFirstIds,
   RiskOptCellRenderer: RiskOpt,
   FailureCellRenderer: FailureCell,
   FunctionCellRenderer: FuncCell,
@@ -140,6 +142,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
                     optIdx={er.optIdx} optCount={er.optCount} baseFcRowSpan={er.baseFcRowSpan}
                     onAddOptRow={handlers.handleAddOptRowTracked}
                     onRemoveOptRow={handlers.handleRemoveOptRow}
+                    groupFirstIds={groupFirstIds}
                   />
                 );
               }
@@ -153,6 +156,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
                     handleSODClick={handlers.handleSODClick}
                     onNavigateToFailureLink={handlers.handleNavigateToFailureLink}
                     isCompact={isCompact} merged={er.merged}
+                    groupFirstIds={groupFirstIds}
                   />
                 );
               }
@@ -164,6 +168,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
                     rowInFM={er.rowInFM} globalRowIdx={0}
                     l1ProductName={er.fmGroup.l1ProductName}
                     isCompact={isCompact} merged={er.merged}
+                    groupFirstIds={groupFirstIds}
                   />
                 );
               }
@@ -174,6 +179,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
                     fmGroup={er.fmGroup} fmIdx={er.fmIdx} row={er.row}
                     rowInFM={er.rowInFM} globalRowIdx={0}
                     isCompact={isCompact} merged={er.merged}
+                    groupFirstIds={groupFirstIds}
                   />
                 );
               }
@@ -202,6 +208,7 @@ export const FMGroupRows = React.memo(function FMGroupRows({
                     optIdx={0} optCount={er.optCount} baseFcRowSpan={er.baseFcRowSpan}
                     onAddOptRow={handlers.handleAddOptRowTracked}
                     onRemoveOptRow={handlers.handleRemoveOptRow}
+                    groupFirstIds={groupFirstIds}
                   />
                 );
               }

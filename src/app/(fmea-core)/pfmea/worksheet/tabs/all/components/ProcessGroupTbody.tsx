@@ -36,6 +36,7 @@ export interface ProcessGroupTbodyProps {
   highlightMissingO: boolean;
   highlightMissingD: boolean;
   colCount: number;
+  groupFirstIds?: number[];
   // 셀 렌더러 (순환 import 방지용)
   RiskOptCellRenderer: React.ComponentType<any> // eslint-disable-line @typescript-eslint/no-explicit-any -- 순환 import 방지;
   FailureCellRenderer: React.ComponentType<any> // eslint-disable-line @typescript-eslint/no-explicit-any -- 순환 import 방지;
@@ -51,7 +52,7 @@ export const ProcessGroupTbody = React.memo(function ProcessGroupTbody({
   processNo, fmGroups, estimatedHeight, fmOptCountKeys,
   columns, state, setState, setDirty,
   handlers, loadedFmeaRevisionDate, isCompact,
-  highlightMissingO, highlightMissingD, colCount,
+  highlightMissingO, highlightMissingD, colCount, groupFirstIds,
   RiskOptCellRenderer, FailureCellRenderer,
   FunctionCellRenderer, StructureCellRenderer,
 }: ProcessGroupTbodyProps) {
@@ -111,6 +112,7 @@ export const ProcessGroupTbody = React.memo(function ProcessGroupTbody({
           isCompact={isCompact}
           highlightMissingO={highlightMissingO}
           highlightMissingD={highlightMissingD}
+          groupFirstIds={groupFirstIds}
           RiskOptCellRenderer={RiskOptCellRenderer}
           FailureCellRenderer={FailureCellRenderer}
           FunctionCellRenderer={FunctionCellRenderer}

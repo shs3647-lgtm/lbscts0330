@@ -58,12 +58,14 @@ import { useMultiOptRows } from './hooks/useMultiOptRows';
 import { buildFMOptCountKeys, buildProcessGroups } from './fmGroupUtils';
 import { ProcessGroupTbody } from './components/ProcessGroupTbody';
 import type { FMGroupHandlers } from './components/FMGroupRows';
+import { usePathname } from 'next/navigation';
 import {
   COLORS, HEIGHTS, COLUMNS_BASE, STEP_COLORS,
-  getColumnsWithRPN, calculateStepSpans, calculateGroupSpans,
+  getColumnsWithRPN, getColumnsForModule, calculateStepSpans, calculateGroupSpans,
   ColumnDef, StepSpan, GroupSpan,
   CELL_STYLE, FM_DIVIDER,
   COMPACT_FONT, COMPACT_HEIGHTS,
+  getGroupFirstColumnIds,
 } from './allTabConstants';
 import AllTabHeader from './AllTabHeader';
 import type { WorksheetState, L1FailureScope, Process, L2FailureMode, L3FailureCauseExtended } from '../../constants';
@@ -113,6 +115,8 @@ export default function AllTabEmpty({
   fmeaRevisionDate,
   onOpenSpecialChar,
 }: AllTabEmptyProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
   // ★★★ fmeaRevisionDate를 API에서 자동 로드 ★★★
   const [loadedFmeaRevisionDate, setLoadedFmeaRevisionDate] = React.useState(fmeaRevisionDate || '');
   React.useEffect(() => {
@@ -289,7 +293,7 @@ export default function AllTabEmpty({
 
   // 컬럼 계산 (메모이제이션) — LLD 모달 오픈 시 자동 조정
   const columns = useMemo(() => {
-    const allCols = showRPN ? getColumnsWithRPN() : COLUMNS_BASE;
+    const allCols = showRPN ? getColumnsWithRPN(isDfmea) : getColumnsForModule(isDfmea);
     // LLD 모달 오픈 시 해당 단계에 맞는 컬럼만 표시
     if (lldFilterModal.isOpen) {
       const stepMap: Record<string, string[]> = {
@@ -307,6 +311,7 @@ export default function AllTabEmpty({
 
   const stepSpans = useMemo(() => calculateStepSpans(columns), [columns]);
   const groupSpans = useMemo(() => calculateGroupSpans(columns), [columns]);
+  const groupFirstIds = useMemo(() => getGroupFirstColumnIds(columns), [columns]);
   const totalWidth = useMemo(() => columns.reduce((sum, col) => sum + col.width, 0), [columns]);
 
   // ★ Compact 모드: ALL탭은 항상 전체 표시 → compact 비활성 (극초컴팩트 방지)
@@ -787,6 +792,7 @@ export default function AllTabEmpty({
               highlightMissingO={highlightMissingO}
               highlightMissingD={highlightMissingD}
               colCount={columns.length}
+              groupFirstIds={groupFirstIds}
               RiskOptCellRenderer={RiskOptCellRenderer}
               FailureCellRenderer={FailureCellRenderer}
               FunctionCellRenderer={FunctionCellRenderer}

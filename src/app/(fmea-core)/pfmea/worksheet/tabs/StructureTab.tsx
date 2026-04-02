@@ -1318,7 +1318,7 @@ export default function StructureTab(props: StructureTabProps) {
         existingProcessNames={state.l2.map(p => p.name)}
         existingProcesses={state.l2.map(p => ({ id: p.id, no: p.no || '', name: p.name || '' }))}
         existingProcessesInfo={state.l2.map(p => ({ name: p.name, l3Count: p.l3?.length || 0 }))}
-        productLineName={formatL1Name(state.l1?.name)}
+        productLineName={formatL1Name(state.l1?.name, isDfmea)}
         fmeaId={fmeaId}
         onDelete={async (processNos) => {
           if (!props.atomicDB || !props.setAtomicDB) {

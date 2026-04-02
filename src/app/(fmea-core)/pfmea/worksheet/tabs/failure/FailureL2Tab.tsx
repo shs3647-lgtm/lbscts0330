@@ -40,6 +40,8 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { FailureTabProps } from './types';
 import SelectableCell from '@/components/worksheet/SelectableCell';
 import { GenericItemSelectModal } from '../../GenericItemSelectModal';
@@ -86,6 +88,9 @@ const FAIL_COLORS = {
 };
 
 export default function FailureL2Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, customerName, importCounts }: FailureTabProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const { alertProps, showAlert } = useAlertModal();
   // ★★★ 2026-02-08: 자동/수동 모드 상태 ★★★
   const [isAutoMode, setIsAutoMode] = useState(false);
@@ -1055,7 +1060,7 @@ export default function FailureL2Tab({ state, setState, setStateSynced, setDirty
                     {!isUpstreamConfirmed ? '⚠️ 기능분석(2L) 확정 필요' : '(구조분석에서 공정 입력)'}
                   </td>
                   <td className="border border-[#ccc] p-2.5 text-center align-middle" style={{ background: zebra.function }}>
-                    {!isUpstreamConfirmed ? '하위 단계는 상위 단계 확정 후 활성화됩니다.' : '(기능분석에서 공정기능 입력)'}
+                    {!isUpstreamConfirmed ? '하위 단계는 상위 단계 확정 후 활성화됩니다.' : `(기능분석에서 ${lb.l2Func} 입력)`}
                   </td>
                   <td className="border border-[#ccc] border-r-[2px] border-r-green-500 p-2.5 text-center align-middle" style={{ background: zebra.function }}>
                     {!isUpstreamConfirmed ? '-' : '(기능분석에서 제품특성 입력)'}

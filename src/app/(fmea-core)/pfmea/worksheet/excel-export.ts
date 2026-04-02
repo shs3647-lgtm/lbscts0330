@@ -1,5 +1,6 @@
 import type ExcelJS_NS from 'exceljs';
 import { WorksheetState, AtomicUnit } from './constants';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 /**
  * Excel 내보내기 유틸리티
@@ -67,10 +68,11 @@ const applyDataStyle = (cell: ExcelJS_NS.Cell, isEven: boolean) => {
  * 1L 완제품 기능분석 Excel 내보내기 (화면과 1:1 일치)
  * @param includeFailure - true이면 고장영향 컬럼 포함 (4단계), false이면 기능분석만 (3단계)
  */
-export async function exportFunctionL1(state: WorksheetState, fmeaName: string, includeFailure: boolean = false) {
+export async function exportFunctionL1(state: WorksheetState, fmeaName: string, includeFailure: boolean = false, isDfmea = false) {
+  const lb = getFmeaLabels(isDfmea);
   const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
-  const sheetName = includeFailure ? '1L 고장영향' : '1L 완제품기능';
+  const sheetName = includeFailure ? '1L 고장영향' : `1L ${lb.l1Func}`;
   const worksheet = workbook.addWorksheet(sheetName, {
     properties: { tabColor: { argb: includeFailure ? 'C62828' : '1B5E20' } },
     views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
@@ -81,9 +83,9 @@ export async function exportFunctionL1(state: WorksheetState, fmeaName: string, 
 
   // 기능분석만 또는 고장분석 포함 컬럼
   const baseColumns = [
-    { header: '완제품 공정명', key: 'l1Name', width: 20 },
+    { header: lb.l1, key: 'l1Name', width: 20 },
     { header: '구분', key: 'type', width: 15 },
-    { header: '완제품기능', key: 'function', width: 35 },
+    { header: lb.l1Func, key: 'function', width: 35 },
     { header: '요구사항', key: 'requirement', width: 20 },
   ];
 
@@ -238,7 +240,8 @@ export async function exportFunctionL1(state: WorksheetState, fmeaName: string, 
  * 2L 메인공정 기능분석 Excel 내보내기 (화면과 1:1 일치)
  * @param includeFailure - true이면 고장형태 컬럼 포함 (4단계), false이면 기능분석만 (3단계)
  */
-export async function exportFunctionL2(state: WorksheetState, fmeaName: string, includeFailure: boolean = false) {
+export async function exportFunctionL2(state: WorksheetState, fmeaName: string, includeFailure: boolean = false, isDfmea = false) {
+  const lb = getFmeaLabels(isDfmea);
   const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   const sheetName = includeFailure ? '2L 고장형태' : '2L 메인공정기능';
@@ -249,8 +252,8 @@ export async function exportFunctionL2(state: WorksheetState, fmeaName: string, 
 
   // 기능분석만 또는 고장분석 포함 컬럼
   const baseColumns = [
-    { header: '공정NO+공정명', key: 'processName', width: 25 },
-    { header: '메인공정기능', key: 'function', width: 35 },
+    { header: `${lb.l2No}`, key: 'processName', width: 25 },
+    { header: lb.l2Func, key: 'function', width: 35 },
     { header: '제품특성', key: 'productChar', width: 25 },
     { header: '특별특성', key: 'specialChar', width: 10 },
   ];
@@ -431,21 +434,22 @@ export async function exportFunctionL2(state: WorksheetState, fmeaName: string, 
  * 3L 작업요소 기능분석 Excel 내보내기 (화면과 1:1 일치)
  * @param includeFailure - true이면 고장원인 컬럼 포함 (4단계), false이면 기능분석만 (3단계)
  */
-export async function exportFunctionL3(state: WorksheetState, fmeaName: string, includeFailure: boolean = false) {
+export async function exportFunctionL3(state: WorksheetState, fmeaName: string, includeFailure: boolean = false, isDfmea = false) {
+  const lb = getFmeaLabels(isDfmea);
   const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
-  const sheetName = includeFailure ? '3L 고장원인' : '3L 작업요소기능';
+  const sheetName = includeFailure ? '3L 고장원인' : `3L ${lb.l3Func}`;
   const worksheet = workbook.addWorksheet(sheetName, {
     properties: { tabColor: { argb: includeFailure ? 'C62828' : '1B5E20' } },
     views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }]
   });
 
   const baseColumns = [
-    { header: '공정명', key: 'processName', width: 20 },
-    { header: '4M', key: 'm4', width: 8 },
-    { header: '작업요소', key: 'workElem', width: 20 },
-    { header: '작업요소기능', key: 'function', width: 30 },
-    { header: '공정특성', key: 'processChar', width: 20 },
+    { header: lb.l2Short, key: 'processName', width: 20 },
+    { header: lb.l3Attr, key: 'm4', width: 8 },
+    { header: lb.l3Short, key: 'workElem', width: 20 },
+    { header: lb.l3Func, key: 'function', width: 30 },
+    { header: lb.l3Char, key: 'processChar', width: 20 },
     { header: '특별특성', key: 'specialChar', width: 10 },
   ];
 
@@ -736,7 +740,17 @@ async function buildWorkbookFromData(
  * 전체보기 Excel 내보내기 (워크시트와 동일한 병합 상태)
  * ★★★ 2026-02-03: processFailureLinks 사용하여 원자성 데이터 기반으로 재구현 ★★★
  */
-export async function exportAllViewExcel(state: WorksheetState, fmeaName: string) {
+export async function exportAllViewExcel(state: WorksheetState, fmeaName: string, isDfmea = false) {
+  const lb = getFmeaLabels(isDfmea);
+  // DFMEA 라벨 매핑
+  const PFMEA_TO_DFMEA_LABEL: Record<string, string> = {
+    '완제품공정명': lb.l1Short, 'NO+공정명': lb.l2No, '4M': lb.l3Attr,
+    '작업요소': lb.l3Short, '완제품기능': lb.l1Func, '공정기능': lb.l2Func,
+    '작업요소기능': lb.l3Func, '공정특성': lb.l3Char,
+  };
+  const mappedColumns = isDfmea
+    ? ALLVIEW_COLUMNS.map(c => ({ ...c, label: PFMEA_TO_DFMEA_LABEL[c.label] || c.label }))
+    : ALLVIEW_COLUMNS;
   try {
   // ★ processFailureLinks 동적 import (순환 참조 방지)
   const { processFailureLinks } = await import('./tabs/all/processFailureLinks');
@@ -984,13 +998,13 @@ export async function exportAllViewExcel(state: WorksheetState, fmeaName: string
     // ★ P0-1: Web Worker 경로 (writeBuffer ZIP 압축을 워커 스레드에서 실행)
     buffer = await buildExcelInWorker({
       type: 'buildAllView',
-      columns: ALLVIEW_COLUMNS as unknown as { id: string; label: string; width: number }[],
+      columns: mappedColumns as unknown as { id: string; label: string; width: number }[],
       groups: ALLVIEW_GROUPS as unknown as { name: string; count: number; color: string }[],
       dataRows,
       merges: workerMerges,
     });
   } catch (workerErr) {
-    buffer = await buildWorkbookFromData(ALLVIEW_COLUMNS, ALLVIEW_GROUPS, dataRows, workerMerges);
+    buffer = await buildWorkbookFromData(mappedColumns as typeof ALLVIEW_COLUMNS, ALLVIEW_GROUPS, dataRows, workerMerges);
   }
 
   saveExcelFile(buffer, `${fmeaName}_전체보기`);
@@ -1025,16 +1039,17 @@ function saveExcelFile(buffer: ArrayBuffer, fileName: string) {
   }, 1000);
 }
 
-export async function exportStructureAnalysis(state: WorksheetState, fmeaName: string) {
+export async function exportStructureAnalysis(state: WorksheetState, fmeaName: string, isDfmea = false) {
+  const lb = getFmeaLabels(isDfmea);
   const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('구조분석');
   const columns = [
-    { header: '완제품공정명', key: 'l1Name', width: 20 },
+    { header: lb.l1Short, key: 'l1Name', width: 20 },
     { header: '공정번호', key: 'l2No', width: 10 },
-    { header: '공정명', key: 'l2Name', width: 20 },
-    { header: '4M', key: 'm4', width: 10 },
-    { header: '작업요소', key: 'l3Name', width: 25 },
+    { header: lb.l2Short, key: 'l2Name', width: 20 },
+    { header: lb.l3Attr, key: 'm4', width: 10 },
+    { header: lb.l3Short, key: 'l3Name', width: 25 },
   ];
   worksheet.columns = columns;
   const headerRow = worksheet.getRow(1);
@@ -1057,20 +1072,21 @@ export async function exportStructureAnalysis(state: WorksheetState, fmeaName: s
   saveExcelFile(buffer, `${fmeaName}_구조분석`);
 }
 
-export async function downloadStructureTemplate() {
+export async function downloadStructureTemplate(isDfmea = false) {
+  const lb = getFmeaLabels(isDfmea);
   const ExcelJS = await loadExcelJS();
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('구조분석_템플릿');
-  const columns = ['완제품공정명', '공정번호', '공정명', '4M', '작업요소'];
+  const columns = [lb.l1Short, '공정번호', lb.l2Short, lb.l3Attr, lb.l3Short];
   worksheet.getRow(1).values = columns;
   worksheet.getRow(1).eachCell((cell: ExcelJS_NS.Cell) => applyHeaderStyle(cell, '1565C0'));
   const buffer = await workbook.xlsx.writeBuffer();
-  saveExcelFile(buffer, `PFMEA_구조분석_템플릿`);
+  saveExcelFile(buffer, `${lb.prefix}_구조분석_템플릿`);
 }
 
-export async function exportFMEAWorksheet(state: WorksheetState, fmeaName: string) {
+export async function exportFMEAWorksheet(state: WorksheetState, fmeaName: string, isDfmea = false) {
   // 기본 내보내기 (이전 버전 호환용)
-  await exportAllViewExcel(state, fmeaName);
+  await exportAllViewExcel(state, fmeaName, isDfmea);
 }
 
 export async function importStructureAnalysis(file: File, setState: any, setDirty: any) {

@@ -10,7 +10,7 @@
  * 3. 타입 rowSpan 계산 로직 중복
  */
 
-import { normalizeScope, type ScopeCode } from '@/lib/fmea/scope-constants';
+import { normalizeScope, getRequiredScopes, type ScopeCode, type DfmeaScopeCode } from '@/lib/fmea/scope-constants';
 
 /** 플레이스홀더 값 체크 (빈 값, 클릭하여, 선택, 자동생성 등) */
 export const isPlaceholder = (value: string | undefined | null): boolean => {
@@ -57,27 +57,28 @@ export const calculateFunctionRowSpan = (
   return Math.max(1, meaningfulReqs.length);
 };
 
-/** L1 이름 포맷팅 (생산공정 접미사 추가) */
-export const formatL1Name = (name: string | undefined | null): string => {
+/** L1 이름 포맷팅 (생산공정 접미사 추가, DFMEA는 접미사 없음) */
+export const formatL1Name = (name: string | undefined | null, isDfmea = false): string => {
   const trimmed = (name || '').trim();
   if (!trimmed || trimmed.includes('입력') || trimmed.includes('구조분석')) {
     return trimmed || '(구조분석에서 입력)';
   }
+  if (isDfmea) return trimmed;
   if (trimmed.endsWith('생산공정') || trimmed.endsWith('제조공정') || trimmed.endsWith('공정')) {
     return trimmed;
   }
   return `${trimmed} 생산공정`;
 };
 
-/** ★★★ 2026-02-16: 필수 구분 (YP/SP/USER 3개 모두 필수) ★★★ */
-const REQUIRED_TYPES = ['YP', 'SP', 'USER'] as const;
+/** ★★★ 2026-02-16: 필수 구분 (PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능) ★★★ */
+const REQUIRED_TYPES = ['YP', 'SP', 'USER'] as const;  // PFMEA 기본값 (하위 호환)
 
 /**
  * L1 구분 표시명 → YP / SP / USER (누락·배지 검사용)
  * DB/Import는 'YP'·'SP'·'USER' 통일 사용.
  * ★ 2026-03-22: normalizeScope() 중앙 함수 사용으로 통합
  */
-export function normalizeL1TypeNameToKey(name: string | undefined): ScopeCode | null {
+export function normalizeL1TypeNameToKey(name: string | undefined): ScopeCode | DfmeaScopeCode | null {
   if (!name || !name.trim()) return null;
   return normalizeScope(name);
 }
@@ -91,19 +92,21 @@ export const calculateMissingCounts = (
       requirements?: Array<{ name?: string }>;
     }>;
   }>,
-  isMissingFn: (val: string | undefined) => boolean
+  isMissingFn: (val: string | undefined) => boolean,
+  isDfmea = false
 ): { functionCount: number; requirementCount: number; total: number } => {
   let functionCount = 0;
   let requirementCount = 0;
 
   const meaningfulTypes = filterMeaningfulTypes(types || []);
   // ★★★ 2026-03-22: 풀네임(Your Plant 등)과 약어(YP) 혼재 — 정규화 후 필수 구분 검사
-  const presentKeys = new Set<'YP' | 'SP' | 'USER'>();
+  const presentKeys = new Set<string>();
   meaningfulTypes.forEach(t => {
     const k = normalizeL1TypeNameToKey(t.name);
     if (k) presentKeys.add(k);
   });
-  REQUIRED_TYPES.forEach(req => {
+  const requiredTypes = getRequiredScopes(isDfmea);
+  requiredTypes.forEach(req => {
     if (!presentKeys.has(req)) {
       functionCount += 1; // 필수 구분 누락
     }
