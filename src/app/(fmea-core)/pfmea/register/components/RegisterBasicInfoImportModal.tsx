@@ -51,6 +51,24 @@ const TAB_LABEL: Record<string, string> = {
   C4: 'C4 고장영향',
 };
 
+const DFMEA_TAB_LABEL: Record<string, string> = {
+  A1: 'A1 초점요소번호',
+  A2: 'A2 초점요소명',
+  A3: 'A3 초점요소기능',
+  A4: 'A4 설계특성',
+  A5: 'A5 고장형태',
+  A6: 'A6 검출관리',
+  B1: 'B1 부품또는특성',
+  B2: 'B2 부품기능',
+  B3: 'B3 부품특성',
+  B4: 'B4 고장원인',
+  B5: 'B5 예방관리',
+  C1: 'C1 분류',
+  C2: 'C2 제품기능',
+  C3: 'C3 요구사항',
+  C4: 'C4 고장영향',
+};
+
 function sortPreviewRows(a: ImportedFlatData, b: ImportedFlatData): number {
   const pa = a.category === 'C' ? a.processNo : normalizeL2ProcessNo(a.processNo);
   const pb = b.category === 'C' ? b.processNo : normalizeL2ProcessNo(b.processNo);
@@ -75,6 +93,7 @@ export function RegisterBasicInfoImportModal({
   fmeaType,
   onSuccessNavigate,
 }: RegisterBasicInfoImportModalProps) {
+  const isDfmea = fmeaType === 'D' || fmeaType === 'M' || fmeaId.toLowerCase().startsWith('dfm');
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<'idle' | 'preview'>('idle');
   const [busy, setBusy] = useState(false);
@@ -84,6 +103,10 @@ export function RegisterBasicInfoImportModal({
   const [activeTab, setActiveTab] = useState<string>('A1');
   const [fileLabel, setFileLabel] = useState('');
   const [masterLoaded, setMasterLoaded] = useState(false);
+
+  const tabLabel = isDfmea ? DFMEA_TAB_LABEL : TAB_LABEL;
+  const showM4Column = activeTab.startsWith('B');
+  const m4Header = isDfmea ? 'Type' : '4M';
 
   const reset = useCallback(() => {
     setStep('idle');
@@ -105,9 +128,14 @@ export function RegisterBasicInfoImportModal({
   useEffect(() => {
     if (!isOpen || masterLoaded || flatData.length > 0) return;
     setMasterLoaded(true);
-    fetch('/api/pfmea/master?fmeaId=pfm26-m005&includeItems=true')
+    // ★ DFMEA(dfm-) → /api/dfmea/master, PFMEA → /api/pfmea/master
+    const masterApiBase = fmeaId.toLowerCase().startsWith('dfm') ? '/api/dfmea/master' : '/api/pfmea/master';
+    fetch(`${masterApiBase}?fmeaId=${encodeURIComponent(fmeaId)}&includeItems=true`)
       .then(r => r.json())
       .then(data => {
+        // ★ 2026-03-31: 다른 FMEA의 fallback 데이터 무시 — 해당 fmeaId 소유만 표시
+        const datasetFmeaId = (data?.dataset?.fmeaId || '').toLowerCase();
+        if (datasetFmeaId && datasetFmeaId !== fmeaId.toLowerCase()) return;
         const items = data?.dataset?.flatItems || [];
         const basicItems = items.filter((it: any) =>
           (BASIC_ITEM_CODES as readonly string[]).includes(it.itemCode)
@@ -164,11 +192,45 @@ export function RegisterBasicInfoImportModal({
     setBusy(true);
     setErr(null);
     try {
+      let flat: ImportedFlatData[] = [];
+      let payload: unknown = null;
+
+      // ★ PFMEA/DFMEA 공용: position/legacy 파서 (position-parser가 DFMEA 헤더도 자동 감지)
       const parsed = await parseRegisterBasicInfoWorkbook(file, fmeaId.toLowerCase());
-      setFlatData(parsed.flat);
-      setAtomicPayload(parsed.mode === 'position' ? parsed.atomicData : null);
-      setFileLabel(file.name);
-      setStep('preview');
+      flat = parsed.flat;
+      payload = parsed.mode === 'position' ? parsed.atomicData : null;
+
+      if (flat.length === 0) {
+        setErr('파싱 결과가 비어있습니다. 엑셀 형식을 확인해주세요.');
+      } else {
+        // ★ C1 자동 생성: C2/C3/C4에 사용된 고유 scope(processNo)에서 C1이 없으면 자동 추가
+        const c1Count = flat.filter(d => d.itemCode === 'C1').length;
+        if (c1Count === 0) {
+          const cScopes = new Set<string>();
+          flat.forEach(d => {
+            if (['C2', 'C3', 'C4'].includes(d.itemCode) && d.processNo?.trim()) {
+              cScopes.add(d.processNo.trim());
+            }
+          });
+          if (cScopes.size > 0) {
+            const now = new Date();
+            const c1Items: ImportedFlatData[] = Array.from(cScopes).map((scope, idx) => ({
+              id: `c1_auto_${idx}_${Date.now()}`,
+              category: 'C' as const,
+              itemCode: 'C1',
+              processNo: scope,
+              value: scope,
+              createdAt: now,
+            }));
+            flat = [...c1Items, ...flat];
+            console.info(`[Import] C1 자동 생성: ${c1Items.length}건 (C2/C3/C4 scope 기반)`);
+          }
+        }
+        setFlatData(flat);
+        setAtomicPayload(payload);
+        setFileLabel(file.name);
+        setStep('preview');
+      }
     } catch (er) {
       console.error('[RegisterBasicInfoImportModal]', er);
       setErr(er instanceof Error ? er.message : String(er));
@@ -196,11 +258,12 @@ export function RegisterBasicInfoImportModal({
           return;
         }
       }
+      // ★ PFMEA/DFMEA 공용: master-api 단일 경로
       const { saveMasterDataset } = await import('@/app/(fmea-core)/pfmea/import/utils/master-api');
       const masterRes = await saveMasterDataset({
         fmeaId: fmeaId.toLowerCase(),
         fmeaType: (fmeaType || 'P') as 'M' | 'F' | 'P',
-        name: '12 inch Au Bump 기초정보',
+        name: '기초정보',
         replace: false,
         mode: 'import',
         flatData,
@@ -243,7 +306,7 @@ export function RegisterBasicInfoImportModal({
       const masterRes = await saveMasterDataset({
         fmeaId: fmeaId.toLowerCase(),
         fmeaType: (fmeaType || 'P') as 'M' | 'F' | 'P',
-        name: '12 inch Au Bump 기초정보',
+        name: '기초정보',
         replace: false,
         mode: 'import',
         flatData,
@@ -262,12 +325,26 @@ export function RegisterBasicInfoImportModal({
     }
   };
 
-  /** 샘플 엑셀 다운로드 — DB에서 현재 fmeaId의 마스터 데이터 fetch → 15탭 엑셀 생성 */
+  /** 샘플 엑셀 다운로드 — DFMEA: 정적 샘플 파일, PFMEA: DB 기반 동적 생성 */
   const onDownloadSample = async () => {
     setBusy(true);
     setErr(null);
     try {
-      const targetId = fmeaId?.trim()?.toLowerCase() || 'pfm26-m005';
+      const targetId = fmeaId?.trim()?.toLowerCase();
+      const isDfmea = targetId?.startsWith('dfm');
+
+      // ★ DFMEA: 검증된 정적 샘플 파일 직접 다운로드
+      if (isDfmea) {
+        const link = document.createElement('a');
+        link.href = '/templates/DFMEA_수동_기초정보_Import_Sample.xlsx';
+        link.download = `DFMEA_수동_기초정보_Import_Sample_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // ★ PFMEA: 기존 DB 기반 동적 생성
       const res = await fetch(`/api/pfmea/master?fmeaId=${targetId}&includeItems=true`);
       const json = await res.json();
       const items: Array<{ processNo: string; itemCode: string; value: string; m4?: string; specialChar?: string; belongsTo?: string }> =
@@ -363,7 +440,7 @@ export function RegisterBasicInfoImportModal({
             onClick={() => fileRef.current?.click()}
             className="px-3 py-1.5 bg-purple-600 text-white text-xs font-bold rounded hover:bg-purple-700 disabled:opacity-50"
           >
-            {busy ? '처리 중…' : '📁 엑셀 선택'}
+            {busy ? '처리 중…' : '📁 엑셀 IMPORT'}
           </button>
           <button
             type="button"
@@ -377,8 +454,22 @@ export function RegisterBasicInfoImportModal({
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                reset();
+              onClick={async () => {
+                // ★ 2026-03-31: DB flat items 전체 삭제 후 초기화
+                if (fmeaId?.trim() && window.confirm('저장된 기초정보를 삭제하고 다시 선택하시겠습니까?')) {
+                  try {
+                    await fetch(`/api/${fmeaId.toLowerCase().startsWith('dfm') ? 'dfmea' : 'pfmea'}/master/clear-items`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ fmeaId }),
+                    });
+                  } catch (e) {
+                    console.error('[다시 선택] DB 삭제 오류:', e);
+                  }
+                  reset();
+                } else if (!fmeaId?.trim()) {
+                  reset();
+                }
               }}
               className="px-3 py-1.5 border border-gray-400 text-gray-700 text-xs rounded hover:bg-gray-50"
             >
@@ -431,22 +522,22 @@ export function RegisterBasicInfoImportModal({
               ))}
             </div>
             <div className="px-2 py-1 text-[10px] text-gray-500 shrink-0">
-              {TAB_LABEL[activeTab] || activeTab} — 미리보기 (공정번호 3자리 정규화 적용)
+              {tabLabel[activeTab] || activeTab} — 미리보기 (공정번호 3자리 정규화 적용)
             </div>
             <div className="flex-1 min-h-[200px] overflow-auto px-2 pb-2">
               <table className="w-full text-[10px] border-collapse border border-gray-300">
                 <thead className="sticky top-0 bg-gray-100">
                   <tr>
-                    <th className="border border-gray-300 px-1 py-0.5 text-left w-[14%]">구분/공정</th>
+                    <th className="border border-gray-300 px-1 py-0.5 text-left w-[14%]">{isDfmea ? '분류/초점요소' : '구분/공정'}</th>
                     <th className="border border-gray-300 px-1 py-0.5 text-left w-[8%]">코드</th>
-                    <th className="border border-gray-300 px-1 py-0.5 text-left w-[8%]">4M</th>
-                    <th className="border border-gray-300 px-1 py-0.5 text-left">{TAB_LABEL[activeTab] || activeTab}</th>
+                    {showM4Column && <th className="border border-gray-300 px-1 py-0.5 text-left w-[8%]">{m4Header}</th>}
+                    <th className="border border-gray-300 px-1 py-0.5 text-left">{tabLabel[activeTab] || activeTab}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPreview.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="border border-gray-200 px-2 py-4 text-center text-gray-400">
+                      <td colSpan={showM4Column ? 4 : 3} className="border border-gray-200 px-2 py-4 text-center text-gray-400">
                         이 탭에 행이 없습니다.
                       </td>
                     </tr>
@@ -455,7 +546,7 @@ export function RegisterBasicInfoImportModal({
                       <tr key={row.id} className="hover:bg-blue-50/50">
                         <td className="border border-gray-200 px-1 py-0.5 font-mono">{row.processNo}</td>
                         <td className="border border-gray-200 px-1 py-0.5">{row.itemCode}</td>
-                        <td className="border border-gray-200 px-1 py-0.5">{row.m4 || '—'}</td>
+                        {showM4Column && <td className="border border-gray-200 px-1 py-0.5">{row.m4 || '—'}</td>}
                         <td className="border border-gray-200 px-1 py-0.5 break-all">{row.value}</td>
                       </tr>
                     ))
@@ -469,8 +560,6 @@ export function RegisterBasicInfoImportModal({
             엑셀 파일을 선택하면 15개 탭으로 파싱 결과를 확인할 수 있습니다.
           </div>
         )}
-
-
       </div>
     </div>,
     document.body
