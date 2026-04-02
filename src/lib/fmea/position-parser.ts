@@ -797,24 +797,55 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
     if (c['processNo'])prevJsonPno     = c['processNo'];
     if (c['FM'])       prevJsonFM      = c['FM'];
 
-    // ★v6.3: 복합키 기반 FK 해결
-    // - FC(고장원인) → 위치 인덱스 (l3Row): FC[i] = L3[i] 1:1 매핑
-    // - FM(고장형태) → 복합키 (processNo + FM): resolver의 fmTextMap에서 직접 UUID 조회
-    // - FE(고장영향) → 복합키 (scope + FE): resolver의 feTextMap에서 직접 UUID 조회
-    // ★★★ L2/L1 행번호 역산 불필요 — 복합키로 UUID 직접 확정 ★★★
+    // ★v6.4: 텍스트 우선 FC 해결 + 인덱스 폴백 (N:1:N 대응 + 교차공정 감지 유지)
+    //
+    // 문제: FC시트(체인) 행수 > L3시트(고유FC) 행수일 때 1:1 인덱스 매핑이 교차공정 오탐 유발
+    // 해결: 2단계 해결 전략
+    //   Phase 1: processNo 일치 시 인덱스 사용, 불일치 시 텍스트 매칭 (l3Row=0)
+    //   Phase 2: 텍스트 매칭 실패 시 인덱스 폴백 → 진짜 교차공정 감지 유지
     const fcPno = normalizeProcessNo(c['processNo'] || '');
     const fcFM = c['FM'] || '';
     const fcScope = normalizeScope(c['FE_scope'] || '');
     const fcFE = c['FE'] || '';
-    const l3Row = fcIndex < l3ValidRows.length ? l3ValidRows[fcIndex].excelRow : 0;
+    const fcFC = c['FC'] || '';
+    const fcM4 = c['m4'] || '';
+    const fcWE = c['WE'] || '';
+
+    // Phase 1: processNo 일치 여부로 l3Row 결정
+    let l3Row = 0;
+    let candidateL3PnoMismatch = false;
+    if (fcIndex < l3ValidRows.length) {
+      const candidateL3 = l3ValidRows[fcIndex];
+      const candidateL3Pno = normalizeProcessNo(candidateL3.cells.processNo?.trim() || '');
+      if (candidateL3Pno === fcPno) {
+        l3Row = candidateL3.excelRow;  // processNo 일치 → 인덱스 사용
+      } else {
+        candidateL3PnoMismatch = true;  // processNo 불일치 → 텍스트 매칭
+      }
+    }
 
     let { feId, fmId, fcId, l2StructId: flL2StructId, l3StructId: flL3StructId } = resolver.resolve({
-      l3Row,                    // FC: 위치 인덱스 (행번호 기반)
-      fmText: fcFM,             // FM: 복합키 (processNo + FM텍스트)
+      l3Row,
+      fmText: fcFM,
       processNo: fcPno,
-      feText: fcFE,             // FE: 복합키 (scope + FE텍스트)
+      feText: fcFE,
       feScope: fcScope,
+      fcText: fcFC,
+      m4: fcM4,
+      weText: fcWE,
     });
+
+    // Phase 2: 텍스트 매칭 실패 + 인덱스 후보 존재 → 인덱스 폴백 (교차공정 감지용)
+    let usedCrossProcessFallback = false;
+    if (!fcId && candidateL3PnoMismatch && fcIndex < l3ValidRows.length) {
+      const fallbackL3Row = l3ValidRows[fcIndex].excelRow;
+      const fallbackResult = resolver.resolve({ l3Row: fallbackL3Row });
+      if (fallbackResult.fcId) {
+        fcId = fallbackResult.fcId;
+        flL3StructId = fallbackResult.l3StructId;
+        usedCrossProcessFallback = true;
+      }
+    }
 
     // ★★★ MBD-26-009: FM 복합키 자동 생성
     // L2 시트에 없는 (processNo+FM) 조합이 FC 시트에 있으면 새 FM 생성
@@ -953,7 +984,12 @@ export function parsePositionBasedJSON(json: PositionBasedJSON): PositionAtomicD
       }
     }
 
-    fcIndex++; // ★v6: 위치 인덱스 증가 (L3와 1:1 매핑)
+    // ★v6.4: 인덱스 매핑 사용 시에만 증가 (N:1:N에서 FC시트>L3시트 대응)
+    // - processNo 일치(l3Row>0) 또는 교차공정 폴백 시 증가
+    // - 텍스트 매칭으로 해결 시 증가 안 함 (동일 L3행을 다음 FC행이 재사용)
+    if (l3Row > 0 || usedCrossProcessFallback) {
+      fcIndex++;
+    }
   }
 
   // ★ MBD-26-009: FC 시트에 없는 orphan FC → 보완 FL 생성
