@@ -243,7 +243,7 @@ export function StructureHeader({ onProcessModalOpen, missingCounts, isConfirmed
           No
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="공정명" en="Process" /><span className={`font-bold ${s2Count > 0 ? 'text-green-700' : 'text-red-500'}`}>({s2Count})</span>
+          <BiHeader ko={lb.l2Short} en={lb.l2En} /><span className={`font-bold ${s2Count > 0 ? 'text-green-700' : 'text-red-500'}`}>({s2Count})</span>
         </th>
         <th className="w-[55px] max-w-[55px] min-w-[55px] bg-[#29b6f6] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>{lb.l3Attr}</th>
         <th className="bg-[#ffe0b2] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
@@ -340,7 +340,7 @@ export function StructureRow({
             />
           ) : (
             <span className="text-xs font-semibold text-gray-800">
-              {state.l1.name || `${lb.l1Short} 입력`}{state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
+              {state.l1.name || `${lb.l1Short} 입력`}{!isDfmea && state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
             </span>
           )}
         </td>
@@ -602,7 +602,7 @@ export default function StructureTab(props: StructureTabProps) {
 
       // ─── STEP 5: 사용자 피드백 ───
       const totalWE = newL2.reduce((sum: number, p: any) => sum + (p.l3?.length || 0), 0);
-      showAlert(`자동 로드 완료!\n\n소스: ${source}\n공정: ${newL2.length}개\n작업요소: ${totalWE}개`);
+      showAlert(`자동 로드 완료!\n\n소스: ${source}\n공정: ${newL2.length}개\n${lb.l3Short}: ${totalWE}개`);
 
     } catch (error) {
       console.error('❌ [자동모드] 오류:', error);
@@ -797,7 +797,7 @@ export default function StructureTab(props: StructureTabProps) {
     // L2(공정) 삭제
     if (clickedColumn === 'process' || clickedColumn === 'l1') {
       const msg = procName
-        ? `공정 "${procNo} ${procName}" 전체를 삭제하시겠습니까?\n(하위 작업요소 ${proc.l3?.length || 0}개 포함)`
+        ? `${lb.l2Short} "${procNo} ${procName}" 전체를 삭제하시겠습니까?\n(하위 ${lb.l3Short} ${proc.l3?.length || 0}개 포함)`
         : '빈 공정 행을 삭제하시겠습니까?';
       if (!window.confirm(msg)) return;
 
@@ -815,7 +815,7 @@ export default function StructureTab(props: StructureTabProps) {
     }
 
     // L3(작업요소) 삭제
-    if (weName && !window.confirm(`작업요소 "${weName}"을(를) 삭제하시겠습니까?`)) return;
+    if (weName && !window.confirm(`${lb.l3Short} "${weName}"을(를) 삭제하시겠습니까?`)) return;
 
     let newDB = deleteL3Structure(props.atomicDB, l3Id);
     // L3가 0개가 되면 빈 L3 1개 자동 추가
@@ -971,7 +971,7 @@ export default function StructureTab(props: StructureTabProps) {
 
     // ✅ 작업요소가 연결되어 있는지 확인
     if (workElementCount === 0) {
-      showAlert('작업요소를 먼저 연결해주세요.\n\n작업요소가 없으면 확정할 수 없습니다.');
+      showAlert(`${lb.l3Short}를 먼저 연결해주세요.\n\n${lb.l3Short}가 없으면 확정할 수 없습니다.`);
       return;
     }
 
@@ -1060,14 +1060,14 @@ export default function StructureTab(props: StructureTabProps) {
     // ★ 누락 우선순위: L1 이름 → L2 이름 → L3 4M 빈 항목
     // 1. L1 이름 누락
     if (isMissing(state.l1.name)) {
-      alert('완제품 공정명이 비어있습니다. 더블클릭하여 입력하세요.');
+      alert(`${lb.l1Short}이 비어있습니다. 더블클릭하여 입력하세요.`);
       return;
     }
 
     // 2. L2 이름 누락
     for (const proc of state.l2) {
       if (isMissing(proc.name)) {
-        alert(`공정 "${proc.no || '?'}"의 공정명이 비어있습니다.`);
+        alert(`${lb.l2Short} "${proc.no || '?'}"의 이름이 비어있습니다.`);
         return;
       }
     }
@@ -1147,7 +1147,7 @@ export default function StructureTab(props: StructureTabProps) {
                 />
               ) : (
                 <span className="text-xs font-semibold text-gray-800">
-                  {state.l1.name || `${lb.l1Short} 입력`}{state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
+                  {state.l1.name || `${lb.l1Short} 입력`}{!isDfmea && state.l1.name && !state.l1.name.includes('입력') && ' 생산공정'}
                 </span>
               )}
             </td>
@@ -1183,7 +1183,7 @@ export default function StructureTab(props: StructureTabProps) {
                 setIsWorkElementModalOpen(true);
               }}
             >
-              <span className="text-[#e65100] font-semibold text-[10px]">🔍 클릭하여 작업요소 추가</span>
+              <span className="text-[#e65100] font-semibold text-[10px]">🔍 클릭하여 {lb.l3Short} 추가</span>
             </td>
           </tr>
         ) : (
@@ -1356,7 +1356,7 @@ export default function StructureTab(props: StructureTabProps) {
           const effectiveTargetL2Id = targetL2Id || (state.l2.length > 0 ? state.l2[0].id : null);
           if (!effectiveTargetL2Id) { showAlert('먼저 공정을 선택해주세요.'); return; }
           if (!props.atomicDB || !props.setAtomicDB) {
-            toast.error('구조 DB(Atomic)가 준비되지 않아 작업요소를 저장할 수 없습니다. 잠시 후 다시 시도해 주세요.');
+            toast.error(`구조 DB(Atomic)가 준비되지 않아 ${lb.l3Short}를 저장할 수 없습니다. 잠시 후 다시 시도해 주세요.`);
             return;
           }
 

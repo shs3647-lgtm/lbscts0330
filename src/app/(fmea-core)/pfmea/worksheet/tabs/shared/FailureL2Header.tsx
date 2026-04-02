@@ -118,10 +118,10 @@ export function FailureL2Header({
       {/* 2행: 11px, bold */}
       <tr>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko={`2. ${lb.l2}`} en="Main Process" />
+          <BiHeader ko={`2. ${lb.l2}`} en={lb.l2En} />
         </th>
         <th colSpan={3} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko={`2. ${lb.l2FuncGroup}`} en="Function & Product Char." />
+          <BiHeader ko={`2. ${lb.l2FuncGroup}`} en={lb.l2FuncGroupEn} />
         </th>
         <th className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <div className="flex items-center justify-center gap-1">
@@ -136,10 +136,10 @@ export function FailureL2Header({
       {/* 3행: 11px, bold, 2px 파란색 border-bottom */}
       <tr>
         <th className="bg-[#e3f2fd] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="NO+공정명" en="Process" />
+          <BiHeader ko={lb.l2No} en={lb.l2En} />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko={lb.l2Func} en="Main Function" />{l2FunctionCount != null && <span className={`font-bold ${l2FunctionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({l2FunctionCount})</span>}
+          <BiHeader ko={lb.l2Func} en={lb.l2FuncEn} />{l2FunctionCount != null && <span className={`font-bold ${l2FunctionCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({l2FunctionCount})</span>}
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] border-r-[2px] border-r-orange-500 p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko="제품특성" en="Product Char." />{productCharCount != null && <span className={`font-bold ${productCharCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({productCharCount})</span>}

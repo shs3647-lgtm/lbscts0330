@@ -20,6 +20,8 @@
 'use client';
 
 import React, { useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { COLORS, FONT_SIZES, FONT_WEIGHTS } from '../../constants';
 import { panelStyle, panelHeaderStyle, thStyle, tdStyle, tdCenterStyle, flexContainerStyle, headerStyle, panelStyleWithFlex, scrollAreaStyle, tableFullStyle } from './FailureLinkStyles';
 import { FEItem, FMItem, FCItem } from './FailureLinkTypes';
@@ -73,6 +75,9 @@ export default function FailureLinkTables({
   // 클릭 타이머 관리 (더블클릭과 싱글클릭 구분)
   ...restProps
 }: FailureLinkTablesProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const clickTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // 싱글클릭 핸들러 (200ms 딜레이) - FE/FC 공용
@@ -417,7 +422,7 @@ export default function FailureLinkTables({
               <thead>
                 <tr>
                   <th style={{...thStyle('#e8f5e9'), width: 30, minWidth: 30, maxWidth: 30}}>No</th>
-                  <th style={thStyle('#e8f5e9', '24%')} title="Process Name">공정명<br/>(Process)</th>
+                  <th style={thStyle('#e8f5e9', '24%')} title="Process Name">{lb.l2Short}<br/>({lb.l2En})</th>
                   <th style={{...thStyle('#e8f5e9', '26px'), minWidth: 26}} title="Work Element">WE</th>
                   <th style={thStyle('#e8f5e9')} title="Failure Cause">고장원인(FC)</th>
                 </tr>

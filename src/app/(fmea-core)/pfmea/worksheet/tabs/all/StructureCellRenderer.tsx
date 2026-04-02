@@ -6,6 +6,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { HEIGHTS, CELL_STYLE, STEP_DIVIDER, STEP_FIRST_COLUMN_IDS, COMPACT_CELL_STYLE, COMPACT_HEIGHTS } from './allTabConstants';
 
 interface ColumnDef {
@@ -58,6 +59,8 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
   isCompact,
   merged,
 }: StructureCellRendererProps): React.ReactElement | null {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
   // ★ 2026-01-11: 셀 스타일 최적화 + 단계 구분선 + compact 모드
   const isStepFirst = STEP_FIRST_COLUMN_IDS.includes(col.id);
   const cs = isCompact ? COMPACT_CELL_STYLE : CELL_STYLE;
@@ -91,11 +94,11 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
     return false;
   };
 
-  // ★ 완제품 공정명 - FM 전체 병합
-  if (col.name === '완제품 공정명') {
+  // ★ 완제품 공정명/시스템명 (id=1) - FM 전체 병합
+  if (col.id === 1) {
     if (row.isFirstRow) {
-      // ★★★ 2026-02-03: "생산공정" 접미사 추가 ★★★
-      const productDisplay = l1ProductName ? `${l1ProductName} 생산공정` : '';
+      const suffix = isDfmea ? '' : ' 생산공정';
+      const productDisplay = l1ProductName ? `${l1ProductName}${suffix}` : '';
       return (
         <td key={colIdx} rowSpan={fmGroup.fmRowSpan} style={cellStyle(fmGroup.fmRowSpan)}>
           {productDisplay}
@@ -105,13 +108,13 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
     return null;
   }
 
-  // ★ NO+공정명 - FM 전체 병합
-  if (col.name === 'NO+공정명') {
+  // ★ NO+공정명/NO+초점요소 (id=2) - FM 전체 병합
+  if (col.id === 2) {
     if (row.isFirstRow) {
-      // ★★★ 2026-02-03: "생산공정" 접미사 추가 ★★★
+      const suffix = isDfmea ? '' : ' 생산공정';
       const processDisplay = fmGroup.fmProcessNo && fmGroup.fmProcessName
-        ? `${fmGroup.fmProcessNo}. ${fmGroup.fmProcessName} 생산공정`
-        : fmGroup.fmProcessName ? `${fmGroup.fmProcessName} 생산공정` : '';
+        ? `${fmGroup.fmProcessNo}. ${fmGroup.fmProcessName}${suffix}`
+        : fmGroup.fmProcessName ? `${fmGroup.fmProcessName}${suffix}` : '';
       return (
         <td key={colIdx} rowSpan={fmGroup.fmRowSpan} style={cellStyle(fmGroup.fmRowSpan)}>
           {processDisplay}
@@ -121,8 +124,8 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
     return null;
   }
 
-  // ★ 4M - FC별 병합 (누적 범위 체크)
-  if (col.name === '4M') {
+  // ★ 4M/Type (id=3) - FC별 병합 (누적 범위 체크)
+  if (col.id === 3) {
     if (rowInFM === 0 || !isInMergedRange()) {
       return (
         <td key={colIdx} rowSpan={row.fcRowSpan} style={{ ...cellStyle(row.fcRowSpan, true), textAlign: 'center' }}>
@@ -133,8 +136,8 @@ export const StructureCellRenderer = React.memo(function StructureCellRendererIn
     return null;
   }
 
-  // ★ 작업요소 - FC별 병합 (누적 범위 체크)
-  if (col.name === '작업요소') {
+  // ★ 작업요소/부품 (id=4) - FC별 병합 (누적 범위 체크)
+  if (col.id === 4) {
     if (rowInFM === 0 || !isInMergedRange()) {
       return (
         <td key={colIdx} rowSpan={row.fcRowSpan} style={cellStyle(row.fcRowSpan, true)}>

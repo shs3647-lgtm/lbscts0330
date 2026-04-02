@@ -11,6 +11,8 @@
 'use client';
 
 import React, { useMemo, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { WorksheetState } from '../../constants';
 import { 
   Fmea4Row, 
@@ -60,6 +62,9 @@ const styles = {
 };
 
 export default function Fmea4Tab({ state, setState, setDirty, saveToLocalStorage, saveAtomicDB }: Fmea4TabProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   // 4판 데이터 가져오기 (없으면 빈 배열)
    
   const fmea4Rows: Fmea4Row[] = useMemo(() => {
@@ -331,7 +336,7 @@ export default function Fmea4Tab({ state, setState, setDirty, saveToLocalStorage
                         value={row.processName}
                         onChange={(e) => updateCell(row.id, 'processName', e.target.value)}
                         className={`${styles.input} font-semibold`}
-                        placeholder="공정명"
+                        placeholder={lb.l2Short}
                       />
                     </td>
                   )}

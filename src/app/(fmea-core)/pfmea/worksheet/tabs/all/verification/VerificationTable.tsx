@@ -10,6 +10,8 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { LEVEL_COLORS, PLACEHOLDER_DASH, PLACEHOLDER_UNCLASSIFIED } from '../allTabConstants';
 import type { VerificationMode, FlatFERow, FlatFMRow, FlatFCRow, SpannedRow, VerificationStats } from './types';
 
@@ -180,6 +182,9 @@ function FMTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFMRow>[]
 // ============ FC 검증 테이블 (3L 고장원인) ============
 
 function FCTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFCRow>[]; stats: VerificationStats; onRowDblClick?: (id: string) => void }) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const L3 = LEVEL_COLORS.L3;
   if (rows.length === 0) return <EmptyMessage text="연결된 고장원인이 없습니다." />;
   const dup = stats.duplicateTexts;
@@ -193,11 +198,11 @@ function FCTable({ rows, stats, onRowDblClick }: { rows: SpannedRow<FlatFCRow>[]
           </th>
         </tr>
         <tr>
-          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '7%' }}>NO+공정명</th>
-          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '3%' }}>4M</th>
-          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '10%' }}>작업요소</th>
-          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '18%' }}>작업요소기능</th>
-          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '14%' }}>공정특성</th>
+          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '7%' }}>{lb.l2No}</th>
+          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '3%' }}>{lb.l3Attr}</th>
+          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '10%' }}>{lb.l3Short}</th>
+          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '18%' }}>{lb.l3Func}</th>
+          <th style={{ ...HEADER_STYLE(L3.headerLight), width: '14%' }}>{lb.l3Char}</th>
           <th style={{ ...HEADER_STYLE(L3.headerLight), width: '48%' }}>고장원인</th>
         </tr>
       </thead>

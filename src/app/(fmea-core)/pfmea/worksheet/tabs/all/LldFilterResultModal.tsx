@@ -7,6 +7,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { downloadStyledExcel } from '@/lib/excel-utils';
@@ -64,6 +66,9 @@ const zebraRow = (idx: number) => idx % 2 === 0 ? 'bg-white' : 'bg-[#F0F0F0]';
 const cellBase = 'px-1 py-[3px] border-b border-r border-slate-300 text-[10px] align-middle';
 
 export default function LldFilterResultModal({ modal, onClose, onApply, onSelectMatchedAndApply, onDelete, onToggleCheck, onToggleAll }: Props) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [targetFilter, setTargetFilter] = useState<TargetFilter>('all');
   const [apFilter, setApFilter] = useState<ApFilter>('all');
@@ -432,7 +437,7 @@ export default function LldFilterResultModal({ modal, onClose, onApply, onSelect
                   { label: <input type="checkbox" checked={allFilteredChecked} onChange={e => handleFilteredToggleAll(e.target.checked)} className="accent-white" />, w: 24 },
                   { label: '#', w: 26 },
                   { label: '공정번호', w: 52 },
-                  { label: '공정명', w: 80 },
+                  { label: lb.l2Short, w: 80 },
                   { label: '고장형태(FM)', w: 110 },
                   { label: '고장원인(FC)', w: 110 },
                   { label: 'S', w: 20 },

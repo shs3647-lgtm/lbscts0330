@@ -17,6 +17,10 @@ interface L3SectionProps {
  * 3. 작업요소 기능/공정특성 섹션 (L3 레벨)
  */
 export default function L3Section({ row, onOpenModal }: L3SectionProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
+
   return (
     <>
       {/* L3: 작업요소 기능 */}
@@ -33,7 +37,7 @@ export default function L3Section({ row, onOpenModal }: L3SectionProps) {
       >
         <SelectableCell
           value={row.l3Function}
-          placeholder="작업요소 기능"
+          placeholder={lb.l3Func}
           bgColor={FUNC_COLORS.l3Cell}
           onClick={() => onOpenModal('l3Function', row.l3Id, row.l2No)}
         />
@@ -53,7 +57,7 @@ export default function L3Section({ row, onOpenModal }: L3SectionProps) {
       >
         <SelectableCell
           value={row.l3ProcessChar}
-          placeholder="공정특성"
+          placeholder={lb.l3Char}
           bgColor={FUNC_COLORS.l3Cell}
           onClick={() => onOpenModal('l3ProcessChar', row.l3Id, row.l2No)}
         />

@@ -23,6 +23,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 import { uid, WorksheetState } from '../../constants';
 import { ensurePlaceholder, PLACEHOLDER_TEXT } from '../../utils/safeMutate';
 import { FunctionTabProps } from './types';
@@ -60,6 +62,9 @@ import { PfmeaContextMenu, initialPfmeaContextMenu, PfmeaContextMenuState } from
 type L3RowType = 'workElement' | 'function' | 'processChar';
 
 export default function FunctionL3Tab({ state, setState, setStateSynced, setDirty, saveToLocalStorage, saveAtomicDB, fmeaId, customerName, importCounts }: FunctionTabProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [modal, setModal] = useState<{ type: string; procId: string; l3Id: string; funcId?: string; title: string; itemCode: string; workElementName?: string; parentCategory?: string } | null>(null);
   const [specialCharModal, setSpecialCharModal] = useState<{ procId: string; l3Id: string; funcId: string; charId: string } | null>(null);
   const { alertProps, showAlert } = useAlertModal();
@@ -746,16 +751,19 @@ export default function FunctionL3Tab({ state, setState, setStateSynced, setDirt
 // ★★★ 2026-02-05: Row 컴포넌트 분리 ★★★
 
 function EmptyRowL3() {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   return (
     <tr className="bg-[#e8f5e9]">
       <td colSpan={3} className="border border-[#ccc] p-2.5 text-center bg-[#e3f2fd] text-xs text-gray-500 align-middle">
-        (구조분석에서 작업요소 추가)
+        (구조분석에서 {lb.l3Short} 추가)
       </td>
       <td className="border border-[#ccc] p-0 align-middle">
-        <SelectableCell value="" placeholder="작업요소기능 선택" bgColor={'#e8f5e9'} onClick={() => { }} />
+        <SelectableCell value="" placeholder={`${lb.l3Func} 선택`} bgColor={'#e8f5e9'} onClick={() => { }} />
       </td>
       <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle">
-        <SelectableCell value="" placeholder="공정특성 선택" bgColor={'#e8f5e9'} onClick={() => { }} />
+        <SelectableCell value="" placeholder={`${lb.l3Char} 선택`} bgColor={'#e8f5e9'} onClick={() => { }} />
       </td>
       <td className="border border-[#ccc] border-l-0 p-1 text-center bg-[#fff3e0] align-middle">
         <SpecialCharBadge value="" onClick={() => { }} />
@@ -765,6 +773,9 @@ function EmptyRowL3() {
 }
 
 function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpan, getWeRowSpan, handleCellClick, handleInlineEditFunction, handleInlineEditProcessChar, setSpecialCharModal, handleContextMenu, missingWeIds }: any) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   let globalRowIdx = 0;
 
   // ★★★ 2026-02-18: placeholder 공정 중복 제거 (실제 공정 있으면 placeholder 제외) ★★★
@@ -812,10 +823,10 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
                 <td rowSpan={weRowSpan} className="border border-[#ccc] p-1 text-center text-xs font-medium align-middle" style={{ background: zebra.structure }}>{we.m4}</td>
                 <td rowSpan={weRowSpan} className="border border-[#ccc] p-1 font-semibold text-xs align-middle break-words" style={{ background: zebra.structure }}>{we.name}</td>
                 <td className={cellP0} style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, we.id, firstFuncId)}>
-                  <SelectableCell value="" placeholder="작업요소기능 선택" bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} />
+                  <SelectableCell value="" placeholder={`${lb.l3Func} 선택`} bgColor={zebra.function} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, title: `${lb.l3Func} 선택`, itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} />
                 </td>
                 <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }}>
-                  <SelectableCell value="" placeholder="공정특성 선택" bgColor={zebra.failure} onClick={() => { }} />
+                  <SelectableCell value="" placeholder={`${lb.l3Char} 선택`} bgColor={zebra.failure} onClick={() => { }} />
                 </td>
                 <td className="border border-[#ccc] border-l-0 p-1 text-center align-middle" style={{ background: zebra.failure }}>
                   <SpecialCharBadge value="" onClick={() => { }} />
@@ -859,10 +870,10 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
                     </>
                   )}
                   <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: zebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, we.id, f.id)}>
-                    <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
+                    <SelectableCell value={f.name} placeholder={lb.l3Func} bgColor={zebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: `${lb.l3Func} 선택`, itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
                   </td>
                   <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={hasFuncValue ? undefined : (e) => e.stopPropagation()}>
-                    <SelectableCell value="" placeholder="공정특성 선택" bgColor={zebra.failure} onClick={hasFuncValue ? () => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 }) : () => {}} />
+                    <SelectableCell value="" placeholder={`${lb.l3Char} 선택`} bgColor={zebra.failure} onClick={hasFuncValue ? () => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, title: `${lb.l3Char} 선택`, itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 }) : () => {}} />
                   </td>
                   <td className="border border-[#ccc] border-l-0 p-1 text-center align-middle" style={{ background: zebra.failure }}>
                     <SpecialCharBadge value="" onClick={() => { }} />
@@ -895,11 +906,11 @@ function L3ProcessRows({ l2, isMeaningfulFunc, getMeaningfulChars, getProcRowSpa
                   )}
                   {cIdx === 0 && (
                     <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcZebra.function }} onContextMenu={(e) => handleContextMenu(e, 'function', proc.id, we.id, f.id)}>
-                      <SelectableCell value={f.name} placeholder="작업요소기능" bgColor={funcZebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: '작업요소 기능 선택', itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
+                      <SelectableCell value={f.name} placeholder={lb.l3Func} bgColor={funcZebra.function} isRevised={f.isRevised} onClick={() => handleCellClick({ type: 'l3Function', procId: proc.id, l3Id: we.id, funcId: f.id, title: `${lb.l3Func} 선택`, itemCode: 'B2', workElementName: we.name, parentCategory: we.m4 })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(proc.id, we.id, f.id, newValue)} />
                     </td>
                   )}
                   <td className="border border-[#ccc] border-r-[2px] border-r-orange-500 p-0 align-middle" style={{ background: zebra.failure }} onContextMenu={hasFuncValue ? (e) => handleContextMenu(e, 'processChar', proc.id, we.id, f.id, c.id) : undefined}>
-                    <SelectableCell value={c.name} placeholder="공정특성 선택" bgColor={zebra.failure} isRevised={c.isRevised} onClick={hasFuncValue ? () => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id, title: '공정특성 선택', itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 }) : () => {}} onDoubleClickEdit={hasFuncValue ? (newValue) => handleInlineEditProcessChar(proc.id, we.id, f.id, c.id, newValue) : undefined} />
+                    <SelectableCell value={c.name} placeholder={`${lb.l3Char} 선택`} bgColor={zebra.failure} isRevised={c.isRevised} onClick={hasFuncValue ? () => handleCellClick({ type: 'l3ProcessChar', procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id, title: `${lb.l3Char} 선택`, itemCode: 'B3', workElementName: we.name, parentCategory: we.m4 }) : () => {}} onDoubleClickEdit={hasFuncValue ? (newValue) => handleInlineEditProcessChar(proc.id, we.id, f.id, c.id, newValue) : undefined} />
                   </td>
                   <td className="border border-[#ccc] border-l-0 p-1 text-center align-middle" style={{ background: zebra.failure }}>
                     <SpecialCharBadge value={c.specialChar || ''} onClick={() => setSpecialCharModal({ procId: proc.id, l3Id: we.id, funcId: f.id, charId: c.id })} />

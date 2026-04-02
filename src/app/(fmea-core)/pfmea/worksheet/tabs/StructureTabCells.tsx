@@ -10,11 +10,13 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { WorksheetState } from '../constants';
 import { cell } from '../../../../../styles/worksheet';
 import { extractM4FromValue } from '@/lib/constants';
 import { emitSave } from '../hooks/useSaveEvent';
 import { normalizeL2ProcessNo } from '../utils/processNoNormalize';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 // PFMEA 4M 타입 옵션 (MN/MC/IM/EN)
 export const M4_OPTIONS = [
@@ -118,6 +120,9 @@ interface EditableL1CellProps {
 export function EditableL1Cell({
   value, state, setState, setDirty, saveToLocalStorage, saveAtomicDB, zebraBg, rowSpan, isConfirmed, isRevised
 }: EditableL1CellProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value || '');
 
@@ -167,11 +172,10 @@ export function EditableL1Cell({
         setEditValue(safeName);
         setIsEditing(true);
       }}
-      title="더블클릭: 완제품공정명 수동 수정"
+      title={`더블클릭: ${lb.l1Short} 수동 수정`}
     >
-      {/* ★★★ "완제품명" + 줄바꿈 + "생산공정" 하드코딩 ★★★ */}
       <span className="font-normal text-[11px]" style={{ color: isRevised ? '#c62828' : '#1f2937' }}>
-        {isPlaceholder ? '완제품공정명 입력' : <>{safeName}<br />생산공정</>}
+        {isPlaceholder ? `${lb.l1Short} 입력` : isDfmea ? safeName : <>{safeName}<br />생산공정</>}
       </span>
     </td>
   );

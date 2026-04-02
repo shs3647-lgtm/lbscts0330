@@ -99,18 +99,18 @@ export const FunctionCellRenderer = React.memo(function FunctionCellRendererInne
     return false;
   };
 
-  // ★ FE 기반 역전개 (구분, 완제품기능, 요구사항)
-  const feFunctionCols = ['구분', '완제품기능', '요구사항'];
-  if (feFunctionCols.includes(col.name)) {
+  // ★ FE 기반 역전개 (구분=5, 완제품기능/시스템기능=6, 요구사항=7)
+  const feFunctionIds = [5, 6, 7];
+  if (feFunctionIds.includes(col.id)) {
     // ★ rowSpan=0이면 병합된 범위 → 렌더링 안함
     if (row.feRowSpan === 0) return null;
     // 누적 범위 체크: 이전 행의 feRowSpan 범위 안에 있으면 렌더링하지 않음
     if (rowInFM === 0 || !isInMergedRange('fe')) {
       let value = '';
-      if (col.name === '구분') value = row.feCategory || '';
-      else if (col.name === '완제품기능') value = row.feFunctionName || '';
-      else if (col.name === '요구사항') value = row.feRequirement || '';
-      
+      if (col.id === 5) value = row.feCategory || '';
+      else if (col.id === 6) value = row.feFunctionName || '';
+      else if (col.id === 7) value = row.feRequirement || '';
+
       return (
         <td key={colIdx} rowSpan={row.feRowSpan} style={cellStyle(row.feRowSpan)}>
           {value}
@@ -120,14 +120,14 @@ export const FunctionCellRenderer = React.memo(function FunctionCellRendererInne
     return null;
   }
 
-  // ★ FM 기반 역전개 (공정 기능, 제품특성)
-  const fmFunctionCols = ['공정 기능', '제품특성'];
-  if (fmFunctionCols.includes(col.name)) {
+  // ★ FM 기반 역전개 (공정기능/초점요소기능=8, 제품특성=9)
+  const fmFunctionIds = [8, 9];
+  if (fmFunctionIds.includes(col.id)) {
     if (row.isFirstRow) {
       let value = '';
-      if (col.name === '공정 기능') value = fmGroup.fmProcessFunction || '';
-      else if (col.name === '제품특성') value = fmGroup.fmProductChar || '';
-      
+      if (col.id === 8) value = fmGroup.fmProcessFunction || '';
+      else if (col.id === 9) value = fmGroup.fmProductChar || '';
+
       return (
         <td key={colIdx} rowSpan={fmGroup.fmRowSpan} style={cellStyle(fmGroup.fmRowSpan)}>
           {value}
@@ -137,15 +137,15 @@ export const FunctionCellRenderer = React.memo(function FunctionCellRendererInne
     return null;
   }
 
-  // ★ FC 기반 역전개 (작업요소 기능, 공정특성)
-  const fcFunctionCols = ['작업요소 기능', '공정특성'];
-  if (fcFunctionCols.includes(col.name)) {
+  // ★ FC 기반 역전개 (작업요소기능/부품기능=10, 공정특성/설계특성=11)
+  const fcFunctionIds = [10, 11];
+  if (fcFunctionIds.includes(col.id)) {
     // 누적 범위 체크: 이전 행의 fcRowSpan 범위 안에 있으면 렌더링하지 않음
     if (rowInFM === 0 || !isInMergedRange('fc')) {
       let value = '';
-      if (col.name === '작업요소 기능') value = row.fcWorkFunction || '';
-      else if (col.name === '공정특성') value = row.fcProcessChar || '';
-      
+      if (col.id === 10) value = row.fcWorkFunction || '';
+      else if (col.id === 11) value = row.fcProcessChar || '';
+
       return (
         <td key={colIdx} rowSpan={row.fcRowSpan} style={cellStyle(row.fcRowSpan, true)}>
           {value}

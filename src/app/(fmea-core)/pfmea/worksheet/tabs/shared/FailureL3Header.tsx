@@ -11,6 +11,8 @@ import { btnConfirm, btnEdit, badgeConfirmed, badgeMissing, badgeOk } from '@/st
 import { HelpPopup } from './HelpPopup';
 import { ImportVerifyBadge } from './ImportVerifyBadge';
 import { BiHeader } from './BaseWorksheetComponents';
+import { usePathname } from 'next/navigation';
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface FailureL3HeaderProps {
   isConfirmed: boolean;
@@ -47,6 +49,9 @@ export function FailureL3Header({
   importFcCount,
   importLoaded,
 }: FailureL3HeaderProps) {
+  const pathname = usePathname();
+  const isDfmea = pathname?.includes('/dfmea/') ?? false;
+  const lb = getFmeaLabels(isDfmea);
   const [showHelp, setShowHelp] = useState(false);
 
   return (
@@ -109,13 +114,13 @@ export function FailureL3Header({
       {/* 2행: 11px, bold */}
       <tr>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center whitespace-nowrap">
-          <BiHeader ko="2. 메인 공정명" en="Main Process" />
+          <BiHeader ko={'2. ' + lb.l2} en={lb.l2En} />
         </th>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-0.5 text-[10px] font-bold text-center whitespace-nowrap">
           WE
         </th>
         <th colSpan={2} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
-          <BiHeader ko="3. 작업요소의 기능 및 공정특성" en="Function & Process Char." />
+          <BiHeader ko={'3. ' + lb.l3FuncGroup} en={lb.l3FuncGroupEn} />
         </th>
         <th className="bg-[#f57c00] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <div className="flex items-center justify-center gap-1">
@@ -130,13 +135,13 @@ export function FailureL3Header({
       {/* 3행: 11px, bold, 파란색 하단 구분선 */}
       <tr>
         <th className="bg-[#e3f2fd] border border-[#ccc] px-0.5 py-0.5 text-[10px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="NO+공정명" en="Process" />
+          <BiHeader ko={lb.l2No} en={lb.l2En} />
         </th>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-0.5 text-[10px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           WE
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] border-r-[2px] border-r-orange-500 p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          <BiHeader ko="공정특성" en="Process Char." />{processCharCount != null && <span className={`font-bold ${processCharCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({processCharCount})</span>}
+          <BiHeader ko={lb.l3Char} en={lb.l3CharEn} />{processCharCount != null && <span className={`font-bold ${processCharCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({processCharCount})</span>}
         </th>
         <th className="bg-orange-500 text-white border border-[#ccc] border-l-0 p-1 text-[10px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }} title="Special Characteristic">
           <BiHeader ko="특별특성" en="SC" />{specialCharCount != null && <span className="font-bold">({specialCharCount})</span>}
