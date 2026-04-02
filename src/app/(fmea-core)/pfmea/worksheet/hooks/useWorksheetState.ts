@@ -94,7 +94,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
   const urlTab = searchParams.get('tab') || null;
   const compareEmbed = searchParams.get('compareEmbed') === '1';
 
-  const [state, setState] = useState<WorksheetState>(() => createInitialState(isDfmea));
+  const [state, setState] = useState<WorksheetState>(() => createInitialState());
   const [isHydrated, setIsHydrated] = useState(false);
   // ★★★ 2026-02-18: 초기값 TRUE - 데이터 로드 완료 전 자동저장 차단 (빈 데이터 DB 덮어쓰기 방지) ★★★
   const suppressAutoSaveRef = useRef<boolean>(true);
@@ -476,7 +476,7 @@ export function useWorksheetState(): UseWorksheetStateReturn {
         });
 
         const newState: WorksheetState = {
-          l1: baseLegacy.l1 || createInitialState(isDfmea).l1,
+          l1: baseLegacy.l1 || createInitialState().l1,
           l2: baseLegacy.l2 || [],
           tab: 'structure',
           riskData: baseLegacy.riskData || {},

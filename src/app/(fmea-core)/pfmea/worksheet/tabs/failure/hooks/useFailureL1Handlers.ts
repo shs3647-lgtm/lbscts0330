@@ -328,7 +328,7 @@ export function useFailureL1Handlers({
       // Step 1: 구조 확인
       const types = state.l1?.types || [];
       if (types.length === 0) {
-        _alert('기능분석(1L)을 먼저 완료해주세요.\n구분(YP/SP/USER)이 없으면 자동매핑할 수 없습니다.');
+        _alert(`기능분석(1L)을 먼저 완료해주세요.\n구분(${isDfmea ? '법규/기본/보조/관능' : 'YP/SP/USER'})이 없으면 자동매핑할 수 없습니다.`);
         setIsAutoMode(false);
         return;
       }

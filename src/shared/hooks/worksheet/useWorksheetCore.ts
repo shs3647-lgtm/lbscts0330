@@ -56,7 +56,7 @@ export function useWorksheetCore(
   const mode = searchParams.get('mode');
   const urlTab = searchParams.get('tab') || null;
   
-  const [state, setState] = useState<WorksheetState>(() => createInitialState(isDfmea));
+  const [state, setState] = useState<WorksheetState>(() => createInitialState());
   
   // ✅ 클라이언트에서만 localStorage에서 tab/riskData 복원 (마운트 후)
   const [isHydrated, setIsHydrated] = useState(false);

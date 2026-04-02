@@ -199,7 +199,7 @@ export function useWorksheetDataLoader({
 
         // ensureL1Types — types가 비어있으면 기본 타입 생성
         // ★★★ DFMEA: 법규/기본/보조/관능 — PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
-        const l1 = legacyFromAtomic.l1 || createInitialState(isDfmea).l1;
+        const l1 = legacyFromAtomic.l1 || createInitialState().l1;
         const types = l1.types || [];
         let finalL1 = l1;
         if (types.length === 0) {
@@ -294,7 +294,7 @@ export function useWorksheetDataLoader({
 
       // ★★★ DFMEA: 법규/기본/보조/관능 — PFMEA 명칭(YP/SP/USER) 절대 주입 금지 ★★★
       const ensureL1Types = (l1: any) => {
-        if (!l1) return { ...createInitialState(isDfmea).l1, name: projectL1Name };
+        if (!l1) return { ...createInitialState().l1, name: projectL1Name };
         const currentName = l1.name || '';
         const isPlaceholder = !currentName || currentName.includes('입력') || currentName.trim() === '';
         const finalL1Name = projectL1Name || (isPlaceholder ? '' : currentName);

@@ -10,6 +10,38 @@
 
 import { getPrisma } from '@/lib/prisma';
 
+// ============ 단계 자동 계산 ============
+
+/**
+ * FmeaConfirmedState에서 현재 단계(1~6) 자동 계산
+ * 1단계: FMEA 등록 (기본)
+ * 2단계: 구조분석 (structure + 기능분석 L1/L2/L3 확정)
+ * 3단계: 고장사슬분석 (고장분석 L1/L2/L3 + 고장연결 확정)
+ * 4단계: ALL화면 — 위험분석 확정
+ * 5단계: ALL화면 — 최적화 확정
+ * 6단계: 완료 (전체 확정)
+ */
+function calcStepFromConfirmed(cs: any): number {
+  if (!cs) return 1;
+  const s = cs.structureConfirmed;
+  const f1 = cs.l1FunctionConfirmed;
+  const f2 = cs.l2FunctionConfirmed;
+  const f3 = cs.l3FunctionConfirmed;
+  const fl1 = cs.failureL1Confirmed;
+  const fl2 = cs.failureL2Confirmed;
+  const fl3 = cs.failureL3Confirmed;
+  const fLink = cs.failureLinkConfirmed;
+  const risk = cs.riskConfirmed;
+  const opt = cs.optimizationConfirmed;
+
+  if (s && f1 && f2 && f3 && fl1 && fl2 && fl3 && fLink && risk && opt) return 6;
+  if (s && f1 && f2 && f3 && fl1 && fl2 && fl3 && fLink && risk) return 5;
+  if (s && f1 && f2 && f3 && fl1 && fl2 && fl3 && fLink) return 4;
+  if (s && f1 && f2 && f3) return 3;
+  if (s) return 2;
+  return 1;
+}
+
 // ============ 타입 정의 ============
 
 export interface FMEAProjectData {
@@ -97,6 +129,18 @@ export async function getProjects(
     ]
   });
 
+  // ★ FmeaConfirmedState 조회 — 단계 자동 계산용
+  const confirmedMap0 = new Map<string, any>();
+  if (projects.length > 0) {
+    const fmeaIds0 = projects.map(p => p.fmeaId.toLowerCase());
+    try {
+      const csList = await prisma.fmeaConfirmedState.findMany({ where: { fmeaId: { in: fmeaIds0 } } });
+      csList.forEach((cs: any) => confirmedMap0.set(cs.fmeaId.toLowerCase(), cs));
+    } catch (e) {
+      console.error('[fmea-project] FmeaConfirmedState 조회 실패:', e);
+    }
+  }
+
   // ★★★ ProjectLinkage에서 공통 데이터 조회 (연동 DB 우선) ★★★
   const linkageMap = new Map<string, any>();
   if (projects.length > 0) {
@@ -118,7 +162,7 @@ export async function getProjects(
 
   // 응답 형식으로 변환 (ProjectLinkage 우선)
   const result = projects.map(p => {
-    // ★★★ ProjectLinkage에서 공통 데이터 가져오기 (연동 DB 우선!) ★★★
+    const cs0 = confirmedMap0.get(p.fmeaId.toLowerCase());
     const linkage = linkageMap.get(p.fmeaId.toLowerCase());
 
     // ★★★ 연동 정보를 최상위 레벨에도 추가 (리스트 페이지 호환) ★★★
@@ -142,11 +186,11 @@ export async function getProjects(
       id: p.fmeaId.toLowerCase(),
       fmeaType: p.fmeaType,
       deletedAt: p.deletedAt ? p.deletedAt.toISOString() : null,
-      parentApqpNo: p.parentApqpNo || null,  // ★ 상위 APQP
+      parentApqpNo: p.parentApqpNo || null,
       parentFmeaId: p.parentFmeaId ? p.parentFmeaId.toLowerCase() : null,
       parentFmeaType: p.parentFmeaType,
       status: p.status,
-      step: p.step,
+      step: calcStepFromConfirmed(cs0),
       revisionNo: p.revisionNo,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
@@ -340,6 +384,22 @@ export async function getProjectsPaginated(
     take: pageSize,
   });
 
+  // ★ FmeaConfirmedState 조회 — 단계 자동 계산용
+  const confirmedMap = new Map<string, any>();
+  if (projects.length > 0) {
+    const fmeaIds = projects.map(p => p.fmeaId.toLowerCase());
+    try {
+      const confirmedStates = await prisma.fmeaConfirmedState.findMany({
+        where: { fmeaId: { in: fmeaIds } },
+      });
+      confirmedStates.forEach((cs: any) => {
+        confirmedMap.set(cs.fmeaId.toLowerCase(), cs);
+      });
+    } catch (e) {
+      console.error('[fmea-project] FmeaConfirmedState 조회 실패:', e);
+    }
+  }
+
   // ProjectLinkage 병합
   const linkageMap = new Map<string, any>();
   if (projects.length > 0) {
@@ -361,6 +421,7 @@ export async function getProjectsPaginated(
 
   // 응답 변환 (기존 getProjects와 동일한 형식)
   const data = projects.map(p => {
+    const cs = confirmedMap.get(p.fmeaId.toLowerCase());
     const linkage = linkageMap.get(p.fmeaId.toLowerCase());
     const linkedPfdNo = linkage?.pfdNo || p.registration?.linkedPfdNo || '';
     const linkedCpNo = linkage?.cpNo || p.registration?.linkedCpNo || '';
@@ -382,7 +443,7 @@ export async function getProjectsPaginated(
       parentFmeaId: p.parentFmeaId ? p.parentFmeaId.toLowerCase() : null,
       parentFmeaType: p.parentFmeaType,
       status: p.status,
-      step: p.step,
+      step: calcStepFromConfirmed(cs),
       revisionNo: p.revisionNo,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),

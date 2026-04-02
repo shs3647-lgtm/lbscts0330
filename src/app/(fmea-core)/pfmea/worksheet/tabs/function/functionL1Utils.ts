@@ -11,11 +11,13 @@
  */
 
 import { normalizeScope, getRequiredScopes, type ScopeCode, type DfmeaScopeCode } from '@/lib/fmea/scope-constants';
+import { PLACEHOLDER_TEXT } from '../../utils/safeMutate';
 
-/** 플레이스홀더 값 체크 (빈 값, 클릭하여, 선택, 자동생성 등) */
+/** 플레이스홀더 값 체크 (빈 값, '미입력' 등 시스템 플레이스홀더 포함) */
 export const isPlaceholder = (value: string | undefined | null): boolean => {
   if (!value) return true;
-  return value.trim() === '';
+  const t = value.trim();
+  return t === '' || t === PLACEHOLDER_TEXT;
 };
 
 /** 의미 있는 값인지 체크 (플레이스홀더가 아닌 값) */

@@ -148,7 +148,7 @@ const DFMEAListRow = React.memo(function DFMEAListRow({
         {(p.revisionNo || '00').replace(/^Rev\.?/i, '')}
       </td>
       <td className="px-0.5 py-0.5 text-center align-middle whitespace-nowrap">
-        <StepBadge step={p.step} maxSteps={7} />
+        <StepBadge step={p.step} maxSteps={6} />
       </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">
         {p.fmeaInfo?.engineeringLocation || renderEmpty(p.id)}
@@ -187,10 +187,9 @@ const DFMEAListRow = React.memo(function DFMEAListRow({
         {(() => {
           const step = p.step || 1;
           const targetDate = p.fmeaInfo?.fmeaRevisionDate;
-          const today = new Date().toISOString().slice(0, 10);  // 'YYYY-MM-DD'
+          const today = new Date().toISOString().slice(0, 10);
 
-          // 완료 (step 7 이상)
-          if (step >= 7) return <span className="text-[8px] font-bold text-green-600 bg-green-100 px-1 rounded">완료(Done)</span>;
+          if (step >= 6) return <span className="text-[8px] font-bold text-green-600 bg-green-100 px-1 rounded">완료(Done)</span>;
 
           // 지연 (목표완료일이 오늘보다 이전이면서 미완료)
           if (targetDate && targetDate < today) {
@@ -659,7 +658,7 @@ export default function DFMEAListPage() {
                   { ko: 'Type', en: '', field: 'fmeaType', title: 'FMEA Type (M/F/P)' },
                   { ko: 'ID', en: '', field: 'fmeaId', title: 'FMEA Identifier' },
                   { ko: 'Rev', en: '', field: 'revisionNo', title: 'Revision Number' },
-                  { ko: '단계', en: 'Step', field: 'step', title: 'Current Step (1-7)' },
+                  { ko: '단계', en: 'Step', field: 'step', title: '1등록 2구조 3고장 4위험 5최적화 6완료' },
                   { ko: '공장', en: 'Plant', field: 'engineeringLocation', title: 'Engineering Location / Plant' },
                   { ko: 'FMEA명', en: 'Name', field: 'subject', title: 'FMEA Name / Subject' },
                   { ko: '고객사', en: 'Customer', field: 'customerName', title: 'Customer Name' },

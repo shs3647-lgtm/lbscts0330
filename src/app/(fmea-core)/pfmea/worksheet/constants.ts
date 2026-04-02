@@ -577,21 +577,13 @@ export const getTabStep = (tabId: string): number => TABS.find(t => t.id === tab
  * PFMEA: YP / SP / USER
  * DFMEA: 법규 / 기본 / 보조 / 관능
  * ❌ DFMEA에 YP/SP/USER 절대 사용 불가 — 반드시 isDfmea 분기 필수
+ *
+ * ★ 초기 상태에서 types는 빈 배열로 생성한다.
+ *   SSR 하이드레이션 시 PFMEA/DFMEA 구분 플래시를 방지하기 위함.
+ *   하이드레이션 후 useArrayGuard / useWorksheetDataLoader에서 isDfmea 기반으로 올바른 types 생성.
  */
-export const createInitialState = (isDfmea = false): WorksheetState => ({
-  // ★ L1 기본 구분 — PFMEA: YP/SP/USER, DFMEA: 법규/기본/보조/관능
-  //   functions 내 name='' 은 수동모드 입력용 placeholder (삭제 금지)
-  //   사용자가 구분명을 'N/A'로 변경하면 자동모드에서 해당 행 데이터 매핑 제외
-  l1: { id: uid(), name: '', types: isDfmea ? [
-    { id: uid(), name: '법규', functions: [{ id: uid(), name: '', requirements: [] }] },
-    { id: uid(), name: '기본', functions: [{ id: uid(), name: '', requirements: [] }] },
-    { id: uid(), name: '보조', functions: [{ id: uid(), name: '', requirements: [] }] },
-    { id: uid(), name: '관능', functions: [{ id: uid(), name: '', requirements: [] }] },
-  ] : [
-    { id: uid(), name: 'YP', functions: [{ id: uid(), name: '', requirements: [] }] },
-    { id: uid(), name: 'SP', functions: [{ id: uid(), name: '', requirements: [] }] },
-    { id: uid(), name: 'USER', functions: [{ id: uid(), name: '', requirements: [] }] },
-  ], failureEffect: '', severity: undefined, failureScopes: [] },
+export const createInitialState = (_isDfmea = false): WorksheetState => ({
+  l1: { id: uid(), name: '', types: [], failureEffect: '', severity: undefined, failureScopes: [] },
   l2: [{
     id: uid(), no: '', name: '', order: 10,
     functions: [], productChars: [], failureModes: [],

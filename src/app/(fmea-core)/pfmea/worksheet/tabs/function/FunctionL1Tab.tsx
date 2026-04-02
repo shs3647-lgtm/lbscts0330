@@ -31,7 +31,7 @@ import { handleEnterBlur } from '../../utils/keyboard';
 import { getL1TypeColor, getZebra } from '@/styles/level-colors';
 
 // ★★★ 2026-02-05: 최적화 - 유틸리티 및 핸들러 분리 ★★★
-import { formatL1Name, filterMeaningfulFunctions, filterMeaningfulRequirements, calculateTypeRowSpan, calculateFunctionRowSpan } from './functionL1Utils';
+import { formatL1Name, filterMeaningfulFunctions, filterMeaningfulRequirements, calculateTypeRowSpan, calculateFunctionRowSpan, isMeaningful } from './functionL1Utils';
 import { useFunctionL1Handlers } from './hooks/useFunctionL1Handlers';
 import { useAlertModal } from '../../hooks/useAlertModal';
 import AlertModal from '@/components/modals/AlertModal';
@@ -572,27 +572,29 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
     emitSave();
   }, [state.l1?.types]);
 
-  // stateWithL1Types: YP→SP→USER 정렬만 (추가는 useEffect에서 처리)
+  // ★ DFMEA: 법규→기본→보조→관능, PFMEA: YP→SP→USER 정렬
   const stateWithL1Types = useMemo(() => {
     const types = state.l1?.types || [];
     if (types.length === 0) return state;
-    const CATEGORY_ORDER: Record<string, number> = { YP: 0, SP: 1, USER: 2 };
-    const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? 99;
+    const CATEGORY_ORDER: Record<string, number> = isDfmea
+      ? { '법규': 0, '기본': 1, '보조': 2, '관능': 3 }
+      : { YP: 0, SP: 1, USER: 2 };
+    const getOrder = (t: any) => CATEGORY_ORDER[(t.name || '').toUpperCase().trim()] ?? CATEGORY_ORDER[(t.name || '').trim()] ?? 99;
     const sorted = [...types].sort((a: any, b: any) => getOrder(a) - getOrder(b));
     if (JSON.stringify(sorted) === JSON.stringify(types)) return state;
     return { ...state, l1: { ...state.l1, types: sorted } };
-  }, [state]);
+  }, [state, isDfmea]);
 
-  // ✅ 1L COUNT 계산 (완제품기능, 요구사항)
+  // ✅ 1L COUNT 계산 — isPlaceholder 기반 (isMeaningful)으로 통일하여 누락 카운트와 일치
   const functionCount = useMemo(() => {
     return (state.l1?.types || []).reduce((sum, type) =>
-      sum + (type.functions || []).filter((f: any) => f.name?.trim()).length, 0);
+      sum + (type.functions || []).filter((f: any) => isMeaningful(f.name)).length, 0);
   }, [state.l1?.types]);
 
   const requirementCount = useMemo(() => {
     return (state.l1?.types || []).reduce((sum, type) =>
       sum + (type.functions || []).reduce((funcSum, func) =>
-        funcSum + (func.requirements || []).filter((r: any) => r.name?.trim()).length, 0), 0);
+        funcSum + (func.requirements || []).filter((r: any) => isMeaningful(r.name)).length, 0), 0);
   }, [state.l1?.types]);
 
   return (
