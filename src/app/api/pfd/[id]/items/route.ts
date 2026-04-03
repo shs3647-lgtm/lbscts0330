@@ -16,6 +16,7 @@ import { getPrisma } from '@/lib/prisma';
 import { getPrismaForPfd } from '@/lib/project-schema';
 import { resolveProjectPfdRegistration } from '@/lib/fmea-core/resolve-pfd-project-row';
 import { safeErrorMessage } from '@/lib/security';
+import { validateCrossSchemaRefs } from '@/lib/validate-cross-refs';
 import type { PrismaClient } from '@prisma/client';
 
 // ============================================================================
@@ -100,6 +101,29 @@ export async function POST(
       linkedPfmeaNo: (pfd as { linkedPfmeaNo?: string | null }).linkedPfmeaNo ?? null,
     });
     const projectPfdId = projRow?.id ?? pfd.id;
+
+    // ★★★ Write-time cross-ref 검증 (TODO-04) ★★★
+    const refsToValidate = items
+      .filter((item: any) => item.fmeaL2Id || item.fmeaL3Id)
+      .map((item: any, i: number) => ({
+        sourceModel: 'PfdItem',
+        sourceId: `new-pfd-item-${i}`,
+        fmeaL2Id: item.fmeaL2Id || null,
+        fmeaL3Id: item.fmeaL3Id || null,
+      }));
+    if (refsToValidate.length > 0) {
+      const orphans = await validateCrossSchemaRefs(projPrisma, refsToValidate);
+      if (orphans.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `FMEA 참조 무결성 오류: ${orphans.length}건의 존재하지 않는 L2/L3 참조가 있습니다.`,
+            orphanRefs: orphans.map(o => ({ field: o.field, missingId: o.orphanId })),
+          },
+          { status: 400 },
+        );
+      }
+    }
 
     // 트랜잭션으로 처리 (기존 항목 삭제 후 새로 생성) — 프로젝트 스키마
     const result = await projPrisma.$transaction(async (tx: any) => {

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { getPrismaForCp } from '@/lib/project-schema';
 import { syncCPItemToUnified } from '@/lib/unified-sync';
+import { validateCrossSchemaRefs } from '@/lib/validate-cross-refs';
 
 // GET: CP Items 조회
 export async function GET(
@@ -223,6 +224,30 @@ export async function PUT(
 
     if (!cpPrisma) {
       return NextResponse.json({ success: false, error: 'CP 프로젝트 스키마 연결 실패' }, { status: 500 });
+    }
+
+    // ★★★ Write-time cross-ref 검증 (TODO-04) ★★★
+    const refsToValidate = items
+      .filter((item: any) => item.pfmeaProcessId || item.pfmeaWorkElemId)
+      .map((item: any, i: number) => ({
+        sourceModel: 'CpAtomicProcess' as const,
+        sourceId: `new-cp-item-${i}`,
+        fmeaL2Id: item.pfmeaProcessId || null,
+        fmeaL3Id: item.pfmeaWorkElemId || null,
+      }));
+    if (refsToValidate.length > 0) {
+      const orphans = await validateCrossSchemaRefs(cpPrisma, refsToValidate);
+      if (orphans.length > 0) {
+        console.warn(`[CP Items] ${orphans.length}건 고아 FMEA 참조 감지 - 참조 해제 후 저장`);
+        // CP는 PFD와 달리 고아 참조를 null로 자동 보정 (엄격한 차단대신)
+        for (const orphan of orphans) {
+          const item = items.find((_: any, idx: number) => `new-cp-item-${idx}` === orphan.sourceId);
+          if (item) {
+            if (orphan.field === 'fmeaL2Id') item.pfmeaProcessId = null;
+            if (orphan.field === 'fmeaL3Id') item.pfmeaWorkElemId = null;
+          }
+        }
+      }
     }
 
     // ★ 트랜잭션으로 deleteMany + create 원자성 보장 (프로젝트 스키마)
