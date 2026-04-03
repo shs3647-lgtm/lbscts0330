@@ -9,6 +9,7 @@
  */
 
 import { PreviewOption, PreviewColumn } from './types';
+import { PFD_ITEM_CODES } from '@/lib/pfd/constants/pfd-column-ids';
 
 // ===== 그룹 시트 옵션 (2개) =====
 export const GROUP_SHEET_OPTIONS: PreviewOption[] = [
@@ -77,15 +78,15 @@ export const GROUP_HEADERS = [
 
 // ★ itemCode 표준화 매핑 (PFD용: A1~A5, B1~B4)
 export const STANDARDIZE_ITEM_CODE: Record<string, string> = {
-  'processNo': 'A1',           // 공정번호
-  'processName': 'A2',         // 공정명
-  'processDesc': 'A3',         // 공정설명
-  'workElement': 'A4',         // 작업요소
-  'equipment': 'A5',           // 설비/금형/지그
-  'productSpecialChar': 'B1',  // 제품특별특성
-  'productChar': 'B2',         // 제품특성
-  'processSpecialChar': 'B3',  // 공정특별특성
-  'processChar': 'B4',         // 공정특성
+  'processNo': PFD_ITEM_CODES.A1,
+  'processName': PFD_ITEM_CODES.A2,
+  'processDesc': PFD_ITEM_CODES.A3,
+  'workElement': PFD_ITEM_CODES.A4,
+  'equipment': PFD_ITEM_CODES.A5,
+  'productSpecialChar': PFD_ITEM_CODES.B1,
+  'productChar': PFD_ITEM_CODES.B2,
+  'processSpecialChar': PFD_ITEM_CODES.B3,
+  'processChar': PFD_ITEM_CODES.B4,
 };
 
 // itemCode 표준화 헬퍼 함수

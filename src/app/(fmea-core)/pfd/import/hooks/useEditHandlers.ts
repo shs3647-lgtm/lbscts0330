@@ -7,21 +7,11 @@
 
 import { useState, useCallback } from 'react';
 import type { ImportedData } from '../types';
+import { PFD_KEY_TO_ITEM_CODE } from '@/lib/pfd/constants/pfd-column-ids';
 
 type PreviewTab = 'full' | 'group' | 'individual';
 
-// key를 itemCode로 매핑 (PREVIEW_COLUMNS의 key → 실제 itemCode)
-const KEY_TO_ITEM_CODE_MAP: Record<string, string> = {
-  'processNo': 'A1',
-  'processName': 'A2',
-  'processDesc': 'A3',
-  'workElement': 'A4',
-  'equipment': 'A5',
-  'productSpecialChar': 'B1',
-  'productChar': 'B2',
-  'processSpecialChar': 'B3',
-  'processChar': 'B4',
-};
+const KEY_TO_ITEM_CODE_MAP = PFD_KEY_TO_ITEM_CODE;
 
 export interface UseEditHandlersProps {
   fullData: ImportedData[];

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrismaForCp } from '@/lib/project-schema';
+import { CP_ITEM_CODES } from '@/lib/cp/constants/cp-column-ids';
 
 // GET: CP 마스터 데이터 조회
 export async function GET(
@@ -67,43 +68,43 @@ export async function GET(
       const pName = proc.processName || '';
 
       // processInfo 카테고리 (A1~A5)
-      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: 'A1', value: pNo });
-      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: 'A2', value: pName });
-      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: 'A3', value: proc.level || '' });
-      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: 'A4', value: proc.processDesc || '' });
-      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: 'A5', value: proc.equipment || '' });
+      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: CP_ITEM_CODES.A1, value: pNo });
+      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: CP_ITEM_CODES.A2, value: pName });
+      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: CP_ITEM_CODES.A3, value: proc.level || '' });
+      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: CP_ITEM_CODES.A4, value: proc.processDesc || '' });
+      flatData.push({ processNo: pNo, processName: pName, category: 'processInfo', itemCode: CP_ITEM_CODES.A5, value: proc.equipment || '' });
 
       // detector 카테고리 (A6~A7)
       const det = detectorMap.get(pNo);
       if (det) {
-        flatData.push({ processNo: pNo, processName: pName, category: 'detector', itemCode: 'A6', value: det.ep ? 'Y' : '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'detector', itemCode: 'A7', value: det.autoDetector ? 'Y' : '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'detector', itemCode: CP_ITEM_CODES.A6, value: det.ep ? 'Y' : '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'detector', itemCode: CP_ITEM_CODES.A7, value: det.autoDetector ? 'Y' : '' });
       }
 
       // controlItem 카테고리 (B1~B4)
       const ci = controlItemMap.get(pNo);
       if (ci) {
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: 'B1', value: ci.productChar || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: 'B2', value: ci.processChar || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: 'B3', value: ci.specialChar || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: 'B4', value: ci.spec || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: CP_ITEM_CODES.B1, value: ci.productChar || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: CP_ITEM_CODES.B2, value: ci.processChar || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: CP_ITEM_CODES.B3, value: ci.specialChar || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlItem', itemCode: CP_ITEM_CODES.B4, value: ci.spec || '' });
       }
 
       // controlMethod 카테고리 (B5~B9)
       const cm = controlMethodMap.get(pNo);
       if (cm) {
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: 'B5', value: cm.evalMethod || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: 'B6', value: cm.sampleSize || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: 'B7', value: cm.frequency || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: 'B7-1', value: cm.controlMethod || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: 'B8', value: cm.owner1 || '' });
-        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: 'B9', value: cm.owner2 || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: CP_ITEM_CODES.B5, value: cm.evalMethod || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: CP_ITEM_CODES.B6, value: cm.sampleSize || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: CP_ITEM_CODES.B7, value: cm.frequency || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: CP_ITEM_CODES.B7_1, value: cm.controlMethod || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: CP_ITEM_CODES.B8, value: cm.owner1 || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'controlMethod', itemCode: CP_ITEM_CODES.B9, value: cm.owner2 || '' });
       }
 
       // reactionPlan 카테고리 (B10)
       const rp = reactionPlanMap.get(pNo);
       if (rp) {
-        flatData.push({ processNo: pNo, processName: pName, category: 'reactionPlan', itemCode: 'B10', value: rp.reactionPlan || '' });
+        flatData.push({ processNo: pNo, processName: pName, category: 'reactionPlan', itemCode: CP_ITEM_CODES.B10, value: rp.reactionPlan || '' });
       }
     }
 

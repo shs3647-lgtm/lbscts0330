@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { CP_ITEM_CODES } from '@/lib/cp/constants/cp-column-ids';
 
 // ── 타입 ──
 interface FlatItem {
@@ -66,23 +67,23 @@ function buildProcessRows(items: FlatItem[]): ProcessRow[] {
     const row = ensure(item.processNo);
     const v = item.value;
     switch (item.itemCode) {
-      case 'A1': break;
-      case 'A2': row.processName = v; break;
-      case 'A3': row.level = v; break;
-      case 'A4': row.processDesc = v; break;
-      case 'A5': row.equipment = v; break;
-      case 'A6': row.ep = v; break;
-      case 'A7': row.autoDetector = v; break;
-      case 'B1': if (!row.productChars.includes(v)) row.productChars.push(v); break;
-      case 'B2': if (!row.processChars.includes(v)) row.processChars.push(v); break;
-      case 'B3': if (!row.specialChars.includes(v)) row.specialChars.push(v); break;
-      case 'B4': if (!row.specs.includes(v)) row.specs.push(v); break;
-      case 'B5': if (!row.evalMethods.includes(v)) row.evalMethods.push(v); break;
-      case 'B6': if (!row.sampleSizes.includes(v)) row.sampleSizes.push(v); break;
-      case 'B7': if (!row.frequencies.includes(v)) row.frequencies.push(v); break;
-      case 'B8': if (!row.owners1.includes(v)) row.owners1.push(v); break;
-      case 'B9': if (!row.owners2.includes(v)) row.owners2.push(v); break;
-      case 'B10': if (!row.reactionPlans.includes(v)) row.reactionPlans.push(v); break;
+      case CP_ITEM_CODES.A1: break;
+      case CP_ITEM_CODES.A2: row.processName = v; break;
+      case CP_ITEM_CODES.A3: row.level = v; break;
+      case CP_ITEM_CODES.A4: row.processDesc = v; break;
+      case CP_ITEM_CODES.A5: row.equipment = v; break;
+      case CP_ITEM_CODES.A6: row.ep = v; break;
+      case CP_ITEM_CODES.A7: row.autoDetector = v; break;
+      case CP_ITEM_CODES.B1: if (!row.productChars.includes(v)) row.productChars.push(v); break;
+      case CP_ITEM_CODES.B2: if (!row.processChars.includes(v)) row.processChars.push(v); break;
+      case CP_ITEM_CODES.B3: if (!row.specialChars.includes(v)) row.specialChars.push(v); break;
+      case CP_ITEM_CODES.B4: if (!row.specs.includes(v)) row.specs.push(v); break;
+      case CP_ITEM_CODES.B5: if (!row.evalMethods.includes(v)) row.evalMethods.push(v); break;
+      case CP_ITEM_CODES.B6: if (!row.sampleSizes.includes(v)) row.sampleSizes.push(v); break;
+      case CP_ITEM_CODES.B7: if (!row.frequencies.includes(v)) row.frequencies.push(v); break;
+      case CP_ITEM_CODES.B8: if (!row.owners1.includes(v)) row.owners1.push(v); break;
+      case CP_ITEM_CODES.B9: if (!row.owners2.includes(v)) row.owners2.push(v); break;
+      case CP_ITEM_CODES.B10: if (!row.reactionPlans.includes(v)) row.reactionPlans.push(v); break;
     }
   }
 

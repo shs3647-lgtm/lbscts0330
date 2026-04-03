@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDraggableModal } from '@/components/modals/useDraggableModal';
+import { CP_ITEM_CODES } from '@/lib/cp/constants/cp-column-ids';
 
 interface EquipmentItem {
   id: string;
@@ -41,7 +42,7 @@ const loadEquipmentsFromMaster = async (processNo: string, processName: string):
 
       flatData.forEach((item: any, idx: number) => {
         const isMatch = String(item.processNo).trim() === String(processNo).trim();
-        const isEquip = item.itemCode === 'A5' || item.code === 'A5';
+        const isEquip = item.itemCode === CP_ITEM_CODES.A5 || item.code === CP_ITEM_CODES.A5;
 
         if (isMatch && isEquip && item.value && item.value.trim()) {
           const value = item.value.trim();

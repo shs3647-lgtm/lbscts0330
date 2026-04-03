@@ -1,7 +1,12 @@
 /**
  * @file faValidation.ts
- * @description FA(통합분석) 확정 전 검증 — PRD 15개 검증항목 (C1~C5, S1~S10)
+ * @description FA(통합분석) 확정 전 검증 — PRD 15개 검증항목 (FA_C0~FA_C5, S1~S10)
  * @see docs/fa 검증_prd.md
+ *
+ * ⚠️ 네임스페이스 분리 (2026-04-03):
+ *   PRD 체크리스트 코드: FA_C0~FA_C5 (FA 전용)
+ *   FMEA 컬럼 코드: C1~C4 (PFMEA Import 표준)
+ *   이전에는 둘 다 'C4' 같은 문자열을 사용하여 혼동 위험이 있었음.
  * 
  * ★★★ 2026-02-24: 3중 검증 추가 (엑셀수식 vs 스캐너 vs 파서) ★★★
  */
@@ -9,6 +14,19 @@
 import type { ImportedFlatData } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import type { ExcelFormulaVerify } from '../excel-parser-verification';
+
+/**
+ * FA PRD 체크리스트 코드 — FMEA 컬럼 코드(C1~C4)와 별개 네임스페이스
+ * @see docs/CODE_NAMESPACE_MAP.md 섹션 2
+ */
+const FA_PRD = {
+  C0: 'FA_C0',  // 엑셀 수식 vs 파서 불일치
+  C1: 'FA_C1',  // FC시트 없음 / 체인 건수 불일치
+  C2: 'FA_C2',  // FM 고유건수 불일치
+  C3: 'FA_C3',  // FC 고유건수 불일치
+  C4: 'FA_C4',  // FE 고유건수 불일치
+  C5: 'FA_C5',  // verificationPass 실패
+} as const;
 
 export interface FAValidationExpected {
   chainCount: number;
@@ -63,7 +81,7 @@ export function validateFADataConsistency(
   const failedItems: string[] = [];
 
   if (!chains || chains.length === 0) {
-    return { pass: false, issues: ['FC 시트 데이터가 없습니다.'], failedItems: ['C1'] };
+    return { pass: false, issues: ['FC 시트 데이터가 없습니다.'], failedItems: [FA_PRD.C1] };
   }
 
   // ─── C1~C5: Count 검증 ───
@@ -84,19 +102,19 @@ export function validateFADataConsistency(
     const eS5 = excel.s5Miss ?? 0;
     if (eChain > 0 && eChain !== chainCount) {
       issues.push(`[엑셀수식↔파서] 체인건수 불일치 (엑셀=${eChain}, 파서=${chainCount})`);
-      failedItems.push('C0');
+      failedItems.push(FA_PRD.C0);
     }
     if (eFm > 0 && eFm !== fmUnique) {
       issues.push(`[엑셀수식↔파서] FM건수 불일치 (엑셀=${eFm}, 파서=${fmUnique})`);
-      failedItems.push('C0');
+      failedItems.push(FA_PRD.C0);
     }
     if (eFc > 0 && eFc !== fcUnique) {
       issues.push(`[엑셀수식↔파서] FC건수 불일치 (엑셀=${eFc}, 파서=${fcUnique})`);
-      failedItems.push('C0');
+      failedItems.push(FA_PRD.C0);
     }
     if (eFe > 0 && eFe !== feUnique) {
       issues.push(`[엑셀수식↔파서] FE건수 불일치 (엑셀=${eFe}, 파서=${feUnique})`);
-      failedItems.push('C0');
+      failedItems.push(FA_PRD.C0);
     }
     if (eS3 > 0) {
       issues.push(`[엑셀수식] 공정번호 누락 ${eS3}건 (FC→A1)`);
@@ -114,23 +132,23 @@ export function validateFADataConsistency(
 
   if (expected.hasVerification && !expected.verificationPass) {
     issues.push('원본대조 검증 실패');
-    failedItems.push('C5');
+    failedItems.push(FA_PRD.C5);
   }
   if (expected.chainCount > 0 && chainCount !== expected.chainCount) {
     issues.push(`체인 건수 불일치 (기대 ${expected.chainCount}, 실제 ${chainCount})`);
-    failedItems.push('C1');
+    failedItems.push(FA_PRD.C1);
   }
   if (expected.fmCount > 0 && fmUnique !== expected.fmCount) {
     issues.push(`FM 고유건수 불일치 (예상 ${expected.fmCount}, 현재 ${fmUnique})`);
-    failedItems.push('C2');
+    failedItems.push(FA_PRD.C2);
   }
   if (expected.fcCount > 0 && fcUnique !== expected.fcCount) {
     issues.push(`FC 고유건수 불일치 (예상 ${expected.fcCount}, 현재 ${fcUnique})`);
-    failedItems.push('C3');
+    failedItems.push(FA_PRD.C3);
   }
   if (expected.feCount > 0 && feUnique !== expected.feCount) {
     issues.push(`FE 고유건수 불일치 (예상 ${expected.feCount}, 현재 ${feUnique})`);
-    failedItems.push('C4');
+    failedItems.push(FA_PRD.C4);
   }
 
   // ─── S1~S8: Consistency 필수 ───

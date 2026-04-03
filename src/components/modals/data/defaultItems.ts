@@ -1,6 +1,16 @@
 /**
  * @file defaultItems.ts
  * @description DataSelectModal에서 사용하는 기본 데이터 항목 (DFMEA/PFMEA 분리)
+ *
+ * ⚠️ 코드 체계 참고 (docs/CODE_NAMESPACE_MAP.md):
+ *   이 파일의 ITEM_CODE_LABELS는 PFMEA 워크시트 전용이며,
+ *   Import 파이프라인의 A1~C4 itemCode와는 다른 맥락에서 사용됨.
+ *
+ *   모달 전용 코드 ↔ Import 코드 대응:
+ *     FM1 (고장형태)  ↔ Import A5
+ *     FC1 (고장원인)  ↔ Import B4
+ *     FE2 (고장영향)  ↔ Import C4
+ *   C1~C4는 PFMEA L1 컬럼 ID와 동일 (충돌 없음).
  */
 
 export interface DataItem {

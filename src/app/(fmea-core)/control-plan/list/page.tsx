@@ -16,6 +16,7 @@ import CPStepBadge, { CP_STEPS, getStepName } from './CPStepBadge';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
+import LazyApqpName from '@/components/common/LazyApqpName';
 import { useAuth } from '@/hooks/useAuth';
 
 const CONFIG = {
@@ -46,6 +47,8 @@ interface CPProject {
   };
   parentCpId?: string;
   parentFmeaId?: string;
+  parentApqpNo?: string;
+  apqpProjectName?: string | null;
   linkedPfdNo?: string;
   step?: number;
   revisionNo?: string;
@@ -147,6 +150,9 @@ const CPListRow = React.memo(function CPListRow({
         ) : <span className="text-gray-300">-</span>}
       </td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{(() => { const name = p.cpInfo?.subject; if (!name || name === p.id) return renderEmptyFn(p.id); return <a href={`${CONFIG.worksheetUrl}?cpNo=${p.id.toLowerCase()}`} className="text-blue-600 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()} title={name}>{name}</a>; })()}</td>
+      <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
+        <LazyApqpName apqpNo={p.parentApqpNo} preloadedName={p.apqpProjectName} />
+      </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.cpInfo?.customerName || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.cpInfo?.processResponsibility || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.cpInfo?.cpResponsibleName || renderEmptyFn(p.id)}</td>
@@ -255,6 +261,8 @@ export default function CPListPage() {
           },
           parentCpId: cp.parentCpId,
           parentFmeaId: cp.fmeaId,
+          parentApqpNo: cp.parentApqpNo || null,
+          apqpProjectName: cp.apqpProjectName || null,
           linkedPfdNo: cp.linkedPfdNo,
           step: cp.step || 1,
           revisionNo: cp.revisionNo || 'Rev.00',
@@ -522,6 +530,7 @@ export default function CPListPage() {
                   { label: 'TYPE', field: '' },
                   { label: 'CP 종류(Category)', field: 'confidentialityLevel' },
                   { label: 'CP명(Name)', field: 'subject' },
+                  { label: 'APQP', field: '' },
                   { label: '고객사(Customer)', field: 'customerName' },
                   { label: '공정책임(Resp.)', field: 'processResponsibility' },
                   { label: '담당자(Owner)', field: 'cpResponsibleName' },

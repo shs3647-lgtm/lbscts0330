@@ -7,30 +7,11 @@
 
 import { useState, useCallback } from 'react';
 import type { ImportedData } from '../types';
+import { CP_KEY_TO_ITEM_CODE } from '@/lib/cp/constants/cp-column-ids';
 
 type PreviewTab = 'full' | 'group' | 'individual';
 
-// key를 itemCode로 매핑 (PREVIEW_COLUMNS의 key → 실제 itemCode)
-const KEY_TO_ITEM_CODE_MAP: Record<string, string> = {
-  'processNo': 'A1',
-  'processName': 'A2',
-  'level': 'A3',
-  'processDesc': 'A4',
-  'equipment': 'A5',
-  'ep': 'A6',
-  'autoDetector': 'A7',
-  'productChar': 'B1',
-  'processChar': 'B2',
-  'specialChar': 'B3',
-  'spec': 'B4',
-  'evalMethod': 'B5',
-  'sampleSize': 'B6',
-  'frequency': 'B7',
-  'controlMethod': 'B7-1',  // 관리방법 추가
-  'owner1': 'B8',
-  'owner2': 'B9',
-  'reactionPlan': 'B10',
-};
+const KEY_TO_ITEM_CODE_MAP = CP_KEY_TO_ITEM_CODE;
 
 export interface UseEditHandlersProps {
   fullData: ImportedData[];

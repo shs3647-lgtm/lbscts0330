@@ -24,6 +24,7 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { useDeleteSelectDialog } from '@/hooks/useDeleteSelectDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
+import LazyApqpName from '@/components/common/LazyApqpName';
 import { useAuth } from '@/hooks/useAuth';
 
 // =====================================================
@@ -42,7 +43,7 @@ const PAGE_SIZE = 50;
 const ROW_HEIGHT = 28;
 
 const COLUMN_WIDTHS = [
-  '2.5%', '6%', '4%', '8%', '3%', '4%', '5%', '16%', '7%', '5%', '5%', '5%', '5%', '6%', '7%'
+  '2.5%', '5%', '4%', '7%', '3%', '4%', '5%', '10%', '12%', '6%', '5%', '5%', '5%', '5%', '6%', '6%'
 ];
 
 // =====================================================
@@ -72,6 +73,8 @@ interface FMEAProject {
   };
   cftMembers?: Array<{ name: string }>;
   parentFmeaId?: string;
+  parentApqpNo?: string;
+  apqpProjectName?: string | null;
   linkedPfdNo?: string;
   linkedCpNo?: string;
   step?: number;
@@ -142,6 +145,9 @@ const FMEAListRow = React.memo(function FMEAListRow({
       </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">
         {p.fmeaInfo?.engineeringLocation || renderEmpty(p.id)}
+      </td>
+      <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[90px]">
+        <LazyApqpName apqpNo={p.parentApqpNo} preloadedName={p.apqpProjectName} />
       </td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
         {(() => {
@@ -248,6 +254,8 @@ export default function FMEAListPage({ config, TopNav }: FMEAListPageProps) {
           ...p,
           id: (p.id || '').toLowerCase(),
           deletedAt: p.deletedAt || null,
+          parentApqpNo: p.parentApqpNo || null,
+          apqpProjectName: p.apqpProjectName || null,
           linkedPfdNo: p.linkedPfdNo || p.fmeaInfo?.linkedPfdNo || '',
           linkedCpNo: p.linkedCpNo || p.fmeaInfo?.linkedCpNo || '',
           fmeaInfo: {
@@ -520,6 +528,7 @@ export default function FMEAListPage({ config, TopNav }: FMEAListPageProps) {
     { ko: 'Rev', en: '', field: 'revisionNo', title: 'Revision Number' },
     { ko: '단계', en: 'Step', field: 'step', title: '1등록 2구조 3고장 4위험 5최적화 6완료' },
     { ko: '공장', en: 'Plant', field: 'engineeringLocation', title: 'Engineering Location / Plant' },
+    { ko: 'APQP', en: 'Project', field: '', title: 'APQP 프로젝트명 (Parent Project)' },
     { ko: 'FMEA명', en: 'Name', field: 'subject', title: 'FMEA Name / Subject' },
     { ko: '고객사', en: 'Customer', field: 'customerName', title: 'Customer Name' },
     { ko: '담당자', en: 'Resp.', field: 'fmeaResponsibleName', title: 'FMEA Responsible Person' },

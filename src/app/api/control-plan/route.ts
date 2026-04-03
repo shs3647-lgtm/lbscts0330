@@ -433,6 +433,7 @@ export async function GET(request: NextRequest) {
       fmeaId: true,
       fmeaNo: true,
       parentCpId: true,    // ★ 상위 CP
+      parentApqpNo: true,  // ★ 상위 APQP
       linkedPfdNo: true,   // ★★★ 연동 PFD (DB 필드 직접 조회)
       customerName: true,
       modelYear: true,
@@ -499,6 +500,8 @@ export async function GET(request: NextRequest) {
         linkedPfdNo: (cp as any).linkedPfdNo || linkageMap.get(cp.cpNo?.toLowerCase() || '') || null,
       }));
 
+      // ★★★ APQP 프로젝트명 → 클라이언트 LazyApqpName으로 이관 (서버 부하 제거) ★★★
+
       return NextResponse.json({
         success: true,
         data: cpsWithLinkage,
@@ -548,6 +551,8 @@ export async function GET(request: NextRequest) {
       ...cp,
       linkedPfdNo: (cp as any).linkedPfdNo || linkageMap.get(cp.cpNo?.toLowerCase() || '') || null,
     }));
+
+    // ★★★ APQP 프로젝트명 → 클라이언트 LazyApqpName으로 이관 (서버 부하 제거) ★★★
 
     return NextResponse.json({
       success: true,

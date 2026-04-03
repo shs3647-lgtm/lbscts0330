@@ -14,19 +14,9 @@ import { useMemo } from 'react';
 import { Pencil, Trash2, Save, X } from 'lucide-react';
 import type { ImportedData } from '../types';
 import { PREVIEW_COLUMNS, GROUP_HEADERS, tw } from '../constants';
+import { PFD_KEY_TO_ITEM_CODE } from '@/lib/pfd/constants/pfd-column-ids';
 
-// key를 itemCode로 매핑
-const KEY_TO_ITEM_CODE_MAP: Record<string, string> = {
-  'processNo': 'A1',
-  'processName': 'A2',
-  'processDesc': 'A3',
-  'workElement': 'A4',
-  'equipment': 'A5',
-  'productSpecialChar': 'B1',
-  'productChar': 'B2',
-  'processSpecialChar': 'B3',
-  'processChar': 'B4',
-};
+const KEY_TO_ITEM_CODE_MAP = PFD_KEY_TO_ITEM_CODE;
 
 // 누락 체크에서 제외할 항목 (특별특성은 선택적)
 const SKIP_MISSING_CHECK = ['productSpecialChar', 'processSpecialChar'];

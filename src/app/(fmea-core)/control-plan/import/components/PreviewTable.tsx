@@ -10,28 +10,9 @@
 import { Pencil, Trash2, Save, X } from 'lucide-react';
 import type { ImportedData } from '../types';
 import { PREVIEW_COLUMNS, GROUP_HEADERS, tw } from '../constants';
+import { CP_KEY_TO_ITEM_CODE } from '@/lib/cp/constants/cp-column-ids';
 
-// key를 itemCode로 매핑 (PREVIEW_COLUMNS의 key → 실제 itemCode)
-const KEY_TO_ITEM_CODE_MAP: Record<string, string> = {
-  'processNo': 'A1',
-  'processName': 'A2',
-  'level': 'A3',
-  'processDesc': 'A4',
-  'equipment': 'A5',
-  'ep': 'A6',
-  'autoDetector': 'A7',
-  'productChar': 'B1',
-  'processChar': 'B2',
-  'specialChar': 'B3',
-  'spec': 'B4',
-  'evalMethod': 'B5',
-  'sampleSize': 'B6',
-  'frequency': 'B7',
-  'controlMethod': 'B7-1',  // 관리방법 컬럼 추가
-  'owner1': 'B8',
-  'owner2': 'B9',
-  'reactionPlan': 'B10',
-};
+const KEY_TO_ITEM_CODE_MAP = CP_KEY_TO_ITEM_CODE;
 
 // 누락 체크 제외 컬럼 (특별특성만 선택사항)
 const SKIP_MISSING_CHECK = ['specialChar'];

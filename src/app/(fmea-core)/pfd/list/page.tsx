@@ -14,6 +14,7 @@ import { StepBadge, TypeBadge, extractTypeFromId, ListActionBar, PaginationBar, 
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
+import LazyApqpName from '@/components/common/LazyApqpName';
 import { useAuth } from '@/hooks/useAuth';
 
 const CONFIG = {
@@ -39,6 +40,8 @@ interface PFDProject {
   pfdStartDate?: string;
   pfdRevisionDate?: string;
   parentFmeaId?: string;
+  parentApqpNo?: string;
+  apqpProjectName?: string | null;
   linkedCpNo?: string;
   linkedCpNos?: string[];
   step?: number;
@@ -101,6 +104,9 @@ const PFDListRow = React.memo(function PFDListRow({
         ) : <span className="text-gray-300">-</span>}
       </td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">{p.subject ? <a href={`${config.worksheetUrl}?pfdNo=${p.pfdNo?.toLowerCase()}`} className="text-blue-700 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()} title={p.subject}>{p.subject}</a> : renderEmptyFn(p.id)}</td>
+      <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
+        <LazyApqpName apqpNo={p.parentApqpNo} preloadedName={p.apqpProjectName} />
+      </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.customerName || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.processResponsibility || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.pfdResponsibleName || renderEmptyFn(p.id)}</td>
@@ -206,6 +212,8 @@ export default function PFDListPage() {
           pfdStartDate: p.pfdStartDate,
           pfdRevisionDate: p.pfdRevisionDate,
           parentFmeaId: p.fmeaId || p.parentFmeaId,
+          parentApqpNo: p.parentApqpNo || null,
+          apqpProjectName: p.apqpProjectName || null,
           linkedCpNo: p.cpNo || p.linkedCpNo,
           linkedCpNos: p.linkedCpNos || (p.cpNo ? [p.cpNo] : []),
           step: p.step || 1,
@@ -431,6 +439,7 @@ export default function PFDListPage() {
                   { label: 'TYPE', field: '' },
                   { label: 'PFD 종류(Category)', field: 'confidentialityLevel' },
                   { label: 'PFD명(Name)', field: 'subject' },
+                  { label: 'APQP', field: '' },
                   { label: '고객사(Customer)', field: 'customerName' },
                   { label: '공정책임(Owner)', field: 'processResponsibility' },
                   { label: '담당자(Person)', field: 'pfdResponsibleName' },
