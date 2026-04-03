@@ -293,6 +293,7 @@ export function useRegisterPageHandlers(core: CoreReturn) {
           fmeaInfo: { ...updatedFmeaInfo, fmeaId: finalId },
           cftMembers: cftMembers.filter(m => m.name?.trim()),
           parentFmeaId: selectedBaseFmea,
+          parentApqpNo: selectedParentApqp || undefined,
           ...(revParam ? { revisionNo: revParam } : {}),
         }),
       });
@@ -432,9 +433,11 @@ export function useRegisterPageHandlers(core: CoreReturn) {
       const res = await fetch('/api/apqp');
       if (res.ok) {
         const data = await res.json();
-        const list = (data.projects || data || []).map((p: Record<string, unknown>) => ({
-          id: String(p.id || ''),
-          name: String(p.projectName || p.name || ''),
+        const apqps = data.apqps || [];
+        const list = apqps.map((p: Record<string, unknown>) => ({
+          apqpNo: String(p.apqpNo || ''),
+          subject: String(p.subject || p.productName || ''),
+          customerName: String(p.customerName || ''),
         }));
         setApqpList(list);
       }

@@ -40,7 +40,7 @@ const UserSelectModal = dynamic(
   { ssr: false }
 );
 import { FmeaSelectModal } from '@/components/modals/FmeaSelectModal';
-// ApqpSelectModal 삭제됨 (APQP 모듈 제거)
+import { ApqpSelectModal } from '@/components/modals/ApqpSelectModal';
 import { DatePickerModal } from '@/components/DatePickerModal';
 import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
 import { CFTRegistrationTable, createInitialCFTMembers } from '@/components/tables/CFTRegistrationTable';
@@ -847,6 +847,23 @@ function PFMEARegisterPageContent() {
                   </td>
                 </tr>
                 )}
+                {/* APQP 프로젝트 연동 행 */}
+                <tr className="h-9">
+                  <td className={`${headerCell} bg-emerald-700`}>APQP<br /><span className="text-[8px] font-normal opacity-70">(Project)</span></td>
+                  <td className={inputCell} colSpan={7}>
+                    <div className="flex items-center gap-2 px-1 min-h-[28px]">
+                      <div className="flex-1 flex items-center gap-1 cursor-pointer hover:bg-emerald-50 rounded px-1" onClick={() => { loadApqpList(); setApqpModalOpen(true); }} title="클릭하여 상위 APQP 프로젝트 선택">
+                        {selectedParentApqp ? (<>
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold text-white bg-emerald-600 shrink-0">APQP</span>
+                          <span className="text-[10px] font-semibold text-emerald-700 hover:underline">{selectedParentApqp}</span>
+                        </>) : <span className="text-[10px] text-gray-400">상위 APQP 프로젝트 선택 (Click to select)</span>}
+                      </div>
+                      {selectedParentApqp && (
+                        <button onClick={(e) => { e.stopPropagation(); handleApqpSelect(''); }} className="text-red-400 hover:text-red-600 shrink-0 text-[10px] font-bold px-1 py-0.5 border border-red-300 rounded hover:bg-red-50" title="APQP 연동 해제">해제</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
                 {/* 4행: 회사명, 모델연식, 품명 */}
                 <tr className="h-9">
                   <td className={headerCell}>회사 명<br /><span className="text-[8px] font-normal opacity-70">(Company)</span></td>
@@ -1294,6 +1311,14 @@ function PFMEARegisterPageContent() {
           onSuccessNavigate={() => {
             if (fmeaId) router.push(`${worksheetPath}?id=${fmeaId}`);
           }}
+        />
+
+        {/* APQP 선택 모달 */}
+        <ApqpSelectModal
+          isOpen={apqpModalOpen}
+          onClose={() => setApqpModalOpen(false)}
+          onSelect={handleApqpSelect}
+          apqps={apqpList}
         />
 
       </div>

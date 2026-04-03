@@ -17,6 +17,7 @@ import { LinkedDocItem } from '@/components/linkage/types';
 import { FMEAInfo, FMEAType, FMEASelectType, INITIAL_FMEA, SaveStatus } from '../types';
 import { syncToLocalStorage } from '../utils';
 import { toast } from '@/hooks/useToast';
+import type { ApqpItem } from '@/components/modals/ApqpSelectModal';
 
 export function useRegisterPageCore() {
   const { user } = useAuth();
@@ -76,7 +77,7 @@ export function useRegisterPageCore() {
 
   // ★ APQP 연동
   const [apqpModalOpen, setApqpModalOpen] = useState(false);
-  const [apqpList, setApqpList] = useState<{ id: string; name: string }[]>([]);
+  const [apqpList, setApqpList] = useState<ApqpItem[]>([]);
   const [selectedParentApqp, setSelectedParentApqp] = useState<string | null>(null);
 
   // 연동 모달
