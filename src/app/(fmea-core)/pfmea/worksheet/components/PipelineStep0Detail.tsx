@@ -48,11 +48,9 @@ const TAB_DEFS: { key: TabKey; label: string; color: string }[] = [
   { key: 'import', label: 'Import', color: 'text-yellow-300' },
 ];
 
-const CODE_LABELS: Record<string, string> = {
-  A1: '공정번호', A2: '공정명', A3: '공정기능', A4: '제품특성', A5: '고장형태', A6: '검출관리',
-  B1: '작업요소', B2: '요소기능', B3: '공정특성', B4: '고장원인', B5: '예방관리',
-  C1: '구분', C2: '제품기능', C3: '요구사항', C4: '고장영향',
-};
+// ★ PFMEA_CODE_TO_HEADER SSoT 참조 — C2='완제품기능'으로 정규화됨
+import { PFMEA_CODE_TO_HEADER } from '@/lib/fmea/constants/pfmea-header-map';
+const CODE_LABELS = PFMEA_CODE_TO_HEADER;
 
 export default function PipelineStep0Detail({ step, fmeaId, onImportComplete }: Props) {
   const [tab, setTab] = useState<TabKey>('summary');

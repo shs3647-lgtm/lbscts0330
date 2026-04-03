@@ -11,6 +11,23 @@
  */
 
 import { L1, L2, L3 } from '@/styles/worksheet';
+import {
+  STRUCT_L1_GROUP, STRUCT_L1_NAME, STRUCT_L2_GROUP, STRUCT_L2_NAME,
+  STRUCT_L3_GROUP, STRUCT_L3_ATTR_NAME, STRUCT_L3_NAME,
+  FUNC_L1_GROUP, FUNC_L1_C1_NAME, FUNC_L1_C2_NAME, FUNC_L1_C3_NAME,
+  FUNC_L2_GROUP, FUNC_L2_A3_NAME, FUNC_L2_A4_NAME,
+  FUNC_L3_GROUP, FUNC_L3_B2_NAME, FUNC_L3_B3_NAME,
+  FAIL_FE_GROUP, FAIL_FE_NAME, FAIL_S_NAME, FAIL_FM_GROUP, FAIL_FM_NAME,
+  FAIL_FC_GROUP, FAIL_FC_NAME,
+  RISK_PC_GROUP, RISK_PC_NAME, RISK_O_NAME,
+  RISK_DC_GROUP, RISK_DC_NAME, RISK_D_NAME,
+  RISK_EVAL_GROUP, RISK_AP_NAME, RISK_SC_NAME, RISK_LLD_NAME,
+  OPT_PLAN_GROUP, OPT_PC_IMPROVE_NAME, OPT_DC_IMPROVE_NAME, OPT_PERSON_NAME,
+  OPT_TARGET_DATE_NAME, OPT_STATUS_NAME,
+  OPT_MONITOR_GROUP, OPT_RESULT_NAME, OPT_COMPLETE_DATE_NAME,
+  OPT_EVAL_GROUP, OPT_S_NAME, OPT_O_NAME, OPT_D_NAME, OPT_SC_NAME,
+  OPT_AP_NAME, OPT_NOTE_NAME,
+} from '@/lib/fmea/constants/pfmea-header-map';
 
 // ============ 플레이스홀더/마커 문자열 (중앙 집중 관리) ============
 /** 해당 없음 (Not Applicable) — 개선추천 불필요 시 사용 */
@@ -263,151 +280,151 @@ export interface ColumnDef {
 export const COLUMNS_BASE: ColumnDef[] = [
   // ■ 2단계: 구조분석 (4컬럼)
   {
-    id: 1, step: '구조분석', group: '1. 완제품 공정명', name: '완제품 공정명', width: 160,
+    id: 1, step: '구조분석', group: STRUCT_L1_GROUP, name: STRUCT_L1_NAME, width: 160,
     headerColor: COLORS.structure.product.headerLight, cellColor: COLORS.structure.product.cell, cellAltColor: COLORS.structure.product.cellAlt, align: 'left'
   },
   {
-    id: 2, step: '구조분석', group: '2. 메인 공정명', name: 'NO+공정명', width: 140,
+    id: 2, step: '구조분석', group: STRUCT_L2_GROUP, name: STRUCT_L2_NAME, width: 140,
     headerColor: COLORS.structure.main.headerLight, cellColor: COLORS.structure.main.cell, cellAltColor: COLORS.structure.main.cellAlt, align: 'left'
   },
   {
-    id: 3, step: '구조분석', group: '3. 작업 요소명', name: '4M', width: 50,
+    id: 3, step: '구조분석', group: STRUCT_L3_GROUP, name: STRUCT_L3_ATTR_NAME, width: 50,
     headerColor: COLORS.structure.m4.headerLight, cellColor: COLORS.structure.m4.cell, cellAltColor: COLORS.structure.m4.cellAlt, align: 'center'
   },
   {
-    id: 4, step: '구조분석', group: '3. 작업 요소명', name: '작업요소', width: 140,
+    id: 4, step: '구조분석', group: STRUCT_L3_GROUP, name: STRUCT_L3_NAME, width: 140,
     headerColor: COLORS.structure.workElement.headerLight, cellColor: COLORS.structure.workElement.cell, cellAltColor: COLORS.structure.workElement.cellAlt, align: 'left'
   },
 
   // ■ 3단계: 기능분석 (7컬럼)
   {
-    id: 5, step: '기능분석', group: '1. 완제품 공정기능/요구사항', name: '구분', width: 50,
+    id: 5, step: '기능분석', group: FUNC_L1_GROUP, name: FUNC_L1_C1_NAME, width: 50,
     headerColor: COLORS.function.division.headerLight, cellColor: COLORS.function.division.cell, cellAltColor: COLORS.function.division.cellAlt, align: 'center'
   },
   {
-    id: 6, step: '기능분석', group: '1. 완제품 공정기능/요구사항', name: '완제품기능', width: 170,
+    id: 6, step: '기능분석', group: FUNC_L1_GROUP, name: FUNC_L1_C2_NAME, width: 170,
     headerColor: COLORS.function.productFunc.headerLight, cellColor: COLORS.function.productFunc.cell, cellAltColor: COLORS.function.productFunc.cellAlt, align: 'left'
   },
   {
-    id: 7, step: '기능분석', group: '1. 완제품 공정기능/요구사항', name: '요구사항', width: 160,
+    id: 7, step: '기능분석', group: FUNC_L1_GROUP, name: FUNC_L1_C3_NAME, width: 160,
     headerColor: COLORS.function.requirement.headerLight, cellColor: COLORS.function.requirement.cell, cellAltColor: COLORS.function.requirement.cellAlt, align: 'left'
   },
   {
-    id: 8, step: '기능분석', group: '2. 메인공정기능 및 제품특성', name: '공정 기능', width: 140,
+    id: 8, step: '기능분석', group: FUNC_L2_GROUP, name: FUNC_L2_A3_NAME, width: 140,
     headerColor: COLORS.function.processFunc.headerLight, cellColor: COLORS.function.processFunc.cell, cellAltColor: COLORS.function.processFunc.cellAlt, align: 'left'
   },
   {
-    id: 9, step: '기능분석', group: '2. 메인공정기능 및 제품특성', name: '제품특성', width: 110,
+    id: 9, step: '기능분석', group: FUNC_L2_GROUP, name: FUNC_L2_A4_NAME, width: 110,
     headerColor: COLORS.function.productChar.headerLight, cellColor: COLORS.function.productChar.cell, cellAltColor: COLORS.function.productChar.cellAlt, align: 'left'
   },
   {
-    id: 10, step: '기능분석', group: '3. 작업요소 기능 및 공정특성', name: '작업요소 기능', width: 140,
+    id: 10, step: '기능분석', group: FUNC_L3_GROUP, name: FUNC_L3_B2_NAME, width: 140,
     headerColor: COLORS.function.workFunc.headerLight, cellColor: COLORS.function.workFunc.cell, cellAltColor: COLORS.function.workFunc.cellAlt, align: 'left'
   },
   {
-    id: 11, step: '기능분석', group: '3. 작업요소 기능 및 공정특성', name: '공정특성', width: 110,
+    id: 11, step: '기능분석', group: FUNC_L3_GROUP, name: FUNC_L3_B3_NAME, width: 110,
     headerColor: COLORS.function.processChar.headerLight, cellColor: COLORS.function.processChar.cell, cellAltColor: COLORS.function.processChar.cellAlt, align: 'left'
   },
 
   // ■ 4단계: 고장분석 (4컬럼)
   {
-    id: 12, step: '고장분석', group: '1. 고장영향(FE)', name: '고장영향(FE)', width: 160,
+    id: 12, step: '고장분석', group: FAIL_FE_GROUP, name: FAIL_FE_NAME, width: 160,
     headerColor: COLORS.failure.fe.headerLight, cellColor: COLORS.failure.fe.cell, cellAltColor: COLORS.failure.fe.cellAlt, align: 'left'
   },
   {
-    id: 13, step: '고장분석', group: '1. 고장영향(FE)', name: '심각도(S)', width: 50,
+    id: 13, step: '고장분석', group: FAIL_FE_GROUP, name: FAIL_S_NAME, width: 50,
     headerColor: '#a5d6a7', cellColor: '#e8f5e9', cellAltColor: '#c8e6c9', align: 'center'
   },
   {
-    id: 14, step: '고장분석', group: '2. 고장형태(FM)', name: '고장형태(FM)', width: 155,
+    id: 14, step: '고장분석', group: FAIL_FM_GROUP, name: FAIL_FM_NAME, width: 155,
     headerColor: COLORS.failure.fm.headerLight, cellColor: '#c8e6c9', cellAltColor: '#b2dfb4', align: 'left', isDark: true
   },
   {
-    id: 15, step: '고장분석', group: '3. 고장원인(FC)', name: '고장원인(FC)', width: 160,
+    id: 15, step: '고장분석', group: FAIL_FC_GROUP, name: FAIL_FC_NAME, width: 160,
     headerColor: COLORS.failure.fc.headerLight, cellColor: COLORS.failure.fc.cell, cellAltColor: COLORS.failure.fc.cellAlt, align: 'left'
   },
 
   // ■ 5단계: 리스크분석 (7컬럼)
   {
-    id: 16, step: '리스크분석', group: '1. 현재 예방관리', name: '예방관리(PC)', width: 140,
+    id: 16, step: '리스크분석', group: RISK_PC_GROUP, name: RISK_PC_NAME, width: 140,
     headerColor: COLORS.risk.prevention.headerLight, cellColor: COLORS.risk.prevention.cell, cellAltColor: COLORS.risk.prevention.cellAlt, align: 'left'
   },
   {
-    id: 17, step: '리스크분석', group: '1. 현재 예방관리', name: '발생도(O)', width: 50,
+    id: 17, step: '리스크분석', group: RISK_PC_GROUP, name: RISK_O_NAME, width: 50,
     headerColor: COLORS.risk.prevention.headerLight, cellColor: COLORS.risk.prevention.cell, cellAltColor: COLORS.risk.prevention.cellAlt, align: 'center'
   },
   {
-    id: 18, step: '리스크분석', group: '2. 현재 검출관리', name: '검출관리(DC)', width: 140,
+    id: 18, step: '리스크분석', group: RISK_DC_GROUP, name: RISK_DC_NAME, width: 140,
     headerColor: COLORS.risk.detection.headerLight, cellColor: COLORS.risk.detection.cell, cellAltColor: COLORS.risk.detection.cellAlt, align: 'left'
   },
   {
-    id: 19, step: '리스크분석', group: '2. 현재 검출관리', name: '검출도(D)', width: 50,
+    id: 19, step: '리스크분석', group: RISK_DC_GROUP, name: RISK_D_NAME, width: 50,
     headerColor: COLORS.risk.detection.headerLight, cellColor: COLORS.risk.detection.cell, cellAltColor: COLORS.risk.detection.cellAlt, align: 'center'
   },
   {
-    id: 20, step: '리스크분석', group: '3. 리스크 평가', name: 'AP', width: 30,
+    id: 20, step: '리스크분석', group: RISK_EVAL_GROUP, name: RISK_AP_NAME, width: 30,
     headerColor: COLORS.risk.evaluation.headerLight, cellColor: COLORS.risk.evaluation.cell, cellAltColor: COLORS.risk.evaluation.cellAlt, align: 'center'
   },
   {
-    id: 21, step: '리스크분석', group: '3. 리스크 평가', name: '특별특성(SC)', width: 50,
+    id: 21, step: '리스크분석', group: RISK_EVAL_GROUP, name: RISK_SC_NAME, width: 50,
     headerColor: COLORS.risk.evaluation.headerLight, cellColor: COLORS.risk.evaluation.cell, cellAltColor: COLORS.risk.evaluation.cellAlt, align: 'center'
   },
   {
-    id: 22, step: '리스크분석', group: '3. 리스크 평가', name: 'LLD', width: 65,
+    id: 22, step: '리스크분석', group: RISK_EVAL_GROUP, name: RISK_LLD_NAME, width: 65,
     headerColor: COLORS.risk.evaluation.headerLight, cellColor: COLORS.risk.evaluation.cell, cellAltColor: COLORS.risk.evaluation.cellAlt, align: 'left'
   },
 
   // ■ 6단계: 최적화 (13컬럼)
   {
-    id: 23, step: '최적화', group: '1. 계획', name: '예방관리개선', width: 140,
+    id: 23, step: '최적화', group: OPT_PLAN_GROUP, name: OPT_PC_IMPROVE_NAME, width: 140,
     headerColor: COLORS.optimization.prevention.headerLight, cellColor: COLORS.optimization.prevention.cell, cellAltColor: COLORS.optimization.prevention.cellAlt, align: 'left'
   },
   {
-    id: 24, step: '최적화', group: '1. 계획', name: '검출관리개선', width: 140,
+    id: 24, step: '최적화', group: OPT_PLAN_GROUP, name: OPT_DC_IMPROVE_NAME, width: 140,
     headerColor: COLORS.optimization.detection.headerLight, cellColor: COLORS.optimization.detection.cell, cellAltColor: COLORS.optimization.detection.cellAlt, align: 'left'
   },
   {
-    id: 25, step: '최적화', group: '1. 계획', name: '책임자성명', width: 80,
+    id: 25, step: '최적화', group: OPT_PLAN_GROUP, name: OPT_PERSON_NAME, width: 80,
     headerColor: COLORS.optimization.person.headerLight, cellColor: COLORS.optimization.person.cell, cellAltColor: COLORS.optimization.person.cellAlt, align: 'center'
   },
   {
-    id: 26, step: '최적화', group: '1. 계획', name: '목표완료일자', width: 70,
+    id: 26, step: '최적화', group: OPT_PLAN_GROUP, name: OPT_TARGET_DATE_NAME, width: 70,
     headerColor: COLORS.optimization.date.headerLight, cellColor: COLORS.optimization.date.cell, cellAltColor: COLORS.optimization.date.cellAlt, align: 'center'
   },
   {
-    id: 27, step: '최적화', group: '1. 계획', name: '상태', width: 50,
+    id: 27, step: '최적화', group: OPT_PLAN_GROUP, name: OPT_STATUS_NAME, width: 50,
     headerColor: COLORS.optimization.status.headerLight, cellColor: COLORS.optimization.status.cell, cellAltColor: COLORS.optimization.status.cellAlt, align: 'center'
   },
   {
-    id: 28, step: '최적화', group: '2. 모니터링', name: '개선결과근거', width: 100,
+    id: 28, step: '최적화', group: OPT_MONITOR_GROUP, name: OPT_RESULT_NAME, width: 100,
     headerColor: COLORS.optimization.result.headerLight, cellColor: COLORS.optimization.result.cell, cellAltColor: COLORS.optimization.result.cellAlt, align: 'left'
   },
   {
-    id: 29, step: '최적화', group: '2. 모니터링', name: '완료일자', width: 70,
+    id: 29, step: '최적화', group: OPT_MONITOR_GROUP, name: OPT_COMPLETE_DATE_NAME, width: 70,
     headerColor: COLORS.optimization.complete.headerLight, cellColor: COLORS.optimization.complete.cell, cellAltColor: COLORS.optimization.complete.cellAlt, align: 'center'
   },
   {
-    id: 30, step: '최적화', group: '3. 효과 평가', name: '심각도(S)', width: 50,
+    id: 30, step: '최적화', group: OPT_EVAL_GROUP, name: OPT_S_NAME, width: 50,
     headerColor: COLORS.optimization.severity.headerLight, cellColor: COLORS.optimization.severity.cell, cellAltColor: COLORS.optimization.severity.cellAlt, align: 'center'
   },
   {
-    id: 31, step: '최적화', group: '3. 효과 평가', name: '발생도(O)', width: 50,
+    id: 31, step: '최적화', group: OPT_EVAL_GROUP, name: OPT_O_NAME, width: 50,
     headerColor: COLORS.optimization.occurrence.headerLight, cellColor: COLORS.optimization.occurrence.cell, cellAltColor: COLORS.optimization.occurrence.cellAlt, align: 'center'
   },
   {
-    id: 32, step: '최적화', group: '3. 효과 평가', name: '검출도(D)', width: 50,
+    id: 32, step: '최적화', group: OPT_EVAL_GROUP, name: OPT_D_NAME, width: 50,
     headerColor: COLORS.optimization.detection2.headerLight, cellColor: COLORS.optimization.detection2.cell, cellAltColor: COLORS.optimization.detection2.cellAlt, align: 'center'
   },
   {
-    id: 33, step: '최적화', group: '3. 효과 평가', name: '특별특성(SC)', width: 50,
+    id: 33, step: '최적화', group: OPT_EVAL_GROUP, name: OPT_SC_NAME, width: 50,
     headerColor: COLORS.optimization.special.headerLight, cellColor: COLORS.optimization.special.cell, cellAltColor: COLORS.optimization.special.cellAlt, align: 'center'
   },
   {
-    id: 34, step: '최적화', group: '3. 효과 평가', name: 'AP', width: 30,
+    id: 34, step: '최적화', group: OPT_EVAL_GROUP, name: OPT_AP_NAME, width: 30,
     headerColor: COLORS.optimization.ap.headerLight, cellColor: COLORS.optimization.ap.cell, cellAltColor: COLORS.optimization.ap.cellAlt, align: 'center'
   },
   {
-    id: 35, step: '최적화', group: '3. 효과 평가', name: '비고', width: 80,
+    id: 35, step: '최적화', group: OPT_EVAL_GROUP, name: OPT_NOTE_NAME, width: 80,
     headerColor: COLORS.optimization.note.headerLight, cellColor: COLORS.optimization.note.cell, cellAltColor: COLORS.optimization.note.cellAlt, align: 'left'
   },
 ];

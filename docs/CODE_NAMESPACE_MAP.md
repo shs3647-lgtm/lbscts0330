@@ -191,3 +191,61 @@
 3. **PFMEA A1~C4는 수정하지 않는다** — 이미 확립된 표준이며 `types.ts`의 `ITEM_CODE_LABELS`가 SSoT.
 
 4. **CP `A1`, `A2`와 PFD `A1`, `A2`는 PFMEA와 동일 의미** — 접두사 불필요하나, 상수 파일에는 완전성을 위해 포함하되 값은 공유 가능.
+
+---
+
+## 7. 헤더 표준화 등급 (Standardization Level)
+
+> 2026-04-03 기준
+
+### L1: 상수 참조 완료 (SSoT)
+
+이 파일들은 `pfmea-header-map.ts`, `cp-column-ids.ts`, `pfd-column-ids.ts` 상수를 참조하여 하드코딩된 헤더가 제거된 상태.
+
+| 파일 | 상수 소스 |
+|------|----------|
+| `worksheet/tabs/all/allTabConstants.ts` | `pfmea-header-map.ts` (35개 컬럼 전체) |
+| `components/PipelineStep0Detail.tsx` | `PFMEA_CODE_TO_HEADER` |
+| `components/PipelineVerifyPanel.tsx` | `PFMEA_CODE_TO_HEADER` |
+| `api/control-plan/[id]/master-data/route.ts` | `CP_ITEM_CODES` |
+| `control-plan/import/hooks/useEditHandlers.ts` | `CP_KEY_TO_ITEM_CODE` |
+| `control-plan/import/components/PreviewTable.tsx` | `CP_KEY_TO_ITEM_CODE` |
+| `control-plan/worksheet/components/EquipmentInputModal.tsx` | `CP_ITEM_CODES.A5` |
+| `control-plan/register/components/CpMasterInfoTable.tsx` | `CP_ITEM_CODES` (switch 전체) |
+| `pfd/import/constants.ts` | `PFD_ITEM_CODES` |
+| `pfd/import/hooks/useEditHandlers.ts` | `PFD_KEY_TO_ITEM_CODE` |
+| `pfd/import/components/PreviewTable.tsx` | `PFD_KEY_TO_ITEM_CODE` |
+
+### L2: getFmeaLabels() 참조 (동적 PFMEA/DFMEA 전환)
+
+이 파일들은 이미 `getFmeaLabels(isDfmea)` 라벨 시스템을 사용하며 추가 작업 불필요.
+
+| 파일 | 사용 방식 |
+|------|----------|
+| `tabs/function/FunctionL1Tab.tsx` | `lb.l1Func`, `lb.l2Func` 등 |
+| `tabs/function/FunctionL2Tab.tsx` | `lb.l2FuncGroup` 등 |
+| `tabs/function/FunctionL3Tab.tsx` | `lb.l3FuncGroup` 등 |
+| `tabs/failure/FailureL1Tab.tsx` | `lb.l2Failure` 등 |
+| `tabs/failure/FailureL2Tab.tsx` | `lb.l2Failure` 등 |
+| `tabs/failure/FailureL3Tab.tsx` | `lb.l3Failure` 등 |
+| `tabs/StructureTab.tsx` | `lb.l1`, `lb.l2`, `lb.l3` |
+| `tabs/shared/L3TabHeader.tsx` | `lb.l3Short` 등 |
+| `tabs/all/AllTabAtomic.tsx` | `lb.*Br` 시리즈 |
+| `components/PipelineStepDetailView.tsx` | `lb.l3Attr`, `lb.l3Short` 등 |
+
+### L3: 하드코딩 잔존 (향후 교체 대상)
+
+이 파일들에 한글 헤더 문자열이 하드코딩되어 있으며, 향후 `getFmeaLabels()` 또는 `PFMEA_CODE_TO_HEADER` 참조로 교체 필요.
+
+| 영역 | 파일 예시 | 잔존 문자열 | 영향도 |
+|------|----------|-----------|--------|
+| Import 파서 | `position-parse-statistics.ts` | `'제품기능'`, `'공정기능'` | 낮음 (내부 표시용) |
+| Import 검증 | `structural-validation.ts`, `validateAndLogFlatData.ts` | `'완제품기능'` | 낮음 (로그용) |
+| Import 보충 | `supplementMissingItems.ts` | 로직에 사용 | 낮음 |
+| 엑셀 스타일 | `excel-styles.ts` | 시트명 매핑 | 낮음 |
+| UI 컴포넌트 | `L2Section.tsx`, `AllTabHeader.tsx`, `TopMenuBar.tsx` | placeholder, tooltip | 중간 |
+| 키워드 맵 | `severityKeywordMap.ts`, `preventionKeywordMap.ts` | 도메인 데이터 | N/A (교체 불필요) |
+| 모달/위자드 | `CpSyncWizard.tsx`, `L1FunctionSelectModal.tsx` | UI label | 중간 |
+| FMEA4 | `types/fmea4.ts`, `Fmea4Tab.tsx` | 컬럼 정의 | 중간 |
+
+**교체 우선순위**: UI 컴포넌트 (중간) > FMEA4 (중간) > Import (낮음) > 키워드 맵 (불필요)
