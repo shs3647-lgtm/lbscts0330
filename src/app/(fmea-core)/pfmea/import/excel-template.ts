@@ -1897,3 +1897,78 @@ async function downloadWorkbook(workbook: ExcelJS.Workbook, fileName: string) {
   await downloadExcelBuffer(buffer, fileName);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ★★★ 2026-04-03: DFMEA 전용 템플릿 다운로드 ★★★
+// PFMEA 와 구분되는 DFMEA 전용 컬럼 헤더 사용
+// 이 헤더 차이로 Import 시 PFMEA/DFMEA 자동 판별 가능
+// ═══════════════════════════════════════════════════════════════
+
+const DFMEA_HEADER_COLOR = 'D97706'; // amber
+
+const DFMEA_SHEET_DEFINITIONS = [
+  // L1: 동일 구조
+  { name: 'L1 통합(C1-C4)', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '고장영향(C4)'], color: DFMEA_HEADER_COLOR, guide: '구분: YP/SP/USER | 제품기능·요구사항·고장영향을 한 행에 기입 | 1:N 관계는 상위값을 중복 기입 (Ctrl+D)' },
+  // L2: 공정→초점요소, 제품특성→설계특성
+  { name: 'L2 통합(A1-A6)', headers: ['A1.초점요소번호', 'A2.초점요소명', 'A3.초점요소기능', 'A4.설계특성', '특별특성', 'A5.고장형태', 'A6.검출관리'], color: DFMEA_HEADER_COLOR, guide: '초점요소번호+초점요소명 필수 | 설계특성·고장형태가 여러 건이면 초점요소번호·초점요소명 중복 기입 (Ctrl+D)' },
+  // L3: 4M→Type, 작업요소→부품(컴포넌트), 공정특성→설계파라미터
+  { name: 'L3 통합(B1-B5)', headers: ['초점요소번호', 'Type', '부품(컴포넌트)(B1)', '부품기능(B2)', '설계파라미터(B3)', '특별특성', '고장원인(B4)', '예방관리(B5)'], color: DFMEA_HEADER_COLOR, guide: 'Type: 부품/재료/인터페이스/소프트웨어 | 부품별 기능·설계파라미터·고장원인·예방관리를 한 행에 기입 | 1:N은 상위값 중복 기입' },
+  // FC: 공정번호→초점요소번호, 4M→Type, WE→부품
+  { name: 'FC 고장사슬', headers: ['FE구분', 'FE(고장영향)', 'L2-1.초점요소번호', 'FM(고장형태)', 'Type', '부품(컴포넌트)', 'FC(고장원인)', 'B5.예방관리(발생 전 방지)', 'A6.검출관리(발생 후 검출)', 'O', 'D', 'AP'], color: 'B91C1C', guide: '매 행에 FE구분·FE·초점요소번호·FM을 반복 기입(개별셀). B5/A6/O·D·AP | 앱 미리보기는 병합 표시' },
+  // FA: DFMEA 용어
+  { name: 'FA 통합분석', headers: ['구분(C1)', '제품기능(C2)', '요구사항(C3)', '초점요소No(A1)', '초점요소명(A2)', '초점요소기능(A3)', '설계특성(A4)', '특별특성(A4)', 'Type', '부품(컴포넌트)(B1)', '부품기능(B2)', '설계파라미터(B3)', '특별특성(B3)', '고장영향(C4)', '고장형태(A5)', '고장원인(B4)', 'S', 'O', 'D', 'AP', 'DC추천1', 'DC추천2', 'PC추천1', 'PC추천2', 'O추천', 'D추천'], color: '1E40AF', guide: '' },
+];
+
+/** DFMEA 빈 템플릿 다운로드 */
+export async function downloadDfmeaEmptyTemplate(customFileName?: string) {
+  const ExcelJS = (await import('exceljs')).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = `FMEA Smart System ${TEMPLATE_VERSION} (DFMEA)`;
+  workbook.created = new Date();
+
+  const emptyWidths: Record<string, number> = {
+    'A1.초점요소번호': 16, 'A2.초점요소명': 22, 'A3.초점요소기능': 40, 'A4.설계특성': 22,
+    '특별특성': 10, 'A5.고장형태': 25, 'A6.검출관리': 40,
+    '구분(C1)': 14, '제품기능(C2)': 40, '요구사항(C3)': 25, '고장영향(C4)': 30,
+    '부품(컴포넌트)(B1)': 28, '부품기능(B2)': 35, '설계파라미터(B3)': 22, '고장원인(B4)': 30,
+    '예방관리(B5)': 40, 'Type': 12,
+    'DC추천1': 25, 'DC추천2': 25, 'PC추천1': 25, 'PC추천2': 25, 'O추천': 8, 'D추천': 8,
+  };
+
+  DFMEA_SHEET_DEFINITIONS.forEach((def) => {
+    const worksheet = workbook.addWorksheet(def.name, {
+      properties: { tabColor: { argb: def.color } },
+    });
+
+    worksheet.columns = def.headers.map((header, i) => ({
+      header,
+      key: `col${i}`,
+      width: emptyWidths[header] ?? (i === 0 ? 14 : 25),
+    }));
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.height = 24;
+    headerRow.eachCell((cell) => applyHeaderStyle(cell, def.color));
+
+    if (def.guide) {
+      const guideRow = worksheet.addRow(def.headers.map((_, i) => i === 0 ? def.guide : ''));
+      worksheet.mergeCells(2, 1, 2, def.headers.length);
+      const guideCell = guideRow.getCell(1);
+      guideCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9E6' } };
+      guideCell.font = { name: '맑은 고딕', size: 9, italic: true, color: { argb: '8B6914' } };
+      guideCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      guideCell.border = CELL_BORDERS;
+      guideRow.height = 20;
+    }
+
+    for (let i = 0; i < 10; i++) {
+      const row = worksheet.addRow(def.headers.map(() => ''));
+      row.eachCell((cell) => applyDataStyle(cell));
+    }
+
+    worksheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 1 }];
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const fileName = customFileName || `DFMEA_Master_Template_${TEMPLATE_VERSION}`;
+  await downloadExcelBuffer(buffer, fileName);
+}

@@ -13,7 +13,7 @@ import { ImportedFlatData, FailureChain } from '../types';
 import type { MasterFailureChain } from '../types/masterFailureChain';
 import type { ParseResult } from '../excel-parser';
 import type { PositionImportPgSnapshot } from '@/types/position-import';
-import { downloadEmptyTemplate, downloadSampleTemplate, downloadDataTemplate } from '../excel-template';
+import { downloadEmptyTemplate, downloadSampleTemplate, downloadDataTemplate, downloadDfmeaEmptyTemplate } from '../excel-template';
 import {
   useImportFileHandlers,
   usePreviewHandlers,
@@ -680,7 +680,14 @@ export default function LegacyImportPage() {
           // 3순위: static 샘플 fallback
           downloadSampleTemplate(undefined, templateGen.templateMode === 'manual', selectedFmeaId || undefined);
         }}
-        onDownloadEmpty={downloadEmptyTemplate}
+        onDownloadEmpty={() => {
+          const isDfmea = selectedFmea?.fmeaType === 'D';
+          if (isDfmea) {
+            downloadDfmeaEmptyTemplate();
+          } else {
+            downloadEmptyTemplate();
+          }
+        }}
         onImportFile={() => fileInputRef.current?.click()}
         onUpdateItem={(id, value) => {
           setFlatData(prev => prev.map(item => item.id === id ? { ...item, value } : item));

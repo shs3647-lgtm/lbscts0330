@@ -1339,6 +1339,59 @@ export function isPositionBasedFormat(sheetNames: string[]): boolean {
   return hasL1 && hasL2 && hasL3 && hasFC;
 }
 
+/**
+ * ★★★ 2026-04-03: PFMEA/DFMEA 자동 판별 ★★★
+ * L2/L3/FC 시트 헤더에서 DFMEA 전용 키워드 vs PFMEA 전용 키워드를 감지하여
+ * 'P' (PFMEA), 'D' (DFMEA), null (판별 불가) 반환.
+ *
+ * 판별 기준:
+ * - DFMEA 시그니처: 초점요소, Type, 부품/컴포넌트, 설계특성, 설계파라미터
+ * - PFMEA 시그니처: 공정번호, 4M, 작업요소, 제품특성, 공정특성
+ */
+export function detectFmeaTypeFromWorkbook(wb: Workbook): 'P' | 'D' | null {
+  const sheetNames = wb.worksheets.map((ws) => ws.name);
+
+  // 1~3행 헤더 텍스트 수집
+  const headerTexts: string[] = [];
+  for (const name of sheetNames) {
+    const ws = wb.getWorksheet(name);
+    if (!ws) continue;
+    for (let r = 1; r <= 3; r++) {
+      const row = ws.getRow(r);
+      if (!row) continue;
+      const colCount = Math.min(row.cellCount || 20, 30);
+      for (let c = 1; c <= colCount; c++) {
+        const val = excelCellStr(row, c);
+        if (val) headerTexts.push(val);
+      }
+    }
+  }
+  const joined = headerTexts.join(' ').toUpperCase();
+
+  // DFMEA 전용 키워드 (PFMEA에는 등장하지 않는 것)
+  const DFMEA_KEYWORDS = ['초점요소', 'TYPE', '부품(컴포넌트)', '컴포넌트명', '설계특성', '설계파라미터', '설계 특성', '설계 파라미터', 'DESIGN CHAR', 'DESIGN PARAM', 'COMPONENT'];
+  // PFMEA 전용 키워드 (DFMEA에는 등장하지 않는 것)
+  const PFMEA_KEYWORDS = ['공정번호', '4M', '작업요소', '제품특성', '공정특성', '공정기능', 'PROCESS NO', 'WORK ELEMENT', 'PRODUCT CHAR', 'PROCESS CHAR'];
+
+  let dfmeaScore = 0;
+  let pfmeaScore = 0;
+  for (const kw of DFMEA_KEYWORDS) {
+    if (joined.includes(kw.toUpperCase())) dfmeaScore++;
+  }
+  for (const kw of PFMEA_KEYWORDS) {
+    if (joined.includes(kw.toUpperCase())) pfmeaScore++;
+  }
+
+  // 시트명에서도 힌트 수집 (DFMEA 시트명에 '초점' 등이 명시된 경우)
+  const sheetUpper = sheetNames.join(' ').toUpperCase();
+  if (sheetUpper.includes('초점') || sheetUpper.includes('DESIGN')) dfmeaScore += 2;
+  if (sheetUpper.includes('공정') || sheetUpper.includes('PROCESS')) pfmeaScore += 2;
+
+  if (dfmeaScore > pfmeaScore && dfmeaScore >= 2) return 'D';
+  if (pfmeaScore > dfmeaScore && pfmeaScore >= 2) return 'P';
+  return null;
+}
+
 /** 시트명 매칭 헬퍼 */
 function findSheetByPrefix(sheetNames: string[], prefix: string): string | undefined {
   return sheetNames.find(n => n.toUpperCase().startsWith(prefix.toUpperCase()));

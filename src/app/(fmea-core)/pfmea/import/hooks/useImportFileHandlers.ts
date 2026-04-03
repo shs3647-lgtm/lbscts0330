@@ -100,14 +100,31 @@ export function useImportFileHandlers({
       await wb.xlsx.load(buf);
       const sheetNames = wb.worksheets.map((ws: { name: string }) => ws.name);
 
-      const { isPositionBasedFormat, parsePositionBasedWorkbook, atomicToFlatData } = await import('@/lib/fmea/position-parser');
+      const { isPositionBasedFormat, parsePositionBasedWorkbook, atomicToFlatData, detectFmeaTypeFromWorkbook } = await import('@/lib/fmea/position-parser');
       if (!isPositionBasedFormat(sheetNames)) {
         alert('❌ 지원하지 않는 엑셀 형식입니다.\n\n위치기반 5시트 포맷만 지원합니다:\n- L1 통합(C1-C4)\n- L2 통합(A1-A6)\n- L3 통합(B1-B5)\n- FC 고장사슬');
         setIsParsing(false);
         return;
       }
 
-      console.log('[Import] 위치기반 5시트 포맷 감지:', sheetNames.join(', '));
+      // ★★★ 2026-04-03: PFMEA/DFMEA 교차 Import 차단 ★★★
+      const detectedType = detectFmeaTypeFromWorkbook(wb);
+      const expectedType = fmeaType?.toUpperCase() === 'D' ? 'D' : 'P';
+      if (detectedType && detectedType !== expectedType) {
+        const detectedLabel = detectedType === 'D' ? 'DFMEA' : 'PFMEA';
+        const expectedLabel = expectedType === 'D' ? 'DFMEA' : 'PFMEA';
+        alert(
+          `❌ FMEA 유형 불일치!\n\n` +
+          `현재 프로젝트: ${expectedLabel}\n` +
+          `업로드된 파일: ${detectedLabel} 형식\n\n` +
+          `${detectedLabel} 파일은 ${expectedLabel} 프로젝트에 Import할 수 없습니다.\n` +
+          `올바른 ${expectedLabel} 템플릿을 사용해주세요.`
+        );
+        setIsParsing(false);
+        return;
+      }
+
+      console.log(`[Import] 위치기반 5시트 포맷 감지: ${sheetNames.join(', ')} (type: ${detectedType || 'auto'})`);
       const atomicData = parsePositionBasedWorkbook(wb, fmeaId?.toLowerCase());
       console.log('[Import] position-parser stats:', JSON.stringify(atomicData.stats));
       setPositionParserStats?.(atomicData.stats as Record<string, number>);
