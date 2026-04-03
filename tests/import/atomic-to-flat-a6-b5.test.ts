@@ -254,9 +254,9 @@ describe('atomicToFlatData B5(예방관리)', () => {
     const flat = atomicToFlatData(data);
     const b5Items = flat.filter(f => f.itemCode === 'B5');
 
-    // 동일 복합키 → dedup → 1건
-    expect(b5Items.length).toBe(1);
-    expect(b5Items[0].value).toBe('SPC');
+    // Phase 3: FC 단위 1행 유지 — 동일 표시값이라도 FC id가 다르면 B5 2행 (비즈니스키 합치기 안 함)
+    expect(b5Items.length).toBe(2);
+    expect(b5Items.every((b) => b.value === 'SPC')).toBe(true);
   });
 
   it('preventionControl 없는 FC → B5 미생성', () => {

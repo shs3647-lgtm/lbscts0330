@@ -1,5 +1,10 @@
 ## 작업: FMEA Import UUID/복합키/FK/parentId 재설계 적용 — Phase 3
 
+> **적용 상태 (2026-04-03)**  
+> - Step 3-1·3-2(유틸·파싱/flat·검증·Import UI 연동): **완료** — 상세는 `docs/UUID_FK_REDESIGN_COMPLETE.md`  
+> - Step 3-2b (Phase A/B/C 함수 분리형 저장): **미적용** — 기존 `$transaction` 경계 유지  
+> - Step 3-3 (워크시트 본탭 렌더러 `deduplicateForRendering`): **미적용** — `CLAUDE.md` Rule 2(기존 UI 변경 금지). Import 측은 `dedupKey`/`getBK`로 행 식별 보강 완료
+
 ### 선행 완료 사항
 - Phase 1: 네이밍 전수조사 완료 (85파일, 120개소 하드코딩 식별)
 - Phase 2A: CP/PFD/FA 네임스페이스 분리 완료 (cp-column-ids.ts, pfd-column-ids.ts 생성)

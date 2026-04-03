@@ -19,6 +19,7 @@
  */
 
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
+import { enrichImportedFlatWithDedupKeys } from '@/lib/fmea/utils/flat-dedup-key-enrich';
 
 // ══════════════════════════════════════════════
 // Types
@@ -326,17 +327,25 @@ function checkDedupKeyUnique(flatData: ImportedFlatData[]): CheckResult {
     }
   }
 
-  checkGroup('A4', (item) => `${item.processNo}|${item.value}${rowGrain(item)}`);
+  checkGroup(
+    'A4',
+    (item) => item.dedupKey ?? `${item.processNo}|${item.value}${rowGrain(item)}`
+  );
 
-  checkGroup('A5', (item) => `${item.processNo}|${item.value}${rowGrain(item)}`);
+  checkGroup(
+    'A5',
+    (item) => item.dedupKey ?? `${item.processNo}|${item.value}${rowGrain(item)}`
+  );
 
   checkGroup('B4', (item) => {
+    if (item.dedupKey) return item.dedupKey;
     const we = findAncestorValue(item, 'B1');
     const fm = findAncestorValue(item, 'A5');
     return `${item.processNo}|${item.m4 ?? ''}|${we}|${fm}|${item.value}${rowGrain(item)}`;
   });
 
   checkGroup('C4', (item) => {
+    if (item.dedupKey) return item.dedupKey;
     const scope = findAncestorValue(item, 'C1');
     return `${item.processNo}|${scope}|${item.value}${rowGrain(item)}`;
   });
@@ -541,17 +550,18 @@ function checkItemCodeConsistency(flatData: ImportedFlatData[]): CheckResult {
  * ```
  */
 export function validateImportData(flatData: ImportedFlatData[]): ImportValidationReport {
+  const data = enrichImportedFlatWithDedupKeys(flatData);
   const checks: CheckResult[] = [
-    checkProcessNoFormat(flatData),
-    checkProcessNoUnique(flatData),
-    checkProcessNoOrder(flatData),
-    checkParentItemIdChain(flatData),
-    checkDedupKeyUnique(flatData),
-    checkRequiredFields(flatData),
-    checkNoAutoGenText(flatData),
-    checkM4Codes(flatData),
-    checkCrossProcessParent(flatData),
-    checkItemCodeConsistency(flatData),
+    checkProcessNoFormat(data),
+    checkProcessNoUnique(data),
+    checkProcessNoOrder(data),
+    checkParentItemIdChain(data),
+    checkDedupKeyUnique(data),
+    checkRequiredFields(data),
+    checkNoAutoGenText(data),
+    checkM4Codes(data),
+    checkCrossProcessParent(data),
+    checkItemCodeConsistency(data),
   ];
 
   const passed = checks.filter((c) => c.status === 'PASS').length;

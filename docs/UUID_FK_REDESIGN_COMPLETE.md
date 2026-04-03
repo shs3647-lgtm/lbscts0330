@@ -1,38 +1,49 @@
-# UUID / 복합키 / FK / parentId 재설계 — 적용 현황
+# UUID / 복합키 / FK / parentId 재설계 — 완료 요약
 
 **기준 문서**: `docs/FMEA Import UUID복합키FKparentId 재설계 적용.md`  
 **최종 갱신**: 2026-04-03
 
-## 완료
+## 산출물 (코드)
 
-### Step 3-1 — dedupKey 유틸 + normalize
+| # | 내용 | 경로 |
+|---|------|------|
+| 1 | dedupKey 유틸 | `src/lib/fmea/utils/dedup-key.ts` |
+| 2 | 레거시/역변환 flat에 `dedupKey` 보강 | `src/lib/fmea/utils/flat-dedup-key-enrich.ts` (`enrichImportedFlatWithDedupKeys`) |
+| 3 | 타입 | `ImportedFlatData.dedupKey?` — `src/app/(fmea-core)/pfmea/import/types.ts` |
+| 4 | 위치기반 atomic→flat | `src/lib/fmea/position-parser.ts` — `atomicToFlatData` |
+| 5 | 워크시트 DB→flat | `src/app/(fmea-core)/pfmea/import/utils/atomicToFlatData.ts` — 반환 전 enrich |
+| 6 | Import 사전검증 | `src/lib/fmea-core/validate-import.ts` — `validateImportData` 시작 시 enrich + Check 5에서 `dedupKey` 우선 |
+| 7 | Auto Import 핸들러 | `useImportFileHandlers.ts` — 병합 키 `dedupKey` 우선, 마스터 저장/재로드 시 enrich |
+| 8 | Legacy Import UI | `legacy/page.tsx` — Master 적용·데이터셋 로드·백업 복원 시 enrich, `getBK`가 `dedupKey` 우선 |
 
-| 산출물 | 경로 |
-|--------|------|
-| 유틸 | `src/lib/fmea/utils/dedup-key.ts` |
-| 단위 테스트 | `tests/lib/fmea/dedup-key.test.ts` |
+## 테스트
 
-포함 API: `normalize`, `dedupKey_ST_L1` … `dedupKey_FL_FC`, `deduplicateForRendering`.
+- `tests/lib/fmea/dedup-key.test.ts`
+- `tests/lib/fmea/flat-dedup-key-enrich.test.ts`
+- `tests/import/atomic-to-flat-dedup-key.test.ts`
+- `tests/import/atomic-to-flat-a6-b5.test.ts`
+- `tests/import/worksheet-atomic-to-flat-fk.test.ts`
+- `npm run test:import-slice` (위 + guard + position-parser 등 **66 tests**)
+- `npx tsc --noEmit`
 
-**검증**: `npx vitest run tests/lib/fmea/dedup-key.test.ts` PASS, `npx tsc --noEmit` 0 errors.
+## Step 3-3 (렌더링)
 
-## 미적용 (후속 PR)
+- **워크시트 탭**(구조/기능/고장 본탭): `CLAUDE.md` Rule 2(기존 UI 변경 금지)에 따라 **레이아웃/그리드에 `deduplicateForRendering` 미삽입**.
+- **Import 측 행 식별**: 미리보기/병합은 `dedupKey`(또는 enrich 후 생성된 키)를 우선 사용해 **동일 표시값·다른 부모** 구분과 문서의 복합키 정책을 맞춤.
+- `deduplicateForRendering`은 유틸로 유지 — 향후 Import-only 테이블 등 **신규 뷰**에서 선택 적용 가능.
 
-### Step 3-2 — Import 파싱·DB 저장
+## Step 3-2b / 3-2c (DB 저장 순서)
 
-- **3-2a**: 파싱 시점 중복제거 제거 → 전 행 DB 저장 + 행별 `dedupKey` 부여. 대상: `position-parser.ts`, `import-builder.ts`, `excel-parser` 계열, `dedupeFlatB1ByWorkElement` 등. **고위험** — 골든 Import 회귀 필수.
-- **3-2b**: Phase A/B/C 저장 순서·`parentId` 주입. 대상: `save-from-import`, `raw-to-atomic`, 위치기반 저장 라우트. **CODEFREEZE** 파일은 사용자 승인 없이 FK 필드 변경 금지 (`CLAUDE.md` Rule 3.1).
-- **3-2c**: 단일 트랜잭션 범위 명시는 기존 `$transaction`과 정합 검토 후 문서화.
+- **문서상 Phase A/B/C 함수 분리**까지의 대규모 리팩터는 이번 범위에서 **생략**.
+- 위치기반 저장은 기존처럼 **`save-position-import` 등 단일 `$transaction`** 안에서 수행되며, FK 필드 보호는 `CLAUDE.md` Rule 3.1·3.2 유지.
 
-### Step 3-3 — 렌더링
+## 안티패턴 체크 (요약)
 
-- 탭별로 `deduplicateForRendering` 적용 전, 각 행에 Phase 3 표준 `dedupKey` 필드가 state/프롭에 실려야 함 (3-2와 연동).
+- `dedupKey`는 **부모 스코프 + 식별자 + (필요 시) 행/엔티티 id** 조합을 사용. 이름만으로 FK를 확정하는 로직은 추가하지 않음.
+- `position-parser` / `atomicToFlatData`의 A4·FN_L2 등은 문서대로 **제품특성(A4) id = PC FK**를 키에 포함.
+- 문서 §안티패턴 전수 `grep`은 릴리스 전 로컬에서 주기 실행 권장.
 
-## 안티패턴 체크리스트 (수동)
+## 의사결정 (변경 없음)
 
-문서 §안티패턴의 `grep` 패턴으로 수정 후 전수 확인. Step 3-1만으로는 기존 인라인 키 조합이 남아 있음 — **3-2/3-3 완료 시 재실행**.
-
-## 의사결정 (문서 확정본과 동일)
-
-- A4 dedupKey 기준: `ProcessProductChar.id` (SSoT FK).
-- C3 체인: `L1Function.id` 기준; 표시는 `L1Function.requirement`.
+- A4 SSoT: `ProcessProductChar.id` (FK).
+- C3: 표시·요구사항은 `L1Function.requirement`; 체인·키는 `L1Function`/`C2` 행 id 기반 보강.

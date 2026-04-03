@@ -39,6 +39,18 @@ import type { Row, Workbook, Worksheet } from 'exceljs';
 import { positionUUID, type SheetCode } from './position-uuid';
 import { CrossSheetResolver } from './cross-sheet-resolver';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
+import {
+  dedupKey_FL_FC,
+  dedupKey_FL_FE,
+  dedupKey_FL_FM,
+  dedupKey_FN_L1,
+  dedupKey_FN_L2,
+  dedupKey_FN_L3,
+  dedupKey_ST_L1,
+  dedupKey_ST_L2,
+  dedupKey_ST_L3,
+  normalize as dedupNormalize,
+} from '@/lib/fmea/utils/dedup-key';
 import type {
   PositionAtomicData,
   PosL1Structure,
@@ -1736,6 +1748,8 @@ export interface ImportedFlatDataCompat {
   excelRow?: number;
   createdAt: Date;
   rowSpan: number;
+  /** Phase 3 composite key — @see docs/FMEA Import UUID복합키FKparentId 재설계 적용.md */
+  dedupKey?: string;
 }
 
 /**
@@ -1746,6 +1760,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
   const flat: ImportedFlatDataCompat[] = [];
   const now = new Date();
   const l1RootId = data.l1Structure?.id || '';
+  const stL1 = l1RootId || 'L1-ROOT';
 
   const l1Sorted = [...data.l1Functions].sort((a, b) => {
     const c = a.category.localeCompare(b.category);
@@ -1773,12 +1788,15 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
         parentItemId: l1RootId || undefined,
         createdAt: now,
         rowSpan: 1,
+        dedupKey: dedupKey_ST_L1(stL1, f.category),
       });
     }
   }
 
   // C2/C3: L1Function 행마다 C2·C3 각 1행 (DB l1_functions·verify-counts와 1:1)
   for (const f of l1Sorted) {
+    const fnL1Base =
+      dedupKey_FN_L1(stL1, f.category, f.functionName) + '::req::' + dedupNormalize(f.requirement);
     flat.push({
       id: f.id,
       processNo: f.category,
@@ -1788,6 +1806,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
       parentItemId: `C1-${f.category}`,
       createdAt: now,
       rowSpan: 1,
+      dedupKey: `${fnL1Base}::C2`,
     });
     flat.push({
       id: `${f.id}-C3`,
@@ -1798,6 +1817,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
       parentItemId: f.id,
       createdAt: now,
       rowSpan: 1,
+      dedupKey: `${fnL1Base}::C3`,
     });
   }
 
@@ -1812,18 +1832,37 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
       parentItemId: `${fe.l1FuncId}-C3`,
       createdAt: now,
       rowSpan: 1,
+      dedupKey: dedupKey_FL_FE(fe.l1FuncId, fe.effect),
     });
   }
 
   // ─── A (L2) ───
   // A1: L2Structure.no
   for (const s of data.l2Structures) {
-    flat.push({ id: s.id, processNo: s.no, category: 'A', itemCode: 'A1', value: s.no, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: s.id,
+      processNo: s.no,
+      category: 'A',
+      itemCode: 'A1',
+      value: s.no,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: dedupKey_ST_L2(stL1, s.no),
+    });
   }
 
   // A2: L2Structure.name
   for (const s of data.l2Structures) {
-    flat.push({ id: `${s.id}-A2`, processNo: s.no, category: 'A', itemCode: 'A2', value: s.name, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: `${s.id}-A2`,
+      processNo: s.no,
+      category: 'A',
+      itemCode: 'A2',
+      value: s.name,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: dedupKey_ST_L2(stL1, s.no),
+    });
   }
 
   // A3: L2Function.functionName — parentItemId → L2Structure(A1과 동일 id)
@@ -1844,6 +1883,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
   // A4: ProcessProductChar — parentItemId → 동일 행 L2Function(A3) id (verifyFK A4→A3)
   for (const pc of data.processProductChars) {
     const l2 = data.l2Structures.find(s => s.id === pc.l2StructId);
+    const l2f = data.l2Functions.find((x) => x.id === pc.l2FuncId);
     flat.push({
       id: pc.id,
       processNo: l2?.no || '',
@@ -1854,6 +1894,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
       parentItemId: pc.l2FuncId || l2?.id,
       createdAt: now,
       rowSpan: 1,
+      dedupKey: dedupKey_FN_L2(pc.l2StructId, l2f?.functionName ?? '__EMPTY__', pc.id),
     });
   }
 
@@ -1869,6 +1910,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
       parentItemId: fm.productCharId || undefined,
       createdAt: now,
       rowSpan: 1,
+      dedupKey: dedupKey_FL_FM(fm.l2FuncId, fm.mode),
     });
   }
 
@@ -1890,6 +1932,7 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
       parentItemId: fm.id,
       createdAt: now,
       rowSpan: 1,
+      dedupKey: `${fm.id}::A6::${dedupNormalize(dc)}`,
     });
   }
   for (const ra of data.riskAnalyses) {
@@ -1906,14 +1949,25 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
       value: raDc,
       createdAt: now,
       rowSpan: 1,
+      dedupKey: `${ra.id}::A6::${dedupNormalize(raDc)}`,
     });
   }
 
   // ─── B (L3) ───
   // B1: L3Structure.name
   for (const s of data.l3Structures) {
-    const l2 = data.l2Structures.find(l => l.id === s.l2Id);
-    flat.push({ id: s.id, processNo: l2?.no || '', category: 'B', itemCode: 'B1', value: s.name, m4: s.m4 || undefined, createdAt: now, rowSpan: 1 });
+    const l2 = data.l2Structures.find((l) => l.id === s.l2Id);
+    flat.push({
+      id: s.id,
+      processNo: l2?.no || '',
+      category: 'B',
+      itemCode: 'B1',
+      value: s.name,
+      m4: s.m4 || undefined,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: dedupKey_ST_L3(s.l2Id, s.m4 || '', s.name),
+    });
   }
 
   // B2/B3/SC: L3Function 기준 (1 L3Function = 1 B2 = 1 B3, 1:N 구조 정확 반영)
@@ -1925,13 +1979,46 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     const m4 = l3?.m4 || undefined;
     const b1Id = f.l3StructId; // B1.id = L3Structure.id (Rule 1.7.5)
     // B2 — id = L3Function.id (B3·B4 parent 체인의 부모)
-    flat.push({ id: f.id, processNo: pno, category: 'B', itemCode: 'B2', value: f.functionName, m4, parentItemId: b1Id, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: f.id,
+      processNo: pno,
+      category: 'B',
+      itemCode: 'B2',
+      value: f.functionName,
+      m4,
+      parentItemId: b1Id,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: dedupKey_FN_L3(f.l3StructId, f.functionName, '__B2__'),
+    });
     // B3 (공정특성) — parentItemId = B2 (= L3Function.id). 이전 B1 연결은 verifyFK B3→B2 위반·고아 대량 발생 원인.
     const sc = f.specialChar || undefined;
-    flat.push({ id: `${f.id}-B3`, processNo: pno, category: 'B', itemCode: 'B3', value: f.processChar, specialChar: sc, m4, parentItemId: f.id, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: `${f.id}-B3`,
+      processNo: pno,
+      category: 'B',
+      itemCode: 'B3',
+      value: f.processChar,
+      specialChar: sc,
+      m4,
+      parentItemId: f.id,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: dedupKey_FN_L3(f.l3StructId, f.functionName, f.processChar),
+    });
     // SC: 특별특성 별도 itemCode
     if (sc) {
-      flat.push({ id: `${f.id}-SC`, processNo: pno, category: 'B', itemCode: 'SC', value: sc, m4, createdAt: now, rowSpan: 1 });
+      flat.push({
+        id: `${f.id}-SC`,
+        processNo: pno,
+        category: 'B',
+        itemCode: 'SC',
+        value: sc,
+        m4,
+        createdAt: now,
+        rowSpan: 1,
+        dedupKey: dedupKey_FN_L3(f.l3StructId, f.functionName, `SC:${sc}`),
+      });
     }
   }
 
@@ -1942,21 +2029,44 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     const l3 = l3StructByFc.get(fc.id);
     // B4.parentItemId = B3.id = "${L3Function.id}-B3" (Rule 1.7.5: B4→B3 FK)
     const b3Id = fc.l3FuncId ? `${fc.l3FuncId}-B3` : undefined;
-    flat.push({ id: fc.id, processNo: l2?.no || '', category: 'B', itemCode: 'B4', value: fc.cause, m4: l3?.m4 || undefined, parentItemId: b3Id, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: fc.id,
+      processNo: l2?.no || '',
+      category: 'B',
+      itemCode: 'B4',
+      value: fc.cause,
+      m4: l3?.m4 || undefined,
+      parentItemId: b3Id,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: dedupKey_FL_FC(fc.l3FuncId, fc.cause),
+    });
   }
 
   // ★v5: B5 — Primary: FailureCause.preventionControl (L3 시트 B5 직접), Fallback: RiskAnalysis.preventionControl (FC 시트 PC)
   const seenB5FcIds = new Set<string>();
-  // (1) L3 시트 B5: FC 1개 = B5 1개 (B4와 1:1, dedup 없음)
+  // (1) L3 시트 B5: FC 1개 = B5 1개 (B4와 1:1). preventionControl 비어 있으면 행 생성 안 함 → RA fallback 허용
   for (const fc of data.failureCauses) {
-    if (seenB5FcIds.has(fc.id)) continue;  // ID 기반 중복만 방지
+    if (seenB5FcIds.has(fc.id)) continue;
+    const pcValue = (fc.preventionControl || '').trim();
+    if (!pcValue) continue;
     seenB5FcIds.add(fc.id);
     const l2 = data.l2Structures.find(s => s.id === fc.l2StructId);
     const l3 = l3StructMap.get(fc.l3StructId);
     const pno = l2?.no || '';
     const m4 = l3?.m4 || undefined;
-    const pcValue = fc.preventionControl || '';
-    flat.push({ id: `${fc.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: pcValue, m4, parentItemId: fc.id, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: `${fc.id}-B5`,
+      processNo: pno,
+      category: 'B',
+      itemCode: 'B5',
+      value: pcValue,
+      m4,
+      parentItemId: fc.id,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: `${fc.id}::B5::${dedupNormalize(pcValue)}`,
+    });
   }
   // (2) Fallback: FC 시트 RiskAnalysis.preventionControl (L3 B5 미존재 FC만 보충)
   for (const ra of data.riskAnalyses) {
@@ -1965,7 +2075,16 @@ export function atomicToFlatData(data: PositionAtomicData): ImportedFlatDataComp
     // FC에서 이미 B5가 생성된 경우 스킵
     if (fl.fcId && seenB5FcIds.has(fl.fcId)) continue;
     const pno = fl.fmProcess || '';
-    flat.push({ id: `${ra.id}-B5`, processNo: pno, category: 'B', itemCode: 'B5', value: ra.preventionControl, createdAt: now, rowSpan: 1 });
+    flat.push({
+      id: `${ra.id}-B5`,
+      processNo: pno,
+      category: 'B',
+      itemCode: 'B5',
+      value: ra.preventionControl,
+      createdAt: now,
+      rowSpan: 1,
+      dedupKey: `${ra.id}::B5::${dedupNormalize(ra.preventionControl)}`,
+    });
   }
 
   return flat;

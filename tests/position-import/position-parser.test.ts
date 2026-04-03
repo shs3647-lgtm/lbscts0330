@@ -1,7 +1,8 @@
 /**
  * @file position-parser.test.ts
  * @description 위치기반 파서 테스트 (m102 JSON fixture 기반)
- * @updated 2026-03-28 — 파서 v5/v6: FE=C4 텍스트 중복제거, L3Structure=l2Id|m4|B1 복합키 dedup,
+ * @updated 2026-04-03 — FE는 l1FuncId|C4 복합키(동일 C4·다른 L1Func = 별도 FE); m102 기준 FE=38
+ * @updated 2026-03-28 — 파서 v5/v6: L3Structure=l2Id|m4|B1 복합키 dedup,
  *   FC 복합키 매칭으로 미해결 fcId 허용 → FK 검증은 삼중 완전 FL만 대상
  * @updated 2026-03-28 — FM.L2≠FC.L2 교차공정 스킵 통계(crossProcessFlSkipped); m102 FC행=338 → FL=RA=338 (스킵 52건 별도 집계)
  */
@@ -36,14 +37,16 @@ describe('parsePositionBasedJSON', () => {
 
   // ── L1 시트 → FailureEffect + L1Function ──
 
-  it('L1 시트 → FailureEffect 생성 (C4 텍스트 기준 중복제거)', () => {
+  it('L1 시트 → FailureEffect 생성 (L1Function×C4 복합키 — 고유 C4 텍스트만으로는 상한 불가)', () => {
     result = parsePositionBasedJSON(fixture);
     const uniqueC4 = new Set(
       fixture.sheets.L1.rows
         .map((r: any) => r.cells.C4?.trim())
         .filter((t: string | undefined) => !!t),
     );
-    expect(result.failureEffects.length).toBe(uniqueC4.size);
+    expect(result.failureEffects.length).toBeGreaterThanOrEqual(uniqueC4.size);
+    // m102-position-based.json + 현재 파서(교차행 C4·부모 구분)
+    expect(result.failureEffects.length).toBe(38);
     expect(result.failureEffects[0].id).toMatch(/^L1-R\d+-C4$/);
   });
 

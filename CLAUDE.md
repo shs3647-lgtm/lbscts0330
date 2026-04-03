@@ -762,8 +762,21 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 ### 🔴 Rule 2: 기존 UI 변경 금지
 기존 UI는 절대 변경하지 않습니다. 사용자가 명시적으로 UI 변경을 요청한 경우에만 수정합니다.
 
-### 🔴 Rule 3: 코드프리즈 수정 금지
-`CODEFREEZE` 주석이 있는 파일은 절대 수정하지 않습니다. 수정 필요시 반드시 사용자에게 허락을 먼저 요청합니다.
+### 🟡 Rule 3: 코드프리즈(파일 잠금) — 2026-04-03 해제
+
+> **사용자 선언(2026-04-03):** `CODEFREEZE` 주석이 있어도 **업무상 필요 시 해당 파일을 수정할 수 있다.**  
+> 상단 배너는 **사고 이력·주의사항 안내**로 유지한다.
+
+**그대로 적용되는 기술 금지 (파일을 열었을 때 반드시 준수):**
+
+| 규칙 | 내용 |
+|------|------|
+| **Rule 3.1** | `save-position-import` / `raw-to-atomic` / `position-parser` 등에서 **FK·parentId·feRefs/fcRefs 필드 제거 금지** |
+| **Rule 3.2** | `isPositionBasedFormat`에 **「통합」「UNIFIED」 차단** 코드 재삽입 금지 |
+| **Rule 0.5 / 1.7** | 카테시안 복제, 이름만으로 FK 확정 금지 |
+| **Rule 10** | 고장연결 핵심(`useSVGLines` 등) 별도 보호 문구 준수 |
+
+이전 문구(「CODEFREEZE 파일 절대 수정 금지」)는 **폐기**한다.
 
 ### 🔴 Rule 3.1: FK 필드 제거 절대 금지 — 3중 방어 (2026-03-23) — 영구 CODEFREEZE
 
@@ -783,7 +796,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/fmea/import-validation" -Metho
 
 | # | 방어 | 파일 | 동작 |
 |---|------|------|------|
-| 1 | **CODEFREEZE 주석** | `save-position-import/route.ts`, `position-parser.ts`, `raw-to-atomic.ts` | 파일 상단 경고 — 수정 시 사용자 승인 필수 |
+| 1 | **CODEFREEZE 주석** | `save-position-import/route.ts`, `position-parser.ts`, `raw-to-atomic.ts` | 파일 상단 경고 — **Rule 3 해제 후에도 FK 필드 제거는 금지** (3.1) |
 | 2 | **Guard Test** | `tests/guard/save-position-import-fk.guard.test.ts` | parentId 18개+, feRefs/fcRefs, l2StructId/l3StructId 존재 검증 |
 | 3 | **CLAUDE.md Rule** | 이 룰 (Rule 3.1) | AI 에이전트가 FK 필드 제거 시도 시 즉시 차단 |
 
@@ -842,7 +855,7 @@ feRefs: fm.feRefs || undefined, // undefined → Prisma가 skip
 
 | # | 방어 계층 | 위치 | 기능 |
 |---|----------|------|------|
-| 1 | **CODEFREEZE 주석** | `position-parser.ts` `isPositionBasedFormat` 함수 위 | 14줄 경고 블록 — 사고 이력 + PRD 근거 명시 |
+| 1 | **CODEFREEZE 주석** | `position-parser.ts` `isPositionBasedFormat` 함수 위 | 14줄 경고 블록 — **「통합」차단 재삽입 금지** (3.2) |
 | 2 | **Guard Test** | `tests/guard/position-format-routing.guard.test.ts` | 5개 테스트: "통합" 차단 코드 부재 검증, PRD 시트명 true 확인 |
 | 3 | **CLAUDE.md Rule** | 이 룰 (Rule 3.2) | AI 에이전트가 "통합" 차단 코드 재삽입 시 즉시 차단 |
 

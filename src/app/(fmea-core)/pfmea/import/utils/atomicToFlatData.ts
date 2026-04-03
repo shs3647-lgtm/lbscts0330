@@ -33,6 +33,7 @@ import {
   genB1, genB2, genB3, genB4,
   genFC,
 } from '@/lib/uuid-generator';
+import { enrichImportedFlatWithDedupKeys } from '@/lib/fmea/utils/flat-dedup-key-enrich';
 
 // ─── 헬퍼 ───
 
@@ -487,7 +488,7 @@ export function atomicToFlatData(
     }
   }
 
-  return { flatData: result, idRemap };
+  return { flatData: enrichImportedFlatWithDedupKeys(result), idRemap };
 }
 
 // ─── flatData 팩토리 ───

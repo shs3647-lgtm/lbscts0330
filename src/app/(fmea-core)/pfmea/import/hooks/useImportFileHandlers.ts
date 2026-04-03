@@ -13,6 +13,7 @@ import {
 } from '../utils/enrichPositionFailureChains';
 import { loadDatasetByFmeaId, saveMasterDataset } from '../utils/master-api';
 import { validateExcelFileWithAlert } from '@/lib/excel-validation';
+import { enrichImportedFlatWithDedupKeys } from '@/lib/fmea/utils/flat-dedup-key-enrich';
 import {
   countFlatRowsByItemCode,
   countCompositeKeysByItemCode,
@@ -226,12 +227,14 @@ export function useImportFileHandlers({
                   
                   if (dbFlat.length > 0 && missingCodes.length === 0) {
                     // DB 로드 정상: 모든 itemCode 포함
-                    setFlatData(dbFlat);
-                    setPendingData(dbFlat);
+                    const enrichedDb = enrichImportedFlatWithDedupKeys(dbFlat);
+                    setFlatData(enrichedDb);
+                    setPendingData(enrichedDb);
                   } else if (dbFlat.length > 0 && dbFlat.length >= flatFromAtomic.length * 0.8) {
                     // DB 로드 약간 부족하지만 80% 이상: 사용
-                    setFlatData(dbFlat);
-                    setPendingData(dbFlat);
+                    const enrichedDb = enrichImportedFlatWithDedupKeys(dbFlat);
+                    setFlatData(enrichedDb);
+                    setPendingData(enrichedDb);
                   } else {
                     // DB 로드 불완전: 파서 원본 유지
                     console.warn(
@@ -343,6 +346,7 @@ export function useImportFileHandlers({
   };
 
   const getBusinessKey = (d: ImportedFlatData): string => {
+    if (d.dedupKey) return d.dedupKey;
     if (['B1', 'B2', 'B5'].includes(d.itemCode) && d.m4) {
       return `${d.processNo}|${d.itemCode}|${d.m4}|${d.value}`;
     }
@@ -391,7 +395,12 @@ export function useImportFileHandlers({
         }
       });
 
-      setFlatData(importData);
+      const withoutStaleDedup = importData.map((r) => {
+        const { dedupKey: _dk, ...rest } = r;
+        return rest as ImportedFlatData;
+      });
+      const mergedFlat = enrichImportedFlatWithDedupKeys(withoutStaleDedup);
+      setFlatData(mergedFlat);
       setPendingData([]);
       setIsSaved?.(false);
       setDirty?.(true);
@@ -406,7 +415,7 @@ export function useImportFileHandlers({
             replace: true,
             failureChains: masterChains && masterChains.length > 0 ? masterChains : undefined,
             relationData: rawFingerprintRef.current ? { rawFingerprint: rawFingerprintRef.current } : undefined,
-            flatData: importData,
+            flatData: mergedFlat,
           });
 
           if (res.ok) {
@@ -418,7 +427,7 @@ export function useImportFileHandlers({
             try {
               const loaded = await loadDatasetByFmeaId(fmeaId || '');
               if (loaded.flatData.length > 0) {
-                setFlatData(loaded.flatData);
+                setFlatData(enrichImportedFlatWithDedupKeys(loaded.flatData));
                 setPendingData([]);
                 const fc = loaded.failureChains;
                 if (fc && Array.isArray(fc) && fc.length > 0 && setMasterChains) {

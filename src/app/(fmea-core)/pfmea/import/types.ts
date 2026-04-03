@@ -97,6 +97,9 @@ export interface ImportedFlatData {
 
   // ★★★ 2026-03-13: 수정본 적색 표기 (엑셀 폰트/배경 색상 감지) ★★★
   isRevised?: boolean;     // true = 엑셀에서 적색으로 표기된 수정 항목
+
+  /** Phase 3: 부모 스코프 + 식별필드 기반 렌더/검증용 키 (위치기반 atomic→flat 등에서 설정) */
+  dedupKey?: string;
 }
 
 /** 공정 마스터 */

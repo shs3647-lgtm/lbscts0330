@@ -1,9 +1,9 @@
 /**
  * @file /apqp/register/page.tsx
- * @description APQP 프로젝트 등록/수정 — 독립 라우트 (dynamic import, ssr: false)
+ * @description APQP 프로젝트 등록/수정 — FMEA 등록 테이블 스타일
  *
  * ★★★ 설계 원칙 ★★★
- * 1. 경량 등록 폼 — 간트차트/대시보드 미포함
+ * 1. PFMEA 등록 화면과 동일한 테이블 기반 UI (headerCell/inputCell)
  * 2. next/dynamic + Suspense → DFMEA와 동시 렌더링 방지
  * 3. APQP ↔ FMEA/CP/PFD 연동 ID 관리
  *
@@ -30,6 +30,7 @@ interface ApqpFormData {
   partNo: string;
   apqpResponsibleName: string;
   engineeringLocation: string;
+  status: string;
   linkedFmea: string;
   linkedDfmea: string;
   linkedCp: string;
@@ -37,8 +38,9 @@ interface ApqpFormData {
 }
 
 const EMPTY_FORM: ApqpFormData = {
-  apqpNo: '', subject: '', productName: '', customerName: '', companyName: '',
+  apqpNo: '', subject: '', productName: '', customerName: '', companyName: 'LBS',
   modelYear: '', partNo: '', apqpResponsibleName: '', engineeringLocation: '',
+  status: 'planning',
   linkedFmea: '', linkedDfmea: '', linkedCp: '', linkedPfd: '',
 };
 
@@ -49,7 +51,7 @@ function APQPRegisterContent() {
 
   const [form, setForm] = useState<ApqpFormData>(EMPTY_FORM);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const isEdit = !!editId;
 
   // 수정 모드: 기존 데이터 로드
@@ -66,11 +68,12 @@ function APQPRegisterContent() {
             subject: a.subject || '',
             productName: a.productName || '',
             customerName: a.customerName || '',
-            companyName: a.companyName || '',
+            companyName: a.companyName || 'LBS',
             modelYear: a.modelYear || '',
             partNo: a.partNo || '',
             apqpResponsibleName: a.apqpResponsibleName || '',
             engineeringLocation: a.engineeringLocation || '',
+            status: a.status || 'planning',
             linkedFmea: a.linkedFmea || '',
             linkedDfmea: a.linkedDfmea || '',
             linkedCp: a.linkedCp || '',
@@ -82,7 +85,7 @@ function APQPRegisterContent() {
       .finally(() => setIsLoading(false));
   }, [editId]);
 
-  const handleChange = (field: keyof ApqpFormData, value: string) => {
+  const updateField = (field: keyof ApqpFormData, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
@@ -91,7 +94,7 @@ function APQPRegisterContent() {
       toast.warn('프로젝트명을 입력해주세요.');
       return;
     }
-    setIsSaving(true);
+    setSaveStatus('saving');
     try {
       const body = {
         apqpNo: form.apqpNo || undefined,
@@ -119,16 +122,25 @@ function APQPRegisterContent() {
       const data = await res.json();
 
       if (data.success) {
+        setSaveStatus('saved');
         toast.success(`APQP 프로젝트 ${isEdit ? '수정' : '등록'} 완료 (${data.apqpNo})`);
-        router.push('/apqp/list');
+        if (!isEdit) {
+          router.replace(`/apqp/register?id=${data.apqpNo}`);
+        }
+        setTimeout(() => setSaveStatus('idle'), 2000);
       } else {
+        setSaveStatus('idle');
         toast.error(data.error || '저장 실패');
       }
-    } catch (e) {
+    } catch {
+      setSaveStatus('idle');
       toast.error('네트워크 오류');
-    } finally {
-      setIsSaving(false);
     }
+  };
+
+  const handleNewRegister = () => {
+    setForm(EMPTY_FORM);
+    router.replace('/apqp/register');
   };
 
   if (isLoading) {
@@ -139,73 +151,191 @@ function APQPRegisterContent() {
     );
   }
 
-  const Field = ({ label, field, placeholder, half }: { label: string; field: keyof ApqpFormData; placeholder?: string; half?: boolean }) => (
-    <div className={half ? 'w-1/2' : 'w-full'}>
-      <label className="text-[11px] font-semibold text-gray-600 block mb-0.5">{label}</label>
-      <input
-        value={form[field]}
-        onChange={e => handleChange(field, e.target.value)}
-        placeholder={placeholder || `${label} 입력`}
-        className="w-full px-2 py-1 text-[12px] border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none"
-      />
-    </div>
-  );
+  // ★ PFMEA 등록과 동일한 테이블 스타일
+  const headerCell = "bg-[#00587a] text-white px-1 py-0.5 border border-white font-semibold text-[10px] text-center leading-tight";
+  const inputCell = "border border-gray-300 px-1 py-0.5 overflow-hidden";
 
   return (
-    <FixedLayout topNav={<APQPTopNav selectedProjectId={editId} />} topNavHeight={48} showSidebar={true} contentPadding="p-0">
-      <div className="font-[Malgun_Gothic] p-4 max-w-3xl mx-auto">
+    <FixedLayout topNav={<APQPTopNav selectedProjectId={editId} />} topNavHeight={48} showSidebar={true} contentPadding="pl-[5px] pr-2 py-2">
+      <div className="font-[Malgun_Gothic]">
         {/* 헤더 */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">📝</span>
-            <h1 className="text-lg font-bold text-gray-800">APQP 프로젝트 {isEdit ? '수정' : '등록'}</h1>
-            {isEdit && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{form.apqpNo}</span>}
+            <span className="text-lg">{isEdit ? '✏️' : '📝'}</span>
+            <h1 className="text-sm font-bold text-gray-800">APQP 프로젝트 {isEdit ? '수정(Edit)' : '등록(Register)'}</h1>
+            {form.apqpNo && <span className="text-xs text-gray-500 ml-2">No: {form.apqpNo}</span>}
+            {isEdit && <span className="px-2 py-0.5 text-xs bg-yellow-200 text-yellow-800 rounded font-bold">수정모드(Edit Mode)</span>}
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => router.push('/apqp/list')} className="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
-              ← 리스트(List)
-            </button>
-            <button onClick={handleSave} disabled={isSaving}
-              className="px-4 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 font-bold">
-              {isSaving ? '저장중...' : isEdit ? '💾 수정(Update)' : '💾 등록(Save)'}
+          <div className="flex gap-2">
+            <button onClick={handleNewRegister} className="px-3 py-1.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 font-semibold">➕ 새로 작성(Create)</button>
+            <button onClick={() => router.push('/apqp/list')} className="px-3 py-1.5 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 font-semibold">📋 리스트(List)</button>
+            <button onClick={handleSave} disabled={saveStatus === 'saving'}
+              className={`px-4 py-1.5 text-xs font-bold rounded ${
+                saveStatus === 'saving' ? 'bg-gray-300 text-gray-500' :
+                saveStatus === 'saved' ? 'bg-green-500 text-white' :
+                'bg-blue-600 text-white hover:bg-blue-700'
+              }`}>
+              {saveStatus === 'saving' ? '⏳ 저장 중...(Saving)' :
+               saveStatus === 'saved' ? '✓ 저장됨(Saved)' : '💾 저장(Save)'}
             </button>
           </div>
         </div>
 
-        {/* 기본 정보 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
-          <h2 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">📌 프로젝트 기본정보</h2>
-          <div className="space-y-2">
-            <Field label="프로젝트명 (Project Name) *" field="subject" placeholder="예: BMW 타이어개발" />
-            <div className="flex gap-2">
-              <Field label="고객사 (Customer)" field="customerName" half />
-              <Field label="회사명 (Company)" field="companyName" half />
-            </div>
-            <div className="flex gap-2">
-              <Field label="차종/연식 (Model Year)" field="modelYear" half />
-              <Field label="품번 (Part No.)" field="partNo" half />
-            </div>
-            <div className="flex gap-2">
-              <Field label="담당자 (Responsible)" field="apqpResponsibleName" half />
-              <Field label="공장/위치 (Plant)" field="engineeringLocation" half />
-            </div>
+        {/* ★ 기획 및 준비 — PFMEA 테이블 스타일 */}
+        <div className="bg-white rounded border border-gray-300 mb-3">
+          <div className="bg-[#e3f2fd] px-3 py-1.5 border-b border-gray-300 flex items-center justify-between">
+            <h2 className="text-sm font-extrabold text-gray-800" title="APQP Project Information">APQP 프로젝트 정보 <span className="text-[10px] font-semibold text-gray-500">(Project Info)</span></h2>
           </div>
+          <form autoComplete="off" onSubmit={e => e.preventDefault()}>
+            <table className="w-full border-collapse text-xs table-fixed">
+              <colgroup>
+                <col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[9%]" /><col className="w-[16%]" />
+                <col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[9%]" /><col className="w-[16%]" />
+              </colgroup>
+              <tbody>
+                {/* 1행: 프로젝트명, APQP No, 현황 */}
+                <tr className="h-9">
+                  <td className={headerCell}>프로젝트명<br /><span className="text-[8px] font-normal opacity-70">(Project)</span></td>
+                  <td className={inputCell} colSpan={3}>
+                    <input type="text" value={form.subject} onChange={e => updateField('subject', e.target.value)}
+                      className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="예: BMW 타이어개발" />
+                  </td>
+                  <td className={headerCell}>APQP No</td>
+                  <td className={inputCell}>
+                    <span className="px-2 text-xs font-semibold text-blue-600 cursor-pointer hover:underline"
+                      onClick={() => form.apqpNo && router.push('/apqp/list')}>{form.apqpNo || '(자동생성)'}</span>
+                  </td>
+                  <td className={headerCell}>현황<br /><span className="text-[8px] font-normal opacity-70">(Status)</span></td>
+                  <td className={inputCell}>
+                    <select value={form.status} onChange={e => updateField('status', e.target.value)}
+                      className="w-full h-7 px-1 text-xs border-0 bg-transparent focus:outline-none cursor-pointer">
+                      <option value="planning">기획(Planning)</option>
+                      <option value="development">개발(Development)</option>
+                      <option value="validation">검증(Validation)</option>
+                      <option value="production">양산(Production)</option>
+                      <option value="completed">완료(Completed)</option>
+                    </select>
+                  </td>
+                </tr>
+
+                {/* 2행: 고객명, 회사명, 담당자, 공장/위치 */}
+                <tr className="h-9">
+                  <td className={headerCell}>고객 명<br /><span className="text-[8px] font-normal opacity-70">(Customer)</span></td>
+                  <td className={inputCell}>
+                    <input type="text" value={form.customerName} onChange={e => updateField('customerName', e.target.value)}
+                      className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="고객 명" />
+                  </td>
+                  <td className={headerCell}>회사 명<br /><span className="text-[8px] font-normal opacity-70">(Company)</span></td>
+                  <td className={inputCell}>
+                    <span className="w-full h-7 px-2 text-xs flex items-center">{form.companyName || 'LBS'}</span>
+                  </td>
+                  <td className={headerCell}>APQP 담당자<br /><span className="text-[8px] font-normal opacity-70">(Resp.)</span></td>
+                  <td className={inputCell}>
+                    <input type="text" value={form.apqpResponsibleName} onChange={e => updateField('apqpResponsibleName', e.target.value)}
+                      className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="담당자 성명" />
+                  </td>
+                  <td className={headerCell}>공장/위치<br /><span className="text-[8px] font-normal opacity-70">(Plant)</span></td>
+                  <td className={inputCell}>
+                    <input type="text" value={form.engineeringLocation} onChange={e => updateField('engineeringLocation', e.target.value)}
+                      className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="공장/위치" />
+                  </td>
+                </tr>
+
+                {/* 3행: 차종/연식, 품번, 품명 */}
+                <tr className="h-9">
+                  <td className={headerCell}>차종/연식<br /><span className="text-[8px] font-normal opacity-70">(Model Year)</span></td>
+                  <td className={inputCell}>
+                    <input type="text" value={form.modelYear} onChange={e => updateField('modelYear', e.target.value)}
+                      className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="차종/연식" />
+                  </td>
+                  <td className={headerCell}>품번<br /><span className="text-[8px] font-normal opacity-70">(Part No.)</span></td>
+                  <td className={inputCell}>
+                    <input type="text" value={form.partNo} onChange={e => updateField('partNo', e.target.value)}
+                      className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품번" />
+                  </td>
+                  <td className={headerCell}>품명<br /><span className="text-[8px] font-normal opacity-70">(Product)</span></td>
+                  <td className={inputCell} colSpan={3}>
+                    <input type="text" value={form.productName} onChange={e => updateField('productName', e.target.value)}
+                      className="w-full h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="품명 (미입력시 프로젝트명 사용)" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </form>
         </div>
 
-        {/* 연동 문서 */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <h2 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">🔗 하위 연동 문서 (Linked Documents)</h2>
-          <p className="text-[10px] text-gray-500 mb-2">APQP 프로젝트에 연결할 하위 문서의 ID를 입력합니다.</p>
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <Field label="PFMEA ID" field="linkedFmea" placeholder="예: pfm26-m001" half />
-              <Field label="DFMEA ID" field="linkedDfmea" placeholder="예: dfm26-d001" half />
-            </div>
-            <div className="flex gap-2">
-              <Field label="CP No" field="linkedCp" placeholder="예: cp26-m001" half />
-              <Field label="PFD No" field="linkedPfd" placeholder="예: pfd26-m001" half />
-            </div>
+        {/* ★ 연동 문서 — 테이블 스타일 */}
+        <div className="bg-white rounded border border-gray-300 mb-3">
+          <div className="bg-[#e8f5e9] px-3 py-1.5 border-b border-gray-300">
+            <h2 className="text-sm font-extrabold text-gray-800" title="Linked Documents">🔗 하위 연동 문서 <span className="text-[10px] font-semibold text-gray-500">(Linked Documents)</span></h2>
           </div>
+          <table className="w-full border-collapse text-xs table-fixed">
+            <colgroup>
+              <col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[9%]" /><col className="w-[16%]" />
+              <col className="w-[9%]" /><col className="w-[16%]" /><col className="w-[9%]" /><col className="w-[16%]" />
+            </colgroup>
+            <tbody>
+              <tr className="h-9">
+                <td className={`${headerCell} bg-teal-700`}>PFMEA<br /><span className="text-[8px] font-normal opacity-70">(ID)</span></td>
+                <td className={inputCell}>
+                  <div className="flex items-center gap-1">
+                    <input type="text" value={form.linkedFmea} onChange={e => updateField('linkedFmea', e.target.value)}
+                      className="flex-1 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="pfm26-m001" />
+                    {form.linkedFmea && (
+                      <span className="px-1 py-0.5 bg-teal-100 text-teal-700 text-[9px] rounded cursor-pointer hover:bg-teal-200"
+                        onClick={() => router.push(`/pfmea/register?id=${form.linkedFmea}`)}>이동</span>
+                    )}
+                  </div>
+                </td>
+                <td className={`${headerCell} bg-purple-700`}>DFMEA<br /><span className="text-[8px] font-normal opacity-70">(ID)</span></td>
+                <td className={inputCell}>
+                  <div className="flex items-center gap-1">
+                    <input type="text" value={form.linkedDfmea} onChange={e => updateField('linkedDfmea', e.target.value)}
+                      className="flex-1 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="dfm26-d001" />
+                    {form.linkedDfmea && (
+                      <span className="px-1 py-0.5 bg-purple-100 text-purple-700 text-[9px] rounded cursor-pointer hover:bg-purple-200"
+                        onClick={() => router.push(`/dfmea/register?id=${form.linkedDfmea}`)}>이동</span>
+                    )}
+                  </div>
+                </td>
+                <td className={`${headerCell} bg-orange-600`}>CP<br /><span className="text-[8px] font-normal opacity-70">(No)</span></td>
+                <td className={inputCell}>
+                  <div className="flex items-center gap-1">
+                    <input type="text" value={form.linkedCp} onChange={e => updateField('linkedCp', e.target.value)}
+                      className="flex-1 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="cp26-m001" />
+                    {form.linkedCp && (
+                      <span className="px-1 py-0.5 bg-orange-100 text-orange-700 text-[9px] rounded cursor-pointer hover:bg-orange-200"
+                        onClick={() => router.push(`/control-plan/register?id=${form.linkedCp}`)}>이동</span>
+                    )}
+                  </div>
+                </td>
+                <td className={`${headerCell} bg-indigo-700`}>PFD<br /><span className="text-[8px] font-normal opacity-70">(No)</span></td>
+                <td className={inputCell}>
+                  <div className="flex items-center gap-1">
+                    <input type="text" value={form.linkedPfd} onChange={e => updateField('linkedPfd', e.target.value)}
+                      className="flex-1 h-7 px-2 text-xs border-0 bg-transparent focus:outline-none" placeholder="pfd26-m001" />
+                    {form.linkedPfd && (
+                      <span className="px-1 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] rounded cursor-pointer hover:bg-indigo-200"
+                        onClick={() => router.push(`/pfd/register?id=${form.linkedPfd}`)}>이동</span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* 안내 */}
+        <div className="bg-green-50 border border-green-200 rounded p-3 text-[10px] text-gray-600">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm">💡</span>
+            <span className="font-bold text-green-700">APQP 프로젝트 안내</span>
+          </div>
+          <ul className="list-disc list-inside space-y-0.5 ml-5">
+            <li>APQP 프로젝트는 PFMEA, DFMEA, CP, PFD의 상위 컨테이너입니다.</li>
+            <li>하위 문서 ID를 연동하면 각 모듈 리스트에서 APQP 프로젝트명이 자동 표시됩니다.</li>
+            <li>APQP No는 저장 시 자동 생성됩니다 (예: pj26-001).</li>
+          </ul>
         </div>
       </div>
     </FixedLayout>

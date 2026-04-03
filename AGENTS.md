@@ -6,7 +6,8 @@
 
 1. **Cursor 규칙**: `.cursor/rules/` — 특히 **`01-no-cartesian-name-fallback.mdc`** (`alwaysApply: true`).  
    - 카테시안 복제 · 이름(텍스트) 매칭으로 FK 확정 · 데이터 폴백 **금지**.
-2. **저장소 헌법**: 루트 **`CLAUDE.md`** — Rule **0**(중앙 DB/SSoT), **1.5**(자동생성 금지), **1.6**(근본원인), **1.7**(UUID/FK ID-only).
+2. **저장소 헌법**: 루트 **`CLAUDE.md`** — Rule **0**(중앙 DB/SSoT), **1.5**(자동생성 금지), **1.6**(근본원인), **1.7**(UUID/FK ID-only), **3.1·3.2**(FK/통합 라우팅 기술 금지).
+3. **코드프리즈(파일 잠금)**: **2026-04-03 해제** — `CODEFREEZE` 주석만으로 수정을 거절하지 않는다. 상세·잔여 금지: `docs/CODEFREEZE_LIFT.md`, `CLAUDE.md` Rule 3.
 
 ## 위반 시
 

@@ -40,6 +40,7 @@ import FailureChainPopup from '../FailureChainPopup';
 import ImportStepBar from '../components/ImportStepBar';
 // quickWorksheetSave 제거됨 — position-based import에서 직접 DB 저장
 import { buildCrossTab } from '../utils/template-delete-logic';
+import { enrichImportedFlatWithDedupKeys } from '@/lib/fmea/utils/flat-dedup-key-enrich';
 
 /** 새로고침 시 프로젝트 선택 복원 — URL ?id= > sessionStorage > React 초기상태(SSR은 빈 문자열) > 목록 첫 항목 */
 const PFMEA_IMPORT_LAST_FMEA_KEY = 'pfmea-import-last-fmea-id';
@@ -140,7 +141,8 @@ export default function LegacyImportPage() {
     sourceFmeaId: string;
     sourceName: string;
   }) => {
-    setFlatData(data.flatData);
+    const enriched = enrichImportedFlatWithDedupKeys(data.flatData);
+    setFlatData(enriched);
     setPositionParserStats(null);
     if (data.failureChains.length > 0) {
       setMasterChains(data.failureChains);
@@ -157,7 +159,7 @@ export default function LegacyImportPage() {
           datasetId: masterDatasetId,
           name: masterDatasetName || 'MASTER',
           replace: true,
-          flatData: data.flatData,
+          flatData: enriched,
           failureChains: data.failureChains.length > 0 ? data.failureChains : undefined,
         });
         if (res.ok) {
@@ -269,6 +271,7 @@ export default function LegacyImportPage() {
   const handleDownloadAll = () => utilDownloadPreview('ALL', flatData);
 
   const getBK = (d: ImportedFlatData) => {
+    if (d.dedupKey) return d.dedupKey;
     if (['B1', 'B2', 'B3', 'B4', 'B5'].includes(d.itemCode) && d.m4) return `${d.processNo}|${d.itemCode}|${d.m4}|${d.value}`;
     return `${d.processNo}|${d.itemCode}|${d.value}`;
   };
@@ -463,7 +466,7 @@ export default function LegacyImportPage() {
           if (loaded.datasetId) setMasterDatasetId(loaded.datasetId);
           if (loaded.datasetName) setMasterDatasetName(loaded.datasetName);
           if (loaded.flatData.length > 0) {
-            setFlatData(loaded.flatData);
+            setFlatData(enrichImportedFlatWithDedupKeys(loaded.flatData));
             setIsSaved(true);
           } else {
             setFlatData([]);
@@ -773,7 +776,7 @@ export default function LegacyImportPage() {
         backupList={backupList}
         onRestore={(backup) => {
           const data = restoreBackup(backup.key);
-          if (data) { setFlatData(data); setIsSaved(false); }
+          if (data) { setFlatData(enrichImportedFlatWithDedupKeys(data)); setIsSaved(false); }
           setShowBackupModal(false);
         }}
         onDelete={(ts) => { deleteBackup(ts); setBackupList(getBackupList()); }}

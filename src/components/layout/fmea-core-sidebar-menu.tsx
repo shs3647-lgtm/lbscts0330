@@ -57,6 +57,17 @@ export const FMEA_CORE_MY_JOB_ITEM: MenuItem = {
 export const FMEA_CORE_MAIN_MENU_ITEMS: MenuItem[] = [
   FMEA_CORE_MY_JOB_ITEM,
   {
+    id: 'apqp',
+    label: 'APQP',
+    shortLabel: 'A',
+    Icon: ColorIcons.Person,
+    href: '/apqp',
+    subItems: [
+      { label: '등록', href: '/apqp/register' },
+      { label: '리스트', href: '/apqp/list' },
+    ],
+  },
+  {
     id: 'pfmea',
     label: 'PFMEA',
     shortLabel: 'P',
@@ -87,17 +98,6 @@ export const FMEA_CORE_MAIN_MENU_ITEMS: MenuItem[] = [
     Icon: ColorIcons.Revision,
     href: '/pfd',
     subItems: createCpPfdSubItems('/pfd'),
-  },
-  {
-    id: 'apqp',
-    label: 'APQP',
-    shortLabel: 'A',
-    Icon: ColorIcons.Settings,
-    href: '/apqp',
-    subItems: [
-      { label: '등록', href: '/apqp/register' },
-      { label: '리스트', href: '/apqp/list' },
-    ],
   },
 ];
 
