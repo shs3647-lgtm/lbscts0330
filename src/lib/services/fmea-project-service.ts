@@ -160,6 +160,25 @@ export async function getProjects(
     }
   }
 
+  // ★★★ 2026-04-03: APQP 프로젝트명 조회 — FMEA 리스트에 상위 프로젝트명 표시 ★★★
+  const apqpNameMap = new Map<string, string>();
+  if (projects.length > 0) {
+    const apqpNos = [...new Set(projects.map(p => p.parentApqpNo).filter(Boolean))] as string[];
+    if (apqpNos.length > 0) {
+      try {
+        const apqpRegs = await prisma.apqpRegistration.findMany({
+          where: { apqpNo: { in: apqpNos.map(n => n.toLowerCase()) } },
+          select: { apqpNo: true, subject: true, productName: true },
+        });
+        apqpRegs.forEach((a) => {
+          apqpNameMap.set(a.apqpNo.toLowerCase(), a.subject || a.productName || a.apqpNo);
+        });
+      } catch (e) {
+        console.error('[fmea-project] ApqpRegistration 조회 실패:', e);
+      }
+    }
+  }
+
   // 응답 형식으로 변환 (ProjectLinkage 우선)
   const result = projects.map(p => {
     const cs0 = confirmedMap0.get(p.fmeaId.toLowerCase());
@@ -187,6 +206,7 @@ export async function getProjects(
       fmeaType: p.fmeaType,
       deletedAt: p.deletedAt ? p.deletedAt.toISOString() : null,
       parentApqpNo: p.parentApqpNo || null,
+      apqpProjectName: p.parentApqpNo ? (apqpNameMap.get(p.parentApqpNo.toLowerCase()) || null) : null,
       parentFmeaId: p.parentFmeaId ? p.parentFmeaId.toLowerCase() : null,
       parentFmeaType: p.parentFmeaType,
       status: p.status,
@@ -419,6 +439,21 @@ export async function getProjectsPaginated(
     }
   }
 
+  // ★★★ 2026-04-03: APQP 프로젝트명 조회 ★★★
+  const apqpNameMap2 = new Map<string, string>();
+  if (projects.length > 0) {
+    const apqpNos = [...new Set(projects.map(p => p.parentApqpNo).filter(Boolean))] as string[];
+    if (apqpNos.length > 0) {
+      try {
+        const apqpRegs = await prisma.apqpRegistration.findMany({
+          where: { apqpNo: { in: apqpNos.map(n => n.toLowerCase()) } },
+          select: { apqpNo: true, subject: true, productName: true },
+        });
+        apqpRegs.forEach((a) => apqpNameMap2.set(a.apqpNo.toLowerCase(), a.subject || a.productName || a.apqpNo));
+      } catch (e) { /* ignore */ }
+    }
+  }
+
   // 응답 변환 (기존 getProjects와 동일한 형식)
   const data = projects.map(p => {
     const cs = confirmedMap.get(p.fmeaId.toLowerCase());
@@ -440,6 +475,7 @@ export async function getProjectsPaginated(
       fmeaType: p.fmeaType,
       deletedAt: p.deletedAt ? p.deletedAt.toISOString() : null,
       parentApqpNo: p.parentApqpNo || null,
+      apqpProjectName: p.parentApqpNo ? (apqpNameMap2.get(p.parentApqpNo.toLowerCase()) || null) : null,
       parentFmeaId: p.parentFmeaId ? p.parentFmeaId.toLowerCase() : null,
       parentFmeaType: p.parentFmeaType,
       status: p.status,
