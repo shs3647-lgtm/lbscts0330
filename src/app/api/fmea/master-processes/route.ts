@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 마스터 FMEA 공정 목록 API
  * - GET: Master FMEA 기초정보에서 공정 목록 반환
  * - pfmea_master_flat_items에서 공정 목록용 A1·A2만 조회 (대형 BD 전체 스캔 방지)
@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { isValidFmeaId } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -118,6 +119,9 @@ export async function GET(req: NextRequest) {
 
   try {
     const fmeaId = req.nextUrl.searchParams.get('fmeaId') || '';
+    if (fmeaId && !isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId', processes: [] }, { status: 400 });
+    }
 
     let activeDataset: any = null;
     let processes: any[] = [];
@@ -285,6 +289,10 @@ export async function PATCH(req: NextRequest) {
     const updates: MasterProcessPatchRow[] = body.updates;
     const fmeaId = body.fmeaId || '';
 
+    if (fmeaId && !isValidFmeaId(String(fmeaId))) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
+    }
+
     if (!updates || updates.length === 0) {
       return NextResponse.json({ success: false, error: '수정할 데이터가 없습니다.' });
     }
@@ -387,6 +395,10 @@ export async function DELETE(req: NextRequest) {
     const processNos: string[] = body.processNos || [];
     const fmeaId = body.fmeaId || '';
     const deleteByValue = body.deleteByValue; // { itemCode, processNo, value }
+
+    if (fmeaId && !isValidFmeaId(String(fmeaId))) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
+    }
 
     const activeDataset = await prisma.pfmeaMasterDataset.findFirst({
       where: { isActive: true, ...(fmeaId ? { fmeaId } : {}) },

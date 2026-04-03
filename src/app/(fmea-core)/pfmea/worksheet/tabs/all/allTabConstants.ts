@@ -28,6 +28,32 @@ import {
   OPT_EVAL_GROUP, OPT_S_NAME, OPT_O_NAME, OPT_D_NAME, OPT_SC_NAME,
   OPT_AP_NAME, OPT_NOTE_NAME,
 } from '@/lib/fmea/constants/pfmea-header-map';
+import {
+  DFMEA_STRUCT_L1_GROUP,
+  DFMEA_STRUCT_L1_NAME,
+  DFMEA_STRUCT_L2_GROUP,
+  DFMEA_STRUCT_L2_NAME,
+  DFMEA_STRUCT_L2_TYPE,
+  DFMEA_STRUCT_L3_GROUP,
+  DFMEA_STRUCT_L3_NAME,
+  DFMEA_FUNC_L1_GROUP,
+  DFMEA_FUNC_L1_C1_NAME,
+  DFMEA_FUNC_L1_C2_NAME,
+  DFMEA_FUNC_L1_C3_NAME,
+  DFMEA_FUNC_L2_GROUP,
+  DFMEA_FUNC_L2_D3_NAME,
+  DFMEA_FUNC_L2_D4_NAME,
+  DFMEA_FUNC_L3_GROUP,
+  DFMEA_FUNC_L3_E2_NAME,
+  DFMEA_FUNC_L3_E3_NAME,
+  DFMEA_FAIL_FE_GROUP,
+  DFMEA_FAIL_FE_NAME,
+  DFMEA_FAIL_S_NAME,
+  DFMEA_FAIL_FM_GROUP,
+  DFMEA_FAIL_FM_NAME,
+  DFMEA_FAIL_FC_GROUP,
+  DFMEA_FAIL_FC_NAME,
+} from '@/lib/fmea/constants/dfmea-header-map';
 
 // ============ 플레이스홀더/마커 문자열 (중앙 집중 관리) ============
 /** 해당 없음 (Not Applicable) — 개선추천 불필요 시 사용 */
@@ -450,24 +476,24 @@ type DfmeaOv = { group?: string; name?: string; headerColor?: string; cellColor?
 
 /** 컬럼 ID별 DFMEA 오버라이드 (라벨 + 색상) */
 const DFMEA_COLUMN_OVERRIDES: Record<number, DfmeaOv> = {
-  // ■ 구조분석 (2단계)
-  1:  { group: '다음 상위수준', name: '제품명', ...DC.nh },
-  2:  { group: '초점 요소', name: "A'SSY", ...DC.fe },
-  3:  { group: '초점 요소', name: '타입', ...DC.fe },
-  4:  { group: '다음 하위수준', name: '부품 또는 특성', ...DC.nl },
+  // ■ 구조분석 (2단계) — 라벨 SSoT: dfmea-header-map
+  1:  { group: DFMEA_STRUCT_L1_GROUP, name: DFMEA_STRUCT_L1_NAME, ...DC.nh },
+  2:  { group: DFMEA_STRUCT_L2_GROUP, name: DFMEA_STRUCT_L2_NAME, ...DC.fe },
+  3:  { group: DFMEA_STRUCT_L2_GROUP, name: DFMEA_STRUCT_L2_TYPE, ...DC.fe },
+  4:  { group: DFMEA_STRUCT_L3_GROUP, name: DFMEA_STRUCT_L3_NAME, ...DC.nl },
   // ■ 기능분석 (3단계)
-  5:  { group: '다음상위수준 기능', name: '분류', ...DC.nhf },
-  6:  { group: '다음상위수준 기능', name: '제품 기능', ...DC.nhf },
-  7:  { group: '다음상위수준 기능', ...DC.nhf },
-  8:  { group: '초점요소 기능 및 요구사항', name: '초점요소 기능', ...DC.fef },
-  9:  { group: '초점요소 기능 및 요구사항', name: '요구사항', ...DC.fef },
-  10: { group: '다음하위수준/특성유형', name: '부품 기능 또는 특성', ...DC.nlf },
-  11: { group: '다음하위수준/특성유형', name: '요구사항', ...DC.nlf },
+  5:  { group: DFMEA_FUNC_L1_GROUP, name: DFMEA_FUNC_L1_C1_NAME, ...DC.nhf },
+  6:  { group: DFMEA_FUNC_L1_GROUP, name: DFMEA_FUNC_L1_C2_NAME, ...DC.nhf },
+  7:  { group: DFMEA_FUNC_L1_GROUP, name: DFMEA_FUNC_L1_C3_NAME, ...DC.nhf },
+  8:  { group: DFMEA_FUNC_L2_GROUP, name: DFMEA_FUNC_L2_D3_NAME, ...DC.fef },
+  9:  { group: DFMEA_FUNC_L2_GROUP, name: DFMEA_FUNC_L2_D4_NAME, ...DC.fef },
+  10: { group: DFMEA_FUNC_L3_GROUP, name: DFMEA_FUNC_L3_E2_NAME, ...DC.nlf },
+  11: { group: DFMEA_FUNC_L3_GROUP, name: DFMEA_FUNC_L3_E3_NAME, ...DC.nlf },
   // ■ 고장분석 (4단계)
-  12: { group: '자동자/사용자 영향(FE)', name: '고장영향', ...DC.fei },
-  13: { group: '자동자/사용자 영향(FE)', name: '심각도', ...DC.fei },
-  14: { group: '초점요소 고장 형태(FM)', name: '고장형태', ...DC.fmi, isDark: true },
-  15: { group: '다음하위 수준 고장원인(FC)', name: '고장원인', ...DC.fci },
+  12: { group: DFMEA_FAIL_FE_GROUP, name: DFMEA_FAIL_FE_NAME, ...DC.fei },
+  13: { group: DFMEA_FAIL_FE_GROUP, name: DFMEA_FAIL_S_NAME, ...DC.fei },
+  14: { group: DFMEA_FAIL_FM_GROUP, name: DFMEA_FAIL_FM_NAME, ...DC.fmi, isDark: true },
+  15: { group: DFMEA_FAIL_FC_GROUP, name: DFMEA_FAIL_FC_NAME, ...DC.fci },
   // ■ 리스크분석 (5단계) — 전체 #c5cae9 통일
   16: { group: '현재 예방관리', name: '예방관리', ...DC.rsk },
   17: { group: '현재 예방관리', name: '발생도', ...DC.rsk },

@@ -6,15 +6,18 @@
 
 ### 문서 대비 실제 진행 (2026-04-03 스냅샷)
 
-아래 11개 작업은 **계획/체크리스트**이며, 본 문서만으로는 전부 완료된 상태가 아님.
+11개 작업 **일괄 구축 반영** — 상세는 `docs/일괄구축_완료보고서.md`.
 
 | 이미 연계된 작업 | 참고 |
 |------------------|------|
 | Phase 3 Import 경로 | `dedup-key.ts`, `flat-dedup-key-enrich.ts`, `validate-import` enrich, `atomicToFlatData`, Import UI `dedupKey`/`getBK` — 상세 `docs/UUID_FK_REDESIGN_COMPLETE.md` |
 | Phase 4 검증 | `docs/PHASE4_검증결과보고서.md`, `docs/Import 파이프라인 재설계 검증.md` |
-| 자동 검증 | `npm run test:import-slice`, `npm run verify:all` (로컬에서 통과 기록 있음) |
-| 작업 1 일부 | `tests/lib/fmea/dedup-key.test.ts`, `flat-dedup-key-enrich.test.ts` 등 — 문서의 “7개 Guard” 전부와는 다름 |
-| 작업 2 | 저장소는 **simple-git-hooks** + `guard:protected:staged` 등 — 본문의 bash 배열 pre-commit 예시와는 별개 |
+| 자동 검증 | `npm run test:import-slice`에 `import-pipeline-defense.guard.test.ts` 포함 |
+| 작업 1 | `tests/lib/fmea/import-pipeline-defense.guard.test.ts` (방어선 Guard 7종) |
+| 작업 2 | **2026-04-03 갱신:** `guard:codefreeze-import` 스크립트는 유지하되 `importCodefreezeFiles`는 **`[]`** (스테이징 하드차단 없음). `frozenFiles`·PFMEA 코어 glob도 비움 — 상세 `docs/DFMEA 파이프라인완료보고.md`. *(이전: dedup-key, header-map, cp/pfd column-ids 등 스테이징 차단)* |
+| 작업 3 | `docs/PRISMA_PROJECT_SCHEMA_RELATIONS_TODO.md` — migration 보류 |
+| 작업 10 | `GET /api/fmea/health/import-integrity?fmeaId=` |
+| 작업 11 | `docs/DFMEA_PFMEA_공용화_설계.md` |
 | 로컬 DB 정리 | `pfm26-m002` 고아 RA 1건 — 사용자 승인 후 `POST /api/fmea/repair-fk` 로 삭제 완료 (`validate-fk` allGreen) |
 
 ---

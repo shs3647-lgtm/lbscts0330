@@ -33,7 +33,9 @@ export async function GET() {
     let bdCount = 0;
     try {
       bdCount = await prisma.pfmeaMasterDataset.count();
-    } catch { /* 테이블 없으면 0 */ }
+    } catch (e) {
+      console.error('[dashboard-stats] pfmeaMasterDataset.count:', e);
+    }
 
     // 연동 현황 (CP, PFD)
     let cpCount = 0;
@@ -45,7 +47,9 @@ export async function GET() {
       });
       cpCount = linkages.filter(l => l.cpNo).length;
       pfdCount = linkages.filter(l => l.pfdNo).length;
-    } catch { /* 테이블 없으면 0 */ }
+    } catch (e) {
+      console.error('[dashboard-stats] projectLinkage.findMany:', e);
+    }
 
     return NextResponse.json({
       success: true,

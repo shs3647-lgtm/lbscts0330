@@ -77,6 +77,10 @@ export interface FmeaLabels {
   /** L3 고장원인: "작업요소 고장원인(FC)" / "부품 고장원인(FC)" */
   l3Failure: string;
 
+  /** Failure L3 탭 구조분석 2열: PFMEA=WE, DFMEA=부품명 */
+  structureWeCol: string;
+  structureWeColEn: string;
+
   // ── AllTabAtomic BR 형식 ──
   /** "1.완제품<br />공정명" / "1.시스템<br />명" */
   l1Br: string;
@@ -145,6 +149,9 @@ const PFMEA_LABELS: FmeaLabels = {
   l2Failure: '메인공정 고장형태(FM)',
   l3Failure: '작업요소 고장원인(FC)',
 
+  structureWeCol: 'WE',
+  structureWeColEn: 'WE',
+
   l1Br: '1.완제품<br />공정명',
   l2Br: '2.메인<br />공정명',
   l3Br: '3.작업<br />요소명',
@@ -196,6 +203,9 @@ const DFMEA_LABELS: FmeaLabels = {
 
   l2Failure: '초점요소 고장 형태(FM)',
   l3Failure: '다음하위 수준 고장원인(FC)',
+
+  structureWeCol: '부품명',
+  structureWeColEn: 'Part Name',
 
   l1Br: '1.다음 상위<br />수준',
   l2Br: '2.초점<br />요소',

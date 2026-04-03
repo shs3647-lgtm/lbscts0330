@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { sendApprovalNotification } from '@/lib/email-service';
+import { isValidFmeaId } from '@/lib/security';
 
 interface EmailNotifyRequest {
   type: 'submit' | 'review_approve' | 'final_approve' | 'reject';
@@ -33,6 +34,9 @@ export async function POST(request: NextRequest) {
         { success: false, error: '필수 필드가 누락되었습니다 (type, fmeaId, fromName, toName)' },
         { status: 400 }
       );
+    }
+    if (!isValidFmeaId(body.fmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
     }
 
     const result = await sendApprovalNotification({

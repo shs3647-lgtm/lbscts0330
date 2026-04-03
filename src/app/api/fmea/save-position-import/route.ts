@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file save-position-import/route.ts
  * @description 위치기반 Import API — PositionAtomicData → 프로젝트 스키마 DB 저장
  *
@@ -25,6 +25,7 @@ import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { getProjectSchemaName, ensureProjectSchemaReady } from '@/lib/project-schema';
 import { getPrismaForSchema } from '@/lib/prisma';
 import type { PositionAtomicData, SavePositionImportMeta } from '@/types/position-import';
+import { runPositionAtomicDedupSync } from '@/lib/fmea-core/atomic-dedup-sync';
 
 export const runtime = 'nodejs';
 
@@ -469,6 +470,9 @@ export async function POST(request: NextRequest) {
           })),
         });
       }
+
+      // 12b. dedupKey 동기화 + 페이로드 정합성 (누락 시 트랜잭션 롤백)
+      await runPositionAtomicDedupSync(tx, normalizedId, atomicData, validFLs);
 
       // 13. Verify counts (핵심 테이블만 — v4 신규 테이블은 safeTx 경유로 skip 가능)
       const [l2c, l3c, fmc, fcc, fec, flc, rac] = await Promise.all([

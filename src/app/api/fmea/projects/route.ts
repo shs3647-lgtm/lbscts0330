@@ -1,4 +1,4 @@
-﻿/**
+/**
  * FMEA 프로젝트 API Route
  * 
  * 목적: HTTP 요청/응답 처리만 담당 (DB 로직은 서비스 레이어로 분리)
@@ -12,6 +12,7 @@
  * @created 2026-01-11
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import {
   getProjects,
   getProjectsPaginated,
@@ -30,6 +31,12 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const targetId = searchParams.get('id') || null;
+    if (targetId && !isValidFmeaId(targetId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid fmea id', projects: [] },
+        { status: 400 },
+      );
+    }
     const fmeaType = searchParams.get('type') || null;  // ★ D/P 유형 필터
     const includeDeleted = searchParams.get('includeDeleted') === 'true';
     const pageParam = searchParams.get('page');
@@ -79,6 +86,9 @@ export async function POST(req: NextRequest) {
         success: false, 
         error: 'fmeaId is required' 
       }, { status: 400 });
+    }
+    if (!isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
     }
 
     const normalizedId = fmeaId.toLowerCase();
@@ -145,6 +155,9 @@ export async function PATCH(req: NextRequest) {
 
     // ★ 복원 액션 (admin 휴지통에서 복원)
     if (body.action === 'restore' && body.fmeaId) {
+      if (!isValidFmeaId(String(body.fmeaId))) {
+        return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
+      }
       await restoreProject(body.fmeaId);
       return NextResponse.json({
         success: true,
@@ -170,6 +183,9 @@ export async function PATCH(req: NextRequest) {
     if (!fmeaId) {
       return NextResponse.json({ success: false, error: 'fmeaId is required' }, { status: 400 });
     }
+    if (!isValidFmeaId(String(fmeaId))) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
+    }
     await updateProjectRemark(fmeaId, remark ?? '');
     return NextResponse.json({ success: true, fmeaId: fmeaId.toLowerCase() });
   } catch (error: any) {
@@ -192,6 +208,9 @@ export async function DELETE(req: NextRequest) {
         success: false,
         error: 'fmeaId is required'
       }, { status: 400 });
+    }
+    if (!isValidFmeaId(String(fmeaId))) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
     }
 
     await deleteProject(fmeaId, {

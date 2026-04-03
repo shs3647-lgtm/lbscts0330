@@ -8,6 +8,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { isValidFmeaId } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -34,6 +35,9 @@ export async function GET(req: NextRequest) {
     // ★ sourceFmeaId 파라미터: FMEA별 파티셔닝된 기초정보 조회
     const { searchParams } = new URL(req.url);
     const sourceFmeaId = searchParams.get('sourceFmeaId');
+    if (sourceFmeaId && !isValidFmeaId(sourceFmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid sourceFmeaId', processes: [] }, { status: 400 });
+    }
 
     // ★★★ 2026-02-16: 1 FMEA = 1 Dataset 아키텍처 대응 ★★★
     // sourceFmeaId가 있으면 해당 FMEA의 dataset을 직접 조회

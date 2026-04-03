@@ -117,7 +117,7 @@ export function FailureL3Header({
           <BiHeader ko={'2. ' + lb.l2} en={lb.l2En} />
         </th>
         <th className="bg-[#1976d2] text-white border border-[#ccc] p-0.5 text-[10px] font-bold text-center whitespace-nowrap">
-          WE
+          <BiHeader ko={lb.structureWeCol} en={lb.structureWeColEn} />
         </th>
         <th colSpan={2} className="bg-[#388e3c] text-white border border-[#ccc] p-1 text-[11px] font-bold text-center">
           <BiHeader ko={'3. ' + lb.l3FuncGroup} en={lb.l3FuncGroupEn} />
@@ -138,7 +138,7 @@ export function FailureL3Header({
           <BiHeader ko={lb.l2No} en={lb.l2En} />
         </th>
         <th className="bg-[#e3f2fd] border border-[#ccc] p-0.5 text-[10px] font-bold text-center whitespace-nowrap" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
-          WE
+          <BiHeader ko={lb.structureWeCol} en={lb.structureWeColEn} />
         </th>
         <th className="bg-[#c8e6c9] border border-[#ccc] border-r-[2px] border-r-orange-500 p-1 text-[11px] font-bold text-center" style={{ boxShadow: 'inset 0 -2px 0 #2196f3' }}>
           <BiHeader ko={lb.l3Char} en={lb.l3CharEn} />{processCharCount != null && <span className={`font-bold ${processCharCount > 0 ? 'text-green-700' : 'text-red-500'}`}>({processCharCount})</span>}

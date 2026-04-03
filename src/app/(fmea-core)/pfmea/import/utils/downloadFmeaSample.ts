@@ -1,7 +1,9 @@
 /**
  * @file downloadFmeaSample.ts
- * @description PFMEA 샘플 데이터 Excel 다운로드 유틸리티
+ * @description PFMEA/DFMEA 샘플 데이터 Excel 다운로드 유틸리티
  */
+
+import { getFmeaLabels } from '@/lib/fmea-labels';
 
 interface FMEAProject {
   id: string;
@@ -47,12 +49,13 @@ interface WorksheetData {
 }
 
 /**
- * PFMEA 샘플 데이터 Excel 다운로드
+ * PFMEA/DFMEA 샘플 데이터 Excel 다운로드
  */
 export async function downloadFmeaSample(
   fmeaId: string,
   level: 'L0' | 'L1' | 'L2' | 'L3',
-  fmeaList: FMEAProject[]
+  fmeaList: FMEAProject[],
+  isDfmea = false
 ): Promise<void> {
   if (!fmeaId) {
     alert('FMEA를 선택해주세요.');
@@ -68,17 +71,17 @@ export async function downloadFmeaSample(
   const ws: WorksheetData = JSON.parse(wsData);
   const fmea = fmeaList.find((f) => f.id === fmeaId);
   const fmeaName = fmea?.fmeaNo || fmea?.fmeaInfo?.subject || 'FMEA';
+  const lb = getFmeaLabels(isDfmea);
 
   const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
 
   if (level === 'L1') {
-    // 고장영향 데이터 (L1)
     const sheet = workbook.addWorksheet('L1_고장영향');
     sheet.columns = [
       { header: 'No', key: 'no', width: 6 },
       { header: '구분', key: 'type', width: 15 },
-      { header: '완제품기능', key: 'func', width: 30 },
+      { header: lb.l1Func, key: 'func', width: 30 },
       { header: '요구사항', key: 'req', width: 25 },
       { header: '고장영향', key: 'effect', width: 30 },
       { header: '심각도', key: 'severity', width: 8 },
@@ -109,12 +112,11 @@ export async function downloadFmeaSample(
 
     await downloadWorkbook(workbook, `${fmeaName}_L1_고장영향`);
   } else if (level === 'L2') {
-    // 고장형태 데이터 (L2)
     const sheet = workbook.addWorksheet('L2_고장형태');
     sheet.columns = [
       { header: 'No', key: 'no', width: 6 },
-      { header: '공정명', key: 'proc', width: 15 },
-      { header: '공정기능', key: 'func', width: 25 },
+      { header: lb.l2Short, key: 'proc', width: 15 },
+      { header: lb.l2Func, key: 'func', width: 25 },
       { header: '제품특성', key: 'char', width: 25 },
       { header: '고장형태', key: 'mode', width: 30 },
     ];
@@ -143,14 +145,13 @@ export async function downloadFmeaSample(
 
     await downloadWorkbook(workbook, `${fmeaName}_L2_고장형태`);
   } else if (level === 'L3') {
-    // 고장원인 데이터 (L3)
     const sheet = workbook.addWorksheet('L3_고장원인');
     sheet.columns = [
       { header: 'No', key: 'no', width: 6 },
-      { header: '공정명', key: 'proc', width: 12 },
-      { header: '작업요소', key: 'we', width: 15 },
-      { header: '요소기능', key: 'func', width: 25 },
-      { header: '공정특성', key: 'char', width: 25 },
+      { header: lb.l2Short, key: 'proc', width: 12 },
+      { header: lb.l3Short, key: 'we', width: 15 },
+      { header: lb.l3Func, key: 'func', width: 25 },
+      { header: lb.l3Char, key: 'char', width: 25 },
       { header: '고장원인', key: 'cause', width: 30 },
       { header: '발생도', key: 'occ', width: 8 },
     ];
@@ -183,13 +184,12 @@ export async function downloadFmeaSample(
 
     await downloadWorkbook(workbook, `${fmeaName}_L3_고장원인`);
   } else {
-    // L0 기초정보
     const sheet = workbook.addWorksheet('L0_기초정보');
     sheet.columns = [
       { header: 'No', key: 'no', width: 6 },
-      { header: '완제품공정명', key: 'l1', width: 20 },
-      { header: '메인공정', key: 'l2', width: 20 },
-      { header: '작업요소', key: 'l3', width: 20 },
+      { header: lb.l1Short, key: 'l1', width: 20 },
+      { header: lb.l2Short, key: 'l2', width: 20 },
+      { header: lb.l3Short, key: 'l3', width: 20 },
     ];
     const headerRow = sheet.getRow(1);
     headerRow.eachCell((cell) => {

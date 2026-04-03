@@ -29,6 +29,7 @@ import type {
   ProcessProductChar,
 } from './schema';
 
+import { deepRepairUtf8Mojibake } from '@/lib/text/repair-utf8-mojibake';
 import type {
   WorksheetState,
   L1Data,
@@ -516,8 +517,8 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
     db.failureLinks,
   );
 
-  // ─── 최종 WorksheetState 조립 ───
-  return {
+  // ─── 최종 WorksheetState 조립 (DB에 남은 UTF-8 모지바케 표시 복구) ───
+  const state: WorksheetState = {
     fmeaId: db.fmeaId,
     l1,
     l2,
@@ -540,4 +541,5 @@ export function atomicToLegacy(db: FMEAWorksheetDB): WorksheetState {
     riskConfirmed: db.confirmed.risk,
     optimizationConfirmed: db.confirmed.optimization,
   };
+  return deepRepairUtf8Mojibake(state);
 }

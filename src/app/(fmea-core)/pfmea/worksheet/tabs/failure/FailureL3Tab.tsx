@@ -862,11 +862,11 @@ export default function FailureL3Tab({ state, setState, setStateSynced, setDirty
     <div className="p-0 overflow-auto h-full" style={{ paddingBottom: '50px' }} onKeyDown={handleEnterBlur}>
       <table className="w-full border-collapse table-fixed" style={{ marginBottom: '50px' }}>
         <colgroup>
-          <col style={{ width: '10%' }} /> {/* NO+공정명 */}
-          <col style={{ width: '6%' }} />  {/* WE (4M) */}
-          <col style={{ width: '31%' }} /> {/* 공정특성 */}
+          <col style={{ width: isDfmea ? '9%' : '10%' }} /> {/* NO+공정명 / 초점요소 */}
+          <col style={{ width: isDfmea ? '18%' : '6%' }} /> {/* DFMEA: 부품명(넓게), PFMEA: WE */}
+          <col style={{ width: isDfmea ? '28%' : '31%' }} /> {/* 설계특성·요구사항 / 공정특성 */}
           <col style={{ width: '6%' }} />  {/* 특별특성 */}
-          <col style={{ width: '47%' }} /> {/* 고장원인(FC) */}
+          <col style={{ width: isDfmea ? '39%' : '47%' }} /> {/* 고장원인(FC) */}
         </colgroup>
 
         {/* 3행 헤더 - FailureL3Header 공용 컴포넌트 사용 */}

@@ -11,6 +11,9 @@
  *   L3: processNo, m4, B1(작업요소), B2(요소기능), B3(공정특성), SC, B4(고장원인), B5(예방관리)
  *   FC: FE_scope, FE, processNo, FM, m4, WE, FC, PC, DC, S, O, D, AP, L1_origRow, L2_origRow, L3_origRow
  *
+ * DFMEA: 물리 시트·itemCode는 PFMEA와 동일; 헤더 라벨·fill-down 구간은 `dfmea-header-map.ts`의
+ * `DFMEA_FILL_DOWN_RULES`·`normalizeDfmeaHeader` 참조 (병합 셀 carry는 본 파일 prev* 로직).
+ *
  * **L1/L2/L3_origRow / 각 시트 `excelRow`**: 워크시트 **엑셀 물리 행(1-based)** (= ExcelJS rowNumber, =ROW()).
  * 데이터 전용 0-based 인덱스가 아님.
  *
@@ -36,6 +39,7 @@
  */
 
 import type { Row, Workbook, Worksheet } from 'exceljs';
+import { repairUtf8Mojibake } from '@/lib/text/repair-utf8-mojibake';
 import { positionUUID, type SheetCode } from './position-uuid';
 import { CrossSheetResolver } from './cross-sheet-resolver';
 import { normalizeScope } from '@/lib/fmea/scope-constants';
@@ -1409,20 +1413,21 @@ function findSheetByPrefix(sheetNames: string[], prefix: string): string | undef
   return sheetNames.find(n => n.toUpperCase().startsWith(prefix.toUpperCase()));
 }
 
-/** ExcelJS Row → 셀 문자열 추출 */
+/** ExcelJS Row → 셀 문자열 추출 (Latin-1 오해 UTF-8 모지바케 복구 포함) */
 function excelCellStr(row: Row, col: number): string {
   const cell = row.getCell(col);
   if (!cell || cell.value == null) return '';
   const v = cell.value;
   if (typeof v === 'object' && v !== null && 'richText' in v) {
     const rt = (v as { richText?: { text?: string }[] }).richText || [];
-    return rt.map((r) => r.text || '').join('').trim();
+    const s = rt.map((r) => r.text || '').join('').trim();
+    return repairUtf8Mojibake(s);
   }
   // 숫자/날짜/불리언/에러 등 문자열로 변환
   if (typeof v === 'object' && v !== null && 'error' in v) {
     return '';
   }
-  return String(v).trim();
+  return repairUtf8Mojibake(String(v).trim());
 }
 
 /**

@@ -6,6 +6,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { isValidFmeaId } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -23,7 +24,10 @@ export async function GET(request: NextRequest) {
     if (!fmeaId) {
       return NextResponse.json({ success: false, error: 'fmeaId is required', meetings: [] }, { status: 400 });
     }
-    
+    if (!isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId', meetings: [] }, { status: 400 });
+    }
+
     // Prisma로 회의록 조회
     const meetings = await prisma.fmeaMeetingMinute.findMany({
       where: { fmeaId },
@@ -51,7 +55,10 @@ export async function POST(request: NextRequest) {
     if (!fmeaId || !meetings) {
       return NextResponse.json({ success: false, error: 'fmeaId and meetings are required' }, { status: 400 });
     }
-    
+    if (!isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId' }, { status: 400 });
+    }
+
     // 트랜잭션으로 기존 데이터 삭제 후 새 데이터 저장
     await prisma.$transaction(async (tx) => {
       // 기존 데이터 삭제

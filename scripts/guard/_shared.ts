@@ -7,6 +7,8 @@ export type Mode = 'staged' | 'branch';
 export interface GuardConfig {
   protectedPaths?: string[];
   frozenFiles?: string[];
+  /** Import CODEFREEZE 유틸 — 스테이징 시 하드 차단 (docs/Import 파이프라인 방어선.md 작업 2) */
+  importCodefreezeFiles?: string[];
   approvalToken?: string;
   overrideEnvVar?: string;
   overrideEnvValue?: string;

@@ -1064,6 +1064,33 @@ function PFMEARegisterPageContent() {
               상단에서 {isDfmea ? 'DFMEA' : 'PFMEA'}를 저장한 뒤 엑셀 Import·기초정보 미리보기·저장을 사용할 수 있습니다.
             </p>
           )}
+
+          {/* Admin: BD·DB 검증 — CFT 로그 아래 중복 블록 제거, 상단 Admin 접기 한 곳으로 통합 */}
+          {user?.role === 'admin' && (
+            <div className="mt-4 pt-4 border-t border-blue-200 space-y-2">
+              <p className="text-[11px] text-gray-600 font-semibold">BD·DB 검증 (Admin)</p>
+              {bdDbCounts && bdParseStatistics && (
+                <DbVerifyPanel parseStats={bdParseStatistics} dbCounts={bdDbCounts} flatData={flatData} />
+              )}
+              <BdStatusTable
+                bdStatusList={bdStatusList}
+                selectedFmeaId={fmeaId}
+                typeFilter={bdTypeFilter}
+                onTypeFilterChange={setBdTypeFilter}
+                setSelectedFmeaId={(id) => {
+                  const bd = bdStatusList.find(b => b.fmeaId === id);
+                  loadBdById(id, bd?.fmeaName || id);
+                  if (bd) {
+                    getMasterApi().then(({ loadDatasetByFmeaId }) =>
+                      loadDatasetByFmeaId(id).then(res => { if (res.datasetId) setBdDatasetId(res.datasetId); })
+                    ).catch(e => { console.error('[BD 데이터셋 로드] 오류:', e); });
+                  }
+                  templateGen.setTemplateMode('download');
+                }}
+                onDeleteDatasets={handleBdDeleteDatasets}
+              />
+            </div>
+          )}
         </div>
         </details>
 
@@ -1131,44 +1158,6 @@ function PFMEARegisterPageContent() {
           <span>📊</span><h2 className="text-sm font-bold text-gray-700" title="CFT Access Log">CFT 접속 로그(Access Log)</h2>
         </div>
         <CFTAccessLogTable accessLogs={accessLogs} maxRows={5} />
-
-        {/* ★ BD·DB 검증 — admin 전용 (Import UI는 상단 「엑셀 Import 기초정보 생성」) */}
-        {user?.role === 'admin' && (
-        <details className="mt-6">
-          <summary className="cursor-pointer px-3 py-2 bg-gray-700 text-white text-xs font-bold rounded hover:bg-gray-600 select-none">
-            ▶ 기초정보 관리 (Admin)
-          </summary>
-        <div className="mt-2 space-y-2">
-          <p className="text-[11px] text-gray-600">
-            엑셀 Import·미리보기·저장은 위쪽{' '}
-            <a href="#basic-info-excel-import" className="text-blue-600 font-semibold underline scroll-mt-20">엑셀 Import 기초정보 생성</a>
-            에서 진행합니다.
-          </p>
-
-        {bdDbCounts && bdParseStatistics && (
-          <DbVerifyPanel parseStats={bdParseStatistics} dbCounts={bdDbCounts} flatData={flatData} />
-        )}
-
-        <BdStatusTable
-          bdStatusList={bdStatusList}
-          selectedFmeaId={fmeaId}
-          typeFilter={bdTypeFilter}
-          onTypeFilterChange={setBdTypeFilter}
-          setSelectedFmeaId={(id) => {
-            const bd = bdStatusList.find(b => b.fmeaId === id);
-            loadBdById(id, bd?.fmeaName || id);
-            if (bd) {
-              getMasterApi().then(({ loadDatasetByFmeaId }) =>
-                loadDatasetByFmeaId(id).then(res => { if (res.datasetId) setBdDatasetId(res.datasetId); })
-              ).catch(e => { console.error('[BD 데이터셋 로드] 오류:', e); });
-            }
-            templateGen.setTemplateMode('download');
-          }}
-          onDeleteDatasets={handleBdDeleteDatasets}
-        />
-        </div>
-        </details>
-        )}
 
         {/* 하단 상태바 */}
         <div className="mt-3 px-4 py-2 bg-white rounded border border-gray-300 flex justify-between text-xs text-gray-500">

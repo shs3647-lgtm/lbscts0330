@@ -142,7 +142,7 @@ export default function FailureLinkTables({
     <div className="bg-white flex flex-col min-w-0" style={{ ...flexContainerStyle('1 1 60%', `2px solid #ccc`), minWidth: 0, overflow: 'hidden' }}>
       <div className="flex items-center justify-between py-0.5 px-2" style={headerStyle('#fff3e0', `1px solid #ccc`, 'clamp(10px, 1vw, 12px)')}>
         <span className="font-semibold whitespace-nowrap">고장연결(Failure Link)</span>
-        <span className="text-[8px] text-gray-500 whitespace-nowrap ml-1">FE=고장영향 FM=고장형태 FC=고장원인 S=심각도 Cat=구분 WE=작업요소 FA=고장분석</span>
+        <span className="text-[8px] text-gray-500 whitespace-nowrap ml-1">FE=고장영향 FM=고장형태 FC=고장원인 S=심각도 Cat=구분 {lb.structureWeCol}={isDfmea ? '부품(컴포넌트)' : '작업요소'} FA=고장분석</span>
 
         <div className="flex items-center gap-2">
         {/* 1st: FM 공정 이동 */}
@@ -427,7 +427,7 @@ export default function FailureLinkTables({
                 <tr>
                   <th style={{...thStyle('#e8f5e9'), width: 30, minWidth: 30, maxWidth: 30}}>No</th>
                   <th style={thStyle('#e8f5e9', '24%')} title="Process Name">{lb.l2Short}<br/>({lb.l2En})</th>
-                  <th style={{...thStyle('#e8f5e9', '26px'), minWidth: 26}} title="Work Element">WE</th>
+                  <th style={{...thStyle('#e8f5e9', isDfmea ? '14%' : '26px'), minWidth: isDfmea ? 52 : 26}} title={lb.structureWeColEn}>{lb.structureWeCol}</th>
                   <th style={thStyle('#e8f5e9')} title="Failure Cause">고장원인(FC)</th>
                 </tr>
               </thead>

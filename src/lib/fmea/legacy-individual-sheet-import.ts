@@ -4,6 +4,7 @@
  */
 import type { Workbook, Worksheet, Row } from 'exceljs';
 import type { ImportedFlatData } from '@/app/(fmea-core)/pfmea/import/types';
+import { repairUtf8Mojibake } from '@/lib/text/repair-utf8-mojibake';
 
 /** 템플릿과 동일한 시트명 (공백 차이는 findWorksheet에서 허용) */
 export const LEGACY_BASIC_SHEET_NAMES = [
@@ -26,10 +27,12 @@ export const LEGACY_BASIC_SHEET_NAMES = [
 
 function strVal(v: unknown): string {
   if (v === null || v === undefined) return '';
-  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v).trim();
-  if (typeof v === 'object' && 'text' in (v as object)) return String((v as { text: string }).text ?? '').trim();
-  if (typeof v === 'object' && 'result' in (v as object)) return strVal((v as { result: unknown }).result);
-  return String(v).trim();
+  let raw = '';
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') raw = String(v).trim();
+  else if (typeof v === 'object' && 'text' in (v as object)) raw = String((v as { text: string }).text ?? '').trim();
+  else if (typeof v === 'object' && 'result' in (v as object)) return strVal((v as { result: unknown }).result);
+  else raw = String(v).trim();
+  return repairUtf8Mojibake(raw);
 }
 
 function compact(s: string): string {

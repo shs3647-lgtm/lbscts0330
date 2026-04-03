@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import pg from 'pg';
+import { isValidFmeaId } from '@/lib/security';
 
 const pool = new pg.Pool({
   host: 'localhost', port: 5432,
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
     for (const rule of rules) {
       const { ruleType, inputText, outputText, m4Code, sodValue, sourceFmea } = rule;
       if (!ruleType || !inputText || !outputText) continue;
+      if (sourceFmea != null && String(sourceFmea).trim() !== '' && !isValidFmeaId(String(sourceFmea))) {
+        return NextResponse.json({ success: false, error: 'Invalid sourceFmea in rules' }, { status: 400 });
+      }
 
       await pool.query(`
         INSERT INTO public.learned_rules (rule_type, input_text, output_text, m4_code, sod_value, source_fmea, confidence, use_count)
@@ -61,7 +65,7 @@ export async function GET(req: NextRequest) {
     const m4Code = searchParams.get('m4');
 
     let query = 'SELECT * FROM public.learned_rules';
-    const params: any[] = [];
+    const params: unknown[] = [];
     const conditions: string[] = [];
 
     if (ruleType) {

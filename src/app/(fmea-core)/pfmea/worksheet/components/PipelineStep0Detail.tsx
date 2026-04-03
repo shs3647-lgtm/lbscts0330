@@ -49,7 +49,12 @@ const TAB_DEFS: { key: TabKey; label: string; color: string }[] = [
 ];
 
 // ★ PFMEA_CODE_TO_HEADER SSoT 참조 — C2='완제품기능'으로 정규화됨
-import { PFMEA_CODE_TO_HEADER } from '@/lib/fmea/constants/pfmea-header-map';
+import {
+  FAIL_FC_NAME,
+  FAIL_FE_NAME,
+  FAIL_FM_NAME,
+  PFMEA_CODE_TO_HEADER,
+} from '@/lib/fmea/constants/pfmea-header-map';
 const CODE_LABELS = PFMEA_CODE_TO_HEADER;
 
 export default function PipelineStep0Detail({ step, fmeaId, onImportComplete }: Props) {
@@ -355,9 +360,9 @@ function ChainsTable({ chains }: { chains: Record<string, unknown>[] }) {
         <thead className="sticky top-0 bg-gray-800 z-10">
           <tr>
             <th className="px-1 py-0.5 text-gray-500 text-left w-8">공정</th>
-            <th className="px-1 py-0.5 text-gray-500 text-left">FM(고장형태)</th>
-            <th className="px-1 py-0.5 text-gray-500 text-left">FC(고장원인)</th>
-            <th className="px-1 py-0.5 text-gray-500 text-left">FE(고장영향)</th>
+            <th className="px-1 py-0.5 text-gray-500 text-left">{FAIL_FM_NAME}</th>
+            <th className="px-1 py-0.5 text-gray-500 text-left">{FAIL_FC_NAME}</th>
+            <th className="px-1 py-0.5 text-gray-500 text-left">{FAIL_FE_NAME}</th>
           </tr>
         </thead>
         <tbody>

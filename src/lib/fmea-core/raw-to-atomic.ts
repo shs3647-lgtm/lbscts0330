@@ -21,6 +21,7 @@
 
 import type { PrismaClient } from '@prisma/client';
 import type { PositionAtomicData } from '@/types/position-import';
+import { runPositionAtomicDedupSync } from '@/lib/fmea-core/atomic-dedup-sync';
 
 /** 런타임 Prisma client에 v4 신규 모델 없을 시 graceful noop fallback */
 function safeTx(tx: any, model: string) {
@@ -503,6 +504,9 @@ export async function saveAtomicFromPosition(
         });
         console.log(`[raw-to-atomic] RiskAnalysis: ${validRAs.length}건 생성`);
       }
+
+      // EX-dedup: 페이로드 id 기준 dedupKey 동기화 + 누락 시 롤백
+      await runPositionAtomicDedupSync(tx, normalizedId, data, validFLs);
 
       // Verify counts (핵심 테이블만 — 신규 v4 테이블은 tx 프록시 호환성 문제로 제외)
       const [l2c, l3c, fmc, fcc, fec, flc, rac] = await Promise.all([

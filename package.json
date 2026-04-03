@@ -43,7 +43,7 @@
     "forge:m100": "powershell -NoProfile -ExecutionPolicy Bypass -File m100/scripts/forge-m100-loop.ps1",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:import-slice": "vitest run tests/guard/save-position-import-fk.guard.test.ts tests/guard/position-format-routing.guard.test.ts tests/position-import/position-parser.test.ts tests/import/atomic-to-flat-c1c4-fk.test.ts tests/import/atomic-to-flat-dedup-key.test.ts tests/import/atomic-to-flat-a6-b5.test.ts tests/import/worksheet-atomic-to-flat-fk.test.ts tests/lib/fmea/flat-dedup-key-enrich.test.ts tests/lib/fmea/dedup-key.test.ts tests/import/position-parse-statistics.test.ts",
+    "test:import-slice": "vitest run tests/guard/save-position-import-fk.guard.test.ts tests/guard/position-format-routing.guard.test.ts tests/position-import/position-parser.test.ts tests/import/atomic-to-flat-c1c4-fk.test.ts tests/import/atomic-to-flat-dedup-key.test.ts tests/import/atomic-to-flat-a6-b5.test.ts tests/import/worksheet-atomic-to-flat-fk.test.ts tests/lib/fmea/flat-dedup-key-enrich.test.ts tests/lib/fmea/dedup-key.test.ts tests/lib/fmea/import-pipeline-defense.guard.test.ts tests/lib/fmea/dfmea-import-defense.guard.test.ts tests/import/position-parse-statistics.test.ts",
     "test:coverage": "vitest run --coverage",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
@@ -55,12 +55,13 @@
     "snapshot": "node scripts/create-snapshot.js",
     "snapshot:list": "node -e \"const fs=require('fs');const p=require('path');const d='snapshots';if(fs.existsSync(d)){fs.readdirSync(d).filter(f=>fs.statSync(p.join(d,f)).isDirectory()).reverse().forEach((f,i)=>console.log((i+1)+'. '+f))}else{console.log('No snapshots found')}\"",
     "guard:raw-to-atomic": "tsx scripts/guard/check-raw-to-atomic-fields.ts",
+    "guard:codefreeze-import": "tsx scripts/guard/codefreeze-import-staged.ts",
     "guard:invariants": "tsx scripts/guard/check-invariants.ts",
     "test:e2e:final": "playwright test tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts tests/e2e/worksheet-failure-tabs-smoke.spec.ts --project=chromium",
     "test:e2e:final-headed": "playwright test tests/e2e/sidebar-fmea-core-routes-smoke.spec.ts tests/e2e/worksheet-failure-tabs-smoke.spec.ts --project=chromium --headed"
   },
   "simple-git-hooks": {
-    "pre-commit": "npm run guard:invariants -- --warn-only && npm run guard:protected:staged -- --warn-only && npm run guard:raw-to-atomic",
+    "pre-commit": "npm run guard:invariants -- --warn-only && npm run guard:protected:staged -- --warn-only && npm run guard:raw-to-atomic && npm run guard:codefreeze-import",
     "commit-msg": "npm run guard:protected:commitmsg --",
     "pre-push": "npm run guard:protected:branch"
   },

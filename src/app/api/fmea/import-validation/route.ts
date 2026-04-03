@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @status CODEFREEZE L4 (Pipeline Protection) u{1F512}
  * @freeze_level L4 (Critical - DFMEA Pre-Development Snapshot)
  * @frozen_date 2026-03-30
@@ -17,6 +17,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
+import { ImportErrorCode } from '@/lib/fmea/errors/import-errors';
 import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
 
@@ -290,11 +291,17 @@ export async function GET(request: NextRequest) {
     const fmeaId = searchParams.get('fmeaId');
 
     if (!jobId && !fmeaId) {
-      return NextResponse.json({ success: false, error: 'jobId 또는 fmeaId 필요' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'jobId 또는 fmeaId 필요', code: ImportErrorCode.VALIDATION_FAILED },
+        { status: 400 },
+      );
     }
 
     if (fmeaId && !isValidFmeaId(fmeaId)) {
-      return NextResponse.json({ success: false, error: '유효하지 않은 fmeaId' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: '유효하지 않은 fmeaId', code: ImportErrorCode.INVALID_FMEA_ID },
+        { status: 400 },
+      );
     }
 
     const baseUrl = getBaseDatabaseUrl();
@@ -356,7 +363,10 @@ export async function POST(request: NextRequest) {
     const { fmeaId, jobId } = body;
 
     if (!fmeaId || !isValidFmeaId(fmeaId)) {
-      return NextResponse.json({ success: false, error: 'fmeaId 필요' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'fmeaId 필요', code: ImportErrorCode.INVALID_FMEA_ID },
+        { status: 400 },
+      );
     }
 
     const normalizedFmeaId = fmeaId.toLowerCase();

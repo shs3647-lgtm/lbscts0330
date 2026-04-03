@@ -135,6 +135,8 @@ model L1Structure {
   id           String        @id @default(uuid())
   fmeaId       String
   name         String
+  /// Import·렌더링 보조 — dedup-key.ts 규칙과 별개로 DB에 보존 (SSoT는 UUID)
+  dedupKey     String?
   confirmed    Boolean?      @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -150,6 +152,7 @@ model L1Structure {
   l2Structures   L2Structure[]
 
   @@index([fmeaId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@index([rowIndex])
@@ -163,6 +166,7 @@ model L2Structure {
   no           String
   name         String
   order        Int
+  dedupKey     String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   rowIndex     Int           @default(0)
@@ -181,6 +185,7 @@ model L2Structure {
 
   @@index([fmeaId])
   @@index([l1Id])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@index([rowIndex])
@@ -195,6 +200,7 @@ model L3Structure {
   m4            String?
   name          String
   order         Int
+  dedupKey      String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   rowIndex      Int            @default(0)
@@ -213,6 +219,7 @@ model L3Structure {
   @@index([fmeaId])
   @@index([l1Id])
   @@index([l2Id])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@index([rowIndex])
@@ -226,6 +233,7 @@ model L1Function {
   category        String
   functionName    String
   requirement     String
+  dedupKey        String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   parentId        String?
@@ -238,6 +246,7 @@ model L1Function {
 
   @@index([fmeaId])
   @@index([l1StructId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("l1_functions")
@@ -271,6 +280,7 @@ model ProcessProductChar {
   fmeaId       String
   l2StructId   String
   name         String                              // A4 값 (제품특성명)
+  dedupKey     String?
   specialChar  String?                             // 특별특성 기호 (◇, ◆, △, ○ 등)
   orderIndex   Int           @default(0)           // 같은 공정 내 순서
   createdAt    DateTime      @default(now())
@@ -281,6 +291,7 @@ model ProcessProductChar {
 
   @@index([fmeaId])
   @@index([l2StructId])
+  @@index([dedupKey])
   @@map("process_product_chars")
 }
 
@@ -290,6 +301,7 @@ model L2Function {
   l2StructId   String
   functionName String
   productChar  String                              // 기존 텍스트 필드 (하위호환)
+  dedupKey     String?
   specialChar  String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -303,6 +315,7 @@ model L2Function {
 
   @@index([fmeaId])
   @@index([l2StructId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("l2_functions")
@@ -315,6 +328,7 @@ model L3Function {
   l2StructId      String
   functionName    String
   processChar     String
+  dedupKey        String?
   specialChar     String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -329,6 +343,7 @@ model L3Function {
   @@index([fmeaId])
   @@index([l3StructId])
   @@index([l2StructId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("l3_functions")
@@ -502,6 +517,7 @@ model FailureEffect {
   category     String
   effect       String
   severity     Int
+  dedupKey     String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   parentId     String?
@@ -513,6 +529,7 @@ model FailureEffect {
 
   @@index([fmeaId])
   @@index([l1FuncId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("failure_effects")
@@ -525,6 +542,7 @@ model FailureMode {
   l2StructId    String
   productCharId String?
   mode          String
+  dedupKey      String?
   specialChar   Boolean?            @default(false)
   feRefs        String[]            // ★v4 EX-05: 이 FM에 연결된 FE UUID 목록 (크로스시트 매칭 결과)
   fcRefs        String[]            // ★v4 EX-05: 이 FM에 연결된 FC UUID 목록
@@ -544,6 +562,7 @@ model FailureMode {
   @@index([l2FuncId])
   @@index([l2StructId])
   @@index([productCharId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("failure_modes")
@@ -557,6 +576,7 @@ model FailureCause {
   l2StructId    String
   processCharId String?
   cause         String
+  dedupKey      String?
   occurrence    Int?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -572,6 +592,7 @@ model FailureCause {
   @@index([l3FuncId])
   @@index([l3StructId])
   @@index([l2StructId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@map("failure_causes")
@@ -654,6 +675,7 @@ model FailureLink {
   fmId            String
   feId            String
   fcId            String
+  dedupKey        String?
   l2StructId      String?          // ★v4 EX-38: L2Structure 직접참조 (조인 불필요)
   l3StructId      String?          // ★v4 EX-38: L3Structure 직접참조
   createdAt       DateTime         @default(now())
@@ -687,6 +709,7 @@ model FailureLink {
   @@index([fmId])
   @@index([feId])
   @@index([fcId])
+  @@index([dedupKey])
   @@index([parentId])
   @@index([mergeGroupId])
   @@unique([fmeaId, fmId, feId, fcId])
