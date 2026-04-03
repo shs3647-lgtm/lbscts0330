@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file work-elements/route.ts
  * @description PFMEA 작업요소 조회 API
  * - GET: Master FMEA 기초정보에서 공정별 작업요소 목록 반환
@@ -9,6 +9,7 @@
  * @codefreeze 2026-02-03
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -98,9 +99,6 @@ export async function GET(req: NextRequest) {
                 datasetSource = 'isActive fallback (empty)';
             }
         }
-
-        console.log('[work-elements GET] fmeaId:', fmeaId, '| datasetSource:', datasetSource, '| datasetId:', activeDataset?.id);
-
         if (!activeDataset) {
             return NextResponse.json({
                 success: true,
@@ -307,7 +305,6 @@ export async function POST(req: NextRequest) {
                     }
                 });
                 datasetSource = 'created for fmeaId';
-                console.log('[work-elements POST] 새 데이터셋 생성:', activeDataset.id, 'for fmeaId:', fmeaId);
             }
         }
         if (!activeDataset) {
@@ -317,9 +314,6 @@ export async function POST(req: NextRequest) {
             });
             if (activeDataset) datasetSource = 'isActive fallback';
         }
-        
-        console.log('[work-elements POST] fmeaId:', fmeaId, '| datasetSource:', datasetSource, '| datasetId:', activeDataset?.id, '| datasetFmeaId:', activeDataset?.fmeaId);
-
         if (!activeDataset) {
             return NextResponse.json({ success: false, error: '활성 Master Dataset이 없습니다.' });
         }

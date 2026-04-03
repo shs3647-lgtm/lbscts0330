@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file bd-list/route.ts
  * BD 현황 패널에서 Master FMEA 목록 조회.
  *
@@ -88,7 +88,7 @@ export async function GET() {
         .map((mf: any) => buildMasterEntry(mf));
 
       if (step1Masters.length > 0) {
-        console.info(`[bd-list] 1단계 매칭: ${step1Masters.length}건`);
+        console.warn(`[bd-list] 1단계 매칭: ${step1Masters.length}건`);
         return NextResponse.json({ success: true, masters: step1Masters });
       }
     }
@@ -108,7 +108,7 @@ export async function GET() {
         );
         return buildDatasetEntry(ds, linkedMf);
       });
-      console.info(`[bd-list] 2단계 fmeaType='M' 매칭: ${step2Masters.length}건`);
+      console.warn(`[bd-list] 2단계 fmeaType='M' 매칭: ${step2Masters.length}건`);
       return NextResponse.json({ success: true, masters: step2Masters });
     }
 
@@ -132,14 +132,14 @@ export async function GET() {
         );
         return buildDatasetEntry(ds, linkedMf);
       });
-      console.info(`[bd-list] 3단계 전체 dataset 매칭: ${step3Masters.length}건`);
+      console.warn(`[bd-list] 3단계 전체 dataset 매칭: ${step3Masters.length}건`);
       return NextResponse.json({ success: true, masters: step3Masters });
     }
 
     // ─── 4단계: 데이터 없음 — mastersFromLink 그대로 (정확한 "데이터없음" alert) ─
     // data 없이 반환 → loadBdById → "해당 BD에 데이터가 없습니다" (정확한 안내)
     if (mastersFromLink.length > 0) {
-      console.info(`[bd-list] 4단계 fallback: ${mastersFromLink.length}건 (데이터 없음)`);
+      console.warn(`[bd-list] 4단계 fallback: ${mastersFromLink.length}건 (데이터 없음)`);
       return NextResponse.json({
         success: true,
         masters: mastersFromLink.map((mf: any) => buildMasterEntry(mf)),
@@ -147,7 +147,7 @@ export async function GET() {
     }
 
     // MasterFmea 자체가 없음 — "등록되어 있지 않습니다" alert
-    console.info('[bd-list] MasterFmea 없음');
+    console.warn('[bd-list] MasterFmea 없음');
     return NextResponse.json({ success: true, masters: [] });
 
   } catch (error) {

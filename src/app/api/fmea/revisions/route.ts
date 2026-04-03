@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description FMEA 개정관리 API (Prisma 기반)
  * - GET: 프로젝트별 개정 이력 조회
@@ -11,6 +11,7 @@
  * @allowed_changes NONE — 사용자 명시적 승인 + full test pass 필수
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';

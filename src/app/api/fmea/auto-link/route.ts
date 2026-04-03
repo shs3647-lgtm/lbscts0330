@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/fmea/auto-link?fmeaId=xxx
  * 미연결 FC(FailureCause)를 FM↔FE↔FC 자동 연결
  *
@@ -203,9 +203,6 @@ export async function POST(request: NextRequest) {
 
     const totalFL = await prisma.failureLink.count({ where: { fmeaId: normalizedId } });
     const totalRA = await prisma.riskAnalysis.count({ where: { fmeaId: normalizedId } });
-
-    console.log(`[auto-link] fmeaId=${normalizedId} 신규 FL=${createdFL} RA=${createdRA} 총 FL=${totalFL}`);
-
     return NextResponse.json({
       success: true, fmeaId: normalizedId,
       created: { fl: createdFL, ra: createdRA },

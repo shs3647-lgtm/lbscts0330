@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file /api/fmea/approval/route.ts
  * @description FMEA 결재 API
  * @created 2026-01-19
@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 import { generateApprovalToken, verifyApprovalToken } from '@/lib/email/approvalToken';
 import { sendApprovalRequestEmail, sendApprovalResultEmail } from '@/lib/email/emailService';
@@ -236,7 +237,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { fmeaId, revisionId } = body;
 
-    if (!fmeaId) {
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json({
         success: false,
         error: 'fmeaId가 필요합니다.',

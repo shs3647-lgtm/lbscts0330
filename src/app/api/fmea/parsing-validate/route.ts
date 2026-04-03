@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file parsing-validate/route.ts
  * @description 파싱 검증 기준표 API
  *
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     const report = runParsingCriteriaValidation(flatData, chains);
     const tableText = formatReportAsTable(report);
 
-    console.info(`[parsing-validate] fmeaId=${normalizedFmeaId}\n${tableText}`);
+    console.warn(`[parsing-validate] fmeaId=${normalizedFmeaId}\n${tableText}`);
 
     return NextResponse.json({
       success: true,

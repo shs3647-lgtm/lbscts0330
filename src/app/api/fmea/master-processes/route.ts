@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 마스터 FMEA 공정 목록 API
  * - GET: Master FMEA 기초정보에서 공정 목록 반환
  * - pfmea_master_flat_items에서 공정 목록용 A1·A2만 조회 (대형 BD 전체 스캔 방지)
@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
       if (activeDataset) {
         processes = await buildProcessesFromDataset(prisma, activeDataset.id);
         if (processes.length > 0) {
-          console.info(`[master-processes] 1단계 매칭: fmeaId=${fmeaId} → ${processes.length}건`);
+          console.warn(`[master-processes] 1단계 매칭: fmeaId=${fmeaId} → ${processes.length}건`);
         }
       }
     }
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
         if (activeDataset) {
           processes = await buildProcessesFromDataset(prisma, activeDataset.id);
           if (processes.length > 0) {
-            console.info(`[master-processes] 2a단계 masterDataset: ${fmeaId} → ${project.masterDatasetId} → ${processes.length}건`);
+            console.warn(`[master-processes] 2a단계 masterDataset: ${fmeaId} → ${project.masterDatasetId} → ${processes.length}건`);
           }
         }
       }
@@ -158,7 +158,7 @@ export async function GET(req: NextRequest) {
         if (activeDataset) {
           processes = await buildProcessesFromDataset(prisma, activeDataset.id);
           if (processes.length > 0) {
-            console.info(`[master-processes] 2b단계 부모 fallback: ${fmeaId} → parent=${project.parentFmeaId} → ${processes.length}건`);
+            console.warn(`[master-processes] 2b단계 부모 fallback: ${fmeaId} → parent=${project.parentFmeaId} → ${processes.length}건`);
           }
         }
       }

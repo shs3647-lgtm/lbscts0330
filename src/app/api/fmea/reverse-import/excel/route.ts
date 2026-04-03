@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file reverse-import/excel/route.ts
  * 역설계 Import — DB → Import 엑셀 다운로드
  *
@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { assertFmeaId, getIsolatedPrisma } from '@/lib/fmea-core/guards';
 import { generateImportExcelFromDB } from '@/lib/fmea-core/generate-import-excel';
 import { safeErrorMessage } from '@/lib/security';
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     const prisma = await getIsolatedPrisma(fmeaId);
     const { buffer, fileName, stats } = await generateImportExcelFromDB(prisma, fmeaId);
 
-    console.info(`[reverse-excel] ${fmeaId} → ${fileName} (L1=${stats.l1Rows} L2=${stats.l2Rows} L3=${stats.l3Rows} FC=${stats.fcRows} FA=${stats.faRows})`);
+    console.warn(`[reverse-excel] ${fmeaId} → ${fileName} (L1=${stats.l1Rows} L2=${stats.l2Rows} L3=${stats.l3Rows} FC=${stats.fcRows} FA=${stats.faRows})`);
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     console.error('[reverse-excel] 오류:', e);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(e) },
+      { success: false, error: safeErrorMessage(e) },
       { status: 500 }
     );
   }

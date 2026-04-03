@@ -1,4 +1,4 @@
-/**
+﻿/**
  * /api/fmea/sample-lookup
  * 
  * m002(fmea_sample) DB에서 m4+WE 기반으로 실제 B2/B3/B4/B5/A6 데이터를 조회.
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     const allData = await fetchAllSampleData();
 
     if (bulk) {
-      return NextResponse.json({ ok: true, count: allData.length, data: allData });
+      return NextResponse.json({ success: true, count: allData.length, data: allData });
     }
 
     if (m4 && we) {
@@ -103,17 +103,17 @@ export async function GET(req: NextRequest) {
       if (!match) {
         match = allData.find(d => d.m4 === m4 && d.b4.length > 0);
       }
-      return NextResponse.json({ ok: true, match: match || null, matchType: match ? 'exact' : 'none' });
+      return NextResponse.json({ success: true, match: match || null, matchType: match ? 'exact' : 'none' });
     }
 
     if (m4) {
       const filtered = allData.filter(d => d.m4 === m4);
-      return NextResponse.json({ ok: true, count: filtered.length, data: filtered });
+      return NextResponse.json({ success: true, count: filtered.length, data: filtered });
     }
 
-    return NextResponse.json({ ok: true, count: allData.length, data: allData });
+    return NextResponse.json({ success: true, count: allData.length, data: allData });
   } catch (error) {
     console.error('[sample-lookup] Error:', error);
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
   }
 }

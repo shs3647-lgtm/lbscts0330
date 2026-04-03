@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file generate-roundtrip-excel/route.ts
  * @description Atomic DB → 완벽한 14시트 Import Excel 생성 API
  *
@@ -312,7 +312,7 @@ export async function GET(request: NextRequest) {
     const db = await loadAtomicDB(prisma, fmeaId);
     const { buffer, flatItems } = await generateExcel(db);
 
-    console.info(`[generate-excel] ${fmeaId}: ${flatItems.length}건 flatData → Excel 생성 완료`);
+    console.warn(`[generate-excel] ${fmeaId}: ${flatItems.length}건 flatData → Excel 생성 완료`);
 
     return new NextResponse(buffer as unknown as BodyInit, {
       status: 200,

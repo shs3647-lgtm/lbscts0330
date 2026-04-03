@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description FMEA 확정 API — 워크시트에서 확정 버튼 클릭 시 호출
  * - 개정 프로젝트: step 7 + 개정이력 createStatus='확정'
@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { fmeaId } = body;
 
-    if (!fmeaId) {
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json(
         { success: false, error: 'fmeaId is required' },
         { status: 400 }

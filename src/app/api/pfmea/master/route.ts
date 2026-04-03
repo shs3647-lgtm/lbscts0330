@@ -1,4 +1,4 @@
-/* CODEFREEZE – 2026-02-16 FMEA Master Data 독립 DB 아키텍처 */
+﻿/* CODEFREEZE – 2026-02-16 FMEA Master Data 독립 DB 아키텍처 */
 /**
  * @file route.ts
  * @description PFMEA Master Dataset API (독립 DB 아키텍처)
@@ -243,7 +243,7 @@ export async function GET(req: NextRequest) {
         }
       }
       if (backfilled > 0) {
-        console.info(`[master GET] C3 parentItemId 백필: ${backfilled}/${orphanC3.length}건 (fmeaId=${fmeaId})`);
+        console.warn(`[master GET] C3 parentItemId 백필: ${backfilled}/${orphanC3.length}건 (fmeaId=${fmeaId})`);
       }
     }
 
@@ -268,7 +268,7 @@ export async function GET(req: NextRequest) {
         }
       }
       if (c2Backfilled > 0) {
-        console.info(`[master GET] C2 parentItemId 백필: ${c2Backfilled}/${orphanC2.length}건 (fmeaId=${fmeaId})`);
+        console.warn(`[master GET] C2 parentItemId 백필: ${c2Backfilled}/${orphanC2.length}건 (fmeaId=${fmeaId})`);
       }
     }
 

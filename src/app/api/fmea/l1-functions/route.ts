@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file l1-functions/route.ts
  * @description PFMEA 완제품기능(C2) 및 요구사항(C3) 조회/저장/삭제 API
  * - GET: Master FMEA 기초정보에서 구분(C1)별 완제품기능/요구사항 목록 반환
@@ -8,6 +8,7 @@
  * @created 2026-03-27
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -117,9 +118,6 @@ export async function GET(req: NextRequest) {
                 datasetSource = 'isActive fallback (empty)';
             }
         }
-
-        console.log('[l1-functions GET] fmeaId:', fmeaId, '| type:', itemType, '| category:', category, '| datasetSource:', datasetSource);
-
         if (!activeDataset) {
             return NextResponse.json({
                 success: true,
@@ -156,7 +154,6 @@ export async function GET(req: NextRequest) {
             });
             if (parentC2) {
                 c3ParentIds.push(parentC2.id);
-                console.log('[l1-functions GET] parentName → 마스터 C2 id:', parentName, '→', parentC2.id);
             }
         }
         if (itemType === 'C3' && parentId?.trim()) {
@@ -255,9 +252,6 @@ export async function POST(req: NextRequest) {
             });
             if (activeDataset) datasetSource = 'isActive fallback';
         }
-        
-        console.log('[l1-functions POST] fmeaId:', fmeaId, '| type:', itemCode, '| datasetSource:', datasetSource);
-
         if (!activeDataset) {
             return NextResponse.json({ success: false, error: '활성 Master Dataset이 없습니다.' });
         }
@@ -354,7 +348,6 @@ export async function POST(req: NextRequest) {
                     where: { id: existingByOldName.id },
                     data: { value: normalizedName },
                 });
-                console.log('[l1-functions POST] 인라인 편집 업데이트:', oldName, '→', normalizedName);
                 return NextResponse.json({ success: true, id: existingByOldName.id, updated: true });
             }
         }
@@ -420,9 +413,6 @@ export async function DELETE(req: NextRequest) {
                 itemCode,
             },
         });
-
-        console.log('[l1-functions DELETE] type:', itemCode, '| deletedCount:', result.count);
-
         return NextResponse.json({ success: true, deletedCount: result.count });
     } catch (error: any) {
         console.error('[l1-functions DELETE] 오류:', error.message);

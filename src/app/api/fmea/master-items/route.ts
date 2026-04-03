@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file master-items/route.ts
  * @description PFMEA 통합 마스터 플랫 아이템 조회/추가/삭제 API
  * - GET: itemCode 기반 마스터 플랫 아이템 목록 반환 (C1~C4, A1~A6, B1~B5 전체 지원)
@@ -201,15 +201,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const { dataset, source } = await resolveDataset(prisma, fmeaId, itemCode);
-
-    console.log(
-      '[master-items GET] itemCode:', itemCode,
-      '| fmeaId:', fmeaId,
-      '| processNo:', processNo,
-      '| category:', category,
-      '| source:', source,
-    );
-
     if (!dataset) {
       // C1 특수 처리: DB에 dataset 자체가 없으면 하드코딩 폴백
       if (itemCode === 'C1') {
@@ -308,7 +299,6 @@ export async function GET(req: NextRequest) {
           flatItems = otherItems;
           const filterLabel = normalizedCategory || processNo || 'all';
           fallbackWarning = `⚠️ 현재 FMEA(${fmeaId})에 ${itemCode}(${filterLabel}) 데이터가 없어 마스터(${other.fmeaId})에서 가져왔습니다.`;
-          console.log(`[master-items GET] ${fallbackWarning}`);
           break;
         }
       }
@@ -450,14 +440,6 @@ export async function POST(req: NextRequest) {
         rowSpan: 1,
       },
     });
-
-    console.log(
-      '[master-items POST] created:', newItem.id,
-      '| itemCode:', itemCode,
-      '| processNo:', effectiveProcessNo,
-      '| value:', normalizedName,
-    );
-
     return NextResponse.json({ success: true, id: newItem.id });
   } catch (error: unknown) {
     console.error('[master-items POST]', error);
@@ -503,9 +485,6 @@ export async function DELETE(req: NextRequest) {
         itemCode,
       },
     });
-
-    console.log('[master-items DELETE] itemCode:', itemCode, '| deletedCount:', result.count);
-
     return NextResponse.json({ success: true, deletedCount: result.count });
   } catch (error: unknown) {
     console.error('[master-items DELETE]', error);

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file sync-cp-pfd/route.ts
  * @description FK 기반 FMEA → CP + PFD 통합 연동 API
  *
@@ -20,7 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
-import { safeErrorMessage } from '@/lib/security';
+import { safeErrorMessage, isValidFmeaId } from '@/lib/security';
 import { buildCpPfdSkeleton } from '@/lib/fmea-core/build-cp-pfd-skeleton';
 import { validateFkDoors } from '@/lib/fmea-core/validate-fk-doors';
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     if (!rawFmeaId) {
       return NextResponse.json(
-        { ok: false, error: 'fmeaId is required' },
+        { success: false, error: 'fmeaId is required' },
         { status: 400 }
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     if (!projectPrisma || !publicPrisma) {
       return NextResponse.json(
-        { ok: false, error: 'Database connection failed' },
+        { success: false, error: 'Database connection failed' },
         { status: 500 }
       );
     }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     if (skeleton.cpItems.length === 0 && skeleton.pfdItems.length === 0) {
       return NextResponse.json(
-        { ok: false, error: 'FMEA에 연동할 데이터가 없습니다. 구조분석을 먼저 완료하세요.' },
+        { success: false, error: 'FMEA에 연동할 데이터가 없습니다. 구조분석을 먼저 완료하세요.' },
         { status: 400 }
       );
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     // VALIDATE 모드: 검증만 하고 INSERT 안 함
     if (mode === 'VALIDATE') {
       return NextResponse.json({
-        ok: true,
+        success: true,
         step: 'VALIDATION',
         validation,
         skeleton: {
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     if (!validation.allPass) {
       return NextResponse.json({
-        ok: false,
+        success: false,
         step: 'VALIDATION',
         error: 'FK 검증 실패 — 잘못된 데이터 차단됨',
         validation,
@@ -381,7 +381,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       step: 'COMPLETE',
       data: {
         cpId,
@@ -399,7 +399,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('[sync-cp-pfd] Error:', error);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(error) },
+      { success: false, error: safeErrorMessage(error) },
       { status: 500 }
     );
   }
@@ -417,7 +417,7 @@ export async function GET(request: NextRequest) {
 
     if (!rawFmeaId) {
       return NextResponse.json(
-        { ok: false, error: 'fmeaId is required' },
+        { success: false, error: 'fmeaId is required' },
         { status: 400 }
       );
     }
@@ -426,7 +426,7 @@ export async function GET(request: NextRequest) {
     const publicPrisma = getPrisma();
     if (!publicPrisma) {
       return NextResponse.json(
-        { ok: false, error: 'Database connection failed' },
+        { success: false, error: 'Database connection failed' },
         { status: 500 }
       );
     }
@@ -437,7 +437,7 @@ export async function GET(request: NextRequest) {
     const projectPrisma = getPrismaForSchema(schema) || getPrisma();
     if (!projectPrisma) {
       return NextResponse.json(
-        { ok: false, error: 'Project schema Prisma unavailable' },
+        { success: false, error: 'Project schema Prisma unavailable' },
         { status: 500 }
       );
     }
@@ -484,7 +484,7 @@ export async function GET(request: NextRequest) {
         where: { cpId: cp.id },
         orderBy: { sortOrder: 'asc' },
       });
-      return NextResponse.json({ ok: true, cpItems: items, schema });
+      return NextResponse.json({ success: true, cpItems: items, schema });
     }
 
     if (inspect === 'pfd' && pfd) {
@@ -492,7 +492,7 @@ export async function GET(request: NextRequest) {
         where: { pfdId: pfd.id, isDeleted: false },
         orderBy: { sortOrder: 'asc' },
       });
-      return NextResponse.json({ ok: true, pfdItems: items, schema });
+      return NextResponse.json({ success: true, pfdItems: items, schema });
     }
 
     const cpCount = cp
@@ -503,7 +503,7 @@ export async function GET(request: NextRequest) {
       : 0;
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       status: {
         cpNo: cp?.cpNo || null,
         pfdNo: pfd?.pfdNo || null,
@@ -517,7 +517,7 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     console.error('[sync-cp-pfd GET] Error:', error);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(error) },
+      { success: false, error: safeErrorMessage(error) },
       { status: 500 }
     );
   }

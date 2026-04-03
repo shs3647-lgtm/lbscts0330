@@ -1,9 +1,10 @@
-/**
+﻿/**
  * @file route.ts
  * @description FMEA 등록정보 조회 API (Prisma 기반)
  * - GET: FMEA ID로 등록정보 조회 (작성자, 검토자, 승인자 정보 포함)
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     // ✅ FMEA ID는 항상 소문자로 정규화 (DB 일관성 보장)
     const fmeaId = searchParams.get('fmeaId')?.toLowerCase();
 
-    if (!fmeaId) {
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json({ success: false, error: 'fmeaId is required', fmeaInfo: null }, { status: 400 });
     }
 

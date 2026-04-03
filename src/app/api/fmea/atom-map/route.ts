@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ImportAtomMap CRUD API + 셀 단위 PATCH
  * GET    /api/fmea/atom-map?fmeaId=xxx  — 해당 fmeaId의 atom map 전체 조회
  * POST   /api/fmea/atom-map             — 기존 삭제 후 bulk 생성 (트랜잭션)
@@ -244,9 +244,6 @@ export async function PATCH(request: NextRequest) {
         }
       }
     });
-
-    console.log(`[atom-map] PATCH fmeaId=${normalizedId} saved=${saved} failed=${errors.length} apRecalc=${apRecalculated}`);
-
     const response: AtomMapPatchResponse = {
       success: true, saved, failed: errors.length, errors, apRecalculated,
     };

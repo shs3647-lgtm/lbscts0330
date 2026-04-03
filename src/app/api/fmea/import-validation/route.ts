@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @status CODEFREEZE L4 (Pipeline Protection) u{1F512}
  * @freeze_level L4 (Critical - DFMEA Pre-Development Snapshot)
  * @frozen_date 2026-03-30
@@ -407,7 +407,7 @@ export async function POST(request: NextRequest) {
       infos: records.filter((r) => r.level === 'INFO').length,
     };
 
-    console.info(`[import-validation] fmeaId=${normalizedFmeaId} jobId=${targetJobId} saved=${savedCount} errors=${summary.errors} warns=${summary.warns}`);
+    console.warn(`[import-validation] fmeaId=${normalizedFmeaId} jobId=${targetJobId} saved=${savedCount} errors=${summary.errors} warns=${summary.warns}`);
 
     return NextResponse.json({
       success: true,

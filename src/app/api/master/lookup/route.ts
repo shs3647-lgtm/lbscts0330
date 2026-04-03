@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET /api/master/lookup — MasterFmeaReference 3단계 매칭 + bulk
  */
 import { getPrisma } from '@/lib/prisma';
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
         orderBy: [{ m4: 'asc' }, { weName: 'asc' }, { processNo: 'asc' }],
       });
       return NextResponse.json(
-        { ok: true, records },
+        { success: true, records },
         { headers: { 'Cache-Control': 'private, max-age=60' } }
       );
     }
@@ -65,17 +65,17 @@ export async function GET(req: NextRequest) {
     const processNo = (searchParams.get('processNo') ?? '').trim();
 
     if (!m4) {
-      return NextResponse.json({ ok: false, error: 'm4 is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'm4 is required' }, { status: 400 });
     }
     if (!isValidFmeaId(m4)) {
-      return NextResponse.json({ ok: false, error: 'Invalid m4' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid m4' }, { status: 400 });
     }
     if (processNo && !isValidFmeaId(processNo)) {
-      return NextResponse.json({ ok: false, error: 'Invalid processNo' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid processNo' }, { status: 400 });
     }
 
     if (we && !isSafeWeName(we)) {
-      return NextResponse.json({ ok: false, error: 'Invalid we / weName' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid we / weName' }, { status: 400 });
     }
 
     if (processNo && we) {
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       });
       if (exact) {
         return NextResponse.json({
-          ok: true,
+          success: true,
           match: toMatchPayload(exact),
           matchType: 'exact' as const,
         });
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
       const cross = pickRepresentative(crossRows);
       if (cross) {
         return NextResponse.json({
-          ok: true,
+          success: true,
           match: toMatchPayload(cross),
           matchType: 'crossProcess' as const,
         });
@@ -111,21 +111,21 @@ export async function GET(req: NextRequest) {
     const cat = pickRepresentative(catRows);
     if (cat) {
       return NextResponse.json({
-        ok: true,
+        success: true,
         match: toMatchPayload(cat),
         matchType: 'category' as const,
       });
     }
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       match: null,
       matchType: 'none' as const,
     });
   } catch (error) {
     console.error('[master/lookup]', error);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(error) },
+      { success: false, error: safeErrorMessage(error) },
       { status: 500 }
     );
   }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file auto-fix.ts
  * 파이프라인 자동수정 함수 — STEP 0~4 각 단계 수정 로직
  *
@@ -353,7 +353,6 @@ export async function fixMissing(prisma: any, fmeaId: string): Promise<string[]>
           if (l3pcFilled > 0) fixed.push(`l3ProcessChar→processChar 복사 ${l3pcFilled}건`);
         }
       } else {
-        console.log('[fixMissing] l3ProcessChar 모델 미존재 — 스킵');
       }
     } catch (e: any) {
       console.warn('[fixMissing] l3ProcessChar 복사 실패 (테이블 미존재 등):', e?.message);

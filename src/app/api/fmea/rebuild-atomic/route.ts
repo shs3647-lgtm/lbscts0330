@@ -1,4 +1,4 @@
-// ██████████████████████████████████████████████████████████████████████████████
+﻿// ██████████████████████████████████████████████████████████████████████████████
 // ██  CODEFREEZE — 중복제거(dedup) 규칙 영구 보호 (2026-03-21)                  ██
 // ██                                                                            ██
 // ██  이 파일의 dedup 로직을 수정하려면 사용자에게 아래 문구로 허락을 받아야 합니다: ██
@@ -42,6 +42,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
+import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     // ✅ FMEA ID는 항상 소문자로 정규화 (DB 정규화)
     const fmeaId = request.nextUrl.searchParams.get('fmeaId')?.toLowerCase();
     // ★★★ 2026-02-05: API 응답 형식 통일 (ok → success) ★★★
-    if (!fmeaId) return NextResponse.json({ success: false, error: 'fmeaId parameter is required' }, { status: 400 });
+    if (!fmeaId || !isValidFmeaId(fmeaId)) return NextResponse.json({ success: false, error: 'Invalid or missing fmeaId' }, { status: 400 });
 
     const baseUrl = getBaseDatabaseUrl();
     if (!baseUrl) return NextResponse.json({ success: false, error: 'Prisma not configured' }, { status: 200 });
@@ -91,7 +92,6 @@ export async function POST(request: NextRequest) {
     const sampleL3 = await prisma.l3Structure.findFirst({ where: { fmeaId }, select: { id: true } });
     const isPositionBased = !!(sampleL3 && POS_UUID.test(sampleL3.id));
     if (isPositionBased) {
-      console.log(`[rebuild-atomic] 위치기반 UUID 감지 → FL/FC/RA 삭제 금지, processCharId 리매칭 수행`);
     }
 
     // ★★★ 2026-03-20: Atomic DB 존재 확인 — Legacy 의존성 완전 제거 ★★★
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         try {
           if (fs.existsSync(masterJsonPath)) {
             masterData = JSON.parse(fs.readFileSync(masterJsonPath, 'utf8'));
-            console.info(`[rebuild-atomic] Master JSON loaded: ${masterJsonPath}`);
+            console.warn(`[rebuild-atomic] Master JSON loaded: ${masterJsonPath}`);
           }
         } catch (e: any) {
           console.warn(`[rebuild-atomic] Master JSON load failed: ${e?.message}`);
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
               l3IdMap.set(ml3.id, (match as any).id);
             }
           }
-          console.info(`[rebuild-atomic] L3 ID 리매핑: ${l3IdMap.size}/${masterL3s.length}`);
+          console.warn(`[rebuild-atomic] L3 ID 리매핑: ${l3IdMap.size}/${masterL3s.length}`);
         }
 
         for (const l3 of atomic.l3Structures) {
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
                   })),
                   skipDuplicates: true,
                 });
-                console.info(`[rebuild-atomic] L1Functions 생성: ${valid.length}`);
+                console.warn(`[rebuild-atomic] L1Functions 생성: ${valid.length}`);
               }
             }
             // ── 1b. 기존 L1Function requirement 갱신 (마스터 JSON에 값이 있고 DB가 비어있는 경우) ──
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
                   });
                 }
               }
-              console.info(`[rebuild-atomic] L1Requirements 동기화 완료`);
+              console.warn(`[rebuild-atomic] L1Requirements 동기화 완료`);
             }
           }
 
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
                 })),
                 skipDuplicates: true,
               });
-              console.info(`[rebuild-atomic] L2Functions 생성: ${missing.length}`);
+              console.warn(`[rebuild-atomic] L2Functions 생성: ${missing.length}`);
             }
           }
 
@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
 
             if (l3fToCreate.length > 0) {
               await tx.l3Function.createMany({ data: l3fToCreate, skipDuplicates: true });
-              console.info(`[rebuild-atomic] L3Functions 생성: ${l3fToCreate.length}`);
+              console.warn(`[rebuild-atomic] L3Functions 생성: ${l3fToCreate.length}`);
             }
           }
 
@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
                 })),
                 skipDuplicates: true,
               });
-              console.info(`[rebuild-atomic] FailureEffects 생성: ${missing.length}`);
+              console.warn(`[rebuild-atomic] FailureEffects 생성: ${missing.length}`);
             }
           }
 
@@ -351,7 +351,7 @@ export async function POST(request: NextRequest) {
               await tx.processProductChar.createMany({
                 data: [...pcDataMap.values()], skipDuplicates: true,
               });
-              console.info(`[rebuild-atomic] ProcessProductChar 생성: ${pcDataMap.size}`);
+              console.warn(`[rebuild-atomic] ProcessProductChar 생성: ${pcDataMap.size}`);
             }
           }
 
@@ -372,7 +372,7 @@ export async function POST(request: NextRequest) {
                 })),
                 skipDuplicates: true,
               });
-              console.info(`[rebuild-atomic] FailureModes 생성: ${missing.length}`);
+              console.warn(`[rebuild-atomic] FailureModes 생성: ${missing.length}`);
             }
           }
 
@@ -417,7 +417,7 @@ export async function POST(request: NextRequest) {
 
             if (fcToCreate.length > 0) {
               await tx.failureCause.createMany({ data: fcToCreate, skipDuplicates: true });
-              console.info(`[rebuild-atomic] FailureCauses 생성: ${fcToCreate.length}`);
+              console.warn(`[rebuild-atomic] FailureCauses 생성: ${fcToCreate.length}`);
             }
           }
 
@@ -501,11 +501,11 @@ export async function POST(request: NextRequest) {
 
             if (flsToCreate.length > 0) {
               await tx.failureLink.createMany({ data: flsToCreate, skipDuplicates: true });
-              console.info(`[rebuild-atomic] FailureLinks 복원: ${flsToCreate.length}`);
+              console.warn(`[rebuild-atomic] FailureLinks 복원: ${flsToCreate.length}`);
             }
             if (rasToCreate.length > 0) {
               await tx.riskAnalysis.createMany({ data: rasToCreate, skipDuplicates: true });
-              console.info(`[rebuild-atomic] RiskAnalyses 복원: ${rasToCreate.length}`);
+              console.warn(`[rebuild-atomic] RiskAnalyses 복원: ${rasToCreate.length}`);
             }
           }
 
@@ -525,7 +525,7 @@ export async function POST(request: NextRequest) {
           atomic.failureLinks = refreshedFLs;
           atomic.riskAnalyses = refreshedRAs;
 
-          console.info(`[rebuild-atomic] 꽂아넣기 완료: FM=${refreshedFMs.length} FE=${refreshedFEs.length} FC=${refreshedFCs.length} L3F=${refreshedL3Fs.length} FL=${refreshedFLs.length} RA=${refreshedRAs.length}`);
+          console.warn(`[rebuild-atomic] 꽂아넣기 완료: FM=${refreshedFMs.length} FE=${refreshedFEs.length} FC=${refreshedFCs.length} L3F=${refreshedL3Fs.length} FL=${refreshedFLs.length} RA=${refreshedRAs.length}`);
         } else {
           // 마스터 JSON 없이 DB 다이렉트 생성 — FlatItem B2/B3 데이터 활용
           const existingL3FStructIds = new Set(atomic.l3Functions.map((f: any) => f.l3StructId));
@@ -608,7 +608,7 @@ export async function POST(request: NextRequest) {
             if (l3fToCreate.length > 0) {
               await tx.l3Function.createMany({ data: l3fToCreate, skipDuplicates: true });
               const scFilled = l3fToCreate.filter((f: any) => f.specialChar).length;
-              console.info(`[rebuild-atomic] DB 다이렉트 L3Functions: ${l3fToCreate.length} (SC=${scFilled})`);
+              console.warn(`[rebuild-atomic] DB 다이렉트 L3Functions: ${l3fToCreate.length} (SC=${scFilled})`);
             }
             const refreshedL3Fs = await tx.l3Function.findMany({ where: { fmeaId } });
             atomic.l3Functions = refreshedL3Fs;
@@ -690,7 +690,7 @@ export async function POST(request: NextRequest) {
 
                 if (fcToCreate.length > 0) {
                   await tx.failureCause.createMany({ data: fcToCreate, skipDuplicates: true });
-                  console.info(`[rebuild-atomic] FC 보충: ${fcToCreate.length}`);
+                  console.warn(`[rebuild-atomic] FC 보충: ${fcToCreate.length}`);
                 }
               }
               // ★ FC 리프레시 (DB에서 최신 상태 로드 — save-from-import 데이터 포함)
@@ -779,7 +779,7 @@ export async function POST(request: NextRequest) {
 
                 if (flToCreate.length > 0) {
                   await tx.failureLink.createMany({ data: flToCreate, skipDuplicates: true });
-                  console.info(`[rebuild-atomic] FL 보충: ${flToCreate.length}`);
+                  console.warn(`[rebuild-atomic] FL 보충: ${flToCreate.length}`);
                 }
               }
               // ★ FL 리프레시 (DB에서 최신 상태 로드)
@@ -831,7 +831,7 @@ export async function POST(request: NextRequest) {
                   if (orphanFLs.length > 0) {
                     await tx.failureLink.createMany({ data: orphanFLs, skipDuplicates: true });
                     atomic.failureLinks = await tx.failureLink.findMany({ where: { fmeaId } });
-                    console.info(`[rebuild-atomic] Orphan FM FL 보충: ${orphanFLs.length}건`);
+                    console.warn(`[rebuild-atomic] Orphan FM FL 보충: ${orphanFLs.length}건`);
                   }
                 }
               }
@@ -881,7 +881,7 @@ export async function POST(request: NextRequest) {
 
                 if (raToCreate.length > 0) {
                   await tx.riskAnalysis.createMany({ data: raToCreate, skipDuplicates: true });
-                  console.info(`[rebuild-atomic] RA 보충: ${raToCreate.length} (DC=${[...dcByPno.values()].length} PC=${[...pcByPno.values()].length})`);
+                  console.warn(`[rebuild-atomic] RA 보충: ${raToCreate.length} (DC=${[...dcByPno.values()].length} PC=${[...pcByPno.values()].length})`);
                 }
               }
             }
@@ -1101,7 +1101,7 @@ export async function POST(request: NextRequest) {
         }
         if (dupRaIds.length > 0) {
           await tx.riskAnalysis.deleteMany({ where: { id: { in: dupRaIds } } });
-          console.info(`[rebuild-atomic] RA 중복 제거: ${dupRaIds.length}건 (1 FL = 1 RA 원칙)`);
+          console.warn(`[rebuild-atomic] RA 중복 제거: ${dupRaIds.length}건 (1 FL = 1 RA 원칙)`);
         }
 
         // RA가 어떤 FL에도 속하지 않는 고아 RA 제거
@@ -1292,7 +1292,7 @@ export async function POST(request: NextRequest) {
             }
           }
           if (enriched > 0) {
-            console.info(`[rebuild-atomic] RA SOD/DC/PC 보충: ${enriched}건 (형제/피어 RA에서 복사)`);
+            console.warn(`[rebuild-atomic] RA SOD/DC/PC 보충: ${enriched}건 (형제/피어 RA에서 복사)`);
           }
         }
       }
@@ -1317,7 +1317,7 @@ export async function POST(request: NextRequest) {
           }
         }
         if (fixedCount > 0) {
-          console.info(`[rebuild-atomic] FC processCharId 동기화: ${fixedCount}건`);
+          console.warn(`[rebuild-atomic] FC processCharId 동기화: ${fixedCount}건`);
         }
       }
 
@@ -1363,7 +1363,7 @@ export async function POST(request: NextRequest) {
             })),
             skipDuplicates: true,
           });
-          console.info(`[rebuild-atomic] 위치기반 RA 보완: ${missingRaFLs.length}건 생성`);
+          console.warn(`[rebuild-atomic] 위치기반 RA 보완: ${missingRaFLs.length}건 생성`);
         }
 
         // processCharId 리매칭: FC.l3FuncId로 설정
@@ -1380,7 +1380,7 @@ export async function POST(request: NextRequest) {
               });
             }
           }
-          console.info(`[rebuild-atomic] 위치기반 processCharId 리매칭: ${fcsNeedingPCFix.length}건`);
+          console.warn(`[rebuild-atomic] 위치기반 processCharId 리매칭: ${fcsNeedingPCFix.length}건`);
         }
       }
 
@@ -1429,7 +1429,7 @@ export async function POST(request: NextRequest) {
           }
         }
         if (reassigned > 0) {
-          console.info(`[rebuild-atomic] FC→L3Function 재배정: ${reassigned}건 (l3StructId 정합성 교정)`);
+          console.warn(`[rebuild-atomic] FC→L3Function 재배정: ${reassigned}건 (l3StructId 정합성 교정)`);
         }
 
         // 2-B: orphan L3Function 삭제 (재배정 후 재계산)
@@ -1455,7 +1455,7 @@ export async function POST(request: NextRequest) {
           const remaining = l3StructFuncCount.get(sid) || 0;
           if (remaining <= 1) {
             // 마지막 L3Function → 삭제하면 L3Structure가 orphan됨 → SKIP
-            console.info(`[rebuild-atomic] orphan L3Function ${f.id} SKIP — L3Structure ${sid}의 마지막 L3Function (보존)`);
+            console.warn(`[rebuild-atomic] orphan L3Function ${f.id} SKIP — L3Structure ${sid}의 마지막 L3Function (보존)`);
             continue;
           }
           orphanIds.push(f.id);
@@ -1535,7 +1535,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (ppcCreated > 0 || ppcUpdated > 0) {
-          console.info(`[rebuild-atomic] PPC 보충=${ppcCreated} SC동기화=${ppcUpdated}`);
+          console.warn(`[rebuild-atomic] PPC 보충=${ppcCreated} SC동기화=${ppcUpdated}`);
         }
       }
 
@@ -1551,7 +1551,7 @@ export async function POST(request: NextRequest) {
           await tx.optimization.deleteMany({
             where: { id: { in: orphanOpts.map((o: any) => o.id) } },
           });
-          console.info(`[rebuild-atomic] Opt FK 고아 삭제: ${orphanOpts.length}건`);
+          console.warn(`[rebuild-atomic] Opt FK 고아 삭제: ${orphanOpts.length}건`);
         }
       }
     }, { timeout: 30000, isolationLevel: 'Serializable' });
@@ -1563,7 +1563,7 @@ export async function POST(request: NextRequest) {
       await prisma.$transaction(async (syncTx: any) => {
         await syncTx.$executeRawUnsafe(`SET search_path TO "${schema}", public`);
         const result = await syncMasterFromProject(syncTx, fmeaId);
-        console.info(`[rebuild-atomic] Living DB sync: chains=${result.chainCount}, refs=${result.refCount}`);
+        console.warn(`[rebuild-atomic] Living DB sync: chains=${result.chainCount}, refs=${result.refCount}`);
       }, { timeout: 15000 });
     } catch (syncErr: any) {
       // Master sync 실패는 rebuild 자체를 실패시키지 않음
@@ -1585,7 +1585,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       fmeaId,
       schema,
       rebuilt: {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file api/fmea/sod-history/clear/route.ts
  * @description 정식개정 시 SOD 히스토리 초기화 API
  * @module api/fmea/sod-history/clear
@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 // ============================================================================
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { fmeaId, revMajor, revisionNote, revisedBy } = body;
     
-    if (!fmeaId) {
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json({ success: false, error: 'fmeaId is required' }, { status: 400 });
     }
     

@@ -10,13 +10,15 @@ import { describe, expect, it } from 'vitest';
 import path from 'path';
 
 describe('verify-counts public staging guard', () => {
-  it('uses getPrisma() for master flat counts, not schema-scoped client for dataset query', () => {
+  it('uses dual-schema architecture: publicPrisma (flat) + projectPrisma (atomic)', () => {
     const file = path.join(process.cwd(), 'src/app/api/fmea/verify-counts/route.ts');
     const src = readFileSync(file, 'utf8');
     expect(src).toContain('getPrisma()');
-    expect(src).toContain('stagingSource');
-    expect(src).toMatch(/toLowerCase\(\)/);
-    expect(src).not.toMatch(/getPrismaForSchema\s*\(\s*schemaName\s*\)/);
+    expect(src).toContain('publicPrisma');
+    expect(src).toContain('projectPrisma');
+    expect(src).toContain('atomicCounts');
+    expect(src).toContain('flatCounts');
+    expect(src).toContain('isValidFmeaId');
   });
 });
 

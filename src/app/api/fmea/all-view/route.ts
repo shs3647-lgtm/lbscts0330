@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
+import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -99,8 +100,8 @@ export async function GET(request: NextRequest) {
     // ✅ FMEA ID는 항상 소문자로 정규화 (DB 정규화)
     const fmeaId = searchParams.get('fmeaId')?.toLowerCase();
 
-    if (!fmeaId) {
-      return NextResponse.json({ error: 'fmeaId is required' }, { status: 400 });
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ error: 'Invalid or missing fmeaId' }, { status: 400 });
     }
 
     // 프로젝트별 스키마 사용

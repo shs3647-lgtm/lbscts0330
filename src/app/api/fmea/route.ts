@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file route.ts
  * @description FMEA 데이터 저장/로드 API 라우트
  * 
@@ -35,6 +35,8 @@ import { Pool } from 'pg';
 // POST handler는 클라이언트(atomicDbSaver.ts)에서 받은 FMEAWorksheetDB를 직접 DB에 저장
 import { preserveFailureLinks, filterValidLinks } from '@/lib/failure-link-utils';
 import { pickLegacyFcProcessCharId } from '@/app/(fmea-core)/pfmea/worksheet/atomicToLegacyAdapter';
+import { isValidFmeaId } from '@/lib/security';
+import { loadAtomicData } from './load-atomic';
 
 // ✅ Prisma는 Node.js 런타임에서만 안정적으로 동작 (edge/browser 번들 방지)
 export const runtime = 'nodejs';
@@ -97,21 +99,6 @@ export async function POST(request: NextRequest) {
     (db as any).optimizations = (db as any).optimizations || [];
 
     // ★★★ DEBUG: 저장 payload 확인 ★★★
-    console.log('[API SAVE DEBUG]', {
-      fmeaId: db.fmeaId,
-      l1Structure: !!db.l1Structure,
-      l2Structures: db.l2Structures.length,
-      l3Structures: db.l3Structures.length,
-      l1Functions: db.l1Functions.length,
-      l2Functions: db.l2Functions.length,
-      l3Functions: db.l3Functions.length,
-      failureModes: db.failureModes.length,
-      failureEffects: db.failureEffects.length,
-      failureCauses: db.failureCauses.length,
-      failureLinks: db.failureLinks.length,
-      hasLegacyData: false,
-    });
-
     // ★★★ FailureLinks 감사 추적 변수 ★★★
     const incomingLinkCount = db.failureLinks.length;
     let preservedLinkCount = 0;      // 빈 배열 POST 시 DB에서 복원한 건수
@@ -126,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     // 고장 데이터 요약 (info 레벨)
     if (db.failureModes?.length > 0 || db.failureCauses?.length > 0 || db.failureEffects?.length > 0) {
-      console.info(`[FMEA API] FM=${db.failureModes?.length || 0} FC=${db.failureCauses?.length || 0} FE=${db.failureEffects?.length || 0}`);
+      console.warn(`[FMEA API] FM=${db.failureModes?.length || 0} FC=${db.failureCauses?.length || 0} FE=${db.failureEffects?.length || 0}`);
     }
 
     // Legacy data references removed — Atomic DB is SSoT
@@ -139,10 +126,10 @@ export async function POST(request: NextRequest) {
     }
     const normalizedFmeaId = db.fmeaId;
 
-    if (!db.fmeaId) {
-      console.error('[API] FMEA ID가 없습니다.');
+    if (!db.fmeaId || !isValidFmeaId(db.fmeaId)) {
+      console.error('[API] Invalid or missing FMEA ID');
       return NextResponse.json(
-        { error: 'FMEA ID is required' },
+        { error: 'Invalid or missing FMEA ID' },
         { status: 400 }
       );
     }
@@ -912,7 +899,7 @@ export async function POST(request: NextRequest) {
 
         feEmptyLinkCount = validLinks.length - dbSavableLinks.length;
         if (feAutoAssignCount > 0) {
-          console.info(`[FMEA API] FailureLink feId 자동할당: ${feAutoAssignCount}건 (FM→공정→전역 FE)`);
+          console.warn(`[FMEA API] FailureLink feId 자동할당: ${feAutoAssignCount}건 (FM→공정→전역 FE)`);
         }
         if (feEmptyLinkCount > 0) {
           console.warn(`[FMEA API] FailureLink ${feEmptyLinkCount}건 feId 최종 미지정 → DB 저장 건너뜀 (FE 0개)`);
@@ -1405,9 +1392,8 @@ export async function GET(request: NextRequest) {
       const publicPrisma = getPrisma();
       if (!publicPrisma) return NextResponse.json(null);
 
-      // FmeaProject (기초정보) 테이블에서 해당 타입의 최신 프로젝트 1건 조회
       const latestProject = await publicPrisma.fmeaProject.findFirst({
-        where: { fmeaType: type.startsWith('p') ? 'P' : 'D' }, // 스키마 확인 결과 fmeaType 필드 사용 ('P'|'D'|'M')
+        where: { fmeaType: type.startsWith('p') ? 'P' : 'D' },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -1437,315 +1423,22 @@ export async function GET(request: NextRequest) {
     }
 
     // ✅ 강력한 스키마 강제: 조회 전 search_path 설정
-    // schema는 getProjectSchemaName()으로 [a-z0-9_] 산타이즈됨 — 추가 검증
     if (!/^[a-z][a-z0-9_]*$/.test(schema)) throw new Error(`Invalid schema: ${schema}`);
     await prisma.$executeRawUnsafe(`SET search_path TO ${schema}, public`);
 
-    // ★★★ 2026-03-20: Legacy 제거 — 항상 Atomic DB에서 직접 로드 (SSoT) ★★★
-    // 모든 데이터를 병렬로 조회
-    // ✅ failureAnalysis는 별도로 처리 (테이블이 없을 수 있음)
-    let failureAnalyses: any[] = [];
-    try {
-      failureAnalyses = await prisma.failureAnalysis.findMany({
-        where: { fmeaId },
-        orderBy: { order: 'asc' }
-      });
-    } catch (e: any) {
-      // 테이블이 없거나 모델이 없으면 빈 배열 반환 (하위 호환성)
-      if (e?.code === 'P2021' || e?.message?.includes('does not exist')) {
-      } else {
-      }
-    }
-
-    const [
-      l1Structure,
-      l2Structures,
-      l3Structures,
-      l1Functions,
-      l2Functions,
-      l3Functions,
-      failureEffects,
-      failureModes,
-      failureCauses,
-      failureLinks,
-      riskAnalyses,
-      optimizations,
-      processProductChars,
-      confirmedState,
-    ] = await Promise.all([
-      prisma.l1Structure.findFirst({ where: { fmeaId } }),
-      prisma.l2Structure.findMany({ where: { fmeaId }, orderBy: { order: 'asc' } }),
-      prisma.l3Structure.findMany({ where: { fmeaId }, orderBy: { order: 'asc' } }),
-      prisma.l1Function.findMany({ where: { fmeaId } }),
-      prisma.l2Function.findMany({ where: { fmeaId } }),
-      prisma.l3Function.findMany({ where: { fmeaId } }),
-      prisma.failureEffect.findMany({ where: { fmeaId } }),
-      prisma.failureMode.findMany({ where: { fmeaId } }),
-      prisma.failureCause.findMany({ where: { fmeaId } }),
-      prisma.failureLink.findMany({
-        where: { fmeaId, deletedAt: null },
-        include: { failureMode: { select: { l2StructId: true, l2Structure: { select: { no: true, name: true } } } } },
-      }),
-      prisma.riskAnalysis.findMany({ where: { fmeaId } }),
-      prisma.optimization.findMany({ where: { fmeaId } }),
-      prisma.processProductChar.findMany({ where: { fmeaId }, orderBy: { orderIndex: 'asc' } }),
-      // 확정 상태 로드 (테이블 없으면 null 반환)
-      prisma.fmeaConfirmedState.findUnique({ where: { fmeaId } }).catch(() => null),
-    ]);
-
-    /** FC.processCharId가 레거시 오염 UUID일 때 워크시트 B3(L3Function.id)와 불일치 → 3L 누락 대량. l3FuncId 우선 + 유효 id 선택 */
-    const validL3FuncIds = new Set(l3Functions.map((f: { id: string }) => f.id));
-
-    // 데이터가 없으면 null 반환
-    if (!l1Structure && l2Structures.length === 0) {
+    // ★★★ 2026-04-03: 비즈니스 로직 → load-atomic.ts 모듈로 분리 ★★★
+    const db = await loadAtomicData(prisma, fmeaId);
+    if (!db) {
       return NextResponse.json(null);
     }
-
-    // FMEAWorksheetDB 형식으로 변환
-    const db: FMEAWorksheetDB = {
-      fmeaId,
-      savedAt: l1Structure?.updatedAt.toISOString() || new Date().toISOString(),
-      l1Structure: l1Structure ? {
-        id: l1Structure.id,
-        fmeaId: l1Structure.fmeaId,
-        name: l1Structure.name,
-        confirmed: l1Structure.confirmed ?? false,
-        createdAt: l1Structure.createdAt.toISOString(),
-        updatedAt: l1Structure.updatedAt.toISOString(),
-      } : null,
-      l2Structures: l2Structures.map((l2: any) => ({
-        id: l2.id,
-        fmeaId: l2.fmeaId,
-        l1Id: l2.l1Id,
-        no: l2.no,
-        name: l2.name,
-        order: l2.order,
-        createdAt: l2.createdAt.toISOString(),
-        updatedAt: l2.updatedAt.toISOString(),
-      })),
-      l3Structures: l3Structures.map((l3: any) => ({
-        id: l3.id,
-        fmeaId: l3.fmeaId,
-        l1Id: l3.l1Id,
-        l2Id: l3.l2Id,
-        m4: (l3.m4 as any) || '',
-        name: l3.name,
-        order: l3.order,
-        createdAt: l3.createdAt.toISOString(),
-        updatedAt: l3.updatedAt.toISOString(),
-      })),
-      l1Functions: l1Functions.map((f: any) => ({
-        id: f.id,
-        fmeaId: f.fmeaId,
-        l1StructId: f.l1StructId,
-        category: f.category as any,
-        functionName: f.functionName,
-        requirement: f.requirement,
-        createdAt: f.createdAt.toISOString(),
-        updatedAt: f.updatedAt.toISOString(),
-      })),
-      l2Functions: l2Functions.map((f: any) => ({
-        id: f.id,
-        fmeaId: f.fmeaId,
-        l2StructId: f.l2StructId,
-        functionName: f.functionName,
-        productChar: f.productChar,
-        specialChar: f.specialChar || undefined,
-        createdAt: f.createdAt.toISOString(),
-        updatedAt: f.updatedAt.toISOString(),
-      })),
-      l3Functions: l3Functions.map((f: any) => ({
-        id: f.id,
-        fmeaId: f.fmeaId,
-        l3StructId: f.l3StructId,
-        l2StructId: f.l2StructId,
-        functionName: f.functionName,
-        processChar: f.processChar,
-        specialChar: f.specialChar || undefined,
-        createdAt: f.createdAt.toISOString(),
-        updatedAt: f.updatedAt.toISOString(),
-      })),
-      processProductChars: processProductChars.map((pc: any) => ({
-        id: pc.id,
-        fmeaId: pc.fmeaId,
-        l2StructId: pc.l2StructId,
-        name: pc.name,
-        specialChar: pc.specialChar || undefined,
-        orderIndex: pc.orderIndex ?? 0,
-        createdAt: pc.createdAt.toISOString(),
-        updatedAt: pc.updatedAt.toISOString(),
-      })),
-      failureEffects: failureEffects.map((fe: any) => ({
-        id: fe.id,
-        fmeaId: fe.fmeaId,
-        l1FuncId: fe.l1FuncId,
-        category: fe.category as any,
-        effect: fe.effect,
-        severity: fe.severity,
-        createdAt: fe.createdAt.toISOString(),
-        updatedAt: fe.updatedAt.toISOString(),
-      })),
-      failureModes: failureModes.map((fm: any) => ({
-        id: fm.id,
-        fmeaId: fm.fmeaId,
-        l2FuncId: fm.l2FuncId,
-        l2StructId: fm.l2StructId,
-        productCharId: fm.productCharId || undefined,
-        mode: fm.mode,
-        specialChar: fm.specialChar ?? false,
-        createdAt: fm.createdAt.toISOString(),
-        updatedAt: fm.updatedAt.toISOString(),
-      })),
-      failureCauses: failureCauses.map((fc: any) => {
-        const pc = pickLegacyFcProcessCharId(
-          { l3FuncId: fc.l3FuncId, processCharId: fc.processCharId },
-          validL3FuncIds,
-        );
-        return {
-          id: fc.id,
-          fmeaId: fc.fmeaId,
-          l3FuncId: fc.l3FuncId,
-          l3StructId: fc.l3StructId,
-          l2StructId: fc.l2StructId,
-          // ✅ l3FuncId·processCharId 중 실제 L3Function에 존재하는 값 (오염된 processCharId 단독 우선 금지)
-          processCharId: pc || undefined,
-          cause: fc.cause,
-          occurrence: fc.occurrence || undefined,
-          createdAt: fc.createdAt.toISOString(),
-          updatedAt: fc.updatedAt.toISOString(),
-        };
-      }),
-      failureLinks: failureLinks.map((link: any) => ({
-        id: link.id,
-        fmeaId: link.fmeaId,
-        fmId: link.fmId,
-        feId: link.feId,
-        fcId: link.fcId,
-        fmText: link.fmText || '',
-        feText: link.feText || '',
-        fcText: link.fcText || '',
-        fmProcessNo: link.failureMode?.l2Structure?.no || '',
-        fmProcess: link.failureMode?.l2Structure?.name || link.fmProcess || '',
-        feScope: link.feScope || '',
-        fcM4: link.fcM4 || '',
-        fcWorkElem: link.fcWorkElem || '',
-        severity: link.severity || 0,
-        feSeverity: link.severity || 0,
-        // ★★★ 2026-02-28: P5 — seq/path 필드 추가 (DB중심 고장연결) ★★★
-        fmSeq: link.fmSeq ?? undefined,
-        feSeq: link.feSeq ?? undefined,
-        fcSeq: link.fcSeq ?? undefined,
-        fmPath: link.fmPath || undefined,
-        fePath: link.fePath || undefined,
-        fcPath: link.fcPath || undefined,
-        createdAt: link.createdAt.toISOString(),
-        updatedAt: link.updatedAt.toISOString(),
-      })),
-      // 고장분석 통합 데이터 (All 화면 렌더링용)
-      failureAnalyses: (failureAnalyses || []).map((fa: any) => ({
-        id: fa.id,
-        fmeaId: fa.fmeaId,
-        linkId: fa.linkId,
-        // 고장연결 정보
-        fmId: fa.fmId,
-        fmText: fa.fmText,
-        fmProcessName: fa.fmProcessName,
-        feId: fa.feId,
-        feText: fa.feText,
-        feCategory: fa.feCategory,
-        feSeverity: fa.feSeverity,
-        fcId: fa.fcId,
-        fcText: fa.fcText,
-        fcOccurrence: fa.fcOccurrence || undefined,
-        fcWorkElementName: fa.fcWorkElementName,
-        fcM4: fa.fcM4 || undefined,
-        // 역전개 기능분석
-        l1FuncId: fa.l1FuncId,
-        l1Category: fa.l1Category,
-        l1FuncName: fa.l1FuncName,
-        l1Requirement: fa.l1Requirement,
-        l2FuncId: fa.l2FuncId,
-        l2FuncName: fa.l2FuncName,
-        l2ProductChar: fa.l2ProductChar,
-        l2SpecialChar: fa.l2SpecialChar || undefined,
-        l3FuncId: fa.l3FuncId,
-        l3FuncName: fa.l3FuncName,
-        l3ProcessChar: fa.l3ProcessChar,
-        l3SpecialChar: fa.l3SpecialChar || undefined,
-        // 역전개 구조분석
-        l1StructId: fa.l1StructId,
-        l1StructName: fa.l1StructName,
-        l2StructId: fa.l2StructId,
-        l2StructNo: fa.l2StructNo,
-        l2StructName: fa.l2StructName,
-        l3StructId: fa.l3StructId,
-        l3StructM4: fa.l3StructM4 || undefined,
-        l3StructName: fa.l3StructName,
-        // 메타데이터
-        order: fa.order,
-        confirmed: fa.confirmed,
-        createdAt: fa.createdAt.toISOString(),
-        updatedAt: fa.updatedAt.toISOString(),
-      })),
-      riskAnalyses: riskAnalyses.map((risk: any) => ({
-        id: risk.id,
-        fmeaId: risk.fmeaId,
-        linkId: risk.linkId,
-        severity: risk.severity,
-        occurrence: risk.occurrence,
-        detection: risk.detection,
-        ap: risk.ap as any,
-        preventionControl: risk.preventionControl || undefined,
-        detectionControl: risk.detectionControl || undefined,
-        lldReference: risk.lldReference || undefined,
-        createdAt: risk.createdAt.toISOString(),
-        updatedAt: risk.updatedAt.toISOString(),
-      })),
-      optimizations: optimizations.map((opt: any) => ({
-        id: opt.id,
-        fmeaId: opt.fmeaId,
-        riskId: opt.riskId,
-        recommendedAction: opt.recommendedAction,
-        responsible: opt.responsible,
-        targetDate: opt.targetDate,
-        newSeverity: opt.newSeverity || undefined,
-        newOccurrence: opt.newOccurrence || undefined,
-        newDetection: opt.newDetection || undefined,
-        newAP: opt.newAP as any || undefined,
-        status: opt.status as any,
-        completedDate: opt.completedDate || undefined,
-        remarks: opt.remarks || undefined,
-        detectionAction: opt.detectionAction || undefined,
-        lldOptReference: opt.lldOptReference || undefined,
-        createdAt: opt.createdAt.toISOString(),
-        updatedAt: opt.updatedAt.toISOString(),
-      })),
-      confirmed: {
-        structure: confirmedState?.structureConfirmed ?? l1Structure?.confirmed ?? false,
-        l1Function: confirmedState?.l1FunctionConfirmed ?? false,
-        l2Function: confirmedState?.l2FunctionConfirmed ?? false,
-        l3Function: confirmedState?.l3FunctionConfirmed ?? false,
-        l1Failure: confirmedState?.failureL1Confirmed ?? false,
-        l2Failure: confirmedState?.failureL2Confirmed ?? false,
-        l3Failure: confirmedState?.failureL3Confirmed ?? false,
-        failureLink: confirmedState?.failureLinkConfirmed ?? false,
-        risk: confirmedState?.riskConfirmed ?? false,
-        optimization: confirmedState?.optimizationConfirmed ?? false,
-      },
-    };
 
     return NextResponse.json(db);
   } catch (error: any) {
     console.error('[API] FMEA 로드 오류:', error);
 
-    // Prisma 에러 상세 정보
     if (error.code) {
       return NextResponse.json(
-        {
-          error: 'Failed to load FMEA data',
-          code: error.code,
-          details: error.meta || error.message,
-        },
+        { error: 'Failed to load FMEA data', code: error.code, details: error.meta || error.message },
         { status: 500 }
       );
     }
@@ -1756,6 +1449,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 
 /**
  * ✅ 2026-01-25: FMEA 워크시트 데이터 삭제

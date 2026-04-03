@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
+import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { randomUUID } from 'crypto';
 
 interface IdRemapMap {
@@ -37,6 +38,9 @@ export async function POST(req: NextRequest) {
 
     if (!sourceFmeaId || !targetFmeaId) {
       return NextResponse.json({ success: false, error: 'sourceFmeaId and targetFmeaId are required' }, { status: 400 });
+    }
+    if (!isValidFmeaId(sourceFmeaId) || !isValidFmeaId(targetFmeaId)) {
+      return NextResponse.json({ success: false, error: 'Invalid fmeaId format' }, { status: 400 });
     }
 
     const srcId = sourceFmeaId.toLowerCase();
@@ -575,7 +579,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fmeaId: tgtId })
       }).catch(e => console.error('[clone-master] Background sync error:', e));
-    } catch (e) {}
+    } catch (e) { console.error('[clone-master] severity-recommend sync wrapper error:', e); }
 
     return NextResponse.json({
       success: true,

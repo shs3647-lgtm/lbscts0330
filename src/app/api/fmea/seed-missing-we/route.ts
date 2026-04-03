@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/fmea/seed-missing-we — m002 Cu Target + TiW Etchant 원본 데이터 추가
  * 1회용 시딩 API. 누락된 2건의 WE에 L3Function + FC + FL + RA 추가.
  *
@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
-import { safeErrorMessage } from '@/lib/security';
+import { safeErrorMessage, isValidFmeaId } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -40,7 +40,7 @@ const SEED_DATA = [
 export async function POST(req: NextRequest) {
   try {
     const { fmeaId } = await req.json();
-    if (!fmeaId) return NextResponse.json({ error: 'fmeaId required' }, { status: 400 });
+    if (!fmeaId || !isValidFmeaId(fmeaId)) return NextResponse.json({ error: 'fmeaId required' }, { status: 400 });
 
     const baseUrl = getBaseDatabaseUrl();
     if (!baseUrl) return NextResponse.json({ error: 'DB not configured' }, { status: 500 });
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     const ra = await prisma.riskAnalysis.count({ where: { fmeaId } });
     const l3f = await prisma.l3Function.count({ where: { fmeaId } });
 
-    return NextResponse.json({ ok: true, created: result, totals: { fc, fl, ra, l3f } });
+    return NextResponse.json({ success: true, created: result, totals: { fc, fl, ra, l3f } });
   } catch (e) {
     console.error('[seed-missing-we]', e);
     return NextResponse.json({ error: safeErrorMessage(e) }, { status: 500 });

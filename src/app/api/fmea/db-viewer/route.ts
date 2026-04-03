@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Client } from 'pg';
+import { isValidFmeaId } from '@/lib/security';
 import {
   compareDbVsRender,
   renderCompareHtml,
@@ -64,6 +65,9 @@ function escHtml(s: string): string {
 
 export async function GET(req: NextRequest) {
   const fmeaId = req.nextUrl.searchParams.get('fmeaId') || '';
+  if (fmeaId && !isValidFmeaId(fmeaId)) {
+    return NextResponse.json({ error: 'Invalid fmeaId format' }, { status: 400 });
+  }
   const table = req.nextUrl.searchParams.get('table') || '';
   const view = req.nextUrl.searchParams.get('view') || '';
   const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0');

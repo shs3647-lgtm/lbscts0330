@@ -1,4 +1,4 @@
-/**
+﻿/**
  * GET /api/master/stats — MasterFmeaReference 집계
  */
 import { getPrisma } from '@/lib/prisma';
@@ -80,7 +80,7 @@ export async function GET() {
   } catch (error) {
     console.error('[master/stats]', error);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(error) },
+      { success: false, error: safeErrorMessage(error) },
       { status: 500 }
     );
   }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file /api/fmea/version-backup/route.ts
  * @description FMEA 버전별 백업 API - 백업 생성, 조회, 복구
  * @created 2026-01-19
@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 // ============================================================================
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fmeaId = searchParams.get('fmeaId');
     
-    if (!fmeaId) {
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json({ error: 'fmeaId is required' }, { status: 400 });
     }
     

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @status CODEFREEZE L4 (Pipeline Protection) u{1F512}
  * @freeze_level L4 (Critical - DFMEA Pre-Development Snapshot)
  * @frozen_date 2026-03-30
@@ -45,9 +45,6 @@ export async function POST(request: NextRequest) {
     const atomicData = parsePositionBasedJSON(json as any);
     const report = validateFKChain(atomicData);
     const qualityResult = checkRawQuality(atomicData, report);
-
-    console.log(`[import-to-raw] fmeaId=${normalizedId} quality=${qualityResult.status} FL=${atomicData.failureLinks.length} save=${doSave}`);
-
     // ★ save=true 이면 save-position-import API 경유로 DB 저장
     if (doSave) {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';

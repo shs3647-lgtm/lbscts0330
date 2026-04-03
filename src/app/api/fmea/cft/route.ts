@@ -1,9 +1,10 @@
-/**
+﻿/**
  * @file route.ts
  * @description FMEA CFT 멤버 조회 API
  * - GET: FMEA ID로 CFT 멤버 목록 조회
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const fmeaId = searchParams.get('fmeaId')?.toLowerCase();
     
-    if (!fmeaId) {
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json({ 
         success: false, 
         error: 'fmeaId is required', 

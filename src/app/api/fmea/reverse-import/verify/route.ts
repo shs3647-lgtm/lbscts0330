@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file reverse-import/verify/route.ts
  * 역설계 Import 검증 API — 멱등성 + 원본↔대상 비교 + FK 무결성
  * 설계서: docs/REVERSE_ENGINEERING_IMPORT_SYSTEM.md §9
@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { assertFmeaId, getIsolatedPrisma } from '@/lib/fmea-core/guards';
 import {
   compareAtomicDBCounts,
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     assertFmeaId(sourceFmeaId);
     assertFmeaId(targetFmeaId);
 
-    console.info(`[reverse-verify] 검증 시작: source=${sourceFmeaId} target=${targetFmeaId}`);
+    console.warn(`[reverse-verify] 검증 시작: source=${sourceFmeaId} target=${targetFmeaId}`);
 
     const sourcePrisma = await getIsolatedPrisma(sourceFmeaId);
     const targetPrisma = await getIsolatedPrisma(targetFmeaId);
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
       && fmeaIdCheck.allMatch && idempotency.allMatch;
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       allGreen,
       sourceFmeaId,
       targetFmeaId,
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     console.error('[reverse-verify] 오류:', e);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(e) },
+      { success: false, error: safeErrorMessage(e) },
       { status: 500 }
     );
   }

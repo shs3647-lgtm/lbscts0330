@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/fmea/repair-l3?fmeaId=xxx
  * L3Function=0인 경우 L3Structure에서 placeholder L3Function 즉시 생성
  * + FlatItem B2/B3/B4 데이터 있으면 실제값으로 복원
@@ -32,9 +32,6 @@ export async function POST(request: NextRequest) {
       prisma.failureLink.count({ where: { fmeaId: normalizedId } }),
       prisma.riskAnalysis.count({ where: { fmeaId: normalizedId } }),
     ]);
-
-    console.log(`[repair-l3] fmeaId=${normalizedId} L3=${l3Count} L3F=${l3FuncCount} FC=${fcCount} FL=${flCount} RA=${raCount}`);
-
     const repairs: string[] = [];
 
     // ─── 1. FlatItem에서 B2/B3/B4 데이터 로드 시도 (공개 스키마) ───
@@ -55,7 +52,6 @@ export async function POST(request: NextRequest) {
             publicPrisma.pfmeaMasterFlatItem.findMany({ where: { datasetId: ds.id, itemCode: 'B3' }, select: { processNo: true, m4: true, value: true, parentItemId: true } }),
             publicPrisma.pfmeaMasterFlatItem.findMany({ where: { datasetId: ds.id, itemCode: 'B4' }, select: { processNo: true, m4: true, value: true, parentItemId: true } }),
           ]);
-          console.log(`[repair-l3] FlatItem: B2=${b2Items.length} B3=${b3Items.length} B4=${b4Items.length}`);
           // parentItemId = B1 id → "pno-B1-idx" → B1 기반으로 B2/B3 매핑
           b2Items.forEach(item => { if (item.parentItemId) b2Map.set(item.parentItemId, item.value || ''); });
           b3Items.forEach(item => { if (item.parentItemId) b3Map.set(item.parentItemId, item.value || ''); });

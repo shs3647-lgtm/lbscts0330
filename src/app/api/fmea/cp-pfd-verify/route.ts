@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file cp-pfd-verify/route.ts
  * @description FMEA ↔ CP ↔ PFD 통합 FK 정합성 검증 API
  *
@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseDatabaseUrl, getPrisma, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
-import { safeErrorMessage } from '@/lib/security';
+import { safeErrorMessage, isValidFmeaId } from '@/lib/security';
 
 interface FkCheckResult {
   name: string;
@@ -272,13 +272,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fmeaId = searchParams.get('fmeaId');
 
-    if (!fmeaId) {
-      return NextResponse.json({ ok: false, error: 'fmeaId is required' }, { status: 400 });
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ success: false, error: 'fmeaId is required' }, { status: 400 });
     }
 
     const publicPrisma = getPrisma();
     if (!publicPrisma) {
-      return NextResponse.json({ ok: false, error: 'DB connection failed' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'DB connection failed' }, { status: 500 });
     }
 
     // FMEA Atomic DB는 프로젝트 스키마에 있음
@@ -288,10 +288,10 @@ export async function GET(request: NextRequest) {
     const fmeaPrisma = getPrismaForSchema(schema) || publicPrisma;
 
     const result = await verifyCpPfdFk(fmeaPrisma, publicPrisma, fmeaId);
-    return NextResponse.json({ ok: true, ...result });
+    return NextResponse.json({ success: true, ...result });
   } catch (error: unknown) {
     console.error('[cp-pfd-verify GET]', error);
-    return NextResponse.json({ ok: false, error: safeErrorMessage(error) }, { status: 500 });
+    return NextResponse.json({ success: false, error: safeErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -299,13 +299,13 @@ export async function POST(request: NextRequest) {
   try {
     const { fmeaId } = await request.json();
 
-    if (!fmeaId) {
-      return NextResponse.json({ ok: false, error: 'fmeaId is required' }, { status: 400 });
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
+      return NextResponse.json({ success: false, error: 'fmeaId is required' }, { status: 400 });
     }
 
     const publicPrisma = getPrisma();
     if (!publicPrisma) {
-      return NextResponse.json({ ok: false, error: 'DB connection failed' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'DB connection failed' }, { status: 500 });
     }
 
     const baseUrl = getBaseDatabaseUrl();
@@ -332,12 +332,12 @@ export async function POST(request: NextRequest) {
     const verifyResult = await verifyCpPfdFk(fmeaPrisma, publicPrisma, fmeaId);
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       sync: syncResult,
       verify: verifyResult,
     });
   } catch (error: unknown) {
     console.error('[cp-pfd-verify POST]', error);
-    return NextResponse.json({ ok: false, error: safeErrorMessage(error) }, { status: 500 });
+    return NextResponse.json({ success: false, error: safeErrorMessage(error) }, { status: 500 });
   }
 }

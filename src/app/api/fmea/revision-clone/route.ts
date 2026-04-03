@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma, getBaseDatabaseUrl, getPrismaForSchema } from '@/lib/prisma';
 import { ensureProjectSchemaReady, getProjectSchemaName } from '@/lib/project-schema';
-import { safeErrorMessage } from '@/lib/security';
+import { isValidFmeaId, safeErrorMessage } from '@/lib/security';
 import { renameFmeaId } from './renameFmeaId';
 import { cloneAtomicData } from './cloneAtomicData';
 
@@ -67,9 +67,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { sourceFmeaId } = body;
 
-    if (!sourceFmeaId) {
+    if (!sourceFmeaId || !isValidFmeaId(sourceFmeaId)) {
       return NextResponse.json(
-        { success: false, error: 'sourceFmeaId is required' },
+        { success: false, error: 'Invalid or missing sourceFmeaId' },
         { status: 400 }
       );
     }

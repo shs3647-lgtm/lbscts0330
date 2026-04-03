@@ -1,4 +1,4 @@
-/**
+﻿/**
  * POST /api/master/upsert — MasterFmeaReference upsert (배열 병합 + SOD + usage)
  */
 import { getPrisma } from '@/lib/prisma';
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     try {
       body = (await req.json()) as Record<string, unknown>;
     } catch {
-      return NextResponse.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 });
     }
 
     const m4 = typeof body.m4 === 'string' ? body.m4.trim() : '';
@@ -45,23 +45,23 @@ export async function POST(req: NextRequest) {
 
     if (!m4 || !weName) {
       return NextResponse.json(
-        { ok: false, error: 'm4 and weName are required' },
+        { success: false, error: 'm4 and weName are required' },
         { status: 400 }
       );
     }
     if (!isValidFmeaId(m4)) {
-      return NextResponse.json({ ok: false, error: 'Invalid m4' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid m4' }, { status: 400 });
     }
     if (processNo && !isValidFmeaId(processNo)) {
-      return NextResponse.json({ ok: false, error: 'Invalid processNo' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid processNo' }, { status: 400 });
     }
     if (weName.length > 512 || /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(weName)) {
-      return NextResponse.json({ ok: false, error: 'Invalid weName' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid weName' }, { status: 400 });
     }
 
     const rawSource = typeof body.sourceType === 'string' ? body.sourceType.trim() : 'import';
     if (!VALID_SOURCE.has(rawSource)) {
-      return NextResponse.json({ ok: false, error: 'Invalid sourceType' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invalid sourceType' }, { status: 400 });
     }
 
     const processName = typeof body.processName === 'string' ? body.processName.trim() : '';
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
           isActive: true,
         },
       });
-      return NextResponse.json({ ok: true, record: saved });
+      return NextResponse.json({ success: true, record: saved });
     }
 
     const created = await getPrisma()!.masterFmeaReference.create({
@@ -128,11 +128,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ok: true, record: created });
+    return NextResponse.json({ success: true, record: created });
   } catch (error) {
     console.error('[master/upsert]', error);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(error) },
+      { success: false, error: safeErrorMessage(error) },
       { status: 500 }
     );
   }

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FMEA 프로젝트 API Route
  * 
  * 목적: HTTP 요청/응답 처리만 담당 (DB 로직은 서비스 레이어로 분리)
@@ -161,7 +161,6 @@ export async function PATCH(req: NextRequest) {
           where: { fmeaId: { equals: body.fmeaId, mode: 'insensitive' } },
           data: { masterDatasetId: body.masterDatasetId || null },
         });
-        console.log('[projects PATCH] masterDatasetId 업데이트:', body.fmeaId, '→', body.masterDatasetId);
         return NextResponse.json({ success: true, fmeaId: body.fmeaId.toLowerCase(), masterDatasetId: body.masterDatasetId });
       }
     }

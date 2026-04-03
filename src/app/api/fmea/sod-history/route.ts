@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file api/fmea/sod-history/route.ts
  * @description SOD 변경 히스토리 API
  * @module api/fmea/sod-history
@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidFmeaId } from '@/lib/security';
 import { getPrisma } from '@/lib/prisma';
 
 // ============================================================================
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fmeaId = searchParams.get('fmeaId');
     
-    if (!fmeaId) {
+    if (!fmeaId || !isValidFmeaId(fmeaId)) {
       return NextResponse.json({ success: false, error: 'fmeaId is required' }, { status: 400 });
     }
     

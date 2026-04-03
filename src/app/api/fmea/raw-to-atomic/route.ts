@@ -64,18 +64,13 @@ export async function POST(request: NextRequest) {
         { status: 500 },
       );
     }
-
-    console.log(`[raw-to-atomic] schema=${schema}, fmeaId=${normalizedId}, force=${force}`);
-    console.log(`[raw-to-atomic] stats:`, JSON.stringify(atomicData.stats));
+    // stats available in response body
 
     // 4. validateFKChain 호출
     const report = validateFKChain(atomicData);
 
     // 5. checkRawQuality 호출
     const qualityResult = checkRawQuality(atomicData, report);
-
-    console.log(`[raw-to-atomic] quality=${qualityResult.status} summary=${qualityResult.summary}`);
-
     // 6. saveAtomicFromPosition 호출
     const result = await saveAtomicFromPosition(prisma, atomicData, { force: force ?? false });
 

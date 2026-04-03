@@ -8,6 +8,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { isValidFmeaId } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -37,6 +38,10 @@ export async function GET(request: NextRequest) {
   }
 
   const fmeaIds = idsParam.split(',').map(id => id.trim().toLowerCase());
+  const invalidIds = fmeaIds.filter(id => !isValidFmeaId(id));
+  if (invalidIds.length > 0) {
+    return NextResponse.json({ success: false, error: `Invalid fmeaId format: ${invalidIds.join(', ')}` }, { status: 400 });
+  }
   const results: DeleteCheckResult[] = [];
 
   for (const fmeaId of fmeaIds) {

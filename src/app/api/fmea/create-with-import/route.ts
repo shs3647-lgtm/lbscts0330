@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file create-with-import/route.ts
  * 프로젝트 등록 + 역설계 Import + Legacy 동기화 + 검증 — 원스텝 API
  *
@@ -27,7 +27,7 @@ import { remapFmeaId } from '@/lib/fmea-core/remap-fmeaid';
 import { saveAtomicDBInTransaction } from '@/lib/fmea-core/save-atomic';
 import { compareAtomicDBCounts } from '@/lib/fmea-core/compare-atomic';
 import { createOrUpdateProject } from '@/lib/services/fmea-project-service';
-import { safeErrorMessage } from '@/lib/security';
+import { safeErrorMessage, isValidFmeaId } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -51,12 +51,12 @@ export async function POST(req: NextRequest) {
 
     if (sourceFmeaId === targetFmeaId) {
       return NextResponse.json(
-        { ok: false, error: 'sourceFmeaId와 targetFmeaId가 동일합니다' },
+        { success: false, error: 'sourceFmeaId와 targetFmeaId가 동일합니다' },
         { status: 400 }
       );
     }
 
-    console.info(`[create-with-import] ${sourceFmeaId} → ${targetFmeaId}`);
+    console.warn(`[create-with-import] ${sourceFmeaId} → ${targetFmeaId}`);
 
     // ── STEP 1: 프로젝트 등록 ──
     await createOrUpdateProject({
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       parentFmeaId: sourceFmeaId,
       parentFmeaType: fmeaType,
     });
-    console.info(`[create-with-import] 프로젝트 등록 완료: ${targetFmeaId}`);
+    console.warn(`[create-with-import] 프로젝트 등록 완료: ${targetFmeaId}`);
 
     // ── STEP 2: 원본 Atomic DB 추출 + Guard 검증 ──
     const sourcePrisma = await getIsolatedPrisma(sourceFmeaId);
@@ -94,10 +94,10 @@ export async function POST(req: NextRequest) {
 
     const elapsedMs = Date.now() - startMs;
 
-    console.info(`[create-with-import] 완료: ${JSON.stringify(counts)} (${elapsedMs}ms)`);
+    console.warn(`[create-with-import] 완료: ${JSON.stringify(counts)} (${elapsedMs}ms)`);
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       sourceFmeaId,
       targetFmeaId,
       steps: {
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
   } catch (e: unknown) {
     console.error('[create-with-import] 오류:', e);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(e), elapsedMs: Date.now() - startMs },
+      { success: false, error: safeErrorMessage(e), elapsedMs: Date.now() - startMs },
       { status: 500 }
     );
   }

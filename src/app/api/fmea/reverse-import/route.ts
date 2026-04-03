@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file reverse-import/route.ts
  * 역설계 Import 시스템 — Atomic DB 기반 FMEA 복제
  * 설계서: docs/# 역설계 기반 FMEA Import 시스템 설계서.md
@@ -14,7 +14,7 @@ import { assertFmeaId, getIsolatedPrisma } from '@/lib/fmea-core/guards';
 import { reverseExtract } from '@/lib/fmea-core/reverse-extract';
 import { remapFmeaId } from '@/lib/fmea-core/remap-fmeaid';
 import { saveAtomicDBInTransaction } from '@/lib/fmea-core/save-atomic';
-import { safeErrorMessage } from '@/lib/security';
+import { safeErrorMessage, isValidFmeaId } from '@/lib/security';
 
 export const runtime = 'nodejs';
 
@@ -28,18 +28,18 @@ export async function POST(req: NextRequest) {
 
     if (sourceFmeaId === targetFmeaId) {
       return NextResponse.json(
-        { ok: false, error: 'sourceFmeaId와 targetFmeaId가 동일합니다' },
+        { success: false, error: 'sourceFmeaId와 targetFmeaId가 동일합니다' },
         { status: 400 }
       );
     }
 
-    console.info(`[reverse-import] 시작: ${sourceFmeaId} → ${targetFmeaId}`);
+    console.warn(`[reverse-import] 시작: ${sourceFmeaId} → ${targetFmeaId}`);
 
     // STEP 1~3: 원본 Atomic DB 전체 로드 + Guard 검증
     const sourcePrisma = await getIsolatedPrisma(sourceFmeaId);
     const sourceData = await reverseExtract(sourcePrisma, sourceFmeaId);
 
-    console.info(`[reverse-import] 원본 로드: L2=${sourceData.l2Structures.length} L3=${sourceData.l3Structures.length} FM=${sourceData.failureModes.length} FC=${sourceData.failureCauses.length} FL=${sourceData.failureLinks.length}`);
+    console.warn(`[reverse-import] 원본 로드: L2=${sourceData.l2Structures.length} L3=${sourceData.l3Structures.length} FM=${sourceData.failureModes.length} FC=${sourceData.failureCauses.length} FL=${sourceData.failureLinks.length}`);
 
     // STEP 4: fmeaId 리매핑 (메모리 내, UUID 보존)
     const targetData = remapFmeaId(sourceData, targetFmeaId);
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json({
-      ok: true,
+      success: true,
       sourceFmeaId,
       targetFmeaId,
       extracted: {
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   } catch (e: unknown) {
     console.error('[reverse-import] 오류:', e);
     return NextResponse.json(
-      { ok: false, error: safeErrorMessage(e) },
+      { success: false, error: safeErrorMessage(e) },
       { status: 500 }
     );
   }

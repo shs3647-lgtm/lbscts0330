@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file save-position-import/route.ts
  * @description 위치기반 Import API — PositionAtomicData → 프로젝트 스키마 DB 저장
  *
@@ -61,10 +61,6 @@ export async function POST(request: NextRequest) {
     if (!prisma) {
       return NextResponse.json({ success: false, error: 'Failed to get Prisma client' }, { status: 500 });
     }
-
-    console.log(`[save-position-import] schema=${schema}, fmeaId=${normalizedId}, force=${force}`);
-    console.log(`[save-position-import] stats:`, JSON.stringify(atomicData.stats));
-
     const flPayload = atomicData.failureLinks ?? [];
     const validFLs = flPayload.filter((fl) => !!(fl.fmId && fl.feId && fl.fcId));
     const failureLinksSkippedIncomplete = flPayload.length - validFLs.length;
@@ -82,7 +78,6 @@ export async function POST(request: NextRequest) {
         fcPcMap.set(fc.id, (fc as any).preventionControl.trim());
       }
     }
-    console.log(`[save-position-import] FC→RA preventionControl: FC총=${atomicData.failureCauses?.length}, FC with PC=${fcPcMap.size}`);
     const flFcIdMap = new Map<string, string>();
     for (const fl of validFLs) {
       if (fl.fcId) flFcIdMap.set(fl.id, fl.fcId);
@@ -127,10 +122,9 @@ export async function POST(request: NextRequest) {
           await safeTx(tx, 'l2ProcessName').deleteMany({ where: { fmeaId: normalizedId } });
           await safeTx(tx, 'l2ProcessNo').deleteMany({ where: { fmeaId: normalizedId } });
           await tx.l2Structure.deleteMany({ where: { fmeaId: normalizedId } });
-          console.log(`[save-position-import] manualMode: L2/L3 구조 동기화 (FM 없음 — 안전)`);
         } else {
           // FM 있으면 upsert 모드로 폴백 (createMany skipDuplicates 유지)
-          console.info(`[save-position-import] manualMode: FM=${existingFm}건 존재 — skipDuplicates 폴백`);
+          console.warn(`[save-position-import] manualMode: FM=${existingFm}건 존재 — skipDuplicates 폴백`);
         }
       }
 
@@ -158,7 +152,6 @@ export async function POST(request: NextRequest) {
         await tx.l3Structure.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l2Structure.deleteMany({ where: { fmeaId: normalizedId } });
         await tx.l1Structure.deleteMany({ where: { fmeaId: normalizedId } });
-        console.log(`[save-position-import] force=true: 전체 삭제 완료`);
       }
 
       // 1. L1Structure upsert
@@ -177,7 +170,6 @@ export async function POST(request: NextRequest) {
             parentId: s.parentId || null, scope: s.scope,
           })),
         });
-        console.log(`[save-position-import] L1Scope: ${atomicData.l1Scopes.length}건 생성`);
       }
 
       // 2. L2Structures
@@ -200,7 +192,6 @@ export async function POST(request: NextRequest) {
             parentId: p.parentId || null, no: p.no,
           })),
         });
-        console.log(`[save-position-import] L2ProcessNo: ${atomicData.l2ProcessNos.length}건 생성`);
       }
       if (atomicData.l2ProcessNames && atomicData.l2ProcessNames.length > 0) {
         await safeTx(tx, 'l2ProcessName').createMany({
@@ -210,7 +201,6 @@ export async function POST(request: NextRequest) {
             parentId: p.parentId || null, name: p.name,
           })),
         });
-        console.log(`[save-position-import] L2ProcessName: ${atomicData.l2ProcessNames.length}건 생성`);
       }
 
       // 3. L3Structures
@@ -245,7 +235,6 @@ export async function POST(request: NextRequest) {
             l1FuncId: r.l1FuncId, requirement: r.requirement, orderIndex: r.orderIndex,
           })),
         });
-        console.log(`[save-position-import] L1Requirement: ${atomicData.l1Requirements.length}건 생성`);
       }
 
       // 5. L2Functions
@@ -269,7 +258,6 @@ export async function POST(request: NextRequest) {
             l2FuncId: sc.l2FuncId, parentId: sc.parentId || null, value: sc.value,
           })),
         });
-        console.log(`[save-position-import] L2SpecialChar: ${atomicData.l2SpecialChars.length}건 생성`);
       }
 
       // 6. ProcessProductChars (parentId 없음 — l2StructId가 부모 FK 역할)
@@ -313,8 +301,6 @@ export async function POST(request: NextRequest) {
             functionName: f.functionName, processChar: f.processChar, specialChar: f.specialChar,
           })),
         });
-        console.log(`[save-position-import] L3Function: ${atomicData.l3Functions.length}건 생성`);
-
         // 7b. L3ProcessChars (★v4: B3 독립 엔티티) — L3Function 이후 생성 (FK 의존)
         if (atomicData.l3ProcessChars && atomicData.l3ProcessChars.length > 0) {
           await safeTx(tx, 'l3ProcessChar').createMany({
@@ -324,7 +310,6 @@ export async function POST(request: NextRequest) {
               name: pc.name, specialChar: pc.specialChar,
             })),
           });
-          console.log(`[save-position-import] L3ProcessChar: ${atomicData.l3ProcessChars.length}건 생성`);
         }
 
         // 7c. L3ProcessNos + L3FourMs + L3WorkElements (★v4) — L3Structure 이후 생성 (FK 의존)
@@ -335,7 +320,6 @@ export async function POST(request: NextRequest) {
               parentId: p.parentId || null, no: p.no,
             })),
           });
-          console.log(`[save-position-import] L3ProcessNo: ${atomicData.l3ProcessNos.length}건 생성`);
         }
         if (atomicData.l3FourMs && atomicData.l3FourMs.length > 0) {
           await safeTx(tx, 'l3FourM').createMany({
@@ -344,7 +328,6 @@ export async function POST(request: NextRequest) {
               parentId: f.parentId || null, m4: f.m4,
             })),
           });
-          console.log(`[save-position-import] L3FourM: ${atomicData.l3FourMs.length}건 생성`);
         }
         if (atomicData.l3WorkElements && atomicData.l3WorkElements.length > 0) {
           await safeTx(tx, 'l3WorkElement').createMany({
@@ -353,7 +336,6 @@ export async function POST(request: NextRequest) {
               parentId: w.parentId || null, name: w.name,
             })),
           });
-          console.log(`[save-position-import] L3WorkElement: ${atomicData.l3WorkElements.length}건 생성`);
         }
 
         // 7d. L3SpecialChars (★v4: SC 독립 엔티티) — L3ProcessChar 이후 생성 (FK 의존)
@@ -364,7 +346,6 @@ export async function POST(request: NextRequest) {
               l3ProcessCharId: sc.l3ProcessCharId, parentId: sc.parentId || null, value: sc.value,
             })),
           });
-          console.log(`[save-position-import] L3SpecialChar: ${atomicData.l3SpecialChars.length}건 생성`);
         }
       }
 
@@ -421,7 +402,6 @@ export async function POST(request: NextRequest) {
             parentId: fc.parentId || null,
           })),
         });
-        console.log(`[save-position-import] FailureCause: ${atomicData.failureCauses.length}건 생성`);
       }
 
       // 11. FailureLinks — 빈 FK 필터링 후 저장 (FK 제약 위반 방지) — validFLs는 트랜잭션 밖에서 산출(saveImportMeta와 동일)
@@ -466,7 +446,6 @@ export async function POST(request: NextRequest) {
             });
           }
         }
-        console.log(`[save-position-import] FailureLink: ${validFLs.length}건 생성`);
       }
 
       // 12. RiskAnalyses — 유효한 FL만 참조 (validRAs는 트랜잭션 밖과 동일)
@@ -489,7 +468,6 @@ export async function POST(request: NextRequest) {
             detectionControl: ra.detectionControl,
           })),
         });
-        console.log(`[save-position-import] RiskAnalysis: ${validRAs.length}건 생성`);
       }
 
       // 13. Verify counts (핵심 테이블만 — v4 신규 테이블은 safeTx 경유로 skip 가능)
@@ -509,9 +487,6 @@ export async function POST(request: NextRequest) {
         failureLinks: flc, riskAnalyses: rac,
       };
     });
-
-    console.log(`[save-position-import] Done:`, JSON.stringify(counts));
-
     return NextResponse.json({
       success: true, fmeaId: normalizedId, schema,
       atomicCounts: counts,
