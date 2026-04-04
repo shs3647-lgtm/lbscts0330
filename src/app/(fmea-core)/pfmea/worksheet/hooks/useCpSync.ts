@@ -284,14 +284,6 @@ export function useCpSync(selectedFmeaId: string | null): UseCpSyncReturn {
       return;
     }
 
-    const confirmed = window.confirm(
-      `현재 FMEA 데이터로 새 CP를 생성하시겠습니까?\n\n` +
-      `• 공정 수: ${state.l2.length}개\n` +
-      `• 작업요소 수: ${state.l2.reduce((sum: number, p: any) => sum + (p.l3?.length || 0), 0)}개\n\n` +
-      `생성 완료 후 CP 워크시트 화면으로 이동합니다.`
-    );
-    if (!confirmed) return;
-
     setSyncStatus('syncing');
 
     try {
@@ -314,16 +306,13 @@ export function useCpSync(selectedFmeaId: string | null): UseCpSyncReturn {
       if (data.success) {
         setSyncStatus('success');
         const cpNo = data.data?.cpNo;
-        const itemCount = data.data?.itemCount || 0;
         const redirectUrl = data.data?.redirectUrl;
         if (cpNo) setLinkedCpNo(cpNo);
-        alert(
-          `✅ CP 생성 완료!\n\n` +
-          `• CP 번호: ${cpNo || '(자동생성)'}\n` +
-          `• ${itemCount}건 생성\n\n` +
-          (redirectUrl ? `CP 워크시트 화면으로 이동합니다.` : `CP가 생성되었습니다.`)
-        );
-        if (redirectUrl) router.push(redirectUrl);
+        // CP 생성 완료 → 즉시 CP 화면 이동 (alert 없음)
+        if (redirectUrl) {
+          router.push(redirectUrl);
+          return;
+        }
       } else {
         setSyncStatus('error');
         alert(`❌ CP 생성 실패: ${data.error || '알 수 없는 오류'}`);

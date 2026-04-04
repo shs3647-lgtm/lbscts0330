@@ -806,7 +806,7 @@ function FMEAWorksheetPageContent() {
           activePanelId={activePanelId}
           onCpStructureSync={handleCpStructureSync}
           onCpDataSync={handleCpDataSync}
-          onCreateCp={() => linkedCpNo ? startSyncWizard(state) : handleCreateCp(state)}
+          onCreateCp={() => quickSyncAndNavigate(state)}
           onCreatePfd={() => handleCreatePfd(state)}
           isAdmin={isAdmin}
           onQuickCpSync={() => quickSyncAndNavigate(state)}

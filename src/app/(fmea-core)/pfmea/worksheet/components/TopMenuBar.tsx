@@ -255,87 +255,23 @@ export default function TopMenuBar({
 
       {/* CP연동/PFD연동/CP이동/PFD이동/확정 */}
       <div className="flex items-center gap-0.5 shrink-0">
-        {/* ★ 관리자: CP 드롭다운 (위저드 표시), 일반사용자: 원클릭 연동+이동 */}
-        {isAdmin ? (
-          <button
-            ref={cpSyncBtnRef}
-            onClick={handleCpSyncClick}
-            disabled={isSyncing}
-            className={`px-1 py-0.5 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
-              showSyncMenu
-                ? 'bg-blue-600 border border-blue-300 text-white'
-                : 'bg-transparent border border-white/30 text-white/70 hover:bg-white/15 hover:text-white'
-            }`}
-            data-testid="cp-sync-button"
-          >
-            CP▾
-          </button>
-        ) : (
-          <button
-            onClick={() => onQuickCpSync?.()}
-            disabled={isSyncing}
-            className={`px-1 py-0.5 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
-              isSyncing
-                ? 'bg-orange-500 border border-orange-300 text-white'
-                : 'bg-transparent border border-white/30 text-white/70 hover:bg-white/15 hover:text-white'
-            }`}
-            data-testid="cp-quick-sync-button"
-            title="FMEA→CP 전체 연동 후 CP로 이동"
-          >
-            {isSyncing ? 'CP⏳' : 'FMEA→CP'}
-          </button>
-        )}
-
-      {/* CP 연동 드롭다운 - Portal로 body에 렌더링 (관리자만 표시) */}
-      {isAdmin && showSyncMenu && ReactDOM.createPortal(
-        <div
-          ref={syncMenuRef}
-          className="fixed bg-white rounded shadow-xl border border-teal-400 min-w-[160px]"
-          style={{
-            top: syncMenuPos.top,
-            left: syncMenuPos.left,
-            zIndex: 100001
+        {/* ★ CP 버튼: 클릭 시 즉시 CP 생성 → CP 화면 이동 */}
+        <button
+          onClick={() => {
+            if (onCreateCp) onCreateCp();
+            else alert(t('CP 생성 함수가 연결되지 않았습니다.'));
           }}
+          disabled={isSyncing}
+          className={`px-1 py-0.5 rounded text-[9px] font-medium transition-all whitespace-nowrap ${
+            isSyncing
+              ? 'bg-orange-500 border border-orange-300 text-white'
+              : 'bg-transparent border border-white/30 text-white/70 hover:bg-white/15 hover:text-white'
+          }`}
+          data-testid="cp-sync-button"
+          title={t('FMEA 기반 CP 자동 생성 후 CP 화면으로 이동')}
         >
-          <button
-            onClick={() => {
-              if (onCreateCp) onCreateCp();
-              else alert(t('CP 생성 함수가 연결되지 않았습니다.'));
-              setShowSyncMenu(false);
-            }}
-            disabled={isSyncing}
-            className="w-full text-left px-3 py-2 text-[11px] hover:bg-green-50 border-b text-gray-800 disabled:opacity-50 font-medium"
-          >
-            ➕ {t('CP 생성')}
-            <span className="text-[9px] text-gray-400 ml-1">{t('FMEA 기반')}</span>
-          </button>
-          <button
-            onClick={() => {
-              if (onCpStructureSync) onCpStructureSync();
-              else alert(t('CP 구조연동 함수가 연결되지 않았습니다.'));
-              setShowSyncMenu(false);
-            }}
-            disabled={isSyncing}
-            className="w-full text-left px-3 py-2 text-[11px] hover:bg-teal-50 border-b text-gray-800 disabled:opacity-50 font-medium"
-          >
-            🔗 {t('CP 구조연동')}
-            <span className="text-[9px] text-gray-400 ml-1">{t('구조→CP')}</span>
-          </button>
-          <button
-            onClick={() => {
-              if (onCpDataSync) onCpDataSync();
-              else alert(t('데이터 동기화 함수가 연결되지 않았습니다.'));
-              setShowSyncMenu(false);
-            }}
-            disabled={isSyncing}
-            className="w-full text-left px-3 py-2 text-[11px] hover:bg-teal-50 text-gray-800 disabled:opacity-50 font-medium"
-          >
-            🔄 {t('데이터 동기화')}
-            <span className="text-[9px] text-gray-400 ml-1">{t('양방향')}</span>
-          </button>
-        </div>,
-        document.body
-      )}
+          {isSyncing ? 'CP⏳' : 'CP▾'}
+        </button>
 
       {/* Go to CP / Go to PFD / Confirm */}
         <button
