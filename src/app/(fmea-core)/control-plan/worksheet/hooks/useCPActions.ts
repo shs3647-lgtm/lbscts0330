@@ -231,7 +231,7 @@ export function useCPActions(options: UseCPActionsOptions): UseCPActionsReturn {
                 processChar: row.processChar || '',
                 specialChar: row.specialChar || '',
                 charIndex: idx,
-                charNo: '',
+                charNo: row.charNo || '',
                 specTolerance: row.spec || '',
                 evalMethod: row.evalMethod || '',
                 sampleSize: row.sampleSize || '',

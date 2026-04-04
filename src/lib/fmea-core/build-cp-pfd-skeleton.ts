@@ -43,11 +43,6 @@ export interface CpItemSkeleton {
   equipmentM4: string;
   rowType: 'product' | 'process' | 'structure';
 
-  // Risk 데이터 (RiskAnalysis에서)
-  refSeverity: number | null;
-  refOccurrence: number | null;
-  refDetection: number | null;
-  refAp: string | null;
   controlMethod: string | null;
 }
 
@@ -168,10 +163,6 @@ export async function buildCpPfdSkeleton(
         equipment: equipStr,
         equipmentM4: equipM4Str,
         rowType: 'product',
-        refSeverity: null,
-        refOccurrence: null,
-        refDetection: null,
-        refAp: null,
         controlMethod: null,
       });
       cpProductRows++;
@@ -224,10 +215,6 @@ export async function buildCpPfdSkeleton(
             equipment: equipStr,
             equipmentM4: equipM4Str,
             rowType: 'process',
-            refSeverity: ra?.severity ?? null,
-            refOccurrence: ra?.occurrence ?? null,
-            refDetection: ra?.detection ?? null,
-            refAp: ra?.ap ?? null,
             controlMethod: ra?.detectionControl ?? null,
           });
           cpProcessRows++;
@@ -255,10 +242,6 @@ export async function buildCpPfdSkeleton(
         equipment: equipStr,
         equipmentM4: equipM4Str,
         rowType: 'structure',
-        refSeverity: null,
-        refOccurrence: null,
-        refDetection: null,
-        refAp: null,
         controlMethod: null,
       });
       cpStructureRows++;

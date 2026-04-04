@@ -92,6 +92,7 @@ function FMEAWorksheetPageContent() {
   const compareEmbed = urlParams.get('compareEmbed') === '1';
   const compareReadonly = urlParams.get('readonly') === '1';
   const compareSide = (urlParams.get('compareSide') as 'left' | 'right' | null) || null;
+  const highlightId = urlParams.get('highlightId') || '';
   const { isAdmin } = useAuth();
 
   const reportCompareScroll = useCallback(
@@ -667,6 +668,41 @@ function FMEAWorksheetPageContent() {
     customerName: (currentFmea?.fmeaInfo as any)?.customerIndustry || currentFmea?.fmeaInfo?.customerName || '', // ★ 특별특성 고객사 필터용 (customerIndustry 우선)
     importCounts: importCounts.loaded ? importCounts : undefined,
   };
+
+  // ★ CP↔PFMEA 크로스링크: highlightId로 해당 행 스크롤/하이라이트
+  useEffect(() => {
+    if (!highlightId || !state.l2 || (state.l2 as unknown[]).length === 0) return;
+    setTimeout(() => {
+      // data-uk, data-fm, id 등에서 highlightId를 포함하는 행 탐색
+      const selectors = [
+        `tr[data-uk*="${highlightId}"]`,
+        `tr[data-fm="${highlightId}"]`,
+        `td[data-char-id="${highlightId}"]`,
+      ];
+      let el: HTMLElement | null = null;
+      for (const sel of selectors) {
+        el = document.querySelector(sel) as HTMLElement;
+        if (el) break;
+      }
+      if (!el) {
+        // 폴백: 모든 td를 순회하며 텍스트 ID 탐색
+        const allTds = document.querySelectorAll('td[data-column]');
+        for (const td of allTds) {
+          if (td.getAttribute('data-id') === highlightId) {
+            el = td as HTMLElement;
+            break;
+          }
+        }
+      }
+      if (!el) return;
+      const row = el.tagName === 'TR' ? el : el.closest('tr') as HTMLElement;
+      if (!row) return;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.style.outline = '3px solid #ea580c';
+      row.style.outlineOffset = '-1px';
+      setTimeout(() => { row.style.outline = ''; row.style.outlineOffset = ''; }, 4000);
+    }, 1000);
+  }, [highlightId, state.l2]);
 
   return (
     <>

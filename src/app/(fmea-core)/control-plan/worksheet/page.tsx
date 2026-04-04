@@ -56,6 +56,7 @@ function CPWorksheetContent() {
   const cpNoParam = searchParams.get('cpNo') || '';
   const fmeaIdParam = searchParams.get('fmeaId') || '';
   const syncMode = searchParams.get('sync') === 'true';
+  const highlightId = searchParams.get('highlightId') || '';
 
   // ★ 데이터 로드 훅 (useCPData)
   const {
@@ -282,6 +283,25 @@ function CPWorksheetContent() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [state.dirty, state.items.length, handleSave]);
 
+  // ★ CP↔PFMEA 크로스링크: highlightId로 해당 행 스크롤/하이라이트
+  useEffect(() => {
+    if (!highlightId || loading || state.items.length === 0) return;
+    const idx = state.items.findIndex(item =>
+      item.productCharId === highlightId || item.processCharId === highlightId ||
+      item.pfmeaProcessId === highlightId || item.pfmeaWorkElemId === highlightId ||
+      item.id === highlightId
+    );
+    if (idx < 0) return;
+    setTimeout(() => {
+      const row = document.querySelector(`tbody tr:nth-child(${idx + 1})`) as HTMLElement;
+      if (!row) return;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.style.outline = '3px solid #ea580c';
+      row.style.outlineOffset = '-1px';
+      setTimeout(() => { row.style.outline = ''; row.style.outlineOffset = ''; }, 4000);
+    }, 300);
+  }, [highlightId, loading, state.items]);
+
   // ============ 렌더링 ============
   if (loading) {
     return (
@@ -422,6 +442,7 @@ function CPWorksheetContent() {
                 onEPDeviceClick={handleEPDeviceClick}
                 onAddEmptyRow={handleAddEmptyRow}
                 setState={setState}
+                fmeaId={state.fmeaId}
               />
             </table>
           </div>

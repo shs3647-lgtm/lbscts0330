@@ -126,10 +126,6 @@ export async function POST(request: NextRequest) {
                             id: `char-${Date.now()}-${(existingFunc.productChars || []).length}`,
                             name: productCharName,
                             specialChar: item.specialChar || '',
-                            refSeverity: item.refSeverity ?? null,
-                            refOccurrence: item.refOccurrence ?? null,
-                            refDetection: item.refDetection ?? null,
-                            refAp: item.refAp ?? null,
                         });
                     }
 
@@ -150,10 +146,6 @@ export async function POST(request: NextRequest) {
                             id: `char-${Date.now()}-0`,
                             name: item.productChar,
                             specialChar: item.specialChar || '',
-                            refSeverity: item.refSeverity ?? null,
-                            refOccurrence: item.refOccurrence ?? null,
-                            refDetection: item.refDetection ?? null,
-                            refAp: item.refAp ?? null,
                         }],
                     });
                 }

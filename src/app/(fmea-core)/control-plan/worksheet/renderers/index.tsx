@@ -81,6 +81,8 @@ interface RenderCellProps {
   onEPDeviceClick?: (rowIdx: number, category: 'EP' | '자동검사') => void;
   // ★ 2026-01-25: 더블클릭 인라인 편집
   onDoubleClickEdit?: (itemId: string, key: string, newValue: string) => void;
+  // ★ CP↔PFMEA 크로스링크: 셀 클릭 시 해당 PFMEA 셀로 이동
+  fmeaId?: string;
 }
 
 export function renderCell({
@@ -100,6 +102,7 @@ export function renderCell({
   columnWidths,
   onEPDeviceClick,
   onDoubleClickEdit,
+  fmeaId,
 }: RenderCellProps): React.ReactNode {
   const value = (item as any)[col.key];
 
@@ -685,12 +688,27 @@ export function renderCell({
           ) : displayEmpty ? (
             <span className="text-gray-400 text-[9px]">미입력</span>
           ) : (
-            <span
-              className="w-full bg-transparent text-center text-[10px] leading-tight"
-              style={{ wordBreak: 'break-word' }}
-            >
-              {value || ''}
-            </span>
+            <>
+              <span
+                className="flex-1 bg-transparent text-center text-[10px] leading-tight"
+                style={{ wordBreak: 'break-word' }}
+              >
+                {value || ''}
+              </span>
+              {fmeaId && item.pfmeaProcessId && (
+                <span
+                  className="text-[8px] text-blue-500 hover:text-blue-700 cursor-pointer shrink-0"
+                  title="PFMEA 해당 셀로 이동"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const hId = item.productCharId || item.pfmeaProcessId || '';
+                    window.open(`/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}&highlightId=${encodeURIComponent(hId)}`, '_blank');
+                  }}
+                >
+                  ↗
+                </span>
+              )}
+            </>
           )}
         </div>
       </td>
@@ -733,12 +751,27 @@ export function renderCell({
           ) : displayEmpty ? (
             <span className="text-gray-400 text-[9px]">미입력</span>
           ) : (
-            <span
-              className="w-full bg-transparent text-center text-[10px] leading-tight"
-              style={{ wordBreak: 'break-word' }}
-            >
-              {value || ''}
-            </span>
+            <>
+              <span
+                className="flex-1 bg-transparent text-center text-[10px] leading-tight"
+                style={{ wordBreak: 'break-word' }}
+              >
+                {value || ''}
+              </span>
+              {fmeaId && item.pfmeaWorkElemId && (
+                <span
+                  className="text-[8px] text-blue-500 hover:text-blue-700 cursor-pointer shrink-0"
+                  title="PFMEA 해당 셀로 이동"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const hId = item.processCharId || item.pfmeaWorkElemId || '';
+                    window.open(`/pfmea/worksheet?id=${encodeURIComponent(fmeaId)}&highlightId=${encodeURIComponent(hId)}`, '_blank');
+                  }}
+                >
+                  ↗
+                </span>
+              )}
+            </>
           )}
         </div>
       </td>

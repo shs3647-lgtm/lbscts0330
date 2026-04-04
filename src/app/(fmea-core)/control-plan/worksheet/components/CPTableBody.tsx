@@ -45,6 +45,8 @@ interface CPTableBodyProps {
     onAddEmptyRow: (newItem: CPItem) => void;
     /** 상태 업데이트 함수 */
     setState: React.Dispatch<React.SetStateAction<any>>;
+    /** 연결된 FMEA ID (CP↔PFMEA 크로스링크) */
+    fmeaId?: string;
 }
 
 /**
@@ -70,6 +72,7 @@ function CPTableBodyComponent({
     onEPDeviceClick,
     onAddEmptyRow,
     setState,
+    fmeaId,
 }: CPTableBodyProps) {
 
     // 빈 행 클릭 핸들러 (공정명 열)
@@ -112,6 +115,7 @@ function CPTableBodyComponent({
                         onEnterKey,
                         columnWidths,
                         onEPDeviceClick,
+                        fmeaId,
                     }))}
                 </tr>
             ))}

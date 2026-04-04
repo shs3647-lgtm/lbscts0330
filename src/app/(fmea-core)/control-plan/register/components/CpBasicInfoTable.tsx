@@ -87,8 +87,17 @@ export default function CpBasicInfoTable({
 }: CpBasicInfoTableProps) {
   return (
     <div className="bg-white rounded border border-gray-300 mb-3">
-      <div className="bg-[#e3f2fd] px-3 py-1.5 border-b border-gray-300">
+      <div className="bg-[#e3f2fd] px-3 py-1.5 border-b border-gray-300 flex items-center justify-between">
         <h2 className="text-sm font-extrabold text-gray-800" title="Control Plan Basic Info">기획 및 준비 <span className="text-[10px] font-semibold text-gray-500">(Plan & Prep)</span> 1단계</h2>
+        {cpId && (
+          <button
+            onClick={() => router.push(`/control-plan/worksheet?cpNo=${cpId.toLowerCase()}`)}
+            className="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded hover:bg-blue-700 transition-colors"
+            title="CP 워크시트로 이동"
+          >
+            CP 화면 바로가기
+          </button>
+        )}
       </div>
       <table className="w-full border-collapse text-xs table-fixed">
         <colgroup>
@@ -204,31 +213,6 @@ export default function CpBasicInfoTable({
             </td>
           </tr>
 
-          {/* Triplet 상태 행 */}
-          {tripletInfo && (
-          <tr className="h-8 bg-gradient-to-r from-teal-50 to-blue-50">
-            <td className="px-2 py-1 text-[10px] font-bold text-teal-700 border border-gray-200 bg-teal-100" colSpan={2}>
-              Triplet [{tripletInfo.typeCode.toUpperCase()}] {tripletInfo.id}
-            </td>
-            <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
-              <span className="font-medium text-gray-600">PFMEA: </span>
-              {tripletInfo.pfmeaId ? (
-                <span className="text-blue-700 font-semibold cursor-pointer hover:underline" onClick={() => { if (!tripletInfo.pfmeaId) return; router.push(`/pfmea/register?id=${tripletInfo.pfmeaId.toLowerCase()}`); }}>{tripletInfo.pfmeaId}</span>
-              ) : <span className="text-gray-400 italic">-</span>}
-            </td>
-            <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
-              <span className="font-medium text-gray-600">PFD: </span>
-              {tripletInfo.pfdId ? (
-                <span className="text-indigo-700 font-semibold cursor-pointer hover:underline" onClick={() => { if (!tripletInfo.pfdId) return; router.push(`/pfd/register?id=${tripletInfo.pfdId.toLowerCase()}`); }}>{tripletInfo.pfdId}</span>
-              ) : <span className="text-gray-400 italic">Lazy</span>}
-            </td>
-            <td className="px-2 py-1 text-[10px] border border-gray-200" colSpan={2}>
-              <span className={`px-1 py-0.5 rounded text-[8px] font-bold text-white ${
-                tripletInfo.syncStatus === 'synced' ? 'bg-green-500' : tripletInfo.syncStatus === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-              }`}>{tripletInfo.syncStatus}</span>
-            </td>
-          </tr>
-          )}
           {/* 3행: 고객명, 엔지니어링위치, 목표완료일, CP종류 */}
           <tr className="h-9">
             <td className={headerCell}>고객 명<br /><span className="text-[8px] font-normal opacity-70">(Customer)</span></td>

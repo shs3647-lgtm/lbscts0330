@@ -262,9 +262,8 @@ async function syncFmeaToCp(
     } catch (e) {
     }
 
-    // 1. FMEA 데이터 조회 (L2Structures + L3Structures + Functions + FailureModes + RiskAnalyses)
+    // 1. FMEA 데이터 조회 (L2Structures + L3Structures + Functions)
     // ★ fmeaIdLower 사용 (CP에 등록된 FMEA ID, 소문자 정규화)
-    // ★ 2026-01-18: S/O/D/AP 리스크 참조 연동 추가
     let l2Structures = await projectPrisma.l2Structure.findMany({
       where: {
         fmeaId: fmeaIdLower,
@@ -277,16 +276,6 @@ async function syncFmeaToCp(
           orderBy: { order: 'asc' },
         },
         l2Functions: true, // 제품특성
-        // ★ 리스크 참조용: FailureMode → FailureLink → RiskAnalysis
-        failureModes: {
-          include: {
-            failureLinks: {
-              include: {
-                riskAnalyses: true,
-              },
-            },
-          },
-        },
       },
       orderBy: { order: 'asc' },
     });
@@ -317,16 +306,6 @@ async function syncFmeaToCp(
             orderBy: { order: 'asc' },
           },
           l2Functions: true,
-          // ★ 리스크 참조용
-          failureModes: {
-            include: {
-              failureLinks: {
-                include: {
-                  riskAnalyses: true,
-                },
-              },
-            },
-          },
         },
         orderBy: { order: 'asc' },
       }).catch(() => []);
@@ -384,36 +363,6 @@ async function syncFmeaToCp(
           specialChar: f.specialChar || ''
         }))
         .filter((f: any) => f.name);
-
-      // ★ 2026-01-18: S/O/D/AP 리스크 참조 추출 (L2 레벨 최대값)
-      // 매트릭스: S/O/D/AP → CP (참조) - FMEA에서 읽기전용으로 전달
-      let maxSeverity: number | null = null;
-      let maxOccurrence: number | null = null;
-      let maxDetection: number | null = null;
-      let highestAp: string | null = null;
-      const apPriority: Record<string, number> = { 'H': 3, 'M': 2, 'L': 1 };
-
-      const failureModes = l2.failureModes || [];
-      for (const fm of failureModes) {
-        const failureLinks = fm.failureLinks || [];
-        for (const fl of failureLinks) {
-          const riskAnalyses = fl.riskAnalyses || [];
-          for (const ra of riskAnalyses) {
-            if (ra.severity && (maxSeverity === null || ra.severity > maxSeverity)) {
-              maxSeverity = ra.severity;
-            }
-            if (ra.occurrence && (maxOccurrence === null || ra.occurrence > maxOccurrence)) {
-              maxOccurrence = ra.occurrence;
-            }
-            if (ra.detection && (maxDetection === null || ra.detection > maxDetection)) {
-              maxDetection = ra.detection;
-            }
-            if (ra.ap && (highestAp === null || (apPriority[ra.ap] || 0) > (apPriority[highestAp] || 0))) {
-              highestAp = ra.ap;
-            }
-          }
-        }
-      }
 
       // L3Structure + L3Function에서 공정특성 추출 (각각 별도 행)
       const l3Structures = l2.l3Structures || [];
@@ -529,11 +478,6 @@ async function syncFmeaToCp(
           sampleFreq: '',
           controlMethod: '',
           reactionPlan: '',
-          // ★ 2026-01-18: S/O/D/AP 리스크 참조 (FMEA → CP, 읽기전용)
-          refSeverity: maxSeverity,
-          refOccurrence: maxOccurrence,
-          refDetection: maxDetection,
-          refAp: highestAp,
           pfmeaRowUid: l2.id,
           pfmeaProcessId: l2.id,
           sortOrder: sortOrder++,
@@ -561,11 +505,6 @@ async function syncFmeaToCp(
           sampleFreq: '',
           controlMethod: '',
           reactionPlan: '',
-          // ★ 2026-01-18: S/O/D/AP 리스크 참조 (FMEA → CP, 읽기전용)
-          refSeverity: maxSeverity,
-          refOccurrence: maxOccurrence,
-          refDetection: maxDetection,
-          refAp: highestAp,
           pfmeaRowUid: l2.id,
           pfmeaProcessId: l2.id,
           sortOrder: sortOrder++,
@@ -592,11 +531,6 @@ async function syncFmeaToCp(
           sampleFreq: '',
           controlMethod: '',
           reactionPlan: '',
-          // ★ 2026-01-18: S/O/D/AP 리스크 참조 (FMEA → CP, 읽기전용)
-          refSeverity: maxSeverity,
-          refOccurrence: maxOccurrence,
-          refDetection: maxDetection,
-          refAp: highestAp,
           pfmeaRowUid: l2.id,
           pfmeaProcessId: l2.id,
           sortOrder: sortOrder++,
@@ -625,11 +559,6 @@ async function syncFmeaToCp(
           sampleFreq: item.sampleFreq,
           controlMethod: item.controlMethod,
           reactionPlan: item.reactionPlan,
-          // ★ 2026-01-18: S/O/D/AP 리스크 참조 (FMEA → CP, 읽기전용)
-          refSeverity: item.refSeverity,
-          refOccurrence: item.refOccurrence,
-          refDetection: item.refDetection,
-          refAp: item.refAp,
           pfmeaRowUid: item.pfmeaRowUid,
           pfmeaProcessId: item.pfmeaProcessId,
           sortOrder: item.sortOrder,
@@ -651,7 +580,7 @@ async function syncFmeaToCp(
           syncedFields: [
             'processNo', 'processName', 'processDesc', 'workElement', 'equipment',
             'productChar', 'processChar', 'specialChar', 'charIndex',
-            'refSeverity', 'refOccurrence', 'refDetection', 'refAp'  // ★ 리스크 참조 필드 추가
+            // PFMEA참조 필드(refSeverity/O/D/AP) 제거됨
           ],
           requestedFmeaId: fmeaId, // 요청된 원본 FMEA ID
           actualFmeaId: fmeaIdLower, // 실제 사용된 FMEA ID (CP 등록 정보 우선)

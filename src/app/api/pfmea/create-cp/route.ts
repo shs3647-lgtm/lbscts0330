@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json();
-        const { fmeaId, cpNo, l2Data, subject, customer, riskData } = body;
+        const { fmeaId, cpNo, l2Data, subject, customer } = body;
 
         if (!fmeaId) {
             return NextResponse.json(
@@ -90,30 +90,6 @@ export async function POST(request: NextRequest) {
         const prismaProj = getPrismaForSchema(schema);
         if (!prismaProj) {
             return NextResponse.json({ success: false, error: 'Project schema Prisma client unavailable' }, { status: 500 });
-        }
-
-        // P0-2: riskData → refSeverity/O/D/AP 룩업 테이블 구축
-        const riskByL2L3 = new Map<string, { refSeverity?: number; refOccurrence?: number; refDetection?: number; refAp?: string }>();
-        const riskByL2 = new Map<string, { maxSeverity?: number }>();
-        if (riskData && typeof riskData === 'object') {
-            let flatIdx = 0;
-            for (const l2 of l2Data as L2Process[]) {
-                let l2MaxSeverity: number | undefined;
-                for (const l3 of l2.l3 || []) {
-                    const s = parseInt(riskData[`severity-${flatIdx}`]) || undefined;
-                    const o = parseInt(riskData[`occurrence-${flatIdx}`]) || undefined;
-                    const d = parseInt(riskData[`detection-${flatIdx}`]) || undefined;
-                    const ap = riskData[`ap-${flatIdx}`] || undefined;
-                    if (s || o || d || ap) {
-                        riskByL2L3.set(`${l2.id}|${l3.id}`, { refSeverity: s, refOccurrence: o, refDetection: d, refAp: ap ? String(ap) : undefined });
-                    }
-                    if (s && (!l2MaxSeverity || s > l2MaxSeverity)) l2MaxSeverity = s;
-                    flatIdx++;
-                }
-                if (l2MaxSeverity) {
-                    riskByL2.set(String(l2.id), { maxSeverity: l2MaxSeverity });
-                }
-            }
         }
 
         // ★ CP 과다 생성 방지 — 동일 FMEA에 연결된 CP가 10개 이상이면 경고 (프로젝트 스키마 기준)
@@ -198,8 +174,6 @@ export async function POST(request: NextRequest) {
 
                         // C1: 사용자 편집 필드 복원
                         const restored = restorePreservedFields(preservedMap, processNo, '', pcName, '', '재작업 또는 폐기');
-                        // P0-2: 제품특성 행 → L2 수준 최대 심각도 참조
-                        const l2Risk = riskByL2.get(String(l2.id));
 
                         const savedItem = await tx.controlPlanItem.create({
                             data: {
@@ -220,7 +194,6 @@ export async function POST(request: NextRequest) {
                                 sortOrder: sortOrder++,
                                 linkStatus: 'linked',
                                 pfmeaProcessId: l2.id,
-                                refSeverity: l2Risk?.maxSeverity,
                                 ...restored,
                             },
                         });
@@ -282,8 +255,6 @@ export async function POST(request: NextRequest) {
 
                             // C1: 사용자 편집 필드 복원
                             const restored = restorePreservedFields(preservedMap, processNo, workElement, '', procChar.name, '조건조정');
-                            // P0-2: 공정특성 행 → L3 수준 S/O/D/AP 참조
-                            const l3Risk = riskByL2L3.get(`${l2.id}|${l3.id}`);
 
                             const savedItem = await tx.controlPlanItem.create({
                                 data: {
@@ -306,10 +277,6 @@ export async function POST(request: NextRequest) {
                                     linkStatus: 'linked',
                                     pfmeaProcessId: l2.id,
                                     pfmeaWorkElemId: l3.id,
-                                    refSeverity: l3Risk?.refSeverity,
-                                    refOccurrence: l3Risk?.refOccurrence,
-                                    refDetection: l3Risk?.refDetection,
-                                    refAp: l3Risk?.refAp,
                                     ...restored,
                                 },
                             });

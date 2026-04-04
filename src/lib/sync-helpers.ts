@@ -148,10 +148,6 @@ interface PreservedCpFields {
     detectorAuto?: boolean;
     epDeviceIds?: string | null;
     autoDeviceIds?: string | null;
-    refSeverity?: number | null;
-    refOccurrence?: number | null;
-    refDetection?: number | null;
-    refAp?: string | null;
 }
 
 /**
@@ -185,10 +181,6 @@ export async function buildCpPreservedFieldsMap(
                 detectorAuto: true,
                 epDeviceIds: true,
                 autoDeviceIds: true,
-                refSeverity: true,
-                refOccurrence: true,
-                refDetection: true,
-                refAp: true,
             },
         });
         for (const item of existingItems) {
@@ -214,10 +206,6 @@ export async function buildCpPreservedFieldsMap(
                     detectorAuto: item.detectorAuto,
                     epDeviceIds: item.epDeviceIds,
                     autoDeviceIds: item.autoDeviceIds,
-                    refSeverity: item.refSeverity,
-                    refOccurrence: item.refOccurrence,
-                    refDetection: item.refDetection,
-                    refAp: item.refAp,
                 });
             }
         }

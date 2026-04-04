@@ -106,10 +106,6 @@ export function useCPData(options: UseCPDataOptions): UseCPDataReturn {
                 owner2: '',
                 reactionPlan: '',
                 sortOrder: newItems.length,
-                refSeverity: null,
-                refOccurrence: null,
-                refDetection: null,
-                refAp: null,
                 linkStatus: 'linked',
             });
 
@@ -121,7 +117,6 @@ export function useCPData(options: UseCPDataOptions): UseCPDataReturn {
                     const item = makeBase(proc, charIdx++);
                     item.productChar = pc.name || '';
                     item.specialChar = pc.specialChar || '';
-                    item.refSeverity = pc.severity ?? null;
                     newItems.push(item);
                 });
 

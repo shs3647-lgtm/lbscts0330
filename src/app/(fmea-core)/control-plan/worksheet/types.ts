@@ -42,11 +42,6 @@ export interface CPItem {
   unifiedItemId?: string | null;   // UnifiedProcessItem.id
   equipmentM4?: string | null;     // 4M 원본 코드
   rowType?: string | null;         // product | process | structure
-  // FMEA 위험분석 참조 필드
-  refSeverity?: number | null;
-  refOccurrence?: number | null;
-  refDetection?: number | null;
-  refAp?: string | null;
   linkStatus?: 'linked' | 'unlinked';
 }
 

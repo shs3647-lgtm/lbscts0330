@@ -96,12 +96,6 @@ export const SYNC_FIELD_MAPPINGS: FieldMapping[] = [
   { fmeaField: 'failureEffect', cpField: '', label: '고장영향', syncDirection: 'fmea-only' },
   { fmeaField: 'failureCause', cpField: '', label: '고장원인', syncDirection: 'fmea-only' },
   
-  // FMEA → CP 읽기전용
-  { fmeaField: 'severity', cpField: 'refSeverity', label: '심각도', syncDirection: 'fmea-to-cp-readonly' },
-  { fmeaField: 'occurrence', cpField: 'refOccurrence', label: '발생도', syncDirection: 'fmea-to-cp-readonly' },
-  { fmeaField: 'detection', cpField: 'refDetection', label: '검출도', syncDirection: 'fmea-to-cp-readonly' },
-  { fmeaField: 'ap', cpField: 'refAp', label: 'AP', syncDirection: 'fmea-to-cp-readonly' },
-  
   // CP 전용 필드
   { fmeaField: '', cpField: 'evalMethod', label: '평가/측정방법', syncDirection: 'cp-only' },
   { fmeaField: '', cpField: 'sampleSize', label: '샘플링 크기', syncDirection: 'cp-only' },
@@ -221,10 +215,6 @@ export interface CpItemForSync {
   sampleFreq?: string;
   controlMethod?: string;
   reactionPlan?: string;
-  refSeverity?: number;
-  refOccurrence?: number;
-  refDetection?: number;
-  refAp?: string;
   pfmeaRowUid?: string;
   pfmeaProcessId?: string;
   sortOrder?: number;

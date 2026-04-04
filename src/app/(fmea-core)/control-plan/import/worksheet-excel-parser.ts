@@ -58,11 +58,10 @@ export interface WorksheetParseResult {
 }
 
 /**
- * 컬럼 인덱스 → 컬럼 키 매핑 (CP 워크시트 Export 형식)
- * excel-export.ts의 출력 형식과 일치
- * rowNo 열(단계)은 Export에서 제외됨
+ * 컬럼 인덱스 → 컬럼 키 기본 매핑 (partName 포함된 20컬럼 Export 형식)
+ * 실제 파싱 시 buildColumnMap()으로 헤더 기반 동적 매핑 수행
  */
-const COLUMN_MAP: Record<number, string> = {
+const DEFAULT_COLUMN_MAP: Record<number, string> = {
     1: 'processNo',      // A열: 공정번호
     2: 'processName',    // B열: 공정명
     3: 'level',          // C열: 레벨 (Main/Sub)
@@ -84,6 +83,66 @@ const COLUMN_MAP: Record<number, string> = {
     19: 'owner2',        // S열: 책임2
     20: 'reactionPlan',  // T열: 조치방법
 };
+
+/**
+ * 헤더 텍스트 → 필드 키 매핑 (대소문자/공백 무시, 키워드 매칭)
+ */
+const HEADER_TO_KEY: Array<{ keywords: string[]; key: string }> = [
+    { keywords: ['공정번호', 'p-no', 'p no'], key: 'processNo' },
+    { keywords: ['공정명', 'process name'], key: 'processName' },
+    { keywords: ['레벨', 'level'], key: 'level' },
+    { keywords: ['공정설명', 'process desc'], key: 'processDesc' },
+    { keywords: ['부품명', 'part name'], key: 'partName' },
+    { keywords: ['설비', '금형', 'jig', 'equip'], key: 'equipment' },
+    { keywords: ['ep'], key: 'ep' },
+    { keywords: ['자동검사', 'auto ins', 'auto'], key: 'autoDetector' },
+    { keywords: ['no'], key: 'charNo' },
+    { keywords: ['제품특성', 'prod. char', 'prod char'], key: 'productChar' },
+    { keywords: ['공정특성', 'proc. char', 'proc char'], key: 'processChar' },
+    { keywords: ['특별특성', 'sc', 'special'], key: 'specialChar' },
+    { keywords: ['스펙', '공차', 'spec', 'tol'], key: 'spec' },
+    { keywords: ['평가방법', '측정', 'eval'], key: 'evalMethod' },
+    { keywords: ['샘플', 'sample'], key: 'sampleSize' },
+    { keywords: ['주기', 'freq'], key: 'frequency' },
+    { keywords: ['관리방법', 'ctrl', 'control method'], key: 'controlMethod' },
+    { keywords: ['책임1', 'owner1'], key: 'owner1' },
+    { keywords: ['책임2', 'owner2'], key: 'owner2' },
+    { keywords: ['조치방법', 'reaction', '대응'], key: 'reactionPlan' },
+];
+
+/**
+ * 헤더 행을 읽어 동적 columnMap 생성
+ * partName 컬럼 유무에 관계없이 정확한 매핑 보장
+ */
+function buildColumnMap(
+    sheet: ExcelJS.Worksheet,
+    headerRow: number
+): Record<number, string> {
+    const row = sheet.getRow(headerRow);
+    const dynamicMap: Record<number, string> = {};
+    const usedKeys = new Set<string>();
+
+    for (let col = 1; col <= 25; col++) {
+        const cellValue = extractCellValue(row.getCell(col)).toLowerCase().trim();
+        if (!cellValue) continue;
+
+        for (const entry of HEADER_TO_KEY) {
+            if (usedKeys.has(entry.key)) continue;
+            const matched = entry.keywords.some(kw => cellValue.includes(kw));
+            if (matched) {
+                dynamicMap[col] = entry.key;
+                usedKeys.add(entry.key);
+                break;
+            }
+        }
+    }
+
+    // 최소 4개 이상 매핑되면 동적 맵 사용, 아니면 기본 맵 폴백
+    if (Object.keys(dynamicMap).length >= 4) {
+        return dynamicMap;
+    }
+    return DEFAULT_COLUMN_MAP;
+}
 
 /**
  * 셀 값 추출 (병합 셀 포함)
@@ -129,34 +188,6 @@ export async function parseWorksheetExcel(file: File): Promise<WorksheetParseRes
         }
 
 
-        // 병합 정보 추출
-        const merges: MergeInfo[] = [];
-        const excelMerges = sheet.model.merges || [];
-
-
-        excelMerges.forEach((mergeRange: string) => {
-            // 병합 범위 파싱: "A4:A10" → startRow=4, endRow=10, column='A'
-            const match = mergeRange.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-            if (match) {
-                const startCol = match[1];
-                const startRow = parseInt(match[2], 10);
-                const endCol = match[3];
-                const endRow = parseInt(match[4], 10);
-
-                // 컬럼 인덱스 계산 (A=1, B=2, ...)
-                const colIndex = startCol.charCodeAt(0) - 64;
-                const columnKey = COLUMN_MAP[colIndex];
-
-                if (columnKey && startRow !== endRow) {
-                    merges.push({
-                        startRow,
-                        endRow,
-                        column: columnKey,
-                    });
-                }
-            }
-        });
-
         // 헤더 행 찾기 (Export 형식: 1행=CP정보, 2행=그룹헤더, 3행=컬럼헤더, 4행부터=데이터)
         let headerRow = 0;
         let dataStartRow = 0;
@@ -200,13 +231,36 @@ export async function parseWorksheetExcel(file: File): Promise<WorksheetParseRes
             dataStartRow = 4;
         }
 
+        // ★ 헤더 기반 동적 COLUMN_MAP 생성 (partName 유무 자동 감지)
+        const columnMap = headerRow > 0
+            ? buildColumnMap(sheet, headerRow)
+            : DEFAULT_COLUMN_MAP;
+
+        // 병합 정보 추출
+        const merges: MergeInfo[] = [];
+        const excelMerges = sheet.model.merges || [];
+
+        excelMerges.forEach((mergeRange: string) => {
+            const match = mergeRange.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+            if (match) {
+                const startCol = match[1];
+                const startRow = parseInt(match[2], 10);
+                const endRow = parseInt(match[4], 10);
+                const colIndex = startCol.charCodeAt(0) - 64;
+                const columnKey = columnMap[colIndex];
+
+                if (columnKey && startRow !== endRow) {
+                    merges.push({ startRow, endRow, column: columnKey });
+                }
+            }
+        });
 
         // 병합 정보를 Map으로 변환 (행별/컬럼별 빠른 조회)
         const mergeMap = new Map<number, Map<string, { value: string; isFirst: boolean }>>();
 
         merges.forEach(merge => {
             // 병합 영역의 첫 번째 셀 값 읽기
-            const colIndexStr = Object.entries(COLUMN_MAP).find(([, v]) => v === merge.column)?.[0];
+            const colIndexStr = Object.entries(columnMap).find(([, v]) => v === merge.column)?.[0];
             const colIndex = colIndexStr ? parseInt(colIndexStr, 10) : 1;
             const firstCell = sheet.getRow(merge.startRow).getCell(colIndex);
             const value = extractCellValue(firstCell);
@@ -247,7 +301,7 @@ export async function parseWorksheetExcel(file: File): Promise<WorksheetParseRes
             };
 
             // 각 컬럼의 값 추출
-            Object.entries(COLUMN_MAP).forEach(([colIdxStr, columnKey]) => {
+            Object.entries(columnMap).forEach(([colIdxStr, columnKey]) => {
                 const colIdx = parseInt(colIdxStr, 10);
                 let value = extractCellValue(excelRow.getCell(colIdx));
 

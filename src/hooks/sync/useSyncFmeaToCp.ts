@@ -65,7 +65,6 @@ const transformFmeaToCpItems = (
           l2,
           productChar: pc.name,
           specialChar: pc.specialChar,
-          refSeverity: pc.severity,
           sortOrder: sortOrder++,
         }));
       });
@@ -90,10 +89,9 @@ const createCpItem = (params: {
   l2: FmeaL2ForSync;
   productChar?: string;
   specialChar?: string;
-  refSeverity?: number;
   sortOrder: number;
 }): CpItemForSync => {
-  const { cpNo, l2, productChar, specialChar, refSeverity, sortOrder } = params;
+  const { cpNo, l2, productChar, specialChar, sortOrder } = params;
   const id = `cpi-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   
   return {
@@ -113,10 +111,6 @@ const createCpItem = (params: {
     sampleFreq: '',
     controlMethod: '',
     reactionPlan: '',
-    refSeverity: refSeverity ?? undefined,
-    refOccurrence: undefined,
-    refDetection: undefined,
-    refAp: '',
     pfmeaRowUid: l2.id,
     pfmeaProcessId: l2.id,
     sortOrder,

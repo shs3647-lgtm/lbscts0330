@@ -402,23 +402,6 @@ export async function applySyncChangesToCp(
           },
         });
         applied++;
-      } else if (change.sourceTable === 'shared_risk_references') {
-        // 리스크 정보 변경 → CP 참조용 필드 업데이트
-        const values = change.newValues;
-        if (!values) continue;
-
-        await prisma.controlPlanItem.updateMany({
-          where: {
-            controlPlan: { cpNo },
-          },
-          data: {
-            refSeverity: values.severity as number | undefined,
-            refOccurrence: values.occurrence as number | undefined,
-            refDetection: values.detection as number | undefined,
-            refAp: values.ap as string | undefined,
-          },
-        });
-        applied++;
       } else {
         skipped++;
       }

@@ -396,8 +396,8 @@ describe('PFMEA-CP-PFD 동기화 통합 테스트', () => {
     });
   });
 
-  describe('시나리오 7: 리스크 정보 참조용 동기화', () => {
-    it('S/O/D/AP 정보가 CP에 참조용으로 반영되어야 함', async () => {
+  describe('시나리오 7: 리스크 정보 참조용 동기화 (제거됨)', () => {
+    it('S/O/D/AP 정보는 CP에서 제거됨 — shared_risk_references 변경은 스킵', async () => {
       const changes = [
         {
           id: 'sync-risk-001',
@@ -412,18 +412,10 @@ describe('PFMEA-CP-PFD 동기화 통합 테스트', () => {
         },
       ];
 
-      await applySyncChangesToCp(mockPrisma as never, 'CP26-001', changes);
+      const result = await applySyncChangesToCp(mockPrisma as never, 'CP26-001', changes);
 
-      expect(mockPrisma.controlPlanItem.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            refSeverity: 9,
-            refOccurrence: 5,
-            refDetection: 4,
-            refAp: 'H',
-          }),
-        })
-      );
+      expect(mockPrisma.controlPlanItem.updateMany).not.toHaveBeenCalled();
+      expect(result.skipped).toBe(1);
     });
   });
 });

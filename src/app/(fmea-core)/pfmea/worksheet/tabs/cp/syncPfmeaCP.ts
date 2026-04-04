@@ -89,34 +89,24 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
   let newRows = 0;
   const riskData = (state.riskData || {}) as Record<string, unknown>;
 
-  // P0-2: riskData → refS/O/D/AP + prevention/detection 룩업 구축
+  // riskData → prevention/detection 룩업 구축 (관리방법 연동용)
   const riskByL2L3 = new Map<string, {
-    refSeverity?: number; refOccurrence?: number; refDetection?: number; refAp?: string;
     prevention?: string; detection?: string;
   }>();
-  const riskByL2 = new Map<string, { maxSeverity?: number }>();
   {
     let flatIdx = 0;
     ((state.l2 || []) as unknown as Record<string, unknown>[]).forEach((proc) => {
-      let l2MaxS: number | undefined;
       const l3Items = (proc.l3 as Record<string, unknown>[]) || [];
       l3Items.forEach((l3) => {
-        const s = parseInt(String(riskData[`severity-${flatIdx}`] || '')) || undefined;
-        const o = parseInt(String(riskData[`occurrence-${flatIdx}`] || '')) || undefined;
-        const d = parseInt(String(riskData[`detection-${flatIdx}`] || '')) || undefined;
-        const ap = riskData[`ap-${flatIdx}`] ? String(riskData[`ap-${flatIdx}`]) : undefined;
         const prev = riskData[`prevention-${flatIdx}`] ? String(riskData[`prevention-${flatIdx}`]) : undefined;
         const det = riskData[`detection-${flatIdx}`] ? String(riskData[`detection-${flatIdx}`]) : undefined;
-        if (s || o || d || ap || prev || det) {
+        if (prev || det) {
           riskByL2L3.set(`${proc.id}|${l3.id}`, {
-            refSeverity: s, refOccurrence: o, refDetection: d, refAp: ap,
             prevention: prev, detection: det,
           });
         }
-        if (s && (!l2MaxS || s > l2MaxS)) l2MaxS = s;
         flatIdx++;
       });
-      if (l2MaxS) riskByL2.set(String(proc.id), { maxSeverity: l2MaxS });
     });
   }
 
@@ -183,9 +173,6 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
         cpRow.itemNo = String(++charIndex);
         cpRow.syncStatus = existing ? 'synced' : 'new';
         cpRow.lastSyncAt = new Date().toISOString();
-        // P0-2: 제품특성 행 → L2 최대 심각도
-        const l2RiskRef = riskByL2.get(String(proc.id));
-        if (l2RiskRef?.maxSeverity) cpRow.refSeverity = l2RiskRef.maxSeverity;
 
         if (!existing) newRows++;
         cpRows.push(cpRow);
@@ -267,14 +254,9 @@ export function syncPfmeaToCP(state: WorksheetState): { cpRows: CPRow[]; result:
           cpRow.itemNo = String(++charIndex);
           cpRow.syncStatus = existing ? 'synced' : 'new';
           cpRow.lastSyncAt = new Date().toISOString();
-          // P0-2: 공정특성 행 → L3 S/O/D/AP + PC/DC 직접 연동
+          // ★ PFMEA→CP: B5 예방관리 → CP controlMethod, A6 검출관리 → CP measureMethod
           const l3RiskRef = riskByL2L3.get(`${proc.id}|${l3.id}`);
           if (l3RiskRef) {
-            if (l3RiskRef.refSeverity) cpRow.refSeverity = l3RiskRef.refSeverity;
-            if (l3RiskRef.refOccurrence) cpRow.refOccurrence = l3RiskRef.refOccurrence;
-            if (l3RiskRef.refDetection) cpRow.refDetection = l3RiskRef.refDetection;
-            if (l3RiskRef.refAp) cpRow.refAp = l3RiskRef.refAp;
-            // ★ PFMEA→CP: B5 예방관리 → CP controlMethod, A6 검출관리 → CP measureMethod
             if (l3RiskRef.prevention && !cpRow.controlMethod) {
               cpRow.controlMethod = l3RiskRef.prevention;
             }

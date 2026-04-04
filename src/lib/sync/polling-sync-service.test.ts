@@ -379,7 +379,7 @@ describe('polling-sync-service', () => {
       expect(result.applied).toBe(1);
     });
 
-    it('should apply shared_risk_references changes to CP', async () => {
+    it('should skip shared_risk_references changes (PFMEA ref removed from CP)', async () => {
       const changes = [
         {
           id: 'sync-003',
@@ -400,17 +400,7 @@ describe('polling-sync-service', () => {
         changes
       );
 
-      expect(mockPrisma.controlPlanItem.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            refSeverity: 8,
-            refOccurrence: 4,
-            refDetection: 3,
-            refAp: 'H',
-          }),
-        })
-      );
-      expect(result.applied).toBe(1);
+      expect(result.skipped).toBe(1);
     });
 
     it('should skip unknown source tables', async () => {

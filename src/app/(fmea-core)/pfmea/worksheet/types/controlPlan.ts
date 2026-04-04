@@ -51,12 +51,6 @@ export interface CPRow {
   quality: boolean;         // 품질 ●
   actionMethod: string;     // 조치방법
   
-  // ===== FMEA 위험분석 참조 (P0-2) =====
-  refSeverity?: number;     // 참조 심각도 (FMEA S)
-  refOccurrence?: number;   // 참조 발생도 (FMEA O)
-  refDetection?: number;    // 참조 검출도 (FMEA D)
-  refAp?: string;           // 참조 조치우선순위 (FMEA AP: H/M/L)
-
   // ===== 연동 메타데이터 =====
   pfmeaProcessId?: string;  // 연결된 PFMEA 공정 ID
   pfmeaWorkElemId?: string; // 연결된 PFMEA 작업요소 ID

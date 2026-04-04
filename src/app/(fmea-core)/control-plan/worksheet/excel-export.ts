@@ -303,10 +303,8 @@ function createSheet2_CPWorksheet(
   });
 
   // ★ 부품명 모드: A=숨김(기본), B=표시
-  // ★ S/O/D/AP 컬럼 제외 (PFMEA참조 그룹 — 엑셀 내보내기에서 불필요)
   const showPartName = partNameMode === 'B';
-  const allColumns = (showPartName ? CP_COLUMNS : CP_COLUMNS.filter(c => c.key !== 'partName'))
-    .filter(c => !c.group.startsWith('PFMEA'));
+  const allColumns = showPartName ? CP_COLUMNS : CP_COLUMNS.filter(c => c.key !== 'partName');
 
   // 열 너비 설정 (rowNo 제외)
   const dataColumns = allColumns.filter(c => c.key !== 'rowNo');
@@ -398,7 +396,7 @@ function createSheet2_CPWorksheet(
         case 'processLevel': value = item.processLevel || ''; break;
         case 'processDesc': value = item.processDesc || ''; break;
         case 'partName': value = item.partName || ''; break;
-        case 'workElement': value = item.workElement || ''; break;
+        case 'equipment': value = item.equipment || ''; break;
         case 'detectorEp': value = item.detectorEp ? '●' : ''; break;
         case 'detectorAuto': value = item.detectorAuto ? '●' : ''; break;
         case 'charNo': value = item.charIndex || ''; break;
