@@ -120,7 +120,7 @@ function buildL1Types(l1Functions: readonly AtomicL1Function[]): L1Type[] {
         funcNameMap.set(funcKey, {
           id: f.id,
           name: f.functionName,
-          requirements: f.requirement ? [{ id: f.id, name: f.requirement }] : [],
+          requirements: f.requirement ? [{ id: f.id, name: f.requirement }] : [{ id: f.id + '-req-ph', name: '' }],
         });
       }
     }
@@ -131,7 +131,7 @@ function buildL1Types(l1Functions: readonly AtomicL1Function[]): L1Type[] {
     types.push({
       id: functions[0]?.id || category,
       name: category,
-      functions: functions.length > 0 ? functions : [{ id: category + '-placeholder', name: '', requirements: [] }],
+      functions: functions.length > 0 ? functions : [{ id: category + '-placeholder', name: '', requirements: [{ id: category + '-req-ph', name: '' }] }],
     });
   });
 

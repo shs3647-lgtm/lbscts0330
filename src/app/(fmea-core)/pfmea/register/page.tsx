@@ -40,13 +40,11 @@ const UserSelectModal = dynamic(
   { ssr: false }
 );
 import { FmeaSelectModal } from '@/components/modals/FmeaSelectModal';
-import { ApqpSelectModal } from '@/components/modals/ApqpSelectModal';
 import { DatePickerModal } from '@/components/DatePickerModal';
 import { CFTAccessLogTable } from '@/components/tables/CFTAccessLogTable';
 import { CFTRegistrationTable, createInitialCFTMembers } from '@/components/tables/CFTRegistrationTable';
 import { BizInfoProject } from '@/types/bizinfo';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
-import DFMEATopNav from '@/components/layout/DFMEATopNav';
 import { FixedLayout } from '@/components/layout';
 import { getAIStatus } from '@/lib/ai-recommendation';
 import { LinkageModal } from '@/components/linkage/LinkageModal';
@@ -601,7 +599,7 @@ function PFMEARegisterPageContent() {
   const inputCell = "border border-gray-300 px-1 py-0.5 overflow-hidden";
 
   return (
-    <FixedLayout topNav={isDfmea ? <DFMEATopNav selectedFmeaId={fmeaId} /> : <PFMEATopNav selectedFmeaId={fmeaId} linkedCpNo={fmeaInfo.linkedCpNo} linkedPfdNo={fmeaInfo.linkedPfdNo} />} topNavHeight={48} showSidebar={true} contentPadding="pl-[5px] pr-2 py-2">
+    <FixedLayout topNav={<PFMEATopNav selectedFmeaId={fmeaId} linkedCpNo={fmeaInfo.linkedCpNo} linkedPfdNo={fmeaInfo.linkedPfdNo} />} topNavHeight={48} showSidebar={true} contentPadding="pl-[5px] pr-2 py-2">
       <div className="font-[Malgun_Gothic]">
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-3">
@@ -1302,13 +1300,6 @@ function PFMEARegisterPageContent() {
           }}
         />
 
-        {/* APQP 선택 모달 */}
-        <ApqpSelectModal
-          isOpen={apqpModalOpen}
-          onClose={() => setApqpModalOpen(false)}
-          onSelect={handleApqpSelect}
-          apqps={apqpList}
-        />
 
       </div>
     </FixedLayout>

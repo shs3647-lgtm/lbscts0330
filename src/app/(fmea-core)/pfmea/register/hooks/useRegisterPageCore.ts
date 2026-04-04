@@ -17,7 +17,7 @@ import { LinkedDocItem } from '@/components/linkage/types';
 import { FMEAInfo, FMEAType, FMEASelectType, INITIAL_FMEA, SaveStatus } from '../types';
 import { syncToLocalStorage } from '../utils';
 import { toast } from '@/hooks/useToast';
-import type { ApqpItem } from '@/components/modals/ApqpSelectModal';
+type ApqpItem = { apqpNo: string; projectName: string };
 
 export function useRegisterPageCore() {
   const { user } = useAuth();

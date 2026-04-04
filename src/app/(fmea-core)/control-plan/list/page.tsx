@@ -16,7 +16,6 @@ import CPStepBadge, { CP_STEPS, getStepName } from './CPStepBadge';
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
-import LazyApqpName from '@/components/common/LazyApqpName';
 import { useAuth } from '@/hooks/useAuth';
 
 const CONFIG = {
@@ -151,7 +150,7 @@ const CPListRow = React.memo(function CPListRow({
       </td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{(() => { const name = p.cpInfo?.subject; if (!name || name === p.id) return renderEmptyFn(p.id); return <a href={`${CONFIG.worksheetUrl}?cpNo=${p.id.toLowerCase()}`} className="text-blue-600 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()} title={name}>{name}</a>; })()}</td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
-        <LazyApqpName apqpNo={p.parentApqpNo} preloadedName={p.apqpProjectName} />
+        <span className="text-[9px]">{p.apqpProjectName || '-'}</span>
       </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.cpInfo?.customerName || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.cpInfo?.processResponsibility || renderEmptyFn(p.id)}</td>

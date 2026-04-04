@@ -25,21 +25,8 @@ const myJobItem: MenuItem = {
   ],
 };
 
-const apqpSubItems = [
-  { label: '📊 대시보드', href: '/apqp/dashboard' },
-  { label: '등록', href: '/apqp/register' },
-  { label: '리스트', href: '/apqp/list' },
-  { label: '📅 간트차트', href: '/gantt' },
-  { label: '작성화면', href: '/apqp/worksheet' },
-  { label: '개정관리', href: '/apqp/revision' },
-];
-
 const mainMenuItems: MenuItem[] = [
   myJobItem,
-  {
-    id: 'apqp', label: 'APQP', shortLabel: 'A',
-    Icon: ColorIcons.Worksheet, href: '/apqp', subItems: apqpSubItems,
-  },
 ];
 
 const adminMenuItems: MenuItem[] = [

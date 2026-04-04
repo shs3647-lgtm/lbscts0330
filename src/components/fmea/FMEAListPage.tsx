@@ -24,7 +24,6 @@ import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { useDeleteSelectDialog } from '@/hooks/useDeleteSelectDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
-import LazyApqpName from '@/components/common/LazyApqpName';
 import { useAuth } from '@/hooks/useAuth';
 
 // =====================================================
@@ -147,7 +146,7 @@ const FMEAListRow = React.memo(function FMEAListRow({
         {p.fmeaInfo?.engineeringLocation || renderEmpty(p.id)}
       </td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[90px]">
-        <LazyApqpName apqpNo={p.parentApqpNo} preloadedName={p.apqpProjectName} />
+        <span className="text-[9px]">{p.apqpProjectName || '-'}</span>
       </td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
         {(() => {

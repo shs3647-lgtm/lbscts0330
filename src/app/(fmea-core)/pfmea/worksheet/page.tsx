@@ -18,7 +18,6 @@ import React, { useState, useCallback, useMemo, useEffect, useRef, Suspense } fr
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
-import DFMEATopNav from '@/components/layout/DFMEATopNav';
 import { SidebarRouter } from '@/components/layout';
 
 // 모듈화된 상수, hooks
@@ -674,7 +673,7 @@ function FMEAWorksheetPageContent() {
         <>
           <SidebarRouter />
           <div className="fixed h-screen z-40 bg-white" style={{ left: 48, width: 5 }} /> {/* 사이드바 구분선 */}
-          {isDfmea ? <DFMEATopNav selectedFmeaId={currentFmea?.id} /> : <PFMEATopNav selectedFmeaId={currentFmea?.id} linkedCpNo={linkedCpNo} linkedPfdNo={linkedPfdNo} />}
+          <PFMEATopNav selectedFmeaId={currentFmea?.id} linkedCpNo={linkedCpNo} linkedPfdNo={linkedPfdNo} />
         </>
       )}
 

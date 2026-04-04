@@ -19,7 +19,7 @@
 // 타입 정의
 // ══════════════════════════════════════════════
 
-export type ModuleType = 'pfmea' | 'dfmea' | 'cp' | 'pfd';
+export type ModuleType = 'pfmea' | 'cp' | 'pfd';
 export type PageType = 'register' | 'worksheet' | 'list';
 
 export interface NavigationTarget {
@@ -62,14 +62,12 @@ export function normalizeProjectId(id: string | null | undefined): string | null
 
 const MODULE_PATHS: Record<ModuleType, string> = {
   pfmea: '/pfmea',
-  dfmea: '/dfmea',
   cp: '/control-plan',
   pfd: '/pfd',
 };
 
 const ID_PARAM: Record<ModuleType, string> = {
   pfmea: 'id',
-  dfmea: 'id',
   cp: 'id',       // register에서는 id, worksheet에서는 cpNo
   pfd: 'id',       // register에서는 id, worksheet에서는 pfdNo
 };
@@ -198,29 +196,6 @@ export function getUrlToPfdRegister(pfdNo: string | null | undefined): Navigatio
 export function getUrlToPfmeaRegister(fmeaId: string | null | undefined): NavigationResult {
   return buildNavigationUrl({
     module: 'pfmea',
-    page: 'register',
-    id: fmeaId ?? null,
-  });
-}
-
-/**
- * → DFMEA 워크시트 이동
- */
-export function getUrlToDfmeaWorksheet(fmeaId: string | null | undefined, tab?: string): NavigationResult {
-  return buildNavigationUrl({
-    module: 'dfmea',
-    page: 'worksheet',
-    id: fmeaId ?? null,
-    query: tab ? { tab } : undefined,
-  });
-}
-
-/**
- * → DFMEA 등록 페이지 이동
- */
-export function getUrlToDfmeaRegister(fmeaId: string | null | undefined): NavigationResult {
-  return buildNavigationUrl({
-    module: 'dfmea',
     page: 'register',
     id: fmeaId ?? null,
   });

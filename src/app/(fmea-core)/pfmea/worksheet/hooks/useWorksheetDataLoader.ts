@@ -207,18 +207,18 @@ export function useWorksheetDataLoader({
           finalL1 = isDfmea ? {
             ...l1,
             types: [
-              { id: `type-${ts}-law`, name: '법규', functions: [{ id: `func-${ts}-law`, name: '', requirements: [] }] },
-              { id: `type-${ts}-basic`, name: '기본', functions: [{ id: `func-${ts}-basic`, name: '', requirements: [] }] },
-              { id: `type-${ts}-aux`, name: '보조', functions: [{ id: `func-${ts}-aux`, name: '', requirements: [] }] },
-              { id: `type-${ts}-sense`, name: '관능', functions: [{ id: `func-${ts}-sense`, name: '', requirements: [] }] },
+              { id: `type-${ts}-law`, name: '법규', functions: [{ id: `func-${ts}-law`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+              { id: `type-${ts}-basic`, name: '기본', functions: [{ id: `func-${ts}-basic`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+              { id: `type-${ts}-aux`, name: '보조', functions: [{ id: `func-${ts}-aux`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+              { id: `type-${ts}-sense`, name: '관능', functions: [{ id: `func-${ts}-sense`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
             ],
             failureScopes: l1.failureScopes || [],
           } : {
             ...l1,
             types: [
-              { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [] }] },
-              { id: `type-${ts}-sp`, name: 'SP', functions: [{ id: `func-${ts}-sp`, name: '', requirements: [] }] },
-              { id: `type-${ts}-user`, name: 'USER', functions: [{ id: `func-${ts}-user`, name: '', requirements: [] }] },
+              { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+              { id: `type-${ts}-sp`, name: 'SP', functions: [{ id: `func-${ts}-sp`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+              { id: `type-${ts}-user`, name: 'USER', functions: [{ id: `func-${ts}-user`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
             ],
             failureScopes: l1.failureScopes || [],
           };
@@ -302,14 +302,14 @@ export function useWorksheetDataLoader({
         if (existingTypes.length === 0) {
           const ts = Date.now();
           const newTypes = isDfmea ? [
-            { id: `type-${ts}-law`, name: '법규', functions: [{ id: `func-${ts}-law`, name: '', requirements: [] }] },
-            { id: `type-${ts}-basic`, name: '기본', functions: [{ id: `func-${ts}-basic`, name: '', requirements: [] }] },
-            { id: `type-${ts}-aux`, name: '보조', functions: [{ id: `func-${ts}-aux`, name: '', requirements: [] }] },
-            { id: `type-${ts}-sense`, name: '관능', functions: [{ id: `func-${ts}-sense`, name: '', requirements: [] }] },
+            { id: `type-${ts}-law`, name: '법규', functions: [{ id: `func-${ts}-law`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+            { id: `type-${ts}-basic`, name: '기본', functions: [{ id: `func-${ts}-basic`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+            { id: `type-${ts}-aux`, name: '보조', functions: [{ id: `func-${ts}-aux`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+            { id: `type-${ts}-sense`, name: '관능', functions: [{ id: `func-${ts}-sense`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
           ] : [
-            { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [] }] },
-            { id: `type-${ts}-sp`, name: 'SP', functions: [{ id: `func-${ts}-sp`, name: '', requirements: [] }] },
-            { id: `type-${ts}-user`, name: 'USER', functions: [{ id: `func-${ts}-user`, name: '', requirements: [] }] },
+            { id: `type-${ts}-yp`, name: 'YP', functions: [{ id: `func-${ts}-yp`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+            { id: `type-${ts}-sp`, name: 'SP', functions: [{ id: `func-${ts}-sp`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
+            { id: `type-${ts}-user`, name: 'USER', functions: [{ id: `func-${ts}-user`, name: '', requirements: [{ id: `req-ph-${Date.now()}`, name: '' }] }] },
           ];
           return { ...l1, name: finalL1Name, types: newTypes, failureScopes: l1.failureScopes || [] };
         }

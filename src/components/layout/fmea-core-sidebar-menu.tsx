@@ -19,16 +19,6 @@ export function createCpPfdSubItems(basePath: string): SubItem[] {
   ];
 }
 
-const dfmeaSubItems: SubItem[] = [
-  { label: '📊 대시보드', href: '/dfmea/dashboard' },
-  { label: '등록', href: '/dfmea/register' },
-  { label: '리스트', href: '/dfmea/list' },
-  { label: 'New FMEA', href: '/dfmea/worksheet' },
-  { label: '개정관리', href: '/dfmea/revision' },
-  { label: '📋 LLD(설계교훈)', href: '/dfmea/lld' },
-  { label: '🚀 AP 개선관리', href: '/dfmea/ap-improvement', multiline: true },
-];
-
 const pfmeaSubItems: SubItem[] = [
   { label: '📊 대시보드', href: '/pfmea/dashboard' },
   { label: '등록', href: '/pfmea/register' },
@@ -57,31 +47,12 @@ export const FMEA_CORE_MY_JOB_ITEM: MenuItem = {
 export const FMEA_CORE_MAIN_MENU_ITEMS: MenuItem[] = [
   FMEA_CORE_MY_JOB_ITEM,
   {
-    id: 'apqp',
-    label: 'APQP',
-    shortLabel: 'A',
-    Icon: ColorIcons.Person,
-    href: '/apqp',
-    subItems: [
-      { label: '등록', href: '/apqp/register' },
-      { label: '리스트', href: '/apqp/list' },
-    ],
-  },
-  {
     id: 'pfmea',
     label: 'PFMEA',
     shortLabel: 'P',
     Icon: ColorIcons.List,
     href: '/pfmea',
     subItems: pfmeaSubItems,
-  },
-  {
-    id: 'dfmea',
-    label: 'DFMEA',
-    shortLabel: 'D',
-    Icon: ColorIcons.Revision,
-    href: '/dfmea',
-    subItems: dfmeaSubItems,
   },
   {
     id: 'cp',

@@ -15,11 +15,10 @@ import {
   formatDateCompact,
   calculateRollupDates
 } from '../utils/ganttDateUtils';
-import { generateAPQPData } from '../data/apqpData';
 import { SettingsPanel } from './GanttSettingsPanel';
 import { exportToExcel, importFromExcel } from '../utils/ganttExcelUtils';
 
-const initialData = generateAPQPData();
+const initialData: any[] = [];
 
 // 🎨 APQP 테마 마일스톤 색상 (2가지 색상만 사용 - 단순화)
 const MILESTONE_COLORS: Record<string, { bg: string; border: string; text: string }> = {

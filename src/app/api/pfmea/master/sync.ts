@@ -176,8 +176,11 @@ export async function upsertActiveMasterFromWorksheetTx(tx: any, db: FMEAWorkshe
     const fmeaType = (db as unknown as Record<string, unknown>).fmeaType as string || 'P';
     let ds = await tx.pfmeaMasterDataset.findFirst({ where: { fmeaId, isActive: true } });
     if (!ds) {
-      ds = await tx.pfmeaMasterDataset.create({
-        data: { name: 'AUTO-MASTER', fmeaId, fmeaType, isActive: true },
+      // upsert로 동시 저장 요청 시 unique constraint 충돌 방지
+      ds = await tx.pfmeaMasterDataset.upsert({
+        where: { fmeaId },
+        create: { name: 'AUTO-MASTER', fmeaId, fmeaType, isActive: true },
+        update: {},
       });
     }
 

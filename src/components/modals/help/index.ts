@@ -46,7 +46,6 @@ import { DASHBOARD_ITEMS_KO, DASHBOARD_ITEMS_EN } from './manual-dashboard';
 import { AP_LLD_ITEMS_KO, AP_LLD_ITEMS_EN } from './manual-ap-lld';
 import { CP_PFD_ITEMS_KO, CP_PFD_ITEMS_EN } from './manual-cp-pfd';
 import { ADMIN_ITEMS_KO, ADMIN_ITEMS_EN } from './manual-admin';
-import { APQP_DETAIL_ITEMS_KO, APQP_DETAIL_ITEMS_EN } from './manual-apqp';
 import { GLOSSARY_ITEMS_KO, GLOSSARY_ITEMS_EN } from './manual-glossary';
 
 import type { Language, ManualItem } from './types'; // MANUAL_DATA 타입용
@@ -68,7 +67,6 @@ export const MANUAL_DATA: Record<Language, ManualItem[]> = {
     ...AP_LLD_ITEMS_KO,
     ...CP_PFD_ITEMS_KO,
     ...ADMIN_ITEMS_KO,
-    ...APQP_DETAIL_ITEMS_KO,
     ...GLOSSARY_ITEMS_KO,
   ],
   en: [
@@ -83,7 +81,6 @@ export const MANUAL_DATA: Record<Language, ManualItem[]> = {
     ...AP_LLD_ITEMS_EN,
     ...CP_PFD_ITEMS_EN,
     ...ADMIN_ITEMS_EN,
-    ...APQP_DETAIL_ITEMS_EN,
     ...GLOSSARY_ITEMS_EN,
   ],
 };

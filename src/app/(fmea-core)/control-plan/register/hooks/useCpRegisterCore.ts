@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFloatingWindow } from '@/components/modals/useFloatingWindow';
 import { createInitialCFTMembers, CFTMember, ensureRequiredRoles } from '@/components/tables/CFTRegistrationTable';
 import { CFTAccessLog } from '@/types/project-cft';
-import { ApqpItem } from '@/components/modals/ApqpSelectModal';
+type ApqpItem = { apqpNo: string; projectName: string };
 import { LinkedDocItem, TargetModule } from '@/components/linkage/types';
 import { CPInfo, CPType, CPSelectType, INITIAL_CP, CpItem, FmeaItem, SaveStatus } from '../types';
 import { syncToLocalStorage } from '../utils';

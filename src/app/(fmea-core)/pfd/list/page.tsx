@@ -14,7 +14,6 @@ import { StepBadge, TypeBadge, extractTypeFromId, ListActionBar, PaginationBar, 
 import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 import { toast } from '@/hooks/useToast';
 import DeleteHelpBadge from '@/components/common/DeleteHelpBadge';
-import LazyApqpName from '@/components/common/LazyApqpName';
 import { useAuth } from '@/hooks/useAuth';
 
 const CONFIG = {
@@ -105,7 +104,7 @@ const PFDListRow = React.memo(function PFDListRow({
       </td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">{p.subject ? <a href={`${config.worksheetUrl}?pfdNo=${p.pfdNo?.toLowerCase()}`} className="text-blue-700 hover:underline text-[9px] font-semibold" onClick={e => e.stopPropagation()} title={p.subject}>{p.subject}</a> : renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-left align-middle whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
-        <LazyApqpName apqpNo={p.parentApqpNo} preloadedName={p.apqpProjectName} />
+        <span className="text-[9px]">{p.apqpProjectName || '-'}</span>
       </td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.customerName || renderEmptyFn(p.id)}</td>
       <td className="px-1 py-0.5 text-center align-middle whitespace-nowrap text-[9px]">{p.processResponsibility || renderEmptyFn(p.id)}</td>

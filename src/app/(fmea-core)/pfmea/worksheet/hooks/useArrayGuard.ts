@@ -59,14 +59,14 @@ export function repairWorksheetState(state: WorksheetState, isDfmea = false): { 
       newL1 = {
         ...newL1,
         types: isDfmea ? [
-          { id: guardUid(), name: '법규', functions: [{ id: guardUid(), name: '', requirements: [] }] },
-          { id: guardUid(), name: '기본', functions: [{ id: guardUid(), name: '', requirements: [] }] },
-          { id: guardUid(), name: '보조', functions: [{ id: guardUid(), name: '', requirements: [] }] },
-          { id: guardUid(), name: '관능', functions: [{ id: guardUid(), name: '', requirements: [] }] },
+          { id: guardUid(), name: '법규', functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] },
+          { id: guardUid(), name: '기본', functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] },
+          { id: guardUid(), name: '보조', functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] },
+          { id: guardUid(), name: '관능', functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] },
         ] : [
-          { id: guardUid(), name: 'YP', functions: [{ id: guardUid(), name: '', requirements: [] }] },
-          { id: guardUid(), name: 'SP', functions: [{ id: guardUid(), name: '', requirements: [] }] },
-          { id: guardUid(), name: 'USER', functions: [{ id: guardUid(), name: '', requirements: [] }] },
+          { id: guardUid(), name: 'YP', functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] },
+          { id: guardUid(), name: 'SP', functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] },
+          { id: guardUid(), name: 'USER', functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] },
         ],
       };
       l1Repaired = true;
@@ -76,7 +76,7 @@ export function repairWorksheetState(state: WorksheetState, isDfmea = false): { 
         if (!t.functions || !Array.isArray(t.functions) || t.functions.length === 0) {
           repairs.push(`l1.types[${tIdx}].functions 없음 → placeholder 기능 생성`);
           l1Repaired = true;
-          return { ...t, functions: [{ id: guardUid(), name: '', requirements: [] }] };
+          return { ...t, functions: [{ id: guardUid(), name: '', requirements: [{ id: guardUid(), name: '' }] }] };
         }
         // 0c. 각 function의 requirements 배열 검증 (null→빈배열)
         const newFuncs = t.functions.map((f: any, fIdx: number) => {

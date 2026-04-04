@@ -47,12 +47,20 @@ function syncL2Structures(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorks
   if (!Array.isArray(state.l2) || !Array.isArray(db.l2Structures)) return db.l2Structures;
   const stateL2Ids = new Set(state.l2.map((p: any) => p.id));
   const stateL2Map = new Map(state.l2.map((p: any) => [p.id, p]));
-  return db.l2Structures.filter(l2 => stateL2Ids.has(l2.id)).map(l2 => {
+  const synced = db.l2Structures.filter(l2 => stateL2Ids.has(l2.id)).map(l2 => {
     const edited = stateL2Map.get(l2.id);
     if (!edited) return l2;
     const changed = l2.name !== (edited.name || '') || l2.no !== (edited.no || '') || l2.order !== (edited.order ?? l2.order);
     return changed ? { ...l2, name: edited.name || '', no: edited.no || '', order: edited.order ?? l2.order } : l2;
   });
+  // state에만 있는 신규 L2 행 추가 (db에 아직 없는 것)
+  const existingL2Ids = new Set(db.l2Structures.map(l2 => l2.id));
+  for (const proc of state.l2) {
+    if (!existingL2Ids.has((proc as any).id) && (proc as any).name?.trim()) {
+      synced.push({ id: (proc as any).id, fmeaId: db.fmeaId, l1Id: db.l1Structure?.id || '', name: (proc as any).name || '', no: (proc as any).no || '', order: (proc as any).order ?? 0 } as any);
+    }
+  }
+  return synced;
 }
 
 function syncL3Structures(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksheetDB['l3Structures'] {
@@ -222,20 +230,19 @@ function syncL1Functions(db: FMEAWorksheetDB, state: WorksheetState): FMEAWorksh
     
     for (const func of funcs) {
       const functionName = (func.name || '').trim();
-      
-      // ★ 2026-03-27: 기능 ID는 항상 저장 (요구사항 유무와 관계없이)
+      const reqs = (func.requirements || []).filter((r: any) => r.id && (r.name || '').trim());
+
+      // 기능명이 비어있고 의미있는 요구사항도 없으면 저장 스킵 (placeholder)
+      if (!functionName && reqs.length === 0) continue;
+
       if (func.id) {
         stateIds.add(func.id);
         stateMap.set(func.id, { functionName, requirement: '', category });
       }
-      
-      // ★ 요구사항 저장 — 작업요소(L3)와 동일 패턴: 빈 행도 ID 기반 유지
-      for (const req of (func.requirements || [])) {
-        if (!req.id) continue;
-        const reqName = (req.name || '').trim();
-        if (req.id === func.id && !reqName) continue; // 기능 ID와 같고 빈값이면 스킵 (중복 방지)
+
+      for (const req of reqs) {
         stateIds.add(req.id);
-        stateMap.set(req.id, { functionName, requirement: reqName, category });
+        stateMap.set(req.id, { functionName, requirement: (req.name || '').trim(), category });
       }
     }
   }

@@ -16,7 +16,7 @@ import {
   STEP_LABELS, STEP_DIVIDER, getStepFirstColumnIds,
   COMPACT_FONT, HEIGHTS, COMPACT_HEIGHTS,
   ColumnDef, StepSpan, GroupSpan,
-  GROUP_DIVIDER, getGroupFirstColumnIds, DFMEA_STEP_COLORS, STEP_COLORS,
+  GROUP_DIVIDER, getGroupFirstColumnIds, STEP_COLORS,
 } from './allTabConstants';
 
 // ★ 3행 헤더 축약 매핑 (KO 축약명 + EN 축약명)
@@ -191,7 +191,7 @@ export default function AllTabHeader({
   const { locale, t } = useLocale();
   const stepFirstIds = useMemo(() => getStepFirstColumnIds(columns), [columns]);
   const groupFirstIds = useMemo(() => getGroupFirstColumnIds(columns), [columns]);
-  const stepColors = isDfmea ? DFMEA_STEP_COLORS : STEP_COLORS;
+  const stepColors = STEP_COLORS;
 
   /** H/M/L 배지 클릭 → 현재 화면 아래의 다음 항목으로 스크롤 (마지막이면 처음으로) */
   const scrollToAP = (level: 'H' | 'M' | 'L', step: '5st' | '6st') => {

@@ -28,32 +28,6 @@ import {
   OPT_EVAL_GROUP, OPT_S_NAME, OPT_O_NAME, OPT_D_NAME, OPT_SC_NAME,
   OPT_AP_NAME, OPT_NOTE_NAME,
 } from '@/lib/fmea/constants/pfmea-header-map';
-import {
-  DFMEA_STRUCT_L1_GROUP,
-  DFMEA_STRUCT_L1_NAME,
-  DFMEA_STRUCT_L2_GROUP,
-  DFMEA_STRUCT_L2_NAME,
-  DFMEA_STRUCT_L2_TYPE,
-  DFMEA_STRUCT_L3_GROUP,
-  DFMEA_STRUCT_L3_NAME,
-  DFMEA_FUNC_L1_GROUP,
-  DFMEA_FUNC_L1_C1_NAME,
-  DFMEA_FUNC_L1_C2_NAME,
-  DFMEA_FUNC_L1_C3_NAME,
-  DFMEA_FUNC_L2_GROUP,
-  DFMEA_FUNC_L2_D3_NAME,
-  DFMEA_FUNC_L2_D4_NAME,
-  DFMEA_FUNC_L3_GROUP,
-  DFMEA_FUNC_L3_E2_NAME,
-  DFMEA_FUNC_L3_E3_NAME,
-  DFMEA_FAIL_FE_GROUP,
-  DFMEA_FAIL_FE_NAME,
-  DFMEA_FAIL_S_NAME,
-  DFMEA_FAIL_FM_GROUP,
-  DFMEA_FAIL_FM_NAME,
-  DFMEA_FAIL_FC_GROUP,
-  DFMEA_FAIL_FC_NAME,
-} from '@/lib/fmea/constants/dfmea-header-map';
 
 // ============ 플레이스홀더/마커 문자열 (중앙 집중 관리) ============
 /** 해당 없음 (Not Applicable) — 개선추천 불필요 시 사용 */
@@ -472,69 +446,9 @@ const DC = {
   opt: { headerColor: '#E2F0D9', cellColor: '#F2F9ED', cellAltColor: '#E6F3DE' },
 };
 
-type DfmeaOv = { group?: string; name?: string; headerColor?: string; cellColor?: string; cellAltColor?: string; isDark?: boolean };
-
-/** 컬럼 ID별 DFMEA 오버라이드 (라벨 + 색상) */
-const DFMEA_COLUMN_OVERRIDES: Record<number, DfmeaOv> = {
-  // ■ 구조분석 (2단계) — 라벨 SSoT: dfmea-header-map
-  1:  { group: DFMEA_STRUCT_L1_GROUP, name: DFMEA_STRUCT_L1_NAME, ...DC.nh },
-  2:  { group: DFMEA_STRUCT_L2_GROUP, name: DFMEA_STRUCT_L2_NAME, ...DC.fe },
-  3:  { group: DFMEA_STRUCT_L2_GROUP, name: DFMEA_STRUCT_L2_TYPE, ...DC.fe },
-  4:  { group: DFMEA_STRUCT_L3_GROUP, name: DFMEA_STRUCT_L3_NAME, ...DC.nl },
-  // ■ 기능분석 (3단계)
-  5:  { group: DFMEA_FUNC_L1_GROUP, name: DFMEA_FUNC_L1_C1_NAME, ...DC.nhf },
-  6:  { group: DFMEA_FUNC_L1_GROUP, name: DFMEA_FUNC_L1_C2_NAME, ...DC.nhf },
-  7:  { group: DFMEA_FUNC_L1_GROUP, name: DFMEA_FUNC_L1_C3_NAME, ...DC.nhf },
-  8:  { group: DFMEA_FUNC_L2_GROUP, name: DFMEA_FUNC_L2_D3_NAME, ...DC.fef },
-  9:  { group: DFMEA_FUNC_L2_GROUP, name: DFMEA_FUNC_L2_D4_NAME, ...DC.fef },
-  10: { group: DFMEA_FUNC_L3_GROUP, name: DFMEA_FUNC_L3_E2_NAME, ...DC.nlf },
-  11: { group: DFMEA_FUNC_L3_GROUP, name: DFMEA_FUNC_L3_E3_NAME, ...DC.nlf },
-  // ■ 고장분석 (4단계)
-  12: { group: DFMEA_FAIL_FE_GROUP, name: DFMEA_FAIL_FE_NAME, ...DC.fei },
-  13: { group: DFMEA_FAIL_FE_GROUP, name: DFMEA_FAIL_S_NAME, ...DC.fei },
-  14: { group: DFMEA_FAIL_FM_GROUP, name: DFMEA_FAIL_FM_NAME, ...DC.fmi, isDark: true },
-  15: { group: DFMEA_FAIL_FC_GROUP, name: DFMEA_FAIL_FC_NAME, ...DC.fci },
-  // ■ 리스크분석 (5단계) — 전체 #c5cae9 통일
-  16: { group: '현재 예방관리', name: '예방관리', ...DC.rsk },
-  17: { group: '현재 예방관리', name: '발생도', ...DC.rsk },
-  18: { group: '현재 검출관리', name: '검출관리', ...DC.rsk },
-  19: { group: '현재 검출관리', name: '검출도', ...DC.rsk },
-  20: { group: '리스크 평가', ...DC.rsk },
-  21: { group: '리스크 평가', name: '특별특성', ...DC.rsk },
-  22: { group: '리스크 평가', name: '습득교훈', ...DC.rsk },
-  // ■ 최적화 (6단계) — 전체 #E2F0D9 통일
-  23: { group: '계획', name: '설계 예방 조치', ...DC.opt },
-  24: { group: '계획', name: '설계 검출 조치', ...DC.opt },
-  25: { group: '계획', name: '책임자', ...DC.opt },
-  26: { group: '계획', name: '목표 완료일', ...DC.opt },
-  27: { group: '계획', ...DC.opt },
-  28: { group: '결과 모니터링', name: '보고서 이름', ...DC.opt },
-  29: { group: '결과 모니터링', name: '완료일', ...DC.opt },
-  30: { group: '효과 평가', name: '심각도', ...DC.opt },
-  31: { group: '효과 평가', name: '발생도', ...DC.opt },
-  32: { group: '효과 평가', name: '검출도', ...DC.opt },
-  33: { group: '효과 평가', name: 'S/C', ...DC.opt },
-  34: { group: '효과 평가', ...DC.opt },
-  35: { group: '비고', ...DC.opt },
-};
-
-/** DFMEA용 컬럼 정의 (COLUMNS_BASE에서 PRD 기준으로 라벨+색상 교체) */
-export function getColumnsForModule(isDfmea: boolean): ColumnDef[] {
-  if (!isDfmea) return COLUMNS_BASE.map(col => ({ ...col, baseId: col.id }));
-  return COLUMNS_BASE.map(col => {
-    const ov = DFMEA_COLUMN_OVERRIDES[col.id];
-    if (!ov) return { ...col, baseId: col.id };
-    return {
-      ...col,
-      baseId: col.id,
-      group: ov.group ?? col.group,
-      name: ov.name ?? col.name,
-      headerColor: ov.headerColor ?? col.headerColor,
-      cellColor: ov.cellColor ?? col.cellColor,
-      cellAltColor: ov.cellAltColor ?? col.cellAltColor,
-      isDark: ov.isDark ?? col.isDark,
-    };
-  });
+/** 모듈별 컬럼 정의 반환 (PFMEA 전용) */
+export function getColumnsForModule(_isDfmea?: boolean): ColumnDef[] {
+  return COLUMNS_BASE.map(col => ({ ...col, baseId: col.id }));
 }
 
 /** 안정적 시맨틱 ID — RPN 삽입 후에도 변하지 않는 컬럼 식별자 */
@@ -566,15 +480,6 @@ export function getGroupFirstColumnIds(columns: ColumnDef[]): number[] {
   }
   return ids;
 }
-
-/** DFMEA 1행 단계 색상 (PRD §2 기준) */
-export const DFMEA_STEP_COLORS: Record<string, string> = {
-  '구조분석': '#1565c0',
-  '기능분석': '#2e7d32',
-  '고장분석': '#e65100',
-  '리스크분석': '#3949ab',
-  '최적화': '#558b2f',
-};
 
 // 단계별 메인 색상 (1행 헤더용)
 export const STEP_COLORS: Record<string, string> = {

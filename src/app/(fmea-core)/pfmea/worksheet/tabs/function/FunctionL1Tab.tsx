@@ -172,7 +172,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       if (rowType === 'function' && typeIdx >= 0) {
         // 기능 열 → 같은 구분 내 새 기능 추가
         const funcIdx = types[typeIdx].functions?.findIndex((f: { id: string }) => f.id === funcId) ?? -1;
-        const newFunc = { id: `func_${Date.now()}`, name: '', requirements: [] };
+        const newFunc = { id: `func_${Date.now()}`, name: '', requirements: [{ id: uid(), name: '' }] };
         if (!types[typeIdx].functions) types[typeIdx].functions = [];
         types[typeIdx].functions.splice(funcIdx >= 0 ? funcIdx : 0, 0, newFunc);
       } else if (rowType === 'requirement' && typeIdx >= 0) {
@@ -186,7 +186,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         }
       } else {
         // 구분 열 → 새 타입 추가
-        const newType = { id: `type_${Date.now()}`, name: '', functions: [{ id: `func_${Date.now()}`, name: '', requirements: [] }] };
+        const newType = { id: `type_${Date.now()}`, name: '', functions: [{ id: `func_${Date.now()}`, name: '', requirements: [{ id: uid(), name: '' }] }] };
         types.splice(typeIdx >= 0 ? typeIdx : 0, 0, newType);
       }
 
@@ -214,7 +214,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       if (rowType === 'function' && typeIdx >= 0) {
         // 기능 열 → 같은 구분 내 새 기능 추가
         const funcIdx = types[typeIdx].functions?.findIndex((f: { id: string }) => f.id === funcId) ?? -1;
-        const newFunc = { id: `func_${Date.now()}`, name: '', requirements: [] };
+        const newFunc = { id: `func_${Date.now()}`, name: '', requirements: [{ id: uid(), name: '' }] };
         if (!types[typeIdx].functions) types[typeIdx].functions = [];
         types[typeIdx].functions.splice(funcIdx >= 0 ? funcIdx + 1 : types[typeIdx].functions.length, 0, newFunc);
       } else if (rowType === 'requirement' && typeIdx >= 0) {
@@ -229,7 +229,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         }
       } else {
         // 구분 열 → 새 타입 추가
-        const newType = { id: `type_${Date.now()}`, name: '', functions: [{ id: `func_${Date.now()}`, name: '', requirements: [] }] };
+        const newType = { id: `type_${Date.now()}`, name: '', functions: [{ id: `func_${Date.now()}`, name: '', requirements: [{ id: uid(), name: '' }] }] };
         types.splice(typeIdx >= 0 ? typeIdx + 1 : types.length, 0, newType);
       }
 
@@ -410,7 +410,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         if (types.length > 0 && rowType === 'type') {
           // 첫 번째 타입에 기능 추가 (구분 병합 확장)
           const newId = `func_${Date.now()}`;
-          const newFunc = { id: newId, name: '', requirements: [] };
+          const newFunc = { id: newId, name: '', requirements: [{ id: uid(), name: '' }] };
           if (!types[0].functions) types[0].functions = [];
           types[0].functions.splice(0, 0, newFunc);
           addedId = newId;
@@ -425,7 +425,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       if (rowType === 'function') {
         const funcIdx = types[typeIdx].functions?.findIndex((f: { id: string }) => f.id === funcId) ?? -1;
         const newId = `func_${Date.now()}`;
-        const newFunc = { id: newId, name: '', requirements: [] };
+        const newFunc = { id: newId, name: '', requirements: [{ id: uid(), name: '' }] };
         if (!types[typeIdx].functions) types[typeIdx].functions = [];
         types[typeIdx].functions.splice(funcIdx >= 0 ? funcIdx : 0, 0, newFunc);
         addedId = newId;
@@ -444,7 +444,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       } else {
         // ★ 구분 셀에서 병합 추가 → 기존 타입 안에 기능 추가 (구분 셀 rowSpan 확장)
         const newId = `func_${Date.now()}`;
-        const newFunc = { id: newId, name: '', requirements: [] };
+        const newFunc = { id: newId, name: '', requirements: [{ id: uid(), name: '' }] };
         if (!types[typeIdx].functions) types[typeIdx].functions = [];
         types[typeIdx].functions.splice(0, 0, newFunc); // 맨 위에 추가
         addedId = newId;
@@ -484,7 +484,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
       if (rowType === 'function') {
         const funcIdx = types[typeIdx].functions?.findIndex((f: { id: string }) => f.id === funcId) ?? -1;
         const newId = `func_${Date.now()}`;
-        const newFunc = { id: newId, name: '', requirements: [] };
+        const newFunc = { id: newId, name: '', requirements: [{ id: uid(), name: '' }] };
         if (!types[typeIdx].functions) types[typeIdx].functions = [];
         types[typeIdx].functions.splice(funcIdx >= 0 ? funcIdx + 1 : types[typeIdx].functions.length, 0, newFunc);
         addedId = newId;
@@ -505,7 +505,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
         // ★ 구분 셀에서 병합 추가 → 기존 타입 안에 기능 추가 (구분 셀 rowSpan 확장)
         const funcs = types[typeIdx].functions || [];
         const newId = `func_${Date.now()}`;
-        const newFunc = { id: newId, name: '', requirements: [] };
+        const newFunc = { id: newId, name: '', requirements: [{ id: uid(), name: '' }] };
         if (!types[typeIdx].functions) types[typeIdx].functions = [];
         types[typeIdx].functions.splice(funcs.length, 0, newFunc); // 맨 아래에 추가
         addedId = newId;
@@ -532,7 +532,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
     return requiredScopes.map((scope, i) => ({
       id: `def-${scope}-${ts}`,
       name: scope,
-      functions: [{ id: `def-func-${scope}-${ts}`, name: '', requirements: [] }],
+      functions: [{ id: `def-func-${scope}-${ts}`, name: '', requirements: [{ id: uid(), name: '' }] }],
     }));
   }, [requiredScopes]);
 
@@ -557,7 +557,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
           currentTypes.push({
             id: uid(),
             name: cat,
-            functions: [{ id: uid(), name: '', requirements: [] }],
+            functions: [{ id: uid(), name: '', requirements: [{ id: uid(), name: '' }] }],
           });
         }
       }
@@ -674,12 +674,12 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
               }
               // 남은 새 항목은 추가
               while (newIdx < newNames.length) {
-                kept.push({ id: uid(), name: newNames[newIdx++], functions: [{ id: uid(), name: '', requirements: [] }] });
+                kept.push({ id: uid(), name: newNames[newIdx++], functions: [{ id: uid(), name: '', requirements: [{ id: uid(), name: '' }] }] });
               }
 
               // ★ 수동1원칙: ensurePlaceholder 방어
               if (kept.length === 0) {
-                kept.push({ id: uid(), name: PLACEHOLDER_TEXT, functions: [{ id: uid(), name: PLACEHOLDER_TEXT, requirements: [] }] });
+                kept.push({ id: uid(), name: PLACEHOLDER_TEXT, functions: [{ id: uid(), name: PLACEHOLDER_TEXT, requirements: [{ id: uid(), name: '' }] }] });
               }
 
               newState.l1.types = kept;
@@ -730,7 +730,7 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
               }
               // ★ 카테고리 자체가 없으면 새로 생성
               if (typeIdx < 0) {
-                types.push({ id: typeId, name: category, functions: [{ id: uid(), name: '', requirements: [] }] });
+                types.push({ id: typeId, name: category, functions: [{ id: uid(), name: '', requirements: [{ id: uid(), name: '' }] }] });
                 typeIdx = types.length - 1;
                 newState.l1.types = types;
               }
@@ -742,10 +742,10 @@ export default function FunctionL1Tab({ state, setState, setStateSynced, setDirt
                   isEmpty: (f: any) => !f.name?.trim(),
                   patchNamed: (f: any, item) => ({ ...f, name: item.name }),
                   patchEmpty: (f: any, item) => ({ ...f, id: item.id, name: item.name }),
-                  append: item => ({ id: item.id, name: item.name, requirements: [] }),
+                  append: item => ({ id: item.id, name: item.name, requirements: [{ id: uid(), name: '' }] }),
                 });
                 types[typeIdx].functions =
-                  merged.length > 0 ? merged : [{ id: uid(), name: '', requirements: [] }];
+                  merged.length > 0 ? merged : [{ id: uid(), name: '', requirements: [{ id: uid(), name: '' }] }];
               } else {
                 const funcIdx = types[typeIdx].functions?.findIndex((f: { id: string }) => f.id === funcId) ?? -1;
                 if (funcIdx < 0) return prev;
@@ -888,35 +888,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
           return sum + Math.max(1, (meaningfulReqs.length > 0 || reqs.length > 1) ? reqs.length : 1);
         }, 0));
 
-        // 기능이 없는 경우 (functionsToRender가 비어있는 경우)
-        if (functionsToRender.length === 0) {
-          const rowIdx = globalRowIdx++;
-          const currentFuncIdx = funcCounter++;
-          const funcZebraBg = getZebra('function', currentFuncIdx);
-          const failZebraBg = getZebra('failure', rowIdx);
-          const firstFuncId = t.functions?.[0]?.id || '';
-          const isHighlighted = highlightIds?.has(t.id);
-          const category = (t.name || '').toUpperCase().trim() || (isDfmea ? '법규' : 'YP');
-
-          return (
-            <tr key={t.id} style={{ background: isHighlighted ? '#FFFDE7' : funcZebraBg, outline: isHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
-              <td rowSpan={typeRowSpan} className="border border-[#ccc] p-1 text-center font-semibold text-[10px] break-words align-middle" style={{ background: typeZebra }}>
-                {formatL1Name(state.l1?.name, isDfmea)}
-              </td>
-              <td rowSpan={typeRowSpan} className="border border-[#ccc] px-0.5 py-1 align-middle text-center font-bold cursor-pointer hover:bg-opacity-80" style={{ background: getTypeColor(t.name).light, color: getTypeColor(t.name).text, fontSize: 'clamp(9px, 2.5vw, 11px)', lineHeight: 1.2 }} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
-                {getTypeColor(t.name).short || t.name || '(빈 타입)'}
-              </td>
-              <td className="border border-[#ccc] p-0 align-middle" style={{ background: funcZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, firstFuncId)}>
-                <SelectableCell fontSize="10px" value="" placeholder="기능 선택" bgColor={funcZebraBg} onClick={() => setL1FuncModal({ isOpen: true, type: 'C2', category, typeId: t.id })} />
-              </td>
-              <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, firstFuncId, '')}>
-                <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={failZebraBg} textColor={COLORS.failure.text} onClick={() => setL1FuncModal({ isOpen: true, type: 'C3', category, typeId: t.id, funcId: firstFuncId, parentId: firstFuncId, parentName: '' })} />
-              </td>
-            </tr>
-          );
-        }
-
-        // 기능이 있는 경우 (functionsToRender 순회)
+        // functionsToRender 순회 (useArrayGuard가 최소 1개 기능 보장)
         return functionsToRender.map((f: any, fIdx: number) => {
           const currentFuncIdx = funcCounter++;
           const funcBlockZebra = getZebra('function', currentFuncIdx);
@@ -926,36 +898,7 @@ function TypeRows({ state, handleCellClick, handleInlineEditFunction, handleInli
           const reqsToRender = (meaningfulReqs.length > 0 || allReqs.length > 1) ? allReqs : allReqs.slice(0, 1);
           const funcRowSpan = Math.max(1, reqsToRender.length);
 
-          // 요구사항이 없는 경우 (reqsToRender가 비어있는 경우)
-          if (reqsToRender.length === 0) {
-            const rowIdx = globalRowIdx++;
-            const failZebraBg = getZebra('failure', rowIdx);
-            const isFuncHighlighted = highlightIds?.has(f.id);
-            const category = (t.name || '').toUpperCase().trim() || (isDfmea ? '법규' : 'YP');
-
-            return (
-              <tr key={f.id} style={{ background: isFuncHighlighted ? '#FFFDE7' : funcBlockZebra, outline: isFuncHighlighted ? '2px solid #FFC107' : undefined, transition: 'all 0.3s' }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
-                {fIdx === 0 && (
-                  <td rowSpan={typeRowSpan} className="border border-[#ccc] p-1 text-center font-semibold text-[10px] break-words align-middle" style={{ background: typeZebra }}>
-                    {formatL1Name(state.l1?.name, isDfmea)}
-                  </td>
-                )}
-                {fIdx === 0 && (
-                  <td rowSpan={typeRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: getTypeColor(t.name).light }} onContextMenu={(e) => handleContextMenu(e, 'type', t.id)}>
-                    <SelectableCell fontSize="10px" value={getTypeColor(t.name).short} placeholder={isDfmea ? '법규 / 기본 / 보조 / 관능' : 'YP / SP / USER'} bgColor={getTypeColor(t.name).light} textColor={getTypeColor(t.name).text} textAlign="center" isRevised={t.isRevised} onClick={() => handleCellClick({ type: 'l1Type', id: state.l1?.id || '', title: '구분 선택', itemCode: 'C1' })} />
-                  </td>
-                )}
-                <td rowSpan={funcRowSpan} className="border border-[#ccc] p-0 align-middle" style={{ background: funcBlockZebra }} onContextMenu={(e) => handleContextMenu(e, 'function', t.id, f.id)}>
-                  <SelectableCell fontSize="10px" value={f.name} placeholder="기능" bgColor={funcBlockZebra} textColor="#000000" isRevised={f.isRevised} onClick={() => setL1FuncModal({ isOpen: true, type: 'C2', category, typeId: t.id, funcId: f.id })} onDoubleClickEdit={(newValue) => handleInlineEditFunction(t.id, f.id, newValue)} />
-                </td>
-                <td className="border border-[#ccc] p-0 align-middle" style={{ background: failZebraBg }} onContextMenu={(e) => handleContextMenu(e, 'requirement', t.id, f.id, '')}>
-                  <SelectableCell fontSize="10px" value="" placeholder="요구사항 선택" bgColor={failZebraBg} textColor={COLORS.failure.text} onClick={() => setL1FuncModal({ isOpen: true, type: 'C3', category, typeId: t.id, funcId: f.id, parentId: f.id, parentName: f.name })} />
-                </td>
-              </tr>
-            );
-          }
-
-          // 요구사항이 있는 경우 (reqsToRender 순회)
+          // reqsToRender 순회 (useArrayGuard가 최소 1개 요구사항 보장)
           const category = (t.name || '').toUpperCase().trim() || (isDfmea ? '법규' : 'YP');
           return reqsToRender.map((r: any, rIdx: number) => {
             const rowIdx = globalRowIdx++;

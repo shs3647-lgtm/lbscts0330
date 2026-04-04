@@ -11,7 +11,6 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PFMEATopNav from '@/components/layout/PFMEATopNav';
-import DFMEATopNav from '@/components/layout/DFMEATopNav';
 import FixedLayout from '@/components/layout/FixedLayout';
 import ImportModeMenuBar from './components/ImportModeMenuBar';
 import { useRouter, usePathname } from 'next/navigation';
@@ -28,7 +27,7 @@ function ImportLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <FixedLayout
-      topNav={isDfmea ? <DFMEATopNav selectedFmeaId={selectedFmeaId} /> : <PFMEATopNav selectedFmeaId={selectedFmeaId} />}
+      topNav={<PFMEATopNav selectedFmeaId={selectedFmeaId} />}
       topNavHeight={48}
       showSidebar={true}
       contentPadding="px-3 py-3"
