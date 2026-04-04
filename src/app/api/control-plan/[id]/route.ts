@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 
 // GET: CP 단건 조회
 export async function GET(
@@ -12,15 +12,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
+    const { id } = await params;
+
+    // 프로젝트 스키마 Prisma 클라이언트 획득 (Rule 19: public 직접 저장 금지)
+    const projPrisma = await getPrismaForCp(id);
+    if (!projPrisma) {
       return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
     }
 
-    const { id } = await params;
-    
     // cpNo 또는 id로 조회
-    const cp = await prisma.controlPlan.findFirst({
+    const cp = await projPrisma.controlPlan.findFirst({
       where: {
         OR: [
           { id },
@@ -51,16 +52,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
-      return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
-    }
-
     const { id } = await params;
     const body = await request.json();
 
+    // 프로젝트 스키마 Prisma 클라이언트 획득 (Rule 19: public 직접 저장 금지)
+    const projPrisma = await getPrismaForCp(id);
+    if (!projPrisma) {
+      return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
+    }
+
     // cpNo 또는 id로 조회
-    const existing = await prisma.controlPlan.findFirst({
+    const existing = await projPrisma.controlPlan.findFirst({
       where: {
         OR: [
           { id },
@@ -73,7 +75,7 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'CP를 찾을 수 없습니다' }, { status: 404 });
     }
 
-    const updated = await prisma.controlPlan.update({
+    const updated = await projPrisma.controlPlan.update({
       where: { id: existing.id },
       data: {
         projectName: body.projectName,
@@ -104,15 +106,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
+    const { id } = await params;
+
+    // 프로젝트 스키마 Prisma 클라이언트 획득 (Rule 19: public 직접 저장 금지)
+    const projPrisma = await getPrismaForCp(id);
+    if (!projPrisma) {
       return NextResponse.json({ success: false, error: 'DB 연결 실패' }, { status: 500 });
     }
 
-    const { id } = await params;
-
     // cpNo 또는 id로 조회
-    const existing = await prisma.controlPlan.findFirst({
+    const existing = await projPrisma.controlPlan.findFirst({
       where: {
         OR: [
           { id },
@@ -125,7 +128,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'CP를 찾을 수 없습니다' }, { status: 404 });
     }
 
-    await prisma.controlPlan.delete({
+    await projPrisma.controlPlan.delete({
       where: { id: existing.id },
     });
 

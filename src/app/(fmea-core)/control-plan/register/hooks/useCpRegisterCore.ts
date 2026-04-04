@@ -319,7 +319,7 @@ export function useCpRegisterCore() {
                   syncStatus: t.syncStatus, children: t.children || [],
                 });
               }
-            }).catch(() => {});
+            }).catch((e) => console.error('CP triplet fetch error:', e));
         }
 
         if (!isEditMode) router.replace(`/control-plan/register?id=${projectId}`);

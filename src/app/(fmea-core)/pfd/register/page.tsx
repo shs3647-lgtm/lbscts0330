@@ -314,7 +314,7 @@ function PFDRegisterPageContent() {
                   syncStatus: t.syncStatus, children: t.children || [],
                 });
               }
-            }).catch(() => {});
+            }).catch((e) => console.error('PFD triplet fetch error:', e));
         }
 
         if (!isEditMode) router.replace(`/pfd/register?id=${projectId}`);

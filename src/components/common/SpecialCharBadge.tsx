@@ -61,7 +61,7 @@ function scheduleFetchFromApi() {
         window.dispatchEvent(new Event(SC_LOADED_EVENT));
       }
     })
-    .catch(() => {})
+    .catch((e) => console.error('SpecialChar fetch error:', e))
     .finally(() => { _fetchScheduled = false; });
 }
 

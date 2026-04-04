@@ -96,7 +96,7 @@ docs/prd/                    # PRD 문서
 
 ## MANDATORY RULES — 위반 시 즉시 롤백
 
-> 모든 규칙의 상세 내용은 `.claude/rules/` 하위 파일에 정의. 이 섹션은 인덱스.
+> 모든 규칙의 상세 내용은 `docs/claude-rules/` 하위 파일에 정의. 이 섹션은 인덱스.
 
 ### 최우선 원칙 (RED)
 
@@ -118,20 +118,20 @@ docs/prd/                    # PRD 문서
 
 | Rule | 요약 | 상세 |
 |------|------|------|
-| **R2** | 기존 UI 변��� 금지 (명��적 요청 시만) | [09-ui-rendering-rules.md](docs/claude-rules/09-ui-rendering-rules.md) |
-| **R3** | 코드프��즈 — CODEFREEZE 주석 파일 주의 | [05-codefreeze-protection.md](docs/claude-rules/05-codefreeze-protection.md) |
+| **R2** | 기존 UI 변경 금지 (명시적 요청 시만) | [09-ui-rendering-rules.md](docs/claude-rules/09-ui-rendering-rules.md) |
+| **R3** | 코드프리즈 — CODEFREEZE 주석 파일 주의 | [05-codefreeze-protection.md](docs/claude-rules/05-codefreeze-protection.md) |
 | **R4** | 명시적 허락 필수 (유추 허락 금지) | — |
 | **R5** | 데이터 연동 고려 (PFMEA↔CP↔PFD) | — |
 | **R6** | 700행 초과 시 파일 분리 필수 | — |
 | **R7** | DB 원자성 보장 — `saveAtomicDB()` 호출 필수 | — |
 | **R8** | CRUD 종합 검토 | — |
 | **R9** | 타입 지정 필수 — `any` 남발 금지 | — |
-| **R11** | UI 슬림화 — 패�� 최소화, 아이콘 숨김 | [09-ui-rendering-rules.md](docs/claude-rules/09-ui-rendering-rules.md) |
+| **R11** | UI 슬림화 — 패딩 최소화, 아이콘 숨김 | [09-ui-rendering-rules.md](docs/claude-rules/09-ui-rendering-rules.md) |
 | **R12** | 온프레미스 에러 제로 — `tsc --noEmit` 에러 0개 | — |
 | **R13** | 배포환경 품질 — `createSample*()` 금지, dead code 제거 | — |
 | **R14** | Handsontable 사용 금지 — HTML table + Tailwind만 | [09-ui-rendering-rules.md](docs/claude-rules/09-ui-rendering-rules.md) |
 | **R17** | 코드 변경 시 CLAUDE.md + 매뉴얼 동기화 | — |
-| **R18** | Living DB ���키텍처 — 산업DB/LLD/SOD 동기화 | [08-living-db-sync.md](docs/claude-rules/08-living-db-sync.md) |
+| **R18** | Living DB 아키텍처 — 산업DB/LLD/SOD 동기화 | [08-living-db-sync.md](docs/claude-rules/08-living-db-sync.md) |
 
 ### 코드 작성 필수 준수
 
@@ -193,13 +193,13 @@ EXPLORE → PLAN → TDD(Red) → EXECUTE → VERIFY → COMMIT
 
 ```
 docs/claude-rules/
-├── 00-db-architecture.md       # DB ��앙 아키��처, SSoT, 프로젝�� 스키마 분���
-├── 01-uuid-fk-design.md        # UUID dedup key, FK 설계, ���본원인 분석
+├── 00-db-architecture.md       # DB 중앙 아키텍처, SSoT, 프로젝트 스키마 분리
+├── 01-uuid-fk-design.md        # UUID dedup key, FK 설계, 근본원인 분석
 ├── 02-tdd-forge-process.md     # TDD 필수, Forge 6단계, 에이전트 검증
 ├── 03-api-sql-patterns.md      # API 패턴, Raw SQL, Prisma 매핑
-├─��� 04-import-parser-guard.md   # Import 파이프라인, ��치파서, FK 필드 보호
-├── 05-codefreeze-protection.md # 코��프리즈, ��냅샷, 롤백, 기존 코드 보호
-├���─ 06-pipeline-verification.md # 파이프��인 검증, 골든 베이스라��, 자동수정
+├── 04-import-parser-guard.md   # Import 파이프라인, 위치파서, FK 필드 보호
+├── 05-codefreeze-protection.md # 코드프리즈, 스냅샷, 롤백, 기존 코드 보호
+├── 06-pipeline-verification.md # 파이프라인 검증, 골든 베이스라인, 자동수정
 ├── 07-failure-history.md       # 과거 버그 이력, 안티패턴, 재발 방지
 ├── 08-living-db-sync.md        # Master DB, 산업DB, LLD 동기화
 └── 09-ui-rendering-rules.md    # UI 규칙, DB 기반 렌더링만 허용

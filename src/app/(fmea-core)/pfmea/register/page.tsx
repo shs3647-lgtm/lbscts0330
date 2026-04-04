@@ -175,10 +175,10 @@ function PFMEARegisterPageContent() {
   useEffect(() => {
     fetch('/api/master-fmea/bd-list').then(r => r.json()).then(d => {
       setMasterBdCount((d.masters || []).length);
-    }).catch(() => {});
+    }).catch((e) => console.error('master-fmea bd-list fetch error:', e));
     fetch('/api/part-fmea/bd-list').then(r => r.json()).then(d => {
       setPartBdCount((d.items || []).length);
-    }).catch(() => {});
+    }).catch((e) => console.error('part-fmea bd-list fetch error:', e));
   }, []);
 
   // ★ 2026-02-20: BD 현황 데이터 로드 (★ 성능 개선: hook 캐시 재사용, 중복 API 제거)

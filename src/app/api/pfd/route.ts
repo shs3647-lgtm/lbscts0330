@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForPfd } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 
 // ============================================================================
@@ -547,14 +548,27 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // ★ 트랜잭션으로 관련 테이블 전체 삭제 — 원자성 보장
-    await prisma.$transaction(async (tx: any) => {
-      // 1. 연관된 PFD 아이템 삭제
-      await tx.pfdItem.deleteMany({
-        where: { pfdId: existing.id },
-      });
+    // ★ 프로젝트 스키마에서 pfdItem/pfdMasterDataset 삭제 (Rule 19)
+    const projPrisma = await getPrismaForPfd(existing.pfdNo);
+    if (!projPrisma) {
+      console.error('[PFD DELETE] Project schema unavailable for pfdNo:', existing.pfdNo);
+    } else {
+      try {
+        await projPrisma.pfdItem.deleteMany({
+          where: { pfdId: existing.id },
+        });
+      } catch { /* 프로젝트 스키마에 pfdItem 없으면 무시 */ }
 
-      // 2. 연관된 DocumentLink 삭제
+      try {
+        await projPrisma.pfdMasterDataset.deleteMany({
+          where: { pfdNo: { equals: existing.pfdNo, mode: 'insensitive' } },
+        });
+      } catch { /* 프로젝트 스키마에 pfdMasterDataset 없으면 무시 */ }
+    }
+
+    // ★ 트랜잭션으로 public 메타데이터 삭제 — 원자성 보장
+    await prisma.$transaction(async (tx: any) => {
+      // 1. 연관된 DocumentLink 삭제 (public)
       await tx.documentLink.deleteMany({
         where: {
           OR: [
@@ -564,21 +578,14 @@ export async function DELETE(req: NextRequest) {
         },
       });
 
-      // 3. PfdMasterDataset + FlatItems 삭제 (연쇄 Cascade)
-      try {
-        await tx.pfdMasterDataset.deleteMany({
-          where: { pfdNo: { equals: existing.pfdNo, mode: 'insensitive' } },
-        });
-      } catch { /* 테이블 미존재 시 무시 */ }
-
-      // 4. PfmeaPfdMapping 삭제
+      // 2. PfmeaPfdMapping 삭제 (public)
       try {
         await tx.pfmeaPfdMapping.deleteMany({
           where: { pfdNo: { equals: existing.pfdNo, mode: 'insensitive' } },
         });
       } catch { /* 테이블 미존재 시 무시 */ }
 
-      // 5. ProjectLinkage 정리 (pfdNo만 null 처리)
+      // 3. ProjectLinkage 정리 (pfdNo만 null 처리, public)
       try {
         await tx.projectLinkage.updateMany({
           where: { pfdNo: { equals: existing.pfdNo, mode: 'insensitive' } },
@@ -586,7 +593,7 @@ export async function DELETE(req: NextRequest) {
         });
       } catch { /* 테이블 미존재 시 무시 */ }
 
-      // 6. PFD 등록 삭제
+      // 4. PFD 등록 삭제 (public)
       await tx.pfdRegistration.delete({
         where: { pfdNo: existing.pfdNo },
       });

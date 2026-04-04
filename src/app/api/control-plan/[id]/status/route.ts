@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 
 const VALID_STATUSES = ['draft', 'review', 'approved'];
@@ -45,16 +46,22 @@ export async function PUT(
       });
     }
 
-    // ControlPlan 테이블도 동기화 (존재하는 경우)
+    // ControlPlan 테이블도 동기화 (프로젝트 스키마 — Rule 19)
     try {
-      const cp = await prisma.controlPlan.findFirst({
-        where: { OR: [{ id }, { cpNo: id }] },
-      });
-      if (cp) {
-        await prisma.controlPlan.update({
-          where: { id: cp.id },
-          data: { status },
+      const cpNo = cpReg?.cpNo || id;
+      const projPrisma = await getPrismaForCp(cpNo);
+      if (!projPrisma) {
+        console.error('[CP Status] Project schema unavailable for cpNo:', cpNo);
+      } else {
+        const cp = await projPrisma.controlPlan.findFirst({
+          where: { OR: [{ id }, { cpNo: id }] },
         });
+        if (cp) {
+          await projPrisma.controlPlan.update({
+            where: { id: cp.id },
+            data: { status },
+          });
+        }
       }
     } catch {
       // ControlPlan 레코드 없으면 무시

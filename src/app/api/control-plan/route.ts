@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForCp } from '@/lib/project-schema';
 
 export const runtime = 'nodejs';
 
@@ -127,9 +128,11 @@ export async function POST(request: NextRequest) {
     });
 
 
-    // 3. 기존 ControlPlan 테이블에도 저장 (하위 호환)
+    // 3. 기존 ControlPlan 테이블에도 저장 (하위 호환) — 프로젝트 스키마 사용 (Rule 19)
     try {
-      await prisma.controlPlan.upsert({
+      const projPrisma = await getPrismaForCp(cpNoLower);
+      if (!projPrisma) throw new Error('Failed to get project schema');
+      await projPrisma.controlPlan.upsert({
         where: { cpNo: cpNoLower },
         create: {
           cpNo: cpNoLower,
@@ -621,12 +624,16 @@ export async function DELETE(request: NextRequest) {
     const actualCpNo = targetRecord.cpNo;
 
     // ★ Hard Delete (영구삭제 — 휴지통 모드에서 호출)
-    await prisma.$transaction(async (tx: any) => {
-      // 1) ControlPlan 레거시 삭제
-      try {
-        await tx.controlPlan.delete({ where: { cpNo: actualCpNo } });
-      } catch { /* 레거시 없을 수 있음 */ }
 
+    // 1) ControlPlan 레거시 삭제 — 프로젝트 스키마 사용 (Rule 19)
+    try {
+      const projPrisma = await getPrismaForCp(actualCpNo);
+      if (projPrisma) {
+        await projPrisma.controlPlan.deleteMany({ where: { cpNo: actualCpNo } });
+      }
+    } catch { /* 레거시 없을 수 있음 */ }
+
+    await prisma.$transaction(async (tx: any) => {
       // 2) CpMasterFlatItem 삭제 (dataset 경유)
       try {
         const datasets = await tx.cpMasterDataset.findMany({

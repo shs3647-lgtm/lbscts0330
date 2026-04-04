@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getPrismaForPfd } from '@/lib/project-schema';
 import { safeErrorMessage } from '@/lib/security';
 
 export async function POST(
@@ -85,7 +86,7 @@ export async function POST(
         },
       });
 
-      // 4. PFD 아이템 복제
+      // 4. PFD 아이템 복제 (프로젝트 스키마 — Rule 19)
       if (existingPfd.items.length > 0) {
         const newItems = existingPfd.items.map(item => ({
           pfdId: newPfd.id,
@@ -103,9 +104,14 @@ export async function POST(
           sortOrder: item.sortOrder,
         }));
 
-        await tx.pfdItem.createMany({
-          data: newItems,
-        });
+        const projPrisma = await getPrismaForPfd(newPfd.pfdNo);
+        if (!projPrisma) {
+          console.error('[PFD Revision] Project schema unavailable for pfdNo:', newPfd.pfdNo);
+        } else {
+          await projPrisma.pfdItem.createMany({
+            data: newItems,
+          });
+        }
       }
 
       // 5. 개정 이력 기록 (간단한 버전)

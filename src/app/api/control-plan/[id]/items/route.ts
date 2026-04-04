@@ -353,7 +353,7 @@ export async function PUT(
         for (const upiId of orphanUpiIds) {
           const pfdRef = await tx.pfdItem.count({ where: { unifiedItemId: upiId } });
           if (pfdRef === 0) {
-            await tx.unifiedProcessItem.delete({ where: { id: upiId } }).catch(() => {});
+            await tx.unifiedProcessItem.delete({ where: { id: upiId } }).catch((e: unknown) => console.error('UPI delete error:', e));
           }
         }
       }
